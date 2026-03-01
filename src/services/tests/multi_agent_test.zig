@@ -10,11 +10,11 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const multi_agent = abi.ai.multi_agent;
+const multi_agent = abi.features.ai.multi_agent;
 const Coordinator = multi_agent.Coordinator;
 const CoordinatorConfig = multi_agent.CoordinatorConfig;
 const AgentHealth = multi_agent.AgentHealth;
-const Agent = abi.ai.agent.Agent;
+const Agent = abi.features.ai.agent.Agent;
 const messaging = multi_agent.messaging;
 
 // ============================================================================

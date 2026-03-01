@@ -60,7 +60,7 @@ pub fn defaultConfig() AvaTrainingConfig {
 }
 
 /// Convert Ava config to LLM training config
-pub fn toLlmConfig(config: AvaTrainingConfig) abi.ai.training.LlmTrainingConfig {
+pub fn toLlmConfig(config: AvaTrainingConfig) abi.features.ai.training.LlmTrainingConfig {
     return .{
         .epochs = config.epochs,
         .batch_size = config.batch_size,
@@ -86,7 +86,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("=== Ava Training ===\n", .{});
     std.debug.print("Training a locally-optimized AI assistant based on gpt-oss\n\n", .{});
 
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
@@ -153,7 +153,7 @@ pub fn main(init: std.process.Init) !void {
     // Initialize framework
     var ai_config = abi.config.AiConfig.defaults();
     ai_config.training = .{};
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.with(.ai, ai_config);
     if (config.use_gpu) {
         _ = builder.withDefault(.gpu);
@@ -166,7 +166,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Load base model
     std.debug.print("Loading base model: {s}...\n", .{config.base_model});
-    var model = abi.ai.training.TrainableModel.fromGguf(allocator, config.base_model) catch |err| {
+    var model = abi.features.ai.training.TrainableModel.fromGguf(allocator, config.base_model) catch |err| {
         std.debug.print("Error loading model: {t}\n", .{err});
         std.debug.print("\nTo train Ava, you need a gpt-oss compatible GGUF model.\n", .{});
         std.debug.print("Download one from: https://huggingface.co/TheBloke\n", .{});
@@ -188,13 +188,13 @@ pub fn main(init: std.process.Init) !void {
     }
 
     // Load tokenizer from model
-    var gguf_file = abi.ai.llm.io.gguf.GgufFile.open(allocator, config.base_model) catch |err| {
+    var gguf_file = abi.features.ai.llm.io.gguf.GgufFile.open(allocator, config.base_model) catch |err| {
         std.debug.print("Error opening GGUF for tokenizer: {t}\n", .{err});
         return;
     };
     defer gguf_file.deinit();
 
-    var tokenizer = abi.ai.llm.tokenizer.loadFromGguf(allocator, &gguf_file) catch |err| {
+    var tokenizer = abi.features.ai.llm.tokenizer.loadFromGguf(allocator, &gguf_file) catch |err| {
         std.debug.print("Error loading tokenizer: {t}\n", .{err});
         return;
     };
@@ -221,7 +221,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("=========================================\n", .{});
 
     const llm_config = toLlmConfig(config);
-    const report = abi.ai.training.trainLlm(allocator, &model, llm_config, tokens) catch |err| {
+    const report = abi.features.ai.training.trainLlm(allocator, &model, llm_config, tokens) catch |err| {
         std.debug.print("Training failed: {t}\n", .{err});
         return;
     };
@@ -245,8 +245,8 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("\n2. Use with agent:\n", .{});
     std.debug.print("   zig build run -- agent --persona ava --model {s}\n", .{config.output_path});
     std.debug.print("\n3. Integrate in code:\n", .{});
-    std.debug.print("   const model = try abi.ai.llm.Model.load(allocator, \"{s}\");\n", .{config.output_path});
-    std.debug.print("   const persona = abi.ai.prompts.getPersona(.ava);\n", .{});
+    std.debug.print("   const model = try abi.features.ai.llm.Model.load(allocator, \"{s}\");\n", .{config.output_path});
+    std.debug.print("   const persona = abi.features.ai.prompts.getPersona(.ava);\n", .{});
 }
 
 fn showTrainingDemo(config: AvaTrainingConfig) void {

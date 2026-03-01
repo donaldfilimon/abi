@@ -11,8 +11,8 @@ const testing = std.testing;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
 
 const fixtures = @import("fixtures.zig");
 const mocks = @import("mocks.zig");

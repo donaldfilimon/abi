@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const raft = if (build_options.enable_network) abi.network.raft else struct {};
+const raft = if (build_options.enable_network) abi.features.network.raft else struct {};
 const RaftNode = if (build_options.enable_network) raft.RaftNode else struct {};
 const RaftState = if (build_options.enable_network) raft.RaftState else struct {};
 const RequestVoteRequest = if (build_options.enable_network) raft.RequestVoteRequest else struct {};

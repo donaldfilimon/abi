@@ -51,7 +51,7 @@ pub fn runMicroBenchmark(allocator: std.mem.Allocator, args: []const [:0]const u
     }
 
     // Benchmark
-    const timer = abi.shared.time.Timer.start() catch {
+    const timer = abi.services.shared.time.Timer.start() catch {
         utils.output.printError("Timer not available.", .{});
         return;
     };

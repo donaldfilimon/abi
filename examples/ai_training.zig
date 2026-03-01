@@ -15,12 +15,12 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("=== ABI AI Training Example ===\n\n", .{});
 
-    if (!abi.ai.training.isEnabled()) {
+    if (!abi.features.ai.training.isEnabled()) {
         std.debug.print("Training feature is disabled. Enable with -Denable-training=true\n", .{});
         return;
     }
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.ai, abi.config.AiConfig{ .training = .{} })
@@ -29,7 +29,7 @@ pub fn main(_: std.process.Init) !void {
 
     // --- Training Config ---
     std.debug.print("--- Training Pipeline ---\n", .{});
-    const config = abi.ai.training.TrainingConfig{
+    const config = abi.features.ai.training.TrainingConfig{
         .epochs = 10,
         .batch_size = 64,
         .sample_count = 1024,

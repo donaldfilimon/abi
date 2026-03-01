@@ -505,7 +505,7 @@ pub const PrometheusExporter = struct {
     /// Sets the `running` flag so that `generateMetrics()` can be called,
     /// but does NOT bind a network port or spawn an HTTP server thread.
     /// To expose metrics over HTTP, mount
-    /// `abi.web.middleware.observability.MetricsMiddleware.formatPrometheus()`
+    /// `abi.features.web.middleware.observability.MetricsMiddleware.formatPrometheus()`
     /// in your web server's router, or call `generateMetrics()` directly
     /// and serve the output from an existing HTTP handler.
     pub fn start(self: *PrometheusExporter) !void {

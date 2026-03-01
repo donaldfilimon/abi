@@ -29,6 +29,9 @@ pub const enhanced = @import("routing/enhanced.zig");
 pub const metrics = @import("metrics.zig");
 pub const loadbalancer = @import("loadbalancer.zig");
 pub const generic = @import("generic.zig");
+pub const swap = @import("swap.zig");
+pub const modulation = @import("modulation.zig");
+pub const templates = @import("templates/mod.zig");
 
 // Re-export core types for stable public API
 pub const PersonaType = types.PersonaType;

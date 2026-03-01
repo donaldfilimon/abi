@@ -62,7 +62,7 @@ pub fn runChat(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     utils.output.println("Loading model: {s}...", .{model_path.?});
 
     // Create inference engine
-    var engine = abi.ai.llm.Engine.init(allocator, .{
+    var engine = abi.features.ai.llm.Engine.init(allocator, .{
         .max_new_tokens = 512,
         .temperature = 0.7,
         .top_p = 0.9,

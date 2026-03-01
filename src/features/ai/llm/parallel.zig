@@ -1,6 +1,6 @@
 //! Parallel processing utilities for LLM workloads.
 //! Provides helpers to run inference across multiple threads.
-//! For framework integration, abi.runtime.ThreadPool.parallelFor offers work-stealing
+//! For framework integration, abi.services.runtime.ThreadPool.parallelFor offers work-stealing
 //! parallelism; num_threads in InferenceConfig drives CPU thread count when use_gpu is false.
 
 const std = @import("std");

@@ -22,7 +22,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Check if SIMD is available
-    const has_simd = abi.simd.hasSimdSupport();
+    const has_simd = abi.services.simd.hasSimdSupport();
     utils.output.printKeyValue("SIMD Support", if (has_simd) "available" else "unavailable");
 
     if (!has_simd) {
@@ -50,23 +50,23 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Warmup cache
-    var timer = try abi.shared.time.Timer.start();
+    var timer = try abi.services.shared.time.Timer.start();
     _ = timer.lap();
 
     // Run vector addition benchmark
-    abi.simd.vectorAdd(a, b, result);
+    abi.services.simd.vectorAdd(a, b, result);
     const add_time = timer.lap();
 
     // Run dot product benchmark
-    const dot_result = abi.simd.vectorDot(a, b);
+    const dot_result = abi.services.simd.vectorDot(a, b);
     const dot_time = timer.lap();
 
     // Run L2 norm benchmark
-    const norm_result = abi.simd.vectorL2Norm(a);
+    const norm_result = abi.services.simd.vectorL2Norm(a);
     const norm_time = timer.lap();
 
     // Run cosine similarity benchmark
-    const cos_result = abi.simd.cosineSimilarity(a, b);
+    const cos_result = abi.services.simd.cosineSimilarity(a, b);
     const cos_time = timer.lap();
 
     // Print results

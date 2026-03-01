@@ -28,11 +28,11 @@ test "database: lifecycle management" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-lifecycle");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-lifecycle");
+    defer abi.features.database.close(&handle);
 
     // Database should be created successfully
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 0), s.count);
 }
 
@@ -43,21 +43,21 @@ test "database: insert vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-insert");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-insert");
+    defer abi.features.database.close(&handle);
 
     // Insert first vector
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0, 0.0 }, null);
 
     // Verify count increased
-    var s = abi.database.stats(&handle);
+    var s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 1), s.count);
     try std.testing.expectEqual(@as(usize, 4), s.dimension);
 
     // Insert second vector
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0, 0.0, 0.0 }, null);
 
-    s = abi.database.stats(&handle);
+    s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 2), s.count);
 }
 
@@ -68,19 +68,19 @@ test "database: insert with metadata" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-metadata");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-metadata");
+    defer abi.features.database.close(&handle);
 
     // Insert with metadata
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 2.0, 3.0 }, "document-1");
-    try abi.database.insert(&handle, 2, &[_]f32{ 4.0, 5.0, 6.0 }, "document-2");
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 2.0, 3.0 }, "document-1");
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 4.0, 5.0, 6.0 }, "document-2");
 
     // Retrieve and verify metadata
-    const view1 = abi.database.get(&handle, 1);
+    const view1 = abi.features.database.get(&handle, 1);
     try std.testing.expect(view1 != null);
     try std.testing.expectEqualStrings("document-1", view1.?.metadata.?);
 
-    const view2 = abi.database.get(&handle, 2);
+    const view2 = abi.features.database.get(&handle, 2);
     try std.testing.expect(view2 != null);
     try std.testing.expectEqualStrings("document-2", view2.?.metadata.?);
 }
@@ -92,14 +92,14 @@ test "database: get vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-get");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-get");
+    defer abi.features.database.close(&handle);
 
     const vec = [_]f32{ 1.5, 2.5, 3.5, 4.5 };
-    try abi.database.insert(&handle, 42, &vec, "test-doc");
+    try abi.features.database.insert(&handle, 42, &vec, "test-doc");
 
     // Get existing vector
-    const view = abi.database.get(&handle, 42);
+    const view = abi.features.database.get(&handle, 42);
     try std.testing.expect(view != null);
     try std.testing.expectEqual(@as(u64, 42), view.?.id);
     try std.testing.expectEqual(@as(usize, 4), view.?.vector.len);
@@ -107,7 +107,7 @@ test "database: get vectors" {
     try std.testing.expectApproxEqAbs(@as(f32, 4.5), view.?.vector[3], 0.001);
 
     // Get non-existent vector
-    const missing = abi.database.get(&handle, 999);
+    const missing = abi.features.database.get(&handle, 999);
     try std.testing.expect(missing == null);
 }
 
@@ -118,24 +118,24 @@ test "database: update vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-update");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-update");
+    defer abi.features.database.close(&handle);
 
     // Insert initial vector
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0 }, null);
 
     // Update with new values
-    const updated = try abi.database.update(&handle, 1, &[_]f32{ 0.0, 1.0, 0.0 });
+    const updated = try abi.features.database.update(&handle, 1, &[_]f32{ 0.0, 1.0, 0.0 });
     try std.testing.expect(updated);
 
     // Verify update
-    const view = abi.database.get(&handle, 1);
+    const view = abi.features.database.get(&handle, 1);
     try std.testing.expect(view != null);
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), view.?.vector[0], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), view.?.vector[1], 0.001);
 
     // Update non-existent returns false
-    const not_updated = try abi.database.update(&handle, 999, &[_]f32{ 1.0, 1.0, 1.0 });
+    const not_updated = try abi.features.database.update(&handle, 999, &[_]f32{ 1.0, 1.0, 1.0 });
     try std.testing.expect(!not_updated);
 }
 
@@ -146,33 +146,33 @@ test "database: delete vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-delete");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-delete");
+    defer abi.features.database.close(&handle);
 
     // Insert vectors
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
-    try abi.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
+    try abi.features.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, null);
 
-    var s = abi.database.stats(&handle);
+    var s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 3), s.count);
 
     // Delete one
-    const deleted = abi.database.remove(&handle, 2);
+    const deleted = abi.features.database.remove(&handle, 2);
     try std.testing.expect(deleted);
 
-    s = abi.database.stats(&handle);
+    s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 2), s.count);
 
     // Verify deleted vector is gone
-    try std.testing.expect(abi.database.get(&handle, 2) == null);
+    try std.testing.expect(abi.features.database.get(&handle, 2) == null);
 
     // Other vectors still exist
-    try std.testing.expect(abi.database.get(&handle, 1) != null);
-    try std.testing.expect(abi.database.get(&handle, 3) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 1) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 3) != null);
 
     // Delete non-existent returns false
-    const not_deleted = abi.database.remove(&handle, 999);
+    const not_deleted = abi.features.database.remove(&handle, 999);
     try std.testing.expect(!not_deleted);
 }
 
@@ -187,17 +187,17 @@ test "database: vector search" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-search");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-search");
+    defer abi.features.database.close(&handle);
 
     // Insert test vectors
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0, 0.0 }, null);
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0, 0.0, 0.0 }, null);
-    try abi.database.insert(&handle, 3, &[_]f32{ 0.7, 0.7, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 3, &[_]f32{ 0.7, 0.7, 0.0, 0.0 }, null);
 
     // Search for vector similar to [1, 0, 0, 0]
     const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const results = try abi.database.search(&handle, allocator, &query, 2);
+    const results = try abi.features.database.search(&handle, allocator, &query, 2);
     defer allocator.free(results);
 
     // Should return 2 results
@@ -218,15 +218,15 @@ test "database: search top_k exceeds count" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-search-topk");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-search-topk");
+    defer abi.features.database.close(&handle);
 
     // Insert only 2 vectors
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
 
     // Request top 10, but only 2 exist
-    const results = try abi.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 10);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 10);
     defer allocator.free(results);
 
     // Should return only 2 results
@@ -240,10 +240,10 @@ test "database: search empty database" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-search-empty");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-search-empty");
+    defer abi.features.database.close(&handle);
 
-    const results = try abi.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 5);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 5);
     defer allocator.free(results);
 
     try std.testing.expectEqual(@as(usize, 0), results.len);
@@ -256,13 +256,13 @@ test "database: search with zero vector" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-search-zero");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-search-zero");
+    defer abi.features.database.close(&handle);
 
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0 }, null);
 
     // Search with zero vector
-    const results = try abi.database.search(&handle, allocator, &[_]f32{ 0.0, 0.0, 0.0 }, 1);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{ 0.0, 0.0, 0.0 }, 1);
     defer allocator.free(results);
 
     // Should return empty (zero vector has no meaningful similarity)
@@ -280,21 +280,21 @@ test "database: list vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-list");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-list");
+    defer abi.features.database.close(&handle);
 
     // Insert multiple vectors
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, "a");
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, "b");
-    try abi.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, "c");
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, "a");
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, "b");
+    try abi.features.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, "c");
 
     // List with limit
-    const list2 = try abi.database.list(&handle, allocator, 2);
+    const list2 = try abi.features.database.list(&handle, allocator, 2);
     defer allocator.free(list2);
     try std.testing.expectEqual(@as(usize, 2), list2.len);
 
     // List all
-    const list_all = try abi.database.list(&handle, allocator, 100);
+    const list_all = try abi.features.database.list(&handle, allocator, 100);
     defer allocator.free(list_all);
     try std.testing.expectEqual(@as(usize, 3), list_all.len);
 }
@@ -310,20 +310,20 @@ test "database: statistics" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-stats");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-stats");
+    defer abi.features.database.close(&handle);
 
     // Empty database stats
-    var s = abi.database.stats(&handle);
+    var s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 0), s.count);
     try std.testing.expectEqual(@as(usize, 0), s.dimension);
     try std.testing.expectEqual(@as(usize, 0), s.memory_bytes);
 
     // Add vectors
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 2.0, 3.0, 4.0 }, null);
-    try abi.database.insert(&handle, 2, &[_]f32{ 5.0, 6.0, 7.0, 8.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 2.0, 3.0, 4.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 5.0, 6.0, 7.0, 8.0 }, null);
 
-    s = abi.database.stats(&handle);
+    s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 2), s.count);
     try std.testing.expectEqual(@as(usize, 4), s.dimension);
     try std.testing.expect(s.memory_bytes > 0);
@@ -336,25 +336,25 @@ test "database: optimize" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-optimize");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-optimize");
+    defer abi.features.database.close(&handle);
 
     // Add and delete some vectors to create fragmentation
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
-    try abi.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, null);
-    _ = abi.database.remove(&handle, 2);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
+    try abi.features.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, null);
+    _ = abi.features.database.remove(&handle, 2);
 
     // Optimize should not crash
-    try abi.database.optimize(&handle);
+    try abi.features.database.optimize(&handle);
 
     // Data should still be intact
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 2), s.count);
 
     // Remaining vectors should be accessible
-    try std.testing.expect(abi.database.get(&handle, 1) != null);
-    try std.testing.expect(abi.database.get(&handle, 3) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 1) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 3) != null);
 }
 
 // ============================================================================
@@ -368,18 +368,18 @@ test "database: duplicate id error" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-duplicate");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-duplicate");
+    defer abi.features.database.close(&handle);
 
     // First insert succeeds
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
 
     // Second insert with same ID should fail
-    const result = abi.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null);
-    try std.testing.expectError(abi.database.database.DatabaseError.DuplicateId, result);
+    const result = abi.features.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null);
+    try std.testing.expectError(abi.features.database.database.DatabaseError.DuplicateId, result);
 
     // Count should still be 1
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 1), s.count);
 }
 
@@ -390,15 +390,15 @@ test "database: dimension mismatch error" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-dimension");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-dimension");
+    defer abi.features.database.close(&handle);
 
     // First insert with dimension 3
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0, 0.0 }, null);
 
     // Second insert with dimension 4 should fail
-    const result = abi.database.insert(&handle, 2, &[_]f32{ 1.0, 0.0, 0.0, 0.0 }, null);
-    try std.testing.expectError(abi.database.database.DatabaseError.InvalidDimension, result);
+    const result = abi.features.database.insert(&handle, 2, &[_]f32{ 1.0, 0.0, 0.0, 0.0 }, null);
+    try std.testing.expectError(abi.features.database.database.DatabaseError.InvalidDimension, result);
 }
 
 // ============================================================================
@@ -412,14 +412,14 @@ test "edge case: single dimension vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-1d");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-1d");
+    defer abi.features.database.close(&handle);
 
-    try abi.database.insert(&handle, 1, &[_]f32{1.0}, null);
-    try abi.database.insert(&handle, 2, &[_]f32{-1.0}, null);
-    try abi.database.insert(&handle, 3, &[_]f32{0.5}, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{1.0}, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{-1.0}, null);
+    try abi.features.database.insert(&handle, 3, &[_]f32{0.5}, null);
 
-    const results = try abi.database.search(&handle, allocator, &[_]f32{1.0}, 2);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{1.0}, 2);
     defer allocator.free(results);
 
     try std.testing.expectEqual(@as(usize, 2), results.len);
@@ -433,8 +433,8 @@ test "edge case: high dimension vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-high-dim");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-high-dim");
+    defer abi.features.database.close(&handle);
 
     // Create 1024-dimension vectors
     var vec1: [1024]f32 = undefined;
@@ -447,10 +447,10 @@ test "edge case: high dimension vectors" {
         query[i] = 1.0;
     }
 
-    try abi.database.insert(&handle, 1, &vec1, null);
-    try abi.database.insert(&handle, 2, &vec2, null);
+    try abi.features.database.insert(&handle, 1, &vec1, null);
+    try abi.features.database.insert(&handle, 2, &vec2, null);
 
-    const results = try abi.database.search(&handle, allocator, &query, 1);
+    const results = try abi.features.database.search(&handle, allocator, &query, 1);
     defer allocator.free(results);
 
     try std.testing.expectEqual(@as(u64, 1), results[0].id);
@@ -463,25 +463,25 @@ test "edge case: empty vs null metadata" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-empty-meta");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-empty-meta");
+    defer abi.features.database.close(&handle);
 
     // Insert with null metadata
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
 
     // Insert with empty string metadata
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, "");
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, "");
 
     // Insert with actual metadata
-    try abi.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, "data");
+    try abi.features.database.insert(&handle, 3, &[_]f32{ 1.0, 1.0 }, "data");
 
-    const view1 = abi.database.get(&handle, 1);
+    const view1 = abi.features.database.get(&handle, 1);
     try std.testing.expect(view1.?.metadata == null);
 
-    const view2 = abi.database.get(&handle, 2);
+    const view2 = abi.features.database.get(&handle, 2);
     try std.testing.expectEqualStrings("", view2.?.metadata.?);
 
-    const view3 = abi.database.get(&handle, 3);
+    const view3 = abi.features.database.get(&handle, 3);
     try std.testing.expectEqualStrings("data", view3.?.metadata.?);
 }
 
@@ -492,13 +492,13 @@ test "edge case: unicode metadata" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-unicode-meta");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-unicode-meta");
+    defer abi.features.database.close(&handle);
 
     const unicode_meta = "Hello \xe4\xb8\x96\xe7\x95\x8c \xf0\x9f\x98\x80";
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, unicode_meta);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, unicode_meta);
 
-    const view = abi.database.get(&handle, 1);
+    const view = abi.features.database.get(&handle, 1);
     try std.testing.expect(view != null);
     try std.testing.expectEqualStrings(unicode_meta, view.?.metadata.?);
 }
@@ -510,20 +510,20 @@ test "edge case: special float values" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-special-floats");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-special-floats");
+    defer abi.features.database.close(&handle);
 
     // Normal vector
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
 
     // Vector with very small values
-    try abi.database.insert(&handle, 2, &[_]f32{ 1e-38, 1e-38 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 1e-38, 1e-38 }, null);
 
     // Vector with very large values
-    try abi.database.insert(&handle, 3, &[_]f32{ 1e38, 1e38 }, null);
+    try abi.features.database.insert(&handle, 3, &[_]f32{ 1e38, 1e38 }, null);
 
     // Should not crash when searching
-    const results = try abi.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 3);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 3);
     defer allocator.free(results);
 
     // Results may vary but should not crash
@@ -537,21 +537,21 @@ test "edge case: many vectors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-many");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-many");
+    defer abi.features.database.close(&handle);
 
     // Insert 100 vectors
     for (0..100) |i| {
         const id: u64 = @intCast(i);
         const val: f32 = @floatFromInt(i);
-        try abi.database.insert(&handle, id, &[_]f32{ val, 100.0 - val }, null);
+        try abi.features.database.insert(&handle, id, &[_]f32{ val, 100.0 - val }, null);
     }
 
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 100), s.count);
 
     // Search should still work
-    const results = try abi.database.search(&handle, allocator, &[_]f32{ 50.0, 50.0 }, 5);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{ 50.0, 50.0 }, 5);
     defer allocator.free(results);
 
     try std.testing.expectEqual(@as(usize, 5), results.len);
@@ -564,7 +564,7 @@ test "edge case: many vectors" {
 // Test database module feature detection.
 // Verifies isEnabled() returns correct value.
 test "database feature: detection" {
-    const enabled = abi.database.isEnabled();
+    const enabled = abi.features.database.isEnabled();
 
     if (build_options.enable_database) {
         try std.testing.expect(enabled);
@@ -580,11 +580,11 @@ test "database feature: init cycle" {
 
     const allocator = std.testing.allocator;
 
-    try abi.database.init(allocator);
-    try std.testing.expect(abi.database.isInitialized());
+    try abi.features.database.init(allocator);
+    try std.testing.expect(abi.features.database.isInitialized());
 
-    abi.database.deinit();
-    try std.testing.expect(!abi.database.isInitialized());
+    abi.features.database.deinit();
+    try std.testing.expect(!abi.features.database.isInitialized());
 }
 
 // ============================================================================
@@ -598,24 +598,24 @@ test "database: delete maintains index consistency" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-delete-consistency");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-delete-consistency");
+    defer abi.features.database.close(&handle);
 
     // Insert vectors with known IDs
-    try abi.database.insert(&handle, 10, &[_]f32{ 1.0, 0.0 }, "first");
-    try abi.database.insert(&handle, 20, &[_]f32{ 0.0, 1.0 }, "middle");
-    try abi.database.insert(&handle, 30, &[_]f32{ 1.0, 1.0 }, "last");
+    try abi.features.database.insert(&handle, 10, &[_]f32{ 1.0, 0.0 }, "first");
+    try abi.features.database.insert(&handle, 20, &[_]f32{ 0.0, 1.0 }, "middle");
+    try abi.features.database.insert(&handle, 30, &[_]f32{ 1.0, 1.0 }, "last");
 
     // Delete middle element - should swap with last
-    _ = abi.database.remove(&handle, 20);
+    _ = abi.features.database.remove(&handle, 20);
 
     // All remaining should be accessible
-    try std.testing.expect(abi.database.get(&handle, 10) != null);
-    try std.testing.expect(abi.database.get(&handle, 20) == null);
-    try std.testing.expect(abi.database.get(&handle, 30) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 10) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 20) == null);
+    try std.testing.expect(abi.features.database.get(&handle, 30) != null);
 
     // Operations on remaining should work
-    const view = abi.database.get(&handle, 30);
+    const view = abi.features.database.get(&handle, 30);
     try std.testing.expectEqualStrings("last", view.?.metadata.?);
 }
 
@@ -626,28 +626,28 @@ test "database: sequential deletes" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-seq-delete");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-seq-delete");
+    defer abi.features.database.close(&handle);
 
     // Insert 5 vectors
     for (1..6) |i| {
         const id: u64 = @intCast(i);
         const val: f32 = @floatFromInt(i);
-        try abi.database.insert(&handle, id, &[_]f32{ val, 0.0 }, null);
+        try abi.features.database.insert(&handle, id, &[_]f32{ val, 0.0 }, null);
     }
 
     // Delete in various orders
-    _ = abi.database.remove(&handle, 2);
-    _ = abi.database.remove(&handle, 4);
-    _ = abi.database.remove(&handle, 1);
+    _ = abi.features.database.remove(&handle, 2);
+    _ = abi.features.database.remove(&handle, 4);
+    _ = abi.features.database.remove(&handle, 1);
 
     // Check remaining
-    try std.testing.expect(abi.database.get(&handle, 1) == null);
-    try std.testing.expect(abi.database.get(&handle, 2) == null);
-    try std.testing.expect(abi.database.get(&handle, 3) != null);
-    try std.testing.expect(abi.database.get(&handle, 4) == null);
-    try std.testing.expect(abi.database.get(&handle, 5) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 1) == null);
+    try std.testing.expect(abi.features.database.get(&handle, 2) == null);
+    try std.testing.expect(abi.features.database.get(&handle, 3) != null);
+    try std.testing.expect(abi.features.database.get(&handle, 4) == null);
+    try std.testing.expect(abi.features.database.get(&handle, 5) != null);
 
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 2), s.count);
 }

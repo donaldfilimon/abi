@@ -3,8 +3,8 @@ const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 
-const ProviderId = abi.ai.llm.providers.ProviderId;
-const provider_parser = abi.ai.llm.providers.parser;
+const ProviderId = abi.features.ai.llm.providers.ProviderId;
+const provider_parser = abi.features.ai.llm.providers.parser;
 
 const RunOptions = struct {
     model: ?[]const u8 = null,
@@ -44,7 +44,7 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         return;
     }
 
-    var result = abi.ai.llm.providers.generate(allocator, .{
+    var result = abi.features.ai.llm.providers.generate(allocator, .{
         .model = parsed.model.?,
         .prompt = parsed.prompt.?,
         .backend = parsed.backend,
@@ -228,7 +228,7 @@ fn appendUnique(
     try list.append(allocator, provider);
 }
 
-fn printResultJson(allocator: std.mem.Allocator, result: *const abi.ai.llm.providers.GenerateResult) !void {
+fn printResultJson(allocator: std.mem.Allocator, result: *const abi.features.ai.llm.providers.GenerateResult) !void {
     var out = std.ArrayListUnmanaged(u8).empty;
     defer out.deinit(allocator);
 

@@ -18,7 +18,7 @@ const abi = @import("abi");
 test "database stub parity - types exist" {
     // These types should exist in both real and stub implementations
     // Since we're testing via abi module, we verify the public API surface
-    const Database = abi.database;
+    const Database = abi.features.database;
 
     // Verify key exported types exist
     try testing.expect(@hasDecl(Database, "DatabaseHandle"));
@@ -48,7 +48,7 @@ test "database stub parity - types exist" {
 // ============================================================================
 
 test "gpu stub parity - types exist" {
-    const Gpu = abi.gpu;
+    const Gpu = abi.features.gpu;
 
     // Core API surface (both mod.zig and stub.zig must have these)
     try testing.expect(@hasDecl(Gpu, "Context"));
@@ -70,7 +70,7 @@ test "gpu stub parity - types exist" {
 // ============================================================================
 
 test "network stub parity - types exist" {
-    const Network = abi.network;
+    const Network = abi.features.network;
 
     try testing.expect(@hasDecl(Network, "Context"));
     try testing.expect(@hasDecl(Network, "isEnabled"));
@@ -81,7 +81,7 @@ test "network stub parity - types exist" {
 // ============================================================================
 
 test "web stub parity - types exist" {
-    const Web = abi.web;
+    const Web = abi.features.web;
 
     try testing.expect(@hasDecl(Web, "Context"));
     try testing.expect(@hasDecl(Web, "isEnabled"));
@@ -92,7 +92,7 @@ test "web stub parity - types exist" {
 // ============================================================================
 
 test "observability stub parity - types exist" {
-    const Observability = abi.observability;
+    const Observability = abi.features.observability;
 
     try testing.expect(@hasDecl(Observability, "Context"));
     try testing.expect(@hasDecl(Observability, "isEnabled"));
@@ -103,7 +103,7 @@ test "observability stub parity - types exist" {
 // ============================================================================
 
 test "analytics stub parity - types exist" {
-    const Analytics = abi.analytics;
+    const Analytics = abi.features.analytics;
 
     // Core types
     try testing.expect(@hasDecl(Analytics, "Engine"));
@@ -121,7 +121,7 @@ test "analytics stub parity - types exist" {
 // ============================================================================
 
 test "cloud stub parity - types exist" {
-    const Cloud = abi.cloud;
+    const Cloud = abi.features.cloud;
 
     // Core types
     try testing.expect(@hasDecl(Cloud, "CloudEvent"));
@@ -159,7 +159,7 @@ test "cloud stub parity - types exist" {
 test "ai stub parity - types exist" {
     if (!build_options.enable_ai) return;
 
-    const AI = abi.ai;
+    const AI = abi.features.ai;
 
     // Essential types
     try testing.expect(@hasDecl(AI, "Context"));
@@ -190,28 +190,28 @@ test "ai stub parity - types exist" {
 test "ai/llm stub parity - types exist" {
     if (!build_options.enable_llm) return;
 
-    const Llm = abi.ai.llm;
+    const Llm = abi.features.ai.llm;
     _ = Llm; // Module exists and is accessible
 }
 
 test "ai/agents stub parity - types exist" {
     if (!build_options.enable_ai) return;
 
-    const Agents = abi.ai.agents;
+    const Agents = abi.features.ai.agents;
     _ = Agents; // Module exists and is accessible
 }
 
 test "ai/embeddings stub parity - types exist" {
     if (!build_options.enable_ai) return;
 
-    const Embeddings = abi.ai.embeddings;
+    const Embeddings = abi.features.ai.embeddings;
     _ = Embeddings; // Module exists and is accessible
 }
 
 test "ai/training stub parity - types exist" {
     if (!build_options.enable_ai) return;
 
-    const Training = abi.ai.training;
+    const Training = abi.features.ai.training;
     _ = Training; // Module exists and is accessible
 }
 
@@ -249,7 +249,7 @@ fn verifyBackendHasMethods(comptime Backend: type) !void {
 test "gpu backend vtable parity - all backends implement required methods" {
     if (!build_options.enable_gpu) return error.SkipZigTest;
 
-    const gpu_mod = abi.gpu;
+    const gpu_mod = abi.features.gpu;
 
     // Verify each backend type exports all VTable-required methods
     if (@hasDecl(gpu_mod, "backends")) {
@@ -291,7 +291,7 @@ fn verifyContextPattern(comptime Module: type) !void {
 // ============================================================================
 
 test "auth stub parity - types exist" {
-    const Auth = abi.auth;
+    const Auth = abi.features.auth;
 
     try testing.expect(@hasDecl(Auth, "AuthConfig"));
     try testing.expect(@hasDecl(Auth, "AuthError"));
@@ -330,7 +330,7 @@ test "auth stub parity - types exist" {
 // ============================================================================
 
 test "messaging stub parity - types exist" {
-    const Messaging = abi.messaging;
+    const Messaging = abi.features.messaging;
 
     try testing.expect(@hasDecl(Messaging, "MessagingConfig"));
     try testing.expect(@hasDecl(Messaging, "MessagingError"));
@@ -359,7 +359,7 @@ test "messaging stub parity - types exist" {
 // ============================================================================
 
 test "cache stub parity - types exist" {
-    const Cache = abi.cache;
+    const Cache = abi.features.cache;
 
     try testing.expect(@hasDecl(Cache, "CacheConfig"));
     try testing.expect(@hasDecl(Cache, "CacheError"));
@@ -384,7 +384,7 @@ test "cache stub parity - types exist" {
 // ============================================================================
 
 test "storage stub parity - types exist" {
-    const Storage = abi.storage;
+    const Storage = abi.features.storage;
 
     try testing.expect(@hasDecl(Storage, "StorageConfig"));
     try testing.expect(@hasDecl(Storage, "StorageBackend"));
@@ -409,7 +409,7 @@ test "storage stub parity - types exist" {
 // ============================================================================
 
 test "search stub parity - types exist" {
-    const Search = abi.search;
+    const Search = abi.features.search;
 
     try testing.expect(@hasDecl(Search, "SearchConfig"));
     try testing.expect(@hasDecl(Search, "SearchError"));
@@ -432,7 +432,7 @@ test "search stub parity - types exist" {
 // ============================================================================
 
 test "gateway stub parity - types exist" {
-    const Gateway = abi.gateway;
+    const Gateway = abi.features.gateway;
 
     try testing.expect(@hasDecl(Gateway, "GatewayConfig"));
     try testing.expect(@hasDecl(Gateway, "GatewayError"));
@@ -465,7 +465,7 @@ test "gateway stub parity - types exist" {
 // ============================================================================
 
 test "pages stub parity - types exist" {
-    const Pages = abi.pages;
+    const Pages = abi.features.pages;
 
     try testing.expect(@hasDecl(Pages, "PagesConfig"));
     try testing.expect(@hasDecl(Pages, "PagesError"));
@@ -496,7 +496,7 @@ test "pages stub parity - types exist" {
 // ============================================================================
 
 test "benchmarks stub parity - types exist" {
-    const Benchmarks = abi.benchmarks;
+    const Benchmarks = abi.features.benchmarks;
 
     try testing.expect(@hasDecl(Benchmarks, "Config"));
     try testing.expect(@hasDecl(Benchmarks, "BenchmarksError"));
@@ -509,7 +509,7 @@ test "benchmarks stub parity - types exist" {
 // ============================================================================
 
 test "mobile stub parity - types exist" {
-    const Mobile = abi.mobile;
+    const Mobile = abi.features.mobile;
 
     try testing.expect(@hasDecl(Mobile, "MobileConfig"));
     try testing.expect(@hasDecl(Mobile, "MobilePlatform"));
@@ -530,24 +530,24 @@ test "mobile stub parity - types exist" {
 
 test "all feature modules have consistent API surface" {
     // All feature modules should follow the Context + isEnabled pattern
-    try verifyContextPattern(abi.database);
-    try verifyContextPattern(abi.gpu);
-    try verifyContextPattern(abi.network);
-    try verifyContextPattern(abi.web);
-    try verifyContextPattern(abi.observability);
-    try verifyContextPattern(abi.analytics);
-    try verifyContextPattern(abi.cloud);
-    try verifyContextPattern(abi.auth);
-    try verifyContextPattern(abi.messaging);
-    try verifyContextPattern(abi.cache);
-    try verifyContextPattern(abi.storage);
-    try verifyContextPattern(abi.search);
-    try verifyContextPattern(abi.mobile);
-    try verifyContextPattern(abi.gateway);
-    try verifyContextPattern(abi.pages);
+    try verifyContextPattern(abi.features.database);
+    try verifyContextPattern(abi.features.gpu);
+    try verifyContextPattern(abi.features.network);
+    try verifyContextPattern(abi.features.web);
+    try verifyContextPattern(abi.features.observability);
+    try verifyContextPattern(abi.features.analytics);
+    try verifyContextPattern(abi.features.cloud);
+    try verifyContextPattern(abi.features.auth);
+    try verifyContextPattern(abi.features.messaging);
+    try verifyContextPattern(abi.features.cache);
+    try verifyContextPattern(abi.features.storage);
+    try verifyContextPattern(abi.features.search);
+    try verifyContextPattern(abi.features.mobile);
+    try verifyContextPattern(abi.features.gateway);
+    try verifyContextPattern(abi.features.pages);
 
     if (build_options.enable_ai) {
-        try verifyContextPattern(abi.ai);
+        try verifyContextPattern(abi.features.ai);
     }
 }
 
@@ -556,7 +556,7 @@ test "all feature modules have consistent API surface" {
 // ============================================================================
 
 test "constitution stub parity - types exist" {
-    const Constitution = abi.ai.constitution;
+    const Constitution = abi.features.ai.constitution;
 
     // Key types must exist in both real and stub implementations
     try testing.expect(@hasDecl(Constitution, "Principle"));
@@ -573,7 +573,7 @@ test "constitution stub parity - types exist" {
 }
 
 test "constitution stub parity - Constitution methods" {
-    const C = abi.ai.constitution.Constitution;
+    const C = abi.features.ai.constitution.Constitution;
 
     try testing.expect(@hasDecl(C, "init"));
     try testing.expect(@hasDecl(C, "initWithGuardrails"));

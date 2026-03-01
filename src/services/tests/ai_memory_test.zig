@@ -6,7 +6,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const memory = if (build_options.enable_ai) abi.ai.memory else struct {};
+const memory = if (build_options.enable_ai) abi.features.ai.memory else struct {};
 const ShortTermMemory = if (build_options.enable_ai) memory.ShortTermMemory else struct {};
 const SlidingWindowMemory = if (build_options.enable_ai) memory.SlidingWindowMemory else struct {};
 const Message = if (build_options.enable_ai) memory.Message else struct {};

@@ -11,7 +11,7 @@ const abi = @import("abi");
 
 test "c_api: simd availability detection" {
     // Test SIMD detection (C API wraps abi_simd_available())
-    const has_simd = abi.simd.hasSimdSupport();
+    const has_simd = abi.services.simd.hasSimdSupport();
 
     // SIMD should be available on most modern platforms
     if (builtin.cpu.arch == .x86_64 or builtin.cpu.arch == .aarch64) {
@@ -21,7 +21,7 @@ test "c_api: simd availability detection" {
 
 test "c_api: simd capabilities structure" {
     // Test SIMD capabilities (C API wraps abi_simd_get_caps())
-    const caps = abi.simd.getSimdCapabilities();
+    const caps = abi.services.simd.getSimdCapabilities();
 
     // Vector size should be at least 1 (scalar fallback)
     try testing.expect(caps.vector_size >= 1);
@@ -45,7 +45,7 @@ test "c_api: simd vector operations work correctly" {
     var b = [_]f32{ 0.5, 1.5, 2.5, 3.5 };
     var result: [4]f32 = undefined;
 
-    abi.simd.vectorAdd(&a, &b, &result);
+    abi.services.simd.vectorAdd(&a, &b, &result);
 
     try testing.expectApproxEqAbs(@as(f32, 1.5), result[0], 1e-6);
     try testing.expectApproxEqAbs(@as(f32, 3.5), result[1], 1e-6);
@@ -57,7 +57,7 @@ test "c_api: simd dot product" {
     var a = [_]f32{ 1.0, 2.0, 3.0 };
     var b = [_]f32{ 4.0, 5.0, 6.0 };
 
-    const result = abi.simd.vectorDot(&a, &b);
+    const result = abi.services.simd.vectorDot(&a, &b);
 
     // 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
     try testing.expectApproxEqAbs(@as(f32, 32.0), result, 1e-6);
@@ -67,7 +67,7 @@ test "c_api: simd cosine similarity" {
     var a = [_]f32{ 1.0, 0.0 };
     var b = [_]f32{ 1.0, 0.0 };
 
-    const result = abi.simd.cosineSimilarity(&a, &b);
+    const result = abi.services.simd.cosineSimilarity(&a, &b);
 
     // Identical vectors should have cosine similarity of 1.0
     try testing.expectApproxEqAbs(@as(f32, 1.0), result, 1e-6);
@@ -76,14 +76,14 @@ test "c_api: simd cosine similarity" {
     var c = [_]f32{ 1.0, 0.0 };
     var d = [_]f32{ 0.0, 1.0 };
 
-    const result2 = abi.simd.cosineSimilarity(&c, &d);
+    const result2 = abi.services.simd.cosineSimilarity(&c, &d);
     try testing.expectApproxEqAbs(@as(f32, 0.0), result2, 1e-6);
 }
 
 test "c_api: simd L2 norm" {
     var v = [_]f32{ 3.0, 4.0 };
 
-    const result = abi.simd.vectorL2Norm(&v);
+    const result = abi.services.simd.vectorL2Norm(&v);
 
     // sqrt(3^2 + 4^2) = sqrt(9 + 16) = sqrt(25) = 5
     try testing.expectApproxEqAbs(@as(f32, 5.0), result, 1e-6);
@@ -109,7 +109,7 @@ test "c_api: simd caps struct layout" {
     };
 
     // Get actual capabilities
-    const caps = abi.simd.getSimdCapabilities();
+    const caps = abi.services.simd.getSimdCapabilities();
     const is_x86 = caps.arch == .x86_64;
     const is_arm = caps.arch == .aarch64;
 

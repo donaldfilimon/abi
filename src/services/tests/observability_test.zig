@@ -11,7 +11,7 @@ const testing = std.testing;
 const abi = @import("abi");
 
 // Import observability types from the module
-const observability = abi.observability;
+const observability = abi.features.observability;
 const Counter = observability.Counter;
 const Gauge = observability.Gauge;
 const FloatGauge = observability.FloatGauge;

@@ -6,7 +6,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const rag = if (build_options.enable_ai) abi.ai.rag else struct {};
+const rag = if (build_options.enable_ai) abi.features.ai.rag else struct {};
 const Chunker = if (build_options.enable_ai) rag.Chunker else struct {};
 const Retriever = if (build_options.enable_ai) rag.Retriever else struct {};
 const ContextBuilder = if (build_options.enable_ai) rag.ContextBuilder else struct {};

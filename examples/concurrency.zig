@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const primitives = abi.shared.utils.primitives;
+const primitives = abi.services.shared.utils.primitives;
 
 pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -31,7 +31,7 @@ pub fn main(_: std.process.Init) !void {
 fn demoMpmcQueue(allocator: std.mem.Allocator) !void {
     std.debug.print("--- MPMC Queue Demo ---\n", .{});
 
-    const MpmcQueue = abi.runtime.concurrency.MpmcQueue(u64);
+    const MpmcQueue = abi.services.runtime.concurrency.MpmcQueue(u64);
     var queue = try MpmcQueue.init(allocator, 256);
     defer queue.deinit();
 
@@ -59,7 +59,7 @@ fn demoMpmcQueue(allocator: std.mem.Allocator) !void {
 fn demoChaseLevDeque(allocator: std.mem.Allocator) !void {
     std.debug.print("--- Chase-Lev Deque Demo ---\n", .{});
 
-    const ChaseLevDeque = abi.runtime.concurrency.ChaseLevDeque(u32);
+    const ChaseLevDeque = abi.services.runtime.concurrency.ChaseLevDeque(u32);
     var deque = try ChaseLevDeque.init(allocator);
     defer deque.deinit();
 

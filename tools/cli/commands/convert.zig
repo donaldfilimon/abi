@@ -108,14 +108,14 @@ fn runDataset(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
 
     if (std.mem.eql(u8, format.?, "to-wdbx")) {
         utils.output.printInfo("Converting TokenBin {s} -> WDBX {s}...", .{ input_path.?, output_path.? });
-        abi.ai.database.tokenBinToWdbx(allocator, input_path.?, output_path.?, block_size) catch |err| {
+        abi.features.ai.database.tokenBinToWdbx(allocator, input_path.?, output_path.?, block_size) catch |err| {
             utils.output.printError("Conversion failed: {t}", .{err});
             return;
         };
         utils.output.printSuccess("Success.", .{});
     } else if (std.mem.eql(u8, format.?, "to-tokenbin")) {
         utils.output.printInfo("Converting WDBX {s} -> TokenBin {s}...", .{ input_path.?, output_path.? });
-        abi.ai.database.wdbxToTokenBin(allocator, input_path.?, output_path.?) catch |err| {
+        abi.features.ai.database.wdbxToTokenBin(allocator, input_path.?, output_path.?) catch |err| {
             utils.output.printError("Conversion failed: {t}", .{err});
             return;
         };
@@ -208,7 +208,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
         utils.output.printInfo("Converting {s} -> SafeTensors {s}...", .{ input_path.?, output_path.? });
 
         // Check AI feature
-        if (!abi.ai.isEnabled()) {
+        if (!abi.features.ai.isEnabled()) {
             utils.output.printError("AI feature is disabled. Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
             return;
         }
@@ -230,7 +230,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
         utils.output.printInfo("Converting {s} -> GGUF {s}...", .{ input_path.?, output_path.? });
 
         // Check AI feature
-        if (!abi.ai.isEnabled()) {
+        if (!abi.features.ai.isEnabled()) {
             utils.output.printError("AI feature is disabled. Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
             return;
         }

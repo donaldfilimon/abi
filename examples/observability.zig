@@ -33,7 +33,7 @@ pub fn main(_: std.process.Init) !void {
 fn demoMetrics(allocator: std.mem.Allocator) !void {
     std.debug.print("--- Metrics Demo ---\n", .{});
 
-    const obs = abi.observability;
+    const obs = abi.features.observability;
 
     // Create a metrics collector
     var collector = obs.MetricsCollector.init(allocator);

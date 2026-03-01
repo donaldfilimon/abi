@@ -16,7 +16,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
     }
 
     // Check if Vision feature is enabled
-    if (!abi.ai.vision.isEnabled()) {
+    if (!abi.features.ai.vision.isEnabled()) {
         utils.output.printError("Vision feature is not enabled. Build with -Dfeat-vision=true (legacy: -Denable-vision=true)", .{});
         return;
     }
@@ -191,7 +191,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
     }
 
     // Create ViT config
-    const vit_config = abi.ai.vision.ViTConfig{
+    const vit_config = abi.features.ai.vision.ViTConfig{
         .image_size = image_size,
         .patch_size = patch_size,
         .hidden_size = hidden_size,
@@ -202,7 +202,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
         .use_class_token = true,
     };
 
-    const trainable_vit_config = abi.ai.training.TrainableViTConfig{
+    const trainable_vit_config = abi.features.ai.training.TrainableViTConfig{
         .vit_config = vit_config,
         .max_batch_size = batch_size,
         .num_classes = num_classes,
@@ -243,7 +243,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
 
     // Initialize model
     utils.output.println("Initializing ViT model with random weights...", .{});
-    var model = abi.ai.training.TrainableViTModel.init(allocator, trainable_vit_config) catch |err| {
+    var model = abi.features.ai.training.TrainableViTModel.init(allocator, trainable_vit_config) catch |err| {
         utils.output.printError("initializing model: {t}", .{err});
         return;
     };
@@ -280,7 +280,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
     utils.output.println("", .{});
     utils.output.println("Starting Vision training...", .{});
 
-    var timer = abi.shared.time.Timer.start() catch {
+    var timer = abi.services.shared.time.Timer.start() catch {
         utils.output.printError("Failed to start timer", .{});
         return;
     };
@@ -363,7 +363,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     }
 
     // Check if Vision feature is enabled
-    if (!abi.ai.vision.isEnabled()) {
+    if (!abi.features.ai.vision.isEnabled()) {
         utils.output.printError("Vision feature is not enabled. Build with -Dfeat-vision=true (legacy: -Denable-vision=true)", .{});
         return;
     }
@@ -540,7 +540,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     }
 
     // Create CLIP config
-    const vit_config = abi.ai.vision.ViTConfig{
+    const vit_config = abi.features.ai.vision.ViTConfig{
         .image_size = image_size,
         .patch_size = patch_size,
         .hidden_size = vision_hidden,
@@ -551,14 +551,14 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         .use_class_token = true,
     };
 
-    const vision_config = abi.ai.training.TrainableViTConfig{
+    const vision_config = abi.features.ai.training.TrainableViTConfig{
         .vit_config = vit_config,
         .max_batch_size = batch_size,
         .num_classes = 0, // CLIP uses projection
         .projection_dim = projection_dim,
     };
 
-    const clip_config = abi.ai.training.CLIPTrainingConfig{
+    const clip_config = abi.features.ai.training.CLIPTrainingConfig{
         .vision_config = vision_config,
         .text_hidden_size = text_hidden,
         .text_num_layers = text_layers,
@@ -608,7 +608,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
 
     // Initialize model
     utils.output.println("Initializing CLIP model with random weights...", .{});
-    var model = abi.ai.training.TrainableCLIPModel.init(allocator, clip_config) catch |err| {
+    var model = abi.features.ai.training.TrainableCLIPModel.init(allocator, clip_config) catch |err| {
         utils.output.printError("initializing model: {t}", .{err});
         return;
     };
@@ -647,7 +647,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     utils.output.println("", .{});
     utils.output.println("Starting CLIP contrastive training...", .{});
 
-    var timer = abi.shared.time.Timer.start() catch {
+    var timer = abi.services.shared.time.Timer.start() catch {
         utils.output.printError("Failed to start timer", .{});
         return;
     };

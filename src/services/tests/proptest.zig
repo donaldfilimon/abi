@@ -19,7 +19,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.shared.time;
+const time = abi.services.shared.time;
 
 /// Configuration for property-based tests.
 pub const PropTestConfig = struct {

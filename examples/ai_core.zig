@@ -15,12 +15,12 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("=== ABI AI Core Example ===\n\n", .{});
 
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .withDefault(.ai)
@@ -29,11 +29,11 @@ pub fn main(_: std.process.Init) !void {
 
     // --- Tool Registry ---
     std.debug.print("--- Tool Registry ---\n", .{});
-    var registry = abi.ai.tools.ToolRegistry.init(allocator);
+    var registry = abi.features.ai.tools.ToolRegistry.init(allocator);
     defer registry.deinit();
 
     // Register Discord tools as an example of bulk tool registration
-    try abi.ai.tools.registerDiscordTools(&registry);
+    try abi.features.ai.tools.registerDiscordTools(&registry);
     std.debug.print("Registered Discord tools in registry\n", .{});
 
     // Look up a tool by name
@@ -43,7 +43,7 @@ pub fn main(_: std.process.Init) !void {
 
     // --- Agent Creation ---
     std.debug.print("\n--- Agent ---\n", .{});
-    var agent = abi.ai.agent.Agent.init(allocator, .{
+    var agent = abi.features.ai.agent.Agent.init(allocator, .{
         .name = "demo-agent",
         .temperature = 0.7,
     }) catch |err| {
@@ -56,7 +56,7 @@ pub fn main(_: std.process.Init) !void {
 
     // --- Model Registry ---
     std.debug.print("\n--- Model Registry ---\n", .{});
-    const ModelInfo = abi.ai.model_registry.ModelInfo;
+    const ModelInfo = abi.features.ai.model_registry.ModelInfo;
     _ = ModelInfo;
     std.debug.print("ModelRegistry type available\n", .{});
 

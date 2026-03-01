@@ -21,18 +21,18 @@ pub fn main(_: std.process.Init) !void {
     // ── Step 1: GPU Discovery ──────────────────────────────────────────────
     std.debug.print("--- Step 1: GPU Device Discovery ---\n", .{});
 
-    const gpu_enabled = abi.gpu.backends.detect.moduleEnabled();
+    const gpu_enabled = abi.features.gpu.backends.detect.moduleEnabled();
     std.debug.print("GPU module: {s}\n", .{if (gpu_enabled) "enabled" else "disabled (stub)"});
 
     if (gpu_enabled) {
-        const backends = abi.gpu.backends.detect.availableBackends(allocator) catch |err| {
+        const backends = abi.features.gpu.backends.detect.availableBackends(allocator) catch |err| {
             std.debug.print("  Backend enumeration failed: {t}\n", .{err});
             return;
         };
         defer allocator.free(backends);
         std.debug.print("  Available backends: {d}\n", .{backends.len});
         for (backends) |b| {
-            const avail = abi.gpu.backends.detect.backendAvailability(b);
+            const avail = abi.features.gpu.backends.detect.backendAvailability(b);
             std.debug.print("    {t}: {d} device(s)\n", .{ b, avail.device_count });
         }
     } else {
@@ -42,7 +42,7 @@ pub fn main(_: std.process.Init) !void {
     // ── Step 2: Training Configuration ─────────────────────────────────────
     std.debug.print("\n--- Step 2: Training Pipeline Config ---\n", .{});
 
-    const training_config = abi.ai.training.TrainingConfig{
+    const training_config = abi.features.ai.training.TrainingConfig{
         .epochs = 20,
         .batch_size = 128,
         .sample_count = 50_000,
@@ -75,7 +75,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n--- Step 3: Distributed Training Coordinator ---\n", .{});
 
     // Simulate a 4-GPU data-parallel training setup
-    const dist_config = abi.ai.training.DistributedConfig{
+    const dist_config = abi.features.ai.training.DistributedConfig{
         .world_size = 4,
         .rank = 0,
         .is_coordinator = true,
@@ -88,7 +88,7 @@ pub fn main(_: std.process.Init) !void {
         return;
     };
 
-    var dist_trainer = abi.ai.training.DistributedTrainer.init(allocator, dist_config);
+    var dist_trainer = abi.features.ai.training.DistributedTrainer.init(allocator, dist_config);
     defer dist_trainer.deinit();
 
     std.debug.print("  World size:       {d} GPU(s)\n", .{dist_config.world_size});

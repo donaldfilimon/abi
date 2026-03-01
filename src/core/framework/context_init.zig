@@ -210,7 +210,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
     if (cfg.ai) |ai_cfg| {
         // AI sub-modules fail non-fatally: the main `ai` module is available but
         // specialized sub-features (core, inference, training, reasoning) may be null.
-        // Users can check via abi.ai.isLlmEnabled() or `abi system-info`.
+        // Users can check via abi.features.ai.isLlmEnabled() or `abi system-info`.
         if (comptime build_options.enable_ai) {
             fw.ai_core = ai_core_mod.Context.init(
                 allocator,

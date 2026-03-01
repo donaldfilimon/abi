@@ -6,7 +6,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const orchestration = if (build_options.enable_ai) abi.ai.orchestration else struct {};
+const orchestration = if (build_options.enable_ai) abi.features.ai.orchestration else struct {};
 const Orchestrator = if (build_options.enable_ai) orchestration.Orchestrator else struct {};
 const OrchestrationConfig = if (build_options.enable_ai) orchestration.OrchestrationConfig else struct {};
 const ModelConfig = if (build_options.enable_ai) orchestration.ModelConfig else struct {};

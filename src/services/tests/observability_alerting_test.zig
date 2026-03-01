@@ -5,7 +5,7 @@ const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");
 
-const observability = abi.observability;
+const observability = abi.features.observability;
 const AlertManager = observability.AlertManager;
 const AlertManagerConfig = observability.AlertManagerConfig;
 const AlertCondition = observability.AlertCondition;

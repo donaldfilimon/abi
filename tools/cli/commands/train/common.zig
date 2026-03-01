@@ -9,16 +9,16 @@ const utils = @import("../../utils/mod.zig");
 const tui = @import("../../tui/mod.zig");
 
 pub const cli_io = utils.io_backend;
-pub const gguf_writer = abi.ai.llm.io.gguf_writer;
+pub const gguf_writer = abi.features.ai.llm.io.gguf_writer;
 
-pub fn parseOptimizer(val: []const u8) abi.ai.training.OptimizerType {
+pub fn parseOptimizer(val: []const u8) abi.features.ai.training.OptimizerType {
     if (std.mem.eql(u8, val, "sgd")) return .sgd;
     if (std.mem.eql(u8, val, "adam")) return .adam;
     if (std.mem.eql(u8, val, "adamw")) return .adamw;
     return .adamw; // default
 }
 
-pub fn parseLrSchedule(val: []const u8) abi.ai.training.LearningRateSchedule {
+pub fn parseLrSchedule(val: []const u8) abi.features.ai.training.LearningRateSchedule {
     if (std.mem.eql(u8, val, "constant")) return .constant;
     if (std.mem.eql(u8, val, "cosine")) return .cosine;
     if (std.mem.eql(u8, val, "warmup_cosine")) return .warmup_cosine;
@@ -88,10 +88,10 @@ pub fn defaultDatasetCachePath(allocator: std.mem.Allocator, url: []const u8) ![
 }
 
 pub fn downloadToFile(allocator: std.mem.Allocator, url: []const u8, path: []const u8, max_bytes: usize) !void {
-    var client = try abi.shared.utils.async_http.AsyncHttpClient.init(allocator);
+    var client = try abi.services.shared.utils.async_http.AsyncHttpClient.init(allocator);
     defer client.deinit();
 
-    var request = try abi.shared.utils.async_http.HttpRequest.init(allocator, .get, url);
+    var request = try abi.services.shared.utils.async_http.HttpRequest.init(allocator, .get, url);
     defer request.deinit();
 
     var response = try client.fetch(&request);
@@ -117,12 +117,12 @@ pub fn loadTokensFromPath(
     allocator: std.mem.Allocator,
     format: DatasetFormat,
     path: []const u8,
-    tokenizer: ?*abi.ai.llm.tokenizer.Tokenizer,
+    tokenizer: ?*abi.features.ai.llm.tokenizer.Tokenizer,
     max_tokens: usize,
 ) ![]u32 {
     switch (format) {
         .tokenbin => {
-            var tokens = try abi.ai.database.readTokenBinFile(allocator, path);
+            var tokens = try abi.features.ai.database.readTokenBinFile(allocator, path);
             if (max_tokens > 0 and tokens.len > max_tokens) {
                 const trimmed = try allocator.alloc(u32, max_tokens);
                 @memcpy(trimmed, tokens[0..max_tokens]);
@@ -168,7 +168,7 @@ pub fn readTextFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
 
 pub fn tokenizeJsonl(
     allocator: std.mem.Allocator,
-    tokenizer: *abi.ai.llm.tokenizer.Tokenizer,
+    tokenizer: *abi.features.ai.llm.tokenizer.Tokenizer,
     data: []const u8,
     max_tokens: usize,
 ) ![]u32 {

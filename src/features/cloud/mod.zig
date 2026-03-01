@@ -19,7 +19,7 @@
 //! ```zig
 //! const std = @import("std");
 //! const abi = @import("abi");
-//! const cloud = abi.cloud;
+//! const cloud = abi.features.cloud;
 //!
 //! /// Your function handler - same code works on all providers
 //! fn handler(event: *cloud.CloudEvent, allocator: std.mem.Allocator) !cloud.CloudResponse {

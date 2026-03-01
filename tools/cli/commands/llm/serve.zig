@@ -65,7 +65,7 @@ pub fn runServe(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     }
 
     // Create server configuration
-    const server_config = abi.ai.streaming.ServerConfig{
+    const server_config = abi.features.ai.streaming.ServerConfig{
         .address = address,
         .auth_token = auth_token,
         .default_model_path = model_path,
@@ -103,7 +103,7 @@ pub fn runServe(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     utils.output.println("", .{});
 
     // Initialize server
-    var server = abi.ai.streaming.StreamingServer.init(allocator, server_config) catch |err| {
+    var server = abi.features.ai.streaming.StreamingServer.init(allocator, server_config) catch |err| {
         utils.output.printError("Failed to initialize server: {t}", .{err});
         return err;
     };

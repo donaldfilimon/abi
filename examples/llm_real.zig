@@ -37,8 +37,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     std.debug.print("Prompt: {s}\n\n", .{prompt});
 
     // 1) Try Ollama
-    if (abi.connectors.ollama.loadFromEnv(allocator) catch null) |config| {
-        var client = abi.connectors.ollama.Client.init(allocator, config) catch |err| {
+    if (abi.services.connectors.ollama.loadFromEnv(allocator) catch null) |config| {
+        var client = abi.services.connectors.ollama.Client.init(allocator, config) catch |err| {
             std.debug.print("Ollama client init failed: {t}\n", .{err});
             printSetupHelp();
             return;
@@ -61,8 +61,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     // 2) Try LM Studio
-    if (abi.connectors.tryLoadLMStudio(allocator) catch null) |config| {
-        var client = abi.connectors.lm_studio.Client.init(allocator, config) catch |err| {
+    if (abi.services.connectors.tryLoadLMStudio(allocator) catch null) |config| {
+        var client = abi.services.connectors.lm_studio.Client.init(allocator, config) catch |err| {
             std.debug.print("LM Studio client init failed: {t}\n", .{err});
             printSetupHelp();
             return;
@@ -87,8 +87,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     // 3) Try vLLM
-    if (abi.connectors.tryLoadVLLM(allocator) catch null) |config| {
-        var client = abi.connectors.vllm.Client.init(allocator, config) catch |err| {
+    if (abi.services.connectors.tryLoadVLLM(allocator) catch null) |config| {
+        var client = abi.services.connectors.vllm.Client.init(allocator, config) catch |err| {
             std.debug.print("vLLM client init failed: {t}\n", .{err});
             printSetupHelp();
             return;

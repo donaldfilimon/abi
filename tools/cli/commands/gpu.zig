@@ -5,9 +5,9 @@ const abi = @import("abi");
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
-const gpu_detect = abi.gpu.backends.detect;
-const gpu_listing = abi.gpu.backends.listing;
-const gpu_meta = abi.gpu.backends.meta;
+const gpu_detect = abi.features.gpu.backends.detect;
+const gpu_listing = abi.features.gpu.backends.listing;
+const gpu_meta = abi.features.gpu.backends.meta;
 
 // Wrapper functions for comptime children dispatch
 fn wrapBackends(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
@@ -300,7 +300,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
         return;
     }
 
-    try abi.gpu.ensureInitialized(allocator);
+    try abi.features.gpu.ensureInitialized(allocator);
 
     const backends = try gpu_detect.availableBackends(allocator);
     defer allocator.free(backends);
@@ -314,7 +314,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
 
     for (backends) |backend| {
         const backend_name = gpu_meta.backendName(backend);
-        const backend_enabled = abi.gpu.isEnabled(backend);
+        const backend_enabled = abi.features.gpu.isEnabled(backend);
 
         if (!backend_enabled) {
             utils.output.println("  {s}: disabled (build)", .{backend_name});

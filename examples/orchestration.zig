@@ -16,7 +16,7 @@ pub fn main(_: std.process.Init) !void {
     const allocator = gpa.allocator();
 
     // Check if AI is enabled
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
@@ -40,7 +40,7 @@ fn basicOrchestration(allocator: std.mem.Allocator) !void {
     std.debug.print("--- Example 1: Basic Orchestration ---\n", .{});
 
     // Create orchestrator with round-robin strategy
-    var orchestrator = abi.ai.orchestration.Orchestrator.init(allocator, .{
+    var orchestrator = abi.features.ai.orchestration.Orchestrator.init(allocator, .{
         .strategy = .round_robin,
         .enable_fallback = true,
         .max_concurrent_requests = 10,
@@ -104,7 +104,7 @@ fn taskBasedRouting(allocator: std.mem.Allocator) !void {
     std.debug.print("--- Example 2: Task-Based Routing ---\n", .{});
 
     // Create orchestrator with task-based strategy
-    var orchestrator = abi.ai.orchestration.Orchestrator.init(allocator, .{
+    var orchestrator = abi.features.ai.orchestration.Orchestrator.init(allocator, .{
         .strategy = .task_based,
         .enable_fallback = true,
     }) catch |err| {
@@ -151,7 +151,7 @@ fn taskBasedRouting(allocator: std.mem.Allocator) !void {
     });
 
     // Test task type detection
-    const prompts = [_]struct { text: []const u8, task: ?abi.ai.orchestration.TaskType }{
+    const prompts = [_]struct { text: []const u8, task: ?abi.features.ai.orchestration.TaskType }{
         .{ .text = "Write a function to sort an array", .task = .coding },
         .{ .text = "Write a poem about the ocean", .task = .creative },
         .{ .text = "Calculate the derivative of x^2 + 3x", .task = .math },
@@ -161,7 +161,7 @@ fn taskBasedRouting(allocator: std.mem.Allocator) !void {
 
     for (prompts) |p| {
         // Detect task type if not provided
-        const task_type = p.task orelse abi.ai.orchestration.TaskType.detect(p.text);
+        const task_type = p.task orelse abi.features.ai.orchestration.TaskType.detect(p.text);
         const result = try orchestrator.route(p.text, task_type);
 
         std.debug.print("Prompt: \"{s}\"\n", .{p.text});
@@ -177,7 +177,7 @@ fn fallbackDemo(allocator: std.mem.Allocator) !void {
     std.debug.print("--- Example 3: Fallback Handling ---\n", .{});
 
     // Create orchestrator with fallback enabled
-    var orchestrator = abi.ai.orchestration.Orchestrator.init(allocator, .{
+    var orchestrator = abi.features.ai.orchestration.Orchestrator.init(allocator, .{
         .strategy = .priority,
         .enable_fallback = true,
         .max_retries = 3,
@@ -244,7 +244,7 @@ fn fallbackDemo(allocator: std.mem.Allocator) !void {
     std.debug.print("\n", .{});
 }
 
-fn printModelStatuses(orchestrator: *abi.ai.orchestration.Orchestrator) void {
+fn printModelStatuses(orchestrator: *abi.features.ai.orchestration.Orchestrator) void {
     const models = orchestrator.listModels(std.heap.page_allocator) catch return;
     defer std.heap.page_allocator.free(models);
 

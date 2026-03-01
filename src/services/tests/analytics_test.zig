@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const analytics = @import("abi").analytics;
+const analytics = @import("abi").features.analytics;
 
 // ============================================================================
 // Engine: Buffer Management

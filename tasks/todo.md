@@ -57,3 +57,53 @@ Address the three confirmed review findings in docs data loading, CLI command do
   - `zig build check-docs`
   - `zig build check-cli-registry`
 - **Outcome:** docs drift checks pass; command metadata is restored in `docs/data/commands.zon`; inference stub now returns feature-appropriate disabled errors.
+
+---
+
+## Big-Bang Strict v2 Migration (2026-03-01)
+
+### Objective
+Hard-remove legacy ABI v1 aliases and helpers and migrate all internal call sites to strict v2 API usage (`abi.App`, `abi.AppBuilder`, `abi.features.*`, `abi.services.*`).
+
+### Baseline Snapshot
+- Toolchain baseline verified and pinned:
+  - `which zig` -> `/Users/donaldfilimon/.zvm/bin/zig`
+  - `zig version` -> `0.16.0-dev.2682+02142a54d`
+  - `.zigversion` -> `0.16.0-dev.2682+02142a54d`
+  - `zig build toolchain-doctor` -> pass
+- Pre-migration legacy reference count:
+  - `rg -n "abi\.Framework|abi\.init(App|Default|AppDefault|\()|abi\.(ai|gpu|database|network|web|cloud|analytics|auth|messaging|cache|storage|search|gateway|pages|runtime|platform|shared|connectors|ha|tasks|lsp|mcp|acp|simd)" src tools examples benchmarks | wc -l`
+  - Count: `1683`
+
+### Checklist
+- [x] Remove legacy exports/helpers from `src/abi.zig`.
+- [x] Apply ordered v1->v2 codemod across `src/`, `tools/`, `examples/`, and `benchmarks/`.
+- [x] Manually fix edge cases (strings, historical comments, tests expecting legacy names).
+- [x] Update docs/help/examples to present v2-only entry points.
+- [x] Extend `tools/scripts/check_zig_016_patterns.zig` with strict-v2 forbidden patterns.
+- [x] Regenerate/check deterministic docs and CLI registry artifacts if affected.
+- [x] Run full validation matrix (`typecheck`, consistency, docs, tests, `verify-all`).
+- [x] Record post-migration evidence and residual risks.
+
+### Review
+- **Result:** strict-v2 migration completed in one change set. Legacy exports/helpers were removed from `src/abi.zig`, call sites were migrated to `abi.App` / `abi.features.*` / `abi.services.*`, and consistency checks now enforce v2-only usage.
+- **Scope covered:** `src/`, `tools/`, `examples/`, `benchmarks/`, tests, and `bindings/c` (needed for build compatibility after API removal).
+- **Validation run (all pass):**
+  - `which zig`
+  - `zig version`
+  - `cat .zigversion`
+  - `zig build toolchain-doctor`
+  - `zig build typecheck`
+  - `zig build check-consistency`
+  - `zig build check-cli-registry`
+  - `zig build gendocs -- --check --no-wasm --untracked-md`
+  - `zig build check-docs`
+  - `zig build tui-tests`
+  - `zig build cli-tests`
+  - `zig build full-check`
+  - `zig build verify-all --summary all`
+- **Legacy-reference scans:**
+  - Requested rough scan now reports `3` matches, all expected false positives in a checker comment/string and `abi.hasSimdSupport()` substring.
+  - Strict scan for code usages (`--glob '!tools/scripts/check_zig_016_patterns.zig'`, non-comment lines, word boundaries) reports zero remaining legacy references.
+- **Determinism:** `docs/data/modules.zon` drift was regenerated; `gendocs --check`, `check-docs`, and `check-cli-registry` pass post-regeneration.
+- **Residual risks:** external downstream forks using removed symbols will break until migrated; this repository is now intentionally strict-v2 only.

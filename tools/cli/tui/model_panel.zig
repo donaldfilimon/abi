@@ -162,7 +162,7 @@ pub const ModelManagementPanel = struct {
     /// Update panel data (poll for changes)
     pub fn update(self: *Self) !void {
         // Get current timestamp
-        const now = abi.shared.utils.unixMs();
+        const now = abi.services.shared.utils.unixMs();
 
         // Check if enough time has passed for refresh
         if (now - self.last_refresh < @as(i64, @intCast(self.refresh_interval_ms))) {
@@ -171,7 +171,7 @@ pub const ModelManagementPanel = struct {
         self.last_refresh = now;
 
         // Poll model manager for cached models
-        var manager = try abi.ai.models.Manager.init(self.allocator, .{ .auto_scan = false });
+        var manager = try abi.features.ai.models.Manager.init(self.allocator, .{ .auto_scan = false });
         defer manager.deinit();
 
         var io_backend = cli_io.initIoBackend(self.allocator);
@@ -498,22 +498,22 @@ pub const ModelManagementPanel = struct {
         }{
             .{
                 .name = "Ollama",
-                .available = abi.connectors.ollama.isAvailable(),
+                .available = abi.services.connectors.ollama.isAvailable(),
                 .host = "ABI_OLLAMA_HOST",
             },
             .{
                 .name = "LM Studio",
-                .available = abi.connectors.lm_studio.isAvailable(),
+                .available = abi.services.connectors.lm_studio.isAvailable(),
                 .host = "ABI_LM_STUDIO_HOST",
             },
             .{
                 .name = "vLLM",
-                .available = abi.connectors.vllm.isAvailable(),
+                .available = abi.services.connectors.vllm.isAvailable(),
                 .host = "ABI_VLLM_HOST",
             },
             .{
                 .name = "MLX",
-                .available = abi.connectors.mlx.isAvailable(),
+                .available = abi.services.connectors.mlx.isAvailable(),
                 .host = "ABI_MLX_HOST",
             },
         };

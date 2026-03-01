@@ -13,13 +13,13 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    std.debug.print("Network feature enabled flag: {}\n", .{abi.network.isEnabled()});
-    if (!abi.network.isEnabled()) {
+    std.debug.print("Network feature enabled flag: {}\n", .{abi.features.network.isEnabled()});
+    if (!abi.features.network.isEnabled()) {
         std.debug.print("Network feature is disabled. Enable with -Denable-network=true\n", .{});
         return;
     }
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.withDefault(.network);
     var framework = builder.build() catch |err| {
         std.debug.print("Failed to initialize network framework: {t}\n", .{err});
@@ -28,14 +28,14 @@ pub fn main(_: std.process.Init) !void {
     defer framework.deinit();
 
     // Explicitly initialize the network subsystem before accessing the registry.
-    abi.network.init(allocator) catch |err| {
+    abi.features.network.init(allocator) catch |err| {
         std.debug.print("Network init failed: {t}\n", .{err});
         return err;
     };
-    defer abi.network.deinit();
+    defer abi.features.network.deinit();
 
     // The network registry is available after network module initialization.
-    const registry = abi.network.defaultRegistry() catch |err| {
+    const registry = abi.features.network.defaultRegistry() catch |err| {
         std.debug.print("Failed to get default registry: {t}\n", .{err});
         return err;
     };

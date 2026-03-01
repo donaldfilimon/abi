@@ -72,7 +72,7 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
     const io = io_backend.io();
 
     // Initialize downloader
-    var downloader = abi.ai.models.Downloader.init(allocator);
+    var downloader = abi.features.ai.models.Downloader.init(allocator);
     defer downloader.deinit();
 
     const ProgressState = struct {
@@ -80,7 +80,7 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
     };
 
     const progress_callback = struct {
-        fn callback(progress: abi.ai.models.DownloadProgress) void {
+        fn callback(progress: abi.features.ai.models.DownloadProgress) void {
             if (progress.percent == ProgressState.last_percent) return;
             ProgressState.last_percent = progress.percent;
 

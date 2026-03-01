@@ -14,14 +14,14 @@ const build_options = @import("build_options");
 test "discord config lifecycle" {
     const allocator = std.testing.allocator;
 
-    var config = abi.connectors.discord.Config{
+    var config = abi.services.connectors.discord.Config{
         .bot_token = try allocator.dupe(u8, "test_token_123"),
         .client_id = try allocator.dupe(u8, "123456789012345678"),
         .client_secret = null,
         .public_key = null,
         .api_version = 10,
         .timeout_ms = 30_000,
-        .intents = abi.connectors.discord.GatewayIntent.ALL_UNPRIVILEGED,
+        .intents = abi.services.connectors.discord.GatewayIntent.ALL_UNPRIVILEGED,
     };
     defer config.deinit(allocator);
 
@@ -31,84 +31,84 @@ test "discord config lifecycle" {
 }
 
 test "discord gateway intents calculation" {
-    const intents = abi.connectors.discord.GatewayIntent.GUILDS |
-        abi.connectors.discord.GatewayIntent.GUILD_MESSAGES |
-        abi.connectors.discord.GatewayIntent.MESSAGE_CONTENT;
+    const intents = abi.services.connectors.discord.GatewayIntent.GUILDS |
+        abi.services.connectors.discord.GatewayIntent.GUILD_MESSAGES |
+        abi.services.connectors.discord.GatewayIntent.MESSAGE_CONTENT;
 
-    try std.testing.expect(intents & abi.connectors.discord.GatewayIntent.GUILDS != 0);
-    try std.testing.expect(intents & abi.connectors.discord.GatewayIntent.GUILD_MESSAGES != 0);
-    try std.testing.expect(intents & abi.connectors.discord.GatewayIntent.MESSAGE_CONTENT != 0);
-    try std.testing.expect(intents & abi.connectors.discord.GatewayIntent.GUILD_MEMBERS == 0);
-    try std.testing.expect(intents & abi.connectors.discord.GatewayIntent.GUILD_PRESENCES == 0);
+    try std.testing.expect(intents & abi.services.connectors.discord.GatewayIntent.GUILDS != 0);
+    try std.testing.expect(intents & abi.services.connectors.discord.GatewayIntent.GUILD_MESSAGES != 0);
+    try std.testing.expect(intents & abi.services.connectors.discord.GatewayIntent.MESSAGE_CONTENT != 0);
+    try std.testing.expect(intents & abi.services.connectors.discord.GatewayIntent.GUILD_MEMBERS == 0);
+    try std.testing.expect(intents & abi.services.connectors.discord.GatewayIntent.GUILD_PRESENCES == 0);
 }
 
 test "discord privileged intents" {
-    const privileged = abi.connectors.discord.GatewayIntent.ALL_PRIVILEGED;
+    const privileged = abi.services.connectors.discord.GatewayIntent.ALL_PRIVILEGED;
 
     // Privileged intents should include GUILD_MEMBERS, GUILD_PRESENCES, MESSAGE_CONTENT
-    try std.testing.expect(privileged & abi.connectors.discord.GatewayIntent.GUILD_MEMBERS != 0);
-    try std.testing.expect(privileged & abi.connectors.discord.GatewayIntent.GUILD_PRESENCES != 0);
-    try std.testing.expect(privileged & abi.connectors.discord.GatewayIntent.MESSAGE_CONTENT != 0);
+    try std.testing.expect(privileged & abi.services.connectors.discord.GatewayIntent.GUILD_MEMBERS != 0);
+    try std.testing.expect(privileged & abi.services.connectors.discord.GatewayIntent.GUILD_PRESENCES != 0);
+    try std.testing.expect(privileged & abi.services.connectors.discord.GatewayIntent.MESSAGE_CONTENT != 0);
 
     // But not unprivileged ones
-    try std.testing.expect(privileged & abi.connectors.discord.GatewayIntent.GUILDS == 0);
+    try std.testing.expect(privileged & abi.services.connectors.discord.GatewayIntent.GUILDS == 0);
 }
 
 test "discord permission utilities" {
-    const perms = abi.connectors.discord.Permission.SEND_MESSAGES |
-        abi.connectors.discord.Permission.VIEW_CHANNEL |
-        abi.connectors.discord.Permission.ADMINISTRATOR;
+    const perms = abi.services.connectors.discord.Permission.SEND_MESSAGES |
+        abi.services.connectors.discord.Permission.VIEW_CHANNEL |
+        abi.services.connectors.discord.Permission.ADMINISTRATOR;
 
-    try std.testing.expect(abi.connectors.discord.hasPermission(perms, abi.connectors.discord.Permission.SEND_MESSAGES));
-    try std.testing.expect(abi.connectors.discord.hasPermission(perms, abi.connectors.discord.Permission.VIEW_CHANNEL));
-    try std.testing.expect(abi.connectors.discord.hasPermission(perms, abi.connectors.discord.Permission.ADMINISTRATOR));
-    try std.testing.expect(!abi.connectors.discord.hasPermission(perms, abi.connectors.discord.Permission.MANAGE_GUILD));
-    try std.testing.expect(!abi.connectors.discord.hasPermission(perms, abi.connectors.discord.Permission.BAN_MEMBERS));
+    try std.testing.expect(abi.services.connectors.discord.hasPermission(perms, abi.services.connectors.discord.Permission.SEND_MESSAGES));
+    try std.testing.expect(abi.services.connectors.discord.hasPermission(perms, abi.services.connectors.discord.Permission.VIEW_CHANNEL));
+    try std.testing.expect(abi.services.connectors.discord.hasPermission(perms, abi.services.connectors.discord.Permission.ADMINISTRATOR));
+    try std.testing.expect(!abi.services.connectors.discord.hasPermission(perms, abi.services.connectors.discord.Permission.MANAGE_GUILD));
+    try std.testing.expect(!abi.services.connectors.discord.hasPermission(perms, abi.services.connectors.discord.Permission.BAN_MEMBERS));
 }
 
 test "discord calculate permissions" {
     const permissions = [_]u64{
-        abi.connectors.discord.Permission.SEND_MESSAGES,
-        abi.connectors.discord.Permission.VIEW_CHANNEL,
-        abi.connectors.discord.Permission.EMBED_LINKS,
+        abi.services.connectors.discord.Permission.SEND_MESSAGES,
+        abi.services.connectors.discord.Permission.VIEW_CHANNEL,
+        abi.services.connectors.discord.Permission.EMBED_LINKS,
     };
 
-    const combined = abi.connectors.discord.calculatePermissions(&permissions);
+    const combined = abi.services.connectors.discord.calculatePermissions(&permissions);
 
-    try std.testing.expect(abi.connectors.discord.hasPermission(combined, abi.connectors.discord.Permission.SEND_MESSAGES));
-    try std.testing.expect(abi.connectors.discord.hasPermission(combined, abi.connectors.discord.Permission.VIEW_CHANNEL));
-    try std.testing.expect(abi.connectors.discord.hasPermission(combined, abi.connectors.discord.Permission.EMBED_LINKS));
-    try std.testing.expect(!abi.connectors.discord.hasPermission(combined, abi.connectors.discord.Permission.MANAGE_MESSAGES));
+    try std.testing.expect(abi.services.connectors.discord.hasPermission(combined, abi.services.connectors.discord.Permission.SEND_MESSAGES));
+    try std.testing.expect(abi.services.connectors.discord.hasPermission(combined, abi.services.connectors.discord.Permission.VIEW_CHANNEL));
+    try std.testing.expect(abi.services.connectors.discord.hasPermission(combined, abi.services.connectors.discord.Permission.EMBED_LINKS));
+    try std.testing.expect(!abi.services.connectors.discord.hasPermission(combined, abi.services.connectors.discord.Permission.MANAGE_MESSAGES));
 }
 
 test "discord gateway opcode values" {
-    try std.testing.expectEqual(@as(u8, 0), @intFromEnum(abi.connectors.discord.GatewayOpcode.DISPATCH));
-    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.connectors.discord.GatewayOpcode.HEARTBEAT));
-    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.connectors.discord.GatewayOpcode.IDENTIFY));
-    try std.testing.expectEqual(@as(u8, 10), @intFromEnum(abi.connectors.discord.GatewayOpcode.HELLO));
-    try std.testing.expectEqual(@as(u8, 11), @intFromEnum(abi.connectors.discord.GatewayOpcode.HEARTBEAT_ACK));
+    try std.testing.expectEqual(@as(u8, 0), @intFromEnum(abi.services.connectors.discord.GatewayOpcode.DISPATCH));
+    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.services.connectors.discord.GatewayOpcode.HEARTBEAT));
+    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.services.connectors.discord.GatewayOpcode.IDENTIFY));
+    try std.testing.expectEqual(@as(u8, 10), @intFromEnum(abi.services.connectors.discord.GatewayOpcode.HELLO));
+    try std.testing.expectEqual(@as(u8, 11), @intFromEnum(abi.services.connectors.discord.GatewayOpcode.HEARTBEAT_ACK));
 }
 
 test "discord channel type values" {
-    try std.testing.expectEqual(@as(u8, 0), @intFromEnum(abi.connectors.discord.ChannelType.GUILD_TEXT));
-    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.connectors.discord.ChannelType.DM));
-    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.connectors.discord.ChannelType.GUILD_VOICE));
-    try std.testing.expectEqual(@as(u8, 4), @intFromEnum(abi.connectors.discord.ChannelType.GUILD_CATEGORY));
-    try std.testing.expectEqual(@as(u8, 15), @intFromEnum(abi.connectors.discord.ChannelType.GUILD_FORUM));
+    try std.testing.expectEqual(@as(u8, 0), @intFromEnum(abi.services.connectors.discord.ChannelType.GUILD_TEXT));
+    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.services.connectors.discord.ChannelType.DM));
+    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.services.connectors.discord.ChannelType.GUILD_VOICE));
+    try std.testing.expectEqual(@as(u8, 4), @intFromEnum(abi.services.connectors.discord.ChannelType.GUILD_CATEGORY));
+    try std.testing.expectEqual(@as(u8, 15), @intFromEnum(abi.services.connectors.discord.ChannelType.GUILD_FORUM));
 }
 
 test "discord interaction type values" {
-    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.connectors.discord.InteractionType.PING));
-    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.connectors.discord.InteractionType.APPLICATION_COMMAND));
-    try std.testing.expectEqual(@as(u8, 3), @intFromEnum(abi.connectors.discord.InteractionType.MESSAGE_COMPONENT));
-    try std.testing.expectEqual(@as(u8, 5), @intFromEnum(abi.connectors.discord.InteractionType.MODAL_SUBMIT));
+    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.services.connectors.discord.InteractionType.PING));
+    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.services.connectors.discord.InteractionType.APPLICATION_COMMAND));
+    try std.testing.expectEqual(@as(u8, 3), @intFromEnum(abi.services.connectors.discord.InteractionType.MESSAGE_COMPONENT));
+    try std.testing.expectEqual(@as(u8, 5), @intFromEnum(abi.services.connectors.discord.InteractionType.MODAL_SUBMIT));
 }
 
 test "discord component type values" {
-    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.connectors.discord.ComponentType.ACTION_ROW));
-    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.connectors.discord.ComponentType.BUTTON));
-    try std.testing.expectEqual(@as(u8, 3), @intFromEnum(abi.connectors.discord.ComponentType.STRING_SELECT));
-    try std.testing.expectEqual(@as(u8, 4), @intFromEnum(abi.connectors.discord.ComponentType.TEXT_INPUT));
+    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(abi.services.connectors.discord.ComponentType.ACTION_ROW));
+    try std.testing.expectEqual(@as(u8, 2), @intFromEnum(abi.services.connectors.discord.ComponentType.BUTTON));
+    try std.testing.expectEqual(@as(u8, 3), @intFromEnum(abi.services.connectors.discord.ComponentType.STRING_SELECT));
+    try std.testing.expectEqual(@as(u8, 4), @intFromEnum(abi.services.connectors.discord.ComponentType.TEXT_INPUT));
 }
 
 // ============================================================================
@@ -118,7 +118,7 @@ test "discord component type values" {
 test "json escape basic strings" {
     const allocator = std.testing.allocator;
 
-    const escaped = try abi.shared.utils.json.escapeJsonContent(allocator, "hello world");
+    const escaped = try abi.services.shared.utils.json.escapeJsonContent(allocator, "hello world");
     defer allocator.free(escaped);
 
     try std.testing.expectEqualStrings("hello world", escaped);
@@ -127,7 +127,7 @@ test "json escape basic strings" {
 test "json escape special characters" {
     const allocator = std.testing.allocator;
 
-    const escaped = try abi.shared.utils.json.escapeJsonContent(allocator, "line1\nline2\ttab\"quote\\backslash");
+    const escaped = try abi.services.shared.utils.json.escapeJsonContent(allocator, "line1\nline2\ttab\"quote\\backslash");
     defer allocator.free(escaped);
 
     try std.testing.expectEqualStrings("line1\\nline2\\ttab\\\"quote\\\\backslash", escaped);
@@ -136,7 +136,7 @@ test "json escape special characters" {
 test "json escape with quotes" {
     const allocator = std.testing.allocator;
 
-    const escaped = try abi.shared.utils.json.escapeString(allocator, "hello");
+    const escaped = try abi.services.shared.utils.json.escapeString(allocator, "hello");
     defer allocator.free(escaped);
 
     try std.testing.expectEqualStrings("\"hello\"", escaped);
@@ -149,12 +149,12 @@ test "json parse string field" {
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
     defer parsed.deinit();
 
-    const object = try abi.shared.utils.json.getRequiredObject(parsed.value);
-    const name = try abi.shared.utils.json.parseStringField(object, "name", allocator);
+    const object = try abi.services.shared.utils.json.getRequiredObject(parsed.value);
+    const name = try abi.services.shared.utils.json.parseStringField(object, "name", allocator);
     defer allocator.free(name);
     try std.testing.expectEqualStrings("test", name);
 
-    const value = try abi.shared.utils.json.parseIntField(object, "value");
+    const value = try abi.services.shared.utils.json.parseIntField(object, "value");
     try std.testing.expectEqual(@as(i64, 42), value);
 }
 
@@ -165,13 +165,13 @@ test "json parse optional fields" {
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
     defer parsed.deinit();
 
-    const object = try abi.shared.utils.json.getRequiredObject(parsed.value);
+    const object = try abi.services.shared.utils.json.getRequiredObject(parsed.value);
 
-    const required = try abi.shared.utils.json.parseStringField(object, "required", allocator);
+    const required = try abi.services.shared.utils.json.parseStringField(object, "required", allocator);
     defer allocator.free(required);
     try std.testing.expectEqualStrings("present", required);
 
-    const missing = abi.shared.utils.json.parseOptionalStringField(object, "missing", allocator) catch null;
+    const missing = abi.services.shared.utils.json.parseOptionalStringField(object, "missing", allocator) catch null;
     if (missing) |m| allocator.free(m);
     try std.testing.expect(missing == null);
 }
@@ -183,12 +183,12 @@ test "json parse bool field" {
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
     defer parsed.deinit();
 
-    const object = try abi.shared.utils.json.getRequiredObject(parsed.value);
+    const object = try abi.services.shared.utils.json.getRequiredObject(parsed.value);
 
-    const enabled = try abi.shared.utils.json.parseBoolField(object, "enabled");
+    const enabled = try abi.services.shared.utils.json.parseBoolField(object, "enabled");
     try std.testing.expect(enabled);
 
-    const disabled = try abi.shared.utils.json.parseBoolField(object, "disabled");
+    const disabled = try abi.services.shared.utils.json.parseBoolField(object, "disabled");
     try std.testing.expect(!disabled);
 }
 
@@ -199,12 +199,12 @@ test "json parse number fields" {
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
     defer parsed.deinit();
 
-    const object = try abi.shared.utils.json.getRequiredObject(parsed.value);
+    const object = try abi.services.shared.utils.json.getRequiredObject(parsed.value);
 
-    const int_val = try abi.shared.utils.json.parseIntField(object, "int_val");
+    const int_val = try abi.services.shared.utils.json.parseIntField(object, "int_val");
     try std.testing.expectEqual(@as(i64, 123), int_val);
 
-    const float_val = try abi.shared.utils.json.parseNumberField(object, "float_val");
+    const float_val = try abi.services.shared.utils.json.parseNumberField(object, "float_val");
     try std.testing.expectApproxEqAbs(@as(f64, 3.14), float_val, 0.001);
 }
 
@@ -218,10 +218,10 @@ test "discord tools registration" {
 
     const allocator = std.testing.allocator;
 
-    var registry = abi.ai.tools.ToolRegistry.init(allocator);
+    var registry = abi.features.ai.tools.ToolRegistry.init(allocator);
     defer registry.deinit();
 
-    try abi.ai.tools.registerDiscordTools(&registry);
+    try abi.features.ai.tools.registerDiscordTools(&registry);
 
     // Verify all Discord tools are registered
     try std.testing.expect(registry.get("discord_send_message") != null);
@@ -238,17 +238,17 @@ test "discord tool definitions are valid" {
     if (!build_options.enable_ai) return error.SkipZigTest;
 
     // Verify send_message tool
-    const send_tool = abi.ai.tools.DiscordTools.send_message_tool;
+    const send_tool = abi.features.ai.tools.DiscordTools.send_message_tool;
     try std.testing.expectEqualStrings("discord_send_message", send_tool.name);
     try std.testing.expect(send_tool.parameters.len >= 2);
 
     // Verify get_channel tool
-    const channel_tool = abi.ai.tools.DiscordTools.get_channel_tool;
+    const channel_tool = abi.features.ai.tools.DiscordTools.get_channel_tool;
     try std.testing.expectEqualStrings("discord_get_channel", channel_tool.name);
     try std.testing.expect(channel_tool.parameters.len >= 1);
 
     // Verify list_guilds tool
-    const guilds_tool = abi.ai.tools.DiscordTools.list_guilds_tool;
+    const guilds_tool = abi.features.ai.tools.DiscordTools.list_guilds_tool;
     try std.testing.expectEqualStrings("discord_list_guilds", guilds_tool.name);
 }
 
@@ -258,7 +258,7 @@ test "discord tool definitions are valid" {
 
 test "openai config manual lifecycle" {
     const allocator = std.testing.allocator;
-    var config = abi.connectors.openai.Config{
+    var config = abi.services.connectors.openai.Config{
         .api_key = try allocator.dupe(u8, "sk-test-key-1234567890"),
         .base_url = try allocator.dupe(u8, "https://api.openai.com/v1"),
     };
@@ -271,7 +271,7 @@ test "openai config manual lifecycle" {
 
 test "anthropic config manual lifecycle" {
     const allocator = std.testing.allocator;
-    var config = abi.connectors.anthropic.Config{
+    var config = abi.services.connectors.anthropic.Config{
         .api_key = try allocator.dupe(u8, "sk-ant-test-key"),
         .base_url = try allocator.dupe(u8, "https://api.anthropic.com/v1"),
     };
@@ -283,7 +283,7 @@ test "anthropic config manual lifecycle" {
 
 test "openai config with owned model" {
     const allocator = std.testing.allocator;
-    var config = abi.connectors.openai.Config{
+    var config = abi.services.connectors.openai.Config{
         .api_key = try allocator.dupe(u8, "sk-test"),
         .base_url = try allocator.dupe(u8, "https://api.openai.com/v1"),
         .model = try allocator.dupe(u8, "gpt-4-turbo"),
@@ -300,7 +300,7 @@ test "openai config with owned model" {
 // ============================================================================
 
 test "jwt algorithm string round-trip" {
-    const jwt = abi.auth.jwt;
+    const jwt = abi.features.auth.jwt;
 
     try std.testing.expectEqualStrings("HS256", jwt.Algorithm.hs256.toString());
     try std.testing.expectEqualStrings("HS384", jwt.Algorithm.hs384.toString());
@@ -315,7 +315,7 @@ test "jwt algorithm string round-trip" {
 
 test "jwt claims lifecycle" {
     const allocator = std.testing.allocator;
-    var claims = abi.auth.jwt.Claims{
+    var claims = abi.features.auth.jwt.Claims{
         .iss = try allocator.dupe(u8, "abi-framework"),
         .sub = try allocator.dupe(u8, "user-123"),
         .aud = try allocator.dupe(u8, "api.example.com"),
@@ -331,7 +331,7 @@ test "jwt claims lifecycle" {
 
 test "cors handler origin matching" {
     const allocator = std.testing.allocator;
-    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+    var handler = abi.features.auth.cors.CorsHandler.init(allocator, .{
         .allowed_origins = &.{ "https://example.com", "https://app.example.com" },
     });
 
@@ -342,7 +342,7 @@ test "cors handler origin matching" {
 
 test "cors handler wildcard allows all" {
     const allocator = std.testing.allocator;
-    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+    var handler = abi.features.auth.cors.CorsHandler.init(allocator, .{
         .allowed_origins = &.{"*"},
     });
 
@@ -352,8 +352,8 @@ test "cors handler wildcard allows all" {
 
 test "cors handler method checking" {
     const allocator = std.testing.allocator;
-    const CorsMethod = abi.auth.cors.CorsConfig.Method;
-    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+    const CorsMethod = abi.features.auth.cors.CorsConfig.Method;
+    var handler = abi.features.auth.cors.CorsHandler.init(allocator, .{
         .allowed_methods = &.{ CorsMethod.GET, CorsMethod.POST },
     });
 
@@ -365,7 +365,7 @@ test "cors handler method checking" {
 
 test "cors preflight result" {
     const allocator = std.testing.allocator;
-    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+    var handler = abi.features.auth.cors.CorsHandler.init(allocator, .{
         .allowed_origins = &.{"https://example.com"},
     });
 
@@ -377,7 +377,7 @@ test "cors preflight result" {
 }
 
 test "api key config defaults" {
-    const config = abi.auth.api_keys.ApiKeyConfig{};
+    const config = abi.features.auth.api_keys.ApiKeyConfig{};
     try std.testing.expectEqual(@as(usize, 32), config.key_length);
     try std.testing.expectEqualStrings("abi_", config.prefix);
     try std.testing.expect(config.enable_rotation);
@@ -386,7 +386,7 @@ test "api key config defaults" {
 }
 
 test "rate limit config defaults" {
-    const config = abi.auth.rate_limit.RateLimitConfig{};
+    const config = abi.features.auth.rate_limit.RateLimitConfig{};
     try std.testing.expect(!config.enabled);
     try std.testing.expectEqual(@as(u32, 100), config.requests);
     try std.testing.expectEqual(@as(u32, 60), config.window_seconds);
@@ -394,7 +394,7 @@ test "rate limit config defaults" {
 }
 
 test "cors method fromString round-trip" {
-    const CorsMethod = abi.auth.cors.CorsConfig.Method;
+    const CorsMethod = abi.features.auth.cors.CorsConfig.Method;
     inline for (.{ "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" }) |name| {
         const parsed = CorsMethod.fromString(name);
         try std.testing.expect(parsed != null);
@@ -408,29 +408,29 @@ test "cors method fromString round-trip" {
 // ============================================================================
 
 test "mobile stub isEnabled returns false" {
-    try std.testing.expect(!abi.mobile.isEnabled());
+    try std.testing.expect(!abi.features.mobile.isEnabled());
 }
 
 test "mobile stub isInitialized returns false" {
-    try std.testing.expect(!abi.mobile.isInitialized());
+    try std.testing.expect(!abi.features.mobile.isInitialized());
 }
 
 test "mobile stub getLifecycleState returns terminated" {
-    try std.testing.expectEqual(abi.mobile.LifecycleState.terminated, abi.mobile.getLifecycleState());
+    try std.testing.expectEqual(abi.features.mobile.LifecycleState.terminated, abi.features.mobile.getLifecycleState());
 }
 
 test "mobile stub init returns FeatureDisabled" {
-    const err = abi.mobile.init(std.testing.allocator, .{});
+    const err = abi.features.mobile.init(std.testing.allocator, .{});
     try std.testing.expectError(error.FeatureDisabled, err);
 }
 
 test "mobile stub readSensor returns FeatureDisabled" {
-    const err = abi.mobile.readSensor("accelerometer");
+    const err = abi.features.mobile.readSensor("accelerometer");
     try std.testing.expectError(error.FeatureDisabled, err);
 }
 
 test "mobile stub sendNotification returns FeatureDisabled" {
-    const err = abi.mobile.sendNotification("title", "body");
+    const err = abi.features.mobile.sendNotification("title", "body");
     try std.testing.expectError(error.FeatureDisabled, err);
 }
 
@@ -439,18 +439,18 @@ test "mobile stub sendNotification returns FeatureDisabled" {
 // ============================================================================
 
 test "pages types are accessible" {
-    const page = abi.pages.Page{
+    const page = abi.features.pages.Page{
         .path = "/test",
         .title = "Test Page",
         .content = .{ .static = "<h1>Hello</h1>" },
     };
     try std.testing.expectEqualStrings("/test", page.path);
     try std.testing.expectEqualStrings("Test Page", page.title);
-    try std.testing.expectEqual(abi.pages.HttpMethod.GET, page.method);
+    try std.testing.expectEqual(abi.features.pages.HttpMethod.GET, page.method);
 }
 
 test "pages stats default values" {
-    const s = abi.pages.PagesStats{};
+    const s = abi.features.pages.PagesStats{};
     try std.testing.expectEqual(@as(u32, 0), s.total_pages);
     try std.testing.expectEqual(@as(u64, 0), s.total_renders);
 }

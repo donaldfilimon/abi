@@ -7,11 +7,11 @@ const std = @import("std");
 // Using the file name ensures the import works even when the project build does not
 // provide a named module.
 const abi = @import("../abi.zig");
-const gpu_detect = abi.gpu.backends.detect;
+const gpu_detect = abi.features.gpu.backends.detect;
 // Shared I/O backend helper (Zig 0.16)
 // Note: This intentionally references ABI's shared module so `zig run src/api/main.zig`
 // works without requiring the build system to define an "io" package/module.
-const IoBackend = abi.shared.io.IoBackend;
+const IoBackend = abi.services.shared.io.IoBackend;
 
 pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -67,14 +67,14 @@ fn printHelp() void {
 fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     std.debug.print("=== ABI Framework Information ===\n", .{});
     std.debug.print("Version: {s}\n", .{abi.version()});
-    std.debug.print("SIMD Support: {s}\n", .{if (abi.simd.hasSimdSupport()) "Yes" else "No"});
+    std.debug.print("SIMD Support: {s}\n", .{if (abi.services.simd.hasSimdSupport()) "Yes" else "No"});
 
     // Initialise the shared I/O backend (Zig 0.16)
     var io_backend = try IoBackend.init(allocator);
     defer io_backend.deinit();
 
     // Build a fully‑featured framework using the builder pattern.
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     var framework = builder
         .withDefault(.gpu)
         .withDefault(.ai)
@@ -88,7 +88,7 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
         std.debug.print("Running with minimal features...\n", .{});
 
         // Minimal framework – builder without any feature defaults.
-        var minimal_framework = try abi.Framework.builder(allocator).build();
+        var minimal_framework = try abi.App.builder(allocator).build();
         defer minimal_framework.deinit();
 
         std.debug.print("Minimal framework initialized successfully\n", .{});
@@ -98,7 +98,7 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
 
     std.debug.print("Framework initialized successfully\n", .{});
 
-    if (abi.database.isEnabled()) {
+    if (abi.features.database.isEnabled()) {
         std.debug.print("Database: Available\n", .{});
     } else {
         std.debug.print("Database: Not available (enable with -Denable-database=true)\n", .{});
@@ -110,19 +110,19 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
         std.debug.print("GPU: Not available (enable with -Denable-gpu=true)\n", .{});
     }
 
-    if (abi.ai.isEnabled()) {
+    if (abi.features.ai.isEnabled()) {
         std.debug.print("AI: Available\n", .{});
     } else {
         std.debug.print("AI: Not available (enable with -Denable-ai=true)\n", .{});
     }
 
-    if (abi.web.isEnabled()) {
+    if (abi.features.web.isEnabled()) {
         std.debug.print("Web: Available\n", .{});
     } else {
         std.debug.print("Web: Not available (enable with -Denable-web=true)\n", .{});
     }
 
-    if (abi.network.isEnabled()) {
+    if (abi.features.network.isEnabled()) {
         std.debug.print("Network: Available\n", .{});
     } else {
         std.debug.print("Network: Not available (enable with -Denable-network=true)\n", .{});

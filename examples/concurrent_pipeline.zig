@@ -1,19 +1,19 @@
 //! Concurrent Pipeline Example
 //!
 //! Demonstrates a pipeline built from runtime primitives:
-//! - `abi.runtime.Channel` for stage handoff/backpressure
-//! - `abi.runtime.ThreadPool` for parallel stage work
-//! - `abi.runtime.DagPipeline` for stage dependency orchestration
+//! - `abi.services.runtime.Channel` for stage handoff/backpressure
+//! - `abi.services.runtime.ThreadPool` for parallel stage work
+//! - `abi.services.runtime.DagPipeline` for stage dependency orchestration
 //!
 //! Run with: `zig build run-concurrent-pipeline`
 
 const std = @import("std");
 const abi = @import("abi");
 
-const U64Channel = abi.runtime.Channel(u64);
-const ThreadPool = abi.runtime.ThreadPool;
-const DagPipeline = abi.runtime.DagPipeline;
-const primitives = abi.shared.utils.primitives;
+const U64Channel = abi.services.runtime.Channel(u64);
+const ThreadPool = abi.services.runtime.ThreadPool;
+const DagPipeline = abi.services.runtime.DagPipeline;
+const primitives = abi.services.shared.utils.primitives;
 
 const ProduceCtx = struct {
     pool: *ThreadPool,

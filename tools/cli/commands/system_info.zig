@@ -28,10 +28,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Load framework instance for feature matrix (required for runtime checks)
-    var framework = try abi.initAppDefault(allocator);
+    var framework = try abi.App.initDefault(allocator);
     defer framework.deinit();
 
-    const info = abi.platform.getPlatformInfo();
+    const info = abi.services.platform.getPlatformInfo();
 
     utils.output.printHeader("System Information");
 
@@ -43,7 +43,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     utils.output.printKeyValue("ABI Version", abi.version());
 
     // Hardware Capabilities
-    utils.output.printKeyValue("SIMD Support", if (abi.simd.hasSimdSupport()) "available" else "unavailable");
+    utils.output.printKeyValue("SIMD Support", if (abi.services.simd.hasSimdSupport()) "available" else "unavailable");
 
     // GPU and Network Summaries (using modernized summary functions)
     try gpu.printSummary(allocator);
@@ -52,21 +52,21 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // AI Connector Availability (all 15 providers)
     utils.output.printHeader("AI Connectors");
     const connector_status = [_]struct { name: []const u8, available: bool }{
-        .{ .name = "OpenAI", .available = abi.connectors.openai.isAvailable() },
-        .{ .name = "Anthropic", .available = abi.connectors.anthropic.isAvailable() },
-        .{ .name = "Claude", .available = abi.connectors.claude.isAvailable() },
-        .{ .name = "Ollama", .available = abi.connectors.ollama.isAvailable() },
-        .{ .name = "Ollama Passthrough", .available = abi.connectors.ollama_passthrough.isAvailable() },
-        .{ .name = "HuggingFace", .available = abi.connectors.huggingface.isAvailable() },
-        .{ .name = "Mistral", .available = abi.connectors.mistral.isAvailable() },
-        .{ .name = "Cohere", .available = abi.connectors.cohere.isAvailable() },
-        .{ .name = "Gemini", .available = abi.connectors.gemini.isAvailable() },
-        .{ .name = "Codex", .available = abi.connectors.codex.isAvailable() },
-        .{ .name = "OpenCode", .available = abi.connectors.opencode.isAvailable() },
-        .{ .name = "LM Studio", .available = abi.connectors.lm_studio.isAvailable() },
-        .{ .name = "vLLM", .available = abi.connectors.vllm.isAvailable() },
-        .{ .name = "MLX", .available = abi.connectors.mlx.isAvailable() },
-        .{ .name = "llama.cpp", .available = abi.connectors.llama_cpp.isAvailable() },
+        .{ .name = "OpenAI", .available = abi.services.connectors.openai.isAvailable() },
+        .{ .name = "Anthropic", .available = abi.services.connectors.anthropic.isAvailable() },
+        .{ .name = "Claude", .available = abi.services.connectors.claude.isAvailable() },
+        .{ .name = "Ollama", .available = abi.services.connectors.ollama.isAvailable() },
+        .{ .name = "Ollama Passthrough", .available = abi.services.connectors.ollama_passthrough.isAvailable() },
+        .{ .name = "HuggingFace", .available = abi.services.connectors.huggingface.isAvailable() },
+        .{ .name = "Mistral", .available = abi.services.connectors.mistral.isAvailable() },
+        .{ .name = "Cohere", .available = abi.services.connectors.cohere.isAvailable() },
+        .{ .name = "Gemini", .available = abi.services.connectors.gemini.isAvailable() },
+        .{ .name = "Codex", .available = abi.services.connectors.codex.isAvailable() },
+        .{ .name = "OpenCode", .available = abi.services.connectors.opencode.isAvailable() },
+        .{ .name = "LM Studio", .available = abi.services.connectors.lm_studio.isAvailable() },
+        .{ .name = "vLLM", .available = abi.services.connectors.vllm.isAvailable() },
+        .{ .name = "MLX", .available = abi.services.connectors.mlx.isAvailable() },
+        .{ .name = "llama.cpp", .available = abi.services.connectors.llama_cpp.isAvailable() },
     };
     for (connector_status) |conn| {
         utils.output.printKeyValue(conn.name, if (conn.available) "configured" else "not configured");

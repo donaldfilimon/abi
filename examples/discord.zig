@@ -23,9 +23,9 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI Discord Bot Example ===\n\n", .{});
 
     // Create Discord client from environment
-    var client = abi.connectors.discord.createClient(allocator) catch |err| {
+    var client = abi.services.connectors.discord.createClient(allocator) catch |err| {
         switch (err) {
-            abi.connectors.discord.DiscordError.MissingBotToken => {
+            abi.services.connectors.discord.DiscordError.MissingBotToken => {
                 std.debug.print("Error: DISCORD_BOT_TOKEN environment variable not set.\n", .{});
                 std.debug.print("\nTo use this example:\n", .{});
                 std.debug.print("  1. Create a Discord application at https://discord.com/developers/applications\n", .{});
@@ -108,17 +108,17 @@ pub fn main(_: std.process.Init) !void {
     const intents = client.config.intents;
     std.debug.print("Configured Intents: 0x{x}\n", .{intents});
 
-    if (intents & abi.connectors.discord.GatewayIntent.GUILDS != 0)
+    if (intents & abi.services.connectors.discord.GatewayIntent.GUILDS != 0)
         std.debug.print("  - GUILDS\n", .{});
-    if (intents & abi.connectors.discord.GatewayIntent.GUILD_MESSAGES != 0)
+    if (intents & abi.services.connectors.discord.GatewayIntent.GUILD_MESSAGES != 0)
         std.debug.print("  - GUILD_MESSAGES\n", .{});
-    if (intents & abi.connectors.discord.GatewayIntent.DIRECT_MESSAGES != 0)
+    if (intents & abi.services.connectors.discord.GatewayIntent.DIRECT_MESSAGES != 0)
         std.debug.print("  - DIRECT_MESSAGES\n", .{});
-    if (intents & abi.connectors.discord.GatewayIntent.MESSAGE_CONTENT != 0)
+    if (intents & abi.services.connectors.discord.GatewayIntent.MESSAGE_CONTENT != 0)
         std.debug.print("  - MESSAGE_CONTENT (privileged)\n", .{});
-    if (intents & abi.connectors.discord.GatewayIntent.GUILD_MEMBERS != 0)
+    if (intents & abi.services.connectors.discord.GatewayIntent.GUILD_MEMBERS != 0)
         std.debug.print("  - GUILD_MEMBERS (privileged)\n", .{});
-    if (intents & abi.connectors.discord.GatewayIntent.GUILD_PRESENCES != 0)
+    if (intents & abi.services.connectors.discord.GatewayIntent.GUILD_PRESENCES != 0)
         std.debug.print("  - GUILD_PRESENCES (privileged)\n", .{});
 
     std.debug.print("\n=== Example Complete ===\n", .{});

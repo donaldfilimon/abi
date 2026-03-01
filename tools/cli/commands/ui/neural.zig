@@ -4,7 +4,7 @@ const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
-const shared_time = abi.shared.time;
+const shared_time = abi.services.shared.time;
 
 const Config = struct {
     frames: u32 = 240,

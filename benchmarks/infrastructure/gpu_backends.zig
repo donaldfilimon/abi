@@ -8,7 +8,7 @@ pub fn runGpuBackendBenchmarks(allocator: std.mem.Allocator) !void {
     std.debug.print("\n=== GPU Backend Detection & Benchmarking ===\n", .{});
 
     // Initialize framework with GPU enabled
-    var framework = abi.init(allocator, abi.Config{
+    var framework = abi.App.init(allocator, abi.Config{
         .gpu = .{}, // Auto-detect best available backend
     }) catch |err| {
         std.debug.print("GPU initialization failed: {t}\n", .{err});
@@ -100,7 +100,7 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
     std.debug.print("\n{t} Backend:\n", .{backend});
 
     // Initialize with specific backend
-    var fw = try abi.init(allocator, abi.Config{
+    var fw = try abi.App.init(allocator, abi.Config{
         .gpu = .{ .backend = backend },
     });
     defer fw.deinit();
@@ -124,14 +124,14 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
 
     // Warmup
     for (0..10) |_| {
-        abi.simd.vectorAdd(vec_a, vec_b, result);
+        abi.services.simd.vectorAdd(vec_a, vec_b, result);
     }
 
     // Benchmark
     var timer = try abi.services.shared.time.Timer.start();
     const iterations: usize = 100;
     for (0..iterations) |_| {
-        abi.simd.vectorAdd(vec_a, vec_b, result);
+        abi.services.simd.vectorAdd(vec_a, vec_b, result);
     }
     const elapsed = timer.read();
 
@@ -163,14 +163,14 @@ fn benchmarkMatrixMultiply(allocator: std.mem.Allocator, size: usize) !void {
 
     // Warmup
     for (0..5) |_| {
-        abi.simd.matrixMultiply(mat_a, mat_b, result, size, size, size);
+        abi.services.simd.matrixMultiply(mat_a, mat_b, result, size, size, size);
     }
 
     // Benchmark
     var timer = try abi.services.shared.time.Timer.start();
     const iterations: usize = 10;
     for (0..iterations) |_| {
-        abi.simd.matrixMultiply(mat_a, mat_b, result, size, size, size);
+        abi.services.simd.matrixMultiply(mat_a, mat_b, result, size, size, size);
     }
     const elapsed = timer.read();
 

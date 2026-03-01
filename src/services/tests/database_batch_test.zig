@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const batch = if (build_options.enable_database) abi.database.batch else struct {};
+const batch = if (build_options.enable_database) abi.features.database.batch else struct {};
 const BatchProcessor = if (build_options.enable_database) batch.BatchProcessor else struct {};
 const BatchWriter = if (build_options.enable_database) batch.BatchWriter else struct {};
 const BatchOperationBuilder = if (build_options.enable_database) batch.BatchOperationBuilder else struct {};

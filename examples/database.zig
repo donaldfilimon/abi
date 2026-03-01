@@ -13,21 +13,21 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.withDefault(.database);
     var framework = try builder.build();
     defer framework.deinit();
 
-    if (!abi.database.isEnabled()) {
+    if (!abi.features.database.isEnabled()) {
         std.debug.print("Database feature is disabled. Enable with -Denable-database=true\n", .{});
         return;
     }
 
-    var handle = abi.database.openOrCreate(allocator, "example") catch |err| {
+    var handle = abi.features.database.openOrCreate(allocator, "example") catch |err| {
         std.debug.print("Failed to open/create database: {t}\n", .{err});
         return err;
     };
-    defer abi.database.close(&handle);
+    defer abi.features.database.close(&handle);
 
     // Insert test vectors
     const test_vectors = [_][3]f32{
@@ -37,7 +37,7 @@ pub fn main(_: std.process.Init) !void {
     };
 
     for (test_vectors, 1..) |vec, i| {
-        abi.database.insert(&handle, @intCast(i), &vec, null) catch |err| {
+        abi.features.database.insert(&handle, @intCast(i), &vec, null) catch |err| {
             std.debug.print("Failed to insert vector {}: {t}\n", .{ i, err });
             return err;
         };
@@ -46,7 +46,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Perform similarity search
     const query = [_]f32{ 1.0, 0.0, 0.0 };
-    const results = abi.database.search(&handle, allocator, &query, 2) catch |err| {
+    const results = abi.features.database.search(&handle, allocator, &query, 2) catch |err| {
         std.debug.print("Failed to search database: {t}\n", .{err});
         return err;
     };
@@ -61,27 +61,27 @@ pub fn main(_: std.process.Init) !void {
         }
     }
 
-    const stats = abi.database.stats(&handle);
+    const stats = abi.features.database.stats(&handle);
     std.debug.print("Database contains {} vectors of dimension {}\n", .{ stats.count, stats.dimension });
 
     // Backup and restore (stored under ./backups/)
     const backup_name = "example_backup.wdbx";
-    abi.database.backup(&handle, backup_name) catch |err| {
+    abi.features.database.backup(&handle, backup_name) catch |err| {
         std.debug.print("Failed to backup database: {t}\n", .{err});
         return err;
     };
     std.debug.print("Backup written to backups/{s}\n", .{backup_name});
 
-    var restored = abi.database.openOrCreate(allocator, "example-restored") catch |err| {
+    var restored = abi.features.database.openOrCreate(allocator, "example-restored") catch |err| {
         std.debug.print("Failed to open restored database: {t}\n", .{err});
         return err;
     };
-    defer abi.database.close(&restored);
+    defer abi.features.database.close(&restored);
 
-    abi.database.restore(&restored, backup_name) catch |err| {
+    abi.features.database.restore(&restored, backup_name) catch |err| {
         std.debug.print("Failed to restore database: {t}\n", .{err});
         return err;
     };
-    const restored_stats = abi.database.stats(&restored);
+    const restored_stats = abi.features.database.stats(&restored);
     std.debug.print("Restored {} vectors from backup\n", .{restored_stats.count});
 }

@@ -10,8 +10,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
 const build_options = @import("build_options");
 
 // Stub QuantConfig for testing - provides config preset functionality

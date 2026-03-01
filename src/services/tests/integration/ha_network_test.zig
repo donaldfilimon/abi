@@ -25,7 +25,7 @@ test "ha network: replication manager initialization" {
     const allocator = testing.allocator;
 
     // Initialize HA manager with replication
-    var ha_manager = abi.ha.HaManager.init(allocator, .{
+    var ha_manager = abi.services.ha.HaManager.init(allocator, .{
         .replication_factor = 3,
         .backup_interval_hours = 24,
         .enable_pitr = false,

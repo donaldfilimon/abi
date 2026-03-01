@@ -30,7 +30,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Vector addition using SIMD
-    abi.shared.simd.vectorAdd(vec_a, vec_b, result);
+    abi.services.shared.simd.vectorAdd(vec_a, vec_b, result);
     std.debug.print("Vector Addition (first 5 elements):\n", .{});
     std.debug.print("  a[0..5] = [{d:.4}, {d:.4}, {d:.4}, {d:.4}, {d:.4}]\n", .{
         vec_a[0], vec_a[1], vec_a[2], vec_a[3], vec_a[4],
@@ -43,17 +43,17 @@ pub fn main(_: std.process.Init) !void {
     });
 
     // Dot product using SIMD
-    const dot = abi.shared.simd.vectorDot(vec_a, vec_b);
+    const dot = abi.services.shared.simd.vectorDot(vec_a, vec_b);
     std.debug.print("Dot Product: {d:.6}\n", .{dot});
 
     // L2 norms using SIMD
-    const norm_a = abi.shared.simd.vectorL2Norm(vec_a);
-    const norm_b = abi.shared.simd.vectorL2Norm(vec_b);
+    const norm_a = abi.services.shared.simd.vectorL2Norm(vec_a);
+    const norm_b = abi.services.shared.simd.vectorL2Norm(vec_b);
     std.debug.print("L2 Norm of vec_a: {d:.6}\n", .{norm_a});
     std.debug.print("L2 Norm of vec_b: {d:.6}\n\n", .{norm_b});
 
     // Cosine similarity using SIMD
-    const similarity = abi.shared.simd.cosineSimilarity(vec_a, vec_b);
+    const similarity = abi.services.shared.simd.cosineSimilarity(vec_a, vec_b);
     std.debug.print("Cosine Similarity: {d:.6}\n", .{similarity});
     std.debug.print("  (1.0 = identical, 0.0 = orthogonal, -1.0 = opposite)\n\n", .{});
 
@@ -81,7 +81,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Compute similarities
     for (0..num_vectors) |i| {
-        const sim = abi.shared.simd.cosineSimilarity(query, vectors[i]);
+        const sim = abi.services.shared.simd.cosineSimilarity(query, vectors[i]);
         std.debug.print("  Similarity with vector {d}: {d:.6}\n", .{ i, sim });
     }
 

@@ -10,7 +10,7 @@ const abi = @import("abi.zig");
 // Shared I/O backend helper (Zig 0.16)
 // Note: This intentionally references ABI's shared module so `zig run src/main.zig`
 // works without requiring the build system to define an "io" package/module.
-const IoBackend = abi.shared.io.IoBackend;
+const IoBackend = abi.services.shared.io.IoBackend;
 
 pub fn main(init: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -72,7 +72,7 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     defer io_backend.deinit();
 
     // Build a fully‑featured framework using the builder pattern.
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.withDefault(.gpu);
     _ = builder.withDefault(.ai);
     _ = builder.withDefault(.database);
@@ -85,7 +85,7 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
         std.debug.print("Running with minimal features...\n", .{});
 
         // Minimal framework – builder without any feature defaults.
-        var minimal_builder = abi.Framework.builder(allocator);
+        var minimal_builder = abi.App.builder(allocator);
         var minimal_framework = try minimal_builder.build();
         defer abi.shutdown(&minimal_framework);
 
@@ -96,31 +96,31 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
 
     std.debug.print("Framework initialized successfully\n", .{});
 
-    if (abi.database.isEnabled()) {
+    if (abi.features.database.isEnabled()) {
         std.debug.print("Database: Available\n", .{});
     } else {
         std.debug.print("Database: Not available (enable with -Denable-database=true)\n", .{});
     }
 
-    if (abi.gpu.moduleEnabled()) {
+    if (abi.features.gpu.moduleEnabled()) {
         std.debug.print("GPU: Available\n", .{});
     } else {
         std.debug.print("GPU: Not available (enable with -Denable-gpu=true)\n", .{});
     }
 
-    if (abi.ai.isEnabled()) {
+    if (abi.features.ai.isEnabled()) {
         std.debug.print("AI: Available\n", .{});
     } else {
         std.debug.print("AI: Not available (enable with -Denable-ai=true)\n", .{});
     }
 
-    if (abi.web.isEnabled()) {
+    if (abi.features.web.isEnabled()) {
         std.debug.print("Web: Available\n", .{});
     } else {
         std.debug.print("Web: Not available (enable with -Denable-web=true)\n", .{});
     }
 
-    if (abi.network.isEnabled()) {
+    if (abi.features.network.isEnabled()) {
         std.debug.print("Network: Available\n", .{});
     } else {
         std.debug.print("Network: Not available (enable with -Denable-network=true)\n", .{});

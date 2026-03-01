@@ -8,7 +8,7 @@
 const std = @import("std");
 const abi = @import("abi");
 
-fn onUserEvent(msg: abi.messaging.Message, _: ?*anyopaque) abi.messaging.DeliveryResult {
+fn onUserEvent(msg: abi.features.messaging.Message, _: ?*anyopaque) abi.features.messaging.DeliveryResult {
     std.debug.print("  [{s}] {s}\n", .{ msg.topic, msg.payload });
     return .ok;
 }
@@ -18,14 +18,14 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.messaging, abi.config.MessagingConfig{})
         .build();
     defer framework.deinit();
 
-    if (!abi.messaging.isEnabled()) {
+    if (!abi.features.messaging.isEnabled()) {
         std.debug.print("Messaging feature is disabled. Enable with -Denable-messaging=true\n", .{});
         return;
     }
@@ -34,7 +34,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Subscribe with MQTT wildcard pattern
     // '*' matches single level, '#' matches multiple levels
-    const sub_id = abi.messaging.subscribe(
+    const sub_id = abi.features.messaging.subscribe(
         allocator,
         "users/*",
         onUserEvent,
@@ -54,14 +54,14 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("\nPublishing messages:\n", .{});
     for (topics) |t| {
-        abi.messaging.publish(allocator, t.topic, t.payload) catch |err| {
+        abi.features.messaging.publish(allocator, t.topic, t.payload) catch |err| {
             std.debug.print("  Publish to {s} failed: {t}\n", .{ t.topic, err });
             continue;
         };
     }
 
     // List topics
-    const topic_list = abi.messaging.listTopics(allocator) catch |err| {
+    const topic_list = abi.features.messaging.listTopics(allocator) catch |err| {
         std.debug.print("Failed to list topics: {t}\n", .{err});
         return;
     };
@@ -73,11 +73,11 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Unsubscribe
-    const removed = abi.messaging.unsubscribe(sub_id) catch false;
+    const removed = abi.features.messaging.unsubscribe(sub_id) catch false;
     std.debug.print("\nUnsubscribed (id={}): {}\n", .{ sub_id, removed });
 
     // Stats
-    const s = abi.messaging.messagingStats();
+    const s = abi.features.messaging.messagingStats();
     std.debug.print("Messaging stats: {} published, {} delivered, {} topics\n", .{
         s.total_published, s.total_delivered, s.active_topics,
     });

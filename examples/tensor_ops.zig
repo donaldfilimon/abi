@@ -1,20 +1,20 @@
 //! Tensor + Matrix + SIMD Example
 //!
 //! Demonstrates a small end-to-end numeric path using shared modules:
-//! - Matrix multiply via `abi.shared.matrix.Mat32`
-//! - Tensor transforms via `abi.shared.tensor.Tensor32`
-//! - SIMD vector ops via `abi.simd.vectorAdd` / `abi.simd.vectorDot`
-//! - timing/clamp helpers via `abi.shared.utils.primitives`
+//! - Matrix multiply via `abi.services.shared.matrix.Mat32`
+//! - Tensor transforms via `abi.services.shared.tensor.Tensor32`
+//! - SIMD vector ops via `abi.services.simd.vectorAdd` / `abi.services.simd.vectorDot`
+//! - timing/clamp helpers via `abi.services.shared.utils.primitives`
 //!
 //! Run with: `zig build run-tensor-ops`
 
 const std = @import("std");
 const abi = @import("abi");
 
-const Mat32 = abi.shared.matrix.Mat32;
-const Tensor32 = abi.shared.tensor.Tensor32;
-const Shape = abi.shared.tensor.Shape;
-const primitives = abi.shared.utils.primitives;
+const Mat32 = abi.services.shared.matrix.Mat32;
+const Tensor32 = abi.services.shared.tensor.Tensor32;
+const Shape = abi.services.shared.tensor.Shape;
+const primitives = abi.services.shared.utils.primitives;
 
 pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -105,8 +105,8 @@ pub fn main(_: std.process.Init) !void {
     // 3) SIMD pass on flattened tensors
     // ---------------------------------------------------------------------
     var simd_add: [4]f32 = undefined;
-    abi.simd.vectorAdd(input.flat(), bias.flat(), simd_add[0..]);
-    const alignment_dot = abi.simd.vectorDot(relu_out.flat(), softmax_out.flat());
+    abi.services.simd.vectorAdd(input.flat(), bias.flat(), simd_add[0..]);
+    const alignment_dot = abi.services.simd.vectorDot(relu_out.flat(), softmax_out.flat());
     const clamped_dot = primitives.Math.clamp(f32, alignment_dot, 0.0, 1_000_000.0);
 
     std.debug.print("SIMD add(flat input+bias): [{d:.2}, {d:.2}, {d:.2}, {d:.2}]\n", .{

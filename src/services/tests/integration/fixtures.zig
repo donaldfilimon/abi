@@ -26,8 +26,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
 const build_options = @import("build_options");
 
 /// Hardware detection mode
@@ -96,7 +96,7 @@ pub const IntegrationFixture = struct {
     features: FeatureSet,
     hardware_mode: HardwareMode,
     metrics: TestMetrics,
-    framework: ?*abi.Framework,
+    framework: ?*abi.App,
     setup_complete: bool,
 
     // Hardware availability cache
@@ -107,7 +107,7 @@ pub const IntegrationFixture = struct {
         SetupFailed,
         FeatureNotEnabled,
         HardwareNotAvailable,
-    } || std.mem.Allocator.Error || abi.Framework.Error;
+    } || std.mem.Allocator.Error || abi.App.Error;
 
     /// Initialize fixture with requested features
     pub fn init(allocator: std.mem.Allocator, features: FeatureSet) Error!IntegrationFixture {
@@ -141,7 +141,7 @@ pub const IntegrationFixture = struct {
             features.database or features.network or features.web or
             features.observability or features.ha)
         {
-            const fw = try allocator.create(abi.Framework);
+            const fw = try allocator.create(abi.App);
             // Build config with requested features
             const cfg = abi.Config{
                 .gpu = if (features.gpu and build_options.enable_gpu) abi.config.GpuConfig.defaults() else null,
@@ -151,7 +151,7 @@ pub const IntegrationFixture = struct {
                 .observability = if (features.observability and build_options.enable_profiling) abi.config.ObservabilityConfig.defaults() else null,
                 .web = if (features.web and build_options.enable_web) abi.config.WebConfig.defaults() else null,
             };
-            fw.* = try abi.Framework.init(allocator, cfg);
+            fw.* = try abi.App.init(allocator, cfg);
             fixture.framework = fw;
         }
 
@@ -204,7 +204,7 @@ pub const IntegrationFixture = struct {
     }
 
     /// Get framework reference (fails if not initialized)
-    pub fn getFramework(self: *IntegrationFixture) Error!*abi.Framework {
+    pub fn getFramework(self: *IntegrationFixture) Error!*abi.App {
         return self.framework orelse error.SetupFailed;
     }
 

@@ -12,7 +12,7 @@ const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const abi = @import("../../src/abi");
-const gpu = abi.gpu;
+const gpu = abi.features.gpu;
 const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;
 

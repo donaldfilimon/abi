@@ -7,7 +7,7 @@ const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 
 pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: bool) void {
-    if (!abi.ai.training.isEnabled()) {
+    if (!abi.features.ai.training.isEnabled()) {
         if (!json_mode) {
             utils.output.printWarning("Training feature is disabled. Rebuild with -Dfeat-training=true (legacy: -Denable-training=true)", .{});
         }
@@ -25,7 +25,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
 
     const configs = [_]struct {
         method: []const u8,
-        optimizer: abi.ai.training.OptimizerType,
+        optimizer: abi.features.ai.training.OptimizerType,
     }{
         .{ .method = "Full fine-tune", .optimizer = .adamw },
         .{ .method = "Full fine-tune", .optimizer = .adam },
@@ -42,7 +42,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
     }
 
     for (configs) |cfg| {
-        const train_config = abi.ai.training.TrainingConfig{
+        const train_config = abi.features.ai.training.TrainingConfig{
             .epochs = 5,
             .batch_size = 8,
             .learning_rate = 0.001,
@@ -54,7 +54,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
             .checkpoint_interval = 0,
         };
 
-        const report = abi.ai.training.trainAndReport(allocator, train_config) catch |err| {
+        const report = abi.features.ai.training.trainAndReport(allocator, train_config) catch |err| {
             if (!json_mode) {
                 utils.output.printError("  {s} ({t}): error - {t}", .{ cfg.method, cfg.optimizer, err });
             }

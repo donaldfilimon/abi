@@ -6,7 +6,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const streaming = if (build_options.enable_ai) abi.ai.streaming else struct {};
+const streaming = if (build_options.enable_ai) abi.features.ai.streaming else struct {};
 const CircuitBreaker = if (build_options.enable_ai) streaming.CircuitBreaker else struct {};
 const CircuitBreakerConfig = if (build_options.enable_ai) streaming.CircuitBreakerConfig else struct {};
 
@@ -75,7 +75,7 @@ test "circuit breaker: open → half_open after timeout" {
     try std.testing.expectEqual(streaming.CircuitState.open, cb.getState());
 
     // Wait for timeout to elapse
-    abi.shared.time.sleepMs(10);
+    abi.services.shared.time.sleepMs(10);
 
     // canAttempt should trigger transition to half_open
     const can = cb.canAttempt();
@@ -96,7 +96,7 @@ test "circuit breaker: half_open → closed after success threshold" {
 
     // Open the circuit
     cb.recordFailure();
-    abi.shared.time.sleepMs(10);
+    abi.services.shared.time.sleepMs(10);
 
     // Trigger half-open transition
     if (cb.canAttempt()) {
@@ -120,7 +120,7 @@ test "circuit breaker: half_open → open on any failure" {
 
     // Open the circuit
     cb.recordFailure();
-    abi.shared.time.sleepMs(10);
+    abi.services.shared.time.sleepMs(10);
 
     // Trigger half-open
     if (cb.canAttempt()) {

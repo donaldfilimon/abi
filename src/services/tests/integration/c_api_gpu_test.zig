@@ -4,9 +4,9 @@ const std = @import("std");
 const testing = std.testing;
 const build_options = @import("build_options");
 const abi = @import("abi");
-const gpu_detect = abi.gpu.backends.detect;
-const gpu_listing = abi.gpu.backends.listing;
-const gpu_meta = abi.gpu.backends.meta;
+const gpu_detect = abi.features.gpu.backends.detect;
+const gpu_listing = abi.features.gpu.backends.listing;
+const gpu_meta = abi.features.gpu.backends.meta;
 
 // ============================================================================
 // GPU Availability Tests (Conditional on feature being enabled)
@@ -87,7 +87,7 @@ test "c_api: gpu init and shutdown lifecycle" {
     const allocator = testing.allocator;
 
     // GPU init (C API: abi_gpu_init)
-    var gpu = abi.gpu.Gpu.init(allocator, .{
+    var gpu = abi.features.gpu.Gpu.init(allocator, .{
         .preferred_backend = null, // auto-detect
         .enable_profiling = false,
     }) catch {
@@ -120,7 +120,7 @@ test "c_api: gpu init and shutdown lifecycle" {
 test "c_api: gpu null handle is safe" {
     // The C API handles null GPU pointers gracefully
     // abi_gpu_shutdown(NULL) should be a no-op
-    const maybe_gpu: ?*abi.gpu.Gpu = null;
+    const maybe_gpu: ?*abi.features.gpu.Gpu = null;
     if (maybe_gpu) |gpu| {
         gpu.deinit();
     }
@@ -162,7 +162,7 @@ test "c_api: gpu backend enum mapping" {
     // The C API maps integers to backends:
     // 0=auto, 1=cuda, 2=vulkan, 3=metal, 4=webgpu
 
-    const backend_map = [_]struct { c_value: c_int, expected: ?abi.gpu.Backend }{
+    const backend_map = [_]struct { c_value: c_int, expected: ?abi.features.gpu.Backend }{
         .{ .c_value = 0, .expected = null }, // auto
         .{ .c_value = 1, .expected = .cuda },
         .{ .c_value = 2, .expected = .vulkan },
@@ -171,7 +171,7 @@ test "c_api: gpu backend enum mapping" {
     };
 
     for (backend_map) |bm| {
-        const backend: ?abi.gpu.Backend = switch (bm.c_value) {
+        const backend: ?abi.features.gpu.Backend = switch (bm.c_value) {
             1 => .cuda,
             2 => .vulkan,
             3 => .metal,

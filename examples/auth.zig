@@ -13,14 +13,14 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.auth, abi.config.AuthConfig{})
         .build();
     defer framework.deinit();
 
-    if (!abi.auth.isEnabled()) {
+    if (!abi.features.auth.isEnabled()) {
         std.debug.print("Auth feature is disabled. Enable with -Denable-auth=true\n", .{});
         return;
     }
@@ -30,7 +30,7 @@ pub fn main(_: std.process.Init) !void {
     // ── JWT (JSON Web Tokens) ──────────────────────────────────────
     std.debug.print("--- JWT ---\n", .{});
     {
-        const jwt = abi.auth.jwt;
+        const jwt = abi.features.auth.jwt;
         var manager = jwt.JwtManager.init(allocator, "my-super-secret-key-32bytes!!", .{
             .token_lifetime = 3600,
             .issuer = "abi-example",
@@ -45,7 +45,7 @@ pub fn main(_: std.process.Init) !void {
     // ── API Keys ───────────────────────────────────────────────────
     std.debug.print("\n--- API Keys ---\n", .{});
     {
-        const api_keys = abi.auth.api_keys;
+        const api_keys = abi.features.auth.api_keys;
         var manager = api_keys.ApiKeyManager.init(allocator, .{});
         defer manager.deinit();
 
@@ -56,7 +56,7 @@ pub fn main(_: std.process.Init) !void {
     // ── RBAC (Role-Based Access Control) ───────────────────────────
     std.debug.print("\n--- RBAC ---\n", .{});
     {
-        const rbac = abi.auth.rbac;
+        const rbac = abi.features.auth.rbac;
         var manager = try rbac.RbacManager.init(allocator, .{});
         defer manager.deinit();
 
@@ -67,7 +67,7 @@ pub fn main(_: std.process.Init) !void {
     // ── Rate Limiting ──────────────────────────────────────────────
     std.debug.print("\n--- Rate Limiting ---\n", .{});
     {
-        const rate_limit = abi.auth.rate_limit;
+        const rate_limit = abi.features.auth.rate_limit;
         var limiter = rate_limit.RateLimiter.init(allocator, .{
             .enabled = true,
             .requests = 100,
@@ -82,7 +82,7 @@ pub fn main(_: std.process.Init) !void {
     // ── Input Validation ───────────────────────────────────────────
     std.debug.print("\n--- Validation ---\n", .{});
     {
-        const validation = abi.auth.validation;
+        const validation = abi.features.auth.validation;
         var validator = validation.Validator.init(allocator, .{});
         const email_result = validator.validateEmail("user@example.com");
         const url_result = validator.validateUrl("https://api.example.com/v1");

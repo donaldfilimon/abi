@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.shared.time;
+const time = abi.services.shared.time;
 
 // ============================================================================
 // Time Utilities

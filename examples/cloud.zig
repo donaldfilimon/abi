@@ -13,14 +13,14 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.cloud, abi.config.CloudConfig{})
         .build();
     defer framework.deinit();
 
-    if (!abi.cloud.isEnabled()) {
+    if (!abi.features.cloud.isEnabled()) {
         std.debug.print("Cloud feature is disabled. Enable with -Denable-cloud=true\n", .{});
         return;
     }
@@ -29,14 +29,14 @@ pub fn main(_: std.process.Init) !void {
 
     // Cloud provider types
     std.debug.print("--- Cloud Providers ---\n", .{});
-    const providers = [_]abi.cloud.CloudProvider{ .aws_lambda, .gcp_functions, .azure_functions };
+    const providers = [_]abi.features.cloud.CloudProvider{ .aws_lambda, .gcp_functions, .azure_functions };
     for (providers) |p| {
         std.debug.print("  Provider: {s}\n", .{p.name()});
     }
 
     // Cloud event structure
     std.debug.print("\n--- Cloud Events ---\n", .{});
-    const event = abi.cloud.CloudEvent{
+    const event = abi.features.cloud.CloudEvent{
         .request_id = "example-req-001",
         .provider = .aws_lambda,
         .allocator = allocator,
@@ -46,7 +46,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Cloud config
     std.debug.print("\n--- Cloud Config ---\n", .{});
-    const config = abi.cloud.CloudConfig{
+    const config = abi.features.cloud.CloudConfig{
         .memory_mb = 512,
         .timeout_seconds = 60,
         .tracing_enabled = true,
@@ -55,7 +55,7 @@ pub fn main(_: std.process.Init) !void {
 
     // HTTP method handling
     std.debug.print("\n--- HTTP Methods ---\n", .{});
-    const methods = [_]abi.cloud.HttpMethod{ .GET, .POST, .PUT, .DELETE };
+    const methods = [_]abi.features.cloud.HttpMethod{ .GET, .POST, .PUT, .DELETE };
     for (methods) |m| {
         std.debug.print("  {t}\n", .{m});
     }

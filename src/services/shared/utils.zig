@@ -303,7 +303,7 @@ pub const http_retry = @import("utils/retry.zig");
 pub const metric_types = @import("utils/metric_types.zig");
 
 // Note: Top-level shared modules (logging, os, platform, plugins, simd, time)
-// are exported via shared/mod.zig. Access them as abi.shared.<module>.
+// are exported via shared/mod.zig. Access them as abi.services.shared.<module>.
 
 // ============================================================================
 // Tests

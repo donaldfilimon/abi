@@ -19,8 +19,8 @@ const abi = @import("abi");
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
-const tasks = abi.tasks;
-const time_utils = abi.shared.utils;
+const tasks = abi.services.tasks;
+const time_utils = abi.services.shared.utils;
 
 fn runStatsSubcommand(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
     try runStats(allocator);

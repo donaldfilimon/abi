@@ -11,45 +11,45 @@ const build_options = @import("build_options");
 test {
     // LLM module tests (when enabled)
     if (build_options.enable_llm) {
-        _ = abi.ai.llm.io;
-        _ = abi.ai.llm.tensor;
-        _ = abi.ai.llm.tokenizer;
-        _ = abi.ai.llm.ops;
-        _ = abi.ai.llm.cache;
-        _ = abi.ai.llm.model;
-        _ = abi.ai.llm.generation;
+        _ = abi.features.ai.llm.io;
+        _ = abi.features.ai.llm.tensor;
+        _ = abi.features.ai.llm.tokenizer;
+        _ = abi.features.ai.llm.ops;
+        _ = abi.features.ai.llm.cache;
+        _ = abi.features.ai.llm.model;
+        _ = abi.features.ai.llm.generation;
     }
     // Explore module tests (when enabled)
     if (build_options.enable_explore) {
-        _ = abi.ai.explore;
+        _ = abi.features.ai.explore;
     }
     // Persona integration tests
     if (build_options.enable_ai) {
-        _ = abi.ai.personas;
+        _ = abi.features.ai.personas;
     }
     // AI submodule tests (previously undiscovered)
     if (build_options.enable_ai) {
-        _ = abi.ai.eval;
-        _ = abi.ai.rag;
-        _ = abi.ai.templates;
-        _ = abi.ai.memory;
-        _ = abi.ai.orchestration;
-        _ = abi.ai.tools;
-        _ = abi.ai.streaming;
-        _ = abi.ai.documents;
-        _ = abi.ai.abbey;
-        _ = abi.ai.database;
+        _ = abi.features.ai.eval;
+        _ = abi.features.ai.rag;
+        _ = abi.features.ai.templates;
+        _ = abi.features.ai.memory;
+        _ = abi.features.ai.orchestration;
+        _ = abi.features.ai.tools;
+        _ = abi.features.ai.streaming;
+        _ = abi.features.ai.documents;
+        _ = abi.features.ai.abbey;
+        _ = abi.features.ai.database;
     }
     if (@hasDecl(build_options, "enable_vision") and build_options.enable_vision) {
-        _ = abi.ai.vision;
+        _ = abi.features.ai.vision;
     }
     // Connector tests
     _ = @import("connectors_test.zig");
     // Connector integration tests (isAvailable consistency, boundary conditions)
     _ = @import("connector_integration_test.zig");
     // MCP/ACP service tests (force test discovery through abi module)
-    _ = abi.mcp;
-    _ = abi.acp;
+    _ = abi.services.mcp;
+    _ = abi.services.acp;
     // Integration test matrix
     _ = @import("test_matrix.zig");
     // Include training demo test
@@ -61,7 +61,7 @@ test {
     // Cross-platform OS features tests
     _ = @import("os_test.zig");
     // Shared utilities tests (via abi module)
-    _ = abi.shared.errors;
+    _ = abi.services.shared.errors;
     // High Availability module tests
     _ = @import("ha_test.zig");
     // Stub parity verification tests (runtime checks)
@@ -137,7 +137,7 @@ test {
 
     // Analytics module tests
     if (@hasDecl(build_options, "enable_analytics") and build_options.enable_analytics) {
-        _ = abi.analytics;
+        _ = abi.features.analytics;
         _ = @import("analytics_test.zig");
     }
 
@@ -295,7 +295,7 @@ test "framework initialization" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework_instance = try abi.initDefault(gpa.allocator());
+    var framework_instance = try abi.App.initDefault(gpa.allocator());
     defer framework_instance.deinit();
 
     try std.testing.expect(framework_instance.isRunning());
@@ -305,7 +305,7 @@ test "framework minimal initialization" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework_minimal = try abi.initDefault(gpa.allocator());
+    var framework_minimal = try abi.App.initDefault(gpa.allocator());
     defer framework_minimal.deinit();
 
     try std.testing.expect(framework_minimal.isRunning());
@@ -317,7 +317,7 @@ test "framework with gpu enabled" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.initDefault(gpa.allocator());
+    var framework = try abi.App.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expect(framework.isEnabled(.gpu));
@@ -327,7 +327,7 @@ test "framework feature flags" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.initDefault(gpa.allocator());
+    var framework = try abi.App.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expectEqual(build_options.enable_gpu, framework.isEnabled(.gpu));

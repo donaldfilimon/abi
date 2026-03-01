@@ -69,7 +69,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Check if AI feature is enabled
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         utils.output.printError("AI feature is disabled.", .{});
         utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
@@ -194,7 +194,7 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
 
     switch (provider) {
         .openai => {
-            const config = abi.connectors.tryLoadOpenAI(allocator) catch {
+            const config = abi.services.connectors.tryLoadOpenAI(allocator) catch {
                 utils.output.printError("OpenAI not configured. Set ABI_OPENAI_API_KEY environment variable.", .{});
                 utils.output.printInfo("Run 'abi env' to check your environment setup.", .{});
                 return EmbedError.ProviderNotConfigured;
@@ -217,7 +217,7 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             return EmbedError.EmbeddingFailed;
         },
         .ollama => {
-            var config = abi.connectors.loadOllama(allocator) catch {
+            var config = abi.services.connectors.loadOllama(allocator) catch {
                 utils.output.printError("Ollama not configured. Set ABI_OLLAMA_HOST or start Ollama locally.", .{});
                 utils.output.printInfo("Default host: http://127.0.0.1:11434", .{});
                 return EmbedError.ProviderNotConfigured;
@@ -233,7 +233,7 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             return EmbedError.EmbeddingFailed;
         },
         .mistral => {
-            const config = abi.connectors.tryLoadMistral(allocator) catch {
+            const config = abi.services.connectors.tryLoadMistral(allocator) catch {
                 utils.output.printError("Mistral not configured. Set MISTRAL_API_KEY environment variable.", .{});
                 utils.output.printInfo("Run 'abi env' for setup help.", .{});
                 return EmbedError.ProviderNotConfigured;
@@ -255,7 +255,7 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             return EmbedError.EmbeddingFailed;
         },
         .cohere => {
-            const config = abi.connectors.tryLoadCohere(allocator) catch {
+            const config = abi.services.connectors.tryLoadCohere(allocator) catch {
                 utils.output.printError("Cohere not configured. Set COHERE_API_KEY environment variable.", .{});
                 utils.output.printInfo("Run 'abi env' for setup help.", .{});
                 return EmbedError.ProviderNotConfigured;

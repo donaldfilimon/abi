@@ -11,14 +11,14 @@ const abi = @import("abi");
 
 // Framework initialization benchmark
 fn frameworkInitBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.initDefault(allocator);
+    var framework = try abi.App.initDefault(allocator);
     defer framework.deinit();
     std.mem.doNotOptimizeAway(&framework);
 }
 
 // Database benchmarks
 fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.Config{
+    var framework = try abi.App.init(allocator, abi.Config{
         .database = .{}, // Enabled with defaults
     });
     defer framework.deinit();
@@ -31,7 +31,7 @@ fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
 }
 
 fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.Config{
+    var framework = try abi.App.init(allocator, abi.Config{
         .database = .{}, // Enabled with defaults
     });
     defer framework.deinit();
@@ -60,7 +60,7 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
 
 // Compute benchmarks
 fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.Config{});
+    var framework = try abi.App.init(allocator, abi.Config{});
     defer framework.deinit();
 
     // Simple compute benchmark using SIMD operations
@@ -69,7 +69,7 @@ fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
     while (i < 10000) : (i += 1) {
         const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
         const vec_b = [_]f32{ @floatFromInt(@mod(i, 10)), @floatFromInt(@mod(i + 1, 10)), @floatFromInt(@mod(i + 2, 10)), @floatFromInt(@mod(i + 3, 10)) };
-        sum += abi.simd.vectorDot(&vec_a, &vec_b);
+        sum += abi.services.simd.vectorDot(&vec_a, &vec_b);
     }
     std.mem.doNotOptimizeAway(sum);
 }
@@ -78,7 +78,7 @@ fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
 fn simdVectorBenchmark(_: std.mem.Allocator) !void {
     const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vec_b = [_]f32{ 4.0, 3.0, 2.0, 1.0 };
-    const result = abi.simd.vectorDot(&vec_a, &vec_b);
+    const result = abi.services.simd.vectorDot(&vec_a, &vec_b);
     std.mem.doNotOptimizeAway(result);
 }
 
@@ -86,7 +86,7 @@ fn simdAddBenchmark(_: std.mem.Allocator) !void {
     const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vec_b = [_]f32{ 4.0, 3.0, 2.0, 1.0 };
     var result = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
-    abi.simd.vectorAdd(&vec_a, &vec_b, &result);
+    abi.services.simd.vectorAdd(&vec_a, &vec_b, &result);
     std.mem.doNotOptimizeAway(&result);
 }
 
@@ -99,7 +99,7 @@ fn memoryAllocationBenchmark(allocator: std.mem.Allocator) !void {
 
 // GPU benchmarks (if available)
 fn gpuAvailabilityBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = abi.init(allocator, abi.Config{
+    var framework = abi.App.init(allocator, abi.Config{
         .gpu = .{}, // Enabled with defaults
     }) catch |err| {
         std.debug.print("GPU initialization failed: {}\n", .{err});
@@ -118,7 +118,7 @@ fn networkRegistryBenchmark(allocator: std.mem.Allocator) !void {
     // Network registry may fail in environments without networking support.
     // Initialize the framework with network enabled, but gracefully handle any errors
     // during registry operations so the benchmark suite reports no errors.
-    var framework = abi.init(allocator, abi.Config{ .network = .{} }) catch return;
+    var framework = abi.App.init(allocator, abi.Config{ .network = .{} }) catch return;
     defer framework.deinit();
 
     // Attempt to obtain the default registry; if that fails, simply skip the benchmark.
@@ -140,7 +140,7 @@ fn jsonBenchmark(allocator: std.mem.Allocator) !void {
 
 // Logging benchmark - measures format string processing overhead without I/O
 fn loggingBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.Config{});
+    var framework = try abi.App.init(allocator, abi.Config{});
     defer framework.deinit();
 
     // Measure format string preparation without stdout I/O

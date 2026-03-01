@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const gpu = if (build_options.enable_gpu) abi.gpu else struct {};
+const gpu = if (build_options.enable_gpu) abi.features.gpu else struct {};
 const dispatcher = if (build_options.enable_gpu) gpu.dispatch else struct {};
 
 // ============================================================================

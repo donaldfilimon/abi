@@ -16,7 +16,7 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("=== ABI Training Example ===\n\n", .{});
 
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
@@ -24,7 +24,7 @@ pub fn main(_: std.process.Init) !void {
     // Initialize framework with training enabled
     var ai_config = abi.config.AiConfig.defaults();
     ai_config.training = .{};
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.with(.ai, ai_config);
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
@@ -35,7 +35,7 @@ pub fn main(_: std.process.Init) !void {
     // === Training Configuration ===
     std.debug.print("--- Training Configuration ---\n", .{});
 
-    const config = abi.ai.training.TrainingConfig{
+    const config = abi.features.ai.training.TrainingConfig{
         .epochs = 5,
         .batch_size = 32,
         .sample_count = 256,
@@ -58,7 +58,7 @@ pub fn main(_: std.process.Init) !void {
     // === Run Training ===
     std.debug.print("\n--- Starting Training ---\n", .{});
 
-    var result = abi.ai.training.trainWithResult(allocator, config) catch |err| {
+    var result = abi.features.ai.training.trainWithResult(allocator, config) catch |err| {
         std.debug.print("Training failed: {t}\n", .{err});
         return err;
     };
@@ -109,7 +109,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Try to load checkpoint and continue training
     if (config.checkpoint_path) |checkpoint_path| {
-        if (abi.ai.training.loadCheckpoint(allocator, checkpoint_path)) |checkpoint| {
+        if (abi.features.ai.training.loadCheckpoint(allocator, checkpoint_path)) |checkpoint| {
             var checkpoint_mut = checkpoint;
             defer checkpoint_mut.deinit(allocator);
             std.debug.print("Loaded checkpoint from step {d}\n", .{checkpoint.step});

@@ -21,7 +21,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
 
-    var fw = abi.initAppDefault(allocator) catch |err| {
+    var fw = abi.App.initDefault(allocator) catch |err| {
         utils.output.printError("Framework initialization failed: {t}", .{err});
         utils.output.println("", .{});
         utils.output.println("Status: UNHEALTHY", .{});
@@ -51,21 +51,21 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Connector status (all 15 providers)
     utils.output.println("", .{});
     const connectors = [_]struct { name: []const u8, available: bool }{
-        .{ .name = "openai", .available = abi.connectors.openai.isAvailable() },
-        .{ .name = "anthropic", .available = abi.connectors.anthropic.isAvailable() },
-        .{ .name = "claude", .available = abi.connectors.claude.isAvailable() },
-        .{ .name = "ollama", .available = abi.connectors.ollama.isAvailable() },
-        .{ .name = "ollama_passthrough", .available = abi.connectors.ollama_passthrough.isAvailable() },
-        .{ .name = "huggingface", .available = abi.connectors.huggingface.isAvailable() },
-        .{ .name = "mistral", .available = abi.connectors.mistral.isAvailable() },
-        .{ .name = "cohere", .available = abi.connectors.cohere.isAvailable() },
-        .{ .name = "gemini", .available = abi.connectors.gemini.isAvailable() },
-        .{ .name = "codex", .available = abi.connectors.codex.isAvailable() },
-        .{ .name = "opencode", .available = abi.connectors.opencode.isAvailable() },
-        .{ .name = "lm_studio", .available = abi.connectors.lm_studio.isAvailable() },
-        .{ .name = "vllm", .available = abi.connectors.vllm.isAvailable() },
-        .{ .name = "mlx", .available = abi.connectors.mlx.isAvailable() },
-        .{ .name = "llama_cpp", .available = abi.connectors.llama_cpp.isAvailable() },
+        .{ .name = "openai", .available = abi.services.connectors.openai.isAvailable() },
+        .{ .name = "anthropic", .available = abi.services.connectors.anthropic.isAvailable() },
+        .{ .name = "claude", .available = abi.services.connectors.claude.isAvailable() },
+        .{ .name = "ollama", .available = abi.services.connectors.ollama.isAvailable() },
+        .{ .name = "ollama_passthrough", .available = abi.services.connectors.ollama_passthrough.isAvailable() },
+        .{ .name = "huggingface", .available = abi.services.connectors.huggingface.isAvailable() },
+        .{ .name = "mistral", .available = abi.services.connectors.mistral.isAvailable() },
+        .{ .name = "cohere", .available = abi.services.connectors.cohere.isAvailable() },
+        .{ .name = "gemini", .available = abi.services.connectors.gemini.isAvailable() },
+        .{ .name = "codex", .available = abi.services.connectors.codex.isAvailable() },
+        .{ .name = "opencode", .available = abi.services.connectors.opencode.isAvailable() },
+        .{ .name = "lm_studio", .available = abi.services.connectors.lm_studio.isAvailable() },
+        .{ .name = "vllm", .available = abi.services.connectors.vllm.isAvailable() },
+        .{ .name = "mlx", .available = abi.services.connectors.mlx.isAvailable() },
+        .{ .name = "llama_cpp", .available = abi.services.connectors.llama_cpp.isAvailable() },
     };
     var conn_count: usize = 0;
     for (connectors) |c| {

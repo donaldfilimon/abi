@@ -8,7 +8,7 @@ const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 
 pub fn runInfo() void {
-    const default_config = abi.ai.training.TrainingConfig{};
+    const default_config = abi.features.ai.training.TrainingConfig{};
 
     utils.output.printHeader("Default Training Configuration");
     utils.output.println("", .{});

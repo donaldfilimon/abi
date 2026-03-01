@@ -16,10 +16,10 @@ const abi = @import("abi");
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
-const app_paths = abi.shared.app_paths;
+const app_paths = abi.services.shared.app_paths;
 
 // Access the workflow DAG engine from the multi_agent module
-const workflow_mod = abi.ai.multi_agent.workflow;
+const workflow_mod = abi.features.ai.multi_agent.workflow;
 const WorkflowDef = workflow_mod.WorkflowDef;
 const ExecutionTracker = workflow_mod.ExecutionTracker;
 const StepStatus = workflow_mod.StepStatus;
@@ -149,7 +149,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn runInfo(allocator: std.mem.Allocator) !void {
     // Initialise the framework to access runtime feature matrix.
-    var framework = try abi.initAppDefault(allocator);
+    var framework = try abi.App.initDefault(allocator);
     defer framework.deinit();
 
     utils.output.printHeader("Multi‑Agent Coordinator");
@@ -165,8 +165,8 @@ fn runInfo(allocator: std.mem.Allocator) !void {
         return;
     }
 
-    // Use the public API via `abi.ai.multi_agent`.
-    const Coordinator = abi.ai.multi_agent.Coordinator;
+    // Use the public API via `abi.features.ai.multi_agent`.
+    const Coordinator = abi.features.ai.multi_agent.Coordinator;
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 
@@ -222,7 +222,7 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     }
 
     // Check AI feature
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         utils.output.printError("AI feature is disabled", .{});
         utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
@@ -265,7 +265,7 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     utils.output.println("", .{});
 
     // Initialize coordinator
-    const Coordinator = abi.ai.multi_agent.Coordinator;
+    const Coordinator = abi.features.ai.multi_agent.Coordinator;
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 
@@ -276,7 +276,7 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
         &[_][]const u8{ "agent-1", "agent-2", "agent-3" };
 
     // Create echo agents (safe default — no API keys required)
-    const AgentType = abi.ai.agent.Agent;
+    const AgentType = abi.features.ai.agent.Agent;
     var agent_storage = allocator.alloc(AgentType, agent_names.len) catch {
         utils.output.printError("Failed to allocate agents", .{});
         return;
@@ -367,7 +367,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     const task_text = task_input orelse "Analyze the provided input";
 
     // Check AI feature
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         utils.output.printError("AI feature is disabled", .{});
         utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
@@ -408,12 +408,12 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     utils.output.println("", .{});
 
     // Initialize coordinator and tracker
-    const Coordinator = abi.ai.multi_agent.Coordinator;
+    const Coordinator = abi.features.ai.multi_agent.Coordinator;
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 
     // Create one echo agent per step
-    const AgentType = abi.ai.agent.Agent;
+    const AgentType = abi.features.ai.agent.Agent;
     var agent_storage = allocator.alloc(AgentType, wf_def.steps.len) catch {
         utils.output.printError("Failed to allocate agents", .{});
         return;
@@ -445,7 +445,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     defer tracker.deinit();
 
     // Start overall timer
-    var overall_timer = abi.shared.time.Timer.start() catch null;
+    var overall_timer = abi.services.shared.time.Timer.start() catch null;
 
     // Collect step results for final display
     var step_outputs: std.StringHashMapUnmanaged([]const u8) = .{};
@@ -479,7 +479,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
             defer allocator.free(prompt);
 
             // Execute via coordinator (uses first available agent with echo backend)
-            var step_timer = abi.shared.time.Timer.start() catch null;
+            var step_timer = abi.services.shared.time.Timer.start() catch null;
             const result_text = coord.runTask(prompt) catch |err| {
                 const dur = if (step_timer) |*t| t.read() else 0;
                 utils.output.print("  Step {d}/{d}: {s} ", .{ global_step_num, wf_def.steps.len, step_id });
@@ -752,7 +752,7 @@ fn showStatus(allocator: std.mem.Allocator) !void {
     utils.output.printHeader("Multi-Agent Status");
 
     // Check AI feature
-    const ai_enabled = abi.ai.isEnabled();
+    const ai_enabled = abi.features.ai.isEnabled();
     utils.output.printKeyValue("AI Feature", utils.output.boolLabel(ai_enabled));
 
     if (!ai_enabled) {
@@ -762,7 +762,7 @@ fn showStatus(allocator: std.mem.Allocator) !void {
     }
 
     // Initialize coordinator
-    const Coordinator = abi.ai.multi_agent.Coordinator;
+    const Coordinator = abi.features.ai.multi_agent.Coordinator;
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 

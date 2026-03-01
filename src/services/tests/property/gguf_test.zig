@@ -21,7 +21,7 @@ const Generator = property.Generator;
 const assert = property.assert;
 
 // Import GGUF types through abi module
-const llm_io = abi.ai.llm.io;
+const llm_io = abi.features.ai.llm.io;
 const gguf = llm_io.gguf;
 const mmap = llm_io.mmap;
 

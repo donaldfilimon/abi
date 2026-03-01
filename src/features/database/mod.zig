@@ -22,7 +22,7 @@
 //! const abi = @import("abi");
 //!
 //! // Initialize with database enabled
-//! var fw = try abi.Framework.init(allocator, .{
+//! var fw = try abi.App.init(allocator, .{
 //!     .database = .{ .path = "./vectors.db" },
 //! });
 //! defer fw.deinit();
@@ -41,7 +41,7 @@
 //! ## Standalone Usage
 //!
 //! ```zig
-//! const db = abi.database;
+//! const db = abi.features.database;
 //!
 //! // Open or create a database
 //! var handle = try db.open(allocator, "vectors.db");

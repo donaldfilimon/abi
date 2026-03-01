@@ -13,17 +13,17 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.withDefault(.ai);
     var framework = try builder.build();
     defer framework.deinit();
 
-    var agent = abi.ai.agent.Agent.init(allocator, .{
+    var agent = abi.features.ai.agent.Agent.init(allocator, .{
         .name = "example-agent",
         .temperature = 0.7,
     }) catch |err| {

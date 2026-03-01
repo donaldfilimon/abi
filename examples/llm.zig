@@ -16,13 +16,13 @@ pub fn main(init: std.process.Init) !void {
 
     std.debug.print("=== ABI LLM Inference Example ===\n\n", .{});
 
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
 
     // Initialize framework
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.withDefault(.ai);
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
@@ -46,7 +46,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("Looking for model: {s}\n", .{model_path});
 
     // Try to load model (will fail gracefully if not found)
-    var model = abi.ai.llm.Model.load(allocator, model_path) catch |err| {
+    var model = abi.features.ai.llm.Model.load(allocator, model_path) catch |err| {
         std.debug.print("\nModel not found or failed to load: {t}\n", .{err});
         std.debug.print("\nTo use this example:\n", .{});
         std.debug.print("  1. Download a GGUF model (e.g., from HuggingFace)\n", .{});
@@ -103,7 +103,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("Generating...\n\n", .{});
 
     // Configure generation
-    const gen_config = abi.ai.llm.generation.GeneratorConfig{
+    const gen_config = abi.features.ai.llm.generation.GeneratorConfig{
         .temperature = 0.8,
         .top_k = 40,
         .top_p = 0.95,
@@ -117,7 +117,7 @@ pub fn main(init: std.process.Init) !void {
     };
     defer allocator.free(prompt_tokens);
 
-    var timer = abi.shared.time.Timer.start() catch null;
+    var timer = abi.services.shared.time.Timer.start() catch null;
     const output_tokens = model.generate(prompt_tokens, gen_config) catch |err| {
         std.debug.print("Generation failed: {t}\n", .{err});
         return err;
@@ -152,7 +152,7 @@ fn demoApiStructure() void {
     std.debug.print("--- LLM API Structure Demo ---\n\n", .{});
 
     std.debug.print("1. Load Model:\n", .{});
-    std.debug.print("   var model = try abi.ai.llm.Model.load(allocator, \"model.gguf\");\n", .{});
+    std.debug.print("   var model = try abi.features.ai.llm.Model.load(allocator, \"model.gguf\");\n", .{});
     std.debug.print("   defer model.deinit();\n\n", .{});
 
     std.debug.print("2. Tokenize Text:\n", .{});
@@ -160,7 +160,7 @@ fn demoApiStructure() void {
     std.debug.print("   defer allocator.free(tokens);\n\n", .{});
 
     std.debug.print("3. Configure Sampling:\n", .{});
-    std.debug.print("   const config = abi.ai.llm.generation.GeneratorConfig{{\n", .{});
+    std.debug.print("   const config = abi.features.ai.llm.generation.GeneratorConfig{{\n", .{});
     std.debug.print("       .temperature = 0.8,\n", .{});
     std.debug.print("       .top_k = 40,\n", .{});
     std.debug.print("       .top_p = 0.95,\n", .{});

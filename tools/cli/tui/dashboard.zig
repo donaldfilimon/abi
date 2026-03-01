@@ -80,12 +80,12 @@ pub fn Dashboard(comptime PanelType: type) type {
 
         pub fn showNotification(self: *Self, msg: []const u8) void {
             self.notification = msg;
-            self.notification_time = abi.shared.utils.unixMs();
+            self.notification_time = abi.services.shared.utils.unixMs();
         }
 
         fn clearExpiredNotification(self: *Self) void {
             if (self.notification_time > 0) {
-                const elapsed = abi.shared.utils.unixMs() - self.notification_time;
+                const elapsed = abi.services.shared.utils.unixMs() - self.notification_time;
                 if (elapsed > 3000) {
                     self.notification = null;
                     self.notification_time = 0;

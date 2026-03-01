@@ -42,7 +42,7 @@
 //! const abi = @import("abi");
 //!
 //! // Initialize framework with GPU
-//! var fw = try abi.Framework.init(allocator, .{
+//! var fw = try abi.App.init(allocator, .{
 //!     .gpu = .{ .backend = .auto },  // Auto-detect best backend
 //! });
 //! defer fw.deinit();
@@ -68,7 +68,7 @@
 //! ## Standalone Usage
 //!
 //! ```zig
-//! const gpu = abi.gpu;
+//! const gpu = abi.features.gpu;
 //!
 //! var g = try gpu.Gpu.init(allocator, .{
 //!     .preferred_backend = .vulkan,

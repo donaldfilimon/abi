@@ -3,7 +3,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
-const providers = abi.ai.llm.providers;
+const providers = abi.features.ai.llm.providers;
 const cfg = @import("config.zig");
 const workspace = @import("workspace.zig");
 const git_ops = @import("git_ops.zig");
@@ -65,7 +65,7 @@ pub fn runImprove(
         git_ops.ensureRunBranch(allocator, io, options.worktree, branch);
     }
 
-    var tool_agent = try abi.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
+    var tool_agent = try abi.features.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
         .agent = .{
             .name = "ralph-autonomous",
             .backend = .provider_router,

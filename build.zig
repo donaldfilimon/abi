@@ -46,12 +46,20 @@ pub fn build(b: *std.Build) void {
 
     // ── Core modules ────────────────────────────────────────────────────
     const build_opts = modules.createBuildOptionsModule(b, options);
+
+    const wdbx_module = b.addModule("wdbx", .{
+        .root_source_file = b.path("src/features/database/wdbx/wdbx.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const abi_module = b.addModule("abi", .{
         .root_source_file = b.path("src/abi.zig"),
         .target = target,
         .optimize = optimize,
     });
     abi_module.addImport("build_options", build_opts);
+    abi_module.addImport("wdbx", wdbx_module);
 
     // ── CLI executable ──────────────────────────────────────────────────
     const exe = b.addExecutable(.{

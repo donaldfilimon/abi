@@ -17,7 +17,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI High Availability Example ===\n\n", .{});
 
     // Initialize framework
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.withDefault(.database);
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
@@ -28,7 +28,7 @@ pub fn main(_: std.process.Init) !void {
     // === HA Manager Setup ===
     std.debug.print("--- HA Manager Setup ---\n", .{});
 
-    var ha_manager = abi.ha.HaManager.init(allocator, .{
+    var ha_manager = abi.services.ha.HaManager.init(allocator, .{
         .replication_factor = 3,
         .backup_interval_hours = 6,
         .enable_pitr = true,
@@ -59,7 +59,7 @@ pub fn main(_: std.process.Init) !void {
     // === PITR Demo ===
     std.debug.print("\n--- Point-in-Time Recovery ---\n", .{});
 
-    var pitr = abi.ha.PitrManager.init(allocator, .{
+    var pitr = abi.services.ha.PitrManager.init(allocator, .{
         .retention_hours = 24,
         .checkpoint_interval_sec = 60,
     });
@@ -97,7 +97,7 @@ pub fn main(_: std.process.Init) !void {
     // === Backup Demo ===
     std.debug.print("\n--- Backup Orchestration ---\n", .{});
 
-    var backup = abi.ha.BackupOrchestrator.init(allocator, .{
+    var backup = abi.services.ha.BackupOrchestrator.init(allocator, .{
         .interval_hours = 6,
     });
     defer backup.deinit();
@@ -119,7 +119,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n=== HA Example Complete ===\n", .{});
 }
 
-fn logHaEvent(event: abi.ha.HaEvent) void {
+fn logHaEvent(event: abi.services.ha.HaEvent) void {
     switch (event) {
         .replica_added => |info| {
             std.debug.print("[HA Event] Replica added: node={d} region={s}\n", .{ info.node_id, info.region });

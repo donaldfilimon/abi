@@ -10,10 +10,10 @@ const abi = @import("abi");
 const testing = std.testing;
 
 // Import LLM modules when available
-const llm = if (build_options.enable_llm) abi.ai.llm else struct {};
-const tensor = if (build_options.enable_llm) abi.ai.llm.tensor else struct {};
-const generation = if (build_options.enable_llm) abi.ai.llm.generation else struct {};
-const ops = if (build_options.enable_llm) abi.ai.llm.ops else struct {};
+const llm = if (build_options.enable_llm) abi.features.ai.llm else struct {};
+const tensor = if (build_options.enable_llm) abi.features.ai.llm.tensor else struct {};
+const generation = if (build_options.enable_llm) abi.features.ai.llm.generation else struct {};
+const ops = if (build_options.enable_llm) abi.features.ai.llm.ops else struct {};
 
 //==============================================================================
 // Q4_0 Quantization Reference Vectors

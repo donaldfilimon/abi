@@ -10,7 +10,7 @@
 //! Usage pattern (in `main.zig` or wherever the program entry lives):
 //! ```zig
 //! const abi = @import("abi");
-//! const IoBackend = abi.shared.io.IoBackend;
+//! const IoBackend = abi.services.shared.io.IoBackend;
 //! var backend = try IoBackend.init(allocator);
 //! defer backend.deinit();
 //! // Pass `backend.io` down to the framework or any subsystem that

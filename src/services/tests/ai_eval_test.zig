@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const eval = if (build_options.enable_ai) abi.ai.eval else struct {};
+const eval = if (build_options.enable_ai) abi.features.ai.eval else struct {};
 
 // ============================================================================
 // BLEU Score Tests

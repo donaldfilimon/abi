@@ -44,8 +44,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
 
 // Sub-modules
 pub const vector_search = @import("vector_search_e2e.zig");
@@ -177,7 +177,7 @@ pub const E2EContext = struct {
     config: E2EConfig,
 
     /// Framework instance, or null if not yet initialized.
-    framework: ?*abi.Framework,
+    framework: ?*abi.App,
 
     /// Temporary directory path for test artifacts.
     temp_dir: ?[]const u8,
@@ -195,7 +195,7 @@ pub const E2EContext = struct {
         TimeoutExceeded,
         FeatureNotEnabled,
         CleanupFailed,
-    } || std.mem.Allocator.Error || abi.Framework.Error;
+    } || std.mem.Allocator.Error || abi.App.Error;
 
     /// Initialize the E2E test context.
     ///
@@ -221,11 +221,11 @@ pub const E2EContext = struct {
         };
 
         // Initialize framework with requested features
-        const fw = try allocator.create(abi.Framework);
+        const fw = try allocator.create(abi.App);
         errdefer allocator.destroy(fw);
 
         const cfg = buildConfig(config.features);
-        fw.* = try abi.Framework.init(allocator, cfg);
+        fw.* = try abi.App.init(allocator, cfg);
         ctx.framework = fw;
 
         ctx.initialized = true;
@@ -272,7 +272,7 @@ pub const E2EContext = struct {
     }
 
     /// Get the framework instance.
-    pub fn getFramework(self: *E2EContext) Error!*abi.Framework {
+    pub fn getFramework(self: *E2EContext) Error!*abi.App {
         return self.framework orelse error.FrameworkNotInitialized;
     }
 

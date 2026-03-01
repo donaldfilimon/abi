@@ -27,7 +27,7 @@ pub fn runResume(ctx: *const context_mod.CommandContext, args: []const [:0]const
     utils.output.println("Loading checkpoint: {s}", .{checkpoint_path});
 
     // Load checkpoint
-    var ckpt = abi.ai.training.loadCheckpoint(allocator, checkpoint_path) catch |err| {
+    var ckpt = abi.features.ai.training.loadCheckpoint(allocator, checkpoint_path) catch |err| {
         utils.output.printError("loading checkpoint: {t}", .{err});
         utils.output.println("", .{});
         utils.output.println("Note: Resume functionality loads model weights from a saved checkpoint.", .{});

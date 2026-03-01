@@ -25,7 +25,7 @@ test "framework: successful initialization" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.initDefault(gpa.allocator());
+    var framework = try abi.App.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expect(framework.isRunning());
@@ -43,7 +43,7 @@ test "framework: multiple init cycles" {
 
     // Multiple cycles
     for (0..5) |_| {
-        var framework = try abi.initDefault(gpa.allocator());
+        var framework = try abi.App.initDefault(gpa.allocator());
         defer framework.deinit();
         try std.testing.expect(framework.isRunning());
     }
@@ -55,7 +55,7 @@ test "framework: feature flag consistency" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.initDefault(gpa.allocator());
+    var framework = try abi.App.initDefault(gpa.allocator());
     defer framework.deinit();
 
     // Feature states should match what was requested (limited by build options)
@@ -77,13 +77,13 @@ test "database errors: type definitions" {
     if (!build_options.enable_database) return error.SkipZigTest;
 
     // Verify error types can be used
-    const errors = [_]abi.database.database.DatabaseError{
-        abi.database.database.DatabaseError.DuplicateId,
-        abi.database.database.DatabaseError.VectorNotFound,
-        abi.database.database.DatabaseError.InvalidDimension,
-        abi.database.database.DatabaseError.PoolExhausted,
-        abi.database.database.DatabaseError.PersistenceError,
-        abi.database.database.DatabaseError.ConcurrencyError,
+    const errors = [_]abi.features.database.database.DatabaseError{
+        abi.features.database.database.DatabaseError.DuplicateId,
+        abi.features.database.database.DatabaseError.VectorNotFound,
+        abi.features.database.database.DatabaseError.InvalidDimension,
+        abi.features.database.database.DatabaseError.PoolExhausted,
+        abi.features.database.database.DatabaseError.PersistenceError,
+        abi.features.database.database.DatabaseError.ConcurrencyError,
     };
 
     // Each error should have unique value
@@ -101,27 +101,27 @@ test "database errors: duplicate id recovery" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-dup-recovery");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-dup-recovery");
+    defer abi.features.database.close(&handle);
 
     // First insert succeeds
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
 
     // Duplicate should fail
-    const result = abi.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null);
-    try std.testing.expectError(abi.database.database.DatabaseError.DuplicateId, result);
+    const result = abi.features.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null);
+    try std.testing.expectError(abi.features.database.database.DatabaseError.DuplicateId, result);
 
     // Database should still be usable
-    const view = abi.database.get(&handle, 1);
+    const view = abi.features.database.get(&handle, 1);
     try std.testing.expect(view != null);
 
     // Original data should be intact
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), view.?.vector[0], 0.001);
 
     // New inserts should still work
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
 
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 2), s.count);
 }
 
@@ -132,23 +132,23 @@ test "database errors: dimension mismatch recovery" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-dim-recovery");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-dim-recovery");
+    defer abi.features.database.close(&handle);
 
     // First insert establishes dimension
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 2.0, 3.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 2.0, 3.0 }, null);
 
     // Different dimension should fail
-    const result = abi.database.insert(&handle, 2, &[_]f32{ 1.0, 2.0 }, null);
-    try std.testing.expectError(abi.database.database.DatabaseError.InvalidDimension, result);
+    const result = abi.features.database.insert(&handle, 2, &[_]f32{ 1.0, 2.0 }, null);
+    try std.testing.expectError(abi.features.database.database.DatabaseError.InvalidDimension, result);
 
     // Database should still be usable
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 1), s.count);
     try std.testing.expectEqual(@as(usize, 3), s.dimension);
 
     // Correct dimension inserts should work
-    try abi.database.insert(&handle, 2, &[_]f32{ 4.0, 5.0, 6.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 4.0, 5.0, 6.0 }, null);
 }
 
 // Test database cleanup on error paths.
@@ -162,17 +162,17 @@ test "database errors: cleanup on failure" {
         if (check == .leak) @panic("Memory leak on database error path");
     }
 
-    var handle = try abi.database.open(gpa.allocator(), "test-cleanup");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(gpa.allocator(), "test-cleanup");
+    defer abi.features.database.close(&handle);
 
     // Successful insert
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, "metadata");
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, "metadata");
 
     // Failed insert (duplicate) should not leak
-    _ = abi.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, "other metadata") catch {};
+    _ = abi.features.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, "other metadata") catch {};
 
     // Failed insert (wrong dimension) should not leak
-    _ = abi.database.insert(&handle, 2, &[_]f32{1.0}, "more metadata") catch {};
+    _ = abi.features.database.insert(&handle, 2, &[_]f32{1.0}, "more metadata") catch {};
 }
 
 // ============================================================================
@@ -185,15 +185,15 @@ test "llm errors: type definitions" {
     if (!build_options.enable_llm) return error.SkipZigTest;
 
     // Verify LlmError types exist and are distinct
-    const llm_errors = [_]abi.ai.llm.LlmError{
-        abi.ai.llm.LlmError.InvalidModelFormat,
-        abi.ai.llm.LlmError.UnsupportedQuantization,
-        abi.ai.llm.LlmError.ModelTooLarge,
-        abi.ai.llm.LlmError.ContextLengthExceeded,
-        abi.ai.llm.LlmError.TokenizationFailed,
-        abi.ai.llm.LlmError.InferenceError,
-        abi.ai.llm.LlmError.OutOfMemory,
-        abi.ai.llm.LlmError.GpuUnavailable,
+    const llm_errors = [_]abi.features.ai.llm.LlmError{
+        abi.features.ai.llm.LlmError.InvalidModelFormat,
+        abi.features.ai.llm.LlmError.UnsupportedQuantization,
+        abi.features.ai.llm.LlmError.ModelTooLarge,
+        abi.features.ai.llm.LlmError.ContextLengthExceeded,
+        abi.features.ai.llm.LlmError.TokenizationFailed,
+        abi.features.ai.llm.LlmError.InferenceError,
+        abi.features.ai.llm.LlmError.OutOfMemory,
+        abi.features.ai.llm.LlmError.GpuUnavailable,
     };
 
     for (llm_errors, 0..) |e1, i| {
@@ -210,20 +210,20 @@ test "llm errors: no model loaded" {
 
     const allocator = std.testing.allocator;
 
-    var engine = abi.ai.llm.Engine.init(allocator, .{});
+    var engine = abi.features.ai.llm.Engine.init(allocator, .{});
     defer engine.deinit();
 
     // Generate without model should fail
     const gen_result = engine.generate(allocator, "test");
-    try std.testing.expectError(abi.ai.llm.LlmError.InvalidModelFormat, gen_result);
+    try std.testing.expectError(abi.features.ai.llm.LlmError.InvalidModelFormat, gen_result);
 
     // Tokenize without model should fail
     const tok_result = engine.tokenize(allocator, "test");
-    try std.testing.expectError(abi.ai.llm.LlmError.InvalidModelFormat, tok_result);
+    try std.testing.expectError(abi.features.ai.llm.LlmError.InvalidModelFormat, tok_result);
 
     // Detokenize without model should fail
     const detok_result = engine.detokenize(allocator, &[_]u32{1});
-    try std.testing.expectError(abi.ai.llm.LlmError.InvalidModelFormat, detok_result);
+    try std.testing.expectError(abi.features.ai.llm.LlmError.InvalidModelFormat, detok_result);
 }
 
 // Test LLM tokenizer error handling.
@@ -231,13 +231,13 @@ test "llm errors: no model loaded" {
 test "llm errors: tokenizer errors" {
     if (!build_options.enable_llm) return error.SkipZigTest;
 
-    const tok_errors = [_]abi.ai.llm.tokenizer.TokenizerError{
-        abi.ai.llm.tokenizer.TokenizerError.InvalidUtf8,
-        abi.ai.llm.tokenizer.TokenizerError.VocabNotLoaded,
-        abi.ai.llm.tokenizer.TokenizerError.UnknownToken,
-        abi.ai.llm.tokenizer.TokenizerError.EncodingError,
-        abi.ai.llm.tokenizer.TokenizerError.DecodingError,
-        abi.ai.llm.tokenizer.TokenizerError.OutOfMemory,
+    const tok_errors = [_]abi.features.ai.llm.tokenizer.TokenizerError{
+        abi.features.ai.llm.tokenizer.TokenizerError.InvalidUtf8,
+        abi.features.ai.llm.tokenizer.TokenizerError.VocabNotLoaded,
+        abi.features.ai.llm.tokenizer.TokenizerError.UnknownToken,
+        abi.features.ai.llm.tokenizer.TokenizerError.EncodingError,
+        abi.features.ai.llm.tokenizer.TokenizerError.DecodingError,
+        abi.features.ai.llm.tokenizer.TokenizerError.OutOfMemory,
     };
 
     for (tok_errors, 0..) |e1, i| {
@@ -277,7 +277,7 @@ test "memory: framework lifecycle" {
         if (check == .leak) @panic("Memory leak in framework lifecycle");
     }
 
-    var framework = try abi.initDefault(gpa.allocator());
+    var framework = try abi.App.initDefault(gpa.allocator());
     framework.deinit();
 }
 
@@ -292,25 +292,25 @@ test "memory: database operations" {
         if (check == .leak) @panic("Memory leak in database operations");
     }
 
-    var handle = try abi.database.open(gpa.allocator(), "test-mem");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(gpa.allocator(), "test-mem");
+    defer abi.features.database.close(&handle);
 
     // Insert
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, "meta");
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, "meta");
 
     // Search
-    const results = try abi.database.search(&handle, gpa.allocator(), &[_]f32{ 1.0, 0.0 }, 1);
+    const results = try abi.features.database.search(&handle, gpa.allocator(), &[_]f32{ 1.0, 0.0 }, 1);
     gpa.allocator().free(results);
 
     // Update
-    _ = try abi.database.update(&handle, 1, &[_]f32{ 0.0, 1.0 });
+    _ = try abi.features.database.update(&handle, 1, &[_]f32{ 0.0, 1.0 });
 
     // List
-    const list = try abi.database.list(&handle, gpa.allocator(), 10);
+    const list = try abi.features.database.list(&handle, gpa.allocator(), 10);
     gpa.allocator().free(list);
 
     // Delete
-    _ = abi.database.remove(&handle, 1);
+    _ = abi.features.database.remove(&handle, 1);
 }
 
 // ============================================================================
@@ -323,7 +323,7 @@ test "feature disabled: database" {
     if (build_options.enable_database) return error.SkipZigTest;
 
     // When database is disabled, isEnabled should return false
-    try std.testing.expect(!abi.database.isEnabled());
+    try std.testing.expect(!abi.features.database.isEnabled());
 }
 
 // Test LLM when disabled at build time.
@@ -332,7 +332,7 @@ test "feature disabled: llm" {
     if (build_options.enable_llm) return error.SkipZigTest;
 
     // When LLM is disabled, isEnabled should return false
-    try std.testing.expect(!abi.ai.llm.isEnabled());
+    try std.testing.expect(!abi.features.ai.llm.isEnabled());
 }
 
 // Test GPU when disabled at build time.
@@ -356,16 +356,16 @@ test "propagation: database error chain" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-propagation");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-propagation");
+    defer abi.features.database.close(&handle);
 
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
 
     // Error from duplicate insert should propagate
-    const err = abi.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null);
+    const err = abi.features.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null);
 
     // Should get specific error type, not generic
-    try std.testing.expectError(abi.database.database.DatabaseError.DuplicateId, err);
+    try std.testing.expectError(abi.features.database.database.DatabaseError.DuplicateId, err);
 }
 
 // Test multiple errors in sequence.
@@ -375,22 +375,22 @@ test "propagation: sequential errors" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-seq-errors");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-seq-errors");
+    defer abi.features.database.close(&handle);
 
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
 
     // Multiple errors in sequence
-    _ = abi.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null) catch {};
-    _ = abi.database.insert(&handle, 1, &[_]f32{ 0.5, 0.5 }, null) catch {};
-    _ = abi.database.insert(&handle, 2, &[_]f32{1.0}, null) catch {}; // wrong dim
+    _ = abi.features.database.insert(&handle, 1, &[_]f32{ 0.0, 1.0 }, null) catch {};
+    _ = abi.features.database.insert(&handle, 1, &[_]f32{ 0.5, 0.5 }, null) catch {};
+    _ = abi.features.database.insert(&handle, 2, &[_]f32{1.0}, null) catch {}; // wrong dim
 
     // Database should still work
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 1), s.count);
 
     // Can still do valid operations
-    try abi.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
+    try abi.features.database.insert(&handle, 2, &[_]f32{ 0.0, 1.0 }, null);
 }
 
 // ============================================================================
@@ -404,13 +404,13 @@ test "boundary: max u64 id" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-max-id");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-max-id");
+    defer abi.features.database.close(&handle);
 
     const max_id: u64 = std.math.maxInt(u64);
-    try abi.database.insert(&handle, max_id, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, max_id, &[_]f32{ 1.0, 0.0 }, null);
 
-    const view = abi.database.get(&handle, max_id);
+    const view = abi.features.database.get(&handle, max_id);
     try std.testing.expect(view != null);
     try std.testing.expectEqual(max_id, view.?.id);
 }
@@ -422,12 +422,12 @@ test "boundary: zero id" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-zero-id");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-zero-id");
+    defer abi.features.database.close(&handle);
 
-    try abi.database.insert(&handle, 0, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 0, &[_]f32{ 1.0, 0.0 }, null);
 
-    const view = abi.database.get(&handle, 0);
+    const view = abi.features.database.get(&handle, 0);
     try std.testing.expect(view != null);
     try std.testing.expectEqual(@as(u64, 0), view.?.id);
 }
@@ -439,11 +439,11 @@ test "boundary: empty results" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-empty-results");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-empty-results");
+    defer abi.features.database.close(&handle);
 
     // Search empty database
-    const results = try abi.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 10);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 10);
     defer allocator.free(results);
 
     try std.testing.expectEqual(@as(usize, 0), results.len);
@@ -456,12 +456,12 @@ test "boundary: top_k zero" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-topk-zero");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-topk-zero");
+    defer abi.features.database.close(&handle);
 
-    try abi.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
+    try abi.features.database.insert(&handle, 1, &[_]f32{ 1.0, 0.0 }, null);
 
-    const results = try abi.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 0);
+    const results = try abi.features.database.search(&handle, allocator, &[_]f32{ 1.0, 0.0 }, 0);
     defer allocator.free(results);
 
     try std.testing.expectEqual(@as(usize, 0), results.len);
@@ -478,8 +478,8 @@ test "concurrency: rapid operations" {
 
     const allocator = std.testing.allocator;
 
-    var handle = try abi.database.open(allocator, "test-rapid");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-rapid");
+    defer abi.features.database.close(&handle);
 
     // Rapid insert/delete/search cycle
     for (0..50) |i| {
@@ -487,20 +487,20 @@ test "concurrency: rapid operations" {
         const val: f32 = @floatFromInt(i);
 
         // Insert
-        try abi.database.insert(&handle, id, &[_]f32{ val, 0.0 }, null);
+        try abi.features.database.insert(&handle, id, &[_]f32{ val, 0.0 }, null);
 
         // Search
-        const results = try abi.database.search(&handle, allocator, &[_]f32{ val, 0.0 }, 1);
+        const results = try abi.features.database.search(&handle, allocator, &[_]f32{ val, 0.0 }, 1);
         allocator.free(results);
 
         // Delete every other
         if (i % 2 == 0) {
-            _ = abi.database.remove(&handle, id);
+            _ = abi.features.database.remove(&handle, id);
         }
     }
 
     // Final count should be ~25
-    const s = abi.database.stats(&handle);
+    const s = abi.features.database.stats(&handle);
     try std.testing.expectEqual(@as(usize, 25), s.count);
 }
 

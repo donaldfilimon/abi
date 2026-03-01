@@ -6,8 +6,8 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const attention = if (build_options.enable_llm) abi.ai.llm.ops.attention else struct {};
-const activations = if (build_options.enable_llm) abi.ai.llm.ops.activations else struct {};
+const attention = if (build_options.enable_llm) abi.features.ai.llm.ops.attention else struct {};
+const activations = if (build_options.enable_llm) abi.features.ai.llm.ops.activations else struct {};
 
 // ============================================================================
 // Comptime Scale Factor Tests

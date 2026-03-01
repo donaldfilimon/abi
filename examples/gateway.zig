@@ -13,14 +13,14 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.gateway, abi.config.GatewayConfig{})
         .build();
     defer framework.deinit();
 
-    if (!abi.gateway.isEnabled()) {
+    if (!abi.features.gateway.isEnabled()) {
         std.debug.print("Gateway feature is disabled. Enable with -Denable-gateway=true\n", .{});
         return;
     }
@@ -28,7 +28,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI API Gateway Example ===\n\n", .{});
 
     // Register routes
-    const routes = [_]abi.gateway.Route{
+    const routes = [_]abi.features.gateway.Route{
         .{ .path = "/api/users", .method = .GET, .upstream = "user-service" },
         .{ .path = "/api/users/{id}", .method = .GET, .upstream = "user-service" },
         .{ .path = "/api/search", .method = .POST, .upstream = "search-service" },
@@ -36,7 +36,7 @@ pub fn main(_: std.process.Init) !void {
     };
 
     for (routes) |route| {
-        abi.gateway.addRoute(route) catch |err| {
+        abi.features.gateway.addRoute(route) catch |err| {
             std.debug.print("Failed to add route {s}: {t}\n", .{ route.path, err });
             continue;
         };
@@ -47,7 +47,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Match routes (simulating incoming requests)
     std.debug.print("\nRoute matching:\n", .{});
-    const test_paths = [_]struct { path: []const u8, method: abi.gateway.HttpMethod }{
+    const test_paths = [_]struct { path: []const u8, method: abi.features.gateway.HttpMethod }{
         .{ .path = "/api/users", .method = .GET },
         .{ .path = "/api/users/42", .method = .GET },
         .{ .path = "/api/search", .method = .POST },
@@ -56,7 +56,7 @@ pub fn main(_: std.process.Init) !void {
     };
 
     for (test_paths) |t| {
-        const match = abi.gateway.matchRoute(t.path, t.method) catch null;
+        const match = abi.features.gateway.matchRoute(t.path, t.method) catch null;
         if (match) |m| {
             std.debug.print("  {s} -> upstream={s}", .{
                 t.path, m.route.upstream,
@@ -76,11 +76,11 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Check circuit breaker state
-    const state = abi.gateway.getCircuitState("upstream-api");
+    const state = abi.features.gateway.getCircuitState("upstream-api");
     std.debug.print("\nCircuit breaker state: {t}\n", .{state});
 
     // Stats
-    const s = abi.gateway.stats();
+    const s = abi.features.gateway.stats();
     std.debug.print("Gateway stats: {} routes, {} total requests\n", .{
         s.active_routes, s.total_requests,
     });

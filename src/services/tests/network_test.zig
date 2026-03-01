@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const network = @import("abi").network;
+const network = @import("abi").features.network;
 
 // =============================================================================
 // Raft Consensus Tests

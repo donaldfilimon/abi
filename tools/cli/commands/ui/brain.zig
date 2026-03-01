@@ -108,12 +108,12 @@ const BrainState = struct {
 
     pub fn showNotification(self: *BrainState, msg: []const u8) void {
         self.notification = msg;
-        self.notification_time = abi.shared.utils.unixMs();
+        self.notification_time = abi.services.shared.utils.unixMs();
     }
 
     pub fn clearExpiredNotification(self: *BrainState) void {
         if (self.notification != null) {
-            const elapsed = abi.shared.utils.unixMs() - self.notification_time;
+            const elapsed = abi.services.shared.utils.unixMs() - self.notification_time;
             if (elapsed > 2000) {
                 self.notification = null;
             }

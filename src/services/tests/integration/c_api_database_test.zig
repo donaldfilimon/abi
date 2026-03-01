@@ -19,14 +19,14 @@ test "c_api: database create and close lifecycle" {
 
     // The C API's abi_db_create wraps database.open
     // Test the underlying functionality
-    const handle = abi.database.open(allocator, "test_c_api_db") catch {
+    const handle = abi.features.database.open(allocator, "test_c_api_db") catch {
         // Database creation may fail for various reasons (disk, permissions, etc.)
         // This is acceptable in a test environment
         return error.SkipZigTest;
     };
 
     // The C API's abi_db_destroy wraps database.close
-    abi.database.close(@constCast(&handle));
+    abi.features.database.close(@constCast(&handle));
 }
 
 test "c_api: database insert operations" {
@@ -36,14 +36,14 @@ test "c_api: database insert operations" {
 
     const allocator = testing.allocator;
 
-    var handle = abi.database.open(allocator, "test_c_api_insert") catch {
+    var handle = abi.features.database.open(allocator, "test_c_api_insert") catch {
         return error.SkipZigTest;
     };
-    defer abi.database.close(&handle);
+    defer abi.features.database.close(&handle);
 
     // Insert a vector (C API: abi_db_insert)
     const vector = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    abi.database.insert(&handle, 1, &vector, null) catch {
+    abi.features.database.insert(&handle, 1, &vector, null) catch {
         // Insert may fail if database isn't fully initialized
         return error.SkipZigTest;
     };
@@ -56,10 +56,10 @@ test "c_api: database search operations" {
 
     const allocator = testing.allocator;
 
-    var handle = abi.database.open(allocator, "test_c_api_search") catch {
+    var handle = abi.features.database.open(allocator, "test_c_api_search") catch {
         return error.SkipZigTest;
     };
-    defer abi.database.close(&handle);
+    defer abi.features.database.close(&handle);
 
     // Insert test vectors
     const vectors = [_][4]f32{
@@ -70,14 +70,14 @@ test "c_api: database search operations" {
     };
 
     for (vectors, 0..) |vec, i| {
-        abi.database.insert(&handle, @intCast(i + 1), &vec, null) catch {
+        abi.features.database.insert(&handle, @intCast(i + 1), &vec, null) catch {
             return error.SkipZigTest;
         };
     }
 
     // Search (C API: abi_db_search)
     const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const results = abi.database.search(&handle, allocator, &query, 4) catch {
+    const results = abi.features.database.search(&handle, allocator, &query, 4) catch {
         return error.SkipZigTest;
     };
     defer allocator.free(results);
@@ -93,10 +93,10 @@ test "c_api: database count operations" {
 
     const allocator = testing.allocator;
 
-    var handle = abi.database.open(allocator, "test_c_api_count") catch {
+    var handle = abi.features.database.open(allocator, "test_c_api_count") catch {
         return error.SkipZigTest;
     };
-    defer abi.database.close(&handle);
+    defer abi.features.database.close(&handle);
 
     // Insert some vectors
     for (0..5) |i| {
@@ -104,7 +104,7 @@ test "c_api: database count operations" {
         for (&vec, 0..) |*v, j| {
             v.* = @floatFromInt(i * 4 + j);
         }
-        abi.database.insert(&handle, @intCast(i + 1), &vec, null) catch {
+        abi.features.database.insert(&handle, @intCast(i + 1), &vec, null) catch {
             return error.SkipZigTest;
         };
     }
@@ -125,7 +125,7 @@ test "c_api: database delete operations" {
     const allocator = testing.allocator;
 
     // Create database
-    var db = abi.database.formats.VectorDatabase.init(allocator, "test_delete", 4);
+    var db = abi.features.database.formats.VectorDatabase.init(allocator, "test_delete", 4);
     defer db.deinit();
 
     // Insert vectors
@@ -157,7 +157,7 @@ test "c_api: database delete all vectors" {
 
     const allocator = testing.allocator;
 
-    var db = abi.database.formats.VectorDatabase.init(allocator, "test_delete_all", 4);
+    var db = abi.features.database.formats.VectorDatabase.init(allocator, "test_delete_all", 4);
     defer db.deinit();
 
     // Insert multiple vectors
@@ -190,7 +190,7 @@ test "c_api: database count increments on insert" {
 
     const allocator = testing.allocator;
 
-    var db = abi.database.formats.VectorDatabase.init(allocator, "test_count_incr", 4);
+    var db = abi.features.database.formats.VectorDatabase.init(allocator, "test_count_incr", 4);
     defer db.deinit();
 
     // Initial count should be 0
@@ -231,7 +231,7 @@ test "c_api: database with custom dimension" {
     const allocator = testing.allocator;
 
     // Create database with custom dimension
-    var db = abi.database.formats.VectorDatabase.init(allocator, "test_custom_dim", 128);
+    var db = abi.features.database.formats.VectorDatabase.init(allocator, "test_custom_dim", 128);
     defer db.deinit();
 
     // Insert vector of custom dimension

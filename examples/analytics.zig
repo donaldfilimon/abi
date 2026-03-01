@@ -13,14 +13,14 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.analytics, abi.config.AnalyticsConfig{})
         .build();
     defer framework.deinit();
 
-    if (!abi.analytics.isEnabled()) {
+    if (!abi.features.analytics.isEnabled()) {
         std.debug.print("Analytics feature is disabled. Enable with -Denable-analytics=true\n", .{});
         return;
     }
@@ -28,7 +28,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI Analytics Example ===\n\n", .{});
 
     // Initialize analytics engine
-    var engine = abi.analytics.Engine.init(allocator, .{
+    var engine = abi.features.analytics.Engine.init(allocator, .{
         .buffer_capacity = 100,
         .flush_interval_ms = 5000,
     });

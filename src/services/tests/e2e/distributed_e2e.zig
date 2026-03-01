@@ -196,11 +196,11 @@ test "e2e: node discovery and registration" {
     defer ctx.deinit();
 
     // Initialize network module
-    try abi.network.init(allocator);
-    defer abi.network.deinit();
+    try abi.features.network.init(allocator);
+    defer abi.features.network.deinit();
 
     // Get registry and register nodes
-    const registry = try abi.network.defaultRegistry();
+    const registry = try abi.features.network.defaultRegistry();
 
     try registry.register("node-a", "127.0.0.1:9000");
     try registry.register("node-b", "127.0.0.1:9001");
@@ -221,15 +221,15 @@ test "e2e: network state initialization" {
     defer ctx.deinit();
 
     // Initialize with custom config
-    try abi.network.initWithConfig(allocator, .{
+    try abi.features.network.initWithConfig(allocator, .{
         .cluster_id = "test-cluster",
         .heartbeat_timeout_ms = 10_000,
         .max_nodes = 64,
     });
-    defer abi.network.deinit();
+    defer abi.features.network.deinit();
 
     // Verify configuration
-    const config = abi.network.defaultConfig();
+    const config = abi.features.network.defaultConfig();
     try std.testing.expect(config != null);
     try std.testing.expectEqualStrings("test-cluster", config.?.cluster_id);
 }

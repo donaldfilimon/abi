@@ -28,7 +28,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Check if AI explore feature is enabled
-    if (!abi.ai.explore.isEnabled()) {
+    if (!abi.features.ai.explore.isEnabled()) {
         utils.output.printError("AI code exploration feature is disabled.", .{});
         utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true) -Dfeat-explore=true (legacy: -Denable-explore=true)", .{});
         return;
@@ -42,8 +42,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     var query: ?[]const u8 = null;
     var root_path: []const u8 = ".";
-    var level: abi.ai.explore.ExploreLevel = .medium;
-    var output_format: abi.ai.explore.OutputFormat = .human;
+    var level: abi.features.ai.explore.ExploreLevel = .medium;
+    var output_format: abi.features.ai.explore.OutputFormat = .human;
     var include_patterns = std.ArrayListUnmanaged([]const u8).empty;
     var exclude_patterns = std.ArrayListUnmanaged([]const u8).empty;
     var case_sensitive = false;
@@ -112,7 +112,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     };
 
-    var config = abi.ai.explore.ExploreConfig.defaultForLevel(level);
+    var config = abi.features.ai.explore.ExploreConfig.defaultForLevel(level);
     config.output_format = output_format;
     config.case_sensitive = case_sensitive;
     config.use_regex = use_regex;
@@ -127,10 +127,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     if (max_depth > 0) config.max_depth = max_depth;
     if (timeout_ms > 0) config.timeout_ms = timeout_ms;
 
-    var agent = try abi.ai.explore.ExploreAgent.init(allocator, config);
+    var agent = try abi.features.ai.explore.ExploreAgent.init(allocator, config);
     defer agent.deinit();
 
-    var timer = abi.shared.time.Timer.start() catch {
+    var timer = abi.services.shared.time.Timer.start() catch {
         utils.output.printError("Timer unavailable on this platform", .{});
         return;
     };

@@ -4,12 +4,12 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
-const app_paths = abi.shared.app_paths;
+const app_paths = abi.services.shared.app_paths;
 
 // Use the shared config module for file-based configuration (legacy format)
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
-const shared_config = abi.shared.utils.config;
+const shared_config = abi.services.shared.utils.config;
 
 const OutputFormat = enum {
     human,

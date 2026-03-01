@@ -13,12 +13,12 @@ fn withNetwork(
     next: command_mod.CommandHandler,
 ) !void {
     try initNetwork(ctx.allocator);
-    defer abi.network.deinit();
+    defer abi.features.network.deinit();
     try next(ctx, args);
 }
 
 fn initNetwork(allocator: std.mem.Allocator) !void {
-    abi.network.init(allocator) catch |err| switch (err) {
+    abi.features.network.init(allocator) catch |err| switch (err) {
         error.NetworkDisabled => {
             utils.output.printError("Network features are disabled.", .{});
             utils.output.printInfo("Rebuild with: zig build -Dfeat-network=true (legacy: -Denable-network=true)", .{});
@@ -114,16 +114,16 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 /// Print a short network summary for system-info.
 pub fn printSummary() void {
-    if (!abi.network.isEnabled()) {
+    if (!abi.features.network.isEnabled()) {
         utils.output.println("  Network: disabled (rebuild with -Dfeat-network=true (legacy: -Denable-network=true))", .{});
         return;
     }
-    if (!abi.network.isInitialized()) {
+    if (!abi.features.network.isInitialized()) {
         utils.output.println("  Network: enabled (run 'abi network status' to initialize)", .{});
         return;
     }
-    if (abi.network.defaultConfig()) |config| {
-        const registry = abi.network.defaultRegistry() catch null;
+    if (abi.features.network.defaultConfig()) |config| {
+        const registry = abi.features.network.defaultRegistry() catch null;
         const node_count = if (registry) |reg| reg.list().len else 0;
         utils.output.println("  Network: {s} ({d} nodes)", .{ config.cluster_id, node_count });
     }
@@ -161,18 +161,18 @@ fn printHelp(allocator: std.mem.Allocator) void {
 }
 
 fn printStatus() !void {
-    if (!abi.network.isEnabled()) {
+    if (!abi.features.network.isEnabled()) {
         utils.output.printError("Network features are disabled.", .{});
         utils.output.printInfo("Rebuild with: zig build -Dfeat-network=true (legacy: -Denable-network=true)", .{});
         return;
     }
-    const config = abi.network.defaultConfig();
+    const config = abi.features.network.defaultConfig();
     if (config == null) {
         utils.output.printInfo("Network: enabled but no cluster configured yet.", .{});
         utils.output.printInfo("Use 'abi network register <id> <address>' to add nodes.", .{});
         return;
     }
-    const registry = try abi.network.defaultRegistry();
+    const registry = try abi.features.network.defaultRegistry();
     utils.output.printHeader("Network Status");
     utils.output.printKeyValue("Cluster ID", config.?.cluster_id);
     utils.output.printKeyValueFmt("Node Count", "{d}", .{registry.list().len});
@@ -221,7 +221,7 @@ fn runRegisterSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void
         utils.output.printInfo("Usage: abi network register <id> <address>", .{});
         return;
     };
-    const registry = try abi.network.defaultRegistry();
+    const registry = try abi.features.network.defaultRegistry();
     try registry.register(id, address);
     utils.output.printSuccess("Registered {s} at {s}", .{ id, address });
 }
@@ -233,7 +233,7 @@ fn runUnregisterSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !vo
         utils.output.printInfo("Usage: abi network unregister <id>", .{});
         return;
     };
-    const registry = try abi.network.defaultRegistry();
+    const registry = try abi.features.network.defaultRegistry();
     const removed = registry.unregister(id);
     if (removed) {
         utils.output.printSuccess("Unregistered {s}", .{id});
@@ -249,7 +249,7 @@ fn runTouchSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
         utils.output.printInfo("Usage: abi network touch <id>", .{});
         return;
     };
-    const registry = try abi.network.defaultRegistry();
+    const registry = try abi.features.network.defaultRegistry();
     if (registry.touch(id)) {
         utils.output.printSuccess("Touched {s}", .{id});
     } else {
@@ -274,7 +274,7 @@ fn runSetStatusSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !voi
         utils.output.printInfo("Valid statuses: healthy, degraded, offline", .{});
         return;
     };
-    const registry = try abi.network.defaultRegistry();
+    const registry = try abi.features.network.defaultRegistry();
     if (registry.setStatus(id, status)) {
         utils.output.printSuccess("Updated {s} to {t}", .{ id, status });
     } else {
@@ -284,7 +284,7 @@ fn runSetStatusSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !voi
 
 fn printNodes(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    const registry = try abi.network.defaultRegistry();
+    const registry = try abi.features.network.defaultRegistry();
     const nodes = registry.list();
     if (nodes.len == 0) {
         utils.output.printInfo("No nodes registered.", .{});
@@ -301,14 +301,14 @@ fn printNodes(allocator: std.mem.Allocator) !void {
 // ============================================================================
 
 fn printRaftStatus(allocator: std.mem.Allocator) void {
-    if (!abi.network.isEnabled()) {
+    if (!abi.features.network.isEnabled()) {
         utils.output.printWarning("Network feature disabled", .{});
         return;
     }
     utils.output.printHeader("Raft Consensus");
 
     // Create a temporary Raft node to show default configuration
-    var node = abi.network.RaftNode.init(allocator, "local", .{}) catch {
+    var node = abi.features.network.RaftNode.init(allocator, "local", .{}) catch {
         utils.output.printInfo("No active Raft node (showing defaults)", .{});
         utils.output.printKeyValue("State", "follower");
         utils.output.printKeyValueFmt("Term", "{d}", .{@as(u64, 0)});
@@ -337,14 +337,14 @@ fn printRaftStatus(allocator: std.mem.Allocator) void {
 // ============================================================================
 
 fn printDiscoveryStatus(allocator: std.mem.Allocator) void {
-    if (!abi.network.isEnabled()) {
+    if (!abi.features.network.isEnabled()) {
         utils.output.printWarning("Network feature disabled", .{});
         return;
     }
     utils.output.printHeader("Service Discovery");
 
     // Create a temporary discovery instance to show configuration
-    var disc = abi.network.ServiceDiscovery.init(allocator, .{}) catch {
+    var disc = abi.features.network.ServiceDiscovery.init(allocator, .{}) catch {
         utils.output.printInfo("Service discovery not available", .{});
         return;
     };
@@ -365,17 +365,17 @@ fn printDiscoveryStatus(allocator: std.mem.Allocator) void {
 // ============================================================================
 
 fn printBalancerStatus(allocator: std.mem.Allocator) void {
-    if (!abi.network.isEnabled()) {
+    if (!abi.features.network.isEnabled()) {
         utils.output.printWarning("Network feature disabled", .{});
         return;
     }
     utils.output.printHeader("Load Balancer");
 
-    var lb = abi.network.LoadBalancer.init(allocator, .{});
+    var lb = abi.features.network.LoadBalancer.init(allocator, .{});
     defer lb.deinit();
 
     // Sync nodes from the registry if available
-    if (abi.network.defaultRegistry()) |reg| {
+    if (abi.features.network.defaultRegistry()) |reg| {
         lb.syncFromRegistry(reg) catch {};
     } else |_| {}
 
@@ -411,13 +411,13 @@ fn printBalancerStatus(allocator: std.mem.Allocator) void {
 // ============================================================================
 
 fn printHealthStatus(allocator: std.mem.Allocator) void {
-    if (!abi.network.isEnabled()) {
+    if (!abi.features.network.isEnabled()) {
         utils.output.printWarning("Network feature disabled", .{});
         return;
     }
     utils.output.printHeader("Cluster Health");
 
-    var hc = abi.network.HealthCheck.init(allocator, .{}) catch {
+    var hc = abi.features.network.HealthCheck.init(allocator, .{}) catch {
         utils.output.printInfo("Health check not available", .{});
         return;
     };
@@ -425,7 +425,7 @@ fn printHealthStatus(allocator: std.mem.Allocator) void {
 
     // Populate from registry if available
     var total_nodes: usize = 0;
-    if (abi.network.defaultRegistry()) |reg| {
+    if (abi.features.network.defaultRegistry()) |reg| {
         const nodes = reg.list();
         total_nodes = nodes.len;
         for (nodes) |node| {

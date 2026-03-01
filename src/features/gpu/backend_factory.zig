@@ -26,7 +26,7 @@
 //! Neural network inference and training can use:
 //! - **GPU**: CUDA, Metal, Vulkan, WebGPU (preferred when available).
 //! - **TPU**: Tensor Processing Unit slot; use `-Dgpu-backend=tpu` and link a TPU runtime (e.g. libtpu/cloud API) for availability.
-//! - **CPU**: Multi-threaded CPU via `abi.runtime.ThreadPool` and `parallelFor`; set `InferenceConfig.num_threads` for LLM CPU inference.
+//! - **CPU**: Multi-threaded CPU via `abi.services.runtime.ThreadPool` and `parallelFor`; set `InferenceConfig.num_threads` for LLM CPU inference.
 //!
 //! | Backend | Platform | Hardware Required |
 //! |---------|----------|-------------------|
@@ -84,7 +84,7 @@ pub const BackendInstance = struct {
 
 /// Stateful wrapper for backend creation APIs.
 ///
-/// Maintained for compatibility with the public `abi.gpu.BackendFactory` export.
+/// Maintained for compatibility with the public `abi.features.gpu.BackendFactory` export.
 pub const BackendFactory = struct {
     allocator: std.mem.Allocator,
 

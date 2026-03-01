@@ -13,14 +13,14 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.pages, abi.config.PagesConfig{})
         .build();
     defer framework.deinit();
 
-    if (!abi.pages.isEnabled()) {
+    if (!abi.features.pages.isEnabled()) {
         std.debug.print("Pages feature is disabled. Enable with -Denable-pages=true\n", .{});
         return;
     }
@@ -28,7 +28,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI Pages Example ===\n\n", .{});
 
     // Register a static page
-    abi.pages.addPage(.{
+    abi.features.pages.addPage(.{
         .path = "/",
         .title = "Home",
         .content = .{ .static = "<h1>Welcome to ABI Framework</h1><p>Dashboard home page</p>" },
@@ -39,14 +39,14 @@ pub fn main(_: std.process.Init) !void {
     };
 
     // Register a template page with {{variable}} substitution
-    abi.pages.addPage(.{
+    abi.features.pages.addPage(.{
         .path = "/users/{id}",
         .title = "User Profile",
         .content = .{
             .template = .{
                 .source = "<h1>Profile: {{username}}</h1><p>Role: {{role}}</p>",
                 .default_vars = blk: {
-                    var vars: [8]abi.pages.TemplateVar = [_]abi.pages.TemplateVar{.{}} ** 8;
+                    var vars: [8]abi.features.pages.TemplateVar = [_]abi.features.pages.TemplateVar{.{}} ** 8;
                     vars[0] = .{ .key = "username", .value = "alice" };
                     vars[1] = .{ .key = "role", .value = "admin" };
                     break :blk vars;
@@ -61,7 +61,7 @@ pub fn main(_: std.process.Init) !void {
         return;
     };
 
-    abi.pages.addPage(.{
+    abi.features.pages.addPage(.{
         .path = "/about",
         .title = "About",
         .content = .{ .static = "<h1>About</h1><p>ABI Framework v0.4.0</p>" },
@@ -79,9 +79,9 @@ pub fn main(_: std.process.Init) !void {
 
     const test_urls = [_][]const u8{ "/", "/about", "/missing" };
     for (test_urls) |url| {
-        const match = abi.pages.matchPage(url) catch null;
+        const match = abi.features.pages.matchPage(url) catch null;
         if (match) |m| {
-            var result = abi.pages.renderPage(allocator, m.page.path, &.{}) catch |err| {
+            var result = abi.features.pages.renderPage(allocator, m.page.path, &.{}) catch |err| {
                 std.debug.print("  {s} -> render error: {t}\n", .{ url, err });
                 continue;
             };
@@ -105,7 +105,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Stats
-    const s = abi.pages.stats();
+    const s = abi.features.pages.stats();
     std.debug.print("\nPages stats: {} registered, {} renders\n", .{
         s.total_pages, s.total_renders,
     });

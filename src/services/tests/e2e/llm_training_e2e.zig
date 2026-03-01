@@ -9,8 +9,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const trainable_model = abi.ai.training.trainable_model;
-const llm_trainer = abi.ai.training.llm_trainer;
+const trainable_model = abi.features.ai.training.trainable_model;
+const llm_trainer = abi.features.ai.training.llm_trainer;
 
 /// Small model configuration for testing.
 const TestModelConfig = trainable_model.TrainableModelConfig{

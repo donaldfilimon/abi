@@ -15,7 +15,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const runtime = abi.runtime;
+const runtime = abi.services.runtime;
 const helpers = @import("helpers.zig");
 
 // Re-export sleep from helpers for convenience

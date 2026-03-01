@@ -49,7 +49,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("========================================\n\n", .{});
 
     // Check if AI feature is enabled
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("Error: AI feature is disabled.\n", .{});
         std.debug.print("Build with: zig build -Denable-ai=true\n", .{});
         return;
@@ -61,7 +61,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("Step 1: Creating Trainable Model\n", .{});
     std.debug.print("--------------------------------\n", .{});
 
-    const model_config = abi.ai.training.TrainableModelConfig{
+    const model_config = abi.features.ai.training.TrainableModelConfig{
         .hidden_dim = config.hidden_dim,
         .num_layers = config.num_layers,
         .num_heads = config.num_heads,
@@ -71,7 +71,7 @@ pub fn main(_: std.process.Init) !void {
         .max_seq_len = config.max_seq_len,
     };
 
-    var model = abi.ai.training.TrainableModel.init(allocator, model_config) catch |err| {
+    var model = abi.features.ai.training.TrainableModel.init(allocator, model_config) catch |err| {
         std.debug.print("Failed to create model: {t}\n", .{err});
         return;
     };
@@ -106,7 +106,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("  Total tokens:         {d}\n\n", .{train_data.len});
 
     // Create a dataset from the synthetic data
-    var dataset = abi.ai.training.TokenizedDataset.fromSlice(allocator, train_data);
+    var dataset = abi.features.ai.training.TokenizedDataset.fromSlice(allocator, train_data);
     defer dataset.deinit();
 
     const num_batches = dataset.numBatches(config.batch_size, config.max_seq_len);
@@ -117,7 +117,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("Step 3: Configuring Training\n", .{});
     std.debug.print("----------------------------\n", .{});
 
-    const train_config = abi.ai.training.LlmTrainingConfig{
+    const train_config = abi.features.ai.training.LlmTrainingConfig{
         .epochs = config.epochs,
         .batch_size = config.batch_size,
         .max_seq_len = config.max_seq_len,
@@ -145,13 +145,13 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("Step 4: Running Training\n", .{});
     std.debug.print("------------------------\n\n", .{});
 
-    var trainer = abi.ai.training.LlamaTrainer.init(allocator, &model, train_config) catch |err| {
+    var trainer = abi.features.ai.training.LlamaTrainer.init(allocator, &model, train_config) catch |err| {
         std.debug.print("Failed to create trainer: {t}\n", .{err});
         return;
     };
     defer trainer.deinit();
 
-    var timer = abi.shared.time.Timer.start() catch {
+    var timer = abi.services.shared.time.Timer.start() catch {
         std.debug.print("Error: Failed to start timer\n", .{});
         return;
     };

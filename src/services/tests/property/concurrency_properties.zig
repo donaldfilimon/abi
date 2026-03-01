@@ -12,7 +12,7 @@ const std = @import("std");
 const property = @import("mod.zig");
 const generators = @import("generators.zig");
 const abi = @import("abi");
-const runtime = abi.runtime;
+const runtime = abi.services.runtime;
 // Priority is exported from concurrency submodule
 const Priority = runtime.concurrency.Priority;
 

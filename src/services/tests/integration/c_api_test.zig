@@ -21,7 +21,7 @@ const testing = std.testing;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const gpu_detect = abi.gpu.backends.detect;
+const gpu_detect = abi.features.gpu.backends.detect;
 
 // ============================================================================
 // C API Status Codes (matching src/bindings/c/exports.zig)
@@ -45,11 +45,11 @@ test "c_api: framework init and shutdown lifecycle" {
     const allocator = testing.allocator;
 
     // Test framework initialization (underlying Zig API that C wraps)
-    // The C API's abi_init() calls abi.Framework.init() internally
+    // The C API's abi_init() calls abi.App.init() internally
     if (build_options.enable_database) {
         // Initialize database module
-        if (abi.database.init(allocator)) {
-            defer abi.database.deinit();
+        if (abi.features.database.init(allocator)) {
+            defer abi.features.database.deinit();
             // If we get here, init succeeded
             try testing.expect(true);
         } else |_| {
@@ -67,7 +67,7 @@ test "c_api: framework can be initialized multiple times" {
     // multiple times
 
     for (0..3) |_| {
-        var fw = abi.Framework.initDefault(allocator) catch {
+        var fw = abi.App.initDefault(allocator) catch {
             // May fail if features aren't fully configured - acceptable in tests
             continue;
         };
@@ -83,7 +83,7 @@ test "c_api: shutdown with uninitialized framework is safe" {
     // This test verifies that pattern is safe
 
     // Simulating the C pattern: checking null before deinit
-    const maybe_framework: ?*abi.Framework = null;
+    const maybe_framework: ?*abi.App = null;
     if (maybe_framework) |fw| {
         fw.deinit();
     }
@@ -183,7 +183,7 @@ test "c_api: repeated operations do not leak" {
 
     // Perform multiple framework init/deinit cycles
     for (0..5) |_| {
-        var fw = abi.Framework.initDefault(allocator) catch {
+        var fw = abi.App.initDefault(allocator) catch {
             // May fail if features aren't configured - skip iteration
             continue;
         };
@@ -205,7 +205,7 @@ test "c_api: simd operations are memory safe" {
     for (&b, 0..) |*v, i| v.* = @floatFromInt(64 - i);
 
     // Perform operations
-    abi.simd.vectorAdd(&a, &b, &result);
+    abi.services.simd.vectorAdd(&a, &b, &result);
 
     // All results should be 64.0
     for (result) |v| {
@@ -225,8 +225,8 @@ test "c_api: c and zig apis are consistent" {
     try testing.expectEqualStrings("0.4.0", zig_version);
 
     // SIMD consistency
-    const zig_simd = abi.simd.hasSimdSupport();
-    const zig_caps = abi.simd.getSimdCapabilities();
+    const zig_simd = abi.services.simd.hasSimdSupport();
+    const zig_caps = abi.services.simd.getSimdCapabilities();
     try testing.expect(zig_simd == zig_caps.has_simd);
 
     // GPU consistency
@@ -246,7 +246,7 @@ test "c_api: empty vector operations" {
     var non_empty = [_]f32{ 1.0, 2.0, 3.0 };
 
     // Empty vector similarity should return 0
-    const result = abi.simd.cosineSimilarity(&empty, &non_empty);
+    const result = abi.services.simd.cosineSimilarity(&empty, &non_empty);
     try testing.expectApproxEqAbs(@as(f32, 0.0), result, 1e-6);
 }
 
@@ -256,11 +256,11 @@ test "c_api: zero vector operations" {
     var other_vec = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
 
     // Cosine similarity with zero vector should return 0 (not NaN/Inf)
-    const result = abi.simd.cosineSimilarity(&zero_vec, &other_vec);
+    const result = abi.services.simd.cosineSimilarity(&zero_vec, &other_vec);
     try testing.expectApproxEqAbs(@as(f32, 0.0), result, 1e-6);
 
     // L2 norm of zero vector should be 0
-    const norm = abi.simd.vectorL2Norm(&zero_vec);
+    const norm = abi.services.simd.vectorL2Norm(&zero_vec);
     try testing.expectApproxEqAbs(@as(f32, 0.0), norm, 1e-6);
 }
 
@@ -281,7 +281,7 @@ test "c_api: large vector operations" {
     for (b, 0..) |*v, i| v.* = @floatFromInt(size - i);
 
     // Vector add
-    abi.simd.vectorAdd(a, b, result);
+    abi.services.simd.vectorAdd(a, b, result);
 
     // All should be size
     for (result) |v| {
@@ -390,7 +390,7 @@ test "c_api: framework init with custom options" {
     config.observability = null;
 
     // Init framework with custom config
-    var fw = abi.Framework.init(allocator, config) catch {
+    var fw = abi.App.init(allocator, config) catch {
         // May fail without full feature setup - acceptable
         return error.SkipZigTest;
     };

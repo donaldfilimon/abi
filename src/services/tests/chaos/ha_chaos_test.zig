@@ -15,9 +15,9 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
-const ha = abi.ha;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
+const ha = abi.services.ha;
 const chaos = @import("mod.zig");
 const helpers = @import("../helpers.zig");
 

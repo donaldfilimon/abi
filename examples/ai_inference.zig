@@ -15,12 +15,12 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("=== ABI AI Inference Example ===\n\n", .{});
 
-    if (!abi.ai.llm.isEnabled()) {
+    if (!abi.features.ai.llm.isEnabled()) {
         std.debug.print("Inference feature is disabled. Enable with -Denable-llm=true\n", .{});
         return;
     }
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.llm, abi.config.LlmConfig{})
@@ -29,7 +29,7 @@ pub fn main(_: std.process.Init) !void {
 
     // --- LLM Configuration ---
     std.debug.print("--- LLM Configuration ---\n", .{});
-    const llm_config = abi.ai.llm.InferenceConfig{
+    const llm_config = abi.features.ai.llm.InferenceConfig{
         .max_context_length = 2048,
         .max_new_tokens = 512,
         .temperature = 0.7,
@@ -44,7 +44,7 @@ pub fn main(_: std.process.Init) !void {
     // --- Embeddings ---
     std.debug.print("\n--- Embeddings ---\n", .{});
     std.debug.print("Embeddings module: {s}\n", .{
-        if (@hasDecl(abi.ai.embeddings, "EmbeddingConfig")) "EmbeddingConfig available" else "basic mode",
+        if (@hasDecl(abi.features.ai.embeddings, "EmbeddingConfig")) "EmbeddingConfig available" else "basic mode",
     });
 
     std.debug.print("\nInference example complete.\n", .{});

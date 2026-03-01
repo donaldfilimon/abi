@@ -13,7 +13,7 @@
 //! pub fn main(init: std.process.Init) !void {
 //!     const arena = init.arena.allocator();
 //!
-//!     var fw = try abi.initDefault(arena);
+//!     var fw = try abi.App.initDefault(arena);
 //!     defer fw.deinit();
 //!
 //!     std.debug.print("ABI v{s}\n", .{abi.version()});
@@ -23,7 +23,7 @@
 //! ## Builder Pattern
 //!
 //! ```zig
-//! var fw = try abi.Framework.builder(allocator)
+//! var fw = try abi.App.builder(allocator)
 //!     .with(.gpu, abi.config.GpuConfig{ .backend = .vulkan })
 //!     .with(.ai, abi.config.AiConfig{ .llm = .{ .model_path = "./models/llama.gguf" } })
 //!     .with(.database, abi.config.DatabaseConfig{ .path = "./data" })
@@ -34,11 +34,11 @@
 //! ## Feature Modules
 //!
 //! Access features through namespace exports:
-//! - `abi.ai` (with submodules: `.core`, `.llm`, `.training`, `.streaming`, etc.)
-//! - `abi.gpu`, `abi.database`, `abi.network`, `abi.web`, `abi.cloud`
-//! - `abi.observability`, `abi.analytics`, `abi.auth`, `abi.messaging`
-//! - `abi.cache`, `abi.storage`, `abi.search`, `abi.gateway`, `abi.pages`
-//! - `abi.shared.simd`, `abi.connectors.discord`
+//! - `abi.features.ai` (with submodules: `.core`, `.llm`, `.training`, `.streaming`, etc.)
+//! - `abi.features.gpu`, `abi.features.database`, `abi.features.network`, `abi.features.web`, `abi.features.cloud`
+//! - `abi.features.observability`, `abi.features.analytics`, `abi.features.auth`, `abi.features.messaging`
+//! - `abi.features.cache`, `abi.features.storage`, `abi.features.search`, `abi.features.gateway`, `abi.features.pages`
+//! - `abi.services.shared.simd`, `abi.services.connectors.discord`
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -62,8 +62,6 @@ pub const feature_catalog = @import("core/feature_catalog.zig");
 
 /// Framework orchestration with builder pattern.
 pub const framework = @import("core/framework.zig");
-pub const Framework = framework.Framework;
-pub const FrameworkBuilder = framework.FrameworkBuilder;
 
 /// Composable error hierarchy for framework operations.
 pub const errors = @import("core/errors.zig");
@@ -72,153 +70,6 @@ pub const FrameworkError = errors.FrameworkError;
 /// Plugin registry for feature management.
 pub const registry = @import("core/registry/mod.zig");
 pub const Registry = registry.Registry;
-
-// ============================================================================
-// Services (always available)
-// ============================================================================
-
-/// Runtime infrastructure (thread pool, channels, scheduling).
-pub const runtime = @import("services/runtime/mod.zig");
-
-/// Platform detection and abstraction.
-pub const platform = @import("services/platform/mod.zig");
-
-/// Shared utilities (SIMD, time, sync, security, etc.).
-pub const shared = @import("services/shared/mod.zig");
-
-/// External service connectors (OpenAI, Anthropic, Ollama, etc.).
-pub const connectors = @import("services/connectors/mod.zig");
-
-/// High availability (replication, backup, PITR).
-pub const ha = @import("services/ha/mod.zig");
-
-/// Task management system.
-pub const tasks = @import("services/tasks/mod.zig");
-
-/// LSP (ZLS) client utilities.
-pub const lsp = @import("services/lsp/mod.zig");
-
-/// MCP (Model Context Protocol) server for WDBX database.
-pub const mcp = @import("services/mcp/mod.zig");
-
-/// ACP (Agent Communication Protocol) for agent-to-agent communication.
-pub const acp = @import("services/acp/mod.zig");
-
-/// SIMD operations (shorthand for `shared.simd`).
-pub const simd = @import("services/shared/simd/mod.zig");
-
-// ============================================================================
-// Feature Modules (comptime-gated)
-// ============================================================================
-
-/// GPU acceleration.
-pub const gpu = if (build_options.enable_gpu)
-    @import("features/gpu/mod.zig")
-else
-    @import("features/gpu/stub.zig");
-
-/// AI capabilities (modular sub-features).
-pub const ai = if (build_options.enable_ai)
-    @import("features/ai/mod.zig")
-else
-    @import("features/ai/stub.zig");
-
-// NOTE(v0.4.0): Facade aliases `inference`, `training`, `reasoning`, `ai_core`
-// have been removed. Use the canonical sub-module paths instead:
-//   abi.ai.llm          (was abi.inference)
-//   abi.ai.training      (was abi.training)
-//   abi.ai.orchestration (was abi.reasoning)
-//   abi.ai.core          (was abi.ai_core)
-
-/// Vector database.
-pub const database = if (build_options.enable_database)
-    @import("features/database/mod.zig")
-else
-    @import("features/database/stub.zig");
-
-/// Distributed network.
-pub const network = if (build_options.enable_network)
-    @import("features/network/mod.zig")
-else
-    @import("features/network/stub.zig");
-
-/// Observability (metrics, tracing, profiling).
-pub const observability = if (build_options.enable_profiling)
-    @import("features/observability/mod.zig")
-else
-    @import("features/observability/stub.zig");
-
-/// Web utilities.
-pub const web = if (build_options.enable_web)
-    @import("features/web/mod.zig")
-else
-    @import("features/web/stub.zig");
-
-/// Analytics event tracking.
-pub const analytics = if (build_options.enable_analytics)
-    @import("features/analytics/mod.zig")
-else
-    @import("features/analytics/stub.zig");
-
-/// Cloud function adapters.
-pub const cloud = if (build_options.enable_cloud)
-    @import("features/cloud/mod.zig")
-else
-    @import("features/cloud/stub.zig");
-
-/// Authentication and security.
-pub const auth = if (build_options.enable_auth)
-    @import("features/auth/mod.zig")
-else
-    @import("features/auth/stub.zig");
-
-/// Event bus and messaging.
-pub const messaging = if (build_options.enable_messaging)
-    @import("features/messaging/mod.zig")
-else
-    @import("features/messaging/stub.zig");
-
-/// In-memory caching.
-pub const cache = if (build_options.enable_cache)
-    @import("features/cache/mod.zig")
-else
-    @import("features/cache/stub.zig");
-
-/// Unified file/object storage.
-pub const storage = if (build_options.enable_storage)
-    @import("features/storage/mod.zig")
-else
-    @import("features/storage/stub.zig");
-
-/// Mobile platform (lifecycle, sensors, notifications).
-pub const mobile = if (build_options.enable_mobile)
-    @import("features/mobile/mod.zig")
-else
-    @import("features/mobile/stub.zig");
-
-/// API gateway (routing, rate limiting, circuit breaker).
-pub const gateway = if (build_options.enable_gateway)
-    @import("features/gateway/mod.zig")
-else
-    @import("features/gateway/stub.zig");
-
-/// Full-text search.
-pub const search = if (build_options.enable_search)
-    @import("features/search/mod.zig")
-else
-    @import("features/search/stub.zig");
-
-/// Dashboard/UI pages with URL path routing.
-pub const pages = if (build_options.enable_pages)
-    @import("features/observability/pages/mod.zig")
-else
-    @import("features/observability/pages/stub.zig");
-
-/// Performance benchmarking and timing.
-pub const benchmarks = if (build_options.enable_benchmarks)
-    @import("features/benchmarks/mod.zig")
-else
-    @import("features/benchmarks/stub.zig");
 
 // ============================================================================
 // Canonical Namespaces (v2 API)
@@ -329,42 +180,22 @@ pub const compat = struct {
 // ============================================================================
 
 /// Canonical application type alias (v2 API).
-pub const App = Framework;
+pub const App = framework.Framework;
 /// Canonical application builder type alias (v2 API).
-pub const AppBuilder = FrameworkBuilder;
+pub const AppBuilder = framework.FrameworkBuilder;
 
-/// GPU handle and backend type; use `abi.gpu` for full API.
-pub const Gpu = gpu.Gpu;
-/// GPU backend enum (cuda, vulkan, metal, webgpu, tpu, etc.); use `abi.gpu` for full API.
-pub const GpuBackend = gpu.Backend;
+/// GPU handle and backend type; use `abi.features.gpu` for full API.
+pub const Gpu = features.gpu.Gpu;
+/// GPU backend enum (cuda, vulkan, metal, webgpu, tpu, etc.); use `abi.features.gpu` for full API.
+pub const GpuBackend = features.gpu.Backend;
 
 // ============================================================================
 // Primary API
 // ============================================================================
 
-/// Initialize the ABI framework with custom configuration.
-pub fn init(allocator: std.mem.Allocator, cfg: Config) !Framework {
-    return Framework.init(allocator, cfg);
-}
-
-/// Initialize the ABI framework with default configuration.
-pub fn initDefault(allocator: std.mem.Allocator) !Framework {
-    return Framework.initDefault(allocator);
-}
-
-/// Canonical v2 initializer for application runtime.
-pub fn initApp(allocator: std.mem.Allocator, cfg: Config) !App {
-    return init(allocator, cfg);
-}
-
-/// Canonical v2 default initializer for application runtime.
-pub fn initAppDefault(allocator: std.mem.Allocator) !App {
-    return initDefault(allocator);
-}
-
 /// Canonical v2 builder entrypoint.
 pub fn appBuilder(allocator: std.mem.Allocator) AppBuilder {
-    return Framework.builder(allocator);
+    return App.builder(allocator);
 }
 
 /// Get the ABI framework version string.

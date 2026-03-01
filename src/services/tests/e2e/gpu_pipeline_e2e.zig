@@ -8,10 +8,10 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
 const e2e = @import("mod.zig");
-const gpu_detect = abi.gpu.backends.detect;
+const gpu_detect = abi.features.gpu.backends.detect;
 
 // ============================================================================
 // Helper Functions
@@ -124,7 +124,7 @@ test "e2e: gpu module detection" {
     defer ctx.deinit();
 
     // Check backend availability
-    const available = gpu_detect.availableBackends(allocator) catch &[_]abi.gpu.Backend{};
+    const available = gpu_detect.availableBackends(allocator) catch &[_]abi.features.gpu.Backend{};
     defer if (available.len > 0) allocator.free(available);
     // May be empty on systems without GPU - that's OK
     try std.testing.expect(true);
@@ -517,8 +517,8 @@ test "e2e: gpu accelerated vector similarity" {
     defer timer.deinit();
 
     // Create database
-    var handle = try abi.database.open(allocator, "test-e2e-gpu-db");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-e2e-gpu-db");
+    defer abi.features.database.close(&handle);
 
     // Insert vectors
     const vec_count: usize = 100;
@@ -527,7 +527,7 @@ test "e2e: gpu accelerated vector similarity" {
     for (0..vec_count) |i| {
         const vec = try e2e.generateNormalizedVector(allocator, vec_dim, @as(u64, i) * 31337);
         defer allocator.free(vec);
-        try abi.database.insert(&handle, @intCast(i), vec, null);
+        try abi.features.database.insert(&handle, @intCast(i), vec, null);
     }
 
     try timer.checkpoint("vectors_inserted");
@@ -537,7 +537,7 @@ test "e2e: gpu accelerated vector similarity" {
     defer allocator.free(query);
 
     // Search (would use GPU acceleration if available)
-    const results = try abi.database.search(&handle, allocator, query, 10);
+    const results = try abi.features.database.search(&handle, allocator, query, 10);
     defer allocator.free(results);
 
     try timer.checkpoint("search_complete");

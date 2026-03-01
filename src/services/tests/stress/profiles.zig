@@ -28,9 +28,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
-const time = abi.shared.time;
+const time = abi.services.shared.time;
 
-const Mutex = abi.shared.sync.Mutex;
+const Mutex = abi.services.shared.sync.Mutex;
 
 /// Stress test profile defining test parameters
 pub const StressProfile = struct {

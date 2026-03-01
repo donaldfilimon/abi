@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const shared_time = abi.shared.time;
+const shared_time = abi.services.shared.time;
 const terminal_mod = @import("terminal.zig");
 const Terminal = terminal_mod.Terminal;
 const events = @import("events.zig");

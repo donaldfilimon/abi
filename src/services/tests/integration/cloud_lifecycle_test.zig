@@ -11,8 +11,8 @@ const testing = std.testing;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
 
 const fixtures = @import("fixtures.zig");
 
@@ -26,7 +26,7 @@ test "cloud lifecycle: CloudEvent creation" {
     const allocator = testing.allocator;
 
     // Create a basic cloud event using the init function
-    var event = abi.cloud.CloudEvent.init(allocator, .aws_lambda, "test-request-123");
+    var event = abi.features.cloud.CloudEvent.init(allocator, .aws_lambda, "test-request-123");
     defer event.deinit();
 
     // Set optional fields
@@ -34,12 +34,12 @@ test "cloud lifecycle: CloudEvent creation" {
     event.path = "/api/test";
     event.body = "{\"test\": true}";
 
-    try testing.expectEqual(abi.cloud.CloudProvider.aws_lambda, event.provider);
-    try testing.expectEqual(abi.cloud.HttpMethod.GET, event.method.?);
+    try testing.expectEqual(abi.features.cloud.CloudProvider.aws_lambda, event.provider);
+    try testing.expectEqual(abi.features.cloud.HttpMethod.GET, event.method.?);
     try testing.expectEqualStrings("/api/test", event.path.?);
 
     // Create JSON response
-    var response = try abi.cloud.CloudResponse.json(allocator, "{\"status\": \"ok\"}");
+    var response = try abi.features.cloud.CloudResponse.json(allocator, "{\"status\": \"ok\"}");
     defer response.deinit();
 
     try testing.expectEqual(@as(u16, 200), response.status_code);
@@ -50,26 +50,26 @@ test "cloud lifecycle: CloudResponse status codes" {
     const allocator = testing.allocator;
 
     // Success response using json
-    var ok_response = try abi.cloud.CloudResponse.json(allocator, "{\"message\": \"Success\"}");
+    var ok_response = try abi.features.cloud.CloudResponse.json(allocator, "{\"message\": \"Success\"}");
     defer ok_response.deinit();
     try testing.expectEqual(@as(u16, 200), ok_response.status_code);
 
     // Error responses using err() helper
-    var bad_request = try abi.cloud.CloudResponse.err(allocator, 400, "Invalid input");
+    var bad_request = try abi.features.cloud.CloudResponse.err(allocator, 400, "Invalid input");
     defer {
         bad_request.deinit();
         allocator.free(bad_request.body);
     }
     try testing.expectEqual(@as(u16, 400), bad_request.status_code);
 
-    var not_found = try abi.cloud.CloudResponse.err(allocator, 404, "Resource not found");
+    var not_found = try abi.features.cloud.CloudResponse.err(allocator, 404, "Resource not found");
     defer {
         not_found.deinit();
         allocator.free(not_found.body);
     }
     try testing.expectEqual(@as(u16, 404), not_found.status_code);
 
-    var server_error = try abi.cloud.CloudResponse.err(allocator, 500, "Internal error");
+    var server_error = try abi.features.cloud.CloudResponse.err(allocator, 500, "Internal error");
     defer {
         server_error.deinit();
         allocator.free(server_error.body);
@@ -207,7 +207,7 @@ test "cloud lifecycle: warm invocation simulation" {
         var timer = try time.Timer.start();
 
         // Simulate request handling by creating an event
-        var event = abi.cloud.CloudEvent.init(allocator, .aws_lambda, "warm-request");
+        var event = abi.features.cloud.CloudEvent.init(allocator, .aws_lambda, "warm-request");
         event.method = .GET;
         event.path = "/health";
         event.deinit();
@@ -232,7 +232,7 @@ test "cloud lifecycle: warm invocation simulation" {
 
 test "cloud lifecycle: normalize http methods" {
     // Test HTTP method normalization
-    const methods = [_]abi.cloud.HttpMethod{
+    const methods = [_]abi.features.cloud.HttpMethod{
         .GET,
         .POST,
         .PUT,
@@ -244,13 +244,13 @@ test "cloud lifecycle: normalize http methods" {
 
     for (methods) |method| {
         // Each method should have a valid enum value
-        try testing.expect(@intFromEnum(method) <= @intFromEnum(abi.cloud.HttpMethod.OPTIONS));
+        try testing.expect(@intFromEnum(method) <= @intFromEnum(abi.features.cloud.HttpMethod.OPTIONS));
     }
 }
 
 test "cloud lifecycle: provider detection" {
     // Test provider detection logic - all providers are known
-    const providers = [_]abi.cloud.CloudProvider{
+    const providers = [_]abi.features.cloud.CloudProvider{
         .aws_lambda,
         .gcp_functions,
         .azure_functions,

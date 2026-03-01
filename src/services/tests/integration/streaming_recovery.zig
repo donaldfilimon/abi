@@ -15,9 +15,9 @@
 const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
-const streaming = abi.ai.streaming;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
+const streaming = abi.features.ai.streaming;
 
 const CircuitBreaker = streaming.CircuitBreaker;
 const CircuitBreakerConfig = streaming.CircuitBreakerConfig;

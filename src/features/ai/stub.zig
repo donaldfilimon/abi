@@ -59,15 +59,15 @@ pub const discovery = @import("explore/stub.zig");
 
 // NOTE(v0.4.0): Flat compatibility re-exports removed.
 // Use canonical sub-module paths instead:
-//   abi.ai.agent.Agent          (was abi.ai.Agent)
-//   abi.ai.multi_agent.Coordinator (was abi.ai.MultiAgentCoordinator)
-//   abi.ai.tools.ToolRegistry   (was abi.ai.ToolRegistry)
-//   abi.ai.training.*           (was abi.ai.TrainingConfig, etc.)
-//   abi.ai.orchestration.TaskType (was abi.ai.TaskType)
-//   abi.ai.streaming.StreamToken (was abi.ai.StreamToken)
-//   abi.ai.llm.InferenceConfig  (was abi.ai.LlmConfig)
-//   abi.ai.self_improve.SelfImprover (was abi.ai.SelfImprover)
-//   abi.ai.database.*           (was abi.ai.WdbxTokenDataset, etc.)
+//   abi.features.ai.agent.Agent          (was abi.features.ai.Agent)
+//   abi.features.ai.multi_agent.Coordinator (was abi.features.ai.MultiAgentCoordinator)
+//   abi.features.ai.tools.ToolRegistry   (was abi.features.ai.ToolRegistry)
+//   abi.features.ai.training.*           (was abi.features.ai.TrainingConfig, etc.)
+//   abi.features.ai.orchestration.TaskType (was abi.features.ai.TaskType)
+//   abi.features.ai.streaming.StreamToken (was abi.features.ai.StreamToken)
+//   abi.features.ai.llm.InferenceConfig  (was abi.features.ai.LlmConfig)
+//   abi.features.ai.self_improve.SelfImprover (was abi.features.ai.SelfImprover)
+//   abi.features.ai.database.*           (was abi.features.ai.WdbxTokenDataset, etc.)
 
 // Context
 pub const Context = struct {

@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const cloud = @import("abi").cloud;
+const cloud = @import("abi").features.cloud;
 
 // =============================================================================
 // CloudEvent Tests
@@ -362,7 +362,7 @@ test "invocation metadata initialization" {
     var metadata = cloud.InvocationMetadata{
         .request_id = "req-123",
         .provider = .aws_lambda,
-        .start_time = abi.shared.utils.unixSeconds(),
+        .start_time = abi.services.shared.utils.unixSeconds(),
         .cold_start = true,
     };
 

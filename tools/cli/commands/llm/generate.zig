@@ -218,7 +218,7 @@ pub fn runGenerate(ctx: *const context_mod.CommandContext, args: []const [:0]con
     utils.output.println("", .{});
 
     // Create inference engine
-    var engine = abi.ai.llm.Engine.init(allocator, .{
+    var engine = abi.features.ai.llm.Engine.init(allocator, .{
         .max_new_tokens = max_tokens,
         .temperature = temperature,
         .top_p = top_p,

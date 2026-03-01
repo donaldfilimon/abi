@@ -6,7 +6,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const tools = if (build_options.enable_ai) abi.ai.tools else struct {};
+const tools = if (build_options.enable_ai) abi.features.ai.tools else struct {};
 
 // ============================================================================
 // Path Traversal Detection Tests

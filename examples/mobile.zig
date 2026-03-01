@@ -17,7 +17,7 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("=== ABI Mobile Example ===\n\n", .{});
 
-    if (!abi.mobile.isEnabled()) {
+    if (!abi.features.mobile.isEnabled()) {
         std.debug.print("Mobile feature is disabled (default).\n", .{});
         std.debug.print("Enable with: zig build -Denable-mobile=true\n\n", .{});
 
@@ -27,15 +27,15 @@ pub fn main(_: std.process.Init) !void {
         std.debug.print("LifecycleState: active, background, suspended, terminated\n", .{});
         std.debug.print("SensorData: timestamp + 3-axis values\n", .{});
 
-        const state = abi.mobile.getLifecycleState();
+        const state = abi.features.mobile.getLifecycleState();
         std.debug.print("\nLifecycle state: {t}\n", .{state});
 
         // Demonstrate stub error handling
-        abi.mobile.init(allocator, .{}) catch |err| {
+        abi.features.mobile.init(allocator, .{}) catch |err| {
             std.debug.print("init: {t} (expected — feature disabled)\n", .{err});
         };
 
-        if (abi.mobile.readSensor("accelerometer")) |_| {
+        if (abi.features.mobile.readSensor("accelerometer")) |_| {
             std.debug.print("readSensor: unexpected success\n", .{});
         } else |err| {
             std.debug.print("readSensor: {t} (expected — feature disabled)\n", .{err});
@@ -46,14 +46,14 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Real implementation path
-    try abi.mobile.init(allocator, .{});
-    defer abi.mobile.deinit();
+    try abi.features.mobile.init(allocator, .{});
+    defer abi.features.mobile.deinit();
 
     std.debug.print("Mobile initialized\n", .{});
-    std.debug.print("Lifecycle: {t}\n", .{abi.mobile.getLifecycleState()});
+    std.debug.print("Lifecycle: {t}\n", .{abi.features.mobile.getLifecycleState()});
 
     // Read sensor
-    const data = abi.mobile.readSensor("accelerometer") catch |err| {
+    const data = abi.features.mobile.readSensor("accelerometer") catch |err| {
         std.debug.print("Sensor read: {t}\n", .{err});
         return;
     };

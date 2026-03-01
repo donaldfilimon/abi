@@ -21,7 +21,7 @@ pub fn main(_: std.process.Init) !void {
     // ── Step 1: Server Configuration ───────────────────────────────────────
     std.debug.print("--- Step 1: HTTP Server Config ---\n", .{});
 
-    const server_config = abi.web.server.ServerConfig{
+    const server_config = abi.features.web.server.ServerConfig{
         .host = "0.0.0.0",
         .port = 8080,
         .max_connections = 2048,
@@ -43,14 +43,14 @@ pub fn main(_: std.process.Init) !void {
     // ── Step 2: Metrics Middleware ──────────────────────────────────────────
     std.debug.print("\n--- Step 2: MetricsMiddleware Setup ---\n", .{});
 
-    var metrics = abi.web.middleware.MetricsMiddleware.init();
+    var metrics = abi.features.web.middleware.MetricsMiddleware.init();
 
     std.debug.print("  MetricsMiddleware initialized (lock-free atomic counters)\n", .{});
-    std.debug.print("  Histogram buckets: {d}\n", .{abi.web.middleware.observability.BUCKET_COUNT});
+    std.debug.print("  Histogram buckets: {d}\n", .{abi.features.web.middleware.observability.BUCKET_COUNT});
 
     // Print bucket boundaries
     std.debug.print("  Bucket bounds (us): ", .{});
-    for (abi.web.middleware.observability.bucket_bounds_us, 0..) |bound, i| {
+    for (abi.features.web.middleware.observability.bucket_bounds_us, 0..) |bound, i| {
         if (i > 0) std.debug.print(", ", .{});
         if (bound == std.math.maxInt(u64)) {
             std.debug.print("+Inf", .{});
@@ -112,7 +112,7 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("  Latency histogram:\n", .{});
     var cumulative: u64 = 0;
-    for (abi.web.middleware.observability.bucket_bounds_us, 0..) |bound, i| {
+    for (abi.features.web.middleware.observability.bucket_bounds_us, 0..) |bound, i| {
         cumulative += snap.request_durations_us[i];
         if (bound == std.math.maxInt(u64)) {
             std.debug.print("    <= +Inf us: {d}\n", .{cumulative});

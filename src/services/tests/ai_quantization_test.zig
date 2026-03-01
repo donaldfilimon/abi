@@ -6,7 +6,7 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const quantized = if (build_options.enable_llm) abi.ai.llm.tensor.quantized else struct {};
+const quantized = if (build_options.enable_llm) abi.features.ai.llm.tensor.quantized else struct {};
 
 // ============================================================================
 // Q8_0 Roundtrip Tests

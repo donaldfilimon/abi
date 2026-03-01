@@ -613,19 +613,19 @@ const mobile_specs = [_]DeclSpec{
 };
 
 test "mobile module has required declarations" {
-    comptime verifyDeclarations(abi.mobile, mobile_required);
+    comptime verifyDeclarations(abi.features.mobile, mobile_required);
 }
 
 test "mobile module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.mobile, &mobile_specs);
+    comptime verifyDeclSpecs(abi.features.mobile, &mobile_specs);
     try std.testing.expectEqual(
         @as(usize, 0),
-        comptime countSpecViolations(abi.mobile, &mobile_specs),
+        comptime countSpecViolations(abi.features.mobile, &mobile_specs),
     );
 }
 
 test "mobile module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.mobile, mobile_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.mobile, mobile_required);
     if (orphans.len > 0) {
         std.log.info("Mobile module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -661,19 +661,19 @@ const pages_specs = [_]DeclSpec{
 };
 
 test "pages module has required declarations" {
-    comptime verifyDeclarations(abi.pages, pages_required);
+    comptime verifyDeclarations(abi.features.pages, pages_required);
 }
 
 test "pages module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.pages, &pages_specs);
+    comptime verifyDeclSpecs(abi.features.pages, &pages_specs);
     try std.testing.expectEqual(
         @as(usize, 0),
-        comptime countSpecViolations(abi.pages, &pages_specs),
+        comptime countSpecViolations(abi.features.pages, &pages_specs),
     );
 }
 
 test "pages module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.pages, pages_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.pages, pages_required);
     if (orphans.len > 0) {
         std.log.info("Pages module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -696,19 +696,19 @@ const benchmarks_specs = [_]DeclSpec{
 };
 
 test "benchmarks module has required declarations" {
-    comptime verifyDeclarations(abi.benchmarks, benchmarks_required);
+    comptime verifyDeclarations(abi.features.benchmarks, benchmarks_required);
 }
 
 test "benchmarks module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.benchmarks, &benchmarks_specs);
+    comptime verifyDeclSpecs(abi.features.benchmarks, &benchmarks_specs);
     try std.testing.expectEqual(
         @as(usize, 0),
-        comptime countSpecViolations(abi.benchmarks, &benchmarks_specs),
+        comptime countSpecViolations(abi.features.benchmarks, &benchmarks_specs),
     );
 }
 
 test "benchmarks module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.benchmarks, benchmarks_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.benchmarks, benchmarks_required);
     if (orphans.len > 0) {
         std.log.info("Benchmarks module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -720,7 +720,7 @@ test "benchmarks module bidirectional parity audit" {
 // ============================================================================
 
 test "gpu module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.gpu, gpu_required);
+    const missing = comptime getMissingDeclarations(abi.features.gpu, gpu_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -730,12 +730,12 @@ test "gpu module has required declarations" {
     }
 
     // Verify at compile time
-    comptime verifyDeclarations(abi.gpu, gpu_required);
+    comptime verifyDeclarations(abi.features.gpu, gpu_required);
 }
 
 test "gpu module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.gpu, &gpu_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.gpu, &gpu_specs));
+    comptime verifyDeclSpecs(abi.features.gpu, &gpu_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.gpu, &gpu_specs));
 }
 
 // ============================================================================
@@ -743,7 +743,7 @@ test "gpu module declaration kinds and signatures" {
 // ============================================================================
 
 test "ai module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.ai, ai_required);
+    const missing = comptime getMissingDeclarations(abi.features.ai, ai_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -752,27 +752,27 @@ test "ai module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.ai, ai_required);
+    comptime verifyDeclarations(abi.features.ai, ai_required);
 }
 
 test "ai module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.ai, &ai_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.ai, &ai_specs));
+    comptime verifyDeclSpecs(abi.features.ai, &ai_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.ai, &ai_specs));
 }
 
 test "ai submodules accessible" {
     // Verify key submodules are accessible
-    _ = abi.ai.core;
-    _ = abi.ai.llm;
-    _ = abi.ai.embeddings;
-    _ = abi.ai.agents;
-    _ = abi.ai.training;
-    _ = abi.ai.streaming;
-    _ = abi.ai.explore;
-    _ = abi.ai.abbey;
-    _ = abi.ai.tools;
-    _ = abi.ai.prompts;
-    _ = abi.ai.memory;
+    _ = abi.features.ai.core;
+    _ = abi.features.ai.llm;
+    _ = abi.features.ai.embeddings;
+    _ = abi.features.ai.agents;
+    _ = abi.features.ai.training;
+    _ = abi.features.ai.streaming;
+    _ = abi.features.ai.explore;
+    _ = abi.features.ai.abbey;
+    _ = abi.features.ai.tools;
+    _ = abi.features.ai.prompts;
+    _ = abi.features.ai.memory;
 }
 
 // ============================================================================
@@ -780,7 +780,7 @@ test "ai submodules accessible" {
 // ============================================================================
 
 test "database module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.database, database_required);
+    const missing = comptime getMissingDeclarations(abi.features.database, database_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -789,12 +789,12 @@ test "database module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.database, database_required);
+    comptime verifyDeclarations(abi.features.database, database_required);
 }
 
 test "database module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.database, &database_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.database, &database_specs));
+    comptime verifyDeclSpecs(abi.features.database, &database_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.database, &database_specs));
 }
 
 // ============================================================================
@@ -802,7 +802,7 @@ test "database module declaration kinds and signatures" {
 // ============================================================================
 
 test "network module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.network, network_required);
+    const missing = comptime getMissingDeclarations(abi.features.network, network_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -811,12 +811,12 @@ test "network module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.network, network_required);
+    comptime verifyDeclarations(abi.features.network, network_required);
 }
 
 test "network module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.network, &network_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.network, &network_specs));
+    comptime verifyDeclSpecs(abi.features.network, &network_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.network, &network_specs));
 }
 
 // ============================================================================
@@ -824,7 +824,7 @@ test "network module declaration kinds and signatures" {
 // ============================================================================
 
 test "cloud module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.cloud, cloud_required);
+    const missing = comptime getMissingDeclarations(abi.features.cloud, cloud_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -833,12 +833,12 @@ test "cloud module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.cloud, cloud_required);
+    comptime verifyDeclarations(abi.features.cloud, cloud_required);
 }
 
 test "cloud module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.cloud, &cloud_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.cloud, &cloud_specs));
+    comptime verifyDeclSpecs(abi.features.cloud, &cloud_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.cloud, &cloud_specs));
 }
 
 // ============================================================================
@@ -846,7 +846,7 @@ test "cloud module declaration kinds and signatures" {
 // ============================================================================
 
 test "web module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.web, web_required);
+    const missing = comptime getMissingDeclarations(abi.features.web, web_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -855,12 +855,12 @@ test "web module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.web, web_required);
+    comptime verifyDeclarations(abi.features.web, web_required);
 }
 
 test "web module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.web, &web_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.web, &web_specs));
+    comptime verifyDeclSpecs(abi.features.web, &web_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.web, &web_specs));
 }
 
 // ============================================================================
@@ -868,7 +868,7 @@ test "web module declaration kinds and signatures" {
 // ============================================================================
 
 test "observability module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.observability, observability_required);
+    const missing = comptime getMissingDeclarations(abi.features.observability, observability_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -877,12 +877,12 @@ test "observability module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.observability, observability_required);
+    comptime verifyDeclarations(abi.features.observability, observability_required);
 }
 
 test "observability module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.observability, &observability_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.observability, &observability_specs));
+    comptime verifyDeclSpecs(abi.features.observability, &observability_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.observability, &observability_specs));
 }
 
 // ============================================================================
@@ -890,7 +890,7 @@ test "observability module declaration kinds and signatures" {
 // ============================================================================
 
 test "analytics module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.analytics, analytics_required);
+    const missing = comptime getMissingDeclarations(abi.features.analytics, analytics_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -899,12 +899,12 @@ test "analytics module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.analytics, analytics_required);
+    comptime verifyDeclarations(abi.features.analytics, analytics_required);
 }
 
 test "analytics module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.analytics, &analytics_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.analytics, &analytics_specs));
+    comptime verifyDeclSpecs(abi.features.analytics, &analytics_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.analytics, &analytics_specs));
 }
 
 // ============================================================================
@@ -912,7 +912,7 @@ test "analytics module declaration kinds and signatures" {
 // ============================================================================
 
 test "auth module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.auth, auth_required);
+    const missing = comptime getMissingDeclarations(abi.features.auth, auth_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -921,12 +921,12 @@ test "auth module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.auth, auth_required);
+    comptime verifyDeclarations(abi.features.auth, auth_required);
 }
 
 test "auth module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.auth, &auth_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.auth, &auth_specs));
+    comptime verifyDeclSpecs(abi.features.auth, &auth_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.auth, &auth_specs));
 }
 
 // ============================================================================
@@ -934,7 +934,7 @@ test "auth module declaration kinds and signatures" {
 // ============================================================================
 
 test "messaging module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.messaging, messaging_required);
+    const missing = comptime getMissingDeclarations(abi.features.messaging, messaging_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -943,12 +943,12 @@ test "messaging module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.messaging, messaging_required);
+    comptime verifyDeclarations(abi.features.messaging, messaging_required);
 }
 
 test "messaging module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.messaging, &messaging_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.messaging, &messaging_specs));
+    comptime verifyDeclSpecs(abi.features.messaging, &messaging_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.messaging, &messaging_specs));
 }
 
 // ============================================================================
@@ -956,7 +956,7 @@ test "messaging module declaration kinds and signatures" {
 // ============================================================================
 
 test "cache module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.cache, cache_required);
+    const missing = comptime getMissingDeclarations(abi.features.cache, cache_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -965,12 +965,12 @@ test "cache module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.cache, cache_required);
+    comptime verifyDeclarations(abi.features.cache, cache_required);
 }
 
 test "cache module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.cache, &cache_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.cache, &cache_specs));
+    comptime verifyDeclSpecs(abi.features.cache, &cache_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.cache, &cache_specs));
 }
 
 // ============================================================================
@@ -978,7 +978,7 @@ test "cache module declaration kinds and signatures" {
 // ============================================================================
 
 test "storage module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.storage, storage_required);
+    const missing = comptime getMissingDeclarations(abi.features.storage, storage_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -987,12 +987,12 @@ test "storage module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.storage, storage_required);
+    comptime verifyDeclarations(abi.features.storage, storage_required);
 }
 
 test "storage module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.storage, &storage_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.storage, &storage_specs));
+    comptime verifyDeclSpecs(abi.features.storage, &storage_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.storage, &storage_specs));
 }
 
 // ============================================================================
@@ -1000,7 +1000,7 @@ test "storage module declaration kinds and signatures" {
 // ============================================================================
 
 test "gateway module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.gateway, gateway_required);
+    const missing = comptime getMissingDeclarations(abi.features.gateway, gateway_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -1009,12 +1009,12 @@ test "gateway module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.gateway, gateway_required);
+    comptime verifyDeclarations(abi.features.gateway, gateway_required);
 }
 
 test "gateway module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.gateway, &gateway_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.gateway, &gateway_specs));
+    comptime verifyDeclSpecs(abi.features.gateway, &gateway_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.gateway, &gateway_specs));
 }
 
 // ============================================================================
@@ -1022,7 +1022,7 @@ test "gateway module declaration kinds and signatures" {
 // ============================================================================
 
 test "search module has required declarations" {
-    const missing = comptime getMissingDeclarations(abi.search, search_required);
+    const missing = comptime getMissingDeclarations(abi.features.search, search_required);
 
     if (missing.len > 0) {
         inline for (missing) |name| {
@@ -1031,12 +1031,12 @@ test "search module has required declarations" {
         try std.testing.expect(false);
     }
 
-    comptime verifyDeclarations(abi.search, search_required);
+    comptime verifyDeclarations(abi.features.search, search_required);
 }
 
 test "search module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.search, &search_specs);
-    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.search, &search_specs));
+    comptime verifyDeclSpecs(abi.features.search, &search_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.features.search, &search_specs));
 }
 
 // ============================================================================
@@ -1046,23 +1046,23 @@ test "search module declaration kinds and signatures" {
 test "all feature modules follow Context pattern" {
     // All feature modules should have Context with init/deinit
     const modules = .{
-        abi.gpu,
-        abi.ai,
-        abi.database,
-        abi.network,
-        abi.cloud,
-        abi.web,
-        abi.observability,
-        abi.analytics,
-        abi.auth,
-        abi.messaging,
-        abi.cache,
-        abi.storage,
-        abi.search,
-        abi.gateway,
-        abi.mobile,
-        abi.pages,
-        abi.benchmarks,
+        abi.features.gpu,
+        abi.features.ai,
+        abi.features.database,
+        abi.features.network,
+        abi.features.cloud,
+        abi.features.web,
+        abi.features.observability,
+        abi.features.analytics,
+        abi.features.auth,
+        abi.features.messaging,
+        abi.features.cache,
+        abi.features.storage,
+        abi.features.search,
+        abi.features.gateway,
+        abi.features.mobile,
+        abi.features.pages,
+        abi.features.benchmarks,
     };
 
     inline for (modules) |mod| {
@@ -1077,20 +1077,20 @@ test "all feature modules follow Context pattern" {
 
 test "all feature modules have lifecycle functions" {
     const modules = .{
-        abi.gpu,
-        abi.ai,
-        abi.database,
-        abi.network,
-        abi.cloud,
-        abi.web,
-        abi.observability,
-        abi.analytics,
-        abi.auth,
-        abi.messaging,
-        abi.cache,
-        abi.storage,
-        abi.search,
-        abi.gateway,
+        abi.features.gpu,
+        abi.features.ai,
+        abi.features.database,
+        abi.features.network,
+        abi.features.cloud,
+        abi.features.web,
+        abi.features.observability,
+        abi.features.analytics,
+        abi.features.auth,
+        abi.features.messaging,
+        abi.features.cache,
+        abi.features.storage,
+        abi.features.search,
+        abi.features.gateway,
     };
 
     inline for (modules) |mod| {
@@ -1199,7 +1199,7 @@ test "bidirectional parity detects orphan declarations" {
 // another. Currently soft-fail (log + count) to enable incremental alignment.
 
 test "gpu module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.gpu, gpu_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.gpu, gpu_required);
     if (orphans.len > 0) {
         std.log.info("GPU module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1208,7 +1208,7 @@ test "gpu module bidirectional parity audit" {
 }
 
 test "ai module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.ai, ai_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.ai, ai_required);
     if (orphans.len > 0) {
         std.log.info("AI module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1216,7 +1216,7 @@ test "ai module bidirectional parity audit" {
 }
 
 test "database module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.database, database_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.database, database_required);
     if (orphans.len > 0) {
         std.log.info("Database module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1224,7 +1224,7 @@ test "database module bidirectional parity audit" {
 }
 
 test "network module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.network, network_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.network, network_required);
     if (orphans.len > 0) {
         std.log.info("Network module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1232,7 +1232,7 @@ test "network module bidirectional parity audit" {
 }
 
 test "cloud module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.cloud, cloud_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.cloud, cloud_required);
     if (orphans.len > 0) {
         std.log.info("Cloud module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1240,7 +1240,7 @@ test "cloud module bidirectional parity audit" {
 }
 
 test "web module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.web, web_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.web, web_required);
     if (orphans.len > 0) {
         std.log.info("Web module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1248,7 +1248,7 @@ test "web module bidirectional parity audit" {
 }
 
 test "observability module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.observability, observability_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.observability, observability_required);
     if (orphans.len > 0) {
         std.log.info("Observability module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1256,7 +1256,7 @@ test "observability module bidirectional parity audit" {
 }
 
 test "analytics module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.analytics, analytics_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.analytics, analytics_required);
     if (orphans.len > 0) {
         std.log.info("Analytics module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1264,7 +1264,7 @@ test "analytics module bidirectional parity audit" {
 }
 
 test "auth module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.auth, auth_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.auth, auth_required);
     if (orphans.len > 0) {
         std.log.info("Auth module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1272,7 +1272,7 @@ test "auth module bidirectional parity audit" {
 }
 
 test "messaging module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.messaging, messaging_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.messaging, messaging_required);
     if (orphans.len > 0) {
         std.log.info("Messaging module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1280,7 +1280,7 @@ test "messaging module bidirectional parity audit" {
 }
 
 test "cache module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.cache, cache_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.cache, cache_required);
     if (orphans.len > 0) {
         std.log.info("Cache module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1288,7 +1288,7 @@ test "cache module bidirectional parity audit" {
 }
 
 test "storage module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.storage, storage_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.storage, storage_required);
     if (orphans.len > 0) {
         std.log.info("Storage module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1296,7 +1296,7 @@ test "storage module bidirectional parity audit" {
 }
 
 test "search module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.search, search_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.search, search_required);
     if (orphans.len > 0) {
         std.log.info("Search module has {d} declarations not in expected list", .{orphans.len});
     }
@@ -1304,7 +1304,7 @@ test "search module bidirectional parity audit" {
 }
 
 test "gateway module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.gateway, gateway_required);
+    const orphans = comptime getOrphanDeclarations(abi.features.gateway, gateway_required);
     if (orphans.len > 0) {
         std.log.info("Gateway module has {d} declarations not in expected list", .{orphans.len});
     }

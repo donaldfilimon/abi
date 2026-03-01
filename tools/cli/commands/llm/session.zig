@@ -5,9 +5,9 @@ const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const run_cmd = @import("run.zig");
 
-const ChatMessage = abi.ai.llm.providers.ChatMessage;
-const ProviderId = abi.ai.llm.providers.ProviderId;
-const provider_parser = abi.ai.llm.providers.parser;
+const ChatMessage = abi.features.ai.llm.providers.ChatMessage;
+const ProviderId = abi.features.ai.llm.providers.ProviderId;
+const provider_parser = abi.features.ai.llm.providers.parser;
 
 const SyncModelEntry = struct {
     provider: ProviderId,
@@ -219,7 +219,7 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         try history.append(allocator, .{ .role = "user", .content = user_text });
 
         // ── Generate with structured messages ──────────────────────
-        var result: abi.ai.llm.providers.GenerateResult = undefined;
+        var result: abi.features.ai.llm.providers.GenerateResult = undefined;
         if (sync.enabled and sync.chain.len > 0) {
             var got_result = false;
             var attempts: usize = 0;
@@ -231,7 +231,7 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                     continue;
                 };
 
-                result = abi.ai.llm.providers.generate(allocator, .{
+                result = abi.features.ai.llm.providers.generate(allocator, .{
                     .model = model,
                     .prompt = trimmed,
                     .messages = history.items,
@@ -260,7 +260,7 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                 continue;
             }
         } else {
-            result = abi.ai.llm.providers.generate(allocator, .{
+            result = abi.features.ai.llm.providers.generate(allocator, .{
                 .model = options.model.?,
                 .prompt = trimmed,
                 .messages = history.items,
@@ -296,8 +296,8 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 
 fn printProviderStatus(allocator: std.mem.Allocator) void {
     utils.output.printHeader("Provider status");
-    inline for (abi.ai.llm.providers.registry.all_providers) |provider| {
-        const available = abi.ai.llm.providers.health.isAvailable(allocator, provider, null);
+    inline for (abi.features.ai.llm.providers.registry.all_providers) |provider| {
+        const available = abi.features.ai.llm.providers.health.isAvailable(allocator, provider, null);
         utils.output.printStatusLineFmt("{s:16}", .{provider.label()}, available);
     }
     utils.output.println("", .{});
@@ -365,7 +365,7 @@ fn parseSyncArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !Sync
         sync.chain = try chain_builder.toOwnedSlice(allocator);
         sync.owns_chain = true;
     } else {
-        sync.chain = try allocator.dupe(ProviderId, abi.ai.llm.providers.registry.sync_round_robin_chain[0..]);
+        sync.chain = try allocator.dupe(ProviderId, abi.features.ai.llm.providers.registry.sync_round_robin_chain[0..]);
         sync.owns_chain = true;
     }
 
@@ -398,7 +398,7 @@ fn parseSyncArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !Sync
 fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !?[]u8 {
     switch (provider) {
         .codex => {
-            if (try abi.connectors.tryLoadCodex(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadCodex(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -406,7 +406,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .opencode => {
-            if (try abi.connectors.tryLoadOpenCode(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadOpenCode(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -414,7 +414,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .claude => {
-            if (try abi.connectors.tryLoadClaude(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadClaude(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -422,7 +422,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .gemini => {
-            if (try abi.connectors.tryLoadGemini(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadGemini(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -430,7 +430,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .ollama_passthrough => {
-            if (try abi.connectors.tryLoadOllamaPassthrough(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadOllamaPassthrough(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -438,7 +438,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .ollama => {
-            if (try abi.connectors.tryLoadOllama(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadOllama(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -446,7 +446,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .anthropic => {
-            if (try abi.connectors.tryLoadAnthropic(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadAnthropic(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -454,7 +454,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .openai => {
-            if (try abi.connectors.tryLoadOpenAI(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadOpenAI(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -462,7 +462,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .llama_cpp => {
-            if (try abi.connectors.tryLoadLlamaCpp(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadLlamaCpp(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -470,7 +470,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .mlx => {
-            if (try abi.connectors.tryLoadMLX(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadMLX(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -478,7 +478,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .lm_studio => {
-            if (try abi.connectors.tryLoadLMStudio(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadLMStudio(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));
@@ -486,7 +486,7 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
             return null;
         },
         .vllm => {
-            if (try abi.connectors.tryLoadVLLM(allocator)) |cfg| {
+            if (try abi.services.connectors.tryLoadVLLM(allocator)) |cfg| {
                 var config = cfg;
                 defer config.deinit(allocator);
                 return @as(?[]u8, try allocator.dupe(u8, config.model));

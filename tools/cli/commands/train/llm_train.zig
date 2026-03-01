@@ -19,7 +19,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
 
     // Check if LLM feature is enabled
-    if (!abi.ai.llm.isEnabled()) {
+    if (!abi.features.ai.llm.isEnabled()) {
         utils.output.printError("LLM feature is not enabled. Build with -Dfeat-llm=true (legacy: -Denable-llm=true)", .{});
         return;
     }
@@ -35,7 +35,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     const model_path = std.mem.sliceTo(args[0], 0);
 
     // Parse LLM training options
-    var config = abi.ai.training.LlmTrainingConfig{};
+    var config = abi.features.ai.training.LlmTrainingConfig{};
     var use_gpu: bool = true;
     var dataset_url: ?[]const u8 = null;
     var dataset_path: ?[]const u8 = null;
@@ -339,7 +339,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Load model
     utils.output.println("Loading model from {s}...", .{model_path});
-    var model = abi.ai.training.TrainableModel.fromGguf(allocator, model_path) catch |err| {
+    var model = abi.features.ai.training.TrainableModel.fromGguf(allocator, model_path) catch |err| {
         utils.output.printError("loading GGUF model: {t}", .{err});
         return;
     };
@@ -366,17 +366,17 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     config.log_dir = log_dir;
     config.enable_metrics_stream = true;
 
-    var tokenizer: ?abi.ai.llm.tokenizer.Tokenizer = null;
+    var tokenizer: ?abi.features.ai.llm.tokenizer.Tokenizer = null;
     defer if (tokenizer) |*tok| tok.deinit();
 
     if (dataset_format != .tokenbin) {
-        var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, model_path) catch |err| {
+        var gguf_file = abi.features.ai.llm.io.GgufFile.open(allocator, model_path) catch |err| {
             utils.output.printError("opening GGUF for tokenizer: {t}", .{err});
             return;
         };
         defer gguf_file.deinit();
 
-        const tok = abi.ai.llm.tokenizer.loadFromGguf(allocator, &gguf_file) catch |err| {
+        const tok = abi.features.ai.llm.tokenizer.loadFromGguf(allocator, &gguf_file) catch |err| {
             utils.output.printError("loading tokenizer from GGUF: {t}", .{err});
             return;
         };
@@ -387,9 +387,9 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     defer if (dataset.owned and dataset.path.len > 0) allocator.free(dataset.path);
 
     var train_tokens: []u32 = &.{};
-    const tokenizer_ptr: ?*abi.ai.llm.tokenizer.Tokenizer = if (tokenizer) |*tok| tok else null;
+    const tokenizer_ptr: ?*abi.features.ai.llm.tokenizer.Tokenizer = if (tokenizer) |*tok| tok else null;
     if (dataset_wdbx) |db_path| {
-        var wdbx_dataset = abi.ai.database.WdbxTokenDataset.init(allocator, db_path) catch |err| {
+        var wdbx_dataset = abi.features.ai.database.WdbxTokenDataset.init(allocator, db_path) catch |err| {
             utils.output.printError("opening WDBX dataset: {t}", .{err});
             return;
         };
@@ -434,12 +434,12 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     utils.output.println("Starting LLM training...", .{});
 
-    var timer = abi.shared.time.Timer.start() catch {
+    var timer = abi.services.shared.time.Timer.start() catch {
         utils.output.printError("failed to start timer", .{});
         return;
     };
 
-    const report = abi.ai.training.llm_trainer.trainLlm(allocator, &model, config, train_tokens) catch |err| {
+    const report = abi.features.ai.training.llm_trainer.trainLlm(allocator, &model, config, train_tokens) catch |err| {
         utils.output.printError("Training failed: {t}", .{err});
         return;
     };

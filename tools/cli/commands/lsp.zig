@@ -14,7 +14,7 @@ const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = @import("../utils/io_backend.zig");
 
-const lsp = abi.lsp;
+const lsp = abi.services.lsp;
 const ArgParser = utils.args.ArgParser;
 const output = utils.output;
 const HelpBuilder = utils.help.HelpBuilder;

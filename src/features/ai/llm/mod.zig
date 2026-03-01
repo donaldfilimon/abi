@@ -119,7 +119,7 @@ pub const InferenceConfig = struct {
     /// Use GPU acceleration if available
     use_gpu: bool = true,
     /// Number of threads for CPU inference (0 = auto). When use_gpu is false, batch
-    /// parallelism can use this with abi.runtime.ThreadPool.parallelFor for multi-threaded CPU.
+    /// parallelism can use this with abi.services.runtime.ThreadPool.parallelFor for multi-threaded CPU.
     num_threads: u32 = 0, // 0 = auto-detect
     /// Enable streaming output
     streaming: bool = true,

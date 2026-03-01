@@ -13,7 +13,7 @@ pub const AuthConfig = core_config.AuthConfig;
 // Security Sub-modules (re-exported — same as mod.zig)
 // ============================================================================
 // Note: Security sub-modules are always compiled (they live in services/shared).
-// We re-export the same files here so that code using `abi.auth.jwt` compiles
+// We re-export the same files here so that code using `abi.features.auth.jwt` compiles
 // regardless of whether auth is enabled or disabled at build time. The feature
 // gate only affects the Context lifecycle and high-level auth functions.
 

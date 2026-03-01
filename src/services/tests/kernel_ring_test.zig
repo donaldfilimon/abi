@@ -1,7 +1,7 @@
 const std = @import("std");
 // Use the public GPU module to access the dispatcher and builtin kernels.
 const abi = @import("abi");
-const gpu = abi.gpu;
+const gpu = abi.features.gpu;
 const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;
 

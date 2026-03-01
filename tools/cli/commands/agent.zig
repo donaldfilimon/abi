@@ -25,7 +25,7 @@ const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 const super_ = @import("ralph/super.zig");
-const app_paths = abi.shared.app_paths;
+const app_paths = abi.services.shared.app_paths;
 
 pub const meta: command_mod.Meta = .{
     .name = "agent",
@@ -37,7 +37,7 @@ const SessionState = struct {
     allocator: std.mem.Allocator,
     session_id: []const u8,
     session_name: []const u8,
-    messages: std.ArrayListUnmanaged(abi.ai.memory.Message),
+    messages: std.ArrayListUnmanaged(abi.features.ai.memory.Message),
     modified: bool,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) !SessionState {
@@ -75,7 +75,7 @@ const SessionState = struct {
         self.allocator.free(self.session_name);
     }
 
-    pub fn addMessage(self: *SessionState, role: abi.ai.memory.MessageRole, content: []const u8) !void {
+    pub fn addMessage(self: *SessionState, role: abi.features.ai.memory.MessageRole, content: []const u8) !void {
         const content_copy = try self.allocator.dupe(u8, content);
         errdefer self.allocator.free(content_copy);
 
@@ -95,7 +95,7 @@ const SessionState = struct {
         }
 
         const now = getUnixSeconds();
-        const session_data = abi.ai.memory.SessionData{
+        const session_data = abi.features.ai.memory.SessionData{
             .id = self.session_id,
             .name = self.session_name,
             .created_at = now,
@@ -107,7 +107,7 @@ const SessionState = struct {
         const sessions_dir = try app_paths.resolvePath(self.allocator, "sessions");
         defer self.allocator.free(sessions_dir);
 
-        var primary_store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        var primary_store = abi.features.ai.memory.SessionStore.init(self.allocator, sessions_dir);
         try primary_store.saveSession(session_data);
         self.modified = false;
     }
@@ -116,7 +116,7 @@ const SessionState = struct {
         const sessions_dir = try app_paths.resolvePath(self.allocator, "sessions");
         defer self.allocator.free(sessions_dir);
 
-        var primary_store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        var primary_store = abi.features.ai.memory.SessionStore.init(self.allocator, sessions_dir);
         var data = try primary_store.loadSession(session_id);
         defer data.deinit(self.allocator);
 
@@ -187,8 +187,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return runRalph(allocator, args[1..]);
     }
 
-    const agent_mod = abi.ai.agent;
-    const prompts = abi.ai.prompts;
+    const agent_mod = abi.features.ai.agent;
+    const prompts = abi.features.ai.prompts;
 
     var name: []const u8 = "cli-agent";
     var message: ?[]const u8 = null;
@@ -338,7 +338,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     if (use_tools) {
         // Tool-augmented agent mode
-        var tool_agent = try abi.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
+        var tool_agent = try abi.features.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
             .agent = .{
                 .name = name,
                 .system_prompt = persona.system_prompt,
@@ -357,18 +357,18 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             };
         } else {
             if (enable_os_tools) {
-                abi.ai.tools.os_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                abi.features.ai.tools.os_tools.registerAll(&tool_agent.tool_registry) catch |err| {
                     utils.output.printWarning("OS tools registration failed: {t}", .{err});
                 };
             }
             if (enable_file_tools) {
-                abi.ai.tools.file_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                abi.features.ai.tools.file_tools.registerAll(&tool_agent.tool_registry) catch |err| {
                     utils.output.printWarning("File tools registration failed: {t}", .{err});
                 };
-                abi.ai.tools.search_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                abi.features.ai.tools.search_tools.registerAll(&tool_agent.tool_registry) catch |err| {
                     utils.output.printWarning("Search tools registration failed: {t}", .{err});
                 };
-                abi.ai.tools.edit_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                abi.features.ai.tools.edit_tools.registerAll(&tool_agent.tool_registry) catch |err| {
                     utils.output.printWarning("Edit tools registration failed: {t}", .{err});
                 };
             }
@@ -448,12 +448,12 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn runInteractive(
     allocator: std.mem.Allocator,
-    agent: *abi.ai.agent.Agent,
+    agent: *abi.features.ai.agent.Agent,
     session: *SessionState,
-    persona_type: abi.ai.prompts.PersonaType,
+    persona_type: abi.features.ai.prompts.PersonaType,
     show_prompt: bool,
 ) !void {
-    const persona = abi.ai.prompts.getPersona(persona_type);
+    const persona = abi.features.ai.prompts.getPersona(persona_type);
     utils.output.println("\n╔════════════════════════════════════════════════════════════╗", .{});
     utils.output.println("║                    ABI AI Agent                            ║", .{});
     utils.output.println("╚════════════════════════════════════════════════════════════╝\n", .{});
@@ -508,11 +508,11 @@ fn runInteractive(
 
         // Show prompt if requested
         if (show_prompt) {
-            var builder = abi.ai.prompts.PromptBuilder.init(allocator, persona_type);
+            var builder = abi.features.ai.prompts.PromptBuilder.init(allocator, persona_type);
             defer builder.deinit();
             // Add history
             for (session.messages.items) |msg| {
-                const role: abi.ai.prompts.Role = switch (msg.role) {
+                const role: abi.features.ai.prompts.Role = switch (msg.role) {
                     .user => .user,
                     .assistant => .assistant,
                     .system => .system,
@@ -544,7 +544,7 @@ fn handleSlashCommand(
     allocator: std.mem.Allocator,
     session: *SessionState,
     input: []const u8,
-    persona_type: abi.ai.prompts.PersonaType,
+    persona_type: abi.features.ai.prompts.PersonaType,
 ) !void {
     var iter = std.mem.splitScalar(u8, input[1..], ' ');
     const cmd = iter.first();
@@ -556,10 +556,10 @@ fn handleSlashCommand(
 
     if (std.mem.eql(u8, cmd, "prompt")) {
         // Show the current prompt with all history
-        var builder = abi.ai.prompts.PromptBuilder.init(allocator, persona_type);
+        var builder = abi.features.ai.prompts.PromptBuilder.init(allocator, persona_type);
         defer builder.deinit();
         for (session.messages.items) |msg| {
-            const role: abi.ai.prompts.Role = switch (msg.role) {
+            const role: abi.features.ai.prompts.Role = switch (msg.role) {
                 .user => .user,
                 .assistant => .assistant,
                 .system => .system,
@@ -574,7 +574,7 @@ fn handleSlashCommand(
     }
 
     if (std.mem.eql(u8, cmd, "persona")) {
-        const persona = abi.ai.prompts.getPersona(persona_type);
+        const persona = abi.features.ai.prompts.getPersona(persona_type);
         utils.output.printHeader("Current Persona");
         utils.output.printKeyValue("Name", persona.name);
         utils.output.printKeyValue("Description", persona.description);
@@ -660,14 +660,14 @@ fn listSessions(allocator: std.mem.Allocator) !void {
     };
     defer allocator.free(sessions_dir);
 
-    var sessions = std.ArrayListUnmanaged(abi.ai.memory.SessionMeta).empty;
+    var sessions = std.ArrayListUnmanaged(abi.features.ai.memory.SessionMeta).empty;
     defer {
         for (sessions.items) |*session_meta| session_meta.deinit(allocator);
         sessions.deinit(allocator);
     }
 
-    var primary_store = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
-    var primary_sessions: ?[]abi.ai.memory.SessionMeta = null;
+    var primary_store = abi.features.ai.memory.SessionStore.init(allocator, sessions_dir);
+    var primary_sessions: ?[]abi.features.ai.memory.SessionMeta = null;
     primary_sessions = primary_store.listSessions() catch |err| switch (err) {
         error.SessionNotFound => null,
         else => {
@@ -703,7 +703,7 @@ fn listSessions(allocator: std.mem.Allocator) !void {
     utils.output.println("", .{});
 }
 
-fn sessionMetaExistsById(list: []const abi.ai.memory.SessionMeta, session_id: []const u8) bool {
+fn sessionMetaExistsById(list: []const abi.features.ai.memory.SessionMeta, session_id: []const u8) bool {
     for (list) |session_meta| {
         if (std.mem.eql(u8, session_meta.id, session_id)) return true;
     }
@@ -732,18 +732,18 @@ fn printInteractiveHelp() void {
 }
 
 fn listPersonas() void {
-    const all_personas = abi.ai.prompts.listPersonas();
+    const all_personas = abi.features.ai.prompts.listPersonas();
     utils.output.printHeader("Available Personas");
     utils.output.println("{s:<12} {s:<15} {s}", .{ "Name", "Temperature", "Description" });
     utils.output.println("─────────────────────────────────────────────────────────────", .{});
     for (all_personas) |pt| {
-        const p = abi.ai.prompts.getPersona(pt);
+        const p = abi.features.ai.prompts.getPersona(pt);
         utils.output.println("{s:<12} {d:<15.1} {s}", .{ p.name, p.suggested_temperature, p.description });
     }
     utils.output.println("\nUse --persona <name> to select a persona.\n", .{});
 }
 
-fn parsePersonaType(name: []const u8) abi.ai.prompts.PersonaType {
+fn parsePersonaType(name: []const u8) abi.features.ai.prompts.PersonaType {
     if (std.mem.eql(u8, name, "coder")) return .coder;
     if (std.mem.eql(u8, name, "writer")) return .writer;
     if (std.mem.eql(u8, name, "analyst")) return .analyst;
@@ -826,7 +826,7 @@ fn printHelp() void {
 fn getUnixSeconds() i64 {
     // Use a simple counter based on timer - the actual value doesn't matter
     // as long as it's reasonably unique within a session
-    var timer = abi.shared.time.Timer.start() catch return 1000;
+    var timer = abi.services.shared.time.Timer.start() catch return 1000;
     // Return nanoseconds divided down to make more manageable IDs
     // The timer value combined with nanoTimestamp gives reasonable uniqueness
     const base = timer.read();

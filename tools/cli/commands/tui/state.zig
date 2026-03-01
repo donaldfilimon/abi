@@ -98,7 +98,7 @@ pub const TuiState = struct {
         // Add to front
         try self.history.insert(self.allocator, 0, .{
             .command_id = command_id,
-            .timestamp = abi.shared.utils.unixMs(),
+            .timestamp = abi.services.shared.utils.unixMs(),
         });
         // Keep only last 10
         while (self.history.items.len > 10) {
@@ -109,12 +109,12 @@ pub const TuiState = struct {
     pub fn showNotification(self: *TuiState, message: []const u8, level: tui.Toast.Level) void {
         self.notification = message;
         self.notification_level = level;
-        self.notification_time = abi.shared.utils.unixMs();
+        self.notification_time = abi.services.shared.utils.unixMs();
     }
 
     pub fn clearExpiredNotification(self: *TuiState) void {
         if (self.notification != null) {
-            const elapsed = abi.shared.utils.unixMs() - self.notification_time;
+            const elapsed = abi.services.shared.utils.unixMs() - self.notification_time;
             if (elapsed > 3000) { // 3 second display
                 self.notification = null;
             }

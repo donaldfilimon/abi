@@ -14,11 +14,11 @@ const build_options = @import("build_options");
 const abi = @import("abi");
 
 // Access modules through abi (real or stub depending on build flags)
-const cache = abi.cache;
-const storage = abi.storage;
-const search = abi.search;
-const messaging = abi.messaging;
-const gateway = abi.gateway;
+const cache = abi.features.cache;
+const storage = abi.features.storage;
+const search = abi.features.search;
+const messaging = abi.features.messaging;
+const gateway = abi.features.gateway;
 
 // ============================================================================
 // Cache + Storage Integration

@@ -8,8 +8,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.shared.time;
-const sync = abi.shared.sync;
+const time = abi.services.shared.time;
+const sync = abi.services.shared.sync;
 const e2e = @import("mod.zig");
 
 // ============================================================================
@@ -71,7 +71,7 @@ test "e2e: agent basic initialization" {
     defer ctx.deinit();
 
     // Create an agent
-    var agent = try abi.ai.createAgent(allocator, "test-agent");
+    var agent = try abi.features.ai.createAgent(allocator, "test-agent");
     defer agent.deinit();
 
     // Verify agent was created
@@ -89,7 +89,7 @@ test "e2e: agent with tool registry" {
     defer ctx.deinit();
 
     // Create agent with tool registry
-    var agent = try abi.ai.createAgent(allocator, "tool-agent");
+    var agent = try abi.features.ai.createAgent(allocator, "tool-agent");
     defer agent.deinit();
 
     // The agent should be properly initialized with its name
@@ -305,8 +305,8 @@ test "e2e: agent with database tool" {
     defer timer.deinit();
 
     // 1. Set up database with knowledge base
-    var handle = try abi.database.open(allocator, "test-e2e-agent-db");
-    defer abi.database.close(&handle);
+    var handle = try abi.features.database.open(allocator, "test-e2e-agent-db");
+    defer abi.features.database.close(&handle);
 
     // Insert knowledge base documents
     const knowledge_base = [_]struct { id: u64, content: []const u8, embedding: [64]f32 }{
@@ -316,13 +316,13 @@ test "e2e: agent with database tool" {
     };
 
     for (knowledge_base) |doc| {
-        try abi.database.insert(&handle, doc.id, &doc.embedding, doc.content);
+        try abi.features.database.insert(&handle, doc.id, &doc.embedding, doc.content);
     }
 
     try timer.checkpoint("knowledge_base_created");
 
     // 2. Create agent
-    var agent = try abi.ai.createAgent(allocator, "rag-agent");
+    var agent = try abi.features.ai.createAgent(allocator, "rag-agent");
     defer agent.deinit();
 
     try timer.checkpoint("agent_created");
@@ -334,7 +334,7 @@ test "e2e: agent with database tool" {
     const query_embedding = [_]f32{ 0.9, 0.1 } ++ [_]f32{0.0} ** 62;
 
     // 4. Search knowledge base
-    const results = try abi.database.search(&handle, allocator, &query_embedding, 1);
+    const results = try abi.features.database.search(&handle, allocator, &query_embedding, 1);
     defer allocator.free(results);
 
     try timer.checkpoint("knowledge_retrieved");
@@ -343,7 +343,7 @@ test "e2e: agent with database tool" {
     try std.testing.expectEqual(@as(u64, 1), results[0].id); // Should match capital of France
 
     // 5. Retrieve the document content
-    const doc = abi.database.get(&handle, results[0].id);
+    const doc = abi.features.database.get(&handle, results[0].id);
     try std.testing.expect(doc != null);
 
     const knowledge = doc.?.metadata.?;
@@ -373,10 +373,10 @@ test "e2e: agent persona configuration" {
     defer ctx.deinit();
 
     // Create agents with different personas
-    var helpful_agent = try abi.ai.createAgent(allocator, "helpful-assistant");
+    var helpful_agent = try abi.features.ai.createAgent(allocator, "helpful-assistant");
     defer helpful_agent.deinit();
 
-    var technical_agent = try abi.ai.createAgent(allocator, "technical-expert");
+    var technical_agent = try abi.features.ai.createAgent(allocator, "technical-expert");
     defer technical_agent.deinit();
 
     // Each agent should have distinct identity
@@ -462,13 +462,13 @@ test "e2e: multiple agents work independently" {
     defer ctx.deinit();
 
     // Create multiple agents
-    var agent1 = try abi.ai.createAgent(allocator, "agent-1");
+    var agent1 = try abi.features.ai.createAgent(allocator, "agent-1");
     defer agent1.deinit();
 
-    var agent2 = try abi.ai.createAgent(allocator, "agent-2");
+    var agent2 = try abi.features.ai.createAgent(allocator, "agent-2");
     defer agent2.deinit();
 
-    var agent3 = try abi.ai.createAgent(allocator, "agent-3");
+    var agent3 = try abi.features.ai.createAgent(allocator, "agent-3");
     defer agent3.deinit();
 
     // Each agent should be independent

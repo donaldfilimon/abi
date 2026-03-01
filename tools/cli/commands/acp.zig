@@ -14,7 +14,7 @@ const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
-const acp = abi.acp;
+const acp = abi.services.acp;
 
 // Wrapper functions for comptime children dispatch
 fn wrapCard(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {

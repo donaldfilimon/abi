@@ -6,9 +6,9 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const Sampler = if (build_options.enable_llm) abi.ai.llm.generation.sampler.Sampler else struct {};
-const SamplerConfig = if (build_options.enable_llm) abi.ai.llm.generation.sampler.SamplerConfig else struct {};
-const TopKTopP = if (build_options.enable_llm) abi.ai.llm.generation.sampler.TopKTopP else struct {};
+const Sampler = if (build_options.enable_llm) abi.features.ai.llm.generation.sampler.Sampler else struct {};
+const SamplerConfig = if (build_options.enable_llm) abi.features.ai.llm.generation.sampler.SamplerConfig else struct {};
+const TopKTopP = if (build_options.enable_llm) abi.features.ai.llm.generation.sampler.TopKTopP else struct {};
 
 // ============================================================================
 // Greedy Sampling Tests

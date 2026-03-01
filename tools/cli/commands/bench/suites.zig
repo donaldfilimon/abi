@@ -13,7 +13,7 @@ const utils = @import("../../utils/mod.zig");
 
 /// Run the selected benchmark suite
 pub fn runBenchmarkSuite(allocator: std.mem.Allocator, config: mod.BenchConfig) !void {
-    const timer = abi.shared.time.Timer.start() catch {
+    const timer = abi.services.shared.time.Timer.start() catch {
         utils.output.printError("Timer not available on this platform.", .{});
         return;
     };
@@ -155,7 +155,7 @@ pub fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, results: *std.Arra
     // Atomic operations benchmark
     var counter = std.atomic.Value(u64).init(0);
 
-    const timer = abi.shared.time.Timer.start() catch return;
+    const timer = abi.services.shared.time.Timer.start() catch return;
     const iterations: u64 = 100000;
 
     var i: u64 = 0;
@@ -182,7 +182,7 @@ pub fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, results: *std.Arra
 
 pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(mod.BenchResult)) mod.BenchmarkError!void {
     // Check if database feature is enabled
-    if (!abi.database.isEnabled()) {
+    if (!abi.features.database.isEnabled()) {
         utils.output.println("  (Database benchmarks require -Dfeat-database=true (legacy: -Denable-database=true) build flag)", .{});
         return;
     }
@@ -202,7 +202,7 @@ pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLi
             v.* = rand.float(f32) * 2.0 - 1.0;
         }
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
         var warmup: u64 = 0;
         while (warmup < 10) : (warmup += 1) {
             // Simulate vector normalization as warmup
@@ -258,7 +258,7 @@ pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLi
             v.* = rand.float(f32) * 2.0 - 1.0;
         }
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         // Benchmark nearest neighbor search simulation
         var iter: u64 = 0;
@@ -313,7 +313,7 @@ pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLi
         for (a) |*v| v.* = rand.float(f32) * 2.0 - 1.0;
         for (b) |*v| v.* = rand.float(f32) * 2.0 - 1.0;
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -356,7 +356,7 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLis
             "Connection: keep-alive\r\n" ++
             "\r\n";
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -399,7 +399,7 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLis
             "wss://ws.example.com/socket",
         };
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -450,7 +450,7 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLis
             \\{"id":12345,"name":"John Doe","email":"john@example.com","active":true,"score":98.5}
         ;
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -494,7 +494,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
         const iterations: u64 = 50000;
         const data = "The quick brown fox jumps over the lazy dog. " ** 10; // ~450 bytes
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -526,7 +526,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
         const iterations: u64 = 100000;
         const data = "Hello, World! This is a test message for benchmarking."; // 54 bytes
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -558,7 +558,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
         const key = "secret_key_for_hmac_testing_1234";
         const message = "This is a message to be authenticated using HMAC-SHA256";
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -597,7 +597,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
         var nonce: [12]u8 = undefined;
         @memset(&nonce, 0xCD);
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var iter: u64 = 0;
         while (iter < iterations) : (iter += 1) {
@@ -634,7 +634,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
         var prng = std.Random.DefaultPrng.init(12345);
         const rand = prng.random();
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         var sum: u64 = 0;
         var iter: u64 = 0;
@@ -678,7 +678,7 @@ pub fn runAiBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnma
     for (a, 0..) |*v, i| v.* = @as(f32, @floatFromInt(i % 100)) / 100.0 - 0.5;
     for (b, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i + 1) % 100)) / 100.0 - 0.5;
 
-    const timer = abi.shared.time.Timer.start() catch return;
+    const timer = abi.services.shared.time.Timer.start() catch return;
     const iterations: u64 = 100;
 
     var iter: u64 = 0;
@@ -743,13 +743,13 @@ pub fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayL
 
         // Benchmark iterations
         for (0..iterations) |_| {
-            const run_timer = abi.shared.time.Timer.start() catch continue;
+            const run_timer = abi.services.shared.time.Timer.start() catch continue;
             var first_token = true;
 
             var gen_count: usize = 0;
             while (gen_count < token_count) : (gen_count += 1) {
                 // Simulate token generation with small delay (Zig 0.16 busy-wait)
-                const delay_timer = abi.shared.time.Timer.start() catch continue;
+                const delay_timer = abi.services.shared.time.Timer.start() catch continue;
                 var dt = delay_timer;
                 while (dt.read() < 100_000) { // 0.1ms per token
                     std.atomic.spinLoopHint();
@@ -805,7 +805,7 @@ pub fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayL
         var buffer = std.ArrayListUnmanaged(u8).empty;
         defer buffer.deinit(allocator);
 
-        const timer = abi.shared.time.Timer.start() catch return;
+        const timer = abi.services.shared.time.Timer.start() catch return;
 
         for (0..encode_iterations) |ei| {
             buffer.clearRetainingCapacity();

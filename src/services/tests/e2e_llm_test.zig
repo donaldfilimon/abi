@@ -27,21 +27,21 @@ test "tokenizer: initialization with different kinds" {
     const allocator = std.testing.allocator;
 
     // Test BPE variant
-    var bpe_tok = abi.ai.llm.tokenizer.Tokenizer.init(allocator, .bpe);
+    var bpe_tok = abi.features.ai.llm.tokenizer.Tokenizer.init(allocator, .bpe);
     defer bpe_tok.deinit();
-    try std.testing.expectEqual(abi.ai.llm.tokenizer.TokenizerKind.bpe, bpe_tok.getKind());
+    try std.testing.expectEqual(abi.features.ai.llm.tokenizer.TokenizerKind.bpe, bpe_tok.getKind());
     try std.testing.expectEqual(@as(u32, 0), bpe_tok.vocabSize());
 
     // Test SentencePiece variant
-    var sp_tok = abi.ai.llm.tokenizer.Tokenizer.init(allocator, .sentencepiece);
+    var sp_tok = abi.features.ai.llm.tokenizer.Tokenizer.init(allocator, .sentencepiece);
     defer sp_tok.deinit();
-    try std.testing.expectEqual(abi.ai.llm.tokenizer.TokenizerKind.sentencepiece, sp_tok.getKind());
+    try std.testing.expectEqual(abi.features.ai.llm.tokenizer.TokenizerKind.sentencepiece, sp_tok.getKind());
     try std.testing.expectEqual(@as(u32, 0), sp_tok.vocabSize());
 
     // Test unknown variant - should return 0 vocab size
-    var unk_tok = abi.ai.llm.tokenizer.Tokenizer.init(allocator, .unknown);
+    var unk_tok = abi.features.ai.llm.tokenizer.Tokenizer.init(allocator, .unknown);
     defer unk_tok.deinit();
-    try std.testing.expectEqual(abi.ai.llm.tokenizer.TokenizerKind.unknown, unk_tok.getKind());
+    try std.testing.expectEqual(abi.features.ai.llm.tokenizer.TokenizerKind.unknown, unk_tok.getKind());
     try std.testing.expectEqual(@as(u32, 0), unk_tok.vocabSize());
 }
 
@@ -50,7 +50,7 @@ test "tokenizer: initialization with different kinds" {
 test "tokenizer: kind detection from model type" {
     try e2e.skipIfLlmDisabled();
 
-    const TokenizerKind = abi.ai.llm.tokenizer.TokenizerKind;
+    const TokenizerKind = abi.features.ai.llm.tokenizer.TokenizerKind;
 
     // BPE models
     try std.testing.expectEqual(TokenizerKind.bpe, TokenizerKind.fromGgufModel("gpt2"));
@@ -74,7 +74,7 @@ test "tokenizer: bpe vocabulary loading" {
 
     const allocator = std.testing.allocator;
 
-    var tokenizer = abi.ai.llm.tokenizer.BpeTokenizer.init(allocator);
+    var tokenizer = abi.features.ai.llm.tokenizer.BpeTokenizer.init(allocator);
     defer tokenizer.deinit();
 
     // Load a minimal vocabulary
@@ -97,7 +97,7 @@ test "tokenizer: bos and eos configuration" {
 
     const allocator = std.testing.allocator;
 
-    var tokenizer = abi.ai.llm.tokenizer.Tokenizer.init(allocator, .bpe);
+    var tokenizer = abi.features.ai.llm.tokenizer.Tokenizer.init(allocator, .bpe);
     defer tokenizer.deinit();
 
     // Test setAddBos
@@ -109,7 +109,7 @@ test "tokenizer: bos and eos configuration" {
     tokenizer.setAddEos(false);
 
     // Unknown tokenizer should handle these gracefully
-    var unk_tok = abi.ai.llm.tokenizer.Tokenizer.init(allocator, .unknown);
+    var unk_tok = abi.features.ai.llm.tokenizer.Tokenizer.init(allocator, .unknown);
     defer unk_tok.deinit();
 
     // These should not crash on unknown tokenizer
@@ -126,7 +126,7 @@ test "tokenizer: bos and eos configuration" {
 test "inference config: default values" {
     try e2e.skipIfLlmDisabled();
 
-    const config = abi.ai.llm.InferenceConfig{};
+    const config = abi.features.ai.llm.InferenceConfig{};
 
     try std.testing.expectEqual(@as(u32, 2048), config.max_context_length);
     try std.testing.expectEqual(@as(u32, 256), config.max_new_tokens);
@@ -144,7 +144,7 @@ test "inference config: default values" {
 test "inference config: custom values" {
     try e2e.skipIfLlmDisabled();
 
-    const config = abi.ai.llm.InferenceConfig{
+    const config = abi.features.ai.llm.InferenceConfig{
         .max_context_length = 4096,
         .max_new_tokens = 1024,
         .temperature = 0.0, // Greedy decoding
@@ -172,15 +172,15 @@ test "inference config: temperature boundaries" {
     try e2e.skipIfLlmDisabled();
 
     // Greedy decoding
-    const greedy = abi.ai.llm.InferenceConfig{ .temperature = 0.0 };
+    const greedy = abi.features.ai.llm.InferenceConfig{ .temperature = 0.0 };
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), greedy.temperature, 0.001);
 
     // Normal sampling
-    const normal = abi.ai.llm.InferenceConfig{ .temperature = 1.0 };
+    const normal = abi.features.ai.llm.InferenceConfig{ .temperature = 1.0 };
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), normal.temperature, 0.001);
 
     // High temperature (creative)
-    const creative = abi.ai.llm.InferenceConfig{ .temperature = 2.0 };
+    const creative = abi.features.ai.llm.InferenceConfig{ .temperature = 2.0 };
     try std.testing.expectApproxEqAbs(@as(f32, 2.0), creative.temperature, 0.001);
 }
 
@@ -193,7 +193,7 @@ test "inference config: temperature boundaries" {
 test "inference stats: tokens per second calculation" {
     try e2e.skipIfLlmDisabled();
 
-    const stats = abi.ai.llm.InferenceStats{
+    const stats = abi.features.ai.llm.InferenceStats{
         .prompt_tokens = 100,
         .generated_tokens = 50,
         .prefill_time_ns = 1_000_000_000, // 1 second
@@ -213,7 +213,7 @@ test "inference stats: tokens per second calculation" {
 test "inference stats: zero time handling" {
     try e2e.skipIfLlmDisabled();
 
-    const stats = abi.ai.llm.InferenceStats{
+    const stats = abi.features.ai.llm.InferenceStats{
         .prompt_tokens = 100,
         .generated_tokens = 50,
         .prefill_time_ns = 0,
@@ -230,7 +230,7 @@ test "inference stats: zero time handling" {
 test "inference stats: formatting" {
     try e2e.skipIfLlmDisabled();
 
-    const stats = abi.ai.llm.InferenceStats{
+    const stats = abi.features.ai.llm.InferenceStats{
         .prompt_tokens = 100,
         .generated_tokens = 50,
         .prefill_time_ns = 1_000_000_000,
@@ -262,7 +262,7 @@ test "engine: lifecycle management" {
 
     const allocator = std.testing.allocator;
 
-    var engine = abi.ai.llm.Engine.init(allocator, .{});
+    var engine = abi.features.ai.llm.Engine.init(allocator, .{});
     defer engine.deinit();
 
     // Engine should be initialized with default config
@@ -283,13 +283,13 @@ test "engine: custom configuration" {
 
     const allocator = std.testing.allocator;
 
-    const config = abi.ai.llm.InferenceConfig{
+    const config = abi.features.ai.llm.InferenceConfig{
         .max_context_length = 4096,
         .temperature = 0.5,
         .use_gpu = false,
     };
 
-    var engine = abi.ai.llm.Engine.init(allocator, config);
+    var engine = abi.features.ai.llm.Engine.init(allocator, config);
     defer engine.deinit();
 
     try std.testing.expectEqual(@as(u32, 4096), engine.config.max_context_length);
@@ -304,20 +304,20 @@ test "engine: operations without model" {
 
     const allocator = std.testing.allocator;
 
-    var engine = abi.ai.llm.Engine.init(allocator, .{});
+    var engine = abi.features.ai.llm.Engine.init(allocator, .{});
     defer engine.deinit();
 
     // Generate should fail with InvalidModelFormat
     const result = engine.generate(allocator, "Hello");
-    try std.testing.expectError(abi.ai.llm.LlmError.InvalidModelFormat, result);
+    try std.testing.expectError(abi.features.ai.llm.LlmError.InvalidModelFormat, result);
 
     // Tokenize should fail with InvalidModelFormat
     const tokens = engine.tokenize(allocator, "Hello");
-    try std.testing.expectError(abi.ai.llm.LlmError.InvalidModelFormat, tokens);
+    try std.testing.expectError(abi.features.ai.llm.LlmError.InvalidModelFormat, tokens);
 
     // Detokenize should fail with InvalidModelFormat
     const text = engine.detokenize(allocator, &[_]u32{ 1, 2, 3 });
-    try std.testing.expectError(abi.ai.llm.LlmError.InvalidModelFormat, text);
+    try std.testing.expectError(abi.features.ai.llm.LlmError.InvalidModelFormat, text);
 }
 
 // ============================================================================
@@ -331,7 +331,7 @@ test "edge case: empty input handling" {
 
     const allocator = std.testing.allocator;
 
-    var tokenizer = abi.ai.llm.tokenizer.BpeTokenizer.init(allocator);
+    var tokenizer = abi.features.ai.llm.tokenizer.BpeTokenizer.init(allocator);
     defer tokenizer.deinit();
 
     // BPE tokenizer with add_bos=true should produce at least BOS token
@@ -354,7 +354,7 @@ test "edge case: unicode input" {
 
     const allocator = std.testing.allocator;
 
-    var tokenizer = abi.ai.llm.tokenizer.BpeTokenizer.init(allocator);
+    var tokenizer = abi.features.ai.llm.tokenizer.BpeTokenizer.init(allocator);
     defer tokenizer.deinit();
     tokenizer.add_bos = false;
     tokenizer.add_eos = false;
@@ -382,7 +382,7 @@ test "edge case: special characters" {
 
     const allocator = std.testing.allocator;
 
-    var tokenizer = abi.ai.llm.tokenizer.BpeTokenizer.init(allocator);
+    var tokenizer = abi.features.ai.llm.tokenizer.BpeTokenizer.init(allocator);
     defer tokenizer.deinit();
     tokenizer.add_bos = false;
     tokenizer.add_eos = false;
@@ -410,7 +410,7 @@ test "edge case: large input handling" {
 
     const allocator = std.testing.allocator;
 
-    var tokenizer = abi.ai.llm.tokenizer.BpeTokenizer.init(allocator);
+    var tokenizer = abi.features.ai.llm.tokenizer.BpeTokenizer.init(allocator);
     defer tokenizer.deinit();
     tokenizer.add_bos = false;
     tokenizer.add_eos = false;
@@ -439,15 +439,15 @@ test "llm errors: type definitions" {
     try e2e.skipIfLlmDisabled();
 
     // Verify LlmError types exist
-    const llm_errors = [_]abi.ai.llm.LlmError{
-        abi.ai.llm.LlmError.InvalidModelFormat,
-        abi.ai.llm.LlmError.UnsupportedQuantization,
-        abi.ai.llm.LlmError.ModelTooLarge,
-        abi.ai.llm.LlmError.ContextLengthExceeded,
-        abi.ai.llm.LlmError.TokenizationFailed,
-        abi.ai.llm.LlmError.InferenceError,
-        abi.ai.llm.LlmError.OutOfMemory,
-        abi.ai.llm.LlmError.GpuUnavailable,
+    const llm_errors = [_]abi.features.ai.llm.LlmError{
+        abi.features.ai.llm.LlmError.InvalidModelFormat,
+        abi.features.ai.llm.LlmError.UnsupportedQuantization,
+        abi.features.ai.llm.LlmError.ModelTooLarge,
+        abi.features.ai.llm.LlmError.ContextLengthExceeded,
+        abi.features.ai.llm.LlmError.TokenizationFailed,
+        abi.features.ai.llm.LlmError.InferenceError,
+        abi.features.ai.llm.LlmError.OutOfMemory,
+        abi.features.ai.llm.LlmError.GpuUnavailable,
     };
 
     // Verify errors can be compared
@@ -461,13 +461,13 @@ test "llm errors: type definitions" {
 test "llm errors: module error types" {
     try e2e.skipIfLlmDisabled();
 
-    const module_errors = [_]abi.ai.llm.Error{
-        abi.ai.llm.Error.LlmDisabled,
-        abi.ai.llm.Error.ModelNotFound,
-        abi.ai.llm.Error.ModelLoadFailed,
-        abi.ai.llm.Error.InferenceFailed,
-        abi.ai.llm.Error.TokenizationFailed,
-        abi.ai.llm.Error.InvalidConfig,
+    const module_errors = [_]abi.features.ai.llm.Error{
+        abi.features.ai.llm.Error.LlmDisabled,
+        abi.features.ai.llm.Error.ModelNotFound,
+        abi.features.ai.llm.Error.ModelLoadFailed,
+        abi.features.ai.llm.Error.InferenceFailed,
+        abi.features.ai.llm.Error.TokenizationFailed,
+        abi.features.ai.llm.Error.InvalidConfig,
     };
 
     for (module_errors) |err| {
@@ -483,7 +483,7 @@ test "llm errors: module error types" {
 // Verifies isEnabled() returns correct value based on build options.
 test "llm feature: detection" {
     // This test runs regardless of feature flag
-    const enabled = abi.ai.llm.isEnabled();
+    const enabled = abi.features.ai.llm.isEnabled();
 
     // Should match build options
     if (build_options.enable_llm and build_options.enable_ai) {
@@ -505,7 +505,7 @@ test "parallel: executor initialization" {
     const allocator = std.testing.allocator;
 
     // Create a parallel executor with 2 threads
-    var executor = try abi.ai.llm.parallel.ParallelExecutor.init(allocator, 2);
+    var executor = try abi.features.ai.llm.parallel.ParallelExecutor.init(allocator, 2);
     defer executor.deinit();
 
     // Verify it was created with the requested thread count

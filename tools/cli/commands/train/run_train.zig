@@ -17,12 +17,12 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
         return;
     }
 
-    if (!abi.ai.training.isEnabled()) {
+    if (!abi.features.ai.training.isEnabled()) {
         utils.output.printError("training feature is not enabled. Build with -Dfeat-training=true (legacy: -Denable-training=true)", .{});
         return;
     }
 
-    var config = abi.ai.training.TrainingConfig{};
+    var config = abi.features.ai.training.TrainingConfig{};
 
     var i: usize = 0;
     while (i < args.len) {
@@ -211,12 +211,12 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     utils.output.println("Starting training...", .{});
     utils.output.println("", .{});
 
-    var timer = abi.shared.time.Timer.start() catch {
+    var timer = abi.services.shared.time.Timer.start() catch {
         utils.output.printError("Failed to start timer", .{});
         return;
     };
 
-    var result = abi.ai.training.trainWithResult(allocator, config) catch |err| {
+    var result = abi.features.ai.training.trainWithResult(allocator, config) catch |err| {
         utils.output.printError("Training failed: {t}", .{err});
         return;
     };

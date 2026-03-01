@@ -80,7 +80,7 @@ fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Initialize manager
-    var manager = abi.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
+    var manager = abi.features.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
         utils.output.printError("initializing model manager: {t}", .{err});
         return;
     };
@@ -137,7 +137,7 @@ fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         }
     } else {
         // Model name - look up in cache
-        var manager = abi.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
+        var manager = abi.features.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
             utils.output.printError("initializing model manager: {t}", .{err});
             return;
         };
@@ -219,7 +219,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     }
 
     // Parse HuggingFace model specification
-    const parsed = abi.ai.models.HuggingFaceClient.parseModelSpec(spec);
+    const parsed = abi.features.ai.models.HuggingFaceClient.parseModelSpec(spec);
 
     utils.output.println("", .{});
     utils.output.printKeyValue("Model", parsed.model_id);
@@ -228,7 +228,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         utils.output.printKeyValue("File", filename);
 
         // Build download URL
-        var hf_client = abi.ai.models.HuggingFaceClient.init(allocator, null);
+        var hf_client = abi.features.ai.models.HuggingFaceClient.init(allocator, null);
         defer hf_client.deinit();
 
         const url = hf_client.resolveDownloadUrl(parsed.model_id, filename) catch |err| {
@@ -242,7 +242,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         utils.output.printKeyValue("Quantization", quant);
 
         // Build filename from hint
-        var hf_client = abi.ai.models.HuggingFaceClient.init(allocator, null);
+        var hf_client = abi.features.ai.models.HuggingFaceClient.init(allocator, null);
         defer hf_client.deinit();
 
         const filename = hf_client.buildFilenameFromHint(parsed.model_id, quant) catch |err| {
@@ -266,7 +266,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         utils.output.printWarning("No quantization specified. Available options:", .{});
         utils.output.println("", .{});
 
-        const quants = abi.ai.models.HuggingFaceClient.getQuantizationInfo();
+        const quants = abi.features.ai.models.HuggingFaceClient.getQuantizationInfo();
         for (quants) |q| {
             utils.output.println("  {s: <10} ({d:.1} bits/weight) - {s}", .{ q.name, q.bits, q.desc });
         }
@@ -297,7 +297,7 @@ fn runRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
         }
     }
 
-    var manager = abi.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
+    var manager = abi.features.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
         utils.output.printError("initializing model manager: {t}", .{err});
         return;
     };
@@ -355,7 +355,7 @@ fn runSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
     utils.output.println("", .{});
 
     utils.output.println("Popular GGUF model authors:", .{});
-    const authors = abi.ai.models.HuggingFaceClient.getPopularAuthors();
+    const authors = abi.features.ai.models.HuggingFaceClient.getPopularAuthors();
     for (authors) |author| {
         utils.output.println("  - {s}", .{author});
     }
@@ -372,7 +372,7 @@ fn runPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
 
-    var manager = abi.ai.models.Manager.init(allocator, .{}) catch |err| {
+    var manager = abi.features.ai.models.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("initializing model manager: {t}", .{err});
         return;
     };
@@ -409,7 +409,7 @@ fn runPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 // Helper Functions
 // ============================================================================
 
-fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.ai.models.Manager) void {
+fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.features.ai.models.Manager) void {
     // Initialize I/O backend for directory scanning
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
@@ -419,7 +419,7 @@ fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.ai.models.Ma
 }
 
 fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
-    var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, path) catch |err| {
+    var gguf_file = abi.features.ai.llm.io.GgufFile.open(allocator, path) catch |err| {
         utils.output.printError("opening GGUF file: {t}", .{err});
         return;
     };
@@ -428,7 +428,7 @@ fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
     gguf_file.printSummaryDebug();
 
     // Estimate memory and parameters
-    const config = abi.ai.llm.model.LlamaConfig.fromGguf(&gguf_file);
+    const config = abi.features.ai.llm.model.LlamaConfig.fromGguf(&gguf_file);
     const mem_estimate = config.estimateMemory();
     const param_estimate = config.estimateParameters();
 
@@ -441,7 +441,7 @@ fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
 
 fn showModelPathInfo(path: []const u8) void {
     const ext = std.fs.path.extension(path);
-    const format = abi.ai.discovery.ModelFormat.fromExtension(ext);
+    const format = abi.features.ai.discovery.ModelFormat.fromExtension(ext);
 
     utils.output.println("", .{});
     utils.output.printKeyValue("Model path", path);
@@ -478,7 +478,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
     const io = io_backend.io();
 
     // Initialize downloader
-    var downloader = abi.ai.models.Downloader.init(allocator);
+    var downloader = abi.features.ai.models.Downloader.init(allocator);
     defer downloader.deinit();
 
     // Track progress display state
@@ -489,7 +489,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
 
     // Progress callback with detailed multi-line display
     const progress_callback = struct {
-        fn callback(progress: abi.ai.models.DownloadProgress) void {
+        fn callback(progress: abi.features.ai.models.DownloadProgress) void {
             const out = utils.output;
             // Move cursor up and clear previous lines
             if (ProgressState.lines_printed > 0) {
@@ -641,7 +641,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
     }
 }
 
-fn printModelsTable(models: []abi.ai.models.CachedModel, show_sizes: bool) void {
+fn printModelsTable(models: []abi.features.ai.models.CachedModel, show_sizes: bool) void {
     utils.output.println("", .{});
 
     if (show_sizes) {
@@ -680,7 +680,7 @@ fn printModelsTable(models: []abi.ai.models.CachedModel, show_sizes: bool) void 
     utils.output.println("{d} model(s) cached.", .{models.len});
 }
 
-fn printModelsJson(models: []abi.ai.models.CachedModel) void {
+fn printModelsJson(models: []abi.features.ai.models.CachedModel) void {
     utils.output.println("[", .{});
     for (models, 0..) |model, i| {
         utils.output.println("  {{", .{});

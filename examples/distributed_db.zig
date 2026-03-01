@@ -22,15 +22,15 @@ pub fn main(_: std.process.Init) !void {
     // ── Step 1: Database Configuration ─────────────────────────────────────
     std.debug.print("--- Step 1: Vector Database Setup ---\n", .{});
 
-    const db_enabled = abi.database.isEnabled();
+    const db_enabled = abi.features.database.isEnabled();
     std.debug.print("  Database module: {s}\n", .{if (db_enabled) "enabled" else "disabled (stub)"});
 
     if (db_enabled) {
-        var handle = abi.database.openOrCreate(allocator, "distributed-vectors") catch |err| {
+        var handle = abi.features.database.openOrCreate(allocator, "distributed-vectors") catch |err| {
             std.debug.print("  Failed to open database: {t}\n", .{err});
             return;
         };
-        defer abi.database.close(&handle);
+        defer abi.features.database.close(&handle);
 
         // Insert sample vectors representing node embeddings
         const embeddings = [_][4]f32{
@@ -39,18 +39,18 @@ pub fn main(_: std.process.Init) !void {
             .{ 0.0, 0.1, 0.9, 0.0 }, // Node 3 workload profile
         };
         for (embeddings, 1..) |vec, i| {
-            abi.database.insert(&handle, @intCast(i), &vec, null) catch |err| {
+            abi.features.database.insert(&handle, @intCast(i), &vec, null) catch |err| {
                 std.debug.print("  Insert failed for node {d}: {t}\n", .{ i, err });
                 return;
             };
         }
 
-        const db_stats = abi.database.stats(&handle);
+        const db_stats = abi.features.database.stats(&handle);
         std.debug.print("  Vectors stored: {d} (dim={d})\n", .{ db_stats.count, db_stats.dimension });
 
         // Find similar workload profiles
         const query = [_]f32{ 0.8, 0.2, 0.0, 0.0 };
-        const results = abi.database.search(&handle, allocator, &query, 2) catch |err| {
+        const results = abi.features.database.search(&handle, allocator, &query, 2) catch |err| {
             std.debug.print("  Search failed: {t}\n", .{err});
             return;
         };
@@ -67,11 +67,11 @@ pub fn main(_: std.process.Init) !void {
     // ── Step 2: Raft Consensus Configuration ───────────────────────────────
     std.debug.print("\n--- Step 2: Raft Consensus Topology ---\n", .{});
 
-    const net_enabled = abi.network.isEnabled();
+    const net_enabled = abi.features.network.isEnabled();
     std.debug.print("  Network module: {s}\n", .{if (net_enabled) "enabled" else "disabled (stub)"});
 
     // Show Raft configuration (types are always available from the module)
-    const raft_config = abi.network.RaftConfig{
+    const raft_config = abi.features.network.RaftConfig{
         .election_timeout_min_ms = 150,
         .election_timeout_max_ms = 300,
         .heartbeat_interval_ms = 50,
@@ -98,14 +98,14 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n--- Step 3: Cluster Node Registry ---\n", .{});
 
     if (net_enabled) {
-        try abi.network.initWithConfig(allocator, .{
+        try abi.features.network.initWithConfig(allocator, .{
             .cluster_id = "db-cluster-east",
             .heartbeat_timeout_ms = 15_000,
             .max_nodes = 16,
         });
-        defer abi.network.deinit();
+        defer abi.features.network.deinit();
 
-        const registry = abi.network.defaultRegistry() catch |err| {
+        const registry = abi.features.network.defaultRegistry() catch |err| {
             std.debug.print("  Registry unavailable: {t}\n", .{err});
             return;
         };
@@ -139,7 +139,7 @@ pub fn main(_: std.process.Init) !void {
     // ── Step 4: Circuit Breaker for Replication ────────────────────────────
     std.debug.print("\n--- Step 4: Circuit Breaker Config ---\n", .{});
 
-    const cb_config = abi.network.CircuitConfig{
+    const cb_config = abi.features.network.CircuitConfig{
         .failure_threshold = 5,
         .success_threshold = 3,
         .timeout_ms = 30_000,
@@ -155,8 +155,8 @@ pub fn main(_: std.process.Init) !void {
     // ── Summary ────────────────────────────────────────────────────────────
     std.debug.print("\n--- Integration Summary ---\n", .{});
     std.debug.print("  A distributed vector database cluster combines:\n", .{});
-    std.debug.print("  • abi.database   — vector storage + HNSW similarity search\n", .{});
-    std.debug.print("  • abi.network    — node registry + service discovery\n", .{});
+    std.debug.print("  • abi.features.database   — vector storage + HNSW similarity search\n", .{});
+    std.debug.print("  • abi.features.network    — node registry + service discovery\n", .{});
     std.debug.print("  • network.raft   — consensus for leader election\n", .{});
     std.debug.print("  • circuit_breaker — fault tolerance on replication paths\n", .{});
 

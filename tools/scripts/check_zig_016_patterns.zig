@@ -234,7 +234,27 @@ pub fn main(_: std.process.Init) !void {
     try scanForbidden(
         allocator,
         "^[[:space:]]*[^/].*abi\\.(ai_core|inference|training|reasoning)\\b",
-        "removed v0.4.0 facade alias; use abi.ai.core, abi.ai.llm, abi.ai.training, abi.ai.orchestration",
+        "removed v0.4.0 facade alias; use abi.features.ai.core, abi.features.ai.llm, abi.features.ai.training, abi.features.ai.orchestration",
+        &errors,
+    );
+
+    // Strict v2 API-only surface: block legacy ABI top-level aliases/helpers.
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*\\babi\\.(Framework|FrameworkBuilder)\\b",
+        "legacy abi.Framework/abi.FrameworkBuilder removed; use abi.App/abi.AppBuilder",
+        &errors,
+    );
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*\\babi\\.(init|initDefault|initApp|initAppDefault)\\(",
+        "legacy abi.init* helpers removed; use abi.App.init/abi.App.initDefault",
+        &errors,
+    );
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*\\babi\\.(ai|gpu|database|network|web|cloud|analytics|auth|messaging|cache|storage|search|gateway|pages|observability|mobile|benchmarks|runtime|platform|shared|connectors|ha|tasks|lsp|mcp|acp|simd)\\b",
+        "legacy top-level abi feature/service aliases removed; use abi.features.* and abi.services.*",
         &errors,
     );
 

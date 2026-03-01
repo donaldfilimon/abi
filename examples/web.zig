@@ -13,14 +13,14 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .with(.web, abi.config.WebConfig{})
         .build();
     defer framework.deinit();
 
-    if (!abi.web.isEnabled()) {
+    if (!abi.features.web.isEnabled()) {
         std.debug.print("Web feature is disabled. Enable with -Denable-web=true\n", .{});
         return;
     }
@@ -29,7 +29,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Chat request/response types
     std.debug.print("--- Chat Handler Types ---\n", .{});
-    const request = abi.web.ChatRequest{
+    const request = abi.features.web.ChatRequest{
         .content = "Hello from the ABI web module!",
     };
     std.debug.print("  Content: {s}\n", .{request.content});

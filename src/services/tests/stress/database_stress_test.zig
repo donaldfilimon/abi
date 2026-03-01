@@ -15,7 +15,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const db = abi.database;
+const db = abi.features.database;
 const profiles = @import("profiles.zig");
 const helpers = @import("../helpers.zig");
 const StressProfile = profiles.StressProfile;

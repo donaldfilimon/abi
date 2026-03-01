@@ -45,10 +45,10 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     }
 
     const goals = tasks_list.items;
-    var bus = try abi.ai.abbey.ralph_multi.RalphBus.init(allocator, 64);
+    var bus = try abi.features.ai.abbey.ralph_multi.RalphBus.init(allocator, 64);
     defer bus.deinit();
 
-    var pool = try abi.runtime.ThreadPool.init(allocator, .{
+    var pool = try abi.services.runtime.ThreadPool.init(allocator, .{
         .thread_count = if (workers > 0) workers else 0,
     });
     defer pool.deinit();
@@ -60,7 +60,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     }
     for (results) |*r| r.* = null;
 
-    var parallel_ctx: abi.ai.abbey.ralph_swarm.ParallelRalphContext = .{
+    var parallel_ctx: abi.features.ai.abbey.ralph_swarm.ParallelRalphContext = .{
         .allocator = allocator,
         .bus = &bus,
         .goals = goals,
@@ -77,7 +77,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 
     for (goals, 0..) |_, idx| {
         const uidx: u32 = @intCast(idx);
-        if (!pool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &parallel_ctx, uidx })) {
+        if (!pool.schedule(abi.features.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &parallel_ctx, uidx })) {
             utils.output.printError("Schedule failed for agent {d}", .{idx});
             return;
         }

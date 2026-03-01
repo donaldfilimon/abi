@@ -20,7 +20,7 @@
 //! ```zig
 //! const abi = @import("abi");
 //!
-//! var fw = try abi.Framework.initDefault(allocator);
+//! var fw = try abi.App.initDefault(allocator);
 //! defer fw.deinit();
 //!
 //! // All compile-time enabled features are now available
@@ -29,7 +29,7 @@
 //! ### Custom Configuration
 //!
 //! ```zig
-//! var fw = try abi.Framework.init(allocator, .{
+//! var fw = try abi.App.init(allocator, .{
 //!     .gpu = .{ .backend = .vulkan },
 //!     .ai = .{ .llm = .{ .model_path = "./model.gguf" } },
 //!     .database = .{ .path = "./data" },
@@ -40,7 +40,7 @@
 //! ### Builder Pattern
 //!
 //! ```zig
-//! var fw = try abi.Framework.builder(allocator)
+//! var fw = try abi.App.builder(allocator)
 //!     .with(.gpu, abi.config.GpuConfig{ .backend = .vulkan })
 //!     .withDefault(.ai)
 //!     .withDefault(.database)

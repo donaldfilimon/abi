@@ -14,7 +14,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const network = abi.network;
+const network = abi.features.network;
 const chaos = @import("mod.zig");
 const helpers = @import("../helpers.zig");
 

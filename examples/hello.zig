@@ -13,7 +13,7 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.Framework.initMinimal(allocator);
+    var framework = try abi.App.initMinimal(allocator);
     defer framework.deinit();
 
     std.debug.print("ABI Framework v{s}\n", .{abi.version()});

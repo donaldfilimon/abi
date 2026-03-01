@@ -12,7 +12,7 @@ const std = @import("std");
 const property = @import("mod.zig");
 const generators = @import("generators.zig");
 const abi = @import("abi");
-const simd = abi.simd;
+const simd = abi.services.simd;
 
 const forAll = property.forAll;
 const assert = property.assert;

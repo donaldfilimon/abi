@@ -15,12 +15,12 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("=== ABI AI Reasoning Example ===\n\n", .{});
 
-    if (!abi.ai.isEnabled()) {
+    if (!abi.features.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
 
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
 
     var framework = try builder
         .withDefault(.ai)
@@ -34,25 +34,25 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("Orchestration: multi-model coordination\n", .{});
     std.debug.print("Documents: document processing pipelines\n", .{});
 
-    // Verify sub-module accessibility (canonical paths under abi.ai.*)
-    _ = abi.ai.abbey;
-    _ = abi.ai.explore;
-    _ = abi.ai.orchestration;
-    _ = abi.ai.documents;
+    // Verify sub-module accessibility (canonical paths under abi.features.ai.*)
+    _ = abi.features.ai.abbey;
+    _ = abi.features.ai.explore;
+    _ = abi.features.ai.orchestration;
+    _ = abi.features.ai.documents;
     std.debug.print("\nAll sub-modules accessible.\n", .{});
 
     // --- RAG Pipeline ---
     std.debug.print("\n--- RAG (Retrieval Augmented Generation) ---\n", .{});
-    if (@hasDecl(abi.ai, "rag")) {
-        std.debug.print("RAG module available via abi.ai.rag\n", .{});
+    if (@hasDecl(abi.features.ai, "rag")) {
+        std.debug.print("RAG module available via abi.features.ai.rag\n", .{});
     }
 
     // --- Eval Templates ---
     std.debug.print("\n--- Evaluation ---\n", .{});
-    if (@hasDecl(abi.ai, "eval")) {
+    if (@hasDecl(abi.features.ai, "eval")) {
         std.debug.print("Eval module available for model evaluation\n", .{});
     }
-    if (@hasDecl(abi.ai, "templates")) {
+    if (@hasDecl(abi.features.ai, "templates")) {
         std.debug.print("Templates module available for prompt templates\n", .{});
     }
 

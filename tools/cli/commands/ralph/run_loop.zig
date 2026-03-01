@@ -8,7 +8,7 @@ const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
 const skills_store = @import("skills_store.zig");
 
-const providers = abi.ai.llm.providers;
+const providers = abi.features.ai.llm.providers;
 const ProviderId = providers.ProviderId;
 
 pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -159,7 +159,7 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         utils.output.println("{s}", .{result});
     } else {
         // --- Legacy Abbey engine path ---
-        var engine = abi.ai.abbey.createEngine(allocator) catch |err| {
+        var engine = abi.features.ai.abbey.createEngine(allocator) catch |err| {
             utils.output.printError("Failed to create Abbey engine: {t}", .{err});
             return;
         };

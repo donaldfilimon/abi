@@ -41,8 +41,8 @@ pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]con
         const display_name = entry[1];
         const hint = entry[2];
 
-        const provider_id = comptime abi.ai.llm.providers.ProviderId.fromString(id_str).?;
-        const is_available = abi.ai.llm.providers.health.isAvailable(allocator, provider_id, null);
+        const provider_id = comptime abi.features.ai.llm.providers.ProviderId.fromString(id_str).?;
+        const is_available = abi.features.ai.llm.providers.health.isAvailable(allocator, provider_id, null);
 
         if (is_available) {
             available_count += 1;
@@ -57,7 +57,7 @@ pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     utils.output.println("Default routing (model file path):", .{});
     utils.output.print("  ", .{});
-    for (abi.ai.llm.providers.registry.file_model_chain[0..], 0..) |p, idx| {
+    for (abi.features.ai.llm.providers.registry.file_model_chain[0..], 0..) |p, idx| {
         if (idx != 0) utils.output.print(" -> ", .{});
         utils.output.print("{s}", .{p.label()});
     }
@@ -66,7 +66,7 @@ pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     utils.output.println("Default routing (model name):", .{});
     utils.output.print("  ", .{});
-    for (abi.ai.llm.providers.registry.model_name_chain[0..], 0..) |p, idx| {
+    for (abi.features.ai.llm.providers.registry.model_name_chain[0..], 0..) |p, idx| {
         if (idx != 0) utils.output.print(" -> ", .{});
         utils.output.print("{s}", .{p.label()});
     }

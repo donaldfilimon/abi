@@ -9,7 +9,7 @@ const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
-const app_paths = abi.shared.app_paths;
+const app_paths = abi.services.shared.app_paths;
 
 // libc import for environment access - required for Zig 0.16
 const c = @cImport(@cInclude("stdlib.h"));

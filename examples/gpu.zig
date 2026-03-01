@@ -18,7 +18,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI GPU Example ===\n\n", .{});
 
     // Initialize framework
-    var builder = abi.Framework.builder(allocator);
+    var builder = abi.App.builder(allocator);
     _ = builder.withDefault(.gpu);
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
@@ -27,7 +27,7 @@ pub fn main(_: std.process.Init) !void {
     defer framework.deinit();
 
     // Check GPU module status
-    const gpu_enabled = abi.gpu.backends.detect.moduleEnabled();
+    const gpu_enabled = abi.features.gpu.backends.detect.moduleEnabled();
     std.debug.print("GPU module: {s}\n", .{if (gpu_enabled) "enabled" else "disabled"});
 
     if (!gpu_enabled) {
@@ -38,7 +38,7 @@ pub fn main(_: std.process.Init) !void {
     // === Device Discovery ===
     std.debug.print("\n--- Device Discovery ---\n", .{});
 
-    const backends = abi.gpu.backends.detect.availableBackends(allocator) catch |err| {
+    const backends = abi.features.gpu.backends.detect.availableBackends(allocator) catch |err| {
         std.debug.print("Failed to enumerate GPU backends: {t}\n", .{err});
         return err;
     };
@@ -46,11 +46,11 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("Available backends: {d}\n", .{backends.len});
     for (backends) |backend| {
-        const avail = abi.gpu.backends.detect.backendAvailability(backend);
+        const avail = abi.features.gpu.backends.detect.backendAvailability(backend);
         std.debug.print("  {t}: {t} ({d} devices)\n", .{ backend, avail.level, avail.device_count });
     }
 
-    const devices = abi.gpu.backends.listing.listDevices(allocator) catch |err| {
+    const devices = abi.features.gpu.backends.listing.listDevices(allocator) catch |err| {
         std.debug.print("Failed to list GPU devices: {t}\n", .{err});
         return err;
     };

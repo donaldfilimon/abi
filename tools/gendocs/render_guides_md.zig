@@ -342,7 +342,7 @@ fn appendGpuSummary(
     try out.appendSlice(allocator,
         \\## GPU Module Surface
         \\
-        \\The GPU subsystem is namespaced under `abi.gpu` with runtime API groups: `backends`, `devices`, `runtime`, `policy`, `multi`, `factory`.
+        \\The GPU subsystem is namespaced under `abi.features.gpu` with runtime API groups: `backends`, `devices`, `runtime`, `policy`, `multi`, `factory`.
         \\
         \\### Related API modules
         \\
