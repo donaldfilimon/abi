@@ -154,3 +154,21 @@ Stabilize `db.neural`/WDBX on Zig 0.16 by removing compatibility blockers, harde
   - A local `wdbx/sync_compat.zig` mirrors shared `RwLock` behavior so direct file tests (`zig test src/features/database/wdbx/*.zig`) compile under Zig module-path restrictions.
 - **Residual risk:**
   - `sync_compat.zig` duplicates lock logic and may drift from `src/services/shared/sync.zig`; consider unifying via build-module wiring in Wave 2.
+
+---
+
+## Docs Folder Refactor (2026-03-01)
+
+### Objective
+Refactor `docs/index.js` to reduce duplication in result construction and keep the docs search logic easier to extend, with no intended behavior changes.
+
+### Checklist
+- [x] Define reusable result builders/config for docs entity types.
+- [x] Refactor `toResults` to iterate through shared definitions instead of repeated loops.
+- [x] Run a JavaScript syntax check for `docs/index.js`.
+- [x] Document review notes and outcomes.
+
+### Review
+- Result: Refactor completed with no intended behavior changes; search-result construction now uses reusable definitions to reduce duplicated loops.
+- Validation: `node --check docs/index.js` passed.
+- Risk check: Ranking, filters, and item detail formatting paths remain unchanged semantically, only reorganized into shared builders.
