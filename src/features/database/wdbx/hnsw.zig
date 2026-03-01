@@ -12,7 +12,7 @@ pub const HNSW = struct {
     allocator: std.mem.Allocator,
     cfg: config.Config.IndexConfig,
     metric: config.DistanceMetric,
-    vectors: std.ArrayList([]const f32),
+    vectors: std.ArrayListUnmanaged([]const f32) = .empty,
 
     // Abstracted: the internal layers/nodes representation
     // in classical HNSW is omitted for footprint brevity, mapping
@@ -24,7 +24,7 @@ pub const HNSW = struct {
             .allocator = allocator,
             .cfg = cfg.index,
             .metric = engine_metric,
-            .vectors = std.ArrayList([]const f32).init(allocator),
+            .vectors = .empty,
         };
     }
 
@@ -32,7 +32,7 @@ pub const HNSW = struct {
         for (self.vectors.items) |vec| {
             self.allocator.free(vec);
         }
-        self.vectors.deinit();
+        self.vectors.deinit(self.allocator);
     }
 
     pub fn insert(self: *HNSW, vector: []const f32) !usize {
@@ -40,7 +40,7 @@ pub const HNSW = struct {
         errdefer self.allocator.free(cloned);
 
         const id = self.vectors.items.len;
-        try self.vectors.append(cloned);
+        try self.vectors.append(self.allocator, cloned);
 
         // Logical Node insertion into Layer M..0 happens here
         return id;
@@ -51,24 +51,31 @@ pub const HNSW = struct {
         _ = ef; // In flat mock, ef is ignored
 
         // O(N) naive exact fallback for mock testing
-        var best = std.ArrayList(struct { id: usize, d: f32 }).init(self.allocator);
-        defer best.deinit();
+        const Candidate = struct {
+            id: usize,
+            d: f32,
+        };
+
+        var best: std.ArrayListUnmanaged(Candidate) = .empty;
+        defer best.deinit(self.allocator);
 
         for (self.vectors.items, 0..) |v, i| {
             const dist = if (self.metric == .cosine)
                 metrics.cosineSimilarity(query, v)
             else if (self.metric == .euclidean)
                 metrics.euclideanDistance(query, v)
+            else if (self.metric == .manhattan)
+                metrics.manhattanDistance(query, v)
             else
                 metrics.dotProduct(query, v);
 
-            try best.append(.{ .id = i, .d = dist });
+            try best.append(self.allocator, .{ .id = i, .d = dist });
         }
 
         // Sort highest similarities first
         const SortCtx = struct {
             metric: config.DistanceMetric,
-            fn cmp(ctx: @This(), a: anytype, b: anytype) bool {
+            fn cmp(ctx: @This(), a: Candidate, b: Candidate) bool {
                 if (ctx.metric == .euclidean or ctx.metric == .manhattan) {
                     return a.d < b.d; // Distance -> lower is better
                 }
@@ -76,10 +83,10 @@ pub const HNSW = struct {
             }
         };
 
-        std.mem.sort(@TypeOf(best.items[0]), best.items, SortCtx{ .metric = self.metric }, SortCtx.cmp);
+        std.mem.sort(Candidate, best.items, SortCtx{ .metric = self.metric }, SortCtx.cmp);
 
         const take = @min(k, best.items.len);
-        var results = try self.allocator.alloc(usize, take);
+        const results = try self.allocator.alloc(usize, take);
         for (results, 0..) |*res, i| {
             res.* = best.items[i].id;
         }
@@ -97,6 +104,23 @@ test "HNSW dummy vector search fallback logic" {
 
     const query_vec = [_]f32{ 0.9, 0.1, 0.0 };
     const res = try index.search(&query_vec, 1, 64);
+    defer std.testing.allocator.free(res);
+
+    try std.testing.expectEqual(@as(usize, 1), res.len);
+    try std.testing.expectEqual(@as(usize, 0), res[0]);
+}
+
+test "HNSW manhattan metric orders nearest neighbor correctly" {
+    const cfg: config.Config = .{ .metric = .manhattan };
+    var index = try HNSW.init(std.testing.allocator, cfg, .manhattan);
+    defer index.deinit();
+
+    _ = try index.insert(&[_]f32{ 1.0, 1.0, 1.0 });
+    _ = try index.insert(&[_]f32{ 5.0, 5.0, 5.0 });
+    _ = try index.insert(&[_]f32{ 2.0, 2.0, 2.0 });
+
+    const query = [_]f32{ 1.1, 1.2, 1.0 };
+    const res = try index.search(&query, 1, 32);
     defer std.testing.allocator.free(res);
 
     try std.testing.expectEqual(@as(usize, 1), res.len);

@@ -96,7 +96,14 @@ pub const time = @import("../../services/shared/time.zig");
 pub const database = @import("database.zig");
 pub const db_helpers = @import("db_helpers.zig");
 pub const storage = @import("storage.zig");
+
+/// Stable WDBX database-handle surface (CRUD, backup/restore, vector ops).
 pub const wdbx = @import("wdbx.zig");
+
+/// Neural vector engine surface (ANN/HNSW internals and engine API).
+/// This co-exists with `wdbx` as a long-term public path.
+/// Usage: `const wdbx_engine = db.neural.Engine.init(allocator, .{});`
+pub const neural = @import("wdbx/wdbx.zig");
 pub const cli = @import("cli.zig");
 pub const http = @import("http.zig");
 pub const fulltext = @import("fulltext.zig");
@@ -576,6 +583,19 @@ test "database type exports" {
 test "database module functions" {
     // Verify module-level functions exist (compile-time check)
     try std.testing.expect(isEnabled());
+}
+
+test "database module exports stable wdbx and neural surfaces" {
+    _ = wdbx.DatabaseHandle;
+    _ = neural.Engine;
+    _ = neural.Config;
+    _ = neural.DistanceMetric;
+}
+
+test "database neural engine compiles and initializes" {
+    var engine = try neural.Engine.init(std.testing.allocator, .{});
+    defer engine.deinit();
+    try std.testing.expect(true);
 }
 
 // Test discovery for extracted test files

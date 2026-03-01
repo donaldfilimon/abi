@@ -138,6 +138,19 @@ pub fn build(b: *std.Build) void {
         link.applyAllPlatformLinks(tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
         typecheck_step = b.step("typecheck", "Compile tests without running");
         typecheck_step.?.dependOn(&tests.step);
+
+        if (targets.pathExists(b, "src/features/database/wdbx/wdbx.zig")) {
+            const neural_wdbx_tests = b.addTest(.{
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path("src/features/database/wdbx/wdbx.zig"),
+                    .target = target,
+                    .optimize = optimize,
+                    .link_libc = true,
+                }),
+            });
+            typecheck_step.?.dependOn(&neural_wdbx_tests.step);
+        }
+
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
         test_step = b.step("test", "Run unit tests");

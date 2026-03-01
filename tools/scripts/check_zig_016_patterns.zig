@@ -120,6 +120,12 @@ pub fn main(_: std.process.Init) !void {
         "legacy ArrayList init usage; prefer ArrayListUnmanaged patterns",
         &errors,
     );
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*std\\.Thread\\.RwLock",
+        "std.Thread.RwLock is unstable across Zig 0.16 dev builds; use services/shared/sync.RwLock",
+        &errors,
+    );
 
     try scanForbidden(
         allocator,

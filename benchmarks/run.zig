@@ -58,6 +58,30 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     std.mem.doNotOptimizeAway(results);
 }
 
+fn neuralAnnSearchBenchmark(allocator: std.mem.Allocator) !void {
+    var engine = try abi.features.database.neural.Engine.init(allocator, .{
+        .dimensions = 4,
+        .metric = .cosine,
+    });
+    defer engine.deinit();
+
+    const v1 = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
+    const v2 = [_]f32{ 0.0, 1.0, 0.0, 0.0 };
+    const v3 = [_]f32{ 0.0, 0.0, 1.0, 0.0 };
+    try engine.cache.put("doc-1", &v1);
+    try engine.cache.put("doc-2", &v2);
+    try engine.cache.put("doc-3", &v3);
+
+    try engine.index("id-1", "doc-1", .{ .text = "doc-1", .tags = &.{} });
+    try engine.index("id-2", "doc-2", .{ .text = "doc-2", .tags = &.{} });
+    try engine.index("id-3", "doc-3", .{ .text = "doc-3", .tags = &.{} });
+
+    const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
+    const results = try engine.searchByVector(&query, .{ .k = 2, .ef = 32 });
+    defer allocator.free(results);
+    std.mem.doNotOptimizeAway(results);
+}
+
 // Compute benchmarks
 fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
     var framework = try abi.App.init(allocator, abi.Config{});
@@ -184,6 +208,7 @@ pub fn main() !void {
     // Database (Vector Search)
     try suite.runBenchmark("Database Vector Insert", databaseInsertBenchmark, .{allocator});
     try suite.runBenchmark("Database Vector Search", databaseSearchBenchmark, .{allocator});
+    try suite.runBenchmark("Neural ANN Search (WDBX Engine)", neuralAnnSearchBenchmark, .{allocator});
 
     // JSON Processing
     try suite.runBenchmark("JSON Parse/Serialize", jsonBenchmark, .{allocator});

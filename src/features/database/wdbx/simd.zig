@@ -15,12 +15,12 @@ const assert = std.debug.assert;
 
 /// SIMD capability detection (compile-time)
 pub const Features = struct {
-    pub const has_avx512f = detectFeature(.avx512f);
-    pub const has_avx512dq = detectFeature(.avx512dq);
-    pub const has_avx2 = detectFeature(.avx2);
-    pub const has_fma = detectFeature(.fma);
-    pub const has_sse4_1 = detectFeature(.sse4_1);
-    pub const has_neon = detectFeature(.neon);
+    pub const has_avx512f = detectX86Feature(.avx512f);
+    pub const has_avx512dq = detectX86Feature(.avx512dq);
+    pub const has_avx2 = detectX86Feature(.avx2);
+    pub const has_fma = detectX86Feature(.fma);
+    pub const has_sse4_1 = detectX86Feature(.sse4_1);
+    pub const has_neon = detectAarch64Feature(.neon);
 
     pub const vector_width = blk: {
         if (has_avx512f) break :blk 16;
@@ -29,12 +29,18 @@ pub const Features = struct {
         break :blk 1;
     };
 
-    inline fn detectFeature(comptime feature: anytype) bool {
-        return comptime switch (builtin.cpu.arch) {
-            .x86_64 => std.Target.x86.featureSetHas(builtin.cpu.features, feature),
-            .aarch64 => std.Target.aarch64.featureSetHas(builtin.cpu.features, feature),
-            else => false,
-        };
+    inline fn detectX86Feature(comptime feature: std.Target.x86.Feature) bool {
+        return comptime if (builtin.cpu.arch == .x86_64)
+            std.Target.x86.featureSetHas(builtin.cpu.features, feature)
+        else
+            false;
+    }
+
+    inline fn detectAarch64Feature(comptime feature: std.Target.aarch64.Feature) bool {
+        return comptime if (builtin.cpu.arch == .aarch64)
+            std.Target.aarch64.featureSetHas(builtin.cpu.features, feature)
+        else
+            false;
     }
 };
 
@@ -59,7 +65,7 @@ pub fn Vector(comptime T: type, comptime width: comptime_int) type {
 pub inline fn dotProduct(comptime T: type, a: []const T, b: []const T) T {
     assert(a.len == b.len);
 
-    return comptime if (Features.has_avx512f and T == f32)
+    return if (Features.has_avx512f and T == f32)
         dotProductAVX512(a, b)
     else if (Features.has_avx2 and T == f32)
         dotProductAVX2(a, b)

@@ -107,3 +107,50 @@ Hard-remove legacy ABI v1 aliases and helpers and migrate all internal call site
   - Strict scan for code usages (`--glob '!tools/scripts/check_zig_016_patterns.zig'`, non-comment lines, word boundaries) reports zero remaining legacy references.
 - **Determinism:** `docs/data/modules.zon` drift was regenerated; `gendocs --check`, `check-docs`, and `check-cli-registry` pass post-regeneration.
 - **Residual risks:** external downstream forks using removed symbols will break until migrated; this repository is now intentionally strict-v2 only.
+
+---
+
+## WDBX Stabilization Next Improvements (2026-03-01)
+
+### Objective
+Stabilize `db.neural`/WDBX on Zig 0.16 by removing compatibility blockers, hardening runtime correctness (metrics + metadata ownership), and tightening compile/test gate coverage.
+
+### Checklist
+- [x] Replace legacy WDBX `std.ArrayList(...).init` usage with Zig 0.16-compatible unmanaged patterns.
+- [x] Replace WDBX `std.Thread.RwLock` usage with shared compatibility lock implementation.
+- [x] Add runtime config validation (`Config.validateRuntime`) and wire engine init through it.
+- [x] Fix Manhattan metric handling in HNSW and engine search scoring/distance paths.
+- [x] Deep-copy and free metadata ownership in `Engine` to avoid dangling external slices.
+- [x] Keep and document both public database surfaces (`wdbx` and `neural`) and add compile coverage tests.
+- [x] Extend build `typecheck` to compile WDBX neural module tests.
+- [x] Improve cache eviction determinism and use `segments` as a real sharding/eviction dimension.
+- [x] Add cache contention test and ANN micro-benchmark coverage for neural path.
+- [x] Extend Zig 0.16 consistency checker to forbid direct `std.Thread.RwLock`.
+- [x] Run validation matrix and record outcomes (`check-consistency`, WDBX tests, `typecheck`, `full-check`, `verify-all`).
+
+### Review
+- **Date:** 2026-03-01
+- **Validation run (all pass):**
+  - `which zig`
+  - `zig version`
+  - `cat .zigversion`
+  - `zig build toolchain-doctor`
+  - `zig build check-consistency`
+  - `zig test src/features/database/wdbx/config.zig`
+  - `zig test src/features/database/wdbx/hnsw.zig`
+  - `zig test src/features/database/wdbx/engine.zig`
+  - `zig build typecheck`
+  - `zig build full-check`
+  - `zig build verify-all --summary all`
+- **Key outcomes:**
+  - WDBX now uses Zig 0.16 unmanaged list patterns in hot ANN paths and search results.
+  - Runtime config validation is wired (`validateRuntime`) and covered with invalid-input tests.
+  - Manhattan metric handling is corrected in both HNSW ranking and Engine score/distance reporting.
+  - Engine now deep-copies and frees metadata safely (text/category/tags/extra).
+  - Cache now uses deterministic segmented eviction and includes lock contention tests.
+  - Typecheck/build now compile-gate `db.neural` path explicitly.
+  - Consistency checker now forbids direct `std.Thread.RwLock`.
+- **Implementation note:**
+  - A local `wdbx/sync_compat.zig` mirrors shared `RwLock` behavior so direct file tests (`zig test src/features/database/wdbx/*.zig`) compile under Zig module-path restrictions.
+- **Residual risk:**
+  - `sync_compat.zig` duplicates lock logic and may drift from `src/services/shared/sync.zig`; consider unifying via build-module wiring in Wave 2.

@@ -25,7 +25,7 @@ pub const Config = struct {
     /// Must match embedding model output
     /// Common values: 384, 768, 1536, 3072
     /// Range: [1, 16384]
-    dimensions: comptime_int = 768,
+    dimensions: usize = 768,
 
     /// Maximum vectors the index can hold
     /// Preallocates index structure. Can be grown dynamically with reindexing
@@ -43,10 +43,17 @@ pub const Config = struct {
     metric: DistanceMetric = .cosine,
 
     // ═══════════════════════════════════════════════════════════
-    // Index Configuration
+    // Sub-Configurations
     // ═══════════════════════════════════════════════════════════
 
     index: IndexConfig = .{},
+    cache: CacheConfig = .{},
+    memory: MemoryConfig = .{},
+    network: NetworkConfig = .{},
+
+    // ═══════════════════════════════════════════════════════════
+    // Nested Types
+    // ═══════════════════════════════════════════════════════════
 
     pub const IndexAlgorithm = enum { hnsw, ivf, flat };
 
@@ -78,12 +85,6 @@ pub const Config = struct {
         enable_compression: bool = true,
     };
 
-    // ═══════════════════════════════════════════════════════════
-    // Cache Configuration
-    // ═══════════════════════════════════════════════════════════
-
-    cache: CacheConfig = .{},
-
     pub const CacheConfig = struct {
         /// Total cache capacity (number of embeddings)
         capacity: usize = 100_000,
@@ -104,12 +105,6 @@ pub const Config = struct {
         /// Lower = more memory, fewer false positives
         bloom_false_positive_rate: f32 = 0.01,
     };
-
-    // ═══════════════════════════════════════════════════════════
-    // Memory Configuration
-    // ═══════════════════════════════════════════════════════════
-
-    memory: MemoryConfig = .{},
 
     pub const MemoryConfig = struct {
         /// Enable memory pooling for common vector sizes
@@ -133,12 +128,6 @@ pub const Config = struct {
         /// 4-bit: 8× compression, 2% accuracy loss
         quantization_bits: u8 = 8,
     };
-
-    // ═══════════════════════════════════════════════════════════
-    // Network Configuration
-    // ═══════════════════════════════════════════════════════════
-
-    network: NetworkConfig = .{},
 
     pub const NetworkConfig = struct {
         /// Maximum concurrent network connections
@@ -167,14 +156,41 @@ pub const Config = struct {
             @compileError("Dimensions must be between 1 and 16384");
         }
         if (self.cache.segments == 0 or
-            (self.cache.segments & (self.cache.segments - 1)) != 0) {
+            (self.cache.segments & (self.cache.segments - 1)) != 0)
+        {
             @compileError("Cache segments must be power of 2");
         }
         if (self.memory.quantization_bits != 1 and
             self.memory.quantization_bits != 2 and
             self.memory.quantization_bits != 4 and
-            self.memory.quantization_bits != 8) {
+            self.memory.quantization_bits != 8)
+        {
             @compileError("Quantization bits must be 1, 2, 4, or 8");
+        }
+    }
+
+    pub const ValidationError = error{
+        InvalidDimensions,
+        InvalidCacheSegments,
+        InvalidQuantizationBits,
+    };
+
+    /// Validates configuration at runtime for non-comptime construction paths.
+    pub fn validateRuntime(self: Config) ValidationError!void {
+        if (self.dimensions < 1 or self.dimensions > 16384) {
+            return error.InvalidDimensions;
+        }
+        if (self.cache.segments == 0 or
+            (self.cache.segments & (self.cache.segments - 1)) != 0)
+        {
+            return error.InvalidCacheSegments;
+        }
+        if (self.memory.quantization_bits != 1 and
+            self.memory.quantization_bits != 2 and
+            self.memory.quantization_bits != 4 and
+            self.memory.quantization_bits != 8)
+        {
+            return error.InvalidQuantizationBits;
         }
     }
 };
@@ -182,4 +198,23 @@ pub const Config = struct {
 test "Config Defaults Compile" {
     const default = Config{};
     default.validate();
+}
+
+test "Config runtime validation defaults" {
+    const default = Config{};
+    try default.validateRuntime();
+}
+
+test "Config runtime validation rejects invalid cache segments" {
+    const invalid = Config{
+        .cache = .{ .segments = 3 },
+    };
+    try std.testing.expectError(Config.ValidationError.InvalidCacheSegments, invalid.validateRuntime());
+}
+
+test "Config runtime validation rejects invalid quantization bits" {
+    const invalid = Config{
+        .memory = .{ .quantization_bits = 3 },
+    };
+    try std.testing.expectError(Config.ValidationError.InvalidQuantizationBits, invalid.validateRuntime());
 }
