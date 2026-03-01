@@ -4,6 +4,7 @@ const std = @import("std");
 const config_mod = @import("../../core/config/mod.zig");
 const jsonrpc = @import("jsonrpc.zig");
 const types = @import("types.zig");
+const zig_toolchain = @import("../shared/utils/zig_toolchain.zig");
 
 pub const Config = config_mod.LspConfig;
 
@@ -401,28 +402,15 @@ fn resolveZigPath(
         return .{ .path = path, .owned = null };
     }
 
-    const home_ptr = std.c.getenv("HOME") orelse std.c.getenv("USERPROFILE") orelse return .{
+    const candidate = zig_toolchain.resolveExistingZvmMasterZigPath(allocator, io) catch return .{
         .path = null,
         .owned = null,
     };
-    const home = std.mem.span(home_ptr);
-    const candidate = std.fs.path.join(allocator, &.{ home, ".zvm", "master", "zig" }) catch return .{
-        .path = null,
-        .owned = null,
-    };
-
-    if (!fileExists(io, candidate)) {
-        allocator.free(candidate);
+    if (candidate == null) {
         return .{ .path = null, .owned = null };
     }
 
-    return .{ .path = candidate, .owned = candidate };
-}
-
-fn fileExists(io: std.Io, path: []const u8) bool {
-    const file = std.Io.Dir.openFileAbsolute(io, path, .{}) catch return false;
-    file.close(io);
-    return true;
+    return .{ .path = candidate.?, .owned = candidate.? };
 }
 
 pub fn resolveWorkspaceRoot(

@@ -154,3 +154,18 @@ Stabilize `db.neural`/WDBX on Zig 0.16 by removing compatibility blockers, harde
   - A local `wdbx/sync_compat.zig` mirrors shared `RwLock` behavior so direct file tests (`zig test src/features/database/wdbx/*.zig`) compile under Zig module-path restrictions.
 - **Residual risk:**
   - `sync_compat.zig` duplicates lock logic and may drift from `src/services/shared/sync.zig`; consider unifying via build-module wiring in Wave 2.
+
+---
+
+## Task: Organize Zig 0.16 master files (2026-03-01)
+
+### Plan
+- [x] Identify all current Zig "master" path-resolution sites and decide a minimal shared organization approach.
+- [x] Implement focused refactor to centralize Zig 0.16 master path fallback logic where duplicated.
+- [x] Run targeted validation for touched modules and record outcomes.
+- [x] Add review notes summarizing scope and behavior impact.
+
+### Review
+- Centralized ZVM master Zig path helpers in `src/services/shared/utils/zig_toolchain.zig`.
+- Updated LSP client and SPIR-V compiler bridge to reuse the shared helper, removing duplicated HOME/USERPROFILE path join logic.
+- Validation status: unable to run Zig-based formatting/build checks in this environment because `zig` is not installed and `~/.zvm/master/zig` is unavailable.
