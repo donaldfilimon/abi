@@ -261,7 +261,7 @@ pub const generated_footer =
     \\
     \\
     \\## Zig Skill
-    \\Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+    \\Use the `$zig-master` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
     \\
 ;
 

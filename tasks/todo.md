@@ -32,3 +32,28 @@ Thoroughly verify and clean the `examples/`, `tools/`, `benchmarks/`, and entire
 - **Impact:** Codebase is fully modernized to Zig 0.16, all missing examples and benchmarks are restored and building, and configuration parsing is native, avoiding external JSON parser dependencies.
 - **Plan change:** Reverted python-based aggressive `sed` replacements across the codebase that broke syntax, opting for precise replacements and Arena-based memory management for ZON parsing.
 - **Verification change:** Executed `zig build verify-all --summary all` until 0 errors reported.
+
+---
+
+## Follow-up: Review Findings Remediation (2026-03-01)
+
+### Objective
+Address the three confirmed review findings in docs data loading, CLI command docs extraction, and AI inference stub error mapping.
+
+### Checklist
+- [x] Fix docs CLI-command discovery so `docs/data/commands.zon` is populated under generated registry wiring.
+- [x] Fix inference stub `get(feature)` to return feature-specific disabled errors.
+- [x] Replace fragile `loadZon` regex conversion with deterministic parser handling generated ZON.
+- [x] Regenerate docs data artifacts and verify drift checks.
+- [x] Run targeted validation commands and record outcomes.
+
+### Review
+- **Result:** All three review findings were addressed with source fixes and regenerated docs artifacts.
+- **Validation:**
+  - `zig build toolchain-doctor`
+  - `zig build typecheck`
+  - `zig build gendocs -- --no-wasm --untracked-md`
+  - `zig build gendocs -- --check --no-wasm --untracked-md`
+  - `zig build check-docs`
+  - `zig build check-cli-registry`
+- **Outcome:** docs drift checks pass; command metadata is restored in `docs/data/commands.zon`; inference stub now returns feature-appropriate disabled errors.

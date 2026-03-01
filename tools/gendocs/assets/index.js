@@ -1,16 +1,244 @@
+function parseGeneratedZon(input) {
+  let i = 0;
+
+  const isWhitespace = (ch) => ch === " " || ch === "\n" || ch === "\r" || ch === "\t";
+  const isDigit = (ch) => ch >= "0" && ch <= "9";
+  const isIdentifier = (ch) => (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || isDigit(ch) || ch === "_";
+
+  function skipSpace() {
+    while (i < input.length) {
+      const ch = input[i];
+      if (isWhitespace(ch)) {
+        i += 1;
+        continue;
+      }
+      if (ch === "/" && input[i + 1] === "/") {
+        i += 2;
+        while (i < input.length && input[i] !== "\n") i += 1;
+        continue;
+      }
+      break;
+    }
+  }
+
+  function expect(token) {
+    if (!input.startsWith(token, i)) {
+      throw new Error(`Invalid ZON near "${input.slice(i, i + 20)}"`);
+    }
+    i += token.length;
+  }
+
+  function parseString() {
+    i += 1; // opening quote
+    let out = "";
+    while (i < input.length) {
+      const ch = input[i];
+      i += 1;
+      if (ch === "\"") return out;
+      if (ch !== "\\") {
+        out += ch;
+        continue;
+      }
+
+      if (i >= input.length) throw new Error("Invalid escape in ZON string");
+      const esc = input[i];
+      i += 1;
+      switch (esc) {
+        case "\\":
+        case "\"":
+        case "'":
+          out += esc;
+          break;
+        case "n":
+          out += "\n";
+          break;
+        case "r":
+          out += "\r";
+          break;
+        case "t":
+          out += "\t";
+          break;
+        case "x": {
+          const hex = input.slice(i, i + 2);
+          if (!/^[0-9a-fA-F]{2}$/.test(hex)) throw new Error("Invalid hex escape in ZON string");
+          out += String.fromCharCode(parseInt(hex, 16));
+          i += 2;
+          break;
+        }
+        case "u": {
+          if (input[i] === "{") {
+            i += 1;
+            const close = input.indexOf("}", i);
+            if (close === -1) throw new Error("Invalid unicode escape in ZON string");
+            const hex = input.slice(i, close);
+            if (!/^[0-9a-fA-F]+$/.test(hex)) throw new Error("Invalid unicode escape in ZON string");
+            out += String.fromCodePoint(parseInt(hex, 16));
+            i = close + 1;
+          } else {
+            const hex = input.slice(i, i + 4);
+            if (!/^[0-9a-fA-F]{4}$/.test(hex)) throw new Error("Invalid unicode escape in ZON string");
+            out += String.fromCharCode(parseInt(hex, 16));
+            i += 4;
+          }
+          break;
+        }
+        default:
+          out += esc;
+          break;
+      }
+    }
+    throw new Error("Unterminated string in ZON");
+  }
+
+  function parseIdentifierToken() {
+    const start = i;
+    while (i < input.length && isIdentifier(input[i])) i += 1;
+    if (start === i) {
+      throw new Error(`Expected identifier near "${input.slice(i, i + 20)}"`);
+    }
+    return input.slice(start, i);
+  }
+
+  function parseNumber() {
+    const start = i;
+    if (input[i] === "-") i += 1;
+    while (i < input.length && isDigit(input[i])) i += 1;
+    if (input[i] === ".") {
+      i += 1;
+      while (i < input.length && isDigit(input[i])) i += 1;
+    }
+    if (input[i] === "e" || input[i] === "E") {
+      i += 1;
+      if (input[i] === "+" || input[i] === "-") i += 1;
+      while (i < input.length && isDigit(input[i])) i += 1;
+    }
+    const n = Number(input.slice(start, i));
+    if (Number.isNaN(n)) throw new Error("Invalid number in ZON");
+    return n;
+  }
+
+  function parseKey() {
+    expect(".");
+    if (input[i] === "@") {
+      i += 1;
+      if (input[i] !== "\"") throw new Error("Invalid quoted ZON key");
+      return parseString();
+    }
+    return parseIdentifierToken();
+  }
+
+  function hasFieldAssignment() {
+    let j = i;
+    if (input[j] !== ".") return false;
+    j += 1;
+    if (input[j] === "{") return false;
+    if (input[j] === "@") {
+      j += 1;
+      if (input[j] !== "\"") return false;
+      j += 1;
+      let escaped = false;
+      while (j < input.length) {
+        const ch = input[j];
+        j += 1;
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (ch === "\\") {
+          escaped = true;
+          continue;
+        }
+        if (ch === "\"") break;
+      }
+    } else {
+      if (!isIdentifier(input[j])) return false;
+      while (j < input.length && isIdentifier(input[j])) j += 1;
+    }
+    while (j < input.length && isWhitespace(input[j])) j += 1;
+    return input[j] === "=";
+  }
+
+  function parseComposite() {
+    expect(".{");
+    skipSpace();
+    if (input[i] === "}") {
+      i += 1;
+      return [];
+    }
+
+    const object_like = hasFieldAssignment();
+    const out = object_like ? {} : [];
+
+    while (true) {
+      skipSpace();
+      if (input[i] === "}") {
+        i += 1;
+        break;
+      }
+
+      if (object_like) {
+        const key = parseKey();
+        skipSpace();
+        expect("=");
+        skipSpace();
+        out[key] = parseValue();
+      } else {
+        out.push(parseValue());
+      }
+
+      skipSpace();
+      if (input[i] === ",") {
+        i += 1;
+        continue;
+      }
+      if (input[i] === "}") {
+        i += 1;
+        break;
+      }
+      throw new Error(`Expected "," or "}" near "${input.slice(i, i + 20)}"`);
+    }
+
+    return out;
+  }
+
+  function parseValue() {
+    skipSpace();
+    if (input.startsWith(".{", i)) return parseComposite();
+    if (input[i] === "\"") return parseString();
+    if (input[i] === "-" || isDigit(input[i])) return parseNumber();
+    if (input.startsWith("true", i)) {
+      i += 4;
+      return true;
+    }
+    if (input.startsWith("false", i)) {
+      i += 5;
+      return false;
+    }
+    if (input.startsWith("null", i)) {
+      i += 4;
+      return null;
+    }
+    if (input[i] === ".") {
+      i += 1;
+      return parseIdentifierToken();
+    }
+    return parseIdentifierToken();
+  }
+
+  const value = parseValue();
+  skipSpace();
+  if (i !== input.length) {
+    throw new Error(`Trailing ZON content near "${input.slice(i, i + 20)}"`);
+  }
+  return value;
+}
+
 const loadZon = async (path) => {
   const res = await fetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load ${path}`);
-  const text = await res.text();
-  let result = text.trim();
-  if (result.startsWith(".{")) {
-    result = result.replace(/^\.\{/, "[").replace(/\}$/, "]");
-    result = result.replace(/\.\{/g, "{");
-    result = result.replace(/\.[a-zA-Z0-9_]+ =/g, '"$1":');
-    result = result.replace(/\.@\"(.*?)\" =/g, '"$1":');
-    result = result.replace(/,(\s*[\}\]])/g, "$1");
-  }
-  return JSON.parse(result);
+  const text = (await res.text()).trim();
+  if (text.startsWith(".{")) return parseGeneratedZon(text);
+  return JSON.parse(text);
 };
 
 

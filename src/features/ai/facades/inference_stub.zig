@@ -54,7 +54,11 @@ pub const Context = struct {
     }
 
     pub fn get(_: *Context, comptime feature: SubFeature) Error!*SubFeatureContext(feature) {
-        return error.LlmDisabled;
+        return switch (feature) {
+            .llm => error.LlmDisabled,
+            .embeddings => error.EmbeddingsDisabled,
+            .personas => error.EmbeddingsDisabled,
+        };
     }
 };
 

@@ -115,6 +115,7 @@ pub fn build(b: *std.Build) void {
 
     // ── Tests ───────────────────────────────────────────────────────────
     var test_step: ?*std.Build.Step = null;
+    var typecheck_step: ?*std.Build.Step = null;
     if (targets.pathExists(b, "src/services/tests/mod.zig")) {
         const tests = b.addTest(.{
             .root_module = b.createModule(.{
@@ -127,7 +128,8 @@ pub fn build(b: *std.Build) void {
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
         link.applyAllPlatformLinks(tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
-        b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
+        typecheck_step = b.step("typecheck", "Compile tests without running");
+        typecheck_step.?.dependOn(&tests.step);
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
         test_step = b.step("test", "Run unit tests");
@@ -419,6 +421,16 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Verify-all ──────────────────────────────────────────────────────
+    const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
+    gate_hardening_step.dependOn(toolchain_doctor_step);
+    if (typecheck_step) |step| gate_hardening_step.dependOn(step);
+    gate_hardening_step.dependOn(cli_tests_step);
+    if (tui_tests_step) |step| gate_hardening_step.dependOn(step);
+    gate_hardening_step.dependOn(check_cli_registry_step);
+    if (check_docs_step) |step| gate_hardening_step.dependOn(step);
+    gate_hardening_step.dependOn(workflow_contract_strict_step);
+    gate_hardening_step.dependOn(full_check_step);
+
     const verify_all_step = b.step("verify-all", "full-check + consistency + feature-tests + examples + check-wasm + cross-check");
     verify_all_step.dependOn(full_check_step);
     verify_all_step.dependOn(consistency_step);

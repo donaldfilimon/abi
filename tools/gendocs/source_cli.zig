@@ -22,6 +22,7 @@ pub fn discoverCommands(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Di
     }
 
     try parseImportPaths(allocator, mod_source, &import_paths);
+    try appendGeneratedRegistryImports(allocator, io, cwd, &import_paths);
 
     // Step 2: For each import, read the file and parse its meta block.
     var commands = std.ArrayListUnmanaged(model.CliCommand).empty;
@@ -44,6 +45,37 @@ pub fn discoverCommands(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Di
 
     std.mem.sort(model.CliCommand, commands.items, {}, model.compareCommands);
     return commands.toOwnedSlice(allocator);
+}
+
+/// Resolve command imports through the generated registry snapshot when
+/// `commands/mod.zig` only re-exports `generated.*` symbols.
+fn appendGeneratedRegistryImports(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    cwd: std.Io.Dir,
+    out: *std.ArrayListUnmanaged(ImportEntry),
+) !void {
+    var registry_file_path: ?[]u8 = null;
+    defer if (registry_file_path) |path| allocator.free(path);
+
+    for (out.items) |entry| {
+        if (std.mem.endsWith(u8, entry.path, "generated/cli_registry_snapshot.zig")) {
+            registry_file_path = try std.fmt.allocPrint(allocator, "tools/cli/commands/{s}", .{entry.path});
+            break;
+        }
+    }
+
+    // New command registry wiring in `commands/mod.zig` does not expose a
+    // `pub const ... = @import(...)` for the generated snapshot, so we also
+    // probe the canonical path directly.
+    if (registry_file_path == null) {
+        registry_file_path = try allocator.dupe(u8, "tools/cli/generated/cli_registry_snapshot.zig");
+    }
+
+    const registry_source = cwd.readFileAlloc(io, registry_file_path.?, allocator, .limited(512 * 1024)) catch return;
+    defer allocator.free(registry_source);
+
+    try parseImportPaths(allocator, registry_source, out);
 }
 
 // ─── Import path parsing ─────────────────────────────────────────────────────
