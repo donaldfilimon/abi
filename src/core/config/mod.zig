@@ -9,7 +9,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const feature_catalog = @import("../feature_catalog.zig");
-const comptime_meta = @import("../comptime_meta.zig");
 
 // Domain-specific config imports
 pub const gpu_config = @import("gpu.zig");
@@ -193,7 +192,12 @@ pub const Builder = struct {
     fn FeatureConfig(comptime feature: Feature) type {
         return switch (feature) {
             .gpu => GpuConfig,
-            .ai, .llm, .embeddings, .agents, .training, .personas, .reasoning, .constitution => AiConfig,
+            .ai => AiConfig,
+            .llm => LlmConfig,
+            .embeddings => EmbeddingsConfig,
+            .agents => AgentsConfig,
+            .training => TrainingConfig,
+            .personas, .reasoning, .constitution => struct {}, // AI sub-features with no explicit config struct yet
             .database => DatabaseConfig,
             .network => NetworkConfig,
             .observability => ObservabilityConfig,
@@ -215,10 +219,20 @@ pub const Builder = struct {
     /// Enable a feature with explicit configuration.
     pub fn with(self: *Builder, comptime feature: Feature, cfg: anytype) *Builder {
         const ExpectedCfg = FeatureConfig(feature);
-        // Coerce the anytype argument (which might be an anonymous literal `.{}`)
-        // into the explicitly expected config type. Emits a standard compiler error if invalid.
         const typed_cfg: ExpectedCfg = cfg;
-        @field(self.config, @tagName(feature)) = typed_cfg;
+
+        if (feature == .llm or feature == .embeddings or feature == .agents or feature == .training) {
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+            @field(self.config.ai.?, @tagName(feature)) = typed_cfg;
+        } else if (feature == .personas or feature == .reasoning or feature == .constitution) {
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+        } else {
+            @field(self.config, @tagName(feature)) = typed_cfg;
+        }
         return self;
     }
 

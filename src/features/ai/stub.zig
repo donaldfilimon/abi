@@ -72,23 +72,22 @@ pub const discovery = @import("explore/stub.zig");
 // Context
 pub const Context = struct {
     pub const SubFeature = enum { llm, embeddings, agents, training, personas };
+
+    pub fn SubFeatureContext(comptime feature: SubFeature) type {
+        return switch (feature) {
+            .llm => llm.Context,
+            .embeddings => embeddings.Context,
+            .agents => agents.Context,
+            .training => training.Context,
+            .personas => personas.Context,
+        };
+    }
+
     pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) Error!*Context {
         return error.AiDisabled;
     }
     pub fn deinit(_: *Context) void {}
-    pub fn getLlm(_: *Context) Error!*llm.Context {
-        return error.AiDisabled;
-    }
-    pub fn getEmbeddings(_: *Context) Error!*embeddings.Context {
-        return error.AiDisabled;
-    }
-    pub fn getAgents(_: *Context) Error!*agents.Context {
-        return error.AiDisabled;
-    }
-    pub fn getTraining(_: *Context) Error!*training.Context {
-        return error.AiDisabled;
-    }
-    pub fn getPersonas(_: *Context) Error!*personas.Context {
+    pub fn get(_: *Context, comptime _: SubFeature) Error!*SubFeatureContext(SubFeature.llm) {
         return error.AiDisabled;
     }
     pub fn isSubFeatureEnabled(_: *Context, _: SubFeature) bool {

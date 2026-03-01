@@ -16,7 +16,7 @@ pub fn main(_: std.process.Init) !void {
     var builder = abi.Framework.builder(allocator);
 
     var framework = try builder
-        .with(.storage, .{})
+        .with(.storage, abi.config.StorageConfig{})
         .build();
     defer framework.deinit();
 

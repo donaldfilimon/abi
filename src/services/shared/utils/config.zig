@@ -357,12 +357,13 @@ pub const ConfigLoader = struct {
         var config = Config.init(self.allocator);
         errdefer config.deinit();
 
-        const parsed = std.zon.parse.fromSliceAlloc(ConfigZon, self.allocator, zon_str, null, .{}) catch {
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+
+        const data = std.zon.parse.fromSliceAlloc(ConfigZon, arena_allocator, zon_str, null, .{}) catch {
             return ConfigError.ParseError;
         };
-        
-
-        const data = parsed;
         config.framework = data.framework;
         config.database = data.database;
         config.gpu = data.gpu;

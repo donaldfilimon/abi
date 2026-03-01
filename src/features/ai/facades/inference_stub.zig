@@ -42,10 +42,18 @@ pub const Context = struct {
     }
     pub fn deinit(_: *Context) void {}
     fn deinitSubFeatures(_: *Context) void {}
-    pub fn getLlm(_: *Context) Error!*llm.Context {
-        return error.LlmDisabled;
+
+    pub const SubFeature = enum { llm, embeddings, personas };
+
+    pub fn SubFeatureContext(comptime feature: SubFeature) type {
+        return switch (feature) {
+            .llm => llm.Context,
+            .embeddings => embeddings.Context,
+            .personas => personas.Context,
+        };
     }
-    pub fn getEmbeddings(_: *Context) Error!*embeddings.Context {
+
+    pub fn get(_: *Context, comptime feature: SubFeature) Error!*SubFeatureContext(feature) {
         return error.LlmDisabled;
     }
 };

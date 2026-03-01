@@ -16,7 +16,7 @@ pub fn main(_: std.process.Init) !void {
     var builder = abi.Framework.builder(allocator);
 
     var framework = try builder
-        .with(.cloud, .{})
+        .with(.cloud, abi.config.CloudConfig{})
         .build();
     defer framework.deinit();
 

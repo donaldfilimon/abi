@@ -16,7 +16,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Configure GPU with specific settings
     const config = builder
-        .with(.gpu, .{
+        .with(.gpu, abi.config.GpuConfig{
             .backend = .auto,
             .device_index = 0, // First available GPU
             .memory_limit = 4 * 1024 * 1024 * 1024, // 4GB limit

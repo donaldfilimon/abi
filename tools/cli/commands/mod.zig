@@ -55,17 +55,18 @@ fn applyOverride(desc: *CommandDescriptor, comptime ov: registry_overrides.Comma
     if (ov.default_subcommand) |default_subcommand| desc.default_subcommand = default_subcommand;
     if (ov.visibility) |visibility| desc.visibility = visibility;
     if (ov.risk) |risk| desc.risk = risk;
-    if (ov.ui) |ui| desc.ui = ui;
+    if (ov.ui) |ui_ov| desc.ui = ui_ov;
     if (ov.options) |options| desc.options = options;
     if (ov.middleware_tags) |middleware_tags| desc.middleware_tags = middleware_tags;
 }
 
-fn validateRegistry(comptime descriptors: []const CommandDescriptor) void {
-    inline for (descriptors, 0..) |desc, i| {
+fn validateRegistry(comptime registry_descriptors: []const CommandDescriptor) void {
+    @setEvalBranchQuota(10000);
+    inline for (registry_descriptors, 0..) |desc, i| {
         if (desc.name.len == 0) {
             @compileError(std.fmt.comptimePrint("Empty command name at index {d}", .{i}));
         }
-        inline for (descriptors[0..i]) |prev| {
+        inline for (registry_descriptors[0..i]) |prev| {
             if (std.mem.eql(u8, prev.name, desc.name)) {
                 @compileError(std.fmt.comptimePrint("Duplicate command name '{s}'", .{desc.name}));
             }
@@ -81,9 +82,9 @@ fn validateRegistry(comptime descriptors: []const CommandDescriptor) void {
         }
     }
 
-    inline for (descriptors) |lhs| {
+    inline for (registry_descriptors) |lhs| {
         inline for (lhs.aliases) |alias| {
-            inline for (descriptors) |rhs| {
+            inline for (registry_descriptors) |rhs| {
                 if (std.mem.eql(u8, rhs.name, alias)) {
                     @compileError(std.fmt.comptimePrint(
                         "Alias '{s}' on '{s}' collides with command name '{s}'",
@@ -115,9 +116,9 @@ pub const descriptors: [std.meta.fields(@TypeOf(command_modules)).len]CommandDes
         result[i] = command_mod.toDescriptor(mod);
     }
 
-    inline for (registry_overrides.command_overrides) |override| {
+    for (registry_overrides.command_overrides) |override| {
         var matched = false;
-        inline for (&result) |*desc| {
+        for (&result) |*desc| {
             if (std.mem.eql(u8, desc.name, override.name)) {
                 applyOverride(desc, override);
                 matched = true;
@@ -132,7 +133,7 @@ pub const descriptors: [std.meta.fields(@TypeOf(command_modules)).len]CommandDes
         }
     }
 
-    comptime validateRegistry(&result);
+    validateRegistry(&result);
     break :blk result;
 };
 

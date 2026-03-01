@@ -23,7 +23,7 @@ pub fn main(_: std.process.Init) !void {
     var builder = abi.Framework.builder(allocator);
 
     var framework = try builder
-        .with(.ai, .{ .training = .{} })
+        .with(.ai, abi.config.AiConfig{ .training = .{} })
         .build();
     defer framework.deinit();
 

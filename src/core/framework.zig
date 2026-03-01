@@ -41,7 +41,7 @@
 //!
 //! ```zig
 //! var fw = try abi.Framework.builder(allocator)
-//!     .with(.gpu, .{ .backend = .vulkan })
+//!     .with(.gpu, abi.config.GpuConfig{ .backend = .vulkan })
 //!     .withDefault(.ai)
 //!     .withDefault(.database)
 //!     .build();
@@ -329,7 +329,7 @@ pub const Framework = struct {
     /// ```zig
     /// var fw = try Framework.builder(allocator)
     ///     .withDefault(.gpu)
-    ///     .with(.ai, .{ .llm = .{} })
+    ///     .with(.ai, abi.config.AiConfig{ .llm = .{} })
     ///     .build();
     /// defer fw.deinit();
     /// ```
@@ -435,8 +435,8 @@ pub const FrameworkBuilder = struct {
     /// ## Example
     /// ```zig
     /// var fw = try Framework.builder(allocator)
-    ///     .with(.gpu, .{ .backend = .vulkan })
-    ///     .with(.database, .{ .path = "./data" })
+    ///     .with(.gpu, abi.config.GpuConfig{ .backend = .vulkan })
+    ///     .with(.database, abi.config.DatabaseConfig{ .path = "./data" })
     ///     .build();
     /// ```
     pub fn with(self: *FrameworkBuilder, comptime feature: Feature, cfg: anytype) *FrameworkBuilder {

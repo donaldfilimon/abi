@@ -132,12 +132,22 @@ pub const Context = struct {
         if (self.llm_ctx) |l| l.deinit();
     }
 
-    pub fn getLlm(self: *Context) Error!*llm.Context {
-        return self.llm_ctx orelse error.LlmDisabled;
+    pub const SubFeature = enum { llm, embeddings, personas };
+
+    pub fn SubFeatureContext(comptime feature: SubFeature) type {
+        return switch (feature) {
+            .llm => llm.Context,
+            .embeddings => embeddings.Context,
+            .personas => personas.Context,
+        };
     }
 
-    pub fn getEmbeddings(self: *Context) Error!*embeddings.Context {
-        return self.embeddings_ctx orelse error.EmbeddingsDisabled;
+    pub fn get(self: *Context, comptime feature: SubFeature) Error!*SubFeatureContext(feature) {
+        return @field(self, @tagName(feature) ++ "_ctx") orelse switch (feature) {
+            .llm => error.LlmDisabled,
+            .embeddings => error.EmbeddingsDisabled,
+            .personas => error.EmbeddingsDisabled,
+        };
     }
 };
 

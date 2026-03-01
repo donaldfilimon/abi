@@ -77,33 +77,32 @@ fn collectModules(allocator: std.mem.Allocator) ![]ModuleEntry {
         }
     }.lessThan);
 
-    return modules.toOwnedSlice(allocator);
+    return try modules.toOwnedSlice(allocator);
 }
 
 fn renderSnapshot(allocator: std.mem.Allocator, modules: []const ModuleEntry) ![]u8 {
-    var out = std.ArrayListUnmanaged(u8).empty;
-    errdefer out.deinit(allocator);
+    var out: std.Io.Writer.Allocating = .init(allocator);
+    errdefer out.deinit();
 
-    var writer = out.writer(allocator);
-    try writer.writeAll(
+    try out.writer.writeAll(
         "//! Generated command registry snapshot.\n" ++
             "//! Refresh with: `zig build refresh-cli-registry`\n\n",
     );
 
     for (modules) |module| {
-        try writer.print("pub const {s} = @import(\"{s}\");\n", .{
+        try out.writer.print("pub const {s} = @import(\"{s}\");\n", .{
             module.ident,
             module.import_path,
         });
     }
 
-    try writer.writeAll("\npub const command_modules = .{\n");
+    try out.writer.writeAll("\npub const command_modules = .{\n");
     for (modules) |module| {
-        try writer.print("    {s},\n", .{module.ident});
+        try out.writer.print("    {s},\n", .{module.ident});
     }
-    try writer.writeAll("};\n");
+    try out.writer.writeAll("};\n");
 
-    return out.toOwnedSlice(allocator);
+    return try out.toOwnedSlice();
 }
 
 fn freeModules(allocator: std.mem.Allocator, modules: []ModuleEntry) void {
@@ -114,33 +113,36 @@ fn freeModules(allocator: std.mem.Allocator, modules: []ModuleEntry) void {
     allocator.free(modules);
 }
 
-pub fn main(_: std.process.Init) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa_state.deinit();
-    const allocator = gpa_state.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.arena.allocator();
 
     var output_path: []const u8 = "tools/cli/generated/cli_registry_snapshot.zig";
     var check_only = false;
 
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
-    _ = args.next();
+    const args = try init.minimal.args.toSlice(allocator);
 
-    while (args.next()) |arg| {
+    var arg_idx: usize = 1;
+    while (arg_idx < args.len) : (arg_idx += 1) {
+        const arg = args[arg_idx];
         if (std.mem.eql(u8, arg, "--check")) {
             check_only = true;
             continue;
         }
         if (std.mem.eql(u8, arg, "--output")) {
-            output_path = args.next() orelse return error.MissingOutputPath;
+            arg_idx += 1;
+            if (arg_idx >= args.len) return error.MissingOutputPath;
+            output_path = args[arg_idx];
             continue;
         }
         if (std.mem.eql(u8, arg, "--snapshot")) {
             output_path = "tools/cli/generated/cli_registry_snapshot.zig";
             continue;
         }
-        return error.InvalidArgument;
     }
+
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = init.minimal.environ });
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
     const modules = try collectModules(allocator);
     defer freeModules(allocator, modules);
@@ -149,7 +151,7 @@ pub fn main(_: std.process.Init) !void {
     defer allocator.free(snapshot_body);
 
     if (check_only) {
-        const existing = std.Io.Dir.cwd().readFileAlloc(allocator, output_path, 1 << 20) catch |err| switch (err) {
+        const existing = std.Io.Dir.cwd().readFileAlloc(io, output_path, allocator, .limited(1024 * 1024)) catch |err| switch (err) {
             error.FileNotFound => {
                 std.debug.print("ERROR: registry file missing: {s}\n", .{output_path});
                 std.process.exit(1);
@@ -168,11 +170,11 @@ pub fn main(_: std.process.Init) !void {
     }
 
     if (std.fs.path.dirname(output_path)) |dir_name| {
-        std.Io.Dir.cwd().makePath(dir_name) catch {};
+        try std.Io.Dir.cwd().createDirPath(io, dir_name);
     }
 
-    const file = try std.Io.Dir.cwd().createFile(output_path, .{ .truncate = true });
-    defer file.close();
-    try file.writeAll(snapshot_body);
+    const file = try std.Io.Dir.cwd().createFile(io, output_path, .{ .truncate = true });
+    defer file.close(io);
+    try file.writeStreamingAll(io, snapshot_body);
     std.debug.print("Wrote {s}\n", .{output_path});
 }

@@ -289,6 +289,7 @@ fn validateCommandRef(comptime cmd: CommandRef, comptime item_label: []const u8)
 }
 
 fn findTopLevelDescriptor(comptime raw_command: []const u8) ?*const framework.types.CommandDescriptor {
+    @setEvalBranchQuota(5000);
     inline for (&commands.descriptors) |*descriptor| {
         if (std.mem.eql(u8, raw_command, descriptor.name)) return descriptor;
         inline for (descriptor.aliases) |alias| {

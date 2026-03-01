@@ -83,12 +83,12 @@ pub fn save(
         .tasks = persisted_tasks.items,
     };
 
-    var zon_buffer = std.ArrayListUnmanaged(u8).empty;
-    defer zon_buffer.deinit(allocator);
-    var writer = zon_buffer.writer(allocator);
-    try std.zon.stringify.serialize(data, .{}, &writer);
+    var out: std.Io.Writer.Allocating = .init(allocator);
+    defer out.deinit();
+    var writer = out.writer;
+    std.zon.stringify.serialize(data, .{}, &writer) catch return error.PersistenceFailed;
 
-    try file.writeStreamingAll(io, zon_buffer.items);
+    try file.writeStreamingAll(io, try out.toOwnedSlice());
 }
 
 /// Load tasks from a ZON file.
@@ -117,12 +117,13 @@ pub fn load(
     const contents_z = try allocator.dupeZ(u8, contents);
     defer allocator.free(contents_z);
 
-    const parsed = std.zon.parse.fromSliceAlloc(PersistedData, allocator, contents_z, null, .{}) catch {
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
+
+    const data = std.zon.parse.fromSliceAlloc(PersistedData, arena_allocator, contents_z, null, .{}) catch {
         return error.ParseError;
     };
-    
-
-    const data = parsed;
     next_id.* = data.next_id;
 
     for (data.tasks) |pt| {
