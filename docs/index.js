@@ -332,9 +332,6 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
             href: `./api/${mod.name}.html#${symbol.anchor}`,
           });
         }
-      }
-    }
-  }
 
   if (type === "all" || type === "commands") {
     for (const cmd of commands) {
