@@ -433,10 +433,16 @@ pub const Terminal = struct {
                 .ypixel = 0,
             };
             const fd = self.stdout_file.handle;
-            const err = posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&winsize));
+            const ioctl_cmd = if (@hasDecl(posix.system.T, "TIOCGWINSZ"))
+                posix.system.T.TIOCGWINSZ
+            else
+                posix.system.T.IOCGWINSZ;
+
+            const err = posix.system.ioctl(fd, ioctl_cmd, @intFromPtr(&winsize));
             if (posix.errno(err) == .SUCCESS and winsize.row != 0 and winsize.col != 0) {
                 return .{ .rows = winsize.row, .cols = winsize.col };
             }
+
             return .{ .rows = 24, .cols = 80 };
         }
 
