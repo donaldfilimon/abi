@@ -1,0 +1,1 @@
+[WARN] Fast mode is not available in the Agent SDK. Using Opus 4.6.

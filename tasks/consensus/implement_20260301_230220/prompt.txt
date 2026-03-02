@@ -1,0 +1,12 @@
+Current state:
+- Working tree has local modifications in bindings/c/src/abi_c.zig and src/services/shared/utils/zig_toolchain.zig.
+- Untracked consensus artifacts exist under tasks/consensus/.
+- Requested action: implement stabilization/fix plan and produce commit-ready tree with full verification.
+
+Constraints:
+- Minimal-risk fixes that preserve intended behavior.
+- Keep consensus artifacts.
+- Verify with strict workflow gate and full verify-all.
+
+Decision question:
+- Confirm safest execution order to finalize these local changes and validation with minimal churn.
