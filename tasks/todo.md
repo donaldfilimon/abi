@@ -320,12 +320,35 @@ Implement a multi-persona chat editor directly into the TUI, expand the VAD modu
 - `zig build check-workflow-orchestration-strict --summary all` passes.
 
 ### Checklist
-- [ ] Create `tools/cli/terminal/panels/chat_panel.zig` with a split-pane view (Persona list left, conversation right).
-- [ ] Connect `chat_panel.zig` as a subcommand or integrate it into `dashboard.zig`.
-- [ ] Add `SpeechBuffer` struct to `vad.zig`.
-- [ ] Introduce deduplication / hashing logic on insertions inside `engine.zig`.
-- [ ] Enhance TUI rendering functions for maximum polish.
+- [x] Create `tools/cli/terminal/panels/chat_panel.zig` with a split-pane view (Persona list left, conversation right).
+- [x] Connect `chat_panel.zig` as a subcommand (`abi chat-tui`) and integrate it into `dashboard.zig` framework.
+- [x] Add `SpeechBuffer` struct to `vad.zig`.
+- [x] Introduce deduplication / hashing logic on insertions inside `engine.zig`.
+- [x] Enhance TUI rendering functions for maximum polish (dropdown menus, active states).
 
 ### Review
-- **Result:** Pending.
-- **Validation:** Pending.
+- **Result:** Successfully built the deep research core using native HTTP client bridges and registered it. Added sophisticated ring buffers for voice activity capture logic in the VAD module. Implemented multi-persona `abi chat-tui` interface and native `wdbx` data deduplication. 
+- **Validation:** Tests and orchestration checks pass perfectly.
+
+---
+
+## Task: Deep Research Implementation (2026-03-02)
+### Objective
+Extend the AI agent's native toolset to allow for deep, autonomous internet research without external CLI tools natively using Zig 0.16 APIs.
+
+### Scope
+- Implement a `deep_research.zig` agent tool in `src/features/ai/tools/` using Zig's `std.http` (via the local proxy `HttpClient` built for ABI) to perform multi-stage automated web searches, fetching, and content summarization.
+
+### Verification Criteria
+- `zig build cli-tests` passes.
+- `zig build check-workflow-orchestration-strict --summary all` passes.
+
+### Checklist
+- [x] Create `src/features/ai/tools/deep_research.zig`.
+- [x] Wire the `web_search` and `web_fetch` capabilities using purely local client libraries without dependencies.
+- [x] Register `deep_research` tools inside `mod.zig`.
+- [x] Run test suite and check registry.
+
+### Review
+- **Result:** Successfully built the deep research core and integrated it natively into the ABI agent environment.
+- **Validation:** All tests and orchestration tools passed.
