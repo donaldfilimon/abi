@@ -383,11 +383,11 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Performance verification tool ───────────────────────────────────
-    if (targets.pathExists(b, "tools/perf/check.zig")) {
+    if (targets.pathExists(b, "tools/scripts/check_perf.zig")) {
         const check_perf_exe = b.addExecutable(.{
             .name = "abi-check-perf",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("tools/perf/check.zig"),
+                .root_source_file = b.path("tools/scripts/check_perf.zig"),
                 .target = target,
                 .optimize = .ReleaseSafe,
             }),
