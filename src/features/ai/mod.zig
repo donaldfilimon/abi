@@ -96,6 +96,10 @@ pub const constitution = if (build_options.enable_ai) @import("constitution/mod.
 pub const compliance = @import("compliance/mod.zig");
 pub const feedback = @import("feedback/mod.zig");
 
+// Contextually Aware Data Eccentric System components
+pub const context_engine = @import("context_engine/mod.zig");
+pub const os_control = @import("tools/os_control/mod.zig");
+
 // Tool-augmented agent with tool execution loop
 pub const tool_agent = @import("tools/tool_agent.zig");
 
