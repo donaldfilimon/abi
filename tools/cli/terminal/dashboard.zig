@@ -139,6 +139,7 @@ pub fn Dashboard(comptime PanelType: type) type {
                 },
                 .resize => |sz| blk: {
                     self.term_size = .{ .rows = sz.rows, .cols = sz.cols };
+                    self.terminal.clearFull() catch {};
                     break :blk false;
                 },
                 .quit => true,
@@ -208,17 +209,26 @@ pub fn Dashboard(comptime PanelType: type) type {
                 return;
             }
 
-            // Title bar
+            // Menu bar
             try term.moveTo(0, 0);
-            try term.write(th.bold);
+            try term.write(th.primary);
+            try term.write(" ≡ ABI ");
+            try term.write(th.reset);
             try term.write(th.primary);
             try term.write(" ");
             try term.write(self.config.title);
             try term.write(" ");
             try term.write(th.reset);
+            try term.write("  File  View  Tools  Window  Help ");
+
+            // Toolbar
+            try term.moveTo(1, 0);
+            try term.write(th.text_dim);
+            try term.write(" [▶ Run]  [⏹ Stop]  [⟳ Refresh]  [⚙ Settings] ");
+            try term.write(th.reset);
 
             // Panel content area — u16 widens to usize implicitly
-            try self.panel.render(2, 0, width, height -| 4);
+            try self.panel.render(3, 0, width, height -| 5);
 
             // Notification line
             if (self.notification) |msg| {

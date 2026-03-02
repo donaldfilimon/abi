@@ -247,7 +247,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var no_confirm = false;
     var self_aware: bool = false;
     var session_name: []const u8 = "os-agent-default";
-    var backend_name: []const u8 = "echo";
+    var backend_name: []const u8 = "provider_router";
     var model_name: []const u8 = "gpt-4";
 
     // Parse arguments
@@ -307,12 +307,22 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Resolve backend
     const backend: abi.features.ai.agent.AgentBackend = if (std.mem.eql(u8, backend_name, "openai"))
         .openai
+    else if (std.mem.eql(u8, backend_name, "anthropic"))
+        .anthropic
+    else if (std.mem.eql(u8, backend_name, "gemini"))
+        .gemini
+    else if (std.mem.eql(u8, backend_name, "codex"))
+        .codex
+    else if (std.mem.eql(u8, backend_name, "llama_cpp"))
+        .llama_cpp
     else if (std.mem.eql(u8, backend_name, "ollama"))
         .ollama
     else if (std.mem.eql(u8, backend_name, "huggingface"))
         .huggingface
+    else if (std.mem.eql(u8, backend_name, "echo"))
+        .echo
     else
-        .echo;
+        .provider_router;
 
     // Build system prompt with optional self-awareness preamble
     const system_prompt = if (self_aware)

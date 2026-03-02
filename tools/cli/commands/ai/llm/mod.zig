@@ -51,6 +51,16 @@ pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !vo
         printHelp();
         return;
     }
+    
+    // If it starts with a dash, they forgot a subcommand or are trying to pass global flags
+    if (std.mem.startsWith(u8, sub, "-")) {
+        utils.output.printError("Options must be passed to a subcommand for 'llm'", .{});
+        printHelp();
+        return error.ExecutionFailed;
+    }
+
+    // Since 'chat' is an alias for 'llm', they might just want to start a session.
+    // If they provided something else, suggest known subcommands.
     utils.output.printError("Unknown llm command: {s}", .{sub});
     if (utils.args.suggestCommand(sub, &.{ "run", "session", "serve", "providers", "plugins", "discover" })) |suggestion| {
         utils.output.printInfo("Did you mean: {s}", .{suggestion});

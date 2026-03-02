@@ -799,6 +799,14 @@
         }},
     },
     .{
+        .name = "compute",
+        .path = "src/features/compute/mod.zig",
+        .description = "Omni-Compute Module\n\nProvides the distributed mesh networking, multi-GPU orchestration,\nand tensor sharing protocols.",
+        .category = "Utilities",
+        .build_flag = "always-on",
+        .symbols = .{},
+    },
+    .{
         .name = "connectors",
         .path = "src/services/connectors/mod.zig",
         .description = "Connector configuration loaders and auth helpers.\n\nThis module provides unified access to various AI service connectors including:\n\n- **OpenAI**: GPT models via the Chat Completions API\n- **Anthropic**: Claude models via the Messages API\n- **Ollama**: Local LLM inference server\n- **HuggingFace**: Hosted inference API\n- **Mistral**: Mistral AI models with OpenAI-compatible API\n- **Cohere**: Chat, embeddings, and reranking\n- **LM Studio**: Local LLM inference with OpenAI-compatible API\n- **vLLM**: High-throughput local LLM serving with OpenAI-compatible API\n- **MLX**: Apple Silicon-optimized inference via mlx-lm server\n- **Discord**: Bot integration for Discord\n\n## Usage\n\nEach connector can be loaded from environment variables:\n\n```zig\nconst connectors = @import(\"abi\").connectors;\n\n// Load and create clients\nif (try connectors.tryLoadOpenAI(allocator)) |config| {\nvar client = try connectors.openai.Client.init(allocator, config);\ndefer client.deinit();\n// Use client...\n}\n```\n\n## Security\n\nAll connectors securely wipe API keys from memory using `std.crypto.secureZero`\nbefore freeing to prevent memory forensics attacks.",
@@ -841,6 +849,14 @@
                 .line = 85,
             },
         },
+    },
+    .{
+        .name = "documents",
+        .path = "src/features/documents/mod.zig",
+        .description = "Native Documents Parser Module\n\nProvides zero-dependency parsers for complex file formats like\nHTML, DOM trees, and PDF binaries.",
+        .category = "Utilities",
+        .build_flag = "always-on",
+        .symbols = .{},
     },
     .{
         .name = "lsp",

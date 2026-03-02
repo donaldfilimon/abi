@@ -160,7 +160,7 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         defer config.deinit();
         return printByFormat(allocator, format, &config);
     } else {
-        const resolved_path = app_paths.resolvePath(allocator, "config.json") catch |err| {
+        const resolved_path = app_paths.resolvePath(allocator, "abi.zon") catch |err| {
             if (err == error.NoHomeDirectory) {
                 switch (format) {
                     .human => printDefaultConfigHuman(),
@@ -286,7 +286,7 @@ fn runPath(ctx: *const context_mod.CommandContext) !void {
     const primary_dir = try app_paths.resolvePrimaryRoot(allocator);
     defer allocator.free(primary_dir);
 
-    const config_path = try app_paths.resolvePath(allocator, "config.json");
+    const config_path = try app_paths.resolvePath(allocator, "abi.zon");
     defer allocator.free(config_path);
 
     utils.output.printKeyValue("Primary user config directory", primary_dir);
@@ -312,7 +312,7 @@ fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
         return;
     }
 
-    const config_path = try app_paths.resolvePath(allocator, "config.json");
+    const config_path = try app_paths.resolvePath(allocator, "abi.zon");
     defer allocator.free(config_path);
     const dir_path = std.fs.path.dirname(config_path) orelse ".";
 
@@ -392,7 +392,7 @@ fn printHelp() void {
         "  -f, --format <fmt>   Output format: human, json, zon (default: human)\n\n" ++
         "Examples:\n" ++
         "  abi config init                    Create default abi.zon\n" ++
-        "  abi config init -o myconfig.json   Create JSON config file\n" ++
+        "  abi config init -o myabi.zon   Create JSON config file\n" ++
         "  abi config setup                   Bootstrap user config in platform location\n" ++
         "  abi config path                    Print user config path\n" ++
         "  abi config show                    Show default configuration\n" ++

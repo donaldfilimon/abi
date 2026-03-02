@@ -1,0 +1,1 @@
+Plan the implementation of Codebase Indexer (allowing ABI to read and rewrite its own source code) and VAD Audio Streaming (live hardware microphone execution using std.posix.read or similar zero-dependency approach) into the Triad loop.

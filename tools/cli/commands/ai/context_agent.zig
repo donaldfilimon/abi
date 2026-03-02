@@ -170,14 +170,13 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var vision_matrix = vision.VisionMatrix.init(allocator);
     defer vision_matrix.deinit();
 
-    var audio_streamer = context_engine.audio.AudioStreamer.init(allocator, &io, 16000);
-    defer audio_streamer.deinit();
-
-    const codebase_index = abi.features.ai.codebase_index;
-    var indexer = codebase_index.CodebaseIndex.init(allocator, ".") catch |err| {
-        utils.output.printError("Failed to init codebase indexer: {t}", .{err});
+    var audio_streamer = context_engine.vad.AudioStreamer.init(allocator, std.posix.STDIN_FILENO, .{}) catch |err| {
+        utils.output.printError("Failed to initialize VAD: {t}", .{err});
         return;
     };
+    defer audio_streamer.deinit();
+
+    var indexer = context_engine.codebase_indexer.CodebaseIndexer.init(allocator, &io);
     defer indexer.deinit();
 
     const stdin_file = std.Io.File.stdin();
@@ -189,10 +188,6 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     if (autonomous_mode) {
         utils.output.printWarning("Engaging Autonomous Biological Loop. Press Ctrl+C to interrupt.", .{});
         
-        audio_streamer.startListening() catch |err| {
-            utils.output.printWarning("Failed to start VAD audio listener: {t}", .{err});
-        };
-
         // Biological loop (non-blocking)
         while (true) {
             // Sensation: Check hardware body
@@ -212,11 +207,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             }
 
             // Sensation: Check Audio (VAD)
-            if (audio_streamer.flushVoiceActivity()) |optional_chunk| {
+            if (audio_streamer.readActiveFrame()) |optional_chunk| {
                 if (optional_chunk) |chunk_val| {
-                    var audio_chunk = chunk_val;
-                    utils.output.printSuccess("[Audio Streamer] Voice activity captured ({d} bytes). Feeding to Triad...", .{audio_chunk.data.len});
-                    audio_chunk.deinit(allocator);
+                    utils.output.printSuccess("[Audio Streamer] Voice activity captured ({d} samples). Feeding to Triad...", .{chunk_val.len});
                 }
             } else |err| {
                 utils.output.printWarning("[Audio Streamer] read error: {t}", .{err});
@@ -254,7 +247,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             const new_content = trimmed[split_idx + 2 ..];
 
             utils.output.printInfo("[ABI Evolution] Attempting self-modification on {s}...", .{target_file});
-            indexer.rewriteFile(&io, target_file, new_content) catch |err| {
+            indexer.rewrite(target_file, new_content) catch |err| {
                 utils.output.printError("Self-evolution mutation failed: {t}", .{err});
                 continue;
             };

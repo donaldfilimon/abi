@@ -227,10 +227,18 @@ pub const AgentBackend = enum {
     echo,
     /// Use OpenAI API
     openai,
+    /// Use Anthropic API
+    anthropic,
+    /// Use Gemini API
+    gemini,
     /// Use local Ollama instance
     ollama,
     /// Use HuggingFace Inference API
     huggingface,
+    /// Use Codex API
+    codex,
+    /// Use Llama.cpp directly
+    llama_cpp,
     /// Use local transformer model
     local,
     /// Use local-first provider router (llama.cpp -> MLX -> Ollama -> LM Studio -> vLLM -> plugins)
@@ -369,6 +377,7 @@ pub const Agent = struct {
         return switch (self.config.backend) {
             .echo => self.generateEchoResponse(input, allocator),
             .openai => self.generateOpenAIResponse(input, allocator),
+            .anthropic, .gemini, .codex, .llama_cpp => self.generateProviderRouterResponse(input, allocator),
             .ollama => self.generateOllamaResponse(input, allocator),
             .huggingface => self.generateHuggingFaceResponse(input, allocator),
             .local => self.generateLocalResponse(input, allocator),

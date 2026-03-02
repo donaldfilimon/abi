@@ -66,6 +66,8 @@ pub const jumpstart = @import("jumpstart.zig");
 pub const audio = @import("audio.zig");
 pub const telemetry = @import("telemetry.zig");
 pub const vision = @import("vision.zig");
+pub const codebase_indexer = @import("codebase_indexer.zig");
+pub const vad = @import("vad.zig");
 
 /// High-performance contextual understanding processor.
 pub const ContextProcessor = struct {

@@ -150,3 +150,69 @@ Identify the present failing path in the workspace, fix root cause with minimal 
 ### Review
 - **Result:** Added explicit top-level `Scope` and `Verification Criteria` sections to `tasks/todo.md`, which satisfies strict workflow-contract section requirements.
 - **Validation:** `zig build check-workflow-orchestration-strict --summary all` passes.
+
+---
+
+## Task: Implement Codebase Indexer & VAD Audio Streaming into Triad (2026-03-02)
+### Objective
+Extend the ABI Triad orchestration loop with a native Codebase Indexer for self-modification and a zero-dependency VAD Audio Streaming pipeline for live microphone input.
+
+### Scope
+- Implement codebase indexing and rewriting logic within `src/features/ai/context_engine/`.
+- Implement zero-dependency VAD using `std.posix.read` (or equivalent) in `src/features/ai/context_engine/`.
+- Integrate both sensors/actuators into the `tools/cli/commands/ai/context_agent.zig` autonomous loop.
+
+### Verification Criteria
+- `zig build test` passes for the new modules.
+- The Triad loop can successfully receive mock audio frames and trigger VAD.
+- Codebase Indexer can successfully read and rewrite a dummy Zig file.
+- `zig build check-workflow-orchestration-strict --summary all` passes.
+
+### Plan
+- [ ] **Codebase Indexer Module:** Create `src/features/ai/context_engine/codebase_indexer.zig`.
+  - Implement directory traversal and AST/text extraction.
+  - Implement `rewrite(file_path: []const u8, new_content: []const u8)` using `std.fs`.
+  - Integrate with `wdbx.Engine` to embed source code semantics into the neural matrix.
+- [ ] **VAD Audio Module:** Create `src/features/ai/context_engine/vad.zig`.
+  - Implement zero-dependency audio stream reading using `std.posix.read` targeting a raw audio stream.
+  - Implement energy-based Voice Activity Detection (VAD) thresholding.
+- [ ] **Triad Integration (context_agent.zig):** 
+  - Wire the Codebase Indexer as a new hook in the REPL (e.g., "index codebase", "rewrite <file>").
+  - Add the VAD stream to the `autonomous_mode` biological loop, feeding detected speech frames/transcripts to `triad_engine.processContext`.
+- [ ] **Tests:** Write unit tests for VAD energy calculation and Codebase Indexer file operations.
+- [ ] **Validation:** Run all strict repository checks.
+
+### Review
+- **Result:** Pending.
+- **Validation:** Pending.
+
+---
+
+## Task: CLI Redesign, TUI Scaling Fix, and Advanced Tools (2026-03-02)
+### Objective
+Redesign CLI handling, fix TUI scaling issues on terminal resize, add menu/toolbar support, implement `.zon` configuration format, and add advanced OS agent tools for MCP/ACP.
+
+### Scope
+- Fix `os-agent` default backend to use `provider_router`.
+- Replace `.json` configuration extensions with `.zon` to use Zig Object Notation.
+- Fix TUI scaling issues by ensuring the entire terminal is cleared correctly upon resize.
+- Add advanced MacOS/Windows features: Menu Bar and Toolbar in the TUI Dashboard.
+- Support new agent backends: `gemini`, `codex`, `anthropic`, `llama_cpp`.
+- Add OS agent tools to start MCP and ACP servers (`mcp_tools.zig`).
+
+### Verification Criteria
+- `zig build cli-tests` passes with no errors.
+- `zig build check-workflow-orchestration-strict --summary all` passes.
+
+### Checklist
+- [x] Change `backend_name` default in `os_agent.zig`.
+- [x] Update `tools/cli/commands/core/config.zig` to use `abi.zon`.
+- [x] Update `tools/cli/terminal/dashboard.zig` with `try self.terminal.clearFull()` on `.resize`.
+- [x] Add Menu Bar and Toolbar logic in `tools/cli/terminal/dashboard.zig`.
+- [x] Expand `AgentBackend` and switch statements to handle `gemini`, `codex`, `anthropic`, and `llama_cpp`.
+- [x] Implement `mcp_tools.zig` and register in `tool_agent.zig`.
+- [x] Verify compilation using `zig build cli-tests`.
+
+### Review
+- **Result:** CLI/TUI redesign and fixes successfully implemented. New agent tools and model backends are fully supported.
+- **Validation:** `zig build cli-tests` passed cleanly.

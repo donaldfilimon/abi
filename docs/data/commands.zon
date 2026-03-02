@@ -73,6 +73,12 @@
         },
     },
     .{
+        .name = "context-agent",
+        .description = "Contextually Aware Data Eccentric System with ABI Triad and WDBX",
+        .aliases = .{},
+        .subcommands = .{},
+    },
+    .{
         .name = "convert",
         .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)",
         .aliases = .{},

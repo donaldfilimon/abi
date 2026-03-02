@@ -41,7 +41,7 @@ pub const PdfParser = struct {
         var decompressed_text = std.ArrayListUnmanaged(u8).empty;
         errdefer decompressed_text.deinit(self.allocator);
 
-        try decompressed_text.writer(self.allocator).writeAll("ABI Native PDF Extractor successfully decoded internal Flate streams.");
+        try decompressed_text.appendSlice(self.allocator, "ABI Native PDF Extractor successfully decoded internal Flate streams.");
 
         return PdfDocument{
             .pages = 1, // Determined natively from /Type /Pages /Count
