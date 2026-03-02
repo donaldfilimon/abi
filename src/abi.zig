@@ -165,6 +165,9 @@ pub const features = struct {
     
     // Omni-modal document parsing
     pub const documents = @import("features/documents/mod.zig");
+
+    // Native Desktop extensions
+    pub const desktop = @import("features/desktop/mod.zig");
 };
 
 /// Build and package metadata.

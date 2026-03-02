@@ -55,7 +55,7 @@ pub const TtsEngine = struct {
                 break;
             }
             if (self.queue.items.len > 0) {
-                msg = self.queue.orderedRemove(self.allocator, 0);
+                msg = self.queue.orderedRemove(0);
             }
             self.mutex.unlock();
 
@@ -172,10 +172,8 @@ pub const AudioStreamer = struct {
             if (self.voice_buffer.items.len > 16000) {
                 const audio_data = try self.allocator.dupe(u8, self.voice_buffer.items);
                 self.voice_buffer.clearRetainingCapacity();
-                
-                const abi_time = @import("../../../services/shared/time.zig");
-                return context_engine.AudioChunk{
-                    .sample_rate = 16000,
+
+                return context_engine.AudioChunk{                    .sample_rate = 16000,
                     .channels = 1,
                     .data = audio_data,
                     .timestamp_ms = @intCast(abi_time.timestampMs()),

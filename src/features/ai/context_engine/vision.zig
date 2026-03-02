@@ -6,6 +6,51 @@
 
 const std = @import("std");
 
+pub const VideoFrame = struct {
+    width: u32,
+    height: u32,
+    data: []const u8,
+};
+
+pub const VideoFrameStreamer = struct {
+    allocator: std.mem.Allocator,
+    matrix: VisionMatrix,
+    active: bool = false,
+
+    pub fn init(allocator: std.mem.Allocator) VideoFrameStreamer {
+        return .{
+            .allocator = allocator,
+            .matrix = VisionMatrix.init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *VideoFrameStreamer) void {
+        self.matrix.deinit();
+    }
+
+    /// Captures a frame using macOS native `screencapture` or simulated stub
+    pub fn captureFrame(self: *VideoFrameStreamer) !?VideoFrame {
+        if (!self.active) return null;
+        
+        // Native macOS screencapture hook using temp file buffer
+        // `screencapture -x -t jpg /tmp/abi_screen.jpg`
+        const os = @import("../../../services/shared/os.zig");
+        var result = os.exec(self.allocator, "screencapture -x -t jpg /tmp/abi_screen.jpg") catch return null;
+        defer result.deinit();
+
+        const data = std.fs.cwd().readFileAlloc(self.allocator, "/tmp/abi_screen.jpg", 10 * 1024 * 1024) catch {
+            return null;
+        };
+        
+        // Let the caller handle data freeing
+        return VideoFrame{
+            .width = 1920,
+            .height = 1080,
+            .data = data,
+        };
+    }
+};
+
 pub const VisionMatrix = struct {
     allocator: std.mem.Allocator,
     last_hash: u64,

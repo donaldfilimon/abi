@@ -851,6 +851,14 @@
         },
     },
     .{
+        .name = "desktop",
+        .path = "src/features/desktop/mod.zig",
+        .description = "Desktop Integration\n\nProvides native UI extensions and integrations for the host OS.",
+        .category = "Utilities",
+        .build_flag = "always-on",
+        .symbols = .{},
+    },
+    .{
         .name = "documents",
         .path = "src/features/documents/mod.zig",
         .description = "Native Documents Parser Module\n\nProvides zero-dependency parsers for complex file formats like\nHTML, DOM trees, and PDF binaries.",

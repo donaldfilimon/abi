@@ -295,6 +295,10 @@ const EditorState = struct {
     message_storage: [192]u8 = undefined,
     message_len: usize = 0,
     message_ticks: u8 = 0,
+    
+    // AI Prompt State
+    ai_prompt_mode: bool = false,
+    ai_prompt_buffer: std.ArrayListUnmanaged(u8) = .empty,
 
     fn init(allocator: std.mem.Allocator, io: std.Io, file_path: ?[]const u8) !EditorState {
         const buffer = if (file_path) |path|
@@ -314,6 +318,7 @@ const EditorState = struct {
 
     fn deinit(self: *EditorState) void {
         self.buffer.deinit();
+        self.ai_prompt_buffer.deinit(self.allocator);
         self.* = undefined;
     }
 
@@ -341,7 +346,35 @@ const EditorState = struct {
 
         switch (event) {
             .mouse => return false,
-            .key => |key| switch (key.code) {
+            .key => |key| {
+                if (self.ai_prompt_mode) {
+                    switch (key.code) {
+                        .escape => {
+                            self.ai_prompt_mode = false;
+                            self.ai_prompt_buffer.clearRetainingCapacity();
+                            self.setStatus("AI prompt cancelled.");
+                        },
+                        .enter => {
+                            try self.executeAiGeneration();
+                        },
+                        .backspace => {
+                            if (self.ai_prompt_buffer.items.len > 0) {
+                                _ = self.ai_prompt_buffer.pop();
+                            }
+                        },
+                        .character => {
+                            if (key.char) |ch| {
+                                if (ch >= 32 and ch <= 126) {
+                                    try self.ai_prompt_buffer.append(self.allocator, ch);
+                                }
+                            }
+                        },
+                        else => {},
+                    }
+                    return false;
+                }
+
+                switch (key.code) {
                 .ctrl_c => return true,
                 .up => {
                     self.quit_armed = false;
@@ -410,16 +443,21 @@ const EditorState = struct {
                 },
                 .character => {
                     if (key.char) |ch| {
-                        if (ch == 17) {
+                        if (ch == 17) { // Ctrl-Q
                             if (self.buffer.modified and !self.quit_armed) {
                                 self.quit_armed = true;
                                 self.setStatus("Unsaved changes. Press Ctrl-Q again to quit.");
                             } else {
                                 return true;
                             }
-                        } else if (ch == 19) {
+                        } else if (ch == 19) { // Ctrl-S
                             self.quit_armed = false;
                             try self.save();
+                        } else if (ch == 11) { // Ctrl-K
+                            self.quit_armed = false;
+                            self.ai_prompt_mode = true;
+                            self.ai_prompt_buffer.clearRetainingCapacity();
+                            self.setStatus("AI Edit Mode (Esc to cancel)");
                         } else if (ch >= 32 and ch <= 126) {
                             self.quit_armed = false;
                             try self.buffer.insertByte(self.cursor_row, self.cursor_col, ch);
@@ -428,6 +466,7 @@ const EditorState = struct {
                     }
                 },
                 else => {},
+                }
             },
         }
 
@@ -492,6 +531,14 @@ const EditorState = struct {
         if (size.rows == 0) return;
 
         const status_row = size.rows - 1;
+        
+        if (self.ai_prompt_mode) {
+            try term.moveTo(status_row, 0);
+            try term.write("\x1b[1;33m AI Prompt (Enter to Gen): \x1b[0m\x1b[K");
+            try term.write(self.ai_prompt_buffer.items);
+            return;
+        }
+
         const file_name = self.file_path orelse "[scratch]";
         const dirty = if (self.buffer.modified) "*" else "";
 
@@ -562,6 +609,31 @@ const EditorState = struct {
         } else if (self.cursor_col >= self.col_offset + cols) {
             self.col_offset = self.cursor_col - cols + 1;
         }
+    }
+
+    fn executeAiGeneration(self: *EditorState) !void {
+        if (self.ai_prompt_buffer.items.len == 0) {
+            self.ai_prompt_mode = false;
+            self.setStatus("AI prompt was empty.");
+            return;
+        }
+
+        self.setStatus("Generating AI code...");
+        self.ai_prompt_mode = false;
+
+        // Stub logic for real AI generation insertion
+        const prompt = self.ai_prompt_buffer.items;
+        const stub_response = try std.fmt.allocPrint(self.allocator, "// AI Generated from: {s}", .{prompt});
+        defer self.allocator.free(stub_response);
+
+        try self.buffer.insertNewline(&self.cursor_row, &self.cursor_col);
+        for (stub_response) |ch| {
+            try self.buffer.insertByte(self.cursor_row, self.cursor_col, ch);
+            self.cursor_col += 1;
+        }
+
+        self.ai_prompt_buffer.clearRetainingCapacity();
+        self.setStatus("AI Generation Complete.");
     }
 
     fn save(self: *EditorState) !void {

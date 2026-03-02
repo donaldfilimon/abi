@@ -37,7 +37,8 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     }
 
     var task: []const u8 =
-        "Review ABI source and apply deterministic improvements with Zig 0.16 compatibility. " ++
+        "Review ABI source using native tools (`search_codebase`, `analyze_file`) and apply deterministic improvements with Zig 0.16 compatibility. " ++
+        "If you encounter a repetitive task, write a script and dynamically install it via `register_tool`. " ++
         "Always run zig build verify-all after each change.";
     var analysis_only = false;
     var max_iterations = loaded_cfg.max_iterations;
