@@ -9,7 +9,6 @@
 //! - Counterfactual reasoning
 
 const std = @import("std");
-const types = @import("../../core/types.zig");
 const reasoning = @import("../reasoning.zig");
 
 // ============================================================================

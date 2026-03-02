@@ -10,7 +10,6 @@
 
 const std = @import("std");
 const time = @import("../../../../services/shared/time.zig");
-const sync = @import("../../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 
 // Centralized GPU interface - handles compile-time gating and stubs

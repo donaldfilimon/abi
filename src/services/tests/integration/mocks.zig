@@ -11,9 +11,6 @@
 //! - Error injection available for negative test cases
 
 const std = @import("std");
-const builtin = @import("builtin");
-const abi = @import("abi");
-const build_options = @import("build_options");
 
 // ============================================================================
 // Mock GPU Context

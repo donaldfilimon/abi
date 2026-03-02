@@ -8,7 +8,6 @@
 
 const std = @import("std");
 const testing = std.testing;
-const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
 const time = abi.services.shared.time;

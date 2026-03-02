@@ -4,7 +4,6 @@
 //! for the access patterns common in transformer models.
 
 const std = @import("std");
-const builtin = @import("builtin");
 
 /// Matrix multiplication: C = A @ B
 /// A: [M, K], B: [K, N], C: [M, N]
