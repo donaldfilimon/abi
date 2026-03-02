@@ -26,6 +26,7 @@ const deep_research = abi.features.ai.deep_research;
 const compute_mesh = abi.features.compute.mesh;
 const documents = abi.features.documents;
 const dynamic_api = abi.features.ai.dynamic_api;
+const wdbx = abi.features.database.neural;
 
 pub const meta: command_mod.Meta = .{
     .name = "context-agent",
@@ -102,6 +103,14 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     defer io_backend.deinit();
     var io = io_backend.io();
 
+    // Initialize Native WDBX Engine
+    utils.output.printInfo("Loading WDBX Neural Matrix from '{s}'...", .{wdbx_path});
+    var brain = wdbx.Engine.init(allocator, .{}) catch |err| {
+        utils.output.printError("Failed to initialize WDBX database: {t}", .{err});
+        return;
+    };
+    defer brain.deinit();
+
     if (perform_jumpstart) {
         utils.output.printWarning("Initiating Knowledge Jumpstart via external/local tools...", .{});
         var jumper = jumpstart.KnowledgeJumpstart.init(allocator, &io);
@@ -110,11 +119,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         utils.output.printSuccess("Jumpstart complete. Severing external dependency cord. ABI is now fully autonomous.", .{});
     }
 
-    // Initialize the high-performance context engine & Triad
+    // Initialize the high-performance context engine & Triad, linking the live WDBX Brain
     var engine = context_engine.ContextProcessor.init(allocator);
     defer engine.deinit();
     
-    var triad_engine = context_engine.triad.TriadEngine.init(allocator, &io, soul_prompt) catch |err| {
+    var triad_engine = context_engine.triad.TriadEngine.init(allocator, &io, soul_prompt, &brain) catch |err| {
         utils.output.printError("Failed to initialize Triad Engine: {t}", .{err});
         return;
     };
@@ -144,7 +153,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var buffer: [8192]u8 = undefined;
     var reader = stdin_file.reader(io, &buffer);
 
-    utils.output.printSuccess("Triad online. Native zero-dependency engine active.", .{});
+    utils.output.printSuccess("Triad online. Native zero-dependency engine active. WDBX sync established.", .{});
     utils.output.println("Awaiting context input. Type 'exit' to quit.", .{});
 
     while (true) {
@@ -221,7 +230,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             continue;
         }
 
-        // Triad Execution Simulation using the native TriadEngine
+        // Triad Execution Simulation utilizing LIVE WDBX logic
         var result = triad_engine.processContext(trimmed) catch |err| {
              utils.output.printError("Triad execution failed: {t}", .{err});
              continue;
@@ -231,14 +240,18 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         std.debug.print("{s}{s}[Abbey]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.cyan(), utils.output.Color.reset(), result.abbey_analysis });
         std.debug.print("{s}{s}[Aviva]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.cyber(), utils.output.Color.reset(), result.aviva_analysis });
         
-        // Dynamic Data Parsing (Text/Audio/Video adaptive handling stub)
         std.debug.print("{s}{s}[ABI]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.neural(), utils.output.Color.reset(), result.final_decision });
         
         if (distributed_mode) {
              utils.output.printInfo("[Mesh] Distributed inference complete.", .{});
         }
-        utils.output.printInfo("[WDBX Extension] Storing dynamic weight to {s}...", .{wdbx_path});
     }
+
+    // Persist the Neural Brain to disk
+    utils.output.printInfo("Saving WDBX matrix state to {s}...", .{wdbx_path});
+    wdbx.save(&brain, wdbx_path) catch |err| {
+        utils.output.printWarning("Could not persist WDBX state: {t}", .{err});
+    };
 
     utils.output.println("System shutting down. Goodbye!", .{});
 }

@@ -63,6 +63,7 @@ pub const ContextMessage = struct {
 // Context Engine Modules
 pub const triad = @import("triad.zig");
 pub const jumpstart = @import("jumpstart.zig");
+pub const audio = @import("audio.zig");
 
 /// High-performance contextual understanding processor.
 pub const ContextProcessor = struct {
