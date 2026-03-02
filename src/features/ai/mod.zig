@@ -98,7 +98,9 @@ pub const feedback = @import("feedback/mod.zig");
 
 // Contextually Aware Data Eccentric System components
 pub const context_engine = @import("context_engine/mod.zig");
+pub const jumpstart = @import("context_engine/jumpstart.zig");
 pub const os_control = @import("tools/os_control/mod.zig");
+pub const deep_research = @import("tools/deep_research.zig");
 
 // Tool-augmented agent with tool execution loop
 pub const tool_agent = @import("tools/tool_agent.zig");

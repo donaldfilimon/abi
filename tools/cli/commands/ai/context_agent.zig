@@ -21,6 +21,8 @@ const utils = @import("../../utils/mod.zig");
 // Leveraging internal framework exports for legendary performance
 const os_control = abi.features.ai.os_control;
 const context_engine = abi.features.ai.context_engine;
+const jumpstart = abi.features.ai.jumpstart;
+const deep_research = abi.features.ai.deep_research;
 
 pub const meta: command_mod.Meta = .{
     .name = "context-agent",
@@ -32,6 +34,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     var wdbx_path: []const u8 = "assistant_brain.wdbx";
     var no_confirm = false;
+    var perform_jumpstart = false;
     var soul_prompt: []const u8 = "Your life's task is to optimize and protect the user's digital ecosystem with absolute precision and legendary performance.";
 
     var i: usize = 0;
@@ -60,6 +63,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             continue;
         }
 
+        if (std.mem.eql(u8, arg, "--jumpstart")) {
+            perform_jumpstart = true;
+            continue;
+        }
+
         if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
             printHelp();
             return;
@@ -79,25 +87,38 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     utils.output.println("", .{});
     utils.output.printInfo("Initializing Artificial Biological Intelligence (ABI) Core...", .{});
 
+    // Setup unified std.Io backend for non-blocking operations
+    var io_backend = utils.io_backend.initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    if (perform_jumpstart) {
+        utils.output.printWarning("Initiating Knowledge Jumpstart via external/local tools...", .{});
+        var jumper = jumpstart.KnowledgeJumpstart.init(allocator, io);
+        defer jumper.deinit();
+        try jumper.bootstrapFromLocal(.ollama);
+        utils.output.printSuccess("Jumpstart complete. Severing external dependency cord. ABI is now fully autonomous.", .{});
+    }
+
     // Initialize the high-performance context engine
     var engine = context_engine.ContextProcessor.init(allocator);
     defer engine.deinit();
+
+    // Initialize deep research module natively using std.Io
+    var researcher = deep_research.DeepResearcher.init(allocator, io);
+    defer researcher.deinit();
 
     // Initialize OS control permissions
     const perm_level: os_control.PermissionLevel = if (no_confirm) .full_control else .ask_before_action;
     var os_manager = os_control.OSControlManager.init(allocator, perm_level);
     defer os_manager.deinit();
 
-    // Setup interactive I/O
-    var io_backend = utils.io_backend.initIoBackend(allocator);
-    defer io_backend.deinit();
-    const io = io_backend.io();
     const stdin_file = std.Io.File.stdin();
     var buffer: [8192]u8 = undefined;
     var reader = stdin_file.reader(io, &buffer);
 
-    utils.output.printSuccess("Triad online. Unbeatable performance active.", .{});
-    utils.output.println("Awaiting multi-modal input. Type 'exit' to quit.", .{});
+    utils.output.printSuccess("Triad online. Native zero-dependency engine active.", .{});
+    utils.output.println("Awaiting context input. Type 'exit' to quit.", .{});
 
     while (true) {
         utils.output.print("\nABI> ", .{});
@@ -113,6 +134,15 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
         if (trimmed.len == 0) continue;
         if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) break;
+
+        // Deep Research Hook
+        if (std.mem.startsWith(u8, trimmed, "research ")) {
+            const query = std.mem.trim(u8, trimmed["research ".len..], " ");
+            utils.output.printInfo("[ABI] Activating native deep internet access for: {s}", .{query});
+            const research_data = researcher.autonomousSearch(query) catch "Research failed";
+            utils.output.printSuccess("[ABI Moderator] Research Synthesis: {s}", .{research_data});
+            continue;
+        }
 
         // Vision / OS Control Hook
         if (std.mem.eql(u8, trimmed, "what is on my screen?")) {
