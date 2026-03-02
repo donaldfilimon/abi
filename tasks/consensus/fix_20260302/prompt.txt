@@ -1,0 +1,19 @@
+Current state:
+- Repository: .
+- User request: "fix"
+- No additional bug details were provided.
+- We need to infer the most likely current breakage by running validation and repairing root cause.
+
+Constraints / non-goals:
+- Minimal, targeted change only.
+- Preserve existing architecture; avoid unrelated refactors.
+- Follow Zig 0.16 repository conventions.
+- Verify before completion.
+
+Success criteria:
+- Identify a concrete failing check/test/build path in current workspace.
+- Implement root-cause fix.
+- Re-run relevant verification to prove issue resolved.
+
+Decision question:
+- What is the highest-confidence, low-risk sequence to quickly locate and fix the current breakage in this repo?
