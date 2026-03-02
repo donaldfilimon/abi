@@ -1,0 +1,43 @@
+{
+  "auth_policy": "<redacted-id>",
+  "required_models": [],
+  "providers": {
+    "gemini": {
+      "available": true,
+      "path": "<redacted-path>",
+      "version_ok": true,
+      "version": "0.31.0",
+      "auth_ready": false,
+      "auth_hint": "set one of: GOOGLE_API_KEY, GEMINI_API_KEY"
+    },
+    "opencode": {
+      "available": true,
+      "path": "<redacted-path>",
+      "version_ok": true,
+      "version": "1.2.10",
+      "auth_ready": false,
+      "auth_hint": "set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY"
+    },
+    "claude": {
+      "available": true,
+      "path": "<redacted-path>",
+      "version_ok": true,
+      "version": "2.1.63 (Claude Code)",
+      "auth_ready": false,
+      "auth_hint": "set one of: ANTHROPIC_API_KEY"
+    },
+    "ollama": {
+      "available": true,
+      "path": "<redacted-path>",
+      "version_ok": true,
+      "version": "ollama version is 0.17.4",
+      "auth_ready": true,
+      "auth_hint": "not required"
+    }
+  },
+  "ollama_models": {
+    "gpt-oss:20b": true,
+    "gemma:27b": false,
+    "qwen3-vl:4b": true
+  }
+}

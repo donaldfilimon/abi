@@ -1,0 +1,12 @@
+current state:
+- Implementing wave-2 follow-up on top of commit 6facea46 in ..
+- Dirty changes currently: bindings/c/src/abi_c.zig, src/services/shared/utils/zig_toolchain.zig, and tasks/consensus artifacts.
+constraints/non-goals:
+- Keep symbols filter behavior as modules+symbols.
+- Include all current changes in one commit.
+- Preserve deterministic zig-master checks.
+success criteria:
+- All zig-master checks pass.
+- Consensus artifacts are sanitized before commit.
+decision question:
+- Any high-risk caveats in this mixed-source commit flow?

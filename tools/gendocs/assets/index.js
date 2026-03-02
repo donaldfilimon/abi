@@ -304,7 +304,7 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
   const results = [];
   const q = query.trim();
 
-  if (type === "all" || type === "modules") {
+  if (type === "all" || type === "modules" || type === "symbols") {
     for (const mod of modules) {
       if (category && mod.category !== category) continue;
       const score = wasmScore(q, `${mod.name} ${mod.description}`);

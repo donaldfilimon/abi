@@ -1,0 +1,15 @@
+{
+  "provider": "gemini",
+  "status": "timeout",
+  "started_at": "2026-03-02T04:40:00.730605+00:00",
+  "finished_at": "2026-03-02T04:42:00.766095+00:00",
+  "command": [
+    "gemini",
+    "-p",
+    "## Current State\n- Repository: `/Users/donaldfilimon/abi`\n- Current branch: `main`\n- Local branches: `backup/pre-fix-resolution`, `fix/c-api-paths-consensus-20260302`, `fix/stabilization-wave2`, `main`\n- Remote branches include additional `origin/organize-zig-0.16-master-files-*` refs not yet local.\n- Working tree is clean before merge execution.\n\n## Constraints / Non-goals\n- Non-interactive git flow only.\n- Preserve deterministic Zig workflow and validation gates.\n- Do not rewrite history on `main`.\n- Goal is merge integration, not branch cleanup/deletion.\n\n## Success Criteria\n- All merge-target branches are integrated into local `main` with no unresolved conflicts.\n- `main` remains build/validation healthy under applicable Zig checks.\n- A concise risk summary is captured for the merge operation.\n\n## Decision Question\nWhat is the safest deterministic merge strategy to integrate all non-main local+origin branches into `main` while minimizing conflict risk and preserving validation confidence?\n",
+    "--yolo",
+    "--output-format",
+    "json"
+  ],
+  "timeout_sec": 120
+}

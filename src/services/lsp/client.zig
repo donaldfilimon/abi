@@ -1,6 +1,7 @@
 //! ZLS LSP client (JSON-RPC over stdio).
 
 const std = @import("std");
+const zig_toolchain = @import("../shared/zig_toolchain.zig");
 const config_mod = @import("../../core/config/mod.zig");
 const jsonrpc = @import("jsonrpc.zig");
 const types = @import("types.zig");

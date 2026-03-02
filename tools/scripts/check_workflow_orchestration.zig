@@ -170,6 +170,25 @@ fn looksLikeDatePrefix(text: []const u8) bool {
     return true;
 }
 
+fn checkConflictMarkers(
+    allocator: std.mem.Allocator,
+    report: *Report,
+    path: []const u8,
+    content: []const u8,
+) !void {
+    var lines = std.mem.splitScalar(u8, content, '\n');
+    var line_num: usize = 1;
+    while (lines.next()) |line| : (line_num += 1) {
+        const trimmed = std.mem.trim(u8, line, " \t\r");
+        if (std.mem.startsWith(u8, trimmed, "<<<<<<< ") or
+            std.mem.startsWith(u8, trimmed, ">>>>>>> ") or
+            std.mem.eql(u8, trimmed, "======="))
+        {
+            try report.addViolation(allocator, "file {s} contains conflict marker at line {d}: {s}", .{ path, line_num, trimmed });
+        }
+    }
+}
+
 fn checkTodo(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -185,6 +204,8 @@ fn checkTodo(
         return;
     };
     defer allocator.free(content);
+
+    try checkConflictMarkers(allocator, report, report.todo_path, content);
 
     for (todo_sections) |section| {
         if (std.mem.indexOf(u8, content, section.needle) == null) {
@@ -217,6 +238,8 @@ fn checkLessons(
         return;
     };
     defer allocator.free(content);
+
+    try checkConflictMarkers(allocator, report, report.lessons_path, content);
 
     var entry_count: usize = 0;
     var in_entry = false;
