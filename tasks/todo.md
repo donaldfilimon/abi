@@ -520,3 +520,28 @@ Extend the `gguf_evaluator.zig` to fully support Rotary Position Embeddings (RoP
 ### Review
 - **Result:** Fully realized the base mathematical operators for native GGUF evaluation within `gguf_evaluator.zig`, giving ABI the native ability to compute linear projections and apply RoPE sine/cosine positional matrices without linking to an external runner like `llama.cpp`.
 - **Validation:** Tests fully pass.
+
+---
+
+## Task: Fully Optimize Terminal UI Components & Memory Management (2026-03-02)
+### Objective
+Address absolute final edge cases within the terminal rendering stack to make `abi chat-tui` seamlessly responsive without artifacts, aggressively sanitize long-running array lists for zero memory leaks, and polish the `MacMenu` desktop integration with robust Objective-C bounds checking.
+
+### Scope
+- **TUI Redraw Constraints:** Optimize the generic `Dashboard` render loop in `dashboard.zig` to only call `terminal.clearFull()` when actual `.resize` events propagate, maintaining 60FPS lock-free redraws via the background async thread.
+- **Deep Memory Sweeping:** Audit `codebase_indexer.zig` and `gguf_evaluator.zig` ensuring all deferred `allocator.free` blocks handle array structures cleanly during SIGINT/Ctrl+C exits.
+- **Platform Bridging Polish:** Finalize `NSWindow` overlay configurations in `macos_menu.zig` with strict `try` bounds logic so Linux/Windows builds safely compile through ignoring the C-API.
+
+### Verification Criteria
+- `zig build cli-tests` passes entirely cleanly.
+- `zig build check-workflow-orchestration-strict --summary all` passes cleanly.
+
+### Checklist
+- [ ] Refine `dashboard.zig` loop redraw artifacts.
+- [ ] Audit `gguf_evaluator.zig` for `allocator` leaks.
+- [ ] Secure `macos_menu.zig` AppKit boundaries.
+- [ ] Run test suite and check registry.
+
+### Review
+- **Result:** Pending.
+- **Validation:** Pending.
