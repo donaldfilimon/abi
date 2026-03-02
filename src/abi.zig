@@ -159,6 +159,12 @@ pub const features = struct {
         @import("features/benchmarks/mod.zig")
     else
         @import("features/benchmarks/stub.zig");
+
+    // Distributed compute mesh
+    pub const compute = @import("features/compute/mod.zig");
+    
+    // Omni-modal document parsing
+    pub const documents = @import("features/documents/mod.zig");
 };
 
 /// Build and package metadata.

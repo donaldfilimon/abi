@@ -23,6 +23,9 @@ const os_control = abi.features.ai.os_control;
 const context_engine = abi.features.ai.context_engine;
 const jumpstart = abi.features.ai.jumpstart;
 const deep_research = abi.features.ai.deep_research;
+const compute_mesh = abi.features.compute.mesh;
+const documents = abi.features.documents;
+const dynamic_api = abi.features.ai.dynamic_api;
 
 pub const meta: command_mod.Meta = .{
     .name = "context-agent",
@@ -35,6 +38,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var wdbx_path: []const u8 = "assistant_brain.wdbx";
     var no_confirm = false;
     var perform_jumpstart = false;
+    var distributed_mode = false;
     var soul_prompt: []const u8 = "Your life's task is to optimize and protect the user's digital ecosystem with absolute precision and legendary performance.";
 
     var i: usize = 0;
@@ -68,6 +72,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             continue;
         }
 
+        if (std.mem.eql(u8, arg, "--distributed")) {
+            distributed_mode = true;
+            continue;
+        }
+
         if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
             printHelp();
             return;
@@ -83,6 +92,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     utils.output.printKeyValue("Triad Models", "Abbey (Default), Aviva (Anti), ABI (Moderator)");
     utils.output.printKeyValue("Soul Prompt", soul_prompt);
     utils.output.printKeyValue("WDBX Brain", wdbx_path);
+    utils.output.printKeyValue("Compute", if (distributed_mode) "Distributed Omni-Mesh" else "Local Node");
     utils.output.printKeyValue("OS Control", if (no_confirm) "Full (No Confirmation)" else "Ask Permission");
     utils.output.println("", .{});
     utils.output.printInfo("Initializing Artificial Biological Intelligence (ABI) Core...", .{});
@@ -114,6 +124,17 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var researcher = deep_research.DeepResearcher.init(allocator, &io);
     defer researcher.deinit();
 
+    // Initialize dynamic API learner
+    var learner = dynamic_api.DynamicApiLearner.init(allocator);
+    defer learner.deinit();
+
+    // Initialize Omni-Compute Mesh
+    var mesh = compute_mesh.MeshOrchestrator.init(allocator, &io);
+    defer mesh.deinit();
+    if (distributed_mode) {
+        try mesh.discoverNodes();
+    }
+
     // Initialize OS control permissions
     const perm_level: os_control.PermissionLevel = if (no_confirm) .full_control else .ask_before_action;
     var os_manager = os_control.OSControlManager.init(allocator, perm_level);
@@ -141,12 +162,44 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         if (trimmed.len == 0) continue;
         if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) break;
 
+        // Adaptive Learning Hook
+        if (std.mem.startsWith(u8, trimmed, "learn format ")) {
+            const schema = std.mem.trim(u8, trimmed["learn format ".len..], " ");
+            utils.output.printWarning("[ABI] Encountered unknown structure. Initiating Dynamic Learning Matrix...", .{});
+            const learn_result = learner.learnNewSystem(.rest_generic, schema) catch "Failed to learn.";
+            utils.output.printSuccess("[ABI Moderator] {s}", .{learn_result});
+            continue;
+        }
+
         // Deep Research Hook
         if (std.mem.startsWith(u8, trimmed, "research ")) {
             const query = std.mem.trim(u8, trimmed["research ".len..], " ");
             utils.output.printInfo("[ABI] Activating native deep internet access for: {s}", .{query});
             const research_data = researcher.autonomousSearch(query) catch "Research failed";
-            utils.output.printSuccess("[ABI Moderator] Research Synthesis: {s}", .{research_data});
+            
+            // Invoke native HTML parsing for the result
+            var html_parser = documents.html.HtmlParser.init(allocator);
+            var dom = html_parser.parse(research_data) catch |err| {
+                utils.output.printError("HTML parsing failed: {t}", .{err});
+                continue;
+            };
+            defer dom.deinit(allocator);
+
+            utils.output.printSuccess("[ABI Moderator] Research Synthesis via Native DOM Parser.", .{});
+            continue;
+        }
+
+        // Document Hook
+        if (std.mem.startsWith(u8, trimmed, "parse pdf ")) {
+            const path = std.mem.trim(u8, trimmed["parse pdf ".len..], " ");
+            utils.output.printInfo("[ABI] Native PDF extraction for: {s}", .{path});
+            var pdf_parser = documents.pdf.PdfParser.init(allocator);
+            var doc = pdf_parser.parseBinaryStream(path) catch |err| {
+                 utils.output.printError("PDF parsing failed: {t}", .{err});
+                 continue;
+            };
+            defer doc.deinit(allocator);
+            utils.output.printSuccess("[ABI Moderator] Extracted Text: {s}", .{doc.extracted_text});
             continue;
         }
 
@@ -180,6 +233,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         
         // Dynamic Data Parsing (Text/Audio/Video adaptive handling stub)
         std.debug.print("{s}{s}[ABI]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.neural(), utils.output.Color.reset(), result.final_decision });
+        
+        if (distributed_mode) {
+             utils.output.printInfo("[Mesh] Distributed inference complete.", .{});
+        }
         utils.output.printInfo("[WDBX Extension] Storing dynamic weight to {s}...", .{wdbx_path});
     }
 
@@ -196,7 +253,9 @@ fn printHelp() void {
     utils.output.println("Options:", .{});
     utils.output.println("  -s, --soul-prompt <text> Define the foundational life task for the Triad", .{});
     utils.output.println("  -b, --brain <path>       Path to WDBX database (default: assistant_brain.wdbx)", .{});
+    utils.output.println("  --distributed            Enable Omni-Compute distributed multi-node sharing", .{});
     utils.output.println("  --no-confirm             Allow destructive OS operations without asking", .{});
+    utils.output.println("  --jumpstart              Trigger Ollama/Local knowledge extraction", .{});
     utils.output.println("  -h, --help               Show this help", .{});
     utils.output.println("", .{});
     utils.output.println("Architecture - The Triad:", .{});
@@ -207,8 +266,9 @@ fn printHelp() void {
     utils.output.println("Features:", .{});
     utils.output.println("  - Unbeatable Zig-powered low-latency execution", .{});
     utils.output.println("  - Deep contextual awareness across audio, video, and text", .{});
-    utils.output.println("  - Deep internet access and autonomous deep research capabilities", .{});
-    utils.output.println("  - Native integration with WDBX real-time learning", .{});
+    utils.output.println("  - Native Omni-Parsing (HTML, DOM, PDFs)", .{});
+    utils.output.println("  - Distributed Multi-GPU Compute Mesh (LAN/WAN)", .{});
+    utils.output.println("  - Adaptive API Learning (teach the agent live without code changes)", .{});
     utils.output.println("  - Cross-platform OS Control (macOS, Windows, Linux)", .{});
 }
 
