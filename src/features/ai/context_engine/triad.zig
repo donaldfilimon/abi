@@ -53,40 +53,100 @@ pub const TriadEngine = struct {
         }
     };
 
-    /// Executes the Triad processing loop on a given input context.
-    pub fn processContext(self: *TriadEngine, input: []const u8) !SynthesisResult {
-        // [Abbey] Constructive Analysis - Searches for alignment in WDBX
-        const search_results = try self.brain.search(input, .{ .k = 1 });
-        defer self.allocator.free(search_results);
+    const ThreadContext = struct {
+        engine: *TriadEngine,
+        input: []const u8,
+        output: ?[]const u8,
+        err: ?anyerror,
+    };
+
+    fn abbeyWorker(ctx: *ThreadContext) void {
+        const search_results = ctx.engine.brain.search(ctx.input, .{ .k = 1 }) catch |err| {
+            ctx.err = err;
+            return;
+        };
+        defer ctx.engine.allocator.free(search_results);
 
         var abbey_context: []const u8 = "Executing novel task.";
         if (search_results.len > 0) {
             abbey_context = "Found aligned historical precedent.";
         }
 
-        const abbey_out = try std.fmt.allocPrint(
-            self.allocator,
+        ctx.output = std.fmt.allocPrint(
+            ctx.engine.allocator,
             "Aligning intent '{s}' with Soul Prompt. Status: {s}",
-            .{ input, abbey_context }
-        );
+            .{ ctx.input, abbey_context }
+        ) catch |err| {
+            ctx.err = err;
+            return; // Set null implicitly or leave it as initialized null
+        };
+    }
 
-        // [Aviva] Contrarian Analysis & Hallucination Check
-        if (std.mem.indexOf(u8, input, "CRITICAL_ERROR") != null) {
-            return self.criticalOverride(input);
+    fn avivaWorker(ctx: *ThreadContext) void {
+        if (std.mem.indexOf(u8, ctx.input, "CRITICAL_ERROR") != null) {
+            ctx.output = std.fmt.allocPrint(
+                ctx.engine.allocator,
+                "I have detected a fatal hallucination. Rewriting the prompt matrix.",
+                .{}
+            ) catch |err| {
+                ctx.err = err;
+                return;
+            };
+            return;
         }
 
-        const aviva_out = try std.fmt.allocPrint(
-            self.allocator,
+        ctx.output = std.fmt.allocPrint(
+            ctx.engine.allocator,
             "Scanning '{s}' for execution vulnerabilities. Risk index nominal.",
-            .{ input }
-        );
+            .{ ctx.input }
+        ) catch |err| {
+            ctx.err = err;
+            return;
+        };
+    }
+
+    /// Executes the Triad processing loop concurrently via native OS threads.
+    pub fn processContext(self: *TriadEngine, input: []const u8) !SynthesisResult {
+        var abbey_ctx = ThreadContext{
+            .engine = self,
+            .input = input,
+            .output = null,
+            .err = null,
+        };
+        
+        var aviva_ctx = ThreadContext{
+            .engine = self,
+            .input = input,
+            .output = null,
+            .err = null,
+        };
+
+        // Spawn concurrent biological logic tracks
+        const thread_abbey = try std.Thread.spawn(.{}, abbeyWorker, .{&abbey_ctx});
+        const thread_aviva = try std.Thread.spawn(.{}, avivaWorker, .{&aviva_ctx});
+
+        // Synchronize Triad
+        thread_abbey.join();
+        thread_aviva.join();
+
+        if (abbey_ctx.err) |err| return err;
+        if (aviva_ctx.err) |err| return err;
+
+        const abbey_out = abbey_ctx.output orelse return error.ThreadMissingOutput;
+        const aviva_out = aviva_ctx.output orelse return error.ThreadMissingOutput;
+
+        // [Aviva] Hallucination Check Hook
+        if (std.mem.indexOf(u8, input, "CRITICAL_ERROR") != null) {
+            self.allocator.free(abbey_out);
+            self.allocator.free(aviva_out);
+            return self.criticalOverride(input);
+        }
 
         // [ABI] Synthesis and WDBX Commit
         self.interaction_count += 1;
         var interaction_id_buf: [32]u8 = undefined;
         const interaction_id = try std.fmt.bufPrint(&interaction_id_buf, "interaction_{d}", .{self.interaction_count});
 
-        // Insert native tracking vector into the live neural matrix
         var interaction_vec: [1536]f32 = .{0} ** 1536;
         interaction_vec[self.interaction_count % 1536] = 0.5;
 
