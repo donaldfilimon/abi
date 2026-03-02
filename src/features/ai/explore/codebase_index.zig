@@ -266,6 +266,21 @@ pub const CodebaseIndex = struct {
             .index_path = self.index_dir,
         };
     }
+
+    /// Rewrite a target file with new content, cementing ABI's self-evolution capability.
+    pub fn rewriteFile(self: *Self, io: *std.Io, file_path: []const u8, new_content: []const u8) !void {
+        var file = try std.Io.Dir.cwd().createFile(io.*, file_path, .{ .truncate = true });
+        defer file.close(io.*);
+        
+        try file.writeStreamingAll(io.*, new_content);
+        
+        std.log.info("[Codebase Indexer] Self-evolution applied to {s}. Re-indexing...", .{file_path});
+        // Remove old indexed state if it exists, then re-index
+        if (self.indexed_files.fetchRemove(file_path)) |_| {
+            // A more complete implementation would also strip old chunks here
+        }
+        try self.indexFile(file_path, new_content);
+    }
 };
 
 /// Case-insensitive substring search.

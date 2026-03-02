@@ -158,12 +158,22 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var os_manager = os_control.OSControlManager.init(allocator, perm_level);
     defer os_manager.deinit();
 
-    // Initialize Sensors
+    // Initialize Sensors and Indexers
     var sensor = telemetry.HardwareSensor.init(allocator);
     defer sensor.deinit();
 
     var vision_matrix = vision.VisionMatrix.init(allocator);
     defer vision_matrix.deinit();
+
+    var audio_streamer = context_engine.audio.AudioStreamer.init(allocator, &io, 16000);
+    defer audio_streamer.deinit();
+
+    const codebase_index = abi.features.ai.codebase_index;
+    var indexer = codebase_index.CodebaseIndex.init(allocator, ".") catch |err| {
+        utils.output.printError("Failed to init codebase indexer: {t}", .{err});
+        return;
+    };
+    defer indexer.deinit();
 
     const stdin_file = std.Io.File.stdin();
     var buffer: [8192]u8 = undefined;
@@ -174,6 +184,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     if (autonomous_mode) {
         utils.output.printWarning("Engaging Autonomous Biological Loop. Press Ctrl+C to interrupt.", .{});
         
+        audio_streamer.startListening() catch |err| {
+            utils.output.printWarning("Failed to start VAD audio listener: {t}", .{err});
+        };
+
         // Biological loop (non-blocking)
         while (true) {
             // Sensation: Check hardware body
@@ -190,6 +204,17 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                 utils.output.printInfo("[Vision Matrix] Significant visual delta detected. Processing...", .{});
                 const synthetic_vision = vision_matrix.encodeSemanticGrid(screen_data) catch continue;
                 _ = synthetic_vision; // Feed to Triad
+            }
+
+            // Sensation: Check Audio (VAD)
+            if (audio_streamer.flushVoiceActivity()) |optional_chunk| {
+                if (optional_chunk) |chunk_val| {
+                    var audio_chunk = chunk_val;
+                    utils.output.printSuccess("[Audio Streamer] Voice activity captured ({d} bytes). Feeding to Triad...", .{audio_chunk.data.len});
+                    audio_chunk.deinit(allocator);
+                }
+            } else |err| {
+                utils.output.printWarning("[Audio Streamer] read error: {t}", .{err});
             }
 
             // In a real async loop we'd use select/poll, for now we sleep slightly
@@ -213,6 +238,24 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
         if (trimmed.len == 0) continue;
         if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) break;
+
+        // Self-Evolution / Codebase Mutation Hook
+        if (std.mem.startsWith(u8, trimmed, "rewrite ")) {
+            const split_idx = std.mem.indexOf(u8, trimmed, "::") orelse {
+                utils.output.printWarning("Syntax for self-edit: rewrite path/to/file.zig::new_content", .{});
+                continue;
+            };
+            const target_file = std.mem.trim(u8, trimmed["rewrite ".len..split_idx], " ");
+            const new_content = trimmed[split_idx + 2 ..];
+
+            utils.output.printInfo("[ABI Evolution] Attempting self-modification on {s}...", .{target_file});
+            indexer.rewriteFile(&io, target_file, new_content) catch |err| {
+                utils.output.printError("Self-evolution mutation failed: {t}", .{err});
+                continue;
+            };
+            utils.output.printSuccess("[ABI Moderator] Codebase successfully mutated and re-indexed. Evolution complete.", .{});
+            continue;
+        }
 
         // Adaptive Learning Hook
         if (std.mem.startsWith(u8, trimmed, "learn format ")) {
