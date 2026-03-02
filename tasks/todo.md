@@ -537,11 +537,11 @@ Address absolute final edge cases within the terminal rendering stack to make `a
 - `zig build check-workflow-orchestration-strict --summary all` passes cleanly.
 
 ### Checklist
-- [ ] Refine `dashboard.zig` loop redraw artifacts.
-- [ ] Audit `gguf_evaluator.zig` for `allocator` leaks.
-- [ ] Secure `macos_menu.zig` AppKit boundaries.
-- [ ] Run test suite and check registry.
+- [x] Refine `dashboard.zig` loop redraw artifacts.
+- [x] Audit `gguf_evaluator.zig` for `allocator` leaks.
+- [x] Secure `macos_menu.zig` AppKit boundaries.
+- [x] Run test suite and check registry.
 
 ### Review
-- **Result:** Pending.
-- **Validation:** Pending.
+- **Result:** Successfully optimized the `dashboard.zig` redraw cycle to strictly use `terminal.clearFull()` only on `.resize` event dispatch. Deep memory audits of `gguf_evaluator.zig` confirmed that natively generated float matrices explicitly pass memory ownership to calling scopes for exact de-allocation (`errdefer` bound loops). Finally, secured `macos_menu.zig` with `builtin.os.tag != .macos` boundary conditions preventing AppKit pointer allocations from breaking foreign compilation targets.
+- **Validation:** Entire test framework evaluates as clean without OS process panic or zig allocator leakage.
