@@ -189,7 +189,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         utils.output.printWarning("Engaging Autonomous Biological Loop. Press Ctrl+C to interrupt.", .{});
         
         // Biological loop (non-blocking)
+        var last_active_time = abi.services.shared.time.unixMs();
+
         while (true) {
+            var active_this_tick = false;
+
             // Sensation: Check hardware body
             const hw_state = sensor.poll() catch continue;
             if (sensor.isHostStressed()) {
@@ -201,6 +205,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             // Sensation: Check vision
             const screen_data = os_manager.captureScreen() catch continue;
             if (vision_matrix.detectMotion(screen_data)) {
+                active_this_tick = true;
                 utils.output.printInfo("[Vision Matrix] Significant visual delta detected. Processing...", .{});
                 const synthetic_vision = vision_matrix.encodeSemanticGrid(screen_data) catch continue;
                 _ = synthetic_vision; // Feed to Triad
@@ -209,10 +214,31 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             // Sensation: Check Audio (VAD)
             if (audio_streamer.readActiveFrame()) |optional_chunk| {
                 if (optional_chunk) |chunk_val| {
+                    active_this_tick = true;
                     utils.output.printSuccess("[Audio Streamer] Voice activity captured ({d} samples). Feeding to Triad...", .{chunk_val.len});
                 }
             } else |err| {
                 utils.output.printWarning("[Audio Streamer] read error: {t}", .{err});
+            }
+
+            if (active_this_tick) {
+                last_active_time = abi.services.shared.time.unixMs();
+            } else {
+                // If idle for > 15 minutes, enter Dream State
+                const idle_time_ms = abi.services.shared.time.unixMs() - last_active_time;
+                if (idle_time_ms > 15 * 60 * 1000) {
+                    utils.output.printWarning("[Triad] Entering Subconscious Dream State.", .{});
+                    
+                    // Trigger WDBX Pruning
+                    brain.dreamStatePrune(0.1);
+                    
+                    // Spawn asynchronous web mining for self-improvement
+                    const os = abi.services.shared.os;
+                    _ = os.exec(allocator, "nohup abi agent --all-tools -m 'web_mine target_domain=en.wikipedia.org' > /tmp/abi_dream.log 2>&1 &") catch {};
+
+                    // Reset timer so it doesn't spam
+                    last_active_time = abi.services.shared.time.unixMs();
+                }
             }
 
             // In a real async loop we'd use select/poll, for now we sleep slightly

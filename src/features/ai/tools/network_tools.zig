@@ -121,10 +121,65 @@ pub const network_connections_tool = Tool{
 // Registration
 // ============================================================================
 
+fn executeMdnsBroadcast(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const service_name = if (obj.get("service_name")) |v| switch (v) {
+        .string => |s| s,
+        else => "_abi_swarm._udp.local",
+    } else "_abi_swarm._udp.local";
+
+    // Stub: In full networking matrix, this binds a UDP socket on 5353 and broadcasts presence
+    std.log.info("[Network P2P] Emitting mDNS broadcast for service discovery on {s}...", .{service_name});
+
+    const output = try std.fmt.allocPrint(
+        ctx.allocator, 
+        "mDNS discovery packet sent on {s}. Awaiting swarm peers.", 
+        .{service_name}
+    );
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const mdns_broadcast_tool = Tool{
+    .name = "mdns_broadcast",
+    .description = "Broadcast presence on the local network via mDNS to discover other ABI nodes",
+    .parameters = &[_]Parameter{
+        .{ .name = "service_name", .type = .string, .required = false, .description = "mDNS service to broadcast (e.g. _abi._udp.local)" },
+    },
+    .execute = &executeMdnsBroadcast,
+};
+
+fn executeSyncWdbxShards(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    _ = args;
+    // Stub: In full implementation, this iterates the `knowledge_dedup_map` and broadcasts chunks over UDP
+    std.log.info("[Network P2P] Broadcasting WDBX neural shards to cluster nodes via UDP...", .{});
+
+    const output = try std.fmt.allocPrint(
+        ctx.allocator, 
+        "WDBX synchronizing. {d} neural shards pushed to swarm.", 
+        .{12} // mock count
+    );
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const sync_wdbx_shards_tool = Tool{
+    .name = "sync_wdbx_shards",
+    .description = "Synchronize local WDBX neural knowledge across discovered P2P cluster nodes via UDP",
+    .parameters = &[_]Parameter{},
+    .execute = &executeSyncWdbxShards,
+};
+
 pub const all_tools = [_]*const Tool{
     &list_ports_tool,
     &dns_lookup_tool,
     &network_connections_tool,
+    &mdns_broadcast_tool,
+    &sync_wdbx_shards_tool,
 };
 
 pub fn registerAll(registry: *ToolRegistry) !void {

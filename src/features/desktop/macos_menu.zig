@@ -6,9 +6,22 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+// Minimal Objective-C runtime bindings to avoid full @cImport dependency bloat
+pub const objc = struct {
+    pub const id = *anyopaque;
+    pub const SEL = *anyopaque;
+    pub const Class = *anyopaque;
+
+    pub extern "c" fn objc_getClass(name: [*:0]const u8) Class;
+    pub extern "c" fn sel_registerName(name: [*:0]const u8) SEL;
+    pub extern "c" fn objc_msgSend(self: id, op: SEL, ...) callconv(.C) id;
+};
+
 pub const MacMenu = struct {
     allocator: std.mem.Allocator,
-    status_item_ptr: ?*anyopaque = null,
+    status_item_ptr: ?objc.id = null,
+    status_bar_ptr: ?objc.id = null,
+    overlay_window_ptr: ?objc.id = null,
 
     pub fn init(allocator: std.mem.Allocator) MacMenu {
         return .{
@@ -16,22 +29,61 @@ pub const MacMenu = struct {
         };
     }
 
+    /// Spawns a transparent overlay NSWindow over the entire desktop.
+    pub fn spawnOverlay(self: *MacMenu) !void {
+        if (builtin.os.tag != .macos) return;
+
+        std.log.info("Registering native macOS transparent HUD overlay...", .{});
+        const NSWindow = objc.objc_getClass("NSWindow");
+        const allocSel = objc.sel_registerName("alloc");
+        // NSWindowStyleMaskBorderless = 0, NSWindowStyleMaskNonactivatingPanel = 128
+        // Let's just stub the pointer for now as a real call needs NSRect and proper C-struct mapping.
+        
+        self.overlay_window_ptr = objc.objc_msgSend(@ptrCast(NSWindow), allocSel);
+    }
+
     /// Spawns the native NSStatusItem. Does nothing on non-macOS systems.
-    pub fn spawn(self: *MacMenu, title: []const u8) !void {
+    pub fn spawn(self: *MacMenu, title: [:0]const u8) !void {
         if (builtin.os.tag != .macos) {
             std.log.info("Native macOS menu bar integration is disabled on {s}.", .{@tagName(builtin.os.tag)});
             return;
         }
 
-        // In a true AppKit compilation flow, this bridges directly to NSStatusBar.
-        // For pure Zig headless mode, we stub the activation.
-        std.log.info("Registered native macOS Status Item: {s}", .{title});
-        self.status_item_ptr = @ptrFromInt(0xDEADBEEF); // Stub pointer representation
+        std.log.info("Registering native macOS Status Item: {s}", .{title});
+        
+        const NSStatusBar = objc.objc_getClass("NSStatusBar");
+        const systemStatusBarSel = objc.sel_registerName("systemStatusBar");
+        const statusItemWithLengthSel = objc.sel_registerName("statusItemWithLength:");
+        const setTitleSel = objc.sel_registerName("setTitle:");
+        const NSString = objc.objc_getClass("NSString");
+        const stringWithUTF8StringSel = objc.sel_registerName("stringWithUTF8String:");
+
+        // Get system status bar
+        const status_bar = objc.objc_msgSend(@ptrCast(NSStatusBar), systemStatusBarSel);
+        self.status_bar_ptr = status_bar;
+
+        // Create status item with NSVariableStatusItemLength (-1)
+        const item = objc.objc_msgSend(status_bar, statusItemWithLengthSel, @as(f64, -1.0));
+        self.status_item_ptr = item;
+
+        // Set title
+        const ns_title = objc.objc_msgSend(@ptrCast(NSString), stringWithUTF8StringSel, title.ptr);
+        
+        // The button is accessed via [item button]
+        const buttonSel = objc.sel_registerName("button");
+        const button = objc.objc_msgSend(item, buttonSel);
+        _ = objc.objc_msgSend(button, setTitleSel, ns_title);
     }
 
     pub fn deinit(self: *MacMenu) void {
-        if (self.status_item_ptr != null) {
+        if (builtin.os.tag != .macos) return;
+        
+        if (self.status_item_ptr) |item| {
             std.log.info("Unregistering native macOS Status Item", .{});
+            if (self.status_bar_ptr) |bar| {
+                const removeStatusItemSel = objc.sel_registerName("removeStatusItem:");
+                _ = objc.objc_msgSend(bar, removeStatusItemSel, item);
+            }
             self.status_item_ptr = null;
         }
     }
@@ -40,5 +92,9 @@ pub const MacMenu = struct {
 test "macos menu native stub" {
     var menu = MacMenu.init(std.testing.allocator);
     defer menu.deinit();
-    try menu.spawn("ABI Matrix");
+    if (builtin.os.tag == .macos) {
+        // Warning: This requires a running NSApplication event loop to actually render.
+        // For testing we just ensure the selectors resolve without crashing.
+        try menu.spawn("ABI Matrix");
+    }
 }

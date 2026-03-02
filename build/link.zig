@@ -19,6 +19,10 @@ pub fn applyFrameworkLinks(
         // Accelerate provides BLAS, LAPACK, vDSP for CPU-side linear algebra
         mod.linkFramework("Accelerate", .{});
         mod.linkFramework("Foundation", .{});
+        if (os_tag == .macos) {
+            mod.linkFramework("AppKit", .{});
+            mod.linkFramework("Cocoa", .{});
+        }
 
         if (gpu_metal) {
             mod.linkFramework("Metal", .{});

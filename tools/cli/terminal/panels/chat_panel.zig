@@ -8,6 +8,11 @@ const std = @import("std");
 const tui = @import("../mod.zig");
 const themes = @import("../themes.zig");
 
+pub const ChatMessage = struct {
+    role: enum { user, ai },
+    content: []const u8,
+};
+
 pub const ChatPanel = struct {
     allocator: std.mem.Allocator,
     term: ?*tui.Terminal = null,
@@ -16,8 +21,12 @@ pub const ChatPanel = struct {
     personas: std.ArrayListUnmanaged([]const u8) = .empty,
     active_persona_idx: usize = 0,
     
-    messages: std.ArrayListUnmanaged([]const u8) = .empty,
+    messages: std.ArrayListUnmanaged(ChatMessage) = .empty,
     input_buffer: std.ArrayListUnmanaged(u8) = .empty,
+    
+    // Async synchronization
+    mutex: @import("abi").services.shared.sync.Mutex = .{},
+    is_generating: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const themes.Theme) !ChatPanel {
         var out: ChatPanel = .{
@@ -34,7 +43,7 @@ pub const ChatPanel = struct {
     pub fn deinit(self: *ChatPanel) void {
         self.personas.deinit(self.allocator);
         for (self.messages.items) |msg| {
-            self.allocator.free(msg);
+            self.allocator.free(msg.content);
         }
         self.messages.deinit(self.allocator);
         self.input_buffer.deinit(self.allocator);
@@ -50,24 +59,38 @@ pub const ChatPanel = struct {
         switch (event) {
             .key => |key| switch (key.code) {
                 .tab => {
+                    self.mutex.lock();
+                    defer self.mutex.unlock();
                     self.active_persona_idx = (self.active_persona_idx + 1) % self.personas.items.len;
                     return true;
                 },
                 .enter => {
-                    if (self.input_buffer.items.len > 0) {
+                    self.mutex.lock();
+                    if (self.input_buffer.items.len > 0 and !self.is_generating) {
                         const msg = try self.allocator.dupe(u8, self.input_buffer.items);
-                        try self.messages.append(self.allocator, msg);
+                        try self.messages.append(self.allocator, .{ .role = .user, .content = msg });
                         self.input_buffer.clearRetainingCapacity();
+                        
+                        self.is_generating = true;
+                        
+                        // Fire off async mock generation. In a real scenario, this invokes the LLM router.
+                        const thread = try std.Thread.spawn(.{}, mockGenerateResponse, .{self});
+                        thread.detach();
                     }
+                    self.mutex.unlock();
                     return true;
                 },
                 .backspace => {
+                    self.mutex.lock();
+                    defer self.mutex.unlock();
                     if (self.input_buffer.items.len > 0) {
                         _ = self.input_buffer.pop();
                     }
                     return true;
                 },
                 .character => {
+                    self.mutex.lock();
+                    defer self.mutex.unlock();
                     if (key.char) |ch| {
                         if (ch >= 32 and ch <= 126) {
                             try self.input_buffer.append(self.allocator, ch);
@@ -80,6 +103,21 @@ pub const ChatPanel = struct {
             else => {},
         }
         return false;
+    }
+    
+    fn mockGenerateResponse(self: *ChatPanel) void {
+        std.time.sleep(1 * std.time.ns_per_s); // Simulate thinking
+        
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        
+        const persona = self.personas.items[self.active_persona_idx];
+        const resp = std.fmt.allocPrint(self.allocator, "Greetings! I am {s}. I have natively processed your request across the WDBX semantic matrix.", .{persona}) catch return;
+        
+        self.messages.append(self.allocator, .{ .role = .ai, .content = resp }) catch {
+            self.allocator.free(resp);
+        };
+        self.is_generating = false;
     }
 
     pub fn render(self: *ChatPanel, y: usize, x: usize, width: usize, height: usize) anyerror!void {
@@ -106,6 +144,9 @@ pub const ChatPanel = struct {
         try term.write(theme.text_dim);
         try term.write("PERSONAS (Tab)");
         try term.write(theme.reset);
+
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         var y_offset: u16 = 3;
         for (self.personas.items, 0..) |p, i| {
@@ -136,10 +177,16 @@ pub const ChatPanel = struct {
         while (i > 0 and (hist_y > rect.y + 1)) : (i -= 1) {
             const msg = self.messages.items[i - 1];
             try term.moveTo(hist_y, right_rect.x + 2);
-            try term.write(theme.info);
-            try term.write("User: ");
+            
+            if (msg.role == .user) {
+                try term.write(theme.info);
+                try term.write("User: ");
+            } else {
+                try term.write(theme.success);
+                try term.write("AI: ");
+            }
             try term.write(theme.reset);
-            try term.write(msg);
+            try term.write(msg.content);
             hist_y -|= 2;
         }
 
@@ -154,6 +201,13 @@ pub const ChatPanel = struct {
         try term.moveTo(input_rect.y + 1, input_rect.x + 1);
         try term.write("> ");
         try term.write(self.input_buffer.items);
+        
+        if (self.is_generating) {
+            try term.moveTo(input_rect.y + 1, input_rect.x + right_rect.width - 15);
+            try term.write(theme.warning);
+            try term.write("[Thinking...]");
+            try term.write(theme.reset);
+        }
     }
 };
 

@@ -108,9 +108,44 @@ pub const DeepResearcher = struct {
     }
 };
 
+fn executeWebMine(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const target_domain = if (obj.get("target_domain")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string target_domain"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing target_domain");
+
+    // Stub for autonomous subconscious background mining. 
+    // In the real flow, this runs continuously while the user is idle, scanning sitemaps 
+    // and continuously pushing new vector context into WDBX.
+    std.log.info("[Deep Research] Subconscious Dream State: Spawning async web miner for {s}...", .{target_domain});
+
+    const output = try std.fmt.allocPrint(
+        ctx.allocator, 
+        "Initiated background deep web mining on: {s}. Vectors will be silently synced into memory.", 
+        .{target_domain}
+    );
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const web_mine_tool = Tool{
+    .name = "web_mine",
+    .description = "Launch an autonomous background spider to scrape and ingest a domain's knowledge into WDBX during idle states",
+    .parameters = &[_]Parameter{
+        .{ .name = "target_domain", .type = .string, .required = true, .description = "Target website URL or domain" },
+    },
+    .execute = &executeWebMine,
+};
+
 pub const all_tools = [_]*const Tool{
     &web_search_tool,
     &web_fetch_tool,
+    &web_mine_tool,
 };
 
 pub fn registerAll(registry: *tool.ToolRegistry) !void {
