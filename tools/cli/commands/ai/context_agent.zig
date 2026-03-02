@@ -27,6 +27,8 @@ const compute_mesh = abi.features.compute.mesh;
 const documents = abi.features.documents;
 const dynamic_api = abi.features.ai.dynamic_api;
 const wdbx = abi.features.database.neural;
+const telemetry = abi.features.ai.context_engine.telemetry;
+const vision = abi.features.ai.context_engine.vision;
 
 pub const meta: command_mod.Meta = .{
     .name = "context-agent",
@@ -40,6 +42,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var no_confirm = false;
     var perform_jumpstart = false;
     var distributed_mode = false;
+    var autonomous_mode = false;
     var soul_prompt: []const u8 = "Your life's task is to optimize and protect the user's digital ecosystem with absolute precision and legendary performance.";
 
     var i: usize = 0;
@@ -78,6 +81,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             continue;
         }
 
+        if (std.mem.eql(u8, arg, "--autonomous")) {
+            autonomous_mode = true;
+            continue;
+        }
+
         if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
             printHelp();
             return;
@@ -94,6 +102,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     utils.output.printKeyValue("Soul Prompt", soul_prompt);
     utils.output.printKeyValue("WDBX Brain", wdbx_path);
     utils.output.printKeyValue("Compute", if (distributed_mode) "Distributed Omni-Mesh" else "Local Node");
+    utils.output.printKeyValue("Operation", if (autonomous_mode) "Autonomous Biological Loop" else "Interactive REPL");
     utils.output.printKeyValue("OS Control", if (no_confirm) "Full (No Confirmation)" else "Ask Permission");
     utils.output.println("", .{});
     utils.output.printInfo("Initializing Artificial Biological Intelligence (ABI) Core...", .{});
@@ -149,11 +158,45 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var os_manager = os_control.OSControlManager.init(allocator, perm_level);
     defer os_manager.deinit();
 
+    // Initialize Sensors
+    var sensor = telemetry.HardwareSensor.init(allocator);
+    defer sensor.deinit();
+
+    var vision_matrix = vision.VisionMatrix.init(allocator);
+    defer vision_matrix.deinit();
+
     const stdin_file = std.Io.File.stdin();
     var buffer: [8192]u8 = undefined;
     var reader = stdin_file.reader(io, &buffer);
 
     utils.output.printSuccess("Triad online. Native zero-dependency engine active. WDBX sync established.", .{});
+    
+    if (autonomous_mode) {
+        utils.output.printWarning("Engaging Autonomous Biological Loop. Press Ctrl+C to interrupt.", .{});
+        
+        // Biological loop (non-blocking)
+        while (true) {
+            // Sensation: Check hardware body
+            const hw_state = sensor.poll() catch continue;
+            if (sensor.isHostStressed()) {
+                utils.output.printWarning("[ABI] Host stressed (CPU: {d}%, Memory: {d}MB). Lowering cognitive frequency.", .{ hw_state.cpu_usage_pct, hw_state.available_memory_mb });
+                abi.services.shared.time.sleepNs(2 * std.time.ns_per_s); // Throttle
+                continue;
+            }
+
+            // Sensation: Check vision
+            const screen_data = os_manager.captureScreen() catch continue;
+            if (vision_matrix.detectMotion(screen_data)) {
+                utils.output.printInfo("[Vision Matrix] Significant visual delta detected. Processing...", .{});
+                const synthetic_vision = vision_matrix.encodeSemanticGrid(screen_data) catch continue;
+                _ = synthetic_vision; // Feed to Triad
+            }
+
+            // In a real async loop we'd use select/poll, for now we sleep slightly
+            abi.services.shared.time.sleepNs(100 * std.time.ns_per_ms); // 100ms biological heartbeat
+        }
+    }
+
     utils.output.println("Awaiting context input. Type 'exit' to quit.", .{});
 
     while (true) {
@@ -266,6 +309,7 @@ fn printHelp() void {
     utils.output.println("Options:", .{});
     utils.output.println("  -s, --soul-prompt <text> Define the foundational life task for the Triad", .{});
     utils.output.println("  -b, --brain <path>       Path to WDBX database (default: assistant_brain.wdbx)", .{});
+    utils.output.println("  --autonomous             Engage the biological sensor loop (no REPL)", .{});
     utils.output.println("  --distributed            Enable Omni-Compute distributed multi-node sharing", .{});
     utils.output.println("  --no-confirm             Allow destructive OS operations without asking", .{});
     utils.output.println("  --jumpstart              Trigger Ollama/Local knowledge extraction", .{});

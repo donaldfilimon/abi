@@ -64,6 +64,8 @@ pub const ContextMessage = struct {
 pub const triad = @import("triad.zig");
 pub const jumpstart = @import("jumpstart.zig");
 pub const audio = @import("audio.zig");
+pub const telemetry = @import("telemetry.zig");
+pub const vision = @import("vision.zig");
 
 /// High-performance contextual understanding processor.
 pub const ContextProcessor = struct {
