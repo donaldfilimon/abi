@@ -43,6 +43,9 @@ pub const Color = struct {
     const esc_yellow = "\x1b[33m";
     const esc_blue = "\x1b[34m";
     const esc_cyan = "\x1b[36m";
+    const esc_magenta = "\x1b[35m";
+    const esc_neural = "\x1b[38;5;113m"; // Organic green
+    const esc_cyber = "\x1b[38;5;199m"; // Neon pink
     const esc_bold = "\x1b[1m";
     const esc_dim = "\x1b[2m";
 
@@ -63,6 +66,15 @@ pub const Color = struct {
     }
     pub fn cyan() []const u8 {
         return gate(esc_cyan);
+    }
+    pub fn magenta() []const u8 {
+        return gate(esc_magenta);
+    }
+    pub fn neural() []const u8 {
+        return gate(esc_neural);
+    }
+    pub fn cyber() []const u8 {
+        return gate(esc_cyber);
     }
     pub fn bold() []const u8 {
         return gate(esc_bold);

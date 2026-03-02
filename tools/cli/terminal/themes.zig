@@ -221,6 +221,51 @@ pub const themes = struct {
         .category_tools = "\x1b[37m", // White
         .category_meta = "\x1b[90m", // Gray
     };
+    /// Neural Bio theme - Organic, biological greens and striking synaptic purples
+    pub const neural_bio = Theme{
+        .name = "neural_bio",
+        .primary = "\x1b[38;5;113m", // Organic green
+        .secondary = "\x1b[38;5;140m", // Synaptic purple
+        .accent = "\x1b[38;5;214m", // Bio-electric orange
+        .border = "\x1b[38;5;65m", // Deep chlorophyll
+        .selection_bg = "\x1b[48;5;236m", // Dark loam
+        .selection_fg = "\x1b[38;5;194m", // Pale green-white
+        .text = "\x1b[38;5;230m", // Bone white
+        .text_dim = "\x1b[38;5;108m", // Muted leaf
+        .text_muted = "\x1b[38;5;242m", // Slate
+        .success = "\x1b[38;5;154m", // Bright lime
+        .warning = "\x1b[38;5;220m", // Warning amber
+        .@"error" = "\x1b[38;5;161m", // Blood red
+        .info = "\x1b[38;5;113m", // Organic green
+        .category_ai = "\x1b[38;5;140m", // Purple
+        .category_data = "\x1b[38;5;113m", // Green
+        .category_system = "\x1b[38;5;214m", // Orange
+        .category_tools = "\x1b[38;5;154m", // Bright lime
+        .category_meta = "\x1b[38;5;140m", // Purple
+    };
+
+    /// Cyber Abiva theme - High contrast neon synthwave colors
+    pub const cyber_abiva = Theme{
+        .name = "cyber_abiva",
+        .primary = "\x1b[38;5;199m", // Neon Pink
+        .secondary = "\x1b[38;5;51m", // Neon Cyan
+        .accent = "\x1b[38;5;226m", // Neon Yellow
+        .border = "\x1b[38;5;51m", // Neon Cyan
+        .selection_bg = "\x1b[48;5;199m", // Pink bg
+        .selection_fg = "\x1b[38;5;232m", // Near black
+        .text = "\x1b[38;5;255m", // Pure white
+        .text_dim = "\x1b[38;5;51m", // Cyan dim
+        .text_muted = "\x1b[38;5;240m", // Dark gray
+        .success = "\x1b[38;5;82m", // Neon Green
+        .warning = "\x1b[38;5;226m", // Neon Yellow
+        .@"error" = "\x1b[38;5;196m", // Bright Red
+        .info = "\x1b[38;5;51m", // Neon Cyan
+        .category_ai = "\x1b[38;5;199m", // Neon Pink
+        .category_data = "\x1b[38;5;51m", // Neon Cyan
+        .category_system = "\x1b[38;5;226m", // Neon Yellow
+        .category_tools = "\x1b[38;5;82m", // Neon Green
+        .category_meta = "\x1b[38;5;199m", // Neon Pink
+    };
 };
 
 const all_themes = [_]*const Theme{
@@ -231,6 +276,8 @@ const all_themes = [_]*const Theme{
     &themes.gruvbox,
     &themes.high_contrast,
     &themes.minimal,
+    &themes.neural_bio,
+    &themes.cyber_abiva,
 };
 
 const all_theme_names = [_][]const u8{
@@ -241,6 +288,8 @@ const all_theme_names = [_][]const u8{
     themes.gruvbox.name,
     themes.high_contrast.name,
     themes.minimal.name,
+    themes.neural_bio.name,
+    themes.cyber_abiva.name,
 };
 
 /// Look up a theme by exact lowercase name.
@@ -335,9 +384,9 @@ test "lookupTheme rejects invalid theme names" {
 
 test "themeNames list is complete and ordered" {
     const names = themeNames();
-    try std.testing.expectEqual(@as(usize, 7), names.len);
+    try std.testing.expectEqual(@as(usize, 9), names.len);
     try std.testing.expectEqualStrings("default", names[0]);
-    try std.testing.expectEqualStrings("minimal", names[names.len - 1]);
+    try std.testing.expectEqualStrings("cyber_abiva", names[names.len - 1]);
 }
 
 test "theme switching" {

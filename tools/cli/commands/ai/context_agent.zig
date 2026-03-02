@@ -90,22 +90,28 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Setup unified std.Io backend for non-blocking operations
     var io_backend = utils.io_backend.initIoBackend(allocator);
     defer io_backend.deinit();
-    const io = io_backend.io();
+    var io = io_backend.io();
 
     if (perform_jumpstart) {
         utils.output.printWarning("Initiating Knowledge Jumpstart via external/local tools...", .{});
-        var jumper = jumpstart.KnowledgeJumpstart.init(allocator, io);
+        var jumper = jumpstart.KnowledgeJumpstart.init(allocator, &io);
         defer jumper.deinit();
         try jumper.bootstrapFromLocal(.ollama);
         utils.output.printSuccess("Jumpstart complete. Severing external dependency cord. ABI is now fully autonomous.", .{});
     }
 
-    // Initialize the high-performance context engine
+    // Initialize the high-performance context engine & Triad
     var engine = context_engine.ContextProcessor.init(allocator);
     defer engine.deinit();
+    
+    var triad_engine = context_engine.triad.TriadEngine.init(allocator, &io, soul_prompt) catch |err| {
+        utils.output.printError("Failed to initialize Triad Engine: {t}", .{err});
+        return;
+    };
+    defer triad_engine.deinit();
 
     // Initialize deep research module natively using std.Io
-    var researcher = deep_research.DeepResearcher.init(allocator, io);
+    var researcher = deep_research.DeepResearcher.init(allocator, &io);
     defer researcher.deinit();
 
     // Initialize OS control permissions
@@ -162,12 +168,18 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             continue;
         }
 
-        // Triad Execution Simulation
-        utils.output.printInfo("[Abbey] Processing task constructively...", .{});
-        utils.output.printWarning("[Aviva] Analyzing flaws and contrarian edge-cases...", .{});
+        // Triad Execution Simulation using the native TriadEngine
+        var result = triad_engine.processContext(trimmed) catch |err| {
+             utils.output.printError("Triad execution failed: {t}", .{err});
+             continue;
+        };
+        defer result.deinit(allocator);
+
+        std.debug.print("{s}{s}[Abbey]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.cyan(), utils.output.Color.reset(), result.abbey_analysis });
+        std.debug.print("{s}{s}[Aviva]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.cyber(), utils.output.Color.reset(), result.aviva_analysis });
         
         // Dynamic Data Parsing (Text/Audio/Video adaptive handling stub)
-        utils.output.printSuccess("[ABI] Synthesizing output. I understand: {s}", .{trimmed});
+        std.debug.print("{s}{s}[ABI]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.neural(), utils.output.Color.reset(), result.final_decision });
         utils.output.printInfo("[WDBX Extension] Storing dynamic weight to {s}...", .{wdbx_path});
     }
 

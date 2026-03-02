@@ -60,6 +60,10 @@ pub const ContextMessage = struct {
     }
 };
 
+// Context Engine Modules
+pub const triad = @import("triad.zig");
+pub const jumpstart = @import("jumpstart.zig");
+
 /// High-performance contextual understanding processor.
 pub const ContextProcessor = struct {
     allocator: std.mem.Allocator,
