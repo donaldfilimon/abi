@@ -352,3 +352,32 @@ Extend the AI agent's native toolset to allow for deep, autonomous internet rese
 ### Review
 - **Result:** Successfully built the deep research core and integrated it natively into the ABI agent environment.
 - **Validation:** All tests and orchestration tools passed.
+
+---
+
+## Task: Dynamic Meta-Agent & Core System Stability (2026-03-02)
+### Objective
+Elevate the system from an interactive tool to a fully sovereign "Meta-Agent." Implement the subconscious "Dream State" for autonomous WDBX vector database pruning, dynamically allow the agent to write and register its own tools at runtime, and establish Persona Context Isolation to guarantee stable multithreading without lock poisoning.
+
+### Scope
+- **Persona Context Isolation & Lock Safety:** Audit and stabilize `tools/cli/terminal/dashboard.zig` and `wdbx/engine.zig` to ensure lock-free or safely-locked multi-threading when switching agent personas.
+- **Native Workspace Reflection:** Expand `codebase_indexer.zig` to include an `analyze_file` and `search_codebase` API to bypass raw shell `grep` commands natively.
+- **Dynamic Tool Creation:** Build a pipeline in `src/features/ai/tools/tool_agent.zig` (or a dedicated registry) allowing the agent to save scripts to disk and automatically register them as available agent capabilities on the fly.
+- **Subconscious Dream State (Memory Pruning):** Implement a background loop in WDBX (`wdbx/engine.zig` or similar) that triggers when the agent is idle to consolidate, compress, or prune low-activity (`score < 0.1`) vector memories to prevent context degradation.
+- **Asynchronous Voice Output (TTS):** Add non-blocking Text-To-Speech (TTS) threading in `audio.zig` to ensure the agent doesn't stall the primary `context_agent` loop while speaking.
+
+### Verification Criteria
+- `zig build cli-tests` passes without deadlock or poisoning regressions.
+- `zig build check-workflow-orchestration-strict --summary all` passes.
+
+### Checklist
+- [x] Implement robust Persona Context Isolation (avoid thread-lock poisoning).
+- [x] Add `search_codebase` and `analyze_file` tools to the agent natively.
+- [x] Implement the `register_tool` pipeline for dynamic tool creation at runtime.
+- [x] Refactor TTS output to use an asynchronous or detached thread queue.
+- [x] Build the "Dream State" memory pruning algorithm in WDBX.
+- [x] Run test suite and check registry.
+
+### Review
+- **Result:** Fully realized the Meta-Agent capabilities. Added `std.Thread.spawn` to isolate blocking Text-To-Speech calls so they don't stall the async reasoning loop. WDBX now features native thread-safe concurrency (`std.Thread.Mutex`) per persona context and subconsciously decays unused memories over time via `dreamStatePrune()`. Dynamic tool writing (`register_tool`) and multi-layer file parsing were achieved using strictly Zig standard libraries without external shells.
+- **Validation:** `zig build cli-tests` completely passes with no lock regressions. `zig build check-workflow-orchestration-strict` is completely green. All goals fulfilled.

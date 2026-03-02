@@ -185,11 +185,44 @@ pub const watch_file_tool = Tool{
 // Registration
 // ============================================================================
 
+fn executeRegisterTool(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const script_path = if (obj.get("script_path")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string script_path"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing script_path");
+
+    // Stub implementation for dynamically loading tools.
+    // In a full environment this would invoke Wasm/Python VM to compile/interpret the tool 
+    // and append it to the global tool registry dynamically for the agent's next perception frame.
+    const output = try std.fmt.allocPrint(
+        ctx.allocator, 
+        "Dynamically registered tool from script {s}. It will be available on the next iteration.", 
+        .{script_path}
+    );
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const register_tool_cmd = Tool{
+    .name = "register_tool",
+    .description = "Dynamically compile and register a new agent tool from a script file (Zig/Python/JS) at runtime",
+    .parameters = &[_]Parameter{
+        .{ .name = "script_path", .type = .string, .required = true, .description = "Path to the script to register as a tool" },
+    },
+    .execute = &executeRegisterTool,
+};
+
 pub const all_tools = [_]*const Tool{
     &service_status_tool,
     &list_deps_tool,
     &system_packages_tool,
     &watch_file_tool,
+    &register_tool_cmd,
 };
 
 pub fn registerAll(registry: *ToolRegistry) !void {

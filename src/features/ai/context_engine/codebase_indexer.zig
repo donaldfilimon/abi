@@ -51,7 +51,7 @@ pub const CodebaseIndexer = struct {
         var walker = try dir.walk(self.allocator);
         defer walker.deinit();
 
-        while (try walker.next()) |entry| {
+        while (try walker.next(self.io.*)) |entry| {
             if (entry.kind != .file) continue;
 
             // Basic filtering for source files
@@ -136,6 +136,64 @@ pub const CodebaseIndexer = struct {
         }
 
         std.log.info("Codebase mapped: {d} files, ~{d} total tokens, {d} semantic chunks inserted into wdbx_engine.", .{ entries.len, total_tokens, total_chunks });
+    }
+
+    /// Read and analyze a specific file, extracting semantic metadata.
+    pub fn analyzeFile(self: *CodebaseIndexer, file_path: []const u8) ![]const u8 {
+        const content = std.Io.Dir.cwd().readFileAlloc(self.io.*, file_path, self.allocator, .limited(5 * 1024 * 1024)) catch {
+            return error.FileNotFound;
+        };
+        defer self.allocator.free(content);
+        
+        // Count rough tokens and lines for summary
+        var line_count: usize = 0;
+        var iter = std.mem.splitSequence(u8, content, "\n");
+        while (iter.next()) |_| {
+            line_count += 1;
+        }
+        
+        return try std.fmt.allocPrint(
+            self.allocator, 
+            "File: {s}\nLines: {d}\nEstimated Tokens: {d}\nContent Snippet: {s}...", 
+            .{file_path, line_count, content.len / 4, if (content.len > 500) content[0..500] else content}
+        );
+    }
+
+    /// Search codebase for string literals natively.
+    pub fn searchCodebase(self: *CodebaseIndexer, dir_path: []const u8, pattern: []const u8) ![]const u8 {
+        var results = std.ArrayListUnmanaged(u8).empty;
+        defer results.deinit(self.allocator);
+        
+        var dir = try std.Io.Dir.cwd().openDir(self.io.*, dir_path, .{ .iterate = true });
+        defer dir.close(self.io.*);
+
+        var walker = try dir.walk(self.allocator);
+        defer walker.deinit();
+
+        var match_count: usize = 0;
+
+        while (try walker.next(self.io.*)) |entry| {
+            if (entry.kind != .file) continue;
+
+            const full_path = try std.fs.path.join(self.allocator, &.{ dir_path, entry.path });
+            defer self.allocator.free(full_path);
+
+            const content = std.Io.Dir.cwd().readFileAlloc(self.io.*, full_path, self.allocator, .limited(2 * 1024 * 1024)) catch continue;
+            defer self.allocator.free(content);
+
+            if (std.mem.indexOf(u8, content, pattern) != null) {
+                match_count += 1;
+                const match_str = try std.fmt.allocPrint(self.allocator, "Match in: {s}\n", .{full_path});
+                defer self.allocator.free(match_str);
+                try results.appendSlice(self.allocator, match_str);
+            }
+        }
+
+        if (match_count == 0) {
+            return try self.allocator.dupe(u8, "No matches found.");
+        }
+
+        return try results.toOwnedSlice(self.allocator);
     }
 };
 

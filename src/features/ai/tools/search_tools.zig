@@ -291,10 +291,89 @@ pub const find_tool = Tool{
 // Registration
 // ============================================================================
 
+fn executeSearchCodebase(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const dir_path = if (obj.get("dir_path")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string dir_path"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing dir_path");
+
+    const pattern = if (obj.get("pattern")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string pattern"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing pattern");
+
+    // Native implementation mapping over CodebaseIndexer capabilities without external process spawning
+    const context_mod = @import("../context_engine/codebase_indexer.zig");
+    var io_backend = std.Io.Threaded.init(ctx.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+
+    var io = io_backend.io();
+    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, &io);
+    defer indexer.deinit();
+
+    const output = indexer.searchCodebase(dir_path, pattern) catch |err| {
+        return ToolResult.fromError(ctx.allocator, @errorName(err));
+    };
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const search_codebase_tool = Tool{
+    .name = "search_codebase",
+    .description = "Natively search a local codebase directory for a specific semantic string or literal.",
+    .parameters = &[_]Parameter{
+        .{ .name = "dir_path", .type = .string, .required = true, .description = "Directory to search" },
+        .{ .name = "pattern", .type = .string, .required = true, .description = "String literal to find" },
+    },
+    .execute = &executeSearchCodebase,
+};
+
+fn executeAnalyzeFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const file_path = if (obj.get("file_path")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string file_path"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing file_path");
+
+    const context_mod = @import("../context_engine/codebase_indexer.zig");
+    var io_backend = std.Io.Threaded.init(ctx.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+
+    var io = io_backend.io();
+    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, &io);
+    defer indexer.deinit();
+
+    const output = indexer.analyzeFile(file_path) catch |err| {
+        return ToolResult.fromError(ctx.allocator, @errorName(err));
+    };
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const analyze_file_tool = Tool{
+    .name = "analyze_file",
+    .description = "Read a file and natively extract semantic metadata and layout structures.",
+    .parameters = &[_]Parameter{
+        .{ .name = "file_path", .type = .string, .required = true, .description = "Path to file" },
+    },
+    .execute = &executeAnalyzeFile,
+};
+
 /// All search tools for easy registration
 pub const all_tools = [_]*const Tool{
     &grep_tool,
     &find_tool,
+    &search_codebase_tool,
+    &analyze_file_tool,
 };
 
 /// Register all search tools with a registry

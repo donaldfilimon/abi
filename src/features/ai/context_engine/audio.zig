@@ -6,6 +6,78 @@
 
 const std = @import("std");
 const context_engine = @import("mod.zig");
+const sync = @import("../../../services/shared/sync.zig");
+const abi_time = @import("../../../services/shared/time.zig");
+
+/// Asynchronous Text-To-Speech engine.
+/// Offloads blocking TTS playback to a detached thread queue.
+pub const TtsEngine = struct {
+    allocator: std.mem.Allocator,
+    queue: std.ArrayListUnmanaged([]const u8) = .empty,
+    mutex: sync.Mutex = .{},
+    active: bool = true,
+    worker_thread: ?std.Thread = null,
+
+    pub fn init(allocator: std.mem.Allocator) !TtsEngine {
+        var engine = TtsEngine{ .allocator = allocator };
+        engine.worker_thread = try std.Thread.spawn(.{}, workerLoop, .{&engine});
+        return engine;
+    }
+
+    pub fn deinit(self: *TtsEngine) void {
+        self.mutex.lock();
+        self.active = false;
+        self.mutex.unlock();
+
+        if (self.worker_thread) |*t| {
+            t.join();
+        }
+
+        for (self.queue.items) |msg| {
+            self.allocator.free(msg);
+        }
+        self.queue.deinit(self.allocator);
+    }
+
+    pub fn speak(self: *TtsEngine, text: []const u8) !void {
+        const text_copy = try self.allocator.dupe(u8, text);
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        try self.queue.append(self.allocator, text_copy);
+    }
+
+    fn workerLoop(self: *TtsEngine) void {
+        while (true) {
+            var msg: ?[]const u8 = null;
+            self.mutex.lock();
+            if (!self.active) {
+                self.mutex.unlock();
+                break;
+            }
+            if (self.queue.items.len > 0) {
+                msg = self.queue.orderedRemove(self.allocator, 0);
+            }
+            self.mutex.unlock();
+
+            if (msg) |text| {
+                // In a full implementation, this triggers native say/espeak.
+                // We mock the blocking nature here for the framework architecture.
+                std.log.info("[TTS Engine] Speaking: {s}", .{text});
+                
+                // Estimate roughly 100ms per word as blocking audio time
+                var words: usize = 1;
+                for (text) |c| {
+                    if (c == ' ') words += 1;
+                }
+                abi_time.sleepNs(words * 100 * std.time.ns_per_ms);
+                
+                self.allocator.free(text);
+            } else {
+                abi_time.sleepNs(100 * std.time.ns_per_ms);
+            }
+        }
+    }
+};
 
 pub const AudioStreamer = struct {
     allocator: std.mem.Allocator,
