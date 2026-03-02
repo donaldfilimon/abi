@@ -462,7 +462,7 @@ export fn abi_gpu_is_available() bool {
         return false;
     }
     // Check available backends
-    const backends = abi.features.gpu.availableBackends(c_allocator) catch return false;
+    const backends = abi.features.gpu.factory.listAvailableBackends(c_allocator) catch return false;
     defer c_allocator.free(backends);
     return backends.len > 0;
 }
@@ -493,6 +493,7 @@ fn backendName(backend: abi.features.gpu.Backend) [*:0]const u8 {
         .opengles => "opengles",
         .webgl2 => "webgl2",
         .fpga => "fpga",
+        .tpu => "tpu",
         .simulated => "simulated",
     };
 }
@@ -604,13 +605,13 @@ export fn abi_agent_create(
     errdefer c_allocator.destroy(wrapper);
 
     // Create the agent
-    const agent_ptr = c_allocator.create(abi.features.ai.Agent) catch {
+    const agent_ptr = c_allocator.create(abi.features.ai.agents.Agent) catch {
         c_allocator.destroy(wrapper);
         return ABI_ERROR_OUT_OF_MEMORY;
     };
     errdefer c_allocator.destroy(agent_ptr);
 
-    agent_ptr.* = abi.features.ai.Agent.init(c_allocator, .{
+    agent_ptr.* = abi.features.ai.agents.Agent.init(c_allocator, .{
         .name = name_slice,
         .backend = backend,
         .model = model_slice,
@@ -862,7 +863,7 @@ const GpuWrapper = struct {
 
 /// Agent wrapper for opaque handle
 const AgentWrapper = struct {
-    handle: if (build_options.enable_ai) *abi.features.ai.Agent else void,
+    handle: if (build_options.enable_ai) *abi.features.ai.agents.Agent else void,
     allocator: std.mem.Allocator,
     /// Store the last response for C string lifetime management
     last_response: ?[]u8 = null,
