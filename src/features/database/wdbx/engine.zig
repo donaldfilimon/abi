@@ -48,6 +48,9 @@ pub const Engine = struct {
     ai_client: ?AIClient = null,
     hnsw_index: HNSW,
     vectors_array: std.ArrayListUnmanaged(EngineVector) = .empty,
+    // Persona deduplication map: maps a text hash to the index in vectors_array
+    // allowing identical knowledge across personas to share the same vector node.
+    knowledge_dedup_map: std.AutoHashMapUnmanaged(u64, usize) = .empty,
 
     pub fn init(allocator: std.mem.Allocator, cfg: config.Config) !Engine {
         try cfg.validateRuntime();
@@ -63,12 +66,14 @@ pub const Engine = struct {
             .config = cfg,
             .cache = cache,
             .hnsw_index = idx,
+            .knowledge_dedup_map = .empty,
         };
     }
 
     pub fn deinit(self: *Engine) void {
         self.cache.deinit();
         self.hnsw_index.deinit();
+        self.knowledge_dedup_map.deinit(self.allocator);
         if (self.ai_client) |*c| c.deinit();
 
         for (self.vectors_array.items) |item| {
@@ -89,6 +94,16 @@ pub const Engine = struct {
         text: []const u8,
         metadata: Metadata,
     ) !void {
+        // Fast path: deduplicate knowledge
+        const text_hash = std.hash.Wyhash.hash(0, text);
+        if (self.knowledge_dedup_map.get(text_hash)) |existing_idx| {
+            // This semantic text is already indexed by another persona/node
+            // We just link the ID to the existing node metadata (in a full multi-tenant graph).
+            // For now, we return early to save compute/storage.
+            std.log.debug("WDBX Deduplication: Skipping identical knowledge insertion for ID {s} (shares vector with index {d})", .{id, existing_idx});
+            return;
+        }
+
         var embedding: []const f32 = undefined;
         var from_cache = false;
 
@@ -117,7 +132,9 @@ pub const Engine = struct {
             .metadata = owned_metadata,
         };
 
+        const current_idx = self.vectors_array.items.len;
         try self.vectors_array.append(self.allocator, mapped);
+        try self.knowledge_dedup_map.put(self.allocator, text_hash, current_idx);
 
         // Placed in HW index bounds mapping array offsets directly inline
         _ = try self.hnsw_index.insert(cloned_vec);

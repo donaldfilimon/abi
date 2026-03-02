@@ -41,6 +41,12 @@
         },
     },
     .{
+        .name = "chat-tui",
+        .description = "Launch the interactive multi-persona TUI chat interface",
+        .aliases = .{"ctui"},
+        .subcommands = .{},
+    },
+    .{
         .name = "clean",
         .description = "Remove build cache, state files, and downloaded models",
         .aliases = .{},

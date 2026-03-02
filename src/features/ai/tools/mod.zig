@@ -19,6 +19,7 @@ pub const process_tools = @import("process_tools.zig");
 pub const network_tools = @import("network_tools.zig");
 pub const system_tools = @import("system_tools.zig");
 pub const mcp_tools = @import("mcp_tools.zig");
+pub const deep_research = @import("deep_research.zig");
 
 pub const Tool = tool.Tool;
 pub const ToolResult = tool.ToolResult;
@@ -72,6 +73,10 @@ pub const registerSystemTools = system_tools.registerAll;
 pub const McpTools = mcp_tools;
 pub const registerMcpTools = mcp_tools.registerAll;
 
+// Deep Research tool exports
+pub const DeepResearchTools = deep_research;
+pub const registerDeepResearchTools = deep_research.registerAll;
+
 /// Register all Claude-Code-like tools (file, search, edit, os) with a registry
 pub fn registerCodeAgentTools(registry: *ToolRegistry) !void {
     try file_tools.registerAll(registry);
@@ -87,6 +92,7 @@ pub fn registerAllAgentTools(registry: *ToolRegistry) !void {
     try network_tools.registerAll(registry);
     try system_tools.registerAll(registry);
     try mcp_tools.registerAll(registry);
+    try deep_research.registerAll(registry);
 }
 
 test {

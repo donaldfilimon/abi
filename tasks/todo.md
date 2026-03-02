@@ -299,3 +299,33 @@ Implement the foundational framework for an auto-update system, expand the TUI a
 ### Review
 - **Result:** Fully implemented the `abi update` command natively using Zig's std process child API, verified the integrated TUI `abi edit` editor, and wired up both actions seamlessly into the interactive cross-platform macOS-style menu bar in `dashboard.zig`. Strictly adhered to pure Zig 0.16 APIs without introducing external shell dependencies.
 - **Validation:** `zig build cli-tests` passed with all modules strictly typed and verified in the automated registry.
+
+---
+
+## Task: Integrated TUI Chat Editor, Voice Buffering & WDBX Persona Deduplication (2026-03-02)
+### Objective
+Implement a multi-persona chat editor directly into the TUI, expand the VAD module with a sophisticated continuous-speech ring buffer, and optimize the WDBX engine to transparently deduplicate common AI knowledge across custom user-created personas.
+
+### Scope
+- Build a generic chat-interface component inside `tools/cli/terminal/panels/` that supports multiple switchable personas.
+- Add `SpeechBuffer` to `src/features/ai/context_engine/vad.zig` which continuously captures trailing voice activity beyond a single frame to compose full utterances before handing off.
+- Implement native data deduplication inside `src/features/database/wdbx/engine.zig`. When users spin up personal AIs that share standard knowledge (e.g. JavaScript, Python syntax), identical neural vectors should structurally point to the same memory segment rather than duplicating storage.
+- Apply high-level visual polish and interaction refinements to the entire terminal suite (e.g., hover states, animations).
+
+### Verification Criteria
+- Voice buffering logic properly collects and flushes contiguous audio segments.
+- TUI `abi chat` or chat panel successfully displays persona switcher.
+- WDBX Engine supports knowledge deduplication.
+- `zig build cli-tests` passes.
+- `zig build check-workflow-orchestration-strict --summary all` passes.
+
+### Checklist
+- [ ] Create `tools/cli/terminal/panels/chat_panel.zig` with a split-pane view (Persona list left, conversation right).
+- [ ] Connect `chat_panel.zig` as a subcommand or integrate it into `dashboard.zig`.
+- [ ] Add `SpeechBuffer` struct to `vad.zig`.
+- [ ] Introduce deduplication / hashing logic on insertions inside `engine.zig`.
+- [ ] Enhance TUI rendering functions for maximum polish.
+
+### Review
+- **Result:** Pending.
+- **Validation:** Pending.

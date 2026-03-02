@@ -3,6 +3,7 @@
 
 pub const agent = @import("../commands/ai/agent.zig");
 pub const brain = @import("../commands/ai/brain.zig");
+pub const chat = @import("../commands/ai/chat.zig");
 pub const context_agent = @import("../commands/ai/context_agent.zig");
 pub const embed = @import("../commands/ai/embed.zig");
 pub const llm = @import("../commands/ai/llm/mod.zig");
@@ -41,6 +42,7 @@ pub const system_info = @import("../commands/infra/system_info.zig");
 pub const command_modules = .{
     agent,
     brain,
+    chat,
     context_agent,
     embed,
     llm,
