@@ -18,6 +18,7 @@ pub const init = @import("../commands/core/init.zig");
 pub const plugins = @import("../commands/core/plugins.zig");
 pub const profile = @import("../commands/core/profile.zig");
 pub const ui = @import("../commands/core/ui/mod.zig");
+pub const update = @import("../commands/core/update.zig");
 pub const db = @import("../commands/db/db.zig");
 pub const explore = @import("../commands/db/explore.zig");
 pub const acp = @import("../commands/dev/acp.zig");
@@ -55,6 +56,7 @@ pub const command_modules = .{
     plugins,
     profile,
     ui,
+    update,
     db,
     explore,
     acp,

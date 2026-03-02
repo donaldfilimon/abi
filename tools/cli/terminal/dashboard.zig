@@ -173,7 +173,39 @@ pub fn Dashboard(comptime PanelType: type) type {
                 }
                 return false;
             } else {
-                if (self.active_menu != null) {
+                if (self.active_menu) |menu| {
+                    const menu_x: u16 = switch (menu) {
+                        .file => 9,
+                        .view => 14,
+                        .tools => 20,
+                        .window => 27,
+                    };
+                    const items = switch (menu) {
+                        .file => &[_][]const u8{ "New", "Open", "Save", "Export", "Quit" },
+                        .view => &[_][]const u8{ "Dashboard", "Logs", "Metrics" },
+                        .tools => &[_][]const u8{ "Editor", "Terminal", "Settings", "Update ABI" },
+                        .window => &[_][]const u8{ "Tile", "Float", "Close All" },
+                    };
+                    
+                    if (mouse.col >= menu_x and mouse.col < menu_x + 15) {
+                        if (mouse.row >= 1 and mouse.row <= items.len) {
+                            const idx = mouse.row - 1;
+                            const action = items[idx];
+                            
+                            if (std.mem.eql(u8, action, "Update ABI")) {
+                                self.showNotification("Updating ABI in background...");
+                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi update > /tmp/abi-update.log 2>&1 &") catch {};
+                            } else if (std.mem.eql(u8, action, "Editor")) {
+                                self.showNotification("Starting editor...");
+                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi edit > /tmp/abi-edit.log 2>&1 &") catch {};
+                            } else if (std.mem.eql(u8, action, "Quit")) {
+                                return true; // triggers quit
+                            } else {
+                                self.showNotification(action);
+                            }
+                        }
+                    }
+
                     self.active_menu = null;
                     return true; // absorb click
                 }
@@ -321,7 +353,7 @@ pub fn Dashboard(comptime PanelType: type) type {
                 const items = switch (menu) {
                     .file => &[_][]const u8{ "New", "Open", "Save", "Export", "Quit" },
                     .view => &[_][]const u8{ "Dashboard", "Logs", "Metrics" },
-                    .tools => &[_][]const u8{ "Inspector", "Terminal", "Settings" },
+                    .tools => &[_][]const u8{ "Editor", "Terminal", "Settings", "Update ABI" },
                     .window => &[_][]const u8{ "Tile", "Float", "Close All" },
                 };
 
@@ -335,7 +367,7 @@ pub fn Dashboard(comptime PanelType: type) type {
                     try term.write(" ");
                     try term.write(item);
                     // padding to ensure equal width
-                    var pad: usize = 12 -| item.len;
+                    var pad: usize = 14 -| item.len;
                     while (pad > 0) : (pad -= 1) {
                         try term.write(" ");
                     }

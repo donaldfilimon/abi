@@ -407,4 +407,10 @@
             "help",
         },
     },
+    .{
+        .name = "update",
+        .description = "Auto-update ABI framework from origin and recompile",
+        .aliases = .{},
+        .subcommands = .{},
+    },
 }
