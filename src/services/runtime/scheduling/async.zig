@@ -174,8 +174,13 @@ test "async runtime init exposes io handle" {
 }
 
 test "async runtime spawn reports concurrency unavailable when disabled" {
-    // TODO: Re-enable once non-concurrent spawn behavior is stable under CI.
-    return error.SkipZigTest;
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+        .concurrent_limit = .nothing,
+    });
+    defer runtime.deinit();
+
+    try std.testing.expectError(error.ConcurrencyUnavailable, runtime.spawn(addOne, .{@as(u32, 1)}));
 }
 
 test "task group awaitUncancelable returns on empty group" {
