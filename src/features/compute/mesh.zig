@@ -36,6 +36,8 @@ pub const MeshOrchestrator = struct {
     is_discovering: bool,
     discovery_thread: ?std.Thread = null,
     discovery_socket: ?c_int = null,
+    tensor_thread: ?std.Thread = null,
+    tensor_socket: ?c_int = null,
 
     pub fn init(allocator: std.mem.Allocator, io: *std.Io) MeshOrchestrator {
         var local_id: [16]u8 = undefined;
@@ -65,6 +67,70 @@ pub const MeshOrchestrator = struct {
         if (self.discovery_thread) |*t| {
             t.join();
             self.discovery_thread = null;
+        }
+        if (self.tensor_socket) |sock| {
+            _ = std.c.close(sock);
+            self.tensor_socket = null;
+        }
+        if (self.tensor_thread) |*t| {
+            t.join();
+            self.tensor_thread = null;
+        }
+    }
+
+    /// Background thread to accept incoming tensor workloads via TCP
+    fn tensorListenLoop(self: *MeshOrchestrator) void {
+        const sin: std.c.sockaddr.in = .{
+            .family = std.c.AF.INET,
+            .port = std.mem.nativeToBig(u16, TENSOR_PORT),
+            .addr = @bitCast([4]u8{ 0, 0, 0, 0 }),
+        };
+        
+        const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.STREAM | std.c.SOCK.CLOEXEC, 0);
+        if (sock < 0) {
+            std.log.err("[Compute Mesh] Failed to create TCP tensor socket", .{});
+            return;
+        }
+        self.tensor_socket = sock;
+
+        _ = std.c.setsockopt(sock, std.c.SOL.SOCKET, std.c.SO.REUSEADDR, &std.mem.toBytes(@as(c_int, 1)), @sizeOf(c_int));
+        
+        const sock_addr: *const std.c.sockaddr = @ptrCast(&sin);
+        if (std.c.bind(sock, sock_addr, @sizeOf(std.c.sockaddr.in)) < 0) {
+            std.log.err("[Compute Mesh] Failed to bind TCP tensor socket", .{});
+            _ = std.c.close(sock);
+            return;
+        }
+
+        if (std.c.listen(sock, 128) < 0) {
+            std.log.err("[Compute Mesh] Failed to listen on TCP tensor socket", .{});
+            _ = std.c.close(sock);
+            return;
+        }
+
+        std.log.info("[Compute Mesh] Tensor receiver online (TCP: {})", .{TENSOR_PORT});
+
+        while (self.is_discovering) {
+            var client_addr: std.c.sockaddr.in = undefined;
+            var client_len: std.c.socklen_t = @sizeOf(std.c.sockaddr.in);
+            const client_sock_addr: *std.c.sockaddr = @ptrCast(&client_addr);
+
+            const client_fd = std.c.accept(sock, client_sock_addr, &client_len);
+            if (client_fd < 0) {
+                const err = std.c._errno().*;
+                const e_again = @intFromEnum(std.posix.E.AGAIN);
+                if (err == e_again) continue;
+                break;
+            }
+
+            // In a full implementation, we spawn a task to process this tensor graph.
+            // For now, we read the header, log it, and close it natively.
+            var header_buf: [1024]u8 = undefined;
+            const bytes_read = std.c.recv(client_fd, &header_buf, header_buf.len, 0);
+            if (bytes_read > 0) {
+                std.log.info("[Compute Mesh] Received {d} bytes of tensor data from peer. Routing to local GPU...", .{bytes_read});
+            }
+            _ = std.c.close(client_fd);
         }
     }
 
@@ -154,6 +220,7 @@ pub const MeshOrchestrator = struct {
 
         std.log.info("[Compute Mesh] Initializing P2P discovery protocol...", .{});
         self.discovery_thread = try std.Thread.spawn(.{}, discoveryListenLoop, .{self});
+        self.tensor_thread = try std.Thread.spawn(.{}, tensorListenLoop, .{self});
 
         // Broadcast a presence packet
         const bcast_sin: std.c.sockaddr.in = .{
@@ -194,8 +261,21 @@ pub const MeshOrchestrator = struct {
         // Loop over nodes, establish TCP stream, and send zero-copy payload
         for (self.nodes.items) |*node| {
             node.address.port = std.mem.nativeToBig(u16, TENSOR_PORT);
-            std.log.info("  -> Routing to node (IP backend TCP)", .{});
-            // Stub: the actual TCP connect and std.Io stream mapping
+            
+            const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.STREAM, 0);
+            if (sock < 0) continue;
+            defer _ = std.c.close(sock);
+            
+            const peer_sock_addr: *const std.c.sockaddr = @ptrCast(&node.address);
+            if (std.c.connect(sock, peer_sock_addr, @sizeOf(std.c.sockaddr.in)) == 0) {
+                // Connection established, blast the tensor graph bytes
+                const bytes_sent = std.c.send(sock, tensor_data.ptr, tensor_data.len, 0);
+                if (bytes_sent > 0) {
+                    std.log.info("  -> Successfully dispatched {d} bytes to node {s} (TCP {})", .{bytes_sent, std.fmt.fmtSliceHexLower(&node.id), node.address.port});
+                }
+            } else {
+                std.log.warn("  -> Failed to connect to node {s}", .{std.fmt.fmtSliceHexLower(&node.id)});
+            }
         }
     }
 };

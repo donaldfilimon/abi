@@ -101,6 +101,8 @@ pub const context_engine = @import("context_engine/mod.zig");
 pub const jumpstart = @import("context_engine/jumpstart.zig");
 pub const os_control = @import("tools/os_control/mod.zig");
 pub const deep_research = @import("tools/deep_research.zig");
+pub const dynamic_api = @import("tools/dynamic_api.zig");
+pub const runtime_bridge = @import("tools/runtime_bridge.zig");
 
 // Tool-augmented agent with tool execution loop
 pub const tool_agent = @import("tools/tool_agent.zig");

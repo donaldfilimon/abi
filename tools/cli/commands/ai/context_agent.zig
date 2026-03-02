@@ -26,6 +26,7 @@ const deep_research = abi.features.ai.deep_research;
 const compute_mesh = abi.features.compute.mesh;
 const documents = abi.features.documents;
 const dynamic_api = abi.features.ai.dynamic_api;
+const runtime_bridge = abi.features.ai.runtime_bridge;
 const wdbx = abi.features.database.neural;
 const telemetry = abi.features.ai.context_engine.telemetry;
 const vision = abi.features.ai.context_engine.vision;
@@ -146,6 +147,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var learner = dynamic_api.DynamicApiLearner.init(allocator);
     defer learner.deinit();
 
+    // Initialize Runtime Bridge for Python/JS execution
+    var bridge = runtime_bridge.RuntimeBridge.init(allocator, &io);
+    defer bridge.deinit();
+
     // Initialize Omni-Compute Mesh
     var mesh = compute_mesh.MeshOrchestrator.init(allocator, &io);
     defer mesh.deinit();
@@ -263,6 +268,33 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             utils.output.printWarning("[ABI] Encountered unknown structure. Initiating Dynamic Learning Matrix...", .{});
             const learn_result = learner.learnNewSystem(.rest_generic, schema) catch "Failed to learn.";
             utils.output.printSuccess("[ABI Moderator] {s}", .{learn_result});
+            continue;
+        }
+
+        // Python/JS Execution Hook via Runtime Bridge
+        if (std.mem.startsWith(u8, trimmed, "run python ")) {
+            const code = std.mem.trim(u8, trimmed["run python ".len..], " ");
+            utils.output.printInfo("[ABI] Bridging context into Python runtime...", .{});
+            var result = bridge.executeScript(.python3, code) catch |err| {
+                 utils.output.printError("Python execution failed: {t}", .{err});
+                 continue;
+            };
+            defer result.deinit(allocator);
+            utils.output.printSuccess("[ABI Moderator] Python Output:\n{s}", .{result.stdout});
+            if (result.stderr.len > 0) utils.output.printWarning("Stderr: {s}", .{result.stderr});
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, trimmed, "run js ")) {
+            const code = std.mem.trim(u8, trimmed["run js ".len..], " ");
+            utils.output.printInfo("[ABI] Bridging context into JavaScript (Node) runtime...", .{});
+            var result = bridge.executeScript(.node, code) catch |err| {
+                 utils.output.printError("JS execution failed: {t}", .{err});
+                 continue;
+            };
+            defer result.deinit(allocator);
+            utils.output.printSuccess("[ABI Moderator] JS Output:\n{s}", .{result.stdout});
+            if (result.stderr.len > 0) utils.output.printWarning("Stderr: {s}", .{result.stderr});
             continue;
         }
 
