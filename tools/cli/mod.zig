@@ -138,8 +138,8 @@ fn printUnknownCommand(command: []const u8) void {
 }
 
 test {
-    _ = @import("commands/ui/launch.zig");
-    _ = @import("tui/mod.zig");
+    _ = @import("commands/core/ui/launch.zig");
+    _ = @import("terminal/mod.zig");
 }
 
 test {

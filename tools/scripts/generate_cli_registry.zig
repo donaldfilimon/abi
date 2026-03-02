@@ -24,12 +24,12 @@ fn appendModuleEntries(
     while (lines.next()) |raw_line| {
         const line = std.mem.trim(u8, raw_line, " \t\r");
         if (line.len == 0) continue;
-        if (!is_dir_listing and std.mem.eql(u8, line, "editor.zig")) continue;
+        if (!is_dir_listing and std.mem.eql(u8, std.fs.path.basename(line), "editor.zig")) continue;
 
         const ident_raw = if (is_dir_listing)
-            line
+            std.fs.path.basename(line)
         else
-            line[0 .. line.len - ".zig".len];
+            std.fs.path.stem(line);
 
         const ident = try sanitizeIdentifierAlloc(allocator, ident_raw);
         errdefer allocator.free(ident);
@@ -58,14 +58,14 @@ fn collectModules(allocator: std.mem.Allocator) ![]ModuleEntry {
     }
 
     const files_cmd =
-        "find tools/cli/commands -mindepth 1 -maxdepth 1 -type f -name '*.zig' ! -name 'mod.zig' | sed 's#^tools/cli/commands/##'";
+        "find tools/cli/commands -mindepth 2 -maxdepth 2 -type f -name '*.zig' ! -name 'mod.zig' | sed 's#^tools/cli/commands/##'";
     const files_result = try util.captureCommand(allocator, files_cmd);
     defer allocator.free(files_result.output);
     if (files_result.exit_code != 0) return error.CommandFailed;
     try appendModuleEntries(allocator, &modules, files_result.output, false);
 
     const dirs_cmd =
-        "find tools/cli/commands -mindepth 1 -maxdepth 1 -type d -exec test -f '{}/mod.zig' ';' -print | sed 's#^tools/cli/commands/##'";
+        "find tools/cli/commands -mindepth 2 -maxdepth 2 -type d -exec test -f '{}/mod.zig' ';' -print | sed 's#^tools/cli/commands/##'";
     const dirs_result = try util.captureCommand(allocator, dirs_cmd);
     defer allocator.free(dirs_result.output);
     if (dirs_result.exit_code != 0) return error.CommandFailed;
