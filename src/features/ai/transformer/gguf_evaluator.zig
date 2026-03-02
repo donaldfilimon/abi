@@ -101,21 +101,93 @@ pub fn selfAttention(allocator: std.mem.Allocator, q: *Tensor, k: *Tensor, v: *T
     return error.NotImplemented;
 }
 
-/// Stubs out a minimal native forward pass engine.
+/// Represents a raw parsed GGUF Tensor Info block
+pub const GgufTensorInfo = struct {
+    name: []const u8,
+    dimensions: u32,
+    shape: [4]u64 = .{ 1, 1, 1, 1 },
+    type_id: u32,
+    offset: u64,
+};
+
+/// Represents the global context of a loaded GGUF file
+pub const GgufContext = struct {
+    allocator: std.mem.Allocator,
+    version: u32,
+    tensor_count: u64,
+    metadata_kv_count: u64,
+    tensors: std.ArrayListUnmanaged(GgufTensorInfo) = .empty,
+
+    pub fn deinit(self: *GgufContext) void {
+        for (self.tensors.items) |t| {
+            self.allocator.free(t.name);
+        }
+        self.tensors.deinit(self.allocator);
+    }
+};
+
+/// Stubs out a minimal native forward pass engine and native file parser.
 pub const NativeEvaluator = struct {
     allocator: std.mem.Allocator,
     model_path: []const u8,
     active: bool = false,
+    gguf_ctx: ?GgufContext = null,
 
     pub fn init(allocator: std.mem.Allocator, path: []const u8) !NativeEvaluator {
-        return .{
+        var evaluator = NativeEvaluator{
             .allocator = allocator,
             .model_path = try allocator.dupe(u8, path),
         };
+        
+        // Attempt native header parse if file exists
+        evaluator.parseHeader() catch |err| {
+            std.log.warn("[NativeEvaluator] Could not parse GGUF header natively: {any}. Deferring to external runners.", .{err});
+        };
+
+        return evaluator;
     }
 
     pub fn deinit(self: *NativeEvaluator) void {
+        if (self.gguf_ctx) |*ctx| {
+            ctx.deinit();
+        }
         self.allocator.free(self.model_path);
+    }
+
+    /// Natively parses the GGUF binary magic header, version, and metadata counts.
+    fn parseHeader(self: *NativeEvaluator) !void {
+        var file = try std.fs.cwd().openFile(self.model_path, .{});
+        defer file.close();
+
+        var reader = file.reader();
+
+        // 1. Magic: "GGUF" (0x46554747)
+        var magic: [4]u8 = undefined;
+        _ = try reader.readAll(&magic);
+        if (!std.mem.eql(u8, &magic, "GGUF")) {
+            return error.InvalidMagic;
+        }
+
+        // 2. Version (uint32_t)
+        const version = try reader.readInt(u32, .little);
+        if (version < 2 or version > 3) {
+            return error.UnsupportedVersion;
+        }
+
+        // 3. Tensor Count (uint64_t)
+        const tensor_count = try reader.readInt(u64, .little);
+
+        // 4. Metadata KV Count (uint64_t)
+        const metadata_kv_count = try reader.readInt(u64, .little);
+
+        std.log.info("[NativeEvaluator] Parsed GGUF v{d} | Tensors: {d} | KV Pairs: {d}", .{ version, tensor_count, metadata_kv_count });
+
+        self.gguf_ctx = GgufContext{
+            .allocator = self.allocator,
+            .version = version,
+            .tensor_count = tensor_count,
+            .metadata_kv_count = metadata_kv_count,
+        };
     }
 
     /// Simulates a native forward pass over a linear layer using loaded weights.

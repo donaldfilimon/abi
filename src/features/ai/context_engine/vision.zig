@@ -28,25 +28,54 @@ pub const VideoFrameStreamer = struct {
         self.matrix.deinit();
     }
 
-    /// Captures a frame using macOS native `screencapture` or simulated stub
+    /// Captures a frame natively without disk I/O using CoreGraphics if on macOS
     pub fn captureFrame(self: *VideoFrameStreamer) !?VideoFrame {
         if (!self.active) return null;
         
-        // Native macOS screencapture hook using temp file buffer
-        // `screencapture -x -t jpg /tmp/abi_screen.jpg`
-        const os = @import("../../../services/shared/os.zig");
-        var result = os.exec(self.allocator, "screencapture -x -t jpg /tmp/abi_screen.jpg") catch return null;
-        defer result.deinit();
-
-        const data = std.fs.cwd().readFileAlloc(self.allocator, "/tmp/abi_screen.jpg", 10 * 1024 * 1024) catch {
+        const builtin = @import("builtin");
+        if (builtin.os.tag != .macos) {
+            // Stub for other OS
+            std.log.debug("Non-macOS vision capture not yet implemented natively.", .{});
             return null;
+        }
+
+        const objc = struct {
+            pub extern "c" fn CGMainDisplayID() u32;
+            pub extern "c" fn CGDisplayCreateImage(displayID: u32) ?*anyopaque;
+            pub extern "c" fn CGImageGetWidth(image: *anyopaque) usize;
+            pub extern "c" fn CGImageGetHeight(image: *anyopaque) usize;
+            pub extern "c" fn CGImageGetDataProvider(image: *anyopaque) ?*anyopaque;
+            pub extern "c" fn CGDataProviderCopyData(provider: *anyopaque) ?*anyopaque;
+            pub extern "c" fn CFDataGetBytePtr(data: *anyopaque) [*]const u8;
+            pub extern "c" fn CFDataGetLength(data: *anyopaque) isize;
+            pub extern "c" fn CFRelease(cf: *anyopaque) void;
+            pub extern "c" fn CGImageRelease(image: *anyopaque) void;
         };
+
+        const main_display = objc.CGMainDisplayID();
+        const cg_image = objc.CGDisplayCreateImage(main_display) orelse return null;
+        defer objc.CGImageRelease(cg_image);
+
+        const width = objc.CGImageGetWidth(cg_image);
+        const height = objc.CGImageGetHeight(cg_image);
+
+        const provider = objc.CGImageGetDataProvider(cg_image) orelse return null;
+        const cf_data = objc.CGDataProviderCopyData(provider) orelse return null;
+        defer objc.CFRelease(cf_data);
+
+        const length = objc.CFDataGetLength(cf_data);
+        if (length <= 0) return null;
+
+        const ptr = objc.CFDataGetBytePtr(cf_data);
         
-        // Let the caller handle data freeing
+        // Copy the raw pixel data out so the CFData can be safely released
+        const pixel_buffer = try self.allocator.alloc(u8, @intCast(length));
+        @memcpy(pixel_buffer, ptr[0..@intCast(length)]);
+
         return VideoFrame{
-            .width = 1920,
-            .height = 1080,
-            .data = data,
+            .width = @intCast(width),
+            .height = @intCast(height),
+            .data = pixel_buffer,
         };
     }
 };
