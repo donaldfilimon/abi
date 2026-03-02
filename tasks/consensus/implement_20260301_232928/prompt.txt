@@ -1,0 +1,11 @@
+Current state:
+- Implement approved plan for code fixes + consensus artifact commits + branch push.
+- Local changes: bindings/c/src/abi_c.zig, src/services/shared/utils/zig_toolchain.zig, and tasks/consensus artifacts.
+
+Constraints:
+- Mandatory best-effort consensus preflight.
+- Two commits: code then consensus artifacts.
+- Run full verification before commit and push.
+
+Decision question:
+- Confirm safest sequencing for validation, commit split, and push execution with minimal churn.

@@ -1,0 +1,137 @@
+{
+  "question": "Current state:\n- Repository: .\n- User request: \"fix\"\n- No additional bug details were provided.\n- We need to infer the most likely current breakage by running validation and repairing root cause.\n\nConstraints / non-goals:\n- Minimal, targeted change only.\n- Preserve existing architecture; avoid unrelated refactors.\n- Follow Zig 0.16 repository conventions.\n- Verify before completion.\n\nSuccess criteria:\n- Identify a concrete failing check/test/build path in current workspace.\n- Implement root-cause fix.\n- Re-run relevant verification to prove issue resolved.\n\nDecision question:\n- What is the highest-confidence, low-risk sequence to quickly locate and fix the current breakage in this repo?\n",
+  "created_at": "2026-03-02T00:50:36+00:00",
+  "mode": "code",
+  "timeout_sec": 120,
+  "weights": {
+    "gemini": 0.3,
+    "claude": 0.3,
+    "opencode": 0.25,
+    "ollama": 0.15
+  },
+  "fallbacks_used": [],
+  "runs": [
+    {
+      "provider": "claude",
+      "status": "error",
+      "duration_ms": 93784,
+      "exit_code": 1,
+      "weight": 0.3,
+      "confidence_0_to_1": 0.0,
+      "effective_score": 0.0,
+      "answer": "",
+      "risks": [
+        "Provider status is error"
+      ],
+      "unknowns": [],
+      "meta_path": "./tasks/consensus/fix_20260302/out/claude.meta.json",
+      "stdout_path": "./tasks/consensus/fix_20260302/out/claude.stdout.txt",
+      "stderr_path": "./tasks/consensus/fix_20260302/out/claude.stderr.txt"
+    },
+    {
+      "provider": "gemini",
+      "status": "timeout",
+      "duration_ms": 120059,
+      "exit_code": 124,
+      "weight": 0.3,
+      "confidence_0_to_1": 0.0,
+      "effective_score": 0.0,
+      "answer": "",
+      "risks": [
+        "Provider status is timeout"
+      ],
+      "unknowns": [],
+      "meta_path": "./tasks/consensus/fix_20260302/out/gemini.meta.json",
+      "stdout_path": "./tasks/consensus/fix_20260302/out/gemini.stdout.txt",
+      "stderr_path": "./tasks/consensus/fix_20260302/out/gemini.stderr.txt"
+    },
+    {
+      "provider": "ollama",
+      "status": "timeout",
+      "duration_ms": 120001,
+      "exit_code": 124,
+      "weight": 0.15,
+      "confidence_0_to_1": 0.0,
+      "effective_score": 0.0,
+      "answer": "",
+      "risks": [
+        "Provider status is timeout"
+      ],
+      "unknowns": [],
+      "meta_path": "./tasks/consensus/fix_20260302/out/ollama.meta.json",
+      "stdout_path": "./tasks/consensus/fix_20260302/out/ollama.stdout.txt",
+      "stderr_path": "./tasks/consensus/fix_20260302/out/ollama.stderr.txt"
+    },
+    {
+      "provider": "opencode",
+      "status": "timeout",
+      "duration_ms": 120006,
+      "exit_code": 124,
+      "weight": 0.25,
+      "confidence_0_to_1": 0.0,
+      "effective_score": 0.0,
+      "answer": "",
+      "risks": [
+        "Provider status is timeout"
+      ],
+      "unknowns": [],
+      "meta_path": "./tasks/consensus/fix_20260302/out/opencode.meta.json",
+      "stdout_path": "./tasks/consensus/fix_20260302/out/opencode.stdout.txt",
+      "stderr_path": "./tasks/consensus/fix_20260302/out/opencode.stderr.txt"
+    }
+  ],
+  "consensus": {
+    "winner": "none",
+    "winner_cluster_score": 0.0,
+    "similarity_threshold": 0.75,
+    "successful_responders": 0,
+    "fallback": {
+      "used": true,
+      "reason": "fewer_than_two_successful_responders",
+      "provisional_provider": "claude"
+    },
+    "disagreements": [
+      {
+        "provider": "claude",
+        "reason": "provider_error",
+        "answer": "",
+        "risks": [
+          "Provider status is error"
+        ],
+        "unknowns": []
+      },
+      {
+        "provider": "gemini",
+        "reason": "provider_timeout",
+        "answer": "",
+        "risks": [
+          "Provider status is timeout"
+        ],
+        "unknowns": []
+      },
+      {
+        "provider": "ollama",
+        "reason": "provider_timeout",
+        "answer": "",
+        "risks": [
+          "Provider status is timeout"
+        ],
+        "unknowns": []
+      },
+      {
+        "provider": "opencode",
+        "reason": "provider_timeout",
+        "answer": "",
+        "risks": [
+          "Provider status is timeout"
+        ],
+        "unknowns": []
+      }
+    ],
+    "top_contradictions": [
+      "claude: Provider status is error",
+      "gemini: Provider status is timeout"
+    ]
+  },
+  "final_recommendation_markdown": "# Multi-CLI Consensus\n\n- Winner: none\n- Winner score: 0.0\n- Successful responders: 0\n- Fallback used: yes\n\n## Recommendation\nProvisional recommendation from claude:\n\n## Key disagreements\n- claude: provider_error\n- gemini: provider_timeout\n- ollama: provider_timeout\n- opencode: provider_timeout\n\n## Top contradictions\n1. claude: Provider status is error\n2. gemini: Provider status is timeout\n"
+}
