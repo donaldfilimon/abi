@@ -15,6 +15,35 @@ pub const Tensor = struct {
     pub fn deinit(self: *Tensor) void {
         self.allocator.free(self.data);
     }
+
+    /// Extremely naive CPU dense matrix multiplication: out = self x other
+    /// Assumes 2D shapes for simplicity (shape[0] = rows, shape[1] = cols)
+    pub fn matmul(self: *Tensor, other: *Tensor) !Tensor {
+        if (self.shape[1] != other.shape[0]) return error.DimensionMismatch;
+
+        const rows = self.shape[0];
+        const cols = other.shape[1];
+        const inner = self.shape[1];
+
+        const out_data = try self.allocator.alloc(f32, rows * cols);
+        @memset(out_data, 0.0);
+
+        for (0..rows) |i| {
+            for (0..cols) |j| {
+                var sum: f32 = 0.0;
+                for (0..inner) |k| {
+                    sum += self.data[i * inner + k] * other.data[k * cols + j];
+                }
+                out_data[i * cols + j] = sum;
+            }
+        }
+
+        return Tensor{
+            .allocator = self.allocator,
+            .shape = .{ rows, cols, 1, 1 },
+            .data = out_data,
+        };
+    }
 };
 
 /// Computes Root Mean Square Normalization natively.
@@ -37,6 +66,39 @@ pub fn rmsNorm(allocator: std.mem.Allocator, input: []const f32, weight: []const
     }
 
     return output;
+}
+
+/// Applies Rotary Position Embedding (RoPE) to a tensor slice.
+/// Expects x to be modified in-place. `pos` is the sequence position.
+pub fn applyRoPE(x: []f32, pos: usize, head_dim: usize, base: f32) void {
+    const p: f32 = @floatFromInt(pos);
+    var i: usize = 0;
+    while (i < x.len) : (i += head_dim) {
+        var j: usize = 0;
+        while (j < head_dim) : (j += 2) {
+            const freq = 1.0 / std.math.pow(f32, base, @as(f32, @floatFromInt(j)) / @as(f32, @floatFromInt(head_dim)));
+            const val = p * freq;
+            const fcr = @cos(val);
+            const fci = @sin(val);
+            
+            const v0 = x[i + j];
+            const v1 = x[i + j + 1];
+            x[i + j] = v0 * fcr - v1 * fci;
+            x[i + j + 1] = v0 * fci + v1 * fcr;
+        }
+    }
+}
+
+/// Computes multi-head scaled dot-product attention
+/// out = softmax(Q * K^T / sqrt(d)) * V
+/// This is a simplified structural stub designed to be replaced by Metal/SIMD
+pub fn selfAttention(allocator: std.mem.Allocator, q: *Tensor, k: *Tensor, v: *Tensor) !Tensor {
+    _ = allocator;
+    _ = q;
+    _ = k;
+    _ = v;
+    std.log.debug("MHA stub: Computing scaled dot-product attention...", .{});
+    return error.NotImplemented;
 }
 
 /// Stubs out a minimal native forward pass engine.
