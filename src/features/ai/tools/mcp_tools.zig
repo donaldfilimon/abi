@@ -6,6 +6,11 @@ const Context = tool.Context;
 const Parameter = tool.Parameter;
 const json = std.json;
 const os = @import("../../../services/shared/os.zig");
+const sync = @import("../../../services/shared/sync.zig");
+
+// Registry for tracking spawned background server PIDs
+var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .{};
+var pid_mutex: sync.Mutex = .{};
 
 fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolResult {
     const obj = switch (args) {
@@ -18,7 +23,7 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         else => "wdbx",
     } else "wdbx";
 
-    const bg_cmd = std.fmt.allocPrint(ctx.allocator, "nohup abi mcp serve {s} > /tmp/abi-mcp.log 2>&1 &", .{target}) catch
+    const bg_cmd = std.fmt.allocPrint(ctx.allocator, "nohup abi mcp serve {s} > /tmp/abi-mcp.log 2>&1 & echo $!", .{target}) catch
         return error.OutOfMemory;
     defer ctx.allocator.free(bg_cmd);
 
@@ -27,7 +32,17 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
     };
     defer result.deinit();
 
-    const output = std.fmt.allocPrint(ctx.allocator, "MCP server started for: {s}", .{target}) catch
+    // Parse PID from stdout
+    const pid_str = std.mem.trim(u8, result.stdout, " \r\n");
+    const pid = std.fmt.parseInt(u32, pid_str, 10) catch 0;
+
+    if (pid > 0) {
+        pid_mutex.lock();
+        defer pid_mutex.unlock();
+        server_pids.put(ctx.allocator, pid, "mcp") catch {};
+    }
+
+    const output = std.fmt.allocPrint(ctx.allocator, "MCP server started for {s} (PID: {d})", .{target, pid}) catch
         return error.OutOfMemory;
 
     return ToolResult.init(ctx.allocator, true, output);
@@ -53,7 +68,7 @@ fn executeServeAcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         else => 8080,
     } else 8080;
 
-    const bg_cmd = std.fmt.allocPrint(ctx.allocator, "nohup abi acp serve --port {d} > /tmp/abi-acp.log 2>&1 &", .{port}) catch
+    const bg_cmd = std.fmt.allocPrint(ctx.allocator, "nohup abi acp serve --port {d} > /tmp/abi-acp.log 2>&1 & echo $!", .{port}) catch
         return error.OutOfMemory;
     defer ctx.allocator.free(bg_cmd);
 
@@ -62,7 +77,17 @@ fn executeServeAcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
     };
     defer result.deinit();
 
-    const output = std.fmt.allocPrint(ctx.allocator, "ACP server started on port: {d}", .{port}) catch
+    // Parse PID from stdout
+    const pid_str = std.mem.trim(u8, result.stdout, " \r\n");
+    const pid = std.fmt.parseInt(u32, pid_str, 10) catch 0;
+
+    if (pid > 0) {
+        pid_mutex.lock();
+        defer pid_mutex.unlock();
+        server_pids.put(ctx.allocator, pid, "acp") catch {};
+    }
+
+    const output = std.fmt.allocPrint(ctx.allocator, "ACP server started on port {d} (PID: {d})", .{port, pid}) catch
         return error.OutOfMemory;
 
     return ToolResult.init(ctx.allocator, true, output);
@@ -77,9 +102,50 @@ pub const serve_acp_tool = Tool{
     .execute = &executeServeAcp,
 };
 
+fn executeKillServer(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const pid = if (obj.get("pid")) |v| switch (v) {
+        .integer => |i| i,
+        else => return ToolResult.fromError(ctx.allocator, "Expected integer pid"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing pid parameter");
+
+    pid_mutex.lock();
+    const removed = server_pids.remove(@intCast(pid));
+    pid_mutex.unlock();
+
+    if (!removed) {
+        return ToolResult.fromError(ctx.allocator, "Server PID not found in registry");
+    }
+
+    const cmd = std.fmt.allocPrint(ctx.allocator, "kill -9 {d}", .{pid}) catch return error.OutOfMemory;
+    defer ctx.allocator.free(cmd);
+
+    var result = os.exec(ctx.allocator, cmd) catch {
+        return ToolResult.fromError(ctx.allocator, "Failed to execute kill command");
+    };
+    defer result.deinit();
+
+    const output = std.fmt.allocPrint(ctx.allocator, "Terminated server (PID: {d})", .{pid}) catch return error.OutOfMemory;
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const kill_server_tool = Tool{
+    .name = "kill_server",
+    .description = "Terminate an MCP or ACP server by PID",
+    .parameters = &[_]Parameter{
+        .{ .name = "pid", .type = .integer, .required = true, .description = "PID of the server to terminate" },
+    },
+    .execute = &executeKillServer,
+};
+
 pub const all_tools = [_]*const Tool{
     &serve_mcp_tool,
     &serve_acp_tool,
+    &kill_server_tool,
 };
 
 pub fn registerAll(registry: *tool.ToolRegistry) !void {

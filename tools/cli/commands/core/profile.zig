@@ -865,6 +865,8 @@ fn showApiKeyStatus(allocator: std.mem.Allocator) !void {
         .{ .name = "anthropic", .env_var = "ABI_ANTHROPIC_API_KEY" },
         .{ .name = "huggingface", .env_var = "ABI_HF_API_TOKEN" },
         .{ .name = "ollama", .env_var = "ABI_OLLAMA_HOST" },
+        .{ .name = "gemini", .env_var = "ABI_GEMINI_API_KEY" },
+        .{ .name = "codex", .env_var = "ABI_CODEX_API_KEY" },
     };
 
     utils.output.println("\n{s:<15} {s:<15} {s:<30}", .{ "PROVIDER", "STATUS", "ENV VARIABLE" });
@@ -890,6 +892,8 @@ fn setApiKey(allocator: std.mem.Allocator, provider: []const u8, key: []const u8
         .{ "openai", "ABI_OPENAI_API_KEY" },
         .{ "anthropic", "ABI_ANTHROPIC_API_KEY" },
         .{ "huggingface", "ABI_HF_API_TOKEN" },
+        .{ "gemini", "ABI_GEMINI_API_KEY" },
+        .{ "codex", "ABI_CODEX_API_KEY" },
     });
 
     if (env_vars.get(provider)) |env_var| {
@@ -903,7 +907,7 @@ fn setApiKey(allocator: std.mem.Allocator, provider: []const u8, key: []const u8
         utils.output.println("  set {s}=<your-key>", .{env_var});
     } else {
         utils.output.printError("Unknown provider: {s}", .{provider});
-        utils.output.printInfo("Supported providers: openai, anthropic, huggingface", .{});
+        utils.output.printInfo("Supported providers: openai, anthropic, huggingface, gemini, codex", .{});
     }
 }
 

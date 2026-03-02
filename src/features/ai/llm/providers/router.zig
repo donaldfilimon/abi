@@ -154,7 +154,31 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    const text = try client.generate(cfg.prompt, cfg.max_tokens);
+    var text: []u8 = undefined;
+    if (client.generate(cfg.prompt, cfg.max_tokens)) |res| {
+        text = res;
+    } else |err| {
+        if (err == error.ConnectionRefused) {
+            std.log.info("llama-server not running. Attempting to spawn locally...", .{});
+            
+            const os = @import("../../../../services/shared/os.zig");
+            const cmd = try std.fmt.allocPrint(allocator, "nohup llama-server -m {s} --port 8080 > /tmp/llama-server.log 2>&1 &", .{cfg.model});
+            defer allocator.free(cmd);
+            
+            var result = os.exec(allocator, cmd) catch |spawn_err| {
+                std.log.err("Failed to spawn llama-server: {any}", .{spawn_err});
+                return err;
+            };
+            result.deinit();
+
+            std.log.info("Spawned llama-server. Waiting for it to become ready...", .{});
+            const time_mod = @import("../../../../services/shared/time.zig");
+            time_mod.sleepNs(3 * std.time.ns_per_s);
+            text = try client.generate(cfg.prompt, cfg.max_tokens);
+        } else {
+            return err;
+        }
+    }
 
     return .{
         .provider = .llama_cpp,

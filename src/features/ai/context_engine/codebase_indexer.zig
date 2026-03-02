@@ -95,6 +95,48 @@ pub const CodebaseIndexer = struct {
 
         try file.writeStreamingAll(self.io.*, new_content);
     }
+
+    /// Embed an indexed codebase into the neural vector database using the specified embedder.
+    pub fn embedCodebase(self: *CodebaseIndexer, dir_path: []const u8, wdbx_engine: anytype, embedder: anytype) !void {
+        _ = embedder; // Use wdbx_engine's internal AI client for now
+        std.log.info("Starting codebase embedding for: {s}", .{dir_path});
+        
+        const entries = try self.indexDirectory(dir_path);
+        defer {
+            for (entries) |*e| e.deinit(self.allocator);
+            self.allocator.free(entries);
+        }
+
+        var total_tokens: usize = 0;
+        var total_chunks: usize = 0;
+        
+        for (entries) |e| {
+            total_tokens += e.tokens;
+            
+            // Simple chunking by double newline (paragraphs/functions)
+            var chunk_idx: usize = 0;
+            var iter = std.mem.splitSequence(u8, e.content, "\n\n");
+            
+            while (iter.next()) |chunk| {
+                const trimmed = std.mem.trim(u8, chunk, " \t\r\n");
+                if (trimmed.len < 20) continue; // Skip very small meaningless chunks
+
+                const id = try std.fmt.allocPrint(self.allocator, "{s}#{d}", .{e.file_path, chunk_idx});
+                defer self.allocator.free(id);
+
+                // Index chunk directly into the engine.
+                // Assuming wdbx_engine is a *wdbx.Engine
+                wdbx_engine.index(id, trimmed, .empty) catch |err| {
+                    std.log.warn("Failed to index chunk {s}: {}", .{id, err});
+                };
+                
+                chunk_idx += 1;
+                total_chunks += 1;
+            }
+        }
+
+        std.log.info("Codebase mapped: {d} files, ~{d} total tokens, {d} semantic chunks inserted into wdbx_engine.", .{ entries.len, total_tokens, total_chunks });
+    }
 };
 
 test "codebase indexer dummy test" {

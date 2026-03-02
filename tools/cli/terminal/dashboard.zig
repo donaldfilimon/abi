@@ -24,6 +24,8 @@ pub fn Dashboard(comptime PanelType: type) type {
     return struct {
         const Self = @This();
 
+        pub const MenuType = enum { file, view, tools, window };
+
         allocator: std.mem.Allocator,
         terminal: *terminal_mod.Terminal,
         theme_manager: themes_mod.ThemeManager,
@@ -31,6 +33,7 @@ pub fn Dashboard(comptime PanelType: type) type {
         term_size: terminal_mod.TerminalSize,
         paused: bool,
         show_help: bool,
+        active_menu: ?MenuType,
         frame_count: u64,
         notification: ?[]const u8,
         notification_time: i64,
@@ -62,6 +65,7 @@ pub fn Dashboard(comptime PanelType: type) type {
                 .term_size = terminal.size(),
                 .paused = false,
                 .show_help = false,
+                .active_menu = null,
                 .frame_count = 0,
                 .notification = null,
                 .notification_time = 0,
@@ -135,7 +139,7 @@ pub fn Dashboard(comptime PanelType: type) type {
             return switch (event) {
                 .input => |ev| switch (ev) {
                     .key => |key| self.handleKey(key),
-                    .mouse => false,
+                    .mouse => |mouse| self.handleMouse(mouse),
                 },
                 .resize => |sz| blk: {
                     self.term_size = .{ .rows = sz.rows, .cols = sz.cols };
@@ -147,6 +151,55 @@ pub fn Dashboard(comptime PanelType: type) type {
             };
         }
 
+        fn handleMouse(self: *Self, mouse: events.Mouse) bool {
+            if (mouse.button != .left or !mouse.pressed) return false;
+            
+            // Menu bar clicks (row=0)
+            if (mouse.row == 0) {
+                // Rough hit zones based on: "  File  View  Tools  Window  Help "
+                if (mouse.col > 8 and mouse.col < 13) {
+                    self.active_menu = if (self.active_menu == .file) null else .file;
+                } else if (mouse.col >= 13 and mouse.col < 19) {
+                    self.active_menu = if (self.active_menu == .view) null else .view;
+                } else if (mouse.col >= 19 and mouse.col < 26) {
+                    self.active_menu = if (self.active_menu == .tools) null else .tools;
+                } else if (mouse.col >= 26 and mouse.col < 34) {
+                    self.active_menu = if (self.active_menu == .window) null else .window;
+                } else if (mouse.col >= 34 and mouse.col < 40) {
+                    self.show_help = true;
+                    self.active_menu = null;
+                } else {
+                    self.active_menu = null;
+                }
+                return false;
+            } else {
+                if (self.active_menu != null) {
+                    self.active_menu = null;
+                    return true; // absorb click
+                }
+            }
+            
+            // Toolbar clicks (row=1)
+            if (mouse.row == 1) {
+                // Rough hit zones based on: " [▶ Run]  [⏹ Stop]  [⟳ Refresh]  [⚙ Settings] "
+                if (mouse.col > 0 and mouse.col < 9) {
+                    self.paused = false;
+                    self.showNotification("Resumed loop");
+                } else if (mouse.col >= 10 and mouse.col < 19) {
+                    self.paused = true;
+                    self.showNotification("Paused loop");
+                } else if (mouse.col >= 20 and mouse.col < 32) {
+                    self.clearExpiredNotification();
+                    self.showNotification("Refreshed");
+                } else if (mouse.col >= 33 and mouse.col < 47) {
+                    self.showNotification("Settings dialog");
+                }
+                return false;
+            }
+            
+            return false;
+        }
+
         fn handleKey(self: *Self, key: events.Key) bool {
             // Help overlay intercepts all keys
             if (self.show_help) {
@@ -155,6 +208,19 @@ pub fn Dashboard(comptime PanelType: type) type {
                     .character => {
                         if (key.char) |ch| {
                             if (ch == 'h' or ch == 'q') self.show_help = false;
+                        }
+                    },
+                    else => {},
+                }
+                return false;
+            }
+
+            if (self.active_menu != null) {
+                switch (key.code) {
+                    .escape => self.active_menu = null,
+                    .character => {
+                        if (key.char) |ch| {
+                            if (ch == 'q') self.active_menu = null;
                         }
                     },
                     else => {},
@@ -243,6 +309,40 @@ pub fn Dashboard(comptime PanelType: type) type {
             try term.write(th.text_dim);
             try term.write(self.config.help_keys);
             try term.write(th.reset);
+
+            // Floating menu overlay
+            if (self.active_menu) |menu| {
+                const menu_x: u16 = switch (menu) {
+                    .file => 9,
+                    .view => 14,
+                    .tools => 20,
+                    .window => 27,
+                };
+                const items = switch (menu) {
+                    .file => &[_][]const u8{ "New", "Open", "Save", "Export", "Quit" },
+                    .view => &[_][]const u8{ "Dashboard", "Logs", "Metrics" },
+                    .tools => &[_][]const u8{ "Inspector", "Terminal", "Settings" },
+                    .window => &[_][]const u8{ "Tile", "Float", "Close All" },
+                };
+
+                try term.write(th.reset);
+                // Draw a simple dropdown box
+                var y: u16 = 1;
+                for (items) |item| {
+                    try term.moveTo(y, menu_x);
+                    try term.write(th.selection_bg);
+                    try term.write(th.selection_fg);
+                    try term.write(" ");
+                    try term.write(item);
+                    // padding to ensure equal width
+                    var pad: usize = 12 -| item.len;
+                    while (pad > 0) : (pad -= 1) {
+                        try term.write(" ");
+                    }
+                    try term.write(th.reset);
+                    y += 1;
+                }
+            }
         }
     };
 }

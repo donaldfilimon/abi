@@ -5,7 +5,6 @@
 //! Also provides helpers to generate kernel source skeletons.
 
 const std = @import("std");
-const zig_toolchain = @import("../../../services/shared/zig_toolchain.zig");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
