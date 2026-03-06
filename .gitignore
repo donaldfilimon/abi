@@ -159,8 +159,9 @@ perf.data*
 .claude-plugin/
 
 # ── Local task tracking (agent notes) ────────────────────────────────
-tasks/
-!/tasks/
+/tasks/
+!/tasks/todo.md
+!/tasks/lessons.md
 
 # ── ABI runtime state ────────────────────────────────────────────────
 .abi/
@@ -233,6 +234,7 @@ TRASH-FILES.md
 !/CODE_OF_CONDUCT.md
 !/docs/README.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
+!/docs/plans/*.md
 !/tasks/todo.md
 !/tasks/lessons.md
 

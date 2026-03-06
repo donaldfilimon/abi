@@ -6,6 +6,34 @@ archive section with their evidence preserved.
 
 ## Active Queue
 
+### Task Plan - WDBX and Abbey Architecture (2026-03-06)
+
+#### Objective
+Implement the WDBX semantic memory fabric and Abbey cognition layers in Zig 0.16.
+
+#### Scope
+- WDBX operates as a distributed block-oriented memory and retrieval system.
+- Abbey layers execute context assembly, persona routing, and tool interactions over WDBX.
+
+#### Verification Criteria
+- `zig build verify-all`
+
+#### Checklist
+##### Now
+- [x] Define the core architecture and Zig 0.16 layout.
+- [ ] Implement block storage, index, and vector layers.
+- [ ] Implement ranking, query, and context assembly.
+- [ ] Integrate persona routing and tool execution.
+
+##### Review
+- [ ] Full `zig-master` close-out passes, or every remaining failure is isolated with evidence.
+
+##### Evidence
+- Pending.
+
+##### Residual Risk
+- Pending.
+
 ### Task Plan - Darwin Toolchain Unblock And Branch Stabilization (2026-03-06)
 
 #### Objective
