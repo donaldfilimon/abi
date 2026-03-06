@@ -180,6 +180,14 @@ pub const ArgParser = struct {
         return self.args[self.index..];
     }
 
+    /// Try to consume an option and parse the value as an enum (case-insensitive).
+    /// Returns `default` if the flag is absent, the value is missing, or the
+    /// value does not map to any field of `E`.
+    pub fn consumeEnumOption(self: *ArgParser, comptime E: type, options: []const []const u8, default: E) E {
+        const value = self.consumeOption(options) orelse return default;
+        return parseEnum(E, value) orelse default;
+    }
+
     /// Skip n arguments.
     pub fn skip(self: *ArgParser, n: usize) void {
         self.index = @min(self.index + n, self.args.len);
@@ -367,6 +375,29 @@ test "CliError formatting" {
     );
     try std.testing.expectEqual(error.FileNotFound, err.code);
     try std.testing.expectEqualStrings("Could not open config file", err.context);
+}
+
+test "ArgParser consumeEnumOption" {
+    const allocator = std.testing.allocator;
+    const TestEnum = enum { plain, colored, json };
+
+    const args = [_][:0]const u8{ "--format", "json", "--format", "INVALID", "--other" };
+    var parser = ArgParser.init(allocator, &args);
+
+    // Valid enum field
+    const val1 = parser.consumeEnumOption(TestEnum, &[_][]const u8{"--format"}, .plain);
+    try std.testing.expectEqual(TestEnum.json, val1);
+
+    // Invalid enum field returns default
+    const val2 = parser.consumeEnumOption(TestEnum, &[_][]const u8{"--format"}, .plain);
+    try std.testing.expectEqual(TestEnum.plain, val2);
+
+    // Missing option returns default
+    const val3 = parser.consumeEnumOption(TestEnum, &[_][]const u8{"--missing"}, .colored);
+    try std.testing.expectEqual(TestEnum.colored, val3);
+
+    // Should be at --other now
+    try std.testing.expectEqualStrings("--other", parser.current().?);
 }
 
 test {

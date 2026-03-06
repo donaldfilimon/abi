@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) void {
     const build_opts = modules.createBuildOptionsModule(b, options);
 
     const wdbx_module = b.addModule("wdbx", .{
-        .root_source_file = b.path("src/features/database/wdbx/wdbx.zig"),
+        .root_source_file = b.path("src/wdbx/wdbx.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -148,10 +148,10 @@ pub fn build(b: *std.Build) void {
         typecheck_step = b.step("typecheck", "Compile tests without running");
         typecheck_step.?.dependOn(&tests.step);
 
-        if (targets.pathExists(b, "src/features/database/wdbx/wdbx.zig")) {
+        if (targets.pathExists(b, "src/wdbx/wdbx.zig")) {
             const neural_wdbx_tests = b.addTest(.{
                 .root_module = b.createModule(.{
-                    .root_source_file = b.path("src/features/database/wdbx/wdbx.zig"),
+                    .root_source_file = b.path("src/wdbx/wdbx.zig"),
                     .target = target,
                     .optimize = optimize,
                     .link_libc = true,

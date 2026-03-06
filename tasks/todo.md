@@ -20,8 +20,8 @@ for Zig validation, `tasks/todo.md` for active execution, and
   changes that flow into generated docs.
 - Update generator/template sources instead of hand-editing repeated generated
   markdown across `docs/_docs/`, `docs/api/`, and `docs/plans/`.
-- Normalize repo-written status/docs surfaces so `TODO.md`, `PLAN.md`, and
-  `ROADMAP.md` stop competing with `tasks/todo.md`.
+- Remove root-level `TODO.md`, `PLAN.md`, and `ROADMAP.md` so they stop
+  competing with `tasks/todo.md`.
 - Update `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`, `README.md`,
   `docs/ABI_PROJECT_MEMORY.md`, and the external `zig-master` skill so they
   agree on ownership and routing.
@@ -69,8 +69,8 @@ for Zig validation, `tasks/todo.md` for active execution, and
   without hand-edited drift.
 - [x] No handwritten markdown surface still routes Zig policy through stale `.claude`
   policy paths or through `CLAUDE.md` as the canonical policy source.
-- [x] `TODO.md`, `PLAN.md`, and `ROADMAP.md` behave as summary/index surfaces,
-  not competing execution trackers.
+- [x] `TODO.md`, `PLAN.md`, and `ROADMAP.md` removed from repo root so they no
+  longer compete as execution trackers.
 - [ ] Full `zig-master` close-out passes, or every remaining failure is isolated
   with evidence.
 
@@ -236,8 +236,9 @@ branches that are already fully merged and no longer needed.
 #### Evidence
 - `git branch --merged main` showed all non-`main` local branches were already
   ancestors of `main`, so no additional merge into `main` was required.
-- Mandatory consensus output under `tasks/branch-cleanup-consensus-out/`
-  supported worktree-first cleanup followed by local and remote pruning.
+- Mandatory consensus was run for the cleanup approach (output directory
+  `tasks/branch-cleanup-consensus-out/` since removed) and supported
+  worktree-first cleanup followed by local and remote pruning.
 - `git worktree remove /Users/donaldfilimon/.codex/worktrees/9a24/abi`
   succeeded, then merged local branches were deleted.
 - `git fetch --prune origin` removed the stale remote-tracking ref, and

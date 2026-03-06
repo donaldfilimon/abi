@@ -21,7 +21,7 @@ pub const meta: command_mod.Meta = .{
     .name = "ui",
     .description = "Shared UI shell and focused terminal views (editor, gpu, train, model, streaming, db, network, bench, brain, chat)",
     .aliases = &.{},
-    .subcommands = &.{ "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "chat", "editor", "help" },
+    .subcommands = &.{ "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "chat", "editor", "dashboard", "help" },
     .kind = .group,
     .children = &.{
         .{ .name = "gpu", .description = "Open GPU dashboard TUI", .handler = gpu_cmd.run },
@@ -35,6 +35,7 @@ pub const meta: command_mod.Meta = .{
         .{ .name = "brain", .description = "Open brain visualization dashboard", .handler = brain_cmd.run },
         .{ .name = "chat", .description = "Open multi-persona chat dashboard", .handler = chat_cmd.run },
         .{ .name = "editor", .description = "Open an inline terminal text editor", .handler = editor_cmd.run },
+        .{ .name = "dashboard", .description = "Open the shared tabbed shell (alias)", .handler = dashboard_cmd.run },
     },
 };
 
@@ -74,7 +75,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn isRemovedLegacyMode(sub: []const u8) bool {
-    return std.mem.eql(u8, sub, "launch") or std.mem.eql(u8, sub, "dashboard");
+    return std.mem.eql(u8, sub, "launch");
 }
 
 pub fn printHelp() void {
@@ -95,6 +96,7 @@ pub fn printHelp() void {
         \\  bench                Open benchmark results dashboard
         \\  brain                Open brain visualization dashboard
         \\  chat                 Open multi-persona chat dashboard
+        \\  dashboard            Open the shared tabbed shell
         \\  editor [file]        Open the inline terminal editor
         \\  help                 Show this help
         \\
@@ -133,6 +135,7 @@ test "ui meta exposes every public child command" {
         "brain",
         "chat",
         "editor",
+        "dashboard",
     };
 
     try std.testing.expectEqual(expected.len, meta.children.len);
@@ -147,7 +150,7 @@ test "ui meta exposes every public child command" {
 
 test "removed ui legacy modes stay rejected" {
     try std.testing.expect(isRemovedLegacyMode("launch"));
-    try std.testing.expect(isRemovedLegacyMode("dashboard"));
+    try std.testing.expect(!isRemovedLegacyMode("dashboard"));
     try std.testing.expect(!isRemovedLegacyMode("gpu"));
 }
 

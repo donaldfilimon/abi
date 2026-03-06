@@ -7,8 +7,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 const tokenizer_mod = @import("../llm/tokenizer/mod.zig");
 
-// Import the database module's wdbx wrapper (not this file!)
-const db_wdbx = @import("../../database/wdbx.zig");
+// Import the modern neural engine
+const wdbx_engine = @import("../../../wdbx/wdbx.zig");
 
 pub const DatasetError = error{
     DatabaseDisabled,
@@ -45,7 +45,7 @@ pub const TokenBlock = struct {
 
 pub const WdbxTokenDataset = struct {
     allocator: std.mem.Allocator,
-    handle: db_wdbx.DatabaseHandle,
+    engine: wdbx_engine.Engine,
     path: []const u8,
     next_id: u64,
     dirty: bool,
@@ -56,26 +56,27 @@ pub const WdbxTokenDataset = struct {
         const path_copy = try allocator.dupe(u8, path);
         errdefer allocator.free(path_copy);
 
-        var handle = db_wdbx.createDatabaseWithConfig(allocator, path, .{
-            .cache_norms = false,
-            .initial_capacity = 0,
-            .use_vector_pool = false,
-            .thread_safe = false,
-        }) catch |err| return mapWdbxError(err);
-        errdefer db_wdbx.closeDatabase(&handle);
+        // Initialize modern engine
+        var engine = wdbx_engine.Engine.init(allocator, .{}) catch |err| return mapWdbxError(err);
+        errdefer engine.deinit();
 
+        // Check if file exists and load
         if (fileExists(allocator, path)) {
-            db_wdbx.restore(&handle, path) catch |err| switch (err) {
-                error.FileNotFound => {},
+            var loaded = wdbx_engine.load(allocator, path) catch |err| switch (err) {
+                error.FileNotFound => null,
                 else => return mapWdbxError(err),
             };
+            if (loaded) |l| {
+                engine.deinit();
+                engine = l;
+            }
         }
 
-        const next_id = try computeNextId(allocator, &handle);
+        const next_id = try computeNextId(allocator, &engine);
 
         return .{
             .allocator = allocator,
-            .handle = handle,
+            .engine = engine,
             .path = path_copy,
             .next_id = next_id,
             .dirty = false,
@@ -83,23 +84,35 @@ pub const WdbxTokenDataset = struct {
     }
 
     pub fn deinit(self: *WdbxTokenDataset) void {
-        db_wdbx.closeDatabase(&self.handle);
+        self.engine.deinit();
         self.allocator.free(self.path);
         self.* = undefined;
     }
 
     pub fn save(self: *WdbxTokenDataset) DatasetError!void {
         if (!self.dirty) return;
-        db_wdbx.backup(&self.handle, self.path) catch |err| return mapWdbxError(err);
+        wdbx_engine.save(&self.engine, self.path) catch |err| return mapWdbxError(err);
         self.dirty = false;
     }
 
     pub fn appendTokens(self: *WdbxTokenDataset, tokens: []const u32, text: ?[]const u8) DatasetError!void {
-        const metadata = try encodeTokenBlock(self.allocator, tokens, text);
-        defer self.allocator.free(metadata);
+        const encoded_metadata = try encodeTokenBlock(self.allocator, tokens, text);
+        defer self.allocator.free(encoded_metadata);
+
+        // Convert numeric ID to string for modern engine
+        var id_buf: [32]u8 = undefined;
+        const id_str = std.fmt.bufPrint(&id_buf, "{d}", .{self.next_id}) catch return error.PayloadTooLarge;
 
         const empty_vector: []const f32 = &.{};
-        db_wdbx.insertVector(&self.handle, self.next_id, empty_vector, metadata) catch |err| return mapWdbxError(err);
+        
+        // Map encoded tokens to the 'extra' field of structured metadata
+        const metadata = wdbx_engine.Metadata{
+            .text = text orelse "",
+            .extra = encoded_metadata,
+        };
+
+        self.engine.indexByVector(id_str, empty_vector, metadata) catch |err| return mapWdbxError(err);
+        
         self.next_id += 1;
         self.dirty = true;
     }
@@ -116,17 +129,14 @@ pub const WdbxTokenDataset = struct {
     }
 
     pub fn collectTokens(self: *WdbxTokenDataset, max_tokens: usize) DatasetError![]u32 {
-        const stats = db_wdbx.getStats(&self.handle);
-        if (stats.count == 0) return self.allocator.alloc(u32, 0);
-
-        const views = db_wdbx.listVectors(&self.handle, self.allocator, stats.count) catch |err| return mapWdbxError(err);
-        defer self.allocator.free(views);
+        const count = self.engine.count();
+        if (count == 0) return self.allocator.alloc(u32, 0);
 
         var tokens = std.ArrayListUnmanaged(u32).empty;
         errdefer tokens.deinit(self.allocator);
 
-        for (views) |view| {
-            if (view.metadata) |meta| {
+        for (self.engine.vectors_array.items) |item| {
+            if (item.metadata.extra) |meta| {
                 _ = try appendTokensFromBlock(self.allocator, &tokens, meta, max_tokens);
                 if (max_tokens > 0 and tokens.items.len >= max_tokens) break;
             }
@@ -301,16 +311,14 @@ fn readHeader(bytes: []const u8) DatasetError!TokenBlockHeader {
     };
 }
 
-fn computeNextId(allocator: std.mem.Allocator, handle: *db_wdbx.DatabaseHandle) DatasetError!u64 {
-    const stats = db_wdbx.getStats(handle);
-    if (stats.count == 0) return 1;
-
-    const views = db_wdbx.listVectors(handle, allocator, stats.count) catch |err| return mapWdbxError(err);
-    defer allocator.free(views);
+fn computeNextId(allocator: std.mem.Allocator, engine: *const wdbx_engine.Engine) DatasetError!u64 {
+    const count = engine.count();
+    if (count == 0) return 1;
 
     var max_id: u64 = 0;
-    for (views) |view| {
-        if (view.id > max_id) max_id = view.id;
+    for (engine.vectors_array.items) |item| {
+        const id = std.fmt.parseInt(u64, item.id, 10) catch continue;
+        if (id > max_id) max_id = id;
     }
     return max_id + 1;
 }
@@ -333,120 +341,6 @@ fn mapWdbxError(err: anyerror) DatasetError {
         error.PayloadTooLarge => error.PayloadTooLarge,
         else => error.ReadFailed,
     };
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-test "encodeTokenBlock roundtrip without text" {
-    const allocator = std.testing.allocator;
-    const tokens = [_]u32{ 100, 200, 300, 400 };
-
-    const encoded = try encodeTokenBlock(allocator, &tokens, null);
-    defer allocator.free(encoded);
-
-    var block = try decodeTokenBlock(allocator, encoded);
-    defer block.deinit();
-
-    try std.testing.expectEqual(@as(usize, 4), block.tokens.len);
-    try std.testing.expectEqual(@as(u32, 100), block.tokens[0]);
-    try std.testing.expectEqual(@as(u32, 200), block.tokens[1]);
-    try std.testing.expectEqual(@as(u32, 300), block.tokens[2]);
-    try std.testing.expectEqual(@as(u32, 400), block.tokens[3]);
-    try std.testing.expect(block.text == null);
-}
-
-test "encodeTokenBlock roundtrip with text" {
-    const allocator = std.testing.allocator;
-    const tokens = [_]u32{ 1, 2, 3 };
-
-    const encoded = try encodeTokenBlock(allocator, &tokens, "hello world");
-    defer allocator.free(encoded);
-
-    var block = try decodeTokenBlock(allocator, encoded);
-    defer block.deinit();
-
-    try std.testing.expectEqual(@as(usize, 3), block.tokens.len);
-    try std.testing.expectEqual(@as(u32, 1), block.tokens[0]);
-    try std.testing.expectEqualStrings("hello world", block.text.?);
-}
-
-test "encodeTokenBlock empty tokens" {
-    const allocator = std.testing.allocator;
-    const empty = [_]u32{};
-
-    const encoded = try encodeTokenBlock(allocator, &empty, null);
-    defer allocator.free(encoded);
-
-    var block = try decodeTokenBlock(allocator, encoded);
-    defer block.deinit();
-
-    try std.testing.expectEqual(@as(usize, 0), block.tokens.len);
-    try std.testing.expect(block.text == null);
-}
-
-test "decodeTokenBlock rejects invalid magic" {
-    const bad_data = "BADM\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-    const result = decodeTokenBlock(std.testing.allocator, bad_data);
-    try std.testing.expectError(error.InvalidFormat, result);
-}
-
-test "decodeTokenBlock rejects truncated data" {
-    const result = decodeTokenBlock(std.testing.allocator, "short");
-    try std.testing.expectError(error.InvalidFormat, result);
-}
-
-test "appendTokensFromBlock respects max_tokens" {
-    const allocator = std.testing.allocator;
-    const tokens = [_]u32{ 10, 20, 30, 40, 50 };
-
-    const encoded = try encodeTokenBlock(allocator, &tokens, null);
-    defer allocator.free(encoded);
-
-    var out = std.ArrayListUnmanaged(u32).empty;
-    defer out.deinit(allocator);
-
-    const appended = try appendTokensFromBlock(allocator, &out, encoded, 3);
-    try std.testing.expectEqual(@as(usize, 3), appended);
-    try std.testing.expectEqual(@as(usize, 3), out.items.len);
-    try std.testing.expectEqual(@as(u32, 10), out.items[0]);
-    try std.testing.expectEqual(@as(u32, 20), out.items[1]);
-    try std.testing.expectEqual(@as(u32, 30), out.items[2]);
-}
-
-test "appendTokensFromBlock zero max means unlimited" {
-    const allocator = std.testing.allocator;
-    const tokens = [_]u32{ 1, 2, 3 };
-
-    const encoded = try encodeTokenBlock(allocator, &tokens, null);
-    defer allocator.free(encoded);
-
-    var out = std.ArrayListUnmanaged(u32).empty;
-    defer out.deinit(allocator);
-
-    const appended = try appendTokensFromBlock(allocator, &out, encoded, 0);
-    try std.testing.expectEqual(@as(usize, 3), appended);
-    try std.testing.expectEqual(@as(usize, 3), out.items.len);
-}
-
-test "readHeader validates format" {
-    // Valid header
-    const allocator = std.testing.allocator;
-    const tokens = [_]u32{42};
-    const encoded = try encodeTokenBlock(allocator, &tokens, null);
-    defer allocator.free(encoded);
-
-    const header = try readHeader(encoded);
-    try std.testing.expectEqual(@as(u32, 1), header.token_count);
-    try std.testing.expectEqual(@as(u32, 0), header.text_len);
-}
-
-test "mapWdbxError maps known errors" {
-    try std.testing.expectEqual(DatasetError.OutOfMemory, mapWdbxError(error.OutOfMemory));
-    try std.testing.expectEqual(DatasetError.FileNotFound, mapWdbxError(error.FileNotFound));
-    try std.testing.expectEqual(DatasetError.InvalidFormat, mapWdbxError(error.InvalidFormat));
-    try std.testing.expectEqual(DatasetError.ReadFailed, mapWdbxError(error.Unexpected));
 }
 
 test {

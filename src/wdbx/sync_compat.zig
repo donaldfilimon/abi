@@ -1,7 +1,7 @@
 //! Local synchronization compatibility primitives for WDBX tests.
 //!
 //! Mirrors the `RwLock` behavior from `src/services/shared/sync.zig`, but stays
-//! within this module path so direct `zig test src/features/database/wdbx/*.zig`
+//! within this module path so direct `zig test src/wdbx/*.zig`
 //! commands can compile without cross-module-path imports.
 
 const std = @import("std");

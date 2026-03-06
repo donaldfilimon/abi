@@ -159,6 +159,12 @@ pub const training = if (build_options.feat_ai)
 else
     @import("training/stub.zig");
 
+/// Reasoning module
+pub const reasoning = if (build_options.feat_ai)
+    @import("reasoning/mod.zig")
+else
+    @import("reasoning/stub.zig");
+
 /// AI Database module
 pub const database = if (build_options.feat_ai)
     @import("database/mod.zig")
@@ -210,6 +216,8 @@ pub const Error = error{
     EmbeddingsDisabled,
     /// Agents sub-feature is disabled
     AgentsDisabled,
+    /// Reasoning sub-feature is disabled
+    ReasoningDisabled,
     /// Training sub-feature is disabled
     TrainingDisabled,
     /// Model not found
@@ -268,6 +276,8 @@ pub const Context = struct {
     agents_ctx: ?*agents.Context = null,
     /// Training pipeline context, or null if not enabled.
     training_ctx: ?*training.Context = null,
+    /// Reasoning context, or null if not enabled.
+    reasoning_ctx: ?*reasoning.Context = null,
     /// Multi-persona system context, or null if not enabled.
     personas_ctx: ?*personas.Context = null,
 
@@ -320,6 +330,12 @@ pub const Context = struct {
 
         inline for (std.meta.fields(SubFeature)) |field| {
             const feature = @as(SubFeature, @enumFromInt(field.value));
+            if (feature == .reasoning) {
+                if (cfg.reasoning) |sc| {
+                    ctx.reasoning_ctx = try reasoning.Context.init(allocator, sc);
+                }
+                continue;
+            }
             const sub_cfg = @field(cfg, @tagName(feature));
             if (sub_cfg) |sc| {
                 @field(ctx, @tagName(feature) ++ "_ctx") = try SubFeatureContext(feature).init(allocator, sc);
@@ -362,7 +378,8 @@ pub const Context = struct {
             .embeddings => error.EmbeddingsDisabled,
             .agents => error.AgentsDisabled,
             .training => error.TrainingDisabled,
-            .personas => error.AiDisabled, // Personas currently maps to AiDisabled
+            .reasoning => error.ReasoningDisabled,
+            .personas => error.AiDisabled,
         };
     }
 
@@ -447,6 +464,7 @@ pub const Context = struct {
         embeddings,
         agents,
         training,
+        reasoning,
         personas,
     };
 
@@ -457,6 +475,7 @@ pub const Context = struct {
             .embeddings => embeddings.Context,
             .agents => agents.Context,
             .training => training.Context,
+            .reasoning => reasoning.Context,
             .personas => personas.Context,
         };
     }

@@ -15,7 +15,7 @@ const std = @import("std");
 pub const simd = @import("wdbx/simd.zig");
 pub const hnsw = @import("wdbx/hnsw.zig");
 pub const quantize = @import("wdbx/quantize.zig");
-pub const database = @import("wdbx/database.zig");
+pub const engine = @import("wdbx/engine.zig");
 
 // ── Persona System ──────────────────────────────────────────────────────
 pub const personas = @import("personas/personas.zig");
@@ -26,7 +26,7 @@ pub const safety = @import("personas/safety.zig");
 pub const sampler = @import("inference/sampler.zig");
 pub const kv_cache = @import("inference/kv_cache.zig");
 pub const scheduler = @import("inference/scheduler.zig");
-pub const engine = @import("inference/engine.zig");
+pub const inference_engine = @import("inference/engine.zig");
 
 // ── REST API ────────────────────────────────────────────────────────────
 pub const metrics = @import("api_server/metrics.zig");
@@ -35,12 +35,13 @@ pub const handlers = @import("api_server/handlers.zig");
 pub const server = @import("api_server/server.zig");
 
 // ── Convenience aliases ─────────────────────────────────────────────────
-pub const Database = database.Database;
-pub const HnswIndex = hnsw.HnswIndex;
+pub const Database = engine.Engine;
+pub const HnswIndex = hnsw.HNSW;
 pub const Distance = simd.Distance;
 pub const PersonaType = personas.PersonaType;
 pub const AbiModerator = routing.AbiModerator;
 pub const Engine = engine.Engine;
+pub const InferenceEngine = inference_engine.Engine;
 pub const Server = server.Server;
 
 /// Framework version.

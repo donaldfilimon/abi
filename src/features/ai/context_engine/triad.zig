@@ -5,7 +5,7 @@
 //! and feeds their analysis to ABI (Moderator) to synthesize the final action.
 
 const std = @import("std");
-const wdbx = @import("../../database/wdbx/wdbx.zig");
+const wdbx = @import("../../../wdbx/wdbx.zig");
 
 pub const TriadEngine = struct {
     allocator: std.mem.Allocator,

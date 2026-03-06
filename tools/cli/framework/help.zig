@@ -53,6 +53,8 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
         .section("Commands");
 
     for (descriptors) |descriptor| {
+        // Hidden commands are still accessible but do not appear in default help.
+        if (descriptor.visibility == .hidden) continue;
         _ = builder.subcommand(Subcommand{
             .name = descriptor.name,
             .description = descriptor.description,
@@ -87,6 +89,22 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
         .text("Run 'abi <command> help' or 'abi help <command>' for command-specific help.\n");
 
     builder.print();
+}
+
+const HelpTestStubs = struct {
+    fn handler(_: *const @import("context.zig").CommandContext, _: []const [:0]const u8) anyerror!void {}
+};
+
+test "printTopLevel: hidden descriptors are not rendered (smoke)" {
+    // Build a small descriptor set where one is hidden and verify printTopLevel
+    // doesn't panic. Output is to stderr and not captured.
+    const CommandDescriptor = types.CommandDescriptor;
+    const test_descs = [_]CommandDescriptor{
+        .{ .name = "visible", .description = "A visible command", .handler = HelpTestStubs.handler, .visibility = .public },
+        .{ .name = "hidden-cmd", .description = "A hidden command", .handler = HelpTestStubs.handler, .visibility = .hidden },
+    };
+    // Just confirms it doesn't crash; the hidden command is skipped in the loop.
+    printTopLevel(&test_descs);
 }
 
 test {

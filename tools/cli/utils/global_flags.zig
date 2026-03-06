@@ -275,9 +275,18 @@ fn printInvalidFlagFormat(flag: []const u8) void {
 /// Print error message for unknown feature.
 fn printUnknownFeatureError(feature_name: []const u8) void {
     output.printError("Unknown feature '{s}'", .{feature_name});
-    output.printInfo("Available features:", .{});
 
+    // Collect feature names into a fixed buffer for fuzzy matching.
     const features = std.meta.fields(Feature);
+    var names_buf: [features.len][]const u8 = undefined;
+    inline for (features, 0..) |field, i| {
+        names_buf[i] = field.name;
+    }
+    if (@import("args.zig").suggestCommand(feature_name, &names_buf)) |suggestion| {
+        output.printInfo("Did you mean: {s}?", .{suggestion});
+    }
+
+    output.printInfo("Available features:", .{});
     inline for (features) |field| {
         output.printInfo("  - {s}", .{field.name});
     }

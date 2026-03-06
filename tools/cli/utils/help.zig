@@ -94,6 +94,18 @@ pub const HelpBuilder = struct {
         return self;
     }
 
+    /// Add a section header with cyan + bold ANSI decorations.
+    /// Respects NO_COLOR / --no-color. Existing callers of `section()` are
+    /// unaffected; this is an opt-in variant for commands that want richer output.
+    pub fn sectionColored(self: *HelpBuilder, title: []const u8) *HelpBuilder {
+        const output_mod = @import("output.zig");
+        const C = output_mod.Color;
+        self.captureError(self.writeFmt("{s}{s}{s}:{s}\n", .{
+            C.bold(), C.cyan(), title, C.reset(),
+        }));
+        return self;
+    }
+
     /// Add option.
     pub fn option(self: *HelpBuilder, opt: Option) *HelpBuilder {
         self.captureError(self.writeOption(opt));
@@ -375,6 +387,23 @@ test "HelpBuilder: basic usage" {
     try std.testing.expect(std.mem.indexOf(u8, result, "Usage:") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "Options:") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "Examples:") != null);
+}
+
+test "HelpBuilder: sectionColored" {
+    const allocator = std.testing.allocator;
+    var builder = HelpBuilder.init(allocator);
+    defer builder.deinit();
+
+    // Set color environment for test determinism
+    const output_mod = @import("output.zig");
+    output_mod.enableColor();
+    _ = builder.sectionColored("Advanced");
+    const result = try builder.build();
+    defer allocator.free(result);
+
+    try std.testing.expect(std.mem.indexOf(u8, result, output_mod.Color.cyan()) != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, output_mod.Color.bold()) != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "Advanced") != null);
 }
 
 test "common_options: all defined" {

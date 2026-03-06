@@ -305,24 +305,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Resolve backend
-    const backend: abi.features.ai.agent.AgentBackend = if (std.mem.eql(u8, backend_name, "openai"))
-        .openai
-    else if (std.mem.eql(u8, backend_name, "anthropic"))
-        .anthropic
-    else if (std.mem.eql(u8, backend_name, "gemini"))
-        .gemini
-    else if (std.mem.eql(u8, backend_name, "codex"))
-        .codex
-    else if (std.mem.eql(u8, backend_name, "llama_cpp"))
-        .llama_cpp
-    else if (std.mem.eql(u8, backend_name, "ollama"))
-        .ollama
-    else if (std.mem.eql(u8, backend_name, "huggingface"))
-        .huggingface
-    else if (std.mem.eql(u8, backend_name, "echo"))
-        .echo
-    else
-        .provider_router;
+    const backend: abi.features.ai.agent.AgentBackend =
+        utils.args.parseEnum(abi.features.ai.agent.AgentBackend, backend_name) orelse .provider_router;
 
     // Build system prompt with optional self-awareness preamble
     const system_prompt = if (self_aware)
@@ -644,16 +628,25 @@ fn handleSlashCommand(
     }
 
     utils.output.printWarning("Unknown command: /{s}", .{cmd});
-    utils.output.println("Type /help for available commands.", .{});
+    // Suggest a close match from known slash commands.
+    const known_cmds = [_][]const u8{ "help", "tools", "feedback", "reflect", "metrics", "memory", "save", "load", "info", "clear" };
+    if (utils.args.suggestCommand(cmd, &known_cmds)) |suggestion| {
+        utils.output.printInfo("Did you mean: /{s}?", .{suggestion});
+    } else {
+        utils.output.println("Type /help for available commands.", .{});
+    }
 }
 
 fn confirmDestructiveOp(tool_name: []const u8, args_json: []const u8) bool {
     utils.output.printWarning("[Confirm] Agent wants to use '{s}' with args: {s}", .{ tool_name, args_json });
     utils.output.print("Allow? (y/n): ", .{});
 
-    // For now, default to yes since we can't easily read stdin in a callback
-    // In production, this would prompt the user
-    return true;
+    // Read a single line from stdin for the y/n answer.
+    var buf: [64]u8 = undefined;
+    const stdin = std.io.getStdIn();
+    const line = stdin.reader().readUntilDelimiter(&buf, '\n') catch return false;
+    const answer = std.mem.trim(u8, line, " \t\r\n");
+    return answer.len > 0 and (answer[0] == 'y' or answer[0] == 'Y');
 }
 
 fn printInteractiveHelp() void {
@@ -677,42 +670,42 @@ fn printInteractiveHelp() void {
 }
 
 fn printHelp() void {
-    utils.output.println("Usage: abi os-agent [options]", .{});
-    utils.output.println("", .{});
-    utils.output.println("OS-aware AI agent with full tool access, memory, and self-learning.", .{});
-    utils.output.println("", .{});
-    utils.output.println("Options:", .{});
-    utils.output.println("  -m, --message <msg>   Send single message (non-interactive)", .{});
-    utils.output.println("  -s, --session <name>  Session name (default: os-agent-default)", .{});
-    utils.output.println("  --backend <name>      LLM backend: provider_router, echo, openai, ollama, huggingface, anthropic, gemini, codex, llama_cpp", .{});
-    utils.output.println("  --model <name>        Model name for the backend", .{});
-    utils.output.println("  --self-aware          Enable codebase indexing for self-awareness", .{});
-    utils.output.println("  --no-confirm          Skip confirmation for destructive operations", .{});
-    utils.output.println("  -h, --help            Show this help", .{});
-    utils.output.println("", .{});
-    utils.output.println("Features:", .{});
-    utils.output.println("  - 26+ tools: file I/O, shell, search, edit, process, network, system", .{});
-    utils.output.println("  - Hybrid memory with long-term learning", .{});
-    utils.output.println("  - Self-reflection and quality metrics", .{});
-    utils.output.println("  - Codebase self-awareness (with --self-aware)", .{});
-    utils.output.println("", .{});
-    utils.output.println("Interactive Commands:", .{});
-    utils.output.println("  /tools      List registered tools", .{});
-    utils.output.println("  /feedback   Provide feedback (good/bad)", .{});
-    utils.output.println("  /reflect    Show quality scores for last response", .{});
-    utils.output.println("  /metrics    Show performance over time", .{});
-    utils.output.println("  /memory     Show memory statistics", .{});
-    utils.output.println("  /save       Persist current session state", .{});
-    utils.output.println("  /load       Reload current session from disk", .{});
-    utils.output.println("  /info       Show session metadata", .{});
-    utils.output.println("  /clear      Clear tool call log", .{});
-    utils.output.println("  exit, quit  Exit the agent", .{});
-    utils.output.println("", .{});
-    utils.output.println("Examples:", .{});
-    utils.output.println("  abi os-agent                            # Interactive session", .{});
-    utils.output.println("  abi os-agent -m \"what processes are running?\"", .{});
-    utils.output.println("  abi os-agent --backend ollama --model llama3", .{});
-    utils.output.println("  abi os-agent --self-aware               # With codebase awareness", .{});
+    const help_mod = @import("../../utils/help.zig");
+    var builder = help_mod.HelpBuilder.init(std.heap.page_allocator);
+    defer builder.deinit();
+    _ = builder
+        .usage("abi os-agent [options]")
+        .description("OS-aware AI agent with full tool access, memory, and self-learning.")
+        .sectionColored("Options")
+        .option(.{ .short = "-m", .long = "--message <msg>", .description = "Send single message (non-interactive)" })
+        .option(.{ .short = "-s", .long = "--session <name>", .description = "Session name (default: os-agent-default)" })
+        .option(.{ .long = "--backend <name>", .description = "LLM backend: provider_router, echo, openai, ollama, huggingface, anthropic, gemini, codex, llama_cpp" })
+        .option(.{ .long = "--model <name>", .description = "Model name for the backend" })
+        .option(.{ .long = "--self-aware", .description = "Enable codebase indexing for self-awareness" })
+        .option(.{ .long = "--no-confirm", .description = "Skip confirmation for destructive operations" })
+        .option(.{ .short = "-h", .long = "--help", .description = "Show this help" })
+        .sectionColored("Features")
+        .line("  26+ tools: file I/O, shell, search, edit, process, network, system")
+        .line("  Hybrid memory with long-term learning")
+        .line("  Self-reflection and quality metrics")
+        .line("  Codebase self-awareness (with --self-aware)")
+        .sectionColored("Interactive Commands")
+        .line("  /tools      List registered tools")
+        .line("  /feedback   Provide feedback (good/bad)")
+        .line("  /reflect    Show quality scores for last response")
+        .line("  /metrics    Show performance over time")
+        .line("  /memory     Show memory statistics")
+        .line("  /save       Persist current session state")
+        .line("  /load       Reload current session from disk")
+        .line("  /info       Show session metadata")
+        .line("  /clear      Clear tool call log")
+        .line("  exit, quit  Exit the agent")
+        .sectionColored("Examples")
+        .line("  abi os-agent                            # Interactive session")
+        .line("  abi os-agent -m \"what processes are running?\"")
+        .line("  abi os-agent --backend ollama --model llama3")
+        .line("  abi os-agent --self-aware               # With codebase awareness");
+    builder.print();
 }
 
 const os_agent_system_prompt =

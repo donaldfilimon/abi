@@ -274,6 +274,25 @@ pub fn printCountSummary(count: usize, total: usize, label: []const u8) void {
     std.debug.print("\n  {d}/{d} {s}\n", .{ count, total, label });
 }
 
+/// Print a spinner-style "in progress" status line: `[~] label`.
+/// Uses cyan coloring when enabled. Useful for indicating an ongoing action
+/// without actual terminal animation.
+pub fn printSpinner(label: []const u8) void {
+    std.debug.print("  {s}[~]{s} {s}\n", .{ Color.cyan(), Color.reset(), label });
+}
+
+/// Print a single tree-connector row.
+/// `last` controls whether to use `└──` (last child) or `├──` (non-last child).
+/// Uses cyan coloring when enabled. Example:
+/// ```
+///   ├── item-a
+///   └── item-b (last)
+/// ```
+pub fn printTree(label: []const u8, last: bool) void {
+    const connector = if (last) "└──" else "├──";
+    std.debug.print("  {s}{s}{s} {s}\n", .{ Color.cyan(), connector, Color.reset(), label });
+}
+
 /// Re-export Color for direct access (e.g., utils.output.color.green()).
 pub const color = Color;
 
@@ -392,6 +411,9 @@ test "print functions do not crash (smoke)" {
     printStatusLineFmt("{s}", .{"feature"}, true);
     printStatusLineFmt("{s}", .{"feature"}, false);
     printCountSummary(5, 10, "items");
+    printSpinner("Loading model");
+    printTree("item-a", false);
+    printTree("item-b", true);
 }
 
 test {

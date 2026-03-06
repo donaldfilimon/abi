@@ -152,22 +152,22 @@ fn printHelp() void {
     std.debug.print("{s}", .{help});
 }
 
-fn printHeader() void {
-    const header =
+fn printHeader(allocator: std.mem.Allocator) void {
+    const sys = framework.SystemInfo.detect(allocator);
+    std.debug.print(
         \\
         \\================================================================================
         \\
         \\              ABI FRAMEWORK COMPREHENSIVE BENCHMARK SUITE
         \\
-        \\  Industry-standard benchmarks with statistical analysis
-        \\  - Warm-up phases for CPU cache stabilization
-        \\  - Outlier detection and removal
-        \\  - Percentile reporting (p50, p90, p95, p99)
+        \\  System Info:
+        \\    CPU:     {s} ({d} logical cores)
+        \\    OS:      {s} ({s})
+        \\    Zig:     {s}
         \\
         \\================================================================================
         \\
-    ;
-    std.debug.print("{s}", .{header});
+    , .{ sys.cpu_model, sys.logical_cores, sys.os, sys.arch, sys.zig_version });
 }
 
 fn printSuiteHeader(name: []const u8) void {
@@ -261,7 +261,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
         collector.deinit();
     };
 
-    printHeader();
+    printHeader(allocator);
 
     var timer = abi.services.shared.time.Timer.start() catch {
         std.debug.print("Timer not supported on this platform\n", .{});

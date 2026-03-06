@@ -285,9 +285,12 @@ export fn abi_database_create(
     };
     errdefer c_allocator.destroy(db);
 
-    // Initialize database using the formats.VectorDatabase API
+    // Initialize database using the semantic_store API
     db.* = .{
-        .handle = abi.features.database.formats.VectorDatabase.init(c_allocator, name, cfg.dimension),
+        .handle = abi.features.database.semantic_store.openStore(c_allocator, name) catch |err| {
+            c_allocator.destroy(db);
+            return mapError(err);
+        },
         .allocator = c_allocator,
     };
 
@@ -299,7 +302,7 @@ export fn abi_database_create(
 export fn abi_database_close(db: ?*DatabaseHandle) void {
     if (db) |d| {
         const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
-        wrapper.handle.deinit();
+        abi.features.database.semantic_store.closeStore(&wrapper.handle);
         wrapper.allocator.destroy(wrapper);
     }
 }
@@ -320,7 +323,7 @@ export fn abi_database_insert(
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
     const meta_slice: ?[]const u8 = if (metadata) |m| std.mem.sliceTo(m, 0) else null;
-    wrapper.handle.insert(id, vector[0..vector_len], meta_slice) catch |err| {
+    abi.features.database.semantic_store.storeVector(&wrapper.handle, id, vector[0..vector_len], meta_slice) catch |err| {
         return mapError(err);
     };
 
@@ -343,11 +346,11 @@ export fn abi_database_search(
     const d = db orelse return ABI_ERROR_NOT_INITIALIZED;
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
-    const results = wrapper.handle.search(query[0..query_len], k) catch |err| {
+    const results = abi.features.database.semantic_store.searchStore(&wrapper.handle, wrapper.allocator, query[0..query_len], k) catch |err| {
         out_count.* = 0;
         return mapError(err);
     };
-    defer c_allocator.free(results);
+    defer wrapper.allocator.free(results);
 
     const count = @min(results.len, k);
     for (0..count) |i| {
@@ -370,7 +373,7 @@ export fn abi_database_delete(db: ?*DatabaseHandle, id: u64) c_int {
     const d = db orelse return ABI_ERROR_NOT_INITIALIZED;
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
-    const deleted = wrapper.handle.delete(id);
+    const deleted = abi.features.database.semantic_store.deleteVector(&wrapper.handle, id);
     if (!deleted) {
         return ABI_ERROR_INVALID_ARGUMENT; // Vector not found
     }
@@ -387,7 +390,7 @@ export fn abi_database_count(db: ?*DatabaseHandle, out_count: *usize) c_int {
     const d = db orelse return ABI_ERROR_NOT_INITIALIZED;
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
-    out_count.* = wrapper.handle.vectors.items.len;
+    out_count.* = abi.features.database.semantic_store.getStats(&wrapper.handle).count;
     return ABI_OK;
 }
 
@@ -851,7 +854,7 @@ const SearchResult = extern struct {
 
 /// Database wrapper for opaque handle
 const DatabaseWrapper = struct {
-    handle: if (build_options.enable_database) abi.features.database.formats.VectorDatabase else void,
+    handle: if (build_options.enable_database) abi.features.database.semantic_store.DatabaseHandle else void,
     allocator: std.mem.Allocator,
 };
 

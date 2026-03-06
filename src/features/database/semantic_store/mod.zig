@@ -1,17 +1,42 @@
 //! Canonical semantic-store surface for weighted memory, retrieval, and lineage.
 
 const std = @import("std");
-const legacy_wdbx = @import("../wdbx.zig");
+const wdbx_engine = @import("../../../wdbx/wdbx.zig");
 const block_chain = @import("../block_chain.zig");
 const distributed = @import("../distributed/mod.zig");
 
-pub const StoreHandle = legacy_wdbx.DatabaseHandle;
+pub const StoreHandle = struct {
+    engine: wdbx_engine.Engine,
+    allocator: std.mem.Allocator,
+};
+
 pub const DatabaseHandle = StoreHandle;
-pub const SearchResult = legacy_wdbx.SearchResult;
-pub const VectorView = legacy_wdbx.VectorView;
-pub const Stats = legacy_wdbx.Stats;
-pub const DatabaseConfig = legacy_wdbx.DatabaseConfig;
-pub const BatchItem = legacy_wdbx.BatchItem;
+
+pub const SearchResult = struct {
+    id: u64,
+    score: f32,
+    metadata: ?[]const u8 = null,
+};
+
+pub const VectorView = struct {
+    id: u64,
+    vector: []const f32,
+    metadata: ?[]const u8,
+};
+
+pub const Stats = struct {
+    count: usize,
+};
+
+pub const DatabaseConfig = struct {
+    path: []const u8 = "",
+};
+
+pub const BatchItem = struct {
+    id: u64,
+    vector: []const f32,
+    metadata: ?[]const u8 = null,
+};
 
 pub const MemoryBlock = block_chain.ConversationBlock;
 pub const MemoryBlockConfig = block_chain.BlockConfig;
@@ -80,7 +105,11 @@ pub const RetrievalHit = struct {
 };
 
 pub fn openStore(allocator: std.mem.Allocator, name: []const u8) !StoreHandle {
-    return legacy_wdbx.createDatabase(allocator, name);
+    _ = name;
+    return .{
+        .engine = try wdbx_engine.Engine.init(allocator, .{}),
+        .allocator = allocator,
+    };
 }
 
 pub fn openStoreWithConfig(
@@ -88,15 +117,17 @@ pub fn openStoreWithConfig(
     name: []const u8,
     config: DatabaseConfig,
 ) !StoreHandle {
-    return legacy_wdbx.createDatabaseWithConfig(allocator, name, config);
+    _ = name;
+    _ = config;
+    return openStore(allocator, name);
 }
 
 pub fn connectStore(allocator: std.mem.Allocator, name: []const u8) !StoreHandle {
-    return legacy_wdbx.connectDatabase(allocator, name);
+    return openStore(allocator, name);
 }
 
 pub fn closeStore(handle: *StoreHandle) void {
-    legacy_wdbx.closeDatabase(handle);
+    handle.engine.deinit();
 }
 
 pub fn storeVector(
@@ -105,7 +136,14 @@ pub fn storeVector(
     vector: []const f32,
     metadata: ?[]const u8,
 ) !void {
-    try legacy_wdbx.insertVector(handle, id, vector, metadata);
+    var id_buf: [32]u8 = undefined;
+    const id_str = try std.fmt.bufPrint(&id_buf, "{d}", .{id});
+    
+    const meta = wdbx_engine.Metadata{
+        .text = metadata orelse "",
+    };
+
+    try handle.engine.indexByVector(id_str, vector, meta);
 }
 
 pub fn searchStore(
@@ -114,15 +152,27 @@ pub fn searchStore(
     query: []const f32,
     top_k: usize,
 ) ![]SearchResult {
-    return legacy_wdbx.searchVectors(handle, allocator, query, top_k);
+    const results = try handle.engine.searchByVector(query, .{ .k = top_k });
+    defer allocator.free(results);
+
+    const out = try allocator.alloc(SearchResult, results.len);
+    for (results, 0..) |res, i| {
+        out[i] = .{
+            .id = std.fmt.parseInt(u64, res.id, 10) catch 0,
+            .score = res.similarity,
+        };
+    }
+    return out;
 }
 
 pub fn backupStore(handle: *StoreHandle, path: []const u8) !void {
-    try legacy_wdbx.backup(handle, path);
+    try wdbx_engine.save(&handle.engine, path);
 }
 
 pub fn restoreStore(handle: *StoreHandle, path: []const u8) !void {
-    try legacy_wdbx.restore(handle, path);
+    const restored = try wdbx_engine.load(handle.allocator, path);
+    handle.engine.deinit();
+    handle.engine = restored;
 }
 
 pub const createDatabase = openStore;
@@ -130,23 +180,90 @@ pub const createDatabaseWithConfig = openStoreWithConfig;
 pub const connectDatabase = connectStore;
 pub const closeDatabase = closeStore;
 pub const insertVector = storeVector;
-pub const insertBatch = legacy_wdbx.insertBatch;
+
+pub fn insertBatch(handle: *StoreHandle, items: []const BatchItem) !void {
+    for (items) |item| {
+        try storeVector(handle, item.id, item.vector, item.metadata);
+    }
+}
+
 pub const searchVectors = searchStore;
-pub const searchVectorsInto = legacy_wdbx.searchVectorsInto;
-pub const deleteVector = legacy_wdbx.deleteVector;
-pub const updateVector = legacy_wdbx.updateVector;
-pub const getVector = legacy_wdbx.getVector;
-pub const listVectors = legacy_wdbx.listVectors;
-pub const getStats = legacy_wdbx.getStats;
-pub const optimize = legacy_wdbx.optimize;
-pub const backupToPath = legacy_wdbx.backupToPath;
-pub const restoreFromPath = legacy_wdbx.restoreFromPath;
+
+pub fn searchVectorsInto(
+    handle: *StoreHandle,
+    query: []const f32,
+    top_k: usize,
+    results: []SearchResult,
+) usize {
+    const res = searchStore(handle, handle.allocator, query, top_k) catch return 0;
+    defer handle.allocator.free(res);
+    
+    const count = @min(res.len, results.len);
+    @memcpy(results[0..count], res[0..count]);
+    return count;
+}
+
+pub fn deleteVector(handle: *StoreHandle, id: u64) bool {
+    var id_buf: [32]u8 = undefined;
+    const id_str = std.fmt.bufPrint(&id_buf, "{d}", .{id}) catch return false;
+    return handle.engine.delete(id_str);
+}
+
+pub fn updateVector(handle: *StoreHandle, id: u64, vector: []const f32) !bool {
+    _ = deleteVector(handle, id);
+    try storeVector(handle, id, vector, null);
+    return true;
+}
+
+pub fn getVector(handle: *StoreHandle, id: u64) ?VectorView {
+    for (handle.engine.vectors_array.items) |item| {
+        const vid = std.fmt.parseInt(u64, item.id, 10) catch continue;
+        if (vid == id) {
+            return VectorView{
+                .id = vid,
+                .vector = item.vec,
+                .metadata = item.metadata.text,
+            };
+        }
+    }
+    return null;
+}
+
+pub fn listVectors(
+    handle: *StoreHandle,
+    allocator: std.mem.Allocator,
+    limit: usize,
+) ![]VectorView {
+    const count = @min(handle.engine.count(), limit);
+    const out = try allocator.alloc(VectorView, count);
+    for (handle.engine.vectors_array.items[0..count], 0..) |item, i| {
+        out[i] = .{
+            .id = std.fmt.parseInt(u64, item.id, 10) catch 0,
+            .vector = item.vec,
+            .metadata = item.metadata.text,
+        };
+    }
+    return out;
+}
+
+pub fn getStats(handle: *StoreHandle) Stats {
+    return .{ .count = handle.engine.count() };
+}
+
+pub fn optimize(handle: *StoreHandle) !void {
+    _ = handle;
+}
+
+pub fn backupToPath(handle: *StoreHandle, path: []const u8) !void {
+    try backupStore(handle, path);
+}
+
+pub fn restoreFromPath(handle: *StoreHandle, path: []const u8) !void {
+    try restoreStore(handle, path);
+}
+
 pub const backup = backupStore;
 pub const restore = restoreStore;
-
-test "semantic_store aliases the legacy handle surface" {
-    try std.testing.expect(StoreHandle == legacy_wdbx.DatabaseHandle);
-}
 
 test "influence trace captures retrieval metadata" {
     const trace = InfluenceTrace.forRetrieval(42, 0.8, 0.6);

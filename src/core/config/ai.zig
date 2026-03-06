@@ -31,6 +31,9 @@ pub const AiConfig = struct {
     /// Multi-persona assistant settings.
     personas: ?PersonasConfig = null,
 
+    /// Reasoning engine settings.
+    reasoning: ?ReasoningConfig = null,
+
     /// Enable automatic model discovery from standard paths.
     auto_discover: bool = false,
 
@@ -49,14 +52,31 @@ pub const AiConfig = struct {
             .embeddings = EmbeddingsConfig.defaults(),
             .agents = AgentsConfig.defaults(),
             .training = null, // Training not enabled by default
+            .reasoning = ReasoningConfig.defaults(),
             .personas = if (build_options.feat_ai) .{} else null,
             .auto_discover = true, // Enable auto-discovery by default
         };
     }
 
     /// Configuration with auto-discovery enabled.
-    pub fn withAutoDiscovery() AiConfig {
-        return .{
+    ...
+    /// Reasoning configuration.
+    pub const ReasoningConfig = struct {
+    /// Enable research triggers when confidence is low.
+    enable_research_triggers: bool = true,
+
+    /// Confidence threshold for triggering research (0.0 - 1.0).
+    research_threshold: f32 = 0.5,
+
+    /// Maximum number of reasoning steps per query.
+    max_steps: u32 = 20,
+
+    pub fn defaults() ReasoningConfig {
+        return .{};
+    }
+    };
+
+    /// LLM inference configuration.
             .auto_discover = true,
             .adaptive_config = true,
         };
