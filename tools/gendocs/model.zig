@@ -260,8 +260,13 @@ pub const generated_footer =
     \\*Generated automatically by `zig build gendocs`*
     \\
     \\
-    \\## Zig Skill
-    \\Use the `$zig-master` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+    \\## Workflow Contract
+    \\- Canonical repo workflow: [AGENTS.md](../../AGENTS.md)
+    \\- Active execution tracker: [tasks/todo.md](../../tasks/todo.md)
+    \\- Correction log: [tasks/lessons.md](../../tasks/lessons.md)
+    \\
+    \\## Zig Validation
+    \\Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
     \\
 ;
 

@@ -9,3 +9,4 @@
 - Edit template source in `tools/gendocs/templates/docs/` for structural changes.
 - Edit generator logic in `tools/gendocs/` for data model or rendering changes.
 - Canonical workflow contract lives in `AGENTS.md` and the `tasks/` interfaces (`tasks/todo.md`, `tasks/lessons.md`).
+- Use the local `$zig-master` skill for Zig validation and docs/build wiring changes.

@@ -173,11 +173,13 @@ fn buildAutoContent(
         try out.appendSlice(allocator,
             \\## Toolchain
             \\
-            \\Use `zvm use master` for developer convenience and keep checks compatible with `.zigversion`.
+            \\Keep the active shell aligned to `.zigversion` before running ABI validation gates.
             \\
             \\```bash
+            \\which zig
+            \\zig version
+            \\cat .zigversion
             \\zig build toolchain-doctor
-            \\zig build typecheck
             \\```
             \\
             \\
@@ -189,10 +191,12 @@ fn buildAutoContent(
             \\- Canonical policy: [AGENTS.md](../../AGENTS.md)
             \\- Task plan interface: `tasks/todo.md`
             \\- Lessons interface: `tasks/lessons.md`
+            \\- Zig validation: local `$zig-master` skill
             \\
-            \\Use the advisory contract check during iteration:
+            \\Use the workflow contract checks during iteration and close-out:
             \\
             \\- `zig build check-workflow-orchestration`
+            \\- `zig build check-workflow-orchestration-strict --summary all`
             \\
         );
         try appendCommandEntryPoints(allocator, &out, section, commands);
@@ -205,10 +209,10 @@ fn buildAutoContent(
     try out.appendSlice(allocator,
         \\## Validation Commands
         \\
+        \\- `zig build gendocs -- --check --no-wasm --untracked-md`
         \\- `zig build typecheck`
         \\- `zig build check-docs`
-        \\- `zig build check-workflow-orchestration`
-        \\- `zig build run -- gendocs --check`
+        \\- `zig build check-workflow-orchestration-strict --summary all`
         \\
         \\## Navigation
         \\

@@ -1,19 +1,23 @@
-# Development Guide
+# Claude Guide
 
-This is the current quick reference for local ABI development on Zig `0.16.0-dev.2694+74f361a5c`.
+Claude is a lightweight quick reference for ABI work. It is not the canonical
+policy source.
 
-## Toolchain Baseline
+## Canonical Sources
+
+- Repo workflow: [AGENTS.md](AGENTS.md)
+- Active execution tracker: [tasks/todo.md](tasks/todo.md)
+- Correction log: [tasks/lessons.md](tasks/lessons.md)
+- Zig validation contract:
+  `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)`
+
+## Quick Local Checks
 
 ```bash
 which zig
 zig version
 cat .zigversion
 zig build toolchain-doctor
-```
-
-## Common Checks
-
-```bash
 zig build check-docs
 zig build typecheck
 zig build cli-tests
@@ -24,17 +28,9 @@ zig build verify-all
 zig build check-workflow-orchestration-strict --summary all
 ```
 
-## Useful Targeted Commands
-
-```bash
-zig test src/services/runtime/mod.zig
-zig test src/services/tests/mod.zig --test-filter "pattern"
-zig build benchmarks
-zig build v3-lib
-```
-
 ## Notes
 
-- The authoritative build step definitions live in [build.zig](build.zig).
+- `build.zig` is the authoritative source for build step wiring.
 - Generated docs live under [`docs/_docs/`](docs/_docs) and [`docs/api/`](docs/api).
-- Workflow and persona coordination rules live in [AGENTS.md](AGENTS.md).
+- Use this file as a convenience wrapper; update `AGENTS.md` and `zig-master`
+  when the underlying contract changes.

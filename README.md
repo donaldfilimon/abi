@@ -472,7 +472,8 @@ reintroduced as part of the language bindings roadmap. Track progress in
 | [Examples Guide](docs/_docs/examples.md) | Example walkthroughs |
 | [API Reference](docs/_docs/api.md) | Public API summary |
 | [Quickstart](docs/_docs/getting-started.md) | Getting started guide |
-| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and conventions |
+| [Workflow Contract](AGENTS.md) | Canonical repo workflow, consensus, and task-tracking rules |
+| [Claude Quick Reference](CLAUDE.md) | Local command summary and convenience wrapper |
 
 ```bash
 # Run all tests
@@ -527,7 +528,8 @@ See [tasks/todo.md](tasks/todo.md) for current task tracking and [docs/_docs/roa
 We welcome contributions! Please see:
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow
-- [CLAUDE.md](CLAUDE.md) - Coding guidelines and patterns
+- [AGENTS.md](AGENTS.md) - Canonical workflow and task-tracking contract
+- [CLAUDE.md](CLAUDE.md) - Local quick reference
 
 <div align="center">
 

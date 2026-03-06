@@ -113,14 +113,16 @@ const owner_abbey = "Abbey";
 // Shared validation gate groups. Keep these canonical so plan specs and
 // roadmap entries stay synchronized when command contracts evolve.
 const gate_docs_generation = [_][]const u8{
-    "zig build gendocs",
+    "zig build gendocs -- --check --no-wasm --untracked-md",
     "zig build check-docs",
 };
 
 const gate_docs_plan = [_][]const u8{
-    "zig build gendocs",
+    "zig build gendocs -- --no-wasm --untracked-md",
+    "zig build gendocs -- --check --no-wasm --untracked-md",
     "zig build check-docs",
     "zig build verify-all",
+    "zig build check-workflow-orchestration-strict --summary all",
 };
 
 const gate_docs_only = [_][]const u8{
@@ -202,21 +204,21 @@ const gate_verify_only = [_][]const u8{
 pub const plan_specs = [_]PlanSpec{
     .{
         .slug = "docs-roadmap-sync-v2",
-        .title = "Docs + Roadmap Canonical Sync",
+        .title = "Docs + Assistant Canonical Sync",
         .status = .in_progress,
         .owner = owner_abbey,
-        .scope = "Aggressive 5 maintenance lane: enforce per-wave catalog-to-docs regeneration, deterministic drift checks, and synchronized task planning updates.",
+        .scope = "Canonical docs wave: align AGENTS.md, zig-master, tasks/todo.md, root status docs, and generated outputs around one workflow and Zig validation contract.",
         .success_criteria = &.{
-            "Every wave status/content change is authored in roadmap_catalog.zig first.",
-            "Generated roadmap/plans artifacts are refreshed in the same change set with --untracked-md policy.",
-            "check-docs and strict workflow orchestration checks fail on drift before merge.",
+            "Workflow ownership is consistent: AGENTS.md for repo policy, zig-master for Zig validation, tasks/todo.md for active execution, and tasks/lessons.md for corrections.",
+            "Generated docs pick up the updated workflow and zig-master wording from canonical gendocs sources in one regeneration wave.",
+            "TODO.md, PLAN.md, and ROADMAP.md act as summary/index surfaces instead of competing live task trackers.",
         },
         .gate_commands = &gate_docs_plan,
         .milestones = &.{
-            "Define the per-wave sync checklist covering catalog, generated outputs, and tasks/ files.",
-            "Regenerate plans/roadmap data and markdown immediately after each catalog edit.",
-            "Record wave outcomes and residual risk in tasks/todo.md and tasks/lessons.md on each reprioritization pass.",
-            "Preserve untracked markdown policy while keeping deterministic check-docs behavior.",
+            "Update roadmap catalog metadata first, then regenerate docs/plans outputs with --no-wasm --untracked-md.",
+            "Collapse active execution tracking into tasks/todo.md and archive or demote overlapping root/task status files.",
+            "Rewrite assistant-facing docs so CLAUDE.md and GEMINI.md become wrappers around AGENTS.md plus zig-master.",
+            "Close the wave with docs drift checks, strict workflow orchestration checks, and the zig-master verification sequence.",
         },
     },
     .{
@@ -316,8 +318,8 @@ pub const plan_specs = [_]PlanSpec{
 pub const roadmap_entries = [_]RoadmapEntry{
     .{
         .id = "RM-001",
-        .title = "Complete canonical roadmap/plans sync",
-        .summary = "Unify task roadmap import and docs generation behind a single typed catalog.",
+        .title = "Complete canonical docs and assistant contract sync",
+        .summary = "Unify AGENTS.md, zig-master, tasks/todo.md, and generated docs behind one canonical workflow and Zig validation contract.",
         .track = .docs,
         .horizon = .now,
         .status = .in_progress,

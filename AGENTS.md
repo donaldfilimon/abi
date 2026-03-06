@@ -9,6 +9,13 @@ This file documents the personas active within the ABI Framework.
 
 For underlying structural layout rules, consult `ABI.md`.
 
+## Canonical Interfaces
+
+• Repo workflow contract: `AGENTS.md`
+• Active execution tracker: `tasks/todo.md`
+• Correction log: `tasks/lessons.md`
+• Zig validation contract: `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)`
+
 ## Global Multi-CLI Consensus
 
 ### 0. Always Run Parallel Consensus
