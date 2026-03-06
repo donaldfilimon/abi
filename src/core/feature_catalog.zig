@@ -31,6 +31,9 @@ pub const Feature = enum {
     benchmarks,
     reasoning,
     constitution,
+    compute,
+    documents,
+    desktop,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -72,6 +75,9 @@ pub const ParitySpec = enum {
     gateway,
     pages,
     benchmarks,
+    compute,
+    documents,
+    desktop,
 };
 
 pub const Metadata = struct {
@@ -283,6 +289,30 @@ pub const all = [_]Metadata{
         .parent = .ai,
         .real_module_path = "features/ai/mod.zig",
         .stub_module_path = "features/ai/stub.zig",
+    },
+    .{
+        .feature = .compute,
+        .description = "Distributed compute mesh",
+        .compile_flag_field = "feat_compute",
+        .parity_spec = .compute,
+        .real_module_path = "features/compute/mod.zig",
+        .stub_module_path = "features/compute/stub.zig",
+    },
+    .{
+        .feature = .documents,
+        .description = "Native document parsing (HTML, PDF)",
+        .compile_flag_field = "feat_documents",
+        .parity_spec = .documents,
+        .real_module_path = "features/documents/mod.zig",
+        .stub_module_path = "features/documents/stub.zig",
+    },
+    .{
+        .feature = .desktop,
+        .description = "Native desktop OS extensions",
+        .compile_flag_field = "feat_desktop",
+        .parity_spec = .desktop,
+        .real_module_path = "features/desktop/mod.zig",
+        .stub_module_path = "features/desktop/stub.zig",
     },
 };
 

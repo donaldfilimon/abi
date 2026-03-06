@@ -3,19 +3,10 @@
 const std = @import("std");
 const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
-const session_runner = @import("./session_runner.zig");
-const theme_options = @import("./theme_options.zig");
+const dsl = @import("../../../terminal/dsl/mod.zig");
 const utils = @import("../../../utils/mod.zig");
 
 const Dash = tui.dashboard.Dashboard(GpuPanel);
-
-const help_lines = [_][]const u8{
-    "  [q/Esc]  Quit",
-    "  [p]      Pause or resume updates",
-    "  [t/T]    Next or previous theme",
-    "  [r]      Reset GPU and agent stats",
-    "  [?/h]    Toggle help",
-};
 
 const GpuPanel = struct {
     allocator: std.mem.Allocator,
@@ -101,48 +92,28 @@ fn handleGpuKeys(dash: *Dash, key: tui.Key) bool {
     return false;
 }
 
+fn initPanel(
+    allocator: std.mem.Allocator,
+    terminal: *tui.Terminal,
+    initial_theme: *const tui.Theme,
+    _: []const [:0]const u8,
+) !GpuPanel {
+    return GpuPanel.init(allocator, terminal, initial_theme);
+}
+
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parsed = try theme_options.parseThemeArgs(allocator, args);
-    defer parsed.deinit();
-
-    if (parsed.list_themes) {
-        theme_options.printAvailableThemes();
-        return;
-    }
-
-    if (parsed.wants_help) {
-        printHelp();
-        return;
-    }
-
-    if (parsed.remaining_args.len > 0) {
-        utils.output.printError("Unknown argument for ui gpu: {s}", .{parsed.remaining_args[0]});
-        theme_options.printThemeHint();
-        return error.InvalidArgument;
-    }
-
-    const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
-    var session = session_runner.startSimpleDashboard(allocator, .{
+    try dsl.runSimpleDashboard(GpuPanel, ctx, args, .{
         .dashboard_name = "GPU Dashboard",
         .terminal_title = "ABI GPU Dashboard",
-    }) orelse return;
-    defer session.deinit();
-
-    const panel = GpuPanel.init(allocator, &session.terminal, initial_theme);
-    var dash = tui.dashboard.Dashboard(GpuPanel).init(allocator, &session.terminal, initial_theme, panel, .{
         .title = "ABI GPU CONTROL PLANE",
         .refresh_rate_ms = 100,
         .min_width = 40,
         .min_height = 10,
         .help_keys = " [q]uit  [p]ause  [t]heme  [r]eset  [?]help",
-        .help_title = "GPU Dashboard Help",
-        .help_lines = &help_lines,
+        .print_help = printHelp,
+        .init_panel = initPanel,
+        .extra_key_handler = handleGpuKeys,
     });
-    dash.extra_key_handler = handleGpuKeys;
-    defer dash.deinit();
-
-    try dash.run();
 }
 
 fn printHelp() void {

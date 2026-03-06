@@ -3,19 +3,10 @@
 const std = @import("std");
 const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
-const session_runner = @import("session_runner.zig");
-const theme_options = @import("theme_options.zig");
+const dsl = @import("../../../terminal/dsl/mod.zig");
 const utils = @import("../../../utils/mod.zig");
 
 const Dash = tui.dashboard.Dashboard(BrainPanelState);
-
-const help_lines = [_][]const u8{
-    "  [Tab]    Switch animation and dashboard views",
-    "  [q/Esc]  Quit",
-    "  [p]      Pause or resume updates",
-    "  [t/T]    Next or previous theme",
-    "  [?/h]    Toggle help",
-};
 
 const ViewMode = enum {
     animation,
@@ -163,40 +154,31 @@ fn handleBrainKeys(dash: *Dash, key: tui.Key) bool {
     return false;
 }
 
-pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parsed = try theme_options.parseThemeArgs(allocator, args);
-    defer parsed.deinit();
-
-    if (parsed.list_themes) {
-        theme_options.printAvailableThemes();
-        return;
-    }
-
-    if (parsed.wants_help) {
-        printHelp();
-        return;
-    }
-
+fn initPanel(
+    allocator: std.mem.Allocator,
+    terminal: *tui.Terminal,
+    initial_theme: *const tui.Theme,
+    remaining_args: []const [:0]const u8,
+) !BrainPanelState {
     var data_source: DataSource = .simulated;
     var training_path: ?[]const u8 = null;
 
     var arg_idx: usize = 0;
-    while (arg_idx < parsed.remaining_args.len) : (arg_idx += 1) {
-        const arg = std.mem.sliceTo(parsed.remaining_args[arg_idx], 0);
+    while (arg_idx < remaining_args.len) : (arg_idx += 1) {
+        const arg = std.mem.sliceTo(remaining_args[arg_idx], 0);
         if (std.mem.eql(u8, arg, "--db") or std.mem.eql(u8, arg, "--live")) {
             data_source = .live;
         } else if (std.mem.eql(u8, arg, "--training")) {
             data_source = .training;
-            if (arg_idx + 1 >= parsed.remaining_args.len) {
+            if (arg_idx + 1 >= remaining_args.len) {
                 utils.output.printError("--training requires a metrics JSONL file path.", .{});
                 return error.InvalidArgument;
             }
             arg_idx += 1;
-            training_path = std.mem.sliceTo(parsed.remaining_args[arg_idx], 0);
+            training_path = std.mem.sliceTo(remaining_args[arg_idx], 0);
         } else {
             utils.output.printError("Unknown argument for ui brain: {s}", .{arg});
-            theme_options.printThemeHint();
+            @import("./theme_options.zig").printThemeHint();
             return error.InvalidArgument;
         }
     }
@@ -206,27 +188,27 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         data_source = .simulated;
     }
 
-    const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
-    var session = session_runner.startSimpleDashboard(allocator, .{
+    return BrainPanelState.init(allocator, terminal, initial_theme, data_source, training_path);
+}
+
+fn validateArgs(_: []const [:0]const u8) !void {
+    // Args are validated inside initPanel where we have context to parse them
+}
+
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try dsl.runSimpleDashboard(BrainPanelState, ctx, args, .{
         .dashboard_name = "Brain Dashboard",
         .terminal_title = "ABI Brain Dashboard",
-    }) orelse return;
-    defer session.deinit();
-
-    const panel = BrainPanelState.init(allocator, &session.terminal, initial_theme, data_source, training_path);
-    var dash = tui.dashboard.Dashboard(BrainPanelState).init(allocator, &session.terminal, initial_theme, panel, .{
         .title = "ABI BRAIN VISUALIZER",
         .refresh_rate_ms = 100,
         .min_width = 40,
         .min_height = 12,
         .help_keys = " [q]uit  [Tab]view  [p]ause  [t]heme  [?]help",
-        .help_title = "Brain Dashboard Help",
-        .help_lines = &help_lines,
+        .print_help = printHelp,
+        .init_panel = initPanel,
+        .validate_args = validateArgs,
+        .extra_key_handler = handleBrainKeys,
     });
-    dash.extra_key_handler = handleBrainKeys;
-    defer dash.deinit();
-
-    try dash.run();
 }
 
 fn printHelp() void {

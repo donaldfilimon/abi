@@ -48,6 +48,7 @@ const ShellPanel = struct {
     security_panel: panel_mod.SecurityPanel,
     connectors_panel: panel_mod.ConnectorsPanel,
     ralph_panel: panel_mod.RalphPanel,
+    chat_adapter: panel_mod.chat_adapter.ChatAdapter,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -71,16 +72,17 @@ const ShellPanel = struct {
             .boundaries = boundaries,
             .gpu_adapter = panel_mod.gpu_adapter.GpuAdapter.init(allocator, terminal, theme),
             .agent_adapter = panel_mod.agent_adapter.AgentAdapter.init(allocator, terminal, theme),
-            .training_adapter = panel_mod.training_adapter.TrainingAdapter.init(allocator, theme),
+            .training_adapter = panel_mod.training_adapter.TrainingAdapter.init(allocator, terminal, theme),
             .model_adapter = panel_mod.model_adapter.ModelAdapter.init(allocator, terminal, theme),
             .streaming_adapter = try panel_mod.streaming_adapter.StreamingAdapter.init(allocator, terminal, theme),
             .db_adapter = panel_mod.db_adapter.DbAdapter.init(allocator, terminal, theme),
             .network_adapter = panel_mod.network_adapter.NetworkAdapter.init(allocator, terminal, theme),
             .bench_adapter = panel_mod.bench_adapter.BenchAdapter.init(allocator, terminal, theme),
-            .brain_adapter = panel_mod.brain_adapter.BrainAdapter.init(terminal, theme),
+            .brain_adapter = panel_mod.brain_adapter.BrainAdapter.init(allocator, terminal, theme),
             .security_panel = panel_mod.SecurityPanel.init(allocator),
             .connectors_panel = panel_mod.ConnectorsPanel.init(allocator),
             .ralph_panel = panel_mod.RalphPanel.init(allocator),
+            .chat_adapter = panel_mod.chat_adapter.ChatAdapter.init(allocator, terminal, theme),
         };
     }
 
@@ -97,6 +99,7 @@ const ShellPanel = struct {
         self.setPanel(9, self.security_panel.asPanel());
         self.setPanel(10, self.connectors_panel.asPanel());
         self.setPanel(11, self.ralph_panel.asPanel());
+        self.setPanel(12, self.chat_adapter.panel());
     }
 
     fn setPanel(self: *ShellPanel, index: usize, inner: tui.Panel) void {

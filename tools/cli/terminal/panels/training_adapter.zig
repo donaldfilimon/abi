@@ -30,7 +30,7 @@ const TerminalWriter = struct {
 pub const TrainingAdapter = struct {
     inner: training_panel.TrainingPanel,
 
-    pub fn init(allocator: std.mem.Allocator, theme: *const themes.Theme) TrainingAdapter {
+    pub fn init(allocator: std.mem.Allocator, _: *terminal.Terminal, theme: *const themes.Theme) TrainingAdapter {
         return .{ .inner = training_panel.TrainingPanel.init(allocator, theme, .{}) };
     }
 

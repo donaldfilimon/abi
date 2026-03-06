@@ -16,7 +16,7 @@ pub const BrainAdapter = struct {
     inner: brain_panel.BrainDashboardPanel,
     dashboard_data: brain_panel.DashboardData,
 
-    pub fn init(term: *terminal.Terminal, theme: *const themes.Theme) BrainAdapter {
+    pub fn init(_: std.mem.Allocator, term: *terminal.Terminal, theme: *const themes.Theme) BrainAdapter {
         return .{
             .inner = brain_panel.BrainDashboardPanel.init(term, theme),
             .dashboard_data = brain_panel.DashboardData.init(),

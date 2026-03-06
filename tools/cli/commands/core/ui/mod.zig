@@ -15,12 +15,13 @@ const bench_cmd = @import("./bench.zig");
 const brain_cmd = @import("./brain.zig");
 const dashboard_cmd = @import("./dashboard.zig");
 const editor_cmd = @import("./editor.zig");
+const chat_cmd = @import("./chat.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "ui",
-    .description = "Shared UI shell and focused terminal views (editor, gpu, train, model, streaming, db, network, bench, brain)",
+    .description = "Shared UI shell and focused terminal views (editor, gpu, train, model, streaming, db, network, bench, brain, chat)",
     .aliases = &.{},
-    .subcommands = &.{ "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "editor", "help" },
+    .subcommands = &.{ "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "chat", "editor", "help" },
     .kind = .group,
     .children = &.{
         .{ .name = "gpu", .description = "Open GPU dashboard TUI", .handler = gpu_cmd.run },
@@ -32,6 +33,7 @@ pub const meta: command_mod.Meta = .{
         .{ .name = "network", .description = "Open network status dashboard", .handler = network_cmd.run },
         .{ .name = "bench", .description = "Open benchmark results dashboard", .handler = bench_cmd.run },
         .{ .name = "brain", .description = "Open brain visualization dashboard", .handler = brain_cmd.run },
+        .{ .name = "chat", .description = "Open multi-persona chat dashboard", .handler = chat_cmd.run },
         .{ .name = "editor", .description = "Open an inline terminal text editor", .handler = editor_cmd.run },
     },
 };
@@ -92,6 +94,7 @@ pub fn printHelp() void {
         \\  network              Open network status dashboard
         \\  bench                Open benchmark results dashboard
         \\  brain                Open brain visualization dashboard
+        \\  chat                 Open multi-persona chat dashboard
         \\  editor [file]        Open the inline terminal editor
         \\  help                 Show this help
         \\
@@ -107,6 +110,7 @@ pub fn printHelp() void {
         \\  abi ui network
         \\  abi ui bench
         \\  abi ui brain
+        \\  abi ui chat
         \\  abi ui --theme nord
         \\  abi ui editor build.zig
         \\  abi ui train --refresh-ms 250
@@ -127,6 +131,7 @@ test "ui meta exposes every public child command" {
         "network",
         "bench",
         "brain",
+        "chat",
         "editor",
     };
 

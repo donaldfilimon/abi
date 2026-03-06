@@ -13,6 +13,7 @@ pub const brain_adapter = @import("brain_adapter.zig");
 pub const bench_adapter = @import("bench_adapter.zig");
 pub const db_adapter = @import("db_adapter.zig");
 pub const network_adapter = @import("network_adapter.zig");
+pub const chat_adapter = @import("chat_adapter.zig");
 
 // Native panels (implement Panel vtable directly)
 pub const security_panel = @import("security_panel.zig");

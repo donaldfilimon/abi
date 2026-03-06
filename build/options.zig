@@ -52,6 +52,9 @@ pub const CanonicalFlags = struct {
     feat_gateway: bool,
     feat_pages: bool,
     feat_benchmarks: bool,
+    feat_compute: bool,
+    feat_documents: bool,
+    feat_desktop: bool,
 };
 
 /// All compile-time build options for the ABI project.
@@ -82,6 +85,9 @@ pub const BuildOptions = struct {
     feat_gateway: bool,
     feat_pages: bool,
     feat_benchmarks: bool,
+    feat_compute: bool,
+    feat_documents: bool,
+    feat_desktop: bool,
 
     gpu_backends: []const GpuBackend,
 
@@ -160,6 +166,9 @@ pub fn canonicalToBuildOptions(canonical: CanonicalFlags, gpu_backends: []const 
         .feat_gateway = canonical.feat_gateway,
         .feat_pages = canonical.feat_pages,
         .feat_benchmarks = canonical.feat_benchmarks,
+        .feat_compute = canonical.feat_compute,
+        .feat_documents = canonical.feat_documents,
+        .feat_desktop = canonical.feat_desktop,
         .gpu_backends = gpu_backends,
     };
 }
@@ -188,6 +197,9 @@ pub fn buildOptionsToCanonical(options: BuildOptions) CanonicalFlags {
         .feat_gateway = options.feat_gateway,
         .feat_pages = options.feat_pages,
         .feat_benchmarks = options.feat_benchmarks,
+        .feat_compute = options.feat_compute,
+        .feat_documents = options.feat_documents,
+        .feat_desktop = options.feat_desktop,
     };
 }
 
@@ -253,6 +265,9 @@ pub fn readBuildOptions(
         .feat_gateway = readFeatureGate(b, "feat-gateway", "Enable API gateway (routing, rate limiting, circuit breaker)", true),
         .feat_pages = readFeatureGate(b, "feat-pages", "Enable dashboard/UI pages with routing", true),
         .feat_benchmarks = readFeatureGate(b, "feat-benchmarks", "Enable performance benchmarking module", true),
+        .feat_compute = readFeatureGate(b, "feat-compute", "Enable distributed compute mesh", true),
+        .feat_documents = readFeatureGate(b, "feat-documents", "Enable native document parsing", true),
+        .feat_desktop = readFeatureGate(b, "feat-desktop", "Enable native desktop extensions", true),
     };
 
     const gpu_backends = gpu.parseGpuBackends(

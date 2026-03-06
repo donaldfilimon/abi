@@ -48,6 +48,16 @@ pub const prompts = @import("prompts/stub.zig");
 pub const abbey = @import("abbey/stub.zig");
 pub const constitution = @import("constitution/stub.zig");
 
+// Always-on module stubs (unconditional in mod.zig)
+pub const compliance = struct {};
+pub const feedback = struct {};
+pub const context_engine = struct {};
+pub const jumpstart = struct {};
+pub const os_control = struct {};
+pub const deep_research = struct {};
+pub const dynamic_api = struct {};
+pub const runtime_bridge = struct {};
+
 // Local stubs for single-file modules (merged into subdirectory stubs)
 pub const agent = @import("agents/stub.zig");
 pub const model_registry = @import("models/stub.zig");

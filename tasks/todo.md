@@ -41,3 +41,39 @@ Execute the approved breaking cleanup wave for the ABI Zig 0.16 codebase by simp
 ### Review
 - [ ] Full `zig-master` close-out sequence passes, or any remaining failure is isolated as a pre-existing flake with evidence.
 - [ ] `tasks/lessons.md` captures any new correction-driven rule discovered during execution.
+
+---
+
+# Task Plan - Integrate Dirty Worktrees Into Main (2026-03-06)
+
+## Objective
+Preserve the dirty local work from the main worktree on an integration branch, validate the meaningful Zig/UI/build changes under the `zig-master` workflow, and merge only the real surviving work back into `main`.
+
+## Scope
+- Capture the current dirty `main` worktree state on `integrate-all-work` instead of mutating `main` in place.
+- Treat local no-op branches as already merged unless they gain new commits.
+- Keep the reviewed stash separate unless it is explicitly recovered later.
+- Record repo-local improvements separately from any environment-level Zig toolchain blocker.
+
+## Verification Criteria
+- `git fetch --all --prune`
+- `git -C /Users/donaldfilimon/abi status --short --branch`
+- `which zig`
+- `zig version`
+- `cat .zigversion`
+- `zig build toolchain-doctor`
+- `zig build v3-lib`
+- `git diff --check`
+
+## Checklist
+- [x] Review `tasks/lessons.md` before implementation.
+- [x] Run mandatory multi-CLI consensus for the integration question.
+- [x] Verify `origin/main` and local side branches are still aligned.
+- [x] Preserve the dirty `main` worktree on `integrate-all-work`.
+- [ ] Validate the dirty `main` worktree changes and isolate remaining blockers.
+- [ ] Commit the recovered integration branch changes with verification evidence.
+- [ ] Merge the finalized integration branch back into `main`.
+
+## Review
+- [ ] Distinguish repo-local fixes from external/toolchain blockers with evidence.
+- [ ] Confirm the final `main` ref contains every meaningful local branch/worktree change.

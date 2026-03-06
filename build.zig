@@ -462,13 +462,14 @@ pub fn build(b: *std.Build) void {
     });
 
     // V3 Static library
-    const v3_lib = b.addStaticLibrary(.{
+    const v3_lib = b.addLibrary(.{
         .name = "abi-v3",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/root.zig"),
             .target = target,
             .optimize = optimize,
         }),
+        .linkage = .static,
     });
     b.step("v3-lib", "Build v3 static library").dependOn(&b.addInstallArtifact(v3_lib, .{}).step);
 

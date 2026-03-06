@@ -161,13 +161,22 @@ pub const features = struct {
         @import("features/benchmarks/stub.zig");
 
     // Distributed compute mesh
-    pub const compute = @import("features/compute/mod.zig");
+    pub const compute = if (build_options.feat_compute)
+        @import("features/compute/mod.zig")
+    else
+        @import("features/compute/stub.zig");
 
     // Omni-modal document parsing
-    pub const documents = @import("features/documents/mod.zig");
+    pub const documents = if (build_options.feat_documents)
+        @import("features/documents/mod.zig")
+    else
+        @import("features/documents/stub.zig");
 
     // Native Desktop extensions
-    pub const desktop = @import("features/desktop/mod.zig");
+    pub const desktop = if (build_options.feat_desktop)
+        @import("features/desktop/mod.zig")
+    else
+        @import("features/desktop/stub.zig");
 };
 
 /// Build and package metadata.

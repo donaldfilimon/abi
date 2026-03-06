@@ -155,6 +155,9 @@ pub const abbey = struct {
             return error.FeatureDisabled;
         }
         pub fn deinit(_: *AbbeyPersona) void {}
+        pub fn interface(_: *AbbeyPersona) PersonaInterface {
+            return .{ .ptr = undefined, .vtable = undefined };
+        }
     };
 };
 pub const aviva = struct {

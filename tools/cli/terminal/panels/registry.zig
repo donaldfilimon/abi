@@ -19,6 +19,7 @@ pub const panel_specs = [_]PanelSpec{
     .{ .id = "security", .label = "Security", .shortcut_hint = "F6" },
     .{ .id = "connectors", .label = "Connectors", .shortcut_hint = "F7" },
     .{ .id = "ralph", .label = "Ralph", .shortcut_hint = "F8" },
+    .{ .id = "chat", .label = "Chat", .shortcut_hint = "0" },
 };
 
 pub const tab_labels = [_][]const u8{
@@ -34,6 +35,7 @@ pub const tab_labels = [_][]const u8{
     "Security",
     "Connectors",
     "Ralph",
+    "Chat",
 };
 
 test {

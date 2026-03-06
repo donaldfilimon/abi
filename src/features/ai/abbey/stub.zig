@@ -368,6 +368,8 @@ pub const LegacyStats = struct { turn_count: usize = 0, relationship_score: f32 
 
 // ── Ralph Swarm (parallel multi-agent) ─────────────────────────────────────
 
+pub const abbey_train = struct {};
+
 pub const ralph_swarm = struct {
     pub const ParallelRalphContext = struct {
         allocator: std.mem.Allocator,
