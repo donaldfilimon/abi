@@ -1,4 +1,7 @@
-//! Behavior-profile stub — disabled at compile time.
+//! Behavior-profile stub surface when AI features are disabled.
+
+const std = @import("std");
+const legacy_personas = @import("../personas/stub.zig");
 
 pub const BehaviorProfile = enum {
     collaborative,
@@ -7,17 +10,16 @@ pub const BehaviorProfile = enum {
     iterative,
 };
 
-pub const LegacyPersonaType = enum {
-    abbey,
-    aviva,
-    abi,
-    ralph,
-};
+pub const LegacyPersonaType = legacy_personas.PersonaType;
+pub const ProfileRegistry = legacy_personas.PersonaRegistry;
 
-pub const ProfileRegistry = struct {};
-
-pub fn fromLegacyPersona(_: LegacyPersonaType) ?BehaviorProfile {
-    return null;
+pub fn fromLegacyPersona(persona: LegacyPersonaType) BehaviorProfile {
+    return switch (persona) {
+        .assistant, .companion, .docs, .abbey => .collaborative,
+        .coder, .analyst, .reviewer, .minimal, .aviva => .direct,
+        .abi => .governance,
+        .writer, .ralph => .iterative,
+    };
 }
 
 pub fn defaultLegacyPersona(profile: BehaviorProfile) LegacyPersonaType {
@@ -27,4 +29,8 @@ pub fn defaultLegacyPersona(profile: BehaviorProfile) LegacyPersonaType {
         .governance => .abi,
         .iterative => .ralph,
     };
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

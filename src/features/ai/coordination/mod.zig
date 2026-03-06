@@ -1,10 +1,10 @@
-//! Canonical coordination surface layered over the legacy persona router/system.
+//! Canonical coordination surface over the legacy multi-persona system.
 
 const std = @import("std");
 const legacy_personas = @import("../personas/mod.zig");
 const legacy_types = @import("../personas/types.zig");
 const legacy_config = @import("../personas/config.zig");
-const legacy_router = @import("../personas/abi/mod.zig");
+const legacy_abi = @import("../personas/abi/mod.zig");
 const profiles = @import("../profiles/mod.zig");
 const semantic_store = @import("../../database/semantic_store/mod.zig");
 
@@ -18,24 +18,25 @@ pub const PolicyFlags = legacy_types.PolicyFlags;
 
 pub const ProfileSelection = struct {
     selected_profile: profiles.BehaviorProfile,
-    legacy_persona: legacy_types.PersonaType,
+    legacy_persona: profiles.LegacyPersonaType,
     confidence: f32,
-    policy_flags: PolicyFlags = .{},
+    policy_flags: PolicyFlags,
     reasoning: []const u8,
     influence_trace: ?semantic_store.InfluenceTrace = null,
 
     pub fn deinit(self: *ProfileSelection, allocator: std.mem.Allocator) void {
-        self.policy_flags.deinit(allocator);
         allocator.free(self.reasoning);
+        self.policy_flags.deinit(allocator);
+        self.* = undefined;
     }
 
     pub fn fromLegacy(
         allocator: std.mem.Allocator,
-        decision: legacy_types.RoutingDecision,
+        decision: LegacyRoutingDecision,
         trace: ?semantic_store.InfluenceTrace,
     ) !ProfileSelection {
         return .{
-            .selected_profile = profiles.fromLegacyPersona(decision.selected_persona) orelse .governance,
+            .selected_profile = profiles.fromLegacyPersona(decision.selected_persona),
             .legacy_persona = decision.selected_persona,
             .confidence = decision.confidence,
             .policy_flags = try clonePolicyFlags(allocator, decision.policy_flags),
@@ -47,56 +48,57 @@ pub const ProfileSelection = struct {
 
 pub const PolicyRouter = struct {
     allocator: std.mem.Allocator,
-    inner: *legacy_router.AbiRouter,
+    inner: *legacy_abi.AbiRouter,
 
-    pub fn init(allocator: std.mem.Allocator, cfg: legacy_config.AbiConfig) !*PolicyRouter {
-        const self = try allocator.create(PolicyRouter);
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator, cfg: legacy_config.AbiConfig) !*Self {
+        const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
         self.* = .{
             .allocator = allocator,
-            .inner = try legacy_router.AbiRouter.init(allocator, cfg),
+            .inner = try legacy_abi.AbiRouter.init(allocator, cfg),
         };
-
         return self;
     }
 
-    pub fn deinit(self: *PolicyRouter) void {
+    pub fn deinit(self: *Self) void {
         self.inner.deinit();
         self.allocator.destroy(self);
     }
 
-    pub fn addRoutingRule(self: *PolicyRouter, rule: legacy_router.RoutingRule) !void {
+    pub fn addRoutingRule(self: *Self, rule: legacy_abi.RoutingRule) !void {
         try self.inner.addRoutingRule(rule);
     }
 
-    pub fn getRuleCount(self: *const PolicyRouter) usize {
+    pub fn getRuleCount(self: *const Self) usize {
         return self.inner.getRuleCount();
     }
 
-    pub fn routeLegacy(self: *PolicyRouter, request: InteractionRequest) !LegacyRoutingDecision {
+    pub fn routeLegacy(self: *Self, request: InteractionRequest) !LegacyRoutingDecision {
         return self.inner.route(request);
     }
 
     pub fn routeProfile(
-        self: *PolicyRouter,
+        self: *Self,
         request: InteractionRequest,
         trace: ?semantic_store.InfluenceTrace,
     ) !ProfileSelection {
-        var decision = try self.inner.route(request);
-        defer {
-            decision.policy_flags.deinit(self.allocator);
-            decision.deinit(self.allocator);
-        }
-        return ProfileSelection.fromLegacy(self.allocator, decision, trace);
+        var legacy = try self.inner.route(request);
+        defer legacy.deinit(self.allocator);
+        return ProfileSelection.fromLegacy(self.allocator, legacy, trace);
     }
 
-    pub fn validateResponse(self: *PolicyRouter, response: InteractionResponse) !PolicyFlags {
+    pub fn validateResponse(self: *Self, response: InteractionResponse) !PolicyFlags {
         return self.inner.validateResponse(response);
     }
 };
 
-fn clonePolicyFlags(allocator: std.mem.Allocator, flags: PolicyFlags) !PolicyFlags {
+fn clonePolicyFlags(
+    allocator: std.mem.Allocator,
+    flags: PolicyFlags,
+) !PolicyFlags {
     return .{
         .is_safe = flags.is_safe,
         .requires_moderation = flags.requires_moderation,
@@ -109,19 +111,23 @@ fn clonePolicyFlags(allocator: std.mem.Allocator, flags: PolicyFlags) !PolicyFla
     };
 }
 
-test "profile selection maps branded routing decision" {
+test "profile selection maps legacy routing decisions" {
     const allocator = std.testing.allocator;
-    const selection = try ProfileSelection.fromLegacy(allocator, .{
+    const decision = LegacyRoutingDecision{
         .selected_persona = .abbey,
-        .confidence = 0.75,
+        .confidence = 0.9,
         .emotional_context = .{},
         .policy_flags = .{},
-        .routing_reason = try allocator.dupe(u8, "test"),
-    }, semantic_store.InfluenceTrace.forRetrieval(7, 0.8, 0.5));
-    defer {
-        var owned = selection;
-        owned.deinit(allocator);
-    }
+        .routing_reason = try allocator.dupe(u8, "Test routing"),
+    };
+    defer allocator.free(decision.routing_reason);
+
+    var selection = try ProfileSelection.fromLegacy(
+        allocator,
+        decision,
+        semantic_store.InfluenceTrace.forRetrieval(7, 0.7, 0.6),
+    );
+    defer selection.deinit(allocator);
 
     try std.testing.expectEqual(profiles.BehaviorProfile.collaborative, selection.selected_profile);
     try std.testing.expectEqual(@as(?u64, 7), selection.influence_trace.?.block_id);

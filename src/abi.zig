@@ -232,6 +232,9 @@ test "v2 surface exports remain available" {
     _ = App;
     _ = AppBuilder;
     _ = features.ai;
+    _ = features.ai.profiles;
+    _ = features.ai.coordination;
+    _ = features.database.semantic_store;
     _ = services.runtime;
     try std.testing.expectEqualStrings(meta.version(), version());
 }

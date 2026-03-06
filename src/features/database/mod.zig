@@ -1,6 +1,7 @@
-//! Database Module - Vector Database API
+//! Database Module - Vector Database and Semantic Store API
 //!
-//! This module provides the WDBX vector database for high-performance similarity search.
+//! This module provides ABI's canonical semantic-store surface for high-performance
+//! similarity search, weighted retrieval, and distributed lineage tracking.
 //! It supports HNSW (Hierarchical Navigable Small World) and IVF-PQ (Inverted File with
 //! Product Quantization) indexing algorithms.
 //!
@@ -98,7 +99,7 @@ pub const db_helpers = @import("db_helpers.zig");
 pub const storage = @import("storage.zig");
 pub const semantic_store = @import("semantic_store/mod.zig");
 
-/// Stable WDBX database-handle surface (CRUD, backup/restore, vector ops).
+/// Compatibility alias for the legacy WDBX handle surface.
 pub const wdbx = semantic_store;
 
 /// Neural vector engine surface (ANN/HNSW internals and engine API).
@@ -138,16 +139,16 @@ pub const distance_cache = @import("distance_cache.zig");
 
 pub const Database = database.Database;
 pub const StoreHandle = semantic_store.StoreHandle;
-pub const DatabaseHandle = semantic_store.StoreHandle;
-pub const SearchResult = wdbx.SearchResult;
-pub const RetrievalHit = semantic_store.RetrievalHit;
-pub const MemoryBlock = semantic_store.MemoryBlock;
-pub const InfluenceTrace = semantic_store.InfluenceTrace;
-pub const VectorView = wdbx.VectorView;
-pub const Stats = wdbx.Stats;
+pub const DatabaseHandle = StoreHandle;
+pub const SearchResult = semantic_store.SearchResult;
+pub const VectorView = semantic_store.VectorView;
+pub const Stats = semantic_store.Stats;
 pub const DatabaseError = database.DatabaseError;
-pub const BatchItem = Database.BatchItem;
+pub const BatchItem = semantic_store.BatchItem;
 pub const DiagnosticsInfo = database.DiagnosticsInfo;
+pub const MemoryBlock = semantic_store.MemoryBlock;
+pub const RetrievalHit = semantic_store.RetrievalHit;
+pub const InfluenceTrace = semantic_store.InfluenceTrace;
 pub const DistributedConfig = semantic_store.DistributedConfig;
 
 // Full-text search exports
@@ -305,7 +306,6 @@ pub const BlockConflict = distributed.BlockConflict;
 pub const DistributedBlockChain = distributed.DistributedBlockChain;
 pub const DistributedBlockChainConfig = distributed.DistributedBlockChainConfig;
 pub const DistributedBlockChainError = distributed.DistributedBlockChainError;
-pub const DistributedConfig = distributed.DistributedConfig;
 pub const DistributedContext = distributed.Context;
 
 pub const DatabaseFeatureError = error{
@@ -592,6 +592,9 @@ test "database module functions" {
 }
 
 test "database module exports stable wdbx and neural surfaces" {
+    _ = semantic_store.StoreHandle;
+    _ = semantic_store.MemoryBlock;
+    _ = semantic_store.InfluenceTrace;
     _ = wdbx.DatabaseHandle;
     _ = neural.Engine;
     _ = neural.Config;

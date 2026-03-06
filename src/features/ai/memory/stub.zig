@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const stub_root = @This();
+const semantic_store = @import("../../database/stub.zig").semantic_store;
 
 pub const persistence = struct {
     pub const SessionStore = stub_root.SessionStore;
@@ -163,17 +164,18 @@ pub const LongTermMemory = struct {
     }
 };
 
-const LongTermConfig = struct {
+pub const LongTermConfig = struct {
     max_memories: usize = 1000,
     embedding_dim: usize = 384,
     top_k: usize = 5,
     min_similarity: f32 = 0.5,
 };
 
-const RetrievalResult = struct {
+pub const RetrievalResult = struct {
     message: Message = .{},
     similarity: f32 = 0,
     importance: f32 = 0,
+    hit: semantic_store.RetrievalHit = .{},
 };
 
 pub const MemoryConfig = struct {

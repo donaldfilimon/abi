@@ -80,7 +80,7 @@
     },
     .{
         .name = "context-agent",
-        .description = "Contextually Aware Data Eccentric System with ABI Triad and WDBX",
+        .description = "Context-aware agent loop with profile routing and semantic-store integration",
         .aliases = .{},
         .subcommands = .{},
     },
@@ -217,7 +217,7 @@
     },
     .{
         .name = "mcp",
-        .description = "MCP server for WDBX database or ZLS (serve, tools)",
+        .description = "MCP server for the semantic store (`wdbx` alias) or ZLS (serve, tools)",
         .aliases = .{},
         .subcommands = .{
             "serve",

@@ -1,3 +1,79 @@
+# Task Plan - Canonicalize WDBX + Persona Architecture (2026-03-06)
+
+## Objective
+Refactor the branded WDBX/persona surfaces into canonical neutral internal APIs for semantic store, coordination, profiles, and provenance while preserving compatibility aliases for the current release wave.
+
+## Scope
+- Add canonical `abi.features.database.semantic_store`.
+- Add canonical `abi.features.ai.coordination` and `abi.features.ai.profiles`.
+- Preserve existing `wdbx` and persona-facing module paths as compatibility aliases in this wave.
+- Thread provenance and retrieval metadata through AI memory surfaces.
+- Update public docs so neutral technical terms are canonical and branded names are glossary aliases.
+
+## Verification Criteria
+- `which zig`
+- `zig version`
+- `cat .zigversion`
+- `zig build toolchain-doctor`
+- `zig build gendocs -- --check --no-wasm --untracked-md`
+- `zig build check-docs`
+- `zig build typecheck`
+- `zig build cli-tests`
+- `zig build tui-tests`
+- `zig build full-check`
+- `zig build check-cli-registry`
+- `zig build verify-all`
+- `zig build check-workflow-orchestration-strict --summary all`
+
+## Checklist
+### Now
+- [x] Review `tasks/lessons.md` before implementation.
+- [x] Confirm active Zig matches `.zigversion`.
+- [x] Run mandatory multi-CLI consensus for the refactor packet and capture surviving outputs.
+- [x] Add canonical semantic-store module and compatibility alias the existing WDBX surface.
+- [x] Add canonical AI profiles and coordination modules with temporary persona compatibility.
+- [x] Thread provenance and retrieval-hit metadata through AI memory retrieval surfaces.
+- [x] Expose canonical namespaces from public AI/database exports and keep compatibility aliases.
+- [x] Rewrite high-signal docs to make neutral technical APIs canonical and branded terms glossary-only.
+
+### Review
+- [x] Available `zig-master` validation passes, or each blocker is isolated with evidence.
+- [ ] `tasks/lessons.md` is updated if this wave uncovers a new correction-driven rule.
+
+---
+
+# Task Plan - Integrate Worktree And Branches Into `main` (2026-03-06)
+
+## Objective
+Preserve the uncommitted work in this worktree, determine which local branches or worktrees still carry unique commits, and merge the actual outstanding work into `main` without losing state.
+
+## Scope
+- Inspect current worktrees, local branches, and merge-base relationships before changing refs.
+- Run the mandatory best-effort multi-CLI consensus for the integration approach.
+- Preserve the current dirty branch state before checking out or updating `main`.
+- Merge only branches/worktrees that are not already contained in `main`.
+
+## Verification Criteria
+- `git status --short --branch`
+- `git worktree list --porcelain`
+- `git branch -vv`
+- `git fetch --all --prune`
+- `git rev-list --left-right --count main...<branch>`
+- `git status --short --branch` on `main` after integration
+
+## Checklist
+### Now
+- [x] Review current workflow rules and lessons before integration work.
+- [x] Inspect worktree/branch topology and identify unique work.
+- [x] Run mandatory multi-CLI consensus for the merge strategy.
+- [ ] Preserve the dirty worktree state on a branch or commit before switching targets.
+- [ ] Update `main` and merge any branches with unique commits.
+
+### Review
+- [ ] Verify `main` contains the intended work and report any branches that were already fully merged.
+
+---
+
 # Task Plan - ABI Zig 0.16 Breaking Cleanup (2026-03-06)
 
 ## Objective
@@ -44,113 +120,43 @@ Execute the approved breaking cleanup wave for the ABI Zig 0.16 codebase by simp
 
 ---
 
-# Task Plan - Integrate Dirty Worktrees Into Main (2026-03-06)
+# Task Plan - Investigate `build.zig:465` `addStaticLibrary` Breakage (2026-03-06)
 
 ## Objective
-Preserve the dirty local work from the main worktree on an integration branch, validate the meaningful Zig/UI/build changes under the `zig-master` workflow, and merge only the real surviving work back into `main`.
+Identify the minimal Zig 0.16 migration needed for the current `build.zig:465` blocker where `b.addStaticLibrary` fails under the repo-pinned toolchain, and report exact file/line context without modifying repository source.
 
 ## Scope
-- Capture the current dirty `main` worktree state on `integrate-all-work` instead of mutating `main` in place.
-- Treat local no-op branches as already merged unless they gain new commits.
-- Keep the reviewed stash separate unless it is explicitly recovered later.
-- Record repo-local improvements separately from any environment-level Zig toolchain blocker.
+- Reproduce the failure under `0.16.0-dev.2694+74f361a5c`.
+- Inspect the local Zig stdlib build API for the canonical replacement.
+- Validate the smallest source-level change in a throwaway build-file copy only.
+- Do not change tracked source files as part of this investigation.
 
 ## Verification Criteria
-- `git fetch --all --prune`
-- `git -C /Users/donaldfilimon/abi status --short --branch`
 - `which zig`
 - `zig version`
 - `cat .zigversion`
 - `zig build toolchain-doctor`
 - `zig build v3-lib`
-- `git diff --check`
+- Local stdlib inspection for `std.Build.addLibrary`
+- Throwaway `--build-file` validation of the replacement pattern
 
 ## Checklist
-- [x] Review `tasks/lessons.md` before implementation.
-- [x] Run mandatory multi-CLI consensus for the integration question.
-- [x] Verify `origin/main` and local side branches are still aligned.
-- [x] Preserve the dirty `main` worktree on `integrate-all-work`.
-- [x] Validate the dirty `main` worktree changes and isolate remaining blockers.
-- [x] Commit the recovered integration branch changes with verification evidence.
-- [x] Merge the finalized integration branch back into `main`.
+- [x] Review `tasks/lessons.md` before investigation.
+- [x] Confirm active Zig matches `.zigversion`.
+- [x] Run mandatory multi-CLI consensus for the migration question.
+- [x] Reproduce the `build.zig:465` failure and capture the exact diagnostic.
+- [x] Inspect local `std.Build` API around the missing method.
+- [x] Validate the minimal replacement pattern in a throwaway build-file copy and with a temporary in-place rerun.
 
 ## Review
-- [x] Distinguish repo-local fixes from external/toolchain blockers with evidence.
-- [x] Confirm the final `main` ref contains every meaningful local branch/worktree change.
+- [x] Evidence recorded for the exact blocker and minimal fix.
+- [x] Residual risk noted if further Zig 0.16 migration errors remain after the first blocker.
 
----
+### Evidence
+- `zig build v3-lib` on the original source fails at `build.zig:465:21` with `error: no field or member function named 'addStaticLibrary' in 'Build'`.
+- Local stdlib inspection shows `std.Build.addLibrary` at `/Users/donaldfilimon/.zvm/master/lib/std/Build.zig:839` and `LibraryOptions.linkage` at `/Users/donaldfilimon/.zvm/master/lib/std/Build.zig:820-823`, with no `addStaticLibrary` symbol present.
+- The same `build.zig` already uses the Zig 0.16 pattern at `build.zig:448-452`: `b.addLibrary(.{ ... .linkage = .static, ... })`.
+- A temporary in-place substitution of `build.zig:465-472` from `b.addStaticLibrary(.{ ... })` to `b.addLibrary(.{ ... .linkage = .static, ... })` moved `zig build v3-lib` past the method-missing failure and into unrelated Darwin linker errors (`undefined symbol: _abort`, `_clock_gettime`, etc.).
 
-# Task Plan - Repair Main Documentation Integrity (2026-03-06)
-
-## Objective
-Clean up the committed markdown merge artifacts on `main`, restore the most important broken documentation links and command examples, and leave the repository in a reviewable state without pulling stale stash content back in.
-
-## Scope
-- Treat the old stash and side worktree as historical inputs only; do not reintroduce obsolete doc content just to satisfy the earlier review.
-- Remove committed conflict markers from tracked markdown files.
-- Repair the highest-signal broken links and commands in root docs.
-- Add minimal canonical top-level guidance files when current docs link to files that do not exist.
-
-## Verification Criteria
-- `rg -n '^(<<<<<<<|=======|>>>>>>>)' . --glob '*.md' --glob '*.zig'`
-- `git diff --check`
-- `test -f CONTRIBUTING.md`
-- `test -f CLAUDE.md`
-
-## Checklist
-- [x] Confirm `main` already contains all unique local branch/worktree commits.
-- [x] Remove committed conflict markers from tracked markdown files.
-- [x] Repair broken root documentation links and command paths.
-- [x] Add minimal top-level guidance files required by live references.
-- [x] Re-run markdown integrity checks and record any remaining risk.
-
-## Review
-- [x] No tracked markdown files contain merge conflict markers.
-- [x] Root documentation no longer points at missing high-signal files or obviously obsolete command paths.
-- [x] Remaining `zig build` validation blocker is external to the repo and should be reported as residual risk.
-
----
-
-# Task Plan - Canonicalize WDBX + Persona Architecture (2026-03-06)
-
-## Objective
-Introduce wave-1 canonical internal Zig APIs for semantic storage, coordination, and profiles so the repo describes the memory/persona architecture with neutral technical contracts while preserving the branded WDBX/persona surfaces as compatibility aliases.
-
-## Scope
-- Keep `abi.features` and `abi.services` as the v2 namespace roots.
-- Add canonical `semantic_store`, `coordination`, and `profiles` module surfaces.
-- Preserve `abi.features.database.wdbx` and `abi.features.ai.personas` as compatibility aliases for one wave.
-- Add provenance/influence-trace contracts and route AI memory through canonical retrieval metadata where feasible without breaking callers.
-- Update canonical architecture docs and README language to present WDBX/Abbey/Aviva/Abi as aliases over the technical model.
-
-## Verification Criteria
-- `which zig`
-- `zig version`
-- `cat .zigversion`
-- `zig build toolchain-doctor`
-- `git diff --check`
-- `rg -n "semantic_store|coordination|profiles|InfluenceTrace|BehaviorProfile" src README.md docs`
-- `zig build gendocs -- --check --no-wasm --untracked-md`
-- `zig build check-docs`
-- `zig build typecheck`
-- `zig build cli-tests`
-- `zig build tui-tests`
-- `zig build full-check`
-- `zig build check-cli-registry`
-- `zig build verify-all`
-- `zig build check-workflow-orchestration-strict --summary all`
-
-## Checklist
-- [x] Review `tasks/lessons.md` before implementation.
-- [x] Run mandatory multi-CLI consensus prompt for the wave-1 cut.
-- [ ] Add canonical database `semantic_store` module and compatibility aliases.
-- [ ] Add canonical AI `coordination` and `profiles` modules and compatibility aliases.
-- [ ] Introduce provenance/influence-trace types and wire AI memory retrieval to canonical metadata where safe.
-- [ ] Update public exports/docs to point at the canonical surfaces first.
-- [ ] Add compile-level parity coverage for old and new import paths.
-- [ ] Re-run available validation gates and isolate the external toolchain blocker with evidence.
-
-## Review
-- [ ] New canonical imports compile and old branded imports still compile.
-- [ ] The refactor introduces no new top-level feature roots or build flags.
-- [ ] Any remaining validation failures are either repo-local regressions with evidence or the known external Darwin/libc linker blocker.
+### Residual Risk
+- This investigation isolates the first Zig 0.16 source migration needed at `build.zig:465`; additional build blockers remain after that point, but they are no longer `addStaticLibrary` API errors.

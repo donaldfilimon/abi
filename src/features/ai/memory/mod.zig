@@ -18,6 +18,7 @@ pub const ShortTermMemory = short_term.ShortTermMemory;
 pub const SlidingWindowMemory = window.SlidingWindowMemory;
 pub const SummarizingMemory = summary.SummarizingMemory;
 pub const LongTermMemory = long_term.LongTermMemory;
+pub const RetrievalResult = long_term.RetrievalResult;
 pub const MemoryManager = manager.MemoryManager;
 pub const MemoryConfig = manager.MemoryConfig;
 pub const MemoryType = manager.MemoryType;

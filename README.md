@@ -62,7 +62,7 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 |:--------|:------------|:------:|
 | **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Autonomous Agent** | Deep research, CI watcher, multimodal vision, Dream State background tasks | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, native deduplication | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Semantic Store** | Canonical semantic store with HNSW/IVF-PQ indexing, hybrid search, and WDBX compatibility aliases | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
@@ -117,6 +117,8 @@ ABI now exposes canonical v2 entrypoints only:
 
 - Use `abi.App` / `abi.AppBuilder` as the runtime types.
 - Use `abi.features.<name>` for feature modules and `abi.services.<name>` for service modules.
+- Use `abi.features.database.semantic_store` as the canonical memory/retrieval surface; `abi.features.database.wdbx` remains a compatibility alias.
+- Use `abi.features.ai.coordination` and `abi.features.ai.profiles` as the canonical routing/profile surfaces; `abi.features.ai.personas` remains the implementation and compatibility layer in this wave.
 - Use `abi.App.init(...)`, `abi.App.initDefault(...)`, and `abi.App.builder(...)` for app bootstrap.
 - Legacy aliases (`abi.Framework`, `abi.init*`, top-level `abi.<feature|service>`) are removed.
 
@@ -156,22 +158,22 @@ pub fn main() !void {
 
 ```zig
 const abi = @import("abi");
+const store = abi.features.database.semantic_store;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    // Create a 384-dimensional vector database
-    var db = try abi.wdbx.createDatabase(allocator, .{ .dimension = 384 });
-    defer db.deinit();
+    var handle = try store.openStore(allocator, "vectors-db");
+    defer store.closeStore(&handle);
 
     // Insert vectors
-    try db.insertVector(1, &embedding1);
-    try db.insertVector(2, &embedding2);
+    try store.storeVector(&handle, 1, &embedding1, "doc1");
+    try store.storeVector(&handle, 2, &embedding2, "doc2");
 
     // Search for similar vectors
-    const results = try db.searchVectors(&query_embedding, 10);
+    const results = try store.searchStore(&handle, allocator, &query_embedding, 10);
     defer allocator.free(results);
 
     for (results) |result| {
@@ -327,9 +329,12 @@ abi/
 │   ├── framework.zig     # Lifecycle orchestration
 │   ├── platform/         # Platform detection (OS, arch, CPU)
 │   │
-│   ├── ai/               # AI Module
+│   ├── ai/               # AI module
 │   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
-│   │   ├── agents/       # Agent runtime with personas
+│   │   ├── agents/       # Agent runtime
+│   │   ├── coordination/ # Canonical routing/orchestration surface
+│   │   ├── profiles/     # Canonical behavior profiles
+│   │   ├── personas/     # Persona implementation + compatibility layer
 │   │   ├── training/     # Training pipelines
 │   │   └── embeddings/   # Vector embeddings
 │   │
@@ -338,7 +343,8 @@ abi/
 │   │   ├── kernels/      # Compute kernels
 │   │   └── dsl/          # Shader DSL & codegen
 │   │
-│   ├── database/         # Vector Database (WDBX)
+│   ├── database/         # Semantic store (WDBX alias)
+│   │   ├── semantic_store/ # Canonical retrieval/provenance surface
 │   │   ├── hnsw.zig      # HNSW indexing
 │   │   └── distributed/  # Sharding & replication
 │   │
@@ -416,7 +422,7 @@ All features are enabled by default. Disable unused features to reduce binary si
 | `-Dfeat-ai` | true | AI features, agents, and connectors |
 | `-Dfeat-llm` | true | Local LLM inference |
 | `-Dfeat-gpu` | true | GPU acceleration |
-| `-Dfeat-database` | true | Vector database (WDBX) |
+| `-Dfeat-database` | true | Semantic store and vector database (`wdbx` alias preserved) |
 | `-Dfeat-network` | true | Distributed compute |
 | `-Dfeat-web` | true | HTTP client utilities |
 | `-Dfeat-profiling` | true | Performance profiling |
@@ -458,7 +464,7 @@ reintroduced as part of the language bindings roadmap. Track progress in
 | [Architecture](docs/_docs/architecture.md) | System structure |
 | [AI Guide](docs/_docs/ai-overview.md) | LLM, agents, training |
 | [GPU Guide](docs/_docs/gpu.md) | Multi-backend GPU acceleration |
-| [Database Guide](docs/_docs/database.md) | WDBX vector database |
+| [Database Guide](docs/_docs/database.md) | Semantic store and vector retrieval |
 | [Network Guide](docs/_docs/network.md) | Distributed compute |
 | [Deployment Guide](docs/_docs/deployment.md) | Production deployment |
 | [Observability Guide](docs/_docs/observability.md) | Metrics and profiling |

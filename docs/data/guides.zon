@@ -53,7 +53,7 @@
         .title = "AI Core",
         .section = "AI",
         .permalink = "/ai-core/",
-        .description = "Agents, tools, prompts, personas, memory, and model discovery",
+        .description = "Agents, tools, prompts, profiles, coordination, memory, and model discovery",
     },
     .{
         .slug = "ai-inference",
@@ -74,7 +74,7 @@
         .title = "Reasoning",
         .section = "AI",
         .permalink = "/ai-reasoning/",
-        .description = "Abbey reasoning engine, RAG, evaluation, templates, and orchestration",
+        .description = "Reasoning flows, RAG, evaluation, templates, and orchestration",
     },
     .{
         .slug = "gpu",
@@ -92,10 +92,10 @@
     },
     .{
         .slug = "database",
-        .title = "Database (WDBX)",
+        .title = "Database / Semantic Store",
         .section = "Data",
         .permalink = "/database/",
-        .description = "Vector database, indexing, and retrieval",
+        .description = "Semantic store, indexing, retrieval, and WDBX compatibility aliases",
     },
     .{
         .slug = "cache",

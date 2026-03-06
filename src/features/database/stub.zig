@@ -19,19 +19,23 @@ pub const DatabaseError = error{
 // --- Local Stubs Imports ---
 
 const types = @import("stubs/types.zig");
-const wdbx_mod = @import("stubs/wdbx.zig");
 const parallel = @import("stubs/parallel.zig");
 const misc = @import("stubs/misc.zig");
+pub const semantic_store = @import("semantic_store/stub.zig");
 
 // --- Core Types Re-exports ---
 
-pub const StoreHandle = types.DatabaseHandle;
-pub const DatabaseHandle = types.DatabaseHandle;
-pub const SearchResult = types.SearchResult;
-pub const VectorView = types.VectorView;
-pub const Stats = types.Stats;
-pub const BatchItem = types.BatchItem;
+pub const StoreHandle = semantic_store.StoreHandle;
+pub const DatabaseHandle = StoreHandle;
+pub const SearchResult = semantic_store.SearchResult;
+pub const VectorView = semantic_store.VectorView;
+pub const Stats = semantic_store.Stats;
+pub const BatchItem = semantic_store.BatchItem;
 pub const DiagnosticsInfo = types.DiagnosticsInfo;
+pub const MemoryBlock = semantic_store.MemoryBlock;
+pub const RetrievalHit = semantic_store.RetrievalHit;
+pub const InfluenceTrace = semantic_store.InfluenceTrace;
+pub const DistributedConfig = semantic_store.DistributedConfig;
 
 // --- Context ---
 
@@ -68,81 +72,6 @@ pub const Context = struct {
 
 // --- Sub-module Namespace Re-exports ---
 
-pub const semantic_store = struct {
-    pub const StoreHandle = types.DatabaseHandle;
-    pub const SearchResult = types.SearchResult;
-    pub const VectorView = types.VectorView;
-    pub const Stats = types.Stats;
-    pub const DatabaseConfig = struct {};
-    pub const BatchItem = types.BatchItem;
-    pub const MemoryBlock = misc.block_chain.ConversationBlock;
-    pub const MemoryBlockConfig = misc.block_chain.BlockChainConfig;
-    pub const WeightInputs = struct {
-        retrieval_score: ?f32 = null,
-        importance: ?f32 = null,
-    };
-    pub const Lineage = struct {
-        parent_block_id: ?u64 = null,
-        shard_hash: ?u64 = null,
-        sync_state: ?misc.distributed.SyncState = null,
-    };
-    pub const InfluenceTrace = struct {
-        pub const Source = enum { semantic_store, long_term_memory, distributed_replica, routing };
-        source: Source = .semantic_store,
-        block_id: ?u64 = null,
-        weight_inputs: WeightInputs = .{},
-        lineage: Lineage = .{},
-
-        pub fn forRetrieval(block_id: ?u64, retrieval_score: f32, importance: f32) InfluenceTrace {
-            return .{
-                .source = .semantic_store,
-                .block_id = block_id,
-                .weight_inputs = .{
-                    .retrieval_score = retrieval_score,
-                    .importance = importance,
-                },
-            };
-        }
-    };
-    pub const RetrievalHit = struct {
-        block_id: ?u64 = null,
-        distance: ?f32 = null,
-        score: f32 = 0.0,
-        importance: f32 = 0.0,
-        trace: InfluenceTrace = .{},
-    };
-    pub const DistributedConfig = misc.distributed.DistributedConfig;
-    pub const ShardManager = misc.distributed.ShardManager;
-    pub const ShardConfig = misc.distributed.ShardConfig;
-    pub const ShardKey = misc.distributed.ShardKey;
-    pub const BlockExchangeManager = misc.distributed.BlockExchangeManager;
-    pub const VersionVector = misc.distributed.VersionVector;
-    pub const VersionComparison = misc.distributed.VersionComparison;
-    pub const BlockConflict = misc.distributed.BlockConflict;
-
-    pub usingnamespace wdbx_mod.wdbx;
-
-    pub fn openStore(_: std.mem.Allocator, _: []const u8) error{FeatureDisabled}!StoreHandle {
-        return error.FeatureDisabled;
-    }
-    pub fn openStoreWithConfig(_: std.mem.Allocator, _: []const u8, _: DatabaseConfig) error{FeatureDisabled}!StoreHandle {
-        return error.FeatureDisabled;
-    }
-    pub fn closeStore(_: *StoreHandle) void {}
-    pub fn storeVector(_: *StoreHandle, _: u64, _: []const f32, _: ?[]const u8) error{FeatureDisabled}!void {
-        return error.FeatureDisabled;
-    }
-    pub fn searchStore(_: *StoreHandle, _: std.mem.Allocator, _: []const f32, _: usize) error{FeatureDisabled}![]SearchResult {
-        return error.FeatureDisabled;
-    }
-    pub fn backupStore(_: *StoreHandle, _: []const u8) error{FeatureDisabled}!void {
-        return error.FeatureDisabled;
-    }
-    pub fn restoreStore(_: *StoreHandle, _: []const u8) error{FeatureDisabled}!void {
-        return error.FeatureDisabled;
-    }
-};
-
 pub const wdbx = semantic_store;
 pub const cli = misc.cli;
 
@@ -153,10 +82,6 @@ pub const ParallelWorkQueue = parallel.ParallelWorkQueue;
 pub const BatchSearchResult = parallel.BatchSearchResult;
 pub const ParallelSearchStats = parallel.ParallelSearchStats;
 pub const batchCosineDistances = parallel.batchCosineDistances;
-pub const RetrievalHit = semantic_store.RetrievalHit;
-pub const MemoryBlock = semantic_store.MemoryBlock;
-pub const InfluenceTrace = semantic_store.InfluenceTrace;
-pub const DistributedConfig = semantic_store.DistributedConfig;
 
 pub const parallel_search = misc.parallel_search;
 pub const database = misc.database;
@@ -304,7 +229,6 @@ pub const BlockConflict = misc.distributed.BlockConflict;
 pub const DistributedBlockChain = misc.distributed.DistributedBlockChain;
 pub const DistributedBlockChainConfig = misc.distributed.DistributedBlockChainConfig;
 pub const DistributedBlockChainError = misc.distributed.DistributedBlockChainError;
-pub const DistributedConfig = misc.distributed.DistributedConfig;
 pub const DistributedContext = misc.distributed.Context;
 
 // --- DiskANN ---

@@ -65,7 +65,7 @@
     },
     .{
         .name = "database",
-        .description = "Vector database (WDBX)",
+        .description = "Semantic store and vector retrieval (WDBX alias)",
         .compile_flag = "feat_database",
         .parent = "",
         .real_module_path = "features/database/mod.zig",
@@ -145,7 +145,7 @@
     },
     .{
         .name = "personas",
-        .description = "Multi-persona AI assistant",
+        .description = "Persona implementation and compatibility layer",
         .compile_flag = "feat_ai",
         .parent = "ai",
         .real_module_path = "features/ai/mod.zig",
@@ -153,7 +153,7 @@
     },
     .{
         .name = "reasoning",
-        .description = "AI reasoning (Abbey, eval, RAG)",
+        .description = "AI reasoning, evaluation, and RAG orchestration",
         .compile_flag = "feat_reasoning",
         .parent = "ai",
         .real_module_path = "features/ai/facades/reasoning.zig",
