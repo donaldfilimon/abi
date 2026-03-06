@@ -160,3 +160,53 @@ Identify the minimal Zig 0.16 migration needed for the current `build.zig:465` b
 
 ### Residual Risk
 - This investigation isolates the first Zig 0.16 source migration needed at `build.zig:465`; additional build blockers remain after that point, but they are no longer `addStaticLibrary` API errors.
+
+---
+
+# Task Plan - Merge Remaining Branches Into `main` And Prune Useless Refs (2026-03-06)
+
+## Objective
+Ensure `main` contains all surviving branch work, then remove local and remote branches that are already fully merged and no longer needed.
+
+## Scope
+- Inspect local branches, remote branches, and linked worktrees before deleting any refs.
+- Run the mandatory best-effort multi-CLI consensus for the cleanup strategy.
+- Merge only if any branch still contains commits missing from `main`.
+- Delete only branches that are confirmed ancestors of `main`.
+- Remove linked worktrees that keep merged branches alive before deleting those branches.
+
+## Verification Criteria
+- `git status --short --branch`
+- `git branch -vv`
+- `git branch --merged main`
+- `git branch -r`
+- `git worktree list --porcelain`
+- `git rev-list --left-right --count main...<branch>`
+
+## Checklist
+### Now
+- [x] Review `tasks/lessons.md` before cleanup work.
+- [x] Inspect local/remote branch ancestry and identify branches already merged into `main`.
+- [x] Run mandatory multi-CLI consensus for the branch cleanup approach.
+- [x] Remove any linked worktree that points at a fully merged disposable branch.
+- [x] Delete fully merged local branches other than `main`.
+- [x] Delete fully merged disposable remote branches other than `origin/main`.
+
+### Review
+- [x] Verify only `main` remains locally unless a surviving branch still has unique work.
+- [x] Verify only `origin/main` remains remotely unless a surviving remote branch still has unique work.
+- [x] Record evidence and residual risk for any branch intentionally left in place.
+
+### Evidence
+- `git branch --merged main` showed all non-`main` local branches (`integrate-all-work`, `integrate-stash-work`, `plan-next-zigmaster-steps`, `please-review-my-uncommitted-changes`) were already ancestors of `main`, so no additional merge into `main` was needed.
+- Mandatory consensus artifact was captured under `tasks/branch-cleanup-consensus-out/`; surviving responders agreed on worktree-first cleanup followed by local and remote branch pruning, with Gemini failing and Ollama producing a parse-failure fallback.
+- `git status --short --branch` in `/Users/donaldfilimon/.codex/worktrees/9a24/abi` showed the linked `please-review-my-uncommitted-changes` worktree was clean before removal.
+- `git worktree remove /Users/donaldfilimon/.codex/worktrees/9a24/abi` succeeded, after which `git branch -d integrate-all-work integrate-stash-work plan-next-zigmaster-steps please-review-my-uncommitted-changes` deleted all merged local branches.
+- `git push origin --delete please-review-my-uncommitted-changes` reported the remote ref no longer existed; `git fetch --prune origin` then removed the stale tracking ref, and `git ls-remote --heads origin` confirmed only `refs/heads/main` remains remotely.
+- Final verification:
+  - `git branch -vv` shows only local `main`.
+  - `git branch -r` shows only `origin/main` and `origin/HEAD -> origin/main`.
+  - `git worktree list --porcelain` shows only `/Users/donaldfilimon/abi` on `main`.
+
+### Residual Risk
+- No branch refs remain outside `main`, but a global stash still exists as `stash@{0}: On dev: pre-merge major-rewrite: local dev changes`. It was intentionally preserved because it is not a branch and deleting it was outside this request.

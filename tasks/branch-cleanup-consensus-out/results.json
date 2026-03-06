@@ -1,0 +1,69 @@
+{
+  "question": "## Current State\n- Repository: `/Users/donaldfilimon/abi`\n- Active branch: `main`\n- `main` is up to date with `origin/main` after pushing merge commit `6a66d5e0`.\n- Local branches:\n  - `integrate-all-work` -> `938c64ca`\n  - `integrate-stash-work` -> `938c64ca`\n  - `plan-next-zigmaster-steps` -> `86ec21c7`\n  - `please-review-my-uncommitted-changes` -> `5517cf96`\n  - `main` -> `6a66d5e0`\n- Every non-`main` local branch is already an ancestor of `main`.\n- Remote branches:\n  - `origin/main`\n  - `origin/please-review-my-uncommitted-changes`\n- `origin/please-review-my-uncommitted-changes` is already merged via `origin/main`.\n- There is one linked worktree at `/Users/donaldfilimon/.codex/worktrees/9a24/abi` attached to `please-review-my-uncommitted-changes`.\n\n## Constraints / Non-Goals\n- Do not rewrite history.\n- Do not delete `main` or `origin/main`.\n- Delete only refs that are confirmed merged into `main`.\n- If the linked worktree has uncommitted changes, preserve them before removing the worktree or deleting its branch.\n\n## Success Criteria\n- Confirm whether any branch still needs merging into `main`.\n- Recommend the safe order of operations for linked worktree handling, local branch deletion, and remote branch deletion.\n- Call out any branch or worktree that should be preserved despite being merged.\n\n## Decision Question\n- Given this branch topology, what is the safest cleanup sequence to end with only useful branches remaining while avoiding loss of work in the linked worktree?\n",
+  "runs": [
+    {
+      "provider": "claude",
+      "status": "ok",
+      "duration_ms": 64389,
+      "exit_code": 0,
+      "weight": 0.3,
+      "confidence_0_to_1": 0.5,
+      "effective_score": 0.15,
+      "answer": "\ud83d\udce2 Plan's ready \u2014 five safe steps to clean up all merged branches and the worktree, leaving only main.",
+      "risks": [],
+      "unknowns": [],
+      "meta_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/claude.meta.json",
+      "stdout_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/claude.stdout.txt",
+      "stderr_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/claude.stderr.txt"
+    },
+    {
+      "provider": "gemini",
+      "status": "error",
+      "duration_ms": 7620,
+      "exit_code": 1,
+      "weight": 0.3,
+      "confidence_0_to_1": 0.0,
+      "effective_score": 0.0,
+      "answer": "",
+      "risks": [
+        "Provider status is error"
+      ],
+      "unknowns": [],
+      "meta_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/gemini.meta.json",
+      "stdout_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/gemini.stdout.txt",
+      "stderr_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/gemini.stderr.txt"
+    },
+    {
+      "provider": "ollama",
+      "status": "parse_failure",
+      "duration_ms": 34685,
+      "exit_code": 0,
+      "weight": 0.15,
+      "confidence_0_to_1": 0.5,
+      "effective_score": 0.075,
+      "answer": "We need to analyze the situation. There is a repo at /Users/donaldfilimon/abi, active branch main. Branches: integrate-all-work, integrate-stash-work, plan-next-zigmaster-steps, please-review-my-uncommitted-changes. All local branches are ancestors of main. So no branch needs merging. But we have a linked worktree at /Users/donaldfilimon/.codex/worktrees/9a24/abi attached to please-review-my-uncommitted-changes. That worktree might have uncommitted changes. We should preserve them. Need to handle safe order: detach or close worktree? Use git worktree remove? Must check for uncommitted changes. Could commit or stash or archive before removal. The main question: \": [ ] }",
+      "risks": [
+        "Structured parse failed; used plain-text fallback"
+      ],
+      "unknowns": [],
+      "meta_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/ollama.meta.json",
+      "stdout_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/ollama.stdout.txt",
+      "stderr_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/ollama.stderr.txt"
+    },
+    {
+      "provider": "opencode",
+      "status": "ok",
+      "duration_ms": 41644,
+      "exit_code": 0,
+      "weight": 0.25,
+      "confidence_0_to_1": 0.5,
+      "effective_score": 0.125,
+      "answer": "Now I have the full picture. Here's the analysis and recommended cleanup sequence: --- ## Findings **All 4 non-main branches are fully merged into `main`.** No branch has unmerged work. | Branch | Commit | Merged? | Notes | |--------|--------|---------|-------| | `integrate-all-work` | `938c64ca` | Yes | Safe to delete | | `integrate-stash-work` | `938c64ca` | Yes | Same commit as above; safe to delete | | `plan-next-zigmaster-steps` | `86ec21c7` | Yes | Safe to delete | | `please-review-my-uncommitted-changes` | `5517cf96` | Yes | **Has linked worktree + stash** | **Critical finding:** The linked worktree at `/Users/donaldfilimon/.codex/worktrees/9a24/abi` has **no uncommitted changes** but **does have a stash** (`stash@{0}: On dev: pre-merge major-rewrite: local dev changes`) containing 9 files with ~1,500 lines of changes. This stash must be preserved before removing the worktree. ## Recommended Safe Cleanup Sequence ### Phase 1: Preserve the stash from the worktree Stashes are stored in the **main repo's reflog** (not per-worktree), so the stash will survive worktree removal. However, to be safe: ```bash # 1a. Apply the stash onto a temporary branch to make it a real commit (belt-and-suspenders) git stash branch preserve/pre-merge-local-dev stash@{0} # This creates the branch, applies the stash, and drops it from the stash list. # Then commit the result: git add -A && git commit -m \"preserve: pre-merge major-rewrite local dev changes\" # Switch back to main: git checkout main ``` Or if you'd prefer to just keep the stash ref as-is (it's already stored globally): ```bash # 1b. Verify the stash is accessible from main worktree git stash list # should show stash@{0} ``` ### Phase 2: Remove the linked worktree ```bash # 2. Remove the worktree (no uncommitted changes, stash preserved) git worktree remove /Users/donaldfilimon/.codex/worktrees/9a24/abi ``` ### Phase 3: Delete local branches (all confirmed merged) ```bash # 3. Delete merged local branches git branch -d integrate-all-work git branch -d integrate-stash-work git branch -d plan-next-zigmaster-steps git branch -d please-review-my-uncommitted-changes ``` Using `-d` (not `-D`) ensures git will refuse if it somehow disagrees about merge status. ### Phase 4: Delete merged remote branch ```bash # 4. Delete the remote branch git push origin --delete please-review-my-uncommitted-changes ``` ### Phase 5: Prun",
+      "risks": [],
+      "unknowns": [],
+      "meta_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/opencode.meta.json",
+      "stdout_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/opencode.stdout.txt",
+      "stderr_path": "/Users/donaldfilimon/abi/tasks/branch-cleanup-consensus-out/opencode.stderr.txt"
+    }
+  ]
+}
