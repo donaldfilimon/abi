@@ -442,7 +442,7 @@ zig build -Dgpu-backend=auto
 
 C bindings were removed during the 2026-01-30 cleanup and are being
 reintroduced as part of the language bindings roadmap. Track progress in
-[ROADMAP.md](ROADMAP.md) under **Language bindings**.
+[docs/_docs/roadmap.md](docs/_docs/roadmap.md) under **Language bindings**.
 
 ---
 
@@ -452,20 +452,20 @@ reintroduced as part of the language bindings roadmap. Track progress in
 |:---------|:------------|
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Published documentation site |
 | [Docs Source](docs/README.md) | Docs build and layout |
-| [API Overview](docs/content/api.html) | High-level API reference |
-| [Getting Started](docs/content/getting-started.html) | First steps and setup |
-| [Configuration](docs/content/configuration.html) | Config system overview |
-| [Architecture](docs/content/architecture.html) | System structure |
-| [AI Guide](docs/content/ai.html) | LLM, agents, training |
-| [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
-| [Database Guide](docs/content/database.html) | WDBX vector database |
-| [Network Guide](docs/content/network.html) | Distributed compute |
-| [Deployment Guide](docs/content/deployment.html) | Production deployment |
-| [Observability Guide](docs/content/observability.html) | Metrics and profiling |
-| [Security Guide](docs/content/security.html) | Security model |
-| [Examples Guide](docs/content/examples.html) | Example walkthroughs |
-| [API Reference](API_REFERENCE.md) | Public API summary |
-| [Quickstart](QUICKSTART.md) | Getting started guide |
+| [API Overview](docs/_docs/api.md) | High-level API reference |
+| [Getting Started](docs/_docs/getting-started.md) | First steps and setup |
+| [Configuration](docs/_docs/configuration.md) | Config system overview |
+| [Architecture](docs/_docs/architecture.md) | System structure |
+| [AI Guide](docs/_docs/ai-overview.md) | LLM, agents, training |
+| [GPU Guide](docs/_docs/gpu.md) | Multi-backend GPU acceleration |
+| [Database Guide](docs/_docs/database.md) | WDBX vector database |
+| [Network Guide](docs/_docs/network.md) | Distributed compute |
+| [Deployment Guide](docs/_docs/deployment.md) | Production deployment |
+| [Observability Guide](docs/_docs/observability.md) | Metrics and profiling |
+| [Security Guide](docs/_docs/security-guide.md) | Security model |
+| [Examples Guide](docs/_docs/examples.md) | Example walkthroughs |
+| [API Reference](docs/_docs/api.md) | Public API summary |
+| [Quickstart](docs/_docs/getting-started.md) | Getting started guide |
 | [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and conventions |
 
 ```bash
@@ -473,10 +473,10 @@ reintroduced as part of the language bindings roadmap. Track progress in
 zig build test --summary all
 
 # Test specific module
-zig test src/runtime/engine/engine.zig
+zig test src/services/runtime/mod.zig
 
 # Filter tests by pattern
-zig test src/tests/mod.zig --test-filter "pattern"
+zig test src/services/tests/mod.zig --test-filter "pattern"
 
 # Run benchmarks
 zig build benchmarks
@@ -512,7 +512,7 @@ zig build lint
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [PLAN.md](PLAN.md) for current sprint status and [ROADMAP.md](ROADMAP.md) for version history.
+See [tasks/todo.md](tasks/todo.md) for current task tracking and [docs/_docs/roadmap.md](docs/_docs/roadmap.md) for roadmap history.
 
 ---
 

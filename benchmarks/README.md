@@ -55,7 +55,6 @@ zig build benchmarks -- --verbose
 
 | Suite | Purpose | Key Metrics |
 |-------|---------|-------------|
-<<<<<<< HEAD
 | **simd** | Vector operations | ops/sec, throughput (GB/s) |
 | **memory** | Allocator patterns | allocs/sec, fragmentation % |
 | **concurrency** | Lock-free structures | ops/sec, contention ratio |
@@ -208,7 +207,6 @@ zig build benchmarks -- [OPTIONS]
 OPTIONS:
   --suite=<name>    Run specific suite (simd, memory, concurrency, database, network, crypto, ai, gpu)
   --quick           Run with reduced iterations
->>>>>>> origin/cursor/ai-module-source-organization-0282
   --verbose         Show detailed output
   --json            Output results as JSON to stdout
   --output=<file>   Write JSON report to a file
@@ -317,5 +315,5 @@ zig build benchmarks -Denable-database=true -Denable-gpu=true
 ## See Also
 
 - [benchmarks/baselines/README.md](baselines/README.md) - Baseline format and CI flow
-- [docs/content/gpu.html](../docs/content/gpu.html) - GPU benchmarking guide
+- [docs/_docs/gpu.md](../docs/_docs/gpu.md) - GPU benchmarking guide
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines

@@ -13,7 +13,8 @@ For underlying structural layout rules, consult `ABI.md`.
 
 ### 0. Always Run Parallel Consensus
 
-• For every task, run `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` before implementation.
+• For every non-trivial task, run `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh --mode <code|vision> --timeout-sec 120 --prompt-file <file> --out-dir <dir>` before implementation.
+• Treat `run_tricli_consensus.sh` as the compatibility wrapper around `run_consensus.py`.
 • Use `--mode code` for normal tasks and `--mode vision` for image/screenshot-heavy tasks.
 • Keep `--timeout-sec 120` per tool.
 • Treat this as mandatory best-effort: continue with surviving tools if one fails.

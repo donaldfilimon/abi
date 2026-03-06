@@ -70,10 +70,41 @@ Preserve the dirty local work from the main worktree on an integration branch, v
 - [x] Run mandatory multi-CLI consensus for the integration question.
 - [x] Verify `origin/main` and local side branches are still aligned.
 - [x] Preserve the dirty `main` worktree on `integrate-all-work`.
-- [ ] Validate the dirty `main` worktree changes and isolate remaining blockers.
-- [ ] Commit the recovered integration branch changes with verification evidence.
-- [ ] Merge the finalized integration branch back into `main`.
+- [x] Validate the dirty `main` worktree changes and isolate remaining blockers.
+- [x] Commit the recovered integration branch changes with verification evidence.
+- [x] Merge the finalized integration branch back into `main`.
 
 ## Review
-- [ ] Distinguish repo-local fixes from external/toolchain blockers with evidence.
-- [ ] Confirm the final `main` ref contains every meaningful local branch/worktree change.
+- [x] Distinguish repo-local fixes from external/toolchain blockers with evidence.
+- [x] Confirm the final `main` ref contains every meaningful local branch/worktree change.
+
+---
+
+# Task Plan - Repair Main Documentation Integrity (2026-03-06)
+
+## Objective
+Clean up the committed markdown merge artifacts on `main`, restore the most important broken documentation links and command examples, and leave the repository in a reviewable state without pulling stale stash content back in.
+
+## Scope
+- Treat the old stash and side worktree as historical inputs only; do not reintroduce obsolete doc content just to satisfy the earlier review.
+- Remove committed conflict markers from tracked markdown files.
+- Repair the highest-signal broken links and commands in root docs.
+- Add minimal canonical top-level guidance files when current docs link to files that do not exist.
+
+## Verification Criteria
+- `rg -n '^(<<<<<<<|=======|>>>>>>>)' . --glob '*.md' --glob '*.zig'`
+- `git diff --check`
+- `test -f CONTRIBUTING.md`
+- `test -f CLAUDE.md`
+
+## Checklist
+- [x] Confirm `main` already contains all unique local branch/worktree commits.
+- [x] Remove committed conflict markers from tracked markdown files.
+- [x] Repair broken root documentation links and command paths.
+- [x] Add minimal top-level guidance files required by live references.
+- [x] Re-run markdown integrity checks and record any remaining risk.
+
+## Review
+- [x] No tracked markdown files contain merge conflict markers.
+- [x] Root documentation no longer points at missing high-signal files or obviously obsolete command paths.
+- [x] Remaining `zig build` validation blocker is external to the repo and should be reported as residual risk.

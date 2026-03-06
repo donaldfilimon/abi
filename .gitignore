@@ -226,6 +226,11 @@ TRASH-FILES.md
 *.md
 !/AGENTS.md
 !/README.md
+!/CLAUDE.md
+!/CONTRIBUTING.md
+!/GEMINI.md
+!/SECURITY.md
+!/docs/README.md
 !/tasks/todo.md
 !/tasks/lessons.md
 
