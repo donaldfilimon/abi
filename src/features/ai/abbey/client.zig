@@ -8,7 +8,6 @@
 
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
 const types = @import("../core/types.zig");
 const config = @import("../core/config.zig");
 const build_options = @import("build_options");

@@ -5,7 +5,6 @@
 
 const std = @import("std");
 const types = @import("../../core/types.zig");
-const neural = @import("../neural/mod.zig");
 const simd = @import("../../../../services/shared/simd/mod.zig");
 
 // ============================================================================

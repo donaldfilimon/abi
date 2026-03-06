@@ -2,7 +2,6 @@
 
 const std = @import("std");
 const time = @import("../../../../services/shared/time.zig");
-const sync = @import("../../../../services/shared/sync.zig");
 const sampler_mod = @import("sampler.zig");
 const tokenizer = @import("../tokenizer/mod.zig");
 

@@ -12,7 +12,6 @@
 
 const std = @import("std");
 const time = @import("../../../../services/shared/time.zig");
-const sync = @import("../../../../services/shared/sync.zig");
 const types = @import("../types.zig");
 const config = @import("../config.zig");
 const core_types = @import("../../core/types.zig");

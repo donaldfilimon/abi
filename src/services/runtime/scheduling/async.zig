@@ -187,7 +187,7 @@ test "async runtime spawn reports concurrency unavailable when disabled" {
     });
     defer runtime.deinit();
 
-    try std.testing.expectError(error.ConcurrencyUnavailable, runtime.spawn(cancelableNoop, .{}));
+    try std.testing.expectError(error.ConcurrencyUnavailable, runtime.spawn(addOne, .{@as(u32, 1)}));
 }
 
 test "task group awaitUncancelable returns on empty group" {
