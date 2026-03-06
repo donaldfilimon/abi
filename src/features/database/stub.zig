@@ -19,18 +19,23 @@ pub const DatabaseError = error{
 // --- Local Stubs Imports ---
 
 const types = @import("stubs/types.zig");
-const wdbx_mod = @import("stubs/wdbx.zig");
 const parallel = @import("stubs/parallel.zig");
 const misc = @import("stubs/misc.zig");
+pub const semantic_store = @import("semantic_store/stub.zig");
 
 // --- Core Types Re-exports ---
 
-pub const DatabaseHandle = types.DatabaseHandle;
-pub const SearchResult = types.SearchResult;
-pub const VectorView = types.VectorView;
-pub const Stats = types.Stats;
-pub const BatchItem = types.BatchItem;
+pub const StoreHandle = semantic_store.StoreHandle;
+pub const DatabaseHandle = StoreHandle;
+pub const SearchResult = semantic_store.SearchResult;
+pub const VectorView = semantic_store.VectorView;
+pub const Stats = semantic_store.Stats;
+pub const BatchItem = semantic_store.BatchItem;
 pub const DiagnosticsInfo = types.DiagnosticsInfo;
+pub const MemoryBlock = semantic_store.MemoryBlock;
+pub const RetrievalHit = semantic_store.RetrievalHit;
+pub const InfluenceTrace = semantic_store.InfluenceTrace;
+pub const DistributedConfig = semantic_store.DistributedConfig;
 
 // --- Context ---
 
@@ -67,7 +72,7 @@ pub const Context = struct {
 
 // --- Sub-module Namespace Re-exports ---
 
-pub const wdbx = wdbx_mod.wdbx;
+pub const wdbx = semantic_store;
 pub const cli = misc.cli;
 
 pub const ParallelSearchConfig = parallel.ParallelSearchConfig;
@@ -224,7 +229,6 @@ pub const BlockConflict = misc.distributed.BlockConflict;
 pub const DistributedBlockChain = misc.distributed.DistributedBlockChain;
 pub const DistributedBlockChainConfig = misc.distributed.DistributedBlockChainConfig;
 pub const DistributedBlockChainError = misc.distributed.DistributedBlockChainError;
-pub const DistributedConfig = misc.distributed.DistributedConfig;
 pub const DistributedContext = misc.distributed.Context;
 
 // --- DiskANN ---

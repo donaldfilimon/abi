@@ -7,6 +7,7 @@ const std = @import("std");
 const time = @import("../../../services/shared/utils.zig");
 const simd = @import("../../../services/shared/simd/mod.zig");
 const mod = @import("mod.zig");
+const semantic_store = @import("../../database/semantic_store/mod.zig");
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
 const MemoryStats = mod.MemoryStats;
@@ -32,6 +33,8 @@ pub const LongTermConfig = struct {
 
 /// A memory entry with embedding.
 pub const MemoryEntry = struct {
+    /// Stable block identifier for provenance and retrieval tracing.
+    block_id: u64,
     /// Original message.
     message: Message,
     /// Embedding vector.
@@ -62,6 +65,8 @@ pub const RetrievalResult = struct {
     similarity: f32,
     /// Memory importance.
     importance: f32,
+    /// Canonical retrieval metadata shared with the semantic store surface.
+    hit: semantic_store.RetrievalHit,
 };
 
 /// Long-term memory with vector-based retrieval.
@@ -70,6 +75,7 @@ pub const LongTermMemory = struct {
     config: LongTermConfig,
     memories: std.ArrayListUnmanaged(MemoryEntry),
     total_access: u64,
+    next_block_id: u64,
 
     /// Initialize long-term memory.
     pub fn init(allocator: std.mem.Allocator, config: LongTermConfig) LongTermMemory {
@@ -78,6 +84,7 @@ pub const LongTermMemory = struct {
             .config = config,
             .memories = .{},
             .total_access = 0,
+            .next_block_id = 1,
         };
     }
 
@@ -126,6 +133,7 @@ pub const LongTermMemory = struct {
         errdefer self.allocator.free(emb);
 
         const entry = MemoryEntry{
+            .block_id = self.next_block_id,
             .message = .{
                 .role = message.role,
                 .content = cloned_content,
@@ -140,6 +148,7 @@ pub const LongTermMemory = struct {
             .last_accessed = time.nowSeconds(),
         };
 
+        self.next_block_id += 1;
         try self.memories.append(self.allocator, entry);
     }
 
@@ -204,14 +213,38 @@ pub const LongTermMemory = struct {
 
         for (scored.items[0..result_count], 0..) |item, i| {
             const entry = &self.memories.items[item.idx];
+            const accessed_at = time.nowSeconds();
+            const similarity = cosineSimilarity(query_embedding, entry.embedding);
+            const recency = calculateRecencyFactor(
+                entry.last_accessed,
+                accessed_at,
+                self.config.recency_half_life_secs,
+            );
+
             entry.access_count += 1;
-            entry.last_accessed = time.nowSeconds();
+            entry.last_accessed = accessed_at;
             self.total_access += 1;
+            const trace = semantic_store.InfluenceTrace{
+                .source = .local_memory,
+                .block_id = entry.block_id,
+                .weight_inputs = .{
+                    .similarity = similarity,
+                    .importance = entry.importance,
+                    .recency = recency,
+                },
+            };
 
             results[i] = .{
                 .message = entry.message,
-                .similarity = cosineSimilarity(query_embedding, entry.embedding),
+                .similarity = similarity,
                 .importance = entry.importance,
+                .hit = .{
+                    .block_id = entry.block_id,
+                    .score = item.score,
+                    .similarity = similarity,
+                    .importance = entry.importance,
+                    .trace = trace,
+                },
             };
         }
 
@@ -286,6 +319,7 @@ pub const LongTermMemory = struct {
         }
         self.memories.clearRetainingCapacity();
         self.total_access = 0;
+        self.next_block_id = 1;
     }
 
     /// Get memory statistics.
@@ -365,6 +399,8 @@ test "long-term memory store and retrieve" {
     defer allocator.free(results);
 
     try std.testing.expect(results.len > 0);
+    try std.testing.expect(results[0].hit.block_id > 0);
+    try std.testing.expect(results[0].hit.trace.block_id != null);
 }
 
 test "long-term memory eviction" {
