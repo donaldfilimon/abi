@@ -223,12 +223,19 @@ pub fn build(b: *std.Build) void {
     const toolchain_doctor_step = b.step("toolchain-doctor", "Diagnose local Zig PATH/version drift against repository pin");
     toolchain_doctor_step.dependOn(&addScriptRunner(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize).step);
 
-    const consistency_step = b.step("check-consistency", "Verify Zig version/baseline consistency and Zig 0.16 conformance patterns");
-    consistency_step.dependOn(&addScriptRunner(b, "abi-check-zig-version-consistency", "tools/scripts/check_zig_version_consistency.zig", target, optimize).step);
-    consistency_step.dependOn(&addScriptRunner(b, "abi-check-test-baseline-consistency", "tools/scripts/check_test_baseline_consistency.zig", target, optimize).step);
-    consistency_step.dependOn(&addScriptRunner(b, "abi-check-zig-016-patterns", "tools/scripts/check_zig_016_patterns.zig", target, optimize).step);
-    consistency_step.dependOn(&addScriptRunner(b, "abi-check-feature-catalog", "tools/scripts/check_feature_catalog.zig", target, optimize).step);
+    const check_zig_version_step = b.step("check-zig-version", "Verify Zig version consistency");
+    check_zig_version_step.dependOn(&addScriptRunner(b, "abi-check-zig-version-consistency", "tools/scripts/check_zig_version_consistency.zig", target, optimize).step);
 
+    const check_test_baseline_step = b.step("check-test-baseline", "Verify test baseline consistency");
+    check_test_baseline_step.dependOn(&addScriptRunner(b, "abi-check-test-baseline-consistency", "tools/scripts/check_test_baseline_consistency.zig", target, optimize).step);
+
+    const check_zig_016_patterns_step = b.step("check-zig-016-patterns", "Verify Zig 0.16 conformance patterns");
+    check_zig_016_patterns_step.dependOn(&addScriptRunner(b, "abi-check-zig-016-patterns", "tools/scripts/check_zig_016_patterns.zig", target, optimize).step);
+
+    const check_feature_catalog_step = b.step("check-feature-catalog", "Verify feature catalog consistency");
+    check_feature_catalog_step.dependOn(&addScriptRunner(b, "abi-check-feature-catalog", "tools/scripts/check_feature_catalog.zig", target, optimize).step);
+
+    var check_gpu_policy_step: ?*std.Build.Step = null;
     if (targets.pathExists(b, "tools/scripts/check_gpu_policy_consistency.zig")) {
         const gpu_policy_check_module = b.createModule(.{
             .root_source_file = b.path("tools/scripts/check_gpu_policy_consistency.zig"),
@@ -252,7 +259,8 @@ pub fn build(b: *std.Build) void {
             .name = "abi-check-gpu-policy-consistency",
             .root_module = gpu_policy_check_module,
         });
-        consistency_step.dependOn(&b.addRunArtifact(check_gpu_policy_exe).step);
+        check_gpu_policy_step = b.step("check-gpu-policy", "Verify GPU policy consistency");
+        check_gpu_policy_step.?.dependOn(&b.addRunArtifact(check_gpu_policy_exe).step);
     }
 
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
@@ -338,7 +346,11 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
     full_check_step.dependOn(import_check_step);
-    full_check_step.dependOn(consistency_step);
+    full_check_step.dependOn(check_zig_version_step);
+    full_check_step.dependOn(check_test_baseline_step);
+    full_check_step.dependOn(check_zig_016_patterns_step);
+    full_check_step.dependOn(check_feature_catalog_step);
+    if (check_gpu_policy_step) |step| full_check_step.dependOn(step);
     full_check_step.dependOn(check_cli_registry_step);
     full_check_step.dependOn(check_cli_dsl_consistency_step);
     full_check_step.dependOn(workflow_contract_strict_step);
@@ -587,7 +599,11 @@ pub fn build(b: *std.Build) void {
     if (tui_tests_step) |step| gate_hardening_step.dependOn(step);
     gate_hardening_step.dependOn(validate_flags_step);
     gate_hardening_step.dependOn(import_check_step);
-    gate_hardening_step.dependOn(consistency_step);
+    gate_hardening_step.dependOn(check_zig_version_step);
+    gate_hardening_step.dependOn(check_test_baseline_step);
+    gate_hardening_step.dependOn(check_zig_016_patterns_step);
+    gate_hardening_step.dependOn(check_feature_catalog_step);
+    if (check_gpu_policy_step) |step| gate_hardening_step.dependOn(step);
     gate_hardening_step.dependOn(check_cli_dsl_consistency_step);
     gate_hardening_step.dependOn(check_cli_registry_step);
     if (check_docs_step) |step| gate_hardening_step.dependOn(step);
@@ -601,7 +617,11 @@ pub fn build(b: *std.Build) void {
     if (tui_tests_step) |step| verify_all_step.dependOn(step);
     verify_all_step.dependOn(validate_flags_step);
     verify_all_step.dependOn(import_check_step);
-    verify_all_step.dependOn(consistency_step);
+    verify_all_step.dependOn(check_zig_version_step);
+    verify_all_step.dependOn(check_test_baseline_step);
+    verify_all_step.dependOn(check_zig_016_patterns_step);
+    verify_all_step.dependOn(check_feature_catalog_step);
+    if (check_gpu_policy_step) |step| verify_all_step.dependOn(step);
     verify_all_step.dependOn(check_cli_registry_step);
     verify_all_step.dependOn(check_cli_dsl_consistency_step);
     verify_all_step.dependOn(workflow_contract_strict_step);

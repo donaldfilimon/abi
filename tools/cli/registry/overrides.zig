@@ -71,7 +71,7 @@ const db_options = [_]types.OptionInfo{
     .{ .flag = "--top-k", .description = "Number of results to return" },
     .{ .flag = "--out", .description = "Backup output path" },
     .{ .flag = "--in", .description = "Restore input path" },
-    .{ .flag = "--path", .description = "Legacy path shorthand" },
+    .{ .flag = "--path", .description = "Database and backup path shorthand" },
 };
 
 const profile_options = [_]types.OptionInfo{

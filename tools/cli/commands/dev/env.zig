@@ -36,10 +36,10 @@ const abi_env_vars = [_]EnvVar{
     .{ .name = "ABI_MASTER_KEY", .display_name = "ABI_MASTER_KEY", .description = "32-byte secrets encryption key", .required = false, .secret = true },
     .{ .name = "ABI_DB_PATH", .display_name = "ABI_DB_PATH", .description = "Database file path", .required = false, .secret = false },
     .{ .name = "ABI_DISCORD_TOKEN", .display_name = "ABI_DISCORD_TOKEN", .description = "Discord bot token", .required = false, .secret = true },
-    .{ .name = "OPENAI_API_KEY", .display_name = "OPENAI_API_KEY", .description = "OpenAI API key (legacy)", .required = false, .secret = true },
+    .{ .name = "OPENAI_API_KEY", .display_name = "OPENAI_API_KEY", .description = "OpenAI API key", .required = false, .secret = true },
     .{ .name = "MISTRAL_API_KEY", .display_name = "MISTRAL_API_KEY", .description = "Mistral API key", .required = false, .secret = true },
     .{ .name = "COHERE_API_KEY", .display_name = "COHERE_API_KEY", .description = "Cohere API key", .required = false, .secret = true },
-    .{ .name = "DISCORD_BOT_TOKEN", .display_name = "DISCORD_BOT_TOKEN", .description = "Discord bot token (legacy)", .required = false, .secret = true },
+    .{ .name = "DISCORD_BOT_TOKEN", .display_name = "DISCORD_BOT_TOKEN", .description = "Discord bot token", .required = false, .secret = true },
     .{ .name = "NO_COLOR", .display_name = "NO_COLOR", .description = "Disable colored output", .required = false, .secret = false },
 };
 

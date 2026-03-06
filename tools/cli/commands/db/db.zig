@@ -51,7 +51,7 @@ fn printHelp() void {
         \\  help                     Show this help message
         \\
         \\Options:
-        \\  --path <path>            Legacy shorthand for both db and backup path
+        \\  --path <path>            Database and backup path shorthand
         \\  --db <path>              Database file path
         \\  --out <path>             Backup output path
         \\  --in <path>              Restore input path

@@ -425,15 +425,15 @@ shared-runtime shell entrypoint plus focused view commands.
 - [x] Toolchain pin verified against `.zigversion`.
 - [x] Review existing `tasks/lessons.md` before implementation.
 - [x] Prepare and run tri-CLI consensus prompt packet for this cleanup wave.
-- [ ] Refactor `full-check` and `verify-all` so they compose only from leaf
+- [x] Refactor `full-check` and `verify-all` so they compose only from leaf
   steps.
-- [ ] Replace hand-maintained CLI smoke coverage with descriptor-driven
+- [x] Replace hand-maintained CLI smoke coverage with descriptor-driven
   generation plus a minimal safe functional allowlist.
-- [ ] Make `build/test_discovery.zig` the only tracked feature-test source of
+- [x] Make `build/test_discovery.zig` the only tracked feature-test source of
   truth and generate the feature-test root in build cache.
 - [ ] Simplify baseline and consistency checks so generated expectations replace
   stale hard-coded markers.
-- [ ] Remove legacy build flag aliases, compatibility namespaces, fallback
+- [x] Remove legacy build flag aliases, compatibility namespaces, fallback
   paths, deprecated forwards, and `(legacy: ...)` CLI/docs messaging.
 - [ ] Collapse `ui` to one canonical shell entrypoint plus focused views on the
   shared dashboard runtime.
