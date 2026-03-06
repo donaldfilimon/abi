@@ -453,6 +453,61 @@ pub fn build(b: *std.Build) void {
         cross_check_step.dependOn(&cross_lib.step);
     }
 
+    // ── V3 Refactored Modules ─────────────────────────────────────────
+    // New flat module structure: root.zig → wdbx/, personas/, inference/, api_server/
+    const v3_module = b.addModule("abi-v3", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // V3 Static library
+    const v3_lib = b.addStaticLibrary(.{
+        .name = "abi-v3",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.step("v3-lib", "Build v3 static library").dependOn(&b.addInstallArtifact(v3_lib, .{}).step);
+
+    // V3 Server executable
+    const v3_server = b.addExecutable(.{
+        .name = "abi-server",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/server_main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.step("v3-server", "Build v3 server executable").dependOn(&b.addInstallArtifact(v3_server, .{}).step);
+
+    // V3 Tests
+    const v3_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const v3_test_step = b.step("v3-test", "Run v3 module tests");
+    v3_test_step.dependOn(&b.addRunArtifact(v3_tests).step);
+
+    // V3 Benchmarks
+    const v3_bench = b.addExecutable(.{
+        .name = "abi-bench",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/bench.zig"),
+            .target = target,
+            .optimize = .ReleaseFast,
+        }),
+    });
+    const v3_bench_step = b.step("v3-bench", "Run v3 benchmarks");
+    v3_bench_step.dependOn(&b.addRunArtifact(v3_bench).step);
+
+    _ = v3_module;
+
     // ── Verify-all ──────────────────────────────────────────────────────
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
     gate_hardening_step.dependOn(toolchain_doctor_step);
