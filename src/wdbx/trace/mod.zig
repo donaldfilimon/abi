@@ -4,7 +4,7 @@ const std = @import("std");
 
 pub const TraceEvent = struct {
     pub const Kind = enum { retrieval, scoring, tool_use, memory_update };
-    
+
     timestamp: i64,
     kind: Kind,
     description: []const u8,
@@ -50,6 +50,29 @@ pub const TraceLog = struct {
         // For now, let's just keep it simple.
         return .empty;
     }
-    
-    // FIXME: implement lineage graph generation and audit log export
+
+    pub fn generateLineageGraph(self: *const TraceLog, allocator: std.mem.Allocator) ![]const u8 {
+        var list = std.ArrayListUnmanaged(u8).empty;
+        errdefer list.deinit(allocator);
+
+        try list.appendSlice(allocator, "digraph Lineage {\n");
+        for (self.events.items, 0..) |event, i| {
+            try list.writer(allocator).print("  node_{d} [label=\"{s}\"];\n", .{ i, event.description });
+            if (i > 0) {
+                try list.writer(allocator).print("  node_{d} -> node_{d};\n", .{ i - 1, i });
+            }
+        }
+        try list.appendSlice(allocator, "}\n");
+        return list.toOwnedSlice(allocator);
+    }
+
+    pub fn exportAuditLog(self: *const TraceLog, allocator: std.mem.Allocator) ![]const u8 {
+        var list = std.ArrayListUnmanaged(u8).empty;
+        errdefer list.deinit(allocator);
+
+        for (self.events.items) |event| {
+            try list.writer(allocator).print("[{d}] {t}: {s}\n", .{ event.timestamp, event.kind, event.description });
+        }
+        return list.toOwnedSlice(allocator);
+    }
 };

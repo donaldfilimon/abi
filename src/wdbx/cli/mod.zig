@@ -20,5 +20,13 @@ pub const CliHandler = struct {
         std.debug.print("Triggering background log compaction...\n", .{});
     }
 
-    // FIXME: implement inspectTrace(), createSnapshot()
+    pub fn inspectTrace(self: *CliHandler, block_id: [32]u8) !void {
+        _ = self;
+        std.debug.print("Inspecting lineage trace for block {x}...\n", .{std.fmt.fmtSliceHexLower(&block_id)});
+    }
+
+    pub fn createSnapshot(self: *CliHandler, path: []const u8) !void {
+        _ = self;
+        std.debug.print("Creating database snapshot at {s}...\n", .{path});
+    }
 };

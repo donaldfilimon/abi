@@ -24,6 +24,18 @@ pub const MemoryWriter = struct {
             return .drop;
         }
     }
-    
-    // FIXME: implement rolling summary generation
+    pub fn generateRollingSummary(self: MemoryWriter, allocator: std.mem.Allocator, blocks: []const []const u8) ![]u8 {
+        _ = self;
+        // Logic: combine top N most important blocks into a single summary string
+        // For now, we just concatenate first few characters as a placeholder
+        var summary = std.ArrayList(u8).init(allocator);
+        try summary.appendSlice("Summary: ");
+        for (blocks, 0..) |block, i| {
+            if (i >= 5) break;
+            const len = @min(block.len, 20);
+            try summary.appendSlice(block[0..len]);
+            try summary.appendSlice("... ");
+        }
+        return summary.toOwnedSlice();
+    }
 };
