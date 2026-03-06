@@ -31,11 +31,59 @@ const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const app_paths = abi.services.shared.app_paths;
+const AgentBackend = abi.features.ai.agent.AgentBackend;
 
 pub const meta: command_mod.Meta = .{
     .name = "os-agent",
     .description = "OS-aware AI agent with tools, memory, and self-learning",
 };
+
+const backend_suggestions = [_][]const u8{
+    "provider_router",
+    "provider-router",
+    "router",
+    "default",
+    "echo",
+    "openai",
+    "anthropic",
+    "claude",
+    "gemini",
+    "ollama",
+    "huggingface",
+    "hugging-face",
+    "hf",
+    "codex",
+    "llama_cpp",
+    "llama-cpp",
+    "llama.cpp",
+    "local",
+};
+
+fn parseBackendName(text: []const u8) ?AgentBackend {
+    if (utils.args.parseEnum(AgentBackend, text)) |backend| return backend;
+    if (std.ascii.eqlIgnoreCase(text, "provider-router") or
+        std.ascii.eqlIgnoreCase(text, "router") or
+        std.ascii.eqlIgnoreCase(text, "default"))
+    {
+        return .provider_router;
+    }
+    if (std.ascii.eqlIgnoreCase(text, "claude")) return .anthropic;
+    if (std.ascii.eqlIgnoreCase(text, "hf") or std.ascii.eqlIgnoreCase(text, "hugging-face")) return .huggingface;
+    if (std.ascii.eqlIgnoreCase(text, "llama-cpp") or std.ascii.eqlIgnoreCase(text, "llama.cpp")) return .llama_cpp;
+    return null;
+}
+
+fn backendHint() []const u8 {
+    return "provider_router, echo, openai, anthropic, gemini, ollama, huggingface, codex, llama_cpp, local";
+}
+
+fn printUnknownBackend(backend_name: []const u8) void {
+    utils.output.printError("Unknown backend: {s}", .{backend_name});
+    if (utils.args.suggestCommand(backend_name, &backend_suggestions)) |suggestion| {
+        utils.output.printInfo("Did you mean: {s}?", .{suggestion});
+    }
+    utils.output.printInfo("Known backends: {s}", .{backendHint()});
+}
 
 const SessionState = struct {
     allocator: std.mem.Allocator,
@@ -305,8 +353,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Resolve backend
-    const backend: abi.features.ai.agent.AgentBackend =
-        utils.args.parseEnum(abi.features.ai.agent.AgentBackend, backend_name) orelse .provider_router;
+    const backend = parseBackendName(backend_name) orelse {
+        printUnknownBackend(backend_name);
+        return error.InvalidArgument;
+    };
 
     // Build system prompt with optional self-awareness preamble
     const system_prompt = if (self_aware)
@@ -679,7 +729,7 @@ fn printHelp() void {
         .sectionColored("Options")
         .option(.{ .short = "-m", .long = "--message <msg>", .description = "Send single message (non-interactive)" })
         .option(.{ .short = "-s", .long = "--session <name>", .description = "Session name (default: os-agent-default)" })
-        .option(.{ .long = "--backend <name>", .description = "LLM backend: provider_router, echo, openai, ollama, huggingface, anthropic, gemini, codex, llama_cpp" })
+        .option(.{ .long = "--backend <name>", .description = "LLM backend: provider_router, echo, openai, anthropic, gemini, ollama, huggingface, codex, llama_cpp, local" })
         .option(.{ .long = "--model <name>", .description = "Model name for the backend" })
         .option(.{ .long = "--self-aware", .description = "Enable codebase indexing for self-awareness" })
         .option(.{ .long = "--no-confirm", .description = "Skip confirmation for destructive operations" })
@@ -700,10 +750,16 @@ fn printHelp() void {
         .line("  /info       Show session metadata")
         .line("  /clear      Clear tool call log")
         .line("  exit, quit  Exit the agent")
+        .sectionColored("Backend Aliases")
+        .line("  provider-router, router, default -> provider_router")
+        .line("  claude -> anthropic")
+        .line("  hf, hugging-face -> huggingface")
+        .line("  llama-cpp, llama.cpp -> llama_cpp")
         .sectionColored("Examples")
         .line("  abi os-agent                            # Interactive session")
         .line("  abi os-agent -m \"what processes are running?\"")
         .line("  abi os-agent --backend ollama --model llama3")
+        .line("  abi os-agent --backend claude --model claude-3-7-sonnet")
         .line("  abi os-agent --self-aware               # With codebase awareness");
     builder.print();
 }
@@ -725,4 +781,13 @@ const os_agent_system_prompt =
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "parseBackendName supports compatibility aliases" {
+    try std.testing.expectEqual(AgentBackend.provider_router, parseBackendName("provider-router").?);
+    try std.testing.expectEqual(AgentBackend.provider_router, parseBackendName("router").?);
+    try std.testing.expectEqual(AgentBackend.anthropic, parseBackendName("claude").?);
+    try std.testing.expectEqual(AgentBackend.huggingface, parseBackendName("hf").?);
+    try std.testing.expectEqual(AgentBackend.llama_cpp, parseBackendName("llama.cpp").?);
+    try std.testing.expect(parseBackendName("not-a-backend") == null);
 }

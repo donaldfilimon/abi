@@ -16,6 +16,7 @@ pub const simd = @import("wdbx/simd.zig");
 pub const hnsw = @import("wdbx/hnsw.zig");
 pub const quantize = @import("wdbx/quantize.zig");
 pub const engine = @import("wdbx/engine.zig");
+pub const distance = @import("wdbx/distance.zig");
 
 // ── Persona System ──────────────────────────────────────────────────────
 pub const personas = @import("personas/personas.zig");
@@ -37,7 +38,7 @@ pub const server = @import("api_server/server.zig");
 // ── Convenience aliases ─────────────────────────────────────────────────
 pub const Database = engine.Engine;
 pub const HnswIndex = hnsw.HNSW;
-pub const Distance = simd.Distance;
+pub const Distance = distance.Distance;
 pub const PersonaType = personas.PersonaType;
 pub const AbiModerator = routing.AbiModerator;
 pub const Engine = engine.Engine;

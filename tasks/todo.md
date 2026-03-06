@@ -6,6 +6,111 @@ archive section with their evidence preserved.
 
 ## Active Queue
 
+### Task Plan - Fix Review Regressions And Harden AI CLI Backends (2026-03-06)
+
+#### Objective
+Land the requested fix wave for the reported regressions in AI config/root exports,
+database compatibility, WDBX token datasets, and C bindings, while also tightening
+`os-agent`/backend CLI behavior so the new backend routing changes remain
+compatible and explicit.
+
+#### Scope
+- Use `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)` as
+  the Zig validation contract for this wave.
+- Run the mandatory tri-CLI consensus before implementation and treat surviving
+  outputs as advisory input.
+- Fix the concrete review findings in `src/core/config/ai.zig`, `src/root.zig`,
+  `src/features/database/mod.zig`, `src/features/ai/database/wdbx.zig`,
+  `src/bindings/c/src/abi_c.zig`, and `src/features/ai/mod.zig`.
+- Improve `tools/cli/commands/ai/os_agent.zig` and related backend plumbing only
+  where it helps preserve compatibility or error clarity; avoid unrelated CLI
+  churn.
+
+#### Verification Criteria
+- `which zig`
+- `zig version`
+- `cat .zigversion`
+- `zig build toolchain-doctor`
+- `zig build typecheck`
+- `zig build cli-tests`
+- `zig build tui-tests`
+- `zig build full-check`
+- `zig build check-cli-registry`
+- `zig build verify-all`
+- `zig build check-workflow-orchestration-strict --summary all`
+
+#### Checklist
+##### Now
+- [x] Review `tasks/lessons.md` before implementation.
+- [x] Confirm active Zig matches `.zigversion`.
+- [x] Run mandatory tri-CLI consensus for this fix wave and capture surviving outputs.
+- [x] Inspect the current implementations around the reported regressions and backend CLI flow.
+- [x] Repair AI config/reasoning integration and restore valid feature gating.
+- [x] Restore top-level/root and database compatibility exports needed by current callers.
+- [x] Fix WDBX token dataset persistence semantics and C API dimension handling.
+- [x] Tighten `os-agent`/backend parsing/help behavior while preserving current aliases.
+
+##### Review
+- [x] Relevant Zig validation steps pass, or each blocked step is rerun once and isolated with evidence.
+- [x] `tasks/todo.md` review evidence records the linker/environment blocker separately from repo-local failures.
+
+##### Evidence
+- `which zig` reports `/Users/donaldfilimon/.zvm/bin/zig`; `zig version` and
+  `cat .zigversion` both report `0.16.0-dev.2694+74f361a5c`.
+- Mandatory tri-CLI consensus was run via
+  `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh --mode code --timeout-sec 120 --prompt-file /tmp/abi_fix_review_and_os_agent_prompt.txt --out-dir /tmp/abi_fix_review_and_os_agent_consensus`.
+  Claude rate-limited, Gemini returned model-not-found, OpenCode timed out, and
+  Ollama returned a parse failure, so the fix wave proceeded from local repo
+  inspection with surviving artifacts preserved under
+  `/tmp/abi_fix_review_and_os_agent_consensus/`.
+- `zig fmt` was applied to the touched Zig files, and
+  `zig fmt --check` passes for:
+  `src/core/config/ai.zig`,
+  `src/features/ai/reasoning/mod.zig`,
+  `src/features/ai/reasoning/stub.zig`,
+  `src/features/database/batch.zig`,
+  `src/features/database/batch_importer.zig`,
+  `src/features/database/formats/mmap.zig`,
+  `src/features/database/mod.zig`,
+  `src/features/database/semantic_store/mod.zig`,
+  `src/features/database/wdbx.zig`,
+  `src/features/database/database.zig`,
+  `src/features/ai/database/wdbx.zig`,
+  `src/bindings/c/src/abi_c.zig`,
+  `src/root.zig`,
+  and `tools/cli/commands/ai/os_agent.zig`.
+- `git diff --check --` passes for the touched Zig files plus `tasks/todo.md`.
+- Focused reasoning slice verification completed:
+  `zig fmt src/core/config/ai.zig src/features/ai/mod.zig src/features/ai/reasoning/mod.zig src/features/ai/reasoning/stub.zig`
+  passed, and focused `zig test -fno-emit-bin` wrapper checks for both
+  `feat_ai=true` and `feat_ai=false` confirmed the shared reasoning config type
+  and the stub import path.
+- A compile-only wrapper for the reduced database/token slice now passes:
+  `zig test -fno-emit-bin --dep build_options -Mroot=src/.codex_validate.zig -Mbuild_options=.zig-cache/codex-validate/build_options.zig`.
+  Reaching that point required fixing the local `src/features/ai/database/wdbx.zig`
+  issues the wrapper exposed (`const loaded`, removing the unused allocator
+  parameter from `computeNextId()`), plus small Zig-master compatibility fixes in
+  `src/features/database/batch.zig`,
+  `src/features/database/batch_importer.zig`,
+  `src/features/database/formats/mmap.zig`,
+  and a reduction of `src/features/database/mod.zig` /
+  `src/features/database/semantic_store/mod.zig` to the compatibility surface
+  current callers actually use.
+- `zig build toolchain-doctor`, `zig build typecheck`, and a worker-run
+  `zig build test` all failed at the same pre-existing Darwin/libc linker
+  boundary with undefined symbols including
+  `__availability_version_check`, `_abort`, `_arc4random_buf`,
+  `_clock_gettime`, and related libc/dispatch calls. These failures occurred
+  before repo-local test execution could complete.
+
+##### Residual Risk
+- Full repo close-out under `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)`
+  is still blocked by the local Darwin linker environment, so the restored
+  compatibility/database changes were validated with formatting, diff hygiene,
+  focused reasoning compile checks, a passing reduced database/token wrapper,
+  and targeted source inspection rather than a
+  successful end-to-end `zig build` sequence.
+
 ### Task Plan - Docs + Assistant Canonical Sync Around `zig-master` (2026-03-06)
 
 #### Objective

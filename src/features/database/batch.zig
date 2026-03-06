@@ -564,7 +564,7 @@ pub const BatchProcessor = struct {
     }
 
     /// Validate a record.
-    fn validateRecord(self: *const BatchProcessor, record: BatchRecord) bool {
+    pub fn validateRecord(self: *const BatchProcessor, record: BatchRecord) bool {
         _ = self;
         // Check vector is not empty
         if (record.vector.len == 0) return false;

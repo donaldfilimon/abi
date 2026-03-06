@@ -9,8 +9,7 @@
 //! - **Confidence**: Integration with core confidence scoring.
 
 const std = @import("std");
-const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
+const ai_config = @import("../../../core/config/ai.zig");
 pub const engine = @import("engine.zig");
 
 // Re-export core types
@@ -19,16 +18,7 @@ pub const ReasoningStep = engine.ReasoningStep;
 pub const StepType = engine.StepType;
 
 /// Configuration for reasoning engine
-pub const ReasoningConfig = struct {
-    /// Enable research triggers when confidence is low
-    enable_research_triggers: bool = true,
-    /// Confidence threshold for triggering research (0.0 - 1.0)
-    research_threshold: f32 = 0.5,
-    /// Maximum number of reasoning steps per query
-    max_steps: u32 = 20,
-    /// Enable detailed JSON logging of reasoning chains
-    log_chains: bool = false,
-};
+pub const ReasoningConfig = ai_config.AiConfig.ReasoningConfig;
 
 /// Reasoning context for framework integration.
 pub const Context = struct {

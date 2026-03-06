@@ -232,7 +232,7 @@ pub const BatchImporter = struct {
             try writer.writeAll(",\"vector\":[");
             for (record.vector, 0..) |v, i| {
                 if (i > 0) try writer.writeAll(",");
-                try std.fmt.formatFloat(writer, v, .{});
+                try writer.print("{d}", .{v});
             }
             try writer.writeAll("]");
 
@@ -270,7 +270,7 @@ pub const BatchImporter = struct {
             try writer.writeAll("[");
             for (record.vector, 0..) |v, i| {
                 if (i > 0) try writer.writeAll(" ");
-                try std.fmt.formatFloat(writer, v, .{});
+                try writer.print("{d}", .{v});
             }
             try writer.writeAll("]");
             try writer.writeAll(",");
@@ -423,14 +423,14 @@ pub const BatchImporter = struct {
 
             // Write ID
             try writer.writeAll("            .id = ");
-            try std.fmt.formatInt(record.id, 10, .lower, .{}, writer);
+            try writer.print("{d}", .{record.id});
             try writer.writeAll(",\n");
 
             // Write vector
             try writer.writeAll("            .vector = .{ ");
             for (record.vector, 0..) |v, i| {
                 if (i > 0) try writer.writeAll(", ");
-                try std.fmt.formatFloat(writer, v, .{});
+                try writer.print("{d}", .{v});
             }
             try writer.writeAll(" },\n");
 

@@ -29,6 +29,15 @@ const TokenBlockHeader = struct {
     text_len: u32,
 };
 
+fn tokenBlockDedupVector(id: u64) [4]f32 {
+    return .{
+        @floatFromInt(@as(u16, @truncate(id))),
+        @floatFromInt(@as(u16, @truncate(id >> 16))),
+        @floatFromInt(@as(u16, @truncate(id >> 32))),
+        @floatFromInt(@as(u16, @truncate(id >> 48))),
+    };
+}
+
 pub const TokenBlock = struct {
     allocator: std.mem.Allocator,
     tokens: []u32,
@@ -62,7 +71,7 @@ pub const WdbxTokenDataset = struct {
 
         // Check if file exists and load
         if (fileExists(allocator, path)) {
-            var loaded = wdbx_engine.load(allocator, path) catch |err| switch (err) {
+            const loaded = wdbx_engine.load(allocator, path) catch |err| switch (err) {
                 error.FileNotFound => null,
                 else => return mapWdbxError(err),
             };
@@ -72,7 +81,7 @@ pub const WdbxTokenDataset = struct {
             }
         }
 
-        const next_id = try computeNextId(allocator, &engine);
+        const next_id = try computeNextId(&engine);
 
         return .{
             .allocator = allocator,
@@ -103,16 +112,16 @@ pub const WdbxTokenDataset = struct {
         var id_buf: [32]u8 = undefined;
         const id_str = std.fmt.bufPrint(&id_buf, "{d}", .{self.next_id}) catch return error.PayloadTooLarge;
 
-        const empty_vector: []const f32 = &.{};
-        
+        const dedup_vector = tokenBlockDedupVector(self.next_id);
+
         // Map encoded tokens to the 'extra' field of structured metadata
         const metadata = wdbx_engine.Metadata{
             .text = text orelse "",
             .extra = encoded_metadata,
         };
 
-        self.engine.indexByVector(id_str, empty_vector, metadata) catch |err| return mapWdbxError(err);
-        
+        self.engine.indexByVector(id_str, &dedup_vector, metadata) catch |err| return mapWdbxError(err);
+
         self.next_id += 1;
         self.dirty = true;
     }
@@ -311,7 +320,7 @@ fn readHeader(bytes: []const u8) DatasetError!TokenBlockHeader {
     };
 }
 
-fn computeNextId(allocator: std.mem.Allocator, engine: *const wdbx_engine.Engine) DatasetError!u64 {
+fn computeNextId(engine: *const wdbx_engine.Engine) DatasetError!u64 {
     const count = engine.count();
     if (count == 0) return 1;
 

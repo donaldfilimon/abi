@@ -140,12 +140,12 @@ export fn abi_is_feature_enabled(framework: ?*FrameworkHandle, feature: [*:0]con
     _ = framework;
     const feature_str = std.mem.sliceTo(feature, 0);
 
-    if (std.mem.eql(u8, feature_str, "ai")) return build_options.enable_ai;
-    if (std.mem.eql(u8, feature_str, "gpu")) return build_options.enable_gpu;
-    if (std.mem.eql(u8, feature_str, "database")) return build_options.enable_database;
-    if (std.mem.eql(u8, feature_str, "network")) return build_options.enable_network;
-    if (std.mem.eql(u8, feature_str, "web")) return build_options.enable_web;
-    if (std.mem.eql(u8, feature_str, "profiling")) return build_options.enable_profiling;
+    if (std.mem.eql(u8, feature_str, "ai")) return build_options.feat_ai;
+    if (std.mem.eql(u8, feature_str, "gpu")) return build_options.feat_gpu;
+    if (std.mem.eql(u8, feature_str, "database")) return build_options.feat_database;
+    if (std.mem.eql(u8, feature_str, "network")) return build_options.feat_network;
+    if (std.mem.eql(u8, feature_str, "web")) return build_options.feat_web;
+    if (std.mem.eql(u8, feature_str, "profiling")) return build_options.feat_profiling;
 
     return false;
 }
@@ -270,7 +270,7 @@ export fn abi_database_create(
     config: ?*const DatabaseConfig,
     out_db: *?*DatabaseHandle,
 ) c_int {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -285,12 +285,10 @@ export fn abi_database_create(
     };
     errdefer c_allocator.destroy(db);
 
-    // Initialize database using the semantic_store API
+    // Initialize database using the format-preserving vector database API so
+    // the C surface keeps honoring custom dimensions.
     db.* = .{
-        .handle = abi.features.database.semantic_store.openStore(c_allocator, name) catch |err| {
-            c_allocator.destroy(db);
-            return mapError(err);
-        },
+        .handle = abi.features.database.formats.VectorDatabase.init(c_allocator, name, cfg.dimension),
         .allocator = c_allocator,
     };
 
@@ -302,7 +300,7 @@ export fn abi_database_create(
 export fn abi_database_close(db: ?*DatabaseHandle) void {
     if (db) |d| {
         const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
-        abi.features.database.semantic_store.closeStore(&wrapper.handle);
+        wrapper.handle.deinit();
         wrapper.allocator.destroy(wrapper);
     }
 }
@@ -315,7 +313,7 @@ export fn abi_database_insert(
     vector_len: usize,
     metadata: ?[*:0]const u8,
 ) c_int {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -323,7 +321,7 @@ export fn abi_database_insert(
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
     const meta_slice: ?[]const u8 = if (metadata) |m| std.mem.sliceTo(m, 0) else null;
-    abi.features.database.semantic_store.storeVector(&wrapper.handle, id, vector[0..vector_len], meta_slice) catch |err| {
+    wrapper.handle.insert(id, vector[0..vector_len], meta_slice) catch |err| {
         return mapError(err);
     };
 
@@ -339,18 +337,18 @@ export fn abi_database_search(
     out_results: [*]SearchResult,
     out_count: *usize,
 ) c_int {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
     const d = db orelse return ABI_ERROR_NOT_INITIALIZED;
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
-    const results = abi.features.database.semantic_store.searchStore(&wrapper.handle, wrapper.allocator, query[0..query_len], k) catch |err| {
+    const results = wrapper.handle.search(query[0..query_len], k) catch |err| {
         out_count.* = 0;
         return mapError(err);
     };
-    defer wrapper.allocator.free(results);
+    defer c_allocator.free(results);
 
     const count = @min(results.len, k);
     for (0..count) |i| {
@@ -366,14 +364,14 @@ export fn abi_database_search(
 
 /// Delete a vector from the database.
 export fn abi_database_delete(db: ?*DatabaseHandle, id: u64) c_int {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
     const d = db orelse return ABI_ERROR_NOT_INITIALIZED;
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
-    const deleted = abi.features.database.semantic_store.deleteVector(&wrapper.handle, id);
+    const deleted = wrapper.handle.delete(id);
     if (!deleted) {
         return ABI_ERROR_INVALID_ARGUMENT; // Vector not found
     }
@@ -383,14 +381,14 @@ export fn abi_database_delete(db: ?*DatabaseHandle, id: u64) c_int {
 
 /// Get the number of vectors in the database.
 export fn abi_database_count(db: ?*DatabaseHandle, out_count: *usize) c_int {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
     const d = db orelse return ABI_ERROR_NOT_INITIALIZED;
     const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
 
-    out_count.* = abi.features.database.semantic_store.getStats(&wrapper.handle).count;
+    out_count.* = wrapper.handle.vectors.items.len;
     return ABI_OK;
 }
 
@@ -410,7 +408,7 @@ const GpuConfig = extern struct {
 
 /// Initialize a GPU context.
 export fn abi_gpu_init(config: ?*const GpuConfig, out_gpu: *?*GpuHandle) c_int {
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -452,7 +450,7 @@ export fn abi_gpu_init(config: ?*const GpuConfig, out_gpu: *?*GpuHandle) c_int {
 export fn abi_gpu_shutdown(gpu: ?*GpuHandle) void {
     if (gpu) |g| {
         const wrapper: *GpuWrapper = @ptrCast(@alignCast(g));
-        if (comptime build_options.enable_gpu) {
+        if (comptime build_options.feat_gpu) {
             wrapper.handle.deinit();
         }
         wrapper.allocator.destroy(wrapper);
@@ -461,7 +459,7 @@ export fn abi_gpu_shutdown(gpu: ?*GpuHandle) void {
 
 /// Check if any GPU backend is available.
 export fn abi_gpu_is_available() bool {
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         return false;
     }
     // Check available backends
@@ -472,7 +470,7 @@ export fn abi_gpu_is_available() bool {
 
 /// Get the active GPU backend name.
 export fn abi_gpu_backend_name(gpu: ?*GpuHandle) [*:0]const u8 {
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         return "disabled";
     }
     if (gpu) |g| {
@@ -576,7 +574,7 @@ export fn abi_agent_create(
     config: ?*const AgentConfig,
     out_agent: *?*AgentHandle,
 ) c_int {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -641,7 +639,7 @@ export fn abi_agent_create(
 
 /// Destroy an agent and release all resources.
 export fn abi_agent_destroy(agent: ?*AgentHandle) void {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return;
     }
 
@@ -667,7 +665,7 @@ export fn abi_agent_send(
     message: [*:0]const u8,
     out_response: *AgentResponse,
 ) c_int {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -706,7 +704,7 @@ export fn abi_agent_send(
 
 /// Get the current status of the agent.
 export fn abi_agent_get_status(agent: ?*AgentHandle) c_int {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return ABI_AGENT_STATUS_ERROR;
     }
 
@@ -720,7 +718,7 @@ export fn abi_agent_get_status(agent: ?*AgentHandle) c_int {
 
 /// Get agent statistics.
 export fn abi_agent_get_stats(agent: ?*AgentHandle, out_stats: *AgentStats) c_int {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -741,7 +739,7 @@ export fn abi_agent_get_stats(agent: ?*AgentHandle, out_stats: *AgentStats) c_in
 
 /// Clear the agent's conversation history.
 export fn abi_agent_clear_history(agent: ?*AgentHandle) c_int {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -754,7 +752,7 @@ export fn abi_agent_clear_history(agent: ?*AgentHandle) c_int {
 
 /// Set the agent's temperature parameter.
 export fn abi_agent_set_temperature(agent: ?*AgentHandle, temperature: f32) c_int {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -770,7 +768,7 @@ export fn abi_agent_set_temperature(agent: ?*AgentHandle, temperature: f32) c_in
 
 /// Set the agent's max tokens parameter.
 export fn abi_agent_set_max_tokens(agent: ?*AgentHandle, max_tokens: u32) c_int {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return ABI_ERROR_FEATURE_DISABLED;
     }
 
@@ -786,7 +784,7 @@ export fn abi_agent_set_max_tokens(agent: ?*AgentHandle, max_tokens: u32) c_int 
 
 /// Get the agent's name.
 export fn abi_agent_get_name(agent: ?*AgentHandle) [*:0]const u8 {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return "disabled";
     }
 
@@ -854,19 +852,19 @@ const SearchResult = extern struct {
 
 /// Database wrapper for opaque handle
 const DatabaseWrapper = struct {
-    handle: if (build_options.enable_database) abi.features.database.semantic_store.DatabaseHandle else void,
+    handle: if (build_options.feat_database) abi.features.database.formats.VectorDatabase else void,
     allocator: std.mem.Allocator,
 };
 
 /// GPU wrapper for opaque handle
 const GpuWrapper = struct {
-    handle: if (build_options.enable_gpu) abi.features.gpu.Gpu else void,
+    handle: if (build_options.feat_gpu) abi.features.gpu.Gpu else void,
     allocator: std.mem.Allocator,
 };
 
 /// Agent wrapper for opaque handle
 const AgentWrapper = struct {
-    handle: if (build_options.enable_ai) *abi.features.ai.agents.Agent else void,
+    handle: if (build_options.feat_ai) *abi.features.ai.agents.Agent else void,
     allocator: std.mem.Allocator,
     /// Store the last response for C string lifetime management
     last_response: ?[]u8 = null,
@@ -883,7 +881,12 @@ fn mapError(err: anyerror) c_int {
         error.Timeout => ABI_ERROR_TIMEOUT,
         error.IoError, error.AccessDenied, error.BrokenPipe => ABI_ERROR_IO,
         error.FeatureDisabled, error.FeatureNotEnabled => ABI_ERROR_FEATURE_DISABLED,
-        error.InvalidArgument, error.InvalidConfiguration => ABI_ERROR_INVALID_ARGUMENT,
+        error.InvalidArgument,
+        error.InvalidConfiguration,
+        error.InvalidDimension,
+        error.DuplicateId,
+        error.VectorNotFound,
+        => ABI_ERROR_INVALID_ARGUMENT,
         else => ABI_ERROR_UNKNOWN,
     };
 }
@@ -938,11 +941,11 @@ test "simd caps query" {
 
 test "feature check" {
     const ai_enabled = abi_is_feature_enabled(null, "ai");
-    try std.testing.expectEqual(build_options.enable_ai, ai_enabled);
+    try std.testing.expectEqual(build_options.feat_ai, ai_enabled);
 }
 
 test "agent create and destroy" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -967,7 +970,7 @@ test "agent create and destroy" {
 }
 
 test "agent send message" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -993,7 +996,7 @@ test "agent send message" {
 }
 
 test "agent stats" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -1015,7 +1018,7 @@ test "agent stats" {
 }
 
 test "agent clear history" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -1039,7 +1042,7 @@ test "agent clear history" {
 }
 
 test "agent set parameters" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -1066,7 +1069,7 @@ test "agent set parameters" {
 }
 
 test "agent null handle returns error" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 

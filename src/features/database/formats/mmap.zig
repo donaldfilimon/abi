@@ -17,7 +17,7 @@ pub const MmapError = error{
 
 /// Memory-mapped file handle
 pub const MappedFile = struct {
-    data: []align(std.mem.page_size) u8,
+    data: []align(std.heap.page_size_min) u8,
     size: usize,
     read_only: bool,
 
@@ -121,7 +121,7 @@ pub const MappedFile = struct {
         _ = windows.kernel32.CloseHandle(mapping_handle);
         _ = windows.kernel32.CloseHandle(file_handle);
 
-        const data: []align(std.mem.page_size) u8 = @alignCast(@as([*]u8, @ptrCast(ptr))[0..size]);
+        const data: []align(std.heap.page_size_min) u8 = @alignCast(@as([*]u8, @ptrCast(ptr))[0..size]);
 
         return .{
             .data = data,
@@ -271,7 +271,7 @@ fn createWindows(path: []const u8, size: usize) MmapError!MappedFile {
     _ = windows.kernel32.CloseHandle(mapping_handle);
     _ = windows.kernel32.CloseHandle(file_handle);
 
-    const data: []align(std.mem.page_size) u8 = @alignCast(@as([*]u8, @ptrCast(ptr))[0..size]);
+    const data: []align(std.heap.page_size_min) u8 = @alignCast(@as([*]u8, @ptrCast(ptr))[0..size]);
 
     return .{
         .data = data,
