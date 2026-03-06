@@ -435,9 +435,9 @@ shared-runtime shell entrypoint plus focused view commands.
   stale hard-coded markers.
 - [x] Remove legacy build flag aliases, compatibility namespaces, fallback
   paths, deprecated forwards, and `(legacy: ...)` CLI/docs messaging.
-- [ ] Collapse `ui` to one canonical shell entrypoint plus focused views on the
+- [x] Collapse `ui` to one canonical shell entrypoint plus focused views on the
   shared dashboard runtime.
-- [ ] Port `ui gpu` and `ui brain` onto shared dashboard/panel contracts.
+- [x] Port `ui gpu` and `ui brain` onto shared dashboard/panel contracts.
 - [ ] Regenerate docs and registry artifacts only after the public cleanup lands.
 
 ##### Review
