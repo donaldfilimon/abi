@@ -2,12 +2,10 @@
 
 This file documents the personas active within the ABI Framework.
 
-1. **Abbey (`ABBEY.md`):** High-level orchestrator.
-2. **Aviva (`AVIVA.md`):** Dense executor.
+1. **Abbey:** High-level orchestrator — strategic planning, user engagement, multi-agent delegation.
+2. **Aviva:** Dense executor — precision execution, debugging, factual synthesis.
 3. **Claude (`CLAUDE.md`):** External workflow manager.
 4. **Gemini (`GEMINI.md`):** Migration specialist CLI.
-
-For underlying structural layout rules, consult `ABI.md`.
 
 ## Canonical Interfaces
 
