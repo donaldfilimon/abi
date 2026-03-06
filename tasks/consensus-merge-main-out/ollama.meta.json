@@ -1,0 +1,15 @@
+{
+  "provider": "ollama",
+  "status": "parse_failure",
+  "started_at": "2026-03-06T09:41:03.564870+00:00",
+  "finished_at": "2026-03-06T09:41:51.597006+00:00",
+  "command": [
+    "ollama",
+    "run",
+    "gpt-oss:20b",
+    "Current state:\n- The current worktree `/Users/donaldfilimon/.codex/worktrees/9a24/abi` is on branch `please-review-my-uncommitted-changes` at `86ec21c7` with substantial uncommitted refactor work.\n- `main` is checked out in `/Users/donaldfilimon/abi` at `6ec4acab` and is already ahead of `origin/main`.\n- Local branches include `integrate-all-work` and `integrate-stash-work`, both at `938c64ca`, plus `plan-next-zigmaster-steps` at `86ec21c7`.\n- Goal: integrate the current worktree changes and any outstanding branch commits into `main` without losing uncommitted work.\n\nConstraints and non-goals:\n- Do not discard or overwrite the dirty worktree state.\n- Preserve the user\u2019s current work even if it requires a temporary commit or preservation branch.\n- Merge only branches that are not already contained in `main`.\n- Avoid interactive git workflows.\n\nSuccess criteria:\n- Dirty worktree state is preserved on a branch/commit.\n- `main` contains all unique local work that is not already merged.\n- The final report distinguishes between newly merged work and branches that were already contained in `main`.\n\nDecision question:\n- What is the safest minimal sequence to preserve this dirty worktree, switch to `main`, and integrate all unique local branches/worktrees into `main`?\n",
+    "--format",
+    "json"
+  ],
+  "timeout_sec": 120
+}

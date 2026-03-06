@@ -16,6 +16,8 @@
 //! | **agents** | AI agent runtime and tools | `-Dfeat-ai` |
 //! | **training** | Model training pipelines | `-Dfeat-ai` |
 //! | **personas** | Multi-persona AI assistant | `-Dfeat-ai` |
+//! | **profiles** | Neutral behavior-profile contracts | `-Dfeat-ai` |
+//! | **coordination** | Neutral request routing and orchestration | `-Dfeat-ai` |
 //! | **vision** | Image processing and analysis | `-Dfeat-vision` |
 //!
 //! ## Quick Start
@@ -66,6 +68,8 @@
 //! - `abi.features.ai.agents` - Agent runtime
 //! - `abi.features.ai.training` - Training pipelines
 //! - `abi.features.ai.personas` - Multi-persona system
+//! - `abi.features.ai.profiles` - Neutral behavior profiles
+//! - `abi.features.ai.coordination` - Neutral routing/orchestration contracts
 //! - `abi.features.ai.vision` - Vision processing
 
 const std = @import("std");
@@ -87,6 +91,8 @@ pub const abbey = @import("abbey/mod.zig");
 pub const memory = @import("memory/mod.zig");
 pub const federated = @import("federated/mod.zig");
 pub const personas = if (build_options.feat_ai) @import("personas/mod.zig") else @import("personas/stub.zig");
+pub const profiles = if (build_options.feat_ai) @import("profiles/mod.zig") else @import("profiles/stub.zig");
+pub const coordination = if (build_options.feat_ai) @import("coordination/mod.zig") else @import("coordination/stub.zig");
 pub const rag = if (build_options.feat_ai) @import("rag/mod.zig") else @import("rag/stub.zig");
 pub const templates = if (build_options.feat_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
 pub const eval = if (build_options.feat_ai) @import("eval/mod.zig") else @import("eval/stub.zig");

@@ -3,11 +3,15 @@
 //! This module implements a multi-layer, multi-persona AI system that routes
 //! user queries through specialized interaction models.
 //!
+//! Canonical public entrypoints now live under `abi.features.ai.profiles` and
+//! `abi.features.ai.coordination`. This module remains the branded implementation
+//! and compatibility layer for the current migration wave.
+//!
 //! Architecture:
-//! - Abi: Content moderation, sentiment analysis, and routing layer.
-//! - Abbey: Empathetic polymath for supportive, deep technical assistance.
-//! - Aviva: Direct expert for concise, factual, and technically forceful output.
-//! - WDBX: Distributed neural database for long-term memory and context continuity.
+//! - Governance: policy and routing layer implemented by Abi.
+//! - Collaborative: supportive technical assistance implemented by Abbey.
+//! - Direct: concise expert execution implemented by Aviva.
+//! - Semantic store: weighted retrieval and continuity surface, with WDBX kept as an alias.
 
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
