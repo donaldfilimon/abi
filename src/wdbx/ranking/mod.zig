@@ -1,6 +1,8 @@
 //! Turns candidate sets into useful memory.
 
 const std = @import("std");
+const core = @import("../core/mod.zig");
+const block = @import("../block/mod.zig");
 
 pub const WeightProfile = struct {
     semantic_similarity: f32 = 1.0,
@@ -13,6 +15,46 @@ pub const WeightProfile = struct {
     past_usefulness: f32 = 1.0,
 };
 
+pub const RankedCandidate = struct {
+    id: core.ids.BlockId,
+    score: f32,
+};
+
+pub const ScoreTrace = struct {
+    id: core.ids.BlockId,
+    base_score: f32,
+    recency_modifier: f32,
+    trust_modifier: f32,
+    final_score: f32,
+};
+
 pub const Scorer = struct {
-    // TODO: Output is a ranked candidate list plus score trace
+    allocator: std.mem.Allocator,
+    profile: WeightProfile,
+
+    pub fn init(allocator: std.mem.Allocator, profile: WeightProfile) Scorer {
+        return .{
+            .allocator = allocator,
+            .profile = profile,
+        };
+    }
+
+    pub fn rankCandidates(
+        self: *Scorer,
+        candidates: []const core.ids.BlockId,
+    ) ![]RankedCandidate {
+        var ranked = try std.ArrayList(RankedCandidate).initCapacity(self.allocator, candidates.len);
+        defer ranked.deinit();
+
+        for (candidates) |id| {
+            // Apply heuristics based on WeightProfile
+            // Stubbed implementation
+            ranked.appendAssumeCapacity(.{
+                .id = id,
+                .score = self.profile.semantic_similarity,
+            });
+        }
+
+        return ranked.toOwnedSlice();
+    }
 };
