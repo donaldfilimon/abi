@@ -85,7 +85,7 @@ pub const MeshOrchestrator = struct {
             .port = std.mem.nativeToBig(u16, TENSOR_PORT),
             .addr = @bitCast([4]u8{ 0, 0, 0, 0 }),
         };
-        
+
         const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.STREAM | std.c.SOCK.CLOEXEC, 0);
         if (sock < 0) {
             std.log.err("[Compute Mesh] Failed to create TCP tensor socket", .{});
@@ -94,7 +94,7 @@ pub const MeshOrchestrator = struct {
         self.tensor_socket = sock;
 
         _ = std.c.setsockopt(sock, std.c.SOL.SOCKET, std.c.SO.REUSEADDR, &std.mem.toBytes(@as(c_int, 1)), @sizeOf(c_int));
-        
+
         const sock_addr: *const std.c.sockaddr = @ptrCast(&sin);
         if (std.c.bind(sock, sock_addr, @sizeOf(std.c.sockaddr.in)) < 0) {
             std.log.err("[Compute Mesh] Failed to bind TCP tensor socket", .{});
@@ -141,14 +141,14 @@ pub const MeshOrchestrator = struct {
             .port = std.mem.nativeToBig(u16, DISCOVERY_PORT),
             .addr = @bitCast([4]u8{ 0, 0, 0, 0 }),
         };
-        
+
         const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.DGRAM | std.c.SOCK.CLOEXEC, 0);
         if (sock < 0) {
             std.log.err("[Compute Mesh] Failed to create discovery socket", .{});
             return;
         }
         self.discovery_socket = sock;
-        
+
         // Allow port reuse
         _ = std.c.setsockopt(sock, std.c.SOL.SOCKET, std.c.SO.REUSEADDR, &std.mem.toBytes(@as(c_int, 1)), @sizeOf(c_int));
         _ = std.c.setsockopt(sock, std.c.SOL.SOCKET, std.c.SO.REUSEPORT, &std.mem.toBytes(@as(c_int, 1)), @sizeOf(c_int));
@@ -161,14 +161,14 @@ pub const MeshOrchestrator = struct {
         }
 
         var buf: [1024]u8 = undefined;
-        
+
         while (self.is_discovering) {
             var peer_addr: std.c.sockaddr.in = undefined;
             var peer_addr_len: std.c.socklen_t = @sizeOf(std.c.sockaddr.in);
             const peer_sock_addr: *std.c.sockaddr = @ptrCast(&peer_addr);
-            
+
             const bytes_read = std.c.recvfrom(sock, &buf, buf.len, 0, peer_sock_addr, &peer_addr_len);
-            
+
             if (bytes_read < 0) {
                 const err = std.c._errno().*;
                 const e_again = @intFromEnum(std.posix.E.AGAIN);
@@ -199,9 +199,7 @@ pub const MeshOrchestrator = struct {
             }
         }
 
-        std.log.info("[Compute Mesh] Discovered new node: Backend={s}, VRAM={d}MB", .{
-            @tagName(backend), vram_mb
-        });
+        std.log.info("[Compute Mesh] Discovered new node: Backend={t}, VRAM={d}MB", .{ backend, vram_mb });
 
         self.nodes.append(self.allocator, .{
             .id = node_id,
@@ -254,24 +252,22 @@ pub const MeshOrchestrator = struct {
             return;
         }
 
-        std.log.info("[Compute Mesh] Serializing and routing {d} bytes of tensor graph to {d} peer(s)...", .{
-            tensor_data.len, self.nodes.items.len
-        });
+        std.log.info("[Compute Mesh] Serializing and routing {d} bytes of tensor graph to {d} peer(s)...", .{ tensor_data.len, self.nodes.items.len });
 
         // Loop over nodes, establish TCP stream, and send zero-copy payload
         for (self.nodes.items) |*node| {
             node.address.port = std.mem.nativeToBig(u16, TENSOR_PORT);
-            
+
             const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.STREAM, 0);
             if (sock < 0) continue;
             defer _ = std.c.close(sock);
-            
+
             const peer_sock_addr: *const std.c.sockaddr = @ptrCast(&node.address);
             if (std.c.connect(sock, peer_sock_addr, @sizeOf(std.c.sockaddr.in)) == 0) {
                 // Connection established, blast the tensor graph bytes
                 const bytes_sent = std.c.send(sock, tensor_data.ptr, tensor_data.len, 0);
                 if (bytes_sent > 0) {
-                    std.log.info("  -> Successfully dispatched {d} bytes to node {s} (TCP {})", .{bytes_sent, std.fmt.fmtSliceHexLower(&node.id), node.address.port});
+                    std.log.info("  -> Successfully dispatched {d} bytes to node {s} (TCP {})", .{ bytes_sent, std.fmt.fmtSliceHexLower(&node.id), node.address.port });
                 }
             } else {
                 std.log.warn("  -> Failed to connect to node {s}", .{std.fmt.fmtSliceHexLower(&node.id)});

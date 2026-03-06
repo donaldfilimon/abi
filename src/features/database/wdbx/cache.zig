@@ -217,7 +217,9 @@ test "Cache lock contention get and put" {
                     @floatFromInt(i),
                     1.0,
                 };
-                worker.cache.put(key, &value) catch {};
+                worker.cache.put(key, &value) catch |err| {
+                    std.log.debug("Cache background worker put failed: {}", .{err});
+                };
                 _ = worker.cache.get(key);
             }
         }

@@ -149,7 +149,8 @@ fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             utils.output.println("", .{});
             utils.output.printKeyValue("Model", model.name);
             utils.output.printKeyValue("Path", model.path);
-            utils.output.printKeyValueFmt("Size", "{s}", .{formatSize(model.size_bytes)});
+            const size_buf = formatSize(model.size_bytes);
+            utils.output.printKeyValueFmt("Size", "{s}", .{std.mem.sliceTo(&size_buf, 0)});
             utils.output.printKeyValueFmt("Format", "{t}", .{model.format});
             if (model.quantization) |q| {
                 utils.output.printKeyValueFmt("Quantization", "{t}", .{q});
@@ -308,7 +309,8 @@ fn runRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
     if (manager.getModel(model_name)) |model| {
         utils.output.printKeyValue("Model", model.name);
         utils.output.printKeyValue("Path", model.path);
-        utils.output.printKeyValueFmt("Size", "{s}", .{formatSize(model.size_bytes)});
+        const size_buf = formatSize(model.size_bytes);
+        utils.output.printKeyValueFmt("Size", "{s}", .{std.mem.sliceTo(&size_buf, 0)});
         utils.output.println("", .{});
 
         if (!force) {
@@ -382,7 +384,8 @@ fn runPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         // Show current cache directory
         utils.output.printKeyValue("Model cache directory", manager.getCacheDir());
         utils.output.printKeyValueFmt("Models cached", "{d}", .{manager.modelCount()});
-        utils.output.printKeyValueFmt("Total size", "{s}", .{formatSize(manager.totalCacheSize())});
+        const total_size_buf = formatSize(manager.totalCacheSize());
+        utils.output.printKeyValueFmt("Total size", "{s}", .{std.mem.sliceTo(&total_size_buf, 0)});
         return;
     }
 
@@ -415,7 +418,9 @@ fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.features.ai.
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    manager.scanCacheDirWithIo(io) catch {};
+    manager.scanCacheDirWithIo(io) catch |err| {
+        std.log.err("Failed to scan model cache: {}", .{err});
+    };
 }
 
 fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
@@ -654,16 +659,18 @@ fn printModelsTable(models: []abi.features.ai.models.CachedModel, show_sizes: bo
 
     for (models) |model| {
         if (show_sizes) {
+            const size_buf = formatSize(model.size_bytes);
+            const size_text = std.mem.sliceTo(&size_buf, 0);
             if (model.quantization) |q| {
                 utils.output.println("{s: <40} {s: <12} {t: <10}", .{
                     model.name,
-                    formatSize(model.size_bytes),
+                    size_text,
                     q,
                 });
             } else {
                 utils.output.println("{s: <40} {s: <12} {s: <10}", .{
                     model.name,
-                    formatSize(model.size_bytes),
+                    size_text,
                     "-",
                 });
             }

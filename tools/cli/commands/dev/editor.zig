@@ -137,18 +137,18 @@ const TextBuffer = struct {
     /// Dynamically parses the current editor buffer utilizing Zig's native std.zig.Ast.
     /// Used for semantic rendering and live error checking without LSP overhead.
     fn parseAst(self: *TextBuffer) void {
-        var raw_source = std.ArrayList(u8).init(self.allocator);
-        defer raw_source.deinit();
+        var raw_source = std.ArrayListUnmanaged(u8).empty;
+        defer raw_source.deinit(self.allocator);
 
         for (self.lines.items) |line| {
-            raw_source.appendSlice(line.chars.items) catch return;
-            raw_source.append('\n') catch return;
+            raw_source.appendSlice(self.allocator, line.bytes.items) catch return;
+            raw_source.append(self.allocator, '\n') catch return;
         }
 
         // Ensure source ends with null terminator for native parsing
-        raw_source.append(0) catch return;
+        raw_source.append(self.allocator, 0) catch return;
 
-        var ast = std.zig.Ast.parse(self.allocator, raw_source.items[:raw_source.items.len-1 :0], .zig) catch |err| {
+        var ast = std.zig.Ast.parse(self.allocator, raw_source.items[0 .. raw_source.items.len - 1 :0], .zig) catch |err| {
             std.log.debug("AST parsing skipped/failed: {}", .{err});
             return;
         };
@@ -320,11 +320,10 @@ const EditorState = struct {
     message_storage: [192]u8 = undefined,
     message_len: usize = 0,
     message_ticks: u8 = 0,
-    
+
     // AI Prompt State
-    ai_prompt_mode: bool = false,
-    ai_prompt_buffer: std.ArrayListUnmanaged(u8) = .empty,
-    
+    ai_prompt: tui.widgets.TextInput,
+
     // Ghost text / continuous code generation state
     ghost_text: ?[]const u8 = null,
     last_keystroke_ms: i64 = 0,
@@ -341,6 +340,7 @@ const EditorState = struct {
             .io = io,
             .buffer = buffer,
             .file_path = file_path,
+            .ai_prompt = tui.widgets.TextInput.init(allocator),
         };
         out.setStatus(if (file_path == null) "Scratch buffer" else "File loaded");
         return out;
@@ -348,7 +348,7 @@ const EditorState = struct {
 
     fn deinit(self: *EditorState) void {
         self.buffer.deinit();
-        self.ai_prompt_buffer.deinit(self.allocator);
+        self.ai_prompt.deinit();
         self.* = undefined;
     }
 
@@ -377,131 +377,117 @@ const EditorState = struct {
         switch (event) {
             .mouse => return false,
             .key => |key| {
-                if (self.ai_prompt_mode) {
-                    switch (key.code) {
-                        .escape => {
-                            self.ai_prompt_mode = false;
-                            self.ai_prompt_buffer.clearRetainingCapacity();
-                            self.setStatus("AI prompt cancelled.");
-                        },
-                        .enter => {
-                            try self.executeAiGeneration();
-                        },
-                        .backspace => {
-                            if (self.ai_prompt_buffer.items.len > 0) {
-                                _ = self.ai_prompt_buffer.pop();
-                            }
-                        },
-                        .character => {
-                            if (key.char) |ch| {
-                                if (ch >= 32 and ch <= 126) {
-                                    try self.ai_prompt_buffer.append(self.allocator, ch);
-                                }
-                            }
-                        },
-                        else => {},
+                if (self.ai_prompt.is_active) {
+                    if (key.code == .enter) {
+                        try self.executeAiGeneration();
+                        return false;
                     }
-                    return false;
+                    if (try self.ai_prompt.handleEvent(event)) {
+                        if (!self.ai_prompt.is_active) {
+                            self.setStatus("AI prompt cancelled.");
+                        }
+                        return false;
+                    }
                 }
 
                 switch (key.code) {
-                .ctrl_c => return true,
-                .up => {
-                    self.quit_armed = false;
-                    if (self.cursor_row > 0) self.cursor_row -= 1;
-                },
-                .down => {
-                    self.quit_armed = false;
-                    if (self.cursor_row + 1 < self.buffer.lines.items.len) self.cursor_row += 1;
-                },
-                .left => {
-                    self.quit_armed = false;
-                    if (self.cursor_col > 0) {
-                        self.cursor_col -= 1;
-                    } else if (self.cursor_row > 0) {
-                        self.cursor_row -= 1;
-                        self.cursor_col = self.buffer.lineLen(self.cursor_row);
-                    }
-                },
-                .right => {
-                    self.quit_armed = false;
-                    const len = self.buffer.lineLen(self.cursor_row);
-                    if (self.cursor_col < len) {
-                        self.cursor_col += 1;
-                    } else if (self.cursor_row + 1 < self.buffer.lines.items.len) {
-                        self.cursor_row += 1;
-                        self.cursor_col = 0;
-                    }
-                },
-                .home => {
-                    self.quit_armed = false;
-                    self.cursor_col = 0;
-                },
-                .end => {
-                    self.quit_armed = false;
-                    self.cursor_col = self.buffer.lineLen(self.cursor_row);
-                },
-                .page_up => {
-                    self.quit_armed = false;
-                    const page = contentRows(size.rows);
-                    if (self.cursor_row > page) self.cursor_row -= page else self.cursor_row = 0;
-                },
-                .page_down => {
-                    self.quit_armed = false;
-                    const page = contentRows(size.rows);
-                    const max_row = self.buffer.lines.items.len - 1;
-                    self.cursor_row = @min(self.cursor_row + page, max_row);
-                },
-                .enter => {
-                    self.quit_armed = false;
-                    try self.buffer.insertNewline(&self.cursor_row, &self.cursor_col);
-                },
-                .tab => {
-                    self.quit_armed = false;
-                    for (0..tab_width) |_| {
-                        try self.buffer.insertByte(self.cursor_row, self.cursor_col, ' ');
-                        self.cursor_col += 1;
-                    }
-                },
-                .backspace => {
-                    self.quit_armed = false;
-                    try self.buffer.backspace(&self.cursor_row, &self.cursor_col);
-                },
-                .delete => {
-                    self.quit_armed = false;
-                    try self.buffer.deleteForward(&self.cursor_row, &self.cursor_col);
-                },
-                .character => {
-                    if (key.char) |ch| {
-                        self.clearGhostText();
-                        if (ch == 17) { // Ctrl-Q
-                            if (self.buffer.modified and !self.quit_armed) {
-                                self.quit_armed = true;
-                                self.setStatus("Unsaved changes. Press Ctrl-Q again to quit.");
-                            } else {
-                                return true;
-                            }
-                        } else if (ch == 19) { // Ctrl-S
-                            self.quit_armed = false;
-                            try self.save();
-                        } else if (ch == 11) { // Ctrl-K
-                            self.quit_armed = false;
-                            self.ai_prompt_mode = true;
-                            self.ai_prompt_buffer.clearRetainingCapacity();
-                            self.setStatus("AI Edit Mode (Esc to cancel)");
-                        } else if (ch >= 32 and ch <= 126) {
-                            self.quit_armed = false;
-                            try self.buffer.insertByte(self.cursor_row, self.cursor_col, ch);
-                            self.cursor_col += 1;
-                            
-                            // Trigger async ghost text compilation 
-                            self.last_keystroke_ms = @import("abi").services.shared.time.unixMs();
-                            const thread = try std.Thread.spawn(.{}, ghostTextWorker, .{self});
-                            thread.detach();
+                    .ctrl_c => return true,
+                    .up => {
+                        self.quit_armed = false;
+                        if (self.cursor_row > 0) self.cursor_row -= 1;
+                    },
+                    .down => {
+                        self.quit_armed = false;
+                        if (self.cursor_row + 1 < self.buffer.lines.items.len) self.cursor_row += 1;
+                    },
+                    .left => {
+                        self.quit_armed = false;
+                        if (self.cursor_col > 0) {
+                            self.cursor_col -= 1;
+                        } else if (self.cursor_row > 0) {
+                            self.cursor_row -= 1;
+                            self.cursor_col = self.buffer.lineLen(self.cursor_row);
                         }
-                    }
-                },
-                else => {},
+                    },
+                    .right => {
+                        self.quit_armed = false;
+                        const len = self.buffer.lineLen(self.cursor_row);
+                        if (self.cursor_col < len) {
+                            self.cursor_col += 1;
+                        } else if (self.cursor_row + 1 < self.buffer.lines.items.len) {
+                            self.cursor_row += 1;
+                            self.cursor_col = 0;
+                        }
+                    },
+                    .home => {
+                        self.quit_armed = false;
+                        self.cursor_col = 0;
+                    },
+                    .end => {
+                        self.quit_armed = false;
+                        self.cursor_col = self.buffer.lineLen(self.cursor_row);
+                    },
+                    .page_up => {
+                        self.quit_armed = false;
+                        const page = contentRows(size.rows);
+                        if (self.cursor_row > page) self.cursor_row -= page else self.cursor_row = 0;
+                    },
+                    .page_down => {
+                        self.quit_armed = false;
+                        const page = contentRows(size.rows);
+                        const max_row = self.buffer.lines.items.len - 1;
+                        self.cursor_row = @min(self.cursor_row + page, max_row);
+                    },
+                    .enter => {
+                        self.quit_armed = false;
+                        try self.buffer.insertNewline(&self.cursor_row, &self.cursor_col);
+                    },
+                    .tab => {
+                        self.quit_armed = false;
+                        for (0..tab_width) |_| {
+                            try self.buffer.insertByte(self.cursor_row, self.cursor_col, ' ');
+                            self.cursor_col += 1;
+                        }
+                    },
+                    .backspace => {
+                        self.quit_armed = false;
+                        try self.buffer.backspace(&self.cursor_row, &self.cursor_col);
+                    },
+                    .delete => {
+                        self.quit_armed = false;
+                        try self.buffer.deleteForward(&self.cursor_row, &self.cursor_col);
+                    },
+                    .character => {
+                        if (key.char) |ch| {
+                            self.clearGhostText();
+                            if (ch == 17) { // Ctrl-Q
+                                if (self.buffer.modified and !self.quit_armed) {
+                                    self.quit_armed = true;
+                                    self.setStatus("Unsaved changes. Press Ctrl-Q again to quit.");
+                                } else {
+                                    return true;
+                                }
+                            } else if (ch == 19) { // Ctrl-S
+                                self.quit_armed = false;
+                                try self.save();
+                            } else if (ch == 11) { // Ctrl-K
+                                self.quit_armed = false;
+                                self.ai_prompt.is_active = true;
+                                self.ai_prompt.clear();
+                                self.setStatus("AI Edit Mode (Esc to cancel)");
+                            } else if (ch >= 32 and ch <= 126) {
+                                self.quit_armed = false;
+                                try self.buffer.insertByte(self.cursor_row, self.cursor_col, ch);
+                                self.cursor_col += 1;
+
+                                // Trigger async ghost text compilation
+                                self.last_keystroke_ms = @import("abi").services.shared.time.unixMs();
+                                const thread = try std.Thread.spawn(.{}, ghostTextWorker, .{self});
+                                thread.detach();
+                            }
+                        }
+                    },
+                    else => {},
                 }
             },
         }
@@ -553,7 +539,7 @@ const EditorState = struct {
                         const end = @min(line.len, start + max_text_cols);
                         try term.write(line[start..end]);
                     }
-                    
+
                     // Render Ghost Text if present on current line
                     if (line_index == self.cursor_row) {
                         self.ghost_mutex.lock();
@@ -578,11 +564,11 @@ const EditorState = struct {
         if (size.rows == 0) return;
 
         const status_row = size.rows - 1;
-        
-        if (self.ai_prompt_mode) {
+
+        if (self.ai_prompt.is_active) {
             try term.moveTo(status_row, 0);
             try term.write("\x1b[1;33m AI Prompt (Enter to Gen): \x1b[0m\x1b[K");
-            try term.write(self.ai_prompt_buffer.items);
+            try term.write(self.ai_prompt.buffer.items);
             return;
         }
 
@@ -668,8 +654,8 @@ const EditorState = struct {
     }
 
     fn ghostTextWorker(self: *EditorState) void {
-        std.time.sleep(500 * std.time.ns_per_ms);
-        
+        @import("abi").services.shared.time.sleepMs(500);
+
         // Ensure no new keys were pressed during our wait
         if (@import("abi").services.shared.time.unixMs() - self.last_keystroke_ms < 500) return;
 
@@ -678,35 +664,82 @@ const EditorState = struct {
 
         if (self.ghost_text != null) return;
 
-        // In a full implementation, this polls the GGUF model evaluating AST context
         self.buffer.parseAst(); // Trigger background AST parsing to inform context
-        
-        const stub = self.allocator.dupe(u8, " // AI Autocomplete prediction") catch return;
-        self.ghost_text = stub;
+
+        const abi_lib = @import("abi");
+        const router = abi_lib.features.ai.llm.providers.router;
+        const llm_types = abi_lib.features.ai.llm.providers.types;
+
+        var context_buf = std.ArrayListUnmanaged(u8).empty;
+        defer context_buf.deinit(self.allocator);
+
+        const start_row = if (self.cursor_row > 10) self.cursor_row - 10 else 0;
+        var r = start_row;
+        while (r <= self.cursor_row) : (r += 1) {
+            if (r < self.buffer.lines.items.len) {
+                context_buf.appendSlice(self.allocator, self.buffer.lines.items[r].bytes.items) catch break;
+                context_buf.append(self.allocator, '\n') catch break;
+            }
+        }
+
+        const prompt = std.fmt.allocPrint(self.allocator, "Complete the following code block cleanly:\n{s}", .{context_buf.items}) catch return;
+        defer self.allocator.free(prompt);
+
+        const result = router.generate(self.allocator, .{
+            .model = "qwen2.5-coder", // Default fast autocomplete model
+            .prompt = prompt,
+            .max_tokens = 32,
+            .temperature = 0.1,
+            .backend = .ollama, // Use local fallback
+        }) catch return;
+
+        self.ghost_text = result.content;
+        self.allocator.free(result.model_used);
     }
 
     fn executeAiGeneration(self: *EditorState) !void {
-        if (self.ai_prompt_buffer.items.len == 0) {
-            self.ai_prompt_mode = false;
+        if (self.ai_prompt.buffer.items.len == 0) {
+            self.ai_prompt.is_active = false;
             self.setStatus("AI prompt was empty.");
             return;
         }
 
         self.setStatus("Generating AI code...");
-        self.ai_prompt_mode = false;
+        self.ai_prompt.is_active = false;
 
-        // Stub logic for real AI generation insertion
-        const prompt = self.ai_prompt_buffer.items;
-        const stub_response = try std.fmt.allocPrint(self.allocator, "// AI Generated from: {s}", .{prompt});
-        defer self.allocator.free(stub_response);
+        const abi_lib = @import("abi");
+        const router = abi_lib.features.ai.llm.providers.router;
+        const llm_types = abi_lib.features.ai.llm.providers.types;
 
-        try self.buffer.insertNewline(&self.cursor_row, &self.cursor_col);
-        for (stub_response) |ch| {
-            try self.buffer.insertByte(self.cursor_row, self.cursor_col, ch);
-            self.cursor_col += 1;
+        const prompt = self.ai_prompt.buffer.items;
+
+        const result = router.generate(self.allocator, .{
+            .model = "llama3.1",
+            .prompt = prompt,
+            .max_tokens = 256,
+            .temperature = 0.5,
+            .backend = .ollama,
+        }) catch |err| {
+            self.setStatusFmt("AI Generation Failed: {t}", .{err});
+            self.ai_prompt.clear();
+            return;
+        };
+        defer {
+            self.allocator.free(result.content);
+            self.allocator.free(result.model_used);
         }
 
-        self.ai_prompt_buffer.clearRetainingCapacity();
+        try self.buffer.insertNewline(&self.cursor_row, &self.cursor_col);
+        for (result.content) |ch| {
+            if (ch == '\n') {
+                try self.buffer.insertNewline(&self.cursor_row, &self.cursor_col);
+            } else {
+                try self.buffer.insertByte(self.cursor_row, self.cursor_col, ch);
+                self.cursor_col += 1;
+            }
+        }
+
+        self.ai_prompt.clear();
         self.setStatus("AI Generation Complete.");
     }
 

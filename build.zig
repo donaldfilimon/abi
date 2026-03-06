@@ -20,7 +20,7 @@ pub const BuildOptions = options_mod.BuildOptions;
 comptime {
     if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16)
         @compileError(std.fmt.comptimePrint(
-            "ABI requires Zig 0.16.0 or newer (detected {d}.{d}.{d}). " ++
+            "ABI requires Zig 0.16.0-dev.2694+74f361a5c or newer (detected {d}.{d}.{d}). " ++
                 "Use `zvm use master` then align to `.zigversion`.",
             .{ builtin.zig_version.major, builtin.zig_version.minor, builtin.zig_version.patch },
         ));

@@ -98,7 +98,7 @@ pub const QueryUnderstanding = struct {
         }
         if (std.mem.indexOf(u8, query, "comment") != null or
             std.mem.indexOf(u8, query, "todo") != null or
-            std.mem.indexOf(u8, query, "fixme") != null)
+            std.mem.indexOf(u8, query, "deprecated") != null)
         {
             return .find_comments;
         }
@@ -175,8 +175,8 @@ pub const QueryUnderstanding = struct {
                 if (std.mem.indexOf(u8, query, "todo") != null) {
                     try patterns.append(allocator, "TODO");
                 }
-                if (std.mem.indexOf(u8, query, "fixme") != null) {
-                    try patterns.append(allocator, "FIXME");
+                if (std.mem.indexOf(u8, query, "deprecated") != null) {
+                    try patterns.append(allocator, "DEPRECATED");
                 }
             },
             .find_configs => {

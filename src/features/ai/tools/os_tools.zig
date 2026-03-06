@@ -319,7 +319,7 @@ fn executePathOp(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult 
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
 
-    var output: []u8 = undefined;
+    var output: []u8 = &[_]u8{};
 
     if (std.mem.eql(u8, operation, "basename")) {
         output = ctx.allocator.dupe(u8, os.Path.basename(path)) catch return error.OutOfMemory;

@@ -501,39 +501,39 @@ pub fn exportToGguf(
     // SAFETY: name_buf is 128 bytes. Longest format is "blk.{d}.attn_output.weight" = ~30 chars.
     // Even with max u32 layer index (10 digits), output is ~40 chars, well under 128.
     for (weights.layers, 0..) |layer, i| {
-        var name_buf: [128]u8 = undefined;
+        var name_buf: [128]u8 = [_]u8{0} ** 128;
 
         // Attention norms
-        const attn_norm_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_norm.weight", .{i}) catch unreachable;
+        const attn_norm_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_norm.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(attn_norm_name, layer.attn_norm, &.{config.embedding_length});
 
-        const ffn_norm_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_norm.weight", .{i}) catch unreachable;
+        const ffn_norm_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_norm.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(ffn_norm_name, layer.ffn_norm, &.{config.embedding_length});
 
         // Attention weights
         const head_dim = config.embedding_length / config.head_count;
         const kv_dim = head_dim * (config.head_count_kv orelse config.head_count);
 
-        const attn_q_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_q.weight", .{i}) catch unreachable;
+        const attn_q_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_q.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(attn_q_name, layer.wq, &.{ config.embedding_length, config.embedding_length });
 
-        const attn_k_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_k.weight", .{i}) catch unreachable;
+        const attn_k_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_k.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(attn_k_name, layer.wk, &.{ kv_dim, config.embedding_length });
 
-        const attn_v_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_v.weight", .{i}) catch unreachable;
+        const attn_v_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_v.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(attn_v_name, layer.wv, &.{ kv_dim, config.embedding_length });
 
-        const attn_out_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_output.weight", .{i}) catch unreachable;
+        const attn_out_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_output.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(attn_out_name, layer.wo, &.{ config.embedding_length, config.embedding_length });
 
         // FFN weights
-        const ffn_gate_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_gate.weight", .{i}) catch unreachable;
+        const ffn_gate_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_gate.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(ffn_gate_name, layer.w_gate, &.{ config.ffn_hidden_dim, config.embedding_length });
 
-        const ffn_up_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_up.weight", .{i}) catch unreachable;
+        const ffn_up_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_up.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(ffn_up_name, layer.w_up, &.{ config.ffn_hidden_dim, config.embedding_length });
 
-        const ffn_down_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_down.weight", .{i}) catch unreachable;
+        const ffn_down_name = std.fmt.bufPrint(&name_buf, "blk.{d}.ffn_down.weight", .{i}) catch return error.OutOfMemory;
         try writer.addTensorF32(ffn_down_name, layer.w_down, &.{ config.embedding_length, config.ffn_hidden_dim });
     }
 

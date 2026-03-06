@@ -101,6 +101,8 @@ pub const ToolAugmentedAgent = struct {
     agent: Agent,
     tool_registry: ToolRegistry,
     tool_context: ToolContext,
+    io_backend: std.Io.Threaded,
+    io_val: std.Io,
     config: ToolAgentConfig,
     confirmation_callback: ?ConfirmationFn,
     tool_call_log: std.ArrayListUnmanaged(ToolCallRecord),
@@ -117,13 +119,17 @@ pub const ToolAugmentedAgent = struct {
         var registry = ToolRegistry.init(allocator);
         errdefer registry.deinit();
 
-        const tool_ctx = tools_mod.createContext(allocator, config.working_directory);
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        var io_val = io_backend.io();
+        const tool_ctx = tools_mod.createContext(allocator, config.working_directory, &io_val);
 
         return .{
             .allocator = allocator,
             .agent = base_agent,
             .tool_registry = registry,
             .tool_context = tool_ctx,
+            .io_backend = io_backend,
+            .io_val = io_val,
             .config = config,
             .confirmation_callback = null,
             .tool_call_log = .{},
@@ -144,6 +150,7 @@ pub const ToolAugmentedAgent = struct {
         }
         self.tool_registry.deinit();
         self.agent.deinit();
+        self.io_backend.deinit();
     }
 
     /// Register all code-agent tools (file, search, edit, OS).
@@ -474,7 +481,7 @@ pub fn parseToolCalls(response: []const u8, allocator: std.mem.Allocator) !std.A
 
         // Serialize args back to JSON string
         const args_val = obj.get("args");
-        var args_json: []u8 = undefined;
+        var args_json: []u8 = &[_]u8{};
         if (args_val) |av| {
             args_json = json.Stringify.valueAlloc(allocator, av, .{}) catch {
                 pos = end + close_tag.len;
@@ -524,7 +531,7 @@ fn parseStandaloneToolCall(response: []const u8, allocator: std.mem.Allocator) !
         else => return null,
     };
 
-    var args_json: []u8 = undefined;
+    var args_json: []u8 = &[_]u8{};
     if (obj.get("args")) |args_val| {
         args_json = json.Stringify.valueAlloc(allocator, args_val, .{}) catch return null;
     } else {

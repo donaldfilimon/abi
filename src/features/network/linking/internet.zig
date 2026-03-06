@@ -160,7 +160,7 @@ pub const NatTraversal = struct {
                 _ = std.fmt.bufPrint(&result, "[{x}]:{d}", .{
                     std.mem.readInt(u128, &self.ip, .big),
                     self.port,
-                }) catch unreachable;
+                }) catch return [_]u8{0} ** 64;
             } else {
                 // SAFETY: buffer is 64 bytes, max IPv4 "255.255.255.255:65535" is 21 chars - cannot overflow
                 _ = std.fmt.bufPrint(&result, "{d}.{d}.{d}.{d}:{d}", .{
@@ -169,7 +169,7 @@ pub const NatTraversal = struct {
                     self.ip[14],
                     self.ip[15],
                     self.port,
-                }) catch unreachable;
+                }) catch return [_]u8{0} ** 64;
             }
             return result;
         }

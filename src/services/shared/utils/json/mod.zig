@@ -16,11 +16,11 @@ pub fn escapeString(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             '\r' => try escaped.appendSlice(allocator, "\\r"),
             '\t' => try escaped.appendSlice(allocator, "\\t"),
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
-                var buf: [6]u8 = undefined;
+                var buf: [6]u8 = [_]u8{0} ** 6;
                 // SAFETY: Buffer is exactly 6 bytes which matches the output format
                 // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
                 // NoSpaceLeft which cannot occur here.
-                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
+                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch return error.OutOfMemory;
                 try escaped.appendSlice(allocator, &buf);
             },
             else => try escaped.append(allocator, c),
@@ -47,11 +47,11 @@ pub fn escapeJsonContent(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             '\t' => try escaped.appendSlice(allocator, "\\t"),
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 // Escape other control characters as \uXXXX
-                var buf: [6]u8 = undefined;
+                var buf: [6]u8 = [_]u8{0} ** 6;
                 // SAFETY: Buffer is exactly 6 bytes which matches the output format
                 // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
                 // NoSpaceLeft which cannot occur here.
-                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
+                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch return error.OutOfMemory;
                 try escaped.appendSlice(allocator, &buf);
             },
             else => try escaped.append(allocator, c),
@@ -102,11 +102,11 @@ pub fn appendJsonEscaped(
             '\t' => try list.appendSlice(allocator, "\\t"),
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 // Escape control characters as \uXXXX
-                var buf: [6]u8 = undefined;
+                var buf: [6]u8 = [_]u8{0} ** 6;
                 // SAFETY: Buffer is exactly 6 bytes which matches the output format
                 // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
                 // NoSpaceLeft which cannot occur here.
-                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
+                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch return error.OutOfMemory;
                 try list.appendSlice(allocator, &buf);
             },
             else => try list.append(allocator, c),

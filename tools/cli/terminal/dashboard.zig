@@ -34,6 +34,7 @@ pub fn Dashboard(comptime PanelType: type) type {
         paused: bool,
         show_help: bool,
         active_menu: ?MenuType,
+        background_tasks: u32,
         frame_count: u64,
         notification: ?[]const u8,
         notification_time: i64,
@@ -66,6 +67,7 @@ pub fn Dashboard(comptime PanelType: type) type {
                 .paused = false,
                 .show_help = false,
                 .active_menu = null,
+                .background_tasks = 0,
                 .frame_count = 0,
                 .notification = null,
                 .notification_time = 0,
@@ -143,7 +145,9 @@ pub fn Dashboard(comptime PanelType: type) type {
                 },
                 .resize => |sz| blk: {
                     self.term_size = .{ .rows = sz.rows, .cols = sz.cols };
-                    self.terminal.clearFull() catch {};
+                    self.terminal.clearFull() catch |err| {
+                        std.log.warn("Dashboard resize clear failed: {}", .{err});
+                    };
                     break :blk false;
                 },
                 .quit => true,
@@ -153,7 +157,7 @@ pub fn Dashboard(comptime PanelType: type) type {
 
         fn handleMouse(self: *Self, mouse: events.Mouse) bool {
             if (mouse.button != .left or !mouse.pressed) return false;
-            
+
             // Menu bar clicks (row=0)
             if (mouse.row == 0) {
                 // Rough hit zones based on: "  File  View  Tools  Window  Help "
@@ -186,18 +190,22 @@ pub fn Dashboard(comptime PanelType: type) type {
                         .tools => &[_][]const u8{ "Editor", "Terminal", "Settings", "Update ABI" },
                         .window => &[_][]const u8{ "Tile", "Float", "Close All" },
                     };
-                    
+
                     if (mouse.col >= menu_x and mouse.col < menu_x + 15) {
                         if (mouse.row >= 1 and mouse.row <= items.len) {
                             const idx = mouse.row - 1;
                             const action = items[idx];
-                            
+
                             if (std.mem.eql(u8, action, "Update ABI")) {
                                 self.showNotification("Updating ABI in background...");
-                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi update > /tmp/abi-update.log 2>&1 &") catch {};
+                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi update > /tmp/abi-update.log 2>&1 &") catch |err| {
+                                    std.log.warn("Failed to launch background update: {}", .{err});
+                                };
                             } else if (std.mem.eql(u8, action, "Editor")) {
                                 self.showNotification("Starting editor...");
-                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi edit > /tmp/abi-edit.log 2>&1 &") catch {};
+                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi edit > /tmp/abi-edit.log 2>&1 &") catch |err| {
+                                    std.log.warn("Failed to launch background editor: {}", .{err});
+                                };
                             } else if (std.mem.eql(u8, action, "Quit")) {
                                 return true; // triggers quit
                             } else {
@@ -210,7 +218,7 @@ pub fn Dashboard(comptime PanelType: type) type {
                     return true; // absorb click
                 }
             }
-            
+
             // Toolbar clicks (row=1)
             if (mouse.row == 1) {
                 // Rough hit zones based on: " [▶ Run]  [⏹ Stop]  [⟳ Refresh]  [⚙ Settings] "
@@ -228,7 +236,7 @@ pub fn Dashboard(comptime PanelType: type) type {
                 }
                 return false;
             }
-            
+
             return false;
         }
 
@@ -341,6 +349,16 @@ pub fn Dashboard(comptime PanelType: type) type {
             try term.write(th.text_dim);
             try term.write(self.config.help_keys);
             try term.write(th.reset);
+
+            // Dynamic Dream State / BG Monitor
+            if (self.background_tasks > 0) {
+                var bg_buf: [64]u8 = undefined;
+                const bg_msg = std.fmt.bufPrint(&bg_buf, " [Dream State Active: {d} threads] ", .{self.background_tasks}) catch " [Dream State Active] ";
+                try term.moveTo(height -| 1, width -| @as(u16, @intCast(bg_msg.len)));
+                try term.write(th.warning);
+                try term.write(bg_msg);
+                try term.write(th.reset);
+            }
 
             // Floating menu overlay
             if (self.active_menu) |menu| {

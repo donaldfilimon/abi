@@ -14,9 +14,9 @@ pub fn main(_: std.process.Init) !void {
         violation_when_matched: bool,
     }{
         .{
-            .command = "rg -n 'const catalog_items = \\[_\\]MenuItem\\{' tools/cli/ui/launcher/launcher_catalog.zig",
-            .description = "launcher catalog must be descriptor-driven, not manually enumerated",
-            .violation_when_matched = true,
+            .command = "rg -n 'validateCatalog\\(&catalog_items\\);' tools/cli/terminal/launcher/launcher_catalog.zig",
+            .description = "launcher catalog must validate descriptor definitions at compile-time",
+            .violation_when_matched = false,
         },
         .{
             .command = "rg -n 'const command_modules = \\.\\{' tools/cli/commands/mod.zig",
@@ -24,22 +24,22 @@ pub fn main(_: std.process.Init) !void {
             .violation_when_matched = true,
         },
         .{
-            .command = "rg -n '@import\\(\"../../ui/dsl/mod.zig\"\\)' tools/cli/commands/ui/model.zig tools/cli/commands/ui/bench.zig tools/cli/commands/ui/db.zig tools/cli/commands/ui/network.zig tools/cli/commands/ui/streaming.zig",
+            .command = "rg -n '@import\\(\"../../../terminal/dsl/mod.zig\"\\)' tools/cli/commands/core/ui/model.zig tools/cli/commands/core/ui/bench.zig tools/cli/commands/core/ui/db.zig tools/cli/commands/core/ui/network.zig tools/cli/commands/core/ui/streaming.zig",
             .description = "repetitive UI dashboards must use shared DSL helper",
             .violation_when_matched = false,
         },
         .{
-            .command = "rg -n 'fn wrap[A-Z]' tools/cli/commands/profile.zig tools/cli/commands/network.zig tools/cli/commands/task.zig tools/cli/commands/toolchain.zig tools/cli/commands/lsp.zig tools/cli/commands/model.zig tools/cli/commands/train/mod.zig tools/cli/commands/ralph/mod.zig",
+            .command = "rg -n 'fn wrap[A-Z]' tools/cli/commands/core/profile.zig tools/cli/commands/infra/network.zig tools/cli/commands/dev/task.zig tools/cli/commands/dev/toolchain.zig tools/cli/commands/dev/lsp.zig tools/cli/commands/ai/model.zig tools/cli/commands/ai/train/mod.zig tools/cli/commands/ai/ralph/mod.zig",
             .description = "migrated command families must not use legacy wrapX shim functions",
             .violation_when_matched = true,
         },
         .{
-            .command = "rg -n 'const [a-z_]+_subcommands = \\[_\\]\\[\\]const u8' tools/cli/commands/profile.zig tools/cli/commands/network.zig tools/cli/commands/task.zig tools/cli/commands/toolchain.zig tools/cli/commands/lsp.zig tools/cli/commands/model.zig tools/cli/commands/train/mod.zig tools/cli/commands/ralph/mod.zig",
+            .command = "rg -n 'const [a-z_]+_subcommands = \\[_\\]\\[\\]const u8' tools/cli/commands/core/profile.zig tools/cli/commands/infra/network.zig tools/cli/commands/dev/task.zig tools/cli/commands/dev/toolchain.zig tools/cli/commands/dev/lsp.zig tools/cli/commands/ai/model.zig tools/cli/commands/ai/train/mod.zig tools/cli/commands/ai/ralph/mod.zig",
             .description = "migrated command families must derive suggestions from command metadata",
             .violation_when_matched = true,
         },
         .{
-            .command = "rg -n '\\.aliases\\s*=\\s*&\\.\\{\\s*\"' tools/cli/commands/ui/mod.zig",
+            .command = "rg -n '\\.aliases\\s*=\\s*&\\.\\{\\s*\"' tools/cli/commands/core/ui/mod.zig",
             .description = "ui command must not expose legacy top-level aliases",
             .violation_when_matched = true,
         },

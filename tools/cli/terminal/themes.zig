@@ -1,7 +1,7 @@
 //! TUI Theme System
 //!
 //! Provides customizable color schemes for the TUI interface.
-//! Includes built-in themes: default, monokai, solarized, nord, gruvbox.
+//! Includes a built-in theme registry (see `themeNames()`).
 
 const std = @import("std");
 
@@ -266,6 +266,28 @@ pub const themes = struct {
         .category_tools = "\x1b[38;5;82m", // Neon Green
         .category_meta = "\x1b[38;5;199m", // Neon Pink
     };
+    /// Matrix theme - Falling green digital rain colors
+    pub const matrix = Theme{
+        .name = "matrix",
+        .primary = "\x1b[38;5;46m", // Bright Green
+        .secondary = "\x1b[38;5;28m", // Dark Green
+        .accent = "\x1b[38;5;118m", // Yellow Green
+        .border = "\x1b[38;5;34m", // Mid Green
+        .selection_bg = "\x1b[48;5;22m", // Dark Green bg
+        .selection_fg = "\x1b[38;5;46m", // Bright Green
+        .text = "\x1b[38;5;46m", // Bright Green
+        .text_dim = "\x1b[38;5;28m", // Dark Green
+        .text_muted = "\x1b[38;5;22m", // Very Dark Green
+        .success = "\x1b[38;5;82m", // Bright Neon Green
+        .warning = "\x1b[38;5;118m", // Yellow Green
+        .@"error" = "\x1b[38;5;196m", // Red (contrast)
+        .info = "\x1b[38;5;46m", // Bright Green
+        .category_ai = "\x1b[38;5;46m", // Bright Green
+        .category_data = "\x1b[38;5;34m", // Mid Green
+        .category_system = "\x1b[38;5;40m", // Green
+        .category_tools = "\x1b[38;5;28m", // Dark Green
+        .category_meta = "\x1b[38;5;82m", // Bright Neon Green
+    };
 };
 
 const all_themes = [_]*const Theme{
@@ -278,6 +300,7 @@ const all_themes = [_]*const Theme{
     &themes.minimal,
     &themes.neural_bio,
     &themes.cyber_abiva,
+    &themes.matrix,
 };
 
 const all_theme_names = [_][]const u8{
@@ -290,6 +313,7 @@ const all_theme_names = [_][]const u8{
     themes.minimal.name,
     themes.neural_bio.name,
     themes.cyber_abiva.name,
+    themes.matrix.name,
 };
 
 /// Look up a theme by exact lowercase name.
@@ -384,9 +408,9 @@ test "lookupTheme rejects invalid theme names" {
 
 test "themeNames list is complete and ordered" {
     const names = themeNames();
-    try std.testing.expectEqual(@as(usize, 9), names.len);
+    try std.testing.expectEqual(@as(usize, 10), names.len);
     try std.testing.expectEqualStrings("default", names[0]);
-    try std.testing.expectEqualStrings("cyber_abiva", names[names.len - 1]);
+    try std.testing.expectEqualStrings("matrix", names[names.len - 1]);
 }
 
 test "theme switching" {
@@ -412,7 +436,8 @@ test "theme cycling" {
     try std.testing.expectEqualStrings("default", manager.current.name);
 
     manager.prevTheme();
-    try std.testing.expectEqualStrings("minimal", manager.current.name);
+    const names = themeNames();
+    try std.testing.expectEqualStrings(names[names.len - 1], manager.current.name);
 }
 
 test {

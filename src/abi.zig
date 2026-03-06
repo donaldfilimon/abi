@@ -162,7 +162,7 @@ pub const features = struct {
 
     // Distributed compute mesh
     pub const compute = @import("features/compute/mod.zig");
-    
+
     // Omni-modal document parsing
     pub const documents = @import("features/documents/mod.zig");
 

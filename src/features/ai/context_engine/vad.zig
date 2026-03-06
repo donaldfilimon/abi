@@ -36,7 +36,7 @@ pub const VoiceActivityDetector = struct {
     pub fn calculateRms(self: *VoiceActivityDetector, pcm_data: []const f32) f32 {
         _ = self;
         if (pcm_data.len == 0) return 0.0;
-        
+
         var sum_squares: f32 = 0.0;
         for (pcm_data) |sample| {
             sum_squares += sample * sample;
@@ -114,7 +114,7 @@ pub const AudioStreamer = struct {
 
     pub fn init(allocator: std.mem.Allocator, fd: posix.fd_t, config: VadConfig) !AudioStreamer {
         const vad = VoiceActivityDetector.init(allocator, config);
-        
+
         // Frame size: sample_rate * (frame_duration_ms / 1000) * channels * size_of(f32)
         const frame_samples = (config.sample_rate * config.frame_duration_ms) / 1000;
         const frame_size_bytes = frame_samples * config.channels * @sizeOf(f32);
@@ -148,16 +148,16 @@ pub const AudioStreamer = struct {
 
         const samples = self.buffer[0 .. bytes_read / @sizeOf(f32)];
         const is_speech = self.vad.isSpeech(samples);
-        
+
         return self.speech_buffer.processFrame(samples, is_speech);
     }
-    
+
     /// Legacy direct read (kept for compatibility with context_agent)
     pub fn readActiveFrame(self: *AudioStreamer) !?[]const f32 {
         const byte_slice = std.mem.sliceAsBytes(self.buffer);
         const bytes_read = try posix.read(self.fd, byte_slice);
         if (bytes_read < self.frame_size_bytes) {
-            return null; 
+            return null;
         }
         const samples = self.buffer[0 .. bytes_read / @sizeOf(f32)];
         if (self.vad.isSpeech(samples)) {

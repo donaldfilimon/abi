@@ -60,14 +60,16 @@ pub const Context = struct {
     working_directory: []const u8,
     environment: ?*const EnvMap,
     cancellation: ?*const std.atomic.Value(bool),
+    io: *std.Io,
 };
 
-pub fn createContext(allocator: std.mem.Allocator, wd: []const u8) Context {
+pub fn createContext(allocator: std.mem.Allocator, wd: []const u8, io: *std.Io) Context {
     return Context{
         .allocator = allocator,
         .working_directory = wd,
         .environment = null,
         .cancellation = null,
+        .io = io,
     };
 }
 
@@ -351,7 +353,10 @@ test "ParameterType - all types are distinct" {
 
 test "createContext - creates valid context" {
     const allocator = std.testing.allocator;
-    const ctx = createContext(allocator, "/home/user/project");
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    var io_val = io_backend.io();
+    const ctx = createContext(allocator, "/home/user/project", &io_val);
 
     try std.testing.expectEqualStrings("/home/user/project", ctx.working_directory);
     try std.testing.expect(ctx.environment == null);
@@ -360,6 +365,9 @@ test "createContext - creates valid context" {
 
 test "Context - with environment" {
     const allocator = std.testing.allocator;
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    var io_val = io_backend.io();
 
     var env = EnvMap{};
     defer env.deinit(allocator);
@@ -371,6 +379,7 @@ test "Context - with environment" {
         .working_directory = "/work",
         .environment = &env,
         .cancellation = null,
+        .io = &io_val,
     };
 
     try std.testing.expect(ctx.environment != null);
@@ -380,6 +389,9 @@ test "Context - with environment" {
 
 test "Context - with cancellation" {
     const allocator = std.testing.allocator;
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    var io_val = io_backend.io();
 
     var cancelled = std.atomic.Value(bool).init(false);
 
@@ -388,6 +400,7 @@ test "Context - with cancellation" {
         .working_directory = "/work",
         .environment = null,
         .cancellation = &cancelled,
+        .io = &io_val,
     };
 
     try std.testing.expect(ctx.cancellation != null);
@@ -413,7 +426,7 @@ test "ToolExecutionError - all error types exist" {
 
     // Just verify they all exist and are errors
     for (errors) |err| {
-        var err_name_buf: [64]u8 = undefined;
+        var err_name_buf: [64]u8 = [_]u8{0} ** 64;
         const err_name = std.fmt.bufPrint(&err_name_buf, "{t}", .{err}) catch "UnknownError";
         try std.testing.expect(err_name.len > 0);
     }

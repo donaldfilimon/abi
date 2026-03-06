@@ -262,7 +262,7 @@ pub const CharTokenizer = struct {
 
         for (tokens) |id| {
             if (self.id_to_char.get(id)) |cp| {
-                var buf: [4]u8 = undefined;
+                var buf: [4]u8 = [_]u8{0} ** 4;
                 const len = std.unicode.utf8Encode(cp, &buf) catch continue;
                 try result.appendSlice(allocator, buf[0..len]);
             }

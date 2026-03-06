@@ -61,7 +61,8 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 | Feature | Description | Status |
 |:--------|:------------|:------:|
 | **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, real-time analytics | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Autonomous Agent** | Deep research, CI watcher, multimodal vision, Dream State background tasks | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, native deduplication | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
@@ -86,7 +87,7 @@ zig build run -- --help
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | 0.16.0-dev.2682+02142a54d | Yes |
+| Zig | 0.16.0-dev.2694+74f361a5c | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 

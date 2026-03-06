@@ -164,16 +164,18 @@ pub const ExecutionResult = struct {
     /// Get throughput in GB/s.
     pub fn throughputGBps(self: *const ExecutionResult) f64 {
         if (self.execution_time_ns == 0) return 0;
-        const bytes_per_sec = @as(f64, @floatFromInt(self.bytes_transferred)) /
-            (@as(f64, @floatFromInt(self.execution_time_ns)) / 1_000_000_000.0);
+        const bytes_f = @as(f64, @floatFromInt(self.bytes_transferred));
+        const time_s = @as(f64, @floatFromInt(self.execution_time_ns)) / 1_000_000_000.0;
+        const bytes_per_sec = bytes_f / time_s;
         return bytes_per_sec / (1024 * 1024 * 1024);
     }
 
     /// Get elements per second.
     pub fn elementsPerSecond(self: *const ExecutionResult) f64 {
         if (self.execution_time_ns == 0) return 0;
-        return @as(f64, @floatFromInt(self.elements_processed)) /
-            (@as(f64, @floatFromInt(self.execution_time_ns)) / 1_000_000_000.0);
+        const elements_f = @as(f64, @floatFromInt(self.elements_processed));
+        const time_s = @as(f64, @floatFromInt(self.execution_time_ns)) / 1_000_000_000.0;
+        return elements_f / time_s;
     }
 };
 
@@ -519,7 +521,7 @@ pub const KernelDispatcher = struct {
             return DispatchError.InvalidArguments;
         }
         // Check for potential overflow in stride calculations (i64 is safe for dimensions up to 32K)
-        const max_stride = @as(u64, m) * @as(u64, k);
+        const max_stride = @as(u64, m) * k;
         if (max_stride > std.math.maxInt(i64)) {
             return DispatchError.InvalidArguments;
         }
@@ -616,9 +618,9 @@ pub const KernelDispatcher = struct {
             const batch_count = try safeCastToI32(batch_count_u32);
 
             // Calculate strides for strided batched GEMM (safe due to dimension validation)
-            const stride_a: i64 = @as(i64, m) * @as(i64, k);
-            const stride_b: i64 = @as(i64, k) * @as(i64, n);
-            const stride_c: i64 = @as(i64, m) * @as(i64, n);
+            const stride_a: i64 = @as(i64, m) * k;
+            const stride_b: i64 = @as(i64, k) * n;
+            const stride_c: i64 = @as(i64, m) * n;
 
             ctx.sgemmStridedBatched(
                 .no_trans,
@@ -708,7 +710,9 @@ pub const KernelDispatcher = struct {
         ) catch return DispatchError.ExecutionFailed;
 
         // Synchronize to ensure completion
-        bi.synchronize() catch {};
+        bi.synchronize() catch |err| {
+            std.log.err("Backend {} sync failed: {any}", .{ bi.backend_type, err });
+        };
     }
 
     /// CPU fallback execution using host memory.
@@ -1130,7 +1134,9 @@ pub const BatchedDispatcher = struct {
     /// Deinitialize and flush any pending operations.
     pub fn deinit(self: *Self) void {
         // Flush remaining ops (ignore errors during cleanup)
-        self.flush() catch {};
+        self.flush() catch |err| {
+            std.log.err("Dispatcher flush failed: {any}", .{err});
+        };
         self.pending_ops.deinit(self.allocator);
     }
 
@@ -1143,8 +1149,8 @@ pub const BatchedDispatcher = struct {
         args: KernelArgs,
     ) DispatchError!void {
         const elements = @as(usize, config.global_size[0]) *
-            @as(usize, config.global_size[1]) *
-            @as(usize, config.global_size[2]);
+            config.global_size[1] *
+            config.global_size[2];
 
         // Determine operation category based on kernel name
         const category = blk: {

@@ -32,7 +32,11 @@ pub const RwLock = struct {
                 }
             }
             spin = @min(spin *| 2, 32);
-            if (spin >= 32) std.Thread.yield() catch {};
+            if (spin >= 32) {
+                std.Thread.yield() catch |err| {
+                    std.log.warn("Yield failed in compat mutex: {}", .{err});
+                };
+            }
         }
     }
 
@@ -48,7 +52,11 @@ pub const RwLock = struct {
             for (0..spin) |_| std.atomic.spinLoopHint();
             if (self.state.cmpxchgWeak(0, -1, .acquire, .monotonic) == null) return;
             spin = @min(spin *| 2, 32);
-            if (spin >= 32) std.Thread.yield() catch {};
+            if (spin >= 32) {
+                std.Thread.yield() catch |err| {
+                    std.log.warn("Yield failed in compat mutex: {}", .{err});
+                };
+            }
         }
     }
 

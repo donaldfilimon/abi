@@ -1,6 +1,6 @@
 //! Contextually Aware Data Eccentric System Agent
 //!
-//! Provides a seamless, ultra-low latency real-time voice, video, text, 
+//! Provides a seamless, ultra-low latency real-time voice, video, text,
 //! and attachment interface to the Artificial Biological Intelligence (ABI) framework.
 //!
 //! Architecture: Triad Orchestration
@@ -9,7 +9,7 @@
 //! - ABI (Moderator): Synthesizes inputs from Abbey and Aviva into the ultimate output.
 //! All three are initialized by a foundational "Soul Prompt".
 //!
-//! Powered by the Weighted Dynamic Brain Extension (WDBX) for real-time, 
+//! Powered by the Weighted Dynamic Brain Extension (WDBX) for real-time,
 //! high-performance learning and deep cross-platform OS control.
 
 const std = @import("std");
@@ -132,7 +132,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Initialize the high-performance context engine & Triad, linking the live WDBX Brain
     var engine = context_engine.ContextProcessor.init(allocator);
     defer engine.deinit();
-    
+
     var triad_engine = context_engine.triad.TriadEngine.init(allocator, &io, soul_prompt, &brain) catch |err| {
         utils.output.printError("Failed to initialize Triad Engine: {t}", .{err});
         return;
@@ -184,10 +184,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var reader = stdin_file.reader(io, &buffer);
 
     utils.output.printSuccess("Triad online. Native zero-dependency engine active. WDBX sync established.", .{});
-    
+
     if (autonomous_mode) {
         utils.output.printWarning("Engaging Autonomous Biological Loop. Press Ctrl+C to interrupt.", .{});
-        
+
         // Biological loop (non-blocking)
         var last_active_time = abi.services.shared.time.unixMs();
 
@@ -228,10 +228,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                 const idle_time_ms = abi.services.shared.time.unixMs() - last_active_time;
                 if (idle_time_ms > 15 * 60 * 1000) {
                     utils.output.printWarning("[Triad] Entering Subconscious Dream State.", .{});
-                    
+
                     // Trigger WDBX Pruning
                     brain.dreamStatePrune(0.1);
-                    
+
                     // Spawn asynchronous web mining for self-improvement
                     const os = abi.services.shared.os;
                     _ = os.exec(allocator, "nohup abi agent --all-tools -m 'web_mine target_domain=en.wikipedia.org' > /tmp/abi_dream.log 2>&1 &") catch {};
@@ -295,8 +295,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             const code = std.mem.trim(u8, trimmed["run python ".len..], " ");
             utils.output.printInfo("[ABI] Bridging context into Python runtime...", .{});
             var result = bridge.executeScript(.python3, code) catch |err| {
-                 utils.output.printError("Python execution failed: {t}", .{err});
-                 continue;
+                utils.output.printError("Python execution failed: {t}", .{err});
+                continue;
             };
             defer result.deinit(allocator);
             utils.output.printSuccess("[ABI Moderator] Python Output:\n{s}", .{result.stdout});
@@ -308,8 +308,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             const code = std.mem.trim(u8, trimmed["run js ".len..], " ");
             utils.output.printInfo("[ABI] Bridging context into JavaScript (Node) runtime...", .{});
             var result = bridge.executeScript(.node, code) catch |err| {
-                 utils.output.printError("JS execution failed: {t}", .{err});
-                 continue;
+                utils.output.printError("JS execution failed: {t}", .{err});
+                continue;
             };
             defer result.deinit(allocator);
             utils.output.printSuccess("[ABI Moderator] JS Output:\n{s}", .{result.stdout});
@@ -322,7 +322,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             const query = std.mem.trim(u8, trimmed["research ".len..], " ");
             utils.output.printInfo("[ABI] Activating native deep internet access for: {s}", .{query});
             const research_data = researcher.autonomousSearch(query) catch "Research failed";
-            
+
             // Invoke native HTML parsing for the result
             var html_parser = documents.html.HtmlParser.init(allocator);
             var dom = html_parser.parse(research_data) catch |err| {
@@ -341,8 +341,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             utils.output.printInfo("[ABI] Native PDF extraction for: {s}", .{path});
             var pdf_parser = documents.pdf.PdfParser.init(allocator);
             var doc = pdf_parser.parseBinaryStream(path) catch |err| {
-                 utils.output.printError("PDF parsing failed: {t}", .{err});
-                 continue;
+                utils.output.printError("PDF parsing failed: {t}", .{err});
+                continue;
             };
             defer doc.deinit(allocator);
             utils.output.printSuccess("[ABI Moderator] Extracted Text: {s}", .{doc.extracted_text});
@@ -369,18 +369,18 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
         // Triad Execution Simulation utilizing LIVE WDBX logic
         var result = triad_engine.processContext(trimmed) catch |err| {
-             utils.output.printError("Triad execution failed: {t}", .{err});
-             continue;
+            utils.output.printError("Triad execution failed: {t}", .{err});
+            continue;
         };
         defer result.deinit(allocator);
 
         std.debug.print("{s}{s}[Abbey]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.cyan(), utils.output.Color.reset(), result.abbey_analysis });
         std.debug.print("{s}{s}[Aviva]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.cyber(), utils.output.Color.reset(), result.aviva_analysis });
-        
+
         std.debug.print("{s}{s}[ABI]{s} {s}\n", .{ utils.output.Color.bold(), utils.output.Color.neural(), utils.output.Color.reset(), result.final_decision });
-        
+
         if (distributed_mode) {
-             utils.output.printInfo("[Mesh] Distributed inference complete.", .{});
+            utils.output.printInfo("[Mesh] Distributed inference complete.", .{});
         }
     }
 

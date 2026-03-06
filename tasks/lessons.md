@@ -1,17 +1,17 @@
 # Lessons Learned
 
-## 2026-02-28 - Markdown reset baseline
-- Root cause: Workflow contract expected markdown files that were removed during global markdown purge.
-- Prevention rule: Preserve required workflow markdown interfaces (`tasks/todo.md`, `tasks/lessons.md`) when performing markdown reset operations.
+## 2026-03-06 - Pin + planning sync must move together
+- Root cause: Zig pin and planning artifacts can drift when version updates are applied without the full contract set.
+- Prevention rule: When repinning Zig, update `.zigversion`, `build.zig.zon`, `tools/scripts/baseline.zig`, `README.md`, and planning/generated artifacts in one wave.
 
-## 2026-03-01 - Zig 0.16 ZON parsing and `fromSliceAlloc`
-- Root cause: `std.zon.parse.fromSliceAlloc` returns the parsed struct `T` directly, not a wrapper with a `.value` field like previous JSON parsers. It also uses the provided allocator for all nested slices, which can lead to memory leaks if not managed correctly.
-- Prevention rule: When using `std.zon.parse.fromSliceAlloc` for complex configurations, wrap the call with an `std.heap.ArenaAllocator` to easily manage and clean up the nested allocations, and assign the result directly to your data variable. Also, avoid `std.ArrayList.init` and prefer `std.ArrayListUnmanaged(T).empty` to comply with Zig 0.16 patterns.
+## 2026-03-01 - Zig 0.16 ZON parsing ownership
+- Root cause: `std.zon.parse.fromSliceAlloc` allocations were treated like wrapper-owned values instead of direct struct-owned slices.
+- Prevention rule: Use arena-backed parsing for complex ZON inputs and deinit the arena at scope end.
 
-## 2026-03-01 - Generated registry and ZON data parsing regressions
-- Root cause: Tooling still assumed direct `@import(...)` command wiring and used ad-hoc regex conversion for `.zon` data in the browser, which broke once command metadata moved to generated snapshot wiring and nested ZON structures were introduced.
-- Prevention rule: For docs/CLI metadata extraction, resolve generated registry artifacts explicitly (not only direct imports); for `.zon` web consumption, use a deterministic parser for the generated subset instead of regex-based structural rewrites.
+## 2026-03-01 - Registry/docs extraction coupling
+- Root cause: Tooling assumed direct imports and regex-based ZON rewrites after metadata moved to generated registry snapshots.
+- Prevention rule: Resolve generated registry artifacts explicitly and keep deterministic parser paths for generated ZON.
 
-## 2026-03-01 - Respect tool boundary for patching
-- Root cause: Attempted to execute patching through shell command flow (using `exec_command` to run `apply_patch`) instead of the dedicated tool interface.
-- Prevention rule: Use the dedicated `apply_patch` or `replace` tools directly for file edits; never wrap patching logic inside general shell execution tools.
+## 2026-03-01 - Tool boundary discipline
+- Root cause: Patch flow was attempted through generic shell execution instead of dedicated patch tooling.
+- Prevention rule: Use dedicated patch/edit tools for file mutations and reserve shell for non-mutating inspection or command execution.

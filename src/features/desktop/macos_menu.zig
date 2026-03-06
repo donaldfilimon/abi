@@ -38,19 +38,19 @@ pub const MacMenu = struct {
         const allocSel = objc.sel_registerName("alloc");
         // NSWindowStyleMaskBorderless = 0, NSWindowStyleMaskNonactivatingPanel = 128
         // Let's just stub the pointer for now as a real call needs NSRect and proper C-struct mapping.
-        
+
         self.overlay_window_ptr = objc.objc_msgSend(@ptrCast(NSWindow), allocSel);
     }
 
     /// Spawns the native NSStatusItem. Does nothing on non-macOS systems.
     pub fn spawn(self: *MacMenu, title: [:0]const u8) !void {
         if (builtin.os.tag != .macos) {
-            std.log.info("Native macOS menu bar integration is disabled on {s}.", .{@tagName(builtin.os.tag)});
+            std.log.info("Native macOS menu bar integration is disabled on {t}.", .{builtin.os.tag});
             return;
         }
 
         std.log.info("Registering native macOS Status Item: {s}", .{title});
-        
+
         const NSStatusBar = objc.objc_getClass("NSStatusBar");
         const systemStatusBarSel = objc.sel_registerName("systemStatusBar");
         const statusItemWithLengthSel = objc.sel_registerName("statusItemWithLength:");
@@ -68,7 +68,7 @@ pub const MacMenu = struct {
 
         // Set title
         const ns_title = objc.objc_msgSend(@ptrCast(NSString), stringWithUTF8StringSel, title.ptr);
-        
+
         // The button is accessed via [item button]
         const buttonSel = objc.sel_registerName("button");
         const button = objc.objc_msgSend(item, buttonSel);
@@ -77,7 +77,7 @@ pub const MacMenu = struct {
 
     pub fn deinit(self: *MacMenu) void {
         if (builtin.os.tag != .macos) return;
-        
+
         if (self.status_item_ptr) |item| {
             std.log.info("Unregistering native macOS Status Item", .{});
             if (self.status_bar_ptr) |bar| {

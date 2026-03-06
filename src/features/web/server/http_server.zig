@@ -281,10 +281,8 @@ pub const Server = struct {
             std.log.err("Accept failed: {t}", .{err});
             return ServerError.InternalError;
         };
-        // TODO(web): Stub server — close immediately. A real implementation would
-        // pass client_sock to a connection handler that reads requests, invokes
-        // self.handler, and writes responses. See Server.RequestHandler.
-        std.posix.close(client_sock);
+        // Instead of closing immediately, we hand the socket over to the connection
+        // std.posix.close(client_sock);
 
         self.mutex.lock();
         const conn_id = self.next_conn_id;
@@ -299,7 +297,62 @@ pub const Server = struct {
             .bytes = @bitCast(sin.addr),
             .port = std.mem.bigToNative(u16, sin.port),
         } };
-        return Connection.init(self.allocator, conn_id, address);
+        return Connection.init(self.allocator, conn_id, client_sock, address);
+    }
+
+    /// Handles a connection fully (sync stub for now).
+    fn handleConnection(self: *Server, conn: *Connection) void {
+        defer {
+            std.posix.close(conn.sock);
+            self.mutex.lock();
+            self.stats.active_connections -= 1;
+            self.mutex.unlock();
+        }
+
+        var buffer: [8192]u8 = undefined;
+        const bytes_read = std.posix.read(conn.sock, &buffer) catch |err| {
+            std.log.warn("Read error: {t}", .{err});
+            return;
+        };
+
+        if (bytes_read == 0) return;
+
+        self.mutex.lock();
+        self.stats.bytes_received += bytes_read;
+        self.stats.total_requests += 1;
+        self.mutex.unlock();
+
+        var req = Request.init(self.allocator);
+        req.connection = conn;
+        defer req.deinit();
+
+        var res = Response.init(self.allocator);
+        defer res.deinit();
+
+        if (self.handler) |handler| {
+            handler(self.allocator, &req, &res) catch |err| {
+                std.log.err("Handler error: {t}", .{err});
+                _ = res.setStatus(.internal_server_error);
+                _ = res.text("Internal Server Error") catch {};
+            };
+        } else {
+            _ = res.setStatus(.not_found);
+            _ = res.text("No handler configured") catch {};
+        }
+
+        var out_buffer = std.ArrayListUnmanaged(u8).empty;
+        defer out_buffer.deinit(self.allocator);
+
+        res.writeTo(out_buffer.writer(self.allocator)) catch return;
+
+        const bytes_written = std.posix.write(conn.sock, out_buffer.items) catch |err| {
+            std.log.warn("Write error: {t}", .{err});
+            return;
+        };
+
+        self.mutex.lock();
+        self.stats.bytes_sent += bytes_written;
+        self.mutex.unlock();
     }
 
     /// Runs the server main loop (blocking).
@@ -308,18 +361,15 @@ pub const Server = struct {
         defer self.stop();
 
         while (self.state == .running) {
-            const conn = self.accept() catch |err| {
+            var conn = self.accept() catch |err| {
                 if (err == ServerError.NotRunning) break;
                 std.log.warn("Accept error: {t}", .{err});
                 continue;
             };
-            _ = conn;
 
-            // In a full implementation, would spawn a thread/task to handle connection
-            // For now, just track the connection
-            self.mutex.lock();
-            self.stats.active_connections -= 1;
-            self.mutex.unlock();
+            // In a full implementation, would spawn a thread/task to handle connection.
+            // For now, process synchronously.
+            self.handleConnection(&conn);
         }
     }
 

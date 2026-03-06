@@ -392,13 +392,13 @@ fn readU64(data: []const u8, cursor: *usize) ?u64 {
 }
 
 fn writeU32(output: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: u32) !void {
-    var bytes: [4]u8 = undefined;
+    var bytes: [4]u8 = [_]u8{0} ** 4;
     std.mem.writeInt(u32, &bytes, value, .little);
     try output.appendSlice(allocator, &bytes);
 }
 
 fn writeU64(output: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: u64) !void {
-    var bytes: [8]u8 = undefined;
+    var bytes: [8]u8 = [_]u8{0} ** 8;
     std.mem.writeInt(u64, &bytes, value, .little);
     try output.appendSlice(allocator, &bytes);
 }

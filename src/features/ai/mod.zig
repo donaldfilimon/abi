@@ -367,7 +367,7 @@ pub const Context = struct {
                 return @field(self, field.name ++ "_ctx") != null;
             }
         }
-        unreachable;
+        return false;
     }
 
     /// Get discovered models (returns empty slice if discovery not enabled).

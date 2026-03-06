@@ -875,6 +875,62 @@ pub const ProgressGauge = struct {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Text Input
+// ═══════════════════════════════════════════════════════════════════════════
+
+pub const TextInput = struct {
+    allocator: std.mem.Allocator,
+    buffer: std.ArrayListUnmanaged(u8) = .empty,
+    is_active: bool = false,
+
+    pub fn init(allocator: std.mem.Allocator) TextInput {
+        return .{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *TextInput) void {
+        self.buffer.deinit(self.allocator);
+        self.* = undefined;
+    }
+
+    pub fn handleEvent(self: *TextInput, event: terminal.Event) !bool {
+        if (!self.is_active) return false;
+
+        switch (event) {
+            .key => |key| switch (key.code) {
+                .escape => {
+                    self.is_active = false;
+                    self.buffer.clearRetainingCapacity();
+                    return true;
+                },
+                .backspace => {
+                    if (self.buffer.items.len > 0) {
+                        _ = self.buffer.pop();
+                    }
+                    return true;
+                },
+                .character => {
+                    if (key.char) |ch| {
+                        if (ch >= 32 and ch <= 126) {
+                            try self.buffer.append(self.allocator, ch);
+                            return true;
+                        }
+                    }
+                },
+                else => {},
+            },
+            else => {},
+        }
+        return false;
+    }
+
+    pub fn clear(self: *TextInput) void {
+        self.buffer.clearRetainingCapacity();
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════
 

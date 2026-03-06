@@ -9,6 +9,7 @@ const metrics = @import("distance.zig").Distance;
 const Cache = @import("cache.zig").Cache;
 const HNSW = @import("hnsw.zig").HNSW;
 const AIClient = @import("ai_client.zig").AIClient;
+const sync_compat = @import("sync_compat.zig");
 
 pub const Metadata = struct {
     text: []const u8,
@@ -52,9 +53,9 @@ pub const Engine = struct {
     // Persona deduplication map: maps a text hash to the index in vectors_array
     // allowing identical knowledge across personas to share the same vector node.
     knowledge_dedup_map: std.AutoHashMapUnmanaged(u64, usize) = .empty,
-    
-    // Mutex for safe cross-persona asynchronous memory operations
-    db_lock: @import("../../../services/shared/sync.zig").Mutex = .{},
+
+    // Keep wdbx standalone-test safe by using local sync compatibility primitives.
+    db_lock: sync_compat.RwLock = .{},
 
     pub fn init(allocator: std.mem.Allocator, cfg: config.Config) !Engine {
         try cfg.validateRuntime();
@@ -99,7 +100,7 @@ pub const Engine = struct {
         defer self.db_lock.unlock();
 
         std.log.info("Entering Subconscious Dream State: Pruning unused vectors...", .{});
-        
+
         var kept_count: usize = 0;
         var pruned_count: usize = 0;
 
@@ -124,7 +125,7 @@ pub const Engine = struct {
             }
         }
 
-        std.log.info("Dream State Complete: Kept {d} memories, Pruned {d} memories.", .{kept_count, pruned_count});
+        std.log.info("Dream State Complete: Kept {d} memories, Pruned {d} memories.", .{ kept_count, pruned_count });
     }
 
     pub fn index(
@@ -139,7 +140,7 @@ pub const Engine = struct {
             // This semantic text is already indexed by another persona/node
             // We just link the ID to the existing node metadata (in a full multi-tenant graph).
             // For now, we return early to save compute/storage.
-            std.log.debug("WDBX Deduplication: Skipping identical knowledge insertion for ID {s} (shares vector with index {d})", .{id, existing_idx});
+            std.log.debug("WDBX Deduplication: Skipping identical knowledge insertion for ID {s} (shares vector with index {d})", .{ id, existing_idx });
             return;
         }
 
@@ -178,7 +179,6 @@ pub const Engine = struct {
         // Placed in HW index bounds mapping array offsets directly inline
         _ = try self.hnsw_index.insert(cloned_vec);
     }
-
     /// Index a document with a pre-computed embedding (bypasses AI client).
     pub fn indexByVector(
         self: *Engine,
@@ -186,6 +186,14 @@ pub const Engine = struct {
         vector: []const f32,
         metadata: Metadata,
     ) !void {
+        // Fast path: deduplicate by raw vector float bytes
+        const vec_bytes = std.mem.sliceAsBytes(vector);
+        const vec_hash = std.hash.Wyhash.hash(0, vec_bytes);
+        if (self.knowledge_dedup_map.get(vec_hash)) |existing_idx| {
+            std.log.debug("WDBX Deduplication: Skipping identical vector insertion for ID {s} (shares vector with index {d})", .{ id, existing_idx });
+            return;
+        }
+
         const cloned_id = try self.allocator.dupe(u8, id);
         errdefer self.allocator.free(cloned_id);
         const cloned_vec = try self.allocator.dupe(f32, vector);
@@ -193,14 +201,18 @@ pub const Engine = struct {
         const owned_metadata = try self.cloneMetadata(metadata);
         errdefer self.deinitOwnedMetadata(owned_metadata);
 
+        const current_idx = self.vectors_array.items.len;
         try self.vectors_array.append(self.allocator, EngineVector{
             .id = cloned_id,
             .vec = cloned_vec,
             .metadata = owned_metadata,
         });
+
+        try self.knowledge_dedup_map.put(self.allocator, vec_hash, current_idx);
+
+        // Placed in HW index bounds mapping array offsets directly inline
         _ = try self.hnsw_index.insert(cloned_vec);
     }
-
     /// Delete a vector by ID. Returns true if found and removed.
     pub fn delete(self: *Engine, id: []const u8) bool {
         for (self.vectors_array.items, 0..) |item, i| {

@@ -73,7 +73,7 @@ fn compressLz4(allocator: std.mem.Allocator, input: []const u8) CompressionError
     errdefer output.deinit(allocator);
 
     // Use hash table for fast matching
-    var hash_table: [4096]u32 = undefined;
+    var hash_table: [4096]u32 = [_]u32{0} ** 4096;
     @memset(&hash_table, 0);
 
     var src_pos: usize = 0;
@@ -356,7 +356,7 @@ test "compression roundtrip rle" {
     const allocator = std.testing.allocator;
 
     // Sparse data with runs
-    var input: [256]u8 = undefined;
+    var input: [256]u8 = [_]u8{0} ** 256;
     @memset(input[0..100], 0);
     @memset(input[100..150], 0xAA);
     @memset(input[150..256], 0);
@@ -375,7 +375,7 @@ test "compression roundtrip lz4" {
 
     // Repetitive data that compresses well
     const pattern = "ABCD";
-    var input: [256]u8 = undefined;
+    var input: [256]u8 = [_]u8{0} ** 256;
     for (0..64) |i| {
         @memcpy(input[i * 4 ..][0..4], pattern);
     }

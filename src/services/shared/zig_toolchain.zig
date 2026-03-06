@@ -15,4 +15,3 @@ pub fn resolveHomeDir() ?[]const u8 {
 pub fn allocZvmMasterZigPath(allocator: std.mem.Allocator, home: []const u8) ![]u8 {
     return std.fs.path.join(allocator, &.{ home, ".zvm", "master", "zig" });
 }
-

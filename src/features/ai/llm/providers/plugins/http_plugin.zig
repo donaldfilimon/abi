@@ -68,7 +68,7 @@ fn deinitResponse(allocator: std.mem.Allocator, response: *connectors.vllm.ChatC
         allocator.free(choice.finish_reason);
     }
     allocator.free(response.choices);
-    response.* = undefined;
+    response.* = std.mem.zeroes(connectors.vllm.ChatCompletionResponse);
 }
 
 // ============================================================================

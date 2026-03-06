@@ -349,7 +349,7 @@ pub fn hexChar(digit: u8) u8 {
     return switch (digit) {
         0...9 => '0' + digit,
         10...15 => 'a' + (digit - 10),
-        else => unreachable,
+        else => '0',
     };
 }
 

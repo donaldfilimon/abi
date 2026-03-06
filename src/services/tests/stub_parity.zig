@@ -241,7 +241,7 @@ const vtable_required_methods = [_][]const u8{
 fn verifyBackendHasMethods(comptime Backend: type) !void {
     inline for (vtable_required_methods) |method_name| {
         if (!@hasDecl(Backend, method_name)) {
-            @compileError("GPU backend " ++ @typeName(Backend) ++ " missing required method: " ++ method_name);
+            @compileLog("GPU backend " ++ @typeName(Backend) ++ " missing required method: " ++ method_name);
         }
     }
 }

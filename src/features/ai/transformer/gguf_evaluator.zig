@@ -6,12 +6,16 @@
 
 const std = @import("std");
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 /// Represents an abstract hardware-agnostic tensor shape.
 pub const Tensor = struct {
     allocator: std.mem.Allocator,
     shape: [4]usize,
     data: []f32,
-    
+
     pub fn deinit(self: *Tensor) void {
         self.allocator.free(self.data);
     }
@@ -49,7 +53,7 @@ pub const Tensor = struct {
 /// Computes Root Mean Square Normalization natively.
 pub fn rmsNorm(allocator: std.mem.Allocator, input: []const f32, weight: []const f32, eps: f32) ![]f32 {
     if (input.len != weight.len) return error.DimensionMismatch;
-    
+
     const output = try allocator.alloc(f32, input.len);
     errdefer allocator.free(output);
 
@@ -80,7 +84,7 @@ pub fn applyRoPE(x: []f32, pos: usize, head_dim: usize, base: f32) void {
             const val = p * freq;
             const fcr = @cos(val);
             const fci = @sin(val);
-            
+
             const v0 = x[i + j];
             const v1 = x[i + j + 1];
             x[i + j] = v0 * fcr - v1 * fci;
@@ -138,7 +142,7 @@ pub const NativeEvaluator = struct {
             .allocator = allocator,
             .model_path = try allocator.dupe(u8, path),
         };
-        
+
         // Attempt native header parse if file exists
         evaluator.parseHeader() catch |err| {
             std.log.warn("[NativeEvaluator] Could not parse GGUF header natively: {any}. Deferring to external runners.", .{err});
@@ -156,10 +160,14 @@ pub const NativeEvaluator = struct {
 
     /// Natively parses the GGUF binary magic header, version, and metadata counts.
     fn parseHeader(self: *NativeEvaluator) !void {
-        var file = try std.fs.cwd().openFile(self.model_path, .{});
-        defer file.close();
+        var io_backend = initIoBackend(self.allocator);
+        defer io_backend.deinit();
+        const io = io_backend.io();
 
-        var reader = file.reader();
+        var file = try std.Io.Dir.cwd().openFile(io, self.model_path, .{});
+        defer file.close(io);
+
+        var reader = file.reader(io);
 
         // 1. Magic: "GGUF" (0x46554747)
         var magic: [4]u8 = undefined;
@@ -194,7 +202,7 @@ pub const NativeEvaluator = struct {
     pub fn evaluate(self: *NativeEvaluator, tokens: []const u32) ![]f32 {
         _ = tokens;
         self.active = true;
-        
+
         std.log.info("[NativeEvaluator] Executing native GGUF matrix multiplication for {s}...", .{self.model_path});
         const fake_logits = try self.allocator.alloc(f32, 1024);
         @memset(fake_logits, 0.5);
@@ -209,6 +217,6 @@ test "GGUF Native Stub" {
     const dummy_tokens = [_]u32{ 1, 2, 3 };
     const logits = try evaluator.evaluate(&dummy_tokens);
     defer std.testing.allocator.free(logits);
-    
+
     try std.testing.expect(logits.len == 1024);
 }

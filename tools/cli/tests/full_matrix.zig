@@ -231,7 +231,7 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
             use_help_fallback = false;
             build.cwd_mode = .repo_copy;
             try addArg(&args, matrix.allocator, "-o");
-            try addArg(&args, matrix.allocator, "abi-cli-full-config.json");
+            try addArg(&args, matrix.allocator, "abi-cli-full-config.zon");
         }
     } else if (std.mem.eql(u8, command, "discord")) {
         try addReq(&build, matrix.allocator, "env:DISCORD_BOT_TOKEN");

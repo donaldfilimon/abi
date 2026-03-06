@@ -331,12 +331,13 @@ pub const AbbeyDiscordBot = struct {
 
     /// Send a response to Discord
     pub fn sendResponse(self: *Self, response: MessageResponse) !void {
-        const client = self.discord_client orelse return DiscordBotError.BotNotStarted;
-        _ = client;
+        var client = self.discord_client orelse return DiscordBotError.BotNotStarted;
+        try client.sendMessage(response.channel_id, response.content);
 
-        // Would use discord client to send message
-        // For now, this is a stub showing the pattern
-        _ = response;
+        // Include emoji reaction if provided by the wrapper and mapped in Abbey
+        if (response.suggested_reaction) |emoji| {
+            try client.addReaction(response.channel_id, response.message_id, emoji);
+        }
     }
 
     /// Get bot statistics

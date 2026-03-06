@@ -177,7 +177,7 @@ pub const WdbxFusion = struct {
         // The cacheEmbedding made its own copy, so free the compute result
         self.allocator.free(vector);
 
-        return self.getCachedEmbedding(text) orelse unreachable;
+        return self.getCachedEmbedding(text) orelse return error.CachingFailed;
     }
 
     // ========================================================================

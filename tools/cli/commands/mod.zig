@@ -42,6 +42,7 @@ pub const ralph = generated.ralph;
 pub const gendocs = generated.gendocs;
 pub const brain = generated.brain;
 pub const doctor = generated.doctor;
+pub const matrix = generated.matrix;
 pub const clean = generated.clean;
 pub const env = generated.env;
 pub const init = generated.init;

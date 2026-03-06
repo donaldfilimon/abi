@@ -521,7 +521,7 @@ pub const KernelCache = struct {
             }
 
             // Construct filename from key
-            var filename_buf: [FILENAME_BUF_SIZE]u8 = undefined;
+            var filename_buf: [FILENAME_BUF_SIZE]u8 = [_]u8{0} ** FILENAME_BUF_SIZE;
             const filename = try std.fmt.bufPrint(&filename_buf, "{s}/{s}.bin", .{ cache_dir, key });
 
             // Write binary to file

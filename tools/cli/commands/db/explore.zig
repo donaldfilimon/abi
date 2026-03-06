@@ -187,7 +187,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .newline()
         .section("Examples")
         .example("abi explore \"HTTP handler\"", "")
-        .example("abi explore -l thorough \"FIXME\"", "")
+        .example("abi explore -l thorough \"DEPRECATED\"", "")
         .example("abi explore -f json \"function_name\"", "")
         .example("abi explore -i \"*.zig\" \"pub fn\"", "")
         .example("abi explore --regex \"fn\\s+\\w+\"", "");

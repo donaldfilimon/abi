@@ -68,7 +68,7 @@ pub fn ScalarQuantizerTyped(comptime BITS: u8) type {
                 4 => (dim + 1) / 2,
                 8 => dim,
                 16 => dim * 2,
-                else => unreachable,
+                else => return 0,
             };
         }
 
@@ -429,7 +429,7 @@ pub const ScalarQuantizer = struct {
                     output[i * 2 + 1] = @truncate(code);
                 }
             },
-            else => unreachable,
+            else => return error.InvalidBits,
         }
 
         return bytes_needed;
@@ -501,7 +501,7 @@ pub const ScalarQuantizer = struct {
                     value.* = dequantizeValue16(code, self.min_values[i], self.max_values[i]);
                 }
             },
-            else => unreachable,
+            else => return error.InvalidBits,
         }
     }
 
@@ -544,7 +544,7 @@ pub const ScalarQuantizer = struct {
             4 => (self.dim + 1) / 2,
             8 => self.dim,
             16 => self.dim * 2,
-            else => unreachable,
+            else => 0,
         };
     }
 

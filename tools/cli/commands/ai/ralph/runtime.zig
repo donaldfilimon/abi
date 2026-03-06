@@ -265,7 +265,9 @@ pub fn runImprove(
         }
 
         if (extractSkillSentence(response)) |sentence| {
-            skills_store.appendSkill(allocator, io, sentence, run_id, if (last_gate_passed) 1.0 else 0.5) catch {};
+            skills_store.appendSkill(allocator, io, sentence, run_id, if (last_gate_passed) 1.0 else 0.5) catch |err| {
+                std.log.warn("Failed to persist reflection skill: {}", .{err});
+            };
             skills_added += 1;
         }
 

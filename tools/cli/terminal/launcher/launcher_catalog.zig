@@ -15,6 +15,7 @@ const args_show = [_][:0]const u8{"show"};
 const args_status = [_][:0]const u8{"status"};
 const args_summary = [_][:0]const u8{"summary"};
 const args_list = [_][:0]const u8{"list"};
+const args_providers = [_][:0]const u8{"providers"};
 const args_info = [_][:0]const u8{"info"};
 const args_monitor = [_][:0]const u8{"monitor"};
 
@@ -54,7 +55,7 @@ const catalog_items = [_]MenuItem{
     .{
         .label = "LLM",
         .description = "Local LLM inference",
-        .action = .{ .command = commandRef("llm", "llm", &args_list) },
+        .action = .{ .command = commandRef("llm", "llm", &args_providers) },
         .category = .ai,
         .shortcut = 2,
         .usage = "abi llm <subcommand> [options]",
@@ -280,15 +281,50 @@ fn validateCommandRef(comptime cmd: CommandRef, comptime item_label: []const u8)
         ));
     }
 
-    _ = findTopLevelDescriptor(cmd.command) orelse {
+    const descriptor = findTopLevelDescriptor(cmd.command) orelse {
         @compileError(std.fmt.comptimePrint(
             "launcher item '{s}' maps id '{s}' to unknown command '{s}'",
             .{ item_label, cmd.id, cmd.command },
         ));
     };
+
+    if (cmd.args.len == 0) return;
+    if (descriptor.subcommands.len == 0 and descriptor.children.len == 0) return;
+
+    if (!isKnownNestedSubcommand(descriptor, cmd.args[0])) {
+        @compileError(std.fmt.comptimePrint(
+            "launcher item '{s}' maps id '{s}' to unknown subcommand '{s}' for '{s}'",
+            .{ item_label, cmd.id, cmd.args[0], cmd.command },
+        ));
+    }
 }
 
-fn findTopLevelDescriptor(comptime raw_command: []const u8) ?*const framework.types.CommandDescriptor {
+fn isKnownNestedSubcommand(
+    descriptor: *const framework.types.CommandDescriptor,
+    candidate: []const u8,
+) bool {
+    if (std.mem.eql(u8, candidate, "help") or
+        std.mem.eql(u8, candidate, "--help") or
+        std.mem.eql(u8, candidate, "-h"))
+    {
+        return true;
+    }
+
+    for (descriptor.subcommands) |name| {
+        if (std.mem.eql(u8, candidate, name)) return true;
+    }
+
+    for (descriptor.children) |child| {
+        if (std.mem.eql(u8, candidate, child.name)) return true;
+        for (child.aliases) |alias| {
+            if (std.mem.eql(u8, candidate, alias)) return true;
+        }
+    }
+
+    return false;
+}
+
+fn findTopLevelDescriptor(raw_command: []const u8) ?*const framework.types.CommandDescriptor {
     @setEvalBranchQuota(5000);
     inline for (&commands.descriptors) |*descriptor| {
         if (std.mem.eql(u8, raw_command, descriptor.name)) return descriptor;
@@ -297,6 +333,29 @@ fn findTopLevelDescriptor(comptime raw_command: []const u8) ?*const framework.ty
         }
     }
     return null;
+}
+
+test "launcher nested args map to valid subcommands" {
+    for (catalog_items) |item| {
+        switch (item.action) {
+            .command => |cmd| {
+                if (cmd.args.len == 0) continue;
+                const descriptor = findTopLevelDescriptor(cmd.command) orelse continue;
+                if (descriptor.subcommands.len == 0 and descriptor.children.len == 0) continue;
+                try std.testing.expect(isKnownNestedSubcommand(descriptor, cmd.args[0]));
+            },
+            else => {},
+        }
+    }
+}
+
+test "llm launcher command defaults to providers" {
+    const cmd = findCommandById("llm") orelse return error.TestExpectedCommand;
+    try std.testing.expectEqual(@as(usize, 1), cmd.args.len);
+    try std.testing.expectEqualStrings("providers", cmd.args[0]);
+
+    const descriptor = findTopLevelDescriptor(cmd.command) orelse return error.TestExpectedCommandDescriptor;
+    try std.testing.expect(isKnownNestedSubcommand(descriptor, cmd.args[0]));
 }
 
 test {

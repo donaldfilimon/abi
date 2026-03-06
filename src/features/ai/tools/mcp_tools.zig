@@ -42,7 +42,7 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         server_pids.put(ctx.allocator, pid, "mcp") catch {};
     }
 
-    const output = std.fmt.allocPrint(ctx.allocator, "MCP server started for {s} (PID: {d})", .{target, pid}) catch
+    const output = std.fmt.allocPrint(ctx.allocator, "MCP server started for {s} (PID: {d})", .{ target, pid }) catch
         return error.OutOfMemory;
 
     return ToolResult.init(ctx.allocator, true, output);
@@ -87,7 +87,7 @@ fn executeServeAcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         server_pids.put(ctx.allocator, pid, "acp") catch {};
     }
 
-    const output = std.fmt.allocPrint(ctx.allocator, "ACP server started on port {d} (PID: {d})", .{port, pid}) catch
+    const output = std.fmt.allocPrint(ctx.allocator, "ACP server started on port {d} (PID: {d})", .{ port, pid }) catch
         return error.OutOfMemory;
 
     return ToolResult.init(ctx.allocator, true, output);

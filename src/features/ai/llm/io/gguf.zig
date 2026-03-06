@@ -492,7 +492,7 @@ pub const GgufFile = struct {
 
     pub fn getEmbeddingLength(self: *const GgufFile) ?u32 {
         const arch = self.getArchitecture() orelse "llama";
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = [_]u8{0} ** 64;
         const key = std.fmt.bufPrint(&buf, "{s}.embedding_length", .{arch}) catch return null;
         const val = self.getMetadata(key) orelse return null;
         return val.asU32();
@@ -500,7 +500,7 @@ pub const GgufFile = struct {
 
     pub fn getBlockCount(self: *const GgufFile) ?u32 {
         const arch = self.getArchitecture() orelse "llama";
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = [_]u8{0} ** 64;
         const key = std.fmt.bufPrint(&buf, "{s}.block_count", .{arch}) catch return null;
         const val = self.getMetadata(key) orelse return null;
         return val.asU32();
@@ -508,7 +508,7 @@ pub const GgufFile = struct {
 
     pub fn getHeadCount(self: *const GgufFile) ?u32 {
         const arch = self.getArchitecture() orelse "llama";
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = [_]u8{0} ** 64;
         const key = std.fmt.bufPrint(&buf, "{s}.attention.head_count", .{arch}) catch return null;
         const val = self.getMetadata(key) orelse return null;
         return val.asU32();
@@ -516,7 +516,7 @@ pub const GgufFile = struct {
 
     pub fn getHeadCountKV(self: *const GgufFile) ?u32 {
         const arch = self.getArchitecture() orelse "llama";
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = [_]u8{0} ** 64;
         const key = std.fmt.bufPrint(&buf, "{s}.attention.head_count_kv", .{arch}) catch return null;
         const val = self.getMetadata(key) orelse self.getMetadata("llama.attention.head_count_kv") orelse return null;
         return val.asU32();
@@ -524,7 +524,7 @@ pub const GgufFile = struct {
 
     pub fn getAttentionKeyLength(self: *const GgufFile) ?u32 {
         const arch = self.getArchitecture() orelse "llama";
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = [_]u8{0} ** 64;
         const key = std.fmt.bufPrint(&buf, "{s}.attention.key_length", .{arch}) catch return null;
         const val = self.getMetadata(key) orelse self.getMetadata("llama.attention.key_length") orelse return null;
         return val.asU32();
@@ -532,7 +532,7 @@ pub const GgufFile = struct {
 
     pub fn getAttentionValueLength(self: *const GgufFile) ?u32 {
         const arch = self.getArchitecture() orelse "llama";
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = [_]u8{0} ** 64;
         const key = std.fmt.bufPrint(&buf, "{s}.attention.value_length", .{arch}) catch return null;
         const val = self.getMetadata(key) orelse self.getMetadata("llama.attention.value_length") orelse return null;
         return val.asU32();

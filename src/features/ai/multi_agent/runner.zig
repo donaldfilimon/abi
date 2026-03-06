@@ -156,7 +156,9 @@ pub const WorkflowRunner = struct {
         defer tracker.deinit();
 
         // 5. Load persona presets
-        self.persona_registry.loadPresets() catch {};
+        self.persona_registry.loadPresets() catch |err| {
+            std.log.warn("Failed to load persona presets: {t}", .{err});
+        };
 
         // 6. Publish task_started
         const task_id = messaging.taskId(def.id);
@@ -273,7 +275,9 @@ pub const WorkflowRunner = struct {
                 if (step_status == .completed) {
                     // Store output in blackboard
                     if (step_output) |output| {
-                        self.blackboard.put(step.output_key, output, persona_name) catch {};
+                        self.blackboard.put(step.output_key, output, persona_name) catch |err| {
+                            std.log.warn("Failed to update blackboard: {t}", .{err});
+                        };
                     }
 
                     const step_result_entry = workflow_mod.StepResult{
@@ -284,7 +288,9 @@ pub const WorkflowRunner = struct {
                         .duration_ns = duration_ms * std.time.ns_per_ms,
                         .assigned_persona = persona_name,
                     };
-                    tracker.markCompleted(step_id, step_result_entry) catch {};
+                    tracker.markCompleted(step_id, step_result_entry) catch |err| {
+                        std.log.warn("Failed to mark step completed: {t}", .{err});
+                    };
                     stats.completed_steps += 1;
 
                     // Store in our step_results map (dupe the output for ownership)
@@ -299,7 +305,9 @@ pub const WorkflowRunner = struct {
                         .assigned_persona = persona_name,
                         .attempts = attempts,
                         .duration_ms = duration_ms,
-                    }) catch {};
+                    }) catch |err| {
+                        std.log.warn("Failed to generate step log: {t}", .{err});
+                    };
 
                     // Free the process() result (we duped it for step_results)
                     if (step_output) |o| self.allocator.free(o);
@@ -322,7 +330,9 @@ pub const WorkflowRunner = struct {
                         .duration_ns = duration_ms * std.time.ns_per_ms,
                         .assigned_persona = persona_name,
                     };
-                    tracker.markFailed(step_id, step_result_entry) catch {};
+                    tracker.markFailed(step_id, step_result_entry) catch |err| {
+                        std.log.warn("Failed to mark step failed: {t}", .{err});
+                    };
                     stats.failed_steps += 1;
 
                     step_results.put(self.allocator, step_id, .{
@@ -332,7 +342,9 @@ pub const WorkflowRunner = struct {
                         .assigned_persona = persona_name,
                         .attempts = attempts,
                         .duration_ms = duration_ms,
-                    }) catch {};
+                    }) catch |err| {
+                        std.log.warn("Failed to generate step log: {t}", .{err});
+                    };
 
                     // Free any partial output on failure
                     if (step_output) |o| self.allocator.free(o);

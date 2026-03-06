@@ -210,6 +210,18 @@ examples/c_test
 TRASH/
 TRASH-FILES.md
 
+# ── Legacy local probes/binaries (cleanup guard) ────────────────────
+/dummy.txt
+/dummy2.txt
+/dummy3.txt
+/test_child.zig
+/test_fs.zig
+/test_sleep.zig
+/test_sock.zig
+/test_socket.zig
+/test_writer.zig
+/zig-master/
+
 # ── Cleanup policy: markdown allowlist only ─────────────────────────
 *.md
 !/AGENTS.md

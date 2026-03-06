@@ -4,8 +4,8 @@
 //! and dynamically interface with entirely new external APIs and systems
 //! at runtime without requiring any underlying code changes.
 //!
-//! This module parses schemas (like OpenAPI), deduces the endpoints, 
-//! parameters, and auth requirements, and embeds these interaction rules 
+//! This module parses schemas (like OpenAPI), deduces the endpoints,
+//! parameters, and auth requirements, and embeds these interaction rules
 //! directly into the WDBX matrix for the Triad to utilize on-the-fly.
 
 const std = @import("std");
@@ -36,8 +36,8 @@ pub const DynamicApiLearner = struct {
     pub fn learnNewSystem(self: *DynamicApiLearner, schema_type: ApiSchemaType, raw_schema_data: []const u8) ![]const u8 {
         _ = self;
         // Stub: Native Zig JSON/YAML parsing, endpoint mapping, and WDBX semantic indexing.
-        std.log.info("[Dynamic Synthesis] Ingesting {s} schema to expand neural capabilities...", .{@tagName(schema_type)});
-        
+        std.log.info("[Dynamic Synthesis] Ingesting {t} schema to expand neural capabilities...", .{schema_type});
+
         _ = raw_schema_data; // In reality, this is parsed to construct dynamic HTTP request templates
 
         return "API capabilities dynamically mapped and stored in WDBX. I can now interact with this system natively.";

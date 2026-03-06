@@ -31,7 +31,7 @@ pub const VideoFrameStreamer = struct {
     /// Captures a frame natively without disk I/O using CoreGraphics if on macOS
     pub fn captureFrame(self: *VideoFrameStreamer) !?VideoFrame {
         if (!self.active) return null;
-        
+
         const builtin = @import("builtin");
         if (builtin.os.tag != .macos) {
             // Stub for other OS
@@ -67,7 +67,7 @@ pub const VideoFrameStreamer = struct {
         if (length <= 0) return null;
 
         const ptr = objc.CFDataGetBytePtr(cf_data);
-        
+
         // Copy the raw pixel data out so the CFData can be safely released
         const pixel_buffer = try self.allocator.alloc(u8, @intCast(length));
         @memcpy(pixel_buffer, ptr[0..@intCast(length)]);
@@ -100,7 +100,7 @@ pub const VisionMatrix = struct {
     pub fn detectMotion(self: *VisionMatrix, screen_data: []const u8) bool {
         // Stub: A real implementation computes a perceptual hash or delta
         const current_hash = std.hash.CityHash64.hash(screen_data);
-        
+
         if (self.last_hash == 0 or current_hash != self.last_hash) {
             self.last_hash = current_hash;
             return true;

@@ -83,7 +83,6 @@ pub const GenerateResult = struct {
     pub fn deinit(self: *GenerateResult, allocator: std.mem.Allocator) void {
         allocator.free(self.model_used);
         allocator.free(self.content);
-        self.* = undefined;
     }
 };
 

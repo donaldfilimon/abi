@@ -28,7 +28,7 @@ pub const PdfParser = struct {
         }
 
         std.log.info("[PDF Parser] Natively scanning xref tables and deflating binary streams...", .{});
-        
+
         // Scan for xref offset at the EOF
         const eof_scan = pdf_data.len -| 1024;
         const eof_chunk = pdf_data[eof_scan..];

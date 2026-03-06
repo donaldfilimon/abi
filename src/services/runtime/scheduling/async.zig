@@ -31,14 +31,16 @@ pub fn TaskHandle(comptime Result: type) type {
 pub const TaskGroup = struct {
     io: std.Io,
     group: std.Io.Group = .init,
+    concurrent_enabled: bool,
 
     /// Initialize a task group bound to a runtime I/O handle.
     /// @param io Runtime I/O handle for scheduling.
     /// @return Initialized task group.
-    pub fn init(io: std.Io) TaskGroup {
+    pub fn init(io: std.Io, concurrent_enabled: bool) TaskGroup {
         return .{
             .io = io,
             .group = .init,
+            .concurrent_enabled = concurrent_enabled,
         };
     }
 
@@ -62,6 +64,7 @@ pub const TaskGroup = struct {
         function: anytype,
         args: std.meta.ArgsTuple(@TypeOf(function)),
     ) AsyncError!void {
+        if (!self.concurrent_enabled) return error.ConcurrencyUnavailable;
         return self.group.concurrent(self.io, function, args);
     }
 
@@ -88,6 +91,7 @@ pub const AsyncRuntime = struct {
     allocator: std.mem.Allocator,
     backend: std.Io.Threaded,
     io: std.Io,
+    concurrent_enabled: bool,
 
     /// Initialize the async runtime.
     /// @param allocator Memory allocator for runtime allocations.
@@ -102,6 +106,7 @@ pub const AsyncRuntime = struct {
             .allocator = allocator,
             .backend = backend,
             .io = backend.io(),
+            .concurrent_enabled = options.concurrent_limit != .nothing,
         };
     }
 
@@ -128,6 +133,7 @@ pub const AsyncRuntime = struct {
     ) AsyncError!TaskHandle(
         @typeInfo(@TypeOf(function)).@"fn".return_type.?,
     ) {
+        if (!self.concurrent_enabled) return error.ConcurrencyUnavailable;
         const Result = @typeInfo(@TypeOf(function)).@"fn".return_type.?;
         const future = try std.Io.concurrent(self.io, function, args);
         return TaskHandle(Result){ .io = self.io, .future = future };
@@ -152,7 +158,7 @@ pub const AsyncRuntime = struct {
     /// Create a task group bound to this runtime.
     /// @return Initialized task group.
     pub fn taskGroup(self: *AsyncRuntime) TaskGroup {
-        return TaskGroup.init(self.io);
+        return TaskGroup.init(self.io, self.concurrent_enabled);
     }
 };
 
@@ -174,8 +180,14 @@ test "async runtime init exposes io handle" {
 }
 
 test "async runtime spawn reports concurrency unavailable when disabled" {
-    // TODO: Re-enable once non-concurrent spawn behavior is stable under CI.
-    return error.SkipZigTest;
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+        .async_limit = .nothing,
+        .concurrent_limit = .nothing,
+    });
+    defer runtime.deinit();
+
+    try std.testing.expectError(error.ConcurrencyUnavailable, runtime.spawn(cancelableNoop, .{}));
 }
 
 test "task group awaitUncancelable returns on empty group" {
@@ -193,6 +205,7 @@ test "task group awaitUncancelable returns on empty group" {
 test "task group spawnConcurrent reports concurrency unavailable when disabled" {
     var runtime = AsyncRuntime.init(std.testing.allocator, .{
         .environ = std.process.Environ.empty,
+        .async_limit = .nothing,
         .concurrent_limit = .nothing,
     });
     defer runtime.deinit();

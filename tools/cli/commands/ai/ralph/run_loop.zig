@@ -97,7 +97,9 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
 
     // Merge fallback: CLI flag wins, otherwise use config value
     if (fallback_buf.items.len == 0 and ralph_cfg.llm_fallback.len > 0) {
-        appendProvidersCsv(allocator, &fallback_buf, ralph_cfg.llm_fallback) catch {};
+        appendProvidersCsv(allocator, &fallback_buf, ralph_cfg.llm_fallback) catch |err| {
+            std.log.warn("Failed to append fallback providers: {}", .{err});
+        };
     }
     const fallback_slice = try fallback_buf.toOwnedSlice(allocator);
     defer allocator.free(fallback_slice);
@@ -171,12 +173,16 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         };
         defer allocator.free(result);
 
-        engine.recordRalphRun(goal, max_iterations, result.len, 1.0) catch {};
+        engine.recordRalphRun(goal, max_iterations, result.len, 1.0) catch |err| {
+            std.log.warn("Failed to record ralph run stats: {}", .{err});
+        };
 
         // Skill storage (with engine support)
         var skills_added: u64 = 0;
         if (store_skill) |s| {
-            _ = engine.storeSkill(s) catch {};
+            _ = engine.storeSkill(s) catch |err| {
+                std.log.warn("Failed to store discovered skill: {}", .{err});
+            };
             skills_store.appendSkill(allocator, io, s, null, 1.0) catch |err| {
                 utils.output.printWarning("Could not persist skill: {t}", .{err});
             };
@@ -187,7 +193,9 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
             const stored = engine.extractAndStoreSkill(goal, result) catch false;
             if (stored) {
                 if (firstSentence(result)) |lesson| {
-                    skills_store.appendSkill(allocator, io, lesson, null, 0.8) catch {};
+                    skills_store.appendSkill(allocator, io, lesson, null, 0.8) catch |err| {
+                        std.log.warn("Failed to persist extracted skill: {}", .{err});
+                    };
                 }
                 skills_added += 1;
                 utils.output.printSuccess("Auto-skill extracted and stored.", .{});

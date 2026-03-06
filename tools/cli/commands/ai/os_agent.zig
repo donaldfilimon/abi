@@ -684,7 +684,7 @@ fn printHelp() void {
     utils.output.println("Options:", .{});
     utils.output.println("  -m, --message <msg>   Send single message (non-interactive)", .{});
     utils.output.println("  -s, --session <name>  Session name (default: os-agent-default)", .{});
-    utils.output.println("  --backend <name>      LLM backend: echo, openai, ollama, huggingface", .{});
+    utils.output.println("  --backend <name>      LLM backend: provider_router, echo, openai, ollama, huggingface, anthropic, gemini, codex, llama_cpp", .{});
     utils.output.println("  --model <name>        Model name for the backend", .{});
     utils.output.println("  --self-aware          Enable codebase indexing for self-awareness", .{});
     utils.output.println("  --no-confirm          Skip confirmation for destructive operations", .{});

@@ -123,7 +123,10 @@ test "tools: createContext with working directory" {
     if (!build_options.enable_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
-    const ctx = tools.createContext(allocator, "/home/user/project");
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    var io = io_backend.io();
+    const ctx = tools.createContext(allocator, "/home/user/project", &io);
     try std.testing.expectEqualStrings("/home/user/project", ctx.working_directory);
     try std.testing.expect(ctx.environment == null);
     try std.testing.expect(ctx.cancellation == null);

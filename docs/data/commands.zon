@@ -210,6 +210,12 @@
         },
     },
     .{
+        .name = "matrix",
+        .description = "Enter the dream state (Native Terminal Animation)",
+        .aliases = .{},
+        .subcommands = .{"help"},
+    },
+    .{
         .name = "mcp",
         .description = "MCP server for WDBX database or ZLS (serve, tools)",
         .aliases = .{},

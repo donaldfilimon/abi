@@ -135,11 +135,7 @@ fn executeMdnsBroadcast(ctx: *Context, args: json.Value) ToolExecutionError!Tool
     // Stub: In full networking matrix, this binds a UDP socket on 5353 and broadcasts presence
     std.log.info("[Network P2P] Emitting mDNS broadcast for service discovery on {s}...", .{service_name});
 
-    const output = try std.fmt.allocPrint(
-        ctx.allocator, 
-        "mDNS discovery packet sent on {s}. Awaiting swarm peers.", 
-        .{service_name}
-    );
+    const output = try std.fmt.allocPrint(ctx.allocator, "mDNS discovery packet sent on {s}. Awaiting swarm peers.", .{service_name});
 
     return ToolResult.init(ctx.allocator, true, output);
 }
@@ -158,10 +154,7 @@ fn executeSyncWdbxShards(ctx: *Context, args: json.Value) ToolExecutionError!Too
     // Stub: In full implementation, this iterates the `knowledge_dedup_map` and broadcasts chunks over UDP
     std.log.info("[Network P2P] Broadcasting WDBX neural shards to cluster nodes via UDP...", .{});
 
-    const output = try std.fmt.allocPrint(
-        ctx.allocator, 
-        "WDBX synchronizing. {d} neural shards pushed to swarm.", 
-        .{12} // mock count
+    const output = try std.fmt.allocPrint(ctx.allocator, "WDBX synchronizing. {d} neural shards pushed to swarm.", .{12} // mock count
     );
 
     return ToolResult.init(ctx.allocator, true, output);
@@ -205,8 +198,20 @@ test "network_connections_tool creation" {
     try std.testing.expectEqualStrings("network_connections", network_connections_tool.name);
 }
 
-test "all_tools count" {
-    try std.testing.expectEqual(@as(usize, 3), all_tools.len);
+fn hasToolNamed(name: []const u8) bool {
+    for (all_tools) |entry| {
+        if (std.mem.eql(u8, entry.name, name)) return true;
+    }
+    return false;
+}
+
+test "all_tools includes required registrations" {
+    try std.testing.expect(all_tools.len >= 5);
+    try std.testing.expect(hasToolNamed("list_ports"));
+    try std.testing.expect(hasToolNamed("dns_lookup"));
+    try std.testing.expect(hasToolNamed("network_connections"));
+    try std.testing.expect(hasToolNamed("mdns_broadcast"));
+    try std.testing.expect(hasToolNamed("sync_wdbx_shards"));
 }
 
 test {

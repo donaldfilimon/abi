@@ -35,18 +35,18 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         utils.output.printError("Git pull failed:\n{s}", .{pull_result.stderr});
         return error.UpdateFailed;
     }
-    
+
     const pull_out = std.mem.trim(u8, pull_result.stdout, " \r\n");
     if (std.mem.eql(u8, pull_out, "Already up to date.")) {
         utils.output.printSuccess("ABI Framework is already up to date.", .{});
         return;
     }
-    
+
     utils.output.printSuccess("Successfully pulled latest changes.", .{});
 
     // 2. Rebuild
     utils.output.printInfo("Recompiling ABI framework with Zig 0.16...", .{});
-    
+
     // Using zig build
     const build_cmd = try std.fmt.allocPrint(allocator, "zig build install", .{});
     defer allocator.free(build_cmd);

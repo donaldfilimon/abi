@@ -877,7 +877,7 @@ test "pool coalescing" {
     defer pool.deinit();
 
     // Allocate and free many times
-    var buffers: [10]*memory.GpuBuffer = undefined;
+    var buffers: [10]?*memory.GpuBuffer = [_]?*memory.GpuBuffer{null} ** 10;
     for (&buffers) |*buf| {
         buf.* = try pool.allocate(256, .{});
     }
@@ -901,7 +901,7 @@ test "memory pressure handling" {
     defer pool.deinit();
 
     // Fill pool close to capacity
-    var buffers: [3]*memory.GpuBuffer = undefined;
+    var buffers: [3]?*memory.GpuBuffer = [_]?*memory.GpuBuffer{null} ** 3;
     for (&buffers) |*buf| {
         buf.* = try pool.allocate(1024, .{});
     }

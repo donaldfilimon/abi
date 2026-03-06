@@ -233,7 +233,7 @@ pub const ServiceDiscovery = struct {
 
         var port_buf: [8]u8 = undefined;
         // SAFETY: u16 max is 65535 (5 digits), buffer is 8 bytes - cannot overflow
-        const port_str = std.fmt.bufPrint(&port_buf, "{d}", .{self.config.service_port}) catch unreachable;
+        const port_str = std.fmt.bufPrint(&port_buf, "{d}", .{self.config.service_port}) catch return error.FormatFailed;
         try buffer.appendSlice(self.allocator, port_str);
 
         try buffer.appendSlice(self.allocator, ",\"Tags\":[");
@@ -247,7 +247,7 @@ pub const ServiceDiscovery = struct {
 
         var ttl_buf: [24]u8 = undefined;
         // SAFETY: u64 max is 20 digits + 's' suffix = 21 chars, buffer is 24 bytes - cannot overflow
-        const ttl_str = std.fmt.bufPrint(&ttl_buf, "{d}s", .{self.config.ttl_seconds}) catch unreachable;
+        const ttl_str = std.fmt.bufPrint(&ttl_buf, "{d}s", .{self.config.ttl_seconds}) catch return error.FormatFailed;
         try buffer.appendSlice(self.allocator, ttl_str);
         try buffer.appendSlice(self.allocator, "\"}}");
 
@@ -429,13 +429,13 @@ pub const ServiceDiscovery = struct {
 
         var port_buf: [8]u8 = undefined;
         // SAFETY: u16 max is 65535 (5 digits), buffer is 8 bytes - cannot overflow
-        const port_str = std.fmt.bufPrint(&port_buf, "{d}", .{self.config.service_port}) catch unreachable;
+        const port_str = std.fmt.bufPrint(&port_buf, "{d}", .{self.config.service_port}) catch return error.FormatFailed;
         try buffer.appendSlice(self.allocator, port_str);
         try buffer.appendSlice(self.allocator, ",\"timestamp\":");
 
         var ts_buf: [24]u8 = undefined;
         // SAFETY: i64 timestamp max is 20 digits + sign = 21 chars, buffer is 24 bytes - cannot overflow
-        const ts_str = std.fmt.bufPrint(&ts_buf, "{d}", .{time.nowMilliseconds()}) catch unreachable;
+        const ts_str = std.fmt.bufPrint(&ts_buf, "{d}", .{time.nowMilliseconds()}) catch return error.FormatFailed;
         try buffer.appendSlice(self.allocator, ts_str);
         try buffer.appendSlice(self.allocator, "}");
 
@@ -747,7 +747,7 @@ pub const ServiceDiscovery = struct {
         if (body.len > 0) {
             try req_buf.appendSlice(self.allocator, "Content-Type: application/json\r\nContent-Length: ");
             var len_buf: [20]u8 = undefined;
-            const len_str = std.fmt.bufPrint(&len_buf, "{d}", .{body.len}) catch unreachable;
+            const len_str = std.fmt.bufPrint(&len_buf, "{d}", .{body.len}) catch return error.FormatFailed;
             try req_buf.appendSlice(self.allocator, len_str);
             try req_buf.appendSlice(self.allocator, "\r\n");
         }

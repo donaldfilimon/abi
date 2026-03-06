@@ -309,11 +309,7 @@ fn executeSearchCodebase(ctx: *Context, args: json.Value) ToolExecutionError!Too
 
     // Native implementation mapping over CodebaseIndexer capabilities without external process spawning
     const context_mod = @import("../context_engine/codebase_indexer.zig");
-    var io_backend = std.Io.Threaded.init(ctx.allocator, .{ .environ = std.process.Environ.empty });
-    defer io_backend.deinit();
-
-    var io = io_backend.io();
-    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, &io);
+    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, ctx.io);
     defer indexer.deinit();
 
     const output = indexer.searchCodebase(dir_path, pattern) catch |err| {
@@ -345,11 +341,7 @@ fn executeAnalyzeFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     } else return ToolResult.fromError(ctx.allocator, "Missing file_path");
 
     const context_mod = @import("../context_engine/codebase_indexer.zig");
-    var io_backend = std.Io.Threaded.init(ctx.allocator, .{ .environ = std.process.Environ.empty });
-    defer io_backend.deinit();
-
-    var io = io_backend.io();
-    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, &io);
+    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, ctx.io);
     defer indexer.deinit();
 
     const output = indexer.analyzeFile(file_path) catch |err| {
@@ -397,9 +389,20 @@ test "find_tool creation" {
     try testing.expectEqualStrings("find", find_tool.name);
 }
 
-test "all_tools count" {
+fn hasToolNamed(name: []const u8) bool {
+    for (all_tools) |entry| {
+        if (std.mem.eql(u8, entry.name, name)) return true;
+    }
+    return false;
+}
+
+test "all_tools includes required registrations" {
     const testing = std.testing;
-    try testing.expectEqual(@as(usize, 2), all_tools.len);
+    try testing.expect(all_tools.len >= 4);
+    try testing.expect(hasToolNamed("grep"));
+    try testing.expect(hasToolNamed("find"));
+    try testing.expect(hasToolNamed("search_codebase"));
+    try testing.expect(hasToolNamed("analyze_file"));
 }
 
 test {

@@ -39,10 +39,10 @@ pub const CodebaseIndexer = struct {
     /// Recursively traverse a directory and collect file semantics.
     /// In a full implementation, this would integrate deeply with AST parsing and WDBX.
     pub fn indexDirectory(self: *CodebaseIndexer, dir_path: []const u8) ![]IndexEntry {
-        var results = std.ArrayList(IndexEntry).init(self.allocator);
+        var results = std.ArrayListUnmanaged(IndexEntry).empty;
         errdefer {
             for (results.items) |*entry| entry.deinit(self.allocator);
-            results.deinit();
+            results.deinit(self.allocator);
         }
 
         var dir = try std.Io.Dir.cwd().openDir(self.io.*, dir_path, .{ .iterate = true });
@@ -61,7 +61,7 @@ pub const CodebaseIndexer = struct {
             const is_source = std.mem.eql(u8, ext, ".zig") or
                 std.mem.eql(u8, ext, ".md") or
                 std.mem.eql(u8, ext, ".zon");
-            
+
             if (!is_source) continue;
 
             const full_path = try std.fs.path.join(self.allocator, &.{ dir_path, entry.path });
@@ -77,7 +77,7 @@ pub const CodebaseIndexer = struct {
             const language = if (ext.len > 1) try self.allocator.dupe(u8, ext[1..]) else try self.allocator.dupe(u8, "unknown");
             errdefer self.allocator.free(language);
 
-            try results.append(.{
+            try results.append(self.allocator, .{
                 .file_path = full_path,
                 .content = content,
                 .tokens = content.len / 4, // Rough token estimation
@@ -85,7 +85,7 @@ pub const CodebaseIndexer = struct {
             });
         }
 
-        return results.toOwnedSlice();
+        return results.toOwnedSlice(self.allocator);
     }
 
     /// Re-write a file's content securely.
@@ -100,7 +100,7 @@ pub const CodebaseIndexer = struct {
     pub fn embedCodebase(self: *CodebaseIndexer, dir_path: []const u8, wdbx_engine: anytype, embedder: anytype) !void {
         _ = embedder; // Use wdbx_engine's internal AI client for now
         std.log.info("Starting codebase embedding for: {s}", .{dir_path});
-        
+
         const entries = try self.indexDirectory(dir_path);
         defer {
             for (entries) |*e| e.deinit(self.allocator);
@@ -109,27 +109,27 @@ pub const CodebaseIndexer = struct {
 
         var total_tokens: usize = 0;
         var total_chunks: usize = 0;
-        
+
         for (entries) |e| {
             total_tokens += e.tokens;
-            
+
             // Simple chunking by double newline (paragraphs/functions)
             var chunk_idx: usize = 0;
             var iter = std.mem.splitSequence(u8, e.content, "\n\n");
-            
+
             while (iter.next()) |chunk| {
                 const trimmed = std.mem.trim(u8, chunk, " \t\r\n");
                 if (trimmed.len < 20) continue; // Skip very small meaningless chunks
 
-                const id = try std.fmt.allocPrint(self.allocator, "{s}#{d}", .{e.file_path, chunk_idx});
+                const id = try std.fmt.allocPrint(self.allocator, "{s}#{d}", .{ e.file_path, chunk_idx });
                 defer self.allocator.free(id);
 
                 // Index chunk directly into the engine.
                 // Assuming wdbx_engine is a *wdbx.Engine
                 wdbx_engine.index(id, trimmed, .empty) catch |err| {
-                    std.log.warn("Failed to index chunk {s}: {}", .{id, err});
+                    std.log.warn("Failed to index chunk {s}: {}", .{ id, err });
                 };
-                
+
                 chunk_idx += 1;
                 total_chunks += 1;
             }
@@ -144,26 +144,22 @@ pub const CodebaseIndexer = struct {
             return error.FileNotFound;
         };
         defer self.allocator.free(content);
-        
+
         // Count rough tokens and lines for summary
         var line_count: usize = 0;
         var iter = std.mem.splitSequence(u8, content, "\n");
         while (iter.next()) |_| {
             line_count += 1;
         }
-        
-        return try std.fmt.allocPrint(
-            self.allocator, 
-            "File: {s}\nLines: {d}\nEstimated Tokens: {d}\nContent Snippet: {s}...", 
-            .{file_path, line_count, content.len / 4, if (content.len > 500) content[0..500] else content}
-        );
+
+        return try std.fmt.allocPrint(self.allocator, "File: {s}\nLines: {d}\nEstimated Tokens: {d}\nContent Snippet: {s}...", .{ file_path, line_count, content.len / 4, if (content.len > 500) content[0..500] else content });
     }
 
     /// Search codebase for string literals natively.
     pub fn searchCodebase(self: *CodebaseIndexer, dir_path: []const u8, pattern: []const u8) ![]const u8 {
         var results = std.ArrayListUnmanaged(u8).empty;
         defer results.deinit(self.allocator);
-        
+
         var dir = try std.Io.Dir.cwd().openDir(self.io.*, dir_path, .{ .iterate = true });
         defer dir.close(self.io.*);
 

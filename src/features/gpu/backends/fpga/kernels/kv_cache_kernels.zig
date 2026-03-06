@@ -194,7 +194,7 @@ pub const HierarchicalKVCache = struct {
 
         // Try to reuse a free block
         if (self.free_blocks.items.len > 0) {
-            block_id = self.free_blocks.pop() orelse unreachable;
+            block_id = self.free_blocks.popOrNull() orelse return error.NoFreeBlocks;
             var block = &self.blocks.items[block_id];
             block.layer = layer;
             block.seq_offset = seq_offset;

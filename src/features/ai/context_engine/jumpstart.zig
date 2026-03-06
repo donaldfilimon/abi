@@ -1,10 +1,10 @@
 //! Knowledge Jumpstart Protocol
 //!
 //! A localized bootstrapping mechanism designed to query pre-installed
-//! system tools (like Ollama or OpenAI compatible endpoints) for 
+//! system tools (like Ollama or OpenAI compatible endpoints) for
 //! foundational knowledge extraction.
 //!
-//! Once the WDBX matrix is saturated with the necessary context, 
+//! Once the WDBX matrix is saturated with the necessary context,
 //! the jumpstart cord is severed and the native ABI neural engine takes over.
 
 const std = @import("std");
@@ -52,7 +52,7 @@ pub const KnowledgeJumpstart = struct {
     pub fn isFullyAutonomous(self: *const KnowledgeJumpstart) bool {
         _ = self;
         // Stub: Check WDBX node density
-        return true; 
+        return true;
     }
 };
 

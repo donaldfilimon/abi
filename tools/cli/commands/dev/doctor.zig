@@ -47,7 +47,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // 2. Framework initialization
     {
         var fw = abi.App.initDefault(allocator) catch |err| {
-            var buf: [128]u8 = undefined;
+            var buf: [128]u8 = [_]u8{0} ** 128;
             const detail = std.fmt.bufPrint(&buf, "init failed: {t}", .{err}) catch "init failed";
             printCheck("Framework init", false, detail);
             checks_failed += 1;
@@ -79,7 +79,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             }
             checks_warned += 1;
         } else {
-            var buf: [64]u8 = undefined;
+            var buf: [64]u8 = [_]u8{0} ** 64;
             const detail = std.fmt.bufPrint(&buf, "{d} device(s) found", .{devices.len}) catch "found";
             printCheck("GPU devices", true, detail);
             checks_passed += 1;
@@ -98,7 +98,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             null;
 
         if (ollama_host) |host| {
-            var buf: [128]u8 = undefined;
+            var buf: [128]u8 = [_]u8{0} ** 128;
             const detail = std.fmt.bufPrint(&buf, "configured ({s})", .{host}) catch "configured";
             printCheck("Ollama host", true, detail);
             checks_passed += 1;
@@ -135,7 +135,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             defer fw2.deinit();
             if (fw2.isEnabled(tag)) enabled_count += 1;
         }
-        var buf: [64]u8 = undefined;
+        var buf: [64]u8 = [_]u8{0} ** 64;
         const detail = std.fmt.bufPrint(&buf, "{d}/{d} enabled", .{ enabled_count, features.len }) catch "checked";
         printCheck("Feature modules", enabled_count > 0, detail);
         if (enabled_count > 0) checks_passed += 1 else checks_failed += 1;
@@ -183,7 +183,7 @@ fn checkEnvVar(comptime env_name: [*:0]const u8, label: []const u8, passed: *usi
         const val = std.mem.sliceTo(ptr, 0);
         if (val.len > 4) {
             // Redact: show first 4 chars
-            var buf: [64]u8 = undefined;
+            var buf: [64]u8 = [_]u8{0} ** 64;
             const detail = std.fmt.bufPrint(&buf, "set ({s}...)", .{val[0..4]}) catch "set";
             printCheck(label, true, detail);
         } else {

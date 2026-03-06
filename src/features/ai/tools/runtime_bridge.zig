@@ -1,6 +1,6 @@
 //! Runtime Bridge Module
 //!
-//! Provides ABI with a secure, native execution sandbox to dynamically 
+//! Provides ABI with a secure, native execution sandbox to dynamically
 //! synthesize and evaluate Python and JavaScript code on the host machine.
 //! This vastly expands ABI's computational and data-manipulation capabilities.
 
@@ -52,10 +52,10 @@ pub const RuntimeBridge = struct {
         };
 
         // Write synthetic script to a temporary file
-        var tmp_name_buf: [64]u8 = undefined;
+        var tmp_name_buf: [64]u8 = [_]u8{0} ** 64;
         const ts = @import("../../../services/shared/time.zig").timestampMs();
-        const tmp_file_name = try std.fmt.bufPrint(&tmp_name_buf, ".abi_synthetic_script_{d}{s}", .{ts, ext});
-        
+        const tmp_file_name = try std.fmt.bufPrint(&tmp_name_buf, ".abi_synthetic_script_{d}{s}", .{ ts, ext });
+
         var file = try std.Io.Dir.cwd().createFile(self.io.*, tmp_file_name, .{ .truncate = true });
         try file.writeStreamingAll(self.io.*, script_content);
         file.close(self.io.*);
@@ -63,7 +63,7 @@ pub const RuntimeBridge = struct {
         // Ensure we cleanup the temp script
         defer std.Io.Dir.cwd().deleteFile(self.io.*, tmp_file_name) catch {};
 
-        std.log.info("[Runtime Bridge] Executing {s} script via {s}...", .{ext, bin_name});
+        std.log.info("[Runtime Bridge] Executing {s} script via {s}...", .{ ext, bin_name });
 
         // Setup execution arguments
         var args = std.ArrayListUnmanaged([]const u8).empty;

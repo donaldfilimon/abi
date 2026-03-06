@@ -24,7 +24,7 @@ pub const TriadEngine = struct {
         };
 
         // Deep Soul Prompt Integration into WDBX Neural Matrix
-        // Since we are running natively without external APIs by default, we embed a synthetic 
+        // Since we are running natively without external APIs by default, we embed a synthetic
         // high-dimensional anchor vector representing the Soul Prompt's gravity.
         var soul_vector: [1536]f32 = .{0} ** 1536;
         soul_vector[0] = 1.0; // Anchor dimension
@@ -72,11 +72,7 @@ pub const TriadEngine = struct {
             abbey_context = "Found aligned historical precedent.";
         }
 
-        ctx.output = std.fmt.allocPrint(
-            ctx.engine.allocator,
-            "Aligning intent '{s}' with Soul Prompt. Status: {s}",
-            .{ ctx.input, abbey_context }
-        ) catch |err| {
+        ctx.output = std.fmt.allocPrint(ctx.engine.allocator, "Aligning intent '{s}' with Soul Prompt. Status: {s}", .{ ctx.input, abbey_context }) catch |err| {
             ctx.err = err;
             return; // Set null implicitly or leave it as initialized null
         };
@@ -84,22 +80,14 @@ pub const TriadEngine = struct {
 
     fn avivaWorker(ctx: *ThreadContext) void {
         if (std.mem.indexOf(u8, ctx.input, "CRITICAL_ERROR") != null) {
-            ctx.output = std.fmt.allocPrint(
-                ctx.engine.allocator,
-                "I have detected a fatal hallucination. Rewriting the prompt matrix.",
-                .{}
-            ) catch |err| {
+            ctx.output = std.fmt.allocPrint(ctx.engine.allocator, "I have detected a fatal hallucination. Rewriting the prompt matrix.", .{}) catch |err| {
                 ctx.err = err;
                 return;
             };
             return;
         }
 
-        ctx.output = std.fmt.allocPrint(
-            ctx.engine.allocator,
-            "Scanning '{s}' for execution vulnerabilities. Risk index nominal.",
-            .{ ctx.input }
-        ) catch |err| {
+        ctx.output = std.fmt.allocPrint(ctx.engine.allocator, "Scanning '{s}' for execution vulnerabilities. Risk index nominal.", .{ctx.input}) catch |err| {
             ctx.err = err;
             return;
         };
@@ -113,7 +101,7 @@ pub const TriadEngine = struct {
             .output = null,
             .err = null,
         };
-        
+
         var aviva_ctx = ThreadContext{
             .engine = self,
             .input = input,
@@ -154,11 +142,7 @@ pub const TriadEngine = struct {
             .text = "Interaction snapshot",
         });
 
-        const final_out = try std.fmt.allocPrint(
-            self.allocator,
-            "Synthesized Action. Permanently embedded interaction into WDBX matrix at node '{s}'.",
-            .{interaction_id}
-        );
+        const final_out = try std.fmt.allocPrint(self.allocator, "Synthesized Action. Permanently embedded interaction into WDBX matrix at node '{s}'.", .{interaction_id});
 
         return SynthesisResult{
             .abbey_analysis = abbey_out,
@@ -171,7 +155,7 @@ pub const TriadEngine = struct {
     pub fn criticalOverride(self: *TriadEngine, input: []const u8) !SynthesisResult {
         _ = input;
         std.log.err("[Aviva Override] Catastrophic logic flaw detected. Entering Self-Healing State.", .{});
-        
+
         const abbey_out = try self.allocator.dupe(u8, "[HALTED] Constructive execution suspended by Aviva.");
         const aviva_out = try self.allocator.dupe(u8, "I have detected a fatal hallucination. Rewriting the prompt matrix based on the Soul Prompt.");
         const final_out = try self.allocator.dupe(u8, "Action aborted. System is structurally self-healing.");

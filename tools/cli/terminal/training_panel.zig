@@ -612,7 +612,9 @@ pub const TrainingPanel = struct {
         self.width = panelWidthFromTerminalCols(term.size().cols);
 
         // Initial load
-        self.loadMetricsFile(self.buildMetricsPath()) catch {};
+        self.loadMetricsFile(self.buildMetricsPath()) catch |err| {
+            std.log.debug("No metrics found at start: {}", .{err});
+        };
 
         // Create a wrapper writer for the terminal
         const TermWriter = struct {
@@ -622,7 +624,9 @@ pub const TrainingPanel = struct {
             pub fn print(writer: @This(), comptime fmt: []const u8, print_args: anytype) Error!void {
                 var buf: [1024]u8 = undefined;
                 const output = std.fmt.bufPrint(&buf, fmt, print_args) catch return;
-                writer.terminal.write(output) catch {};
+                writer.terminal.write(output) catch |err| {
+                    std.log.warn("Failed to write to terminal: {}", .{err});
+                };
             }
         };
         const writer = TermWriter{ .terminal = term };
@@ -632,7 +636,9 @@ pub const TrainingPanel = struct {
             const now_ms = abi.services.shared.utils.unixMs();
             if (shouldRefreshAt(now_ms, self.last_refresh, self.config.refresh_ms)) {
                 // Pull latest metrics incrementally.
-                _ = self.pollMetrics() catch {};
+                _ = self.pollMetrics() catch |err| {
+                    std.log.warn("Failed to poll metrics: {}", .{err});
+                };
                 self.last_refresh = now_ms;
                 needs_render = true;
             }
@@ -690,7 +696,9 @@ pub const TrainingPanel = struct {
                         switch (action) {
                             .quit => return true,
                             .refresh => {
-                                _ = self.pollMetrics() catch {};
+                                _ = self.pollMetrics() catch |err| {
+                                    std.log.warn("Failed to poll metrics: {}", .{err});
+                                };
                             },
                             .help => {
                                 self.show_help = true;

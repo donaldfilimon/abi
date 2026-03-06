@@ -169,7 +169,7 @@ pub fn cloneEntry(allocator: std.mem.Allocator, entry: PluginEntry) !PluginEntry
 }
 
 pub fn defaultPath(allocator: std.mem.Allocator) ![]u8 {
-    return app_paths.resolvePath(allocator, "llm_plugins.json");
+    return app_paths.resolvePath(allocator, "llm_plugins.zon");
 }
 
 pub fn loadDefault(allocator: std.mem.Allocator) !Manifest {
@@ -514,9 +514,9 @@ test "loadDefaultFromPaths falls back to legacy when primary is missing" {
     const base = try std.fmt.allocPrint(allocator, ".zig-cache/{s}", .{tmp.sub_path[0..sub_path_len]});
     defer allocator.free(base);
 
-    const primary_path = try std.fs.path.join(allocator, &.{ base, "llm_plugins.primary.json" });
+    const primary_path = try std.fs.path.join(allocator, &.{ base, "llm_plugins.primary.zon" });
     defer allocator.free(primary_path);
-    const legacy_path = try std.fs.path.join(allocator, &.{ base, "llm_plugins.legacy.json" });
+    const legacy_path = try std.fs.path.join(allocator, &.{ base, "llm_plugins.legacy.zon" });
     defer allocator.free(legacy_path);
 
     var legacy_manifest = Manifest.init(allocator);

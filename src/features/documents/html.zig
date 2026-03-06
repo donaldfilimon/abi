@@ -28,7 +28,7 @@ pub const HtmlParser = struct {
 
     pub fn parse(self: *HtmlParser, raw_html: []const u8) !DomNode {
         std.log.info("[HTML Parser] Natively tokenizing DOM ({d} bytes)...", .{raw_html.len});
-        
+
         var root = DomNode{
             .tag = try self.allocator.dupe(u8, "root"),
             .text_content = null,
@@ -69,7 +69,7 @@ pub const HtmlParser = struct {
                 const tag_content = std.mem.trim(u8, raw_html[tag_start..i], " \t\r\n/");
                 var iter = std.mem.splitScalar(u8, tag_content, ' ');
                 const tag_name_raw = iter.first();
-                
+
                 var tag_name = try self.allocator.dupe(u8, tag_name_raw);
                 for (tag_name) |*char| char.* = std.ascii.toLower(char.*);
                 defer self.allocator.free(tag_name);
@@ -102,9 +102,9 @@ pub const HtmlParser = struct {
                             .text_content = null,
                             .children = .empty,
                         };
-                        
+
                         try current_parent.children.append(self.allocator, new_node);
-                        
+
                         // Self-closing tags heuristics
                         if (!std.mem.eql(u8, base_tag, "br") and !std.mem.eql(u8, base_tag, "img") and !std.mem.eql(u8, base_tag, "hr") and !std.mem.eql(u8, base_tag, "meta") and !std.mem.eql(u8, base_tag, "link")) {
                             const ref = &current_parent.children.items[current_parent.children.items.len - 1];

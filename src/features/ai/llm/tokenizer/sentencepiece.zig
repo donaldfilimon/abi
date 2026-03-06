@@ -286,7 +286,7 @@ pub const SentencePieceTokenizer = struct {
     ) !void {
         // Try to find byte tokens (e.g., <0x41> for 'A')
         for (text) |byte| {
-            var buf: [8]u8 = undefined;
+            var buf: [8]u8 = [_]u8{0} ** 8;
             const byte_token = std.fmt.bufPrint(&buf, "<0x{X:0>2}>", .{byte}) catch {
                 try tokens.append(allocator, self.special.unk_id);
                 continue;

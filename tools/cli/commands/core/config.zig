@@ -348,7 +348,7 @@ fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     };
     defer file.close(io);
 
-    file.writeStreamingAll(io, getDefaultConfigJson()) catch |err| {
+    file.writeStreamingAll(io, getDefaultConfigZon()) catch |err| {
         utils.output.printError("writing config file: {t}", .{err});
         return;
     };
@@ -392,13 +392,13 @@ fn printHelp() void {
         "  -f, --format <fmt>   Output format: human, json, zon (default: human)\n\n" ++
         "Examples:\n" ++
         "  abi config init                    Create default abi.zon\n" ++
-        "  abi config init -o myabi.zon   Create JSON config file\n" ++
+        "  abi config init -o myabi.zon       Create config file at a custom path\n" ++
         "  abi config setup                   Bootstrap user config in platform location\n" ++
         "  abi config path                    Print user config path\n" ++
         "  abi config show                    Show default configuration\n" ++
-        "  abi config show abi.json           Show file configuration\n" ++
+        "  abi config show abi.zon           Show file configuration\n" ++
         "  abi config show -f json            Show as JSON\n" ++
-        "  abi config validate abi.json       Validate config file\n" ++
+        "  abi config validate abi.zon       Validate config file\n" ++
         "  abi config env                     List environment variables\n";
     utils.output.print("{s}", .{help_text});
 }

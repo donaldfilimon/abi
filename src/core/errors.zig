@@ -157,7 +157,7 @@ test "lifecycle errors are distinct" {
     const err: LifecycleError = error.AlreadyInitialized;
     switch (err) {
         error.AlreadyInitialized => {},
-        else => unreachable,
+        else => return error.TestFailed,
     }
 }
 

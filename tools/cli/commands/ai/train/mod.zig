@@ -101,6 +101,7 @@ pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !vo
     if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.println("Did you mean: {s}", .{suggestion});
     }
+    return error.ExecutionFailed;
 }
 
 pub fn printHelp() void {

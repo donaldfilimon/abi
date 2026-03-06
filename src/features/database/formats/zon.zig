@@ -413,7 +413,7 @@ test "zon format version constant" {
 
 test "distance metric enum" {
     // Use {t} format specifier instead of @tagName (Zig 0.16)
-    var buf: [32]u8 = undefined;
+    var buf: [32]u8 = [_]u8{0} ** 32;
     try std.testing.expectEqualStrings("euclidean", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.euclidean}) catch "");
     try std.testing.expectEqualStrings("cosine", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.cosine}) catch "");
     try std.testing.expectEqualStrings("dot_product", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.dot_product}) catch "");

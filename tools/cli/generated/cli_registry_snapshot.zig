@@ -31,6 +31,7 @@ pub const doctor = @import("../commands/dev/doctor.zig");
 pub const env = @import("../commands/dev/env.zig");
 pub const gendocs = @import("../commands/dev/gendocs.zig");
 pub const lsp = @import("../commands/dev/lsp.zig");
+pub const matrix = @import("../commands/dev/matrix.zig");
 pub const status = @import("../commands/dev/status.zig");
 pub const task = @import("../commands/dev/task.zig");
 pub const toolchain = @import("../commands/dev/toolchain.zig");
@@ -70,6 +71,7 @@ pub const command_modules = .{
     env,
     gendocs,
     lsp,
+    matrix,
     status,
     task,
     toolchain,

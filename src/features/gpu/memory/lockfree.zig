@@ -868,8 +868,15 @@ test "lock-free pool concurrent stress test" {
     defer pool.deinit();
 
     var threads: [thread_count]std.Thread = undefined;
-    var success_counts: [thread_count]std.atomic.Value(usize) = undefined;
-    var error_counts: [thread_count]std.atomic.Value(usize) = undefined;
+    var spawned_threads: usize = 0;
+    errdefer {
+        var i: usize = 0;
+        while (i < spawned_threads) : (i += 1) {
+            threads[i].join();
+        }
+    }
+    var success_counts: [thread_count]std.atomic.Value(usize) = [_]std.atomic.Value(usize){std.atomic.Value(usize).init(0)} ** thread_count;
+    var error_counts: [thread_count]std.atomic.Value(usize) = [_]std.atomic.Value(usize){std.atomic.Value(usize).init(0)} ** thread_count;
 
     for (0..thread_count) |i| {
         success_counts[i] = std.atomic.Value(usize).init(0);
@@ -919,6 +926,7 @@ test "lock-free pool concurrent stress test" {
                 }
             }
         }.worker, .{ &pool, &success_counts[tid], &error_counts[tid] });
+        spawned_threads += 1;
     }
 
     for (&threads) |*t| {

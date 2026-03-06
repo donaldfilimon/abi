@@ -251,12 +251,12 @@ pub fn isPublicPath(path: []const u8, public_paths: []const []const u8) bool {
 /// For production key generation with salted hashing, scopes, and metadata,
 /// use `shared_api_keys.ApiKeyManager.generateKey()`.
 pub fn generateApiKey(allocator: std.mem.Allocator) ![]u8 {
-    var key: [32]u8 = undefined;
+    var key: [32]u8 = [_]u8{0} ** 32;
     std.c.arc4random_buf(&key, key.len);
 
     // SAFETY: 32 bytes × 2 hex chars = 64 chars, buffer is exactly 64 bytes - cannot overflow
-    var hex: [64]u8 = undefined;
-    _ = std.fmt.bufPrint(&hex, "{s}", .{std.fmt.fmtSliceHexLower(&key)}) catch unreachable;
+    var hex: [64]u8 = [_]u8{0} ** 64;
+    _ = std.fmt.bufPrint(&hex, "{s}", .{std.fmt.fmtSliceHexLower(&key)}) catch return error.OutOfMemory;
 
     return try allocator.dupe(u8, &hex);
 }

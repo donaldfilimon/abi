@@ -198,7 +198,7 @@ const ProfileStore = struct {
 
 /// Get path to profiles config file
 fn getProfilesConfigPath(allocator: std.mem.Allocator) ![]u8 {
-    return app_paths.resolvePath(allocator, "profiles.json");
+    return app_paths.resolvePath(allocator, "profiles.zon");
 }
 
 const ProfileLoadState = enum {
@@ -277,9 +277,17 @@ fn loadProfileStore(allocator: std.mem.Allocator) !ProfileStore {
     var store = ProfileStore.init(allocator);
     errdefer store.deinit();
 
-    const config_path = app_paths.resolvePath(allocator, "profiles.json") catch return store;
+    const config_path = getProfilesConfigPath(allocator) catch return store;
     defer allocator.free(config_path);
-    _ = try tryLoadProfileStoreFromPath(allocator, config_path, &store);
+
+    if (try tryLoadProfileStoreFromPath(allocator, config_path, &store) == .loaded) {
+        return store;
+    }
+
+    // Backward-compatibility for older releases that used profiles.json.
+    const legacy_path = app_paths.resolvePath(allocator, "profiles.json") catch return store;
+    defer allocator.free(legacy_path);
+    _ = try tryLoadProfileStoreFromPath(allocator, legacy_path, &store);
 
     return store;
 }
@@ -489,11 +497,11 @@ fn onUnknownSubcommand(command: []const u8) void {
 }
 
 fn getConfigPath(allocator: std.mem.Allocator) ![]const u8 {
-    return app_paths.resolvePath(allocator, "config.json");
+    return app_paths.resolvePath(allocator, "config.zon");
 }
 
 fn getProfilesPrimaryPath(allocator: std.mem.Allocator) ![]u8 {
-    return app_paths.resolvePath(allocator, "profiles.json");
+    return app_paths.resolvePath(allocator, "profiles.zon");
 }
 
 fn printProfilesConfigLocation(allocator: std.mem.Allocator) void {

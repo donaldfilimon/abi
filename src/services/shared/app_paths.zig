@@ -69,10 +69,10 @@ test "resolvePathFor tolerates missing legacy HOME on linux when XDG config exis
     const env: EnvValues = .{
         .xdg_config_home = "/home/tester/.xdg",
     };
-    const path = try resolvePathFor(allocator, .linux, env, "config.json");
+    const path = try resolvePathFor(allocator, .linux, env, "config.zon");
     defer allocator.free(path);
 
-    const expected = try std.fs.path.join(allocator, &.{ "/home/tester/.xdg", "abi", "config.json" });
+    const expected = try std.fs.path.join(allocator, &.{ "/home/tester/.xdg", "abi", "config.zon" });
     defer allocator.free(expected);
 
     try std.testing.expectEqualStrings(expected, path);

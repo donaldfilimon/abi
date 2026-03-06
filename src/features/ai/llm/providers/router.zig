@@ -154,17 +154,17 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    var text: []u8 = undefined;
+    var text: []u8 = &[_]u8{};
     if (client.generate(cfg.prompt, cfg.max_tokens)) |res| {
         text = res;
     } else |err| {
         if (err == error.ConnectionRefused) {
             std.log.info("llama-server not running. Attempting to spawn locally...", .{});
-            
+
             const os = @import("../../../../services/shared/os.zig");
             const cmd = try std.fmt.allocPrint(allocator, "nohup llama-server -m {s} --port 8080 > /tmp/llama-server.log 2>&1 &", .{cfg.model});
             defer allocator.free(cmd);
-            
+
             var result = os.exec(allocator, cmd) catch |spawn_err| {
                 std.log.err("Failed to spawn llama-server: {any}", .{spawn_err});
                 return err;
@@ -402,7 +402,7 @@ fn deinitLmStudioResponse(allocator: std.mem.Allocator, response: *connectors.lm
         allocator.free(choice.finish_reason);
     }
     allocator.free(response.choices);
-    response.* = undefined;
+    // Removed undefined struct assignment
 }
 
 fn deinitVllmResponse(allocator: std.mem.Allocator, response: *connectors.vllm.ChatCompletionResponse) void {
@@ -414,7 +414,7 @@ fn deinitVllmResponse(allocator: std.mem.Allocator, response: *connectors.vllm.C
         allocator.free(choice.finish_reason);
     }
     allocator.free(response.choices);
-    response.* = undefined;
+    // Removed undefined struct assignment
 }
 
 fn deinitAnthropicResponse(allocator: std.mem.Allocator, response: *connectors.anthropic.MessagesResponse) void {
@@ -428,7 +428,7 @@ fn deinitAnthropicResponse(allocator: std.mem.Allocator, response: *connectors.a
         allocator.free(block.text);
     }
     allocator.free(response.content);
-    response.* = undefined;
+    // Removed undefined struct assignment
 }
 
 fn deinitOpenAIResponse(allocator: std.mem.Allocator, response: *connectors.openai.ChatCompletionResponse) void {
@@ -441,7 +441,7 @@ fn deinitOpenAIResponse(allocator: std.mem.Allocator, response: *connectors.open
         allocator.free(choice.finish_reason);
     }
     allocator.free(response.choices);
-    response.* = undefined;
+    // Removed undefined struct assignment
 }
 
 fn generateAnthropic(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.GenerateResult {
@@ -450,7 +450,7 @@ fn generateAnthropic(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !t
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    var response: connectors.anthropic.MessagesResponse = undefined;
+    var response = std.mem.zeroes(connectors.anthropic.MessagesResponse);
 
     if (cfg.messages) |chat_messages| {
         const connector_msgs = try convertToConnectorMessages(allocator, connectors.anthropic.Message, chat_messages);
@@ -489,7 +489,7 @@ fn generateClaude(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !type
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    var response: connectors.claude.MessagesResponse = undefined;
+    var response = std.mem.zeroes(connectors.claude.MessagesResponse);
 
     if (cfg.messages) |chat_messages| {
         const connector_msgs = try convertToConnectorMessages(allocator, connectors.claude.Message, chat_messages);
@@ -528,7 +528,7 @@ fn generateOpenAI(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !type
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    var response: connectors.openai.ChatCompletionResponse = undefined;
+    var response = std.mem.zeroes(connectors.openai.ChatCompletionResponse);
 
     if (cfg.messages) |chat_messages| {
         // Build message list; prepend system prompt if provided
@@ -583,7 +583,7 @@ fn generateCodex(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    var response: connectors.codex.ChatCompletionResponse = undefined;
+    var response = std.mem.zeroes(connectors.codex.ChatCompletionResponse);
 
     if (cfg.messages) |chat_messages| {
         var msg_list = std.ArrayListUnmanaged(connectors.codex.Message).empty;
@@ -637,7 +637,7 @@ fn generateOpenCode(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    var response: connectors.opencode.ChatCompletionResponse = undefined;
+    var response = std.mem.zeroes(connectors.opencode.ChatCompletionResponse);
 
     if (cfg.messages) |chat_messages| {
         var msg_list = std.ArrayListUnmanaged(connectors.opencode.Message).empty;

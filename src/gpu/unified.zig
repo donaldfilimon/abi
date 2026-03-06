@@ -505,7 +505,9 @@ pub const Gpu = struct {
 
         // Record metrics if profiling enabled
         if (self.metrics) |*m| {
-            m.recordKernel("vectorAdd", elapsed) catch {};
+            m.recordKernel("vectorAdd", elapsed) catch |err| {
+                std.log.warn("Failed to record kernel vectorAdd: {any}", .{err});
+            };
         }
 
         return ExecutionResult{
@@ -605,7 +607,9 @@ pub const Gpu = struct {
 
         // Record metrics if profiling enabled
         if (self.metrics) |*m| {
-            m.recordKernel("matrixMultiply", elapsed) catch {};
+            m.recordKernel("matrixMultiply", elapsed) catch |err| {
+                std.log.warn("Failed to record kernel matrixMultiply: {any}", .{err});
+            };
         }
 
         return ExecutionResult{
@@ -643,7 +647,9 @@ pub const Gpu = struct {
                         gpu_executed = res.gpu_executed;
                         if (gpu_executed) {
                             var result_val: [1]f32 = undefined;
-                            rbuf.read(f32, &result_val) catch {};
+                            rbuf.read(f32, &result_val) catch |err| {
+                                std.log.err("Failed to read result buffer: {any}", .{err});
+                            };
                             sum = result_val[0];
                         }
                     }
@@ -667,7 +673,9 @@ pub const Gpu = struct {
 
         // Record metrics if profiling enabled
         if (self.metrics) |*m| {
-            m.recordKernel("reduceSum", elapsed) catch {};
+            m.recordKernel("reduceSum", elapsed) catch |err| {
+                std.log.warn("Failed to record kernel reduceSum: {any}", .{err});
+            };
         }
 
         return .{
@@ -708,7 +716,9 @@ pub const Gpu = struct {
                         gpu_executed = res.gpu_executed;
                         if (gpu_executed) {
                             var result_val: [1]f32 = undefined;
-                            rbuf.read(f32, &result_val) catch {};
+                            rbuf.read(f32, &result_val) catch |err| {
+                                std.log.err("Failed to read result buffer: {any}", .{err});
+                            };
                             sum = result_val[0];
                         }
                     }
@@ -735,7 +745,9 @@ pub const Gpu = struct {
 
         // Record metrics if profiling enabled
         if (self.metrics) |*m| {
-            m.recordKernel("dotProduct", elapsed) catch {};
+            m.recordKernel("dotProduct", elapsed) catch |err| {
+                std.log.warn("Failed to record kernel dotProduct: {any}", .{err});
+            };
         }
 
         return .{
@@ -808,7 +820,9 @@ pub const Gpu = struct {
 
         // Record metrics if profiling enabled
         if (self.metrics) |*m| {
-            m.recordKernel("softmax", elapsed) catch {};
+            m.recordKernel("softmax", elapsed) catch |err| {
+                std.log.warn("Failed to record kernel softmax: {any}", .{err});
+            };
         }
 
         return ExecutionResult{
@@ -863,7 +877,9 @@ pub const Gpu = struct {
 
         // Record metrics if profiling enabled
         if (self.metrics) |*m| {
-            m.recordKernel(kernel.name, elapsed) catch {};
+            m.recordKernel(kernel.name, elapsed) catch |err| {
+                std.log.warn("Failed to record kernel {s}: {any}", .{ kernel.name, err });
+            };
         }
 
         const total_threads = @as(usize, config.global_size[0]) *

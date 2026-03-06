@@ -376,7 +376,9 @@ fn printBalancerStatus(allocator: std.mem.Allocator) void {
 
     // Sync nodes from the registry if available
     if (abi.features.network.defaultRegistry()) |reg| {
-        lb.syncFromRegistry(reg) catch {};
+        lb.syncFromRegistry(reg) catch |err| {
+            std.log.err("Failed to sync load balancer: {}", .{err});
+        };
     } else |_| {}
 
     utils.output.printKeyValueFmt("Strategy", "{t}", .{lb.config.strategy});

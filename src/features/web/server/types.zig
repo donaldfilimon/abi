@@ -66,6 +66,8 @@ pub const ServerState = enum {
 pub const Connection = struct {
     /// Unique connection identifier.
     id: u64,
+    /// Client socket file descriptor.
+    sock: std.posix.socket_t,
     /// Client socket address.
     address: Io.net.IpAddress,
     /// Connection creation timestamp (milliseconds since epoch).
@@ -80,10 +82,11 @@ pub const Connection = struct {
     allocator: std.mem.Allocator,
 
     /// Creates a new connection.
-    pub fn init(allocator: std.mem.Allocator, id: u64, address: Io.net.IpAddress) Connection {
+    pub fn init(allocator: std.mem.Allocator, id: u64, sock: std.posix.socket_t, address: Io.net.IpAddress) Connection {
         const now = time.nowMs();
         return .{
             .id = id,
+            .sock = sock,
             .address = address,
             .created_at = now,
             .last_activity = now,
@@ -230,7 +233,7 @@ test "ServerState transitions" {
 test "Connection lifecycle" {
     const allocator = std.testing.allocator;
     const addr: Io.net.IpAddress = .{ .ip4 = .loopback(12345) };
-    var conn = Connection.init(allocator, 1, addr);
+    var conn = Connection.init(allocator, 1, 0, addr);
 
     try std.testing.expectEqual(@as(u64, 1), conn.id);
     try std.testing.expectEqual(@as(u64, 0), conn.request_count);

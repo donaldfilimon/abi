@@ -51,7 +51,7 @@ pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !vo
         printHelp();
         return;
     }
-    
+
     // If it starts with a dash, they forgot a subcommand or are trying to pass global flags
     if (std.mem.startsWith(u8, sub, "-")) {
         utils.output.printError("Options must be passed to a subcommand for 'llm'", .{});

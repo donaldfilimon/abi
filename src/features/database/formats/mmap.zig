@@ -46,7 +46,7 @@ pub const MappedFile = struct {
         const windows = std.os.windows;
 
         // Convert path to null-terminated
-        var path_buf: [std.fs.max_path_bytes:0]u8 = undefined;
+        var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
         if (path.len >= path_buf.len) return error.InvalidFile;
         @memcpy(path_buf[0..path.len], path);
         path_buf[path.len] = 0;
@@ -211,7 +211,7 @@ pub fn createMapped(allocator: std.mem.Allocator, path: []const u8, size: usize)
 fn createWindows(path: []const u8, size: usize) MmapError!MappedFile {
     const windows = std.os.windows;
 
-    var path_buf: [std.fs.max_path_bytes:0]u8 = undefined;
+    var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
     if (path.len >= path_buf.len) return error.InvalidFile;
     @memcpy(path_buf[0..path.len], path);
     path_buf[path.len] = 0;

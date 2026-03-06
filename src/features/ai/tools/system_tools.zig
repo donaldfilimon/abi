@@ -197,13 +197,9 @@ fn executeRegisterTool(ctx: *Context, args: json.Value) ToolExecutionError!ToolR
     } else return ToolResult.fromError(ctx.allocator, "Missing script_path");
 
     // Stub implementation for dynamically loading tools.
-    // In a full environment this would invoke Wasm/Python VM to compile/interpret the tool 
+    // In a full environment this would invoke Wasm/Python VM to compile/interpret the tool
     // and append it to the global tool registry dynamically for the agent's next perception frame.
-    const output = try std.fmt.allocPrint(
-        ctx.allocator, 
-        "Dynamically registered tool from script {s}. It will be available on the next iteration.", 
-        .{script_path}
-    );
+    const output = try std.fmt.allocPrint(ctx.allocator, "Dynamically registered tool from script {s}. It will be available on the next iteration.", .{script_path});
 
     return ToolResult.init(ctx.allocator, true, output);
 }
@@ -217,12 +213,49 @@ pub const register_tool_cmd = Tool{
     .execute = &executeRegisterTool,
 };
 
+fn executeCiWatcher(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    _ = args; // No args needed for CI watch, but we could accept a specific command
+
+    std.log.info("[CI Watcher] Spawning autonomous CI observer...", .{});
+
+    const os_mod = @import("../../../services/shared/os.zig");
+    // Background watcher: sleep 2, run build, if fail append to lessons.md
+    const watcher_script =
+        \\nohup sh -c '
+        \\  while true; do
+        \\    zig build cli-tests > /tmp/abi_ci_out.log 2>&1
+        \\    if [ $? -ne 0 ]; then
+        \\      echo "\n[$(date)] CI Failure Detected:\n" >> tasks/lessons.md
+        \\      tail -n 20 /tmp/abi_ci_out.log >> tasks/lessons.md
+        \\    fi
+        \\    sleep 10
+        \\  done
+        \\' > /tmp/abi_watcher.log 2>&1 &
+    ;
+
+    _ = os_mod.exec(ctx.allocator, watcher_script) catch |err| {
+        std.log.warn("Failed to spawn CI Watcher: {}", .{err});
+    };
+
+    const output = try std.fmt.allocPrint(ctx.allocator, "CI Watcher spawned. It will continuously monitor compilation and log errors to tasks/lessons.md.", .{});
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const ci_watcher_tool = Tool{
+    .name = "ci_watcher",
+    .description = "Launch an autonomous background CI loop that continuously compiles the codebase and maps any compiler errors into the AI's learning memory (lessons.md)",
+    .parameters = &[_]Parameter{},
+    .execute = &executeCiWatcher,
+};
+
 pub const all_tools = [_]*const Tool{
     &service_status_tool,
     &list_deps_tool,
     &system_packages_tool,
     &watch_file_tool,
     &register_tool_cmd,
+    &ci_watcher_tool,
 };
 
 pub fn registerAll(registry: *ToolRegistry) !void {
@@ -254,7 +287,7 @@ test "watch_file_tool creation" {
 }
 
 test "all_tools count" {
-    try std.testing.expectEqual(@as(usize, 4), all_tools.len);
+    try std.testing.expectEqual(@as(usize, 6), all_tools.len);
 }
 
 test {

@@ -159,7 +159,7 @@ pub const StreamingWriter = struct {
         if (self.finalized) return error.AlreadyFinalized;
 
         // Format: key_len (4) + value_len (4) + key + value
-        var len_buf: [4]u8 = undefined;
+        var len_buf: [4]u8 = [_]u8{0} ** 4;
         std.mem.writeInt(u32, &len_buf, @intCast(key.len), .little);
         self.metadata_buffer.appendSlice(self.allocator, &len_buf) catch return error.OutOfMemory;
         std.mem.writeInt(u32, &len_buf, @intCast(value.len), .little);
@@ -406,7 +406,7 @@ test "streaming writer with compression" {
     _ = writer.setCompression(.lz4);
 
     // Repetitive data that compresses well
-    var data: [256]f32 = undefined;
+    var data: [256]f32 = [_]f32{0} ** 256;
     for (&data, 0..) |*v, i| {
         v.* = @floatFromInt(i % 4);
     }

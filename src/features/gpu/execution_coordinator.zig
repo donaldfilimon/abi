@@ -942,7 +942,7 @@ pub const ExecutionCoordinator = struct {
 
         // Copy result back to host
         buf_result.toHost() catch return error.TransferFailed;
-        var result_arr: [1]f32 = undefined;
+        var result_arr: [1]f32 = [_]f32{0} ** 1;
         buf_result.read(f32, &result_arr) catch return error.TransferFailed;
 
         return .{ .result = result_arr[0], .method = .gpu };
@@ -1062,7 +1062,7 @@ pub const ExecutionCoordinator = struct {
 
         // Copy result back to host
         buf_result.toHost() catch return error.TransferFailed;
-        var result_arr: [1]f32 = undefined;
+        var result_arr: [1]f32 = [_]f32{0} ** 1;
         buf_result.read(f32, &result_arr) catch return error.TransferFailed;
 
         return .{ .result = result_arr[0], .method = .gpu };
