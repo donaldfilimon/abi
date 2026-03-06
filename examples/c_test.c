@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "bindings/c/include/abi.h"
+#include "src/bindings/c/include/abi.h"
 
 int main() {
     printf("Initializing ABI framework...\n");

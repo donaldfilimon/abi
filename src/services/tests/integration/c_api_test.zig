@@ -4,7 +4,7 @@
 //! These tests verify the underlying Zig implementation that the C API wraps,
 //! ensuring the expected behavior for C/C++ consumers is maintained.
 //!
-//! The C bindings in `bindings/c/src/abi_c.zig` are tested at two levels:
+//! The C bindings in `src/bindings/c/src/abi_c.zig` are tested at two levels:
 //! 1. Direct tests within `abi_c.zig` itself (compiled as part of the C library)
 //! 2. These integration tests that validate the underlying Zig APIs
 //!

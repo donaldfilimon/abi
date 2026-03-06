@@ -361,8 +361,8 @@ pub fn build(b: *std.Build) void {
     _ = mobile.addMobileBuild(b, options, optimize);
 
     // ── C Library ────────────────────────────────────────────────────────
-    const c_bindings_src = "bindings/c/src/abi_c.zig";
-    const c_bindings_header = "bindings/c/include/abi.h";
+    const c_bindings_src = "src/bindings/c/src/abi_c.zig";
+    const c_bindings_header = "src/bindings/c/include/abi.h";
     if (targets.pathExists(b, c_bindings_src) and targets.pathExists(b, c_bindings_header)) {
         const lib = b.addLibrary(.{
             .name = "abi",

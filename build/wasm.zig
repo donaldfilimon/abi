@@ -8,14 +8,14 @@ const targets = @import("targets.zig");
 /// WASM builds disable several feature modules (database, network, gpu,
 /// profiling, web, cloud, storage) since they require OS-level I/O.
 /// Returns the check-wasm step on success, or null if the WASM entry point
-/// (`bindings/wasm/abi_wasm.zig`) does not exist.
+/// (`src/bindings/wasm/abi_wasm.zig`) does not exist.
 pub fn addWasmBuild(
     b: *std.Build,
     options: options_mod.BuildOptions,
     abi_module: *std.Build.Module,
     optimize: std.builtin.OptimizeMode,
 ) ?*std.Build.Step {
-    if (!targets.pathExists(b, "bindings/wasm/abi_wasm.zig")) {
+    if (!targets.pathExists(b, "src/bindings/wasm/abi_wasm.zig")) {
         _ = b.step("check-wasm", "Check WASM compilation (bindings not available)");
         _ = b.step("wasm", "Build WASM bindings (bindings not available)");
         return null;
@@ -48,7 +48,7 @@ pub fn addWasmBuild(
     const wasm_lib = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("bindings/wasm/abi_wasm.zig"),
+            .root_source_file = b.path("src/bindings/wasm/abi_wasm.zig"),
             .target = wasm_target,
             .optimize = optimize,
         }),
