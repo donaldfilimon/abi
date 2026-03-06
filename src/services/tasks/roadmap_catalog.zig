@@ -108,145 +108,207 @@ pub const RoadmapEntry = struct {
     plan_slug: []const u8,
 };
 
+const owner_abbey = "Abbey";
+
+// Shared validation gate groups. Keep these canonical so plan specs and
+// roadmap entries stay synchronized when command contracts evolve.
+const gate_docs_generation = [_][]const u8{
+    "zig build gendocs",
+    "zig build check-docs",
+};
+
+const gate_docs_plan = [_][]const u8{
+    "zig build gendocs",
+    "zig build check-docs",
+    "zig build verify-all",
+};
+
+const gate_docs_only = [_][]const u8{
+    "zig build check-docs",
+};
+
+const gate_cli_core = [_][]const u8{
+    "zig build cli-tests",
+    "zig build verify-all",
+};
+
+const gate_cli_feature = [_][]const u8{
+    "zig build feature-tests",
+    "zig build cli-tests",
+};
+
+const gate_cli_plan = [_][]const u8{
+    "zig build cli-tests",
+    "zig build feature-tests",
+    "zig build verify-all",
+};
+
+const gate_tui_core = [_][]const u8{
+    "zig build cli-tests",
+    "zig build tui-tests",
+    "zig build run -- ui launch --help",
+    "zig build run -- ui gpu --help",
+};
+
+const gate_gpu_core = [_][]const u8{
+    "zig build typecheck",
+    "zig build verify-all",
+};
+
+const gate_gpu_plan = [_][]const u8{
+    "zig build typecheck",
+    "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
+    "zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck",
+    "zig build verify-all",
+};
+
+const gate_gpu_cross_target = [_][]const u8{
+    "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
+    "zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck",
+    "zig build -Dtarget=aarch64-macos -Dgpu-backend=auto typecheck",
+};
+
+const gate_feature_core = [_][]const u8{
+    "zig build validate-flags",
+    "zig build full-check",
+};
+
+const gate_integration_interim = [_][]const u8{
+    "zig build cli-tests-full",
+    "zig build cli-tests",
+    "zig build tui-tests",
+    "zig build run -- ui launch --help",
+    "zig build run -- ui gpu --help",
+};
+
+const gate_integration_plan = [_][]const u8{
+    "zig build cli-tests-full",
+    "zig build cli-tests",
+    "zig build tui-tests",
+    "zig build run -- ui launch --help",
+    "zig build run -- ui gpu --help",
+    "zig build verify-all",
+};
+
+const gate_full_check_verify = [_][]const u8{
+    "zig build full-check",
+    "zig build verify-all",
+};
+
+const gate_verify_only = [_][]const u8{
+    "zig build verify-all",
+};
+
 pub const plan_specs = [_]PlanSpec{
     .{
         .slug = "docs-roadmap-sync-v2",
         .title = "Docs + Roadmap Canonical Sync",
         .status = .in_progress,
-        .owner = "Abbey",
-        .scope = "Canonical roadmap catalog, generated roadmap docs, generated plan docs, and task import synchronization.",
+        .owner = owner_abbey,
+        .scope = "Aggressive 5 maintenance lane: enforce per-wave catalog-to-docs regeneration, deterministic drift checks, and synchronized task planning updates.",
         .success_criteria = &.{
-            "Roadmap and plans are generated from one catalog source.",
-            "Task roadmap import reads canonical entries and skips done items.",
-            "check-docs fails on roadmap/plans drift.",
+            "Every wave status/content change is authored in roadmap_catalog.zig first.",
+            "Generated roadmap/plans artifacts are refreshed in the same change set with --untracked-md policy.",
+            "check-docs and strict workflow orchestration checks fail on drift before merge.",
         },
-        .gate_commands = &.{
-            "zig build gendocs",
-            "zig build check-docs",
-            "zig build verify-all",
-        },
+        .gate_commands = &gate_docs_plan,
         .milestones = &.{
-            "Introduce roadmap_catalog.zig with typed entries.",
-            "Wire gendocs roadmap + plans renderers to canonical source.",
-            "Enable plans drift checks and archive handling.",
-            "After each execution wave, refresh catalog status + regenerate plans/roadmap data + update tasks/todo.md and tasks/lessons.md.",
+            "Define the per-wave sync checklist covering catalog, generated outputs, and tasks/ files.",
+            "Regenerate plans/roadmap data and markdown immediately after each catalog edit.",
+            "Record wave outcomes and residual risk in tasks/todo.md and tasks/lessons.md on each reprioritization pass.",
+            "Preserve untracked markdown policy while keeping deterministic check-docs behavior.",
         },
     },
     .{
         .slug = "gpu-redesign-v3",
         .title = "GPU Redesign v3",
-        .status = .planned,
-        .owner = "Abbey",
-        .scope = "Wave 3: Metal/Vulkan policy hardening, GL family consolidation, strict backend creation, and mixed-backend stability.",
+        .status = .in_progress,
+        .owner = owner_abbey,
+        .scope = "Wave 3 active lane: enforce strict backend policy, pool lifecycle safety, and cross-target policy verification.",
         .success_criteria = &.{
-            "Explicit backend requests stay strict.",
-            "Auto policy is deterministic per target.",
-            "Mixed-backend execution remains stable under pool lifecycle checks.",
+            "Explicit backend requests fail fast instead of silently falling back.",
+            "Pool lifecycle transitions remain safe under mixed-backend execution.",
+            "Cross-target policy checks stay deterministic for Linux, Windows, and macOS targets.",
         },
-        .gate_commands = &.{
-            "zig build typecheck",
-            "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
-            "zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck",
-            "zig build verify-all",
-        },
+        .gate_commands = &gate_gpu_plan,
         .milestones = &.{
-            "Wave 3A: complete backend registry/pool strictness enforcement.",
-            "Wave 3B: finalize GL profile wrappers over shared runtime.",
-            "Wave 3C: close cross-target compile and policy consistency gaps.",
+            "Wave 3A: finalize strict backend request handling across creation paths.",
+            "Wave 3B: harden pool deinit/ownership rules for mixed backend graphs.",
+            "Wave 3C: close remaining cross-target policy parity gaps and lock tests.",
         },
     },
     .{
         .slug = "cli-framework-local-agents",
         .title = "CLI Framework + Local-Agent Fallback",
         .status = .in_progress,
-        .owner = "Abbey",
-        .scope = "Wave 1: descriptor-driven CLI framework and local-first LLM provider routing with plugin support.",
+        .owner = owner_abbey,
+        .scope = "Wave 1 active lane: descriptor/runtime parity, local-first provider/plugin hardening, and command help/assertion drift cleanup.",
         .success_criteria = &.{
-            "LLM command family runs through provider router.",
-            "Fallback chain is deterministic and configurable.",
-            "CLI command metadata and runtime dispatch share one source.",
+            "Descriptor metadata and runtime dispatch remain parity-locked for command families.",
+            "Provider/plugin selection and fallback chains remain deterministic in strict and fallback modes.",
+            "CLI help and assertions stay in sync with descriptor definitions.",
         },
-        .gate_commands = &.{
-            "zig build cli-tests",
-            "zig build feature-tests",
-            "zig build verify-all",
-        },
+        .gate_commands = &gate_cli_plan,
         .milestones = &.{
-            "Wave 1A: lock command metadata/runtime dispatch parity from one descriptor source.",
-            "Wave 1B: finalize llm run/session/providers/plugins command tree.",
-            "Wave 1C: harden provider health checks and strict backend mode.",
-            "Wave 1D: remove stale CLI help/assertion drift across command families.",
+            "Wave 1A: close remaining descriptor/runtime parity gaps.",
+            "Wave 1B: harden providers/plugins health checks and strict-mode routing.",
+            "Wave 1C: remove stale help/completion/assertion drift across command families.",
+            "Wave 1D: stabilize regression tests for llm run/session/providers/plugins flows.",
         },
     },
     .{
         .slug = "tui-modular-v2",
         .title = "TUI Modular Extraction v2",
-        .status = .planned,
-        .owner = "Abbey",
-        .scope = "Wave 2: split launcher/dashboard rendering into reusable modules with responsive layout and shared async loop behavior.",
+        .status = .in_progress,
+        .owner = owner_abbey,
+        .scope = "Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests.",
         .success_criteria = &.{
-            "Launcher execution path is unified across enter/search/mouse.",
-            "Resize behavior is immediate and stable across panels.",
-            "Small terminal fallback rendering remains readable.",
+            "Launcher and dashboard flows use shared module boundaries without behavior drift.",
+            "Resize, navigation, and input handling stay correct across small and full terminal layouts.",
+            "TUI layout and hit-testing regressions are covered by deterministic tests.",
         },
-        .gate_commands = &.{
-            "zig build cli-tests",
-            "zig build tui-tests",
-            "zig build run -- ui launch --help",
-            "zig build run -- ui gpu --help",
-        },
+        .gate_commands = &gate_tui_core,
         .milestones = &.{
-            "Wave 2A: finalize launcher split modules and helpers.",
-            "Wave 2B: migrate dashboards to shared layout/render primitives.",
-            "Wave 2C: expand TUI unit tests for layout and hit-testing.",
+            "Wave 2A: complete launcher/dashboard extraction onto shared render/layout primitives.",
+            "Wave 2B: close input routing and focus-state correctness gaps.",
+            "Wave 2C: expand unit and integration-style TUI tests for layout and hit-testing.",
         },
     },
     .{
         .slug = "feature-modules-restructure-v1",
         .title = "Feature Modules Restructure v1",
-        .status = .planned,
-        .owner = "Abbey",
-        .scope = "Wave 5: consolidate feature layout, remove obsolete facades, and align mod/stub parity under new module boundaries.",
+        .status = .in_progress,
+        .owner = owner_abbey,
+        .scope = "Wave 5 active lane: remove legacy facades, finalize module boundaries, and consolidate shared primitives.",
         .success_criteria = &.{
-            "No stale imports to removed facade modules.",
-            "Feature enable/disable builds pass with parity intact.",
-            "Shared primitives are centralized under services/shared.",
+            "No stale imports remain against removed facade modules.",
+            "Module boundaries are explicit and stable for feature enable/disable permutations.",
+            "Shared primitives are centralized and reused without duplicate local forks.",
         },
-        .gate_commands = &.{
-            "zig build validate-flags",
-            "zig build full-check",
-        },
+        .gate_commands = &gate_feature_core,
         .milestones = &.{
-            "Wave 5A: finish AI hierarchy consolidation.",
-            "Wave 5B: complete shared resilience extraction.",
-            "Wave 5C: update integration imports and feature test roots.",
+            "Wave 5A: finish AI/service boundary cleanup and remove obsolete facade surfaces.",
+            "Wave 5B: consolidate shared primitives into canonical modules.",
+            "Wave 5C: update integration roots and tests to the final module topology.",
         },
     },
     .{
         .slug = "integration-gates-v1",
         .title = "Integration Gates v1",
         .status = .blocked,
-        .owner = "Abbey",
-        .scope = "Wave 4: restore exhaustive integration and long-running command probes while preserving interim cli-tests/tui-tests/launcher-smoke validation until cli-tests-full is restored.",
+        .owner = owner_abbey,
+        .scope = "Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green.",
         .success_criteria = &.{
-            "cli-tests-full has deterministic isolated runner behavior.",
-            "Preflight clearly reports missing credentials/endpoints.",
-            "Gate artifacts include per-command diagnostics and summaries.",
+            "cli-tests-full is deterministic and isolated across command matrices.",
+            "Preflight diagnostics clearly identify environment, tool, and network blockers.",
+            "Interim cli-tests/tui-tests/launcher-smoke policy remains required until unblock completion.",
         },
-        .gate_commands = &.{
-            "zig build cli-tests-full",
-            "zig build cli-tests",
-            "zig build tui-tests",
-            "zig build run -- ui launch --help",
-            "zig build run -- ui gpu --help",
-            "zig build verify-all",
-        },
+        .gate_commands = &gate_integration_plan,
         .milestones = &.{
-            "Wave 4A: complete full matrix manifest coverage.",
-            "Wave 4B: finalize PTY probe scripts and timeout policies.",
-            "Keep interim cli-tests/tui-tests/launcher smoke coverage green while cli-tests-full remains blocked.",
-            "Wave 4C: improve preflight blocked-report diagnostics (env/tool/network granularity).",
-            "Wave 4D: document required integration environment contract.",
+            "Unblock criterion A: complete matrix manifest and PTY timeout policy hardening.",
+            "Unblock criterion B: deliver actionable preflight blocked-report diagnostics.",
+            "Unblock criterion C: document and validate required integration environment contract.",
+            "Policy guard: keep interim cli-tests/tui-tests/launcher smoke checks passing while blocked.",
         },
     },
 };
@@ -259,25 +321,19 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .docs,
         .horizon = .now,
         .status = .in_progress,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build gendocs",
-            "zig build check-docs",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_docs_generation,
         .plan_slug = "docs-roadmap-sync-v2",
     },
     .{
         .id = "RM-002",
         .title = "Close GPU strictness and pool lifecycle gaps",
-        .summary = "Wave 3: ensure explicit backend requests never silently fall back and mixed-backend pools deinit safely.",
+        .summary = "Wave 3 active: enforce strict backend requests, safe pool lifecycle, and deterministic cross-target policy checks.",
         .track = .gpu,
-        .horizon = .next,
-        .status = .planned,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build typecheck",
-            "zig build verify-all",
-        },
+        .horizon = .now,
+        .status = .in_progress,
+        .owner = owner_abbey,
+        .validation_gate = &gate_gpu_core,
         .plan_slug = "gpu-redesign-v3",
     },
     .{
@@ -287,27 +343,19 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .cli_tui,
         .horizon = .now,
         .status = .in_progress,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build cli-tests",
-            "zig build verify-all",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_cli_core,
         .plan_slug = "cli-framework-local-agents",
     },
     .{
         .id = "RM-004",
         .title = "Finish TUI modular extraction",
-        .summary = "Wave 2: complete module split and shared layout behavior across launcher and live dashboards.",
+        .summary = "Wave 2 active: complete TUI modular extraction with layout/input correctness and expanded regression tests.",
         .track = .cli_tui,
-        .horizon = .next,
-        .status = .planned,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build cli-tests",
-            "zig build tui-tests",
-            "zig build run -- ui launch --help",
-            "zig build run -- ui gpu --help",
-        },
+        .horizon = .now,
+        .status = .in_progress,
+        .owner = owner_abbey,
+        .validation_gate = &gate_tui_core,
         .plan_slug = "tui-modular-v2",
     },
     .{
@@ -317,10 +365,8 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .docs,
         .horizon = .now,
         .status = .done,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build check-docs",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_docs_only,
         .plan_slug = "docs-roadmap-sync-v2",
     },
     .{
@@ -330,12 +376,8 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .platform,
         .horizon = .next,
         .status = .planned,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
-            "zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck",
-            "zig build -Dtarget=aarch64-macos -Dgpu-backend=auto typecheck",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_gpu_cross_target,
         .plan_slug = "gpu-redesign-v3",
     },
     .{
@@ -345,14 +387,8 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .infra,
         .horizon = .next,
         .status = .blocked,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build cli-tests-full",
-            "zig build cli-tests",
-            "zig build tui-tests",
-            "zig build run -- ui launch --help",
-            "zig build run -- ui gpu --help",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_integration_interim,
         .plan_slug = "integration-gates-v1",
     },
     .{
@@ -362,25 +398,19 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .ai,
         .horizon = .now,
         .status = .in_progress,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build feature-tests",
-            "zig build cli-tests",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_cli_feature,
         .plan_slug = "cli-framework-local-agents",
     },
     .{
         .id = "RM-009",
         .title = "Complete feature module hierarchy cleanup",
-        .summary = "Wave 5: finish moving modules into stable domains and remove legacy facade drift.",
+        .summary = "Wave 5 active: remove legacy facades, finalize module boundaries, and consolidate shared primitives.",
         .track = .platform,
-        .horizon = .later,
-        .status = .planned,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build validate-flags",
-            "zig build full-check",
-        },
+        .horizon = .now,
+        .status = .in_progress,
+        .owner = owner_abbey,
+        .validation_gate = &gate_feature_core,
         .plan_slug = "feature-modules-restructure-v1",
     },
     .{
@@ -390,10 +420,8 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .infra,
         .horizon = .later,
         .status = .planned,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build verify-all",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_verify_only,
         .plan_slug = "gpu-redesign-v3",
     },
     .{
@@ -403,10 +431,8 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .docs,
         .horizon = .later,
         .status = .planned,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build check-docs",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_docs_only,
         .plan_slug = "docs-roadmap-sync-v2",
     },
     .{
@@ -416,11 +442,8 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .track = .platform,
         .horizon = .later,
         .status = .planned,
-        .owner = "Abbey",
-        .validation_gate = &.{
-            "zig build full-check",
-            "zig build verify-all",
-        },
+        .owner = owner_abbey,
+        .validation_gate = &gate_full_check_verify,
         .plan_slug = "feature-modules-restructure-v1",
     },
 };

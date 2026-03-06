@@ -4,7 +4,7 @@
         .title = "CLI Framework + Local-Agent Fallback",
         .status = "In Progress",
         .owner = "Abbey",
-        .scope = "Wave 1: descriptor-driven CLI framework and local-first LLM provider routing with plugin support.",
+        .scope = "Wave 1 active lane: descriptor/runtime parity, local-first provider/plugin hardening, and command help/assertion drift cleanup.",
         .gate_commands = .{
             "zig build cli-tests",
             "zig build feature-tests",
@@ -16,7 +16,7 @@
         .title = "Docs + Roadmap Canonical Sync",
         .status = "In Progress",
         .owner = "Abbey",
-        .scope = "Canonical roadmap catalog, generated roadmap docs, generated plan docs, and task import synchronization.",
+        .scope = "Aggressive 5 maintenance lane: enforce per-wave catalog-to-docs regeneration, deterministic drift checks, and synchronized task planning updates.",
         .gate_commands = .{
             "zig build gendocs",
             "zig build check-docs",
@@ -26,17 +26,17 @@
     .{
         .slug = "feature-modules-restructure-v1",
         .title = "Feature Modules Restructure v1",
-        .status = "Planned",
+        .status = "In Progress",
         .owner = "Abbey",
-        .scope = "Wave 5: consolidate feature layout, remove obsolete facades, and align mod/stub parity under new module boundaries.",
+        .scope = "Wave 5 active lane: remove legacy facades, finalize module boundaries, and consolidate shared primitives.",
         .gate_commands = .{ "zig build validate-flags", "zig build full-check" },
     },
     .{
         .slug = "gpu-redesign-v3",
         .title = "GPU Redesign v3",
-        .status = "Planned",
+        .status = "In Progress",
         .owner = "Abbey",
-        .scope = "Wave 3: Metal/Vulkan policy hardening, GL family consolidation, strict backend creation, and mixed-backend stability.",
+        .scope = "Wave 3 active lane: enforce strict backend policy, pool lifecycle safety, and cross-target policy verification.",
         .gate_commands = .{
             "zig build typecheck",
             "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
@@ -47,9 +47,9 @@
     .{
         .slug = "tui-modular-v2",
         .title = "TUI Modular Extraction v2",
-        .status = "Planned",
+        .status = "In Progress",
         .owner = "Abbey",
-        .scope = "Wave 2: split launcher/dashboard rendering into reusable modules with responsive layout and shared async loop behavior.",
+        .scope = "Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests.",
         .gate_commands = .{
             "zig build cli-tests",
             "zig build tui-tests",
@@ -62,7 +62,7 @@
         .title = "Integration Gates v1",
         .status = "Blocked",
         .owner = "Abbey",
-        .scope = "Wave 4: restore exhaustive integration and long-running command probes while preserving interim cli-tests/tui-tests/launcher-smoke validation until cli-tests-full is restored.",
+        .scope = "Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green.",
         .gate_commands = .{
             "zig build cli-tests-full",
             "zig build cli-tests",

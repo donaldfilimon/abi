@@ -1,5 +1,9 @@
 # Lessons Learned
 
+## 2026-03-06 - Aggressive-5 reprioritization must be canonical-first
+- Root cause: Plan state drift appears when tasks/docs are edited before canonical roadmap catalog values are updated.
+- Prevention rule: In one wave, update `roadmap_catalog.zig`, regenerate roadmap/plans data and markdown artifacts, then update `tasks/todo.md` and `tasks/lessons.md` before running close-out gates.
+
 ## 2026-03-06 - Pin + planning sync must move together
 - Root cause: Zig pin and planning artifacts can drift when version updates are applied without the full contract set.
 - Prevention rule: When repinning Zig, update `.zigversion`, `build.zig.zon`, `tools/scripts/baseline.zig`, `README.md`, and planning/generated artifacts in one wave.

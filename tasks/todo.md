@@ -1,13 +1,13 @@
-# Task Plan - Zig 0.16 Feature Velocity Waves (2026-03-06)
+# Task Plan - Zig 0.16 Aggressive-5 Execution (2026-03-06)
 
 ## Objective
-Execute a decision-complete, wave-based Zig 0.16 roadmap with feature velocity priority while preserving deterministic gates and catalog-first planning.
+Apply and maintain the Aggressive-5 reprioritization across canonical catalog, generated roadmap/plan artifacts, and workflow tracking files while preserving deterministic `zig-master` validation gates.
 
 ## Scope
 - Keep `zig-master` as the execution contract with exact pin `0.16.0-dev.2694+74f361a5c`.
-- Treat `src/services/tasks/roadmap_catalog.zig` as the sole source for plans/roadmap metadata.
-- Maintain only active planning interfaces in `tasks/` (`todo.md`, `lessons.md`).
-- Run required gate suites at each wave boundary before status changes.
+- Treat `src/services/tasks/roadmap_catalog.zig` as the only source of truth for plan/roadmap content and status.
+- Keep all plan artifacts synchronized in one wave: catalog, `docs/data/*.zon`, `docs/plans/*.md`, `docs/_docs/roadmap.md`, and `tasks/`.
+- Maintain Aggressive-5 active state: CLI, Docs sync, TUI, GPU, and Feature Modules are in progress; Integration remains blocked with explicit unblock criteria.
 
 ## Verification Criteria
 - `which zig`
@@ -20,24 +20,28 @@ Execute a decision-complete, wave-based Zig 0.16 roadmap with feature velocity p
 - `zig build typecheck`
 - `zig build cli-tests`
 - `zig build tui-tests`
-- `zig build feature-tests --summary all`
+- `zig build full-check`
 - `zig build check-cli-registry`
-- `zig build verify-all --summary all`
+- `zig build verify-all`
+- `zig build check-workflow-orchestration-strict --summary all`
 
 ## Checklist
 ### Now
-- [x] Planning refresh: exact-pin `zig-master` contract + active-task hard trim + catalog sync completed.
-- [ ] Wave 1 (CLI/AI feature velocity): descriptor-first routing completion, provider/plugin consistency, and CLI help/assertion drift cleanup.
-- [ ] Wave maintenance rule: after Wave 1, update catalog statuses/milestones, regenerate `docs/data/plans.zon` + `docs/data/roadmap.zon`, and update `tasks/todo.md` + `tasks/lessons.md` in the same change set.
+- [x] Aggressive-5 reprioritization encoded in `roadmap_catalog.zig` with no slug/ID/schema changes.
+- [x] Generated artifacts refreshed from canonical source (`docs/data/plans.zon`, `docs/data/roadmap.zon`, `docs/plans/*.md`, `docs/_docs/roadmap.md`).
+- [x] Active-plan profile set: 5 plans `In Progress`, 1 plan `Blocked`.
+- [ ] Wave 1 (CLI framework + local-agent fallback): close descriptor/runtime parity and help/assertion drift.
+- [ ] Wave 2 (TUI modular extraction): finalize module boundaries and layout/input correctness.
+- [ ] Wave 3 (GPU redesign): complete strict backend policy and pool lifecycle hardening.
+- [ ] Wave 5 (feature-module restructure): finish facade removal and boundary consolidation.
+- [ ] Per-wave maintenance rule: after each milestone/status update, regenerate docs artifacts and update `tasks/todo.md` + `tasks/lessons.md` in the same change set.
 
 ### Next
-- [ ] Wave 2 (TUI modular completion): finalize launcher/dashboard modular extraction and input/layout correctness.
-- [ ] Wave 3 (GPU redesign closure): finalize strict backend policy and pool lifecycle safety across targets.
-- [ ] Wave 4 (integration gate restoration): restore deterministic `cli-tests-full` while interim gates remain green.
-- [ ] Wave 5 (feature-module restructure): complete boundary cleanup and stale facade/import removal.
-- [ ] Apply the same per-wave maintenance rule at every subsequent wave boundary.
+- [ ] Wave 4 unblock path (integration gates): satisfy unblock criteria and restore deterministic `cli-tests-full`.
+- [ ] Keep interim integration policy green while blocked: `cli-tests`, `tui-tests`, `ui launch --help`, `ui gpu --help`.
+- [ ] Continue planned backlog without changing current horizon policy: RM-006, RM-010, RM-011, RM-012.
 
 ## Review
-- Result: Planning baseline is active and aligned to a five-wave feature-velocity sequence.
-- Validation: Pending wave execution updates.
-- Residual risk: Large pre-existing dirty worktree can hide wave-specific regressions without strict scoped status review per wave.
+- Result: Aggressive-5 state is now canonical-first and synchronized across all plan surfaces.
+- Validation: Full `zig-master` close-out gates are required before merge acceptance.
+- Residual risk: Parallel active waves increase coordination load; missing same-wave regeneration of docs/tasks can reintroduce drift.
