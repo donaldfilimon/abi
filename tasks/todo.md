@@ -352,7 +352,7 @@ for Zig validation, `tasks/todo.md` for active execution, and
 - [x] Fold `tasks/breaking_cleanup_plan.md` into this tracker or archive it so
   it no longer competes as an active checklist.
 - [ ] Regenerate the affected docs outputs with `--no-wasm --untracked-md`
-  once the local Zig/macOS linker blocker is resolved.
+  (Blocked until the local Zig/macOS linker blocker is resolved).
 
 ##### Review
 - [ ] Generated docs reflect the updated workflow and `zig-master` contract
@@ -434,13 +434,14 @@ shared-runtime shell entrypoint plus focused view commands.
 - [x] Make `build/test_discovery.zig` the only tracked feature-test source of
   truth and generate the feature-test root in build cache.
 - [ ] Simplify baseline and consistency checks so generated expectations replace
-  stale hard-coded markers.
+  stale hard-coded markers (Blocked by Darwin toolchain linker failure).
 - [x] Remove legacy build flag aliases, compatibility namespaces, fallback
   paths, deprecated forwards, and `(legacy: ...)` CLI/docs messaging.
 - [x] Collapse `ui` to one canonical shell entrypoint plus focused views on the
   shared dashboard runtime.
 - [x] Port `ui gpu` and `ui brain` onto shared dashboard/panel contracts.
-- [ ] Regenerate docs and registry artifacts only after the public cleanup lands.
+- [ ] Regenerate docs and registry artifacts only after the public cleanup lands
+  (Blocked by Darwin toolchain linker failure).
 
 ##### Review
 - [ ] Full `zig-master` close-out sequence passes, or any remaining failure is
