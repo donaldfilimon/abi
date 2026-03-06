@@ -486,7 +486,7 @@ test "llm feature: detection" {
     const enabled = abi.features.ai.llm.isEnabled();
 
     // Should match build options
-    if (build_options.enable_llm and build_options.enable_ai) {
+    if (build_options.feat_llm and build_options.feat_ai) {
         try std.testing.expect(enabled);
     } else {
         try std.testing.expect(!enabled);

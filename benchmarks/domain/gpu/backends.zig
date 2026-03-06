@@ -16,7 +16,7 @@ const mod = @import("mod.zig");
 const GpuBenchConfig = mod.GpuBenchConfig;
 
 // Conditional imports based on build options
-const gpu_mod = if (build_options.enable_gpu) @import("abi").features.gpu else struct {
+const gpu_mod = if (build_options.feat_gpu) @import("abi").features.gpu else struct {
     pub const Backend = enum { none, auto, cuda, vulkan, metal, webgpu, opengl, stdgpu, fpga };
     pub const moduleEnabled = struct {
         pub fn call() bool {
@@ -92,7 +92,7 @@ fn runBackendBenchmark(
         .error_message = "GPU not enabled",
     };
 
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         return result;
     }
 
@@ -105,7 +105,7 @@ fn runBackendBenchmark(
 
 /// Detect available GPU backends
 fn detectAvailableBackends(allocator: std.mem.Allocator) ![]gpu_mod.Backend {
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         return &.{};
     }
 
@@ -164,7 +164,7 @@ fn gpuVsCpuComparison(
 ) !void {
     std.debug.print("\n[GPU vs CPU Comparison]\n", .{});
 
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         std.debug.print("  GPU not enabled - skipping comparison\n", .{});
         return;
     }
@@ -238,7 +238,7 @@ fn gpuVsCpuComparison(
         }
 
         // GPU benchmark (if available)
-        if (build_options.enable_gpu) {
+        if (build_options.feat_gpu) {
             const abi = @import("abi");
 
             var gpu_ctx = abi.features.gpu.Gpu.init(allocator, .{}) catch {
@@ -404,7 +404,7 @@ test "backend detection" {
     defer if (backends.len > 0) allocator.free(backends);
 
     // Should at least have stdgpu if GPU is enabled
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try std.testing.expect(backends.len >= 1);
     }
 }

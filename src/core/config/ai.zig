@@ -45,11 +45,11 @@ pub const AiConfig = struct {
 
     pub fn defaults() AiConfig {
         return .{
-            .llm = if (build_options.enable_llm) LlmConfig.defaults() else null,
+            .llm = if (build_options.feat_llm) LlmConfig.defaults() else null,
             .embeddings = EmbeddingsConfig.defaults(),
             .agents = AgentsConfig.defaults(),
             .training = null, // Training not enabled by default
-            .personas = if (build_options.enable_ai) .{} else null,
+            .personas = if (build_options.feat_ai) .{} else null,
             .auto_discover = true, // Enable auto-discovery by default
         };
     }

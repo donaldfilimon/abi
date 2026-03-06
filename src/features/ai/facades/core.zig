@@ -17,21 +17,21 @@ const config_module = @import("../../../core/config/mod.zig");
 // ============================================================================
 
 pub const agent = @import("../agents/agent.zig");
-pub const agents = if (build_options.enable_ai)
+pub const agents = if (build_options.feat_ai)
     @import("../agents/mod.zig")
 else
     @import("../agents/stub.zig");
 pub const tools = @import("../tools/mod.zig");
 pub const prompts = @import("../prompts/mod.zig");
 pub const memory = @import("../memory/mod.zig");
-pub const multi_agent = if (build_options.enable_ai)
+pub const multi_agent = if (build_options.feat_ai)
     @import("../multi_agent/mod.zig")
 else
     @import("../multi_agent/stub.zig");
 pub const core = @import("../core/mod.zig");
 pub const gpu_agent = @import("../agents/gpu_agent.zig");
 pub const discovery = @import("../explore/discovery.zig");
-pub const models = if (build_options.enable_ai)
+pub const models = if (build_options.feat_ai)
     @import("../models/mod.zig")
 else
     @import("../models/stub.zig");
@@ -155,7 +155,7 @@ pub const Context = struct {
 // ============================================================================
 
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 pub fn createRegistry(allocator: std.mem.Allocator) ModelRegistry {
@@ -179,7 +179,7 @@ test "ai_core module loads" {
 
 test "ai_core isEnabled reflects build flag" {
     const enabled = isEnabled();
-    try std.testing.expectEqual(build_options.enable_ai, enabled);
+    try std.testing.expectEqual(build_options.feat_ai, enabled);
 }
 
 test "ai_core createRegistry returns valid registry" {

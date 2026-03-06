@@ -279,7 +279,7 @@ pub const LlmMemoryPool = struct {
             .config = config,
             .free_lists = .{null} ** SIZE_CLASS_COUNT,
             .free_counts = .{0} ** SIZE_CLASS_COUNT,
-            .gpu_available = build_options.enable_gpu and checkGpuMemory(),
+            .gpu_available = build_options.feat_gpu and checkGpuMemory(),
         };
 
         // Pre-allocate initial buffers if configured
@@ -693,7 +693,7 @@ pub const LlmMemoryPool = struct {
 
     /// Check if GPU memory operations are available.
     fn checkGpuMemory() bool {
-        if (!build_options.enable_gpu) return false;
+        if (!build_options.feat_gpu) return false;
 
         // Try to initialize CUDA memory subsystem
         if (cuda_memory.init(std.heap.page_allocator)) |_| {

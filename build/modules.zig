@@ -10,17 +10,11 @@ pub fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build
     var opts = b.addOptions();
     opts.addOption([]const u8, "package_version", "0.4.0");
 
-    // Forward every enable_* bool field from BuildOptions automatically.
+    // Forward every feat_* bool field from BuildOptions automatically.
     inline for (std.meta.fields(BuildOptions)) |field| {
         if (field.type == bool) {
             opts.addOption(bool, field.name, @field(options, field.name));
         }
-    }
-
-    // Export canonical feat_* aliases for migration to the v2 flag model.
-    const canonical = options_mod.buildOptionsToCanonical(options);
-    inline for (std.meta.fields(options_mod.CanonicalFlags)) |field| {
-        opts.addOption(bool, field.name, @field(canonical, field.name));
     }
 
     // GPU backend convenience flags (derived from the backend list).

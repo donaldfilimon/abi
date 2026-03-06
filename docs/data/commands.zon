@@ -402,10 +402,9 @@
     },
     .{
         .name = "ui",
-        .description = "UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard)",
+        .description = "Shared UI shell and focused terminal views (editor, gpu, train, model, streaming, db, network, bench, brain)",
         .aliases = .{},
         .subcommands = .{
-            "launch",
             "gpu",
             "train",
             "neural",
@@ -415,7 +414,7 @@
             "network",
             "bench",
             "brain",
-            "dashboard",
+            "editor",
             "help",
         },
     },

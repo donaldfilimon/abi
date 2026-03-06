@@ -52,7 +52,7 @@ pub const StreamingAdapter = struct {
 };
 
 test "streaming_adapter name and hint" {
-    var adapter: StreamingAdapter = std.mem.zeroes(StreamingAdapter);
+    const adapter: *StreamingAdapter = undefined;
     try std.testing.expectEqualStrings("Stream", adapter.name());
     try std.testing.expectEqualStrings("5", adapter.shortcutHint());
 }

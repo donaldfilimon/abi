@@ -52,7 +52,7 @@ pub const NetworkAdapter = struct {
 };
 
 test "network_adapter name and hint" {
-    var adapter: NetworkAdapter = std.mem.zeroes(NetworkAdapter);
+    const adapter: *NetworkAdapter = undefined;
     try std.testing.expectEqualStrings("Net", adapter.name());
     try std.testing.expectEqualStrings("7", adapter.shortcutHint());
 }

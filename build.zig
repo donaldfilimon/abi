@@ -92,17 +92,26 @@ pub fn build(b: *std.Build) void {
     targets.buildTargets(b, &targets.example_targets, abi_module, build_opts, target, optimize, examples_step, false);
 
     // ── CLI smoke tests ─────────────────────────────────────────────────
-    const cli_tests_step = cli_tests.addCliTests(b, exe);
+    const cli_tests_step = cli_tests.addCliTests(b, exe, abi_module, target, optimize);
 
     // ── TUI / CLI unit tests ───────────────────────────────────────────
     var tui_tests_step: ?*std.Build.Step = null;
-    const cli_test_mod = b.createModule(.{
+    const cli_root_mod = b.createModule(.{
         .root_source_file = b.path("tools/cli/mod.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    cli_test_mod.addImport("abi", abi_module);
+    cli_root_mod.addImport("abi", abi_module);
+
+    const cli_test_mod = b.createModule(.{
+        .root_source_file = b.path("build/cli_tui_tests_root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    cli_test_mod.addImport("cli_root", cli_root_mod);
+
     const cli_tests_artifact = b.addTest(.{ .root_module = cli_test_mod });
     cli_tests_artifact.test_runner = .{
         .path = b.path("build/cli_tui_test_runner.zig"),
@@ -158,7 +167,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Feature tests (manifest-driven) ─────────────────────────────────
-    const feature_tests_step = test_discovery.addFeatureTests(b, options, build_opts, target, optimize);
+    const feature_tests_step = test_discovery.addFeatureTests(b, options, build_opts, abi_module, target, optimize);
 
     // ── Flag validation matrix ──────────────────────────────────────────
     const validate_flags_step = flags.addFlagValidation(b, target, optimize);
@@ -279,8 +288,9 @@ pub fn build(b: *std.Build) void {
     validate_baseline_step.dependOn(&validate_baseline.step);
 
     // ── Full check ──────────────────────────────────────────────────────
-    const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and flag validation");
+    const full_check_step = b.step("full-check", "Run the local confidence gate across deterministic leaf checks");
     full_check_step.dependOn(&lint_fmt.step);
+    if (typecheck_step) |step| full_check_step.dependOn(step);
     if (test_step) |ts| full_check_step.dependOn(ts);
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
@@ -288,6 +298,7 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(consistency_step);
     full_check_step.dependOn(check_cli_registry_step);
     full_check_step.dependOn(check_cli_dsl_consistency_step);
+    full_check_step.dependOn(workflow_contract_strict_step);
     if (tui_tests_step) |step| full_check_step.dependOn(step);
 
     var check_docs_step: ?*std.Build.Step = null;
@@ -321,11 +332,12 @@ pub fn build(b: *std.Build) void {
         const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
         docs_check.dependOn(&run_check_docs.step);
         check_docs_step = docs_check;
+        full_check_step.dependOn(docs_check);
     }
 
     // ── Profile build ───────────────────────────────────────────────────
     var profile_opts = options;
-    profile_opts.enable_profiling = true;
+    profile_opts.feat_profiling = true;
     const abi_profile = modules.createAbiModule(b, profile_opts, target, optimize);
     const profile_exe = b.addExecutable(.{
         .name = "abi-profile",
@@ -413,15 +425,15 @@ pub fn build(b: *std.Build) void {
         });
         var cross_opts = options;
         // Disable features that cannot compile for non-native targets
-        cross_opts.enable_mobile = false;
+        cross_opts.feat_mobile = false;
         if (ct.os == .wasi or ct.os == .freestanding or ct.os == .emscripten) {
-            cross_opts.enable_database = false;
-            cross_opts.enable_network = false;
-            cross_opts.enable_gpu = false;
-            cross_opts.enable_profiling = false;
-            cross_opts.enable_web = false;
-            cross_opts.enable_cloud = false;
-            cross_opts.enable_storage = false;
+            cross_opts.feat_database = false;
+            cross_opts.feat_network = false;
+            cross_opts.feat_gpu = false;
+            cross_opts.feat_profiling = false;
+            cross_opts.feat_web = false;
+            cross_opts.feat_cloud = false;
+            cross_opts.feat_storage = false;
             cross_opts.gpu_backends = &.{};
         } else {
             cross_opts.gpu_backends = &.{.stdgpu};
@@ -445,17 +457,30 @@ pub fn build(b: *std.Build) void {
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
     gate_hardening_step.dependOn(toolchain_doctor_step);
     if (typecheck_step) |step| gate_hardening_step.dependOn(step);
+    if (test_step) |step| gate_hardening_step.dependOn(step);
     gate_hardening_step.dependOn(cli_tests_step);
     if (tui_tests_step) |step| gate_hardening_step.dependOn(step);
+    gate_hardening_step.dependOn(validate_flags_step);
+    gate_hardening_step.dependOn(import_check_step);
+    gate_hardening_step.dependOn(consistency_step);
+    gate_hardening_step.dependOn(check_cli_dsl_consistency_step);
     gate_hardening_step.dependOn(check_cli_registry_step);
     if (check_docs_step) |step| gate_hardening_step.dependOn(step);
     gate_hardening_step.dependOn(workflow_contract_strict_step);
-    gate_hardening_step.dependOn(full_check_step);
 
-    const verify_all_step = b.step("verify-all", "full-check + consistency + feature-tests + examples + check-wasm + cross-check");
-    verify_all_step.dependOn(full_check_step);
+    const verify_all_step = b.step("verify-all", "Run the superset validation gate across all deterministic leaf checks");
+    verify_all_step.dependOn(&lint_fmt.step);
+    if (typecheck_step) |step| verify_all_step.dependOn(step);
+    if (test_step) |step| verify_all_step.dependOn(step);
+    verify_all_step.dependOn(cli_tests_step);
+    if (tui_tests_step) |step| verify_all_step.dependOn(step);
+    verify_all_step.dependOn(validate_flags_step);
+    verify_all_step.dependOn(import_check_step);
     verify_all_step.dependOn(consistency_step);
-    if (feature_tests_step) |fts| verify_all_step.dependOn(fts);
+    verify_all_step.dependOn(check_cli_registry_step);
+    verify_all_step.dependOn(check_cli_dsl_consistency_step);
+    verify_all_step.dependOn(workflow_contract_strict_step);
+    verify_all_step.dependOn(feature_tests_step);
     verify_all_step.dependOn(examples_step);
     if (check_wasm_step) |s| verify_all_step.dependOn(s);
     if (check_docs_step) |docs_step| verify_all_step.dependOn(docs_step);

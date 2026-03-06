@@ -59,10 +59,10 @@ test "framework: feature flag consistency" {
     defer framework.deinit();
 
     // Feature states should match what was requested (limited by build options)
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try std.testing.expectEqual(true, framework.isEnabled(.gpu));
     }
-    if (build_options.enable_ai) {
+    if (build_options.feat_ai) {
         try std.testing.expectEqual(true, framework.isEnabled(.ai));
     }
 }
@@ -74,7 +74,7 @@ test "framework: feature flag consistency" {
 // Testdatabase error type definitions.
 // Verifiesall expected error types exist.
 test "database errors: type definitions" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     // Verify error types can be used
     const errors = [_]abi.features.database.database.DatabaseError{
@@ -97,7 +97,7 @@ test "database errors: type definitions" {
 // Test database handles duplicate ID gracefully.
 // Should return error without corrupting state.
 test "database errors: duplicate id recovery" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -128,7 +128,7 @@ test "database errors: duplicate id recovery" {
 // Test database handles dimension mismatch gracefully.
 // Should return error without corrupting state.
 test "database errors: dimension mismatch recovery" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -154,7 +154,7 @@ test "database errors: dimension mismatch recovery" {
 // Test database cleanup on error paths.
 // Verifies no leaks when operations fail.
 test "database errors: cleanup on failure" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
@@ -182,7 +182,7 @@ test "database errors: cleanup on failure" {
 // Test LLM error type definitions.
 // Verifies all expected error types exist.
 test "llm errors: type definitions" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Verify LlmError types exist and are distinct
     const llm_errors = [_]abi.features.ai.llm.LlmError{
@@ -206,7 +206,7 @@ test "llm errors: type definitions" {
 // Test LLM engine without model returns appropriate error.
 // Should fail gracefully when no model loaded.
 test "llm errors: no model loaded" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -229,7 +229,7 @@ test "llm errors: no model loaded" {
 // Test LLM tokenizer error handling.
 // Verifies tokenizer errors are properly defined.
 test "llm errors: tokenizer errors" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     const tok_errors = [_]abi.features.ai.llm.tokenizer.TokenizerError{
         abi.features.ai.llm.tokenizer.TokenizerError.InvalidUtf8,
@@ -284,7 +284,7 @@ test "memory: framework lifecycle" {
 // Testdatabase operations don't leak memory.
 // VerifiesCRUD operations are leak-free.
 test "memory: database operations" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
@@ -320,7 +320,7 @@ test "memory: database operations" {
 // Test database when disabled at build time.
 // Should provide clear error when feature not available.
 test "feature disabled: database" {
-    if (build_options.enable_database) return error.SkipZigTest;
+    if (build_options.feat_database) return error.SkipZigTest;
 
     // When database is disabled, isEnabled should return false
     try std.testing.expect(!abi.features.database.isEnabled());
@@ -329,7 +329,7 @@ test "feature disabled: database" {
 // Test LLM when disabled at build time.
 // Should provide clear error when feature not available.
 test "feature disabled: llm" {
-    if (build_options.enable_llm) return error.SkipZigTest;
+    if (build_options.feat_llm) return error.SkipZigTest;
 
     // When LLM is disabled, isEnabled should return false
     try std.testing.expect(!abi.features.ai.llm.isEnabled());
@@ -338,11 +338,11 @@ test "feature disabled: llm" {
 // Test GPU when disabled at build time.
 // Should provide clear indication when GPU unavailable.
 test "feature disabled: gpu" {
-    if (build_options.enable_gpu) return error.SkipZigTest;
+    if (build_options.feat_gpu) return error.SkipZigTest;
 
     // When GPU is disabled at build time, module should handle gracefully
     // This test just verifies compilation succeeds with GPU disabled
-    try std.testing.expect(!build_options.enable_gpu);
+    try std.testing.expect(!build_options.feat_gpu);
 }
 
 // ============================================================================
@@ -352,7 +352,7 @@ test "feature disabled: gpu" {
 // Test error propagation through function calls.
 // Verifies errors bubble up correctly.
 test "propagation: database error chain" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -371,7 +371,7 @@ test "propagation: database error chain" {
 // Test multiple errors in sequence.
 // Verifies error handling doesn't break subsequent operations.
 test "propagation: sequential errors" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -400,7 +400,7 @@ test "propagation: sequential errors" {
 // Test with maximum u64 ID value.
 // Verifies no overflow issues with large IDs.
 test "boundary: max u64 id" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -418,7 +418,7 @@ test "boundary: max u64 id" {
 // Test with zero ID value.
 // Zero should be valid ID.
 test "boundary: zero id" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -435,7 +435,7 @@ test "boundary: zero id" {
 // Test with empty search results.
 // Should return empty slice, not error.
 test "boundary: empty results" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -452,7 +452,7 @@ test "boundary: empty results" {
 // Test with top_k of zero.
 // Should return empty results.
 test "boundary: top_k zero" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -474,7 +474,7 @@ test "boundary: top_k zero" {
 // Test rapid state transitions.
 // Simulates concurrent-like access patterns.
 test "concurrency: rapid operations" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -523,10 +523,10 @@ test "version: format validity" {
 // Verifiesbuild configuration can be queried.
 test "build options: accessibility" {
     // These should all be accessible booleans
-    _ = build_options.enable_ai;
-    _ = build_options.enable_gpu;
-    _ = build_options.enable_database;
-    _ = build_options.enable_network;
-    _ = build_options.enable_web;
-    _ = build_options.enable_profiling;
+    _ = build_options.feat_ai;
+    _ = build_options.feat_gpu;
+    _ = build_options.feat_database;
+    _ = build_options.feat_network;
+    _ = build_options.feat_web;
+    _ = build_options.feat_profiling;
 }

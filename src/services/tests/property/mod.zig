@@ -47,7 +47,7 @@ pub const vector_properties = @import("vector_properties.zig");
 pub const database_properties = @import("database_properties.zig");
 pub const serialization_properties = @import("serialization_properties.zig");
 pub const concurrency_properties = @import("concurrency_properties.zig");
-pub const gguf_test = if (build_options.enable_ai) @import("gguf_test.zig") else struct {};
+pub const gguf_test = if (build_options.feat_ai) @import("gguf_test.zig") else struct {};
 
 // Note: Legacy proptest available at src/services/tests/proptest.zig
 // Import via @import("proptest.zig") from src/services/tests/mod.zig
@@ -421,7 +421,7 @@ test {
     _ = database_properties;
     _ = serialization_properties;
     _ = concurrency_properties;
-    if (build_options.enable_ai) {
+    if (build_options.feat_ai) {
         _ = gguf_test;
     }
 }

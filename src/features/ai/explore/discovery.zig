@@ -598,7 +598,7 @@ pub fn detectCapabilities() SystemCapabilities {
     caps.available_ram_bytes = 4 * 1024 * 1024 * 1024; // 4GB default
 
     // GPU detection would require GPU module integration
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         // GPU capabilities would be detected from gpu module
         caps.gpu_available = false; // Set by GPU module if available
     }

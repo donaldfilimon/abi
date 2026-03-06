@@ -156,8 +156,8 @@ fn priorityList() PriorityList {
 
     const names = policy.resolveAutoBackendNames(.{
         .platform = platform,
-        .enable_gpu = build_options.enable_gpu,
-        .enable_web = build_options.enable_web,
+        .enable_gpu = build_options.feat_gpu,
+        .enable_web = build_options.feat_web,
         .can_link_metal = true,
         .warn_if_metal_skipped = false,
         .allow_simulated = true,

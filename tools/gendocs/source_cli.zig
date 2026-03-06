@@ -397,13 +397,13 @@ test "parseMetaBlock extracts command with children and deduplicates" {
 test "parseMetaBlock handles forward command without aliases or subcommands" {
     const source =
         \\pub const meta: command_mod.Meta = .{
-        \\    .name = "launch-ui",
-        \\    .description = "Launch interactive UI command menu",
+        \\    .name = "shell",
+        \\    .description = "Open the canonical UI shell",
         \\    .io_mode = .io,
         \\    .forward = .{
         \\        .target = "ui",
-        \\        .prepend_args = &[_][:0]const u8{"launch"},
-        \\        .warning = "'abi launch-ui' is deprecated; use 'abi ui launch'.",
+        \\        .prepend_args = &[_][:0]const u8{},
+        \\        .warning = "'abi shell' is deprecated; use 'abi ui'.",
         \\    },
         \\};
     ;
@@ -411,8 +411,8 @@ test "parseMetaBlock handles forward command without aliases or subcommands" {
     const cmd = (try parseMetaBlock(std.testing.allocator, source)).?;
     defer cmd.deinit(std.testing.allocator);
 
-    try std.testing.expectEqualStrings("launch-ui", cmd.name);
-    try std.testing.expectEqualStrings("Launch interactive UI command menu", cmd.description);
+    try std.testing.expectEqualStrings("shell", cmd.name);
+    try std.testing.expectEqualStrings("Open the canonical UI shell", cmd.description);
     try std.testing.expectEqual(@as(usize, 0), cmd.aliases.len);
     try std.testing.expectEqual(@as(usize, 0), cmd.subcommands.len);
 }

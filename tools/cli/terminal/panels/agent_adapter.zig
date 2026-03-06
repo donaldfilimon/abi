@@ -52,7 +52,7 @@ pub const AgentAdapter = struct {
 };
 
 test "agent_adapter name and hint" {
-    var adapter: AgentAdapter = std.mem.zeroes(AgentAdapter);
+    const adapter: *AgentAdapter = undefined;
     try std.testing.expectEqualStrings("Agent", adapter.name());
     try std.testing.expectEqualStrings("2", adapter.shortcutHint());
 }

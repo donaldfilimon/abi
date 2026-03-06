@@ -152,7 +152,7 @@ else
     };
 pub const device_query = device_query_mod;
 pub const nvrtc = nvrtc_mod;
-pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda and shared.dynlibSupported)
+pub const cublas = if (build_options.feat_gpu and build_options.gpu_cuda and shared.dynlibSupported)
     @import("cublas.zig")
 else
     struct {

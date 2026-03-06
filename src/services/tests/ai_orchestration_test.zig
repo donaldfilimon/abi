@@ -6,18 +6,18 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const orchestration = if (build_options.enable_ai) abi.features.ai.orchestration else struct {};
-const Orchestrator = if (build_options.enable_ai) orchestration.Orchestrator else struct {};
-const OrchestrationConfig = if (build_options.enable_ai) orchestration.OrchestrationConfig else struct {};
-const ModelConfig = if (build_options.enable_ai) orchestration.ModelConfig else struct {};
-const Router = if (build_options.enable_ai) orchestration.Router else struct {};
+const orchestration = if (build_options.feat_ai) abi.features.ai.orchestration else struct {};
+const Orchestrator = if (build_options.feat_ai) orchestration.Orchestrator else struct {};
+const OrchestrationConfig = if (build_options.feat_ai) orchestration.OrchestrationConfig else struct {};
+const ModelConfig = if (build_options.feat_ai) orchestration.ModelConfig else struct {};
+const Router = if (build_options.feat_ai) orchestration.Router else struct {};
 
 // ============================================================================
 // Orchestrator Lifecycle Tests
 // ============================================================================
 
 test "orchestrator: init and deinit with defaults" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -29,7 +29,7 @@ test "orchestrator: init and deinit with defaults" {
 }
 
 test "orchestrator: high availability config" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const config = OrchestrationConfig.highAvailability();
@@ -48,7 +48,7 @@ test "orchestrator: high availability config" {
 // ============================================================================
 
 test "orchestrator: register and retrieve model" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -69,7 +69,7 @@ test "orchestrator: register and retrieve model" {
 }
 
 test "orchestrator: duplicate model id rejected" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -94,7 +94,7 @@ test "orchestrator: duplicate model id rejected" {
 }
 
 test "orchestrator: unregister removes model" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -114,7 +114,7 @@ test "orchestrator: unregister removes model" {
 }
 
 test "orchestrator: unregister non-existent fails" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -131,7 +131,7 @@ test "orchestrator: unregister non-existent fails" {
 // ============================================================================
 
 test "orchestrator: enable and disable model" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -158,7 +158,7 @@ test "orchestrator: enable and disable model" {
 }
 
 test "orchestrator: set model health status" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -183,7 +183,7 @@ test "orchestrator: set model health status" {
 // ============================================================================
 
 test "orchestrator: stats initially zeroed" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var orch = Orchestrator.init(allocator, OrchestrationConfig.defaults()) catch |err| {
@@ -201,7 +201,7 @@ test "orchestrator: stats initially zeroed" {
 // ============================================================================
 
 test "router: task type detection" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const TaskType = orchestration.TaskType;
 
@@ -215,7 +215,7 @@ test "router: task type detection" {
 }
 
 test "router: round robin strategy" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var router = Router.init(allocator, .round_robin);

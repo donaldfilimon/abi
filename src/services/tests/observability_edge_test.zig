@@ -95,7 +95,7 @@ test "observability: span with many events" {
 
 test "observability: module enabled check" {
     // This test verifies the module is enabled based on build options
-    if (build_options.enable_profiling) {
+    if (build_options.feat_profiling) {
         try testing.expect(observability.isEnabled());
     } else {
         try testing.expect(!observability.isEnabled());

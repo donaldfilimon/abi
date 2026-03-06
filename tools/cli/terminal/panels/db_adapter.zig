@@ -52,7 +52,7 @@ pub const DbAdapter = struct {
 };
 
 test "db_adapter name and hint" {
-    var adapter: DbAdapter = std.mem.zeroes(DbAdapter);
+    const adapter: *DbAdapter = undefined;
     try std.testing.expectEqualStrings("DB", adapter.name());
     try std.testing.expectEqualStrings("6", adapter.shortcutHint());
 }

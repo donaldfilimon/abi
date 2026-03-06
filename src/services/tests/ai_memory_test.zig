@@ -6,17 +6,17 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const memory = if (build_options.enable_ai) abi.features.ai.memory else struct {};
-const ShortTermMemory = if (build_options.enable_ai) memory.ShortTermMemory else struct {};
-const SlidingWindowMemory = if (build_options.enable_ai) memory.SlidingWindowMemory else struct {};
-const Message = if (build_options.enable_ai) memory.Message else struct {};
+const memory = if (build_options.feat_ai) abi.features.ai.memory else struct {};
+const ShortTermMemory = if (build_options.feat_ai) memory.ShortTermMemory else struct {};
+const SlidingWindowMemory = if (build_options.feat_ai) memory.SlidingWindowMemory else struct {};
+const Message = if (build_options.feat_ai) memory.Message else struct {};
 
 // ============================================================================
 // Short-Term Memory Tests
 // ============================================================================
 
 test "short-term: add and retrieve messages" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 10);
@@ -32,7 +32,7 @@ test "short-term: add and retrieve messages" {
 }
 
 test "short-term: FIFO eviction at capacity" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 3);
@@ -51,7 +51,7 @@ test "short-term: FIFO eviction at capacity" {
 }
 
 test "short-term: getLastN returns tail" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 10);
@@ -69,7 +69,7 @@ test "short-term: getLastN returns tail" {
 }
 
 test "short-term: getLastN with n > count returns all" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 10);
@@ -82,7 +82,7 @@ test "short-term: getLastN with n > count returns all" {
 }
 
 test "short-term: getByRole filters correctly" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 10);
@@ -102,7 +102,7 @@ test "short-term: getByRole filters correctly" {
 }
 
 test "short-term: clear removes all messages" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 10);
@@ -118,7 +118,7 @@ test "short-term: clear removes all messages" {
 }
 
 test "short-term: stats track utilization" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 5);
@@ -136,7 +136,7 @@ test "short-term: stats track utilization" {
 }
 
 test "short-term: token estimation" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var mem = ShortTermMemory.init(allocator, 10);
@@ -153,7 +153,7 @@ test "short-term: token estimation" {
 // ============================================================================
 
 test "sliding window: token-based eviction" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // 20 tokens max
@@ -173,7 +173,7 @@ test "sliding window: token-based eviction" {
 }
 
 test "sliding window: system message always retained" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var win = SlidingWindowMemory.init(allocator, 30);
@@ -191,7 +191,7 @@ test "sliding window: system message always retained" {
 }
 
 test "sliding window: system reserve protects budget" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // 30 tokens total, 15 reserved for system
@@ -208,7 +208,7 @@ test "sliding window: system reserve protects budget" {
 }
 
 test "sliding window: remainingTokens calculation" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var win = SlidingWindowMemory.init(allocator, 100);
@@ -223,7 +223,7 @@ test "sliding window: remainingTokens calculation" {
 }
 
 test "sliding window: clear keeps system message" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var win = SlidingWindowMemory.init(allocator, 100);
@@ -246,7 +246,7 @@ test "sliding window: clear keeps system message" {
 // ============================================================================
 
 test "message: factory methods set correct roles" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const user_msg = Message.user("test");
     try std.testing.expectEqual(memory.MessageRole.user, user_msg.role);
@@ -263,7 +263,7 @@ test "message: factory methods set correct roles" {
 }
 
 test "message: estimateTokens approximation" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // 16 chars → 4 tokens at 4 chars/token
     const msg = Message.user("1234567890123456");
@@ -275,7 +275,7 @@ test "message: estimateTokens approximation" {
 }
 
 test "message: clone produces independent copy" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const original = Message.user("Hello world");

@@ -93,7 +93,7 @@ pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Serv
 // ═══════════════════════════════════════════════════════════════
 
 /// Shared database access — comptime-gated to support disabled database feature.
-const database = if (build_options.enable_database)
+const database = if (build_options.feat_database)
     @import("../../features/database/mod.zig")
 else
     @import("../../features/database/stub.zig");

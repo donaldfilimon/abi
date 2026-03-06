@@ -10,7 +10,7 @@ const std = @import("std");
 const command_mod = @import("../../command.zig");
 const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
-const tui = @import("../core/mod.zig");
+const tui = @import("../mod.zig");
 
 const max_file_size = 8 * 1024 * 1024;
 const gutter_cols: usize = 6;

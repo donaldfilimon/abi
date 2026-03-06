@@ -102,7 +102,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 // ============================================================================

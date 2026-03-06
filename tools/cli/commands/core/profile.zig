@@ -284,11 +284,6 @@ fn loadProfileStore(allocator: std.mem.Allocator) !ProfileStore {
         return store;
     }
 
-    // Backward-compatibility for older releases that used profiles.json.
-    const legacy_path = app_paths.resolvePath(allocator, "profiles.json") catch return store;
-    defer allocator.free(legacy_path);
-    _ = try tryLoadProfileStoreFromPath(allocator, legacy_path, &store);
-
     return store;
 }
 

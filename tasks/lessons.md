@@ -19,3 +19,7 @@
 ## 2026-03-01 - Tool boundary discipline
 - Root cause: Patch flow was attempted through generic shell execution instead of dedicated patch tooling.
 - Prevention rule: Use dedicated patch/edit tools for file mutations and reserve shell for non-mutating inspection or command execution.
+
+## 2026-03-06 - Workflow contract must be applied before implementation
+- Root cause: Mandatory workflow rules were applied only after implementation work had already started, which created avoidable drift in consensus, task tracking, and review discipline.
+- Prevention rule: For any non-trivial ABI task, review `tasks/lessons.md`, run the required multi-CLI consensus with a real prompt packet, and refresh `tasks/todo.md` before making repo-tracked edits.

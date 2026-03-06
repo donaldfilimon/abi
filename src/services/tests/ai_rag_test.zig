@@ -6,17 +6,17 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const rag = if (build_options.enable_ai) abi.features.ai.rag else struct {};
-const Chunker = if (build_options.enable_ai) rag.Chunker else struct {};
-const Retriever = if (build_options.enable_ai) rag.Retriever else struct {};
-const ContextBuilder = if (build_options.enable_ai) rag.ContextBuilder else struct {};
+const rag = if (build_options.feat_ai) abi.features.ai.rag else struct {};
+const Chunker = if (build_options.feat_ai) rag.Chunker else struct {};
+const Retriever = if (build_options.feat_ai) rag.Retriever else struct {};
+const ContextBuilder = if (build_options.feat_ai) rag.ContextBuilder else struct {};
 
 // ============================================================================
 // Chunker Strategy Tests
 // ============================================================================
 
 test "chunker: fixed strategy splits at chunk_size" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var chunker = Chunker.init(allocator, .{
@@ -41,7 +41,7 @@ test "chunker: fixed strategy splits at chunk_size" {
 }
 
 test "chunker: sentence strategy splits on boundaries" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var chunker = Chunker.init(allocator, .{
@@ -63,7 +63,7 @@ test "chunker: sentence strategy splits on boundaries" {
 }
 
 test "chunker: paragraph strategy splits on double newlines" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var chunker = Chunker.init(allocator, .{
@@ -85,7 +85,7 @@ test "chunker: paragraph strategy splits on double newlines" {
 }
 
 test "chunker: empty content returns empty" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var chunker = Chunker.init(allocator, .{
@@ -105,7 +105,7 @@ test "chunker: empty content returns empty" {
 }
 
 test "chunker: chunk offsets map to original content" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var chunker = Chunker.init(allocator, .{
@@ -131,7 +131,7 @@ test "chunker: chunk offsets map to original content" {
 }
 
 test "chunker: chunk indices are sequential" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var chunker = Chunker.init(allocator, .{
@@ -155,7 +155,7 @@ test "chunker: chunk indices are sequential" {
 }
 
 test "chunker: estimateTokens approximation" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const chunk = rag.Chunk{
         .content = "Hello world test content",
@@ -176,7 +176,7 @@ test "chunker: estimateTokens approximation" {
 // ============================================================================
 
 test "retriever: default embedding is deterministic" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var ret = Retriever.init(allocator, .{});
@@ -196,7 +196,7 @@ test "retriever: default embedding is deterministic" {
 }
 
 test "retriever: different texts produce different embeddings" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var ret = Retriever.init(allocator, .{});
@@ -221,7 +221,7 @@ test "retriever: different texts produce different embeddings" {
 }
 
 test "retriever: text similarity self-match is high" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var ret = Retriever.init(allocator, .{});
@@ -232,7 +232,7 @@ test "retriever: text similarity self-match is high" {
 }
 
 test "retriever: text similarity different texts is lower" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var ret = Retriever.init(allocator, .{});
@@ -249,7 +249,7 @@ test "retriever: text similarity different texts is lower" {
 // ============================================================================
 
 test "context builder: builds prompt with template" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var builder = ContextBuilder.init(allocator, .{});
@@ -284,7 +284,7 @@ test "context builder: builds prompt with template" {
 }
 
 test "context builder: empty results produce valid prompt" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var builder = ContextBuilder.init(allocator, .{});

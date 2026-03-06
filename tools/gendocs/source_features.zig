@@ -171,7 +171,7 @@ test "discoverFeatures parses a minimal catalog" {
         \\    .{
         \\        .feature = .gpu,
         \\        .description = "GPU acceleration and compute",
-        \\        .compile_flag_field = "enable_gpu",
+        \\        .compile_flag_field = "feat_gpu",
         \\        .parity_spec = .gpu,
         \\        .real_module_path = "features/gpu/mod.zig",
         \\        .stub_module_path = "features/gpu/stub.zig",
@@ -179,7 +179,7 @@ test "discoverFeatures parses a minimal catalog" {
         \\    .{
         \\        .feature = .ai,
         \\        .description = "AI core functionality",
-        \\        .compile_flag_field = "enable_ai",
+        \\        .compile_flag_field = "feat_ai",
         \\        .parity_spec = .ai,
         \\        .real_module_path = "features/ai/mod.zig",
         \\        .stub_module_path = "features/ai/stub.zig",
@@ -187,7 +187,7 @@ test "discoverFeatures parses a minimal catalog" {
         \\    .{
         \\        .feature = .llm,
         \\        .description = "Local LLM inference",
-        \\        .compile_flag_field = "enable_llm",
+        \\        .compile_flag_field = "feat_llm",
         \\        .parity_spec = .ai,
         \\        .parent = .ai,
         \\        .real_module_path = "features/ai/facades/inference.zig",
@@ -204,19 +204,19 @@ test "discoverFeatures parses a minimal catalog" {
     // Sorted alphabetically: ai, gpu, llm
     try std.testing.expectEqualStrings("ai", features[0].name);
     try std.testing.expectEqualStrings("AI core functionality", features[0].description);
-    try std.testing.expectEqualStrings("enable_ai", features[0].compile_flag);
+    try std.testing.expectEqualStrings("feat_ai", features[0].compile_flag);
     try std.testing.expectEqualStrings("", features[0].parent);
     try std.testing.expectEqualStrings("features/ai/mod.zig", features[0].real_module_path);
     try std.testing.expectEqualStrings("features/ai/stub.zig", features[0].stub_module_path);
 
     try std.testing.expectEqualStrings("gpu", features[1].name);
     try std.testing.expectEqualStrings("GPU acceleration and compute", features[1].description);
-    try std.testing.expectEqualStrings("enable_gpu", features[1].compile_flag);
+    try std.testing.expectEqualStrings("feat_gpu", features[1].compile_flag);
     try std.testing.expectEqualStrings("", features[1].parent);
 
     try std.testing.expectEqualStrings("llm", features[2].name);
     try std.testing.expectEqualStrings("Local LLM inference", features[2].description);
-    try std.testing.expectEqualStrings("enable_llm", features[2].compile_flag);
+    try std.testing.expectEqualStrings("feat_llm", features[2].compile_flag);
     try std.testing.expectEqualStrings("ai", features[2].parent);
     try std.testing.expectEqualStrings("features/ai/facades/inference.zig", features[2].real_module_path);
     try std.testing.expectEqualStrings("features/ai/facades/inference_stub.zig", features[2].stub_module_path);

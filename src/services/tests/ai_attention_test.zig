@@ -6,15 +6,15 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const attention = if (build_options.enable_llm) abi.features.ai.llm.ops.attention else struct {};
-const activations = if (build_options.enable_llm) abi.features.ai.llm.ops.activations else struct {};
+const attention = if (build_options.feat_llm) abi.features.ai.llm.ops.attention else struct {};
+const activations = if (build_options.feat_llm) abi.features.ai.llm.ops.activations else struct {};
 
 // ============================================================================
 // Comptime Scale Factor Tests
 // ============================================================================
 
 test "attention: comptime scale factors are 1/sqrt(d)" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Verify pre-computed constants match formula
     try std.testing.expectApproxEqAbs(
@@ -35,7 +35,7 @@ test "attention: comptime scale factors are 1/sqrt(d)" {
 }
 
 test "attention: getScale falls back to runtime for non-standard dims" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     const scale_48 = attention.ComptimeScales.getScale(48);
     try std.testing.expectApproxEqAbs(
@@ -50,7 +50,7 @@ test "attention: getScale falls back to runtime for non-standard dims" {
 }
 
 test "attention: ScaledAttention comptime instantiation" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Verify comptime instantiation produces correct constants
     const A64 = attention.ScaledAttention(64);
@@ -67,7 +67,7 @@ test "attention: ScaledAttention comptime instantiation" {
 // ============================================================================
 
 test "attention: causal mask blocks future positions" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // 3-token sequence, head_dim=2
@@ -100,7 +100,7 @@ test "attention: causal mask blocks future positions" {
 }
 
 test "attention: non-causal sees all positions" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Two positions with orthogonal Q,K so attention is spread
@@ -144,7 +144,7 @@ test "attention: non-causal sees all positions" {
 // ============================================================================
 
 test "attention: flash matches standard for small input" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const q = [_]f32{ 1, 0, 0, 1 };
@@ -182,7 +182,7 @@ test "attention: flash matches standard for small input" {
 }
 
 test "attention: flash attention with varied block sizes" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const seq_len: u32 = 4;
@@ -246,7 +246,7 @@ test "attention: flash attention with varied block sizes" {
 // ============================================================================
 
 test "attention: softmax output sums to 1" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var logits = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     activations.softmaxInPlace(&logits);
@@ -261,7 +261,7 @@ test "attention: softmax output sums to 1" {
 }
 
 test "attention: softmax preserves ordering" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var logits = [_]f32{ 1.0, 3.0, 2.0, 5.0 };
     activations.softmaxInPlace(&logits);
@@ -273,7 +273,7 @@ test "attention: softmax preserves ordering" {
 }
 
 test "attention: softmax numerically stable with large values" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Large values that would overflow naive exp()
     var logits = [_]f32{ 1000.0, 1001.0, 999.0, 1000.5 };
@@ -294,7 +294,7 @@ test "attention: softmax numerically stable with large values" {
 // ============================================================================
 
 test "attention: config from model dimensions" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Llama-7B config: hidden=4096, heads=32, kv_heads=32
     const config = attention.AttentionConfig.fromModel(4096, 32, 32);

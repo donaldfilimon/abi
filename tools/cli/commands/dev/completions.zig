@@ -355,7 +355,7 @@ fn generateFish() void {
     , .{});
     for (spec.theme_names) |name| {
         std.debug.print(
-            \\complete -c abi -n "__fish_seen_subcommand_from ui launch start" -a "{s}" -d "{s} theme"
+            \\complete -c abi -n "__fish_seen_subcommand_from ui" -a "{s}" -d "{s} theme"
             \\
         , .{ name, name });
     }

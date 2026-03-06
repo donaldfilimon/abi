@@ -66,8 +66,8 @@ pub const BackendNameList = struct {
 /// Inputs for auto backend selection.
 pub const SelectionContext = struct {
     platform: PlatformClass,
-    enable_gpu: bool,
-    enable_web: bool,
+    feat_gpu: bool,
+    feat_web: bool,
     can_link_metal: bool = true,
     warn_if_metal_skipped: bool = false,
     allow_simulated: bool = false,
@@ -147,10 +147,10 @@ pub fn resolveAutoBackendNames(ctx: SelectionContext) BackendNameList {
 
 fn shouldInclude(ctx: SelectionContext, name: []const u8) bool {
     if (std.mem.eql(u8, name, "webgpu") or std.mem.eql(u8, name, "webgl2"))
-        return ctx.enable_web and ctx.platform == .web;
+        return ctx.feat_web and ctx.platform == .web;
     if (std.mem.eql(u8, name, "simulated"))
-        return ctx.allow_simulated and (ctx.enable_gpu or ctx.enable_web);
-    return ctx.enable_gpu;
+        return ctx.allow_simulated and (ctx.feat_gpu or ctx.feat_web);
+    return ctx.feat_gpu;
 }
 
 /// Return runtime optimization hints appropriate for the given platform.

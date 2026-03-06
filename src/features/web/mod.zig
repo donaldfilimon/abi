@@ -89,7 +89,7 @@
 //!
 //! ## Feature Flag
 //!
-//! This module is controlled by `-Denable-web=true` (default: enabled).
+//! This module is controlled by `-Dfeat-web=true` (default: enabled).
 //! When disabled, all operations return `error.WebDisabled`.
 //!
 //! ## Thread Safety
@@ -142,7 +142,7 @@ pub const http = @import("../../services/shared/utils.zig").http;
 /// Errors specific to the web module.
 pub const WebError = error{
     /// The web feature is disabled in the build configuration.
-    /// Enable with `-Denable-web=true`.
+    /// Enable with `-Dfeat-web=true`.
     WebDisabled,
 };
 
@@ -254,7 +254,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return build_options.enable_web;
+    return build_options.feat_web;
 }
 
 pub fn isInitialized() bool {
@@ -336,7 +336,7 @@ test "web helpers parse json and status" {
 }
 
 test "isEnabled returns build option" {
-    try std.testing.expectEqual(build_options.enable_web, isEnabled());
+    try std.testing.expectEqual(build_options.feat_web, isEnabled());
 }
 
 test "isSuccessStatus for 2xx codes" {

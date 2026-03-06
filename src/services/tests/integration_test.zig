@@ -58,11 +58,11 @@ test "framework with features enabled" {
     defer fw.deinit();
 
     // Check feature flags match build options
-    try std.testing.expectEqual(build_options.enable_gpu, fw.isEnabled(.gpu));
-    try std.testing.expectEqual(build_options.enable_ai, fw.isEnabled(.ai));
-    try std.testing.expectEqual(build_options.enable_web, fw.isEnabled(.web));
-    try std.testing.expectEqual(build_options.enable_database, fw.isEnabled(.database));
-    try std.testing.expectEqual(build_options.enable_network, fw.isEnabled(.network));
+    try std.testing.expectEqual(build_options.feat_gpu, fw.isEnabled(.gpu));
+    try std.testing.expectEqual(build_options.feat_ai, fw.isEnabled(.ai));
+    try std.testing.expectEqual(build_options.feat_web, fw.isEnabled(.web));
+    try std.testing.expectEqual(build_options.feat_database, fw.isEnabled(.database));
+    try std.testing.expectEqual(build_options.feat_network, fw.isEnabled(.network));
 }
 
 // ============================================================================

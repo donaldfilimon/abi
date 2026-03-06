@@ -450,7 +450,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return build_options.enable_database;
+    return build_options.feat_database;
 }
 
 pub fn isInitialized() bool {

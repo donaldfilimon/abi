@@ -1,13 +1,13 @@
-# Task Plan - Zig 0.16 Aggressive-5 Execution (2026-03-06)
+# Task Plan - ABI Zig 0.16 Breaking Cleanup (2026-03-06)
 
 ## Objective
-Apply and maintain the Aggressive-5 reprioritization across canonical catalog, generated roadmap/plan artifacts, and workflow tracking files while preserving deterministic `zig-master` validation gates.
+Execute the approved breaking cleanup wave for the ABI Zig 0.16 codebase by simplifying build/test orchestration, hard-removing legacy compatibility surfaces, and replacing the current `ui` split architecture with one canonical shared-runtime shell entrypoint plus focused view commands.
 
 ## Scope
-- Keep `zig-master` as the execution contract with exact pin `0.16.0-dev.2694+74f361a5c`.
-- Treat `src/services/tasks/roadmap_catalog.zig` as the only source of truth for plan/roadmap content and status.
-- Keep all plan artifacts synchronized in one wave: catalog, `docs/data/*.zon`, `docs/plans/*.md`, `docs/_docs/roadmap.md`, and `tasks/`.
-- Maintain Aggressive-5 active state: CLI, Docs sync, TUI, GPU, and Feature Modules are in progress; Integration remains blocked with explicit unblock criteria.
+- Treat this as a repo-wide breaking cleanup, not a narrow `ui` fix.
+- Use `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)` as the validation contract.
+- Run the mandatory multi-CLI consensus before implementation and treat surviving outputs as advisory input.
+- Replace the current dirty `ui` worktree approach rather than preserving it.
 
 ## Verification Criteria
 - `which zig`
@@ -16,7 +16,6 @@ Apply and maintain the Aggressive-5 reprioritization across canonical catalog, g
 - `zig build toolchain-doctor`
 - `zig build gendocs -- --check --no-wasm --untracked-md`
 - `zig build check-docs`
-- `zig build check-workflow-orchestration-strict --summary all`
 - `zig build typecheck`
 - `zig build cli-tests`
 - `zig build tui-tests`
@@ -27,21 +26,18 @@ Apply and maintain the Aggressive-5 reprioritization across canonical catalog, g
 
 ## Checklist
 ### Now
-- [x] Aggressive-5 reprioritization encoded in `roadmap_catalog.zig` with no slug/ID/schema changes.
-- [x] Generated artifacts refreshed from canonical source (`docs/data/plans.zon`, `docs/data/roadmap.zon`, `docs/plans/*.md`, `docs/_docs/roadmap.md`).
-- [x] Active-plan profile set: 5 plans `In Progress`, 1 plan `Blocked`.
-- [ ] Wave 1 (CLI framework + local-agent fallback): close descriptor/runtime parity and help/assertion drift.
-- [ ] Wave 2 (TUI modular extraction): finalize module boundaries and layout/input correctness.
-- [ ] Wave 3 (GPU redesign): complete strict backend policy and pool lifecycle hardening.
-- [ ] Wave 5 (feature-module restructure): finish facade removal and boundary consolidation.
-- [ ] Per-wave maintenance rule: after each milestone/status update, regenerate docs artifacts and update `tasks/todo.md` + `tasks/lessons.md` in the same change set.
+- [x] Toolchain pin verified against `.zigversion`.
+- [x] Review existing `tasks/lessons.md` before implementation.
+- [x] Prepare and run tri-CLI consensus prompt packet for this cleanup wave.
+- [ ] Refactor build/test orchestration so `full-check` and `verify-all` compose only from leaf steps.
+- [ ] Replace hand-maintained CLI smoke coverage with descriptor-driven generation plus a minimal safe functional allowlist.
+- [ ] Make `build/test_discovery.zig` the only tracked feature-test source of truth and generate the feature-test root in build cache.
+- [ ] Simplify baseline/consistency checks so generated expectations replace stale hard-coded markers.
+- [ ] Remove legacy build flag aliases, compatibility namespaces, fallback paths, deprecated forwards, and `(legacy: ...)` CLI/docs messaging.
+- [ ] Collapse `ui` to one canonical shell entrypoint plus focused views on the shared dashboard runtime.
+- [ ] Port `ui gpu` and `ui brain` onto shared dashboard/panel contracts.
+- [ ] Regenerate docs/registry artifacts only after the public cleanup lands.
 
-### Next
-- [ ] Wave 4 unblock path (integration gates): satisfy unblock criteria and restore deterministic `cli-tests-full`.
-- [ ] Keep interim integration policy green while blocked: `cli-tests`, `tui-tests`, `ui launch --help`, `ui gpu --help`.
-- [ ] Continue planned backlog without changing current horizon policy: RM-006, RM-010, RM-011, RM-012.
-
-## Review
-- Result: Aggressive-5 state is now canonical-first and synchronized across all plan surfaces.
-- Validation: Full `zig-master` close-out gates are required before merge acceptance.
-- Residual risk: Parallel active waves increase coordination load; missing same-wave regeneration of docs/tasks can reintroduce drift.
+### Review
+- [ ] Full `zig-master` close-out sequence passes, or any remaining failure is isolated as a pre-existing flake with evidence.
+- [ ] `tasks/lessons.md` captures any new correction-driven rule discovered during execution.

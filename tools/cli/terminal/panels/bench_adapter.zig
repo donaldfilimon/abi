@@ -52,7 +52,7 @@ pub const BenchAdapter = struct {
 };
 
 test "bench_adapter name and hint" {
-    var adapter: BenchAdapter = std.mem.zeroes(BenchAdapter);
+    const adapter: *BenchAdapter = undefined;
     try std.testing.expectEqualStrings("Bench", adapter.name());
     try std.testing.expectEqualStrings("8", adapter.shortcutHint());
 }

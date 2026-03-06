@@ -283,7 +283,7 @@ pub const Context = struct {
 
 /// Check if vision is enabled at compile time.
 pub fn isEnabled() bool {
-    return build_options.enable_vision;
+    return build_options.feat_vision;
 }
 
 // ============================================================================

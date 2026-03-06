@@ -275,7 +275,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return build_options.enable_analytics;
+    return build_options.feat_analytics;
 }
 
 pub fn isInitialized() bool {

@@ -53,28 +53,28 @@ pub const FeatureDescriptor = struct {
 /// Order matters: init runs top-to-bottom, deinit runs bottom-to-top.
 pub const descriptors = [_]FeatureDescriptor{
     // ── Top-level features ──────────────────────────────────────────────
-    .{ .field_name = "gpu", .feature_tag = .gpu, .build_flag = "enable_gpu" },
-    .{ .field_name = "ai", .feature_tag = .ai, .build_flag = "enable_ai" },
-    .{ .field_name = "database", .feature_tag = .database, .build_flag = "enable_database" },
-    .{ .field_name = "network", .feature_tag = .network, .build_flag = "enable_network" },
-    .{ .field_name = "observability", .feature_tag = .observability, .build_flag = "enable_profiling" },
-    .{ .field_name = "web", .feature_tag = .web, .build_flag = "enable_web" },
-    .{ .field_name = "cloud", .feature_tag = .cloud, .build_flag = "enable_cloud" },
-    .{ .field_name = "analytics", .feature_tag = .analytics, .build_flag = "enable_analytics" },
-    .{ .field_name = "auth", .feature_tag = .auth, .build_flag = "enable_auth" },
-    .{ .field_name = "messaging", .feature_tag = .messaging, .build_flag = "enable_messaging" },
-    .{ .field_name = "cache", .feature_tag = .cache, .build_flag = "enable_cache" },
-    .{ .field_name = "storage", .feature_tag = .storage, .build_flag = "enable_storage" },
-    .{ .field_name = "search", .feature_tag = .search, .build_flag = "enable_search" },
-    .{ .field_name = "gateway", .feature_tag = .gateway, .build_flag = "enable_gateway" },
-    .{ .field_name = "pages", .feature_tag = .pages, .build_flag = "enable_pages" },
-    .{ .field_name = "benchmarks", .feature_tag = .benchmarks, .build_flag = "enable_benchmarks" },
-    .{ .field_name = "mobile", .feature_tag = .mobile, .build_flag = "enable_mobile" },
+    .{ .field_name = "gpu", .feature_tag = .gpu, .build_flag = "feat_gpu" },
+    .{ .field_name = "ai", .feature_tag = .ai, .build_flag = "feat_ai" },
+    .{ .field_name = "database", .feature_tag = .database, .build_flag = "feat_database" },
+    .{ .field_name = "network", .feature_tag = .network, .build_flag = "feat_network" },
+    .{ .field_name = "observability", .feature_tag = .observability, .build_flag = "feat_profiling" },
+    .{ .field_name = "web", .feature_tag = .web, .build_flag = "feat_web" },
+    .{ .field_name = "cloud", .feature_tag = .cloud, .build_flag = "feat_cloud" },
+    .{ .field_name = "analytics", .feature_tag = .analytics, .build_flag = "feat_analytics" },
+    .{ .field_name = "auth", .feature_tag = .auth, .build_flag = "feat_auth" },
+    .{ .field_name = "messaging", .feature_tag = .messaging, .build_flag = "feat_messaging" },
+    .{ .field_name = "cache", .feature_tag = .cache, .build_flag = "feat_cache" },
+    .{ .field_name = "storage", .feature_tag = .storage, .build_flag = "feat_storage" },
+    .{ .field_name = "search", .feature_tag = .search, .build_flag = "feat_search" },
+    .{ .field_name = "gateway", .feature_tag = .gateway, .build_flag = "feat_gateway" },
+    .{ .field_name = "pages", .feature_tag = .pages, .build_flag = "feat_pages" },
+    .{ .field_name = "benchmarks", .feature_tag = .benchmarks, .build_flag = "feat_benchmarks" },
+    .{ .field_name = "mobile", .feature_tag = .mobile, .build_flag = "feat_mobile" },
     // ── AI facade sub-modules ───────────────────────────────────────────
-    .{ .field_name = "ai_core", .feature_tag = .agents, .build_flag = "enable_ai", .init_mode = .non_fatal },
-    .{ .field_name = "ai_inference", .feature_tag = .llm, .build_flag = "enable_llm", .init_mode = .non_fatal },
-    .{ .field_name = "ai_training", .feature_tag = .training, .build_flag = "enable_training", .init_mode = .non_fatal },
-    .{ .field_name = "ai_reasoning", .feature_tag = .reasoning, .build_flag = "enable_reasoning", .init_mode = .non_fatal },
+    .{ .field_name = "ai_core", .feature_tag = .agents, .build_flag = "feat_ai", .init_mode = .non_fatal },
+    .{ .field_name = "ai_inference", .feature_tag = .llm, .build_flag = "feat_llm", .init_mode = .non_fatal },
+    .{ .field_name = "ai_training", .feature_tag = .training, .build_flag = "feat_training", .init_mode = .non_fatal },
+    .{ .field_name = "ai_reasoning", .feature_tag = .reasoning, .build_flag = "feat_reasoning", .init_mode = .non_fatal },
 };
 
 pub const descriptor_count = descriptors.len;
@@ -119,7 +119,7 @@ pub fn validateTopLevel(cfg: config_mod.Config) config_mod.ConfigError!void {
     }
     // Special case: LLM nested under AI with its own flag.
     if (cfg.ai) |ai| {
-        if (ai.llm != null and !build_options.enable_llm) {
+        if (ai.llm != null and !build_options.feat_llm) {
             return config_mod.ConfigError.FeatureDisabled;
         }
     }

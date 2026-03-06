@@ -58,7 +58,7 @@ pub const BrainAdapter = struct {
 };
 
 test "brain_adapter name and hint" {
-    var adapter: BrainAdapter = std.mem.zeroes(BrainAdapter);
+    const adapter: *BrainAdapter = undefined;
     try std.testing.expectEqualStrings("Brain", adapter.name());
     try std.testing.expectEqualStrings("9", adapter.shortcutHint());
 }

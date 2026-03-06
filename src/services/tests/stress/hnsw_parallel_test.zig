@@ -44,7 +44,7 @@ fn generateRandomVector(rng: *std.Random.DefaultPrng, buffer: []f32) void {
 // ============================================================================
 
 test "parallel batch search: basic functionality" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -100,7 +100,7 @@ test "parallel batch search: basic functionality" {
 }
 
 test "parallel batch search: empty queries" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -122,7 +122,7 @@ test "parallel batch search: empty queries" {
 }
 
 test "parallel batch search: single query fallback" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -155,7 +155,7 @@ test "parallel batch search: single query fallback" {
 }
 
 test "parallel batch search: result quality" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -220,7 +220,7 @@ test "parallel batch search: result quality" {
 }
 
 test "parallel batch search: performance" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -297,7 +297,7 @@ test "parallel batch search: performance" {
 }
 
 test "parallel batch search: concurrent correctness" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -371,7 +371,7 @@ test "parallel batch search: concurrent correctness" {
 }
 
 test "parallel batch search: large batch" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -434,7 +434,7 @@ test "parallel batch search: large batch" {
 }
 
 test "parallel batch search: compare with sequential" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 

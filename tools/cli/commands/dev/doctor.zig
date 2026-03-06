@@ -61,7 +61,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // 3. GPU detection
     blk: {
         if (!abi.features.gpu.backends.detect.moduleEnabled()) {
-            printCheck("GPU module", false, "disabled at build time (-Dfeat-gpu=true (legacy: -Denable-gpu=true) to enable)");
+            printCheck("GPU module", false, "disabled at build time (-Dfeat-gpu=true to enable)");
             checks_warned += 1;
             break :blk;
         }

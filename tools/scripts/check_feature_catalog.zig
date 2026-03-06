@@ -11,8 +11,8 @@ const required_files = [_][]const u8{
 };
 
 const internal_allowed_flags = [_][]const u8{
-    "enable_explore",
-    "enable_vision",
+    "feat_explore",
+    "feat_vision",
 };
 
 fn isIdentStart(ch: u8) bool {
@@ -96,7 +96,7 @@ fn appendEnumEntries(
     }
 }
 
-fn appendEnableFields(
+fn appendFeatFields(
     allocator: std.mem.Allocator,
     struct_block: []const u8,
     out: *std.ArrayListUnmanaged([]const u8),
@@ -104,7 +104,7 @@ fn appendEnableFields(
     var lines = std.mem.splitScalar(u8, struct_block, '\n');
     while (lines.next()) |line| {
         const trimmed = std.mem.trim(u8, line, " \t\r\n");
-        if (!std.mem.startsWith(u8, trimmed, "enable_")) continue;
+        if (!std.mem.startsWith(u8, trimmed, "feat_")) continue;
         const colon = std.mem.indexOfScalar(u8, trimmed, ':') orelse continue;
         const field = trimmed[0..colon];
         if (field.len > 0) try out.append(allocator, field);
@@ -228,11 +228,11 @@ pub fn main(_: std.process.Init) !void {
 
     var build_flags = std.ArrayListUnmanaged([]const u8).empty;
     defer build_flags.deinit(allocator);
-    try appendEnableFields(allocator, options_block, &build_flags);
+    try appendFeatFields(allocator, options_block, &build_flags);
 
     var combo_flags = std.ArrayListUnmanaged([]const u8).empty;
     defer combo_flags.deinit(allocator);
-    try appendEnableFields(allocator, combo_block, &combo_flags);
+    try appendFeatFields(allocator, combo_block, &combo_flags);
 
     if (catalog_features.items.len == 0) {
         std.debug.print("ERROR: no catalog features parsed\n", .{});

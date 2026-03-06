@@ -4,22 +4,15 @@
 //! Also contains action execution (run commands, exit TUI).
 
 const std = @import("std");
-const abi = @import("abi");
-const context_mod = @import("../../framework/context.zig");
-const framework_mod = @import("../../framework/mod.zig");
 const tui = @import("../mod.zig");
-const utils = @import("../../utils/mod.zig");
-const commands_mod = @import("../../commands/mod.zig");
 const theme_options = @import("../../commands/core/ui/theme_options.zig");
 const types = @import("types.zig");
 const state_mod = @import("state.zig");
 const menu_mod = @import("menu.zig");
-const render = @import("render.zig");
-const tui_layout = @import("layout.zig");
+const actions = @import("actions.zig");
 
 const TuiState = state_mod.TuiState;
 const Action = types.Action;
-const CommandRef = types.CommandRef;
 const colors = types.colors;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -198,70 +191,21 @@ fn handleSearchKey(state: *TuiState, key: tui.Key) !bool {
 // ═══════════════════════════════════════════════════════════════════
 
 pub fn executeActionFromState(state: *TuiState, action: Action) !bool {
-    if (action == .quit) return true;
-
     switch (action) {
         .command => |cmd| try state.addToHistory(cmd.id),
         else => {},
     }
-
-    try state.terminal.exit();
-    errdefer state.terminal.enter() catch {};
-
-    runAction(state.allocator, state.framework, action) catch {};
-
-    utils.output.printInfo("\nPress Enter to return to menu...", .{});
-    _ = state.terminal.readKey() catch {};
-    try state.terminal.enter();
-
-    return false;
-}
-
-fn runAction(allocator: std.mem.Allocator, framework: *abi.App, action: Action) !void {
-    _ = framework;
-
-    switch (action) {
-        .command => |cmd| runCommand(allocator, cmd) catch |err| {
-            utils.output.printError("Command '{s}' failed: {t}", .{ commandLabel(cmd), err });
-            return err;
-        },
-        .version => utils.output.printInfo("ABI Framework v{s}", .{abi.version()}),
-        .help => printHelp(),
-        .quit => {},
-    }
-}
-
-fn commandLabel(cmd: CommandRef) []const u8 {
-    if (std.mem.eql(u8, cmd.command, "train") and cmd.args.len > 0) {
-        const first = std.mem.sliceTo(cmd.args[0], 0);
-        if (std.mem.eql(u8, first, "monitor")) return "train monitor";
-    }
-    return cmd.id;
-}
-
-fn runCommand(allocator: std.mem.Allocator, cmd: CommandRef) !void {
-    var io_backend = utils.io_backend.initIoBackend(allocator);
-    defer io_backend.deinit();
-
-    const cmd_ctx = context_mod.CommandContext{
-        .allocator = allocator,
-        .io = io_backend.io(),
-    };
-
-    const command_name = framework_mod.completion.resolveAlias(&commands_mod.descriptors, cmd.command);
-    const matched = try framework_mod.router.runCommand(cmd_ctx, &commands_mod.descriptors, command_name, cmd.args);
-    if (!matched) {
-        return framework_mod.errors.Error.UnknownCommand;
-    }
+    return actions.executeWithTerminal(state.allocator, state.terminal, action, .{
+        .help_callback = printHelp,
+        .return_prompt = "Press Enter to return to menu...",
+    });
 }
 
 pub fn printHelp() void {
     std.debug.print(
-        \\{s}Usage:{s} abi ui launch
-        \\           abi launch
-        \\           abi start
+        \\{s}Usage:{s} abi ui
         \\
-        \\Launch an interactive terminal UI to select and run ABI commands.
+        \\Open the shared shell and use the command palette to select and run ABI commands.
         \\
         \\{s}Navigation:{s}
         \\  Up/Down, j/k    Navigate the menu
@@ -276,7 +220,7 @@ pub fn printHelp() void {
         \\  /               Search/filter commands
         \\  Tab             Autocomplete in search mode
         \\  Esc             Clear search / Exit modes
-        \\  q, Ctrl+C       Exit the TUI launcher
+        \\  q, Ctrl+C       Exit the UI shell
         \\
         \\{s}Features:{s}
         \\  ?               Preview command details before running

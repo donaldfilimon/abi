@@ -126,7 +126,7 @@ pub const KMeans = struct {
     pub fn enableGpuAcceleration(self: *KMeans) !void {
         if (self.gpu_accelerator != null) return; // Already enabled
 
-        if (!build_options.enable_gpu) return ClusteringError.OutOfMemory;
+        if (!build_options.feat_gpu) return ClusteringError.OutOfMemory;
 
         const accel = try self.allocator.create(gpu_accel.GpuAccelerator);
         errdefer self.allocator.destroy(accel);

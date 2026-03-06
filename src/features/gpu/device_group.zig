@@ -129,7 +129,7 @@ pub const DeviceGroup = struct {
         self.devices.clearRetainingCapacity();
         self.active_devices.clearRetainingCapacity();
 
-        if (build_options.enable_gpu) {
+        if (build_options.feat_gpu) {
             const discovered = device_mod.discoverDevices(self.allocator) catch |err| {
                 std.log.warn("DeviceGroup discovery failed, using CPU fallback only: {t}", .{err});
                 try self.appendCpuFallback(0);

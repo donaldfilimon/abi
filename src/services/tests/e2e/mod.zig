@@ -49,11 +49,11 @@ const sync = abi.services.shared.sync;
 
 // Sub-modules
 pub const vector_search = @import("vector_search_e2e.zig");
-pub const ai_agent = if (build_options.enable_ai) @import("ai_agent_e2e.zig") else struct {};
+pub const ai_agent = if (build_options.feat_ai) @import("ai_agent_e2e.zig") else struct {};
 pub const distributed = @import("distributed_e2e.zig");
 pub const gpu_pipeline = @import("gpu_pipeline_e2e.zig");
 pub const cli = @import("cli_e2e.zig");
-pub const llm_training = if (build_options.enable_ai) @import("llm_training_e2e.zig") else struct {};
+pub const llm_training = if (build_options.feat_ai) @import("llm_training_e2e.zig") else struct {};
 
 // NOTE: test {} required for Zig 0.16 test discovery (not comptime)
 test {
@@ -128,35 +128,35 @@ pub const FeatureSet = struct {
     /// Enable all compile-time available features.
     pub fn all() FeatureSet {
         return .{
-            .gpu = build_options.enable_gpu,
-            .ai = build_options.enable_ai,
-            .llm = build_options.enable_llm,
-            .database = build_options.enable_database,
-            .network = build_options.enable_network,
-            .web = build_options.enable_web,
-            .observability = build_options.enable_profiling,
+            .gpu = build_options.feat_gpu,
+            .ai = build_options.feat_ai,
+            .llm = build_options.feat_llm,
+            .database = build_options.feat_database,
+            .network = build_options.feat_network,
+            .web = build_options.feat_web,
+            .observability = build_options.feat_profiling,
         };
     }
 
     /// Database-only feature set.
     pub fn databaseOnly() FeatureSet {
         return .{
-            .database = build_options.enable_database,
+            .database = build_options.feat_database,
         };
     }
 
     /// AI-only feature set.
     pub fn aiOnly() FeatureSet {
         return .{
-            .ai = build_options.enable_ai,
-            .llm = build_options.enable_llm,
+            .ai = build_options.feat_ai,
+            .llm = build_options.feat_llm,
         };
     }
 
     /// GPU-only feature set.
     pub fn gpuOnly() FeatureSet {
         return .{
-            .gpu = build_options.enable_gpu,
+            .gpu = build_options.feat_gpu,
         };
     }
 };
@@ -339,12 +339,12 @@ pub const E2EContext = struct {
     /// Build framework config from feature set.
     fn buildConfig(features: FeatureSet) abi.Config {
         return .{
-            .gpu = if (features.gpu and build_options.enable_gpu) abi.config.GpuConfig.defaults() else null,
-            .ai = if ((features.ai or features.llm) and build_options.enable_ai) abi.config.AiConfig.defaults() else null,
-            .database = if (features.database and build_options.enable_database) abi.config.DatabaseConfig.defaults() else null,
-            .network = if (features.network and build_options.enable_network) abi.config.NetworkConfig.defaults() else null,
-            .observability = if (features.observability and build_options.enable_profiling) abi.config.ObservabilityConfig.defaults() else null,
-            .web = if (features.web and build_options.enable_web) abi.config.WebConfig.defaults() else null,
+            .gpu = if (features.gpu and build_options.feat_gpu) abi.config.GpuConfig.defaults() else null,
+            .ai = if ((features.ai or features.llm) and build_options.feat_ai) abi.config.AiConfig.defaults() else null,
+            .database = if (features.database and build_options.feat_database) abi.config.DatabaseConfig.defaults() else null,
+            .network = if (features.network and build_options.feat_network) abi.config.NetworkConfig.defaults() else null,
+            .observability = if (features.observability and build_options.feat_profiling) abi.config.ObservabilityConfig.defaults() else null,
+            .web = if (features.web and build_options.feat_web) abi.config.WebConfig.defaults() else null,
         };
     }
 };
@@ -451,27 +451,27 @@ pub fn skipIfDisabled(comptime feature: abi.Feature) !void {
 
 /// Skip test if database is disabled.
 pub fn skipIfDatabaseDisabled() !void {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 }
 
 /// Skip test if AI is disabled.
 pub fn skipIfAiDisabled() !void {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 }
 
 /// Skip test if LLM is disabled.
 pub fn skipIfLlmDisabled() !void {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 }
 
 /// Skip test if GPU is disabled.
 pub fn skipIfGpuDisabled() !void {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
 }
 
 /// Skip test if network is disabled.
 pub fn skipIfNetworkDisabled() !void {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 }
 
 /// Generate test vector data.
@@ -643,9 +643,9 @@ test "E2EConfig: presets" {
 
 test "FeatureSet: all" {
     const all = FeatureSet.all();
-    try std.testing.expectEqual(build_options.enable_gpu, all.gpu);
-    try std.testing.expectEqual(build_options.enable_ai, all.ai);
-    try std.testing.expectEqual(build_options.enable_database, all.database);
+    try std.testing.expectEqual(build_options.feat_gpu, all.gpu);
+    try std.testing.expectEqual(build_options.feat_ai, all.ai);
+    try std.testing.expectEqual(build_options.feat_database, all.database);
 }
 
 test "E2EMetrics: calculations" {

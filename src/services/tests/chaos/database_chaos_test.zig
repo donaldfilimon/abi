@@ -38,7 +38,7 @@ fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
 // ============================================================================
 
 test "database chaos: vector insertion survives allocation failures" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -108,7 +108,7 @@ test "database chaos: vector insertion survives allocation failures" {
 }
 
 test "database chaos: search returns correct results after partial writes" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -191,7 +191,7 @@ test "database chaos: search returns correct results after partial writes" {
 }
 
 test "database chaos: update operations maintain consistency" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -263,7 +263,7 @@ test "database chaos: update operations maintain consistency" {
 }
 
 test "database chaos: delete operations are atomic" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -328,7 +328,7 @@ test "database chaos: delete operations are atomic" {
 // ============================================================================
 
 test "database chaos: HNSW index survives allocation failures during construction" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -405,7 +405,7 @@ test "database chaos: HNSW index survives allocation failures during constructio
 // ============================================================================
 
 test "database chaos: batch processor handles failures gracefully" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -475,7 +475,7 @@ test "database chaos: batch processor handles failures gracefully" {
 // ============================================================================
 
 test "database chaos: concurrent access survives random failures" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -595,7 +595,7 @@ test "database chaos: concurrent access survives random failures" {
 // ============================================================================
 
 test "database chaos: full recovery after chaos period" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 

@@ -20,7 +20,7 @@
 //! Run with: `zig build test --summary all`
 //!
 //! To verify parity when features are disabled, rebuild with:
-//! `zig build test -Denable-gpu=false -Denable-ai=false ...`
+//! `zig build test -Dfeat-gpu=false -Dfeat-ai=false ...`
 
 const std = @import("std");
 const abi = @import("abi");

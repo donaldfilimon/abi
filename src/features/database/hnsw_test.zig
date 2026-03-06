@@ -154,7 +154,7 @@ test "hnsw with gpu acceleration config" {
     defer index.deinit(allocator);
 
     // GPU accelerator should be initialized (even if GPU not available, SIMD fallback used)
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try std.testing.expect(index.gpu_accelerator != null);
     }
 

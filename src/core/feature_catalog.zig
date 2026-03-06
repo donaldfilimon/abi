@@ -88,7 +88,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .gpu,
         .description = "GPU acceleration and compute",
-        .compile_flag_field = "enable_gpu",
+        .compile_flag_field = "feat_gpu",
         .parity_spec = .gpu,
         .real_module_path = "features/gpu/mod.zig",
         .stub_module_path = "features/gpu/stub.zig",
@@ -96,7 +96,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .ai,
         .description = "AI core functionality",
-        .compile_flag_field = "enable_ai",
+        .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .real_module_path = "features/ai/mod.zig",
         .stub_module_path = "features/ai/stub.zig",
@@ -104,7 +104,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .llm,
         .description = "Local LLM inference",
-        .compile_flag_field = "enable_llm",
+        .compile_flag_field = "feat_llm",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/facades/inference.zig",
@@ -113,7 +113,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .embeddings,
         .description = "Vector embeddings generation",
-        .compile_flag_field = "enable_ai",
+        .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/mod.zig",
@@ -122,7 +122,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .agents,
         .description = "AI agent runtime",
-        .compile_flag_field = "enable_ai",
+        .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/facades/core.zig",
@@ -131,7 +131,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .training,
         .description = "Model training pipelines",
-        .compile_flag_field = "enable_training",
+        .compile_flag_field = "feat_training",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/facades/training.zig",
@@ -140,7 +140,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .database,
         .description = "Vector database (WDBX)",
-        .compile_flag_field = "enable_database",
+        .compile_flag_field = "feat_database",
         .parity_spec = .database,
         .real_module_path = "features/database/mod.zig",
         .stub_module_path = "features/database/stub.zig",
@@ -148,7 +148,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .network,
         .description = "Distributed compute network",
-        .compile_flag_field = "enable_network",
+        .compile_flag_field = "feat_network",
         .parity_spec = .network,
         .real_module_path = "features/network/mod.zig",
         .stub_module_path = "features/network/stub.zig",
@@ -156,7 +156,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .observability,
         .description = "Metrics, tracing, profiling",
-        .compile_flag_field = "enable_profiling",
+        .compile_flag_field = "feat_profiling",
         .parity_spec = .observability,
         .real_module_path = "features/observability/mod.zig",
         .stub_module_path = "features/observability/stub.zig",
@@ -164,7 +164,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .web,
         .description = "Web/HTTP utilities",
-        .compile_flag_field = "enable_web",
+        .compile_flag_field = "feat_web",
         .parity_spec = .web,
         .real_module_path = "features/web/mod.zig",
         .stub_module_path = "features/web/stub.zig",
@@ -172,7 +172,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .personas,
         .description = "Multi-persona AI assistant",
-        .compile_flag_field = "enable_ai",
+        .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/mod.zig",
@@ -181,7 +181,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .cloud,
         .description = "Cloud provider integration",
-        .compile_flag_field = "enable_cloud",
+        .compile_flag_field = "feat_cloud",
         .parity_spec = .cloud,
         .real_module_path = "features/cloud/mod.zig",
         .stub_module_path = "features/cloud/stub.zig",
@@ -189,7 +189,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .analytics,
         .description = "Analytics event tracking",
-        .compile_flag_field = "enable_analytics",
+        .compile_flag_field = "feat_analytics",
         .parity_spec = .analytics,
         .real_module_path = "features/analytics/mod.zig",
         .stub_module_path = "features/analytics/stub.zig",
@@ -197,7 +197,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .auth,
         .description = "Authentication and security",
-        .compile_flag_field = "enable_auth",
+        .compile_flag_field = "feat_auth",
         .parity_spec = .auth,
         .real_module_path = "features/auth/mod.zig",
         .stub_module_path = "features/auth/stub.zig",
@@ -205,7 +205,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .messaging,
         .description = "Event bus and messaging",
-        .compile_flag_field = "enable_messaging",
+        .compile_flag_field = "feat_messaging",
         .parity_spec = .messaging,
         .real_module_path = "features/messaging/mod.zig",
         .stub_module_path = "features/messaging/stub.zig",
@@ -213,7 +213,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .cache,
         .description = "In-memory caching",
-        .compile_flag_field = "enable_cache",
+        .compile_flag_field = "feat_cache",
         .parity_spec = .cache,
         .real_module_path = "features/cache/mod.zig",
         .stub_module_path = "features/cache/stub.zig",
@@ -221,7 +221,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .storage,
         .description = "Unified file/object storage",
-        .compile_flag_field = "enable_storage",
+        .compile_flag_field = "feat_storage",
         .parity_spec = .storage,
         .real_module_path = "features/storage/mod.zig",
         .stub_module_path = "features/storage/stub.zig",
@@ -229,7 +229,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .search,
         .description = "Full-text search",
-        .compile_flag_field = "enable_search",
+        .compile_flag_field = "feat_search",
         .parity_spec = .search,
         .real_module_path = "features/search/mod.zig",
         .stub_module_path = "features/search/stub.zig",
@@ -237,7 +237,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .mobile,
         .description = "Mobile platform support",
-        .compile_flag_field = "enable_mobile",
+        .compile_flag_field = "feat_mobile",
         .parity_spec = .mobile,
         .real_module_path = "features/mobile/mod.zig",
         .stub_module_path = "features/mobile/stub.zig",
@@ -245,7 +245,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .gateway,
         .description = "API gateway (routing, rate limiting, circuit breaker)",
-        .compile_flag_field = "enable_gateway",
+        .compile_flag_field = "feat_gateway",
         .parity_spec = .gateway,
         .real_module_path = "features/gateway/mod.zig",
         .stub_module_path = "features/gateway/stub.zig",
@@ -253,7 +253,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .pages,
         .description = "Dashboard/UI pages with URL routing",
-        .compile_flag_field = "enable_pages",
+        .compile_flag_field = "feat_pages",
         .parity_spec = .pages,
         .real_module_path = "features/observability/pages/mod.zig",
         .stub_module_path = "features/observability/pages/stub.zig",
@@ -261,7 +261,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .benchmarks,
         .description = "Performance benchmarking and timing",
-        .compile_flag_field = "enable_benchmarks",
+        .compile_flag_field = "feat_benchmarks",
         .parity_spec = .benchmarks,
         .real_module_path = "features/benchmarks/mod.zig",
         .stub_module_path = "features/benchmarks/stub.zig",
@@ -269,7 +269,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .reasoning,
         .description = "AI reasoning (Abbey, eval, RAG)",
-        .compile_flag_field = "enable_reasoning",
+        .compile_flag_field = "feat_reasoning",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/facades/reasoning.zig",
@@ -278,7 +278,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .constitution,
         .description = "AI safety principles and guardrails",
-        .compile_flag_field = "enable_ai",
+        .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/mod.zig",

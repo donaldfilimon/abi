@@ -2,7 +2,7 @@
     .{
         .name = "agents",
         .description = "AI agent runtime",
-        .compile_flag = "enable_ai",
+        .compile_flag = "feat_ai",
         .parent = "ai",
         .real_module_path = "features/ai/facades/core.zig",
         .stub_module_path = "features/ai/facades/core_stub.zig",
@@ -10,7 +10,7 @@
     .{
         .name = "ai",
         .description = "AI core functionality",
-        .compile_flag = "enable_ai",
+        .compile_flag = "feat_ai",
         .parent = "",
         .real_module_path = "features/ai/mod.zig",
         .stub_module_path = "features/ai/stub.zig",
@@ -18,7 +18,7 @@
     .{
         .name = "analytics",
         .description = "Analytics event tracking",
-        .compile_flag = "enable_analytics",
+        .compile_flag = "feat_analytics",
         .parent = "",
         .real_module_path = "features/analytics/mod.zig",
         .stub_module_path = "features/analytics/stub.zig",
@@ -26,7 +26,7 @@
     .{
         .name = "auth",
         .description = "Authentication and security",
-        .compile_flag = "enable_auth",
+        .compile_flag = "feat_auth",
         .parent = "",
         .real_module_path = "features/auth/mod.zig",
         .stub_module_path = "features/auth/stub.zig",
@@ -34,7 +34,7 @@
     .{
         .name = "benchmarks",
         .description = "Performance benchmarking and timing",
-        .compile_flag = "enable_benchmarks",
+        .compile_flag = "feat_benchmarks",
         .parent = "",
         .real_module_path = "features/benchmarks/mod.zig",
         .stub_module_path = "features/benchmarks/stub.zig",
@@ -42,7 +42,7 @@
     .{
         .name = "cache",
         .description = "In-memory caching",
-        .compile_flag = "enable_cache",
+        .compile_flag = "feat_cache",
         .parent = "",
         .real_module_path = "features/cache/mod.zig",
         .stub_module_path = "features/cache/stub.zig",
@@ -50,7 +50,7 @@
     .{
         .name = "cloud",
         .description = "Cloud provider integration",
-        .compile_flag = "enable_cloud",
+        .compile_flag = "feat_cloud",
         .parent = "",
         .real_module_path = "features/cloud/mod.zig",
         .stub_module_path = "features/cloud/stub.zig",
@@ -58,7 +58,7 @@
     .{
         .name = "constitution",
         .description = "AI safety principles and guardrails",
-        .compile_flag = "enable_ai",
+        .compile_flag = "feat_ai",
         .parent = "ai",
         .real_module_path = "features/ai/mod.zig",
         .stub_module_path = "features/ai/stub.zig",
@@ -66,7 +66,7 @@
     .{
         .name = "database",
         .description = "Vector database (WDBX)",
-        .compile_flag = "enable_database",
+        .compile_flag = "feat_database",
         .parent = "",
         .real_module_path = "features/database/mod.zig",
         .stub_module_path = "features/database/stub.zig",
@@ -74,7 +74,7 @@
     .{
         .name = "embeddings",
         .description = "Vector embeddings generation",
-        .compile_flag = "enable_ai",
+        .compile_flag = "feat_ai",
         .parent = "ai",
         .real_module_path = "features/ai/mod.zig",
         .stub_module_path = "features/ai/stub.zig",
@@ -82,7 +82,7 @@
     .{
         .name = "gateway",
         .description = "API gateway (routing, rate limiting, circuit breaker)",
-        .compile_flag = "enable_gateway",
+        .compile_flag = "feat_gateway",
         .parent = "",
         .real_module_path = "features/gateway/mod.zig",
         .stub_module_path = "features/gateway/stub.zig",
@@ -90,7 +90,7 @@
     .{
         .name = "gpu",
         .description = "GPU acceleration and compute",
-        .compile_flag = "enable_gpu",
+        .compile_flag = "feat_gpu",
         .parent = "",
         .real_module_path = "features/gpu/mod.zig",
         .stub_module_path = "features/gpu/stub.zig",
@@ -98,7 +98,7 @@
     .{
         .name = "llm",
         .description = "Local LLM inference",
-        .compile_flag = "enable_llm",
+        .compile_flag = "feat_llm",
         .parent = "ai",
         .real_module_path = "features/ai/facades/inference.zig",
         .stub_module_path = "features/ai/facades/inference_stub.zig",
@@ -106,7 +106,7 @@
     .{
         .name = "messaging",
         .description = "Event bus and messaging",
-        .compile_flag = "enable_messaging",
+        .compile_flag = "feat_messaging",
         .parent = "",
         .real_module_path = "features/messaging/mod.zig",
         .stub_module_path = "features/messaging/stub.zig",
@@ -114,7 +114,7 @@
     .{
         .name = "mobile",
         .description = "Mobile platform support",
-        .compile_flag = "enable_mobile",
+        .compile_flag = "feat_mobile",
         .parent = "",
         .real_module_path = "features/mobile/mod.zig",
         .stub_module_path = "features/mobile/stub.zig",
@@ -122,7 +122,7 @@
     .{
         .name = "network",
         .description = "Distributed compute network",
-        .compile_flag = "enable_network",
+        .compile_flag = "feat_network",
         .parent = "",
         .real_module_path = "features/network/mod.zig",
         .stub_module_path = "features/network/stub.zig",
@@ -130,7 +130,7 @@
     .{
         .name = "observability",
         .description = "Metrics, tracing, profiling",
-        .compile_flag = "enable_profiling",
+        .compile_flag = "feat_profiling",
         .parent = "",
         .real_module_path = "features/observability/mod.zig",
         .stub_module_path = "features/observability/stub.zig",
@@ -138,7 +138,7 @@
     .{
         .name = "pages",
         .description = "Dashboard/UI pages with URL routing",
-        .compile_flag = "enable_pages",
+        .compile_flag = "feat_pages",
         .parent = "",
         .real_module_path = "features/observability/pages/mod.zig",
         .stub_module_path = "features/observability/pages/stub.zig",
@@ -146,7 +146,7 @@
     .{
         .name = "personas",
         .description = "Multi-persona AI assistant",
-        .compile_flag = "enable_ai",
+        .compile_flag = "feat_ai",
         .parent = "ai",
         .real_module_path = "features/ai/mod.zig",
         .stub_module_path = "features/ai/stub.zig",
@@ -154,7 +154,7 @@
     .{
         .name = "reasoning",
         .description = "AI reasoning (Abbey, eval, RAG)",
-        .compile_flag = "enable_reasoning",
+        .compile_flag = "feat_reasoning",
         .parent = "ai",
         .real_module_path = "features/ai/facades/reasoning.zig",
         .stub_module_path = "features/ai/facades/reasoning_stub.zig",
@@ -162,7 +162,7 @@
     .{
         .name = "search",
         .description = "Full-text search",
-        .compile_flag = "enable_search",
+        .compile_flag = "feat_search",
         .parent = "",
         .real_module_path = "features/search/mod.zig",
         .stub_module_path = "features/search/stub.zig",
@@ -170,7 +170,7 @@
     .{
         .name = "storage",
         .description = "Unified file/object storage",
-        .compile_flag = "enable_storage",
+        .compile_flag = "feat_storage",
         .parent = "",
         .real_module_path = "features/storage/mod.zig",
         .stub_module_path = "features/storage/stub.zig",
@@ -178,7 +178,7 @@
     .{
         .name = "training",
         .description = "Model training pipelines",
-        .compile_flag = "enable_training",
+        .compile_flag = "feat_training",
         .parent = "ai",
         .real_module_path = "features/ai/facades/training.zig",
         .stub_module_path = "features/ai/facades/training_stub.zig",
@@ -186,7 +186,7 @@
     .{
         .name = "web",
         .description = "Web/HTTP utilities",
-        .compile_flag = "enable_web",
+        .compile_flag = "feat_web",
         .parent = "",
         .real_module_path = "features/web/mod.zig",
         .stub_module_path = "features/web/stub.zig",

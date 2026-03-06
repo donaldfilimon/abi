@@ -258,7 +258,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return build_options.enable_web;
+    return build_options.feat_web;
 }
 
 pub fn isInitialized() bool {

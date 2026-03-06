@@ -370,7 +370,7 @@ fn appendGettingStartedFlow(
         \\
         \\## First Interactive Flows
         \\
-        \\- `abi ui launch` — command launcher TUI
+        \\- `abi ui` — shared UI shell with command palette
         \\- `abi ui gpu` — GPU dashboard
         \\- `abi llm providers` — inspect local routing state
         \\

@@ -18,7 +18,7 @@ test "c_api: gpu availability check" {
     const gpu_enabled = gpu_detect.moduleEnabled();
 
     // If GPU feature is disabled at compile time, module should not be enabled
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         try testing.expect(!gpu_enabled);
     }
 
@@ -39,17 +39,17 @@ test "c_api: gpu module enabled check" {
     const module_enabled = gpu_detect.moduleEnabled();
 
     // Module enabled should match build option
-    try testing.expect(module_enabled == build_options.enable_gpu);
+    try testing.expect(module_enabled == build_options.feat_gpu);
 }
 
 test "c_api: gpu backend summary" {
     const gpu_summary = gpu_listing.summary();
 
     // Summary should reflect compile-time settings
-    try testing.expect(gpu_summary.module_enabled == build_options.enable_gpu);
+    try testing.expect(gpu_summary.module_enabled == build_options.feat_gpu);
 
     // If module is disabled, counts should be zero
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         try testing.expect(gpu_summary.enabled_backend_count == 0);
         try testing.expect(gpu_summary.available_backend_count == 0);
         try testing.expect(gpu_summary.device_count == 0);
@@ -57,7 +57,7 @@ test "c_api: gpu backend summary" {
 }
 
 test "c_api: gpu backend detection" {
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         return error.SkipZigTest;
     }
 
@@ -80,7 +80,7 @@ test "c_api: gpu backend detection" {
 // ============================================================================
 
 test "c_api: gpu init and shutdown lifecycle" {
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         return error.SkipZigTest;
     }
 
@@ -129,7 +129,7 @@ test "c_api: gpu null handle is safe" {
 
 test "c_api: gpu backend name for disabled module" {
     // When GPU is disabled, backend name should return "disabled" or "none"
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         // Test that we can query backend names without crashing
         const name = gpu_meta.backendName(.vulkan);
         try testing.expect(name.len > 0);

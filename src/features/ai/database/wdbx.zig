@@ -51,7 +51,7 @@ pub const WdbxTokenDataset = struct {
     dirty: bool,
 
     pub fn init(allocator: std.mem.Allocator, path: []const u8) DatasetError!WdbxTokenDataset {
-        if (!build_options.enable_database) return error.DatabaseDisabled;
+        if (!build_options.feat_database) return error.DatabaseDisabled;
 
         const path_copy = try allocator.dupe(u8, path);
         errdefer allocator.free(path_copy);

@@ -681,8 +681,8 @@ fn preferredBackendOrder() BackendOrder {
 
     const backend_names = policy.resolveAutoBackendNames(.{
         .platform = platform,
-        .enable_gpu = build_options.enable_gpu,
-        .enable_web = build_options.enable_web,
+        .enable_gpu = build_options.feat_gpu,
+        .enable_web = build_options.feat_web,
         .can_link_metal = true,
         .warn_if_metal_skipped = false,
         .allow_simulated = true,
@@ -726,7 +726,7 @@ pub fn enumerateDevicesForBackend(
         .webgl2 => &[_]Device{}, // Not yet implemented
         .fpga => &[_]Device{}, // Not yet implemented
         .tpu => &[_]Device{}, // TPU runtime not yet linked
-        .simulated => if (comptime build_options.enable_gpu) try enumerateStdgpuDevices(allocator) else &[_]Device{},
+        .simulated => if (comptime build_options.feat_gpu) try enumerateStdgpuDevices(allocator) else &[_]Device{},
     };
 }
 

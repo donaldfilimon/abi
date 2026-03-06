@@ -33,7 +33,7 @@ pub const GpuBackwardContext = struct {
         var ctx: ?cublas.CublasContext = null;
         var gpu_available = false;
 
-        if (build_options.enable_gpu and cublas.isAvailable()) {
+        if (build_options.feat_gpu and cublas.isAvailable()) {
             // Initialize CUDA memory subsystem
             cuda_memory.init(allocator) catch {
                 return .{

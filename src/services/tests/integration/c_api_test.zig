@@ -46,7 +46,7 @@ test "c_api: framework init and shutdown lifecycle" {
 
     // Test framework initialization (underlying Zig API that C wraps)
     // The C API's abi_init() calls abi.App.init() internally
-    if (build_options.enable_database) {
+    if (build_options.feat_database) {
         // Initialize database module
         if (abi.features.database.init(allocator)) {
             defer abi.features.database.deinit();
@@ -131,20 +131,20 @@ test "c_api: feature flags are queryable" {
     // The C API exposes abi_is_feature_enabled() which checks these
 
     // GPU feature
-    const gpu_enabled = build_options.enable_gpu;
+    const gpu_enabled = build_options.feat_gpu;
     const gpu_module_enabled = gpu_detect.moduleEnabled();
     try testing.expect(gpu_enabled == gpu_module_enabled);
 
     // Database feature
-    const db_enabled = build_options.enable_database;
+    const db_enabled = build_options.feat_database;
     _ = db_enabled; // Feature is enabled at compile time
 
     // AI feature
-    const ai_enabled = build_options.enable_ai;
+    const ai_enabled = build_options.feat_ai;
     _ = ai_enabled; // Feature is enabled at compile time
 
     // Network feature
-    const network_enabled = build_options.enable_network;
+    const network_enabled = build_options.feat_network;
     _ = network_enabled; // Feature is enabled at compile time
 }
 
@@ -153,7 +153,7 @@ test "c_api: disabled features return appropriate errors" {
     // return appropriate error values. The C API translates these
     // to ABI_ERROR_* status codes.
 
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         // GPU stub should indicate unavailability
         try testing.expect(!gpu_detect.moduleEnabled());
     }
@@ -233,7 +233,7 @@ test "c_api: c and zig apis are consistent" {
     const gpu_enabled = gpu_detect.moduleEnabled();
 
     // GPU module enabled should match build options
-    try testing.expect(gpu_enabled == build_options.enable_gpu);
+    try testing.expect(gpu_enabled == build_options.feat_gpu);
 }
 
 // ============================================================================
@@ -327,28 +327,28 @@ test "c_api: version string format" {
 test "c_api: feature enabled string lookup" {
     // Test all feature strings that abi_is_feature_enabled handles
     const features = [_]struct { name: []const u8, expected: bool }{
-        .{ .name = "ai", .expected = build_options.enable_ai },
-        .{ .name = "gpu", .expected = build_options.enable_gpu },
-        .{ .name = "database", .expected = build_options.enable_database },
-        .{ .name = "network", .expected = build_options.enable_network },
-        .{ .name = "web", .expected = build_options.enable_web },
-        .{ .name = "profiling", .expected = build_options.enable_profiling },
+        .{ .name = "ai", .expected = build_options.feat_ai },
+        .{ .name = "gpu", .expected = build_options.feat_gpu },
+        .{ .name = "database", .expected = build_options.feat_database },
+        .{ .name = "network", .expected = build_options.feat_network },
+        .{ .name = "web", .expected = build_options.feat_web },
+        .{ .name = "profiling", .expected = build_options.feat_profiling },
     };
 
     for (features) |f| {
         // The C API does string comparison like this
         if (std.mem.eql(u8, f.name, "ai")) {
-            try testing.expect(build_options.enable_ai == f.expected);
+            try testing.expect(build_options.feat_ai == f.expected);
         } else if (std.mem.eql(u8, f.name, "gpu")) {
-            try testing.expect(build_options.enable_gpu == f.expected);
+            try testing.expect(build_options.feat_gpu == f.expected);
         } else if (std.mem.eql(u8, f.name, "database")) {
-            try testing.expect(build_options.enable_database == f.expected);
+            try testing.expect(build_options.feat_database == f.expected);
         } else if (std.mem.eql(u8, f.name, "network")) {
-            try testing.expect(build_options.enable_network == f.expected);
+            try testing.expect(build_options.feat_network == f.expected);
         } else if (std.mem.eql(u8, f.name, "web")) {
-            try testing.expect(build_options.enable_web == f.expected);
+            try testing.expect(build_options.feat_web == f.expected);
         } else if (std.mem.eql(u8, f.name, "profiling")) {
-            try testing.expect(build_options.enable_profiling == f.expected);
+            try testing.expect(build_options.feat_profiling == f.expected);
         }
     }
 }
@@ -401,13 +401,13 @@ test "c_api: framework config defaults" {
     const config = abi.Config.defaults();
 
     // Verify default config is populated based on build options
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try testing.expect(config.gpu != null);
     }
-    if (build_options.enable_database) {
+    if (build_options.feat_database) {
         try testing.expect(config.database != null);
     }
-    if (build_options.enable_ai) {
+    if (build_options.feat_ai) {
         try testing.expect(config.ai != null);
     }
 }
@@ -554,7 +554,7 @@ test {
     _ = @import("c_api_simd_test.zig");
     _ = @import("c_api_database_test.zig");
     _ = @import("c_api_gpu_test.zig");
-    if (build_options.enable_ai) {
+    if (build_options.feat_ai) {
         _ = @import("c_api_agent_test.zig");
     }
 }

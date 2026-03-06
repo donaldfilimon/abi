@@ -36,7 +36,7 @@ fn getTestProfile() StressProfile {
 // ============================================================================
 
 test "observability stress: counter high throughput" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const profile = getTestProfile();
 
@@ -66,7 +66,7 @@ test "observability stress: counter high throughput" {
 }
 
 test "observability stress: counter concurrent increments" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const profile = getTestProfile();
 
@@ -99,7 +99,7 @@ test "observability stress: counter concurrent increments" {
 }
 
 test "observability stress: counter overflow handling" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     var counter = obs.Counter{
         .name = "overflow_counter",
@@ -123,7 +123,7 @@ test "observability stress: counter overflow handling" {
 // ============================================================================
 
 test "observability stress: gauge concurrent updates" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const profile = getTestProfile();
 
@@ -161,7 +161,7 @@ test "observability stress: gauge concurrent updates" {
 }
 
 test "observability stress: float gauge rapid updates" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -193,7 +193,7 @@ test "observability stress: float gauge rapid updates" {
 // ============================================================================
 
 test "observability stress: histogram millions of samples" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -232,7 +232,7 @@ test "observability stress: histogram millions of samples" {
 }
 
 test "observability stress: histogram bucket distribution" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -265,7 +265,7 @@ test "observability stress: histogram bucket distribution" {
 // ============================================================================
 
 test "observability stress: metrics collector concurrent registration" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -305,7 +305,7 @@ test "observability stress: metrics collector concurrent registration" {
 }
 
 test "observability stress: metrics collector heavy usage" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -370,7 +370,7 @@ test "observability stress: metrics collector heavy usage" {
 // ============================================================================
 
 test "observability stress: span creation high throughput" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -398,7 +398,7 @@ test "observability stress: span creation high throughput" {
 }
 
 test "observability stress: tracer concurrent spans" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -448,7 +448,7 @@ test "observability stress: tracer concurrent spans" {
 }
 
 test "observability stress: span with attributes and events" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -493,7 +493,7 @@ test "observability stress: span with attributes and events" {
 // ============================================================================
 
 test "observability stress: long running memory stability" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -532,7 +532,7 @@ test "observability stress: long running memory stability" {
 }
 
 test "observability stress: span processor memory management" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -567,7 +567,7 @@ test "observability stress: span processor memory management" {
 // ============================================================================
 
 test "observability stress: full observability bundle" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -619,7 +619,7 @@ test "observability stress: full observability bundle" {
 }
 
 test "observability stress: default collector initialization" {
-    if (!build_options.enable_profiling) return error.SkipZigTest;
+    if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();

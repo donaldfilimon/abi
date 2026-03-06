@@ -566,7 +566,7 @@ test "edge case: many vectors" {
 test "database feature: detection" {
     const enabled = abi.features.database.isEnabled();
 
-    if (build_options.enable_database) {
+    if (build_options.feat_database) {
         try std.testing.expect(enabled);
     } else {
         try std.testing.expect(!enabled);

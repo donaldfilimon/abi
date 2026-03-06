@@ -96,23 +96,23 @@ pub const Config = struct {
     /// Create a config with all compile-time enabled features using defaults.
     pub fn defaults() Config {
         return .{
-            .gpu = if (build_options.enable_gpu) GpuConfig.defaults() else null,
-            .ai = if (build_options.enable_ai) AiConfig.defaults() else null,
-            .database = if (build_options.enable_database) DatabaseConfig.defaults() else null,
-            .network = if (build_options.enable_network) NetworkConfig.defaults() else null,
-            .observability = if (build_options.enable_profiling) ObservabilityConfig.defaults() else null,
-            .web = if (build_options.enable_web) WebConfig.defaults() else null,
-            .cloud = if (build_options.enable_cloud) CloudConfig.defaults() else null,
-            .analytics = if (build_options.enable_analytics) AnalyticsConfig.defaults() else null,
-            .auth = if (build_options.enable_auth) AuthConfig.defaults() else null,
-            .messaging = if (build_options.enable_messaging) MessagingConfig.defaults() else null,
-            .cache = if (build_options.enable_cache) CacheConfig.defaults() else null,
-            .storage = if (build_options.enable_storage) StorageConfig.defaults() else null,
-            .search = if (build_options.enable_search) SearchConfig.defaults() else null,
-            .mobile = if (build_options.enable_mobile) MobileConfig.defaults() else null,
-            .gateway = if (build_options.enable_gateway) GatewayConfig.defaults() else null,
-            .pages = if (build_options.enable_pages) PagesConfig.defaults() else null,
-            .benchmarks = if (build_options.enable_benchmarks) BenchmarksConfig.defaults() else null,
+            .gpu = if (build_options.feat_gpu) GpuConfig.defaults() else null,
+            .ai = if (build_options.feat_ai) AiConfig.defaults() else null,
+            .database = if (build_options.feat_database) DatabaseConfig.defaults() else null,
+            .network = if (build_options.feat_network) NetworkConfig.defaults() else null,
+            .observability = if (build_options.feat_profiling) ObservabilityConfig.defaults() else null,
+            .web = if (build_options.feat_web) WebConfig.defaults() else null,
+            .cloud = if (build_options.feat_cloud) CloudConfig.defaults() else null,
+            .analytics = if (build_options.feat_analytics) AnalyticsConfig.defaults() else null,
+            .auth = if (build_options.feat_auth) AuthConfig.defaults() else null,
+            .messaging = if (build_options.feat_messaging) MessagingConfig.defaults() else null,
+            .cache = if (build_options.feat_cache) CacheConfig.defaults() else null,
+            .storage = if (build_options.feat_storage) StorageConfig.defaults() else null,
+            .search = if (build_options.feat_search) SearchConfig.defaults() else null,
+            .mobile = if (build_options.feat_mobile) MobileConfig.defaults() else null,
+            .gateway = if (build_options.feat_gateway) GatewayConfig.defaults() else null,
+            .pages = if (build_options.feat_pages) PagesConfig.defaults() else null,
+            .benchmarks = if (build_options.feat_benchmarks) BenchmarksConfig.defaults() else null,
         };
     }
 
@@ -146,7 +146,7 @@ pub const Config = struct {
             .gateway => self.gateway != null,
             .pages => self.pages != null,
             .benchmarks => self.benchmarks != null,
-            .reasoning => self.ai != null and build_options.enable_reasoning,
+            .reasoning => self.ai != null and build_options.feat_reasoning,
             .constitution => self.ai != null,
         };
     }
@@ -281,23 +281,23 @@ const FeatureValidation = struct {
 /// Validate configuration against compile-time constraints.
 pub fn validate(cfg: Config) ConfigError!void {
     const validations = [_]FeatureValidation{
-        .{ .is_enabled_in_config = cfg.gpu != null, .is_enabled_at_build = build_options.enable_gpu },
-        .{ .is_enabled_in_config = cfg.ai != null, .is_enabled_at_build = build_options.enable_ai },
-        .{ .is_enabled_in_config = cfg.database != null, .is_enabled_at_build = build_options.enable_database },
-        .{ .is_enabled_in_config = cfg.network != null, .is_enabled_at_build = build_options.enable_network },
-        .{ .is_enabled_in_config = cfg.web != null, .is_enabled_at_build = build_options.enable_web },
-        .{ .is_enabled_in_config = cfg.cloud != null, .is_enabled_at_build = build_options.enable_cloud },
-        .{ .is_enabled_in_config = cfg.analytics != null, .is_enabled_at_build = build_options.enable_analytics },
-        .{ .is_enabled_in_config = cfg.observability != null, .is_enabled_at_build = build_options.enable_profiling },
-        .{ .is_enabled_in_config = cfg.auth != null, .is_enabled_at_build = build_options.enable_auth },
-        .{ .is_enabled_in_config = cfg.messaging != null, .is_enabled_at_build = build_options.enable_messaging },
-        .{ .is_enabled_in_config = cfg.cache != null, .is_enabled_at_build = build_options.enable_cache },
-        .{ .is_enabled_in_config = cfg.storage != null, .is_enabled_at_build = build_options.enable_storage },
-        .{ .is_enabled_in_config = cfg.search != null, .is_enabled_at_build = build_options.enable_search },
-        .{ .is_enabled_in_config = cfg.mobile != null, .is_enabled_at_build = build_options.enable_mobile },
-        .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.enable_gateway },
-        .{ .is_enabled_in_config = cfg.pages != null, .is_enabled_at_build = build_options.enable_pages },
-        .{ .is_enabled_in_config = cfg.benchmarks != null, .is_enabled_at_build = build_options.enable_benchmarks },
+        .{ .is_enabled_in_config = cfg.gpu != null, .is_enabled_at_build = build_options.feat_gpu },
+        .{ .is_enabled_in_config = cfg.ai != null, .is_enabled_at_build = build_options.feat_ai },
+        .{ .is_enabled_in_config = cfg.database != null, .is_enabled_at_build = build_options.feat_database },
+        .{ .is_enabled_in_config = cfg.network != null, .is_enabled_at_build = build_options.feat_network },
+        .{ .is_enabled_in_config = cfg.web != null, .is_enabled_at_build = build_options.feat_web },
+        .{ .is_enabled_in_config = cfg.cloud != null, .is_enabled_at_build = build_options.feat_cloud },
+        .{ .is_enabled_in_config = cfg.analytics != null, .is_enabled_at_build = build_options.feat_analytics },
+        .{ .is_enabled_in_config = cfg.observability != null, .is_enabled_at_build = build_options.feat_profiling },
+        .{ .is_enabled_in_config = cfg.auth != null, .is_enabled_at_build = build_options.feat_auth },
+        .{ .is_enabled_in_config = cfg.messaging != null, .is_enabled_at_build = build_options.feat_messaging },
+        .{ .is_enabled_in_config = cfg.cache != null, .is_enabled_at_build = build_options.feat_cache },
+        .{ .is_enabled_in_config = cfg.storage != null, .is_enabled_at_build = build_options.feat_storage },
+        .{ .is_enabled_in_config = cfg.search != null, .is_enabled_at_build = build_options.feat_search },
+        .{ .is_enabled_in_config = cfg.mobile != null, .is_enabled_at_build = build_options.feat_mobile },
+        .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.feat_gateway },
+        .{ .is_enabled_in_config = cfg.pages != null, .is_enabled_at_build = build_options.feat_pages },
+        .{ .is_enabled_in_config = cfg.benchmarks != null, .is_enabled_at_build = build_options.feat_benchmarks },
     };
     inline for (validations) |entry| {
         if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {
@@ -307,7 +307,7 @@ pub fn validate(cfg: Config) ConfigError!void {
 
     // LLM is nested under AI and has its own compile-time flag.
     if (cfg.ai) |ai| {
-        if (ai.llm != null and !build_options.enable_llm) {
+        if (ai.llm != null and !build_options.feat_llm) {
             return ConfigError.FeatureDisabled;
         }
     }
@@ -319,7 +319,7 @@ pub fn validate(cfg: Config) ConfigError!void {
 
 test "Config.defaults respects build options" {
     const config = Config.defaults();
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try std.testing.expect(config.gpu != null);
     } else {
         try std.testing.expect(config.gpu == null);
@@ -343,53 +343,53 @@ test "Builder creates valid config" {
 test "Feature.isCompileTimeEnabled" {
     // At least some feature should match build_options
     const gpu_enabled = Feature.gpu.isCompileTimeEnabled();
-    try std.testing.expectEqual(build_options.enable_gpu, gpu_enabled);
+    try std.testing.expectEqual(build_options.feat_gpu, gpu_enabled);
 }
 
 test "validate returns FeatureDisabled for compile-time disabled features" {
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         var config = Config.minimal();
         config.gpu = GpuConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
     }
 
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         var config = Config.minimal();
         config.ai = AiConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
     }
 
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         var config = Config.minimal();
         config.database = DatabaseConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
     }
 
-    if (!build_options.enable_network) {
+    if (!build_options.feat_network) {
         var config = Config.minimal();
         config.network = NetworkConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
     }
 
-    if (!build_options.enable_web) {
+    if (!build_options.feat_web) {
         var web_cfg = Config.minimal();
         web_cfg.web = WebConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(web_cfg));
     }
 
-    if (!build_options.enable_cloud) {
+    if (!build_options.feat_cloud) {
         var cloud_cfg = Config.minimal();
         cloud_cfg.cloud = CloudConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(cloud_cfg));
     }
 
-    if (!build_options.enable_analytics) {
+    if (!build_options.feat_analytics) {
         var config = Config.minimal();
         config.analytics = AnalyticsConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
     }
 
-    if (!build_options.enable_profiling) {
+    if (!build_options.feat_profiling) {
         var config = Config.minimal();
         config.observability = ObservabilityConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
@@ -397,7 +397,7 @@ test "validate returns FeatureDisabled for compile-time disabled features" {
 }
 
 test "validate returns FeatureDisabled for llm when llm build flag is disabled" {
-    if (build_options.enable_ai and !build_options.enable_llm) {
+    if (build_options.feat_ai and !build_options.feat_llm) {
         var config = Config.minimal();
         var ai = AiConfig.defaults();
         ai.llm = LlmConfig.defaults();

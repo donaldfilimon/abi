@@ -1,7 +1,7 @@
 //! Network Stub Module
 //!
 //! API-compatible no-op implementations when network is disabled.
-//! Build with `-Denable-network=true` for the real implementation.
+//! Build with `-Dfeat-network=true` for the real implementation.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");

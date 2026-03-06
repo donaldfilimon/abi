@@ -1,7 +1,7 @@
 //! Observability Stub Module
 //!
 //! API-compatible no-op implementations when profiling is disabled.
-//! Build with `-Denable-profiling=true` for the real implementation.
+//! Build with `-Dfeat-profiling=true` for the real implementation.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");

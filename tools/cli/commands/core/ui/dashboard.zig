@@ -1,583 +1,220 @@
-//! Unified Dashboard Command
+//! Shared UI shell command.
 //!
-//! Opens a tabbed TUI dashboard combining all monitoring panels
-//! in a single interface. Individual panels remain available
-//! via `abi ui gpu`, `abi ui brain`, etc.
-//! Uses AsyncLoop for timer-driven refresh (10 FPS).
+//! Uses the generic dashboard runtime as the only shell host and renders a
+//! tabbed panel stack with an in-shell command palette.
 
 const std = @import("std");
 const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
+const launcher_actions = @import("../../../terminal/launcher/actions.zig");
+const launcher_palette = @import("../../../terminal/launcher/palette.zig");
+const panel_mod = @import("../../../terminal/panels/mod.zig");
 const panel_registry = @import("../../../terminal/panels/registry.zig");
-const security_panel_mod = @import("../../../terminal/panels/security_panel.zig");
-const connectors_panel_mod = @import("../../../terminal/panels/connectors_panel.zig");
-const ralph_panel_mod = @import("../../../terminal/panels/ralph_panel.zig");
+const session_runner = @import("./session_runner.zig");
+const theme_options = @import("./theme_options.zig");
 const utils = @import("../../../utils/mod.zig");
-const theme_options = @import("theme_options.zig");
-const render_utils = tui.render_utils;
 
-// ===============================================================================
-// Constants
-// ===============================================================================
-
-const panel_count = 12;
-const tab_gpu = 0;
-const tab_agent = 1;
-const tab_train = 2;
-const tab_model = 3;
-const tab_stream = 4;
-const tab_db = 5;
-const tab_net = 6;
-const tab_bench = 7;
-const tab_brain = 8;
-const tab_security = 9;
-const tab_connectors = 10;
-const tab_ralph = 11;
-
-inline fn panelLabel(comptime idx: usize) []const u8 {
-    return panel_registry.panel_specs[idx].label;
-}
-
-inline fn panelShortcut(comptime idx: usize) []const u8 {
-    return panel_registry.panel_specs[idx].shortcut_hint;
-}
-
-const help_title = "Dashboard Keyboard Shortcuts";
+const panel_count = panel_registry.panel_specs.len;
 
 const help_lines = [_][]const u8{
-    "  [1-9,0]  Switch to tab",
+    "  [1-9,0]  Jump to a shell tab",
     "  [Tab]    Next tab",
     "  [S-Tab]  Previous tab",
-    "  [t/T]    Next/Previous theme",
-    "  [p]      Pause/Resume",
-    "  [?/h]    Toggle this help",
+    "  [/]      Open command palette",
+    "  [p]      Pause or resume updates",
+    "  [t/T]    Next or previous theme",
+    "  [?/h]    Toggle help",
     "  [q/Esc]  Quit",
 };
 
-// ===============================================================================
-// Types
-// ===============================================================================
-
-const ErrorBoundaryPanel = tui.Panel.ErrorBoundaryPanel;
-const SecurityPanel = security_panel_mod.SecurityPanel;
-const ConnectorsPanel = connectors_panel_mod.ConnectorsPanel;
-const RalphPanel = ralph_panel_mod.RalphPanel;
-
-const GpuAdapter = struct {
-    inner: tui.GpuMonitor,
-
-    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) GpuAdapter {
-        return .{ .inner = tui.GpuMonitor.init(allocator, term, theme) };
-    }
-
-    pub fn render(self: *GpuAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
-        _ = term;
-    }
-
-    pub fn tick(self: *GpuAdapter) anyerror!void {
-        try self.inner.update();
-    }
-
-    pub fn handleEvent(_: *GpuAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *GpuAdapter) []const u8 {
-        return panelLabel(tab_gpu);
-    }
-
-    pub fn shortcutHint(_: *GpuAdapter) []const u8 {
-        return panelShortcut(tab_gpu);
-    }
-
-    pub fn deinit(self: *GpuAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *GpuAdapter) tui.Panel {
-        return tui.Panel.from(GpuAdapter, self);
-    }
-};
-
-const AgentAdapter = struct {
-    inner: tui.AgentPanel,
-
-    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) AgentAdapter {
-        return .{ .inner = tui.AgentPanel.init(allocator, term, theme) };
-    }
-
-    pub fn render(self: *AgentAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
-        _ = term;
-    }
-
-    pub fn tick(self: *AgentAdapter) anyerror!void {
-        try self.inner.update();
-    }
-
-    pub fn handleEvent(_: *AgentAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *AgentAdapter) []const u8 {
-        return panelLabel(tab_agent);
-    }
-
-    pub fn shortcutHint(_: *AgentAdapter) []const u8 {
-        return panelShortcut(tab_agent);
-    }
-
-    pub fn deinit(self: *AgentAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *AgentAdapter) tui.Panel {
-        return tui.Panel.from(AgentAdapter, self);
-    }
-};
-
-const TrainingAdapter = struct {
-    inner: tui.TrainingPanel,
-
-    pub fn init(allocator: std.mem.Allocator, theme: *const tui.Theme) TrainingAdapter {
-        return .{ .inner = tui.TrainingPanel.init(allocator, theme, .{}) };
-    }
-
-    pub fn render(self: *TrainingAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        self.inner.width = rect.width;
-        try renderTrainingPanelInRect(self.inner.allocator, &self.inner, term, rect);
-    }
-
-    pub fn tick(self: *TrainingAdapter) anyerror!void {
-        _ = try self.inner.pollMetrics();
-    }
-
-    pub fn handleEvent(_: *TrainingAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *TrainingAdapter) []const u8 {
-        return panelLabel(tab_train);
-    }
-
-    pub fn shortcutHint(_: *TrainingAdapter) []const u8 {
-        return panelShortcut(tab_train);
-    }
-
-    pub fn deinit(self: *TrainingAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *TrainingAdapter) tui.Panel {
-        return tui.Panel.from(TrainingAdapter, self);
-    }
-};
-
-fn renderTrainingPanelInRect(
-    allocator: std.mem.Allocator,
-    panel: *tui.TrainingPanel,
-    term: *tui.Terminal,
-    rect: tui.Rect,
-) !void {
-    if (rect.isEmpty()) return;
-
-    var render_buf = std.ArrayListUnmanaged(u8).empty;
-    defer render_buf.deinit(allocator);
-
-    const BufferWriter = struct {
-        allocator: std.mem.Allocator,
-        out: *std.ArrayListUnmanaged(u8),
-
-        pub const Error = anyerror;
-
-        pub fn print(self: @This(), comptime fmt: []const u8, args: anytype) anyerror!void {
-            const text = try std.fmt.allocPrint(self.allocator, fmt, args);
-            defer self.allocator.free(text);
-            try self.out.appendSlice(self.allocator, text);
-        }
-    };
-    const writer = BufferWriter{
-        .allocator = allocator,
-        .out = &render_buf,
-    };
-    try panel.render(writer);
-
-    var row: usize = 0;
-    var lines = std.mem.splitScalar(u8, render_buf.items, '\n');
-    while (lines.next()) |line| : (row += 1) {
-        if (row >= @as(usize, rect.height)) break;
-        const trimmed = if (line.len > 0 and line[line.len - 1] == '\r')
-            line[0 .. line.len - 1]
-        else
-            line;
-
-        try term.moveTo(rect.y + @as(u16, @intCast(row)), rect.x);
-        _ = try render_utils.writeClipped(term, trimmed, rect.width);
-    }
-}
-
-const ModelAdapter = struct {
-    inner: tui.ModelManagementPanel,
-
-    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) ModelAdapter {
-        return .{ .inner = tui.ModelManagementPanel.init(allocator, term, theme) };
-    }
-
-    pub fn render(self: *ModelAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        try self.inner.render(@intCast(rect.y), @intCast(rect.x), @intCast(rect.width), @intCast(rect.height));
-        _ = term;
-    }
-
-    pub fn tick(self: *ModelAdapter) anyerror!void {
-        try self.inner.update();
-    }
-
-    pub fn handleEvent(_: *ModelAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *ModelAdapter) []const u8 {
-        return panelLabel(tab_model);
-    }
-
-    pub fn shortcutHint(_: *ModelAdapter) []const u8 {
-        return panelShortcut(tab_model);
-    }
-
-    pub fn deinit(self: *ModelAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *ModelAdapter) tui.Panel {
-        return tui.Panel.from(ModelAdapter, self);
-    }
-};
-
-const StreamingAdapter = struct {
-    inner: tui.StreamingDashboard,
-
-    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) !StreamingAdapter {
-        return .{ .inner = try tui.StreamingDashboard.init(allocator, term, theme, "localhost:8080") };
-    }
-
-    pub fn render(self: *StreamingAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        try self.inner.render(@intCast(rect.y), @intCast(rect.x), @intCast(rect.width), @intCast(rect.height));
-        _ = term;
-    }
-
-    pub fn tick(self: *StreamingAdapter) anyerror!void {
-        try self.inner.pollMetrics();
-    }
-
-    pub fn handleEvent(_: *StreamingAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *StreamingAdapter) []const u8 {
-        return panelLabel(tab_stream);
-    }
-
-    pub fn shortcutHint(_: *StreamingAdapter) []const u8 {
-        return panelShortcut(tab_stream);
-    }
-
-    pub fn deinit(self: *StreamingAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *StreamingAdapter) tui.Panel {
-        return tui.Panel.from(StreamingAdapter, self);
-    }
-};
-
-const DbAdapter = struct {
-    inner: tui.DatabasePanel,
-
-    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) DbAdapter {
-        return .{ .inner = tui.DatabasePanel.init(allocator, term, theme) };
-    }
-
-    pub fn render(self: *DbAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
-        _ = term;
-    }
-
-    pub fn tick(self: *DbAdapter) anyerror!void {
-        try self.inner.update();
-    }
-
-    pub fn handleEvent(_: *DbAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *DbAdapter) []const u8 {
-        return panelLabel(tab_db);
-    }
-
-    pub fn shortcutHint(_: *DbAdapter) []const u8 {
-        return panelShortcut(tab_db);
-    }
-
-    pub fn deinit(self: *DbAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *DbAdapter) tui.Panel {
-        return tui.Panel.from(DbAdapter, self);
-    }
-};
-
-const NetworkAdapter = struct {
-    inner: tui.NetworkPanel,
-
-    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) NetworkAdapter {
-        return .{ .inner = tui.NetworkPanel.init(allocator, term, theme) };
-    }
-
-    pub fn render(self: *NetworkAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
-        _ = term;
-    }
-
-    pub fn tick(self: *NetworkAdapter) anyerror!void {
-        try self.inner.update();
-    }
-
-    pub fn handleEvent(_: *NetworkAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *NetworkAdapter) []const u8 {
-        return panelLabel(tab_net);
-    }
-
-    pub fn shortcutHint(_: *NetworkAdapter) []const u8 {
-        return panelShortcut(tab_net);
-    }
-
-    pub fn deinit(self: *NetworkAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *NetworkAdapter) tui.Panel {
-        return tui.Panel.from(NetworkAdapter, self);
-    }
-};
-
-const BenchAdapter = struct {
-    inner: tui.BenchmarkPanel,
-
-    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) BenchAdapter {
-        return .{ .inner = tui.BenchmarkPanel.init(allocator, term, theme) };
-    }
-
-    pub fn render(self: *BenchAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
-        _ = term;
-    }
-
-    pub fn tick(self: *BenchAdapter) anyerror!void {
-        try self.inner.update();
-    }
-
-    pub fn handleEvent(_: *BenchAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *BenchAdapter) []const u8 {
-        return panelLabel(tab_bench);
-    }
-
-    pub fn shortcutHint(_: *BenchAdapter) []const u8 {
-        return panelShortcut(tab_bench);
-    }
-
-    pub fn deinit(self: *BenchAdapter) void {
-        self.inner.deinit();
-    }
-
-    pub fn panel(self: *BenchAdapter) tui.Panel {
-        return tui.Panel.from(BenchAdapter, self);
-    }
-};
-
-const BrainAdapter = struct {
-    inner: tui.BrainDashboardPanel,
-    data: tui.BrainDashboardData,
-
-    pub fn init(term: *tui.Terminal, theme: *const tui.Theme) BrainAdapter {
-        return .{
-            .inner = tui.BrainDashboardPanel.init(term, theme),
-            .data = tui.BrainDashboardData.init(),
-        };
-    }
-
-    pub fn render(self: *BrainAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
-        self.inner.theme = theme;
-        self.inner.term = term;
-        try self.inner.render(&self.data, rect.y, rect.x, rect.width, rect.height);
-    }
-
-    pub fn tick(_: *BrainAdapter) anyerror!void {}
-
-    pub fn handleEvent(_: *BrainAdapter, _: tui.Event) anyerror!bool {
-        return false;
-    }
-
-    pub fn name(_: *BrainAdapter) []const u8 {
-        return panelLabel(tab_brain);
-    }
-
-    pub fn shortcutHint(_: *BrainAdapter) []const u8 {
-        return panelShortcut(tab_brain);
-    }
-
-    pub fn deinit(_: *BrainAdapter) void {}
-
-    pub fn panel(self: *BrainAdapter) tui.Panel {
-        return tui.Panel.from(BrainAdapter, self);
-    }
-};
-
-const DashboardState = struct {
+const ShellPanel = struct {
     allocator: std.mem.Allocator,
     terminal: *tui.Terminal,
-    theme_manager: tui.ThemeManager,
+    theme: *const tui.Theme,
     tab: tui.TabBar,
-    paused: bool,
-    term_size: tui.TerminalSize,
-    frame_count: u64,
+    palette: launcher_palette.CommandPalette,
     panels: [panel_count]tui.Panel,
-    help: tui.HelpOverlay,
+    boundaries: [panel_count]tui.Panel.ErrorBoundaryPanel,
 
-    /// Error boundary wrappers for each panel slot. Panels are wrapped
-    /// so that a single panel crashing does not kill the entire dashboard.
-    boundaries: [panel_count]ErrorBoundaryPanel,
-
-    // Owned panel instances with stable lifetime for Panel vtable pointers.
-    gpu_adapter: GpuAdapter,
-    agent_adapter: AgentAdapter,
-    training_adapter: TrainingAdapter,
-    model_adapter: ModelAdapter,
-    streaming_adapter: StreamingAdapter,
-    db_adapter: DbAdapter,
-    network_adapter: NetworkAdapter,
-    bench_adapter: BenchAdapter,
-    brain_adapter: BrainAdapter,
-    security_panel: SecurityPanel,
-    connectors_panel: ConnectorsPanel,
-    ralph_panel: RalphPanel,
+    gpu_adapter: panel_mod.gpu_adapter.GpuAdapter,
+    agent_adapter: panel_mod.agent_adapter.AgentAdapter,
+    training_adapter: panel_mod.training_adapter.TrainingAdapter,
+    model_adapter: panel_mod.model_adapter.ModelAdapter,
+    streaming_adapter: panel_mod.streaming_adapter.StreamingAdapter,
+    db_adapter: panel_mod.db_adapter.DbAdapter,
+    network_adapter: panel_mod.network_adapter.NetworkAdapter,
+    bench_adapter: panel_mod.bench_adapter.BenchAdapter,
+    brain_adapter: panel_mod.brain_adapter.BrainAdapter,
+    security_panel: panel_mod.SecurityPanel,
+    connectors_panel: panel_mod.ConnectorsPanel,
+    ralph_panel: panel_mod.RalphPanel,
 
     pub fn init(
         allocator: std.mem.Allocator,
-        terminal_ptr: *tui.Terminal,
-        initial_theme: *const tui.Theme,
-        tab_labels: []const []const u8,
-    ) !DashboardState {
-        var theme_manager = tui.ThemeManager.init();
-        theme_manager.current = initial_theme;
-
-        // Initialize all boundary slots wrapping noop panels.
-        // Actual adapter wiring uses wrapPanel() after init.
-        var boundaries: [panel_count]ErrorBoundaryPanel = undefined;
+        terminal: *tui.Terminal,
+        theme: *const tui.Theme,
+    ) !ShellPanel {
+        var boundaries: [panel_count]tui.Panel.ErrorBoundaryPanel = undefined;
         var panels: [panel_count]tui.Panel = undefined;
-        for (&boundaries, &panels) |*b, *p| {
-            b.* = tui.Panel.withErrorBoundary(tui.Panel.noop_panel);
-            p.* = tui.Panel.noop_panel; // placeholder; overwritten below
+        for (&boundaries, &panels) |*boundary, *panel| {
+            boundary.* = tui.Panel.withErrorBoundary(tui.Panel.noop_panel);
+            panel.* = tui.Panel.noop_panel;
         }
 
-        const streaming_adapter = try StreamingAdapter.init(
-            allocator,
-            terminal_ptr,
-            initial_theme,
-        );
-
-        var state: DashboardState = .{
+        return .{
             .allocator = allocator,
-            .terminal = terminal_ptr,
-            .theme_manager = theme_manager,
-            .tab = tui.TabBar.init(tab_labels),
-            .paused = false,
-            .term_size = terminal_ptr.size(),
-            .frame_count = 0,
+            .terminal = terminal,
+            .theme = theme,
+            .tab = tui.TabBar.init(&panel_registry.tab_labels),
+            .palette = try launcher_palette.CommandPalette.init(allocator),
             .panels = panels,
-            .help = tui.HelpOverlay.init(help_title, &help_lines),
             .boundaries = boundaries,
-            .gpu_adapter = GpuAdapter.init(allocator, terminal_ptr, initial_theme),
-            .agent_adapter = AgentAdapter.init(allocator, terminal_ptr, initial_theme),
-            .training_adapter = TrainingAdapter.init(allocator, initial_theme),
-            .model_adapter = ModelAdapter.init(allocator, terminal_ptr, initial_theme),
-            .streaming_adapter = streaming_adapter,
-            .db_adapter = DbAdapter.init(allocator, terminal_ptr, initial_theme),
-            .network_adapter = NetworkAdapter.init(allocator, terminal_ptr, initial_theme),
-            .bench_adapter = BenchAdapter.init(allocator, terminal_ptr, initial_theme),
-            .brain_adapter = BrainAdapter.init(terminal_ptr, initial_theme),
-            .security_panel = SecurityPanel.init(allocator),
-            .connectors_panel = ConnectorsPanel.init(allocator),
-            .ralph_panel = RalphPanel.init(allocator),
+            .gpu_adapter = panel_mod.gpu_adapter.GpuAdapter.init(allocator, terminal, theme),
+            .agent_adapter = panel_mod.agent_adapter.AgentAdapter.init(allocator, terminal, theme),
+            .training_adapter = panel_mod.training_adapter.TrainingAdapter.init(allocator, theme),
+            .model_adapter = panel_mod.model_adapter.ModelAdapter.init(allocator, terminal, theme),
+            .streaming_adapter = try panel_mod.streaming_adapter.StreamingAdapter.init(allocator, terminal, theme),
+            .db_adapter = panel_mod.db_adapter.DbAdapter.init(allocator, terminal, theme),
+            .network_adapter = panel_mod.network_adapter.NetworkAdapter.init(allocator, terminal, theme),
+            .bench_adapter = panel_mod.bench_adapter.BenchAdapter.init(allocator, terminal, theme),
+            .brain_adapter = panel_mod.brain_adapter.BrainAdapter.init(terminal, theme),
+            .security_panel = panel_mod.SecurityPanel.init(allocator),
+            .connectors_panel = panel_mod.ConnectorsPanel.init(allocator),
+            .ralph_panel = panel_mod.RalphPanel.init(allocator),
         };
-
-        // Panel pointers are wired after init once the struct has stable
-        // memory in the caller's stack frame.
-        _ = &state;
-
-        return state;
     }
 
-    pub fn deinit(self: *DashboardState) void {
+    pub fn wirePanels(self: *ShellPanel) void {
+        self.setPanel(0, self.gpu_adapter.panel());
+        self.setPanel(1, self.agent_adapter.panel());
+        self.setPanel(2, self.training_adapter.panel());
+        self.setPanel(3, self.model_adapter.panel());
+        self.setPanel(4, self.streaming_adapter.panel());
+        self.setPanel(5, self.db_adapter.panel());
+        self.setPanel(6, self.network_adapter.panel());
+        self.setPanel(7, self.bench_adapter.panel());
+        self.setPanel(8, self.brain_adapter.panel());
+        self.setPanel(9, self.security_panel.asPanel());
+        self.setPanel(10, self.connectors_panel.asPanel());
+        self.setPanel(11, self.ralph_panel.asPanel());
+    }
+
+    fn setPanel(self: *ShellPanel, index: usize, inner: tui.Panel) void {
+        self.boundaries[index] = tui.Panel.withErrorBoundary(inner);
+        self.panels[index] = self.boundaries[index].asPanel();
+    }
+
+    fn activePanel(self: *ShellPanel) tui.Panel {
+        return self.panels[self.tab.active];
+    }
+
+    pub fn deinit(self: *ShellPanel) void {
+        self.palette.deinit();
         for (&self.boundaries) |*boundary| {
             boundary.deinit();
         }
     }
 
-    /// Finalize panel wiring after the struct has stable memory.
-    /// Must be called once after init, before the event loop starts.
-    pub fn wirePanels(self: *DashboardState) void {
-        self.setPanel(tab_gpu, self.gpu_adapter.panel());
-        self.setPanel(tab_agent, self.agent_adapter.panel());
-        self.setPanel(tab_train, self.training_adapter.panel());
-        self.setPanel(tab_model, self.model_adapter.panel());
-        self.setPanel(tab_stream, self.streaming_adapter.panel());
-        self.setPanel(tab_db, self.db_adapter.panel());
-        self.setPanel(tab_net, self.network_adapter.panel());
-        self.setPanel(tab_bench, self.bench_adapter.panel());
-        self.setPanel(tab_brain, self.brain_adapter.panel());
-        self.setPanel(tab_security, self.security_panel.asPanel());
-        self.setPanel(tab_connectors, self.connectors_panel.asPanel());
-        self.setPanel(tab_ralph, self.ralph_panel.asPanel());
+    pub fn update(self: *ShellPanel) !void {
+        try self.activePanel().tick();
     }
 
-    /// Set a panel slot, wrapping it in an error boundary automatically.
-    /// The inner panel is stored in the boundary array for stable memory.
-    pub fn setPanel(self: *DashboardState, index: usize, inner: tui.Panel) void {
-        self.boundaries[index] = tui.Panel.withErrorBoundary(inner);
-        self.panels[index] = self.boundaries[index].asPanel();
-    }
+    pub fn render(
+        self: *ShellPanel,
+        start_row: usize,
+        start_col: usize,
+        width: usize,
+        height: usize,
+    ) !void {
+        const row: u16 = @intCast(start_row);
+        const col: u16 = @intCast(start_col);
+        const cols: u16 = @intCast(width);
+        const rows: u16 = @intCast(height);
 
-    pub fn theme(self: *const DashboardState) *const tui.Theme {
-        return self.theme_manager.current;
-    }
+        if (cols < 24 or rows < 6) {
+            try self.terminal.moveTo(row, col);
+            try self.terminal.write(self.theme.warning);
+            try self.terminal.write("Resize the shell pane to at least 24x6");
+            try self.terminal.write(self.theme.reset);
+            return;
+        }
 
-    /// Get the active panel.
-    pub fn activePanel(self: *DashboardState) tui.Panel {
-        return self.panels[self.tab.active];
+        try self.tab.render(self.terminal, self.theme, row, cols);
+
+        const status_row = row + 1;
+        try self.terminal.moveTo(status_row, col);
+        try self.terminal.write(self.theme.text_dim);
+        try self.terminal.write(" Active: ");
+        try self.terminal.write(self.activePanel().getName());
+        try self.terminal.write("  [/] palette  [Tab/S-Tab] views  [1-9,0] jump");
+        try self.terminal.write(self.theme.reset);
+
+        const content_rect = tui.Rect{
+            .x = col,
+            .y = row + 2,
+            .width = cols,
+            .height = rows -| 2,
+        };
+        if (!content_rect.isEmpty()) {
+            try self.activePanel().render(self.terminal, content_rect, self.theme);
+        }
+
+        try self.palette.render(self.terminal, self.theme, self.terminal.size());
     }
 };
 
-// ===============================================================================
-// Entry Point
-// ===============================================================================
+const Dash = tui.dashboard.Dashboard(ShellPanel);
 
-/// Entry point for the unified dashboard command.
+fn handleShellKeys(dash: *Dash, key: tui.Key) bool {
+    if (dash.panel.palette.active) {
+        const outcome = dash.panel.palette.handleKey(key) catch return false;
+        switch (outcome) {
+            .none, .close => return false,
+            .quit => return true,
+            .submit => |action| {
+                return launcher_actions.executeWithTerminal(dash.allocator, dash.terminal, action, .{
+                    .help_callback = printHelp,
+                    .return_prompt = "Press Enter to return to the shared shell...",
+                }) catch false;
+            },
+        }
+    }
+
+    switch (key.code) {
+        .tab => {
+            if (key.mods.shift) {
+                dash.panel.tab.prev();
+            } else {
+                dash.panel.tab.next();
+            }
+            return false;
+        },
+        .character => {
+            if (key.char) |ch| {
+                switch (ch) {
+                    '/' => {
+                        dash.panel.palette.open() catch {};
+                        return false;
+                    },
+                    '1'...'9' => {
+                        dash.panel.tab.setActive(@as(usize, ch - '1'));
+                        return false;
+                    },
+                    '0' => {
+                        dash.panel.tab.setActive(9);
+                        return false;
+                    },
+                    else => {},
+                }
+            }
+        },
+        else => {},
+    }
+
+    return dash.panel.activePanel().handleEvent(.{ .key = key }) catch false;
+}
+
+/// Entry point for the shared UI shell.
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
     var parsed = try theme_options.parseThemeArgs(allocator, args);
@@ -593,241 +230,41 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
 
-    if (!tui.Terminal.isSupported()) {
-        const caps = tui.Terminal.capabilities();
-        utils.output.printError("Dashboard requires a terminal. Platform: {s}", .{caps.platform_name});
-        return;
+    if (parsed.remaining_args.len > 0) {
+        utils.output.printError("Unknown argument for ui shell: {s}", .{parsed.remaining_args[0]});
+        theme_options.printThemeHint();
+        return error.InvalidArgument;
     }
 
     const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
+    var session = session_runner.startSimpleDashboard(allocator, .{
+        .dashboard_name = "UI Shell",
+        .terminal_title = "ABI UI Shell",
+    }) orelse return;
+    defer session.deinit();
 
-    var terminal = tui.Terminal.init(allocator);
-    defer terminal.deinit();
-
-    terminal.enter() catch |err| {
-        utils.output.printError("Failed to start dashboard: {t}", .{err});
-        return;
-    };
-    defer terminal.exit() catch {};
-    terminal.setTitle("ABI Dashboard") catch {};
-
-    var state = try DashboardState.init(allocator, &terminal, initial_theme, &panel_registry.tab_labels);
-    defer state.deinit();
-
-    // Finalize panel wiring now that state has stable stack memory.
-    // Each panel slot is wrapped in an ErrorBoundaryPanel so that a single
-    // panel crashing renders a fallback error message instead of killing
-    // the entire dashboard.
-    state.wirePanels();
-
-    // Use AsyncLoop for timer-driven refresh
-    var loop = tui.AsyncLoop.init(allocator, &terminal, .{
-        .refresh_rate_ms = 100, // 10 FPS
-        .input_poll_ms = 16, // ~60 Hz input polling
-        .auto_resize = true,
+    const shell = try ShellPanel.init(allocator, &session.terminal, initial_theme);
+    var dash = tui.dashboard.Dashboard(ShellPanel).init(allocator, &session.terminal, initial_theme, shell, .{
+        .title = "ABI UI SHELL",
+        .refresh_rate_ms = 100,
+        .min_width = 60,
+        .min_height = 16,
+        .help_keys = " [q]uit  [Tab]views  [/]palette  [1-9,0]jump  [p]ause  [t]heme  [?]help",
+        .help_title = "UI Shell Help",
+        .help_lines = &help_lines,
     });
-    defer loop.deinit();
+    dash.panel.wirePanels();
+    dash.extra_key_handler = handleShellKeys;
+    defer dash.deinit();
 
-    loop.setRenderCallback(&dashboardRender);
-    loop.setTickCallback(&dashboardTick);
-    loop.setUpdateCallback(&dashboardUpdate);
-    loop.setUserData(@ptrCast(&state));
-
-    try loop.run();
-}
-
-// ===============================================================================
-// AsyncLoop Callbacks
-// ===============================================================================
-
-/// Render callback -- clears screen and draws the full dashboard.
-fn dashboardRender(loop: *tui.AsyncLoop) anyerror!void {
-    const state = loop.getUserData(DashboardState) orelse
-        return error.UserDataNotSet;
-    try state.terminal.clear();
-
-    const sz = state.term_size;
-    const th = state.theme();
-
-    // Tab bar (row 0)
-    try state.tab.render(state.terminal, th, 0, sz.cols);
-
-    // Status bar (row 1)
-    try renderStatusBar(state, th, sz);
-
-    // Content area: starts at row 2, ends at rows-2 (leaving room for help bar)
-    const content_rect = tui.Rect{
-        .x = 0,
-        .y = 2,
-        .width = sz.cols,
-        .height = sz.rows -| 4, // 2 rows top (tab + status) + 2 rows bottom margin
-    };
-
-    if (!content_rect.isEmpty()) {
-        try state.panels[state.tab.active].render(state.terminal, content_rect, th);
-    }
-
-    // Help bar (bottom row)
-    try state.terminal.moveTo(sz.rows -| 1, 1);
-    try state.terminal.write(th.text_dim);
-    try state.terminal.write("[1-9,0] tabs  [Tab/S-Tab] next/prev  [t] theme  [p] pause  [?] help  [q] quit");
-    try state.terminal.write(th.reset);
-
-    // Help overlay rendered last (on top of everything) if visible
-    try state.help.render(state.terminal, th, sz.cols, sz.rows);
-
-    try state.terminal.flush();
-    state.frame_count = loop.getFrameCount();
-}
-
-/// Tick callback -- updates state on each timer interval.
-fn dashboardTick(loop: *tui.AsyncLoop) anyerror!void {
-    const state = loop.getUserData(DashboardState) orelse
-        return error.UserDataNotSet;
-    state.term_size = state.terminal.size();
-
-    // Tick the active panel unless paused
-    if (!state.paused) {
-        try state.panels[state.tab.active].tick();
-    }
-}
-
-/// Update callback -- handles input events. Returns true to quit.
-fn dashboardUpdate(loop: *tui.AsyncLoop, event: tui.AsyncEvent) anyerror!bool {
-    const state = loop.getUserData(DashboardState) orelse
-        return error.UserDataNotSet;
-    return switch (event) {
-        .input => |ev| switch (ev) {
-            .key => |key| handleKeyEvent(state, key),
-            .mouse => false,
-        },
-        .resize => |size| blk: {
-            state.term_size = .{
-                .rows = size.rows,
-                .cols = size.cols,
-            };
-            break :blk false;
-        },
-        .quit => true,
-        else => false,
-    };
-}
-
-// ===============================================================================
-// Status Bar
-// ===============================================================================
-
-/// Render the status bar at row 1 showing panel info, frame count, and theme.
-fn renderStatusBar(state: *const DashboardState, th: *const tui.Theme, sz: tui.TerminalSize) !void {
-    try state.terminal.moveTo(1, 0);
-
-    // Background fill for status bar
-    try state.terminal.write(th.text_dim);
-
-    // Left: panel name + shortcut hint
-    const panel_name = state.panels[state.tab.active].getName();
-    const hint = state.panels[state.tab.active].shortcutHint();
-
-    try state.terminal.write(" ");
-    try state.terminal.write(th.accent);
-    try state.terminal.write(panel_name);
-    try state.terminal.write(th.reset);
-
-    if (hint.len > 0) {
-        try state.terminal.write(th.text_muted);
-        try state.terminal.write(" (");
-        try state.terminal.write(hint);
-        try state.terminal.write(")");
-        try state.terminal.write(th.reset);
-    }
-
-    // Center: frame count + paused indicator
-    // Position roughly at center of terminal
-    const center_col = sz.cols / 2 -| 10;
-    try state.terminal.moveTo(1, center_col);
-    try state.terminal.write(th.text_dim);
-
-    var frame_buf: [32]u8 = undefined;
-    const frame_str = std.fmt.bufPrint(&frame_buf, "Frame: {d}", .{state.frame_count}) catch "Frame: ?";
-    try state.terminal.write(frame_str);
-
-    if (state.paused) {
-        try state.terminal.write("  ");
-        try state.terminal.write(th.warning);
-        try state.terminal.write("PAUSED");
-        try state.terminal.write(th.reset);
-    }
-
-    try state.terminal.write(th.reset);
-
-    // Right: theme name
-    const theme_name = state.theme_manager.current.name;
-    const right_col = sz.cols -| @as(u16, @intCast(@min(theme_name.len + 3, @as(usize, sz.cols))));
-    try state.terminal.moveTo(1, right_col);
-    try state.terminal.write(th.text_muted);
-    try state.terminal.write("[");
-    try state.terminal.write(theme_name);
-    try state.terminal.write("]");
-    try state.terminal.write(th.reset);
-}
-
-// ===============================================================================
-// Input Handling
-// ===============================================================================
-
-fn handleKeyEvent(state: *DashboardState, key: tui.Key) bool {
-    // If help overlay is visible, any key closes it
-    if (state.help.visible) {
-        state.help.hide();
-        return false;
-    }
-
-    switch (key.code) {
-        .ctrl_c, .escape => return true,
-        .tab => {
-            if (key.mods.shift) {
-                state.tab.prev();
-            } else {
-                state.tab.next();
-            }
-        },
-        .character => {
-            if (key.char) |ch| {
-                switch (ch) {
-                    'q' => return true,
-                    'p' => state.paused = !state.paused,
-                    't' => state.theme_manager.nextTheme(),
-                    'T' => state.theme_manager.prevTheme(),
-                    '?' => state.help.toggle(),
-                    'h' => state.help.toggle(),
-                    '1'...'9' => state.tab.setActive(@as(usize, ch - '1')),
-                    '0' => state.tab.setActive(9), // '0' maps to tab 10 (index 9)
-                    else => {
-                        // Forward unhandled character events to the active panel
-                        const consumed = state.panels[state.tab.active].handleEvent(.{
-                            .key = key,
-                        }) catch false;
-                        return consumed;
-                    },
-                }
-            }
-        },
-        else => {
-            // Forward unhandled non-character events to the active panel
-            const consumed = state.panels[state.tab.active].handleEvent(.{
-                .key = key,
-            }) catch false;
-            return consumed;
-        },
-    }
-    return false;
+    try dash.run();
 }
 
 fn printHelp() void {
     utils.output.print(
-        \\Usage: abi ui dashboard [OPTIONS]
+        \\Usage: abi ui [OPTIONS]
         \\
-        \\Unified tabbed TUI dashboard combining all monitoring panels.
+        \\Open the shared terminal shell with tabbed views and a command palette.
         \\
         \\Options:
         \\  --theme <name>    Set initial theme
@@ -835,17 +272,23 @@ fn printHelp() void {
         \\  -h, --help        Show this help message
         \\
         \\Keyboard Controls:
-        \\  1-9, 0            Switch to tab N (0 = tab 10)
-        \\  Tab / Shift+Tab   Cycle tabs forward/back
-        \\  t / T             Cycle themes forward/back
-        \\  p                 Pause/Resume updates
-        \\  ? / h             Toggle help overlay
-        \\  q, Esc            Quit
+        \\  1-9, 0            Jump to a tab
+        \\  /                 Open the command palette
+        \\  Tab / Shift+Tab   Cycle tabs forward or backward
+        \\  t / T             Cycle themes
+        \\  p                 Pause or resume panel updates
+        \\  ? / h             Toggle help
+        \\  q / Esc           Quit
         \\
-        \\Individual panels are still available via:
-        \\  abi ui gpu, abi ui brain, abi ui train, etc.
+        \\Focused views remain available via:
+        \\  abi ui gpu, abi ui brain, abi ui model, abi ui editor, ...
         \\
     , .{});
+}
+
+test "shell panel tab metadata matches the registry" {
+    try std.testing.expectEqual(panel_count, panel_registry.tab_labels.len);
+    try std.testing.expectEqual(panel_count, panel_registry.panel_specs.len);
 }
 
 test {

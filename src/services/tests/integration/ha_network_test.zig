@@ -20,7 +20,7 @@ const mocks = @import("mocks.zig");
 // ============================================================================
 
 test "ha network: replication manager initialization" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 

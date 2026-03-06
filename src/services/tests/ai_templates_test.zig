@@ -6,16 +6,16 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const templates = if (build_options.enable_ai) abi.features.ai.templates else struct {};
-const Template = if (build_options.enable_ai) templates.Template else struct {};
-const TemplateRegistry = if (build_options.enable_ai) templates.TemplateRegistry else struct {};
+const templates = if (build_options.feat_ai) abi.features.ai.templates else struct {};
+const Template = if (build_options.feat_ai) templates.Template else struct {};
+const TemplateRegistry = if (build_options.feat_ai) templates.TemplateRegistry else struct {};
 
 // ============================================================================
 // Template Parsing Tests
 // ============================================================================
 
 test "template: init and parse simple variable" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var tmpl = Template.init(allocator, "greeting", "Hello {{name}}!") catch return error.SkipZigTest;
@@ -26,7 +26,7 @@ test "template: init and parse simple variable" {
 }
 
 test "template: plain text without variables" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var tmpl = Template.init(allocator, "static", "No variables here") catch return error.SkipZigTest;
@@ -37,7 +37,7 @@ test "template: plain text without variables" {
 }
 
 test "template: multiple variables" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var tmpl = Template.init(allocator, "multi", "{{greeting}} {{name}}, you are {{age}} years old") catch return error.SkipZigTest;
@@ -52,7 +52,7 @@ test "template: multiple variables" {
 // ============================================================================
 
 test "template: render with struct values" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var tmpl = Template.init(allocator, "hello", "Hello {{name}}!") catch return error.SkipZigTest;
@@ -67,7 +67,7 @@ test "template: render with struct values" {
 }
 
 test "template: render empty template" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var tmpl = Template.init(allocator, "empty", "") catch return error.SkipZigTest;
@@ -84,7 +84,7 @@ test "template: render empty template" {
 // ============================================================================
 
 test "registry: register and retrieve template" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var registry = TemplateRegistry.init(allocator);
@@ -97,7 +97,7 @@ test "registry: register and retrieve template" {
 }
 
 test "registry: get non-existent returns null" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var registry = TemplateRegistry.init(allocator);
@@ -107,7 +107,7 @@ test "registry: get non-existent returns null" {
 }
 
 test "registry: list templates" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var registry = TemplateRegistry.init(allocator);
@@ -130,7 +130,7 @@ test "registry: list templates" {
 // ============================================================================
 
 test "templates: renderTemplate top-level function" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = templates.renderTemplate(allocator, "The {{animal}} is {{adjective}}", .{
@@ -144,7 +144,7 @@ test "templates: renderTemplate top-level function" {
 }
 
 test "templates: formatChatMessage" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const msg = templates.formatChatMessage(allocator, "user", "Hello!") catch return error.SkipZigTest;

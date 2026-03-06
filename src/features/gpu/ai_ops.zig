@@ -86,7 +86,7 @@ pub const Transpose = enum {
 ///
 /// Example usage:
 /// ```zig
-/// var ops = if (build_options.enable_gpu)
+/// var ops = if (build_options.feat_gpu)
 ///     try cuda_ai_ops.CudaAiOps.init(allocator)
 /// else
 ///     StubAiOps.init();
@@ -730,11 +730,11 @@ test "transpose bool conversion" {
 // stub types are provided that return error.NotAvailable.
 
 /// GPU backend availability check.
-pub const gpu_enabled = build_options.enable_gpu;
+pub const gpu_enabled = build_options.feat_gpu;
 
 /// Device memory management re-exports.
 /// Provides DeviceMemory struct with init/deinit and memcpy functions.
-pub const memory = if (build_options.enable_gpu and build_options.gpu_fpga)
+pub const memory = if (build_options.feat_gpu and build_options.gpu_fpga)
     // FPGA memory interface would go here
     struct {
         pub fn init(_: std.mem.Allocator) !void {
@@ -776,7 +776,7 @@ pub const memory = if (build_options.enable_gpu and build_options.gpu_fpga)
             @memcpy(dst_ptr[0..size], src_ptr[0..size]);
         }
     }
-else if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
+else if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
     @import("backends/cuda/memory.zig")
 else
     struct {
@@ -809,7 +809,7 @@ else
 
 /// LLM kernel operations re-exports.
 /// Provides LlmKernelModule with softmax, rmsnorm, silu, gelu, scale, etc.
-pub const llm_kernels = if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
+pub const llm_kernels = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
     @import("backends/cuda/llm_kernels.zig")
 else
     struct {
@@ -856,7 +856,7 @@ else
 
 /// cuBLAS operations re-exports.
 /// Provides CublasContext with sgemm, sgemmStridedBatched, and matmulRowMajor.
-pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
+pub const cublas = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
     @import("backends/cuda/cublas.zig")
 else
     struct {
@@ -930,7 +930,7 @@ else
     };
 
 /// GPU backend summary for availability detection.
-pub const backend = if (build_options.enable_gpu)
+pub const backend = if (build_options.feat_gpu)
     @import("backend.zig")
 else
     struct {

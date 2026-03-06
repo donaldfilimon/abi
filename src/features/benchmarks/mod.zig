@@ -31,7 +31,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return build_options.enable_benchmarks;
+    return build_options.feat_benchmarks;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +267,7 @@ pub const BenchmarkSuite = struct {
 test "basic initialization" {
     const ctx = try Context.init(std.testing.allocator, Config{});
     defer ctx.deinit();
-    try std.testing.expect(isEnabled() == build_options.enable_benchmarks);
+    try std.testing.expect(isEnabled() == build_options.feat_benchmarks);
 }
 
 test "Config default values" {

@@ -5,7 +5,7 @@ const database = @import("database.zig");
 const storage = @import("storage.zig");
 const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
-const transformer = if (build_options.enable_ai) @import("../ai/transformer/mod.zig") else struct {
+const transformer = if (build_options.feat_ai) @import("../ai/transformer/mod.zig") else struct {
     pub const TransformerModel = struct {
         pub fn init(_: std.mem.Allocator, _: anytype) !TransformerModel {
             return error.AiDisabled;
@@ -76,8 +76,8 @@ fn printHelp() void {
         "  query (--vector <csv> | --embed <text>) [--top-k <n>] [--db <path>]\n" ++
         "  stats [--db <path>]\n" ++
         "  optimize [--db <path>]\n" ++
-        "  backup --db <path> --out <path> (legacy: --path <path>)\n" ++
-        "  restore --db <path> --in <path> (legacy: --path <path>)\n" ++
+        "  backup --db <path> --out <path>\n" ++
+        "  restore --db <path> --in <path>\n" ++
         "  serve [--addr <host:port>]\n\n" ++
         "Options:\n" ++
         "  --path <path>   Legacy shorthand for both source and destination\n" ++
@@ -179,8 +179,8 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (vector_text) |vector_input| {
         vector = try db_helpers.parseVector(allocator, vector_input);
     } else if (embed_text) |text| {
-        if (!build_options.enable_ai) {
-            std.debug.print("Embedding requires -Denable-ai=true\n", .{});
+        if (!build_options.feat_ai) {
+            std.debug.print("Embedding requires -Dfeat-ai=true\n", .{});
             return;
         }
         var model = try transformer.TransformerModel.init(allocator, .{});
@@ -265,8 +265,8 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (vector_text) |vector_input| {
         query = try db_helpers.parseVector(allocator, vector_input);
     } else if (embed_text) |text| {
-        if (!build_options.enable_ai) {
-            std.debug.print("Embedding requires -Denable-ai=true\n", .{});
+        if (!build_options.feat_ai) {
+            std.debug.print("Embedding requires -Dfeat-ai=true\n", .{});
             return;
         }
         var model = try transformer.TransformerModel.init(allocator, .{});

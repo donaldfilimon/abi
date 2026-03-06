@@ -204,7 +204,7 @@ pub const ConfigLoader = struct {
 
     fn applyEnvOverrides(self: *Self, config: *Config) LoadError!void {
         // GPU configuration
-        if (build_options.enable_gpu) {
+        if (build_options.feat_gpu) {
             if (config.gpu == null) config.gpu = GpuConfig.defaults();
             if (self.getEnv("ABI_GPU_BACKEND")) |backend_str| {
                 if (parseGpuBackend(backend_str)) |backend| {
@@ -214,7 +214,7 @@ pub const ConfigLoader = struct {
         }
 
         // AI configuration
-        if (build_options.enable_ai) {
+        if (build_options.feat_ai) {
             if (config.ai == null) config.ai = AiConfig.defaults();
 
             // LLM model path
@@ -232,7 +232,7 @@ pub const ConfigLoader = struct {
         }
 
         // Database configuration
-        if (build_options.enable_database) {
+        if (build_options.feat_database) {
             if (config.database == null) config.database = DatabaseConfig.defaults();
 
             if (self.getEnv("ABI_DB_PATH")) |path| {
@@ -374,7 +374,7 @@ test "ConfigLoader handles missing env vars gracefully" {
 
     const config = try loader.load();
     // Should use defaults when env vars are not set
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try std.testing.expect(config.gpu != null);
     }
 }

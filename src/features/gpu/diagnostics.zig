@@ -155,7 +155,7 @@ pub const BuildConfig = struct {
 pub fn getBuildConfig() BuildConfig {
     const build_options = @import("build_options");
     return .{
-        .gpu_enabled = build_options.enable_gpu,
+        .gpu_enabled = build_options.feat_gpu,
         .cuda_enabled = build_options.gpu_cuda,
         .vulkan_enabled = build_options.gpu_vulkan,
         .metal_enabled = build_options.gpu_metal,

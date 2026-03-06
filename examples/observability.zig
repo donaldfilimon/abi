@@ -18,8 +18,8 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n=== ABI Observability Demo ===\n\n", .{});
 
     // Check if profiling is enabled
-    if (!build_options.enable_profiling) {
-        std.debug.print("Note: Profiling feature is disabled. Enable with -Denable-profiling=true\n\n", .{});
+    if (!build_options.feat_profiling) {
+        std.debug.print("Note: Profiling feature is disabled. Enable with -Dfeat-profiling=true\n\n", .{});
         return;
     }
 

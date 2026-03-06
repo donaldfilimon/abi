@@ -4,7 +4,7 @@ const modules = @import("modules.zig");
 
 /// Register mobile cross-compilation targets (Android aarch64, iOS aarch64).
 ///
-/// Only emits build artifacts when `enable_mobile` is set.
+/// Only emits build artifacts when `feat_mobile` is set.
 pub fn addMobileBuild(
     b: *std.Build,
     options: options_mod.BuildOptions,
@@ -12,7 +12,7 @@ pub fn addMobileBuild(
 ) *std.Build.Step {
     const mobile_step = b.step("mobile", "Build for mobile targets (Android/iOS)");
 
-    if (!options.enable_mobile) return mobile_step;
+    if (!options.feat_mobile) return mobile_step;
 
     // Android (aarch64)
     const android_target = b.resolveTargetQuery(.{

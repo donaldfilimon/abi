@@ -6,14 +6,14 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const tools = if (build_options.enable_ai) abi.features.ai.tools else struct {};
+const tools = if (build_options.feat_ai) abi.features.ai.tools else struct {};
 
 // ============================================================================
 // Path Traversal Detection Tests
 // ============================================================================
 
 test "tools: hasPathTraversal detects .. components" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     try std.testing.expect(tools.hasPathTraversal("../etc/passwd"));
     try std.testing.expect(tools.hasPathTraversal("foo/../../../etc/shadow"));
@@ -21,7 +21,7 @@ test "tools: hasPathTraversal detects .. components" {
 }
 
 test "tools: hasPathTraversal allows normal paths" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     try std.testing.expect(!tools.hasPathTraversal("src/main.zig"));
     try std.testing.expect(!tools.hasPathTraversal("./relative/path"));
@@ -30,20 +30,20 @@ test "tools: hasPathTraversal allows normal paths" {
 }
 
 test "tools: hasPathTraversal detects encoded traversal" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     try std.testing.expect(tools.hasPathTraversal("%2e%2e/etc"));
     try std.testing.expect(tools.hasPathTraversal("foo/%2E%2E/bar"));
 }
 
 test "tools: hasPathTraversal detects null bytes" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     try std.testing.expect(tools.hasPathTraversal("safe.txt\x00../evil"));
 }
 
 test "tools: hasPathTraversal handles backslash paths" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     try std.testing.expect(tools.hasPathTraversal("foo\\..\\bar"));
 }
@@ -53,7 +53,7 @@ test "tools: hasPathTraversal handles backslash paths" {
 // ============================================================================
 
 test "tools: ToolRegistry init and deinit" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var registry = tools.ToolRegistry.init(allocator);
@@ -63,7 +63,7 @@ test "tools: ToolRegistry init and deinit" {
 }
 
 test "tools: register and retrieve tool" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var registry = tools.ToolRegistry.init(allocator);
@@ -93,7 +93,7 @@ test "tools: register and retrieve tool" {
 // ============================================================================
 
 test "tools: ToolResult success" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var result = tools.ToolResult.init(allocator, true, "output data");
@@ -105,7 +105,7 @@ test "tools: ToolResult success" {
 }
 
 test "tools: ToolResult error" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var result = tools.ToolResult.fromError(allocator, "something failed");
@@ -120,7 +120,7 @@ test "tools: ToolResult error" {
 // ============================================================================
 
 test "tools: createContext with working directory" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });

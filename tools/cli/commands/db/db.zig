@@ -27,7 +27,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Check if database feature is enabled
     if (!abi.features.database.isEnabled()) {
         utils.output.printError("Database feature is disabled.", .{});
-        utils.output.printInfo("Rebuild with: zig build -Dfeat-database=true (legacy: -Denable-database=true)", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-database=true", .{});
         return;
     }
 

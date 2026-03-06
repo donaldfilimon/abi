@@ -14,8 +14,8 @@ const build_options = @import("build_options");
 const shared_utils = @import("../../../services/shared/utils.zig");
 
 // Import web client if web feature is enabled
-const web_client = if (build_options.enable_web) @import("../../web/client.zig") else @as(?void, null);
-const web_enabled = build_options.enable_web;
+const web_client = if (build_options.feat_web) @import("../../web/client.zig") else @as(?void, null);
+const web_enabled = build_options.feat_web;
 
 // ============================================================================
 // LLM Request/Response Types

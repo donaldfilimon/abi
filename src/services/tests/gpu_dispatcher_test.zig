@@ -7,15 +7,15 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const gpu = if (build_options.enable_gpu) abi.features.gpu else struct {};
-const dispatcher = if (build_options.enable_gpu) gpu.dispatch else struct {};
+const gpu = if (build_options.feat_gpu) abi.features.gpu else struct {};
+const dispatcher = if (build_options.feat_gpu) gpu.dispatch else struct {};
 
 // ============================================================================
 // LaunchConfig Tests
 // ============================================================================
 
 test "gpu dispatcher: LaunchConfig for1D basic" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const LaunchConfig = dispatcher.LaunchConfig;
 
     const config = LaunchConfig.for1D(2048, 128);
@@ -28,7 +28,7 @@ test "gpu dispatcher: LaunchConfig for1D basic" {
 }
 
 test "gpu dispatcher: LaunchConfig for2D square" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const LaunchConfig = dispatcher.LaunchConfig;
 
     const config = LaunchConfig.for2D(1024, 1024, 32, 32);
@@ -41,7 +41,7 @@ test "gpu dispatcher: LaunchConfig for2D square" {
 }
 
 test "gpu dispatcher: LaunchConfig gridDimensions rounds up" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const LaunchConfig = dispatcher.LaunchConfig;
 
     // 100 items with local_size 32 → ceil(100/32) = 4 groups
@@ -51,7 +51,7 @@ test "gpu dispatcher: LaunchConfig gridDimensions rounds up" {
 }
 
 test "gpu dispatcher: LaunchConfig gridDimensions without local_size" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const LaunchConfig = dispatcher.LaunchConfig;
 
     // No local_size → defaults to {256, 1, 1}
@@ -71,7 +71,7 @@ test "gpu dispatcher: LaunchConfig gridDimensions without local_size" {
 // ============================================================================
 
 test "gpu dispatcher: ExecutionResult throughputGBps" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const ExecutionResult = dispatcher.ExecutionResult;
 
     const result = ExecutionResult{
@@ -88,7 +88,7 @@ test "gpu dispatcher: ExecutionResult throughputGBps" {
 }
 
 test "gpu dispatcher: ExecutionResult elementsPerSecond" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const ExecutionResult = dispatcher.ExecutionResult;
 
     const result = ExecutionResult{
@@ -105,7 +105,7 @@ test "gpu dispatcher: ExecutionResult elementsPerSecond" {
 }
 
 test "gpu dispatcher: ExecutionResult zero time" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const ExecutionResult = dispatcher.ExecutionResult;
 
     const result = ExecutionResult{
@@ -127,7 +127,7 @@ test "gpu dispatcher: ExecutionResult zero time" {
 // ============================================================================
 
 test "gpu dispatcher: init and deinit with stdgpu" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const KernelDispatcher = dispatcher.KernelDispatcher;
     const Device = dispatcher.Device;
@@ -162,7 +162,7 @@ test "gpu dispatcher: init and deinit with stdgpu" {
 }
 
 test "gpu dispatcher: init and deinit with simulated" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const KernelDispatcher = dispatcher.KernelDispatcher;
     const Device = dispatcher.Device;
@@ -198,7 +198,7 @@ test "gpu dispatcher: init and deinit with simulated" {
 // ============================================================================
 
 test "gpu dispatcher: DispatchError members accessible" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
 
     // Verify the DispatchError type is accessible and has expected members
     const T = dispatcher.DispatchError;
@@ -212,7 +212,7 @@ test "gpu dispatcher: DispatchError members accessible" {
 // ============================================================================
 
 test "gpu dispatcher: BatchedOp priority enum" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const BatchedOp = dispatcher.BatchedOp;
 
     // Verify priority enum values exist

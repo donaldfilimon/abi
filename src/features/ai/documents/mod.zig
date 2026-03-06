@@ -878,7 +878,7 @@ pub const Error = DocumentPipeline.Error || error{OutOfMemory};
 
 /// Check if documents feature is enabled
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 // ============================================================================

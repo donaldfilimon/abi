@@ -262,7 +262,7 @@ pub fn main() !void {
 # Core Commands
 abi --help                    # Show all commands
 abi system-info               # System and feature status
-abi ui launch                 # Interactive TUI launcher
+abi ui                        # Shared UI shell with command palette
 
 # Database Operations
 abi db stats                  # Database statistics
@@ -413,13 +413,13 @@ All features are enabled by default. Disable unused features to reduce binary si
 
 | Flag | Default | Description |
 |:-----|:-------:|:------------|
-| `-Denable-ai` | true | AI features, agents, and connectors |
-| `-Denable-llm` | true | Local LLM inference |
-| `-Denable-gpu` | true | GPU acceleration |
-| `-Denable-database` | true | Vector database (WDBX) |
-| `-Denable-network` | true | Distributed compute |
-| `-Denable-web` | true | HTTP client utilities |
-| `-Denable-profiling` | true | Performance profiling |
+| `-Dfeat-ai` | true | AI features, agents, and connectors |
+| `-Dfeat-llm` | true | Local LLM inference |
+| `-Dfeat-gpu` | true | GPU acceleration |
+| `-Dfeat-database` | true | Vector database (WDBX) |
+| `-Dfeat-network` | true | Distributed compute |
+| `-Dfeat-web` | true | HTTP client utilities |
+| `-Dfeat-profiling` | true | Performance profiling |
 
 ### GPU Backend Selection
 

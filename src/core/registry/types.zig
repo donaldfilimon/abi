@@ -79,9 +79,9 @@ pub fn getParentFeature(feature: Feature) ?Feature {
 // ============================================================================
 
 test "isFeatureCompiledIn matches build_options" {
-    try std.testing.expectEqual(build_options.enable_gpu, comptime isFeatureCompiledIn(.gpu));
-    try std.testing.expectEqual(build_options.enable_ai, comptime isFeatureCompiledIn(.ai));
-    try std.testing.expectEqual(build_options.enable_database, comptime isFeatureCompiledIn(.database));
+    try std.testing.expectEqual(build_options.feat_gpu, comptime isFeatureCompiledIn(.gpu));
+    try std.testing.expectEqual(build_options.feat_ai, comptime isFeatureCompiledIn(.ai));
+    try std.testing.expectEqual(build_options.feat_database, comptime isFeatureCompiledIn(.database));
 }
 
 test "getParentFeature returns correct parent" {

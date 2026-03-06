@@ -17,14 +17,14 @@
 //! defer allocator.free(augmented);
 //! ```
 //!
-//! Gated by `-Denable-llm` + `-Denable-database`. When database is disabled,
+//! Gated by `-Dfeat-llm` + `-Dfeat-database`. When database is disabled,
 //! all operations return gracefully (no-op cache, empty RAG results).
 
 const std = @import("std");
 const build_options = @import("build_options");
 
 /// WDBX types — conditionally imported based on build flags.
-const db_available = build_options.enable_database;
+const db_available = build_options.feat_database;
 
 /// Configuration for WDBX fusion.
 pub const FusionConfig = struct {

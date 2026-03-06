@@ -6,16 +6,16 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const streaming = if (build_options.enable_ai) abi.features.ai.streaming else struct {};
-const CircuitBreaker = if (build_options.enable_ai) streaming.CircuitBreaker else struct {};
-const CircuitBreakerConfig = if (build_options.enable_ai) streaming.CircuitBreakerConfig else struct {};
+const streaming = if (build_options.feat_ai) abi.features.ai.streaming else struct {};
+const CircuitBreaker = if (build_options.feat_ai) streaming.CircuitBreaker else struct {};
+const CircuitBreakerConfig = if (build_options.feat_ai) streaming.CircuitBreakerConfig else struct {};
 
 // ============================================================================
 // Circuit Breaker State Machine Tests
 // ============================================================================
 
 test "circuit breaker: starts in closed state" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{ .failure_threshold = 3 });
     try std.testing.expectEqual(streaming.CircuitState.closed, cb.getState());
@@ -23,7 +23,7 @@ test "circuit breaker: starts in closed state" {
 }
 
 test "circuit breaker: closed → open after threshold failures" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 3,
@@ -43,7 +43,7 @@ test "circuit breaker: closed → open after threshold failures" {
 }
 
 test "circuit breaker: success resets failure count" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{ .failure_threshold = 3 });
 
@@ -63,7 +63,7 @@ test "circuit breaker: success resets failure count" {
 }
 
 test "circuit breaker: open → half_open after timeout" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 1,
@@ -86,7 +86,7 @@ test "circuit breaker: open → half_open after timeout" {
 }
 
 test "circuit breaker: half_open → closed after success threshold" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 1,
@@ -110,7 +110,7 @@ test "circuit breaker: half_open → closed after success threshold" {
 }
 
 test "circuit breaker: half_open → open on any failure" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 1,
@@ -131,7 +131,7 @@ test "circuit breaker: half_open → open on any failure" {
 }
 
 test "circuit breaker: stats track correctly" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{ .failure_threshold = 2 });
 
@@ -151,7 +151,7 @@ test "circuit breaker: stats track correctly" {
 }
 
 test "circuit breaker: open rejects and counts rejections" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 1,
@@ -171,7 +171,7 @@ test "circuit breaker: open rejects and counts rejections" {
 }
 
 test "circuit breaker: reset returns to closed" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var cb = CircuitBreaker.init(.{ .failure_threshold = 1 });
 
@@ -190,7 +190,7 @@ test "circuit breaker: reset returns to closed" {
 // ============================================================================
 
 test "backpressure: starts in normal state" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const bp = streaming.backpressure.BackpressureController.init(.{
         .strategy = .buffer,
@@ -203,7 +203,7 @@ test "backpressure: starts in normal state" {
 }
 
 test "backpressure: produce increments pending" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var bp = streaming.backpressure.BackpressureController.init(.{
         .strategy = .buffer,
@@ -220,7 +220,7 @@ test "backpressure: produce increments pending" {
 }
 
 test "backpressure: consume decrements pending" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var bp = streaming.backpressure.BackpressureController.init(.{
         .strategy = .buffer,
@@ -236,7 +236,7 @@ test "backpressure: consume decrements pending" {
 }
 
 test "backpressure: drop strategy blocks at watermark" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var bp = streaming.backpressure.BackpressureController.init(.{
         .strategy = .drop,
@@ -254,7 +254,7 @@ test "backpressure: drop strategy blocks at watermark" {
 }
 
 test "backpressure: reset clears state" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     var bp = streaming.backpressure.BackpressureController.init(.{
         .strategy = .buffer,
@@ -274,7 +274,7 @@ test "backpressure: reset clears state" {
 // ============================================================================
 
 test "buffer: empty pop returns null" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var buf = streaming.buffer.TokenBuffer.init(allocator, .{

@@ -55,7 +55,7 @@ const time = @import("../../../services/shared/time.zig");
 const build_options = @import("build_options");
 
 // GPU integration (conditional)
-const gpu_available = build_options.enable_gpu;
+const gpu_available = build_options.feat_gpu;
 const gpu_mod = if (gpu_available) @import("../../gpu/mod.zig") else struct {
     pub const mega = struct {
         pub const Coordinator = void;

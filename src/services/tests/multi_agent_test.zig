@@ -45,7 +45,7 @@ fn deinitAgents(agents_slice: []Agent) void {
 // ============================================================================
 
 test "integration: sequential execution with 3 echo agents" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const names = [_][]const u8{ "alpha", "beta", "gamma" };
@@ -79,7 +79,7 @@ test "integration: sequential execution with 3 echo agents" {
 // ============================================================================
 
 test "integration: parallel execution with 3 echo agents" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const names = [_][]const u8{ "p1", "p2", "p3" };
@@ -108,7 +108,7 @@ test "integration: parallel execution with 3 echo agents" {
 }
 
 test "integration: parallel falls back to sequential with 1 agent" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var agent = try Agent.init(allocator, .{ .name = "solo", .backend = .echo, .enable_history = false });
@@ -132,7 +132,7 @@ test "integration: parallel falls back to sequential with 1 agent" {
 // ============================================================================
 
 test "integration: pipeline chains agent outputs" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Pipeline: agent1 echoes input, agent2 echoes agent1's output
@@ -163,7 +163,7 @@ test "integration: pipeline chains agent outputs" {
 // ============================================================================
 
 test "integration: vote aggregation picks majority" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // All echo agents return the same response, so vote = that response
@@ -187,7 +187,7 @@ test "integration: vote aggregation picks majority" {
 }
 
 test "integration: first_success aggregation returns first" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const names = [_][]const u8{ "f1", "f2" };
@@ -209,7 +209,7 @@ test "integration: first_success aggregation returns first" {
 }
 
 test "integration: select_best aggregation returns best quality" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const names = [_][]const u8{ "s1", "s2" };
@@ -232,7 +232,7 @@ test "integration: select_best aggregation returns best quality" {
 }
 
 test "integration: merge aggregation deduplicates" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const names = [_][]const u8{ "m1", "m2" };
@@ -259,7 +259,7 @@ test "integration: merge aggregation deduplicates" {
 // ============================================================================
 
 test "integration: agent health tracking across runs" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var agent = try Agent.init(allocator, .{ .name = "healthy", .backend = .echo, .enable_history = false });
@@ -286,7 +286,7 @@ test "integration: agent health tracking across runs" {
 }
 
 test "integration: circuit breaker threshold in config" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var coord = Coordinator.initWithConfig(allocator, .{
@@ -302,7 +302,7 @@ test "integration: circuit breaker threshold in config" {
 // ============================================================================
 
 test "integration: send and receive messages between agents" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const names = [_][]const u8{ "sender", "receiver" };
@@ -328,7 +328,7 @@ test "integration: send and receive messages between agents" {
 }
 
 test "integration: message to invalid agent returns error" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var coord = Coordinator.init(allocator);
@@ -344,7 +344,7 @@ test "integration: message to invalid agent returns error" {
 }
 
 test "integration: pending messages for invalid index returns null" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var coord = Coordinator.init(allocator);
@@ -364,7 +364,7 @@ fn integrationEventCallback(_: messaging.Event) void {
 }
 
 test "integration: event bus fires during task execution" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     integration_event_count = 0;
 
@@ -392,7 +392,7 @@ test "integration: event bus fires during task execution" {
 // ============================================================================
 
 test "integration: adaptive strategy selects based on task size" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const names = [_][]const u8{ "a1", "a2", "a3" };
@@ -422,7 +422,7 @@ test "integration: adaptive strategy selects based on task size" {
 // ============================================================================
 
 test "integration: max agents limit enforced" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var agent1 = try Agent.init(allocator, .{ .name = "a1", .backend = .echo, .enable_history = false });
@@ -445,7 +445,7 @@ test "integration: max agents limit enforced" {
 // ============================================================================
 
 test "integration: retry config flows to coordinator" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var coord = Coordinator.initWithConfig(allocator, .{
@@ -462,7 +462,7 @@ test "integration: retry config flows to coordinator" {
 // ============================================================================
 
 test "integration: rapid sequential task execution" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var agent = try Agent.init(allocator, .{ .name = "rapid", .backend = .echo, .enable_history = false });

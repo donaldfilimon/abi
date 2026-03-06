@@ -144,12 +144,12 @@ pub const IntegrationFixture = struct {
             const fw = try allocator.create(abi.App);
             // Build config with requested features
             const cfg = abi.Config{
-                .gpu = if (features.gpu and build_options.enable_gpu) abi.config.GpuConfig.defaults() else null,
-                .ai = if ((features.ai or features.llm) and build_options.enable_ai) abi.config.AiConfig.defaults() else null,
-                .database = if (features.database and build_options.enable_database) abi.config.DatabaseConfig.defaults() else null,
-                .network = if (features.network and build_options.enable_network) abi.config.NetworkConfig.defaults() else null,
-                .observability = if (features.observability and build_options.enable_profiling) abi.config.ObservabilityConfig.defaults() else null,
-                .web = if (features.web and build_options.enable_web) abi.config.WebConfig.defaults() else null,
+                .gpu = if (features.gpu and build_options.feat_gpu) abi.config.GpuConfig.defaults() else null,
+                .ai = if ((features.ai or features.llm) and build_options.feat_ai) abi.config.AiConfig.defaults() else null,
+                .database = if (features.database and build_options.feat_database) abi.config.DatabaseConfig.defaults() else null,
+                .network = if (features.network and build_options.feat_network) abi.config.NetworkConfig.defaults() else null,
+                .observability = if (features.observability and build_options.feat_profiling) abi.config.ObservabilityConfig.defaults() else null,
+                .web = if (features.web and build_options.feat_web) abi.config.WebConfig.defaults() else null,
             };
             fw.* = try abi.App.init(allocator, cfg);
             fixture.framework = fw;
@@ -184,10 +184,10 @@ pub const IntegrationFixture = struct {
     /// Detect available hardware
     fn detectHardware(self: *IntegrationFixture) void {
         // GPU detection
-        self.gpu_available = build_options.enable_gpu;
+        self.gpu_available = build_options.feat_gpu;
 
         // CUDA detection - simplified check since gpu_backends is a slice
-        self.cuda_available = build_options.enable_gpu;
+        self.cuda_available = build_options.feat_gpu;
     }
 
     /// Check if specific hardware is available
@@ -195,10 +195,10 @@ pub const IntegrationFixture = struct {
         if (self.hardware_mode == .mock) return false;
 
         if (feature.gpu and !self.gpu_available) return false;
-        if (feature.database and !build_options.enable_database) return false;
-        if (feature.ai and !build_options.enable_ai) return false;
-        if (feature.network and !build_options.enable_network) return false;
-        if (feature.web and !build_options.enable_web) return false;
+        if (feature.database and !build_options.feat_database) return false;
+        if (feature.ai and !build_options.feat_ai) return false;
+        if (feature.network and !build_options.feat_network) return false;
+        if (feature.web and !build_options.feat_web) return false;
 
         return true;
     }

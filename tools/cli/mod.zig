@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const commands = @import("commands/mod.zig");
+pub const commands = @import("commands/mod.zig");
 const framework = @import("framework/mod.zig");
 const utils = @import("utils/mod.zig");
 const cli_io = utils.io_backend;

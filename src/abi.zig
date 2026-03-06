@@ -91,71 +91,71 @@ pub const services = struct {
 
 /// Canonical features namespace.
 pub const features = struct {
-    pub const gpu = if (build_options.enable_gpu)
+    pub const gpu = if (build_options.feat_gpu)
         @import("features/gpu/mod.zig")
     else
         @import("features/gpu/stub.zig");
-    pub const ai = if (build_options.enable_ai)
+    pub const ai = if (build_options.feat_ai)
         @import("features/ai/mod.zig")
     else
         @import("features/ai/stub.zig");
-    pub const database = if (build_options.enable_database)
+    pub const database = if (build_options.feat_database)
         @import("features/database/mod.zig")
     else
         @import("features/database/stub.zig");
-    pub const network = if (build_options.enable_network)
+    pub const network = if (build_options.feat_network)
         @import("features/network/mod.zig")
     else
         @import("features/network/stub.zig");
-    pub const observability = if (build_options.enable_profiling)
+    pub const observability = if (build_options.feat_profiling)
         @import("features/observability/mod.zig")
     else
         @import("features/observability/stub.zig");
-    pub const web = if (build_options.enable_web)
+    pub const web = if (build_options.feat_web)
         @import("features/web/mod.zig")
     else
         @import("features/web/stub.zig");
-    pub const analytics = if (build_options.enable_analytics)
+    pub const analytics = if (build_options.feat_analytics)
         @import("features/analytics/mod.zig")
     else
         @import("features/analytics/stub.zig");
-    pub const cloud = if (build_options.enable_cloud)
+    pub const cloud = if (build_options.feat_cloud)
         @import("features/cloud/mod.zig")
     else
         @import("features/cloud/stub.zig");
-    pub const auth = if (build_options.enable_auth)
+    pub const auth = if (build_options.feat_auth)
         @import("features/auth/mod.zig")
     else
         @import("features/auth/stub.zig");
-    pub const messaging = if (build_options.enable_messaging)
+    pub const messaging = if (build_options.feat_messaging)
         @import("features/messaging/mod.zig")
     else
         @import("features/messaging/stub.zig");
-    pub const cache = if (build_options.enable_cache)
+    pub const cache = if (build_options.feat_cache)
         @import("features/cache/mod.zig")
     else
         @import("features/cache/stub.zig");
-    pub const storage = if (build_options.enable_storage)
+    pub const storage = if (build_options.feat_storage)
         @import("features/storage/mod.zig")
     else
         @import("features/storage/stub.zig");
-    pub const mobile = if (build_options.enable_mobile)
+    pub const mobile = if (build_options.feat_mobile)
         @import("features/mobile/mod.zig")
     else
         @import("features/mobile/stub.zig");
-    pub const gateway = if (build_options.enable_gateway)
+    pub const gateway = if (build_options.feat_gateway)
         @import("features/gateway/mod.zig")
     else
         @import("features/gateway/stub.zig");
-    pub const search = if (build_options.enable_search)
+    pub const search = if (build_options.feat_search)
         @import("features/search/mod.zig")
     else
         @import("features/search/stub.zig");
-    pub const pages = if (build_options.enable_pages)
+    pub const pages = if (build_options.feat_pages)
         @import("features/observability/pages/mod.zig")
     else
         @import("features/observability/pages/stub.zig");
-    pub const benchmarks = if (build_options.enable_benchmarks)
+    pub const benchmarks = if (build_options.feat_benchmarks)
         @import("features/benchmarks/mod.zig")
     else
         @import("features/benchmarks/stub.zig");
@@ -177,11 +177,6 @@ pub const meta = struct {
     pub fn version() []const u8 {
         return package_version;
     }
-};
-
-/// Deprecated API compatibility namespace.
-pub const compat = struct {
-    pub const v1 = @import("compat/v1/mod.zig");
 };
 
 // ============================================================================
@@ -229,13 +224,12 @@ test "v2 surface exports remain available" {
     _ = AppBuilder;
     _ = features.ai;
     _ = services.runtime;
-    _ = compat.v1.Framework;
     try std.testing.expectEqualStrings(meta.version(), version());
 }
 
 test "framework initialization with defaults" {
     const cfg = Config.defaults();
-    try std.testing.expect(cfg.gpu != null or !build_options.enable_gpu);
+    try std.testing.expect(cfg.gpu != null or !build_options.feat_gpu);
 }
 
 test "config builder pattern" {
@@ -245,10 +239,10 @@ test "config builder pattern" {
         .withDefault(.ai)
         .build();
 
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try std.testing.expect(cfg.gpu != null);
     }
-    if (build_options.enable_ai) {
+    if (build_options.feat_ai) {
         try std.testing.expect(cfg.ai != null);
     }
 }

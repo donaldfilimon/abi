@@ -368,7 +368,7 @@ fn printSetupHelp() void {
 
 fn printStartupHints(config_path: []const u8) void {
     utils.output.println("\nQuick start:", .{});
-    utils.output.println("  abi launch                         Open command launcher", .{});
+    utils.output.println("  abi ui                             Open the interactive shell", .{});
     utils.output.println("  abi config show {s}         Review config", .{config_path});
     utils.output.println("  abi llm discover                    Detect available LLM providers", .{});
     utils.output.println("  abi profile show                    Check active profile settings", .{});
@@ -384,7 +384,7 @@ fn printHelp() void {
         "  show [file]          Display configuration (default or from file)\n" ++
         "  validate <file>      Validate a configuration file\n" ++
         "  env                  List environment variables\n" ++
-        "  path                 Print primary config path + legacy fallback path\n" ++
+        "  path                 Print primary config path\n" ++
         "  help                 Show this help message\n\n" ++
         "Init options:\n" ++
         "  -o, --output <path>  Output file path (default: abi.zon)\n\n" ++

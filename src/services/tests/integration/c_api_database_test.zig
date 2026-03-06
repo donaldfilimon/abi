@@ -10,7 +10,7 @@ const abi = @import("abi");
 // ============================================================================
 
 test "c_api: database create and close lifecycle" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         // Skip test if database is disabled
         return error.SkipZigTest;
     }
@@ -30,7 +30,7 @@ test "c_api: database create and close lifecycle" {
 }
 
 test "c_api: database insert operations" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return error.SkipZigTest;
     }
 
@@ -50,7 +50,7 @@ test "c_api: database insert operations" {
 }
 
 test "c_api: database search operations" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return error.SkipZigTest;
     }
 
@@ -87,7 +87,7 @@ test "c_api: database search operations" {
 }
 
 test "c_api: database count operations" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return error.SkipZigTest;
     }
 
@@ -118,7 +118,7 @@ test "c_api: database count operations" {
 // ============================================================================
 
 test "c_api: database delete operations" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return error.SkipZigTest;
     }
 
@@ -151,7 +151,7 @@ test "c_api: database delete operations" {
 }
 
 test "c_api: database delete all vectors" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return error.SkipZigTest;
     }
 
@@ -184,7 +184,7 @@ test "c_api: database delete all vectors" {
 // ============================================================================
 
 test "c_api: database count increments on insert" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return error.SkipZigTest;
     }
 
@@ -224,7 +224,7 @@ test "c_api: database config defaults" {
 }
 
 test "c_api: database with custom dimension" {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return error.SkipZigTest;
     }
 

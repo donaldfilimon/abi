@@ -12,6 +12,7 @@ const terminal_mod = @import("terminal.zig");
 const themes_mod = @import("themes.zig");
 const async_loop_mod = @import("async_loop.zig");
 const keybindings = @import("keybindings.zig");
+const help_overlay_mod = @import("help_overlay.zig");
 
 /// Create a generic dashboard wrapper around any panel type.
 ///
@@ -45,6 +46,8 @@ pub fn Dashboard(comptime PanelType: type) type {
             title: []const u8,
             refresh_rate_ms: u32 = 250,
             help_keys: []const u8 = " [q]uit  [p]ause  [t]heme  [?]help",
+            help_title: []const u8 = "Dashboard Help",
+            help_lines: []const []const u8 = &.{},
             min_width: u16 = 40,
             min_height: u16 = 10,
         };
@@ -392,6 +395,12 @@ pub fn Dashboard(comptime PanelType: type) type {
                     try term.write(th.reset);
                     y += 1;
                 }
+            }
+
+            if (self.show_help and self.config.help_lines.len > 0) {
+                var overlay = help_overlay_mod.HelpOverlay.init(self.config.help_title, self.config.help_lines);
+                overlay.show();
+                try overlay.render(term, th, width, height);
             }
         }
     };

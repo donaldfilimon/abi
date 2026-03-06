@@ -174,7 +174,7 @@ pub fn compareMatmul(
     var gpu_throughput: f64 = 0;
     var gpu_available = false;
 
-    if (build_options.enable_gpu and hardware_gpu) {
+    if (build_options.feat_gpu and hardware_gpu) {
         var gpu_instance_storage: abi.features.gpu.Gpu = abi.features.gpu.Gpu.init(allocator, .{}) catch {
             return ComparisonResult{
                 .operation = "matmul",

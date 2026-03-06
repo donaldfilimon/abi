@@ -573,7 +573,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return build_options.enable_ai and build_options.enable_training;
+    return build_options.feat_ai and build_options.feat_training;
 }
 
 pub fn calculateLearningRate(config: TrainingConfig, step_val: u64, base_lr: f32) f32 {

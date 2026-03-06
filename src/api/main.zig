@@ -101,30 +101,30 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     if (abi.features.database.isEnabled()) {
         std.debug.print("Database: Available\n", .{});
     } else {
-        std.debug.print("Database: Not available (enable with -Denable-database=true)\n", .{});
+        std.debug.print("Database: Not available (enable with -Dfeat-database=true)\n", .{});
     }
 
     if (gpu_detect.moduleEnabled()) {
         std.debug.print("GPU: Available\n", .{});
     } else {
-        std.debug.print("GPU: Not available (enable with -Denable-gpu=true)\n", .{});
+        std.debug.print("GPU: Not available (enable with -Dfeat-gpu=true)\n", .{});
     }
 
     if (abi.features.ai.isEnabled()) {
         std.debug.print("AI: Available\n", .{});
     } else {
-        std.debug.print("AI: Not available (enable with -Denable-ai=true)\n", .{});
+        std.debug.print("AI: Not available (enable with -Dfeat-ai=true)\n", .{});
     }
 
     if (abi.features.web.isEnabled()) {
         std.debug.print("Web: Available\n", .{});
     } else {
-        std.debug.print("Web: Not available (enable with -Denable-web=true)\n", .{});
+        std.debug.print("Web: Not available (enable with -Dfeat-web=true)\n", .{});
     }
 
     if (abi.features.network.isEnabled()) {
         std.debug.print("Network: Available\n", .{});
     } else {
-        std.debug.print("Network: Not available (enable with -Denable-network=true)\n", .{});
+        std.debug.print("Network: Not available (enable with -Dfeat-network=true)\n", .{});
     }
 }

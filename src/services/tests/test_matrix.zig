@@ -168,7 +168,7 @@ test "matrix: runtime engine basic" {
 // ============================================================================
 
 test "matrix: gpu backend detection" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -187,7 +187,7 @@ test "matrix: gpu backend detection" {
 // ============================================================================
 
 test "matrix: ai module exports" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // Verify AI module exports are accessible
     _ = abi.features.ai;
@@ -199,7 +199,7 @@ test "matrix: ai module exports" {
 // ============================================================================
 
 test "matrix: database module exports" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     // Verify database module exports
     _ = abi.features.database;
@@ -211,7 +211,7 @@ test "matrix: database module exports" {
 // ============================================================================
 
 test "matrix: network module exports" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     // Verify network module exports
     _ = abi.features.network;

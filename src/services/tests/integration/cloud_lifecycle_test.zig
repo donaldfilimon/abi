@@ -20,7 +20,7 @@ const fixtures = @import("fixtures.zig");
 // ============================================================================
 
 test "cloud lifecycle: CloudEvent creation" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
@@ -81,7 +81,7 @@ test "cloud lifecycle: CloudResponse status codes" {
 // ============================================================================
 
 test "cloud lifecycle: aws lambda event parsing" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     // Test AWS Lambda event structure
     const aws_event_json =
@@ -107,7 +107,7 @@ test "cloud lifecycle: aws lambda event parsing" {
 // ============================================================================
 
 test "cloud lifecycle: azure functions event parsing" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     // Test Azure Functions event structure
     const azure_event_json =
@@ -131,7 +131,7 @@ test "cloud lifecycle: azure functions event parsing" {
 // ============================================================================
 
 test "cloud lifecycle: gcp functions event parsing" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     // Test GCP Cloud Functions event structure
     const gcp_event_json =
@@ -155,14 +155,14 @@ test "cloud lifecycle: gcp functions event parsing" {
 // ============================================================================
 
 test "cloud lifecycle: framework initialization with cloud config" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
     // Initialize framework with cloud-like configuration
     var fixture = try fixtures.IntegrationFixture.init(allocator, .{
         .web = true,
-        .observability = build_options.enable_profiling,
+        .observability = build_options.feat_profiling,
     });
     defer fixture.deinit();
 
@@ -170,7 +170,7 @@ test "cloud lifecycle: framework initialization with cloud config" {
 }
 
 test "cloud lifecycle: cold start simulation" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
@@ -189,7 +189,7 @@ test "cloud lifecycle: cold start simulation" {
 }
 
 test "cloud lifecycle: warm invocation simulation" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
@@ -271,14 +271,14 @@ test "cloud lifecycle: provider detection" {
 // ============================================================================
 
 test "cloud lifecycle: graceful shutdown" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
     // Initialize framework
     var fixture = try fixtures.IntegrationFixture.init(allocator, .{
         .web = true,
-        .observability = build_options.enable_profiling,
+        .observability = build_options.feat_profiling,
     });
 
     // Verify framework is running
@@ -292,7 +292,7 @@ test "cloud lifecycle: graceful shutdown" {
 }
 
 test "cloud lifecycle: shutdown with pending requests" {
-    if (!build_options.enable_web) return error.SkipZigTest;
+    if (!build_options.feat_web) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 

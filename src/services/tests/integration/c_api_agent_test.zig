@@ -10,7 +10,7 @@ const abi = @import("abi");
 // ============================================================================
 
 test "c_api: agent create and destroy lifecycle" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -35,7 +35,7 @@ test "c_api: agent create and destroy lifecycle" {
 }
 
 test "c_api: agent send message and receive response" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -63,7 +63,7 @@ test "c_api: agent send message and receive response" {
 }
 
 test "c_api: agent get status" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -83,7 +83,7 @@ test "c_api: agent get status" {
 }
 
 test "c_api: agent get stats" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -116,7 +116,7 @@ test "c_api: agent get stats" {
 }
 
 test "c_api: agent clear history" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -150,7 +150,7 @@ test "c_api: agent clear history" {
 }
 
 test "c_api: agent set temperature" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -176,7 +176,7 @@ test "c_api: agent set temperature" {
 }
 
 test "c_api: agent set max tokens" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -202,7 +202,7 @@ test "c_api: agent set max tokens" {
 }
 
 test "c_api: agent get name" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 
@@ -223,7 +223,7 @@ test "c_api: agent get name" {
 }
 
 test "c_api: agent with system prompt" {
-    if (!build_options.enable_ai) {
+    if (!build_options.feat_ai) {
         return error.SkipZigTest;
     }
 

@@ -623,7 +623,7 @@ pub const LinkManager = struct {
 
 /// Check if linking is enabled at compile time.
 pub fn isEnabled() bool {
-    return build_options.enable_network;
+    return build_options.feat_network;
 }
 
 // ============================================================================

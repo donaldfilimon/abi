@@ -52,7 +52,7 @@ pub const ModelAdapter = struct {
 };
 
 test "model_adapter name and hint" {
-    var adapter: ModelAdapter = std.mem.zeroes(ModelAdapter);
+    const adapter: *ModelAdapter = undefined;
     try std.testing.expectEqualStrings("Model", adapter.name());
     try std.testing.expectEqualStrings("4", adapter.shortcutHint());
 }

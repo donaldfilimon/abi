@@ -72,8 +72,8 @@ pub const HnswIndex = struct {
         search_pool_size: usize = 8,
         /// Distance cache capacity (0 = disabled)
         distance_cache_size: usize = 1024,
-        /// Enable GPU acceleration for batch distance computation (requires -Denable-gpu)
-        enable_gpu: bool = build_options.enable_gpu,
+        /// Enable GPU acceleration for batch distance computation (requires -Dfeat-gpu)
+        enable_gpu: bool = build_options.feat_gpu,
         /// Minimum batch size to trigger GPU acceleration
         gpu_batch_threshold: usize = 256,
     };
@@ -137,7 +137,7 @@ pub const HnswIndex = struct {
 
         // Initialize optional GPU accelerator for batch distance computation
         var gpu_accelerator: ?*gpu_accel.GpuAccelerator = null;
-        if (config.enable_gpu and build_options.enable_gpu) {
+        if (config.enable_gpu and build_options.feat_gpu) {
             const accel = allocator.create(gpu_accel.GpuAccelerator) catch null;
             if (accel) |a| {
                 a.* = gpu_accel.GpuAccelerator.init(allocator, .{
@@ -1174,7 +1174,7 @@ pub const HnswIndex = struct {
     pub fn enableGpuAcceleration(self: *HnswIndex, batch_threshold: usize) !void {
         if (self.gpu_accelerator != null) return; // Already enabled
 
-        if (!build_options.enable_gpu) return error.GpuDisabled;
+        if (!build_options.feat_gpu) return error.GpuDisabled;
 
         const accel = try self.allocator.create(gpu_accel.GpuAccelerator);
         errdefer self.allocator.destroy(accel);

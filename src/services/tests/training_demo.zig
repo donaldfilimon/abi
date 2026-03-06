@@ -3,7 +3,7 @@ const abi = @import("abi");
 const build_options = @import("build_options");
 
 test "demo training of testingllm" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     // Simple config for a tiny model
     const config = abi.features.ai.training.TrainingConfig{

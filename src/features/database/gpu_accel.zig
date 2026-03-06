@@ -24,7 +24,7 @@ const build_options = @import("build_options");
 const simd = @import("../../services/shared/simd/mod.zig");
 
 // Conditionally import GPU module
-const gpu = if (build_options.enable_gpu) @import("../gpu/mod.zig") else struct {
+const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else struct {
     pub const Gpu = void;
     pub const GpuConfig = struct {
         preferred_backend: ?void = null,
@@ -46,8 +46,8 @@ const gpu = if (build_options.enable_gpu) @import("../gpu/mod.zig") else struct 
 
 /// Configuration for GPU-accelerated database operations.
 pub const GpuAccelConfig = struct {
-    /// Enable GPU acceleration (requires -Denable-gpu at build time)
-    enabled: bool = build_options.enable_gpu,
+    /// Enable GPU acceleration (requires -Dfeat-gpu at build time)
+    enabled: bool = build_options.feat_gpu,
 
     /// Minimum number of vectors before using GPU (below this, SIMD is faster)
     batch_threshold: usize = 1024,
@@ -93,7 +93,7 @@ pub const GpuSearchContext = struct {
 
     pub fn init(allocator: std.mem.Allocator) GpuSearchContext {
         const detected_backend: @TypeOf(@as(GpuSearchContext, undefined).backend) = blk: {
-            if (build_options.enable_gpu) {
+            if (build_options.feat_gpu) {
                 if (@import("builtin").os.tag == .macos) break :blk .metal;
                 // Could detect CUDA/Vulkan here
             }
@@ -143,10 +143,10 @@ pub const GpuAccelerator = struct {
     search_ctx: ?GpuSearchContext = null,
 
     /// GPU context (null if disabled or unavailable)
-    gpu_ctx: if (build_options.enable_gpu) ?*gpu.Gpu else void,
+    gpu_ctx: if (build_options.feat_gpu) ?*gpu.Gpu else void,
 
     /// Kernel dispatcher for GPU kernel execution
-    dispatcher: if (build_options.enable_gpu) ?*gpu.dispatch.KernelDispatcher else void,
+    dispatcher: if (build_options.feat_gpu) ?*gpu.dispatch.KernelDispatcher else void,
 
     /// Cached GPU buffers for reuse
     query_buffer: ?*anyopaque,
@@ -180,8 +180,8 @@ pub const GpuAccelerator = struct {
         var self = Self{
             .allocator = allocator,
             .config = config,
-            .gpu_ctx = if (build_options.enable_gpu) null else {},
-            .dispatcher = if (build_options.enable_gpu) null else {},
+            .gpu_ctx = if (build_options.feat_gpu) null else {},
+            .dispatcher = if (build_options.feat_gpu) null else {},
             .query_buffer = null,
             .vectors_buffer = null,
             .results_buffer = null,
@@ -193,7 +193,7 @@ pub const GpuAccelerator = struct {
             .gpu_kernel_ops = 0,
         };
 
-        if (build_options.enable_gpu and config.enabled) {
+        if (build_options.feat_gpu and config.enabled) {
             // Try to initialize GPU
             const gpu_config = gpu.GpuConfig{
                 .preferred_backend = config.preferred_backend,
@@ -237,7 +237,7 @@ pub const GpuAccelerator = struct {
 
     /// Deinitialize and cleanup GPU resources.
     pub fn deinit(self: *Self) void {
-        if (build_options.enable_gpu) {
+        if (build_options.feat_gpu) {
             // Clean up kernel dispatcher
             if (self.dispatcher) |disp| {
                 disp.deinit();
@@ -261,13 +261,13 @@ pub const GpuAccelerator = struct {
 
     /// Check if GPU acceleration is available.
     pub fn isGpuAvailable(self: *const Self) bool {
-        if (!build_options.enable_gpu) return false;
+        if (!build_options.feat_gpu) return false;
         return self.gpu_ctx != null;
     }
 
     /// Determine if GPU should be used for the given batch size.
     fn shouldUseGpu(self: *const Self, batch_size: usize) bool {
-        if (!build_options.enable_gpu) return false;
+        if (!build_options.feat_gpu) return false;
         return self.gpu_ctx != null and batch_size >= self.config.batch_threshold;
     }
 
@@ -330,7 +330,7 @@ pub const GpuAccelerator = struct {
         vectors: []const []const f32,
         results: []f32,
     ) !void {
-        if (!build_options.enable_gpu) return error.GpuDisabled;
+        if (!build_options.feat_gpu) return error.GpuDisabled;
 
         const ctx = self.gpu_ctx orelse return error.GpuNotAvailable;
         const batch_size = vectors.len;
@@ -488,7 +488,7 @@ pub const GpuAccelerator = struct {
         };
 
         // Use GPU kernel for large batches if available
-        if (build_options.enable_gpu and self.shouldUseGpu(vectors.len)) {
+        if (build_options.feat_gpu and self.shouldUseGpu(vectors.len)) {
             if (self.batchL2DistanceSquaredGpu(query, vectors, results)) {
                 self.gpu_kernel_ops += 1;
                 addMeasuredTime(&self.gpu_time_ns, timer.read());
@@ -514,7 +514,7 @@ pub const GpuAccelerator = struct {
         vectors: []const []const f32,
         results: []f32,
     ) !void {
-        if (!build_options.enable_gpu) return error.GpuNotAvailable;
+        if (!build_options.feat_gpu) return error.GpuNotAvailable;
 
         const gpu_ctx = self.gpu_ctx orelse return error.GpuNotAvailable;
         _ = gpu_ctx;
@@ -609,7 +609,7 @@ pub const GpuAccelerator = struct {
 
     /// Check if GPU kernel dispatcher is available.
     pub fn hasKernelDispatcher(self: *const Self) bool {
-        if (!build_options.enable_gpu) return false;
+        if (!build_options.feat_gpu) return false;
         return self.dispatcher != null;
     }
 
@@ -619,7 +619,7 @@ pub const GpuAccelerator = struct {
         kernels_executed: u64,
         cache_hit_rate: f64,
     } {
-        if (!build_options.enable_gpu) return null;
+        if (!build_options.feat_gpu) return null;
         if (self.dispatcher) |disp| {
             const stats = disp.getStats();
             return .{
@@ -757,9 +757,9 @@ test "GpuSearchContext backend detection" {
     defer ctx.deinit();
 
     // On macOS with GPU enabled, should detect metal; otherwise cpu
-    if (build_options.enable_gpu and @import("builtin").os.tag == .macos) {
+    if (build_options.feat_gpu and @import("builtin").os.tag == .macos) {
         try std.testing.expectEqual(@as(@TypeOf(ctx.backend), .metal), ctx.backend);
-    } else if (!build_options.enable_gpu) {
+    } else if (!build_options.feat_gpu) {
         try std.testing.expectEqual(@as(@TypeOf(ctx.backend), .cpu), ctx.backend);
     }
 }

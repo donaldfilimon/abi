@@ -37,8 +37,8 @@ const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
 pub fn parseGpuBackends(
     b: *std.Build,
     backend_str: ?[]const u8,
-    enable_gpu: bool,
-    enable_web: bool,
+    feat_gpu: bool,
+    feat_web: bool,
     target_os: std.Target.Os.Tag,
     target_abi: std.Target.Abi,
     can_link_metal: bool,
@@ -72,8 +72,8 @@ pub fn parseGpuBackends(
                 &buffer,
                 &count,
                 &seen,
-                enable_gpu,
-                enable_web,
+                feat_gpu,
+                feat_web,
                 target_os,
                 target_abi,
                 can_link_metal,
@@ -86,8 +86,8 @@ pub fn parseGpuBackends(
             &buffer,
             &count,
             &seen,
-            enable_gpu,
-            enable_web,
+            feat_gpu,
+            feat_web,
             target_os,
             target_abi,
             can_link_metal,
@@ -103,8 +103,8 @@ fn appendAutoBackends(
     buffer: *[backend_count]GpuBackend,
     count: *usize,
     seen: *[backend_count]bool,
-    enable_gpu: bool,
-    enable_web: bool,
+    feat_gpu: bool,
+    feat_web: bool,
     target_os: std.Target.Os.Tag,
     target_abi: std.Target.Abi,
     can_link_metal: bool,
@@ -123,8 +123,8 @@ fn appendAutoBackends(
 
     const names = gpu_policy.resolveAutoBackendNames(.{
         .platform = gpu_policy.classify(target_os, target_abi),
-        .enable_gpu = enable_gpu,
-        .enable_web = enable_web,
+        .feat_gpu = feat_gpu,
+        .feat_web = feat_web,
         .can_link_metal = can_link_metal,
         .warn_if_metal_skipped = warn_if_metal_skipped,
         .allow_simulated = false,
@@ -311,7 +311,7 @@ test "default backends: wasi web target uses webgpu then webgl2" {
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
 
-    // Web backends require both enable_gpu and enable_web
+    // Web backends require both feat_gpu and feat_web
     appendAutoBackends(&buffer, &count, &seen, true, true, .wasi, .none, false, false, false);
     try std.testing.expectEqual(@as(usize, 2), count);
     try std.testing.expectEqual(GpuBackend.webgpu, buffer[0]);

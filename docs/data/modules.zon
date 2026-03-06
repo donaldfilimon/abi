@@ -1293,12 +1293,4 @@
             },
         },
     },
-    .{
-        .name = "v1",
-        .path = "src/compat/v1/mod.zig",
-        .description = "ABI v1 compatibility surface.\n\nTemporary shim module that preserves high-usage legacy names while v2\nnamespaces (`abi.features`, `abi.services`, `abi.App*`) are adopted.",
-        .category = "Utilities",
-        .build_flag = "always-on",
-        .symbols = .{},
-    },
 }

@@ -4,7 +4,7 @@
 //! embedding generation, vision processing, streaming output, and the transformer
 //! engine. Also includes the personas system (which depends on embeddings).
 //!
-//! Gated by `-Denable-llm`.
+//! Gated by `-Dfeat-llm`.
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -14,17 +14,17 @@ const config_module = @import("../../../core/config/mod.zig");
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
-pub const llm = if (build_options.enable_llm)
+pub const llm = if (build_options.feat_llm)
     @import("../llm/mod.zig")
 else
     @import("../llm/stub.zig");
 
-pub const embeddings = if (build_options.enable_ai)
+pub const embeddings = if (build_options.feat_ai)
     @import("../embeddings/mod.zig")
 else
     @import("../embeddings/stub.zig");
 
-pub const vision = if (build_options.enable_vision)
+pub const vision = if (build_options.feat_vision)
     @import("../vision/mod.zig")
 else
     @import("../vision/stub.zig");
@@ -32,7 +32,7 @@ else
 pub const streaming = @import("../streaming/mod.zig");
 pub const transformer = @import("../transformer/mod.zig");
 
-pub const personas = if (build_options.enable_ai)
+pub const personas = if (build_options.feat_ai)
     @import("../personas/mod.zig")
 else
     @import("../personas/stub.zig");
@@ -156,7 +156,7 @@ pub const Context = struct {
 // ============================================================================
 
 pub fn isEnabled() bool {
-    return build_options.enable_llm;
+    return build_options.feat_llm;
 }
 
 // ============================================================================
@@ -169,7 +169,7 @@ test "ai_inference module loads" {
 }
 
 test "ai_inference isEnabled reflects build flag" {
-    try std.testing.expectEqual(build_options.enable_llm, isEnabled());
+    try std.testing.expectEqual(build_options.feat_llm, isEnabled());
 }
 
 test "ai_inference type sizes are reasonable" {

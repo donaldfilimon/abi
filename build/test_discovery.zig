@@ -1,12 +1,11 @@
 const std = @import("std");
 const options_mod = @import("options.zig");
 const link = @import("link.zig");
-const targets = @import("targets.zig");
 const BuildOptions = options_mod.BuildOptions;
 
 /// A single entry in the feature-test manifest.
 ///
-/// `flag` is the name of a `BuildOptions` bool field (e.g. "enable_ai").
+/// `flag` is the name of a `BuildOptions` bool field (e.g. "feat_ai").
 /// When `flag` is `null` the import is unconditional (always-on services).
 pub const FeatureTestEntry = struct {
     flag: ?[]const u8,
@@ -17,57 +16,55 @@ pub const FeatureTestEntry = struct {
 /// discovered by the feature-test binary.
 ///
 /// This table is the **single source of truth** for feature test coverage.
-/// The actual test root (`src/feature_test_root.zig`) must mirror these
-/// entries.  When adding a new test source:
-///   1. Add an entry to this manifest
-///   2. Add the corresponding `@import` to `src/feature_test_root.zig`
+/// The actual discovery root is generated from these entries during the
+/// build, so there is no tracked mirror file to keep in sync.
 pub const feature_test_manifest = [_]FeatureTestEntry{
-    // ── AI modules (gated on enable_ai) ─────────────────────────────────
-    .{ .flag = "enable_ai", .path = "features/ai/eval/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/rag/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/templates/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/orchestration/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/constitution/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/documents/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/memory/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/tools/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/streaming/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/abbey/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/multi_agent/mod.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/explore/explore_test.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/llm/ops/gpu_memory_pool_test.zig" },
-    .{ .flag = "enable_ai", .path = "features/ai/database/wdbx.zig" },
+    // ── AI modules (gated on feat_ai) ─────────────────────────────────
+    .{ .flag = "feat_ai", .path = "features/ai/eval/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/rag/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/templates/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/orchestration/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/constitution/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/documents/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/memory/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/tools/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/streaming/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/abbey/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/multi_agent/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/explore/explore_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/llm/ops/gpu_memory_pool_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/database/wdbx.zig" },
 
     // ── LLM module ──────────────────────────────────────────────────────
-    .{ .flag = "enable_llm", .path = "features/ai/llm/mod.zig" },
+    .{ .flag = "feat_llm", .path = "features/ai/llm/mod.zig" },
 
     // ── Feature modules (flag-gated) ────────────────────────────────────
-    .{ .flag = "enable_cache", .path = "features/cache/mod.zig" },
-    .{ .flag = "enable_gateway", .path = "features/gateway/mod.zig" },
-    .{ .flag = "enable_messaging", .path = "features/messaging/mod.zig" },
-    .{ .flag = "enable_search", .path = "features/search/mod.zig" },
-    .{ .flag = "enable_storage", .path = "features/storage/mod.zig" },
-    .{ .flag = "enable_pages", .path = "features/observability/pages/mod.zig" },
-    .{ .flag = "enable_analytics", .path = "features/analytics/mod.zig" },
-    .{ .flag = "enable_profiling", .path = "features/observability/mod.zig" },
-    .{ .flag = "enable_mobile", .path = "features/mobile/mod.zig" },
-    .{ .flag = "enable_benchmarks", .path = "features/benchmarks/mod.zig" },
-    .{ .flag = "enable_network", .path = "features/network/mod.zig" },
-    .{ .flag = "enable_web", .path = "features/web/mod.zig" },
-    .{ .flag = "enable_cloud", .path = "features/cloud/mod.zig" },
+    .{ .flag = "feat_cache", .path = "features/cache/mod.zig" },
+    .{ .flag = "feat_gateway", .path = "features/gateway/mod.zig" },
+    .{ .flag = "feat_messaging", .path = "features/messaging/mod.zig" },
+    .{ .flag = "feat_search", .path = "features/search/mod.zig" },
+    .{ .flag = "feat_storage", .path = "features/storage/mod.zig" },
+    .{ .flag = "feat_pages", .path = "features/observability/pages/mod.zig" },
+    .{ .flag = "feat_analytics", .path = "features/analytics/mod.zig" },
+    .{ .flag = "feat_profiling", .path = "features/observability/mod.zig" },
+    .{ .flag = "feat_mobile", .path = "features/mobile/mod.zig" },
+    .{ .flag = "feat_benchmarks", .path = "features/benchmarks/mod.zig" },
+    .{ .flag = "feat_network", .path = "features/network/mod.zig" },
+    .{ .flag = "feat_web", .path = "features/web/mod.zig" },
+    .{ .flag = "feat_cloud", .path = "features/cloud/mod.zig" },
 
     // ── AI facade modules ───────────────────────────────────────────────
-    .{ .flag = "enable_ai", .path = "features/ai/facades/core.zig" },
-    .{ .flag = "enable_llm", .path = "features/ai/facades/inference.zig" },
-    .{ .flag = "enable_training", .path = "features/ai/facades/training.zig" },
-    .{ .flag = "enable_reasoning", .path = "features/ai/facades/reasoning.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/facades/core.zig" },
+    .{ .flag = "feat_llm", .path = "features/ai/facades/inference.zig" },
+    .{ .flag = "feat_training", .path = "features/ai/facades/training.zig" },
+    .{ .flag = "feat_reasoning", .path = "features/ai/facades/reasoning.zig" },
 
     // ── GPU and database ────────────────────────────────────────────────
-    .{ .flag = "enable_gpu", .path = "features/gpu/mod.zig" },
-    .{ .flag = "enable_database", .path = "features/database/mod.zig" },
+    .{ .flag = "feat_gpu", .path = "features/gpu/mod.zig" },
+    .{ .flag = "feat_database", .path = "features/database/mod.zig" },
 
     // ── Auth ────────────────────────────────────────────────────────────
-    .{ .flag = "enable_auth", .path = "features/auth/auth_test.zig" },
+    .{ .flag = "feat_auth", .path = "features/auth/auth_test.zig" },
 
     // ── Always-on services ──────────────────────────────────────────────
     .{ .flag = null, .path = "services/mcp/server.zig" },
@@ -179,31 +176,74 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "services/lsp/client.zig" },
 };
 
+fn renderFeatureTestRoot(allocator: std.mem.Allocator) ![]u8 {
+    var out: std.Io.Writer.Allocating = .init(allocator);
+    errdefer out.deinit();
+
+    try out.writer.writeAll(
+        "//! Generated feature module test discovery root.\n" ++
+            "//! Source of truth: build/test_discovery.zig:feature_test_manifest.\n\n" ++
+            "const build_options = @import(\"build_options\");\n\n" ++
+            "test {\n",
+    );
+
+    for (feature_test_manifest, 0..) |entry, index| {
+        const import_name = try std.fmt.allocPrint(allocator, "feature_test_{d:0>3}", .{index});
+        if (entry.flag) |flag| {
+            try out.writer.print("    if (build_options.{s}) _ = @import(\"{s}\");\n", .{
+                flag,
+                import_name,
+            });
+        } else {
+            try out.writer.print("    _ = @import(\"{s}\");\n", .{import_name});
+        }
+    }
+
+    try out.writer.writeAll("}\n");
+    return try out.toOwnedSlice();
+}
+
 /// Wire up the feature-test binary and return its run step.
 ///
-/// Uses `src/feature_test_root.zig` as the test root (required for correct
-/// `@import` path resolution within `src/`).  Applies Metal framework links
-/// when targeting macOS with the Metal backend.
-///
-/// Returns `null` if `src/feature_test_root.zig` does not exist.
+/// The tracked manifest table in this file is the only source of truth for
+/// feature test coverage. The actual discovery root is generated during the
+/// build and imports each manifest entry through named module imports.
 pub fn addFeatureTests(
     b: *std.Build,
     options: BuildOptions,
     build_opts: *std.Build.Module,
+    abi_module: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-) ?*std.Build.Step {
-    if (!targets.pathExists(b, "src/feature_test_root.zig")) return null;
+) *std.Build.Step {
+    const generated = b.addWriteFiles();
+    const root_source = generated.add("feature_test_root.zig", renderFeatureTestRoot(b.allocator) catch @panic("renderFeatureTestRoot failed"));
 
-    const feature_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/feature_test_root.zig"),
+    const feature_test_root = b.createModule(.{
+        .root_source_file = root_source,
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    feature_test_root.addImport("build_options", build_opts);
+
+    for (feature_test_manifest, 0..) |entry, index| {
+        const import_name = b.fmt("feature_test_{d:0>3}", .{index});
+        const source_path = b.fmt("src/{s}", .{entry.path});
+        const feature_mod = b.createModule(.{
+            .root_source_file = b.path(source_path),
             .target = target,
             .optimize = optimize,
             .link_libc = true,
-        }),
+        });
+        feature_mod.addImport("abi", abi_module);
+        feature_mod.addImport("build_options", build_opts);
+        feature_test_root.addImport(import_name, feature_mod);
+    }
+
+    const feature_tests = b.addTest(.{
+        .root_module = feature_test_root,
     });
-    feature_tests.root_module.addImport("build_options", build_opts);
     link.applyAllPlatformLinks(
         feature_tests.root_module,
         target.result.os.tag,
@@ -216,5 +256,5 @@ pub fn addFeatureTests(
     const ft_step = b.step("feature-tests", "Run feature module inline tests");
     ft_step.dependOn(&run_feature_tests.step);
 
-    return &run_feature_tests.step;
+    return ft_step;
 }

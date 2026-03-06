@@ -44,7 +44,7 @@ const builtin_kernels = @import("builtin_kernels.zig");
 const kernel_ring_mod = @import("kernel_ring.zig");
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
-const cublas = if (build_options.enable_gpu)
+const cublas = if (build_options.feat_gpu)
     @import("backends/cuda/cublas.zig")
 else
     struct {
@@ -201,7 +201,7 @@ pub const KernelDispatcher = struct {
     backend_interface: ?interface.Backend,
 
     /// cuBLAS context for optimized BLAS operations (CUDA only).
-    cublas_ctx: if (build_options.enable_gpu) ?cublas.CublasContext else void,
+    cublas_ctx: if (build_options.feat_gpu) ?cublas.CublasContext else void,
 
     /// Statistics.
     kernels_compiled: u64,
@@ -236,7 +236,7 @@ pub const KernelDispatcher = struct {
             .kernel_cache = .empty,
             .builtin_ir_cache = .empty,
             .backend_interface = null, // Will be set by backend factory
-            .cublas_ctx = if (build_options.enable_gpu) null else {},
+            .cublas_ctx = if (build_options.feat_gpu) null else {},
             .kernels_compiled = 0,
             .kernels_executed = 0,
             .cache_hits = 0,
@@ -250,7 +250,7 @@ pub const KernelDispatcher = struct {
         };
 
         // Try to initialize cuBLAS for CUDA backend
-        if (build_options.enable_gpu and backend == .cuda) {
+        if (build_options.feat_gpu and backend == .cuda) {
             if (cublas.isAvailable()) {
                 self.cublas_ctx = cublas.CublasContext.init() catch null;
                 if (self.cublas_ctx != null) {
@@ -265,7 +265,7 @@ pub const KernelDispatcher = struct {
     /// Deinitialize and release resources.
     pub fn deinit(self: *Self) void {
         // Clean up cuBLAS context
-        if (build_options.enable_gpu) {
+        if (build_options.feat_gpu) {
             if (self.cublas_ctx) |*ctx| {
                 ctx.deinit();
             }
@@ -295,7 +295,7 @@ pub const KernelDispatcher = struct {
 
     /// Check if cuBLAS is available for optimized BLAS operations.
     pub fn hasCublas(self: *const Self) bool {
-        if (!build_options.enable_gpu) return false;
+        if (!build_options.feat_gpu) return false;
         return self.cublas_ctx != null;
     }
 
@@ -446,7 +446,7 @@ pub const KernelDispatcher = struct {
         var used_cublas = false;
 
         // Check for cuBLAS optimization for batch_matmul and matrix_multiply
-        if (build_options.enable_gpu) {
+        if (build_options.feat_gpu) {
             if (self.cublas_ctx != null and
                 (std.mem.eql(u8, kernel.name, "batch_matmul") or
                     std.mem.eql(u8, kernel.name, "matrix_multiply")))
@@ -552,7 +552,7 @@ pub const KernelDispatcher = struct {
         config: LaunchConfig,
         args: KernelArgs,
     ) DispatchError!void {
-        if (!build_options.enable_gpu) return DispatchError.UnsupportedOperation;
+        if (!build_options.feat_gpu) return DispatchError.UnsupportedOperation;
 
         var ctx = self.cublas_ctx orelse return DispatchError.UnsupportedOperation;
         const bufs = args.buffers;

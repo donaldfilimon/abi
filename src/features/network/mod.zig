@@ -396,7 +396,7 @@ var default_state: ?NetworkState = null;
 var initialized: bool = false;
 
 pub fn isEnabled() bool {
-    return build_options.enable_network;
+    return build_options.feat_network;
 }
 
 pub fn isInitialized() bool {
@@ -482,7 +482,7 @@ test "network default state" {
 }
 
 test "isEnabled returns build option" {
-    try std.testing.expectEqual(build_options.enable_network, isEnabled());
+    try std.testing.expectEqual(build_options.feat_network, isEnabled());
 }
 
 test "defaultConfig returns null before init" {

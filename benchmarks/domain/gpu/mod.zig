@@ -100,7 +100,7 @@ pub const GpuBenchConfig = struct {
 
 /// Detect if a real (non-emulated) GPU device is available.
 pub fn hasHardwareGpu(allocator: std.mem.Allocator) bool {
-    if (!build_options.enable_gpu) return false;
+    if (!build_options.feat_gpu) return false;
 
     const abi = @import("abi");
     var gpu_ctx = abi.features.gpu.Gpu.init(allocator, .{}) catch return false;
@@ -129,9 +129,9 @@ pub fn runAllBenchmarks(allocator: std.mem.Allocator, mode: GpuBenchmarkMode) !v
     std.debug.print("                         GPU KERNEL BENCHMARKS\n", .{});
     std.debug.print("================================================================================\n", .{});
 
-    if (!build_options.enable_gpu) {
+    if (!build_options.feat_gpu) {
         std.debug.print("\n[GPU DISABLED] GPU feature is not enabled at compile time.\n", .{});
-        std.debug.print("  Rebuild with: zig build -Denable-gpu=true\n", .{});
+        std.debug.print("  Rebuild with: zig build -Dfeat-gpu=true\n", .{});
         std.debug.print("  Running CPU-only fallback benchmarks...\n\n", .{});
     }
 

@@ -507,7 +507,7 @@ pub const MultiPersonaSystem = struct {
 
 /// Check if the personas module is enabled at compile time.
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 test {

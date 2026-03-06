@@ -315,7 +315,7 @@ fn initCudaComponents() !void {
                 std.log.warn("CUDA backend initialization failed: {t}. Using fallback mode.", .{err});
             };
 
-            if (comptime build_options.enable_gpu) {
+            if (comptime build_options.feat_gpu) {
                 const cuda_stream = @import("backends/cuda/stream.zig");
                 cuda_stream.init() catch |err| {
                     std.log.warn("CUDA stream initialization failed: {t}", .{err});
@@ -338,7 +338,7 @@ fn deinitCudaComponents() void {
             const cuda_module = @import("backends/cuda/mod.zig");
             cuda_module.deinit();
 
-            if (comptime build_options.enable_gpu) {
+            if (comptime build_options.feat_gpu) {
                 const cuda_stream = @import("backends/cuda/stream.zig");
                 cuda_stream.deinit();
 

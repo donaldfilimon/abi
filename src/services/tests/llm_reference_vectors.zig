@@ -10,10 +10,10 @@ const abi = @import("abi");
 const testing = std.testing;
 
 // Import LLM modules when available
-const llm = if (build_options.enable_llm) abi.features.ai.llm else struct {};
-const tensor = if (build_options.enable_llm) abi.features.ai.llm.tensor else struct {};
-const generation = if (build_options.enable_llm) abi.features.ai.llm.generation else struct {};
-const ops = if (build_options.enable_llm) abi.features.ai.llm.ops else struct {};
+const llm = if (build_options.feat_llm) abi.features.ai.llm else struct {};
+const tensor = if (build_options.feat_llm) abi.features.ai.llm.tensor else struct {};
+const generation = if (build_options.feat_llm) abi.features.ai.llm.generation else struct {};
+const ops = if (build_options.feat_llm) abi.features.ai.llm.ops else struct {};
 
 //==============================================================================
 // Q4_0 Quantization Reference Vectors
@@ -274,7 +274,7 @@ pub const silu_vectors = [_]SiLUReference{
 //==============================================================================
 
 test "q4_1 quantization reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Test Q4_1 quantization (which is available in the API)
     const input = [32]f32{
@@ -297,7 +297,7 @@ test "q4_1 quantization reference" {
 }
 
 test "q8_0 quantization reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     const input = [32]f32{
         0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
@@ -316,7 +316,7 @@ test "q8_0 quantization reference" {
 }
 
 test "softmax reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     for (softmax_vectors) |ref| {
         const input = try testing.allocator.alloc(f32, ref.input.len);
@@ -332,7 +332,7 @@ test "softmax reference" {
 }
 
 test "silu reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     for (silu_vectors) |ref| {
         for (ref.input, ref.expected) |x, expected| {
@@ -343,7 +343,7 @@ test "silu reference" {
 }
 
 test "rmsnorm reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     for (rmsnorm_vectors) |ref| {
         const input = try testing.allocator.alloc(f32, ref.input.len);
@@ -359,7 +359,7 @@ test "rmsnorm reference" {
 }
 
 test "sampling temperature scaling" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Test temperature scaling
     const logits = [_]f32{ 1.0, 2.0, 3.0 };
@@ -383,7 +383,7 @@ test "sampling temperature scaling" {
 }
 
 test "mirostat reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Mirostat parameters
     const target_entropy: f32 = 5.0;
@@ -635,7 +635,7 @@ pub fn verifyMatMul(
 //==============================================================================
 
 test "matmul reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     for (matmul_vectors) |ref| {
         const c = try testing.allocator.alloc(f32, @as(usize, ref.m) * ref.n);
@@ -651,7 +651,7 @@ test "matmul reference" {
 }
 
 test "embedding lookup reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     for (embedding_vectors) |ref| {
         const output = try testing.allocator.alloc(f32, ref.token_ids.len * ref.embed_dim);
@@ -671,7 +671,7 @@ test "embedding lookup reference" {
 }
 
 test "gelu reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // GeLU approximation: x * 0.5 * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
     const sqrt_2_over_pi = 0.7978845608;
@@ -688,7 +688,7 @@ test "gelu reference" {
 }
 
 test "cross entropy loss reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     for (cross_entropy_vectors) |ref| {
         const batch_size = ref.targets.len;
@@ -720,7 +720,7 @@ test "cross entropy loss reference" {
 }
 
 test "layernorm reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     for (layernorm_vectors) |ref| {
         const output = try testing.allocator.alloc(f32, ref.input.len);

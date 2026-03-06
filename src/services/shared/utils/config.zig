@@ -40,22 +40,22 @@ pub const ConfigSource = enum {
 /// Framework-specific configuration
 pub const FrameworkConfig = struct {
     /// Enable/disable AI features
-    enable_ai: bool = build_options.enable_ai,
+    enable_ai: bool = build_options.feat_ai,
 
     /// Enable/disable GPU features
-    enable_gpu: bool = build_options.enable_gpu,
+    enable_gpu: bool = build_options.feat_gpu,
 
     /// Enable/disable web features
-    enable_web: bool = build_options.enable_web,
+    enable_web: bool = build_options.feat_web,
 
     /// Enable/disable database features
-    enable_database: bool = build_options.enable_database,
+    enable_database: bool = build_options.feat_database,
 
     /// Enable/disable network features
-    enable_network: bool = build_options.enable_network,
+    enable_network: bool = build_options.feat_network,
 
     /// Enable/disable profiling
-    enable_profiling: bool = build_options.enable_profiling,
+    enable_profiling: bool = build_options.feat_profiling,
 
     /// Number of worker threads (0 = auto-detect)
     worker_threads: usize = 0,

@@ -85,12 +85,12 @@ test {
     _ = @import("ha_stress_test.zig");
 
     // Observability stress tests (when profiling enabled)
-    if (build_options.enable_profiling) {
+    if (build_options.feat_profiling) {
         _ = @import("observability_stress_test.zig");
     }
 
     // Database stress tests (when database enabled)
-    if (build_options.enable_database) {
+    if (build_options.feat_database) {
         _ = @import("database_stress_test.zig");
         _ = @import("hnsw_parallel_test.zig");
     }

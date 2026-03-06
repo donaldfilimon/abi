@@ -74,7 +74,7 @@ pub const BatchedOp = batched_dispatch.BatchedOp;
 pub const BatchedDispatcher = batched_dispatch.BatchedDispatcher;
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
-const cublas = if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
+const cublas = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
     @import("../backends/cuda/cublas.zig")
 else
     struct {
@@ -594,7 +594,7 @@ pub const KernelDispatcher = struct {
         args: KernelArgs,
     ) DispatchError!void {
         if (comptime cublas.CublasContext == void) return DispatchError.UnsupportedOperation;
-        if (!build_options.enable_gpu) return DispatchError.UnsupportedOperation;
+        if (!build_options.feat_gpu) return DispatchError.UnsupportedOperation;
 
         if (comptime cublas.CublasContext != void) {
             var ctx = self.cublas_ctx orelse return DispatchError.UnsupportedOperation;

@@ -6,14 +6,14 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const quantized = if (build_options.enable_llm) abi.features.ai.llm.tensor.quantized else struct {};
+const quantized = if (build_options.feat_llm) abi.features.ai.llm.tensor.quantized else struct {};
 
 // ============================================================================
 // Q8_0 Roundtrip Tests
 // ============================================================================
 
 test "q8_0: roundtrip preserves values within tolerance" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var input: [32]f32 = undefined;
     for (0..32) |i| {
@@ -33,7 +33,7 @@ test "q8_0: roundtrip preserves values within tolerance" {
 }
 
 test "q8_0: zero values roundtrip exactly" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var input: [32]f32 = undefined;
     @memset(&input, 0.0);
@@ -50,7 +50,7 @@ test "q8_0: zero values roundtrip exactly" {
 }
 
 test "q8_0: constant values roundtrip accurately" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var input: [32]f32 = undefined;
     @memset(&input, 1.5);
@@ -71,7 +71,7 @@ test "q8_0: constant values roundtrip accurately" {
 // ============================================================================
 
 test "q4_1: roundtrip preserves monotonicity" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var input: [32]f32 = undefined;
     for (0..32) |i| {
@@ -90,7 +90,7 @@ test "q4_1: roundtrip preserves monotonicity" {
 }
 
 test "q4_1: handles negative-to-positive range" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var input: [32]f32 = undefined;
     for (0..32) |i| {
@@ -113,7 +113,7 @@ test "q4_1: handles negative-to-positive range" {
 // ============================================================================
 
 test "q5_0: better precision than q4_0" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var input: [32]f32 = undefined;
     for (0..32) |i| {
@@ -136,7 +136,7 @@ test "q5_0: better precision than q4_0" {
 }
 
 test "q5_1: asymmetric quantization handles positive range" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     var input: [32]f32 = undefined;
     for (0..32) |i| {
@@ -159,7 +159,7 @@ test "q5_1: asymmetric quantization handles positive range" {
 // ============================================================================
 
 test "bulk q8_0: multi-block roundtrip" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // 2 blocks = 64 values
     var input: [64]f32 = undefined;
@@ -184,7 +184,7 @@ test "bulk q8_0: multi-block roundtrip" {
 // ============================================================================
 
 test "q8_0 dot product: matches f32 reference" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Create known input vectors
     var a_f32: [32]f32 = undefined;
@@ -216,7 +216,7 @@ test "q8_0 dot product: matches f32 reference" {
 // ============================================================================
 
 test "quantized size: compression ratios correct" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     const n: usize = 1024;
     const f32_size = n * @sizeOf(f32); // 4096 bytes
@@ -235,7 +235,7 @@ test "quantized size: compression ratios correct" {
 }
 
 test "quantized size: bits per weight values" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
 
     // Verify ordering: Q4_0 < Q4_1 < Q5_0 < Q5_1 < Q8_0
     try std.testing.expect(quantized.QuantType.q4_0.bitsPerWeight() < quantized.QuantType.q4_1.bitsPerWeight());

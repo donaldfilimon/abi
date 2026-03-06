@@ -25,7 +25,7 @@ const gateway = abi.features.gateway;
 // ============================================================================
 
 test "cross-module: cache-aside pattern with storage backend" {
-    if (!build_options.enable_cache or !build_options.enable_storage)
+    if (!build_options.feat_cache or !build_options.feat_storage)
         return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
@@ -63,7 +63,7 @@ test "cross-module: cache-aside pattern with storage backend" {
 }
 
 test "cross-module: cache invalidation clears stale storage data" {
-    if (!build_options.enable_cache or !build_options.enable_storage)
+    if (!build_options.feat_cache or !build_options.feat_storage)
         return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
@@ -106,7 +106,7 @@ test "cross-module: cache invalidation clears stale storage data" {
 // ============================================================================
 
 test "cross-module: index and search documents via search engine" {
-    if (!build_options.enable_search) return error.SkipZigTest;
+    if (!build_options.feat_search) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -132,7 +132,7 @@ test "cross-module: index and search documents via search engine" {
 }
 
 test "cross-module: update document re-indexes in search" {
-    if (!build_options.enable_search) return error.SkipZigTest;
+    if (!build_options.feat_search) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -179,7 +179,7 @@ fn integrationCallback(msg: messaging.Message, _: ?*anyopaque) messaging.Deliver
 }
 
 test "cross-module: messaging pub/sub with gateway route awareness" {
-    if (!build_options.enable_messaging or !build_options.enable_gateway)
+    if (!build_options.feat_messaging or !build_options.feat_gateway)
         return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
@@ -229,7 +229,7 @@ test "cross-module: messaging pub/sub with gateway route awareness" {
 }
 
 test "cross-module: gateway circuit breaker + messaging notification" {
-    if (!build_options.enable_messaging or !build_options.enable_gateway)
+    if (!build_options.feat_messaging or !build_options.feat_gateway)
         return error.SkipZigTest;
 
     const allocator = std.testing.allocator;

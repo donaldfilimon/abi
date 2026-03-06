@@ -405,8 +405,8 @@ fn insertionSortSymbols(items: []model.SymbolDoc) void {
 }
 
 test "parseBuildFlag extracts enable flag" {
-    const flag = parseBuildFlag("if (build_options.enable_gpu) @import(\"features/gpu/mod.zig\")") orelse "";
-    try std.testing.expectEqualStrings("enable_gpu", flag);
+    const flag = parseBuildFlag("if (build_options.feat_gpu) @import(\"features/gpu/mod.zig\")") orelse "";
+    try std.testing.expectEqualStrings("feat_gpu", flag);
 }
 
 test "trimDeclSignature handles assignment and braces" {
@@ -423,5 +423,5 @@ test "slugify is stable" {
 test "endsDeclaration handles multiline function and const init" {
     try std.testing.expect(!endsDeclaration("pub fn render(\n"));
     try std.testing.expect(endsDeclaration("pub fn render(a: usize) void {"));
-    try std.testing.expect(endsDeclaration("pub const gpu = if (build_options.enable_gpu) @import(\"features/gpu/mod.zig\") else @import(\"features/gpu/stub.zig\");"));
+    try std.testing.expect(endsDeclaration("pub const gpu = if (build_options.feat_gpu) @import(\"features/gpu/mod.zig\") else @import(\"features/gpu/stub.zig\");"));
 }

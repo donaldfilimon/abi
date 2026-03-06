@@ -45,9 +45,9 @@ pub const GpuOpsContext = struct {
     stats: GpuStats,
 
     pub fn init(allocator: std.mem.Allocator) GpuOpsContext {
-        var gpu_available = build_options.enable_gpu and checkGpuAvailability();
-        const cublas_present = build_options.enable_gpu and cublas.isAvailable();
-        const kernels_present = build_options.enable_gpu and cuda_mod.llm_kernels.isAvailable();
+        var gpu_available = build_options.feat_gpu and checkGpuAvailability();
+        const cublas_present = build_options.feat_gpu and cublas.isAvailable();
+        const kernels_present = build_options.feat_gpu and cuda_mod.llm_kernels.isAvailable();
 
         // Try to initialize cuBLAS
         var cublas_ctx: ?cublas.CublasContext = null;
@@ -877,7 +877,7 @@ pub const GpuOpsContext = struct {
 /// Check if GPU is available at runtime.
 /// Uses the GPU backend detection infrastructure to probe for real devices.
 fn checkGpuAvailability() bool {
-    if (!build_options.enable_gpu) return false;
+    if (!build_options.feat_gpu) return false;
 
     // Use the backend summary to check for available devices
     const gpu_summary = backend_mod.summary();

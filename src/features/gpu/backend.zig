@@ -302,7 +302,7 @@ fn meta(backend: Backend) BackendMeta {
 }
 
 pub fn moduleEnabled() bool {
-    return build_options.enable_gpu;
+    return build_options.feat_gpu;
 }
 
 pub fn isEnabled(backend: Backend) bool {

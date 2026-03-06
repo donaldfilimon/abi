@@ -55,9 +55,9 @@ pub const GpuOpsContext = struct {
     /// Initialize GPU operations context.
     /// Automatically detects GPU availability and initializes backends.
     pub fn init(allocator: std.mem.Allocator) Self {
-        var gpu_available = build_options.enable_gpu and checkGpuAvailability();
-        const cublas_present = build_options.enable_gpu and cublas.isAvailable();
-        const kernels_present = build_options.enable_gpu and cuda_mod.llm_kernels.isAvailable();
+        var gpu_available = build_options.feat_gpu and checkGpuAvailability();
+        const cublas_present = build_options.feat_gpu and cublas.isAvailable();
+        const kernels_present = build_options.feat_gpu and cuda_mod.llm_kernels.isAvailable();
 
         var cublas_ctx: ?cublas.CublasContext = null;
         var cublas_available = false;
@@ -778,7 +778,7 @@ pub const GpuOpsContext = struct {
 
 /// Check if GPU is available at runtime.
 fn checkGpuAvailability() bool {
-    if (!build_options.enable_gpu) return false;
+    if (!build_options.feat_gpu) return false;
 
     const gpu_summary = backend_mod.summary();
 

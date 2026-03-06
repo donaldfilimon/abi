@@ -7,14 +7,14 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const eval = if (build_options.enable_ai) abi.features.ai.eval else struct {};
+const eval = if (build_options.feat_ai) abi.features.ai.eval else struct {};
 
 // ============================================================================
 // BLEU Score Tests
 // ============================================================================
 
 test "bleu: identical sentences score 1.0" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeBleu(
@@ -33,7 +33,7 @@ test "bleu: identical sentences score 1.0" {
 }
 
 test "bleu: completely different sentences score near 0" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeBleu(
@@ -48,7 +48,7 @@ test "bleu: completely different sentences score near 0" {
 }
 
 test "bleu: brevity penalty applied for short hypothesis" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeBleu(
@@ -66,7 +66,7 @@ test "bleu: brevity penalty applied for short hypothesis" {
 }
 
 test "bleu: no brevity penalty when hypothesis is longer" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeBleu(
@@ -81,7 +81,7 @@ test "bleu: no brevity penalty when hypothesis is longer" {
 }
 
 test "bleu: smoothing method2 handles zero n-gram counts" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Short sentence where higher n-grams have 0 matches
@@ -99,7 +99,7 @@ test "bleu: smoothing method2 handles zero n-gram counts" {
 }
 
 test "bleu: multi-reference picks best match" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const refs = [_][]const u8{
@@ -125,7 +125,7 @@ test "bleu: multi-reference picks best match" {
 // ============================================================================
 
 test "rouge-1: perfect overlap yields f1=1.0" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeRouge(
@@ -141,7 +141,7 @@ test "rouge-1: perfect overlap yields f1=1.0" {
 }
 
 test "rouge-2: measures bigram overlap" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeRouge(
@@ -159,7 +159,7 @@ test "rouge-2: measures bigram overlap" {
 }
 
 test "rouge-l: measures longest common subsequence" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeRouge(
@@ -177,7 +177,7 @@ test "rouge-l: measures longest common subsequence" {
 }
 
 test "rouge: empty hypothesis yields zero scores" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const result = try eval.computeRouge(
@@ -191,7 +191,7 @@ test "rouge: empty hypothesis yields zero scores" {
 }
 
 test "rouge: precision and recall are complementary" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Short hypothesis, long reference: high precision, low recall
@@ -221,7 +221,7 @@ test "rouge: precision and recall are complementary" {
 // ============================================================================
 
 test "perplexity: uniform distribution equals vocab size" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // PPL = V for uniform distribution over V tokens
     const vocab_sizes = [_]f64{ 2, 10, 100, 1000, 50000 };
@@ -236,7 +236,7 @@ test "perplexity: uniform distribution equals vocab size" {
 }
 
 test "perplexity: perfect prediction yields ppl=1" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const log_probs = [_]f64{ @log(1.0), @log(1.0), @log(1.0) };
     const result = eval.computePerplexity(&log_probs);
@@ -246,7 +246,7 @@ test "perplexity: perfect prediction yields ppl=1" {
 }
 
 test "perplexity: empty input yields infinity" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const result = eval.computePerplexity(&.{});
 
@@ -255,7 +255,7 @@ test "perplexity: empty input yields infinity" {
 }
 
 test "perplexity: lower is better (higher prob = lower ppl)" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // Model A: 50% correct
     const log_probs_a = [_]f64{ @log(0.5), @log(0.5), @log(0.5) };
@@ -269,7 +269,7 @@ test "perplexity: lower is better (higher prob = lower ppl)" {
 }
 
 test "perplexity: bpc roundtrip conversion" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const test_ppls = [_]f64{ 1, 2, 10, 100, 1000 };
 
@@ -281,7 +281,7 @@ test "perplexity: bpc roundtrip conversion" {
 }
 
 test "perplexity: cross-entropy conversion" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // PPL = exp(CE), so CE = ln(PPL)
     const ce_values = [_]f64{ 0.5, 1.0, 2.0, 5.0 };
@@ -293,7 +293,7 @@ test "perplexity: cross-entropy conversion" {
 }
 
 test "perplexity: aggregate weighted by token count" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // Two results with different token counts
     const r1 = eval.PerplexityResult{
@@ -319,7 +319,7 @@ test "perplexity: aggregate weighted by token count" {
 }
 
 test "perplexity: from probabilities handles near-zero" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // Near-zero probabilities should not produce NaN
     const probs = [_]f64{ 0.001, 0.0001, 0.00001 };
@@ -331,7 +331,7 @@ test "perplexity: from probabilities handles near-zero" {
 }
 
 test "perplexity: windowed detects anomaly" {
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Create sequence with a sudden drop in probability

@@ -844,7 +844,7 @@ fn calculateEnsembleConfidence(successful: usize, total: usize) f64 {
 
 /// Check if orchestration is enabled at compile time.
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 // ============================================================================

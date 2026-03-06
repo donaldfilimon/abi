@@ -27,13 +27,13 @@ pub fn addWasmBuild(
     });
 
     var wasm_opts = options;
-    wasm_opts.enable_database = false;
-    wasm_opts.enable_network = false;
-    wasm_opts.enable_gpu = false;
-    wasm_opts.enable_profiling = false;
-    wasm_opts.enable_web = false;
-    wasm_opts.enable_cloud = false;
-    wasm_opts.enable_storage = false;
+    wasm_opts.feat_database = false;
+    wasm_opts.feat_network = false;
+    wasm_opts.feat_gpu = false;
+    wasm_opts.feat_profiling = false;
+    wasm_opts.feat_web = false;
+    wasm_opts.feat_cloud = false;
+    wasm_opts.feat_storage = false;
     wasm_opts.gpu_backends = &.{};
 
     const wasm_build_opts = modules.createBuildOptionsModule(b, wasm_opts);

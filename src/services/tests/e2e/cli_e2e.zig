@@ -100,13 +100,13 @@ fn simulateSystemInfo(allocator: std.mem.Allocator) !CommandResult {
     try appendFormat(&output, allocator, "Version: {s}\n", .{abi.version()});
     try output.appendSlice(allocator, "\nEnabled Features:\n");
 
-    if (build_options.enable_gpu) try output.appendSlice(allocator, "  - GPU acceleration\n");
-    if (build_options.enable_ai) try output.appendSlice(allocator, "  - AI module\n");
-    if (build_options.enable_llm) try output.appendSlice(allocator, "  - LLM inference\n");
-    if (build_options.enable_database) try output.appendSlice(allocator, "  - Vector database\n");
-    if (build_options.enable_network) try output.appendSlice(allocator, "  - Distributed network\n");
-    if (build_options.enable_web) try output.appendSlice(allocator, "  - Web utilities\n");
-    if (build_options.enable_profiling) try output.appendSlice(allocator, "  - Profiling\n");
+    if (build_options.feat_gpu) try output.appendSlice(allocator, "  - GPU acceleration\n");
+    if (build_options.feat_ai) try output.appendSlice(allocator, "  - AI module\n");
+    if (build_options.feat_llm) try output.appendSlice(allocator, "  - LLM inference\n");
+    if (build_options.feat_database) try output.appendSlice(allocator, "  - Vector database\n");
+    if (build_options.feat_network) try output.appendSlice(allocator, "  - Distributed network\n");
+    if (build_options.feat_web) try output.appendSlice(allocator, "  - Web utilities\n");
+    if (build_options.feat_profiling) try output.appendSlice(allocator, "  - Profiling\n");
 
     try output.appendSlice(allocator, "\nPlatform Information:\n");
     try appendFormat(&output, allocator, "  OS: {t}\n", .{@import("builtin").os.tag});
@@ -121,7 +121,7 @@ fn simulateSystemInfo(allocator: std.mem.Allocator) !CommandResult {
 }
 
 fn simulateDbCommand(allocator: std.mem.Allocator, args: []const []const u8) !CommandResult {
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         return .{
             .success = false,
             .output = try allocator.dupe(u8, ""),
@@ -231,13 +231,13 @@ fn simulateListFeatures(allocator: std.mem.Allocator) !CommandResult {
     errdefer output.deinit(allocator);
 
     try output.appendSlice(allocator, "Feature Status:\n");
-    try appendFormat(&output, allocator, "  gpu:       {s}\n", .{if (build_options.enable_gpu) "enabled" else "disabled"});
-    try appendFormat(&output, allocator, "  ai:        {s}\n", .{if (build_options.enable_ai) "enabled" else "disabled"});
-    try appendFormat(&output, allocator, "  llm:       {s}\n", .{if (build_options.enable_llm) "enabled" else "disabled"});
-    try appendFormat(&output, allocator, "  database:  {s}\n", .{if (build_options.enable_database) "enabled" else "disabled"});
-    try appendFormat(&output, allocator, "  network:   {s}\n", .{if (build_options.enable_network) "enabled" else "disabled"});
-    try appendFormat(&output, allocator, "  web:       {s}\n", .{if (build_options.enable_web) "enabled" else "disabled"});
-    try appendFormat(&output, allocator, "  profiling: {s}\n", .{if (build_options.enable_profiling) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  gpu:       {s}\n", .{if (build_options.feat_gpu) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  ai:        {s}\n", .{if (build_options.feat_ai) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  llm:       {s}\n", .{if (build_options.feat_llm) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  database:  {s}\n", .{if (build_options.feat_database) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  network:   {s}\n", .{if (build_options.feat_network) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  web:       {s}\n", .{if (build_options.feat_web) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  profiling: {s}\n", .{if (build_options.feat_profiling) "enabled" else "disabled"});
 
     return .{
         .success = true,
@@ -313,10 +313,10 @@ test "e2e: cli list-features command" {
     try std.testing.expect(std.mem.indexOf(u8, result.output, "Feature Status:") != null);
 
     // Check feature statuses match compile-time flags
-    if (build_options.enable_gpu) {
+    if (build_options.feat_gpu) {
         try std.testing.expect(std.mem.indexOf(u8, result.output, "gpu:       enabled") != null);
     }
-    if (build_options.enable_database) {
+    if (build_options.feat_database) {
         try std.testing.expect(std.mem.indexOf(u8, result.output, "database:  enabled") != null);
     }
 }
@@ -326,7 +326,7 @@ test "e2e: cli list-features command" {
 // ============================================================================
 
 test "e2e: cli db stats command" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -343,7 +343,7 @@ test "e2e: cli db stats command" {
 }
 
 test "e2e: cli db list command" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -366,7 +366,7 @@ test "e2e: cli db with disabled feature" {
     defer ctx.deinit();
 
     // This simulates what happens when database is disabled
-    if (!build_options.enable_database) {
+    if (!build_options.feat_database) {
         var result = try executeCommand(allocator, &.{ "db", "stats" });
         defer result.deinit();
 
@@ -407,7 +407,7 @@ test "e2e: cli empty command" {
 }
 
 test "e2e: cli db without subcommand" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -425,7 +425,7 @@ test "e2e: cli db without subcommand" {
 }
 
 test "e2e: cli db unknown subcommand" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -556,10 +556,10 @@ test "e2e: cli feature flags reflect build options" {
 
     // Verify each feature's status matches build options
     const feature_checks = .{
-        .{ "gpu", build_options.enable_gpu },
-        .{ "ai", build_options.enable_ai },
-        .{ "database", build_options.enable_database },
-        .{ "network", build_options.enable_network },
+        .{ "gpu", build_options.feat_gpu },
+        .{ "ai", build_options.feat_ai },
+        .{ "database", build_options.feat_database },
+        .{ "network", build_options.feat_network },
     };
 
     inline for (feature_checks) |check| {

@@ -16,7 +16,7 @@ const network = @import("abi").features.network;
 // =============================================================================
 
 test "raft cluster creation and peer connectivity" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const node_ids = &[_][]const u8{ "node-1", "node-2", "node-3" };
@@ -40,7 +40,7 @@ test "raft cluster creation and peer connectivity" {
 }
 
 test "raft single node becomes leader immediately" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -59,7 +59,7 @@ test "raft single node becomes leader immediately" {
 }
 
 test "raft term progression during elections" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -79,7 +79,7 @@ test "raft term progression during elections" {
 }
 
 test "raft vote rejection for outdated terms" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -103,7 +103,7 @@ test "raft vote rejection for outdated terms" {
 }
 
 test "raft vote granted for higher term" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -123,7 +123,7 @@ test "raft vote granted for higher term" {
 }
 
 test "raft append entries updates leader" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -147,7 +147,7 @@ test "raft append entries updates leader" {
 }
 
 test "raft log replication" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -172,7 +172,7 @@ test "raft log replication" {
 }
 
 test "raft non-leader cannot append commands" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -184,7 +184,7 @@ test "raft non-leader cannot append commands" {
 }
 
 test "raft build append entries request" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -209,7 +209,7 @@ test "raft build append entries request" {
 // =============================================================================
 
 test "load balancer empty pool returns error" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{ .strategy = .round_robin });
@@ -219,7 +219,7 @@ test "load balancer empty pool returns error" {
 }
 
 test "load balancer node addition and removal" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{ .strategy = .round_robin });
@@ -236,7 +236,7 @@ test "load balancer node addition and removal" {
 }
 
 test "load balancer node update" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{ .strategy = .round_robin });
@@ -255,7 +255,7 @@ test "load balancer node update" {
 }
 
 test "load balancer random strategy" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{ .strategy = .random });
@@ -270,7 +270,7 @@ test "load balancer random strategy" {
 }
 
 test "load balancer health weighted strategy" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{ .strategy = .health_weighted });
@@ -285,7 +285,7 @@ test "load balancer health weighted strategy" {
 }
 
 test "load balancer sticky sessions" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{
@@ -309,7 +309,7 @@ test "load balancer sticky sessions" {
 }
 
 test "load balancer get stats" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{ .strategy = .round_robin });
@@ -325,7 +325,7 @@ test "load balancer get stats" {
 }
 
 test "load balancer response time tracking" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var lb = network.LoadBalancer.init(allocator, .{ .strategy = .round_robin });
@@ -345,7 +345,7 @@ test "load balancer response time tracking" {
 // =============================================================================
 
 test "circuit breaker force open" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var breaker = network.CircuitBreaker.init(allocator, .{
@@ -361,7 +361,7 @@ test "circuit breaker force open" {
 }
 
 test "circuit breaker force closed" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var breaker = network.CircuitBreaker.init(allocator, .{
@@ -380,7 +380,7 @@ test "circuit breaker force closed" {
 }
 
 test "circuit breaker consecutive tracking" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var breaker = network.CircuitBreaker.init(allocator, .{
@@ -404,7 +404,7 @@ test "circuit breaker consecutive tracking" {
 }
 
 test "circuit breaker half open success recovery" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var breaker = network.CircuitBreaker.init(allocator, .{
@@ -430,7 +430,7 @@ test "circuit breaker half open success recovery" {
 }
 
 test "circuit breaker half open failure returns to open" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var breaker = network.CircuitBreaker.init(allocator, .{
@@ -448,7 +448,7 @@ test "circuit breaker half open failure returns to open" {
 }
 
 test "circuit breaker registry list breakers" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var registry_obj = network.CircuitRegistry.init(allocator);
@@ -464,7 +464,7 @@ test "circuit breaker registry list breakers" {
 }
 
 test "circuit breaker registry reset all" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var registry_obj = network.CircuitRegistry.init(allocator);
@@ -485,7 +485,7 @@ test "circuit breaker registry reset all" {
 // =============================================================================
 
 test "service discovery id generation" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -497,7 +497,7 @@ test "service discovery id generation" {
 }
 
 test "service discovery registration lifecycle" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -519,7 +519,7 @@ test "service discovery registration lifecycle" {
 }
 
 test "service discovery base64 encoding" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -538,7 +538,7 @@ test "service discovery base64 encoding" {
 // =============================================================================
 
 test "load balancer with discovery" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -595,7 +595,7 @@ test "network context lifecycle" {
 // =============================================================================
 
 test "raft simulated election with three nodes" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 

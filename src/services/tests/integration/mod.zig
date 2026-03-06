@@ -61,7 +61,7 @@ test {
     _ = @import("ha_network_test.zig");
     _ = @import("cloud_lifecycle_test.zig");
     _ = @import("full_stack_test.zig");
-    if (build_options.enable_ai) {
+    if (build_options.feat_ai) {
         _ = @import("streaming_recovery.zig");
     }
     _ = @import("c_api_test.zig");
@@ -79,12 +79,12 @@ test {
 
 test "integration: fixture with all features" {
     var fixture = try IntegrationFixture.init(std.testing.allocator, .{
-        .gpu = build_options.enable_gpu,
-        .ai = build_options.enable_ai,
-        .database = build_options.enable_database,
-        .network = build_options.enable_network,
-        .web = build_options.enable_web,
-        .observability = build_options.enable_profiling,
+        .gpu = build_options.feat_gpu,
+        .ai = build_options.feat_ai,
+        .database = build_options.feat_database,
+        .network = build_options.feat_network,
+        .web = build_options.feat_web,
+        .observability = build_options.feat_profiling,
     });
     defer fixture.deinit();
 

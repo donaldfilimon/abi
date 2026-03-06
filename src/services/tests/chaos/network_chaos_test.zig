@@ -26,7 +26,7 @@ const sleepMs = helpers.sleepMs;
 // ============================================================================
 
 test "network chaos: raft handles message loss during election" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -63,7 +63,7 @@ test "network chaos: raft handles message loss during election" {
 }
 
 test "network chaos: raft cluster election with partitions" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -152,7 +152,7 @@ test "network chaos: raft cluster election with partitions" {
 }
 
 test "network chaos: raft log replication with message delays" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -221,7 +221,7 @@ test "network chaos: raft log replication with message delays" {
 }
 
 test "network chaos: raft vote rejection handles outdated terms with chaos" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -281,7 +281,7 @@ test "network chaos: raft vote rejection handles outdated terms with chaos" {
 // ============================================================================
 
 test "network chaos: load balancer handles node failures" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -352,7 +352,7 @@ test "network chaos: load balancer handles node failures" {
 }
 
 test "network chaos: load balancer sticky sessions under failures" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -419,7 +419,7 @@ test "network chaos: load balancer sticky sessions under failures" {
 // ============================================================================
 
 test "network chaos: circuit breaker opens under failure load" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -476,7 +476,7 @@ test "network chaos: circuit breaker opens under failure load" {
 }
 
 test "network chaos: circuit breaker registry handles multiple breakers under chaos" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -549,7 +549,7 @@ test "network chaos: circuit breaker registry handles multiple breakers under ch
 }
 
 test "network chaos: circuit breaker recovery after chaos ends" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -616,7 +616,7 @@ test "network chaos: circuit breaker recovery after chaos ends" {
 // ============================================================================
 
 test "network chaos: service discovery handles registration failures" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -672,7 +672,7 @@ test "network chaos: service discovery handles registration failures" {
 // ============================================================================
 
 test "network chaos: node registry handles concurrent chaos" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -732,7 +732,7 @@ test "network chaos: node registry handles concurrent chaos" {
 // ============================================================================
 
 test "network chaos: full network stack under combined failures" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 

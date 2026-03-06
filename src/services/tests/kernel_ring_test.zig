@@ -6,7 +6,7 @@ const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;
 
 test "KernelRing fast-path reuse increments ring_hits" {
-    if (!@import("build_options").enable_gpu) return error.SkipZigTest;
+    if (!@import("build_options").feat_gpu) return error.SkipZigTest;
 
     const device = dispatcher.Device{
         .id = 0,

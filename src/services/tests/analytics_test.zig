@@ -16,7 +16,7 @@ const analytics = @import("abi").features.analytics;
 // ============================================================================
 
 test "engine: zero-capacity buffer rejects immediately" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var engine = analytics.Engine.init(allocator, .{ .buffer_capacity = 0 });
@@ -27,7 +27,7 @@ test "engine: zero-capacity buffer rejects immediately" {
 }
 
 test "engine: flush empty buffer returns zero" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var engine = analytics.Engine.init(allocator, .{});
@@ -39,7 +39,7 @@ test "engine: flush empty buffer returns zero" {
 }
 
 test "engine: repeated flush is idempotent" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var engine = analytics.Engine.init(allocator, .{});
@@ -56,7 +56,7 @@ test "engine: repeated flush is idempotent" {
 }
 
 test "engine: track after flush works" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var engine = analytics.Engine.init(allocator, .{ .buffer_capacity = 2 });
@@ -77,7 +77,7 @@ test "engine: track after flush works" {
 }
 
 test "engine: getStats reflects accurate state" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var engine = analytics.Engine.init(allocator, .{});
@@ -107,7 +107,7 @@ test "engine: getStats reflects accurate state" {
 }
 
 test "engine: timestamps disabled produces zero" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var engine = analytics.Engine.init(allocator, .{ .enable_timestamps = false });
@@ -118,7 +118,7 @@ test "engine: timestamps disabled produces zero" {
 }
 
 test "engine: session IDs are sequential" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var engine = analytics.Engine.init(allocator, .{});
@@ -138,7 +138,7 @@ test "engine: session IDs are sequential" {
 // ============================================================================
 
 test "funnel: empty funnel returns empty counts" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var funnel = analytics.Funnel.init(allocator, "empty_funnel");
@@ -150,7 +150,7 @@ test "funnel: empty funnel returns empty counts" {
 }
 
 test "funnel: out-of-bounds recordStep is safe" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var funnel = analytics.Funnel.init(allocator, "safe_funnel");
@@ -170,7 +170,7 @@ test "funnel: out-of-bounds recordStep is safe" {
 }
 
 test "funnel: multiple steps with varying counts" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var funnel = analytics.Funnel.init(allocator, "checkout");
@@ -196,7 +196,7 @@ test "funnel: multiple steps with varying counts" {
 }
 
 test "funnel: getStepCounts with smaller buffer truncates" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var funnel = analytics.Funnel.init(allocator, "trunc_test");
@@ -223,7 +223,7 @@ test "funnel: getStepCounts with smaller buffer truncates" {
 // ============================================================================
 
 test "experiment: empty variants returns control" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     var exp = analytics.Experiment{
         .name = "empty_exp",
@@ -235,7 +235,7 @@ test "experiment: empty variants returns control" {
 }
 
 test "experiment: single variant always chosen" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     var exp = analytics.Experiment{
         .name = "single_exp",
@@ -254,7 +254,7 @@ test "experiment: single variant always chosen" {
 }
 
 test "experiment: multiple variants distribute across users" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     var exp = analytics.Experiment{
         .name = "multi_exp",
@@ -291,7 +291,7 @@ test "experiment: multiple variants distribute across users" {
 // ============================================================================
 
 test "context: init creates engine" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var ctx = try analytics.Context.init(allocator, .{});
@@ -302,7 +302,7 @@ test "context: init creates engine" {
 }
 
 test "context: engine accessible via context" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     var ctx = try analytics.Context.init(allocator, .{ .buffer_capacity = 10 });
@@ -318,12 +318,12 @@ test "context: engine accessible via context" {
 // ============================================================================
 
 test "module: isEnabled matches build flag" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
     try std.testing.expect(analytics.isEnabled());
 }
 
 test "module: init and deinit lifecycle" {
-    if (!build_options.enable_analytics) return error.SkipZigTest;
+    if (!build_options.feat_analytics) return error.SkipZigTest;
 
     try std.testing.expect(!analytics.isInitialized());
     try analytics.init(std.testing.allocator);

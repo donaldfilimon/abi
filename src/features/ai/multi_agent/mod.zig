@@ -677,7 +677,7 @@ pub const CoordinatorStats = struct {
 
 /// Check if multi-agent is enabled.
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 // ============================================================================

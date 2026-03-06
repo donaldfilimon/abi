@@ -27,7 +27,7 @@ fn runGpuMatmulBenchmark(
     size: usize,
     config: GpuBenchConfig,
 ) !GpuBenchmarkResult {
-    if (!build_options.enable_gpu) return error.GpuNotEnabled;
+    if (!build_options.feat_gpu) return error.GpuNotEnabled;
 
     const abi = @import("abi");
 
@@ -79,7 +79,7 @@ pub fn benchmarkMatmul(
     std.debug.print("\n[Matrix Multiplication Benchmarks]\n", .{});
 
     const gpu_available = parent_mod.hasHardwareGpu(allocator);
-    if (build_options.enable_gpu and !gpu_available) {
+    if (build_options.feat_gpu and !gpu_available) {
         std.debug.print("  [GPU SKIP] No hardware GPU detected; skipping GPU matmul benchmarks.\n", .{});
     }
 
@@ -150,7 +150,7 @@ pub fn benchmarkMatmul(
         }
 
         // GPU matmul (if available)
-        if (build_options.enable_gpu and gpu_available) {
+        if (build_options.feat_gpu and gpu_available) {
             var name_buf: [64]u8 = undefined;
             const name = std.fmt.bufPrint(&name_buf, "matmul_gpu_{d}x{d}", .{ size, size }) catch "matmul_gpu";
             const gpu_result = runGpuMatmulBenchmark(allocator, A, B, C, size, config) catch |err| {

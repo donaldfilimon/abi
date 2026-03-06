@@ -6,16 +6,16 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const Sampler = if (build_options.enable_llm) abi.features.ai.llm.generation.sampler.Sampler else struct {};
-const SamplerConfig = if (build_options.enable_llm) abi.features.ai.llm.generation.sampler.SamplerConfig else struct {};
-const TopKTopP = if (build_options.enable_llm) abi.features.ai.llm.generation.sampler.TopKTopP else struct {};
+const Sampler = if (build_options.feat_llm) abi.features.ai.llm.generation.sampler.Sampler else struct {};
+const SamplerConfig = if (build_options.feat_llm) abi.features.ai.llm.generation.sampler.SamplerConfig else struct {};
+const TopKTopP = if (build_options.feat_llm) abi.features.ai.llm.generation.sampler.TopKTopP else struct {};
 
 // ============================================================================
 // Greedy Sampling Tests
 // ============================================================================
 
 test "sampler: greedy always selects argmax" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{ .temperature = 0, .repetition_penalty = 1.0 });
@@ -30,7 +30,7 @@ test "sampler: greedy always selects argmax" {
 }
 
 test "sampler: greedy handles equal logits deterministically" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{ .temperature = 0, .repetition_penalty = 1.0 });
@@ -43,7 +43,7 @@ test "sampler: greedy handles equal logits deterministically" {
 }
 
 test "sampler: greedy handles negative logits" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{ .temperature = 0, .repetition_penalty = 1.0 });
@@ -60,7 +60,7 @@ test "sampler: greedy handles negative logits" {
 // ============================================================================
 
 test "sampler: high temperature increases entropy" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Low temperature: should strongly prefer highest logit
@@ -104,7 +104,7 @@ test "sampler: high temperature increases entropy" {
 // ============================================================================
 
 test "sampler: top-k restricts to k highest" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{
@@ -126,7 +126,7 @@ test "sampler: top-k restricts to k highest" {
 }
 
 test "sampler: top-p nucleus sampling" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // With top_p=0.5, only tokens whose cumulative prob <= 0.5 should be sampled
@@ -152,7 +152,7 @@ test "sampler: top-p nucleus sampling" {
 // ============================================================================
 
 test "sampler: repetition penalty suppresses repeated tokens" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{
@@ -184,7 +184,7 @@ test "sampler: repetition penalty suppresses repeated tokens" {
 // ============================================================================
 
 test "sampler: mirostat v2 produces valid tokens" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{
@@ -203,7 +203,7 @@ test "sampler: mirostat v2 produces valid tokens" {
 }
 
 test "sampler: mirostat v1 updates mu adaptively" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{
@@ -227,7 +227,7 @@ test "sampler: mirostat v1 updates mu adaptively" {
 }
 
 test "sampler: reset restores initial state" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var s = Sampler.init(allocator, .{
@@ -256,7 +256,7 @@ test "sampler: reset restores initial state" {
 // ============================================================================
 
 test "topk: filters to k highest values" {
-    if (!build_options.enable_llm) return error.SkipZigTest;
+    if (!build_options.feat_llm) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var logits = [_]f32{ 1.0, 5.0, 2.0, 4.0, 3.0 };

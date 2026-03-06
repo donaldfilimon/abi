@@ -4,7 +4,7 @@
 //! fine-tuning, checkpointing, data loading, federated learning, and the
 //! AI-database bridge (WDBX token datasets).
 //!
-//! Gated by `-Denable-training`.
+//! Gated by `-Dfeat-training`.
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -14,14 +14,14 @@ const config_module = @import("../../../core/config/mod.zig");
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
-pub const training = if (build_options.enable_training)
+pub const training = if (build_options.feat_training)
     @import("../training/mod.zig")
 else
     @import("../training/stub.zig");
 
 pub const federated = @import("../federated/mod.zig");
 
-pub const database = if (build_options.enable_training)
+pub const database = if (build_options.feat_training)
     @import("../database/mod.zig")
 else
     @import("../database/stub.zig");
@@ -124,7 +124,7 @@ pub const Context = struct {
 // ============================================================================
 
 pub fn isEnabled() bool {
-    return build_options.enable_training;
+    return build_options.feat_training;
 }
 
 pub fn train(
@@ -151,7 +151,7 @@ test "ai_training module loads" {
 }
 
 test "ai_training isEnabled reflects build flag" {
-    try std.testing.expectEqual(build_options.enable_training, isEnabled());
+    try std.testing.expectEqual(build_options.feat_training, isEnabled());
 }
 
 test "ai_training type re-exports" {

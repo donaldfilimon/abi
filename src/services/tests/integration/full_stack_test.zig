@@ -26,13 +26,13 @@ test "full stack: initialize all enabled modules" {
 
     // Initialize fixture with all compile-time enabled features
     var fixture = try fixtures.IntegrationFixture.init(allocator, .{
-        .gpu = build_options.enable_gpu,
-        .ai = build_options.enable_ai,
-        .llm = build_options.enable_ai,
-        .database = build_options.enable_database,
-        .network = build_options.enable_network,
-        .web = build_options.enable_web,
-        .observability = build_options.enable_profiling,
+        .gpu = build_options.feat_gpu,
+        .ai = build_options.feat_ai,
+        .llm = build_options.feat_ai,
+        .database = build_options.feat_database,
+        .network = build_options.feat_network,
+        .web = build_options.feat_web,
+        .observability = build_options.feat_profiling,
     });
     defer fixture.deinit();
 
@@ -58,12 +58,12 @@ test "full stack: sequential feature initialization" {
 
     for (feature_sets) |features| {
         // Skip features not enabled at compile time
-        if (features.gpu and !build_options.enable_gpu) continue;
-        if (features.ai and !build_options.enable_ai) continue;
-        if (features.database and !build_options.enable_database) continue;
-        if (features.network and !build_options.enable_network) continue;
-        if (features.web and !build_options.enable_web) continue;
-        if (features.observability and !build_options.enable_profiling) continue;
+        if (features.gpu and !build_options.feat_gpu) continue;
+        if (features.ai and !build_options.feat_ai) continue;
+        if (features.database and !build_options.feat_database) continue;
+        if (features.network and !build_options.feat_network) continue;
+        if (features.web and !build_options.feat_web) continue;
+        if (features.observability and !build_options.feat_profiling) continue;
 
         var fixture = try fixtures.IntegrationFixture.init(allocator, features);
         defer fixture.deinit();
@@ -159,8 +159,8 @@ test "full stack: no memory leaks across modules" {
     // This test will fail if any module leaks memory
     for (0..5) |_| {
         var fixture = try fixtures.IntegrationFixture.init(allocator, .{
-            .observability = build_options.enable_profiling,
-            .database = build_options.enable_database,
+            .observability = build_options.feat_profiling,
+            .database = build_options.feat_database,
         });
         fixture.deinit();
     }

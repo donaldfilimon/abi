@@ -52,7 +52,7 @@ pub const GpuAdapter = struct {
 };
 
 test "gpu_adapter name and hint" {
-    var adapter: GpuAdapter = std.mem.zeroes(GpuAdapter);
+    const adapter: *GpuAdapter = undefined;
     try std.testing.expectEqualStrings("GPU", adapter.name());
     try std.testing.expectEqualStrings("1", adapter.shortcutHint());
 }

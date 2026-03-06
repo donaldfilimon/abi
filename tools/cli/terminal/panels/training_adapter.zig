@@ -70,7 +70,7 @@ pub const TrainingAdapter = struct {
 };
 
 test "training_adapter name and hint" {
-    var adapter: TrainingAdapter = std.mem.zeroes(TrainingAdapter);
+    const adapter: *TrainingAdapter = undefined;
     try std.testing.expectEqualStrings("Train", adapter.name());
     try std.testing.expectEqualStrings("3", adapter.shortcutHint());
 }

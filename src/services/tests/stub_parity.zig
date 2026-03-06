@@ -157,7 +157,7 @@ test "cloud stub parity - types exist" {
 // ============================================================================
 
 test "ai stub parity - types exist" {
-    if (!build_options.enable_ai) return;
+    if (!build_options.feat_ai) return;
 
     const AI = abi.features.ai;
 
@@ -188,28 +188,28 @@ test "ai stub parity - types exist" {
 // ============================================================================
 
 test "ai/llm stub parity - types exist" {
-    if (!build_options.enable_llm) return;
+    if (!build_options.feat_llm) return;
 
     const Llm = abi.features.ai.llm;
     _ = Llm; // Module exists and is accessible
 }
 
 test "ai/agents stub parity - types exist" {
-    if (!build_options.enable_ai) return;
+    if (!build_options.feat_ai) return;
 
     const Agents = abi.features.ai.agents;
     _ = Agents; // Module exists and is accessible
 }
 
 test "ai/embeddings stub parity - types exist" {
-    if (!build_options.enable_ai) return;
+    if (!build_options.feat_ai) return;
 
     const Embeddings = abi.features.ai.embeddings;
     _ = Embeddings; // Module exists and is accessible
 }
 
 test "ai/training stub parity - types exist" {
-    if (!build_options.enable_ai) return;
+    if (!build_options.feat_ai) return;
 
     const Training = abi.features.ai.training;
     _ = Training; // Module exists and is accessible
@@ -247,7 +247,7 @@ fn verifyBackendHasMethods(comptime Backend: type) !void {
 }
 
 test "gpu backend vtable parity - all backends implement required methods" {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
 
     const gpu_mod = abi.features.gpu;
 
@@ -546,7 +546,7 @@ test "all feature modules have consistent API surface" {
     try verifyContextPattern(abi.features.gateway);
     try verifyContextPattern(abi.features.pages);
 
-    if (build_options.enable_ai) {
+    if (build_options.feat_ai) {
         try verifyContextPattern(abi.features.ai);
     }
 }

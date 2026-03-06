@@ -214,7 +214,7 @@ test "json parse number fields" {
 
 test "discord tools registration" {
     // Skip when AI is disabled - stubs return null for registry.get()
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
 
@@ -235,7 +235,7 @@ test "discord tools registration" {
 
 test "discord tool definitions are valid" {
     // Skip when AI is disabled - stubs have empty parameters
-    if (!build_options.enable_ai) return error.SkipZigTest;
+    if (!build_options.feat_ai) return error.SkipZigTest;
 
     // Verify send_message tool
     const send_tool = abi.features.ai.tools.DiscordTools.send_message_tool;

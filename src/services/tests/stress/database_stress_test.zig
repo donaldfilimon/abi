@@ -46,7 +46,7 @@ fn generateRandomVector(rng: *std.Random.DefaultPrng, dim: usize, buffer: []f32)
 // ============================================================================
 
 test "database stress: vector insertion throughput" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -84,7 +84,7 @@ test "database stress: vector insertion throughput" {
 }
 
 test "database stress: vector insertion with metadata" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -116,7 +116,7 @@ test "database stress: vector insertion with metadata" {
 }
 
 test "database stress: batch insertion" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -168,7 +168,7 @@ test "database stress: batch insertion" {
 // ============================================================================
 
 test "database stress: search throughput" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -214,7 +214,7 @@ test "database stress: search throughput" {
 }
 
 test "database stress: concurrent search and write" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -322,7 +322,7 @@ test "database stress: concurrent search and write" {
 }
 
 test "database stress: search result quality under load" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -366,7 +366,7 @@ test "database stress: search result quality under load" {
 // ============================================================================
 
 test "database stress: rapid updates" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -408,7 +408,7 @@ test "database stress: rapid updates" {
 }
 
 test "database stress: insert delete cycle" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -448,7 +448,7 @@ test "database stress: insert delete cycle" {
 // ============================================================================
 
 test "database stress: optimize under read pressure" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -525,7 +525,7 @@ test "database stress: optimize under read pressure" {
 // ============================================================================
 
 test "database stress: kmeans clustering" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -586,7 +586,7 @@ test "database stress: kmeans clustering" {
 // ============================================================================
 
 test "database stress: scalar quantization throughput" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
@@ -650,7 +650,7 @@ test "database stress: scalar quantization throughput" {
 // ============================================================================
 
 test "database stress: full lifecycle" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
     const profile = getTestProfile();

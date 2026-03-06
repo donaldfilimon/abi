@@ -28,7 +28,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 fn validateArgs(remaining_args: []const [:0]const u8) !void {
     if (remaining_args.len == 0) return;
     utils.output.printError("Unknown argument for ui bench: {s}", .{remaining_args[0]});
-    @import("theme_options.zig").printThemeHint();
+    @import("./theme_options.zig").printThemeHint();
     return error.InvalidArgument;
 }
 

@@ -11,12 +11,12 @@
 //! | Sub-feature | Description | Build Flag |
 //! |-------------|-------------|------------|
 //! | **core** | Shared types, interfaces, utilities | Always available |
-//! | **llm** | Local LLM inference (GGUF models) | `-Denable-llm` |
-//! | **embeddings** | Vector embeddings generation | `-Denable-ai` |
-//! | **agents** | AI agent runtime and tools | `-Denable-ai` |
-//! | **training** | Model training pipelines | `-Denable-ai` |
-//! | **personas** | Multi-persona AI assistant | `-Denable-ai` |
-//! | **vision** | Image processing and analysis | `-Denable-vision` |
+//! | **llm** | Local LLM inference (GGUF models) | `-Dfeat-llm` |
+//! | **embeddings** | Vector embeddings generation | `-Dfeat-ai` |
+//! | **agents** | AI agent runtime and tools | `-Dfeat-ai` |
+//! | **training** | Model training pipelines | `-Dfeat-ai` |
+//! | **personas** | Multi-persona AI assistant | `-Dfeat-ai` |
+//! | **vision** | Image processing and analysis | `-Dfeat-vision` |
 //!
 //! ## Quick Start
 //!
@@ -86,13 +86,13 @@ pub const prompts = @import("prompts/mod.zig");
 pub const abbey = @import("abbey/mod.zig");
 pub const memory = @import("memory/mod.zig");
 pub const federated = @import("federated/mod.zig");
-pub const personas = if (build_options.enable_ai) @import("personas/mod.zig") else @import("personas/stub.zig");
-pub const rag = if (build_options.enable_ai) @import("rag/mod.zig") else @import("rag/stub.zig");
-pub const templates = if (build_options.enable_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
-pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @import("eval/stub.zig");
-pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
-pub const orchestration = if (build_options.enable_ai) @import("orchestration/mod.zig") else @import("orchestration/stub.zig");
-pub const constitution = if (build_options.enable_ai) @import("constitution/mod.zig") else @import("constitution/stub.zig");
+pub const personas = if (build_options.feat_ai) @import("personas/mod.zig") else @import("personas/stub.zig");
+pub const rag = if (build_options.feat_ai) @import("rag/mod.zig") else @import("rag/stub.zig");
+pub const templates = if (build_options.feat_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
+pub const eval = if (build_options.feat_ai) @import("eval/mod.zig") else @import("eval/stub.zig");
+pub const explore = if (build_options.feat_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
+pub const orchestration = if (build_options.feat_ai) @import("orchestration/mod.zig") else @import("orchestration/stub.zig");
+pub const constitution = if (build_options.feat_ai) @import("constitution/mod.zig") else @import("constitution/stub.zig");
 pub const compliance = @import("compliance/mod.zig");
 pub const feedback = @import("feedback/mod.zig");
 
@@ -120,7 +120,7 @@ pub const gpu_agent = @import("agents/gpu_agent.zig");
 pub const discovery = @import("explore/discovery.zig");
 
 // Model management utilities
-pub const models = if (build_options.enable_ai) @import("models/mod.zig") else @import("models/stub.zig");
+pub const models = if (build_options.feat_ai) @import("models/mod.zig") else @import("models/stub.zig");
 
 // ============================================================================
 // Sub-modules (conditionally compiled)
@@ -130,31 +130,31 @@ pub const models = if (build_options.enable_ai) @import("models/mod.zig") else @
 pub const core = @import("core/mod.zig");
 
 /// LLM inference module
-pub const llm = if (build_options.enable_llm)
+pub const llm = if (build_options.feat_llm)
     @import("llm/mod.zig")
 else
     @import("llm/stub.zig");
 
 /// Embeddings generation module
-pub const embeddings = if (build_options.enable_ai)
+pub const embeddings = if (build_options.feat_ai)
     @import("embeddings/mod.zig")
 else
     @import("embeddings/stub.zig");
 
 /// Agent runtime module
-pub const agents = if (build_options.enable_ai)
+pub const agents = if (build_options.feat_ai)
     @import("agents/mod.zig")
 else
     @import("agents/stub.zig");
 
 /// Training pipelines module
-pub const training = if (build_options.enable_ai)
+pub const training = if (build_options.feat_ai)
     @import("training/mod.zig")
 else
     @import("training/stub.zig");
 
 /// AI Database module
-pub const database = if (build_options.enable_ai)
+pub const database = if (build_options.feat_ai)
     @import("database/mod.zig")
 else
     @import("database/stub.zig");
@@ -162,19 +162,19 @@ else
 // ---------------------------------------------------------------------------
 // Multi‑Agent coordination (requires AI feature)
 // ---------------------------------------------------------------------------
-pub const multi_agent = if (build_options.enable_ai)
+pub const multi_agent = if (build_options.feat_ai)
     @import("multi_agent/mod.zig")
 else
     @import("multi_agent/stub.zig");
 
 /// Vision/image processing module
-pub const vision = if (build_options.enable_vision)
+pub const vision = if (build_options.feat_vision)
     @import("vision/mod.zig")
 else
     @import("vision/stub.zig");
 
 /// Document understanding and processing module
-pub const documents = if (build_options.enable_ai)
+pub const documents = if (build_options.feat_ai)
     @import("documents/mod.zig")
 else
     @import("documents/stub.zig");
@@ -468,12 +468,12 @@ var initialized: bool = false;
 
 /// Check if AI is enabled at compile time.
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 /// Check if LLM is enabled at compile time.
 pub fn isLlmEnabled() bool {
-    return build_options.enable_llm;
+    return build_options.feat_llm;
 }
 
 /// Check if AI module is initialized.
@@ -504,11 +504,11 @@ pub fn createAgent(allocator: std.mem.Allocator, name: []const u8) !agent.Agent 
 // ============================================================================
 
 test "isEnabled returns build option" {
-    try std.testing.expectEqual(build_options.enable_ai, isEnabled());
+    try std.testing.expectEqual(build_options.feat_ai, isEnabled());
 }
 
 test "isLlmEnabled returns build option" {
-    try std.testing.expectEqual(build_options.enable_llm, isLlmEnabled());
+    try std.testing.expectEqual(build_options.feat_llm, isLlmEnabled());
 }
 
 test "ai module init gating" {

@@ -78,42 +78,42 @@ pub fn initMinimal(comptime Framework: type, allocator: std.mem.Allocator) Frame
 fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
     if (cfg.gpu) |gpu_cfg| {
         fw.gpu = try gpu_mod.Context.init(allocator, gpu_cfg);
-        if (comptime build_options.enable_gpu) {
+        if (comptime build_options.feat_gpu) {
             try fw.registry.registerComptime(.gpu);
         }
     }
 
     if (cfg.ai) |ai_cfg| {
         fw.ai = try ai_mod.Context.init(allocator, ai_cfg);
-        if (comptime build_options.enable_ai) {
+        if (comptime build_options.feat_ai) {
             try fw.registry.registerComptime(.ai);
         }
     }
 
     if (cfg.database) |db_cfg| {
         fw.database = try database_mod.Context.init(allocator, db_cfg);
-        if (comptime build_options.enable_database) {
+        if (comptime build_options.feat_database) {
             try fw.registry.registerComptime(.database);
         }
     }
 
     if (cfg.network) |net_cfg| {
         fw.network = try network_mod.Context.init(allocator, net_cfg);
-        if (comptime build_options.enable_network) {
+        if (comptime build_options.feat_network) {
             try fw.registry.registerComptime(.network);
         }
     }
 
     if (cfg.observability) |obs_cfg| {
         fw.observability = try observability_mod.Context.init(allocator, obs_cfg);
-        if (comptime build_options.enable_profiling) {
+        if (comptime build_options.feat_profiling) {
             try fw.registry.registerComptime(.observability);
         }
     }
 
     if (cfg.web) |web_cfg| {
         fw.web = try web_mod.Context.init(allocator, web_cfg);
-        if (comptime build_options.enable_web) {
+        if (comptime build_options.feat_web) {
             try fw.registry.registerComptime(.web);
         }
     }
@@ -127,7 +127,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
             .log_level = @enumFromInt(@intFromEnum(core_cloud.log_level)),
         };
         fw.cloud = try cloud_mod.Context.init(allocator, runtime_cloud);
-        if (comptime build_options.enable_cloud) {
+        if (comptime build_options.feat_cloud) {
             try fw.registry.registerComptime(.cloud);
         }
     }
@@ -139,70 +139,70 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
             .app_id = analytics_cfg.app_id,
             .flush_interval_ms = analytics_cfg.flush_interval_ms,
         });
-        if (comptime build_options.enable_analytics) {
+        if (comptime build_options.feat_analytics) {
             try fw.registry.registerComptime(.analytics);
         }
     }
 
     if (cfg.auth) |auth_cfg| {
         fw.auth = try auth_mod.Context.init(allocator, auth_cfg);
-        if (comptime build_options.enable_auth) {
+        if (comptime build_options.feat_auth) {
             try fw.registry.registerComptime(.auth);
         }
     }
 
     if (cfg.messaging) |msg_cfg| {
         fw.messaging = try messaging_mod.Context.init(allocator, msg_cfg);
-        if (comptime build_options.enable_messaging) {
+        if (comptime build_options.feat_messaging) {
             try fw.registry.registerComptime(.messaging);
         }
     }
 
     if (cfg.cache) |cache_cfg| {
         fw.cache = try cache_mod.Context.init(allocator, cache_cfg);
-        if (comptime build_options.enable_cache) {
+        if (comptime build_options.feat_cache) {
             try fw.registry.registerComptime(.cache);
         }
     }
 
     if (cfg.storage) |storage_cfg| {
         fw.storage = try storage_mod.Context.init(allocator, storage_cfg);
-        if (comptime build_options.enable_storage) {
+        if (comptime build_options.feat_storage) {
             try fw.registry.registerComptime(.storage);
         }
     }
 
     if (cfg.search) |search_cfg| {
         fw.search = try search_mod.Context.init(allocator, search_cfg);
-        if (comptime build_options.enable_search) {
+        if (comptime build_options.feat_search) {
             try fw.registry.registerComptime(.search);
         }
     }
 
     if (cfg.gateway) |gateway_cfg| {
         fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
-        if (comptime build_options.enable_gateway) {
+        if (comptime build_options.feat_gateway) {
             try fw.registry.registerComptime(.gateway);
         }
     }
 
     if (cfg.pages) |pages_cfg| {
         fw.pages = try pages_mod.Context.init(allocator, pages_cfg);
-        if (comptime build_options.enable_pages) {
+        if (comptime build_options.feat_pages) {
             try fw.registry.registerComptime(.pages);
         }
     }
 
     if (cfg.benchmarks) |benchmarks_cfg| {
         fw.benchmarks = try benchmarks_mod.Context.init(allocator, benchmarks_cfg);
-        if (comptime build_options.enable_benchmarks) {
+        if (comptime build_options.feat_benchmarks) {
             try fw.registry.registerComptime(.benchmarks);
         }
     }
 
     if (cfg.mobile) |mobile_cfg| {
         fw.mobile = try mobile_mod.Context.init(allocator, mobile_cfg);
-        if (comptime build_options.enable_mobile) {
+        if (comptime build_options.feat_mobile) {
             try fw.registry.registerComptime(.mobile);
         }
     }
@@ -211,7 +211,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
         // AI sub-modules fail non-fatally: the main `ai` module is available but
         // specialized sub-features (core, inference, training, reasoning) may be null.
         // Users can check via abi.features.ai.isLlmEnabled() or `abi system-info`.
-        if (comptime build_options.enable_ai) {
+        if (comptime build_options.feat_ai) {
             fw.ai_core = ai_core_mod.Context.init(
                 allocator,
                 ai_cfg,
@@ -220,7 +220,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
                 break :blk null;
             };
         }
-        if (comptime build_options.enable_llm) {
+        if (comptime build_options.feat_llm) {
             fw.ai_inference = ai_inference_mod.Context.init(
                 allocator,
                 ai_cfg,
@@ -229,7 +229,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
                 break :blk null;
             };
         }
-        if (comptime build_options.enable_training) {
+        if (comptime build_options.feat_training) {
             fw.ai_training = ai_training_mod.Context.init(
                 allocator,
                 ai_cfg,
@@ -238,7 +238,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
                 break :blk null;
             };
         }
-        if (comptime build_options.enable_reasoning) {
+        if (comptime build_options.feat_reasoning) {
             fw.ai_reasoning = ai_reasoning_mod.Context.init(
                 allocator,
                 ai_cfg,

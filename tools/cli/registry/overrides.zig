@@ -102,7 +102,7 @@ pub const command_overrides = [_]CommandOverride{
     .{ .name = "llm", .default_subcommand = "providers", .options = &llm_options, .ui = .{ .category = .ai, .shortcut = 2 } },
     .{ .name = "train", .default_subcommand = "info", .options = &train_options, .ui = .{ .category = .ai, .shortcut = 3 } },
     .{ .name = "model", .default_subcommand = "list", .options = &model_options, .ui = .{ .category = .ai } },
-    .{ .name = "ui", .default_subcommand = "launch", .options = &ui_options, .ui = .{ .category = .ai } },
+    .{ .name = "ui", .options = &ui_options, .ui = .{ .category = .ai } },
     .{ .name = "ralph", .default_subcommand = "status", .options = &ralph_options, .ui = .{ .category = .ai } },
     .{ .name = "bench", .default_subcommand = "quick", .options = &bench_options, .ui = .{ .category = .tools, .shortcut = 8 } },
     .{ .name = "db", .default_subcommand = "stats", .options = &db_options, .ui = .{ .category = .data, .shortcut = 4 } },

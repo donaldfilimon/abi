@@ -7,19 +7,19 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const raft = if (build_options.enable_network) abi.features.network.raft else struct {};
-const RaftNode = if (build_options.enable_network) raft.RaftNode else struct {};
-const RaftState = if (build_options.enable_network) raft.RaftState else struct {};
-const RequestVoteRequest = if (build_options.enable_network) raft.RequestVoteRequest else struct {};
-const AppendEntriesRequest = if (build_options.enable_network) raft.AppendEntriesRequest else struct {};
-const LogEntry = if (build_options.enable_network) raft.LogEntry else struct {};
+const raft = if (build_options.feat_network) abi.features.network.raft else struct {};
+const RaftNode = if (build_options.feat_network) raft.RaftNode else struct {};
+const RaftState = if (build_options.feat_network) raft.RaftState else struct {};
+const RequestVoteRequest = if (build_options.feat_network) raft.RequestVoteRequest else struct {};
+const AppendEntriesRequest = if (build_options.feat_network) raft.AppendEntriesRequest else struct {};
+const LogEntry = if (build_options.feat_network) raft.LogEntry else struct {};
 
 // ============================================================================
 // RaftState Tests
 // ============================================================================
 
 test "raft: RaftState toString" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
 
     try std.testing.expectEqualStrings("follower", RaftState.follower.toString());
     try std.testing.expectEqualStrings("candidate", RaftState.candidate.toString());
@@ -31,7 +31,7 @@ test "raft: RaftState toString" {
 // ============================================================================
 
 test "raft: reject vote with lower term" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -55,7 +55,7 @@ test "raft: reject vote with lower term" {
 }
 
 test "raft: reject second vote in same term" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -87,7 +87,7 @@ test "raft: reject second vote in same term" {
 // ============================================================================
 
 test "raft: addPeer self is no-op" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -99,7 +99,7 @@ test "raft: addPeer self is no-op" {
 }
 
 test "raft: removePeer removes existing peer" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -114,7 +114,7 @@ test "raft: removePeer removes existing peer" {
 }
 
 test "raft: removePeer nonexistent is no-op" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -132,7 +132,7 @@ test "raft: removePeer nonexistent is no-op" {
 // ============================================================================
 
 test "raft: appendEntries with log entries" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -160,7 +160,7 @@ test "raft: appendEntries with log entries" {
 }
 
 test "raft: appendEntries updates commit index" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -196,7 +196,7 @@ test "raft: appendEntries updates commit index" {
 }
 
 test "raft: appendEntries rejects stale term" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -224,7 +224,7 @@ test "raft: appendEntries rejects stale term" {
 // ============================================================================
 
 test "raft: appendCommand fails when not leader" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -236,7 +236,7 @@ test "raft: appendCommand fails when not leader" {
 }
 
 test "raft: appendCommand succeeds as leader" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Single-node cluster becomes leader via election
@@ -265,7 +265,7 @@ test "raft: appendCommand succeeds as leader" {
 // ============================================================================
 
 test "raft: stats track election and log info" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{
@@ -285,7 +285,7 @@ test "raft: stats track election and log info" {
 }
 
 test "raft: getLeader returns null initially" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -296,7 +296,7 @@ test "raft: getLeader returns null initially" {
 }
 
 test "raft: getLeader after heartbeat" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var node = try RaftNode.init(allocator, "node-1", .{});
@@ -322,7 +322,7 @@ test "raft: getLeader after heartbeat" {
 // ============================================================================
 
 test "raft: higher term vote request causes step down" {
-    if (!build_options.enable_network) return error.SkipZigTest;
+    if (!build_options.feat_network) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Single node → becomes leader

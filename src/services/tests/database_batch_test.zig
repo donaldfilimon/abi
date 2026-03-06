@@ -7,19 +7,19 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-const batch = if (build_options.enable_database) abi.features.database.batch else struct {};
-const BatchProcessor = if (build_options.enable_database) batch.BatchProcessor else struct {};
-const BatchWriter = if (build_options.enable_database) batch.BatchWriter else struct {};
-const BatchOperationBuilder = if (build_options.enable_database) batch.BatchOperationBuilder else struct {};
-const BatchRecord = if (build_options.enable_database) batch.BatchRecord else struct {};
-const BatchResult = if (build_options.enable_database) batch.BatchResult else struct {};
+const batch = if (build_options.feat_database) abi.features.database.batch else struct {};
+const BatchProcessor = if (build_options.feat_database) batch.BatchProcessor else struct {};
+const BatchWriter = if (build_options.feat_database) batch.BatchWriter else struct {};
+const BatchOperationBuilder = if (build_options.feat_database) batch.BatchOperationBuilder else struct {};
+const BatchRecord = if (build_options.feat_database) batch.BatchRecord else struct {};
+const BatchResult = if (build_options.feat_database) batch.BatchResult else struct {};
 
 // ============================================================================
 // BatchResult Tests
 // ============================================================================
 
 test "batch: BatchResult.isComplete with no failures" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const result = BatchResult{
         .total_processed = 10,
@@ -35,7 +35,7 @@ test "batch: BatchResult.isComplete with no failures" {
 }
 
 test "batch: BatchResult.isComplete with failures" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const result = BatchResult{
         .total_processed = 10,
@@ -51,7 +51,7 @@ test "batch: BatchResult.isComplete with failures" {
 }
 
 test "batch: BatchResult.successRate" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const result = BatchResult{
         .total_processed = 100,
@@ -67,7 +67,7 @@ test "batch: BatchResult.successRate" {
 }
 
 test "batch: BatchResult.successRate with zero processed" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const result = BatchResult{
         .total_processed = 0,
@@ -87,7 +87,7 @@ test "batch: BatchResult.successRate with zero processed" {
 // ============================================================================
 
 test "batch: BatchRecord.estimateSize with metadata" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const vector = [_]f32{ 1.0, 2.0, 3.0 };
     const record = BatchRecord{
@@ -103,7 +103,7 @@ test "batch: BatchRecord.estimateSize with metadata" {
 }
 
 test "batch: BatchRecord.estimateSize without metadata" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const vector = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const record = BatchRecord{
@@ -121,7 +121,7 @@ test "batch: BatchRecord.estimateSize without metadata" {
 // ============================================================================
 
 test "batch: deleteBatch with IDs" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var processor = BatchProcessor.init(allocator, .{});
@@ -141,7 +141,7 @@ test "batch: deleteBatch with IDs" {
 }
 
 test "batch: deleteBatch empty list" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var processor = BatchProcessor.init(allocator, .{});
@@ -161,7 +161,7 @@ test "batch: deleteBatch empty list" {
 // ============================================================================
 
 test "batch: insertBatch with invalid records and continue_on_error" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var processor = BatchProcessor.init(allocator, .{
@@ -199,7 +199,7 @@ test "batch: insertBatch with invalid records and continue_on_error" {
 // ============================================================================
 
 test "batch: BatchWriter write before start returns error" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var writer = BatchWriter.init(allocator, .{});
@@ -211,7 +211,7 @@ test "batch: BatchWriter write before start returns error" {
 }
 
 test "batch: BatchWriter finish before start returns error" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var writer = BatchWriter.init(allocator, .{});
@@ -222,7 +222,7 @@ test "batch: BatchWriter finish before start returns error" {
 }
 
 test "batch: BatchWriter abort clears state" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var writer = BatchWriter.init(allocator, .{ .batch_size = 1000 });
@@ -242,7 +242,7 @@ test "batch: BatchWriter abort clears state" {
 }
 
 test "batch: BatchWriter writeAll multiple records" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var writer = BatchWriter.init(allocator, .{ .batch_size = 10 });
@@ -269,7 +269,7 @@ test "batch: BatchWriter writeAll multiple records" {
 // ============================================================================
 
 test "batch: builder with metadata" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var builder = BatchOperationBuilder.init(allocator);
@@ -288,7 +288,7 @@ test "batch: builder with metadata" {
 }
 
 test "batch: builder fluent chaining" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var builder = BatchOperationBuilder.init(allocator);
@@ -313,7 +313,7 @@ test "batch: builder fluent chaining" {
 // ============================================================================
 
 test "batch: processor resetStats clears counters" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var processor = BatchProcessor.init(allocator, .{});
@@ -337,7 +337,7 @@ test "batch: processor resetStats clears counters" {
 // ============================================================================
 
 test "batch: processor auto-flushes at batch_size" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var processor = BatchProcessor.init(allocator, .{ .batch_size = 3 });
@@ -362,7 +362,7 @@ test "batch: processor auto-flushes at batch_size" {
 // ============================================================================
 
 test "batch: progress callback fires during insertBatch" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const State = struct {

@@ -231,7 +231,7 @@ test "registerComptime adds feature" {
     defer reg.deinit();
 
     // Register a feature that should be compiled in
-    if (comptime build_options.enable_gpu) {
+    if (comptime build_options.feat_gpu) {
         try reg.registerComptime(.gpu);
         try std.testing.expect(reg.isRegistered(.gpu));
         try std.testing.expect(reg.isEnabled(.gpu));
@@ -243,7 +243,7 @@ test "registerComptime duplicate returns error" {
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
 
-    if (comptime build_options.enable_gpu) {
+    if (comptime build_options.feat_gpu) {
         try reg.registerComptime(.gpu);
         try std.testing.expectError(Registry.Error.FeatureAlreadyRegistered, reg.registerComptime(.gpu));
     }
@@ -261,10 +261,10 @@ test "listFeatures returns all registered" {
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
 
-    if (comptime build_options.enable_gpu) {
+    if (comptime build_options.feat_gpu) {
         try reg.registerComptime(.gpu);
     }
-    if (comptime build_options.enable_database) {
+    if (comptime build_options.feat_database) {
         try reg.registerComptime(.database);
     }
 
@@ -272,16 +272,16 @@ test "listFeatures returns all registered" {
     defer std.testing.allocator.free(features);
 
     var expected_count: usize = 0;
-    if (comptime build_options.enable_gpu) expected_count += 1;
-    if (comptime build_options.enable_database) expected_count += 1;
+    if (comptime build_options.feat_gpu) expected_count += 1;
+    if (comptime build_options.feat_database) expected_count += 1;
 
     try std.testing.expectEqual(expected_count, features.len);
 }
 
 test "isFeatureCompiledIn matches build_options" {
-    try std.testing.expectEqual(build_options.enable_gpu, comptime isFeatureCompiledIn(.gpu));
-    try std.testing.expectEqual(build_options.enable_ai, comptime isFeatureCompiledIn(.ai));
-    try std.testing.expectEqual(build_options.enable_database, comptime isFeatureCompiledIn(.database));
+    try std.testing.expectEqual(build_options.feat_gpu, comptime isFeatureCompiledIn(.gpu));
+    try std.testing.expectEqual(build_options.feat_ai, comptime isFeatureCompiledIn(.ai));
+    try std.testing.expectEqual(build_options.feat_database, comptime isFeatureCompiledIn(.database));
 }
 
 test "getParentFeature returns correct parent" {
@@ -320,7 +320,7 @@ const MockContext = struct {
 };
 
 test "registerRuntimeToggle creates disabled feature" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -335,7 +335,7 @@ test "registerRuntimeToggle creates disabled feature" {
 }
 
 test "enableFeature enables runtime toggle feature" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -349,7 +349,7 @@ test "enableFeature enables runtime toggle feature" {
 }
 
 test "disableFeature disables runtime toggle feature" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -365,7 +365,7 @@ test "disableFeature disables runtime toggle feature" {
 }
 
 test "initFeature initializes context" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -380,7 +380,7 @@ test "initFeature initializes context" {
 }
 
 test "getContext returns initialized context" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -396,7 +396,7 @@ test "getContext returns initialized context" {
 }
 
 test "getContext fails when not enabled" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -408,7 +408,7 @@ test "getContext fails when not enabled" {
 }
 
 test "getContext fails when not initialized" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -423,7 +423,7 @@ test "getContext fails when not initialized" {
 }
 
 test "deinitFeature cleans up context" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -440,7 +440,7 @@ test "deinitFeature cleans up context" {
 }
 
 test "disableFeature auto-deinits if initialized" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -458,7 +458,7 @@ test "disableFeature auto-deinits if initialized" {
 }
 
 test "initFeature fails when disabled" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
@@ -471,7 +471,7 @@ test "initFeature fails when disabled" {
 }
 
 test "disableFeature fails for comptime_only" {
-    if (!comptime build_options.enable_gpu) return;
+    if (!comptime build_options.feat_gpu) return;
 
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();

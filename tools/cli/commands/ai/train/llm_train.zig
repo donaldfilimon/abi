@@ -20,7 +20,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Check if LLM feature is enabled
     if (!abi.features.ai.llm.isEnabled()) {
-        utils.output.printError("LLM feature is not enabled. Build with -Dfeat-llm=true (legacy: -Denable-llm=true)", .{});
+        utils.output.printError("LLM feature is not enabled. Build with -Dfeat-llm=true", .{});
         return;
     }
 

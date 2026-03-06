@@ -506,7 +506,7 @@ test "batch cosine similarities are bounded" {
 // ============================================================================
 
 test "scalar quantization roundtrip preserves approximate values" {
-    if (!build_options.enable_database) return error.SkipZigTest;
+    if (!build_options.feat_database) return error.SkipZigTest;
 
     const gen = generators.vectorF32(VECTOR_DIM);
 
