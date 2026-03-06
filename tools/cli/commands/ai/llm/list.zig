@@ -32,7 +32,7 @@ pub fn runList() void {
     utils.output.println("  https://huggingface.co/models?other=gguf", .{});
 }
 
-pub fn runListLocal(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+pub fn runListLocal(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (utils.args.containsHelpArgs(args)) {
         mod.printHelp();
         return;

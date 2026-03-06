@@ -96,6 +96,8 @@ pub fn build(b: *std.Build) void {
 
     // ── TUI / CLI unit tests ───────────────────────────────────────────
     var tui_tests_step: ?*std.Build.Step = null;
+    var gendocs_source_tests_step: ?*std.Build.Step = null;
+    var launcher_tests_step: ?*std.Build.Step = null;
     const cli_root_mod = b.createModule(.{
         .root_source_file = b.path("tools/cli/mod.zig"),
         .target = target,
@@ -123,6 +125,25 @@ pub fn build(b: *std.Build) void {
     tui_tests_step = b.step("tui-tests", "Run TUI and CLI unit tests");
     tui_tests_step.?.dependOn(&run_cli_tests.step);
 
+    if (targets.pathExists(b, "tools/cli/launcher_tests_root.zig")) {
+        const launcher_tests_mod = b.createModule(.{
+            .root_source_file = b.path("tools/cli/launcher_tests_root.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+        launcher_tests_mod.addImport("abi", abi_module);
+
+        const launcher_tests = b.addTest(.{
+            .root_module = launcher_tests_mod,
+        });
+        const run_launcher_tests = b.addRunArtifact(launcher_tests);
+        run_launcher_tests.skip_foreign_checks = true;
+
+        launcher_tests_step = b.step("launcher-tests", "Run focused launcher and shell editor tests");
+        launcher_tests_step.?.dependOn(&run_launcher_tests.step);
+    }
+
     // ── Lint / format ───────────────────────────────────────────────────
     const fmt_paths = &.{ "build.zig", "build", "src", "tools", "examples" };
     const lint_fmt = b.addFmt(.{ .paths = fmt_paths, .check = true });
@@ -133,6 +154,7 @@ pub fn build(b: *std.Build) void {
     // ── Tests ───────────────────────────────────────────────────────────
     var test_step: ?*std.Build.Step = null;
     var typecheck_step: ?*std.Build.Step = null;
+    var wdbx_fast_tests_step: ?*std.Build.Step = null;
     if (targets.pathExists(b, "src/services/tests/mod.zig")) {
         const tests = b.addTest(.{
             .root_module = b.createModule(.{
@@ -158,6 +180,27 @@ pub fn build(b: *std.Build) void {
                 }),
             });
             typecheck_step.?.dependOn(&neural_wdbx_tests.step);
+        }
+
+        if (targets.pathExists(b, "src/wdbx_fast_tests_root.zig")) {
+            const wdbx_fast_tests_mod = b.createModule(.{
+                .root_source_file = b.path("src/wdbx_fast_tests_root.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            });
+
+            const wdbx_fast_tests = b.addTest(.{
+                .root_module = wdbx_fast_tests_mod,
+            });
+            link.applyAllPlatformLinks(wdbx_fast_tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+
+            const run_wdbx_fast_tests = b.addRunArtifact(wdbx_fast_tests);
+            run_wdbx_fast_tests.skip_foreign_checks = true;
+
+            wdbx_fast_tests_step = b.step("wdbx-fast-tests", "Run focused WDBX and database adapter tests");
+            wdbx_fast_tests_step.?.dependOn(&run_wdbx_fast_tests.step);
+            typecheck_step.?.dependOn(&wdbx_fast_tests.step);
         }
 
         const run_tests = b.addRunArtifact(tests);
@@ -300,6 +343,8 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(check_cli_dsl_consistency_step);
     full_check_step.dependOn(workflow_contract_strict_step);
     if (tui_tests_step) |step| full_check_step.dependOn(step);
+    if (launcher_tests_step) |step| full_check_step.dependOn(step);
+    if (wdbx_fast_tests_step) |step| full_check_step.dependOn(step);
 
     var check_docs_step: ?*std.Build.Step = null;
 
@@ -311,12 +356,36 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .link_libc = true,
         });
-        gendocs_module.addImport("roadmap_catalog", b.createModule(.{
-            .root_source_file = b.path("src/services/tasks/roadmap_catalog.zig"),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }));
+        gendocs_module.addImport("abi", abi_module);
+        gendocs_module.addImport("cli_root", cli_root_mod);
+
+        if (targets.pathExists(b, "build/gendocs_tests_root.zig")) {
+            const gendocs_source_cli_module = b.createModule(.{
+                .root_source_file = b.path("tools/gendocs/source_cli.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            });
+            gendocs_source_cli_module.addImport("cli_root", cli_root_mod);
+
+            const gendocs_tests_root = b.createModule(.{
+                .root_source_file = b.path("build/gendocs_tests_root.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            });
+            gendocs_tests_root.addImport("gendocs_source_cli", gendocs_source_cli_module);
+
+            const gendocs_source_tests = b.addTest(.{
+                .root_module = gendocs_tests_root,
+            });
+            const run_gendocs_source_tests = b.addRunArtifact(gendocs_source_tests);
+            run_gendocs_source_tests.skip_foreign_checks = true;
+
+            gendocs_source_tests_step = b.step("gendocs-source-tests", "Run focused gendocs CLI source discovery tests");
+            gendocs_source_tests_step.?.dependOn(&run_gendocs_source_tests.step);
+            full_check_step.dependOn(gendocs_source_tests_step.?);
+        }
 
         const gendocs = b.addExecutable(.{
             .name = "gendocs",
@@ -536,6 +605,7 @@ pub fn build(b: *std.Build) void {
     verify_all_step.dependOn(check_cli_registry_step);
     verify_all_step.dependOn(check_cli_dsl_consistency_step);
     verify_all_step.dependOn(workflow_contract_strict_step);
+    if (wdbx_fast_tests_step) |step| verify_all_step.dependOn(step);
     verify_all_step.dependOn(feature_tests_step);
     verify_all_step.dependOn(examples_step);
     if (check_wasm_step) |s| verify_all_step.dependOn(s);

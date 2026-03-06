@@ -54,11 +54,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     if (isRemovedLegacyMode(sub)) {
-        if (std.mem.eql(u8, sub, "launch")) {
-            utils.output.printError("'abi ui launch' was removed. Use 'abi ui' for the shared shell.", .{});
-        } else {
-            utils.output.printError("'abi ui dashboard' was removed. Use 'abi ui' for the shared shell.", .{});
-        }
+        utils.output.printError("'abi ui launch' was removed. Use 'abi ui' for the shared shell.", .{});
         return error.InvalidArgument;
     }
     // Allow `abi ui --theme ...` style shared-shell options.

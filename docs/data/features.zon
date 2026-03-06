@@ -56,6 +56,14 @@
         .stub_module_path = "features/cloud/stub.zig",
     },
     .{
+        .name = "compute",
+        .description = "Distributed compute mesh",
+        .compile_flag = "feat_compute",
+        .parent = "",
+        .real_module_path = "features/compute/mod.zig",
+        .stub_module_path = "features/compute/stub.zig",
+    },
+    .{
         .name = "constitution",
         .description = "AI safety principles and guardrails",
         .compile_flag = "feat_ai",
@@ -65,11 +73,27 @@
     },
     .{
         .name = "database",
-        .description = "Semantic store and vector retrieval (WDBX alias)",
+        .description = "Vector database (WDBX)",
         .compile_flag = "feat_database",
         .parent = "",
         .real_module_path = "features/database/mod.zig",
         .stub_module_path = "features/database/stub.zig",
+    },
+    .{
+        .name = "desktop",
+        .description = "Native desktop OS extensions",
+        .compile_flag = "feat_desktop",
+        .parent = "",
+        .real_module_path = "features/desktop/mod.zig",
+        .stub_module_path = "features/desktop/stub.zig",
+    },
+    .{
+        .name = "documents",
+        .description = "Native document parsing (HTML, PDF)",
+        .compile_flag = "feat_documents",
+        .parent = "",
+        .real_module_path = "features/documents/mod.zig",
+        .stub_module_path = "features/documents/stub.zig",
     },
     .{
         .name = "embeddings",
@@ -145,7 +169,7 @@
     },
     .{
         .name = "personas",
-        .description = "Persona implementation and compatibility layer",
+        .description = "Multi-persona AI assistant",
         .compile_flag = "feat_ai",
         .parent = "ai",
         .real_module_path = "features/ai/mod.zig",
@@ -153,7 +177,7 @@
     },
     .{
         .name = "reasoning",
-        .description = "AI reasoning, evaluation, and RAG orchestration",
+        .description = "AI reasoning (Abbey, eval, RAG)",
         .compile_flag = "feat_reasoning",
         .parent = "ai",
         .real_module_path = "features/ai/facades/reasoning.zig",

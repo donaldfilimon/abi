@@ -35,7 +35,7 @@ pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.Datab
                         .name = name,
                         .category = "database/hnsw",
                         .warmup_iterations = 0, // Build is too slow for many warmups
-                        .max_iterations = 1,    // Only build once for benchmark
+                        .max_iterations = 1, // Only build once for benchmark
                     },
                     struct {
                         fn bench(a: std.mem.Allocator, vecs: [][]const f32) !abi.HnswIndex {
@@ -48,10 +48,12 @@ pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.Datab
                     }.bench,
                     .{ allocator, vectors },
                 );
-                
+
                 // Keep the index for search benchmarks
                 index = try abi.HnswIndex.init(allocator, .{}, .cosine);
-                for (vectors) |v| { _ = try index.insert(v); }
+                for (vectors) |v| {
+                    _ = try index.insert(v);
+                }
             }
             defer index.deinit();
 

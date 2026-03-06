@@ -18,13 +18,13 @@ pub const Auth = struct {
     const Self = @This();
 
     allocator: Allocator,
-    keys: std.StringHashMap(ApiKey),
+    keys: std.StringHashMapUnmanaged(ApiKey),
     enabled: bool,
 
     pub fn init(allocator: Allocator, enabled: bool) Self {
         return .{
             .allocator = allocator,
-            .keys = std.StringHashMap(ApiKey).init(allocator),
+            .keys = .empty,
             .enabled = enabled,
         };
     }
@@ -34,7 +34,7 @@ pub const Auth = struct {
         while (it.next()) |entry| {
             self.allocator.free(entry.value_ptr.name);
         }
-        self.keys.deinit();
+        self.keys.deinit(self.allocator);
     }
 
     /// Create a new API key. Returns the raw key (64 hex chars).
@@ -42,7 +42,7 @@ pub const Auth = struct {
     pub fn createKey(self: *Self, name: []const u8) ![64]u8 {
         // Generate 32 random bytes → 64 hex chars.
         var raw_bytes: [32]u8 = undefined;
-        std.crypto.random.bytes(&raw_bytes);
+        std.c.arc4random_buf(&raw_bytes, raw_bytes.len);
 
         var key_hex: [64]u8 = undefined;
         _ = std.fmt.bufPrint(&key_hex, "{}", .{std.fmt.fmtSliceHexLower(&raw_bytes)}) catch unreachable;
@@ -54,7 +54,7 @@ pub const Auth = struct {
         const name_owned = try self.allocator.dupe(u8, name);
         errdefer self.allocator.free(name_owned);
 
-        try self.keys.put(name_owned, .{
+        try self.keys.put(self.allocator, name_owned, .{
             .name = name_owned,
             .hash = hash,
             .created_at = std.time.timestamp(),

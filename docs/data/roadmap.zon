@@ -1,15 +1,15 @@
 .{
     .{
         .id = "RM-001",
-        .title = "Complete canonical roadmap/plans sync",
-        .summary = "Unify task roadmap import and docs generation behind a single typed catalog.",
+        .title = "Complete canonical docs and assistant contract sync",
+        .summary = "Unify AGENTS.md, zig-master, tasks/todo.md, and generated docs behind one canonical workflow and Zig validation contract.",
         .track = "Docs",
         .horizon = "Now",
         .status = "In Progress",
         .owner = "Abbey",
-        .validation_gate = "zig build gendocs ; zig build check-docs",
+        .validation_gate = "zig build gendocs -- --check --no-wasm --untracked-md ; zig build check-docs",
         .plan_slug = "docs-roadmap-sync-v2",
-        .plan_title = "Docs + Roadmap Canonical Sync",
+        .plan_title = "Docs + Assistant Canonical Sync",
     },
     .{
         .id = "RM-002",
@@ -81,7 +81,7 @@
         .owner = "Abbey",
         .validation_gate = "zig build check-docs",
         .plan_slug = "docs-roadmap-sync-v2",
-        .plan_title = "Docs + Roadmap Canonical Sync",
+        .plan_title = "Docs + Assistant Canonical Sync",
     },
     .{
         .id = "RM-006",
@@ -117,7 +117,7 @@
         .owner = "Abbey",
         .validation_gate = "zig build check-docs",
         .plan_slug = "docs-roadmap-sync-v2",
-        .plan_title = "Docs + Roadmap Canonical Sync",
+        .plan_title = "Docs + Assistant Canonical Sync",
     },
     .{
         .id = "RM-012",

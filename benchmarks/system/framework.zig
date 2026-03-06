@@ -48,7 +48,7 @@ pub const SystemInfo = struct {
 
     pub fn detect(allocator: std.mem.Allocator) SystemInfo {
         const p_info = platform.PlatformInfo.detect();
-        
+
         // Detect CPU brand on macOS/Linux
         var cpu_brand: []const u8 = "Unknown CPU";
         if (std.builtin.os.tag == .macos) {

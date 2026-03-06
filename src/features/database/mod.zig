@@ -10,6 +10,9 @@ const config_module = @import("../../core/config/mod.zig");
 pub const database = @import("database.zig");
 pub const storage = @import("storage.zig");
 pub const semantic_store = @import("semantic_store/mod.zig");
+pub const fulltext = @import("fulltext.zig");
+pub const hybrid = @import("hybrid.zig");
+pub const filter = @import("filter.zig");
 
 /// Compatibility surface for legacy callers.
 pub const wdbx = @import("wdbx.zig");
@@ -21,6 +24,12 @@ pub const neural = @import("../../wdbx/wdbx.zig");
 pub const cli = @import("cli.zig");
 pub const batch = @import("batch.zig");
 pub const formats = @import("formats/vector_db.zig");
+pub const hnsw = @import("hnsw.zig");
+pub const index = @import("index.zig");
+pub const clustering = @import("clustering.zig");
+pub const quantization = @import("quantization.zig");
+pub const parallel_hnsw = @import("parallel_hnsw.zig");
+pub const parallel_search = @import("parallel_search.zig");
 
 pub const StoreHandle = semantic_store.StoreHandle;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
@@ -30,6 +39,9 @@ pub const Stats = wdbx.Stats;
 pub const BatchItem = wdbx.BatchItem;
 pub const DatabaseError = database.DatabaseError;
 pub const DiagnosticsInfo = database.DiagnosticsInfo;
+pub const KMeans = clustering.KMeans;
+pub const ScalarQuantizer = quantization.ScalarQuantizer;
+pub const ProductQuantizer = @import("product_quantizer.zig").ProductQuantizer;
 
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,

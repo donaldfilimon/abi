@@ -135,7 +135,7 @@ fn benchmarkQuantization(
         defer allocator.free(src);
         const dst = try allocator.alloc(i8, dim);
         defer allocator.free(dst);
-        
+
         for (src, 0..) |*v, i| v.* = @sin(@as(f32, @floatFromInt(i)));
 
         var scale: f32 = undefined;

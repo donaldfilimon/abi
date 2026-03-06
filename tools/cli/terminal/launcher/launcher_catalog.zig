@@ -18,7 +18,6 @@ const args_list = [_][:0]const u8{"list"};
 const args_providers = [_][:0]const u8{"providers"};
 const args_info = [_][:0]const u8{"info"};
 const args_monitor = [_][:0]const u8{"monitor"};
-const args_ui_editor = [_][:0]const u8{"editor"};
 
 pub fn menuItems() []const MenuItem {
     return &catalog_items;
@@ -194,12 +193,12 @@ const catalog_items = [_]MenuItem{
         .related = &[_][]const u8{ "system-info", "network" },
     },
     .{
-        .label = "UI Editor",
-        .description = "Open the inline terminal editor",
-        .action = .{ .command = commandRef("ui-editor", "ui", &args_ui_editor) },
+        .label = "Editor",
+        .description = "Open the shared inline terminal editor",
+        .action = .{ .command = commandRef("editor", "editor", empty_args) },
         .category = .tools,
-        .usage = "abi ui editor [file]",
-        .examples = &[_][]const u8{ "abi ui editor", "abi ui editor build.zig" },
+        .usage = "abi editor [file]",
+        .examples = &[_][]const u8{ "abi editor", "abi editor build.zig" },
         .related = &[_][]const u8{ "explore", "config", "task" },
     },
     .{
@@ -368,14 +367,10 @@ test "llm launcher command defaults to providers" {
     try std.testing.expect(isKnownNestedSubcommand(descriptor, cmd.args[0]));
 }
 
-test "ui editor launcher command is exposed through ui subcommand metadata" {
-    const cmd = findCommandById("ui-editor") orelse return error.TestExpectedCommand;
-    try std.testing.expectEqualStrings("ui", cmd.command);
-    try std.testing.expectEqual(@as(usize, 1), cmd.args.len);
-    try std.testing.expectEqualStrings("editor", cmd.args[0]);
-
-    const descriptor = findTopLevelDescriptor(cmd.command) orelse return error.TestExpectedCommandDescriptor;
-    try std.testing.expect(isKnownNestedSubcommand(descriptor, cmd.args[0]));
+test "editor launcher command uses top-level shared editor alias" {
+    const cmd = findCommandById("editor") orelse return error.TestExpectedCommand;
+    try std.testing.expectEqualStrings("editor", cmd.command);
+    try std.testing.expectEqual(@as(usize, 0), cmd.args.len);
 }
 
 test {

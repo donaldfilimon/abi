@@ -13,14 +13,16 @@
     },
     .{
         .slug = "docs-roadmap-sync-v2",
-        .title = "Docs + Roadmap Canonical Sync",
+        .title = "Docs + Assistant Canonical Sync",
         .status = "In Progress",
         .owner = "Abbey",
-        .scope = "Aggressive 5 maintenance lane: enforce per-wave catalog-to-docs regeneration, deterministic drift checks, and synchronized task planning updates.",
+        .scope = "Canonical docs wave: align AGENTS.md, zig-master, tasks/todo.md, root status docs, and generated outputs around one workflow and Zig validation contract.",
         .gate_commands = .{
-            "zig build gendocs",
+            "zig build gendocs -- --no-wasm --untracked-md",
+            "zig build gendocs -- --check --no-wasm --untracked-md",
             "zig build check-docs",
             "zig build verify-all",
+            "zig build check-workflow-orchestration-strict --summary all",
         },
     },
     .{

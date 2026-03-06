@@ -691,11 +691,16 @@ fn confirmDestructiveOp(tool_name: []const u8, args_json: []const u8) bool {
     utils.output.printWarning("[Confirm] Agent wants to use '{s}' with args: {s}", .{ tool_name, args_json });
     utils.output.print("Allow? (y/n): ", .{});
 
-    // Read a single line from stdin for the y/n answer.
+    var io_backend = cli_io.initIoBackend(std.heap.page_allocator);
+    defer io_backend.deinit();
+
+    const io = io_backend.io();
+    const stdin_file = std.Io.File.stdin();
     var buf: [64]u8 = undefined;
-    const stdin = std.io.getStdIn();
-    const line = stdin.reader().readUntilDelimiter(&buf, '\n') catch return false;
-    const answer = std.mem.trim(u8, line, " \t\r\n");
+    var reader = stdin_file.reader(io, &buf);
+    const line = reader.interface.takeDelimiter('\n') catch return false;
+    const input = line orelse return false;
+    const answer = std.mem.trim(u8, input, " \t\r\n");
     return answer.len > 0 and (answer[0] == 'y' or answer[0] == 'Y');
 }
 
@@ -724,7 +729,7 @@ fn printHelp() void {
     var builder = help_mod.HelpBuilder.init(std.heap.page_allocator);
     defer builder.deinit();
     _ = builder
-        .usage("abi os-agent [options]")
+        .usage("abi os-agent", "[options]")
         .description("OS-aware AI agent with full tool access, memory, and self-learning.")
         .sectionColored("Options")
         .option(.{ .short = "-m", .long = "--message <msg>", .description = "Send single message (non-interactive)" })

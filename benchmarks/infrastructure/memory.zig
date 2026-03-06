@@ -19,7 +19,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: anytype) !void 
 
     try benchmarkStrategy(allocator, &runner, .gpa);
     try benchmarkStrategy(allocator, &runner, .arena);
-    
+
     runner.printSummaryDebug();
 }
 

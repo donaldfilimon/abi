@@ -8,6 +8,15 @@ const Allocator = std.mem.Allocator;
 const metrics_mod = @import("metrics.zig");
 const auth_mod = @import("auth.zig");
 const handlers_mod = @import("handlers.zig");
+const time_mod = @import("../services/shared/time.zig");
+
+fn monotonicNowNs() i128 {
+    const instant = time_mod.Instant.now() catch return 0;
+    return if (instant.nanos > std.math.maxInt(i128))
+        std.math.maxInt(i128)
+    else
+        @intCast(instant.nanos);
+}
 
 pub const Config = struct {
     host: []const u8 = "0.0.0.0",
@@ -28,7 +37,7 @@ pub const RateLimiter = struct {
 
     rate: u32, // Max requests per window
     window_ns: i128,
-    clients: std.StringHashMap(ClientState),
+    clients: std.StringHashMapUnmanaged(ClientState),
     allocator: Allocator,
 
     const ClientState = struct {
@@ -40,18 +49,18 @@ pub const RateLimiter = struct {
         return .{
             .rate = rate,
             .window_ns = @as(i128, window_sec) * std.time.ns_per_s,
-            .clients = std.StringHashMap(ClientState).init(allocator),
+            .clients = .empty,
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.clients.deinit();
+        self.clients.deinit(self.allocator);
     }
 
     pub fn allow(self: *Self, client_id: []const u8) bool {
-        const now = std.time.nanoTimestamp();
-        const entry = self.clients.getOrPut(client_id) catch return true;
+        const now = monotonicNowNs();
+        const entry = self.clients.getOrPut(self.allocator, client_id) catch return true;
 
         if (!entry.found_existing) {
             entry.value_ptr.* = .{
@@ -116,7 +125,7 @@ pub const CircuitBreaker = struct {
         return switch (self.state) {
             .closed => true,
             .open => blk: {
-                const now = std.time.nanoTimestamp();
+                const now = monotonicNowNs();
                 if (now - self.last_failure_time >= self.timeout_ns) {
                     self.state = .half_open;
                     self.success_count = 0;
@@ -140,7 +149,7 @@ pub const CircuitBreaker = struct {
 
     pub fn recordFailure(self: *Self) void {
         self.failure_count += 1;
-        self.last_failure_time = std.time.nanoTimestamp();
+        self.last_failure_time = monotonicNowNs();
         if (self.failure_count >= self.failure_threshold) {
             self.state = .open;
         }

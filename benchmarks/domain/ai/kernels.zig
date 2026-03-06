@@ -28,7 +28,7 @@ pub fn runKernelBenchmarks(allocator: std.mem.Allocator, config: core.config.AIB
 
 fn benchmarkActivations(allocator: std.mem.Allocator, runner: *framework.BenchmarkRunner, config: core.config.AIBenchConfig) !void {
     std.debug.print("[Activation Functions (SiLU, GELU, Softmax)]\n", .{});
-    
+
     for (config.activation_sizes[0..@min(2, config.activation_sizes.len)]) |size| {
         const input = try allocator.alloc(f32, size);
         defer allocator.free(input);
@@ -42,7 +42,9 @@ fn benchmarkActivations(allocator: std.mem.Allocator, runner: *framework.Benchma
             const name = std.fmt.bufPrint(&name_buf, "silu_{d}", .{size}) catch "silu";
             _ = try runner.run(.{ .name = name, .category = "ai/ops" }, struct {
                 fn bench(inp: []const f32, out: []f32) void {
-                    for (inp, out) |x, *o| { o.* = ops.silu(x); }
+                    for (inp, out) |x, *o| {
+                        o.* = ops.silu(x);
+                    }
                 }
             }.bench, .{ input, output });
         }
@@ -58,7 +60,7 @@ fn benchmarkActivations(allocator: std.mem.Allocator, runner: *framework.Benchma
 
 fn benchmarkNormalization(allocator: std.mem.Allocator, runner: *framework.BenchmarkRunner, config: core.config.AIBenchConfig) !void {
     std.debug.print("\n[Normalization (RMSNorm)]\n", .{});
-    
+
     for (config.hidden_sizes[0..@min(2, config.hidden_sizes.len)]) |hidden| {
         const input = try allocator.alloc(f32, hidden);
         defer allocator.free(input);
@@ -77,7 +79,7 @@ fn benchmarkNormalization(allocator: std.mem.Allocator, runner: *framework.Bench
 
 fn benchmarkMatMul(allocator: std.mem.Allocator, runner: *framework.BenchmarkRunner, config: core.config.AIBenchConfig) !void {
     std.debug.print("\n[Matrix Multiplication]\n", .{});
-    
+
     for (config.matrix_sizes[0..@min(2, config.matrix_sizes.len)]) |n| {
         const a = try allocator.alloc(f32, n * n);
         defer allocator.free(a);
@@ -89,19 +91,15 @@ fn benchmarkMatMul(allocator: std.mem.Allocator, runner: *framework.BenchmarkRun
         @memset(b, 0.2);
 
         var name_buf: [64]u8 = undefined;
-        const name = std.fmt.bufPrint(&name_buf, "matmul_f32_{d}x{d}", .{n, n}) catch "matmul";
-        
-        _ = try runner.run(
-            .{ .name = name, .category = "ai/ops", .max_iterations = 50 }, 
-            ops.matrixMultiply, 
-            .{ a, b, c, n, n, n }
-        );
+        const name = std.fmt.bufPrint(&name_buf, "matmul_f32_{d}x{d}", .{ n, n }) catch "matmul";
+
+        _ = try runner.run(.{ .name = name, .category = "ai/ops", .max_iterations = 50 }, ops.matrixMultiply, .{ a, b, c, n, n, n });
     }
 }
 
 fn benchmarkAttention(allocator: std.mem.Allocator, runner: *framework.BenchmarkRunner, config: core.config.AIBenchConfig) !void {
     std.debug.print("\n[Self-Attention Head]\n", .{});
-    
+
     for (config.seq_lengths[0..@min(2, config.seq_lengths.len)]) |seq_len| {
         const head_dim = 64;
         const q = try allocator.alloc(f32, seq_len * head_dim);
@@ -114,16 +112,12 @@ fn benchmarkAttention(allocator: std.mem.Allocator, runner: *framework.Benchmark
         defer allocator.free(out);
 
         var name_buf: [64]u8 = undefined;
-        const name = std.fmt.bufPrint(&name_buf, "attention_s{d}_d{d}", .{seq_len, head_dim}) catch "attn";
-        
-        _ = try runner.run(
-            .{ .name = name, .category = "ai/ops", .max_iterations = 20 },
-            struct {
-                fn bench(alloc: std.mem.Allocator, bq: []f32, bk: []f32, bv: []f32, bo: []f32, sl: usize, hd: usize) !void {
-                    try ops.scaledDotProductAttention(alloc, bq, bk, bv, bo, sl, hd);
-                }
-            }.bench,
-            .{ allocator, q, k, v, out, seq_len, head_dim }
-        );
+        const name = std.fmt.bufPrint(&name_buf, "attention_s{d}_d{d}", .{ seq_len, head_dim }) catch "attn";
+
+        _ = try runner.run(.{ .name = name, .category = "ai/ops", .max_iterations = 20 }, struct {
+            fn bench(alloc: std.mem.Allocator, bq: []f32, bk: []f32, bv: []f32, bo: []f32, sl: usize, hd: usize) !void {
+                try ops.scaledDotProductAttention(alloc, bq, bk, bv, bo, sl, hd);
+            }
+        }.bench, .{ allocator, q, k, v, out, seq_len, head_dim });
     }
 }

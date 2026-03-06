@@ -25,6 +25,9 @@ pub fn forParitySpec(comptime spec: feature_catalog.ParitySpec) []const []const 
         .gateway => gateway[0..],
         .pages => pages[0..],
         .benchmarks => benchmarks[0..],
+        .compute => compute[0..],
+        .documents => documents[0..],
+        .desktop => desktop[0..],
     };
 }
 
@@ -365,4 +368,17 @@ pub const benchmarks = [_][]const u8{
     "BenchmarksError",
     "Context",
     "isEnabled",
+};
+
+pub const compute = [_][]const u8{
+    "mesh",
+};
+
+pub const documents = [_][]const u8{
+    "html",
+    "pdf",
+};
+
+pub const desktop = [_][]const u8{
+    "macos_menu",
 };

@@ -148,6 +148,9 @@ pub const Config = struct {
             .benchmarks => self.benchmarks != null,
             .reasoning => self.ai != null and build_options.feat_reasoning,
             .constitution => self.ai != null,
+            .compute => build_options.feat_compute,
+            .documents => build_options.feat_documents,
+            .desktop => build_options.feat_desktop,
         };
     }
 
@@ -197,7 +200,13 @@ pub const Builder = struct {
             .embeddings => EmbeddingsConfig,
             .agents => AgentsConfig,
             .training => TrainingConfig,
-            .personas, .reasoning, .constitution => struct {}, // AI sub-features with no explicit config struct yet
+            .personas,
+            .reasoning,
+            .constitution,
+            .compute,
+            .documents,
+            .desktop,
+            => struct {}, // Compile-time or nested features with no explicit config struct yet
             .database => DatabaseConfig,
             .network => NetworkConfig,
             .observability => ObservabilityConfig,
@@ -230,6 +239,8 @@ pub const Builder = struct {
             if (self.config.ai == null) {
                 self.config.ai = .{};
             }
+        } else if (feature == .compute or feature == .documents or feature == .desktop) {
+            // Compile-time-only features do not have runtime config structs.
         } else {
             @field(self.config, @tagName(feature)) = typed_cfg;
         }
@@ -245,11 +256,13 @@ pub const Builder = struct {
                 self.config.ai = .{};
             }
             self.config.ai.?.llm = LlmConfig.defaults();
-        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .personas or feature == .reasoning) {
+        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .personas or feature == .reasoning or feature == .constitution) {
             // These don't have distinct config structs at the moment, handled through AiConfig
             if (self.config.ai == null) {
                 self.config.ai = .{};
             }
+        } else if (feature == .compute or feature == .documents or feature == .desktop) {
+            // Compile-time-only features do not have runtime config structs.
         } else {
             @field(self.config, @tagName(feature)) = CfgType.defaults();
         }

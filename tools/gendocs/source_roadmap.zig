@@ -1,10 +1,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const abi = @import("abi");
 const model = @import("model.zig");
 const catalog = if (builtin.is_test)
     @import("source_roadmap_test_catalog.zig")
 else
-    @import("roadmap_catalog");
+    abi.services.tasks.roadmap_catalog;
 
 pub const RoadmapData = struct {
     roadmap_entries: []model.RoadmapDocEntry,

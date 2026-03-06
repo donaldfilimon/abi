@@ -35,11 +35,18 @@ pub const SearchResult = struct {
     vector: []const f32,
 };
 
+pub const WritePolicy = enum {
+    allow_duplicate,
+    skip_if_same_content,
+    replace_by_id,
+};
+
 // Internal tracking layout (pub for persistence access).
 pub const EngineVector = struct {
     id: []const u8,
     vec: []const f32,
     metadata: Metadata,
+    content_fingerprint: ?u64 = null,
     access_score: f32 = 1.0, // Used for dream-state subconscious pruning
 };
 
@@ -50,9 +57,6 @@ pub const Engine = struct {
     ai_client: ?AIClient = null,
     hnsw_index: HNSW,
     vectors_array: std.ArrayListUnmanaged(EngineVector) = .empty,
-    // Persona deduplication map: maps a text hash to the index in vectors_array
-    // allowing identical knowledge across personas to share the same vector node.
-    knowledge_dedup_map: std.AutoHashMapUnmanaged(u64, usize) = .empty,
 
     // Keep wdbx standalone-test safe by using local sync compatibility primitives.
     db_lock: sync_compat.RwLock = .{},
@@ -71,14 +75,12 @@ pub const Engine = struct {
             .config = cfg,
             .cache = cache,
             .hnsw_index = idx,
-            .knowledge_dedup_map = .empty,
         };
     }
 
     pub fn deinit(self: *Engine) void {
         self.cache.deinit();
         self.hnsw_index.deinit();
-        self.knowledge_dedup_map.deinit(self.allocator);
         if (self.ai_client) |*c| c.deinit();
 
         for (self.vectors_array.items) |item| {
@@ -134,15 +136,17 @@ pub const Engine = struct {
         text: []const u8,
         metadata: Metadata,
     ) !void {
-        // Fast path: deduplicate knowledge
+        try self.indexWithPolicy(id, text, metadata, .skip_if_same_content);
+    }
+
+    pub fn indexWithPolicy(
+        self: *Engine,
+        id: []const u8,
+        text: []const u8,
+        metadata: Metadata,
+        policy: WritePolicy,
+    ) !void {
         const text_hash = std.hash.Wyhash.hash(0, text);
-        if (self.knowledge_dedup_map.get(text_hash)) |existing_idx| {
-            // This semantic text is already indexed by another persona/node
-            // We just link the ID to the existing node metadata (in a full multi-tenant graph).
-            // For now, we return early to save compute/storage.
-            std.log.debug("WDBX Deduplication: Skipping identical knowledge insertion for ID {s} (shares vector with index {d})", .{ id, existing_idx });
-            return;
-        }
 
         var embedding: []const f32 = undefined;
         var from_cache = false;
@@ -157,28 +161,9 @@ pub const Engine = struct {
             return error.NoAIClient;
         }
         defer if (!from_cache) self.allocator.free(embedding);
-
-        const cloned_id = try self.allocator.dupe(u8, id);
-        errdefer self.allocator.free(cloned_id);
-        const cloned_vec = try self.allocator.dupe(f32, embedding);
-        errdefer self.allocator.free(cloned_vec);
-        const owned_metadata = try self.cloneMetadata(metadata);
-        errdefer self.deinitOwnedMetadata(owned_metadata);
-
-        // Track internally
-        const mapped = EngineVector{
-            .id = cloned_id,
-            .vec = cloned_vec,
-            .metadata = owned_metadata,
-        };
-
-        const current_idx = self.vectors_array.items.len;
-        try self.vectors_array.append(self.allocator, mapped);
-        try self.knowledge_dedup_map.put(self.allocator, text_hash, current_idx);
-
-        // Placed in HW index bounds mapping array offsets directly inline
-        _ = try self.hnsw_index.insert(cloned_vec);
+        try self.storeVector(id, embedding, metadata, policy, text_hash);
     }
+
     /// Index a document with a pre-computed embedding (bypasses AI client).
     pub fn indexByVector(
         self: *Engine,
@@ -186,12 +171,45 @@ pub const Engine = struct {
         vector: []const f32,
         metadata: Metadata,
     ) !void {
-        // Fast path: deduplicate by raw vector float bytes
-        const vec_bytes = std.mem.sliceAsBytes(vector);
-        const vec_hash = std.hash.Wyhash.hash(0, vec_bytes);
-        if (self.knowledge_dedup_map.get(vec_hash)) |existing_idx| {
-            std.log.debug("WDBX Deduplication: Skipping identical vector insertion for ID {s} (shares vector with index {d})", .{ id, existing_idx });
-            return;
+        try self.indexByVectorWithPolicy(id, vector, metadata, .allow_duplicate);
+    }
+
+    pub fn indexByVectorWithPolicy(
+        self: *Engine,
+        id: []const u8,
+        vector: []const f32,
+        metadata: Metadata,
+        policy: WritePolicy,
+    ) !void {
+        const vec_hash = std.hash.Wyhash.hash(0, std.mem.sliceAsBytes(vector));
+        try self.storeVector(id, vector, metadata, policy, vec_hash);
+    }
+
+    fn storeVector(
+        self: *Engine,
+        id: []const u8,
+        vector: []const f32,
+        metadata: Metadata,
+        policy: WritePolicy,
+        fingerprint: u64,
+    ) !void {
+        switch (policy) {
+            .skip_if_same_content => {
+                if (self.findIndexByFingerprint(fingerprint)) |existing_idx| {
+                    std.log.debug(
+                        "WDBX Deduplication: Skipping identical content insertion for ID {s} (shares vector with index {d})",
+                        .{ id, existing_idx },
+                    );
+                    return;
+                }
+            },
+            .replace_by_id => {
+                if (self.findIndexById(id)) |existing_idx| {
+                    try self.replaceExisting(existing_idx, id, vector, metadata, fingerprint);
+                    return;
+                }
+            },
+            .allow_duplicate => {},
         }
 
         const cloned_id = try self.allocator.dupe(u8, id);
@@ -201,18 +219,71 @@ pub const Engine = struct {
         const owned_metadata = try self.cloneMetadata(metadata);
         errdefer self.deinitOwnedMetadata(owned_metadata);
 
-        const current_idx = self.vectors_array.items.len;
-        try self.vectors_array.append(self.allocator, EngineVector{
+        try self.vectors_array.append(self.allocator, .{
             .id = cloned_id,
             .vec = cloned_vec,
             .metadata = owned_metadata,
+            .content_fingerprint = fingerprint,
         });
-
-        try self.knowledge_dedup_map.put(self.allocator, vec_hash, current_idx);
-
-        // Placed in HW index bounds mapping array offsets directly inline
         _ = try self.hnsw_index.insert(cloned_vec);
     }
+
+    fn replaceExisting(
+        self: *Engine,
+        existing_idx: usize,
+        id: []const u8,
+        vector: []const f32,
+        metadata: Metadata,
+        fingerprint: u64,
+    ) !void {
+        const preserved_access_score = self.vectors_array.items[existing_idx].access_score;
+
+        const cloned_id = try self.allocator.dupe(u8, id);
+        errdefer self.allocator.free(cloned_id);
+        const cloned_vec = try self.allocator.dupe(f32, vector);
+        errdefer self.allocator.free(cloned_vec);
+        const cloned_hnsw_vec = try self.allocator.dupe(f32, vector);
+        errdefer self.allocator.free(cloned_hnsw_vec);
+        const owned_metadata = try self.cloneMetadata(metadata);
+        errdefer self.deinitOwnedMetadata(owned_metadata);
+
+        const existing = &self.vectors_array.items[existing_idx];
+        self.allocator.free(existing.id);
+        self.allocator.free(existing.vec);
+        self.deinitOwnedMetadata(existing.metadata);
+
+        if (existing_idx < self.hnsw_index.vectors.items.len) {
+            self.allocator.free(self.hnsw_index.vectors.items[existing_idx]);
+            self.hnsw_index.vectors.items[existing_idx] = cloned_hnsw_vec;
+        } else {
+            self.allocator.free(cloned_hnsw_vec);
+        }
+
+        existing.* = .{
+            .id = cloned_id,
+            .vec = cloned_vec,
+            .metadata = owned_metadata,
+            .content_fingerprint = fingerprint,
+            .access_score = preserved_access_score,
+        };
+    }
+
+    fn findIndexById(self: *const Engine, id: []const u8) ?usize {
+        for (self.vectors_array.items, 0..) |item, i| {
+            if (std.mem.eql(u8, item.id, id)) return i;
+        }
+        return null;
+    }
+
+    fn findIndexByFingerprint(self: *const Engine, fingerprint: u64) ?usize {
+        for (self.vectors_array.items, 0..) |item, i| {
+            if (item.content_fingerprint) |existing| {
+                if (existing == fingerprint) return i;
+            }
+        }
+        return null;
+    }
+
     /// Delete a vector by ID. Returns true if found and removed.
     pub fn delete(self: *Engine, id: []const u8) bool {
         for (self.vectors_array.items, 0..) |item, i| {
@@ -435,4 +506,69 @@ test "Engine manhattan metric path sets similarity and distance consistently" {
     try std.testing.expectEqual(@as(usize, 1), results.len);
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), results[0].distance, 0.0001);
     try std.testing.expectApproxEqAbs(@as(f32, -1.0), results[0].similarity, 0.0001);
+}
+
+test "text indexing skips identical source content by default" {
+    var engine = try Engine.init(std.testing.allocator, .{});
+    defer engine.deinit();
+
+    const embedding = [_]f32{ 0.1, 0.2, 0.3 };
+    try engine.cache.put("same-source", &embedding);
+
+    try engine.index("doc-1", "same-source", .{ .text = "first" });
+    try engine.index("doc-2", "same-source", .{ .text = "second" });
+
+    try std.testing.expectEqual(@as(usize, 1), engine.count());
+    try std.testing.expectEqualStrings("doc-1", engine.vectors_array.items[0].id);
+}
+
+test "indexByVector keeps duplicate embeddings by default" {
+    var engine = try Engine.init(std.testing.allocator, .{});
+    defer engine.deinit();
+
+    const embedding = [_]f32{ 0.4, 0.5, 0.6 };
+
+    try engine.indexByVector("doc-1", &embedding, .{ .text = "first" });
+    try engine.indexByVector("doc-2", &embedding, .{ .text = "second" });
+
+    try std.testing.expectEqual(@as(usize, 2), engine.count());
+
+    const results = try engine.searchByVector(&embedding, .{ .k = 2, .ef = 16 });
+    defer std.testing.allocator.free(results);
+
+    try std.testing.expectEqual(@as(usize, 2), results.len);
+}
+
+test "indexByVector can skip identical content explicitly" {
+    var engine = try Engine.init(std.testing.allocator, .{});
+    defer engine.deinit();
+
+    const embedding = [_]f32{ 0.7, 0.8, 0.9 };
+
+    try engine.indexByVectorWithPolicy("doc-1", &embedding, .{ .text = "first" }, .skip_if_same_content);
+    try engine.indexByVectorWithPolicy("doc-2", &embedding, .{ .text = "second" }, .skip_if_same_content);
+
+    try std.testing.expectEqual(@as(usize, 1), engine.count());
+    try std.testing.expectEqualStrings("doc-1", engine.vectors_array.items[0].id);
+}
+
+test "replace_by_id updates an existing vector in place" {
+    var engine = try Engine.init(std.testing.allocator, .{});
+    defer engine.deinit();
+
+    const before = [_]f32{ 1.0, 0.0, 0.0 };
+    const after = [_]f32{ 0.0, 1.0, 0.0 };
+
+    try engine.indexByVector("doc-1", &before, .{ .text = "before" });
+    try engine.indexByVectorWithPolicy("doc-1", &after, .{ .text = "after" }, .replace_by_id);
+
+    try std.testing.expectEqual(@as(usize, 1), engine.count());
+    try std.testing.expectEqualStrings("after", engine.vectors_array.items[0].metadata.text);
+
+    const results = try engine.searchByVector(&after, .{ .k = 1, .ef = 16 });
+    defer std.testing.allocator.free(results);
+
+    try std.testing.expectEqual(@as(usize, 1), results.len);
+    try std.testing.expectEqualStrings("doc-1", results[0].id);
+    try std.testing.expectEqualStrings("after", results[0].metadata.text);
 }

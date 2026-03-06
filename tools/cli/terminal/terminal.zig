@@ -10,6 +10,8 @@ const posix = std.posix;
 const windows = std.os.windows;
 const events = @import("events.zig");
 
+pub const Event = events.Event;
+
 // Global pointer for signal handler cleanup (only one TUI can be active at a time)
 var active_terminal: ?*Terminal = null;
 

@@ -182,6 +182,8 @@ pub fn validateInternalLinks(
     try expected_set.put(allocator, "README.md", {});
     try expected_set.put(allocator, "AGENTS.md", {});
     try expected_set.put(allocator, "LICENSE", {});
+    try expected_set.put(allocator, "tasks/todo.md", {});
+    try expected_set.put(allocator, "tasks/lessons.md", {});
 
     var broken_count: usize = 0;
     for (expected) |file| {
@@ -328,6 +330,8 @@ fn shouldTrackExtraFile(path: []const u8) bool {
     if (std.mem.endsWith(u8, path, "/docs_engine.wasm")) return false;
     if (std.mem.endsWith(u8, path, "/docs_engine.component.wasm")) return false;
     if (std.mem.endsWith(u8, path, "/docs_engine.wit")) return false;
+    if (std.mem.eql(u8, path, "docs/README.md")) return false;
+    if (std.mem.eql(u8, path, "docs/ABI_PROJECT_MEMORY.md")) return false;
     return true;
 }
 
@@ -357,6 +361,8 @@ pub fn writeOutputs(
 
 test "shouldTrackExtraFile ignores wasm artifacts" {
     try std.testing.expect(!shouldTrackExtraFile("docs/data/docs_engine.wasm"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/README.md"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/ABI_PROJECT_MEMORY.md"));
     try std.testing.expect(shouldTrackExtraFile("docs/plans/index.md"));
 }
 

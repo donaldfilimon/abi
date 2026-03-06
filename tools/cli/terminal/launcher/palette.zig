@@ -479,7 +479,7 @@ test "palette filters to ui editor" {
     }
 
     const item = palette.selectedItem() orelse return error.TestExpectedItem;
-    try std.testing.expectEqualStrings("UI Editor", item.label);
+    try std.testing.expectEqualStrings("Editor", item.label);
 }
 
 test "palette enter submits selected command action" {
@@ -494,7 +494,7 @@ test "palette enter submits selected command action" {
     const outcome = try palette.handleKey(.{ .code = .enter });
     switch (outcome) {
         .submit => |action| switch (action) {
-            .command => |cmd| try std.testing.expectEqualStrings("ui-editor", cmd.id),
+            .command => |cmd| try std.testing.expectEqualStrings("editor", cmd.id),
             else => return error.TestExpectedCommandAction,
         },
         else => return error.TestExpectedSubmit,

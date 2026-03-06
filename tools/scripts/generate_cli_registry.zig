@@ -24,7 +24,6 @@ fn appendModuleEntries(
     while (lines.next()) |raw_line| {
         const line = std.mem.trim(u8, raw_line, " \t\r");
         if (line.len == 0) continue;
-        if (!is_dir_listing and std.mem.eql(u8, std.fs.path.basename(line), "editor.zig")) continue;
 
         const ident_raw = if (is_dir_listing)
             std.fs.path.basename(line)

@@ -7,6 +7,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const events = @import("events.zig");
 const terminal = @import("terminal.zig");
 const render_utils = @import("render_utils.zig");
 
@@ -894,7 +895,7 @@ pub const TextInput = struct {
         self.* = undefined;
     }
 
-    pub fn handleEvent(self: *TextInput, event: terminal.Event) !bool {
+    pub fn handleEvent(self: *TextInput, event: events.Event) !bool {
         if (!self.is_active) return false;
 
         switch (event) {

@@ -37,6 +37,7 @@ pub const DistanceMetric = @import("config.zig").DistanceMetric;
 
 pub const Engine = @import("engine.zig").Engine;
 pub const EngineVector = @import("engine.zig").EngineVector;
+pub const WritePolicy = @import("engine.zig").WritePolicy;
 pub const Metadata = @import("engine.zig").Metadata;
 pub const SearchOptions = @import("engine.zig").SearchOptions;
 pub const SearchResult = @import("engine.zig").SearchResult;

@@ -28,6 +28,7 @@ pub const clean = @import("../commands/dev/clean.zig");
 pub const completions = @import("../commands/dev/completions.zig");
 pub const convert = @import("../commands/dev/convert.zig");
 pub const doctor = @import("../commands/dev/doctor.zig");
+pub const editor = @import("../commands/dev/editor.zig");
 pub const env = @import("../commands/dev/env.zig");
 pub const gendocs = @import("../commands/dev/gendocs.zig");
 pub const lsp = @import("../commands/dev/lsp.zig");
@@ -68,6 +69,7 @@ pub const command_modules = .{
     completions,
     convert,
     doctor,
+    editor,
     env,
     gendocs,
     lsp,

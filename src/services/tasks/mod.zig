@@ -24,6 +24,7 @@ pub const persistence = @import("persistence.zig");
 pub const querying = @import("querying.zig");
 pub const lifecycle = @import("lifecycle.zig");
 pub const roadmap = @import("roadmap.zig");
+pub const roadmap_catalog = roadmap.catalog;
 
 // Type re-exports for convenience
 pub const Task = types.Task;

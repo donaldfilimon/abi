@@ -27,21 +27,22 @@ pub const PagedKVCache = struct {
     allocator: Allocator,
     config: Config,
     pages: []Page,
-    free_pages: std.ArrayList(u32),
-    seq_pages: std.AutoHashMap(u64, std.ArrayList(u32)),
+    free_pages: std.ArrayListUnmanaged(u32),
+    seq_pages: std.AutoHashMapUnmanaged(u64, std.ArrayListUnmanaged(u32)),
     total_pages: u32,
 
     pub fn init(allocator: Allocator, config: Config) !Self {
         const page_data_size = config.page_size * config.num_heads * config.head_dim * 2; // K + V
         const pages = try allocator.alloc(Page, config.num_pages);
 
-        var free_pages = std.ArrayList(u32).init(allocator);
+        var free_pages = std.ArrayListUnmanaged(u32).empty;
+        errdefer free_pages.deinit(allocator);
         for (pages, 0..) |*page, i| {
             page.data = try allocator.alloc(f32, page_data_size);
             @memset(page.data, 0.0);
             page.used_tokens = 0;
             page.seq_id = null;
-            try free_pages.append(@intCast(i));
+            try free_pages.append(allocator, @intCast(i));
         }
 
         return .{
@@ -49,7 +50,7 @@ pub const PagedKVCache = struct {
             .config = config,
             .pages = pages,
             .free_pages = free_pages,
-            .seq_pages = std.AutoHashMap(u64, std.ArrayList(u32)).init(allocator),
+            .seq_pages = .empty,
             .total_pages = config.num_pages,
         };
     }
@@ -59,13 +60,13 @@ pub const PagedKVCache = struct {
             self.allocator.free(page.data);
         }
         self.allocator.free(self.pages);
-        self.free_pages.deinit();
+        self.free_pages.deinit(self.allocator);
 
         var it = self.seq_pages.iterator();
         while (it.next()) |entry| {
-            entry.value_ptr.deinit();
+            entry.value_ptr.deinit(self.allocator);
         }
-        self.seq_pages.deinit();
+        self.seq_pages.deinit(self.allocator);
     }
 
     /// Allocate pages for a sequence. Returns false if not enough pages.
@@ -73,16 +74,16 @@ pub const PagedKVCache = struct {
         const pages_needed = (num_tokens + self.config.page_size - 1) / self.config.page_size;
         if (self.free_pages.items.len < pages_needed) return false;
 
-        const entry = try self.seq_pages.getOrPut(seq_id);
+        const entry = try self.seq_pages.getOrPut(self.allocator, seq_id);
         if (!entry.found_existing) {
-            entry.value_ptr.* = std.ArrayList(u32).init(self.allocator);
+            entry.value_ptr.* = .empty;
         }
 
         for (0..pages_needed) |_| {
             const page_id = self.free_pages.pop();
             self.pages[page_id].seq_id = seq_id;
             self.pages[page_id].used_tokens = 0;
-            try entry.value_ptr.append(page_id);
+            try entry.value_ptr.append(self.allocator, page_id);
         }
 
         return true;
@@ -95,9 +96,9 @@ pub const PagedKVCache = struct {
             for (page_list.items) |page_id| {
                 self.pages[page_id].seq_id = null;
                 self.pages[page_id].used_tokens = 0;
-                self.free_pages.append(page_id) catch {};
+                self.free_pages.append(self.allocator, page_id) catch {};
             }
-            page_list.deinit();
+            page_list.deinit(self.allocator);
         }
     }
 

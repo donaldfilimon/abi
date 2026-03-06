@@ -181,6 +181,12 @@ pub const HelpBuilder = struct {
         return self;
     }
 
+    /// Add a single line of text with a trailing newline.
+    pub fn line(self: *HelpBuilder, t: []const u8) *HelpBuilder {
+        self.captureError(self.writeFmt("{s}\n", .{t}));
+        return self;
+    }
+
     /// Add newline.
     pub fn newline(self: *HelpBuilder) *HelpBuilder {
         self.captureError(self.writeFmt("\n", .{}));

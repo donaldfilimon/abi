@@ -5,17 +5,17 @@
 
 const std = @import("std");
 const root = @import("root.zig");
+const time_mod = @import("services/shared/time.zig");
 
 const Timer = struct {
-    start: i128,
+    start: ?time_mod.Instant,
 
     fn begin() Timer {
-        return .{ .start = std.time.nanoTimestamp() };
+        return .{ .start = time_mod.now() };
     }
 
     fn elapsedNs(self: Timer) u64 {
-        const now = std.time.nanoTimestamp();
-        return @intCast(now - self.start);
+        return time_mod.elapsed(self.start, time_mod.now());
     }
 
     fn elapsedUs(self: Timer) f64 {
@@ -145,7 +145,7 @@ fn benchPersonas() void {
         "I feel really confused and frustrated with this problem",
         "Write me a creative story about space exploration",
         "What is the capital of France?",
-        "pub fn main() !void { return error.NotImplemented; }",
+        "pub fn main(init: std.process.Init) !void { _ = init; return error.NotImplemented; }",
     };
 
     const iterations: u64 = 10_000;
@@ -178,7 +178,7 @@ fn benchSampler() void {
     printResult("token sampling (vocab=1024)", iterations, t.elapsedNs());
 }
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

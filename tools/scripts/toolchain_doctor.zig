@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const util = @import("util.zig");
 
 pub fn main(_: std.process.Init) !void {
@@ -37,6 +38,25 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("Active zig:\n", .{});
     std.debug.print("  path:    {s}\n", .{active_zig});
     std.debug.print("  version: {s}\n\n", .{active_version});
+
+    std.debug.print("Environment selectors:\n", .{});
+    try printEnvVar(allocator, "DEVELOPER_DIR");
+    try printEnvVar(allocator, "TOOLCHAINS");
+    try printEnvVar(allocator, "SDKROOT");
+    std.debug.print("\n", .{});
+
+    if (builtin.os.tag == .macos) {
+        std.debug.print("Apple developer tools:\n", .{});
+        try printCommandSummary(allocator, "default xcode-select -p", "env -u DEVELOPER_DIR xcode-select -p");
+        try printCommandSummary(allocator, "xcrun --find clang", "xcrun --find clang");
+        try printCommandSummary(allocator, "xcrun --show-sdk-path", "xcrun --show-sdk-path");
+        try printCommandFirstLine(allocator, "clang --version", "clang --version");
+        std.debug.print(
+            "  hint: ABI's known-good override on this host is DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer\n",
+            .{},
+        );
+        std.debug.print("\n", .{});
+    }
 
     std.debug.print("All zig candidates on PATH (in precedence order):\n", .{});
     if (try util.commandExists(allocator, "which")) {
@@ -100,4 +120,70 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("\nFAILED: toolchain doctor found {d} issue(s).\n", .{issues});
     std.process.exit(1);
+}
+
+fn printEnvVar(allocator: std.mem.Allocator, name: []const u8) !void {
+    const cmd = try std.fmt.allocPrint(allocator, "printf '%s' \"${s}\"", .{name});
+    defer allocator.free(cmd);
+
+    const result = try util.captureCommand(allocator, cmd);
+    defer allocator.free(result.output);
+
+    const value = util.trimSpace(result.output);
+    if (value.len == 0) {
+        std.debug.print("  {s}: (unset)\n", .{name});
+    } else {
+        std.debug.print("  {s}: {s}\n", .{ name, value });
+    }
+}
+
+fn printCommandSummary(
+    allocator: std.mem.Allocator,
+    label: []const u8,
+    cmd: []const u8,
+) !void {
+    const result = util.captureCommand(allocator, cmd) catch {
+        std.debug.print("  {s}: (unavailable)\n", .{label});
+        return;
+    };
+    defer allocator.free(result.output);
+
+    if (result.exit_code != 0) {
+        std.debug.print("  {s}: (failed)\n", .{label});
+        return;
+    }
+
+    const value = util.trimSpace(result.output);
+    if (value.len == 0) {
+        std.debug.print("  {s}: (empty)\n", .{label});
+    } else {
+        std.debug.print("  {s}: {s}\n", .{ label, value });
+    }
+}
+
+fn printCommandFirstLine(
+    allocator: std.mem.Allocator,
+    label: []const u8,
+    cmd: []const u8,
+) !void {
+    const result = util.captureCommand(allocator, cmd) catch {
+        std.debug.print("  {s}: (unavailable)\n", .{label});
+        return;
+    };
+    defer allocator.free(result.output);
+
+    if (result.exit_code != 0) {
+        std.debug.print("  {s}: (failed)\n", .{label});
+        return;
+    }
+
+    const trimmed = util.trimSpace(result.output);
+    if (trimmed.len == 0) {
+        std.debug.print("  {s}: (empty)\n", .{label});
+        return;
+    }
+
+    var lines = std.mem.splitScalar(u8, trimmed, '\n');
+    const first_line = lines.next() orelse trimmed;
+    std.debug.print("  {s}: {s}\n", .{ label, first_line });
 }

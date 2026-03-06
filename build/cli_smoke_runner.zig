@@ -43,14 +43,15 @@ const safe_function_vectors = [_]FixedVector{
     .{ .id = "bench.micro.hash", .args = &.{ "bench", "micro", "hash" } },
     .{ .id = "bench.micro.noop", .args = &.{ "bench", "micro", "noop" } },
     .{ .id = "train.info", .args = &.{ "train", "info" } },
+    .{ .id = "editor.help", .args = &.{ "editor", "--help" } },
     .{ .id = "ui.help", .args = &.{ "ui", "--help" } },
     .{ .id = "ui.list-themes", .args = &.{ "ui", "--list-themes" } },
     .{ .id = "ui.gpu.help", .args = &.{ "ui", "gpu", "--help" } },
     .{ .id = "ui.brain.help", .args = &.{ "ui", "brain", "--help" } },
     .{ .id = "ui.model.help", .args = &.{ "ui", "model", "--help" } },
     .{ .id = "ui.editor.help", .args = &.{ "ui", "editor", "--help" } },
+    .{ .id = "ui.dashboard.alias", .args = &.{ "ui", "dashboard" } },
     .{ .id = "ui.launch.removed", .args = &.{ "ui", "launch" }, .expect_success = false },
-    .{ .id = "ui.dashboard.removed", .args = &.{ "ui", "dashboard" }, .expect_success = false },
 };
 
 fn addVector(

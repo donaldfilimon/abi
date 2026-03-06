@@ -24,25 +24,25 @@ pub const Scheduler = struct {
 
     allocator: Allocator,
     /// Min-heap ordered by (higher priority first, then earlier timestamp).
-    queue: std.ArrayList(Request),
+    queue: std.ArrayListUnmanaged(Request),
     max_size: u32,
 
     pub fn init(allocator: Allocator, max_size: u32) Self {
         return .{
             .allocator = allocator,
-            .queue = std.ArrayList(Request).init(allocator),
+            .queue = .empty,
             .max_size = max_size,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.queue.deinit();
+        self.queue.deinit(self.allocator);
     }
 
     /// Submit a request. Returns false if queue is full.
     pub fn submit(self: *Self, request: Request) !bool {
         if (self.queue.items.len >= self.max_size) return false;
-        try self.queue.append(request);
+        try self.queue.append(self.allocator, request);
         // Bubble up (simple insertion sort for now; fine for typical queue sizes).
         self.bubbleUp(self.queue.items.len - 1);
         return true;

@@ -5,8 +5,9 @@
 const std = @import("std");
 const types = @import("types.zig");
 const persistence = @import("persistence.zig");
-const catalog = @import("roadmap_catalog.zig");
 const time_utils = @import("../shared/utils.zig");
+
+pub const catalog = @import("roadmap_catalog.zig");
 
 pub const RoadmapItem = struct {
     title: []const u8,

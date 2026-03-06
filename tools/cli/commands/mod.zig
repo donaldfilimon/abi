@@ -42,6 +42,7 @@ pub const ralph = generated.ralph;
 pub const gendocs = generated.gendocs;
 pub const brain = generated.brain;
 pub const doctor = generated.doctor;
+pub const editor = generated.editor;
 pub const matrix = generated.matrix;
 pub const clean = generated.clean;
 pub const env = generated.env;
@@ -62,7 +63,7 @@ fn applyOverride(desc: *CommandDescriptor, comptime ov: registry_overrides.Comma
 }
 
 fn validateRegistry(comptime registry_descriptors: []const CommandDescriptor) void {
-    @setEvalBranchQuota(10000);
+    @setEvalBranchQuota(100000);
     inline for (registry_descriptors, 0..) |desc, i| {
         if (desc.name.len == 0) {
             @compileError(std.fmt.comptimePrint("Empty command name at index {d}", .{i}));
@@ -109,6 +110,7 @@ fn validateRegistry(comptime registry_descriptors: []const CommandDescriptor) vo
 
 /// Command descriptors auto-derived from command module metadata + overrides.
 pub const descriptors: [std.meta.fields(@TypeOf(command_modules)).len]CommandDescriptor = blk: {
+    @setEvalBranchQuota(100000);
     const fields = std.meta.fields(@TypeOf(command_modules));
     var result: [fields.len]CommandDescriptor = undefined;
 

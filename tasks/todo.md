@@ -6,6 +6,189 @@ archive section with their evidence preserved.
 
 ## Active Queue
 
+### Task Plan - Darwin Toolchain Unblock And Branch Stabilization (2026-03-06)
+
+#### Objective
+Unblock local Darwin Zig build execution under
+`[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)` without
+starting the next roadmap wave, by stabilizing the current branch state,
+repairing or isolating the Apple/Xcode toolchain path, and tightening repo-side
+diagnostics so future failures are classified quickly.
+
+#### Scope
+- Run the mandatory tri-CLI consensus for this unblock slice before repo edits.
+- Reconcile the mixed staged/unstaged tree on the current CLI/docs/WDBX slice
+  into one authoritative working state.
+- Remove the obsolete `build/wdbx_fast_tests_root.zig` path from tracked/index
+  state in favor of `src/wdbx_fast_tests_root.zig`.
+- Treat Darwin toolchain selection and libc/dispatch link failures as the
+  primary debugging target; avoid unrelated feature refactors.
+- Improve repo-local diagnostics only where they help classify Darwin linker
+  failures or surface the active Apple/Zig toolchain inputs.
+
+#### Verification Criteria
+- `which zig`
+- `zig version`
+- `cat .zigversion`
+- `clang --version`
+- `xcrun --find clang`
+- `xcrun --show-sdk-path`
+- `zig env`
+- `zig build toolchain-doctor`
+- `zig build check-cli-registry`
+- `zig build gendocs-source-tests`
+- `zig build launcher-tests`
+- `zig build wdbx-fast-tests`
+- `zig build cli-tests`
+- `zig build tui-tests`
+- `zig build full-check`
+- `zig build check-workflow-orchestration-strict --summary all`
+
+#### Checklist
+##### Now
+- [x] Review `tasks/lessons.md` before implementation.
+- [x] Confirm active Zig matches `.zigversion`.
+- [ ] Run mandatory tri-CLI consensus for the Darwin unblock slice and capture surviving outputs.
+- [ ] Normalize the current slice to one working-tree/index state.
+- [ ] Repair or isolate the local Apple/Xcode developer-dir and toolchain selection.
+- [ ] Improve Darwin diagnostics in repo tooling only where needed for classification.
+
+##### Review
+- [ ] Darwin-focused repros and repo leaf checks run past the previous unresolved libc/dispatch boundary, or the blocker is proven external with evidence.
+- [ ] `tasks/todo.md` records the final environment state and exact remaining blockers separately from repo-local issues.
+
+##### Evidence
+- Pending.
+
+##### Residual Risk
+- Pending.
+
+### Task Plan - Canonical Command Registry And Runtime Consolidation (2026-03-06)
+
+#### Objective
+Land the first cohesive slice of the approved Zig 0.16 UX-first consolidation
+roadmap by making the command registry authoritative across CLI/docs/smoke
+coverage, removing duplicate editor runtime logic, tightening `abi ui`
+shell/view behavior, and adding a focused fast WDBX validation seam that can
+run independently of the blocked full Darwin close-out.
+
+#### Scope
+- Use `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)` as
+  the Zig validation contract for this wave.
+- Run the mandatory tri-CLI consensus before implementation and treat surviving
+  outputs as advisory input.
+- Make `tools/gendocs/source_cli.zig` derive command data from the canonical
+  descriptor/registry surface instead of reparsing command source files.
+- Collapse `tools/cli/commands/dev/editor.zig` to a thin shared-runtime wrapper
+  and resolve the contradictory `abi ui dashboard` alias/runtime behavior.
+- Add a focused WDBX fast-test/build seam and advance the engine toward explicit
+  write-policy semantics for vector indexing.
+- Record repo-local validation separately from the known Darwin/libc linker
+  blocker.
+
+#### Verification Criteria
+- `which zig`
+- `zig version`
+- `cat .zigversion`
+- `zig build toolchain-doctor`
+- focused `zig fmt --check` on touched Zig files
+- focused `zig test -fno-emit-bin` wrappers for the touched CLI/docs/WDBX slices
+- `zig build cli-tests`
+- `zig build tui-tests`
+- `zig build full-check`
+- `zig build check-cli-registry`
+- `zig build check-workflow-orchestration-strict --summary all`
+
+#### Checklist
+##### Now
+- [x] Review `tasks/lessons.md` before implementation.
+- [x] Confirm active Zig matches `.zigversion`.
+- [x] Run mandatory tri-CLI consensus for the consolidation slice and capture surviving outputs.
+- [x] Update the docs command source to consume the canonical command registry/descriptors.
+- [x] Collapse duplicate editor runtime logic into the shared terminal editor engine.
+- [x] Align `abi ui` subcommand/help/smoke behavior with the actual shared-shell runtime.
+- [x] Add explicit WDBX write-policy coverage and a focused fast validation path.
+- [x] Refresh the tracked CLI registry snapshot if command inclusion changes.
+
+##### Review
+- [x] Focused CLI/docs/editor/WDBX checks pass, or each blocked step is rerun once and isolated with evidence.
+- [x] `tasks/todo.md` review evidence records the Darwin linker blocker separately from repo-local results.
+
+##### Evidence
+- `which zig` reports `/Users/donaldfilimon/.zvm/bin/zig`; `zig version` and
+  `cat .zigversion` both report `0.16.0-dev.2694+74f361a5c`.
+- Mandatory tri-CLI consensus was run via
+  `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh --mode code --timeout-sec 120 --prompt-file /tmp/abi_ux_roadmap_prompt.txt --out-dir /tmp/abi-ux-roadmap.VPmRj5/out`.
+  The remote responders did not return a usable consensus, so implementation
+  proceeded from local repo inspection with the Ollama fallback recommendation
+  to land the registry/runtime slice first.
+- The command-registry/runtime slice is now wired so:
+  `tools/cli/commands/dev/editor.zig` remains a thin shared-engine wrapper,
+  `tools/cli/commands/core/ui/mod.zig` accepts `dashboard` as the canonical
+  shared-shell alias while keeping `launch` rejected,
+  `build/cli_smoke_runner.zig` includes `editor --help` and a successful
+  `ui dashboard` vector,
+  `tools/scripts/generate_cli_registry.zig` includes the top-level editor
+  command, `tools/cli/generated/cli_registry_snapshot.zig` reflects that, and
+  `tools/gendocs/source_cli.zig` now consumes the canonical CLI registry via an
+  injected `cli_root` module import instead of reparsing command source files.
+- The shared launcher path now uses the same canonical editor alias end to end:
+  `tools/cli/terminal/launcher/launcher_catalog.zig` routes the editor entry to
+  the top-level `editor` command instead of `ui editor`, and
+  `tools/cli/launcher_tests_root.zig` plus the new `zig build launcher-tests`
+  step provide a focused shell/launcher leaf suite for future close-out runs.
+- Focused WDBX validation is now rooted at `src/wdbx_fast_tests_root.zig`
+  instead of `build/` so Zig 0.16 module-path rules allow
+  `features/database/wdbx.zig` and `wdbx/wdbx.zig` to compile together; the
+  engine write-policy surface is exported from `src/wdbx/wdbx.zig`.
+- During focused validation, two latent compile regressions outside the core
+  slice were exposed and fixed:
+  `tools/cli/mod.zig` still imported deleted `commands/core/ui/launch.zig` in a
+  test block, and `src/features/ai/abbey/mod.zig` expected a missing
+  `abbey/reasoning.zig` path. The wave now restores that Abbey reasoning shim
+  by forwarding to the canonical reasoning module.
+- `zig fmt` was applied to the touched Zig files, and `git diff --check --`
+  passes for:
+  `build.zig`,
+  `build/cli_smoke_runner.zig`,
+  `build/gendocs_tests_root.zig`,
+  `src/features/ai/abbey/reasoning.zig`,
+  `src/wdbx/engine.zig`,
+  `src/wdbx/wdbx.zig`,
+  `src/wdbx_fast_tests_root.zig`,
+  `tools/cli/commands/core/ui/mod.zig`,
+  `tools/cli/commands/dev/editor.zig`,
+  `tools/cli/commands/mod.zig`,
+  `tools/cli/generated/cli_registry_snapshot.zig`,
+  `tools/cli/mod.zig`,
+  `tools/gendocs/source_cli.zig`,
+  `tools/scripts/generate_cli_registry.zig`,
+  and `tasks/todo.md`.
+- Focused compile-only Zig 0.16 checks now pass for the refactored slices:
+  `zig test -fno-emit-bin tools/scripts/generate_cli_registry.zig`,
+  `zig test -fno-emit-bin src/wdbx/engine.zig`,
+  `zig test -fno-emit-bin src/wdbx_fast_tests_root.zig`,
+  and
+  `zig test -fno-emit-bin --dep gendocs_source_cli -Mroot=build/gendocs_tests_root.zig --dep cli_root -Mgendocs_source_cli=tools/gendocs/source_cli.zig --dep abi -Mcli_root=tools/cli/mod.zig --dep build_options -Mabi=src/abi.zig -Mbuild_options=.zig-cache/codex-validate/build_options.zig`.
+- A broader CLI compile-only wrapper was rerun after the local fixes:
+  `zig test -fno-emit-bin --dep cli_root -Mroot=build/cli_smoke_runner.zig --dep abi -Mcli_root=tools/cli/mod.zig --dep build_options -Mabi=src/abi.zig -Mbuild_options=.zig-cache/codex-validate/build_options.zig`.
+  It no longer fails on missing repo files and instead stops at the same local
+  Darwin/libc linker boundary as `zig build`.
+- `zig build refresh-cli-registry` and `zig build check-cli-registry` were both
+  rerun once after the slice landed and both failed immediately at the same
+  pre-existing Darwin/libc linker boundary before the repo-local registry logic
+  could execute.
+
+##### Residual Risk
+- Full `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)`
+  close-out is still blocked by the local Darwin linker environment, which
+  prevents `zig build` leaf steps such as `toolchain-doctor`,
+  `refresh-cli-registry`, `check-cli-registry`, `cli-tests`, `tui-tests`, and
+  `full-check` from completing. This slice was therefore validated with
+  formatting, diff hygiene, compile-only wrappers for the gendocs and WDBX
+  roots, direct engine tests, and source inspection rather than a successful
+  end-to-end `zig build` sequence.
+
 ### Task Plan - Fix Review Regressions And Harden AI CLI Backends (2026-03-06)
 
 #### Objective
