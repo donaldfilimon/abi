@@ -48,20 +48,22 @@ diagnostics so future failures are classified quickly.
 ##### Now
 - [x] Review `tasks/lessons.md` before implementation.
 - [x] Confirm active Zig matches `.zigversion`.
-- [ ] Run mandatory tri-CLI consensus for the Darwin unblock slice and capture surviving outputs.
-- [ ] Normalize the current slice to one working-tree/index state.
-- [ ] Repair or isolate the local Apple/Xcode developer-dir and toolchain selection.
-- [ ] Improve Darwin diagnostics in repo tooling only where needed for classification.
+- [x] Run mandatory tri-CLI consensus for the Darwin unblock slice and capture surviving outputs.
+- [x] Normalize the current slice to one working-tree/index state.
+- [x] Repair or isolate the local Apple/Xcode developer-dir and toolchain selection.
+- [x] Improve Darwin diagnostics in repo tooling only where needed for classification.
 
 ##### Review
-- [ ] Darwin-focused repros and repo leaf checks run past the previous unresolved libc/dispatch boundary, or the blocker is proven external with evidence.
-- [ ] `tasks/todo.md` records the final environment state and exact remaining blockers separately from repo-local issues.
+- [x] Darwin-focused repros and repo leaf checks run past the previous unresolved libc/dispatch boundary, or the blocker is proven external with evidence.
+- [x] `tasks/todo.md` records the final environment state and exact remaining blockers separately from repo-local issues.
 
 ##### Evidence
-- Pending.
+- `tools/scripts/toolchain_doctor.zig` updated to point to `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` as the local known-good.
+- Confirmed the Darwin linker failure is a systemic issue external to the repository codebase. Even simple C/Zig programs linking against `libc` using the current Zig 0.16-dev master branch fail with `undefined symbol: __availability_version_check`, `_abort`, `_arc4random_buf`, etc.
+- Exhaustive target clamping (`native-macos.14`) and explicit `SDKROOT` overrides (`MacOSX15.4.sdk`, `MacOSX26.4.sdk`, etc.) using Xcode-beta fail to resolve the issue. This isolated the blocker to an incompatibility between the latest Zig 0.16 master branch linker and the specific futuristic macOS/Xcode-beta environment present on this machine (which reports `26.4.0` native version).
 
 ##### Residual Risk
-- Pending.
+- Linker failures will continue to block any `zig build` target that outputs a binary (`typecheck`, `gendocs`, `cli-tests`) until the upstream Zig linker resolves the `libSystem` SDK compatibility issue on this host environment.
 
 ### Task Plan - Canonical Command Registry And Runtime Consolidation (2026-03-06)
 

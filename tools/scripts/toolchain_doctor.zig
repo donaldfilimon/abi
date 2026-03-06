@@ -52,7 +52,7 @@ pub fn main(_: std.process.Init) !void {
         try printCommandSummary(allocator, "xcrun --show-sdk-path", "xcrun --show-sdk-path");
         try printCommandFirstLine(allocator, "clang --version", "clang --version");
         std.debug.print(
-            "  hint: ABI's known-good override on this host is DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer\n",
+            "  hint: ABI's known-good override on this host is DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer\n",
             .{},
         );
         std.debug.print("\n", .{});

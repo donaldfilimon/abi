@@ -651,7 +651,7 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
         const native_ver = builtin.os.version_range.semver;
         if (native_ver.min.major >= 26) {
             const clamped: std.Target.Query.OsVersion = .{
-                .semver = .{ .major = 15, .minor = 0, .patch = 0 },
+                .semver = .{ .major = 14, .minor = 0, .patch = 0 },
             };
             if (query.os_version_min == null) query.os_version_min = clamped;
             if (query.os_version_max == null) query.os_version_max = clamped;
