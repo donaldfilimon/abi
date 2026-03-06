@@ -520,6 +520,48 @@ pub const BrainDashboardPanel = struct {
         }
         return std.fmt.bufPrint(buf, "{d} B", .{bytes}) catch "?";
     }
+
+    // -- Panel vtable methods --
+
+    pub fn renderPanel(self: *BrainDashboardPanel, term: *Terminal, rect: @import("layout.zig").Rect, theme: *const Theme) anyerror!void {
+        self.theme = theme;
+        self.term = term;
+        // In full panel mode, we maintain internal data
+        if (self._internal_data == null) {
+            self._internal_data = DashboardData.init();
+        }
+        try self.render(&self._internal_data.?, rect.y, rect.x, rect.width, rect.height);
+    }
+
+    // Add internal data storage for full-panel mode
+    _internal_data: ?DashboardData = null,
+
+    pub fn tick(self: *BrainDashboardPanel) anyerror!void {
+        if (self._internal_data) |*data| {
+            // BrainDashboardPanel tick simulates data for demo purposes when run standalone
+            // In a real integration, the caller updates the data.
+            // data.updateSimulated(std.time.milliTimestamp());
+            _ = data;
+        }
+    }
+
+    pub fn handleEvent(_: *BrainDashboardPanel, _: @import("events.zig").Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *BrainDashboardPanel) []const u8 {
+        return "Brain";
+    }
+
+    pub fn shortcutHint(_: *BrainDashboardPanel) []const u8 {
+        return "9";
+    }
+
+    pub fn deinit(_: *BrainDashboardPanel) void {}
+
+    pub fn panel(self: *BrainDashboardPanel) @import("panel.zig").Panel {
+        return @import("panel.zig").Panel.from(BrainDashboardPanel, self);
+    }
 };
 
 // ===============================================================================

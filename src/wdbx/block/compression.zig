@@ -9,15 +9,17 @@ pub const CompressionStrategy = enum {
 };
 
 pub fn compress(allocator: std.mem.Allocator, data: []const u8, strategy: CompressionStrategy) ![]u8 {
-    _ = allocator;
-    _ = data;
-    _ = strategy;
-    unreachable; // TODO
+    return switch (strategy) {
+        .none => allocator.dupe(u8, data),
+        .lz4 => error.NotImplemented,
+        .zstd => error.NotImplemented,
+    };
 }
 
 pub fn decompress(allocator: std.mem.Allocator, data: []const u8, strategy: CompressionStrategy) ![]u8 {
-    _ = allocator;
-    _ = data;
-    _ = strategy;
-    unreachable; // TODO
+    return switch (strategy) {
+        .none => allocator.dupe(u8, data),
+        .lz4 => error.NotImplemented,
+        .zstd => error.NotImplemented,
+    };
 }

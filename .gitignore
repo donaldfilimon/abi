@@ -181,8 +181,8 @@ backups/
 *.backup
 
 # ── Distribution ──────────────────────────────────────────────────────
-dist/
-release/
+/dist/
+/release/
 *.tar.gz
 *.zip
 

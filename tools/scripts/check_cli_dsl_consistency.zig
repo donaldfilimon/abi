@@ -6,6 +6,10 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     var violations: usize = 0;
 
     const checks = [_]struct {
@@ -46,7 +50,7 @@ pub fn main(_: std.process.Init) !void {
     };
 
     for (checks) |check| {
-        const result = try util.captureCommand(allocator, check.command);
+        const result = try util.captureCommand(allocator, io, check.command);
         defer allocator.free(result.output);
 
         if (result.exit_code != 0 and result.exit_code != 1) {

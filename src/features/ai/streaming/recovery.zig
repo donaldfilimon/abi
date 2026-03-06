@@ -19,7 +19,7 @@
 //! // Execute with retry and circuit breaker protection
 //! const result = try recovery.executeWithRecovery(.openai, struct {
 //!     pub fn call(ctx: *anyopaque) !TokenStream {
-//!         const backend = @ptrCast(*Backend, ctx);
+//!         const backend = @ptrCast(ctx);
 //!         return backend.streamTokens(prompt, config);
 //!     }
 //! }.call, backend);

@@ -1,11 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const c = @cImport({
-    @cInclude("stdio.h");
-    @cInclude("stdlib.h");
-});
-
 pub const CommandResult = struct {
     output: []u8,
     exit_code: i32,
@@ -31,49 +26,71 @@ pub fn dirExists(io: anytype, path: []const u8) bool {
     return true;
 }
 
-pub fn captureCommand(allocator: std.mem.Allocator, cmd: []const u8) !CommandResult {
-    const cmd_full = try std.fmt.allocPrint(allocator, "{s} 2>&1", .{cmd});
-    defer allocator.free(cmd_full);
-    const cmd_z = try allocator.dupeZ(u8, cmd_full);
-    defer allocator.free(cmd_z);
+pub fn captureCommand(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8) !CommandResult {
+    const shell = if (builtin.os.tag == .windows) "cmd" else "sh";
+    const shell_arg = if (builtin.os.tag == .windows) "/c" else "-c";
+    
+    // Merge stderr to stdout via shell redirection
+    const merged_cmd = try std.fmt.allocPrint(allocator, "{s} 2>&1", .{cmd});
+    defer allocator.free(merged_cmd);
+    
+    const argv = [_][]const u8{ shell, shell_arg, merged_cmd };
 
-    const pipe = if (builtin.os.tag == .windows)
-        c._popen(cmd_z.ptr, "r")
-    else
-        c.popen(cmd_z.ptr, "r");
+    var child = try std.process.spawn(io, .{
+        .argv = &argv,
+        .stdout = .pipe,
+    });
 
-    if (pipe == null) return error.CommandFailed;
+    const max_output_size = 1024 * 1024; // 1MB
+    const stdout = try readAllAlloc(io, child.stdout.?, allocator, max_output_size);
+    errdefer allocator.free(stdout);
 
-    var output = std.ArrayListUnmanaged(u8).empty;
-    errdefer output.deinit(allocator);
-
-    var buf: [1024]u8 = undefined;
-    while (true) {
-        const ptr = c.fgets(&buf, @intCast(buf.len), pipe);
-        if (ptr == null) break;
-        const len = std.mem.indexOfScalar(u8, &buf, 0) orelse buf.len;
-        try output.appendSlice(allocator, buf[0..len]);
-    }
-
-    const status_raw = if (builtin.os.tag == .windows) c._pclose(pipe) else c.pclose(pipe);
-    const exit_code = normalizeExitCode(status_raw);
+    const term = try child.wait(io);
+    const exit_code = switch (term) {
+        .exited => |code| @as(i32, @intCast(code)),
+        else => -1,
+    };
 
     return .{
-        .output = try output.toOwnedSlice(allocator),
+        .output = stdout,
         .exit_code = exit_code,
     };
 }
 
-pub fn runCommand(allocator: std.mem.Allocator, cmd: []const u8) !i32 {
-    const cmd_z = try allocator.dupeZ(u8, cmd);
-    defer allocator.free(cmd_z);
-    return normalizeExitCode(c.system(cmd_z.ptr));
+fn readAllAlloc(io: std.Io, file: std.Io.File, allocator: std.mem.Allocator, limit: usize) ![]u8 {
+    var list = std.ArrayListUnmanaged(u8).empty;
+    errdefer list.deinit(allocator);
+
+    var buffer: [4096]u8 = undefined;
+    while (true) {
+        const amt = try file.readStreaming(io, &.{&buffer});
+        if (amt == 0) break;
+        try list.appendSlice(allocator, buffer[0..amt]);
+        if (list.items.len > limit) return error.StreamTooLong;
+    }
+
+    return try list.toOwnedSlice(allocator);
 }
 
-pub fn commandExists(allocator: std.mem.Allocator, name: []const u8) !bool {
+pub fn runCommand(io: std.Io, cmd: []const u8) !i32 {
+    const shell = if (builtin.os.tag == .windows) "cmd" else "sh";
+    const shell_arg = if (builtin.os.tag == .windows) "/c" else "-c";
+    const argv = [_][]const u8{ shell, shell_arg, cmd };
+
+    var child = try std.process.spawn(io, .{
+        .argv = &argv,
+    });
+    const term = try child.wait(io);
+    return switch (term) {
+        .exited => |code| @as(i32, @intCast(code)),
+        else => -1,
+    };
+}
+
+pub fn commandExists(allocator: std.mem.Allocator, io: std.Io, name: []const u8) !bool {
     const cmd = try std.fmt.allocPrint(allocator, "command -v {s} >/dev/null 2>&1", .{name});
     defer allocator.free(cmd);
-    return (try runCommand(allocator, cmd)) == 0;
+    return (try runCommand(io, cmd)) == 0;
 }
 
 pub fn readFileAlloc(
@@ -83,11 +100,4 @@ pub fn readFileAlloc(
     max_bytes: usize,
 ) ![]u8 {
     return std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(max_bytes));
-}
-
-fn normalizeExitCode(status_raw: c_int) i32 {
-    if (builtin.os.tag == .windows) {
-        return @as(i32, @intCast(status_raw));
-    }
-    return @as(i32, @intCast(status_raw >> 8));
 }

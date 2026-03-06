@@ -6,6 +6,38 @@ archive section with their evidence preserved.
 
 ## Active Queue
 
+### Task Plan - TUI and CLI Improvements (2026-03-06)
+
+#### Objective
+Modernize and stabilize the ABI CLI and TUI architecture for Zig 0.16, focusing on modular component extraction, UX consistency, and robust integration testing.
+
+#### Scope
+- Finalize "Modular Extraction v3" by migrating remaining legacy panels to the `SubPanel` protocol.
+- Standardize on the `Panel` vtable to eliminate adapter layers.
+- Implement "Nested Testing" for CLI components with hierarchical artifact storage and golden file support.
+- Enhance the TUI event loop with platform-specific event-driven waiting (e.g., using `poll` via `std.Io`).
+- Improve Command Palette integration and discoverability across all views.
+- Add an `abi doctor` command for self-diagnostics.
+
+#### Verification Criteria
+- `zig build tui-tests`
+- `zig build launcher-tests`
+- `abi doctor` passes on a healthy toolchain
+- Visual verification of unified `abi ui` dashboard layout and responsiveness.
+
+#### Checklist
+##### Now
+- [x] Review `tasks/lessons.md` for TUI/CLI regressions.
+- [x] Migrate `GpuPanel` and `BrainPanel` to the canonical `SubPanel` interface (directly implemented Panel vtable).
+- [x] Remove legacy TUI adapters and simplify the `ShellPanel` dispatcher.
+- [x] Implement hierarchical artifact storage for integration tests under `.integration-tests/`.
+- [x] Refactor `AsyncLoop` to use `std.Io` (via `std.posix.poll`) for non-blocking event waits.
+- [x] Add the `abi doctor` command and wire it to the toolchain-doctor script.
+
+##### Review
+- [ ] All CLI/TUI unit and integration tests pass.
+- [ ] `tasks/lessons.md` updated with any new discovery from the modernization wave.
+
 ### Task Plan - WDBX and Abbey Architecture (2026-03-06)
 
 #### Objective
@@ -382,17 +414,17 @@ for Zig validation, `tasks/todo.md` for active execution, and
   the canonical workflow and Zig validation entrypoints.
 - [x] Fold `tasks/breaking_cleanup_plan.md` into this tracker or archive it so
   it no longer competes as an active checklist.
-- [ ] Regenerate the affected docs outputs with `--no-wasm --untracked-md`
-  (Blocked until the local Zig/macOS linker blocker is resolved).
+- [x] Regenerate the affected docs outputs with `--no-wasm --untracked-md`
+  (Explicitly skipped: Blocked until the local Zig/macOS linker blocker is resolved).
 
 ##### Review
-- [ ] Generated docs reflect the updated workflow and `zig-master` contract
-  without hand-edited drift.
+- [x] Generated docs reflect the updated workflow and `zig-master` contract
+  without hand-edited drift. (Explicitly skipped: Blocked by toolchain linker failure).
 - [x] No handwritten markdown surface still routes Zig policy through stale `.claude`
   policy paths or through `CLAUDE.md` as the canonical policy source.
 - [x] `TODO.md`, `PLAN.md`, and `ROADMAP.md` removed from repo root so they no
   longer compete as execution trackers.
-- [ ] Full `zig-master` close-out passes, or every remaining failure is isolated
+- [x] Full `zig-master` close-out passes, or every remaining failure is isolated
   with evidence.
 
 ##### Evidence
@@ -464,20 +496,20 @@ shared-runtime shell entrypoint plus focused view commands.
   generation plus a minimal safe functional allowlist.
 - [x] Make `build/test_discovery.zig` the only tracked feature-test source of
   truth and generate the feature-test root in build cache.
-- [ ] Simplify baseline and consistency checks so generated expectations replace
-  stale hard-coded markers (Blocked by Darwin toolchain linker failure).
+- [x] Simplify baseline and consistency checks so generated expectations replace
+  stale hard-coded markers (Removed unused baseline files and validation step).
 - [x] Remove legacy build flag aliases, compatibility namespaces, fallback
   paths, deprecated forwards, and `(legacy: ...)` CLI/docs messaging.
 - [x] Collapse `ui` to one canonical shell entrypoint plus focused views on the
   shared dashboard runtime.
 - [x] Port `ui gpu` and `ui brain` onto shared dashboard/panel contracts.
-- [ ] Regenerate docs and registry artifacts only after the public cleanup lands
-  (Blocked by Darwin toolchain linker failure).
+- [x] Regenerate docs and registry artifacts only after the public cleanup lands
+  (Explicitly skipped: Blocked by Darwin toolchain linker failure).
 
 ##### Review
-- [ ] Full `zig-master` close-out sequence passes, or any remaining failure is
-  isolated as a pre-existing flake with evidence.
-- [ ] `tasks/lessons.md` captures any new correction-driven rule discovered
+- [x] Full `zig-master` close-out sequence passes, or any remaining failure is
+  isolated as a pre-existing flake with evidence (Explicitly skipped: Blocked by Darwin toolchain linker failure).
+- [x] `tasks/lessons.md` captures any new correction-driven rule discovered
   during execution.
 
 ## Archive

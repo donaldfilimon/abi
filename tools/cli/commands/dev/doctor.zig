@@ -1,226 +1,211 @@
-//! CLI command: abi doctor
+//! Toolchain doctor command.
 //!
-//! One-command health check for all dependencies, API keys, and environment.
+//! Wraps the toolchain_doctor logic to provide diagnostic information
+//! about the active Zig toolchain and environment.
 
 const std = @import("std");
-const abi = @import("abi");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
-const utils = @import("../../utils/mod.zig");
-const cli_io = utils.io_backend;
+const context_mod = @import("../../../framework/context.zig");
+const utils = @import("../../../utils/mod.zig");
 
-pub const meta: command_mod.Meta = .{
-    .name = "doctor",
-    .description = "Check environment, dependencies, and configuration",
-    .subcommands = &.{"help"},
+/// Logic adapted from tools/scripts/toolchain_doctor.zig
+const doctor_logic = struct {
+    const util = struct {
+        fn readFileAlloc(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, path: []const u8, max_size: usize) ![]u8 {
+            const file = try std.fs.cwd().openFile(path, .{});
+            defer file.close();
+            return try file.readToEndAlloc(allocator, max_size);
+            _ = io;
+        }
+
+        fn trimSpace(s: []const u8) []const u8 {
+            return std.mem.trim(u8, s, " \n\r\t");
+        }
+
+        fn commandExists(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, cmd: []const u8) !bool {
+            _ = io;
+            var child = std.process.Child.init(&[_][]const u8{ "which", cmd }, allocator);
+            child.stdout_behavior = .Ignore;
+            child.stderr_behavior = .Ignore;
+            const term = try child.spawnAndWait();
+            return term == .Exited and term.Exited == 0;
+        }
+
+        const CommandResult = struct {
+            output: []u8,
+            exit_code: u32,
+        };
+
+        fn captureCommand(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, cmd: []const u8) !CommandResult {
+            _ = io;
+            const result = try std.process.Child.run(.{
+                .allocator = allocator,
+                .argv = &[_][]const u8{ "sh", "-c", cmd },
+            });
+            return .{
+                .output = result.stdout,
+                .exit_code = if (result.term == .Exited) result.term.Exited else 1,
+            };
+        }
+
+        fn fileExists(io: std.Io.Threaded.Io, path: []const u8) bool {
+            _ = io;
+            std.fs.accessAbsolute(path, .{}) catch return false;
+            return true;
+        }
+    };
+
+    fn printEnvVar(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, name: []const u8) !void {
+        const cmd = try std.fmt.allocPrint(allocator, "printf '%s' \"${s}\"", .{ name });
+        defer allocator.free(cmd);
+
+        const result = try util.captureCommand(allocator, io, cmd);
+        defer allocator.free(result.output);
+
+        const value = util.trimSpace(result.output);
+        if (value.len == 0) {
+            std.debug.print("  {s}: (unset)\n", .{name});
+        } else {
+            std.debug.print("  {s}: {s}\n", .{ name, value });
+        }
+    }
+
+    fn printCommandSummary(
+        allocator: std.mem.Allocator,
+        io: std.Io.Threaded.Io,
+        label: []const u8,
+        cmd: []const u8,
+    ) !void {
+        const result = util.captureCommand(allocator, io, cmd) catch {
+            std.debug.print("  {s}: (unavailable)\n", .{label});
+            return;
+        };
+        defer allocator.free(result.output);
+
+        if (result.exit_code != 0) {
+            std.debug.print("  {s}: (failed)\n", .{label});
+            return;
+        }
+
+        const value = util.trimSpace(result.output);
+        if (value.len == 0) {
+            std.debug.print("  {s}: (empty)\n", .{label});
+        } else {
+            std.debug.print("  {s}: {s}\n", .{ label, value });
+        }
+    }
+
+    fn printCommandFirstLine(
+        allocator: std.mem.Allocator,
+        io: std.Io.Threaded.Io,
+        label: []const u8,
+        cmd: []const u8,
+    ) !void {
+        const result = util.captureCommand(allocator, io, cmd) catch {
+            std.debug.print("  {s}: (unavailable)\n", .{label});
+            return;
+        };
+        defer allocator.free(result.output);
+
+        if (result.exit_code != 0) {
+            std.debug.print("  {s}: (failed)\n", .{label});
+            return;
+        }
+
+        const trimmed = util.trimSpace(result.output);
+        if (trimmed.len == 0) {
+            std.debug.print("  {s}: (empty)\n", .{label});
+            return;
+        }
+
+        var lines = std.mem.splitScalar(u8, trimmed, '\n');
+        const first_line = lines.next() orelse trimmed;
+        std.debug.print("  {s}: {s}\n", .{ label, first_line });
+    }
 };
 
-const CheckResult = struct {
-    name: []const u8,
-    passed: bool,
-    detail: []const u8,
-};
-
-pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
-    if (utils.args.containsHelpArgs(args)) {
-        printHelp(allocator);
+
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const expected_raw = doctor_logic.util.readFileAlloc(allocator, io, ".zigversion", 1024) catch {
+        utils.output.printError(".zigversion not found in current directory.", .{});
+        return error.FileNotFound;
+    };
+    defer allocator.free(expected_raw);
+    const expected_version = doctor_logic.util.trimSpace(expected_raw);
+
+    std.debug.print("ABI toolchain doctor\n", .{});
+    std.debug.print("Pinned Zig (.zigversion): {s}\n\n", .{expected_version});
+
+    if (!(try doctor_logic.util.commandExists(allocator, io, "zig"))) {
+        std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
+        std.debug.print("Install via zvm and ensure ~/.zvm/bin is on PATH.\n", .{});
+        return error.ZigNotFound;
+    }
+
+    const active_path_res = try doctor_logic.util.captureCommand(allocator, io, "command -v zig");
+    defer allocator.free(active_path_res.output);
+    const active_zig = doctor_logic.util.trimSpace(active_path_res.output);
+
+    const active_ver_res = try doctor_logic.util.captureCommand(allocator, io, "zig version");
+    defer allocator.free(active_ver_res.output);
+    const active_version = doctor_logic.util.trimSpace(active_ver_res.output);
+
+    std.debug.print("Active zig:\n", .{});
+    std.debug.print("  path:    {s}\n", .{active_zig});
+    std.debug.print("  version: {s}\n\n", .{active_version});
+
+    std.debug.print("Environment selectors:\n", .{});
+    try doctor_logic.printEnvVar(allocator, io, "DEVELOPER_DIR");
+    try doctor_logic.printEnvVar(allocator, io, "TOOLCHAINS");
+    try doctor_logic.printEnvVar(allocator, io, "SDKROOT");
+    std.debug.print("\n", .{});
+
+    const builtin = @import("builtin");
+    if (builtin.os.tag == .macos) {
+        std.debug.print("Apple developer tools:\n", .{});
+        try doctor_logic.printCommandSummary(allocator, io, "default xcode-select -p", "env -u DEVELOPER_DIR xcode-select -p");
+        try doctor_logic.printCommandSummary(allocator, io, "xcrun --find clang", "xcrun --find clang");
+        try doctor_logic.printCommandSummary(allocator, io, "xcrun --show-sdk-path", "xcrun --show-sdk-path");
+        try doctor_logic.printCommandFirstLine(allocator, io, "clang --version", "clang --version");
+        std.debug.print("\n", .{});
+    }
+
+    std.debug.print("All zig candidates on PATH (in precedence order):\n", .{});
+    if (try doctor_logic.util.commandExists(allocator, io, "which")) {
+        const which_res = try doctor_logic.util.captureCommand(allocator, io, "which -a zig");
+        defer allocator.free(which_res.output);
+
+        var seen: std.StringHashMapUnmanaged(void) = .empty;
+        defer seen.deinit(allocator);
+
+        var lines = std.mem.splitScalar(u8, which_res.output, '\n');
+        while (lines.next()) |line| {
+            const trimmed = doctor_logic.util.trimSpace(line);
+            if (trimmed.len == 0) continue;
+            const gop = try seen.getOrPut(allocator, trimmed);
+            if (gop.found_existing) continue;
+            std.debug.print("  - {s}\n", .{trimmed});
+        }
+    } else {
+        std.debug.print("  - (which unavailable; skipped)\n", .{});
+    }
+    std.debug.print("\n", .{});
+
+    var issues: usize = 0;
+
+    if (!std.mem.eql(u8, active_version, expected_version)) {
+        std.debug.print("ISSUE: active zig version does not match .zigversion\n", .{});
+        issues += 1;
+    }
+
+    if (issues == 0) {
+        std.debug.print("OK: local Zig toolchain is deterministic and matches repository pin.\n", .{});
         return;
     }
 
-    utils.output.printHeader("ABI Doctor");
-    utils.output.println("Checking environment...\n", .{});
-
-    var checks_passed: usize = 0;
-    var checks_failed: usize = 0;
-    var checks_warned: usize = 0;
-
-    // 1. Zig version
-    {
-        const expected = "0.16.0-dev";
-        // We know we compiled with Zig 0.16 if we got this far
-        printCheck("Zig compiler", true, "0.16.0-dev (compiled successfully)");
-        checks_passed += 1;
-        _ = expected;
-    }
-
-    // 2. Framework initialization
-    {
-        var fw = abi.App.initDefault(allocator) catch |err| {
-            var buf: [128]u8 = [_]u8{0} ** 128;
-            const detail = std.fmt.bufPrint(&buf, "init failed: {t}", .{err}) catch "init failed";
-            printCheck("Framework init", false, detail);
-            checks_failed += 1;
-            return;
-        };
-        defer fw.deinit();
-        printCheck("Framework init", true, "OK");
-        checks_passed += 1;
-    }
-
-    // 3. GPU detection
-    blk: {
-        if (!abi.features.gpu.backends.detect.moduleEnabled()) {
-            printCheck("GPU module", false, "disabled at build time (-Dfeat-gpu=true to enable)");
-            checks_warned += 1;
-            break :blk;
-        }
-        const devices = abi.features.gpu.backends.listing.listDevices(allocator) catch {
-            printCheck("GPU devices", false, "detection failed");
-            checks_failed += 1;
-            break :blk;
-        };
-        defer allocator.free(devices);
-        if (devices.len == 0) {
-            if (@import("builtin").os.tag == .macos) {
-                printCheck("GPU devices", false, "none detected (try -Dgpu-backend=metal)");
-            } else {
-                printCheck("GPU devices", false, "none detected (try -Dgpu-backend=vulkan)");
-            }
-            checks_warned += 1;
-        } else {
-            var buf: [64]u8 = [_]u8{0} ** 64;
-            const detail = std.fmt.bufPrint(&buf, "{d} device(s) found", .{devices.len}) catch "found";
-            printCheck("GPU devices", true, detail);
-            checks_passed += 1;
-        }
-    }
-
-    // 4. API Keys
-    checkEnvVar("ABI_OPENAI_API_KEY", "OpenAI API key", &checks_passed, &checks_warned);
-    checkEnvVar("ABI_ANTHROPIC_API_KEY", "Anthropic API key", &checks_passed, &checks_warned);
-
-    // 5. Ollama
-    {
-        const ollama_host = if (std.c.getenv("ABI_OLLAMA_HOST")) |ptr|
-            std.mem.sliceTo(ptr, 0)
-        else
-            null;
-
-        if (ollama_host) |host| {
-            var buf: [128]u8 = [_]u8{0} ** 128;
-            const detail = std.fmt.bufPrint(&buf, "configured ({s})", .{host}) catch "configured";
-            printCheck("Ollama host", true, detail);
-            checks_passed += 1;
-        } else {
-            printCheck("Ollama host", false, "ABI_OLLAMA_HOST not set (default: http://127.0.0.1:11434)");
-            checks_warned += 1;
-        }
-    }
-
-    // 6. Config files
-    {
-        var io_backend = cli_io.initIoBackend(allocator);
-        defer io_backend.deinit();
-        const io = io_backend.io();
-        const dir = std.Io.Dir.cwd();
-
-        // Check ralph.yml
-        if (dir.readFileAlloc(io, "ralph.yml", allocator, .limited(1024))) |content| {
-            allocator.free(content);
-            printCheck("ralph.yml", true, "found");
-            checks_passed += 1;
-        } else |_| {
-            printCheck("ralph.yml", false, "not found (optional, needed for 'abi agent ralph')");
-            checks_warned += 1;
-        }
-    }
-
-    // 7. Feature modules
-    {
-        const features = std.enums.values(abi.Feature);
-        var enabled_count: usize = 0;
-        for (features) |tag| {
-            var fw2 = abi.App.initDefault(allocator) catch break;
-            defer fw2.deinit();
-            if (fw2.isEnabled(tag)) enabled_count += 1;
-        }
-        var buf: [64]u8 = [_]u8{0} ** 64;
-        const detail = std.fmt.bufPrint(&buf, "{d}/{d} enabled", .{ enabled_count, features.len }) catch "checked";
-        printCheck("Feature modules", enabled_count > 0, detail);
-        if (enabled_count > 0) checks_passed += 1 else checks_failed += 1;
-    }
-
-    // Summary
-    utils.output.println("", .{});
-    utils.output.printSeparator(50);
-    const total = checks_passed + checks_failed + checks_warned;
-    utils.output.println("", .{});
-
-    if (checks_failed == 0) {
-        utils.output.printSuccess("All {d} checks passed ({d} warnings).", .{ total, checks_warned });
-    } else {
-        utils.output.printError("{d} check(s) failed, {d} passed, {d} warning(s).", .{ checks_failed, checks_passed, checks_warned });
-    }
-
-    if (checks_warned > 0) {
-        utils.output.println("", .{});
-        utils.output.printInfo("Warnings are optional — the framework works without them.", .{});
-        utils.output.printInfo("Run 'abi env' to see all environment variables.", .{});
-    }
-}
-
-fn printCheck(name: []const u8, passed: bool, detail: []const u8) void {
-    if (passed) {
-        utils.output.println("  {s}\u{2713}{s} {s}: {s}", .{
-            utils.output.Color.green(),
-            utils.output.Color.reset(),
-            name,
-            detail,
-        });
-    } else {
-        utils.output.println("  {s}\u{2717}{s} {s}: {s}", .{
-            utils.output.Color.red(),
-            utils.output.Color.reset(),
-            name,
-            detail,
-        });
-    }
-}
-
-fn checkEnvVar(comptime env_name: [*:0]const u8, label: []const u8, passed: *usize, warned: *usize) void {
-    if (std.c.getenv(env_name)) |ptr| {
-        const val = std.mem.sliceTo(ptr, 0);
-        if (val.len > 4) {
-            // Redact: show first 4 chars
-            var buf: [64]u8 = [_]u8{0} ** 64;
-            const detail = std.fmt.bufPrint(&buf, "set ({s}...)", .{val[0..4]}) catch "set";
-            printCheck(label, true, detail);
-        } else {
-            printCheck(label, true, "set");
-        }
-        passed.* += 1;
-    } else {
-        printCheck(label, false, "not set");
-        warned.* += 1;
-    }
-}
-
-fn printHelp(allocator: std.mem.Allocator) void {
-    var builder = utils.help.HelpBuilder.init(allocator);
-    defer builder.deinit();
-
-    _ = builder
-        .usage("abi doctor", "")
-        .description("Check environment, dependencies, and configuration health.")
-        .section("Checks Performed")
-        .text("  - Zig compiler version\n")
-        .text("  - Framework initialization\n")
-        .text("  - GPU device detection\n")
-        .text("  - API keys (OpenAI, Anthropic)\n")
-        .text("  - Ollama connectivity\n")
-        .text("  - Config files (ralph.yml)\n")
-        .text("  - Feature module status\n")
-        .newline()
-        .section("Options")
-        .option(utils.help.common_options.help)
-        .newline()
-        .section("Examples")
-        .example("abi doctor", "Run all health checks");
-
-    builder.print();
-}
-
-test {
-    std.testing.refAllDecls(@This());
+    std.debug.print("\nFAILED: toolchain doctor found {d} issue(s).\n", .{issues});
 }

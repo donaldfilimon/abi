@@ -620,6 +620,34 @@ pub const GpuMonitor = struct {
         // Delegate to terminal.moveTo (0-indexed), converting from 1-indexed.
         try self.term.moveTo(row -| 1, col -| 1);
     }
+
+    // -- Panel vtable methods --
+
+    pub fn renderPanel(self: *GpuMonitor, term: *terminal.Terminal, rect: layout.Rect, theme: *const themes.Theme) anyerror!void {
+        self.theme = theme;
+        self.term = term;
+        try self.render(rect.y, rect.x, rect.width, rect.height);
+    }
+
+    pub fn tick(self: *GpuMonitor) anyerror!void {
+        try self.update();
+    }
+
+    pub fn handleEvent(_: *GpuMonitor, _: @import("events.zig").Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *GpuMonitor) []const u8 {
+        return "GPU";
+    }
+
+    pub fn shortcutHint(_: *GpuMonitor) []const u8 {
+        return "1";
+    }
+
+    pub fn panel(self: *GpuMonitor) @import("panel.zig").Panel {
+        return @import("panel.zig").Panel.from(GpuMonitor, self);
+    }
 };
 
 // ===============================================================================

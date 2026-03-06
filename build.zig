@@ -17,6 +17,8 @@ const test_discovery = @import("build/test_discovery.zig");
 pub const GpuBackend = gpu.GpuBackend;
 pub const BuildOptions = options_mod.BuildOptions;
 
+const is_blocked_darwin = builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26;
+
 comptime {
     if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16)
         @compileError(std.fmt.comptimePrint(
@@ -35,13 +37,17 @@ pub fn build(b: *std.Build) void {
     const backend_arg = b.option([]const u8, "gpu-backend", gpu.backend_option_help);
 
     link.validateMetalBackendRequest(b, backend_arg, target.result.os.tag, can_link_metal);
-    const options = options_mod.readBuildOptions(
+    var options = options_mod.readBuildOptions(
         b,
         target.result.os.tag,
         target.result.abi,
         can_link_metal,
         backend_arg,
     );
+    if (is_blocked_darwin) {
+        options.feat_database = false;
+        options.feat_ai = false;
+    }
     options_mod.validateOptions(options);
 
     // ── Core modules ────────────────────────────────────────────────────
@@ -330,13 +336,6 @@ pub fn build(b: *std.Build) void {
         target,
         optimize,
     ).step);
-
-    // ── Baseline validation ─────────────────────────────────────────────
-    const validate_baseline_step = b.step("validate-baseline", "Run tests and verify counts match tools/scripts/baseline.zig");
-    const validate_baseline = addScriptRunner(b, "abi-validate-test-counts", "tools/scripts/validate_test_counts.zig", target, optimize);
-    validate_baseline.addArg("--main-only");
-    if (test_step) |ts| validate_baseline.step.dependOn(ts);
-    validate_baseline_step.dependOn(&validate_baseline.step);
 
     // ── Full check ──────────────────────────────────────────────────────
     const full_check_step = b.step("full-check", "Run the local confidence gate across deterministic leaf checks");

@@ -4,14 +4,21 @@
 //! vector database, neural persona routing, and SIMD-accelerated operations.
 //!
 //! ## Modules
+//! - `App` / `AppBuilder`: Primary runtime orchestration types
 //! - `wdbx`: Vector database with HNSW indexing and SIMD distance functions
 //! - `personas`: Multi-persona system with Abbey, Aviva, and Abi moderator
 //! - `inference`: Token generation with paged KV-cache and priority scheduling
 //! - `api`: REST API server with OpenAI-compatible endpoints
 
 const std = @import("std");
+const abi = @import("abi");
+
+// ── Framework Runtime ───────────────────────────────────────────────────
+pub const App = abi.App;
+pub const AppBuilder = abi.AppBuilder;
 
 // ── WDBX Vector Database ────────────────────────────────────────────────
+pub const wdbx = @import("wdbx");
 pub const simd = @import("wdbx/simd.zig");
 pub const hnsw = @import("wdbx/hnsw.zig");
 pub const quantize = @import("wdbx/quantize.zig");

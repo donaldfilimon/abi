@@ -4,6 +4,7 @@
 //! enabling dynamic updates and real-time metrics display.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const abi = @import("abi");
 const shared_time = abi.services.shared.time;
 const terminal_mod = @import("terminal.zig");
@@ -212,8 +213,23 @@ pub const AsyncLoop = struct {
                 self.updateFps(frame_start);
             }
 
-            // Small sleep to prevent busy-waiting
-            shared_time.sleepMs(1);
+            // Sleep efficiently waiting for input or next refresh tick
+            const now = currentTimeMs();
+            const time_to_next_refresh = @max(0, @as(i64, self.config.refresh_rate_ms) - (now - self.last_refresh_time));
+            const poll_timeout = @min(self.config.input_poll_ms, @as(u32, @intCast(time_to_next_refresh)));
+
+            if (builtin.os.tag != .windows) {
+                var pfds = [_]std.posix.pollfd{
+                    .{
+                        .fd = std.posix.STDIN_FILENO,
+                        .events = std.posix.POLL.IN,
+                        .revents = 0,
+                    },
+                };
+                _ = std.posix.poll(&pfds, @intCast(poll_timeout)) catch 0;
+            } else {
+                shared_time.sleepMs(poll_timeout);
+            }
         }
     }
 

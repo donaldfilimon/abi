@@ -21,17 +21,17 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("ABI toolchain doctor\n", .{});
     std.debug.print("Pinned Zig (.zigversion): {s}\n\n", .{expected_version});
 
-    if (!(try util.commandExists(allocator, "zig"))) {
+    if (!(try util.commandExists(allocator, io, "zig"))) {
         std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
         std.debug.print("Install via zvm and ensure ~/.zvm/bin is on PATH.\n", .{});
         std.process.exit(1);
     }
 
-    const active_path_res = try util.captureCommand(allocator, "command -v zig");
+    const active_path_res = try util.captureCommand(allocator, io, "command -v zig");
     defer allocator.free(active_path_res.output);
     const active_zig = util.trimSpace(active_path_res.output);
 
-    const active_ver_res = try util.captureCommand(allocator, "zig version");
+    const active_ver_res = try util.captureCommand(allocator, io, "zig version");
     defer allocator.free(active_ver_res.output);
     const active_version = util.trimSpace(active_ver_res.output);
 
@@ -40,17 +40,17 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("  version: {s}\n\n", .{active_version});
 
     std.debug.print("Environment selectors:\n", .{});
-    try printEnvVar(allocator, "DEVELOPER_DIR");
-    try printEnvVar(allocator, "TOOLCHAINS");
-    try printEnvVar(allocator, "SDKROOT");
+    try printEnvVar(allocator, io, "DEVELOPER_DIR");
+    try printEnvVar(allocator, io, "TOOLCHAINS");
+    try printEnvVar(allocator, io, "SDKROOT");
     std.debug.print("\n", .{});
 
     if (builtin.os.tag == .macos) {
         std.debug.print("Apple developer tools:\n", .{});
-        try printCommandSummary(allocator, "default xcode-select -p", "env -u DEVELOPER_DIR xcode-select -p");
-        try printCommandSummary(allocator, "xcrun --find clang", "xcrun --find clang");
-        try printCommandSummary(allocator, "xcrun --show-sdk-path", "xcrun --show-sdk-path");
-        try printCommandFirstLine(allocator, "clang --version", "clang --version");
+        try printCommandSummary(allocator, io, "default xcode-select -p", "env -u DEVELOPER_DIR xcode-select -p");
+        try printCommandSummary(allocator, io, "xcrun --find clang", "xcrun --find clang");
+        try printCommandSummary(allocator, io, "xcrun --show-sdk-path", "xcrun --show-sdk-path");
+        try printCommandFirstLine(allocator, io, "clang --version", "clang --version");
         std.debug.print(
             "  hint: ABI's known-good override on this host is DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer\n",
             .{},
@@ -59,8 +59,8 @@ pub fn main(_: std.process.Init) !void {
     }
 
     std.debug.print("All zig candidates on PATH (in precedence order):\n", .{});
-    if (try util.commandExists(allocator, "which")) {
-        const which_res = try util.captureCommand(allocator, "which -a zig");
+    if (try util.commandExists(allocator, io, "which")) {
+        const which_res = try util.captureCommand(allocator, io, "which -a zig");
         defer allocator.free(which_res.output);
 
         var seen: std.StringHashMapUnmanaged(void) = .empty;
@@ -86,7 +86,7 @@ pub fn main(_: std.process.Init) !void {
         issues += 1;
     }
 
-    const home_res = try util.captureCommand(allocator, "printf '%s' \"$HOME\"");
+    const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
     defer allocator.free(home_res.output);
     const home = util.trimSpace(home_res.output);
 
@@ -104,7 +104,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     std.debug.print("\nSuggested fix:\n", .{});
-    if (try util.commandExists(allocator, "zvm")) {
+    if (try util.commandExists(allocator, io, "zvm")) {
         std.debug.print("  1) zvm upgrade\n", .{});
         std.debug.print("  2) zvm install \"{s}\"\n", .{expected_version});
         std.debug.print("  3) zvm use \"{s}\"\n", .{expected_version});
@@ -122,11 +122,11 @@ pub fn main(_: std.process.Init) !void {
     std.process.exit(1);
 }
 
-fn printEnvVar(allocator: std.mem.Allocator, name: []const u8) !void {
+fn printEnvVar(allocator: std.mem.Allocator, io: std.Io, name: []const u8) !void {
     const cmd = try std.fmt.allocPrint(allocator, "printf '%s' \"${s}\"", .{name});
     defer allocator.free(cmd);
 
-    const result = try util.captureCommand(allocator, cmd);
+    const result = try util.captureCommand(allocator, io, cmd);
     defer allocator.free(result.output);
 
     const value = util.trimSpace(result.output);
@@ -139,10 +139,11 @@ fn printEnvVar(allocator: std.mem.Allocator, name: []const u8) !void {
 
 fn printCommandSummary(
     allocator: std.mem.Allocator,
+    io: std.Io,
     label: []const u8,
     cmd: []const u8,
 ) !void {
-    const result = util.captureCommand(allocator, cmd) catch {
+    const result = util.captureCommand(allocator, io, cmd) catch {
         std.debug.print("  {s}: (unavailable)\n", .{label});
         return;
     };
@@ -163,10 +164,11 @@ fn printCommandSummary(
 
 fn printCommandFirstLine(
     allocator: std.mem.Allocator,
+    io: std.Io,
     label: []const u8,
     cmd: []const u8,
 ) !void {
-    const result = util.captureCommand(allocator, cmd) catch {
+    const result = util.captureCommand(allocator, io, cmd) catch {
         std.debug.print("  {s}: (unavailable)\n", .{label});
         return;
     };

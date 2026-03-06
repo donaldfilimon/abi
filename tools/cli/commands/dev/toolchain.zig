@@ -16,17 +16,12 @@ const command_mod = @import("../../command.zig");
 const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
-// libc import for environment and process access - required for Zig 0.16
-const c = @cImport({
-    @cInclude("stdlib.h");
-    @cInclude("stdio.h");
-});
 
 pub const meta: command_mod.Meta = .{
     .name = "toolchain",
-    .description = "Build and install Zig/ZLS from master (install, update, status)",
+    .description = "Build and install Zig/ZLS from master (install, update, status, bootstrap)",
     .kind = .group,
-    .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" },
+    .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "bootstrap", "help" },
     .children = &.{
         .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = command_mod.parserHandler(runInstallBoth) },
         .{ .name = "zig", .description = "Install only Zig from master", .handler = command_mod.parserHandler(runInstallZig) },
@@ -34,6 +29,7 @@ pub const meta: command_mod.Meta = .{
         .{ .name = "status", .description = "Show installed versions", .handler = command_mod.parserHandler(runStatusSubcommand) },
         .{ .name = "update", .description = "Update to latest master", .handler = command_mod.parserHandler(runUpdateSubcommand) },
         .{ .name = "path", .description = "Print install directory for shell config", .handler = command_mod.parserHandler(runPathSubcommand) },
+        .{ .name = "bootstrap", .description = "Bootstrap Zig from C/C++ source (zig-bootstrap)", .handler = command_mod.parserHandler(runBootstrapSubcommand) },
     },
 };
 
@@ -54,11 +50,15 @@ const zig_repo = "https://github.com/ziglang/zig.git";
 /// ZLS repository URL
 const zls_repo = "https://github.com/zigtools/zls.git";
 
+/// Zig-bootstrap repository URL
+const zig_bootstrap_repo = "https://github.com/ziglang/zig-bootstrap.git";
+
 const master_branch = "master";
 const install_src_dir_name = "src";
 const install_bin_dir_name = "bin";
 const zig_src_dir_name = "zig";
 const zls_src_dir_name = "zls";
+const zig_bootstrap_src_dir_name = "zig-bootstrap";
 
 /// Run the toolchain command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
@@ -104,6 +104,34 @@ fn runPathSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     try runPath(allocator, parser);
 }
 
+fn runBootstrapSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+
+    const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
+    const clean = parser.consumeFlag(&[_][]const u8{ "--clean", "-c" });
+    const mcpu = parser.consumeOption(&[_][]const u8{ "--mcpu", "-m" }) orelse "native";
+
+    const base_dir = try getInstallDir(allocator, install_dir);
+    defer allocator.free(base_dir);
+
+    output.printHeader("Zig Toolchain Bootstrapper");
+    output.printKeyValue("Install directory", base_dir);
+    output.printKeyValue("MCPU", mcpu);
+
+    // Create directories
+    try ensureDir(allocator, base_dir);
+
+    try installZigBootstrap(allocator, base_dir, mcpu, clean);
+
+    output.println("", .{});
+    output.printSuccess("Bootstrap complete!", .{});
+    output.println("", .{});
+    printPathInstructions(base_dir);
+}
+
 const InstallTarget = enum { both, zig_only, zls_only };
 
 fn runInstall(allocator: std.mem.Allocator, parser: *ArgParser, target: InstallTarget) !void {
@@ -145,6 +173,97 @@ fn runInstall(allocator: std.mem.Allocator, parser: *ArgParser, target: InstallT
     output.printSuccess("Installation complete!", .{});
     output.println("", .{});
     printPathInstructions(base_dir);
+}
+
+fn installZigBootstrap(allocator: std.mem.Allocator, base_dir: []const u8, mcpu: []const u8, clean: bool) !void {
+    output.printHeader("Bootstrapping Zig from C/C++ source");
+
+    const src_dir = try std.fs.path.join(allocator, &.{ base_dir, install_src_dir_name, zig_bootstrap_src_dir_name });
+    defer allocator.free(src_dir);
+
+    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, install_bin_dir_name });
+    defer allocator.free(bin_dir);
+
+    try ensureDir(allocator, bin_dir);
+
+    // Clone or update repository
+    if (try dirExists(allocator, src_dir)) {
+        if (clean) {
+            output.printInfo("Cleaning existing zig-bootstrap source...", .{});
+            try runShellCommand(allocator, &.{ "rm", "-rf", src_dir });
+            try cloneRepo(allocator, zig_bootstrap_repo, src_dir);
+        } else {
+            output.printInfo("Updating existing zig-bootstrap source...", .{});
+            try gitPull(allocator, src_dir);
+        }
+    } else {
+        try cloneRepo(allocator, zig_bootstrap_repo, src_dir);
+    }
+
+    // Determine target triple for bootstrap build
+    const target_triple = switch (builtin.os.tag) {
+        .macos => switch (builtin.cpu.arch) {
+            .aarch64 => "aarch64-macos-none",
+            .x86_64 => "x86_64-macos-none",
+            else => return error.UnsupportedArchitecture,
+        },
+        .linux => switch (builtin.cpu.arch) {
+            .aarch64 => "aarch64-linux-gnu",
+            .x86_64 => "x86_64-linux-gnu",
+            else => return error.UnsupportedArchitecture,
+        },
+        .windows => switch (builtin.cpu.arch) {
+            .x86_64 => "x86_64-windows-msvc",
+            else => return error.UnsupportedArchitecture,
+        },
+        else => return error.UnsupportedOperatingSystem,
+    };
+
+    output.printInfo("Building zig-bootstrap (this will take a VERY long time)...", .{});
+    output.printKeyValue("Target", target_triple);
+
+    // Run the bootstrap build script
+    // ./build <target> <mcpu>
+    if (builtin.os.tag == .windows) {
+        // Windows might need different script, but zig-bootstrap usually uses bash/python
+        output.printWarning("Bootstrap might fail on Windows without a POSIX shell", .{});
+        try runShellCommandInDir(allocator, src_dir, &.{ "python", "build.py", target_triple, mcpu });
+    } else {
+        try runShellCommandInDir(allocator, src_dir, &.{ "./build", target_triple, mcpu });
+    }
+
+    // After bootstrap, zig-bootstrap creates an 'out' directory with the toolchain
+    const bootstrap_out_bin = try std.fs.path.join(allocator, &.{ src_dir, "out", "bin", zigBinaryName() });
+    defer allocator.free(bootstrap_out_bin);
+
+    if (try fileExists(allocator, bootstrap_out_bin)) {
+        output.printInfo("Copying bootstrapped Zig to bin directory...", .{});
+        // Copy entire out/bin to base_dir/bin
+        const bootstrap_out_dir = try std.fs.path.join(allocator, &.{ src_dir, "out" });
+        defer allocator.free(bootstrap_out_dir);
+
+        // We want to merge out/ with base_dir/
+        if (builtin.os.tag == .windows) {
+            const copy_cmd = try std.fmt.allocPrint(allocator, "xcopy /E /I /Y \"{s}\" \"{s}\"", .{ bootstrap_out_dir, base_dir });
+            defer allocator.free(copy_cmd);
+            try runShellCommand(allocator, &.{ "cmd", "/c", copy_cmd });
+        } else {
+            const copy_cmd = try std.fmt.allocPrint(allocator, "cp -R \"{s}\"/* \"{s}/\"", .{ bootstrap_out_dir, base_dir });
+            defer allocator.free(copy_cmd);
+            try runShellCommand(allocator, &.{ "sh", "-c", copy_cmd });
+        }
+
+        output.printSuccess("Zig bootstrapped successfully", .{});
+        // Get version
+        const zig_bin = try std.fs.path.join(allocator, &.{ bin_dir, zigBinaryName() });
+        defer allocator.free(zig_bin);
+        const version = try getCommandOutput(allocator, &.{ zig_bin, "version" });
+        defer allocator.free(version);
+        output.printKeyValue("Version", version);
+    } else {
+        output.printError("Bootstrapped Zig binary not found at {s}", .{bootstrap_out_bin});
+        return error.BootstrapFailed;
+    }
 }
 
 fn installZig(allocator: std.mem.Allocator, base_dir: []const u8, jobs: u32, clean: bool) !void {
@@ -270,18 +389,10 @@ fn installZls(allocator: std.mem.Allocator, base_dir: []const u8, jobs: u32, cle
     const zls_build_bin = try std.fs.path.join(allocator, &.{ src_dir, "zig-out", "bin", zlsBinaryName() });
     defer allocator.free(zls_build_bin);
 
-    if (comptime builtin.os.tag == .windows) {
-        const copy_str = try std.fmt.allocPrint(allocator, "copy \"{s}\" \"{s}\"", .{ zls_build_bin, bin_dir });
-        defer allocator.free(copy_str);
-        const copy_cmd = try allocator.dupeZ(u8, copy_str);
-        defer allocator.free(copy_cmd);
-        _ = c.system(copy_cmd.ptr);
+    if (builtin.os.tag == .windows) {
+        try runShellCommand(allocator, &.{ "cmd", "/c", "copy", zls_build_bin, bin_dir });
     } else {
-        const copy_str = try std.fmt.allocPrint(allocator, "cp \"{s}\" \"{s}/\"", .{ zls_build_bin, bin_dir });
-        defer allocator.free(copy_str);
-        const copy_cmd = try allocator.dupeZ(u8, copy_str);
-        defer allocator.free(copy_cmd);
-        _ = c.system(copy_cmd.ptr);
+        try runShellCommand(allocator, &.{ "cp", zls_build_bin, bin_dir });
     }
 
     // Verify installation
@@ -406,25 +517,12 @@ fn getInstallDir(allocator: std.mem.Allocator, override: ?[]const u8) ![]const u
         return allocator.dupe(u8, dir);
     }
 
-    const home = getEnvOwned(allocator, "HOME") orelse
-        getEnvOwned(allocator, "USERPROFILE") orelse
+    const home = std.process.getEnvVarOwned(allocator, "HOME") catch
+        std.process.getEnvVarOwned(allocator, "USERPROFILE") catch
         return error.HomeNotFound;
     defer allocator.free(home);
 
     return std.fs.path.join(allocator, &.{ home, default_install_dir });
-}
-
-/// Get environment variable (owned memory) - Zig 0.16 compatible.
-fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) ?[]u8 {
-    const name_z = allocator.dupeZ(u8, name) catch return null;
-    defer allocator.free(name_z);
-
-    const value_ptr = c.getenv(name_z.ptr);
-    if (value_ptr) |ptr| {
-        const value = std.mem.span(ptr);
-        return allocator.dupe(u8, value) catch null;
-    }
-    return null;
 }
 
 fn ensureDir(allocator: std.mem.Allocator, path: []const u8) !void {
@@ -476,105 +574,43 @@ fn gitPull(allocator: std.mem.Allocator, dir: []const u8) !void {
 }
 
 fn runShellCommand(allocator: std.mem.Allocator, argv: []const []const u8) !void {
-    // Build command string for system() - Zig 0.16 compatible
-    var cmd_buf = std.ArrayListUnmanaged(u8).empty;
-    defer cmd_buf.deinit(allocator);
-
-    for (argv, 0..) |arg, i| {
-        if (i > 0) try cmd_buf.append(allocator, ' ');
-        // Quote arguments with spaces
-        if (std.mem.indexOf(u8, arg, " ") != null) {
-            try cmd_buf.append(allocator, '"');
-            try cmd_buf.appendSlice(allocator, arg);
-            try cmd_buf.append(allocator, '"');
-        } else {
-            try cmd_buf.appendSlice(allocator, arg);
-        }
+    var child = std.process.Child.init(argv, allocator);
+    const term = try child.spawnAndWait();
+    switch (term) {
+        .Exited => |code| if (code != 0) return error.CommandFailed,
+        else => return error.CommandFailed,
     }
-    try cmd_buf.append(allocator, 0);
-
-    const ret = c.system(@ptrCast(cmd_buf.items.ptr));
-    if (ret != 0) return error.CommandFailed;
 }
 
 fn runShellCommandInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []const u8) !void {
-    // Build command with cd prefix - Zig 0.16 compatible
-    var cmd_buf = std.ArrayListUnmanaged(u8).empty;
-    defer cmd_buf.deinit(allocator);
-
-    if (builtin.os.tag == .windows) {
-        try cmd_buf.appendSlice(allocator, "cd /d \"");
-    } else {
-        try cmd_buf.appendSlice(allocator, "cd \"");
+    var child = std.process.Child.init(argv, allocator);
+    child.cwd = dir;
+    const term = try child.spawnAndWait();
+    switch (term) {
+        .Exited => |code| if (code != 0) return error.CommandFailed,
+        else => return error.CommandFailed,
     }
-    try cmd_buf.appendSlice(allocator, dir);
-    try cmd_buf.appendSlice(allocator, "\" && ");
-
-    for (argv, 0..) |arg, i| {
-        if (i > 0) try cmd_buf.append(allocator, ' ');
-        if (std.mem.indexOf(u8, arg, " ") != null) {
-            try cmd_buf.append(allocator, '"');
-            try cmd_buf.appendSlice(allocator, arg);
-            try cmd_buf.append(allocator, '"');
-        } else {
-            try cmd_buf.appendSlice(allocator, arg);
-        }
-    }
-    try cmd_buf.append(allocator, 0);
-
-    const ret = c.system(@ptrCast(cmd_buf.items.ptr));
-    if (ret != 0) return error.CommandFailed;
 }
 
 fn getCommandOutput(allocator: std.mem.Allocator, argv: []const []const u8) ![]const u8 {
-    // For version checks, use popen - Zig 0.16 compatible
-    var cmd_buf = std.ArrayListUnmanaged(u8).empty;
-    defer cmd_buf.deinit(allocator);
+    var child = std.process.Child.init(argv, allocator);
+    child.stdout_behavior = .Pipe;
+    child.stderr_behavior = .Ignore;
 
-    for (argv, 0..) |arg, i| {
-        if (i > 0) try cmd_buf.append(allocator, ' ');
-        if (std.mem.indexOf(u8, arg, " ") != null) {
-            try cmd_buf.append(allocator, '"');
-            try cmd_buf.appendSlice(allocator, arg);
-            try cmd_buf.append(allocator, '"');
-        } else {
-            try cmd_buf.appendSlice(allocator, arg);
-        }
-    }
-    try cmd_buf.append(allocator, 0);
+    try child.spawn();
 
-    // Windows uses _popen/_pclose, POSIX uses popen/pclose
-    const pipe = if (comptime builtin.os.tag == .windows)
-        c._popen(@ptrCast(cmd_buf.items.ptr), "r")
-    else
-        c.popen(@ptrCast(cmd_buf.items.ptr), "r");
+    const max_output_size = 1024 * 1024; // 1MB
+    const stdout = try child.stdout.?.readToEndAlloc(allocator, max_output_size);
+    errdefer allocator.free(stdout);
 
-    if (pipe == null) return error.CommandFailed;
-    defer _ = if (comptime builtin.os.tag == .windows) c._pclose(pipe) else c.pclose(pipe);
-
-    var result = std.ArrayListUnmanaged(u8).empty;
-    errdefer result.deinit(allocator);
-
-    var buf: [256]u8 = undefined;
-    while (true) {
-        const ptr = c.fgets(&buf, @intCast(buf.len), pipe);
-        if (ptr == null) break;
-        const len = std.mem.indexOf(u8, &buf, &[_]u8{0}) orelse buf.len;
-        try result.appendSlice(allocator, buf[0..len]);
+    const term = try child.wait();
+    switch (term) {
+        .Exited => |code| if (code != 0) return error.CommandFailed,
+        else => return error.CommandFailed,
     }
 
     // Trim trailing newlines manually
-    const cmd_output = result.toOwnedSlice(allocator) catch return error.OutOfMemory;
-    var end = cmd_output.len;
-    while (end > 0 and (cmd_output[end - 1] == '\r' or cmd_output[end - 1] == '\n')) {
-        end -= 1;
-    }
-    if (end != cmd_output.len) {
-        const final = try allocator.dupe(u8, cmd_output[0..end]);
-        allocator.free(cmd_output);
-        return final;
-    }
-    return cmd_output;
+    return std.mem.trimRight(u8, stdout, "\r\n");
 }
 
 fn zigBinaryName() []const u8 {
@@ -622,6 +658,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .subcommand(.{ .name = "status", .description = "Show installed versions" })
         .subcommand(.{ .name = "update", .description = "Update to latest master" })
         .subcommand(.{ .name = "path", .description = "Print install directory for shell config" })
+        .subcommand(.{ .name = "bootstrap", .description = "Bootstrap Zig from C/C++ source (zig-bootstrap)" })
         .newline()
         .section("Options")
         .option(.{ .short = "-p", .long = "--prefix", .arg = "DIR", .description = "Installation directory (default: ~/.local/abi/toolchain)" })
@@ -645,6 +682,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .example("abi toolchain zig --clean", "Fresh Zig install")
         .example("abi toolchain update --zls", "Update only ZLS")
         .example("abi toolchain status", "Check installed versions")
+        .example("abi toolchain bootstrap", "Bootstrap Zig from source (long process)")
         .example("abi toolchain path --shell bash >> ~/.bashrc", "Add to shell config");
 
     builder.print();

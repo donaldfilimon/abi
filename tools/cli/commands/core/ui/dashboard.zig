@@ -36,7 +36,7 @@ const ShellPanel = struct {
     panels: [panel_count]tui.Panel,
     boundaries: [panel_count]tui.Panel.ErrorBoundaryPanel,
 
-    gpu_adapter: panel_mod.gpu_adapter.GpuAdapter,
+    gpu_panel: panel_mod.gpu_monitor.GpuMonitor,
     agent_adapter: panel_mod.agent_adapter.AgentAdapter,
     training_adapter: panel_mod.training_adapter.TrainingAdapter,
     model_adapter: panel_mod.model_adapter.ModelAdapter,
@@ -44,7 +44,7 @@ const ShellPanel = struct {
     db_adapter: panel_mod.db_adapter.DbAdapter,
     network_adapter: panel_mod.network_adapter.NetworkAdapter,
     bench_adapter: panel_mod.bench_adapter.BenchAdapter,
-    brain_adapter: panel_mod.brain_adapter.BrainAdapter,
+    brain_panel: panel_mod.brain_panel.BrainDashboardPanel,
     security_panel: panel_mod.SecurityPanel,
     connectors_panel: panel_mod.ConnectorsPanel,
     ralph_panel: panel_mod.RalphPanel,
@@ -70,7 +70,7 @@ const ShellPanel = struct {
             .palette = try launcher_palette.CommandPalette.init(allocator),
             .panels = panels,
             .boundaries = boundaries,
-            .gpu_adapter = panel_mod.gpu_adapter.GpuAdapter.init(allocator, terminal, theme),
+            .gpu_panel = panel_mod.gpu_monitor.GpuMonitor.init(allocator, terminal, theme),
             .agent_adapter = panel_mod.agent_adapter.AgentAdapter.init(allocator, terminal, theme),
             .training_adapter = panel_mod.training_adapter.TrainingAdapter.init(allocator, terminal, theme),
             .model_adapter = panel_mod.model_adapter.ModelAdapter.init(allocator, terminal, theme),
@@ -78,7 +78,7 @@ const ShellPanel = struct {
             .db_adapter = panel_mod.db_adapter.DbAdapter.init(allocator, terminal, theme),
             .network_adapter = panel_mod.network_adapter.NetworkAdapter.init(allocator, terminal, theme),
             .bench_adapter = panel_mod.bench_adapter.BenchAdapter.init(allocator, terminal, theme),
-            .brain_adapter = panel_mod.brain_adapter.BrainAdapter.init(allocator, terminal, theme),
+            .brain_panel = panel_mod.brain_panel.BrainDashboardPanel.init(terminal, theme),
             .security_panel = panel_mod.SecurityPanel.init(allocator),
             .connectors_panel = panel_mod.ConnectorsPanel.init(allocator),
             .ralph_panel = panel_mod.RalphPanel.init(allocator),
@@ -87,7 +87,7 @@ const ShellPanel = struct {
     }
 
     pub fn wirePanels(self: *ShellPanel) void {
-        self.setPanel(0, self.gpu_adapter.panel());
+        self.setPanel(0, self.gpu_panel.panel());
         self.setPanel(1, self.agent_adapter.panel());
         self.setPanel(2, self.training_adapter.panel());
         self.setPanel(3, self.model_adapter.panel());
@@ -95,7 +95,7 @@ const ShellPanel = struct {
         self.setPanel(5, self.db_adapter.panel());
         self.setPanel(6, self.network_adapter.panel());
         self.setPanel(7, self.bench_adapter.panel());
-        self.setPanel(8, self.brain_adapter.panel());
+        self.setPanel(8, self.brain_panel.panel());
         self.setPanel(9, self.security_panel.asPanel());
         self.setPanel(10, self.connectors_panel.asPanel());
         self.setPanel(11, self.ralph_panel.asPanel());

@@ -6,8 +6,12 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     const cmd = "rg -n --glob '*.zig' '@import\\(\"abi\"\\)' src/features";
-    const result = try util.captureCommand(allocator, cmd);
+    const result = try util.captureCommand(allocator, io, cmd);
     defer allocator.free(result.output);
 
     if (result.exit_code != 0 and result.exit_code != 1) {

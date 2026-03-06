@@ -23,3 +23,20 @@
 ## 2026-03-06 - Workflow contract must be applied before implementation
 - Root cause: Mandatory workflow rules were applied only after implementation work had already started, which created avoidable drift in consensus, task tracking, and review discipline.
 - Prevention rule: For any non-trivial ABI task, review `tasks/lessons.md`, run the required multi-CLI consensus with a real prompt packet, and refresh `tasks/todo.md` before making repo-tracked edits.
+
+## 2026-03-06 - Zig 0.16 API Breakages in Build System
+- **Root cause**: Attempting to use older Zig 0.15/0.14 patterns in `build.zig` (e.g., `addOptions(options)`, `addTest(.{ .root_source_file = ... })`, `.path` in `LazyPath`).
+- **Prevention rule**: 
+  - For `addOptions`: Use manual field iteration or `createModule()` from an options step.
+  - For `addTest` / `addExecutable`: Use the `root_module` field instead of top-level `root_source_file`.
+  - For `LazyPath`: Use `.cwd_relative` or `.src_path` instead of the removed `.path` field for absolute or relative paths.
+  - For Environment: Prefer `b.env_map.get()` (if initialized) or `std.process.getEnvVarOwned()` but verify the latest signature (e.g., `Init.Minimal` required for `main`).
+  - For Darwin SDK: Force `b.sysroot` globally when building on macOS 26+ to bypass toolchain-internal linker failures.
+
+## 2026-03-06 - Emergency Bootstrapping when Zig is fundamentally broken
+- **Root cause**: Pre-built Zig toolchains can fail to link any binary (even the build runner) on futuristic Darwin environments (macOS 26+).
+- **Prevention rule**: Provide a standalone C-based bootstrapper (`tools/scripts/emergency_bootstrap.c`) that can be compiled with `clang` to build a native Zig toolchain from source, bypassing the broken pre-built binary entirely.
+
+## 2026-03-06 - Async Event Loop Polling in Zig 0.16
+- **Root cause**: Busy-wait loops using `std.time.sleep` in TUI event handlers consume unnecessary CPU and degrade responsiveness compared to blocking I/O waits.
+- **Prevention rule**: Use `std.posix.poll` (or equivalent platform-native non-blocking I/O multiplexing) on `std.posix.STDIN_FILENO` instead of `std.time.sleep` when waiting for input in asynchronous event loops.

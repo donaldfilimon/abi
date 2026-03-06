@@ -67,6 +67,17 @@ pub fn defaultEngine(allocator: std.mem.Allocator) !Engine {
     return Engine.init(allocator, .{});
 }
 
+// ─── Internal Subsystems (Architectural Exports) ───────────────────────────
+
+pub const block = @import("block/mod.zig");
+pub const core = @import("core/mod.zig");
+pub const dist = @import("dist/mod.zig");
+pub const graph = @import("graph/mod.zig");
+pub const memory = @import("memory/mod.zig");
+pub const trace = @import("trace/mod.zig");
+pub const api = @import("api/mod.zig");
+pub const cli = @import("cli/mod.zig");
+
 // ─── Test discovery ──────────────────────────────────────────────────────────
 
 test {
@@ -80,4 +91,13 @@ test {
     _ = @import("engine.zig");
     _ = @import("sync_compat.zig");
     _ = @import("persistence.zig");
+    
+    _ = block;
+    _ = core;
+    _ = dist;
+    _ = graph;
+    _ = memory;
+    _ = trace;
+    _ = api;
+    _ = cli;
 }

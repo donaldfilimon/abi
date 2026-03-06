@@ -12,11 +12,15 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     var violations: usize = 0;
 
     const ui_import_scan_cmd =
         "rg -n --glob '*.zig' '@import\\(\".*ui/(core|panels|launcher|editor)/' tools/cli/commands";
-    const ui_import_scan = try util.captureCommand(allocator, ui_import_scan_cmd);
+    const ui_import_scan = try util.captureCommand(allocator, io, ui_import_scan_cmd);
     defer allocator.free(ui_import_scan.output);
 
     if (ui_import_scan.exit_code != 0 and ui_import_scan.exit_code != 1) {
@@ -37,7 +41,7 @@ pub fn main(_: std.process.Init) !void {
 
     const ui_backedge_scan_cmd =
         "rg -n --glob '*.zig' '@import\\(\".*commands/' tools/cli/ui";
-    const ui_backedge_scan = try util.captureCommand(allocator, ui_backedge_scan_cmd);
+    const ui_backedge_scan = try util.captureCommand(allocator, io, ui_backedge_scan_cmd);
     defer allocator.free(ui_backedge_scan.output);
 
     if (ui_backedge_scan.exit_code != 0 and ui_backedge_scan.exit_code != 1) {

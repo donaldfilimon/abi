@@ -111,16 +111,16 @@ pub fn main() !void {
 
 ---
 
-## API Migration (v2 Surface)
+## API Migration (v3 Surface)
 
-ABI now exposes canonical v2 entrypoints only:
+ABI now exposes canonical v3 entrypoints only:
 
-- Use `abi.App` / `abi.AppBuilder` as the runtime types.
-- Use `abi.features.<name>` for feature modules and `abi.services.<name>` for service modules.
-- Use `abi.features.database.semantic_store` as the canonical memory/retrieval surface; `abi.features.database.wdbx` remains a compatibility alias.
-- Use `abi.features.ai.coordination` and `abi.features.ai.profiles` as the canonical routing/profile surfaces; `abi.features.ai.personas` remains the implementation and compatibility layer in this wave.
-- Use `abi.App.init(...)`, `abi.App.initDefault(...)`, and `abi.App.builder(...)` for app bootstrap.
-- Legacy aliases (`abi.Framework`, `abi.init*`, top-level `abi.<feature|service>`) are removed.
+- Use `abi.App` / `abi.AppBuilder` as the primary runtime types.
+- Use `abi.wdbx` for the vector database, with `abi.hnsw` and `abi.simd` as sub-modules.
+- Use `abi.personas` for the multi-persona system and `abi.routing` for the Abi moderator.
+- Use `abi.inference_engine` for high-performance token generation.
+- Use `abi.server` for the REST API server with OpenAI-compatible endpoints.
+- Legacy v2 aliases are now fully consolidated into the v3 namespace.
 
 ---
 

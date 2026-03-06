@@ -3,12 +3,12 @@
 const std = @import("std");
 
 pub fn calculateChecksum(data: []const u8) [32]u8 {
-    _ = data;
-    unreachable; // TODO
+    var hash: [32]u8 = undefined;
+    std.crypto.hash.sha2.Sha256.hash(data, &hash, .{});
+    return hash;
 }
 
 pub fn verifyChecksum(data: []const u8, expected: [32]u8) bool {
-    _ = data;
-    _ = expected;
-    unreachable; // TODO
+    const actual = calculateChecksum(data);
+    return std.mem.eql(u8, &actual, &expected);
 }

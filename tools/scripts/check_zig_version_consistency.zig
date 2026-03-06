@@ -28,16 +28,16 @@ pub fn main(_: std.process.Init) !void {
         std.process.exit(1);
     }
 
-    if (!(try util.commandExists(allocator, "zig"))) {
+    if (!(try util.commandExists(allocator, io, "zig"))) {
         std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
         std.process.exit(1);
     }
 
-    const active_path_res = try util.captureCommand(allocator, "command -v zig");
+    const active_path_res = try util.captureCommand(allocator, io, "command -v zig");
     defer allocator.free(active_path_res.output);
     const active_path = util.trimSpace(active_path_res.output);
 
-    const active_ver_res = try util.captureCommand(allocator, "zig version");
+    const active_ver_res = try util.captureCommand(allocator, io, "zig version");
     defer allocator.free(active_ver_res.output);
     const active_version = util.trimSpace(active_ver_res.output);
 
@@ -49,8 +49,8 @@ pub fn main(_: std.process.Init) !void {
         errors += 1;
     }
 
-    if (try util.commandExists(allocator, "zvm")) {
-        const home_res = try util.captureCommand(allocator, "printf '%s' \"$HOME\"");
+    if (try util.commandExists(allocator, io, "zvm")) {
+        const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
         defer allocator.free(home_res.output);
         const home = util.trimSpace(home_res.output);
 
@@ -103,7 +103,7 @@ pub fn main(_: std.process.Init) !void {
         );
         defer allocator.free(rg_cmd);
 
-        const matches = try util.captureCommand(allocator, rg_cmd);
+        const matches = try util.captureCommand(allocator, io, rg_cmd);
         defer allocator.free(matches.output);
 
         if (matches.exit_code != 0 and matches.exit_code != 1) {

@@ -46,7 +46,7 @@ fn appendModuleEntries(
     }
 }
 
-fn collectModules(allocator: std.mem.Allocator) ![]ModuleEntry {
+fn collectModules(allocator: std.mem.Allocator, io: std.Io) ![]ModuleEntry {
     var modules = std.ArrayListUnmanaged(ModuleEntry).empty;
     errdefer {
         for (modules.items) |m| {
@@ -58,14 +58,14 @@ fn collectModules(allocator: std.mem.Allocator) ![]ModuleEntry {
 
     const files_cmd =
         "find tools/cli/commands -mindepth 2 -maxdepth 2 -type f -name '*.zig' ! -name 'mod.zig' | sed 's#^tools/cli/commands/##'";
-    const files_result = try util.captureCommand(allocator, files_cmd);
+    const files_result = try util.captureCommand(allocator, io, files_cmd);
     defer allocator.free(files_result.output);
     if (files_result.exit_code != 0) return error.CommandFailed;
     try appendModuleEntries(allocator, &modules, files_result.output, false);
 
     const dirs_cmd =
         "find tools/cli/commands -mindepth 2 -maxdepth 2 -type d -exec test -f '{}/mod.zig' ';' -print | sed 's#^tools/cli/commands/##'";
-    const dirs_result = try util.captureCommand(allocator, dirs_cmd);
+    const dirs_result = try util.captureCommand(allocator, io, dirs_cmd);
     defer allocator.free(dirs_result.output);
     if (dirs_result.exit_code != 0) return error.CommandFailed;
     try appendModuleEntries(allocator, &modules, dirs_result.output, true);
@@ -143,7 +143,7 @@ pub fn main(init: std.process.Init) !void {
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const modules = try collectModules(allocator);
+    const modules = try collectModules(allocator, io);
     defer freeModules(allocator, modules);
 
     const snapshot_body = try renderSnapshot(allocator, modules);

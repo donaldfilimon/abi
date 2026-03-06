@@ -5,58 +5,63 @@
 
 const std = @import("std");
 const root = @import("root.zig");
+const abi = @import("abi");
+
+// Use the internal CLI DSL utilities.
+const cli_utils = @import("cli_utils");
+const ArgParser = cli_utils.args.ArgParser;
+const output = cli_utils.output;
 
 pub fn main(init: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Parse CLI arguments.
-    var args = try std.process.Args.Iterator.initAllocator(init.minimal.args, allocator);
-    defer args.deinit();
+    // Parse CLI arguments using the internal ArgParser.
+    const proc_args = try init.args.toSlice(allocator);
+    defer allocator.free(proc_args);
+
+    var parser = ArgParser.init(allocator, proc_args);
+    _ = parser.next(); // skip program name
 
     var config = root.server.Config{};
 
-    _ = args.next(); // skip program name
-    while (args.next()) |arg| {
-        if (std.mem.eql(u8, arg, "--port")) {
-            if (args.next()) |port_str| {
-                config.port = std.fmt.parseInt(u16, port_str, 10) catch {
-                    std.debug.print("Invalid port: {s}\n", .{port_str});
-                    return;
-                };
-            }
-        } else if (std.mem.eql(u8, arg, "--host")) {
-            if (args.next()) |host| {
-                config.host = host;
-            }
-        } else if (std.mem.eql(u8, arg, "--no-auth")) {
-            config.enable_auth = false;
-        } else if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+    while (parser.hasMore()) {
+        if (parser.wantsHelp()) {
             printUsage();
             return;
-        } else if (std.mem.eql(u8, arg, "--version") or std.mem.eql(u8, arg, "-v")) {
-            std.debug.print("abi-server v{s}\n", .{root.version()});
+        } else if (parser.matches(&[_][]const u8{ "--version", "-v" })) {
+            output.println("abi-server v{s}", .{root.version()});
             return;
+        } else if (parser.consumeOption(&[_][]const u8{"--port"})) |port_str| {
+            config.port = std.fmt.parseInt(u16, port_str, 10) catch {
+                output.printError("Invalid port: {s}", .{port_str});
+                return;
+            };
+        } else if (parser.consumeOption(&[_][]const u8{"--host"})) |host| {
+            config.host = host;
+        } else if (parser.consumeFlag(&[_][]const u8{"--no-auth"})) {
+            config.enable_auth = false;
+        } else {
+            const unknown = parser.next().?;
+            output.printError("Unknown argument: {s}", .{unknown});
+            printUsage();
+            std.process.exit(1);
         }
     }
 
-    std.debug.print(
+    output.print(
         \\
         \\  ╔══════════════════════════════════════╗
         \\  ║   ABI Framework v{s}              ║
         \\  ║   Abbey · Aviva · Abi                ║
         \\  ╚══════════════════════════════════════╝
         \\
-        \\  Starting server on {s}:{d}...
-        \\  Auth: {s}
         \\
-    , .{
-        root.version(),
-        config.host,
-        config.port,
-        if (config.enable_auth) "enabled" else "disabled",
-    });
+    , .{root.version()});
+
+    output.printInfo("Starting server on {s}:{d}...", .{ config.host, config.port });
+    output.printInfo("Auth: {s}", .{if (config.enable_auth) "enabled" else "disabled"});
 
     var srv = root.Server.init(allocator, config);
     defer srv.deinit();
@@ -65,7 +70,7 @@ pub fn main(init: std.process.Init) !void {
 }
 
 fn printUsage() void {
-    std.debug.print(
+    output.print(
         \\Usage: abi-server [OPTIONS]
         \\
         \\Options:
