@@ -108,3 +108,49 @@ Clean up the committed markdown merge artifacts on `main`, restore the most impo
 - [x] No tracked markdown files contain merge conflict markers.
 - [x] Root documentation no longer points at missing high-signal files or obviously obsolete command paths.
 - [x] Remaining `zig build` validation blocker is external to the repo and should be reported as residual risk.
+
+---
+
+# Task Plan - Canonicalize WDBX + Persona Architecture (2026-03-06)
+
+## Objective
+Introduce wave-1 canonical internal Zig APIs for semantic storage, coordination, and profiles so the repo describes the memory/persona architecture with neutral technical contracts while preserving the branded WDBX/persona surfaces as compatibility aliases.
+
+## Scope
+- Keep `abi.features` and `abi.services` as the v2 namespace roots.
+- Add canonical `semantic_store`, `coordination`, and `profiles` module surfaces.
+- Preserve `abi.features.database.wdbx` and `abi.features.ai.personas` as compatibility aliases for one wave.
+- Add provenance/influence-trace contracts and route AI memory through canonical retrieval metadata where feasible without breaking callers.
+- Update canonical architecture docs and README language to present WDBX/Abbey/Aviva/Abi as aliases over the technical model.
+
+## Verification Criteria
+- `which zig`
+- `zig version`
+- `cat .zigversion`
+- `zig build toolchain-doctor`
+- `git diff --check`
+- `rg -n "semantic_store|coordination|profiles|InfluenceTrace|BehaviorProfile" src README.md docs`
+- `zig build gendocs -- --check --no-wasm --untracked-md`
+- `zig build check-docs`
+- `zig build typecheck`
+- `zig build cli-tests`
+- `zig build tui-tests`
+- `zig build full-check`
+- `zig build check-cli-registry`
+- `zig build verify-all`
+- `zig build check-workflow-orchestration-strict --summary all`
+
+## Checklist
+- [x] Review `tasks/lessons.md` before implementation.
+- [x] Run mandatory multi-CLI consensus prompt for the wave-1 cut.
+- [ ] Add canonical database `semantic_store` module and compatibility aliases.
+- [ ] Add canonical AI `coordination` and `profiles` modules and compatibility aliases.
+- [ ] Introduce provenance/influence-trace types and wire AI memory retrieval to canonical metadata where safe.
+- [ ] Update public exports/docs to point at the canonical surfaces first.
+- [ ] Add compile-level parity coverage for old and new import paths.
+- [ ] Re-run available validation gates and isolate the external toolchain blocker with evidence.
+
+## Review
+- [ ] New canonical imports compile and old branded imports still compile.
+- [ ] The refactor introduces no new top-level feature roots or build flags.
+- [ ] Any remaining validation failures are either repo-local regressions with evidence or the known external Darwin/libc linker blocker.

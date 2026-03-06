@@ -96,9 +96,10 @@ pub const time = @import("../../services/shared/time.zig");
 pub const database = @import("database.zig");
 pub const db_helpers = @import("db_helpers.zig");
 pub const storage = @import("storage.zig");
+pub const semantic_store = @import("semantic_store/mod.zig");
 
 /// Stable WDBX database-handle surface (CRUD, backup/restore, vector ops).
-pub const wdbx = @import("wdbx.zig");
+pub const wdbx = semantic_store;
 
 /// Neural vector engine surface (ANN/HNSW internals and engine API).
 /// This co-exists with `wdbx` as a long-term public path.
@@ -136,13 +137,18 @@ pub const search_state = @import("search_state.zig");
 pub const distance_cache = @import("distance_cache.zig");
 
 pub const Database = database.Database;
-pub const DatabaseHandle = wdbx.DatabaseHandle;
+pub const StoreHandle = semantic_store.StoreHandle;
+pub const DatabaseHandle = semantic_store.StoreHandle;
 pub const SearchResult = wdbx.SearchResult;
+pub const RetrievalHit = semantic_store.RetrievalHit;
+pub const MemoryBlock = semantic_store.MemoryBlock;
+pub const InfluenceTrace = semantic_store.InfluenceTrace;
 pub const VectorView = wdbx.VectorView;
 pub const Stats = wdbx.Stats;
 pub const DatabaseError = database.DatabaseError;
 pub const BatchItem = Database.BatchItem;
 pub const DiagnosticsInfo = database.DiagnosticsInfo;
+pub const DistributedConfig = semantic_store.DistributedConfig;
 
 // Full-text search exports
 pub const InvertedIndex = fulltext.InvertedIndex;
