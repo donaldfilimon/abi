@@ -16,6 +16,12 @@ pub fn applyFrameworkLinks(
     gpu_metal: bool,
 ) void {
     if (os_tag == .macos or os_tag == .ios) {
+        // libc resolves to libSystem.B.dylib on macOS/iOS, providing all
+        // POSIX and C runtime symbols (_malloc, _abort, _arc4random_buf,
+        // _clock_gettime, etc.).  Without this, linking fails with ~40
+        // undefined symbols even though frameworks are present.
+        mod.linkSystemLibrary("c", .{});
+
         // Accelerate provides BLAS, LAPACK, vDSP for CPU-side linear algebra
         mod.linkFramework("Accelerate", .{});
         mod.linkFramework("Foundation", .{});

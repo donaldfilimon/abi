@@ -27,7 +27,7 @@ comptime {
 }
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    const target = resolveNativeTarget(b);
     const optimize = b.standardOptimizeOption(.{});
     const can_link_metal = link.canLinkMetalFrameworks(b.graph.io, target.result.os.tag);
 
@@ -614,6 +614,32 @@ pub fn build(b: *std.Build) void {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
+
+/// Resolve the native build target, clamping macOS version when needed.
+///
+/// Zig 0.16-dev's linker does not support macOS 26+ (Tahoe).  When the
+/// build host reports a version the toolchain cannot handle, we clamp the
+/// deployment target to macOS 15.0 so the linker can resolve
+/// libSystem.B.dylib and friends from the installed SDK.  An explicit
+/// `-Dtarget=` from the user is never overridden.
+fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
+    var query = b.standardTargetOptionsQueryOnly(.{});
+
+    // Only patch when no explicit target was provided (native build) and
+    // the build host is macOS with a version newer than Zig supports.
+    if (query.os_tag == null and builtin.os.tag == .macos) {
+        const native_ver = builtin.os.version_range.semver;
+        if (native_ver.min.major >= 26) {
+            const clamped: std.Target.Query.OsVersion = .{
+                .semver = .{ .major = 15, .minor = 0, .patch = 0 },
+            };
+            if (query.os_version_min == null) query.os_version_min = clamped;
+            if (query.os_version_max == null) query.os_version_max = clamped;
+        }
+    }
+
+    return b.resolveTargetQuery(query);
+}
 
 /// Build and run a standalone Zig script (used for consistency checks, gate
 /// checks, etc.).  Returns the `Run` step so callers can add arguments or
