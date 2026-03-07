@@ -27,6 +27,7 @@ pub const bench = @import("../commands/dev/bench/mod.zig");
 pub const clean = @import("../commands/dev/clean.zig");
 pub const completions = @import("../commands/dev/completions.zig");
 pub const convert = @import("../commands/dev/convert.zig");
+pub const create_subagent = @import("../commands/dev/create_subagent.zig");
 pub const doctor = @import("../commands/dev/doctor.zig");
 pub const editor = @import("../commands/dev/editor.zig");
 pub const env = @import("../commands/dev/env.zig");
@@ -68,6 +69,7 @@ pub const command_modules = .{
     clean,
     completions,
     convert,
+    create_subagent,
     doctor,
     editor,
     env,

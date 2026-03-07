@@ -13,6 +13,7 @@ const panel_registry = @import("../../../terminal/panels/registry.zig");
 const session_runner = @import("./session_runner.zig");
 const theme_options = @import("./theme_options.zig");
 const utils = @import("../../../utils/mod.zig");
+const wdbx_alloc = @import("abi").wdbx.core.alloc;
 
 const panel_count = panel_registry.panel_specs.len;
 
@@ -49,6 +50,8 @@ const ShellPanel = struct {
     connectors_panel: panel_mod.ConnectorsPanel,
     ralph_panel: panel_mod.RalphPanel,
     chat_adapter: panel_mod.chat_adapter.ChatAdapter,
+    memory_panel: panel_mod.MemoryPanel,
+    create_subagent_panel: panel_mod.CreateSubagentPanel,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -83,7 +86,14 @@ const ShellPanel = struct {
             .connectors_panel = panel_mod.ConnectorsPanel.init(allocator),
             .ralph_panel = panel_mod.RalphPanel.init(allocator),
             .chat_adapter = panel_mod.chat_adapter.ChatAdapter.init(allocator, terminal, theme),
+            .memory_panel = panel_mod.MemoryPanel.init(allocator),
+            .create_subagent_panel = panel_mod.CreateSubagentPanel.init(allocator),
         };
+    }
+
+    /// Connect WDBX engine allocator to the Memory panel for live stats (e.g. when running UI with an engine that uses TrackingAllocator).
+    pub fn connectWdbxTracker(self: *ShellPanel, tracker: *wdbx_alloc.TrackingAllocator) void {
+        self.memory_panel.connectWdbxTracker(tracker);
     }
 
     pub fn wirePanels(self: *ShellPanel) void {
@@ -100,6 +110,8 @@ const ShellPanel = struct {
         self.setPanel(10, self.connectors_panel.asPanel());
         self.setPanel(11, self.ralph_panel.asPanel());
         self.setPanel(12, self.chat_adapter.panel());
+        self.setPanel(13, self.memory_panel.asPanel());
+        self.setPanel(14, self.create_subagent_panel.asPanel());
     }
 
     fn setPanel(self: *ShellPanel, index: usize, inner: tui.Panel) void {

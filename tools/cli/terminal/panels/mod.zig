@@ -19,12 +19,16 @@ pub const chat_adapter = @import("chat_adapter.zig");
 pub const security_panel = @import("security_panel.zig");
 pub const connectors_panel = @import("connectors_panel.zig");
 pub const ralph_panel = @import("ralph_panel.zig");
+pub const memory_panel = @import("memory_panel.zig");
+pub const create_subagent_panel = @import("create_subagent_panel.zig");
 pub const registry = @import("registry.zig");
 
 // Convenience type aliases
 pub const SecurityPanel = security_panel.SecurityPanel;
 pub const ConnectorsPanel = connectors_panel.ConnectorsPanel;
 pub const RalphPanel = ralph_panel.RalphPanel;
+pub const MemoryPanel = memory_panel.MemoryPanel;
+pub const CreateSubagentPanel = create_subagent_panel.CreateSubagentPanel;
 
 test {
     @import("std").testing.refAllDecls(@This());

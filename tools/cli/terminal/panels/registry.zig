@@ -20,6 +20,8 @@ pub const panel_specs = [_]PanelSpec{
     .{ .id = "connectors", .label = "Connectors", .shortcut_hint = "F7" },
     .{ .id = "ralph", .label = "Ralph", .shortcut_hint = "F8" },
     .{ .id = "chat", .label = "Chat", .shortcut_hint = "0" },
+    .{ .id = "memory", .label = "Memory", .shortcut_hint = "F9" },
+    .{ .id = "create-subagent", .label = "Create Subagent", .shortcut_hint = "F10" },
 };
 
 pub const tab_labels = [_][]const u8{
@@ -36,6 +38,8 @@ pub const tab_labels = [_][]const u8{
     "Connectors",
     "Ralph",
     "Chat",
+    "Memory",
+    "Create Subagent",
 };
 
 test {

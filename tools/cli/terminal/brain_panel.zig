@@ -23,9 +23,10 @@ pub const RingBuf120 = ring_buffer.RingBuffer(f32, 120);
 pub const BrainDashboardPanel = struct {
     term: *Terminal,
     theme: *const Theme,
+    _internal_data: ?DashboardData = null,
 
     pub fn init(term: *Terminal, theme: *const Theme) BrainDashboardPanel {
-        return .{ .term = term, .theme = theme };
+        return .{ .term = term, .theme = theme, ._internal_data = null };
     }
 
     /// Render the full 6-panel dashboard layout.
@@ -532,9 +533,6 @@ pub const BrainDashboardPanel = struct {
         }
         try self.render(&self._internal_data.?, rect.y, rect.x, rect.width, rect.height);
     }
-
-    // Add internal data storage for full-panel mode
-    _internal_data: ?DashboardData = null,
 
     pub fn tick(self: *BrainDashboardPanel) anyerror!void {
         if (self._internal_data) |*data| {

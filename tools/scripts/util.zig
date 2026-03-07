@@ -29,11 +29,11 @@ pub fn dirExists(io: anytype, path: []const u8) bool {
 pub fn captureCommand(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8) !CommandResult {
     const shell = if (builtin.os.tag == .windows) "cmd" else "sh";
     const shell_arg = if (builtin.os.tag == .windows) "/c" else "-c";
-    
+
     // Merge stderr to stdout via shell redirection
     const merged_cmd = try std.fmt.allocPrint(allocator, "{s} 2>&1", .{cmd});
     defer allocator.free(merged_cmd);
-    
+
     const argv = [_][]const u8{ shell, shell_arg, merged_cmd };
 
     var child = try std.process.spawn(io, .{

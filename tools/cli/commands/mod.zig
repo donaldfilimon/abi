@@ -28,6 +28,7 @@ pub const model = generated.model;
 pub const embed = generated.embed;
 pub const train = generated.train;
 pub const convert = generated.convert;
+pub const create_subagent = generated.create_subagent;
 pub const task = generated.task;
 pub const ui = generated.ui;
 pub const plugins = generated.plugins;

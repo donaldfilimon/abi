@@ -50,6 +50,8 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "feat_mobile", .path = "features/mobile/mod.zig" },
     .{ .flag = "feat_benchmarks", .path = "features/benchmarks/mod.zig" },
     .{ .flag = "feat_network", .path = "features/network/mod.zig" },
+    .{ .flag = "feat_network", .path = "features/network/heartbeat.zig" },
+    .{ .flag = "feat_network", .path = "features/network/rpc_protocol.zig" },
     .{ .flag = "feat_web", .path = "features/web/mod.zig" },
     .{ .flag = "feat_cloud", .path = "features/cloud/mod.zig" },
 
@@ -146,6 +148,9 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "services/tasks/mod.zig" },
     .{ .flag = null, .path = "core/errors.zig" },
     .{ .flag = null, .path = "core/feature_catalog.zig" },
+    .{ .flag = null, .path = "wdbx/dist/mod.zig" },
+    .{ .flag = null, .path = "wdbx/dist/rpc.zig" },
+    .{ .flag = null, .path = "wdbx/dist/replication.zig" },
     .{ .flag = null, .path = "core/registry/mod.zig" },
     .{ .flag = null, .path = "core/registry/stub.zig" },
     .{ .flag = null, .path = "services/shared/security/mod.zig" },
@@ -250,6 +255,11 @@ pub fn addFeatureTests(
         options.gpu_metal(),
         options.gpu_backends,
     );
+    const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
+    if (is_blocked_darwin) {
+        feature_tests.use_llvm = true;
+        feature_tests.use_lld = true;
+    }
 
     const run_feature_tests = b.addRunArtifact(feature_tests);
     run_feature_tests.skip_foreign_checks = true;
