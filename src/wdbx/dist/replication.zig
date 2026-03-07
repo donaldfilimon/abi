@@ -67,13 +67,20 @@ pub fn runRequesterPath(
     }
     if (resp.status != .ok) return result;
 
+    const MAX_PAYLOAD = 16 << 20; // 16 MiB
+    const MAX_CHUNKS = 10_000;
     while (cursor + rpc.Header.encoded_len <= response_bytes.len) {
+        if (result.chunks_received >= MAX_CHUNKS) break;
         const ch = try rpc.decodeHeader(response_bytes[cursor..]);
         cursor += rpc.Header.encoded_len;
         if (ch.msg_type != .block_chunk) break;
+        if (ch.payload_len > MAX_PAYLOAD) break;
         if (cursor + ch.payload_len > response_bytes.len) break;
         const chunk = try rpc.BlockChunk.decodeHeader(response_bytes[cursor..][0..ch.payload_len]);
+        // Overflow-safe bounds check
+        if (chunk.chunk_len > std.math.maxInt(u32) - rpc.BlockChunk.fixed_len) break;
         if (ch.payload_len < rpc.BlockChunk.fixed_len + chunk.chunk_len) break;
+        if (cursor + rpc.BlockChunk.fixed_len + chunk.chunk_len > response_bytes.len) break;
         const data = response_bytes[cursor + rpc.BlockChunk.fixed_len ..][0..chunk.chunk_len];
         try sink.appendSlice(allocator, data);
         result.chunks_received += 1;

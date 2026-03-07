@@ -122,6 +122,9 @@ pub const ParsedFrame = struct {
     consumed: usize,
 };
 
+/// Maximum frame size (header + payload): 64 MiB.
+pub const MAX_FRAME_SIZE: usize = 64 << 20;
+
 /// Parse a frame from a buffer. Returns null if insufficient data.
 pub fn parseFrame(buf: []const u8) ?ParsedFrame {
     if (buf.len < HEADER_SIZE) return null;
@@ -129,6 +132,7 @@ pub fn parseFrame(buf: []const u8) ?ParsedFrame {
     const header = RpcHeader.deserialize(buf[0..HEADER_SIZE]);
     const total = HEADER_SIZE + header.payload_len;
 
+    if (total > MAX_FRAME_SIZE) return null;
     if (buf.len < total) return null;
 
     const payload = buf[HEADER_SIZE..total];

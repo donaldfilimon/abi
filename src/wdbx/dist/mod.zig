@@ -63,6 +63,7 @@ pub const Coordinator = struct {
 
     /// Register a node; pass current unix time in seconds (e.g. from your time module).
     pub fn registerNode(self: *Coordinator, allocator: std.mem.Allocator, address: []const u8, now: i64) !u32 {
+        if (address.len > 256) return error.AddressTooLong;
         const id = @as(u32, @truncate(self.nodes.items.len));
         try self.nodes.append(allocator, .{
             .id = id,
@@ -89,7 +90,7 @@ pub const Coordinator = struct {
     /// If trace_state_change is set, it is called for each node whose health_state changed.
     pub fn tick(self: *Coordinator, now: i64) void {
         for (self.nodes.items) |*node| {
-            const elapsed = now - node.last_seen;
+            const elapsed = if (now < node.last_seen) 0 else now - node.last_seen;
             const old = node.health_state;
             if (elapsed >= self.config.fail_after_s) {
                 node.health_state = .failed;

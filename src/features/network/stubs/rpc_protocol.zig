@@ -3,6 +3,7 @@ const std = @import("std");
 pub const MAGIC: [4]u8 = .{ 'A', 'B', 'I', 'R' };
 pub const VERSION: u16 = 1;
 pub const HEADER_SIZE: usize = 23;
+pub const MAX_FRAME_SIZE: usize = 64 << 20;
 
 pub const MessageType = enum(u8) {
     heartbeat = 0x01,
@@ -100,7 +101,7 @@ pub fn deserializeRequestVote(_: []const u8) error{InvalidMessage}!struct {
 pub fn serializeVersionVector(
     _: std.mem.Allocator,
     _: []const VectorEntry,
-) error{FeatureDisabled}![]u8 {
+) ![]u8 {
     return error.FeatureDisabled;
 }
 
@@ -118,7 +119,7 @@ pub fn serializeBlock(
     _: i64,
     _: i64,
     _: []const u8,
-) error{FeatureDisabled}![]u8 {
+) ![]u8 {
     return error.FeatureDisabled;
 }
 

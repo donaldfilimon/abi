@@ -98,7 +98,7 @@ pub const HeartbeatStateMachine = struct {
         _ = user_data;
     }
 
-    pub fn registerNode(_: *HeartbeatStateMachine, _: []const u8) error{FeatureDisabled}!void {
+    pub fn registerNode(_: *HeartbeatStateMachine, _: []const u8) !void {
         return error.FeatureDisabled;
     }
 

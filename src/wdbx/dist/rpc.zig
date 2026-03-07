@@ -26,7 +26,9 @@ pub const Header = struct {
 
     pub fn decode(bytes: []const u8) !Header {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
-        const msg_type = @as(MessageType, @enumFromInt(bytes[0]));
+        const raw_type = bytes[0];
+        if (raw_type > 3) return error.InvalidMessageType;
+        const msg_type: MessageType = @enumFromInt(raw_type);
         const payload_len = std.mem.readInt(u32, bytes[1..5], .little);
         return .{ .msg_type = msg_type, .payload_len = payload_len };
     }
@@ -101,7 +103,9 @@ pub const BlockSyncResponse = struct {
 
     pub fn decode(bytes: []const u8) !BlockSyncResponse {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
-        const status = @as(BlockSyncStatus, @enumFromInt(bytes[0]));
+        const raw_status = bytes[0];
+        if (raw_status > 1) return error.InvalidStatus;
+        const status: BlockSyncStatus = @enumFromInt(raw_status);
         return .{
             .status = status,
             .total_byte_len = std.mem.readInt(u32, bytes[1..5], .little),
@@ -136,6 +140,7 @@ pub const BlockChunk = struct {
 
 /// Encode a full message: header + payload.
 pub fn encodeMessage(msg_type: MessageType, payload: []const u8, out: []u8) !usize {
+    if (payload.len > std.math.maxInt(u32)) return error.PayloadTooLarge;
     const need = Header.encoded_len + payload.len;
     if (out.len < need) return error.BufferTooSmall;
     const h = Header{ .msg_type = msg_type, .payload_len = @intCast(payload.len) };
