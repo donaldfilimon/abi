@@ -234,9 +234,16 @@ TRASH-FILES.md
 !/CODE_OF_CONDUCT.md
 !/docs/README.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
+!/docs/ZIG_MACOS_LINKER_RESEARCH.md
 !/docs/plans/*.md
 !/tasks/todo.md
 !/tasks/lessons.md
+
+# ── .cel toolchain fork (build outputs only) ────────────────────────
+.cel/bin/
+.cel/.src/
+.cel/out/
+!/.cel/README.md
 
 # ── Local one-off artifacts ──────────────────────────────────────────
 .zig-global-cache/

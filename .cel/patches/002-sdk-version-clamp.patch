@@ -1,0 +1,6 @@
+# Patch 002: SDK version detection clamping for macOS 26
+#
+# Target: src/link/MachO.zig (inferSdkVersion)
+#
+# Handle SDK version 26.x correctly in BUILD_VERSION load command.
+# Prevents dyld from rejecting binaries with incorrect version metadata.

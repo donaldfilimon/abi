@@ -1,3 +1,4 @@
+//! ABI build root. Zig 0.16 Build API: root_module, createModule, b.path (LazyPath).
 const std = @import("std");
 const builtin = @import("builtin");
 
@@ -22,8 +23,8 @@ const is_blocked_darwin = builtin.os.tag == .macos and builtin.os.version_range.
 comptime {
     if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16)
         @compileError(std.fmt.comptimePrint(
-            "ABI requires Zig 0.16.0-dev.2694+74f361a5c or newer (detected {d}.{d}.{d}). " ++
-                "Use `zvm use master` then align to `.zigversion`.",
+            "ABI requires Zig 0.16.0-dev.2650+74f361a5c or newer (detected {d}.{d}.{d}). " ++
+                "Use `zvm use master` or install the version in `.zigversion`.",
             .{ builtin.zig_version.major, builtin.zig_version.minor, builtin.zig_version.patch },
         ));
 }
@@ -47,6 +48,15 @@ pub fn build(b: *std.Build) void {
     if (is_blocked_darwin) {
         options.feat_database = false;
         options.feat_ai = false;
+
+        // Suggest .cel toolchain if available
+        const cel_note = b.addSystemCommand(&.{
+            "sh", "-c",
+            \\printf '\n  NOTE: macOS 26+ detected. If linking fails, build the .cel toolchain:\n'
+            \\printf '    ./.cel/build.sh\n'
+            \\printf '    eval "$(./tools/scripts/use_cel.sh)"\n\n'
+        });
+        b.getInstallStep().dependOn(&cel_note.step);
     }
     options_mod.validateOptions(options);
 
@@ -81,6 +91,10 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
     targets.applyPerformanceTweaks(exe, optimize);
     link.applyAllPlatformLinks(exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+    if (is_blocked_darwin) {
+        exe.use_llvm = true;
+        exe.use_lld = true;
+    }
     b.installArtifact(exe);
 
     const run_cli = b.addRunArtifact(exe);
@@ -126,6 +140,10 @@ pub fn build(b: *std.Build) void {
         .mode = .simple,
     };
     link.applyAllPlatformLinks(cli_tests_artifact.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+    if (is_blocked_darwin) {
+        cli_tests_artifact.use_llvm = true;
+        cli_tests_artifact.use_lld = true;
+    }
     const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
     run_cli_tests.skip_foreign_checks = true;
     tui_tests_step = b.step("tui-tests", "Run TUI and CLI unit tests");
@@ -143,6 +161,10 @@ pub fn build(b: *std.Build) void {
         const launcher_tests = b.addTest(.{
             .root_module = launcher_tests_mod,
         });
+        if (is_blocked_darwin) {
+            launcher_tests.use_llvm = true;
+            launcher_tests.use_lld = true;
+        }
         const run_launcher_tests = b.addRunArtifact(launcher_tests);
         run_launcher_tests.skip_foreign_checks = true;
 
@@ -173,6 +195,10 @@ pub fn build(b: *std.Build) void {
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
         link.applyAllPlatformLinks(tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+        if (is_blocked_darwin) {
+            tests.use_llvm = true;
+            tests.use_lld = true;
+        }
         typecheck_step = b.step("typecheck", "Compile tests without running");
         typecheck_step.?.dependOn(&tests.step);
 
@@ -185,6 +211,10 @@ pub fn build(b: *std.Build) void {
                     .link_libc = true,
                 }),
             });
+            if (is_blocked_darwin) {
+                neural_wdbx_tests.use_llvm = true;
+                neural_wdbx_tests.use_lld = true;
+            }
             typecheck_step.?.dependOn(&neural_wdbx_tests.step);
         }
 
@@ -200,6 +230,10 @@ pub fn build(b: *std.Build) void {
                 .root_module = wdbx_fast_tests_mod,
             });
             link.applyAllPlatformLinks(wdbx_fast_tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+            if (is_blocked_darwin) {
+                wdbx_fast_tests.use_llvm = true;
+                wdbx_fast_tests.use_lld = true;
+            }
 
             const run_wdbx_fast_tests = b.addRunArtifact(wdbx_fast_tests);
             run_wdbx_fast_tests.skip_foreign_checks = true;
@@ -265,6 +299,10 @@ pub fn build(b: *std.Build) void {
             .name = "abi-check-gpu-policy-consistency",
             .root_module = gpu_policy_check_module,
         });
+        if (is_blocked_darwin) {
+            check_gpu_policy_exe.use_llvm = true;
+            check_gpu_policy_exe.use_lld = true;
+        }
         check_gpu_policy_step = b.step("check-gpu-policy", "Verify GPU policy consistency");
         check_gpu_policy_step.?.dependOn(&b.addRunArtifact(check_gpu_policy_exe).step);
     }
@@ -390,6 +428,10 @@ pub fn build(b: *std.Build) void {
             const gendocs_source_tests = b.addTest(.{
                 .root_module = gendocs_tests_root,
             });
+            if (is_blocked_darwin) {
+                gendocs_source_tests.use_llvm = true;
+                gendocs_source_tests.use_lld = true;
+            }
             const run_gendocs_source_tests = b.addRunArtifact(gendocs_source_tests);
             run_gendocs_source_tests.skip_foreign_checks = true;
 
@@ -402,6 +444,10 @@ pub fn build(b: *std.Build) void {
             .name = "gendocs",
             .root_module = gendocs_module,
         });
+        if (is_blocked_darwin) {
+            gendocs.use_llvm = true;
+            gendocs.use_lld = true;
+        }
         const run_gendocs = b.addRunArtifact(gendocs);
         if (b.args) |args| run_gendocs.addArgs(args);
         b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
@@ -434,6 +480,10 @@ pub fn build(b: *std.Build) void {
     profile_mod.strip = false;
     profile_mod.omit_frame_pointer = false;
     link.applyAllPlatformLinks(profile_mod, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+    if (is_blocked_darwin) {
+        profile_exe.use_llvm = true;
+        profile_exe.use_lld = true;
+    }
     b.installArtifact(profile_exe);
     b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
 
@@ -484,6 +534,10 @@ pub fn build(b: *std.Build) void {
                 .optimize = .ReleaseSafe,
             }),
         });
+        if (is_blocked_darwin) {
+            check_perf_exe.use_llvm = true;
+            check_perf_exe.use_lld = true;
+        }
         b.step("check-perf", "Build performance verification tool (pipe benchmark JSON to run)")
             .dependOn(&b.addInstallArtifact(check_perf_exe, .{}).step);
     }
@@ -562,6 +616,10 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    if (is_blocked_darwin) {
+        v3_server.use_llvm = true;
+        v3_server.use_lld = true;
+    }
     b.step("v3-server", "Build v3 server executable").dependOn(&b.addInstallArtifact(v3_server, .{}).step);
 
     // V3 Tests
@@ -572,6 +630,10 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    if (is_blocked_darwin) {
+        v3_tests.use_llvm = true;
+        v3_tests.use_lld = true;
+    }
     const v3_test_step = b.step("v3-test", "Run v3 module tests");
     v3_test_step.dependOn(&b.addRunArtifact(v3_tests).step);
 
@@ -584,6 +646,10 @@ pub fn build(b: *std.Build) void {
             .optimize = .ReleaseFast,
         }),
     });
+    if (is_blocked_darwin) {
+        v3_bench.use_llvm = true;
+        v3_bench.use_lld = true;
+    }
     const v3_bench_step = b.step("v3-bench", "Run v3 benchmarks");
     v3_bench_step.dependOn(&b.addRunArtifact(v3_bench).step);
 
@@ -679,5 +745,9 @@ fn addScriptRunner(
             .link_libc = true,
         }),
     });
+    if (is_blocked_darwin) {
+        exe.use_llvm = true;
+        exe.use_lld = true;
+    }
     return b.addRunArtifact(exe);
 }

@@ -1,0 +1,10 @@
+# Patch 001: Force LLVM/LLD backend on Darwin 26+
+#
+# Target: src/Compilation.zig or src/link/MachO.zig
+#
+# When host OS is macOS 26+, default to LLVM/LLD backend instead of
+# self-hosted Mach-O linker, which has __CONST_ZIG segment ordering
+# issues on Tahoe (upstream issue #25521).
+#
+# This patch will be generated from the actual Zig source once
+# .cel/.src/ is populated by running: ./cel/build.sh --patch-only

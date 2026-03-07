@@ -517,10 +517,8 @@ fn getInstallDir(allocator: std.mem.Allocator, override: ?[]const u8) ![]const u
         return allocator.dupe(u8, dir);
     }
 
-    const home = std.process.getEnvVarOwned(allocator, "HOME") catch
-        std.process.getEnvVarOwned(allocator, "USERPROFILE") catch
-        return error.HomeNotFound;
-    defer allocator.free(home);
+    const home_ptr = std.c.getenv("HOME") orelse std.c.getenv("USERPROFILE") orelse return error.HomeNotFound;
+    const home = std.mem.sliceTo(home_ptr, 0);
 
     return std.fs.path.join(allocator, &.{ home, default_install_dir });
 }

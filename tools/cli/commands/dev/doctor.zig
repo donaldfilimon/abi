@@ -11,10 +11,7 @@ const utils = @import("../../../utils/mod.zig");
 const doctor_logic = struct {
     const util = struct {
         fn readFileAlloc(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, path: []const u8, max_size: usize) ![]u8 {
-            const file = try std.fs.cwd().openFile(path, .{});
-            defer file.close();
-            return try file.readToEndAlloc(allocator, max_size);
-            _ = io;
+            return std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(max_size));
         }
 
         fn trimSpace(s: []const u8) []const u8 {
@@ -48,14 +45,13 @@ const doctor_logic = struct {
         }
 
         fn fileExists(io: std.Io.Threaded.Io, path: []const u8) bool {
-            _ = io;
-            std.fs.accessAbsolute(path, .{}) catch return false;
+            std.Io.Dir.accessAbsolute(io, path, .{}) catch return false;
             return true;
         }
     };
 
     fn printEnvVar(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, name: []const u8) !void {
-        const cmd = try std.fmt.allocPrint(allocator, "printf '%s' \"${s}\"", .{ name });
+        const cmd = try std.fmt.allocPrint(allocator, "printf '%s' \"${s}\"", .{name});
         defer allocator.free(cmd);
 
         const result = try util.captureCommand(allocator, io, cmd);
