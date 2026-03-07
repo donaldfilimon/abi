@@ -11,6 +11,34 @@ const std = @import("std");
 const config = @import("config.zig");
 const metrics = @import("distance.zig").Distance;
 
+/// Pre-allocated scratch space for searchLayer() to avoid per-query allocations.
+/// Call reset() before each search to reuse allocations.
+pub const SearchScratch = struct {
+    candidates: std.ArrayListUnmanaged(HNSW.Candidate),
+    visited: std.AutoHashMapUnmanaged(u32, void),
+    results: std.ArrayListUnmanaged(HNSW.Candidate),
+
+    pub fn init() SearchScratch {
+        return .{
+            .candidates = .{},
+            .visited = .{},
+            .results = .{},
+        };
+    }
+
+    pub fn deinit(self: *SearchScratch, allocator: std.mem.Allocator) void {
+        self.candidates.deinit(allocator);
+        self.visited.deinit(allocator);
+        self.results.deinit(allocator);
+    }
+
+    pub fn reset(self: *SearchScratch) void {
+        self.candidates.clearRetainingCapacity();
+        self.visited.clearRetainingCapacity();
+        self.results.clearRetainingCapacity();
+    }
+};
+
 pub const HNSW = struct {
     allocator: std.mem.Allocator,
     cfg: config.Config.IndexConfig,
@@ -38,6 +66,10 @@ pub const HNSW = struct {
     /// PRNG for level assignment.
     rng: std.Random.DefaultPrng,
 
+    /// Optional scratch space for hot-path reuse. If set, searchLayer
+    /// will reuse these allocations instead of creating fresh ones.
+    scratch: ?*SearchScratch = null,
+
     pub fn init(allocator: std.mem.Allocator, cfg: config.Config, engine_metric: config.DistanceMetric) !HNSW {
         const m: f64 = @floatFromInt(@max(cfg.index.hnsw_m, 2));
         return .{
@@ -49,7 +81,25 @@ pub const HNSW = struct {
         };
     }
 
+    /// Initialize scratch space for hot-path reuse.
+    pub fn initScratch(self: *HNSW) !void {
+        if (self.scratch != null) return;
+        const s = try self.allocator.create(SearchScratch);
+        s.* = SearchScratch.init();
+        self.scratch = s;
+    }
+
+    /// Free scratch space.
+    pub fn deinitScratch(self: *HNSW) void {
+        if (self.scratch) |s| {
+            s.deinit(self.allocator);
+            self.allocator.destroy(s);
+            self.scratch = null;
+        }
+    }
+
     pub fn deinit(self: *HNSW) void {
+        self.deinitScratch();
         for (self.vectors.items) |vec| {
             self.allocator.free(vec);
         }
@@ -237,19 +287,35 @@ pub const HNSW = struct {
     fn searchLayer(self: *HNSW, query: []const f32, ep: u32, ef: u16, layer: u32) ![]u32 {
         const ep_dist = self.distance(query, self.vectors.items[ep]);
 
-        // Candidates: sorted closest-first (min-heap semantics via sorted list).
-        var candidates = std.ArrayListUnmanaged(Candidate){};
-        defer candidates.deinit(self.allocator);
+        // Use scratch space if available, otherwise allocate fresh.
+        const use_scratch = self.scratch != null;
+        var owned_candidates: std.ArrayListUnmanaged(Candidate) = .{};
+        var owned_visited: std.AutoHashMapUnmanaged(u32, void) = .{};
+        var owned_results: std.ArrayListUnmanaged(Candidate) = .{};
+
+        var candidates: *std.ArrayListUnmanaged(Candidate) = undefined;
+        var visited: *std.AutoHashMapUnmanaged(u32, void) = undefined;
+        var results: *std.ArrayListUnmanaged(Candidate) = undefined;
+
+        if (use_scratch) {
+            const s = self.scratch.?;
+            s.reset();
+            candidates = &s.candidates;
+            visited = &s.visited;
+            results = &s.results;
+        } else {
+            candidates = &owned_candidates;
+            visited = &owned_visited;
+            results = &owned_results;
+        }
+        defer if (!use_scratch) {
+            owned_candidates.deinit(self.allocator);
+            owned_visited.deinit(self.allocator);
+            owned_results.deinit(self.allocator);
+        };
+
         try candidates.append(self.allocator, .{ .id = ep, .dist = ep_dist });
-
-        // Visited set.
-        var visited = std.AutoHashMapUnmanaged(u32, void){};
-        defer visited.deinit(self.allocator);
         try visited.put(self.allocator, ep, {});
-
-        // Best results (keep up to ef).
-        var results = std.ArrayListUnmanaged(Candidate){};
-        defer results.deinit(self.allocator);
         try results.append(self.allocator, .{ .id = ep, .dist = ep_dist });
 
         while (candidates.items.len > 0) {
@@ -315,6 +381,11 @@ pub const HNSW = struct {
             o.* = results.items[i].id;
         }
         return out;
+    }
+
+    /// Get the number of stored vectors.
+    pub fn count(self: *const HNSW) usize {
+        return self.vectors.items.len;
     }
 
     // ─── Internal: neighbor management ─────────────────────────────────
@@ -447,6 +518,40 @@ test "HNSW empty search returns empty" {
     defer std.testing.allocator.free(res);
 
     try std.testing.expectEqual(@as(usize, 0), res.len);
+}
+
+test "SearchScratch reuse: identical results, no leaks" {
+    const default_cfg: config.Config = .{ .metric = .euclidean };
+    var idx = try HNSW.init(std.testing.allocator, default_cfg, .euclidean);
+    defer idx.deinit();
+
+    // Insert vectors
+    for (0..20) |i| {
+        const val: f32 = @floatFromInt(i);
+        _ = try idx.insert(&[_]f32{ val, 0, 0 });
+    }
+
+    const query = [_]f32{ 10.5, 0, 0 };
+
+    // Search without scratch
+    const res1 = try idx.search(&query, 3, 64);
+    defer std.testing.allocator.free(res1);
+
+    // Enable scratch and search again
+    try idx.initScratch();
+    const res2 = try idx.search(&query, 3, 64);
+    defer std.testing.allocator.free(res2);
+
+    // Results should match
+    try std.testing.expectEqual(res1.len, res2.len);
+    for (res1, res2) |a, b| {
+        try std.testing.expectEqual(a, b);
+    }
+
+    // Search a third time to verify reuse
+    const res3 = try idx.search(&query, 3, 64);
+    defer std.testing.allocator.free(res3);
+    try std.testing.expectEqual(res1.len, res3.len);
 }
 
 test "HNSW recall vs brute force" {

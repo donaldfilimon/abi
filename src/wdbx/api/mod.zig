@@ -5,7 +5,7 @@ const std = @import("std");
 pub const RpcServer = struct {
     port: u16 = 9000,
     use_tls: bool = false,
-    
+
     pub const RequestType = enum { ingest, query, snapshot, compaction };
     pub const ResponseStatus = enum { ok, err, pending };
 

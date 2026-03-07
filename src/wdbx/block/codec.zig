@@ -33,7 +33,7 @@ pub fn decodeBlock(allocator: std.mem.Allocator, data: []const u8) !block.Stored
     const reader = fbs.reader();
 
     var b: block.StoredBlock = undefined;
-    
+
     try reader.readNoEof(&b.header.id.id);
     b.header.kind = @enumFromInt(try reader.readInt(u32, .little));
     b.header.version = try reader.readInt(u32, .little);
@@ -42,7 +42,7 @@ pub fn decodeBlock(allocator: std.mem.Allocator, data: []const u8) !block.Stored
     b.header.size = try reader.readInt(u32, .little);
     b.header.flags = try reader.readInt(u16, .little);
     b.header.compression_marker = try reader.readByte();
-    
+
     b.payload = try allocator.dupe(u8, data[header_size..]);
 
     return b;

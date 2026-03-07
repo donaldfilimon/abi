@@ -4,6 +4,8 @@
 //! multi-layer HNSW graph, SIMD-accelerated metrics, a segmented embedding
 //! cache, an OpenAI-compatible HTTP client, and binary persistence.
 //!
+//! Module layout: block, core, dist, graph, memory, trace, api, cli (see Internal Subsystems).
+//!
 //! ## Quick Start
 //! ```zig
 //! const wdbx = @import("wdbx");
@@ -91,7 +93,7 @@ test {
     _ = @import("engine.zig");
     _ = @import("sync_compat.zig");
     _ = @import("persistence.zig");
-    
+
     _ = block;
     _ = core;
     _ = dist;
