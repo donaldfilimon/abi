@@ -37,6 +37,10 @@
 - **Root cause**: Pre-built Zig toolchains can fail to link any binary (even the build runner) on futuristic Darwin environments (macOS 26+).
 - **Prevention rule**: Provide a standalone C-based bootstrapper (`tools/scripts/emergency_bootstrap.c`) that can be compiled with `clang` to build a native Zig toolchain from source, bypassing the broken pre-built binary entirely.
 
+## 2026-03-06 - Build runner links first; build.zig workarounds cannot fix it
+- **Root cause**: When `zig build` fails with undefined symbols (e.g. `__availability_version_check`, `_arc4random_buf`) the first binary being linked is the **build runner** (the program that runs `build.zig`). That link happens before `build.zig` runs, so `use_llvm` / `use_lld` and other options set in `build.zig` do not apply to it.
+- **Prevention rule**: If the failure is in the build runner, the only fix is to use a Zig built from source on the same host (e.g. `zig-bootstrap-emergency/./build aarch64-macos-none baseline`). Document this in CLAUDE.md and `docs/ZIG_MACOS_LINKER_RESEARCH.md`; set `use_llvm`/`use_lld` in build.zig for macOS 26+ anyway so that once the build runner links, our artifacts use the LLVM path.
+
 ## 2026-03-06 - Async Event Loop Polling in Zig 0.16
 - **Root cause**: Busy-wait loops using `std.time.sleep` in TUI event handlers consume unnecessary CPU and degrade responsiveness compared to blocking I/O waits.
 - **Prevention rule**: Use `std.posix.poll` (or equivalent platform-native non-blocking I/O multiplexing) on `std.posix.STDIN_FILENO` instead of `std.time.sleep` when waiting for input in asynchronous event loops.

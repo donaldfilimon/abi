@@ -1,10 +1,15 @@
-# Patch 001: Force LLVM/LLD backend on Darwin 26+
-#
-# Target: src/Compilation.zig or src/link/MachO.zig
-#
-# When host OS is macOS 26+, default to LLVM/LLD backend instead of
-# self-hosted Mach-O linker, which has __CONST_ZIG segment ordering
-# issues on Tahoe (upstream issue #25521).
-#
-# This patch will be generated from the actual Zig source once
-# .cel/.src/ is populated by running: ./cel/build.sh --patch-only
+--- a/src/Compilation/Config.zig
++++ b/src/Compilation/Config.zig
+@@ -370,6 +370,12 @@
+         // load_dynamic_library standalone test not passing on this combination
+         // https://github.com/ziglang/zig/issues/24080
+         if (target.os.tag.isDarwin() and is_dyn_lib) break :b true;
++
++        // Force LLVM on Darwin 26+ (macOS Tahoe) to avoid self-hosted
++        // Mach-O linker segment ordering issues (upstream #25521).
++        // This also cascades to use_lld = true via the default at line ~423.
++        if (target.os.tag.isDarwin() and
++            target.os.version_range.semver.min.major >= 26) break :b true;
+
+         // At this point we would prefer to use our own self-hosted backend,
+         // because the compilation speed is better than LLVM. But only do it if
