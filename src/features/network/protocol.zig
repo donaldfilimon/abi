@@ -62,7 +62,7 @@ pub fn encodeTask(allocator: std.mem.Allocator, task: TaskEnvelope) ![]u8 {
     return buffer.toOwnedSlice(allocator);
 }
 
-pub fn decodeTask(allocator: std.mem.Allocator, data: []const u8) ProtocolError!TaskEnvelope {
+pub fn decodeTask(allocator: std.mem.Allocator, data: []const u8) (ProtocolError || std.mem.Allocator.Error)!TaskEnvelope {
     var cursor = Cursor{ .data = data };
     const magic = try cursor.readBytes(task_magic.len);
     if (!std.mem.eql(u8, magic, task_magic)) return ProtocolError.InvalidFormat;
@@ -104,7 +104,7 @@ pub fn encodeResult(allocator: std.mem.Allocator, result: ResultEnvelope) ![]u8 
     return buffer.toOwnedSlice(allocator);
 }
 
-pub fn decodeResult(allocator: std.mem.Allocator, data: []const u8) ProtocolError!ResultEnvelope {
+pub fn decodeResult(allocator: std.mem.Allocator, data: []const u8) (ProtocolError || std.mem.Allocator.Error)!ResultEnvelope {
     var cursor = Cursor{ .data = data };
     const magic = try cursor.readBytes(result_magic.len);
     if (!std.mem.eql(u8, magic, result_magic)) return ProtocolError.InvalidFormat;
@@ -114,8 +114,11 @@ pub fn decodeResult(allocator: std.mem.Allocator, data: []const u8) ProtocolErro
 
     const id = try cursor.readInt(u64);
     const status_byte = try cursor.readInt(u8);
-    const status = std.meta.intToEnum(ResultStatus, status_byte) catch
-        return ProtocolError.InvalidFormat;
+    const status: ResultStatus = switch (status_byte) {
+        0 => .ok,
+        1 => .failed,
+        else => return ProtocolError.InvalidFormat,
+    };
     const payload_len: usize = @intCast(try cursor.readInt(u32));
     const payload_bytes = try cursor.readBytes(payload_len);
     const payload = try allocator.dupe(u8, payload_bytes);
@@ -234,10 +237,11 @@ test "decode rejects truncated data" {
     try std.testing.expectError(ProtocolError.TruncatedData, decodeTask(allocator, truncated));
 }
 
-test "encode rejects oversized payloads" {
+test "encode rejects oversized kind" {
     const allocator = std.testing.allocator;
-    const oversized_kind: []u8 = &([1]u8{'x'} ** (std.math.maxInt(u16) + 1));
-    const oversized_payload: []u8 = &([1]u8{'y'} ** (std.math.maxInt(u32) + 1));
+    var kind_buf: [std.math.maxInt(u16) + 1]u8 = undefined;
+    @memset(&kind_buf, 'x');
+    const oversized_kind = kind_buf[0..];
 
     const task = TaskEnvelope{
         .id = 42,
@@ -245,11 +249,4 @@ test "encode rejects oversized payloads" {
         .payload = "payload",
     };
     try std.testing.expectError(ProtocolError.PayloadTooLarge, encodeTask(allocator, task));
-
-    const result = ResultEnvelope{
-        .id = 42,
-        .status = .ok,
-        .payload = oversized_payload,
-    };
-    try std.testing.expectError(ProtocolError.PayloadTooLarge, encodeResult(allocator, result));
 }

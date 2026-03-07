@@ -344,6 +344,92 @@ pub const distributed = struct {
         }
         pub fn deinit(_: *@This()) void {}
     };
+
+    // Cluster bootstrap & membership (parity with distributed/cluster.zig)
+    pub const NodeRole = enum { primary, replica, observer };
+    pub const NodeState = enum { joining, active, draining, failed, removed };
+    pub const TransportType = enum { tcp, tls, thunderbolt, auto };
+    pub const NodeInfo = struct {
+        node_id: u64 = 0,
+        address: [64]u8 = [_]u8{0} ** 64,
+        address_len: u8 = 0,
+        port: u16 = 9200,
+        role: NodeRole = .primary,
+        state: NodeState = .joining,
+        transport: TransportType = .tcp,
+        last_heartbeat: i64 = 0,
+        shard_count: u32 = 0,
+        vector_count: u64 = 0,
+    };
+    pub const ClusterConfig = struct {
+        node_id: u64 = 0,
+        listen_port: u16 = 9200,
+        transport: TransportType = .tcp,
+        replication_factor: u8 = 3,
+        heartbeat_interval_ms: u32 = 1000,
+        failure_timeout_ms: u32 = 5000,
+        auto_rebalance: bool = true,
+        max_nodes: u16 = 256,
+        bootstrap_peers: [512]u8 = [_]u8{0} ** 512,
+        bootstrap_peers_len: u16 = 0,
+    };
+    pub const ClusterStatus = struct {
+        node_count: u16 = 0,
+        active_nodes: u16 = 0,
+        total_shards: u32 = 0,
+        total_vectors: u64 = 0,
+        replication_health: f32 = 0.0,
+        leader_id: u64 = 0,
+        self_role: NodeRole = .primary,
+    };
+    pub const ClusterError = error{ BufferTooSmall, InvalidMessage, PeerNotFound };
+    pub const MessageType = enum(u8) { heartbeat = 1, join_request = 2, join_response = 3, shard_transfer = 4, leader_announce = 5 };
+    pub const ClusterMessage = struct {
+        msg_type: MessageType = .heartbeat,
+        sender_id: u64 = 0,
+        payload: [1024]u8 = [_]u8{0} ** 1024,
+        payload_len: u32 = 0,
+        pub fn serialize(_: *const @This(), _: []u8) ClusterError!usize {
+            return error.BufferTooSmall;
+        }
+        pub fn deserialize(_: []const u8) ClusterError!@This() {
+            return error.InvalidMessage;
+        }
+    };
+    pub const PeerAddress = struct {
+        host: [64]u8 = [_]u8{0} ** 64,
+        host_len: u8 = 0,
+        port: u16 = 9200,
+        pub fn fromString(_: []const u8) PeerAddress {
+            return .{};
+        }
+    };
+    pub const ClusterManager = struct {
+        pub fn init(_: std.mem.Allocator, _: ClusterConfig) @This() {
+            return .{};
+        }
+        pub fn deinit(_: *@This()) void {}
+        pub fn start(_: *@This()) ClusterError!void {
+            return error.PeerNotFound;
+        }
+        pub fn stop(_: *@This()) void {}
+        pub fn onHeartbeat(_: *@This(), _: u64, _: u64) void {}
+        pub fn checkHealth(_: *@This()) void {}
+        pub fn addPeer(_: *@This(), _: NodeInfo) ClusterError!void {
+            return error.PeerNotFound;
+        }
+        pub fn removePeer(_: *@This(), _: u64) void {}
+        pub fn getStatus(_: *const @This()) ClusterStatus {
+            return .{};
+        }
+        pub fn activeNodeCount(_: *const @This()) u16 {
+            return 0;
+        }
+        pub fn electLeader(_: *@This()) void {}
+        pub fn serializeHeartbeat(_: *const @This()) ClusterError!ClusterMessage {
+            return error.InvalidMessage;
+        }
+    };
 };
 
 // ============================================================================

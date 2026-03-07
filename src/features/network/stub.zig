@@ -24,6 +24,8 @@ const transport_mod = @import("stubs/transport.zig");
 const raft_transport_mod = @import("stubs/raft_transport.zig");
 const circuit_breaker_mod = @import("stubs/circuit_breaker.zig");
 const failover_mod = @import("stubs/failover.zig");
+const heartbeat_mod = @import("stubs/heartbeat.zig");
+const rpc_protocol_mod = @import("stubs/rpc_protocol.zig");
 const unified_memory_mod = @import("stubs/unified_memory.zig");
 const linking_mod = @import("stubs/linking.zig");
 
@@ -271,6 +273,32 @@ pub const circuit_breaker = circuit_breaker_mod;
 pub const unified_memory = unified_memory_mod;
 pub const linking = linking_mod;
 pub const failover = failover_mod;
+pub const heartbeat = heartbeat_mod;
+pub const rpc_protocol = rpc_protocol_mod;
+
+// ============================================================================
+// Heartbeat FSM Re-exports
+// ============================================================================
+
+pub const NodeHealthState = heartbeat_mod.NodeHealthState;
+pub const ClusterHealthState = heartbeat_mod.ClusterHealthState;
+pub const HeartbeatEvent = heartbeat_mod.HeartbeatEvent;
+pub const HeartbeatConfig = heartbeat_mod.HeartbeatConfig;
+pub const HeartbeatStateMachine = heartbeat_mod.HeartbeatStateMachine;
+pub const EventCallback = heartbeat_mod.EventCallback;
+
+// ============================================================================
+// RPC Protocol Re-exports
+// ============================================================================
+
+pub const RpcMessageType = rpc_protocol_mod.MessageType;
+pub const RpcHeader = rpc_protocol_mod.RpcHeader;
+pub const ParsedFrame = rpc_protocol_mod.ParsedFrame;
+pub const RpcError = rpc_protocol_mod.RpcError;
+pub const VectorEntry = rpc_protocol_mod.VectorEntry;
+pub const BlockHeader = rpc_protocol_mod.BlockHeader;
+pub const frameMessage = rpc_protocol_mod.frameMessage;
+pub const parseRpcFrame = rpc_protocol_mod.parseFrame;
 
 // ============================================================================
 // Context (Framework integration)

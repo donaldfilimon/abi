@@ -202,6 +202,9 @@ pub const Gpu = features.gpu.Gpu;
 /// GPU backend enum (cuda, vulkan, metal, webgpu, tpu, etc.); use `abi.features.gpu` for full API.
 pub const GpuBackend = features.gpu.Backend;
 
+/// WDBX vector engine (HNSW, dist, graph, core.alloc). Use for engine, persistence, and optional TrackingAllocator wiring.
+pub const wdbx = @import("wdbx");
+
 // ============================================================================
 // Primary API
 // ============================================================================

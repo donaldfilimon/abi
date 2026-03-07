@@ -9,6 +9,7 @@
 
 const std = @import("std");
 const shard_manager = @import("shard_manager.zig");
+const heartbeat_mod = @import("../../network/heartbeat.zig");
 
 // ============================================================================
 // Types
@@ -83,6 +84,8 @@ pub const ClusterManager = struct {
     peers: std.ArrayListUnmanaged(NodeInfo),
     started: bool,
     leader_id: u64,
+    /// Unified heartbeat FSM for hysteresis-based health tracking.
+    health_fsm: heartbeat_mod.HeartbeatStateMachine,
 
     pub fn init(allocator: std.mem.Allocator, config: ClusterConfig) ClusterManager {
         var self_info: NodeInfo = undefined;
@@ -104,11 +107,16 @@ pub const ClusterManager = struct {
             .peers = .empty,
             .started = false,
             .leader_id = 0,
+            .health_fsm = heartbeat_mod.HeartbeatStateMachine.init(allocator, .{
+                .suspect_threshold = 2,
+                .unhealthy_threshold = @as(u32, config.failure_timeout_ms / @max(config.heartbeat_interval_ms, 1)),
+            }),
         };
     }
 
     pub fn deinit(self: *ClusterManager) void {
         self.peers.deinit(self.allocator);
+        self.health_fsm.deinit();
     }
 
     /// Start the cluster manager — begin discovery and join process.
@@ -139,11 +147,16 @@ pub const ClusterManager = struct {
         self.started = false;
     }
 
-    /// Process a heartbeat from a peer.
+    /// Process a heartbeat from a peer. Delegates to unified FSM.
     pub fn onHeartbeat(self: *ClusterManager, node_id: u64, vector_count: u64) void {
         var ts: std.c.timespec = undefined;
         _ = std.c.clock_gettime(.REALTIME, &ts);
         const now: i64 = @intCast(ts.sec);
+
+        // Record heartbeat in unified FSM using node_id as string key
+        var id_buf: [20]u8 = undefined;
+        const id_str = std.fmt.bufPrint(&id_buf, "{d}", .{node_id}) catch "";
+        self.health_fsm.recordHeartbeat(id_str);
 
         for (self.peers.items) |*peer| {
             if (peer.node_id == node_id) {
@@ -156,7 +169,11 @@ pub const ClusterManager = struct {
     }
 
     /// Check for failed nodes (no heartbeat within timeout).
+    /// Also ticks the unified FSM for hysteresis evaluation.
     pub fn checkHealth(self: *ClusterManager) void {
+        // Tick FSM for miss detection
+        self.health_fsm.tick();
+
         var ts: std.c.timespec = undefined;
         _ = std.c.clock_gettime(.REALTIME, &ts);
         const now: i64 = @intCast(ts.sec);

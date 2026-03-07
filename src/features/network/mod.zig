@@ -45,6 +45,8 @@ pub const raft = @import("raft.zig");
 pub const transport = @import("transport.zig");
 pub const raft_transport = @import("raft_transport.zig");
 pub const circuit_breaker = @import("circuit_breaker.zig");
+pub const heartbeat = @import("heartbeat.zig");
+pub const rpc_protocol = @import("rpc_protocol.zig");
 
 // Unified Memory and Linking modules
 pub const unified_memory = @import("unified_memory/mod.zig");
@@ -266,6 +268,28 @@ pub const InternetTransport = linking.InternetTransport;
 pub const InternetConfig = linking.InternetConfig;
 pub const NatTraversal = linking.NatTraversal;
 pub const QuicConnection = linking.QuicConnection;
+
+// ============================================================================
+// Heartbeat FSM exports
+// ============================================================================
+pub const NodeHealthState = heartbeat.NodeHealthState;
+pub const ClusterHealthState = heartbeat.ClusterHealthState;
+pub const HeartbeatEvent = heartbeat.HeartbeatEvent;
+pub const HeartbeatConfig = heartbeat.HeartbeatConfig;
+pub const HeartbeatStateMachine = heartbeat.HeartbeatStateMachine;
+pub const EventCallback = heartbeat.EventCallback;
+
+// ============================================================================
+// RPC Protocol exports
+// ============================================================================
+pub const RpcMessageType = rpc_protocol.MessageType;
+pub const RpcHeader = rpc_protocol.RpcHeader;
+pub const ParsedFrame = rpc_protocol.ParsedFrame;
+pub const RpcError = rpc_protocol.RpcError;
+pub const VectorEntry = rpc_protocol.VectorEntry;
+pub const BlockHeader = rpc_protocol.BlockHeader;
+pub const frameMessage = rpc_protocol.frameMessage;
+pub const parseRpcFrame = rpc_protocol.parseFrame;
 
 // ============================================================================
 // Error types

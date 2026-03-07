@@ -4,6 +4,7 @@
 //! for distributed compute clusters.
 
 const std = @import("std");
+const heartbeat_mod = @import("heartbeat.zig");
 
 pub const HaError = error{
     NoHealthyNodes,
@@ -56,6 +57,9 @@ pub const HealthCheck = struct {
     primary_node: ?[]const u8 = null,
     check_count: std.StringHashMapUnmanaged(u8),
 
+    /// Unified heartbeat FSM for hysteresis-based health tracking.
+    fsm: heartbeat_mod.HeartbeatStateMachine,
+
     pub fn init(allocator: std.mem.Allocator, config: ClusterConfig) !HealthCheck {
         return HealthCheck{
             .allocator = allocator,
@@ -63,18 +67,23 @@ pub const HealthCheck = struct {
             .node_health = .{},
             .cluster_state = .forming,
             .check_count = .{},
+            .fsm = heartbeat_mod.HeartbeatStateMachine.init(allocator, .{
+                .suspect_threshold = config.max_failed_checks,
+            }),
         };
     }
 
     pub fn deinit(self: *HealthCheck) void {
         self.node_health.deinit(self.allocator);
         self.check_count.deinit(self.allocator);
+        self.fsm.deinit();
         self.* = undefined;
     }
 
     pub fn addNode(self: *HealthCheck, node_id: []const u8) !void {
         try self.node_health.put(self.allocator, node_id, .unknown);
         try self.check_count.put(self.allocator, node_id, 0);
+        self.fsm.registerNode(node_id) catch {};
     }
 
     pub fn removeNode(self: *HealthCheck, node_id: []const u8) void {
@@ -98,6 +107,8 @@ pub const HealthCheck = struct {
         }
         if (result.healthy) {
             count_ptr.value_ptr.* = 0;
+            // Delegate to FSM for hysteresis-based tracking
+            self.fsm.recordHeartbeat(result.node_id);
         } else {
             count_ptr.value_ptr.* +%= 1;
         }
@@ -174,6 +185,9 @@ pub const HealthCheck = struct {
     }
 
     fn evaluateClusterState(self: *HealthCheck) !void {
+        // Tick FSM to evaluate transitions
+        self.fsm.tick();
+
         var healthy_count: usize = 0;
         var unhealthy_count: usize = 0;
         var unknown_count: usize = 0;
