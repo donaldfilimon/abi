@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ABI is a Zig 0.16 framework for AI services, vector search, and high-performance compute. It has 19 comptime-gated feature modules, a CLI with 30+ commands, and a TUI dashboard. The public API is exposed through `src/abi.zig` via `@import("abi")`.
+ABI is a Zig 0.16 framework for AI services, vector search, and high-performance compute. It has 19 comptime-gated feature modules, a CLI with 40 commands, and a TUI dashboard. The public API is exposed through `src/abi.zig` via `@import("abi")`.
 
 ## Build Commands
 
