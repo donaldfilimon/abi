@@ -121,9 +121,19 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn normalizeName(allocator: std.mem.Allocator, raw: []const u8) ![]u8 {
-    const out = try allocator.alloc(u8, raw.len);
-    for (raw, out) |c, *o| {
-        o.* = if (c == ' ' or c == '_') '-' else std.ascii.toLower(c);
+    // Count valid chars first (strip path separators and dots to prevent traversal)
+    var count: usize = 0;
+    for (raw) |c| {
+        if (c != '/' and c != '\\' and c != '.') count += 1;
+    }
+    if (count == 0) return error.MissingName;
+
+    const out = try allocator.alloc(u8, count);
+    var i: usize = 0;
+    for (raw) |c| {
+        if (c == '/' or c == '\\' or c == '.') continue;
+        out[i] = if (c == ' ' or c == '_') '-' else std.ascii.toLower(c);
+        i += 1;
     }
     return out;
 }
