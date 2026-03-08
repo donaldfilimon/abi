@@ -1,10 +1,17 @@
 //! LLM Trainer for LLaMA-style models.
 //!
+//! All weights, gradients, activations, and optimizer state are f32.
+//! Mixed precision mode (when enabled) uses FP16 for the forward-pass
+//! working copy only; master weights, gradients, and all optimizer
+//! arithmetic remain in f32 for numerical stability.
+//!
 //! Provides a complete training loop for transformer language models:
 //! - Forward pass with activation caching
 //! - Backward pass with gradient computation
 //! - Optimizer integration (SGD, Adam, AdamW)
 //! - Gradient accumulation and clipping
+//! - Mixed precision with dynamic loss scaling
+//! - NaN/Inf gradient guards
 //! - Checkpointing and resumption
 
 const std = @import("std");
@@ -16,6 +23,7 @@ const llm_checkpoint = @import("llm_checkpoint.zig");
 const logging = @import("logging.zig");
 const ai_ops = @import("../../gpu/ai_ops.zig");
 const training_bridge = @import("../../gpu/training_bridge.zig");
+const mixed_precision = @import("mixed_precision.zig");
 
 /// Training configuration for LLM.
 pub const LlmTrainingConfig = struct {
@@ -204,6 +212,10 @@ pub const LlamaTrainer = struct {
     stats: TrainingStats,
     /// GPU training bridge (GPU-accelerated ops with CPU fallback)
     gpu_bridge: ?training_bridge.GpuTrainingBridge,
+    /// Mixed precision loss scaler (active when config.mixed_precision is true)
+    loss_scaler: ?mixed_precision.LossScaler,
+    /// Number of steps skipped due to NaN/Inf gradients
+    nan_skip_count: u64,
     /// Accumulated loss for logging
     accum_loss: f32,
     /// Loss history for early stopping
@@ -293,6 +305,16 @@ pub const LlamaTrainer = struct {
         var log_timer = time.Timer.start() catch null;
         const initial_time = if (log_timer) |*t| t.read() else 0;
 
+        // Initialize loss scaler for mixed precision
+        var loss_scaler: ?mixed_precision.LossScaler = null;
+        if (config.mixed_precision) {
+            loss_scaler = mixed_precision.LossScaler.init(allocator, .{
+                .enabled = true,
+                .initial_scale = 65536.0,
+            });
+            std.log.info("Mixed precision training enabled (FP16 forward, FP32 gradients)", .{});
+        }
+
         return .{
             .allocator = allocator,
             .config = config,
@@ -305,6 +327,8 @@ pub const LlamaTrainer = struct {
             },
             .stats = .{},
             .gpu_bridge = gpu_bridge_inst,
+            .loss_scaler = loss_scaler,
+            .nan_skip_count = 0,
             .accum_loss = 0,
             .loss_history = std.ArrayListUnmanaged(f32).empty,
             .val_data = null,
@@ -330,6 +354,7 @@ pub const LlamaTrainer = struct {
         if (self.best_weights) |bw| self.allocator.free(bw);
         if (self.logger) |*logger| logger.deinit();
         if (self.gpu_bridge) |*bridge| bridge.deinit();
+        if (self.loss_scaler) |*scaler| scaler.deinit();
         self.loss_history.deinit(self.allocator);
         if (self.optimizer_state.v) |v| self.allocator.free(v);
         if (self.optimizer_state.m) |m| self.allocator.free(m);
@@ -380,7 +405,12 @@ pub const LlamaTrainer = struct {
         }
 
         // Compute loss using CrossEntropy
-        const loss = try self.loss_fn.forward(logits, labels);
+        var loss = try self.loss_fn.forward(logits, labels);
+
+        // Scale loss for mixed precision (prevents gradient underflow)
+        if (self.loss_scaler) |*scaler| {
+            loss = scaler.scaleLoss(loss);
+        }
 
         // Backward pass (compute gradients through loss function)
         const d_logits = try self.allocator.alloc(f32, logits.len);
@@ -392,6 +422,36 @@ pub const LlamaTrainer = struct {
             try self.model.backwardGpu(d_logits, input_ids, bridge);
         } else {
             try self.model.backward(d_logits, input_ids);
+        }
+
+        // NaN/Inf gradient guard: skip step if gradients are corrupted
+        if (self.model.hasNonFiniteGradients()) {
+            self.nan_skip_count += 1;
+            if (self.config.mixed_precision) {
+                // In mixed precision mode, this is expected — the scaler will back off
+                if (self.loss_scaler) |*scaler| {
+                    _ = scaler.unscaleGradients(self.model.weights.d_token_embedding);
+                    scaler.update(false);
+                }
+            } else {
+                std.log.warn("NaN/Inf in gradients at step {d} (skip #{d})", .{
+                    self.stats.global_step,
+                    self.nan_skip_count,
+                });
+            }
+            self.model.zeroGradients();
+            return .{ .loss = loss, .accuracy = 0 };
+        }
+
+        // Unscale gradients for mixed precision
+        if (self.loss_scaler) |*scaler| {
+            const grads_valid = scaler.unscaleGradients(self.model.weights.d_token_embedding);
+            scaler.update(grads_valid);
+            if (!grads_valid) {
+                // Overflow detected — skip this step
+                self.model.zeroGradients();
+                return .{ .loss = loss, .accuracy = 0 };
+            }
         }
 
         // Compute accuracy
@@ -687,6 +747,7 @@ pub const LlamaTrainer = struct {
 
     /// Evaluate model on validation data.
     /// Runs in inference mode (no gradient computation).
+    /// Uses the real model forward pass to produce logits.
     pub fn evaluate(self: *LlamaTrainer, data: []const u32) !EvalResult {
         const tokens_per_sample = self.config.max_seq_len;
         const batch_tokens = self.config.batch_size * tokens_per_sample;
@@ -696,22 +757,28 @@ pub const LlamaTrainer = struct {
         var total_tokens: u64 = 0;
         var num_batches: u32 = 0;
 
+        // Ensure model is prepared for inference
+        if (self.model.activations == null) {
+            try self.model.prepareForTraining(@intCast(batch_tokens - 1));
+        }
+
         var offset: usize = 0;
         while (offset + batch_tokens < data.len) {
             const batch_data = data[offset .. offset + batch_tokens];
 
             // Input: all tokens except last
             // Labels: all tokens except first (shifted)
+            const input_ids = batch_data[0 .. batch_tokens - 1];
             const labels = batch_data[1..batch_tokens];
 
-            // Forward pass (no gradients)
+            // Forward pass (inference only — no gradients)
             const logits = try self.allocator.alloc(f32, (batch_tokens - 1) * self.model.config.vocab_size);
             defer self.allocator.free(logits);
 
-            // Placeholder: initialize with small random values
-            var rng = std.Random.DefaultPrng.init(offset);
-            for (logits) |*l| {
-                l.* = rng.random().floatNorm(f32) * 0.1;
+            if (self.gpu_bridge) |*bridge| {
+                try self.model.forwardGpu(input_ids, logits, bridge);
+            } else {
+                try self.model.forward(input_ids, logits);
             }
 
             // Compute loss

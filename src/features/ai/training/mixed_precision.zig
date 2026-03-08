@@ -62,6 +62,24 @@ pub const LossScaler = struct {
         self.* = undefined;
     }
 
+    /// Reset scaler state for reuse across training runs without deinit/reinit.
+    pub fn reset(self: *LossScaler, config: MixedPrecisionConfig) void {
+        self.scale = config.initial_scale;
+        self.growth_factor = config.growth_factor;
+        self.backoff_factor = config.backoff_factor;
+        self.min_scale = config.min_scale;
+        self.max_scale = config.max_scale;
+        self.growth_interval = config.growth_interval;
+        self.steps_since_overflow = 0;
+        self.overflow_count = 0;
+        self.gradients_scaled = false;
+    }
+
+    /// Alias for `update()` — matches common mixed-precision API naming.
+    pub fn updateScale(self: *LossScaler, gradients_valid: bool) void {
+        self.update(gradients_valid);
+    }
+
     /// Get current loss scale.
     pub fn getScale(self: *const LossScaler) f32 {
         return self.scale;

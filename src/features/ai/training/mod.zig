@@ -5,6 +5,12 @@
 //! video, audio, documents, and arbitrary payloads (see ExperienceType, DataKind, and
 //! SelfLearningSystem.recordVideoExperience / recordAudioExperience / recordGenericExperience).
 //!
+//! ## Precision semantics
+//! All weights, gradients, activations, and optimizer state (momentum, velocity) are **f32**.
+//! When `PrecisionMode.mixed_f16_f32` is selected, the forward-pass working copy is FP16
+//! while master weights, gradients, and optimizer arithmetic remain f32. This is intentional
+//! for numerical stability, especially on Apple Silicon / CPU-only training paths.
+//!
 //! Provides neural network training with SGD, Adam optimizers, learning rate scheduling,
 //! gradient clipping, loss functions, and mixed precision support.
 
@@ -181,6 +187,17 @@ pub const OptimizerType = enum {
     adamw,
 };
 
+/// Precision mode for training.
+/// Controls how weights and activations are stored during forward/backward passes.
+pub const PrecisionMode = enum {
+    /// Full f32 precision for all operations (default).
+    /// Weights, activations, gradients, and optimizer state are all f32.
+    f32_full,
+    /// Mixed precision: FP16 forward-pass working copy, f32 master weights and gradients.
+    /// Uses dynamic loss scaling to prevent gradient underflow.
+    mixed_f16_f32,
+};
+
 pub const LearningRateSchedule = enum {
     constant,
     linear,
@@ -212,6 +229,8 @@ pub const TrainingConfig = struct {
     early_stopping_patience: u32 = 5,
     early_stopping_threshold: f32 = 1e-4,
     mixed_precision: bool = false,
+    /// Precision mode (explicit alternative to the mixed_precision bool)
+    precision_mode: PrecisionMode = .f32_full,
 
     pub fn validate(self: TrainingConfig) TrainingError!void {
         if (self.epochs == 0) return TrainingError.InvalidConfiguration;

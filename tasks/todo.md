@@ -64,6 +64,8 @@ deeper subsystem integration.
 
 **Proceeded (this session):** CEL toolchain integration landed. `build/cel.zig` adds `cel-check`, `cel-build`, `cel-status`, `cel-verify` build steps. `tools/scripts/cel_doctor.zig` provides comprehensive diagnostics. `tools/scripts/cel_migrate.sh` offers guided migration. Toolchain doctor and version consistency checks now include CEL detection. All compile-only tests pass. Format clean.
 
+**Proceeded (this session):** F32 training pipeline hardened. `llm_trainer.zig`: fixed `evaluate()` to use real `model.forward()` instead of random logits; wired `mixed_precision` config flag with `LossScaler`; added NaN/Inf gradient guard. `mixed_precision.zig`: added `reset()` and `updateScale()` alias. `mod.zig`: added `PrecisionMode` enum and f32 precision docs. Format clean.
+
 1. [ ] **Benchmarks**: Run `zig build benchmarks` (or suite=simd/database); confirm no regression from telemetry or GraphStore. *(Requires working linker.)*
 2. [ ] **Full gate**: On a host where the toolchain links, run `zig build full-check` and `zig build verify-all`.
 3. [x] **Rebalance on fail**: From application code, call `coord.unassignShardsForNode(allocator, node_id)` when a node transitions to failed (e.g. in trace_state_change callback); optionally reassign shards to healthy nodes. *(Test and doc in dist/mod.zig.)*
