@@ -62,7 +62,7 @@ deeper subsystem integration.
 
 *Run in order when toolchain allows; environment-blocked items are noted. "Do all" on this host: verified manifest, fmt, compile-only tests, added stress tests; build/test still fails at link (Darwin).*
 
-**Proceeded (this session):** Lint (fmt) pass; compile-only tests for dist/graph pass; lesson added (build runner links first); Darwin 26+ use_llvm/workaround and zig-bootstrap docs in place. Zig pin reverted to **0.16.0-dev.2650+74f361a5c** (from 2694) for Darwin; install that version (e.g. `zvm install 0.16.0-dev.2650` or build from that commit) so `zig build` can link on this machine. Benchmarks, full gate, CLI registry, check-docs remain runnable once the older Zig is on PATH.
+**Proceeded (this session):** CEL toolchain integration landed. `build/cel.zig` adds `cel-check`, `cel-build`, `cel-status`, `cel-verify` build steps. `tools/scripts/cel_doctor.zig` provides comprehensive diagnostics. `tools/scripts/cel_migrate.sh` offers guided migration. Toolchain doctor and version consistency checks now include CEL detection. All compile-only tests pass. Format clean.
 
 1. [ ] **Benchmarks**: Run `zig build benchmarks` (or suite=simd/database); confirm no regression from telemetry or GraphStore. *(Requires working linker.)*
 2. [ ] **Full gate**: On a host where the toolchain links, run `zig build full-check` and `zig build verify-all`.
@@ -79,7 +79,7 @@ deeper subsystem integration.
 
 ### WDBX / Distributed
 - [x] **Shard balancing**: Implement rebalance logic when nodes go stale/failed; update `Coordinator.shard_map` and document contract. *(unassignShardsForNode + trace callback test; assignShard for reassign.)*
-- [ ] **RPC transport**: Add a minimal transport layer (e.g. stream over TCP) that uses `dist.rpc` encode/decode; no full Raft yet.
+- [x] **RPC transport**: Add a minimal transport layer (e.g. stream over TCP) that uses `dist.rpc` encode/decode; no full Raft yet.
 - [x] **Block replication**: Use `dist.rpc` BlockSyncRequest/Response in a single-node-to-node copy path; trace logs for sync. *(dist/replication.zig runRequesterPath.)*
 - [x] **WDBX stress tests**: Add tests or a small harness that stress the graph store and dist coordinator under load (many nodes, many edges). *(dist: "Coordinator: many nodes and shards (stress)"; graph: "GraphStore: many edges (stress)".)*
 
@@ -99,6 +99,38 @@ deeper subsystem integration.
 - [ ] **check-docs**: Run `zig build check-docs` when build succeeds; fix broken or stale references.
 
 ## Archive
+
+### Completed - Do all (this host) 2026-03-08
+
+- **Test manifest**: Confirmed `build/test_discovery.zig` includes `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`.
+- **Format**: `zig fmt --check build.zig build/ src/ tools/` — pass.
+- **Compile-only tests**: `zig test … -fno-emit-bin` pass for `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`, `graph/mod.zig`, `wdbx/core/alloc.zig`, `features/network/protocol.zig`.
+- **Build**: `zig build cel-status` fails at link (`__availability_version_check` etc.) as documented.
+
+
+### Completed - CEL Toolchain Finish & Migration Integration (2026-03-08)
+
+#### Objective
+Aggressively finish the .cel (Custom Environment Linker) toolchain infrastructure and migrate the Zig build system to be CEL-aware, making CEL the primary path for macOS 26+ Darwin hosts.
+
+#### Evidence
+- **`build/cel.zig`**: New build module with `detectCelStatus()`, `addCelCheckStep()`, `addCelBuildStep()`, `addCelStatusStep()`, `addCelVerifyStep()`, `emitCelSuggestion()`. Compiles clean.
+- **`tools/scripts/cel_doctor.zig`**: Comprehensive diagnostics — platform detection, directory structure, binary check, patch inventory, version consistency, stock zig status, build prerequisites, actionable remediation. Compiles clean.
+- **`tools/scripts/cel_migrate.sh`**: Guided migration script with `--check`, `--activate`, `--clean` modes. Syntax valid.
+- **`build.zig` integration**: CEL module imported; `cel-check`, `cel-build`, `cel-status`, `cel-verify`, `cel-doctor` build steps registered; blocked Darwin feature-disable now uses `cel.emitCelSuggestion()` for context-aware guidance.
+- **`toolchain_doctor.zig`**: Updated with CEL binary detection, version matching, and CEL-first remediation on blocked Darwin.
+- **`check_zig_version_consistency.zig`**: Added `.cel/config.sh` ZIG_VERSION consistency check.
+- **`.cel/config.sh`**: Enhanced with migration metadata, build configuration, platform requirements, exports.
+- **`.cel/README.md`**: Comprehensive docs with build system integration, patch table, version consistency contract, module documentation.
+- **`.cel/patches/003-macho-segment-ordering.patch`**: Placeholder for Mach-O segment fix (upstream #25521).
+- **`tools/scripts/use_cel.sh`**: Enhanced with better error messages and CEL migration guidance.
+- **`CLAUDE.md`**: Updated to document CEL as primary path with all build steps.
+- **Format**: `zig fmt --check build.zig build/ src/ tools/` — pass.
+- **Compile-only**: All 4 modified/new Zig files pass `zig test -fno-emit-bin`.
+
+#### Residual Risk
+- Build runner linking remains blocked on macOS 26+ until CEL toolchain is built from source.
+- `003-macho-segment-ordering.patch` is placeholder; needs concrete upstream fix.
 
 ### Completed - Do all (this host) 2026-03-06
 

@@ -318,3 +318,9 @@ test "Coordinator: many nodes and shards (stress)" {
 test {
     std.testing.refAllDecls(@This());
 }
+
+pub const transport = @import("transport.zig");
+
+test {
+    _ = transport;
+}

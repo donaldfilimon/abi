@@ -43,8 +43,9 @@ pub const Scorer = struct {
         self: *Scorer,
         candidates: []const core.ids.BlockId,
     ) ![]RankedCandidate {
-        var ranked = try std.ArrayList(RankedCandidate).initCapacity(self.allocator, candidates.len);
-        defer ranked.deinit();
+        var ranked: std.ArrayList(RankedCandidate) = .empty;
+        defer ranked.deinit(self.allocator);
+        try ranked.ensureTotalCapacity(self.allocator, candidates.len);
 
         for (candidates) |id| {
             // Apply heuristics based on WeightProfile
@@ -55,6 +56,6 @@ pub const Scorer = struct {
             });
         }
 
-        return ranked.toOwnedSlice();
+        return ranked.toOwnedSlice(self.allocator);
     }
 };

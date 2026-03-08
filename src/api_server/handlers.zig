@@ -60,7 +60,7 @@ pub const Handlers = struct {
         return .{
             .status = 200,
             .content_type = "application/json",
-            .body = "{\"status\":\"healthy\",\"version\":\"3.0.0\"}",
+            .body = "{\"status\":\"healthy\",\"version\":\"0.4.0\"}",
         };
     }
 

@@ -28,14 +28,14 @@ pub const MemoryWriter = struct {
         _ = self;
         // Logic: combine top N most important blocks into a single summary string
         // For now, we just concatenate first few characters as a placeholder
-        var summary = std.ArrayList(u8).init(allocator);
-        try summary.appendSlice("Summary: ");
+        var summary: std.ArrayList(u8) = .empty;
+        try summary.appendSlice(allocator, "Summary: ");
         for (blocks, 0..) |block, i| {
             if (i >= 5) break;
             const len = @min(block.len, 20);
-            try summary.appendSlice(block[0..len]);
-            try summary.appendSlice("... ");
+            try summary.appendSlice(allocator, block[0..len]);
+            try summary.appendSlice(allocator, "... ");
         }
-        return summary.toOwnedSlice();
+        return summary.toOwnedSlice(allocator);
     }
 };

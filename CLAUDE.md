@@ -130,12 +130,29 @@ The local Darwin/macOS 26+ environment has an upstream Zig linker incompatibilit
 - `zvm use master` then `export PATH="$HOME/.zvm/bin:$PATH"` (or `eval "$(./tools/scripts/use_zvm_master.sh)"`).
 - Ensures Zig matches `.zigversion` (0.16.0-dev.2650+74f361a5c; reverted from 2694 for Darwin linker). When upstream fixes the linker, re-pin to a newer master.
 
-**Recommended fix:** Use the `.cel` toolchain fork — a patched Zig built from source with macOS 26 fixes:
+**Recommended fix (primary path):** Use the `.cel` toolchain — a patched Zig built from source with macOS 26 fixes:
 ```bash
+# Full guided migration:
+./tools/scripts/cel_migrate.sh           # Build + activate + validate
+
+# Or step-by-step:
 ./.cel/build.sh                          # Build patched Zig (reuses bootstrap LLVM artifacts)
 eval "$(./tools/scripts/use_cel.sh)"     # Set PATH to .cel/bin/zig
+
+# Diagnostics:
+zig build cel-check                      # Quick status check
+zig build cel-doctor                     # Full diagnostics
+zig build cel-status                     # Detailed build status
+zig build cel-verify                     # Verify binary exists
 ```
 See `.cel/README.md` for details. The `.cel` fork pins the same commit as `.zigversion` and applies patches from `.cel/patches/`.
+
+**CEL build steps available in `build.zig`:**
+- `cel-check` — Report CEL toolchain status for this platform
+- `cel-build` — Trigger the CEL toolchain build
+- `cel-status` — Show detailed source/patch/binary status
+- `cel-verify` — Verify the CEL binary exists and prints its version
+- `cel-doctor` — Run comprehensive CEL diagnostics with remediation
 
 **Legacy alternative:** `zig-bootstrap-emergency/` — see `zig-bootstrap-emergency/ABI-USAGE.md`. Build with `./build aarch64-macos-none baseline`, then point `PATH` at `out/zig-<target>-baseline/bin`.
 

@@ -327,15 +327,15 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
             std.debug.print("  │ System          │ Insert/sec   │ P50 ms  │ P99 ms  │ Recall   │\n", .{});
             std.debug.print("  ├─────────────────┼──────────────┼─────────┼─────────┼──────────┤\n", .{});
 
-            var systems_printed = std.StringHashMap(void).init(allocator);
-            defer systems_printed.deinit();
+            var systems_printed: std.StringHashMap(void) = .empty;
+            defer systems_printed.deinit(allocator);
 
             for (vector_db_baselines) |baseline| {
                 if (baseline.dataset_size == 1_000_000 and baseline.dimension == 1536 and
                     std.mem.eql(u8, baseline.operation, "insert"))
                 {
                     if (!systems_printed.contains(baseline.system)) {
-                        try systems_printed.put(baseline.system, {});
+                        try systems_printed.put(allocator, baseline.system, {});
 
                         // Find matching query and recall baselines
                         var p50: f64 = 0;
@@ -407,13 +407,13 @@ pub fn generateReport(allocator: std.mem.Allocator) ![]u8 {
     try writer.writeAll("| System | P50 (ms) | P99 (ms) | Recall@10 |\n");
     try writer.writeAll("|--------|----------|----------|----------|\n");
 
-    var printed = std.StringHashMap(void).init(allocator);
-    defer printed.deinit();
+    var printed: std.StringHashMap(void) = .empty;
+    defer printed.deinit(allocator);
 
     for (vector_db_baselines) |b| {
         if (b.dataset_size == 1_000_000 and b.dimension == 1536 and std.mem.eql(u8, b.operation, "query_p50")) {
             if (!printed.contains(b.system)) {
-                try printed.put(b.system, {});
+                try printed.put(allocator, b.system, {});
                 var p99: f64 = 0;
                 var recall: f64 = 0;
                 for (vector_db_baselines) |b2| {

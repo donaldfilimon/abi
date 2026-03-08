@@ -13,6 +13,7 @@ const gpu = @import("build/gpu.zig");
 const link = @import("build/link.zig");
 const cli_tests = @import("build/cli_tests.zig");
 const test_discovery = @import("build/test_discovery.zig");
+const cel = @import("build/cel.zig");
 
 // Re-export for external use
 pub const GpuBackend = gpu.GpuBackend;
@@ -49,14 +50,9 @@ pub fn build(b: *std.Build) void {
         options.feat_database = false;
         options.feat_ai = false;
 
-        // Suggest .cel toolchain if available
-        const cel_note = b.addSystemCommand(&.{
-            "sh", "-c",
-            \\printf '\n  NOTE: macOS 26+ detected. If linking fails, build the .cel toolchain:\n'
-            \\printf '    ./.cel/build.sh\n'
-            \\printf '    eval "$(./tools/scripts/use_cel.sh)"\n\n'
-        });
-        b.getInstallStep().dependOn(&cel_note.step);
+        // Emit platform-appropriate CEL suggestion
+        const cel_status = cel.detectCelStatus(b);
+        cel.emitCelSuggestion(b, cel_status);
     }
     options_mod.validateOptions(options);
 
@@ -330,6 +326,15 @@ pub fn build(b: *std.Build) void {
     workflow_contract_strict.addArg("--strict");
     workflow_contract_strict_step.dependOn(&workflow_contract_strict.step);
 
+    // ── CEL toolchain steps ──────────────────────────────────────────────
+    _ = cel.addCelCheckStep(b);
+    _ = cel.addCelBuildStep(b);
+    _ = cel.addCelStatusStep(b);
+    _ = cel.addCelVerifyStep(b);
+
+    const cel_doctor_step = b.step("cel-doctor", "Run .cel toolchain diagnostics and remediation");
+    cel_doctor_step.dependOn(&addScriptRunner(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize).step);
+
     // ── CLI DSL registry/codegen ───────────────────────────────────────
     const generate_cli_registry = addScriptRunner(
         b,
@@ -589,32 +594,37 @@ pub fn build(b: *std.Build) void {
 
     // ── V3 Refactored Modules ─────────────────────────────────────────
     // New flat module structure: root.zig → wdbx/, personas/, inference/, api_server/
-    const v3_module = b.addModule("abi-v3", .{
+
+    // Helper: create a v3 root module with abi and wdbx imports wired in.
+    const v3_root_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
+    v3_root_mod.addImport("abi", abi_module);
+    v3_root_mod.addImport("wdbx", wdbx_module);
 
     // V3 Static library
     const v3_lib = b.addLibrary(.{
         .name = "abi-v3",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/root.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+        .root_module = v3_root_mod,
         .linkage = .static,
     });
     b.step("v3-lib", "Build v3 static library").dependOn(&b.addInstallArtifact(v3_lib, .{}).step);
 
     // V3 Server executable
+    const v3_server_mod = b.createModule(.{
+        .root_source_file = b.path("src/server_main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    v3_server_mod.addImport("abi", abi_module);
+    v3_server_mod.addImport("wdbx", wdbx_module);
+
     const v3_server = b.addExecutable(.{
         .name = "abi-server",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/server_main.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+        .root_module = v3_server_mod,
     });
     if (is_blocked_darwin) {
         v3_server.use_llvm = true;
@@ -623,12 +633,16 @@ pub fn build(b: *std.Build) void {
     b.step("v3-server", "Build v3 server executable").dependOn(&b.addInstallArtifact(v3_server, .{}).step);
 
     // V3 Tests
+    const v3_test_mod = b.createModule(.{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    v3_test_mod.addImport("abi", abi_module);
+    v3_test_mod.addImport("wdbx", wdbx_module);
+
     const v3_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/root.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+        .root_module = v3_test_mod,
     });
     if (is_blocked_darwin) {
         v3_tests.use_llvm = true;
@@ -638,13 +652,17 @@ pub fn build(b: *std.Build) void {
     v3_test_step.dependOn(&b.addRunArtifact(v3_tests).step);
 
     // V3 Benchmarks
+    const v3_bench_mod = b.createModule(.{
+        .root_source_file = b.path("src/bench.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    v3_bench_mod.addImport("abi", abi_module);
+    v3_bench_mod.addImport("wdbx", wdbx_module);
+
     const v3_bench = b.addExecutable(.{
         .name = "abi-bench",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/bench.zig"),
-            .target = target,
-            .optimize = .ReleaseFast,
-        }),
+        .root_module = v3_bench_mod,
     });
     if (is_blocked_darwin) {
         v3_bench.use_llvm = true;
@@ -652,8 +670,6 @@ pub fn build(b: *std.Build) void {
     }
     const v3_bench_step = b.step("v3-bench", "Run v3 benchmarks");
     v3_bench_step.dependOn(&b.addRunArtifact(v3_bench).step);
-
-    _ = v3_module;
 
     // ── Verify-all ──────────────────────────────────────────────────────
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");

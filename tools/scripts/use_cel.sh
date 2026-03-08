@@ -4,6 +4,9 @@
 #   eval "$(./tools/scripts/use_cel.sh)"
 #   — or —
 #   source tools/scripts/use_cel.sh
+#
+# This script sets the PATH so that .cel/bin/zig takes precedence.
+# It also validates the version against .zigversion.
 set -e
 
 # Determine repo root relative to this script (tools/scripts/use_cel.sh → ../../)
@@ -14,7 +17,12 @@ CEL_ZIG="$REPO_ROOT/.cel/bin/zig"
 
 if [[ ! -x "$CEL_ZIG" ]]; then
   echo "Error: .cel toolchain not found at $CEL_ZIG" >&2
-  echo "Build it first:  cd $REPO_ROOT && ./.cel/build.sh" >&2
+  echo "" >&2
+  echo "Build it first:" >&2
+  echo "  cd $REPO_ROOT && ./.cel/build.sh" >&2
+  echo "" >&2
+  echo "Or run the full migration:" >&2
+  echo "  cd $REPO_ROOT && ./tools/scripts/cel_migrate.sh" >&2
   exit 1
 fi
 
@@ -27,9 +35,12 @@ if [[ -f "$ZIGVERSION_FILE" ]]; then
   ACTUAL="$(zig version 2>/dev/null | tr -d '[:space:]')"
   if [[ -n "$EXPECTED" && -n "$ACTUAL" && "$ACTUAL" != "$EXPECTED" ]]; then
     echo "Warning: .cel zig version ($ACTUAL) does not match .zigversion ($EXPECTED)" >&2
+    echo "Rebuild with: ./.cel/build.sh --clean" >&2
   fi
 fi
 
 if [[ "${USE_CEL_QUIET:-0}" != "1" ]]; then
   echo "Using Zig (.cel): $(zig version)"
+  echo "  Binary: $CEL_ZIG"
+  echo "  PATH updated: $REPO_ROOT/.cel/bin is first"
 fi

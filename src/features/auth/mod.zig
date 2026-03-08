@@ -111,13 +111,42 @@ pub const Context = struct {
 /// a real secret via AuthConfig.
 const default_jwt_secret = "abi-auth-default-dev-secret-key!";
 
-pub fn init(_: std.mem.Allocator, _: AuthConfig) AuthError!void {}
-pub fn deinit() void {}
+/// Module-level state.  `init()` stores the configured secret so that
+/// `createToken()` / `verifyToken()` use it instead of the hardcoded default.
+var active_jwt_secret: []const u8 = default_jwt_secret;
+var initialized: bool = false;
+
+/// Initialise the auth module with a caller-provided config.
+/// If `config.jwt_secret` is set, it will be used for all subsequent token
+/// operations.  Otherwise the default dev secret is used and a warning is
+/// printed to stderr.
+pub fn init(_: std.mem.Allocator, config: AuthConfig) AuthError!void {
+    if (@hasField(AuthConfig, "jwt_secret")) {
+        if (@field(config, "jwt_secret")) |secret| {
+            if (secret.len > 0) {
+                active_jwt_secret = secret;
+                initialized = true;
+                return;
+            }
+        }
+    }
+    // Fallback to default — warn loudly.
+    std.log.warn("auth: using default dev JWT secret — NOT suitable for production", .{});
+    active_jwt_secret = default_jwt_secret;
+    initialized = true;
+}
+
+pub fn deinit() void {
+    active_jwt_secret = default_jwt_secret;
+    initialized = false;
+}
+
 pub fn isEnabled() bool {
     return true;
 }
+
 pub fn isInitialized() bool {
-    return true;
+    return initialized;
 }
 
 /// Create a signed JWT token for the given user_id.
@@ -126,7 +155,7 @@ pub fn createToken(
     allocator: std.mem.Allocator,
     user_id: []const u8,
 ) AuthError!Token {
-    var manager = jwt.JwtManager.init(allocator, default_jwt_secret, .{
+    var manager = jwt.JwtManager.init(allocator, active_jwt_secret, .{
         .required_claims = &.{},
     });
     defer manager.deinit();
@@ -157,7 +186,7 @@ pub fn verifyToken(token_str: []const u8) AuthError!Token {
     // should use jwt.JwtManager directly with a proper allocator.
     const allocator = std.heap.page_allocator;
 
-    var manager = jwt.JwtManager.init(allocator, default_jwt_secret, .{
+    var manager = jwt.JwtManager.init(allocator, active_jwt_secret, .{
         .required_claims = &.{},
     });
     defer manager.deinit();

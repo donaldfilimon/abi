@@ -134,9 +134,28 @@ pub fn main(_: std.process.Init) !void {
         }
     }
 
+    // ── CEL config version consistency ────────────────────────────────
+    if (util.fileExists(io, ".cel/config.sh")) {
+        const cel_res = util.captureCommand(allocator, io,
+            \\sh -c '. .cel/config.sh 2>/dev/null && printf "%s" "$ZIG_VERSION"'
+        ) catch null;
+        if (cel_res) |res| {
+            defer allocator.free(res.output);
+            const cel_ver = util.trimSpace(res.output);
+            if (cel_ver.len > 0 and !std.mem.eql(u8, cel_ver, baseline.zig_version)) {
+                std.debug.print(
+                    "ERROR: .cel/config.sh ZIG_VERSION ({s}) does not match baseline ({s})\n",
+                    .{ cel_ver, baseline.zig_version },
+                );
+                errors += 1;
+            }
+        }
+    }
+
     if (errors > 0) {
         std.debug.print("FAILED: Zig version consistency check found {d} issue(s)\n", .{errors});
         std.debug.print("Hint: run 'zig run tools/scripts/toolchain_doctor.zig' for a full local diagnosis.\n", .{});
+        std.debug.print("Hint: run 'zig build cel-doctor' for .cel toolchain diagnosis.\n", .{});
         std.process.exit(1);
     }
 

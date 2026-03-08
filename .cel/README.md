@@ -13,28 +13,38 @@ macOS 26+ introduced changes that break Zig's self-hosted Mach-O linker:
 
 ## Quick Start
 
-### Build the patched toolchain
+### One-command migration (recommended)
 
 ```bash
+./tools/scripts/cel_migrate.sh
+```
+
+This will check prerequisites, build the toolchain, activate it, and validate.
+
+### Manual build + activate
+
+```bash
+# Build the patched toolchain
 ./.cel/build.sh
-```
 
-This will:
-1. Clone upstream Zig at the pinned commit (matching `.zigversion`)
-2. Apply all patches from `.cel/patches/` in order
-3. Build Zig from source using cmake
-4. Output the binary to `.cel/bin/zig`
-
-### Use the patched toolchain
-
-```bash
-export PATH="$(pwd)/.cel/bin:$PATH"
-```
-
-Or, if a convenience script is available:
-
-```bash
+# Activate in current shell
 eval "$(./tools/scripts/use_cel.sh)"
+
+# Verify
+zig version
+zig build full-check
+```
+
+### Build system integration
+
+The ABI build system has native CEL support:
+
+```bash
+zig build cel-check     # Quick platform & toolchain status
+zig build cel-doctor    # Full diagnostics with remediation
+zig build cel-status    # Detailed source/patch/binary info
+zig build cel-verify    # Verify CEL binary exists
+zig build cel-build     # Trigger CEL build from zig build
 ```
 
 ### Build options
@@ -42,6 +52,8 @@ eval "$(./tools/scripts/use_cel.sh)"
 ```bash
 ./.cel/build.sh --clean       # Wipe source and rebuild from scratch
 ./.cel/build.sh --patch-only  # Clone + apply patches, skip build
+./.cel/build.sh --verify      # Check if .cel/bin/zig exists and print version
+./.cel/build.sh --status      # Show source, patches, binary, and version info
 ```
 
 Set `CMAKE_JOBS=N` to control parallel build jobs (defaults to nproc/2).
@@ -65,6 +77,14 @@ Set `CMAKE_JOBS=N` to control parallel build jobs (defaults to nproc/2).
 4. Placeholder patches (files containing only comment lines starting with `#`)
    are skipped automatically during build.
 
+### Current patches
+
+| Patch | Purpose |
+|-------|---------|
+| `001-darwin26-force-lld.patch` | Force LLVM backend on Darwin 26+ hosts |
+| `002-sdk-version-clamp.patch` | Force LLD on Darwin 26+ even if use_llvm=false |
+| `003-macho-segment-ordering.patch` | Placeholder for Mach-O segment fix (upstream #25521) |
+
 ## Updating the Upstream Pin
 
 1. Edit `.cel/config.sh` and update:
@@ -79,6 +99,17 @@ Set `CMAKE_JOBS=N` to control parallel build jobs (defaults to nproc/2).
    ```
 
 4. Re-test patches — they may need rebasing against the new upstream.
+
+## Version Consistency Contract
+
+These files must all agree on the Zig version:
+- `.zigversion`
+- `.cel/config.sh` (`ZIG_VERSION`)
+- `build.zig.zon` (`minimum_zig_version`)
+- `tools/scripts/baseline.zig` (`zig_version`)
+
+Run `zig build check-zig-version` to verify, or `zig build cel-doctor` for
+full CEL-specific diagnostics.
 
 ## LLVM Reuse
 
@@ -96,7 +127,20 @@ falls back to system LLVM (e.g., Homebrew `llvm` on macOS).
   patches/           # Patch files applied in lexicographic order
     001-*.patch
     002-*.patch
+    003-*.patch
   bin/               # Build output (git-ignored)
     zig              # Patched Zig binary
   .src/              # Cloned upstream source (git-ignored)
 ```
+
+## Build System Module
+
+The CEL integration lives in `build/cel.zig` and provides:
+- `detectCelStatus()` — Build-time CEL detection
+- `addCelCheckStep()` — Platform status reporting
+- `addCelBuildStep()` — Trigger CEL build via `zig build`
+- `emitCelSuggestion()` — Contextual guidance on blocked hosts
+
+The `cel_doctor.zig` script at `tools/scripts/cel_doctor.zig` provides
+comprehensive diagnostics including prerequisite checks, version consistency
+validation, and actionable remediation steps.

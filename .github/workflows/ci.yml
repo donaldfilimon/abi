@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ZIG_VERSION: "0.16.0-dev.2650+74f361a5c"
+
 jobs:
   lint:
     name: Format Check
@@ -18,18 +21,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
         with:
-          version: master
+          version: ${{ env.ZIG_VERSION }}
       - run: zig build lint
 
   test:
     name: Test Suite
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     needs: lint
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
         with:
-          version: master
+          version: ${{ env.ZIG_VERSION }}
       - name: Main tests
         run: zig build test --summary all
       - name: Feature tests
@@ -43,11 +49,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
         with:
-          version: master
+          version: ${{ env.ZIG_VERSION }}
       - name: Full check
         run: zig build full-check
       - name: Validate baselines
-        run: zig build validate-baseline
+        run: zig build check-test-baseline
       - name: Validate feature flags
         run: zig build validate-flags
       - name: Workflow orchestration check (non-blocking)
@@ -65,6 +71,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
         with:
-          version: master
+          version: ${{ env.ZIG_VERSION }}
       - name: Build all examples
         run: zig build examples

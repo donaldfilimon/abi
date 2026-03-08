@@ -19,7 +19,7 @@ fn monotonicNowNs() i128 {
 }
 
 pub const Config = struct {
-    host: []const u8 = "0.0.0.0",
+    host: []const u8 = "127.0.0.1",
     port: u16 = 8080,
     max_connections: u32 = 1000,
     enable_cors: bool = true,

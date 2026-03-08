@@ -181,7 +181,8 @@ fn benchmarkMatrixMultiply(allocator: std.mem.Allocator, size: usize) !void {
     std.debug.print("  MatMul {d}x{d}: {d:.2} GFLOPS\n", .{ size, size, gflops });
 }
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    _ = init;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

@@ -98,12 +98,53 @@ pub fn main(_: std.process.Init) !void {
         issues += 1;
     }
 
+    // ── CEL toolchain check ────────────────────────────────────────────
+    std.debug.print(".cel toolchain:\n", .{});
+    const cel_zig_exists = util.fileExists(io, ".cel/bin/zig");
+    if (cel_zig_exists) {
+        const cel_ver_res = util.captureCommand(allocator, io, ".cel/bin/zig version") catch null;
+        if (cel_ver_res) |res| {
+            defer allocator.free(res.output);
+            const cel_ver = util.trimSpace(res.output);
+            std.debug.print("  .cel/bin/zig: {s}\n", .{cel_ver});
+
+            if (std.mem.eql(u8, cel_ver, expected_version)) {
+                std.debug.print("  Version match: YES\n", .{});
+            } else {
+                std.debug.print("  Version match: NO (expected {s})\n", .{expected_version});
+            }
+        }
+    } else if (util.fileExists(io, ".cel/build.sh")) {
+        std.debug.print("  .cel/bin/zig: NOT BUILT\n", .{});
+        if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
+            std.debug.print("  ACTION: Run .cel/build.sh to build patched toolchain\n", .{});
+        }
+    } else {
+        std.debug.print("  .cel: not present in this checkout\n", .{});
+    }
+
+    // Check if active zig is CEL
+    if (std.mem.indexOf(u8, active_zig, ".cel/bin") != null) {
+        std.debug.print("  Active zig source: .cel patched toolchain\n", .{});
+    }
+    std.debug.print("\n", .{});
+
     if (issues == 0) {
         std.debug.print("OK: local Zig toolchain is deterministic and matches repository pin.\n", .{});
         return;
     }
 
     std.debug.print("\nSuggested fix:\n", .{});
+
+    // On blocked Darwin, recommend CEL first
+    if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
+        std.debug.print("  Recommended (macOS 26+): Use the .cel patched toolchain\n", .{});
+        std.debug.print("  1) ./.cel/build.sh\n", .{});
+        std.debug.print("  2) eval \"$(./tools/scripts/use_cel.sh)\"\n", .{});
+        std.debug.print("  3) zig build full-check\n", .{});
+        std.debug.print("\n  Alternative: Use ZVM\n", .{});
+    }
+
     if (try util.commandExists(allocator, io, "zvm")) {
         std.debug.print("  1) zvm upgrade\n", .{});
         std.debug.print("  2) zvm install \"{s}\"\n", .{expected_version});

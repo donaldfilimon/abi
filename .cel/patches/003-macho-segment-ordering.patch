@@ -1,0 +1,15 @@
+# Placeholder: Mach-O segment ordering fix for macOS 26+
+#
+# This patch addresses the __CONST_ZIG segment ordering issue
+# (upstream zig #25521) where the self-hosted Mach-O linker
+# produces binaries with incorrect segment layout on macOS Tahoe.
+#
+# When a concrete fix is identified, replace this placeholder with
+# the actual diff against the pinned Zig commit.
+#
+# To create a real patch:
+#   cd .cel/.src
+#   # make your changes
+#   git diff > ../patches/003-macho-segment-ordering.patch
+#
+# The build script skips files that contain only comment lines.

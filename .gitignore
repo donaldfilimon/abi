@@ -211,6 +211,9 @@ examples/c_test
 TRASH/
 TRASH-FILES.md
 
+# ── Emergency bootstrap toolchain (large, do not track) ────────────
+zig-bootstrap-emergency/
+
 # ── Legacy local probes/binaries (cleanup guard) ────────────────────
 /dummy.txt
 /dummy2.txt
@@ -223,7 +226,30 @@ TRASH-FILES.md
 /test_writer.zig
 /zig-master/
 
+# ── Root-level scratch/test files (never track) ─────────────────────
+/hello
+/hello.zig
+/test
+/test.zig
+/test_basic
+/test_basic.zig
+/test_main
+/test_main.zig
+/test_libc
+/test_libc.zig
+/test_libc.c
+/test_libc_c
+/test_link
+/test_zig
+/check_ver
+/check_ver.zig
+/libc.txt
+/abi-bootstrap-cli
+/abi-simple.zig
+
 # ── Cleanup policy: markdown allowlist only ─────────────────────────
+# Ignore all markdown except explicitly allowlisted files.
+# NOTE: new docs under docs/ must be added to this allowlist.
 *.md
 !/AGENTS.md
 !/README.md
@@ -236,6 +262,7 @@ TRASH-FILES.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
 !/docs/plans/*.md
+!/docs/api/*.md
 !/tasks/todo.md
 !/tasks/lessons.md
 

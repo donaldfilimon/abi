@@ -153,15 +153,15 @@ fn hnswStyleSearch(
 
     // Sample vectors (in real HNSW, these would be graph neighbors)
     var rng = std.Random.DefaultPrng.init(42);
-    var seen = std.AutoHashMap(usize, void).init(allocator);
-    defer seen.deinit();
+    var seen: std.AutoHashMap(usize, void) = .empty;
+    defer seen.deinit(allocator);
 
     var count: usize = 0;
     // Start with some random entry points
     while (count < sample_size and seen.count() < vectors.len) {
         const idx = rng.random().intRangeLessThan(usize, 0, vectors.len);
         if (seen.contains(idx)) continue;
-        try seen.put(idx, {});
+        try seen.put(allocator, idx, {});
 
         const dist = simd.l2DistanceSquared(query, vectors[idx]);
         candidates[count] = .{ .idx = idx, .dist = dist };

@@ -6,6 +6,8 @@ pub fn build(b: *std.Build) void {
 
     const build_options = b.addOptions();
     build_options.addOption([]const u8, "package_version", "0.4.0");
+
+    // Feature flags — must stay in sync with build/options.zig BuildOptions.
     build_options.addOption(bool, "feat_ai", true);
     build_options.addOption(bool, "feat_database", true);
     build_options.addOption(bool, "feat_gpu", false);
@@ -16,6 +18,23 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "feat_profiling", false);
     build_options.addOption(bool, "feat_benchmarks", false);
     build_options.addOption(bool, "feat_mobile", false);
+    build_options.addOption(bool, "feat_analytics", false);
+    build_options.addOption(bool, "feat_auth", false);
+    build_options.addOption(bool, "feat_messaging", false);
+    build_options.addOption(bool, "feat_cache", false);
+    build_options.addOption(bool, "feat_search", false);
+    build_options.addOption(bool, "feat_gateway", false);
+    build_options.addOption(bool, "feat_pages", false);
+    build_options.addOption(bool, "feat_compute", false);
+    build_options.addOption(bool, "feat_documents", false);
+    build_options.addOption(bool, "feat_desktop", false);
+    build_options.addOption(bool, "feat_training", false);
+    build_options.addOption(bool, "feat_reasoning", false);
+    build_options.addOption(bool, "feat_explore", false);
+    build_options.addOption(bool, "feat_vision", false);
+    build_options.addOption(bool, "feat_llm", false);
+
+    // GPU backend booleans.
     build_options.addOption(bool, "gpu_cuda", false);
     build_options.addOption(bool, "gpu_vulkan", false);
     build_options.addOption(bool, "gpu_stdgpu", false);

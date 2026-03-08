@@ -44,3 +44,7 @@
 ## 2026-03-06 - Async Event Loop Polling in Zig 0.16
 - **Root cause**: Busy-wait loops using `std.time.sleep` in TUI event handlers consume unnecessary CPU and degrade responsiveness compared to blocking I/O waits.
 - **Prevention rule**: Use `std.posix.poll` (or equivalent platform-native non-blocking I/O multiplexing) on `std.posix.STDIN_FILENO` instead of `std.time.sleep` when waiting for input in asynchronous event loops.
+
+## 2026-03-08 - CEL toolchain integration must be build-system native
+- **Root cause**: The .cel toolchain was only accessible via shell scripts, making it invisible to the Zig build system and requiring manual PATH manipulation. Diagnostics were scattered.
+- **Prevention rule**: When adding a toolchain variant or platform workaround, integrate it into `build.zig` as a first-class module (`build/cel.zig`) with dedicated build steps. Provide a diagnostics script (`cel_doctor.zig`) that follows the same patterns as `toolchain_doctor.zig`. Keep version consistency checks unified — `check_zig_version_consistency.zig` should validate all version sources including `.cel/config.sh`.

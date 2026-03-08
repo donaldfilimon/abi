@@ -23,12 +23,12 @@ pub const CompactionJob = struct {
     pub fn dedupe(self: *CompactionJob, allocator: std.mem.Allocator, blocks: []const [32]u8) !void {
         self.status = .running;
         // Logic: Identify identical blocks by hash and keep only one
-        var seen = std.AutoHashMap([32]u8, void).init(allocator);
-        defer seen.deinit();
+        var seen: std.AutoHashMap([32]u8, void) = .empty;
+        defer seen.deinit(allocator);
 
         for (blocks) |block_id| {
             self.blocks_processed += 1;
-            const res = try seen.getOrPut(block_id);
+            const res = try seen.getOrPut(allocator, block_id);
             if (res.found_existing) {
                 self.bytes_reclaimed += 1024; // Simulated reclaimed bytes
             }

@@ -52,9 +52,10 @@ pub const Engine = engine.Engine;
 pub const InferenceEngine = inference_engine.Engine;
 pub const Server = server.Server;
 
-/// Framework version.
+/// Framework version — delegates to the canonical abi module version
+/// which reads from build_options.package_version.
 pub fn version() []const u8 {
-    return "3.0.0";
+    return abi.version();
 }
 
 // ── Test discovery ──────────────────────────────────────────────────────
