@@ -216,8 +216,29 @@ configure_cmake_args() {
         -DCMAKE_INSTALL_PREFIX="$CEL_DIR"
     )
 
-    if [[ -d "$BOOTSTRAP_LLVM_DIR" ]]; then
+    local bootstrap_llvm_config=""
+    if [[ -f "$BOOTSTRAP_LLVM_DIR/bin/llvm-config" && -x "$BOOTSTRAP_LLVM_DIR/bin/llvm-config" ]]; then
+        bootstrap_llvm_config="$BOOTSTRAP_LLVM_DIR/bin/llvm-config"
+    elif [[ -f "$BOOTSTRAP_LLVM_DIR/tools/llvm-config" && -x "$BOOTSTRAP_LLVM_DIR/tools/llvm-config" ]]; then
+        bootstrap_llvm_config="$BOOTSTRAP_LLVM_DIR/tools/llvm-config"
+    fi
+
+    if [[ -d "$BOOTSTRAP_LLVM_DIR" && -n "$bootstrap_llvm_config" ]]; then
         info "Reusing bootstrap LLVM artifacts from $BOOTSTRAP_LLVM_DIR"
+        local bootstrap_llvm_path=""
+        if [[ -d "$BOOTSTRAP_LLVM_DIR/tools" ]]; then
+            bootstrap_llvm_path="$BOOTSTRAP_LLVM_DIR/tools"
+        fi
+        if [[ -d "$BOOTSTRAP_LLVM_DIR/bin" ]]; then
+            if [[ -n "$bootstrap_llvm_path" ]]; then
+                bootstrap_llvm_path="$bootstrap_llvm_path:$BOOTSTRAP_LLVM_DIR/bin"
+            else
+                bootstrap_llvm_path="$BOOTSTRAP_LLVM_DIR/bin"
+            fi
+        fi
+        if [[ -n "$bootstrap_llvm_path" ]]; then
+            export PATH="$bootstrap_llvm_path:$PATH"
+        fi
         CMAKE_ARGS+=(
             -DZIG_STATIC_LLVM=ON
             -DLLVM_DIR="$BOOTSTRAP_LLVM_DIR/lib/cmake/llvm"
@@ -225,6 +246,8 @@ configure_cmake_args() {
             -DCLANG_DIR="$BOOTSTRAP_LLVM_DIR/lib/cmake/clang"
         )
         return
+    elif [[ -d "$BOOTSTRAP_LLVM_DIR" ]]; then
+        warn "Ignoring bootstrap LLVM at $BOOTSTRAP_LLVM_DIR because no executable llvm-config was found."
     fi
 
     if [[ "$(uname -s)" == "Darwin" ]]; then

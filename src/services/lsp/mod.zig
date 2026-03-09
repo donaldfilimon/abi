@@ -2,9 +2,9 @@
 
 const std = @import("std");
 const client = @import("client.zig");
-const config_mod = @import("../../core/config/mod.zig");
 
-pub const Config = config_mod.LspConfig;
+// Inline from core/config/lsp.zig to avoid cross-directory import.
+pub const Config = client.Config;
 pub const Client = client.Client;
 pub const Response = client.Response;
 pub const types = @import("types.zig");
