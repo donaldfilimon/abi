@@ -342,17 +342,10 @@ test "ConfigLoader with base config" {
     defer loader.deinit();
 
     const base = Config.minimal();
-    const config = try loader.loadWithBase(base);
-
-    // Minimal config should still have no features enabled
-    // unless env vars override
-    _ = config;
+    _ = try loader.loadWithBase(base);
 }
 
 test "parseGpuBackend" {
-    const loader = ConfigLoader.init(std.testing.allocator);
-    _ = loader;
-
     try std.testing.expectEqual(GpuConfig.Backend.cuda, ConfigLoader.parseGpuBackend("cuda").?);
     try std.testing.expectEqual(GpuConfig.Backend.vulkan, ConfigLoader.parseGpuBackend("vulkan").?);
     try std.testing.expectEqual(GpuConfig.Backend.tpu, ConfigLoader.parseGpuBackend("tpu").?);

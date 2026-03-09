@@ -160,6 +160,13 @@ GPU backend: `-Dgpu-backend=auto|cuda|vulkan|metal` (comma-separated for multipl
 | `ABI_HF_API_TOKEN` | HuggingFace API token |
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 
+## Workflow Rules
+
+- **Read before edit**: For batch operations across multiple files, read ALL target files first to get current state before making any edits. Never rely on cached/stale file contents.
+- **Plan before execute**: For multi-file batch operations, present the full plan with specific file paths and changes BEFORE executing. Wait for user confirmation on ambiguous changes.
+- **Validate after edit**: After editing YAML, ZON, or configuration files, validate syntax by running appropriate check commands.
+- **Version pin atomicity**: When changing version strings, grep for all occurrences first, then update all files in one pass. Never leave partial updates.
+
 ## Common Pitfalls
 
 These patterns are distilled from `tasks/lessons.md`:
@@ -209,3 +216,5 @@ See `.cel/README.md` for details. The `.cel` fork pins the same commit as `.zigv
 - **Build:** Use `b.createModule(.{ .root_source_file = b.path(...), ... })` and `addTest`/`addExecutable` with `.root_module = mod`. No `root_source_file` on the compile step; LazyPath is `b.path(...)` (no `.path` field).
 - **mem.readInt/writeInt:** Signatures take `*const [N]u8` / `*[N]u8`; slices of the right length are accepted. Use `std.builtin.Endian.little`/`.big`.
 - **std.Io:** For concurrent/async I/O and time, see `std.Io` (Threaded, async/concurrent, Clock). TUI/data fetches can be refactored to use `std.Io` patterns where applicable.
+- **std.Io.Dir (filesystem):** No `makeDirAbsolute*` — use `std.Io.Dir.createDirPath(.cwd(), io, path)` for recursive creation. No `deleteTreeAbsolute` — use `std.Io.Dir.deleteTree(.cwd(), io, path)`. File writes use `file.writeStreamingAll(io, data)` (no `File.writeAll`). File existence check: `Io.Dir.openFileAbsolute(io, path, .{}) catch return false` then close.
+- **Standalone compilation:** Files in `build/test_discovery.zig` manifest must compile with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this — inline small dependencies or use build-system-provided modules.
