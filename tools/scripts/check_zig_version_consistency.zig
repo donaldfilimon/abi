@@ -51,7 +51,7 @@ pub fn main(_: std.process.Init) !void {
 
     const cel_zig = ".cel/bin/zig";
     if (util.fileExists(io, cel_zig)) {
-        if (!std.mem.eql(u8, active_path, cel_zig)) {
+        if (!std.mem.endsWith(u8, active_path, "/.cel/bin/zig") and !std.mem.eql(u8, active_path, cel_zig)) {
             std.debug.print(
                 "ERROR: PATH precedence mismatch: active zig is '{s}' but repo-local CEL zig is '{s}'\n",
                 .{ active_path, cel_zig },

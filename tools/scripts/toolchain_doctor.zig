@@ -86,7 +86,10 @@ pub fn main(_: std.process.Init) !void {
         issues += 1;
     }
 
-    if (util.fileExists(io, ".cel/bin/zig") and !std.mem.eql(u8, active_zig, ".cel/bin/zig")) {
+    if (util.fileExists(io, ".cel/bin/zig") and
+        !std.mem.endsWith(u8, active_zig, "/.cel/bin/zig") and
+        !std.mem.eql(u8, active_zig, ".cel/bin/zig"))
+    {
         std.debug.print("ISSUE: active zig is not the repo-local CEL binary\n", .{});
         issues += 1;
     } else {

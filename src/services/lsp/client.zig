@@ -26,6 +26,7 @@ pub const Client = struct {
     max_payload_bytes: usize,
     root_path: []u8,
     root_uri: []u8,
+    owned_zls_path: ?[]u8,
     owned_zig_path: ?[]u8,
 
     const Self = @This();
@@ -37,7 +38,10 @@ pub const Client = struct {
         const root_uri = try pathToUri(allocator, root_path);
         errdefer allocator.free(root_uri);
 
-        const argv = [_][]const u8{config.zls_path};
+        const zls_path = try resolveZlsPath(allocator, io, config, root_path);
+        errdefer if (zls_path.owned) |owned| allocator.free(owned);
+
+        const argv = [_][]const u8{zls_path.path};
         var child = try std.process.spawn(io, .{
             .argv = &argv,
             .stdin = .pipe,
@@ -65,6 +69,7 @@ pub const Client = struct {
             .max_payload_bytes = 8 * 1024 * 1024,
             .root_path = root_path,
             .root_uri = root_uri,
+            .owned_zls_path = zls_path.owned,
             .owned_zig_path = null,
         };
 
@@ -82,6 +87,9 @@ pub const Client = struct {
         }
         self.allocator.free(self.root_path);
         self.allocator.free(self.root_uri);
+        if (self.owned_zls_path) |owned| {
+            self.allocator.free(owned);
+        }
         if (self.owned_zig_path) |owned| {
             self.allocator.free(owned);
         }
@@ -294,7 +302,7 @@ pub const Client = struct {
     }
 
     fn initialize(self: *Self) !void {
-        const zig_path = try resolveZigPath(self.allocator, self.io, self.config);
+        const zig_path = try resolveZigPath(self.allocator, self.io, self.config, self.root_path);
         self.owned_zig_path = zig_path.owned;
 
         const root_name = std.fs.path.basename(self.root_path);
@@ -393,24 +401,48 @@ const ZigPathResult = struct {
     owned: ?[]u8,
 };
 
+const ZlsPathResult = struct {
+    path: []const u8,
+    owned: ?[]u8,
+};
+
 fn resolveZigPath(
     allocator: std.mem.Allocator,
     io: std.Io,
     config: Config,
+    root_path: []const u8,
 ) !ZigPathResult {
     if (config.zig_exe_path) |path| {
         return .{ .path = path, .owned = null };
     }
 
-    const candidate = zig_toolchain.resolveExistingZvmMasterZigPath(allocator, io) catch return .{
-        .path = null,
-        .owned = null,
-    };
-    if (candidate == null) {
-        return .{ .path = null, .owned = null };
+    if (try zig_toolchain.resolveExistingPreferredZigPath(allocator, io, root_path)) |candidate| {
+        return .{ .path = candidate, .owned = candidate };
     }
 
-    return .{ .path = candidate.?, .owned = candidate.? };
+    return .{ .path = null, .owned = null };
+}
+
+fn resolveZlsPath(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    config: Config,
+    root_path: []const u8,
+) !ZlsPathResult {
+    if (!std.mem.eql(u8, config.zls_path, Config.defaults().zls_path)) {
+        return .{ .path = config.zls_path, .owned = null };
+    }
+
+    if (try zig_toolchain.resolveExistingRepoLocalCelToolPath(
+        allocator,
+        io,
+        root_path,
+        zig_toolchain.zlsBinaryName(),
+    )) |candidate| {
+        return .{ .path = candidate, .owned = candidate };
+    }
+
+    return .{ .path = config.zls_path, .owned = null };
 }
 
 pub fn resolveWorkspaceRoot(
