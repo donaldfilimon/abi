@@ -238,29 +238,35 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Check for LLVM (needed for Zig compilation)
-    if (try util.commandExists(allocator, io, "llvm-config")) {
+    if (util.dirExists(io, "zig-bootstrap-emergency/out/build-llvm-host")) {
+        std.debug.print("  llvm: bootstrap LLVM artifacts\n", .{});
+    } else if (util.dirExists(io, "/opt/homebrew/opt/llvm@21")) {
+        std.debug.print("  llvm: Homebrew llvm@21 (/opt/homebrew/opt/llvm@21)\n", .{});
+    } else if (util.dirExists(io, "/usr/local/opt/llvm@21")) {
+        std.debug.print("  llvm: Homebrew llvm@21 (/usr/local/opt/llvm@21)\n", .{});
+    } else if (try util.commandExists(allocator, io, "llvm-config")) {
         const llvm_res = util.captureCommand(allocator, io, "llvm-config --version") catch null;
         if (llvm_res) |res| {
             defer allocator.free(res.output);
-            std.debug.print("  llvm: {s}\n", .{util.trimSpace(res.output)});
+            const ver = util.trimSpace(res.output);
+            std.debug.print("  llvm: {s}\n", .{ver});
+            if (!std.mem.startsWith(u8, ver, "21.")) {
+                std.debug.print("  WARNING: current CEL pin expects LLVM 21.x\n", .{});
+                warnings += 1;
+            }
         }
     } else if (try util.commandExists(allocator, io, "brew")) {
-        const brew_res = util.captureCommand(allocator, io, "brew --prefix llvm 2>/dev/null") catch null;
+        const brew_res = util.captureCommand(allocator, io, "brew --prefix llvm@21 2>/dev/null") catch null;
         if (brew_res) |res| {
             defer allocator.free(res.output);
             const prefix = util.trimSpace(res.output);
             if (prefix.len > 0 and util.dirExists(io, prefix)) {
-                std.debug.print("  llvm: Homebrew ({s})\n", .{prefix});
+                std.debug.print("  llvm: Homebrew llvm@21 ({s})\n", .{prefix});
             } else {
-                std.debug.print("  llvm: Not installed (run: brew install llvm)\n", .{});
+                std.debug.print("  llvm: Not installed (run: brew install llvm@21)\n", .{});
                 warnings += 1;
             }
         }
-    }
-
-    // Check for bootstrap LLVM artifacts
-    if (util.dirExists(io, "zig-bootstrap-emergency/out/build-llvm-host")) {
-        std.debug.print("  bootstrap LLVM: FOUND (will be reused by .cel/build.sh)\n", .{});
     }
     std.debug.print("\n", .{});
 

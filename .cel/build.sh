@@ -229,24 +229,43 @@ configure_cmake_args() {
 
     if [[ "$(uname -s)" == "Darwin" ]]; then
         local brew_llvm=""
-        if [[ -d "/opt/homebrew/opt/llvm" ]]; then
-            brew_llvm="/opt/homebrew/opt/llvm"
-        elif [[ -d "/usr/local/opt/llvm" ]]; then
-            brew_llvm="/usr/local/opt/llvm"
-        elif command -v brew >/dev/null 2>&1; then
-            brew_llvm="$(brew --prefix llvm 2>/dev/null || true)"
+        local candidate=""
+        for candidate in \
+            "/opt/homebrew/opt/llvm@21" \
+            "/usr/local/opt/llvm@21" \
+            "/opt/homebrew/opt/llvm" \
+            "/usr/local/opt/llvm"; do
+            if [[ -d "$candidate" ]]; then
+                brew_llvm="$candidate"
+                break
+            fi
+        done
+
+        if [[ -z "$brew_llvm" ]] && command -v brew >/dev/null 2>&1; then
+            for candidate in llvm@21 llvm; do
+                brew_llvm="$(brew --prefix "$candidate" 2>/dev/null || true)"
+                if [[ -n "$brew_llvm" && -d "$brew_llvm" ]]; then
+                    break
+                fi
+            done
         fi
 
         if [[ -n "$brew_llvm" && -d "$brew_llvm" ]]; then
-            info "Using Homebrew LLVM at $brew_llvm"
+            if [[ "$brew_llvm" == *"llvm@21"* ]]; then
+                info "Using Homebrew LLVM 21 at $brew_llvm"
+            else
+                warn "Using Homebrew LLVM at $brew_llvm; Zig $ZIG_UPSTREAM_COMMIT expects LLVM 21.x."
+            fi
             CMAKE_ARGS+=(
-                -DCMAKE_PREFIX_PATH="$brew_llvm"
+                -DCMAKE_PREFIX_PATH="$brew_llvm;/opt/homebrew"
                 -DLLVM_DIR="$brew_llvm/lib/cmake/llvm"
                 -DLLD_DIR="$brew_llvm/lib/cmake/lld"
                 -DCLANG_DIR="$brew_llvm/lib/cmake/clang"
+                -DCMAKE_EXE_LINKER_FLAGS="-L/opt/homebrew/lib"
+                -DCMAKE_SHARED_LINKER_FLAGS="-L/opt/homebrew/lib"
             )
         else
-            warn "No bootstrap LLVM or Homebrew LLVM detected. Install llvm or build zig-bootstrap-emergency first."
+            warn "No bootstrap LLVM or compatible Homebrew LLVM detected. Install llvm@21 or build zig-bootstrap-emergency first."
         fi
     fi
 }

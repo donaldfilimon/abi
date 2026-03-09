@@ -1,12 +1,105 @@
 //! ZLS LSP client (JSON-RPC over stdio).
 
 const std = @import("std");
-const config_mod = @import("../../core/config/mod.zig");
 const jsonrpc = @import("jsonrpc.zig");
 const types = @import("types.zig");
-const zig_toolchain = @import("../shared/utils/zig_toolchain.zig");
 
-pub const Config = config_mod.LspConfig;
+// Inline LspConfig to avoid cross-directory import to ../../core/config/.
+// Canonical definition: src/core/config/lsp.zig — keep in sync.
+pub const Config = struct {
+    zls_path: []const u8 = "zls",
+    zig_exe_path: ?[]const u8 = null,
+    workspace_root: ?[]const u8 = null,
+    log_level: []const u8 = "info",
+    enable_snippets: bool = true,
+
+    pub fn defaults() Config {
+        return .{};
+    }
+};
+
+// Inline toolchain resolution to avoid cross-directory relative imports
+// that break standalone compilation and ZLS analysis. The canonical
+// implementation lives in src/services/shared/utils/zig_toolchain.zig.
+const zig_toolchain = struct {
+    const builtin = @import("builtin");
+
+    fn zigBinaryName() []const u8 {
+        return if (builtin.os.tag == .windows) "zig.exe" else "zig";
+    }
+
+    pub fn zlsBinaryName() []const u8 {
+        return if (builtin.os.tag == .windows) "zls.exe" else "zls";
+    }
+
+    pub fn resolveExistingPreferredZigPath(
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        start_path: []const u8,
+    ) !?[]u8 {
+        if (try resolveExistingRepoLocalCelToolPath(allocator, io, start_path, zigBinaryName())) |path| {
+            return path;
+        }
+        // ZVM master fallback
+        const home_ptr = std.c.getenv("HOME") orelse std.c.getenv("USERPROFILE") orelse return null;
+        const home = std.mem.span(home_ptr);
+        const zvm_path = try std.fs.path.join(allocator, &.{ home, ".zvm", "master", zigBinaryName() });
+        if (!fileExistsAbsolute(io, zvm_path)) {
+            allocator.free(zvm_path);
+            return null;
+        }
+        return zvm_path;
+    }
+
+    pub fn resolveExistingRepoLocalCelToolPath(
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        start_path: []const u8,
+        tool_name: []const u8,
+    ) !?[]u8 {
+        const repo_root = try findAbiRepoRoot(allocator, io, start_path) orelse return null;
+        defer allocator.free(repo_root);
+        const tool_path = try std.fs.path.join(allocator, &.{ repo_root, ".cel", "bin", tool_name });
+        if (!fileExistsAbsolute(io, tool_path)) {
+            allocator.free(tool_path);
+            return null;
+        }
+        return tool_path;
+    }
+
+    fn findAbiRepoRoot(allocator: std.mem.Allocator, io: std.Io, start_path: []const u8) !?[]u8 {
+        var current = try std.fs.path.resolve(allocator, &.{start_path});
+        errdefer allocator.free(current);
+        while (true) {
+            if (try looksLikeAbiRepoRoot(allocator, io, current)) return current;
+            const parent = std.fs.path.dirname(current) orelse break;
+            if (std.mem.eql(u8, parent, current)) break;
+            const next = try allocator.dupe(u8, parent);
+            allocator.free(current);
+            current = next;
+        }
+        allocator.free(current);
+        return null;
+    }
+
+    fn looksLikeAbiRepoRoot(allocator: std.mem.Allocator, io: std.Io, root_path: []const u8) !bool {
+        const build_zig = try std.fs.path.join(allocator, &.{ root_path, "build.zig" });
+        defer allocator.free(build_zig);
+        if (!fileExistsAbsolute(io, build_zig)) return false;
+        const abi_root = try std.fs.path.join(allocator, &.{ root_path, "src", "abi.zig" });
+        defer allocator.free(abi_root);
+        if (!fileExistsAbsolute(io, abi_root)) return false;
+        const cel_build = try std.fs.path.join(allocator, &.{ root_path, ".cel", "build.sh" });
+        defer allocator.free(cel_build);
+        return fileExistsAbsolute(io, cel_build);
+    }
+
+    fn fileExistsAbsolute(io: std.Io, path: []const u8) bool {
+        const file = std.Io.Dir.openFileAbsolute(io, path, .{}) catch return false;
+        file.close(io);
+        return true;
+    }
+};
 
 pub const Response = struct {
     json: []u8,
@@ -502,41 +595,72 @@ pub fn pathToUri(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
 }
 
 fn createTestAbiRepo(
-    dir: std.fs.Dir,
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    repo_root: []const u8,
     include_zig: bool,
     include_zls: bool,
 ) !void {
-    try dir.makePath("repo/.cel/bin");
-    try dir.makePath("repo/src");
-    try dir.writeFile(.{ .sub_path = "repo/build.zig", .data = "pub fn build(_: *anyopaque) void {}\n" });
-    try dir.writeFile(.{ .sub_path = "repo/src/abi.zig", .data = "pub const test_value = 1;\n" });
-    try dir.writeFile(.{ .sub_path = "repo/.cel/build.sh", .data = "#!/bin/sh\n" });
+    const dirs = [_][]const u8{
+        ".cel/bin",
+        "src",
+    };
+    for (dirs) |sub| {
+        const full = try std.fs.path.join(allocator, &.{ repo_root, sub });
+        defer allocator.free(full);
+        std.Io.Dir.createDirPath(.cwd(), io, full) catch {};
+    }
+
+    const files = [_]struct { sub: []const u8, data: []const u8 }{
+        .{ .sub = "build.zig", .data = "pub fn build(_: *anyopaque) void {}\n" },
+        .{ .sub = "src/abi.zig", .data = "pub const test_value = 1;\n" },
+        .{ .sub = ".cel/build.sh", .data = "#!/bin/sh\n" },
+    };
+    for (files) |entry| {
+        const full = try std.fs.path.join(allocator, &.{ repo_root, entry.sub });
+        defer allocator.free(full);
+        const file = try std.Io.Dir.createFileAbsolute(io, full, .{});
+        try file.writeStreamingAll(io, entry.data);
+        file.close(io);
+    }
+
     if (include_zig) {
-        try dir.writeFile(.{ .sub_path = "repo/.cel/bin/zig", .data = "" });
+        const p = try std.fs.path.join(allocator, &.{ repo_root, ".cel/bin/zig" });
+        defer allocator.free(p);
+        const f = try std.Io.Dir.createFileAbsolute(io, p, .{});
+        f.close(io);
     }
     if (include_zls) {
-        try dir.writeFile(.{ .sub_path = "repo/.cel/bin/zls", .data = "" });
+        const p = try std.fs.path.join(allocator, &.{ repo_root, ".cel/bin/zls" });
+        defer allocator.free(p);
+        const f = try std.Io.Dir.createFileAbsolute(io, p, .{});
+        f.close(io);
     }
 }
 
-fn testRepoRootPath(allocator: std.mem.Allocator, io: std.Io, sub_path: []const u8) ![]u8 {
+fn testRepoRootPath(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
     const cwd = try std.process.currentPathAlloc(io, allocator);
     defer allocator.free(cwd);
-    return std.fs.path.resolve(allocator, &.{ cwd, ".zig-cache", "tmp", sub_path, "repo" });
+    return std.fs.path.join(allocator, &.{ cwd, ".zig-cache", "tmp", "lsp-test-repo" });
+}
+
+fn cleanupTestRepo(allocator: std.mem.Allocator, io: std.Io, repo_root: []const u8) void {
+    std.Io.Dir.deleteTree(.cwd(), io, repo_root) catch {};
+    _ = allocator;
 }
 
 test "resolveZigPath prefers explicit override over repo-local CEL" {
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    try createTestAbiRepo(tmp.dir, true, false);
-
     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
     defer io_backend.deinit();
+    const io = io_backend.io();
 
-    const repo_root = try testRepoRootPath(std.testing.allocator, io_backend.io(), tmp.sub_path[0..]);
+    const repo_root = try testRepoRootPath(std.testing.allocator, io);
     defer std.testing.allocator.free(repo_root);
+    defer cleanupTestRepo(std.testing.allocator, io, repo_root);
 
-    const result = try resolveZigPath(std.testing.allocator, io_backend.io(), .{
+    try createTestAbiRepo(std.testing.allocator, io, repo_root, true, false);
+
+    const result = try resolveZigPath(std.testing.allocator, io, .{
         .zig_exe_path = "/override/zig",
     }, repo_root);
 
@@ -545,17 +669,17 @@ test "resolveZigPath prefers explicit override over repo-local CEL" {
 }
 
 test "resolveZigPath prefers repo-local CEL zig before fallback" {
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    try createTestAbiRepo(tmp.dir, true, false);
-
     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
     defer io_backend.deinit();
+    const io = io_backend.io();
 
-    const repo_root = try testRepoRootPath(std.testing.allocator, io_backend.io(), tmp.sub_path[0..]);
+    const repo_root = try testRepoRootPath(std.testing.allocator, io);
     defer std.testing.allocator.free(repo_root);
+    defer cleanupTestRepo(std.testing.allocator, io, repo_root);
 
-    const result = try resolveZigPath(std.testing.allocator, io_backend.io(), Config.defaults(), repo_root);
+    try createTestAbiRepo(std.testing.allocator, io, repo_root, true, false);
+
+    const result = try resolveZigPath(std.testing.allocator, io, Config.defaults(), repo_root);
     defer if (result.owned) |owned| std.testing.allocator.free(owned);
 
     try std.testing.expect(result.path != null);
@@ -563,17 +687,17 @@ test "resolveZigPath prefers repo-local CEL zig before fallback" {
 }
 
 test "resolveZlsPath prefers repo-local CEL zls before PATH default" {
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    try createTestAbiRepo(tmp.dir, false, true);
-
     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
     defer io_backend.deinit();
+    const io = io_backend.io();
 
-    const repo_root = try testRepoRootPath(std.testing.allocator, io_backend.io(), tmp.sub_path[0..]);
+    const repo_root = try testRepoRootPath(std.testing.allocator, io);
     defer std.testing.allocator.free(repo_root);
+    defer cleanupTestRepo(std.testing.allocator, io, repo_root);
 
-    const result = try resolveZlsPath(std.testing.allocator, io_backend.io(), Config.defaults(), repo_root);
+    try createTestAbiRepo(std.testing.allocator, io, repo_root, false, true);
+
+    const result = try resolveZlsPath(std.testing.allocator, io, Config.defaults(), repo_root);
     defer if (result.owned) |owned| std.testing.allocator.free(owned);
 
     try std.testing.expect(std.mem.endsWith(u8, result.path, "/.cel/bin/zls"));

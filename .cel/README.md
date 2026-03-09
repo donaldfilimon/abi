@@ -115,7 +115,8 @@ full CEL-specific diagnostics.
 
 If `zig-bootstrap-emergency/out/build-llvm-host/` exists, the build script
 automatically reuses those LLVM artifacts for a static build. Otherwise, it
-falls back to system LLVM (e.g., Homebrew `llvm` on macOS).
+falls back to a compatible system LLVM (preferably Homebrew `llvm@21` on
+macOS).
 
 ## Directory Layout
 

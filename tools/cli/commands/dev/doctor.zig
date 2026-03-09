@@ -138,7 +138,7 @@ pub fn run(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !voi
 
     if (!(try doctor_logic.util.commandExists(allocator, io, "zig"))) {
         std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
-        std.debug.print("Install via zvm and ensure ~/.zvm/bin is on PATH.\n", .{});
+        std.debug.print("Build CEL via ./.cel/build.sh and ensure .cel/bin is on PATH.\n", .{});
         return error.ZigNotFound;
     }
 

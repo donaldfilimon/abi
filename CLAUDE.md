@@ -177,7 +177,7 @@ The local Darwin/macOS 26+ environment has an upstream Zig linker incompatibilit
 
 **For this arch (Darwin):** Prefer the repo-local CEL toolchain so the repo pin, Zig binary, and ZLS stay aligned:
 - `./.cel/build.sh` then `eval "$(./tools/scripts/use_cel.sh)"`.
-- Ensures Zig matches `.zigversion` (`0.16.0-dev.2722+738d2be9d`) and keeps `.cel/bin/zls` beside the compiler.
+- Ensures Zig matches `.zigversion` (`0.16.0-dev.1503+738d2be9d`) and keeps `.cel/bin/zls` beside the compiler.
 
 **Recommended fix (primary path):** Use the `.cel` toolchain — a patched Zig built from source with macOS 26 fixes:
 ```bash

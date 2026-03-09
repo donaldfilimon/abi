@@ -12,8 +12,8 @@
 # Migration: run ./tools/scripts/cel_migrate.sh for guided setup
 
 ZIG_UPSTREAM_REPO="https://github.com/ziglang/zig.git"
-ZIG_UPSTREAM_COMMIT="738d2be9d" # matches .zigversion 0.16.0-dev.2722+738d2be9d
-ZIG_VERSION="0.16.0-dev.2722+738d2be9d"
+ZIG_UPSTREAM_COMMIT="738d2be9d" # matches .zigversion 0.16.0-dev.1503+738d2be9d
+ZIG_VERSION="0.16.0-dev.1503+738d2be9d"
 ZLS_UPSTREAM_REPO="https://github.com/zigtools/zls.git"
 CEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
