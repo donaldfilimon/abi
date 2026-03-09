@@ -12,6 +12,30 @@ a new plan when starting a wave.
 
 ## Active Queue
 
+### Task Plan - ABI Codex Skill Bootstrap (2026-03-09)
+
+#### Objective
+Create a reusable Codex skill named `abi` that captures the project's canonical workflow, validation gates, and handoff expectations in a concise, trigger-ready format.
+
+#### Scope
+- Add a new skill package at `.codex/skills/abi/` with a required `SKILL.md`.
+- Keep instructions concise and oriented around ABI-specific workflow contracts.
+- Include explicit trigger guidance and verification checklist for implementation tasks.
+
+#### Verification Criteria
+- `test -f .codex/skills/abi/SKILL.md`
+- `git diff -- .codex/skills/abi/SKILL.md tasks/todo.md`
+
+#### Checklist
+- [x] Add task tracker entry and mark progress in this plan.
+- [x] Author `.codex/skills/abi/SKILL.md` with metadata + compact process guidance.
+- [x] Validate file presence/diff and add close-out notes in this plan.
+
+#### Review Notes
+- Added `.codex/skills/abi/SKILL.md` with concise metadata and ABI workflow contract guidance.
+- Consensus wrapper script path is unavailable in this environment; task continued under best-effort rule from AGENTS contract.
+- Validation evidence: file-presence and focused diff checks passed.
+
 ### Task Plan - Core Engine Optimization and Feature Hardening (2026-03-06)
 
 #### Objective
