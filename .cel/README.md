@@ -20,6 +20,9 @@ macOS 26+ introduced changes that break Zig's self-hosted Mach-O linker:
 ```
 
 This will check prerequisites, build Zig and ZLS, activate them, and validate.
+On macOS 26+, `.cel/build.sh` now prefers a repo-local bootstrap-host Zig
+from `zig-bootstrap-emergency/out/host/bin/zig` when available so the stage3
+build runner does not depend on the broken prebuilt native linker path.
 
 ### Manual build + activate
 
@@ -117,6 +120,10 @@ If `zig-bootstrap-emergency/out/build-llvm-host/` exists, the build script
 automatically reuses those LLVM artifacts for a static build. Otherwise, it
 falls back to a compatible system LLVM (preferably Homebrew `llvm@21` on
 macOS).
+
+If `zig-bootstrap-emergency/out/host/bin/zig` exists, the build script uses
+that host-built Zig as the stage3 driver on macOS 26+ instead of relying on
+the upstream `zig2` build runner.
 
 ## Directory Layout
 

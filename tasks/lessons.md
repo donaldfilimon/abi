@@ -52,3 +52,7 @@
 ## 2026-03-08 - CEL toolchain integration must be build-system native
 - **Root cause**: The .cel toolchain was only accessible via shell scripts, making it invisible to the Zig build system and requiring manual PATH manipulation. Diagnostics were scattered.
 - **Prevention rule**: When adding a toolchain variant or platform workaround, integrate it into `build.zig` as a first-class module (`build/cel.zig`) with dedicated build steps. Provide a diagnostics script (`cel_doctor.zig`) that follows the same patterns as `toolchain_doctor.zig`. Keep version consistency checks unified — `check_zig_version_consistency.zig` should validate all version sources including `.cel/config.sh`.
+
+## 2026-03-09 - Zig nightly pins must come from artifact metadata, not GitHub master
+- **Root cause**: Treating the current `ziglang/zig` `master` commit as interchangeable with the pinned nightly version drifted CEL to a source snapshot that did not match ABI's expected Zig 0.16-dev API level.
+- **Prevention rule**: When repinning Zig nightlies, validate the version/commit pair against the actual `ziglang.org/builds` artifact metadata first. Only then update `.zigversion`, `.cel/config.sh`, `build.zig.zon`, `tools/scripts/baseline.zig`, and docs together.

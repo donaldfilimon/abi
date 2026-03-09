@@ -24,6 +24,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CEL_DIR="$REPO_ROOT/.cel"
 CEL_ZIG="$CEL_DIR/bin/zig"
 CEL_ZLS="$CEL_DIR/bin/zls"
+BOOTSTRAP_HOST_ZIG="$REPO_ROOT/zig-bootstrap-emergency/out/host/bin/zig"
 
 # Colors
 RED='\033[0;31m'
@@ -140,6 +141,13 @@ elif ! $LLVM_FOUND && [[ -d "/usr/local/opt/llvm" ]]; then
     warn "  LLVM: Homebrew llvm found, but CEL pin expects llvm@21"
 fi
 
+if [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+    BOOTSTRAP_VER="$("$BOOTSTRAP_HOST_ZIG" version 2>/dev/null || echo 'unknown')"
+    ok "  bootstrap zig: $BOOTSTRAP_VER ($BOOTSTRAP_HOST_ZIG)"
+elif [[ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]]; then
+    info "  bootstrap zig: source present, host binary not built yet"
+fi
+
 if [[ ${#MISSING[@]} -gt 0 ]]; then
     die "Missing prerequisites: ${MISSING[*]}"
 fi
@@ -147,6 +155,11 @@ fi
 if ! $LLVM_FOUND; then
     warn "No compatible LLVM found. .cel/build.sh will look for llvm@21 or bootstrap LLVM."
     warn "If the build fails, install LLVM 21: brew install llvm@21"
+fi
+
+if [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ ! -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+    info "macOS 26+ note: .cel/build.sh now prefers a bootstrap-host Zig when available."
+    info "If stage3 still cannot start, run 'abi toolchain bootstrap' to refresh zig-bootstrap-emergency."
 fi
 
 if $CHECK_ONLY; then

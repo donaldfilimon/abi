@@ -12,7 +12,20 @@ a new plan when starting a wave.
 
 ## Active Queue
 
-*(No active plan. Promote from Backlog when starting a new wave.)*
+### In Progress - CEL Primary Replacement Completion (2026-03-09)
+
+#### Objective
+Finish the repo-local CEL path so Darwin hosts can bootstrap Zig/ZLS without
+depending on the broken prebuilt native build-runner path.
+
+#### Plan
+- [ ] Replace the current "clone GitHub master and run zig2 stage3" assumption with a source/bootstrap flow that can build on this Darwin host.
+- [ ] Wire `.cel/build.sh`, `cel_migrate.sh`, and `cel_doctor.zig` to report and prefer a repo-local bootstrap-host Zig when available.
+- [ ] Reconcile the CEL version/source contract with the actual Zig artifact source instead of assuming GitHub `master` equals the pinned nightly.
+- [ ] Re-run CEL status/build verification and record exact residual blockers if the full toolchain still cannot be produced locally.
+
+#### Notes
+- The AGENTS-required tri-CLI consensus wrapper is absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
 
 ---
 
@@ -26,7 +39,14 @@ a new plan when starting a wave.
 4. [ ] **CLI registry**: Run `zig build refresh-cli-registry` and `zig build check-cli-registry`. *(When build succeeds.)*
 5. [ ] **check-docs**: Run `zig build check-docs` when build succeeds.
 6. [ ] **Build CEL toolchain**: Run `.cel/build.sh` to unblock all local Darwin binary builds.
-7. [ ] **Feature-flag validation**: Run `zig build validate-flags` (34 combos); fix any mod/stub drift.
+7. [ ] **Feature-flag validation**: Run `zig build validate-flags` (38 combos); fix any mod/stub drift.
+
+### Completed - Code Quality Improvements (2026-03-09)
+- [x] Fix CLAUDE.md/README.md/SKILL.md feature count: 19→27 modules (across 19 directories)
+- [x] Fix CLAUDE.md flag combo count: 34→38
+- [x] Stub audit: confirmed no sub-module stubs needed (parent gating covers all)
+- [x] Test manifest expansion: +12 mod.zig entries (compute, documents, desktop, AI sub-modules, database sub-module)
+- [x] Test manifest expansion: +20 dedicated test files (database, network, AI training, personas, observability)
 
 ---
 
@@ -51,6 +71,33 @@ a new plan when starting a wave.
 - [ ] **check-docs**: Run `zig build check-docs` when build succeeds; fix broken or stale references.
 
 ## Archive
+
+### Completed - ABI Codex Skill Bootstrap (2026-03-09)
+
+#### Objective
+Create a reusable Codex skill named `abi` that captures the project's canonical workflow, validation gates, and handoff expectations in a concise, trigger-ready format.
+
+#### Evidence
+- Added `.codex/skills/abi/SKILL.md` with concise metadata and ABI workflow contract guidance.
+- Consensus wrapper script path is unavailable in this environment; task continued under best-effort rule from AGENTS contract.
+- Validation evidence: file-presence and focused diff checks passed.
+
+
+### Completed - Codebase Formatting and AST Validation (2026-03-09)
+
+#### Objective
+Validate the codebase using formatting and static AST checks (`zig ast-check`) without invoking the broken Darwin linker.
+
+#### Evidence
+- Ran `zig fmt .` across the repository; validated compliance.
+- Ran `zig ast-check` on all `.zig` files and fixed discovered syntax errors:
+  - `tools/cli/terminal/brain_panel.zig`: Fixed duplicate `renderPanel` struct member name (renamed internal renderer to `renderBox`).
+  - `tools/cli/commands/dev/toolchain.zig`: Fixed pointless discard of `allocator`.
+  - `benchmarks/system/framework.zig`: Fixed unreachable code error by moving discard before return.
+- Zero remaining syntax/AST errors in the codebase.
+
+#### Residual Risk
+- The logic is currently validated by syntax and structural integrity; full behavioral and compilation validation requires a working linker.
 
 ### Completed - Core Engine Optimization and Feature Hardening (2026-03-06 → 2026-03-09)
 

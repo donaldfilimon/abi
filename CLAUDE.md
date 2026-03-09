@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ABI is a Zig 0.16 framework for AI services, vector search, and high-performance compute. It has 19 comptime-gated feature modules, a CLI with 40 commands, and a TUI dashboard. The public API is exposed through `src/abi.zig` via `@import("abi")`.
+ABI is a Zig 0.16 framework for AI services, vector search, and high-performance compute. It has 27 comptime-gated feature modules (across 19 feature directories), a CLI with 40 commands, and a TUI dashboard. The public API is exposed through `src/abi.zig` via `@import("abi")`.
 
 ## Build Commands
 
@@ -21,7 +21,7 @@ zig build cli-tests                          # CLI unit tests
 zig build tui-tests                          # TUI unit tests
 zig build launcher-tests                     # Shell/launcher tests
 zig build wdbx-fast-tests                    # WDBX vector database tests
-zig build validate-flags                     # Check 34 feature flag combos
+zig build validate-flags                     # Check 38 feature flag combos
 zig build lint                               # Check formatting
 zig build fix                                # Auto-format
 
@@ -62,7 +62,7 @@ Feature flags use the prefix `feat_<name>` (NOT `enable_<name>`). All default to
 ```
 src/abi.zig              # Public API entry point (comptime feature selection)
 src/core/                # Config, feature catalog, framework lifecycle
-src/features/            # 19 feature modules (ai, gpu, database, network, web, ...)
+src/features/            # 19 feature directories (27 catalog entries)
   ai/                    # LLM inference, agents, training, streaming, abbey, personas
   database/              # Semantic store (WDBX alias), HNSW indexing, distributed
   gpu/                   # CUDA, Vulkan, Metal, WebGPU backends
@@ -83,12 +83,16 @@ tools/scripts/           # Toolchain doctor, baseline, utilities
 
 `build.zig` imports modular components from `build/`:
 - `options.zig` — `BuildOptions` struct and flag reading
-- `flags.zig` — `FlagCombo` validation matrix (34 combos)
+- `flags.zig` — `FlagCombo` validation matrix (38 combos)
 - `modules.zig` — module creation helpers
 - `test_discovery.zig` — **single source of truth** for feature test manifest
 - `cli_smoke_runner.zig` — descriptor-driven CLI smoke tests
-- `gpu.zig` — GPU backend selection (`-Dgpu-backend=auto|cuda|vulkan|metal`)
+- `gpu.zig` / `gpu_policy.zig` — GPU backend selection and policy
 - `link.zig` — Metal framework linking, Darwin SDK detection
+- `cel.zig` — CEL toolchain integration (build steps: `cel-check`, `cel-build`, etc.)
+- `targets.zig` — Cross-compilation target definitions
+- `wasm.zig` — WebAssembly build support
+- `mobile.zig` — Mobile platform build support
 
 ### Test Structure
 
@@ -127,7 +131,7 @@ Legacy v2 aliases are fully consolidated into v3.
 
 ### All Feature Flags
 
-All default to `true`. Use `-Dfeat-<name>=false` to disable.
+All default to `true`. Use `-Dfeat-<name>=false` to disable. Full list in `build/options.zig` (`BuildOptions` struct).
 
 | Flag | Description |
 |:-----|:------------|
@@ -138,6 +142,24 @@ All default to `true`. Use `-Dfeat-<name>=false` to disable.
 | `-Dfeat-network` | Distributed compute |
 | `-Dfeat-web` | HTTP client utilities |
 | `-Dfeat-profiling` | Performance profiling |
+| `-Dfeat-analytics` | Analytics and metrics collection |
+| `-Dfeat-auth` | Authentication and authorization |
+| `-Dfeat-cache` | Caching layer |
+| `-Dfeat-cloud` | Cloud provider integrations |
+| `-Dfeat-compute` | Compute engine (work-stealing scheduler) |
+| `-Dfeat-desktop` | Desktop platform support |
+| `-Dfeat-documents` | Document processing |
+| `-Dfeat-gateway` | API gateway |
+| `-Dfeat-messaging` | Message queues and pub/sub |
+| `-Dfeat-mobile` | Mobile platform support |
+| `-Dfeat-search` | Search engine |
+| `-Dfeat-storage` | Storage backends |
+| `-Dfeat-training` | Training pipelines |
+| `-Dfeat-reasoning` | Reasoning / chain-of-thought |
+| `-Dfeat-benchmarks` | Benchmark suite |
+| `-Dfeat-pages` | Static page serving |
+
+Internal (derived, not user-facing): `feat_explore`, `feat_vision` — derived from `feat_ai`.
 
 GPU backend: `-Dgpu-backend=auto|cuda|vulkan|metal` (comma-separated for multiple).
 
@@ -178,34 +200,30 @@ These patterns are distilled from `tasks/lessons.md`:
 5. **Registry refresh after CLI changes**: Always run `zig build refresh-cli-registry` after adding/modifying commands in `tools/cli/commands/`.
 6. **Async I/O in TUI**: Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
 
-## Known Environment Issue
+## Adding or Modifying Feature Modules
 
-The local Darwin/macOS 26+ environment has an upstream Zig linker incompatibility (`__availability_version_check`, `_arc4random_buf` undefined symbols). Binary-emitting build steps fail. See `docs/ZIG_MACOS_LINKER_RESEARCH.md` for root-cause research and upstream issue refs.
+1. Create/edit `src/features/<name>/mod.zig` (real implementation)
+2. Mirror **every public function signature** in `src/features/<name>/stub.zig`
+3. Add the `feat_<name>` flag to `build/options.zig` (`BuildOptions` + `CanonicalFlags`)
+4. Register in `src/core/feature_catalog.zig`
+5. Add test entries to `build/test_discovery.zig` manifest
+6. Add flag combo rows to `build/flags.zig` if needed
+7. Wire up in `src/abi.zig` (comptime feature selection)
+8. Validate: `zig build validate-flags` then `zig build full-check`
 
-**For this arch (Darwin):** Prefer the repo-local CEL toolchain so the repo pin, Zig binary, and ZLS stay aligned:
-- `./.cel/build.sh` then `eval "$(./tools/scripts/use_cel.sh)"`.
-- Ensures Zig matches `.zigversion` (`0.16.0-dev.1503+738d2be9d`) and keeps `.cel/bin/zls` beside the compiler.
+## Known Environment Issue (Darwin/macOS 26+)
 
-**Recommended fix (primary path):** Use the `.cel` toolchain — a patched Zig built from source with macOS 26 fixes:
+Upstream Zig linker incompatibility (`__availability_version_check`, `_arc4random_buf` undefined). The build runner itself fails to link — no `build.zig` workaround helps. See `docs/ZIG_MACOS_LINKER_RESEARCH.md`.
+
+**Primary fix — CEL toolchain** (patched Zig built from source):
 ```bash
-# Full guided migration:
-./tools/scripts/cel_migrate.sh           # Build + activate + validate
-
+./tools/scripts/cel_migrate.sh           # Full guided build + activate + validate
 # Or step-by-step:
-./.cel/build.sh                          # Build patched Zig + ZLS (reuses bootstrap LLVM artifacts)
-eval "$(./tools/scripts/use_cel.sh)"     # Set PATH to .cel/bin/{zig,zls}
-
-# Diagnostics:
-zig build cel-check                      # Quick status check
-zig build cel-doctor                     # Full diagnostics
-zig build cel-status                     # Detailed build status
-zig build cel-verify                     # Verify binary exists
+./.cel/build.sh && eval "$(./tools/scripts/use_cel.sh)"
+# Diagnostics: zig build cel-check | cel-doctor | cel-status | cel-verify
 ```
-See `.cel/README.md` for details. The `.cel` fork pins the same commit as `.zigversion` and applies patches from `.cel/patches/`.
 
-**CEL build steps in `build.zig`:** `cel-check`, `cel-build`, `cel-status`, `cel-verify`, `cel-doctor`.
-
-**Fallbacks:** `zig-bootstrap-emergency/` (see `zig-bootstrap-emergency/ABI-USAGE.md`), or `zig test -fno-emit-bin` for compile-only validation. The repo sets `use_llvm`/`use_lld` on macOS 26+ for all host executables once the build runner links.
+**Fallbacks:** `zig-bootstrap-emergency/` (see `zig-bootstrap-emergency/ABI-USAGE.md`), or `zig test -fno-emit-bin` for compile-only validation.
 
 ## Zig 0.16 std API notes
 

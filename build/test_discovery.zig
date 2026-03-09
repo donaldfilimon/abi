@@ -52,6 +52,8 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "feat_network", .path = "features/network/mod.zig" },
     .{ .flag = "feat_network", .path = "features/network/heartbeat.zig" },
     .{ .flag = "feat_network", .path = "features/network/rpc_protocol.zig" },
+    .{ .flag = "feat_network", .path = "features/network/raft_test.zig" },
+    .{ .flag = "feat_network", .path = "features/network/tests/distributed_computation_test.zig" },
     .{ .flag = "feat_web", .path = "features/web/mod.zig" },
     .{ .flag = "feat_cloud", .path = "features/cloud/mod.zig" },
 
@@ -67,6 +69,45 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
 
     // ── Auth ────────────────────────────────────────────────────────────
     .{ .flag = "feat_auth", .path = "features/auth/auth_test.zig" },
+
+    // ── Compute, documents, desktop ────────────────────────────────────
+    .{ .flag = "feat_compute", .path = "features/compute/mod.zig" },
+    .{ .flag = "feat_documents", .path = "features/documents/mod.zig" },
+    .{ .flag = "feat_desktop", .path = "features/desktop/mod.zig" },
+
+    // ── AI sub-modules with test blocks ────────────────────────────────
+    .{ .flag = "feat_ai", .path = "features/ai/coordination/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/profiles/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/agents/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/embeddings/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/vision/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/training/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/training/self_learning_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/training/trainable_model_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/reasoning/mod.zig" },
+
+    // ── AI persona tests ───────────────────────────────────────────────
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/abbey_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/abi_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/aviva_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/benchmark_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/integration_test.zig" },
+
+    // ── Database sub-modules and tests ─────────────────────────────────
+    .{ .flag = "feat_database", .path = "features/database/semantic_store/mod.zig" },
+    .{ .flag = "feat_database", .path = "features/database/database_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/hnsw_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/batch_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/quantization_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/conflict_resolution_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/integration_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/shard_assignment_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/version_vector_test.zig" },
+
+    // ── Observability sub-modules ──────────────────────────────────────
+    .{ .flag = "feat_profiling", .path = "features/observability/tracing.zig" },
+    .{ .flag = "feat_profiling", .path = "features/observability/metrics/primitives.zig" },
 
     // ── Always-on services ──────────────────────────────────────────────
     .{ .flag = null, .path = "services/mcp/mod.zig" },

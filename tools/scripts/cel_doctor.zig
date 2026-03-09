@@ -133,6 +133,22 @@ pub fn main(_: std.process.Init) !void {
             warnings += 1;
         }
     }
+    const bootstrap_host_zig_exists = util.fileExists(io, "zig-bootstrap-emergency/out/host/bin/zig");
+    if (bootstrap_host_zig_exists) {
+        std.debug.print("  zig-bootstrap-emergency/out/host/bin/zig: FOUND\n", .{});
+        const ver_res = util.captureCommand(allocator, io, "zig-bootstrap-emergency/out/host/bin/zig version") catch null;
+        if (ver_res) |res| {
+            defer allocator.free(res.output);
+            const ver = util.trimSpace(res.output);
+            if (ver.len > 0) std.debug.print("  Bootstrap Zig version: {s}\n", .{ver});
+        }
+    } else if (util.dirExists(io, "zig-bootstrap-emergency/zig")) {
+        std.debug.print("  zig-bootstrap-emergency/out/host/bin/zig: NOT BUILT\n", .{});
+        std.debug.print("  Note: .cel/build.sh can use a bootstrap-host Zig here on macOS 26+\n", .{});
+        if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
+            warnings += 1;
+        }
+    }
     std.debug.print("\n", .{});
 
     // ── 4. Patches ─────────────────────────────────────────────────────
@@ -289,6 +305,10 @@ pub fn main(_: std.process.Init) !void {
         if (!cel_zig_exists) {
             std.debug.print("  1. Build the CEL toolchain:\n", .{});
             std.debug.print("     ./.cel/build.sh\n\n", .{});
+            if (!bootstrap_host_zig_exists and util.dirExists(io, "zig-bootstrap-emergency/zig")) {
+                std.debug.print("     If the stage3 build runner still fails, refresh the bootstrap host Zig:\n", .{});
+                std.debug.print("     abi toolchain bootstrap\n\n", .{});
+            }
             std.debug.print("  2. Activate it:\n", .{});
             std.debug.print("     eval \"$(./tools/scripts/use_cel.sh)\"\n\n", .{});
             std.debug.print("  3. Verify:\n", .{});

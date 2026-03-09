@@ -115,7 +115,6 @@ fn runPathSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
         return;
     }
     try expectNoTrailingArgs(parser, "path");
-    _ = allocator;
     output.println(".cel/bin", .{});
 }
 

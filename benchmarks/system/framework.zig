@@ -59,6 +59,7 @@ pub const SystemInfo = struct {
             cpu_brand = "Generic x86_64/ARM (Linux)";
         }
 
+        _ = allocator;
         return .{
             .cpu_model = cpu_brand,
             .logical_cores = p_info.max_threads,
@@ -66,7 +67,6 @@ pub const SystemInfo = struct {
             .arch = @tagName(p_info.arch),
             .zig_version = @import("builtin").zig_version_string,
         };
-        _ = allocator;
     }
 };
 

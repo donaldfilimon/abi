@@ -22,6 +22,10 @@ BIN_DIR="$CEL_DIR/bin"
 LIB_DIR="$CEL_DIR/lib"
 BUILD_DIR="$ZIG_SRC_DIR/build"
 BOOTSTRAP_LLVM_DIR="$CEL_DIR/../zig-bootstrap-emergency/out/build-llvm-host"
+BOOTSTRAP_ROOT="$CEL_DIR/../zig-bootstrap-emergency"
+BOOTSTRAP_BUILD_ZIG_HOST_DIR="$BOOTSTRAP_ROOT/out/build-zig-host"
+BOOTSTRAP_HOST_PREFIX="$BOOTSTRAP_ROOT/out/host"
+BOOTSTRAP_HOST_ZIG="$BOOTSTRAP_HOST_PREFIX/bin/$ZIG_EXE"
 
 info()  { printf "\033[1;34m[cel]\033[0m %s\n" "$*"; }
 warn()  { printf "\033[1;33m[cel]\033[0m %s\n" "$*"; }
@@ -98,6 +102,114 @@ print_binary_status() {
     fi
 }
 
+job_count() {
+    local jobs
+    jobs="${CMAKE_JOBS:-$(( ($(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4) + 1) / 2 ))}"
+    [[ "$jobs" -lt 1 ]] && jobs=1
+    printf '%s' "$jobs"
+}
+
+bootstrap_host_zig_required() {
+    [[ "$(uname -s)" == "Darwin" ]] || return 1
+
+    local os_ver major
+    os_ver="$(sw_vers -productVersion 2>/dev/null || echo 0)"
+    major="${os_ver%%.*}"
+    [[ "$major" =~ ^[0-9]+$ ]] || return 1
+    (( major >= CEL_MIN_MACOS_MAJOR ))
+}
+
+load_bootstrap_host_zig_version() {
+    [[ -f "$BOOTSTRAP_ROOT/build" ]] || return 0
+    sed -n 's/^ZIG_VERSION="\(.*\)"$/\1/p' "$BOOTSTRAP_ROOT/build" | head -n 1
+}
+
+ensure_bootstrap_host_llvm_install() {
+    if [[ -x "$BOOTSTRAP_HOST_PREFIX/bin/llvm-config" ]]; then
+        return
+    fi
+
+    [[ -f "$BOOTSTRAP_LLVM_DIR/CMakeCache.txt" ]] || die "Bootstrap LLVM build tree not found at $BOOTSTRAP_LLVM_DIR. Run 'abi toolchain bootstrap' first."
+
+    local jobs
+    jobs="$(job_count)"
+    info "Installing bootstrap LLVM into $BOOTSTRAP_HOST_PREFIX..."
+    cmake --build "$BOOTSTRAP_LLVM_DIR" --target install --parallel "$jobs" || die "Bootstrap LLVM install failed."
+}
+
+ensure_bootstrap_host_zig() {
+    if [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+        return
+    fi
+
+    [[ -d "$BOOTSTRAP_ROOT/zig" ]] || die "Bootstrap Zig source not found at $BOOTSTRAP_ROOT/zig. Run 'abi toolchain bootstrap' first."
+
+    ensure_bootstrap_host_llvm_install
+
+    local bootstrap_version
+    bootstrap_version="$(load_bootstrap_host_zig_version)"
+    [[ -n "$bootstrap_version" ]] || die "Unable to determine bootstrap Zig version from $BOOTSTRAP_ROOT/build."
+
+    if [[ ! -f "$BOOTSTRAP_BUILD_ZIG_HOST_DIR/CMakeCache.txt" ]]; then
+        info "Configuring bootstrap host Zig..."
+        cmake \
+            -S "$BOOTSTRAP_ROOT/zig" \
+            -B "$BOOTSTRAP_BUILD_ZIG_HOST_DIR" \
+            -DCMAKE_INSTALL_PREFIX="$BOOTSTRAP_HOST_PREFIX" \
+            -DCMAKE_PREFIX_PATH="$BOOTSTRAP_HOST_PREFIX" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZIG_VERSION="$bootstrap_version" || die "Bootstrap host Zig configuration failed."
+    fi
+
+    local jobs
+    jobs="$(job_count)"
+    info "Building bootstrap host Zig with $jobs parallel jobs..."
+    cmake --build "$BOOTSTRAP_BUILD_ZIG_HOST_DIR" --target install --parallel "$jobs" || die "Bootstrap host Zig build failed."
+    [[ -x "$BOOTSTRAP_HOST_ZIG" ]] || die "Bootstrap host Zig build finished without $BOOTSTRAP_HOST_ZIG"
+}
+
+zig_optimize_mode_from_build_type() {
+    case "${CEL_BUILD_TYPE:-Release}" in
+        Debug) printf 'Debug' ;;
+        MinSizeRel) printf 'ReleaseSmall' ;;
+        RelWithDebInfo) printf 'ReleaseFast' ;;
+        Release) printf 'ReleaseFast' ;;
+        *) printf 'ReleaseFast' ;;
+    esac
+}
+
+build_stage3_with_bootstrap_host_zig() {
+    ensure_bootstrap_host_zig
+
+    local optimize_mode
+    optimize_mode="$(zig_optimize_mode_from_build_type)"
+
+    local -a stage3_args=(
+        build
+        --prefix "$CEL_DIR"
+        --zig-lib-dir "$ZIG_SRC_DIR/lib"
+        "-Dversion-string=$ZIG_VERSION"
+        -Dtarget=native
+        -Dcpu=native
+        -Denable-llvm
+        "-Dconfig_h=$BUILD_DIR/config.h"
+        -Dno-langref
+        -fllvm
+        -flld
+        "-Doptimize=$optimize_mode"
+    )
+
+    if [[ "${CEL_BUILD_TYPE:-Release}" != "RelWithDebInfo" ]]; then
+        stage3_args+=(-Dstrip)
+    fi
+
+    info "Building Zig with bootstrap host Zig: $BOOTSTRAP_HOST_ZIG"
+    (
+        cd "$ZIG_SRC_DIR"
+        "$BOOTSTRAP_HOST_ZIG" "${stage3_args[@]}"
+    ) || die "Bootstrap-host stage3 Zig build failed."
+}
+
 print_status() {
     printf '\n'
     info "=== CEL Toolchain Status ==="
@@ -145,6 +257,7 @@ print_status() {
 
     print_binary_status "CEL Zig" "$ZIG_BIN" version
     print_binary_status "CEL ZLS" "$ZLS_BIN" --version
+    print_binary_status "Bootstrap host Zig" "$BOOTSTRAP_HOST_ZIG" version
     printf '\n'
 }
 
@@ -308,15 +421,19 @@ build_zig() {
     info "Configuring Zig build..."
     cmake "${CMAKE_ARGS[@]}" || die "cmake configuration failed."
 
-    local jobs
-    jobs="${CMAKE_JOBS:-$(( ($(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4) + 1) / 2 ))}"
-    [[ "$jobs" -lt 1 ]] && jobs=1
+    if bootstrap_host_zig_required; then
+        info "macOS ${CEL_MIN_MACOS_MAJOR}+ detected; using bootstrap host Zig for the stage3 build runner."
+        build_stage3_with_bootstrap_host_zig
+    else
+        local jobs
+        jobs="$(job_count)"
 
-    info "Building Zig with $jobs parallel jobs..."
-    cmake --build "$BUILD_DIR" --parallel "$jobs" || die "Zig build failed."
+        info "Building Zig with $jobs parallel jobs..."
+        cmake --build "$BUILD_DIR" --parallel "$jobs" || die "Zig build failed."
 
-    info "Installing Zig into $CEL_DIR..."
-    cmake --install "$BUILD_DIR" --prefix "$CEL_DIR" || die "Zig install failed."
+        info "Installing Zig into $CEL_DIR..."
+        cmake --install "$BUILD_DIR" --prefix "$CEL_DIR" || die "Zig install failed."
+    fi
 
     [[ -x "$ZIG_BIN" ]] || die "Zig build finished without $ZIG_BIN"
     info "Built CEL Zig: $("$ZIG_BIN" version 2>/dev/null || echo unknown)"
