@@ -218,7 +218,7 @@
     },
     .{
         .name = "mcp",
-        .description = "MCP server for WDBX database or ZLS (serve, tools)",
+        .description = "MCP server for combined WDBX + ZLS tools (serve, tools)",
         .aliases = .{},
         .subcommands = .{
             "serve",
@@ -367,7 +367,7 @@
     },
     .{
         .name = "toolchain",
-        .description = "Build and install Zig/ZLS from master (install, update, status)",
+        .description = "Manage the repo-local CEL Zig/ZLS toolchain (install, update, status, bootstrap)",
         .aliases = .{},
         .subcommands = .{
             "install",

@@ -26,6 +26,27 @@ pub const zls_bridge = @import("zls_bridge.zig");
 
 pub const createZlsServer = zls_bridge.createZlsServer;
 
+/// Create an MCP server pre-configured with both WDBX database and ZLS tools
+pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !Server {
+    var server = Server.init(allocator, "abi-wdbx-zls", version);
+
+    // Unpack WDBX tools
+    var wdbx_server = try createWdbxServer(allocator, version);
+    defer wdbx_server.deinit();
+    for (wdbx_server.tools.items) |tool| {
+        try server.addTool(tool);
+    }
+
+    // Unpack ZLS tools
+    var zls_server = try createZlsServer(allocator, version);
+    defer zls_server.deinit();
+    for (zls_server.tools.items) |tool| {
+        try server.addTool(tool);
+    }
+
+    return server;
+}
+
 /// Create an MCP server pre-configured with WDBX database tools
 pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server {
     var server = Server.init(allocator, "abi-wdbx", version);

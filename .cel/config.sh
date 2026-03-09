@@ -12,8 +12,8 @@
 # Migration: run ./tools/scripts/cel_migrate.sh for guided setup
 
 ZIG_UPSTREAM_REPO="https://codeberg.org/zig/zig.git"
-ZIG_UPSTREAM_COMMIT="74f361a5c" # matches .zigversion 0.16.0-dev.2650+74f361a5c
-ZIG_VERSION="0.16.0-dev.2650+74f361a5c"
+ZIG_UPSTREAM_COMMIT="738d2be9d" # matches .zigversion 0.16.0-dev.2650+738d2be9d
+ZIG_VERSION="0.16.0-dev.2650+738d2be9d"
 CEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Platform requirements for CEL

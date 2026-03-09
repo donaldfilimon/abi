@@ -49,7 +49,20 @@ pub fn main(_: std.process.Init) !void {
         errors += 1;
     }
 
-    if (try util.commandExists(allocator, io, "zvm")) {
+    const cel_zig = ".cel/bin/zig";
+    if (util.fileExists(io, cel_zig)) {
+        if (!std.mem.eql(u8, active_path, cel_zig)) {
+            std.debug.print(
+                "ERROR: PATH precedence mismatch: active zig is '{s}' but repo-local CEL zig is '{s}'\n",
+                .{ active_path, cel_zig },
+            );
+            std.debug.print(
+                "       Fix by prepending '.cel/bin' ahead of other zig locations in PATH.\n",
+                .{},
+            );
+            errors += 1;
+        }
+    } else if (try util.commandExists(allocator, io, "zvm")) {
         const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
         defer allocator.free(home_res.output);
         const home = util.trimSpace(home_res.output);

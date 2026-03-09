@@ -469,6 +469,84 @@ pub fn pathToUri(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
     return writer.toOwnedSlice();
 }
 
+fn createTestAbiRepo(
+    dir: std.fs.Dir,
+    include_zig: bool,
+    include_zls: bool,
+) !void {
+    try dir.makePath("repo/.cel/bin");
+    try dir.makePath("repo/src");
+    try dir.writeFile(.{ .sub_path = "repo/build.zig", .data = "pub fn build(_: *anyopaque) void {}\n" });
+    try dir.writeFile(.{ .sub_path = "repo/src/abi.zig", .data = "pub const test_value = 1;\n" });
+    try dir.writeFile(.{ .sub_path = "repo/.cel/build.sh", .data = "#!/bin/sh\n" });
+    if (include_zig) {
+        try dir.writeFile(.{ .sub_path = "repo/.cel/bin/zig", .data = "" });
+    }
+    if (include_zls) {
+        try dir.writeFile(.{ .sub_path = "repo/.cel/bin/zls", .data = "" });
+    }
+}
+
+fn testRepoRootPath(allocator: std.mem.Allocator, io: std.Io, sub_path: []const u8) ![]u8 {
+    const cwd = try std.process.currentPathAlloc(io, allocator);
+    defer allocator.free(cwd);
+    return std.fs.path.resolve(allocator, &.{ cwd, ".zig-cache", "tmp", sub_path, "repo" });
+}
+
+test "resolveZigPath prefers explicit override over repo-local CEL" {
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try createTestAbiRepo(tmp.dir, true, false);
+
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer io_backend.deinit();
+
+    const repo_root = try testRepoRootPath(std.testing.allocator, io_backend.io(), tmp.sub_path[0..]);
+    defer std.testing.allocator.free(repo_root);
+
+    const result = try resolveZigPath(std.testing.allocator, io_backend.io(), .{
+        .zig_exe_path = "/override/zig",
+    }, repo_root);
+
+    try std.testing.expectEqualStrings("/override/zig", result.path.?);
+    try std.testing.expect(result.owned == null);
+}
+
+test "resolveZigPath prefers repo-local CEL zig before fallback" {
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try createTestAbiRepo(tmp.dir, true, false);
+
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer io_backend.deinit();
+
+    const repo_root = try testRepoRootPath(std.testing.allocator, io_backend.io(), tmp.sub_path[0..]);
+    defer std.testing.allocator.free(repo_root);
+
+    const result = try resolveZigPath(std.testing.allocator, io_backend.io(), Config.defaults(), repo_root);
+    defer if (result.owned) |owned| std.testing.allocator.free(owned);
+
+    try std.testing.expect(result.path != null);
+    try std.testing.expect(std.mem.endsWith(u8, result.path.?, "/.cel/bin/zig"));
+}
+
+test "resolveZlsPath prefers repo-local CEL zls before PATH default" {
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try createTestAbiRepo(tmp.dir, false, true);
+
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer io_backend.deinit();
+
+    const repo_root = try testRepoRootPath(std.testing.allocator, io_backend.io(), tmp.sub_path[0..]);
+    defer std.testing.allocator.free(repo_root);
+
+    const result = try resolveZlsPath(std.testing.allocator, io_backend.io(), Config.defaults(), repo_root);
+    defer if (result.owned) |owned| std.testing.allocator.free(owned);
+
+    try std.testing.expect(std.mem.endsWith(u8, result.path, "/.cel/bin/zls"));
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

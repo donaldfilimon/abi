@@ -23,6 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CEL_DIR="$REPO_ROOT/.cel"
 CEL_ZIG="$CEL_DIR/bin/zig"
+CEL_ZLS="$CEL_DIR/bin/zls"
 
 # Colors
 RED='\033[0;31m'
@@ -196,8 +197,17 @@ if [[ ! -x "$CEL_ZIG" ]]; then
     die "Build appeared to succeed but .cel/bin/zig not found"
 fi
 
+if [[ ! -x "$CEL_ZLS" ]]; then
+    warn "Build appeared to succeed but .cel/bin/zls not found (ZLS may not be built)"
+fi
+
 CEL_VER="$("$CEL_ZIG" version 2>/dev/null || echo 'unknown')"
 ok "CEL Zig version: $CEL_VER"
+
+if [[ -x "$CEL_ZLS" ]]; then
+    CEL_ZLS_VER="$("$CEL_ZLS" --version 2>/dev/null || echo 'unknown')"
+    ok "CEL ZLS version: $CEL_ZLS_VER"
+fi
 
 # Version consistency check
 if [[ -f "$REPO_ROOT/.zigversion" ]]; then

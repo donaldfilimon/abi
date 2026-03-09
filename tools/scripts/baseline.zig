@@ -1,3 +1,3 @@
 // Canonical Zig version pin for this repo. Must match .zigversion and build.zig.zon.
 // Used by check_zig_version_consistency.zig and gendocs.
-pub const zig_version = "0.16.0-dev.2650+74f361a5c";
+pub const zig_version = "0.16.0-dev.2650+738d2be9d";
