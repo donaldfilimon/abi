@@ -23,7 +23,7 @@ pub fn main(_: std.process.Init) !void {
 
     if (!(try util.commandExists(allocator, io, "zig"))) {
         std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
-        std.debug.print("Install via zvm and ensure ~/.zvm/bin is on PATH.\n", .{});
+        std.debug.print("Build CEL via ./.cel/build.sh and ensure .cel/bin is on PATH.\n", .{});
         std.process.exit(1);
     }
 
@@ -86,16 +86,24 @@ pub fn main(_: std.process.Init) !void {
         issues += 1;
     }
 
-    const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
-    defer allocator.free(home_res.output);
-    const home = util.trimSpace(home_res.output);
-
-    const zvm_zig = try std.fmt.allocPrint(allocator, "{s}/.zvm/bin/zig", .{home});
-    defer allocator.free(zvm_zig);
-
-    if (util.fileExists(io, zvm_zig) and !std.mem.eql(u8, active_zig, zvm_zig)) {
-        std.debug.print("ISSUE: active zig is not the zvm-managed binary\n", .{});
+    if (util.fileExists(io, ".cel/bin/zig") and
+        !std.mem.endsWith(u8, active_zig, "/.cel/bin/zig") and
+        !std.mem.eql(u8, active_zig, ".cel/bin/zig"))
+    {
+        std.debug.print("ISSUE: active zig is not the repo-local CEL binary\n", .{});
         issues += 1;
+    } else {
+        const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
+        defer allocator.free(home_res.output);
+        const home = util.trimSpace(home_res.output);
+
+        const zvm_zig = try std.fmt.allocPrint(allocator, "{s}/.zvm/bin/zig", .{home});
+        defer allocator.free(zvm_zig);
+
+        if (util.fileExists(io, zvm_zig) and !std.mem.eql(u8, active_zig, zvm_zig)) {
+            std.debug.print("ISSUE: active zig is not the zvm-managed binary\n", .{});
+            issues += 1;
+        }
     }
 
     // ── CEL toolchain check ────────────────────────────────────────────
@@ -126,6 +134,15 @@ pub fn main(_: std.process.Init) !void {
     // Check if active zig is CEL
     if (std.mem.indexOf(u8, active_zig, ".cel/bin") != null) {
         std.debug.print("  Active zig source: .cel patched toolchain\n", .{});
+    }
+    if (util.fileExists(io, ".cel/bin/zls")) {
+        const cel_zls_res = util.captureCommand(allocator, io, ".cel/bin/zls --version") catch null;
+        if (cel_zls_res) |res| {
+            defer allocator.free(res.output);
+            std.debug.print("  .cel/bin/zls: {s}\n", .{util.trimSpace(res.output)});
+        }
+    } else if (cel_zig_exists) {
+        std.debug.print("  .cel/bin/zls: NOT BUILT (run .cel/build.sh --zls-only)\n", .{});
     }
     std.debug.print("\n", .{});
 

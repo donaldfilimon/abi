@@ -69,6 +69,7 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "feat_auth", .path = "features/auth/auth_test.zig" },
 
     // ── Always-on services ──────────────────────────────────────────────
+    .{ .flag = null, .path = "services/mcp/mod.zig" },
     .{ .flag = null, .path = "services/mcp/server.zig" },
     .{ .flag = null, .path = "services/mcp/types.zig" },
     .{ .flag = null, .path = "services/acp/mod.zig" },

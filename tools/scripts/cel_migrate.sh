@@ -23,6 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CEL_DIR="$REPO_ROOT/.cel"
 CEL_ZIG="$CEL_DIR/bin/zig"
+CEL_ZLS="$CEL_DIR/bin/zls"
 
 # Colors
 RED='\033[0;31m'
@@ -106,21 +107,37 @@ done
 
 # Check LLVM
 LLVM_FOUND=false
-if [[ -d "/opt/homebrew/opt/llvm" ]]; then
-    ok "  LLVM: Homebrew (Apple Silicon)"
-    LLVM_FOUND=true
-elif [[ -d "/usr/local/opt/llvm" ]]; then
-    ok "  LLVM: Homebrew (Intel)"
-    LLVM_FOUND=true
-elif command -v llvm-config >/dev/null 2>&1; then
-    LLVM_VER="$(llvm-config --version 2>/dev/null || echo 'unknown')"
-    ok "  LLVM: system ($LLVM_VER)"
-    LLVM_FOUND=true
-elif [[ -d "$REPO_ROOT/zig-bootstrap-emergency/out/build-llvm-host" ]]; then
+if [[ -d "$REPO_ROOT/zig-bootstrap-emergency/out/build-llvm-host" ]]; then
     ok "  LLVM: bootstrap artifacts"
     LLVM_FOUND=true
-else
-    warn "  LLVM: not found — install with 'brew install llvm'"
+elif [[ -d "/opt/homebrew/opt/llvm@21" ]]; then
+    ok "  LLVM: Homebrew llvm@21 (Apple Silicon)"
+    LLVM_FOUND=true
+elif [[ -d "/usr/local/opt/llvm@21" ]]; then
+    ok "  LLVM: Homebrew llvm@21 (Intel)"
+    LLVM_FOUND=true
+elif command -v brew >/dev/null 2>&1; then
+    BREW_LLVM21="$(brew --prefix llvm@21 2>/dev/null || true)"
+    if [[ -n "$BREW_LLVM21" && -d "$BREW_LLVM21" ]]; then
+        ok "  LLVM: Homebrew llvm@21 ($BREW_LLVM21)"
+        LLVM_FOUND=true
+    fi
+fi
+
+if ! $LLVM_FOUND && command -v llvm-config >/dev/null 2>&1; then
+    LLVM_VER="$(llvm-config --version 2>/dev/null || echo 'unknown')"
+    if [[ "$LLVM_VER" == 21.* ]]; then
+        ok "  LLVM: system ($LLVM_VER)"
+        LLVM_FOUND=true
+    else
+        warn "  LLVM: found system llvm-config $LLVM_VER, but CEL pin expects LLVM 21.x"
+    fi
+fi
+
+if ! $LLVM_FOUND && [[ -d "/opt/homebrew/opt/llvm" ]]; then
+    warn "  LLVM: Homebrew llvm found, but CEL pin expects llvm@21"
+elif ! $LLVM_FOUND && [[ -d "/usr/local/opt/llvm" ]]; then
+    warn "  LLVM: Homebrew llvm found, but CEL pin expects llvm@21"
 fi
 
 if [[ ${#MISSING[@]} -gt 0 ]]; then
@@ -128,8 +145,8 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
 fi
 
 if ! $LLVM_FOUND; then
-    warn "No LLVM found. .cel/build.sh will attempt to find system LLVM."
-    warn "If the build fails, install LLVM: brew install llvm"
+    warn "No compatible LLVM found. .cel/build.sh will look for llvm@21 or bootstrap LLVM."
+    warn "If the build fails, install LLVM 21: brew install llvm@21"
 fi
 
 if $CHECK_ONLY; then
@@ -196,8 +213,17 @@ if [[ ! -x "$CEL_ZIG" ]]; then
     die "Build appeared to succeed but .cel/bin/zig not found"
 fi
 
+if [[ ! -x "$CEL_ZLS" ]]; then
+    warn "Build appeared to succeed but .cel/bin/zls not found (ZLS may not be built)"
+fi
+
 CEL_VER="$("$CEL_ZIG" version 2>/dev/null || echo 'unknown')"
 ok "CEL Zig version: $CEL_VER"
+
+if [[ -x "$CEL_ZLS" ]]; then
+    CEL_ZLS_VER="$("$CEL_ZLS" --version 2>/dev/null || echo 'unknown')"
+    ok "CEL ZLS version: $CEL_ZLS_VER"
+fi
 
 # Version consistency check
 if [[ -f "$REPO_ROOT/.zigversion" ]]; then

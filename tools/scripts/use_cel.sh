@@ -5,7 +5,7 @@
 #   — or —
 #   source tools/scripts/use_cel.sh
 #
-# This script sets the PATH so that .cel/bin/zig takes precedence.
+# This script sets the PATH so that .cel/bin/{zig,zls} take precedence.
 # It also validates the version against .zigversion.
 set -e
 
@@ -42,5 +42,8 @@ fi
 if [[ "${USE_CEL_QUIET:-0}" != "1" ]]; then
   echo "Using Zig (.cel): $(zig version)"
   echo "  Binary: $CEL_ZIG"
+  if [[ -x "$REPO_ROOT/.cel/bin/zls" ]]; then
+    echo "  ZLS: $REPO_ROOT/.cel/bin/zls"
+  fi
   echo "  PATH updated: $REPO_ROOT/.cel/bin is first"
 fi

@@ -13,7 +13,12 @@
       "Bash(zig run:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(zig test src/wdbx/core/ids.zig -fno-emit-bin)",
+      "Bash(zig test src/core/config/loader.zig -fno-emit-bin)",
+      "Bash(grep -c '\"\"type\"\":\"\"result\"\"')",
+      "Bash(zig test src/services/lsp/mod.zig -fno-emit-bin)",
+      "Bash(zig test src/services/mcp/zls_bridge.zig -fno-emit-bin)"
     ]
   },
   "enableAllProjectMcpServers": true,

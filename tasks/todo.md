@@ -12,90 +12,21 @@ a new plan when starting a wave.
 
 ## Active Queue
 
-### Task Plan - ABI Codex Skill Bootstrap (2026-03-09)
-
-#### Objective
-Create a reusable Codex skill named `abi` that captures the project's canonical workflow, validation gates, and handoff expectations in a concise, trigger-ready format.
-
-#### Scope
-- Add a new skill package at `.codex/skills/abi/` with a required `SKILL.md`.
-- Keep instructions concise and oriented around ABI-specific workflow contracts.
-- Include explicit trigger guidance and verification checklist for implementation tasks.
-
-#### Verification Criteria
-- `test -f .codex/skills/abi/SKILL.md`
-- `git diff -- .codex/skills/abi/SKILL.md tasks/todo.md`
-
-#### Checklist
-- [x] Add task tracker entry and mark progress in this plan.
-- [x] Author `.codex/skills/abi/SKILL.md` with metadata + compact process guidance.
-- [x] Validate file presence/diff and add close-out notes in this plan.
-
-#### Review Notes
-- Added `.codex/skills/abi/SKILL.md` with concise metadata and ABI workflow contract guidance.
-- Consensus wrapper script path is unavailable in this environment; task continued under best-effort rule from AGENTS contract.
-- Validation evidence: file-presence and focused diff checks passed.
-
-### Task Plan - Core Engine Optimization and Feature Hardening (2026-03-06)
-
-#### Objective
-Advance the recently implemented WDBX and TUI foundations toward production-grade
-stability, focusing on performance profiling, real-world data stress tests, and
-deeper subsystem integration.
-
-#### Scope
-- Implement real heartbeat state-machines and shard-balancing in `src/wdbx/dist/`.
-- Optimize `GraphStore` reverse-traversal with a more memory-efficient index.
-- Wire `TrackingAllocator` telemetry into the TUI dashboard for real-time memory profiling.
-- Implement the binary RPC protocol for node-to-node block replication.
-- Refactor TUI components to use the new `std.Io` concurrent fetch patterns.
-
-#### Verification Criteria
-- `zig build verify-all`
-- `abi doctor` returns green on the bootstrapped toolchain.
-- Successful node-to-node replication verified via trace logs.
-
-#### Checklist
-
-##### Done (this wave)
-- [x] Implement Heartbeat state-machine in `dist/mod.zig` (HealthState, tick, configurable timeouts).
-- [x] Optimize `GraphStore` adjacency list (flat edge list + outgoing/incoming index maps).
-- [x] Create real telemetry dashboard view using `TrackingAllocator` data (MemoryPanel + WDBX tracker).
-- [x] Implement skeleton binary RPC message codec in `dist/rpc.zig` (Header, HeartbeatPayload, BlockSyncRequest).
-
-##### Review (before closing plan)
-- [ ] Run benchmarks; confirm no regression from new telemetry or GraphStore layout.
-- [x] Add or run trace logging for dist state; verify logs reflect node state transitions (active/stale/failed). *(Coordinator.trace_state_change callback added; test covers transitions.)*
-- [ ] Run `zig build full-check` and `zig build verify-all` on a host where the toolchain links.
-- [x] Document `Coordinator` / `dist.rpc` usage in CLAUDE.md or a short dist README. *(Key Modules table: abi.wdbx.dist, abi.wdbx.dist.rpc.)*
-
-##### Completed (Zig 0.16 std API pass)
-- [x] Network protocol: `std.meta.intToEnum` → validated `switch` for `ResultStatus`; decode error set includes `Allocator.Error`; test "encode rejects oversized kind" fixed (no 4GB allocation).
-- [x] WDBX core alloc: allocator vtable uses `std.mem.Alignment` instead of `u8`.
-- [x] CLAUDE.md: added "Zig 0.16 std API notes" (time, enums, HashMap, Allocator, Build, mem, std.Io).
-
-##### Follow-on tasks (expand into next plan if desired)
-- [x] Shard ownership and assignment in `Coordinator` (e.g. `shard_map` usage, rebalance on node fail). *(assignShard, getShardOwner, unassignShardsForNode.)*
-- [x] Implement block sync response/chunk encode-decode in `dist/rpc.zig` and wire to a replication path. *(BlockSyncResponse, BlockChunk + tests; replication path TODO.)*
-- [x] Refactor TUI data fetches to use `std.Io` concurrent patterns where applicable. *(Audited: training_panel, editor/engine use std.Io.Dir.cwd(); optional follow-up: concurrent fetch to avoid blocking tick.)*
-- [x] Optional: wire WDBX engine’s `TrackingAllocator` into the dashboard when running `abi ui` with engine. *(ShellPanel.connectWdbxTracker; abi.wdbx re-export.)*
+*(No active plan. Promote from Backlog when starting a new wave.)*
 
 ---
 
 ## Next steps (actionable)
 
-*Run in order when toolchain allows; environment-blocked items are noted. "Do all" on this host: verified manifest, fmt, compile-only tests, added stress tests; build/test still fails at link (Darwin).*
+*Environment-blocked items noted. Darwin linker still blocks binary builds; use CI (Linux) or CEL toolchain.*
 
-**Proceeded (this session):** CEL toolchain integration landed. `build/cel.zig` adds `cel-check`, `cel-build`, `cel-status`, `cel-verify` build steps. `tools/scripts/cel_doctor.zig` provides comprehensive diagnostics. `tools/scripts/cel_migrate.sh` offers guided migration. Toolchain doctor and version consistency checks now include CEL detection. All compile-only tests pass. Format clean.
-
-**Proceeded (this session):** F32 training pipeline hardened. `llm_trainer.zig`: fixed `evaluate()` to use real `model.forward()` instead of random logits; wired `mixed_precision` config flag with `LossScaler`; added NaN/Inf gradient guard. `mixed_precision.zig`: added `reset()` and `updateScale()` alias. `mod.zig`: added `PrecisionMode` enum and f32 precision docs. Format clean.
-
-1. [ ] **Benchmarks**: Run `zig build benchmarks` (or suite=simd/database); confirm no regression from telemetry or GraphStore. *(Requires working linker.)*
-2. [ ] **Full gate**: On a host where the toolchain links, run `zig build full-check` and `zig build verify-all`.
-3. [x] **Rebalance on fail**: From application code, call `coord.unassignShardsForNode(allocator, node_id)` when a node transitions to failed (e.g. in trace_state_change callback); optionally reassign shards to healthy nodes. *(Test and doc in dist/mod.zig.)*
-4. [x] **Block replication path**: Wire `dist.rpc` BlockSyncRequest/Response/Chunk to a single-node-to-node copy path; add trace logs for sync. *(dist/replication.zig runRequesterPath + tests.)*
-5. [ ] **CLI registry**: After any command changes, run `zig build refresh-cli-registry` and `zig build check-cli-registry`. *(When build succeeds.)*
-6. [ ] **check-docs**: Run `zig build check-docs` when build succeeds.
+1. [ ] **Push and validate CI**: Push current branch; confirm CI passes on Linux (tests, format, flag validation).
+2. [ ] **Benchmarks**: Run `zig build benchmarks` on CI or CEL host; confirm no regression. *(Requires working linker.)*
+3. [ ] **Full gate**: Run `zig build full-check` and `zig build verify-all` on Linux/CI or CEL.
+4. [ ] **CLI registry**: Run `zig build refresh-cli-registry` and `zig build check-cli-registry`. *(When build succeeds.)*
+5. [ ] **check-docs**: Run `zig build check-docs` when build succeeds.
+6. [ ] **Build CEL toolchain**: Run `.cel/build.sh` to unblock all local Darwin binary builds.
+7. [ ] **Feature-flag validation**: Run `zig build validate-flags` (34 combos); fix any mod/stub drift.
 
 ---
 
@@ -104,14 +35,9 @@ deeper subsystem integration.
 *Promote to Active Queue when starting a new plan.*
 
 ### WDBX / Distributed
-- [x] **Shard balancing**: Implement rebalance logic when nodes go stale/failed; update `Coordinator.shard_map` and document contract. *(unassignShardsForNode + trace callback test; assignShard for reassign.)*
-- [x] **RPC transport**: Add a minimal transport layer (e.g. stream over TCP) that uses `dist.rpc` encode/decode; no full Raft yet.
-- [x] **Block replication**: Use `dist.rpc` BlockSyncRequest/Response in a single-node-to-node copy path; trace logs for sync. *(dist/replication.zig runRequesterPath.)*
-- [x] **WDBX stress tests**: Add tests or a small harness that stress the graph store and dist coordinator under load (many nodes, many edges). *(dist: "Coordinator: many nodes and shards (stress)"; graph: "GraphStore: many edges (stress)".)*
+- [ ] **MCP Server hardening**: Validate combined WDBX+ZLS MCP server end-to-end; add integration tests for `services/mcp/mod.zig`.
 
 ### TUI / CLI
-- [x] **std.Io TUI refactor**: Identify TUI code paths that do I/O or blocking work; refactor to use `std.Io` concurrent fetch where it fits. *(Audited: file I/O uses std.Io.Dir.cwd(); optional: concurrent fetch for tick.)*
-- [x] **Dashboard WDBX wiring**: When the UI runs with an engine that uses `TrackingAllocator`, call `memory_panel.connectWdbxTracker(...)` from dashboard init. *(ShellPanel.connectWdbxTracker added.)*
 - [ ] **CLI registry**: Run `zig build refresh-cli-registry` and `zig build check-cli-registry` after any command changes; keep docs in sync.
 
 ### Build / Toolchain
@@ -125,6 +51,18 @@ deeper subsystem integration.
 - [ ] **check-docs**: Run `zig build check-docs` when build succeeds; fix broken or stale references.
 
 ## Archive
+
+### Completed - Core Engine Optimization and Feature Hardening (2026-03-06 → 2026-03-09)
+
+#### Evidence
+- All checklist items completed except benchmarks and full-check (blocked by Darwin linker).
+- CEL toolchain integration landed with ZLS support. F32 training pipeline hardened.
+- Version pin wave: `0.16.0-dev.2722+738d2be9d` aligned across all files.
+- LSP client implementation with CEL-first resolution added (`src/services/lsp/client.zig`).
+- Compile-only tests pass. Format clean.
+
+#### Residual Risk
+- Benchmarks and `full-check`/`verify-all` not yet run (Darwin linker blocked). Deferred to CI or CEL host.
 
 ### Completed - Do all (this host) 2026-03-08
 

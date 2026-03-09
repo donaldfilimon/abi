@@ -10,11 +10,7 @@
 //! ```
 //!
 //! ## Exposed Tools
-//! - `db_query` — Vector similarity search
-//! - `db_insert` — Insert vectors with metadata
-//! - `db_stats` — Database statistics
-//! - `db_list` — List stored vectors
-//! - `db_delete` — Delete a vector by ID
+//! - `db_*` — WDBX database tools
 //! - `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
 
 const std = @import("std");
@@ -25,6 +21,27 @@ pub const RegisteredTool = @import("server.zig").RegisteredTool;
 pub const zls_bridge = @import("zls_bridge.zig");
 
 pub const createZlsServer = zls_bridge.createZlsServer;
+
+/// Create an MCP server pre-configured with both WDBX database and ZLS tools
+pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !Server {
+    var server = Server.init(allocator, "abi-wdbx-zls", version);
+
+    // Unpack WDBX tools
+    var wdbx_server = try createWdbxServer(allocator, version);
+    defer wdbx_server.deinit();
+    for (wdbx_server.tools.items) |tool| {
+        try server.addTool(tool);
+    }
+
+    // Unpack ZLS tools
+    var zls_server = try createZlsServer(allocator, version);
+    defer zls_server.deinit();
+    for (zls_server.tools.items) |tool| {
+        try server.addTool(tool);
+    }
+
+    return server;
+}
 
 /// Create an MCP server pre-configured with WDBX database tools
 pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server {
@@ -323,6 +340,22 @@ test "createWdbxServer registers tools" {
     try std.testing.expectEqualStrings("db_stats", server.tools.items[2].def.name);
     try std.testing.expectEqualStrings("db_list", server.tools.items[3].def.name);
     try std.testing.expectEqualStrings("db_delete", server.tools.items[4].def.name);
+}
+
+test "createCombinedServer registers WDBX and ZLS tools" {
+    const allocator = std.testing.allocator;
+    var server = try createCombinedServer(allocator, "0.4.0");
+    defer server.deinit();
+
+    var saw_db_query = false;
+    var saw_zls_hover = false;
+    for (server.tools.items) |tool| {
+        if (std.mem.eql(u8, tool.def.name, "db_query")) saw_db_query = true;
+        if (std.mem.eql(u8, tool.def.name, "zls_hover")) saw_zls_hover = true;
+    }
+
+    try std.testing.expect(saw_db_query);
+    try std.testing.expect(saw_zls_hover);
 }
 
 test {

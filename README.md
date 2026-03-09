@@ -87,7 +87,7 @@ zig build run -- --help
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | 0.16.0-dev.2650+74f361a5c | Yes |
+| Zig | 0.16.0-dev.1503+738d2be9d | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -252,10 +252,10 @@ pub fn main() !void {
 ### Adding CLI/TUI tools via the comptime DSL
 
 - Define command metadata in the command module using `pub const meta: command.Meta`.
-- Keep registry ordering/metadata overrides in `/Users/donaldfilimon/abi/tools/cli/registry/overrides.zig`.
+- Keep registry ordering/metadata overrides in `tools/cli/registry/overrides.zig`.
 - Refresh the generated registry snapshot with `zig build refresh-cli-registry` after adding commands.
 - Use command metadata fields for options/UI/risk so launcher/completion/help are derived from one source.
-- For simple UI dashboards, use `/Users/donaldfilimon/abi/tools/cli/ui/dsl/mod.zig` to avoid repeated theme/session/dashboard boilerplate.
+- For simple UI dashboards, use `tools/cli/ui/dsl/mod.zig` to avoid repeated theme/session/dashboard boilerplate.
 - Refresh/check registry snapshots with:
 `zig build refresh-cli-registry`
 `zig build check-cli-registry`
@@ -324,45 +324,31 @@ abi --disable-ai system-info  # Disable feature for command
 ```
 abi/
 ├── src/
-│   ├── abi.zig           # Public API entry point
-│   ├── config/           # Unified configuration
-│   ├── framework.zig     # Lifecycle orchestration
-│   ├── platform/         # Platform detection (OS, arch, CPU)
-│   │
-│   ├── ai/               # AI module
-│   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
-│   │   ├── agents/       # Agent runtime
-│   │   ├── coordination/ # Canonical routing/orchestration surface
-│   │   ├── profiles/     # Canonical behavior profiles
-│   │   ├── personas/     # Persona implementation + compatibility layer
-│   │   ├── training/     # Training pipelines
-│   │   └── embeddings/   # Vector embeddings
-│   │
-│   ├── gpu/              # GPU Acceleration
-│   │   ├── backends/     # CUDA, Vulkan, Metal, WebGPU, FPGA
-│   │   ├── kernels/      # Compute kernels
-│   │   └── dsl/          # Shader DSL & codegen
-│   │
-│   ├── database/         # Semantic store (WDBX alias)
-│   │   ├── semantic_store/ # Canonical retrieval/provenance surface
-│   │   ├── hnsw.zig      # HNSW indexing
-│   │   └── distributed/  # Sharding & replication
-│   │
-│   ├── runtime/          # Compute Infrastructure
-│   │   ├── engine/       # Work-stealing scheduler
-│   │   ├── concurrency/  # Lock-free primitives
-│   │   └── memory/       # Pool allocators
-│   │
-│   ├── network/          # Distributed Compute
-│   │   └── raft/         # Consensus protocol
-│   │
-│   ├── shared/           # Shared utilities (security, io, utils)
-│   │
-│   └── observability/    # Metrics & Tracing
+│   ├── abi.zig              # Public API entry point (comptime feature selection)
+│   ├── core/                # Config, feature catalog, framework lifecycle
+│   ├── features/            # 19 comptime-gated feature modules
+│   │   ├── ai/              # LLM inference, agents, training, streaming
+│   │   │   ├── llm/         # Local LLM inference (Llama-CPP parity)
+│   │   │   ├── agents/      # Agent runtime
+│   │   │   ├── training/    # Training pipelines
+│   │   │   └── embeddings/  # Vector embeddings
+│   │   ├── gpu/             # GPU Acceleration
+│   │   │   ├── backends/    # CUDA, Vulkan, Metal, WebGPU, FPGA
+│   │   │   ├── kernels/     # Compute kernels
+│   │   │   └── dsl/         # Shader DSL & codegen
+│   │   ├── database/        # Semantic store (WDBX alias)
+│   │   ├── network/         # Distributed compute, Raft consensus
+│   │   ├── web/             # HTTP client utilities
+│   │   └── ...              # 14 more feature modules
+│   ├── services/            # Shared runtime services (LSP, MCP, connectors)
+│   ├── wdbx/                # WDBX vector database engine
+│   ├── personas/            # Multi-persona system
+│   └── inference/           # High-performance token generation
 │
-├── tools/cli/            # CLI implementation
-├── examples/             # Usage examples
-└── docs/                 # Documentation
+├── build/                   # Modular build system (options, flags, test discovery)
+├── tools/cli/               # CLI executable and 40+ commands
+├── examples/                # Usage examples
+└── docs/                    # Documentation
 ```
 
 <details>

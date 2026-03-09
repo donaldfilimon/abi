@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 /// CEL (Custom Environment Linker) toolchain integration for the ABI build
-/// system. Detects the `.cel` patched Zig toolchain and provides build-time
+/// system. Detects the `.cel` patched Zig/ZLS toolchain and provides build-time
 /// helpers to prefer it on blocked Darwin hosts (macOS 26+).
 ///
 /// The `.cel` toolchain is a patched Zig built from source that fixes:
@@ -48,7 +48,7 @@ pub fn detectCelStatus(b: *std.Build) CelStatus {
 
 /// Add a `cel-check` build step that reports CEL toolchain status.
 pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
-    const step = b.step("cel-check", "Check .cel patched toolchain status for this platform");
+    const step = b.step("cel-check", "Check .cel patched Zig/ZLS toolchain status for this platform");
 
     // Use a system command to report status since we need runtime output
     const cmd = b.addSystemCommand(&.{
@@ -61,6 +61,7 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\REPO_ROOT="$(pwd)"
         \\CEL_DIR="$REPO_ROOT/.cel"
         \\CEL_ZIG="$CEL_DIR/bin/zig"
+        \\CEL_ZLS="$CEL_DIR/bin/zls"
         \\
         \\# Platform check
         \\OS_VER="$(sw_vers -productVersion 2>/dev/null || echo 'unknown')"
@@ -76,7 +77,7 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\  printf '  CEL:       Optional\n\n'
         \\fi
         \\
-        \\# Check CEL binary
+        \\# Check CEL binaries
         \\if [ -x "$CEL_ZIG" ]; then
         \\  CEL_VER="$("$CEL_ZIG" version 2>/dev/null || echo 'unknown')"
         \\  printf '  .cel/bin/zig:  FOUND (version %s)\n' "$CEL_VER"
@@ -96,6 +97,12 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\else
         \\  printf '  .cel/bin/zig:  NOT PRESENT\n'
         \\  printf '  Action:        CEL infrastructure not found in this checkout\n'
+        \\fi
+        \\if [ -x "$CEL_ZLS" ]; then
+        \\  ZLS_VER="$("$CEL_ZLS" --version 2>/dev/null | head -n 1 || echo 'unknown')"
+        \\  printf '  .cel/bin/zls:  FOUND (%s)\n' "$ZLS_VER"
+        \\elif [ -x "$CEL_ZIG" ]; then
+        \\  printf '  .cel/bin/zls:  NOT BUILT\n'
         \\fi
         \\
         \\# Check patches
@@ -132,7 +139,7 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
 
 /// Add a `cel-build` build step that triggers the CEL toolchain build.
 pub fn addCelBuildStep(b: *std.Build) *std.Build.Step {
-    const step = b.step("cel-build", "Build the .cel patched Zig toolchain from source");
+    const step = b.step("cel-build", "Build the .cel patched Zig toolchain and ZLS from source");
 
     const cmd = b.addSystemCommand(&.{
         "sh", "-c",
@@ -170,7 +177,7 @@ pub fn addCelStatusStep(b: *std.Build) *std.Build.Step {
 
 /// Add a `cel-verify` step that runs .cel/build.sh --verify.
 pub fn addCelVerifyStep(b: *std.Build) *std.Build.Step {
-    const step = b.step("cel-verify", "Verify .cel patched Zig binary exists and prints its version");
+    const step = b.step("cel-verify", "Verify .cel patched Zig/ZLS binaries are ready");
 
     const cmd = b.addSystemCommand(&.{
         "sh", "-c",

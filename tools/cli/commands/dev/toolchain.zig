@@ -1,107 +1,122 @@
-//! Zig Toolchain Management
-//!
-//! Build and install Zig and ZLS from master branch.
+//! CEL-first Zig toolchain management.
 //!
 //! Usage:
-//!   abi toolchain install           Install both Zig and ZLS from master
-//!   abi toolchain zig               Install Zig from master
-//!   abi toolchain zls               Install ZLS from master
-//!   abi toolchain status            Show installed versions
-//!   abi toolchain update            Update to latest master
-//!   abi toolchain path              Print install directory for shell config
+//!   abi toolchain install           Build CEL Zig and ZLS into .cel/bin
+//!   abi toolchain zig               Build only CEL Zig
+//!   abi toolchain zls               Build only ZLS with CEL Zig
+//!   abi toolchain status            Show CEL Zig/ZLS status
+//!   abi toolchain update            Rebuild the repo-local CEL toolchain
+//!   abi toolchain path              Print the repo-local .cel/bin path
+//!   abi toolchain bootstrap         Run the emergency bootstrap prerequisite
 
 const std = @import("std");
-const builtin = @import("builtin");
 const command_mod = @import("../../command.zig");
 const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
-const cli_io = utils.io_backend;
-
-pub const meta: command_mod.Meta = .{
-    .name = "toolchain",
-    .description = "Build and install Zig/ZLS from master (install, update, status, bootstrap)",
-    .kind = .group,
-    .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "bootstrap", "help" },
-    .children = &.{
-        .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = command_mod.parserHandler(runInstallBoth) },
-        .{ .name = "zig", .description = "Install only Zig from master", .handler = command_mod.parserHandler(runInstallZig) },
-        .{ .name = "zls", .description = "Install only ZLS from master", .handler = command_mod.parserHandler(runInstallZls) },
-        .{ .name = "status", .description = "Show installed versions", .handler = command_mod.parserHandler(runStatusSubcommand) },
-        .{ .name = "update", .description = "Update to latest master", .handler = command_mod.parserHandler(runUpdateSubcommand) },
-        .{ .name = "path", .description = "Print install directory for shell config", .handler = command_mod.parserHandler(runPathSubcommand) },
-        .{ .name = "bootstrap", .description = "Bootstrap Zig from C/C++ source (zig-bootstrap)", .handler = command_mod.parserHandler(runBootstrapSubcommand) },
-    },
-};
 
 const output = utils.output;
 const ArgParser = utils.args.ArgParser;
 const HelpBuilder = utils.help.HelpBuilder;
 const common_options = utils.help.common_options;
 
-/// Default installation directory
-const default_install_dir = switch (builtin.os.tag) {
-    .windows => "AppData/Local/abi/toolchain",
-    else => ".local/abi/toolchain",
+const BuildTarget = enum {
+    both,
+    zig_only,
+    zls_only,
 };
 
-/// Zig repository URL
-const zig_repo = "https://github.com/ziglang/zig.git";
+pub const meta: command_mod.Meta = .{
+    .name = "toolchain",
+    .description = "Manage the repo-local CEL Zig/ZLS toolchain (install, update, status, bootstrap)",
+    .kind = .group,
+    .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "bootstrap", "help" },
+    .children = &.{
+        .{ .name = "install", .description = "Build CEL Zig and ZLS into .cel/bin", .handler = command_mod.parserHandler(runInstallBoth) },
+        .{ .name = "zig", .description = "Build only CEL Zig into .cel/bin", .handler = command_mod.parserHandler(runInstallZig) },
+        .{ .name = "zls", .description = "Build only ZLS using .cel/bin/zig", .handler = command_mod.parserHandler(runInstallZls) },
+        .{ .name = "status", .description = "Show CEL Zig/ZLS status", .handler = command_mod.parserHandler(runStatusSubcommand) },
+        .{ .name = "update", .description = "Rebuild the repo-local CEL toolchain", .handler = command_mod.parserHandler(runUpdateSubcommand) },
+        .{ .name = "path", .description = "Print the repo-local .cel/bin path", .handler = command_mod.parserHandler(runPathSubcommand) },
+        .{ .name = "bootstrap", .description = "Run the emergency bootstrap prerequisite path", .handler = command_mod.parserHandler(runBootstrapSubcommand) },
+    },
+};
 
-/// ZLS repository URL
-const zls_repo = "https://github.com/zigtools/zls.git";
-
-/// Zig-bootstrap repository URL
-const zig_bootstrap_repo = "https://github.com/ziglang/zig-bootstrap.git";
-
-const master_branch = "master";
-const install_src_dir_name = "src";
-const install_bin_dir_name = "bin";
-const zig_src_dir_name = "zig";
-const zls_src_dir_name = "zls";
-const zig_bootstrap_src_dir_name = "zig-bootstrap";
-
-/// Run the toolchain command with the provided arguments.
-/// Only reached when no child matches (help / unknown).
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
     if (args.len == 0) {
-        printHelp(allocator);
+        printHelp(ctx.allocator);
         return;
     }
     const cmd = std.mem.sliceTo(args[0], 0);
     if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
-        printHelp(allocator);
+        printHelp(ctx.allocator);
         return;
     }
-    // Unknown subcommand
     output.printError("Unknown toolchain command: {s}", .{cmd});
     if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
-        utils.output.println("Did you mean: {s}", .{suggestion});
+        output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
 fn runInstallBoth(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    try runInstall(allocator, parser, .both);
+    try runBuildSubcommand(allocator, parser, .both, false);
 }
 
 fn runInstallZig(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    try runInstall(allocator, parser, .zig_only);
+    try runBuildSubcommand(allocator, parser, .zig_only, false);
 }
 
 fn runInstallZls(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    try runInstall(allocator, parser, .zls_only);
+    try runBuildSubcommand(allocator, parser, .zls_only, false);
 }
 
 fn runStatusSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    try runStatus(allocator, parser);
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+    try expectNoTrailingArgs(parser, "status");
+    try runCommand(allocator, &.{ "./.cel/build.sh", "--status" });
 }
 
 fn runUpdateSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    try runUpdate(allocator, parser);
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+
+    var target: BuildTarget = .both;
+    var clean = true;
+
+    while (parser.hasMore()) {
+        if (parser.consumeFlag(&[_][]const u8{"--zig"})) {
+            target = .zig_only;
+            continue;
+        }
+        if (parser.consumeFlag(&[_][]const u8{"--zls"})) {
+            target = .zls_only;
+            continue;
+        }
+        if (parser.consumeFlag(&[_][]const u8{"--clean"})) {
+            clean = true;
+            continue;
+        }
+        const arg = parser.next().?;
+        output.printError("Unexpected argument for 'update': {s}", .{arg});
+        output.printInfo("Usage: abi toolchain update [--zig|--zls] [--clean]", .{});
+        return;
+    }
+
+    try runBuildCommand(allocator, target, clean);
 }
 
 fn runPathSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    try runPath(allocator, parser);
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+    try expectNoTrailingArgs(parser, "path");
+    _ = allocator;
+    output.println(".cel/bin", .{});
 }
 
 fn runBootstrapSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -109,536 +124,95 @@ fn runBootstrapSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !voi
         printHelp(allocator);
         return;
     }
+    try expectNoTrailingArgs(parser, "bootstrap");
 
-    const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
-    const clean = parser.consumeFlag(&[_][]const u8{ "--clean", "-c" });
-    const mcpu = parser.consumeOption(&[_][]const u8{ "--mcpu", "-m" }) orelse "native";
-
-    const base_dir = try getInstallDir(allocator, install_dir);
-    defer allocator.free(base_dir);
-
-    output.printHeader("Zig Toolchain Bootstrapper");
-    output.printKeyValue("Install directory", base_dir);
-    output.printKeyValue("MCPU", mcpu);
-
-    // Create directories
-    try ensureDir(allocator, base_dir);
-
-    try installZigBootstrap(allocator, base_dir, mcpu, clean);
-
-    output.println("", .{});
-    output.printSuccess("Bootstrap complete!", .{});
-    output.println("", .{});
-    printPathInstructions(base_dir);
+    output.printHeader("CEL Emergency Bootstrap");
+    output.printInfo("Compiling and running tools/scripts/emergency_bootstrap.c", .{});
+    try runCommand(allocator, &.{
+        "sh",
+        "-c",
+        \\set -e
+        \\tmp="${TMPDIR:-/tmp}/abi-emergency-bootstrap.$$"
+        \\cc tools/scripts/emergency_bootstrap.c -o "$tmp"
+        \\"$tmp"
+        \\rm -f "$tmp"
+    });
 }
 
-const InstallTarget = enum { both, zig_only, zls_only };
-
-fn runInstall(allocator: std.mem.Allocator, parser: *ArgParser, target: InstallTarget) !void {
+fn runBuildSubcommand(
+    allocator: std.mem.Allocator,
+    parser: *ArgParser,
+    target: BuildTarget,
+    default_clean: bool,
+) !void {
     if (parser.wantsHelp()) {
         printHelp(allocator);
         return;
     }
 
-    const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
-    const jobs = parser.consumeInt(u32, &[_][]const u8{ "--jobs", "-j" }, 0);
-    const clean = parser.consumeFlag(&[_][]const u8{ "--clean", "-c" });
+    var clean = default_clean;
+    while (parser.hasMore()) {
+        if (parser.consumeFlag(&[_][]const u8{"--clean"})) {
+            clean = true;
+            continue;
+        }
+        const arg = parser.next().?;
+        output.printError("Unexpected argument: {s}", .{arg});
+        output.printInfo("Usage: abi toolchain install|zig|zls [--clean]", .{});
+        return;
+    }
 
-    const base_dir = try getInstallDir(allocator, install_dir);
-    defer allocator.free(base_dir);
+    try runBuildCommand(allocator, target, clean);
+}
 
-    output.printHeader("Zig Toolchain Installer");
-    output.printKeyValue("Install directory", base_dir);
-    var platform_buf: [32]u8 = undefined;
-    const platform = std.fmt.bufPrint(&platform_buf, "{t}", .{builtin.os.tag}) catch "unknown";
-    output.printKeyValue("Platform", platform);
-
-    var arch_buf: [32]u8 = undefined;
-    const arch = std.fmt.bufPrint(&arch_buf, "{t}", .{builtin.cpu.arch}) catch "unknown";
-    output.printKeyValue("Architecture", arch);
-
-    // Create directories
-    try ensureDir(allocator, base_dir);
+fn runBuildCommand(allocator: std.mem.Allocator, target: BuildTarget, clean: bool) !void {
+    output.printHeader("CEL Toolchain");
+    output.printKeyValue("Target", switch (target) {
+        .both => "zig + zls",
+        .zig_only => "zig",
+        .zls_only => "zls",
+    });
+    output.printKeyValue("Location", ".cel/bin");
+    if (clean) output.printInfo("Clean rebuild requested", .{});
 
     switch (target) {
         .both => {
-            try installZig(allocator, base_dir, jobs, clean);
-            try installZls(allocator, base_dir, jobs, clean);
+            if (clean) {
+                try runCommand(allocator, &.{ "./.cel/build.sh", "--clean" });
+            } else {
+                try runCommand(allocator, &.{"./.cel/build.sh"});
+            }
         },
-        .zig_only => try installZig(allocator, base_dir, jobs, clean),
-        .zls_only => try installZls(allocator, base_dir, jobs, clean),
-    }
-
-    output.println("", .{});
-    output.printSuccess("Installation complete!", .{});
-    output.println("", .{});
-    printPathInstructions(base_dir);
-}
-
-fn installZigBootstrap(allocator: std.mem.Allocator, base_dir: []const u8, mcpu: []const u8, clean: bool) !void {
-    output.printHeader("Bootstrapping Zig from C/C++ source");
-
-    const src_dir = try std.fs.path.join(allocator, &.{ base_dir, install_src_dir_name, zig_bootstrap_src_dir_name });
-    defer allocator.free(src_dir);
-
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, install_bin_dir_name });
-    defer allocator.free(bin_dir);
-
-    try ensureDir(allocator, bin_dir);
-
-    // Clone or update repository
-    if (try dirExists(allocator, src_dir)) {
-        if (clean) {
-            output.printInfo("Cleaning existing zig-bootstrap source...", .{});
-            try runShellCommand(allocator, &.{ "rm", "-rf", src_dir });
-            try cloneRepo(allocator, zig_bootstrap_repo, src_dir);
-        } else {
-            output.printInfo("Updating existing zig-bootstrap source...", .{});
-            try gitPull(allocator, src_dir);
-        }
-    } else {
-        try cloneRepo(allocator, zig_bootstrap_repo, src_dir);
-    }
-
-    // Determine target triple for bootstrap build
-    const target_triple = switch (builtin.os.tag) {
-        .macos => switch (builtin.cpu.arch) {
-            .aarch64 => "aarch64-macos-none",
-            .x86_64 => "x86_64-macos-none",
-            else => return error.UnsupportedArchitecture,
+        .zig_only => {
+            if (clean) {
+                try runCommand(allocator, &.{ "./.cel/build.sh", "--clean", "--zig-only" });
+            } else {
+                try runCommand(allocator, &.{ "./.cel/build.sh", "--zig-only" });
+            }
         },
-        .linux => switch (builtin.cpu.arch) {
-            .aarch64 => "aarch64-linux-gnu",
-            .x86_64 => "x86_64-linux-gnu",
-            else => return error.UnsupportedArchitecture,
+        .zls_only => {
+            if (clean) {
+                try runCommand(allocator, &.{ "./.cel/build.sh", "--clean", "--zls-only" });
+            } else {
+                try runCommand(allocator, &.{ "./.cel/build.sh", "--zls-only" });
+            }
         },
-        .windows => switch (builtin.cpu.arch) {
-            .x86_64 => "x86_64-windows-msvc",
-            else => return error.UnsupportedArchitecture,
-        },
-        else => return error.UnsupportedOperatingSystem,
-    };
-
-    output.printInfo("Building zig-bootstrap (this will take a VERY long time)...", .{});
-    output.printKeyValue("Target", target_triple);
-
-    // Run the bootstrap build script
-    // ./build <target> <mcpu>
-    if (builtin.os.tag == .windows) {
-        // Windows might need different script, but zig-bootstrap usually uses bash/python
-        output.printWarning("Bootstrap might fail on Windows without a POSIX shell", .{});
-        try runShellCommandInDir(allocator, src_dir, &.{ "python", "build.py", target_triple, mcpu });
-    } else {
-        try runShellCommandInDir(allocator, src_dir, &.{ "./build", target_triple, mcpu });
-    }
-
-    // After bootstrap, zig-bootstrap creates an 'out' directory with the toolchain
-    const bootstrap_out_bin = try std.fs.path.join(allocator, &.{ src_dir, "out", "bin", zigBinaryName() });
-    defer allocator.free(bootstrap_out_bin);
-
-    if (try fileExists(allocator, bootstrap_out_bin)) {
-        output.printInfo("Copying bootstrapped Zig to bin directory...", .{});
-        // Copy entire out/bin to base_dir/bin
-        const bootstrap_out_dir = try std.fs.path.join(allocator, &.{ src_dir, "out" });
-        defer allocator.free(bootstrap_out_dir);
-
-        // We want to merge out/ with base_dir/
-        if (builtin.os.tag == .windows) {
-            const copy_cmd = try std.fmt.allocPrint(allocator, "xcopy /E /I /Y \"{s}\" \"{s}\"", .{ bootstrap_out_dir, base_dir });
-            defer allocator.free(copy_cmd);
-            try runShellCommand(allocator, &.{ "cmd", "/c", copy_cmd });
-        } else {
-            const copy_cmd = try std.fmt.allocPrint(allocator, "cp -R \"{s}\"/* \"{s}/\"", .{ bootstrap_out_dir, base_dir });
-            defer allocator.free(copy_cmd);
-            try runShellCommand(allocator, &.{ "sh", "-c", copy_cmd });
-        }
-
-        output.printSuccess("Zig bootstrapped successfully", .{});
-        // Get version
-        const zig_bin = try std.fs.path.join(allocator, &.{ bin_dir, zigBinaryName() });
-        defer allocator.free(zig_bin);
-        const version = try getCommandOutput(allocator, &.{ zig_bin, "version" });
-        defer allocator.free(version);
-        output.printKeyValue("Version", version);
-    } else {
-        output.printError("Bootstrapped Zig binary not found at {s}", .{bootstrap_out_bin});
-        return error.BootstrapFailed;
     }
 }
 
-fn installZig(allocator: std.mem.Allocator, base_dir: []const u8, jobs: u32, clean: bool) !void {
-    output.printHeader("Installing Zig from master");
-
-    const src_dir = try std.fs.path.join(allocator, &.{ base_dir, install_src_dir_name, zig_src_dir_name });
-    defer allocator.free(src_dir);
-
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, install_bin_dir_name });
-    defer allocator.free(bin_dir);
-
-    try ensureDir(allocator, bin_dir);
-
-    // Clone or update repository
-    if (try dirExists(allocator, src_dir)) {
-        if (clean) {
-            output.printInfo("Cleaning existing Zig source...", .{});
-            try runShellCommand(allocator, &.{ "rm", "-rf", src_dir });
-            try cloneRepo(allocator, zig_repo, src_dir);
-        } else {
-            output.printInfo("Updating existing Zig source...", .{});
-            try gitPull(allocator, src_dir);
-        }
-    } else {
-        try cloneRepo(allocator, zig_repo, src_dir);
-    }
-
-    // Build Zig
-    output.printInfo("Building Zig (this may take a while)...", .{});
-
-    // Zig uses cmake for bootstrap build
-    const cmake_build_dir = try std.fs.path.join(allocator, &.{ src_dir, "build" });
-    defer allocator.free(cmake_build_dir);
-
-    try ensureDir(allocator, cmake_build_dir);
-
-    // Configure with cmake
-    output.printInfo("Configuring with CMake...", .{});
-    const cmake_prefix = try std.fmt.allocPrint(allocator, "-DCMAKE_INSTALL_PREFIX={s}", .{base_dir});
-    defer allocator.free(cmake_prefix);
-    try runShellCommandInDir(allocator, cmake_build_dir, &.{
-        "cmake",
-        "..",
-        "-DCMAKE_BUILD_TYPE=Release",
-        cmake_prefix,
-    });
-
-    // Build
-    output.printInfo("Compiling...", .{});
-    if (jobs > 0) {
-        const jobs_str = try std.fmt.allocPrint(allocator, "{d}", .{jobs});
-        defer allocator.free(jobs_str);
-        try runShellCommandInDir(allocator, cmake_build_dir, &.{ "cmake", "--build", ".", "--parallel", jobs_str });
-    } else {
-        try runShellCommandInDir(allocator, cmake_build_dir, &.{ "cmake", "--build", ".", "--parallel" });
-    }
-
-    // Install
-    output.printInfo("Installing...", .{});
-    try runShellCommandInDir(allocator, cmake_build_dir, &.{ "cmake", "--install", "." });
-
-    // Verify installation
-    const zig_bin = try std.fs.path.join(allocator, &.{ bin_dir, zigBinaryName() });
-    defer allocator.free(zig_bin);
-
-    if (try fileExists(allocator, zig_bin)) {
-        output.printSuccess("Zig installed successfully", .{});
-        // Get version
-        const version = try getCommandOutput(allocator, &.{ zig_bin, "version" });
-        defer allocator.free(version);
-        output.printKeyValue("Version", version);
-    } else {
-        output.printError("Zig binary not found after installation", .{});
-    }
+fn expectNoTrailingArgs(parser: *ArgParser, name: []const u8) !void {
+    if (!parser.hasMore()) return;
+    const arg = parser.next().?;
+    output.printError("Unexpected argument for '{s}': {s}", .{ name, arg });
+    return error.InvalidArgument;
 }
 
-fn installZls(allocator: std.mem.Allocator, base_dir: []const u8, jobs: u32, clean: bool) !void {
-    output.printHeader("Installing ZLS from master");
-
-    const src_dir = try std.fs.path.join(allocator, &.{ base_dir, install_src_dir_name, zls_src_dir_name });
-    defer allocator.free(src_dir);
-
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, install_bin_dir_name });
-    defer allocator.free(bin_dir);
-
-    try ensureDir(allocator, bin_dir);
-
-    // Clone or update repository
-    if (try dirExists(allocator, src_dir)) {
-        if (clean) {
-            output.printInfo("Cleaning existing ZLS source...", .{});
-            try runShellCommand(allocator, &.{ "rm", "-rf", src_dir });
-            try cloneRepo(allocator, zls_repo, src_dir);
-        } else {
-            output.printInfo("Updating existing ZLS source...", .{});
-            try gitPull(allocator, src_dir);
-        }
-    } else {
-        try cloneRepo(allocator, zls_repo, src_dir);
-    }
-
-    // Build ZLS using Zig
-    output.printInfo("Building ZLS...", .{});
-
-    // First check if zig is available
-    const zig_bin = try std.fs.path.join(allocator, &.{ bin_dir, zigBinaryName() });
-    defer allocator.free(zig_bin);
-
-    const zig_cmd = if (try fileExists(allocator, zig_bin)) zig_bin else "zig";
-
-    // Build ZLS with optional parallel jobs
-    if (jobs > 0) {
-        try runShellCommandInDir(allocator, src_dir, &.{
-            zig_cmd, "build", "-Doptimize=ReleaseFast",
-        });
-    } else {
-        try runShellCommandInDir(allocator, src_dir, &.{
-            zig_cmd, "build", "-Doptimize=ReleaseFast",
-        });
-    }
-
-    // Install to prefix (copy binaries)
-    const zls_build_bin = try std.fs.path.join(allocator, &.{ src_dir, "zig-out", "bin", zlsBinaryName() });
-    defer allocator.free(zls_build_bin);
-
-    if (builtin.os.tag == .windows) {
-        try runShellCommand(allocator, &.{ "cmd", "/c", "copy", zls_build_bin, bin_dir });
-    } else {
-        try runShellCommand(allocator, &.{ "cp", zls_build_bin, bin_dir });
-    }
-
-    // Verify installation
-    const zls_bin = try std.fs.path.join(allocator, &.{ bin_dir, zlsBinaryName() });
-    defer allocator.free(zls_bin);
-
-    if (try fileExists(allocator, zls_bin)) {
-        output.printSuccess("ZLS installed successfully", .{});
-        // Get version
-        const version = try getCommandOutput(allocator, &.{ zls_bin, "--version" });
-        defer allocator.free(version);
-        output.printKeyValue("Version", version);
-    } else {
-        output.printError("ZLS binary not found after installation", .{});
-    }
-}
-
-fn runStatus(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
-
-    const base_dir = try getInstallDir(allocator, install_dir);
-    defer allocator.free(base_dir);
-
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, install_bin_dir_name });
-    defer allocator.free(bin_dir);
-
-    output.printHeader("Toolchain Status");
-    output.printKeyValue("Install directory", base_dir);
-
-    // Check Zig
-    const zig_bin = try std.fs.path.join(allocator, &.{ bin_dir, zigBinaryName() });
-    defer allocator.free(zig_bin);
-
-    if (try fileExists(allocator, zig_bin)) {
-        const version = getCommandOutput(allocator, &.{ zig_bin, "version" }) catch "unknown";
-        defer if (!std.mem.eql(u8, version, "unknown")) allocator.free(version);
-        output.printKeyValue("Zig", version);
-    } else {
-        output.printKeyValue("Zig", "not installed");
-    }
-
-    // Check ZLS
-    const zls_bin = try std.fs.path.join(allocator, &.{ bin_dir, zlsBinaryName() });
-    defer allocator.free(zls_bin);
-
-    if (try fileExists(allocator, zls_bin)) {
-        const version = getCommandOutput(allocator, &.{ zls_bin, "--version" }) catch "unknown";
-        defer if (!std.mem.eql(u8, version, "unknown")) allocator.free(version);
-        output.printKeyValue("ZLS", version);
-    } else {
-        output.printKeyValue("ZLS", "not installed");
-    }
-
-    // Check system Zig for comparison
-    output.println("", .{});
-    output.printInfo("System Zig (if any):", .{});
-    const sys_version = getCommandOutput(allocator, &.{ "zig", "version" }) catch "not found in PATH";
-    defer if (!std.mem.eql(u8, sys_version, "not found in PATH")) allocator.free(sys_version);
-    output.printKeyValue("System Zig", sys_version);
-}
-
-fn runUpdate(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    if (parser.wantsHelp()) {
-        printHelp(allocator);
-        return;
-    }
-
-    const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
-    const jobs = parser.consumeInt(u32, &[_][]const u8{ "--jobs", "-j" }, 0);
-    const zig_only = parser.consumeFlag(&[_][]const u8{"--zig"});
-    const zls_only = parser.consumeFlag(&[_][]const u8{"--zls"});
-
-    const base_dir = try getInstallDir(allocator, install_dir);
-    defer allocator.free(base_dir);
-
-    output.printHeader("Updating Toolchain");
-
-    if (zig_only) {
-        try installZig(allocator, base_dir, jobs, false);
-    } else if (zls_only) {
-        try installZls(allocator, base_dir, jobs, false);
-    } else {
-        try installZig(allocator, base_dir, jobs, false);
-        try installZls(allocator, base_dir, jobs, false);
-    }
-
-    output.println("", .{});
-    output.printSuccess("Update complete!", .{});
-}
-
-fn runPath(allocator: std.mem.Allocator, parser: *ArgParser) !void {
-    const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
-    const shell = parser.consumeOption(&[_][]const u8{ "--shell", "-s" });
-
-    const base_dir = try getInstallDir(allocator, install_dir);
-    defer allocator.free(base_dir);
-
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, install_bin_dir_name });
-    defer allocator.free(bin_dir);
-
-    if (shell) |sh| {
-        if (std.mem.eql(u8, sh, "bash") or std.mem.eql(u8, sh, "zsh")) {
-            utils.output.println("export PATH=\"{s}:$PATH\"", .{bin_dir});
-        } else if (std.mem.eql(u8, sh, "fish")) {
-            utils.output.println("set -gx PATH {s} $PATH", .{bin_dir});
-        } else if (std.mem.eql(u8, sh, "powershell") or std.mem.eql(u8, sh, "pwsh")) {
-            utils.output.println("$env:PATH = \"{s};$env:PATH\"", .{bin_dir});
-        } else if (std.mem.eql(u8, sh, "cmd")) {
-            utils.output.println("set PATH={s};%PATH%", .{bin_dir});
-        } else {
-            utils.output.println("{s}", .{bin_dir});
-        }
-    } else {
-        utils.output.println("{s}", .{bin_dir});
-    }
-}
-
-// Helper functions
-
-fn getInstallDir(allocator: std.mem.Allocator, override: ?[]const u8) ![]const u8 {
-    if (override) |dir| {
-        return allocator.dupe(u8, dir);
-    }
-
-    const home_ptr = std.c.getenv("HOME") orelse std.c.getenv("USERPROFILE") orelse return error.HomeNotFound;
-    const home = std.mem.sliceTo(home_ptr, 0);
-
-    return std.fs.path.join(allocator, &.{ home, default_install_dir });
-}
-
-fn ensureDir(allocator: std.mem.Allocator, path: []const u8) !void {
-    // Use shell commands for recursive directory creation
-    if (comptime builtin.os.tag == .windows) {
-        runShellCommand(allocator, &.{ "cmd", "/c", "mkdir", path }) catch {};
-    } else {
-        runShellCommand(allocator, &.{ "mkdir", "-p", path }) catch {};
-    }
-}
-
-fn dirExists(allocator: std.mem.Allocator, path: []const u8) !bool {
-    var io_backend = cli_io.initIoBackend(allocator);
-    defer io_backend.deinit();
-    const io = io_backend.io();
-
-    var dir = std.Io.Dir.cwd().openDir(io, path, .{}) catch |err| switch (err) {
-        error.FileNotFound => return false,
-        else => return err,
-    };
-    dir.close(io);
-    return true;
-}
-
-fn fileExists(allocator: std.mem.Allocator, path: []const u8) !bool {
-    var io_backend = cli_io.initIoBackend(allocator);
-    defer io_backend.deinit();
-    const io = io_backend.io();
-
-    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch |err| switch (err) {
-        error.FileNotFound => return false,
-        else => return err,
-    };
-    file.close(io);
-    return true;
-}
-
-fn cloneRepo(allocator: std.mem.Allocator, repo: []const u8, dest: []const u8) !void {
-    output.printInfo("Cloning {s}...", .{repo});
-    try runShellCommand(allocator, &.{ "git", "clone", "--depth", "1", repo, dest });
-}
-
-fn gitPull(allocator: std.mem.Allocator, dir: []const u8) !void {
-    const origin_ref = try std.fmt.allocPrint(allocator, "origin/{s}", .{master_branch});
-    defer allocator.free(origin_ref);
-
-    try runShellCommandInDir(allocator, dir, &.{ "git", "fetch", "--depth", "1", "origin", master_branch });
-    try runShellCommandInDir(allocator, dir, &.{ "git", "reset", "--hard", origin_ref });
-}
-
-fn runShellCommand(allocator: std.mem.Allocator, argv: []const []const u8) !void {
+fn runCommand(allocator: std.mem.Allocator, argv: []const []const u8) !void {
     var child = std.process.Child.init(argv, allocator);
     const term = try child.spawnAndWait();
     switch (term) {
         .Exited => |code| if (code != 0) return error.CommandFailed,
         else => return error.CommandFailed,
-    }
-}
-
-fn runShellCommandInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []const u8) !void {
-    var child = std.process.Child.init(argv, allocator);
-    child.cwd = dir;
-    const term = try child.spawnAndWait();
-    switch (term) {
-        .Exited => |code| if (code != 0) return error.CommandFailed,
-        else => return error.CommandFailed,
-    }
-}
-
-fn getCommandOutput(allocator: std.mem.Allocator, argv: []const []const u8) ![]const u8 {
-    var child = std.process.Child.init(argv, allocator);
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Ignore;
-
-    try child.spawn();
-
-    const max_output_size = 1024 * 1024; // 1MB
-    const stdout = try child.stdout.?.readToEndAlloc(allocator, max_output_size);
-    errdefer allocator.free(stdout);
-
-    const term = try child.wait();
-    switch (term) {
-        .Exited => |code| if (code != 0) return error.CommandFailed,
-        else => return error.CommandFailed,
-    }
-
-    // Trim trailing newlines manually
-    return std.mem.trimRight(u8, stdout, "\r\n");
-}
-
-fn zigBinaryName() []const u8 {
-    return if (builtin.os.tag == .windows) "zig.exe" else "zig";
-}
-
-fn zlsBinaryName() []const u8 {
-    return if (builtin.os.tag == .windows) "zls.exe" else "zls";
-}
-
-fn printPathInstructions(base_dir: []const u8) void {
-    output.printInfo("Add to your shell configuration:", .{});
-    output.println("", .{});
-
-    switch (builtin.os.tag) {
-        .windows => {
-            utils.output.println("  PowerShell:", .{});
-            utils.output.println("    $env:PATH = \"{s}\\bin;$env:PATH\"", .{base_dir});
-            utils.output.println("", .{});
-            utils.output.println("  Or run: abi toolchain path --shell powershell", .{});
-        },
-        else => {
-            utils.output.println("  Bash/Zsh:", .{});
-            utils.output.println("    export PATH=\"{s}/bin:$PATH\"", .{base_dir});
-            utils.output.println("", .{});
-            utils.output.println("  Fish:", .{});
-            utils.output.println("    set -gx PATH {s}/bin $PATH", .{base_dir});
-            utils.output.println("", .{});
-            utils.output.println("  Or run: abi toolchain path --shell bash", .{});
-        },
     }
 }
 
@@ -648,40 +222,29 @@ fn printHelp(allocator: std.mem.Allocator) void {
 
     _ = builder
         .usage("abi toolchain", "<command> [options]")
-        .description("Build and install Zig and ZLS from master branch.")
+        .description("Manage ABI's repo-local CEL Zig/ZLS toolchain.")
         .section("Commands")
-        .subcommand(.{ .name = "install", .description = "Install both Zig and ZLS from master" })
-        .subcommand(.{ .name = "zig", .description = "Install only Zig from master" })
-        .subcommand(.{ .name = "zls", .description = "Install only ZLS from master" })
-        .subcommand(.{ .name = "status", .description = "Show installed versions" })
-        .subcommand(.{ .name = "update", .description = "Update to latest master" })
-        .subcommand(.{ .name = "path", .description = "Print install directory for shell config" })
-        .subcommand(.{ .name = "bootstrap", .description = "Bootstrap Zig from C/C++ source (zig-bootstrap)" })
+        .subcommand(.{ .name = "install", .description = "Build CEL Zig and ZLS into .cel/bin" })
+        .subcommand(.{ .name = "zig", .description = "Build only CEL Zig into .cel/bin" })
+        .subcommand(.{ .name = "zls", .description = "Build only ZLS using .cel/bin/zig" })
+        .subcommand(.{ .name = "status", .description = "Show CEL Zig/ZLS status" })
+        .subcommand(.{ .name = "update", .description = "Rebuild the repo-local CEL toolchain" })
+        .subcommand(.{ .name = "path", .description = "Print the repo-local .cel/bin path" })
+        .subcommand(.{ .name = "bootstrap", .description = "Run the emergency bootstrap prerequisite path" })
         .newline()
         .section("Options")
-        .option(.{ .short = "-p", .long = "--prefix", .arg = "DIR", .description = "Installation directory (default: ~/.local/abi/toolchain)" })
-        .option(.{ .short = "-j", .long = "--jobs", .arg = "N", .description = "Number of parallel build jobs" })
-        .option(.{ .short = "-c", .long = "--clean", .description = "Clean build (remove existing source)" })
-        .option(.{ .short = "-s", .long = "--shell", .arg = "SHELL", .description = "Output PATH for shell (bash, zsh, fish, powershell)" })
+        .option(.{ .short = "-c", .long = "--clean", .description = "Remove generated CEL source/build state first" })
+        .option(.{ .long = "--zig", .description = "Update only CEL Zig" })
+        .option(.{ .long = "--zls", .description = "Update only ZLS" })
         .option(common_options.help)
         .newline()
-        .section("Update Options")
-        .option(.{ .long = "--zig", .description = "Update only Zig" })
-        .option(.{ .long = "--zls", .description = "Update only ZLS" })
-        .newline()
-        .section("Requirements")
-        .example("git", "For cloning repositories")
-        .example("cmake", "For building Zig (bootstrap)")
-        .example("C compiler", "GCC, Clang, or MSVC for Zig bootstrap")
-        .newline()
         .section("Examples")
-        .example("abi toolchain install", "Install Zig and ZLS to default location")
-        .example("abi toolchain install -p ~/zig-master -j 8", "Custom location, 8 parallel jobs")
-        .example("abi toolchain zig --clean", "Fresh Zig install")
-        .example("abi toolchain update --zls", "Update only ZLS")
-        .example("abi toolchain status", "Check installed versions")
-        .example("abi toolchain bootstrap", "Bootstrap Zig from source (long process)")
-        .example("abi toolchain path --shell bash >> ~/.bashrc", "Add to shell config");
+        .example("abi toolchain install", "Build CEL Zig and ZLS")
+        .example("abi toolchain zig --clean", "Clean-rebuild only CEL Zig")
+        .example("abi toolchain zls", "Build only ZLS using .cel/bin/zig")
+        .example("abi toolchain status", "Inspect the repo-local CEL toolchain")
+        .example("abi toolchain path", "Print .cel/bin")
+        .example("abi toolchain bootstrap", "Run the emergency bootstrap prerequisite");
 
     builder.print();
 }

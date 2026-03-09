@@ -1,7 +1,7 @@
 //! MCP Server CLI command.
 //!
 //! Starts a Model Context Protocol (JSON-RPC 2.0 over stdio) server that
-//! exposes the WDBX vector database to MCP-compatible AI clients.
+//! exposes the combined WDBX and ZLS tool surface to MCP-compatible AI clients.
 //!
 //! Usage:
 //!   abi mcp serve        Start the MCP server (reads stdin, writes stdout)
@@ -30,7 +30,7 @@ fn wrapTools(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 
 pub const meta: command_mod.Meta = .{
     .name = "mcp",
-    .description = "MCP server for WDBX database or ZLS (serve, tools)",
+    .description = "MCP server for combined WDBX + ZLS tools (serve, tools)",
     .kind = .group,
     .subcommands = &.{ "serve", "tools", "help" },
     .children = &.{
@@ -62,14 +62,14 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn runServeSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    var use_zls = false;
+    var used_compat_flag = false;
     while (parser.hasMore()) {
         if (parser.wantsHelp()) {
             printHelp(allocator);
             return;
         }
         if (parser.consumeFlag(&[_][]const u8{"--zls"})) {
-            use_zls = true;
+            used_compat_flag = true;
             continue;
         }
         const arg = parser.next().?;
@@ -77,18 +77,18 @@ fn runServeSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParse
         utils.output.printInfo("Usage: abi mcp serve [--zls]", .{});
         return;
     }
-    try runServe(allocator, use_zls);
+    try runServe(allocator, used_compat_flag);
 }
 
 fn runToolsSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    var use_zls = false;
+    var used_compat_flag = false;
     while (parser.hasMore()) {
         if (parser.wantsHelp()) {
             printHelp(allocator);
             return;
         }
         if (parser.consumeFlag(&[_][]const u8{"--zls"})) {
-            use_zls = true;
+            used_compat_flag = true;
             continue;
         }
         const arg = parser.next().?;
@@ -96,18 +96,17 @@ fn runToolsSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParse
         utils.output.printInfo("Usage: abi mcp tools [--zls]", .{});
         return;
     }
-    try runTools(allocator, use_zls);
+    try runTools(allocator, used_compat_flag);
 }
 
-fn runServe(allocator: std.mem.Allocator, use_zls: bool) !void {
+fn runServe(allocator: std.mem.Allocator, used_compat_flag: bool) !void {
     // Write startup message to stderr (stdout is reserved for JSON-RPC)
-    const server_kind = if (use_zls) "ZLS" else "WDBX";
-    std.log.info("ABI MCP Server v{s} starting ({s})", .{ abi.version(), server_kind });
+    std.log.info("ABI MCP Server v{s} starting (WDBX + ZLS)", .{abi.version()});
+    if (used_compat_flag) {
+        std.log.warn("`abi mcp serve --zls` is deprecated; the default server already includes ZLS tools.", .{});
+    }
 
-    var server = if (use_zls)
-        try mcp.createZlsServer(allocator, abi.version())
-    else
-        try mcp.createWdbxServer(allocator, abi.version());
+    var server = try mcp.createCombinedServer(allocator, abi.version());
     defer server.deinit();
 
     // Initialize I/O backend for stdio access
@@ -118,15 +117,15 @@ fn runServe(allocator: std.mem.Allocator, use_zls: bool) !void {
     try server.run(io_backend.io());
 }
 
-fn runTools(allocator: std.mem.Allocator, use_zls: bool) !void {
-    var server = if (use_zls)
-        try mcp.createZlsServer(allocator, abi.version())
-    else
-        try mcp.createWdbxServer(allocator, abi.version());
+fn runTools(allocator: std.mem.Allocator, used_compat_flag: bool) !void {
+    if (used_compat_flag) {
+        utils.output.printWarning("`abi mcp tools --zls` is deprecated; the default listing already includes ZLS tools.", .{});
+    }
+
+    var server = try mcp.createCombinedServer(allocator, abi.version());
     defer server.deinit();
 
-    const title = if (use_zls) "MCP Tools (ZLS)" else "MCP Tools (WDBX)";
-    utils.output.printHeader(title);
+    utils.output.printHeader("MCP Tools (WDBX + ZLS)");
 
     for (server.tools.items) |tool| {
         utils.output.println("", .{});
@@ -139,11 +138,7 @@ fn runTools(allocator: std.mem.Allocator, use_zls: bool) !void {
     utils.output.println("", .{});
     utils.output.println("Usage with Claude Desktop:", .{});
     utils.output.println("  Add to claude_desktop_config.json:", .{});
-    if (use_zls) {
-        utils.output.println("  {{\"mcpServers\":{{\"abi-zls\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\",\"--zls\"]}}}}}}", .{});
-    } else {
-        utils.output.println("  {{\"mcpServers\":{{\"abi-wdbx\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\"]}}}}}}", .{});
-    }
+    utils.output.println("  {{\"mcpServers\":{{\"abi\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\"]}}}}}}", .{});
 }
 
 fn printHelp(allocator: std.mem.Allocator) void {
@@ -152,27 +147,23 @@ fn printHelp(allocator: std.mem.Allocator) void {
 
     _ = builder
         .usage("abi mcp <subcommand>", "")
-        .description("Model Context Protocol server for WDBX vector database.")
+        .description("Model Context Protocol server for combined WDBX and ZLS tools.")
         .section("Subcommands")
         .subcommand(.{ .name = "serve", .description = "Start MCP server (JSON-RPC over stdio)" })
         .subcommand(.{ .name = "tools", .description = "List available MCP tools" })
         .newline()
         .section("Options")
         .option(utils.help.common_options.help)
-        .option(.{ .long = "--zls", .description = "Serve ZLS LSP tools instead of WDBX" })
+        .option(.{ .long = "--zls", .description = "Deprecated compatibility alias; default server already includes ZLS tools" })
         .newline()
         .section("MCP Tools Exposed")
-        .text("  db_query     Vector similarity search\n")
-        .text("  db_insert    Insert vectors with metadata\n")
-        .text("  db_stats     Database statistics\n")
-        .text("  db_list      List stored vectors\n")
-        .text("  db_delete    Delete vector by ID\n")
+        .text("  db_*         WDBX database tools\n")
         .text("  zls_*        ZLS LSP tools (hover, completion, definition, ...)\n")
         .newline()
         .section("Examples")
-        .example("abi mcp serve", "Start MCP server")
-        .example("abi mcp serve --zls", "Start ZLS MCP server")
-        .example("abi mcp tools --zls", "List ZLS tools");
+        .example("abi mcp serve", "Start the combined MCP server")
+        .example("abi mcp tools", "List WDBX and ZLS tools")
+        .example("abi mcp serve --zls", "Deprecated alias for the combined MCP server");
 
     builder.print();
 }

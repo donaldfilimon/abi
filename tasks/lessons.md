@@ -45,6 +45,10 @@
 - **Root cause**: Busy-wait loops using `std.time.sleep` in TUI event handlers consume unnecessary CPU and degrade responsiveness compared to blocking I/O waits.
 - **Prevention rule**: Use `std.posix.poll` (or equivalent platform-native non-blocking I/O multiplexing) on `std.posix.STDIN_FILENO` instead of `std.time.sleep` when waiting for input in asynchronous event loops.
 
+## 2026-03-09 - Test manifest files must compile standalone
+- **Root cause**: `src/services/lsp/client.zig` used cross-directory `@import("../../core/config/mod.zig")` and `@import("../shared/utils/zig_toolchain.zig")` which fail in standalone `zig test -fno-emit-bin` because the import paths go above the module root.
+- **Prevention rule**: Files listed in `build/test_discovery.zig` must be self-contained. For small dependencies, inline the needed types/functions with a comment pointing to the canonical source. For larger dependencies, use build-system-provided modules via `addImport`. The Zig 0.16 `std.Io.Dir` API has no `makeDirAbsolute*` — use `createDirPath(.cwd(), io, path)` for recursive directory creation, `deleteTree(.cwd(), io, path)` for cleanup, and `file.writeStreamingAll(io, data)` instead of the removed `File.writeAll`.
+
 ## 2026-03-08 - CEL toolchain integration must be build-system native
 - **Root cause**: The .cel toolchain was only accessible via shell scripts, making it invisible to the Zig build system and requiring manual PATH manipulation. Diagnostics were scattered.
 - **Prevention rule**: When adding a toolchain variant or platform workaround, integrate it into `build.zig` as a first-class module (`build/cel.zig`) with dedicated build steps. Provide a diagnostics script (`cel_doctor.zig`) that follows the same patterns as `toolchain_doctor.zig`. Keep version consistency checks unified — `check_zig_version_consistency.zig` should validate all version sources including `.cel/config.sh`.

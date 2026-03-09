@@ -3,7 +3,8 @@
 > MCP (Model Context Protocol) Service
 
 Provides a JSON-RPC 2.0 server over stdio for exposing ABI framework
-tools to MCP-compatible AI clients (Claude Desktop, Cursor, etc.).
+tools to MCP-compatible AI clients (Claude Desktop, Cursor, etc.). The default
+server now combines WDBX database tools and ZLS tools in one process.
 
 ## Usage
 ```bash
@@ -12,11 +13,7 @@ echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' | abi mcp serv
 ```
 
 ## Exposed Tools
-- `db_query` — Vector similarity search
-- `db_insert` — Insert vectors with metadata
-- `db_stats` — Database statistics
-- `db_list` — List stored vectors
-- `db_delete` — Delete a vector by ID
+- `db_*` — WDBX database tools
 - `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
 
 **Source:** [`src/services/mcp/mod.zig`](../../src/services/mcp/mod.zig)
@@ -27,11 +24,11 @@ echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' | abi mcp serv
 
 ## API
 
-### <a id="pub-fn-createwdbxserver-allocator-std-mem-allocator-version-const-u8-server"></a>`pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server`
+### <a id="pub-fn-createcombinedserver-allocator-std-mem-allocator-version-const-u8-server"></a>`pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !Server`
 
 <sup>**fn**</sup> | [source](../../src/services/mcp/mod.zig#L30)
 
-Create an MCP server pre-configured with WDBX database tools
+Create the default MCP server with both WDBX and ZLS tools registered.
 
 
 
@@ -46,4 +43,4 @@ Create an MCP server pre-configured with WDBX database tools
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use the repo-local CEL toolchain for ABI Zig validation, docs generation, and build-wiring changes when Darwin blocks stock Zig.

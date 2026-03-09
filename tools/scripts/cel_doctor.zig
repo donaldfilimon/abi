@@ -8,7 +8,7 @@ const baseline = @import("baseline.zig");
 /// Checks:
 ///   1. Platform detection (macOS version, whether CEL is needed)
 ///   2. .cel directory structure (config.sh, build.sh, patches/)
-///   3. .cel/bin/zig binary presence and version
+///   3. .cel/bin/zig and .cel/bin/zls binary presence and version
 ///   4. Patch inventory and validation
 ///   5. Version consistency (.zigversion, .cel/config.sh, baseline)
 ///   6. Stock zig status and PATH precedence
@@ -91,7 +91,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n", .{});
 
     // ── 3. CEL binary ──────────────────────────────────────────────────
-    std.debug.print(".cel toolchain binary:\n", .{});
+    std.debug.print(".cel toolchain binaries:\n", .{});
     const cel_zig_exists = util.fileExists(io, ".cel/bin/zig");
     if (cel_zig_exists) {
         std.debug.print("  .cel/bin/zig: FOUND\n", .{});
@@ -115,6 +115,22 @@ pub fn main(_: std.process.Init) !void {
         if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
             std.debug.print("  Action: Run .cel/build.sh to compile the patched toolchain\n", .{});
             issues += 1;
+        }
+    }
+    const cel_zls_exists = util.fileExists(io, ".cel/bin/zls");
+    if (cel_zls_exists) {
+        std.debug.print("  .cel/bin/zls: FOUND\n", .{});
+        const ver_res = util.captureCommand(allocator, io, ".cel/bin/zls --version") catch null;
+        if (ver_res) |res| {
+            defer allocator.free(res.output);
+            const ver = util.trimSpace(res.output);
+            if (ver.len > 0) std.debug.print("  ZLS version: {s}\n", .{ver});
+        }
+    } else {
+        std.debug.print("  .cel/bin/zls: NOT BUILT\n", .{});
+        if (cel_zig_exists) {
+            std.debug.print("  Action: Run .cel/build.sh --zls-only to build ZLS with CEL Zig\n", .{});
+            warnings += 1;
         }
     }
     std.debug.print("\n", .{});
@@ -222,29 +238,35 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Check for LLVM (needed for Zig compilation)
-    if (try util.commandExists(allocator, io, "llvm-config")) {
+    if (util.dirExists(io, "zig-bootstrap-emergency/out/build-llvm-host")) {
+        std.debug.print("  llvm: bootstrap LLVM artifacts\n", .{});
+    } else if (util.dirExists(io, "/opt/homebrew/opt/llvm@21")) {
+        std.debug.print("  llvm: Homebrew llvm@21 (/opt/homebrew/opt/llvm@21)\n", .{});
+    } else if (util.dirExists(io, "/usr/local/opt/llvm@21")) {
+        std.debug.print("  llvm: Homebrew llvm@21 (/usr/local/opt/llvm@21)\n", .{});
+    } else if (try util.commandExists(allocator, io, "llvm-config")) {
         const llvm_res = util.captureCommand(allocator, io, "llvm-config --version") catch null;
         if (llvm_res) |res| {
             defer allocator.free(res.output);
-            std.debug.print("  llvm: {s}\n", .{util.trimSpace(res.output)});
+            const ver = util.trimSpace(res.output);
+            std.debug.print("  llvm: {s}\n", .{ver});
+            if (!std.mem.startsWith(u8, ver, "21.")) {
+                std.debug.print("  WARNING: current CEL pin expects LLVM 21.x\n", .{});
+                warnings += 1;
+            }
         }
     } else if (try util.commandExists(allocator, io, "brew")) {
-        const brew_res = util.captureCommand(allocator, io, "brew --prefix llvm 2>/dev/null") catch null;
+        const brew_res = util.captureCommand(allocator, io, "brew --prefix llvm@21 2>/dev/null") catch null;
         if (brew_res) |res| {
             defer allocator.free(res.output);
             const prefix = util.trimSpace(res.output);
             if (prefix.len > 0 and util.dirExists(io, prefix)) {
-                std.debug.print("  llvm: Homebrew ({s})\n", .{prefix});
+                std.debug.print("  llvm: Homebrew llvm@21 ({s})\n", .{prefix});
             } else {
-                std.debug.print("  llvm: Not installed (run: brew install llvm)\n", .{});
+                std.debug.print("  llvm: Not installed (run: brew install llvm@21)\n", .{});
                 warnings += 1;
             }
         }
-    }
-
-    // Check for bootstrap LLVM artifacts
-    if (util.dirExists(io, "zig-bootstrap-emergency/out/build-llvm-host")) {
-        std.debug.print("  bootstrap LLVM: FOUND (will be reused by .cel/build.sh)\n", .{});
     }
     std.debug.print("\n", .{});
 
@@ -271,6 +293,7 @@ pub fn main(_: std.process.Init) !void {
             std.debug.print("     eval \"$(./tools/scripts/use_cel.sh)\"\n\n", .{});
             std.debug.print("  3. Verify:\n", .{});
             std.debug.print("     zig version\n", .{});
+            std.debug.print("     zls --version\n", .{});
             std.debug.print("     zig build full-check\n\n", .{});
         }
     }

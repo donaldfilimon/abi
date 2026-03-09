@@ -19,7 +19,7 @@ macOS 26+ introduced changes that break Zig's self-hosted Mach-O linker:
 ./tools/scripts/cel_migrate.sh
 ```
 
-This will check prerequisites, build the toolchain, activate it, and validate.
+This will check prerequisites, build Zig and ZLS, activate them, and validate.
 
 ### Manual build + activate
 
@@ -32,6 +32,7 @@ eval "$(./tools/scripts/use_cel.sh)"
 
 # Verify
 zig version
+zls --version
 zig build full-check
 ```
 
@@ -43,7 +44,7 @@ The ABI build system has native CEL support:
 zig build cel-check     # Quick platform & toolchain status
 zig build cel-doctor    # Full diagnostics with remediation
 zig build cel-status    # Detailed source/patch/binary info
-zig build cel-verify    # Verify CEL binary exists
+zig build cel-verify    # Verify CEL Zig/ZLS status
 zig build cel-build     # Trigger CEL build from zig build
 ```
 
@@ -52,8 +53,10 @@ zig build cel-build     # Trigger CEL build from zig build
 ```bash
 ./.cel/build.sh --clean       # Wipe source and rebuild from scratch
 ./.cel/build.sh --patch-only  # Clone + apply patches, skip build
-./.cel/build.sh --verify      # Check if .cel/bin/zig exists and print version
+./.cel/build.sh --verify      # Print current .cel/bin/zig + .cel/bin/zls status
 ./.cel/build.sh --status      # Show source, patches, binary, and version info
+./.cel/build.sh --zig-only    # Build only CEL Zig
+./.cel/build.sh --zls-only    # Build only ZLS using .cel/bin/zig
 ```
 
 Set `CMAKE_JOBS=N` to control parallel build jobs (defaults to nproc/2).
@@ -74,16 +77,13 @@ Set `CMAKE_JOBS=N` to control parallel build jobs (defaults to nproc/2).
    git diff > ../patches/003-my-fix.patch
    ```
 
-4. Placeholder patches (files containing only comment lines starting with `#`)
-   are skipped automatically during build.
-
 ### Current patches
 
 | Patch | Purpose |
 |-------|---------|
 | `001-darwin26-force-lld.patch` | Force LLVM backend on Darwin 26+ hosts |
 | `002-sdk-version-clamp.patch` | Force LLD on Darwin 26+ even if use_llvm=false |
-| `003-macho-segment-ordering.patch` | Placeholder for Mach-O segment fix (upstream #25521) |
+| `003-macho-segment-ordering.patch` | Restore synthetic `__*_ZIG` segment load-command ordering to match vmaddr order |
 
 ## Updating the Upstream Pin
 
@@ -115,7 +115,8 @@ full CEL-specific diagnostics.
 
 If `zig-bootstrap-emergency/out/build-llvm-host/` exists, the build script
 automatically reuses those LLVM artifacts for a static build. Otherwise, it
-falls back to system LLVM (e.g., Homebrew `llvm` on macOS).
+falls back to a compatible system LLVM (preferably Homebrew `llvm@21` on
+macOS).
 
 ## Directory Layout
 
@@ -130,7 +131,9 @@ falls back to system LLVM (e.g., Homebrew `llvm` on macOS).
     003-*.patch
   bin/               # Build output (git-ignored)
     zig              # Patched Zig binary
+    zls              # ZLS built with CEL Zig
   .src/              # Cloned upstream source (git-ignored)
+  .zls-src/          # Cloned ZLS source (git-ignored)
 ```
 
 ## Build System Module

@@ -114,6 +114,33 @@ Commands live in `tools/cli/commands/` organized by category (`ai/`, `core/`, `d
 | `abi.features.ai` | `src/features/ai/mod.zig` | LLM, agents, training, streaming |
 | `abi.features.database` | `src/features/database/mod.zig` | Semantic store, HNSW indexing |
 
+### v3 API Surface
+
+ABI exposes canonical v3 entrypoints only:
+- `abi.App` / `abi.AppBuilder` — primary runtime types
+- `abi.wdbx` — vector database, with `abi.hnsw` and `abi.simd` sub-modules
+- `abi.personas` — multi-persona system; `abi.routing` — moderator
+- `abi.inference_engine` — high-performance token generation
+- `abi.server` — REST API server with OpenAI-compatible endpoints
+
+Legacy v2 aliases are fully consolidated into v3.
+
+### All Feature Flags
+
+All default to `true`. Use `-Dfeat-<name>=false` to disable.
+
+| Flag | Description |
+|:-----|:------------|
+| `-Dfeat-ai` | AI features, agents, connectors |
+| `-Dfeat-llm` | Local LLM inference |
+| `-Dfeat-gpu` | GPU acceleration |
+| `-Dfeat-database` | Semantic store / vector database (`wdbx` alias) |
+| `-Dfeat-network` | Distributed compute |
+| `-Dfeat-web` | HTTP client utilities |
+| `-Dfeat-profiling` | Performance profiling |
+
+GPU backend: `-Dgpu-backend=auto|cuda|vulkan|metal` (comma-separated for multiple).
+
 ## Workflow
 
 - Canonical workflow contract: `AGENTS.md`
@@ -122,13 +149,42 @@ Commands live in `tools/cli/commands/` organized by category (`ai/`, `core/`, `d
 - Always run `zig build full-check` before marking work complete
 - Release gate: `zig build verify-all`
 
+## Environment Variables
+
+| Variable | Description |
+|:---------|:------------|
+| `ABI_OPENAI_API_KEY` | OpenAI API key |
+| `ABI_ANTHROPIC_API_KEY` | Anthropic/Claude API key |
+| `ABI_OLLAMA_HOST` | Ollama host (default: `http://127.0.0.1:11434`) |
+| `ABI_OLLAMA_MODEL` | Default Ollama model |
+| `ABI_HF_API_TOKEN` | HuggingFace API token |
+| `DISCORD_BOT_TOKEN` | Discord bot token |
+
+## Workflow Rules
+
+- **Read before edit**: For batch operations across multiple files, read ALL target files first to get current state before making any edits. Never rely on cached/stale file contents.
+- **Plan before execute**: For multi-file batch operations, present the full plan with specific file paths and changes BEFORE executing. Wait for user confirmation on ambiguous changes.
+- **Validate after edit**: After editing YAML, ZON, or configuration files, validate syntax by running appropriate check commands.
+- **Version pin atomicity**: When changing version strings, grep for all occurrences first, then update all files in one pass. Never leave partial updates.
+
+## Common Pitfalls
+
+These patterns are distilled from `tasks/lessons.md`:
+
+1. **mod.zig ↔ stub.zig sync**: When changing a public function signature in any `src/features/*/mod.zig`, always update the matching `stub.zig`. Validate with `zig build validate-flags`.
+2. **Version pin wave**: When repinning Zig, update `.zigversion`, `build.zig.zon`, `tools/scripts/baseline.zig`, `README.md`, and generated artifacts in one atomic wave.
+3. **ZON parsing ownership**: Use arena-backed parsing for complex ZON inputs — `std.zon.parse.fromSliceAlloc` returns struct-owned slices, not wrapper-owned.
+4. **Build runner links first**: If `zig build` fails with undefined symbols (`__availability_version_check`, `_arc4random_buf`), the build runner itself can't link. No `build.zig` workaround helps — you need a Zig built from source on the same host (see CEL toolchain below).
+5. **Registry refresh after CLI changes**: Always run `zig build refresh-cli-registry` after adding/modifying commands in `tools/cli/commands/`.
+6. **Async I/O in TUI**: Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
+
 ## Known Environment Issue
 
 The local Darwin/macOS 26+ environment has an upstream Zig linker incompatibility (`__availability_version_check`, `_arc4random_buf` undefined symbols). Binary-emitting build steps fail. See `docs/ZIG_MACOS_LINKER_RESEARCH.md` for root-cause research and upstream issue refs.
 
-**For this arch (Darwin):** Use ZVM so the repo pin and toolchain are consistent:
-- `zvm use master` then `export PATH="$HOME/.zvm/bin:$PATH"` (or `eval "$(./tools/scripts/use_zvm_master.sh)"`).
-- Ensures Zig matches `.zigversion` (0.16.0-dev.2650+74f361a5c; reverted from 2694 for Darwin linker). When upstream fixes the linker, re-pin to a newer master.
+**For this arch (Darwin):** Prefer the repo-local CEL toolchain so the repo pin, Zig binary, and ZLS stay aligned:
+- `./.cel/build.sh` then `eval "$(./tools/scripts/use_cel.sh)"`.
+- Ensures Zig matches `.zigversion` (`0.16.0-dev.1503+738d2be9d`) and keeps `.cel/bin/zls` beside the compiler.
 
 **Recommended fix (primary path):** Use the `.cel` toolchain — a patched Zig built from source with macOS 26 fixes:
 ```bash
@@ -136,8 +192,8 @@ The local Darwin/macOS 26+ environment has an upstream Zig linker incompatibilit
 ./tools/scripts/cel_migrate.sh           # Build + activate + validate
 
 # Or step-by-step:
-./.cel/build.sh                          # Build patched Zig (reuses bootstrap LLVM artifacts)
-eval "$(./tools/scripts/use_cel.sh)"     # Set PATH to .cel/bin/zig
+./.cel/build.sh                          # Build patched Zig + ZLS (reuses bootstrap LLVM artifacts)
+eval "$(./tools/scripts/use_cel.sh)"     # Set PATH to .cel/bin/{zig,zls}
 
 # Diagnostics:
 zig build cel-check                      # Quick status check
@@ -147,16 +203,9 @@ zig build cel-verify                     # Verify binary exists
 ```
 See `.cel/README.md` for details. The `.cel` fork pins the same commit as `.zigversion` and applies patches from `.cel/patches/`.
 
-**CEL build steps available in `build.zig`:**
-- `cel-check` — Report CEL toolchain status for this platform
-- `cel-build` — Trigger the CEL toolchain build
-- `cel-status` — Show detailed source/patch/binary status
-- `cel-verify` — Verify the CEL binary exists and prints its version
-- `cel-doctor` — Run comprehensive CEL diagnostics with remediation
+**CEL build steps in `build.zig`:** `cel-check`, `cel-build`, `cel-status`, `cel-verify`, `cel-doctor`.
 
-**Legacy alternative:** `zig-bootstrap-emergency/` — see `zig-bootstrap-emergency/ABI-USAGE.md`. Build with `./build aarch64-macos-none baseline`, then point `PATH` at `out/zig-<target>-baseline/bin`.
-
-**Compile-only workaround:** `zig test -fno-emit-bin` for affected slices. The repo also sets `use_llvm`/`use_lld` on macOS 26+ for all host executables and tests (once the build runner links).
+**Fallbacks:** `zig-bootstrap-emergency/` (see `zig-bootstrap-emergency/ABI-USAGE.md`), or `zig test -fno-emit-bin` for compile-only validation. The repo sets `use_llvm`/`use_lld` on macOS 26+ for all host executables once the build runner links.
 
 ## Zig 0.16 std API notes
 
@@ -167,3 +216,5 @@ See `.cel/README.md` for details. The `.cel` fork pins the same commit as `.zigv
 - **Build:** Use `b.createModule(.{ .root_source_file = b.path(...), ... })` and `addTest`/`addExecutable` with `.root_module = mod`. No `root_source_file` on the compile step; LazyPath is `b.path(...)` (no `.path` field).
 - **mem.readInt/writeInt:** Signatures take `*const [N]u8` / `*[N]u8`; slices of the right length are accepted. Use `std.builtin.Endian.little`/`.big`.
 - **std.Io:** For concurrent/async I/O and time, see `std.Io` (Threaded, async/concurrent, Clock). TUI/data fetches can be refactored to use `std.Io` patterns where applicable.
+- **std.Io.Dir (filesystem):** No `makeDirAbsolute*` — use `std.Io.Dir.createDirPath(.cwd(), io, path)` for recursive creation. No `deleteTreeAbsolute` — use `std.Io.Dir.deleteTree(.cwd(), io, path)`. File writes use `file.writeStreamingAll(io, data)` (no `File.writeAll`). File existence check: `Io.Dir.openFileAbsolute(io, path, .{}) catch return false` then close.
+- **Standalone compilation:** Files in `build/test_discovery.zig` manifest must compile with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this — inline small dependencies or use build-system-provided modules.
