@@ -87,9 +87,35 @@ zig build run -- --help
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | 0.16.0-dev.2650+74f361a5c | Yes |
+| Zig | 0.16.0-dev.1503+738d2be9d | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
+
+### CEL Stage0
+
+ABI now carries a stage-0 CEL compiler bootstrap implemented in portable C11.
+This is the first step toward replacing Zig as the mainline language while
+keeping Zig only as temporary bootstrap infrastructure.
+
+```bash
+./cel check
+./cel run
+./cel test
+./cel check examples/cel/hello.cel
+./cel run examples/cel/hello.cel
+./cel test tests/cel/stage0_tests.cel
+abi bootstrap-zig install
+```
+
+`cel.toml` is now the canonical package manifest for CEL stage-0. The current
+stable fields are package name/version, module root, stdlib root, entry, test
+roots, and toolchain mode.
+
+During the transition:
+- `abi bootstrap-zig ...` is the canonical Zig bridge surface.
+- `abi toolchain ...` remains as a compatibility alias for one migration wave.
+- `.zig-bootstrap/` is the canonical wrapper namespace; the older `.cel/`
+  tree remains only as the backing implementation for now.
 
 ### Hello World
 
@@ -252,10 +278,10 @@ pub fn main() !void {
 ### Adding CLI/TUI tools via the comptime DSL
 
 - Define command metadata in the command module using `pub const meta: command.Meta`.
-- Keep registry ordering/metadata overrides in `/Users/donaldfilimon/abi/tools/cli/registry/overrides.zig`.
+- Keep registry ordering/metadata overrides in `tools/cli/registry/overrides.zig`.
 - Refresh the generated registry snapshot with `zig build refresh-cli-registry` after adding commands.
 - Use command metadata fields for options/UI/risk so launcher/completion/help are derived from one source.
-- For simple UI dashboards, use `/Users/donaldfilimon/abi/tools/cli/ui/dsl/mod.zig` to avoid repeated theme/session/dashboard boilerplate.
+- For simple UI dashboards, use `tools/cli/ui/dsl/mod.zig` to avoid repeated theme/session/dashboard boilerplate.
 - Refresh/check registry snapshots with:
 `zig build refresh-cli-registry`
 `zig build check-cli-registry`
@@ -324,45 +350,31 @@ abi --disable-ai system-info  # Disable feature for command
 ```
 abi/
 ├── src/
-│   ├── abi.zig           # Public API entry point
-│   ├── config/           # Unified configuration
-│   ├── framework.zig     # Lifecycle orchestration
-│   ├── platform/         # Platform detection (OS, arch, CPU)
-│   │
-│   ├── ai/               # AI module
-│   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
-│   │   ├── agents/       # Agent runtime
-│   │   ├── coordination/ # Canonical routing/orchestration surface
-│   │   ├── profiles/     # Canonical behavior profiles
-│   │   ├── personas/     # Persona implementation + compatibility layer
-│   │   ├── training/     # Training pipelines
-│   │   └── embeddings/   # Vector embeddings
-│   │
-│   ├── gpu/              # GPU Acceleration
-│   │   ├── backends/     # CUDA, Vulkan, Metal, WebGPU, FPGA
-│   │   ├── kernels/      # Compute kernels
-│   │   └── dsl/          # Shader DSL & codegen
-│   │
-│   ├── database/         # Semantic store (WDBX alias)
-│   │   ├── semantic_store/ # Canonical retrieval/provenance surface
-│   │   ├── hnsw.zig      # HNSW indexing
-│   │   └── distributed/  # Sharding & replication
-│   │
-│   ├── runtime/          # Compute Infrastructure
-│   │   ├── engine/       # Work-stealing scheduler
-│   │   ├── concurrency/  # Lock-free primitives
-│   │   └── memory/       # Pool allocators
-│   │
-│   ├── network/          # Distributed Compute
-│   │   └── raft/         # Consensus protocol
-│   │
-│   ├── shared/           # Shared utilities (security, io, utils)
-│   │
-│   └── observability/    # Metrics & Tracing
+│   ├── abi.zig              # Public API entry point (comptime feature selection)
+│   ├── core/                # Config, feature catalog, framework lifecycle
+│   ├── features/            # 27 comptime-gated feature modules
+│   │   ├── ai/              # LLM inference, agents, training, streaming
+│   │   │   ├── llm/         # Local LLM inference (Llama-CPP parity)
+│   │   │   ├── agents/      # Agent runtime
+│   │   │   ├── training/    # Training pipelines
+│   │   │   └── embeddings/  # Vector embeddings
+│   │   ├── gpu/             # GPU Acceleration
+│   │   │   ├── backends/    # CUDA, Vulkan, Metal, WebGPU, FPGA
+│   │   │   ├── kernels/     # Compute kernels
+│   │   │   └── dsl/         # Shader DSL & codegen
+│   │   ├── database/        # Semantic store (WDBX alias)
+│   │   ├── network/         # Distributed compute, Raft consensus
+│   │   ├── web/             # HTTP client utilities
+│   │   └── ...              # 14 more feature modules
+│   ├── services/            # Shared runtime services (LSP, MCP, connectors)
+│   ├── wdbx/                # WDBX vector database engine
+│   ├── personas/            # Multi-persona system
+│   └── inference/           # High-performance token generation
 │
-├── tools/cli/            # CLI implementation
-├── examples/             # Usage examples
-└── docs/                 # Documentation
+├── build/                   # Modular build system (options, flags, test discovery)
+├── tools/cli/               # CLI executable and 40+ commands
+├── examples/                # Usage examples
+└── docs/                    # Documentation
 ```
 
 <details>
@@ -422,10 +434,26 @@ All features are enabled by default. Disable unused features to reduce binary si
 | `-Dfeat-ai` | true | AI features, agents, and connectors |
 | `-Dfeat-llm` | true | Local LLM inference |
 | `-Dfeat-gpu` | true | GPU acceleration |
-| `-Dfeat-database` | true | Semantic store and vector database (`wdbx` alias preserved) |
+| `-Dfeat-database` | true | Semantic store and vector database (`wdbx` alias) |
 | `-Dfeat-network` | true | Distributed compute |
 | `-Dfeat-web` | true | HTTP client utilities |
 | `-Dfeat-profiling` | true | Performance profiling |
+| `-Dfeat-analytics` | true | Analytics and metrics collection |
+| `-Dfeat-auth` | true | Authentication and authorization |
+| `-Dfeat-cache` | true | Caching layer |
+| `-Dfeat-cloud` | true | Cloud provider integrations |
+| `-Dfeat-compute` | true | Compute engine (work-stealing scheduler) |
+| `-Dfeat-desktop` | true | Desktop platform support |
+| `-Dfeat-documents` | true | Document processing |
+| `-Dfeat-gateway` | true | API gateway |
+| `-Dfeat-messaging` | true | Message queues and pub/sub |
+| `-Dfeat-mobile` | true | Mobile platform support |
+| `-Dfeat-search` | true | Search engine |
+| `-Dfeat-storage` | true | Storage backends |
+| `-Dfeat-training` | true | Training pipelines |
+| `-Dfeat-reasoning` | true | Reasoning / chain-of-thought |
+| `-Dfeat-benchmarks` | true | Benchmark suite |
+| `-Dfeat-pages` | true | Static page serving |
 
 ### GPU Backend Selection
 
@@ -448,7 +476,7 @@ zig build -Dgpu-backend=auto
 
 C bindings were removed during the 2026-01-30 cleanup and are being
 reintroduced as part of the language bindings roadmap. Track progress in
-[docs/_docs/roadmap.md](docs/_docs/roadmap.md) under **Language bindings**.
+[tasks/todo.md](tasks/todo.md).
 
 ---
 
@@ -458,20 +486,9 @@ reintroduced as part of the language bindings roadmap. Track progress in
 |:---------|:------------|
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Published documentation site |
 | [Docs Source](docs/README.md) | Docs build and layout |
-| [API Overview](docs/_docs/api.md) | High-level API reference |
-| [Getting Started](docs/_docs/getting-started.md) | First steps and setup |
-| [Configuration](docs/_docs/configuration.md) | Config system overview |
-| [Architecture](docs/_docs/architecture.md) | System structure |
-| [AI Guide](docs/_docs/ai-overview.md) | LLM, agents, training |
-| [GPU Guide](docs/_docs/gpu.md) | Multi-backend GPU acceleration |
-| [Database Guide](docs/_docs/database.md) | Semantic store and vector retrieval |
-| [Network Guide](docs/_docs/network.md) | Distributed compute |
-| [Deployment Guide](docs/_docs/deployment.md) | Production deployment |
-| [Observability Guide](docs/_docs/observability.md) | Metrics and profiling |
-| [Security Guide](docs/_docs/security-guide.md) | Security model |
-| [Examples Guide](docs/_docs/examples.md) | Example walkthroughs |
-| [API Reference](docs/_docs/api.md) | Public API summary |
-| [Quickstart](docs/_docs/getting-started.md) | Getting started guide |
+| [API Reference](docs/api/index.md) | Generated API reference |
+| [API Coverage](docs/api/coverage.md) | Per-module documentation coverage |
+| [Plans](docs/plans/index.md) | Active execution plans |
 | [Workflow Contract](AGENTS.md) | Canonical repo workflow, consensus, and task-tracking rules |
 | [Claude Quick Reference](CLAUDE.md) | Local command summary and convenience wrapper |
 
@@ -490,6 +507,9 @@ zig build benchmarks
 
 # Lint check
 zig build lint
+
+# Safe direct format check
+./tools/scripts/fmt_repo.sh --check
 ```
 
 ---
@@ -513,13 +533,13 @@ zig build lint
 |:----------|:------:|
 | Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| C Library Bindings | ![Removed](https://img.shields.io/badge/-Removed-lightgrey) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [tasks/todo.md](tasks/todo.md) for current task tracking and [docs/_docs/roadmap.md](docs/_docs/roadmap.md) for roadmap history.
+See [tasks/todo.md](tasks/todo.md) for current task tracking and [docs/plans/index.md](docs/plans/index.md) for roadmap history.
 
 ---
 

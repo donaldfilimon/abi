@@ -114,7 +114,7 @@ pub const command_overrides = [_]CommandOverride{
     .{ .name = "agent", .ui = .{ .category = .ai, .shortcut = 1 } },
     .{ .name = "explore", .ui = .{ .category = .data, .shortcut = 5 } },
     .{ .name = "simd", .ui = .{ .category = .tools, .shortcut = 9 } },
-    .{ .name = "toolchain", .default_subcommand = "status", .risk = .caution, .ui = .{ .category = .system } },
+    .{ .name = "bootstrap-zig", .default_subcommand = "status", .risk = .caution, .ui = .{ .category = .system } },
     .{ .name = "task", .default_subcommand = "list", .ui = .{ .category = .data } },
     .{ .name = "completions", .visibility = .hidden, .ui = .{ .include_in_launcher = false } },
     .{ .name = "clean", .risk = .destructive, .ui = .{ .risk_badge = "destructive" } },

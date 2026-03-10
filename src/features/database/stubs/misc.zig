@@ -17,6 +17,16 @@ pub const parallel_search = struct {
     pub const batchCosineDistances = parallel_mod.batchCosineDistances;
 };
 pub const database = struct {
+    pub const DatabaseError = error{
+        DuplicateId,
+        VectorNotFound,
+        InvalidDimension,
+        PoolExhausted,
+        PersistenceError,
+        ConcurrencyError,
+        FeatureDisabled,
+        DatabaseDisabled,
+    };
     pub const Database = struct {
         pub fn init(_: std.mem.Allocator) !@This() {
             return error.DatabaseDisabled;

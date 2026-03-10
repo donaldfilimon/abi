@@ -70,8 +70,9 @@ pub const KernelParam = struct {
 ///
 /// Search order:
 ///  1. `ABI_ZIG_PATH` environment variable.
-///  2. `~/.zvm/master/zig` (ZVM-managed compiler).
-///  3. `"zig"` (assumed to be on `PATH`).
+///  2. Repo-local `.cel/bin/zig`.
+///  3. `~/.zvm/master/zig` (legacy compatibility fallback).
+///  4. `"zig"` (assumed to be on `PATH`).
 pub fn resolveZigPath(allocator: Allocator) ![]const u8 {
     // 1. Environment override
     if (std.c.getenv("ABI_ZIG_PATH")) |ptr| {
@@ -80,20 +81,18 @@ pub fn resolveZigPath(allocator: Allocator) ![]const u8 {
             return allocator.dupe(u8, val);
     }
 
-    // 2. ZVM default location
-    const zvm_path = try zig_toolchain.allocZvmMasterZigPath(allocator);
-    if (zvm_path) |path| {
-        const path_z = std.posix.toPosixPath(path) catch {
-            allocator.free(path);
-            return allocator.dupe(u8, "zig");
-        };
-        if (std.c.access(&path_z, std.posix.F_OK) == 0) {
-            return path;
-        }
-        allocator.free(path);
+    var io_backend = Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const cwd = std.process.currentPathAlloc(io, allocator) catch return allocator.dupe(u8, "zig");
+    defer allocator.free(cwd);
+
+    if (try zig_toolchain.resolveExistingPreferredZigPath(allocator, io, cwd)) |path| {
+        return path;
     }
 
-    // 3. Fallback
+    // 4. Fallback
     return allocator.dupe(u8, "zig");
 }
 

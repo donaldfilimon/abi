@@ -200,7 +200,7 @@ pub fn printHelp() void {
         \\  abi train self --multimodal --iterations 7
         \\  abi train self --visualize --visualize-frames 0
         \\  abi train generate-data --num-samples 1024 --seq-length 128 --vocab-size 32000
-        \\  abi train generate-data --output /tmp/test.bin --num-samples 100 --seq-length 32
+        \\  abi train generate-data --output test.bin --num-samples 100 --seq-length 32
         \\  abi train resume ./checkpoints/model.ckpt
         \\  abi train info
         \\

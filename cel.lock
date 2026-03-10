@@ -1,0 +1,6 @@
+version = 1
+
+[[package]]
+name = "abi"
+version = "0.2.0-stage0"
+source = "path:."

@@ -9,6 +9,7 @@
 //! - JSON/CSV export support
 
 const std = @import("std");
+const builtin = @import("builtin");
 const abi = @import("abi");
 const platform = abi.services.platform.detection;
 
@@ -51,14 +52,15 @@ pub const SystemInfo = struct {
 
         // Detect CPU brand on macOS/Linux
         var cpu_brand: []const u8 = "Unknown CPU";
-        if (std.builtin.os.tag == .macos) {
+        if (builtin.os.tag == .macos) {
             // sysctlbyname("machdep.cpu.brand_string", ...)
             // Simplified for now, but in a real rewrite we'd call the C API
             cpu_brand = "Apple Silicon / Intel (macOS)";
-        } else if (std.builtin.os.tag == .linux) {
+        } else if (builtin.os.tag == .linux) {
             cpu_brand = "Generic x86_64/ARM (Linux)";
         }
 
+        _ = allocator;
         return .{
             .cpu_model = cpu_brand,
             .logical_cores = p_info.max_threads,
@@ -66,7 +68,6 @@ pub const SystemInfo = struct {
             .arch = @tagName(p_info.arch),
             .zig_version = @import("builtin").zig_version_string,
         };
-        _ = allocator;
     }
 };
 

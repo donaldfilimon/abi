@@ -16,12 +16,7 @@ const is_freestanding = builtin.os.tag == .freestanding;
 const has_mmap_support = !is_wasm and !is_freestanding and builtin.os.tag != .windows;
 
 // libc imports for Zig 0.16 compatibility (only on platforms with libc)
-const c = if (has_mmap_support) @cImport({
-    @cInclude("sys/stat.h");
-    @cInclude("fcntl.h");
-    @cInclude("unistd.h");
-    @cInclude("sys/mman.h");
-}) else struct {
+const c = struct {
     // Stub definitions for platforms without mmap
     pub const O_RDONLY: c_int = 0;
     pub const PROT_READ: c_int = 1;
@@ -33,23 +28,25 @@ const c = if (has_mmap_support) @cImport({
     pub const MADV_WILLNEED: c_int = 3;
     pub const MADV_DONTNEED: c_int = 4;
     pub const struct_stat = extern struct { st_size: i64 };
+
+    // Stub functions
     pub fn open(_: [*:0]const u8, _: c_int) c_int {
         return -1;
     }
     pub fn close(_: c_int) c_int {
-        return 0;
-    }
-    pub fn fstat(_: c_int, _: *struct_stat) c_int {
         return -1;
     }
     pub fn mmap(_: ?*anyopaque, _: usize, _: c_int, _: c_int, _: c_int, _: i64) *anyopaque {
         return MAP_FAILED;
     }
     pub fn munmap(_: *anyopaque, _: usize) c_int {
-        return 0;
+        return -1;
     }
     pub fn madvise(_: *anyopaque, _: usize, _: c_int) c_int {
-        return 0;
+        return -1;
+    }
+    pub fn fstat(_: c_int, _: *struct_stat) c_int {
+        return -1;
     }
 };
 

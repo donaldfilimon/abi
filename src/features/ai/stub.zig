@@ -14,6 +14,8 @@ pub const Error = error{
     AgentsDisabled,
     /// Training sub-feature is disabled
     TrainingDisabled,
+    /// Reasoning sub-feature is disabled
+    ReasoningDisabled,
     /// Model not found
     ModelNotFound,
     /// Inference failed
@@ -32,6 +34,7 @@ pub const database = @import("database/stub.zig");
 pub const documents = @import("documents/stub.zig");
 pub const vision = @import("vision/stub.zig");
 pub const orchestration = @import("orchestration/stub.zig");
+pub const reasoning = @import("reasoning/stub.zig");
 pub const multi_agent = @import("multi_agent/stub.zig");
 pub const models = @import("models/stub.zig");
 pub const memory = @import("memory/stub.zig");
@@ -51,14 +54,14 @@ pub const abbey = @import("abbey/stub.zig");
 pub const constitution = @import("constitution/stub.zig");
 
 // Always-on module stubs (unconditional in mod.zig)
-pub const compliance = struct {};
-pub const feedback = struct {};
-pub const context_engine = struct {};
-pub const jumpstart = struct {};
-pub const os_control = struct {};
-pub const deep_research = struct {};
-pub const dynamic_api = struct {};
-pub const runtime_bridge = struct {};
+pub const compliance = @import("compliance/mod.zig");
+pub const feedback = @import("feedback/mod.zig");
+pub const context_engine = @import("context_engine/mod.zig");
+pub const jumpstart = @import("context_engine/jumpstart.zig");
+pub const os_control = @import("tools/os_control/mod.zig");
+pub const deep_research = @import("tools/deep_research.zig");
+pub const dynamic_api = @import("tools/dynamic_api.zig");
+pub const runtime_bridge = @import("tools/runtime_bridge.zig");
 
 // Local stubs for single-file modules (merged into subdirectory stubs)
 pub const agent = @import("agents/stub.zig");
@@ -83,7 +86,7 @@ pub const discovery = @import("explore/stub.zig");
 
 // Context
 pub const Context = struct {
-    pub const SubFeature = enum { llm, embeddings, agents, training, personas };
+    pub const SubFeature = enum { llm, embeddings, agents, training, reasoning, personas };
 
     pub fn SubFeatureContext(comptime feature: SubFeature) type {
         return switch (feature) {
@@ -91,6 +94,7 @@ pub const Context = struct {
             .embeddings => embeddings.Context,
             .agents => agents.Context,
             .training => training.Context,
+            .reasoning => reasoning.Context,
             .personas => personas.Context,
         };
     }
@@ -99,7 +103,7 @@ pub const Context = struct {
         return error.AiDisabled;
     }
     pub fn deinit(_: *Context) void {}
-    pub fn get(_: *Context, comptime _: SubFeature) Error!*SubFeatureContext(SubFeature.llm) {
+    pub fn get(_: *Context, comptime feature: SubFeature) Error!*SubFeatureContext(feature) {
         return error.AiDisabled;
     }
     pub fn isSubFeatureEnabled(_: *Context, _: SubFeature) bool {

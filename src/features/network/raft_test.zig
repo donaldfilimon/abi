@@ -122,8 +122,8 @@ test "raft persistence save and load" {
 
     // Add some state
     node.current_term = 5;
-    try node.appendCommand("test-command-1");
-    try node.appendCommand("test-command-2");
+    _ = try node.appendCommand("test-command-1");
+    _ = try node.appendCommand("test-command-2");
 
     // Save to persistence
     var persistence = try RaftPersistence.init(allocator, "test_raft_state.bin");

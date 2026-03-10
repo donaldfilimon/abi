@@ -7,6 +7,7 @@
 //! - Export capabilities
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
 const config = @import("config.zig");
 
 /// Types of audit events.
@@ -138,7 +139,7 @@ pub const AuditTrail = struct {
             .id = id,
             .event_type = event_type,
             .severity = severity,
-            .timestamp = std.time.timestamp(),
+            .timestamp = time.unixSeconds(),
             .subject_id = undefined,
             .subject_id_len = 0,
             .description = undefined,

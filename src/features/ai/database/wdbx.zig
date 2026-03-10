@@ -7,8 +7,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 const tokenizer_mod = @import("../llm/tokenizer/mod.zig");
 
-// Import the modern neural engine
-const wdbx_engine = @import("../../../wdbx/wdbx.zig");
+// Import the modern neural engine via named module (avoids module conflict)
+const wdbx_engine = @import("wdbx");
 
 pub const DatasetError = error{
     DatabaseDisabled,

@@ -11,6 +11,8 @@ docs_html/
 # build/ contains source .zig files — only ignore non-Zig artifacts
 build/*
 !build/*.zig
+!build/validate/
+!build/validate/*.zig
 
 # ── Documentation build artifacts ─────────────────────────────────────
 docs-src/build/
@@ -85,6 +87,7 @@ probe_*.zig
 test_build.zig
 build_options.zig
 src/build_options.zig
+/src/generated_feature_tests.zig
 /abi_*_tmp*.zig
 /tmp_*.zig
 fix_*.py
@@ -157,6 +160,9 @@ perf.data*
 !.claude/agents/**
 !.claude/settings.json
 .claude-plugin/
+# But allow plugin manifests inside zig-abi-plugin/
+!/zig-abi-plugin/.claude-plugin/
+!/zig-abi-plugin/.claude-plugin/**
 
 # ── Local task tracking (agent notes) ────────────────────────────────
 /tasks/
@@ -225,6 +231,8 @@ zig-bootstrap-emergency/
 /test_socket.zig
 /test_writer.zig
 /zig-master/
+/zig-aarch64-*/
+/zig-x86_64-*/
 
 # ── Root-level scratch/test files (never track) ─────────────────────
 /hello
@@ -258,6 +266,7 @@ zig-bootstrap-emergency/
 !/GEMINI.md
 !/SECURITY.md
 !/CODE_OF_CONDUCT.md
+!/.zig-bootstrap/README.md
 !/docs/README.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
@@ -270,9 +279,26 @@ zig-bootstrap-emergency/
 .cel/bin/
 .cel/.src/
 .cel/out/
+.cel-stage0/
 !/.cel/README.md
+!/zig-abi-plugin/**/*.md
 
 # ── Local one-off artifacts ──────────────────────────────────────────
 .zig-global-cache/
 /hashmap_check
 /hashmap_check2
+
+# ── Scratch/workaround artifacts (superseded by CEL) ────────────────
+*.dSYM/
+*.wasm
+bin_wrap/
+/fake_build_options.zig
+/main.c
+/test_link.c
+/test_lld.zig
+/build_cli.sh
+/build_modules.sh
+/patch_cmake.sh
+/patch_zig_main.sh
+/hi.cel
+tools/synthetic_pipeline/

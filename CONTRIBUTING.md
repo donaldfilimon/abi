@@ -12,29 +12,19 @@ ABI accepts focused, reviewable changes.
 
 ## Validation
 
-Use the `zig-master` workflow as the default contract for Zig changes:
+All contributors MUST run the standard validation suite before submitting a pull request. Refer to the canonical [AGENTS.md](AGENTS.md) for the latest list of build, lint, and test commands.
 
+The primary confidence gate is:
 ```bash
-which zig
-zig version
-cat .zigversion
-zig build toolchain-doctor
-zig build gendocs -- --check --no-wasm --untracked-md
-zig build check-docs
-zig build typecheck
-zig build cli-tests
-zig build tui-tests
 zig build full-check
-zig build check-cli-registry
-zig build verify-all
-zig build check-workflow-orchestration-strict --summary all
 ```
 
-If a command is blocked by the local environment, record the exact failure and distinguish it from repo-local regressions.
+If a command is blocked by the local environment (e.g., macOS 26+ linker issues), record the exact failure in your PR notes and ensure the bypass mechanisms are properly utilized.
 
 ## Related Guides
 
-- [AGENTS.md](AGENTS.md) for the canonical repo workflow contract
-- [CLAUDE.md](CLAUDE.md) for the local quick reference wrapper
-- [SECURITY.md](SECURITY.md) for responsible disclosure guidance
-- [docs/README.md](docs/README.md) for docs structure and generated outputs
+- [AGENTS.md](AGENTS.md) — Canonical repo workflow contract (single source of truth for build/test commands)
+- [docs/FAQ-agents.md](docs/FAQ-agents.md) — Detailed agent guidance and code style FAQ
+- [CLAUDE.md](CLAUDE.md) — Quick reference wrapper for Claude Code
+- [SECURITY.md](SECURITY.md) — Responsible disclosure guidance
+- [docs/README.md](docs/README.md) — Documentation structure and generated outputs

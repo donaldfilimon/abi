@@ -435,12 +435,23 @@ pub const tensor = struct {
     pub const DType = stub_root.DType;
     pub const Q4_0Block = stub_root.Q4_0Block;
     pub const Q8_0Block = stub_root.Q8_0Block;
+    pub const Q4_1Block = stub_root.Q4_1Block;
+    pub const quantized = struct {};
 };
 
 pub const tokenizer = struct {
     pub const BpeTokenizer = stub_root.BpeTokenizer;
     pub const Tokenizer = stub_root.Tokenizer;
     pub const Vocab = stub_root.Vocab;
+    pub const TokenizerError = error{
+        InvalidUtf8,
+        VocabNotLoaded,
+        UnknownToken,
+        EncodingError,
+        DecodingError,
+        OutOfMemory,
+        FeatureDisabled,
+    };
     pub fn loadFromGguf(_: std.mem.Allocator, _: *const stub_root.GgufFile) LlmError!stub_root.Tokenizer {
         return error.FeatureDisabled;
     }
@@ -454,6 +465,10 @@ pub const model = struct {
 pub const generation = struct {
     pub const Generator = stub_root.Generator;
     pub const GeneratorConfig = stub_root.GeneratorConfig;
+    pub const sampler = struct {
+        pub const Sampler = stub_root.Sampler;
+        pub const TopKTopP = struct {};
+    };
     pub const Sampler = stub_root.Sampler;
     pub const SamplerConfig = stub_root.SamplerConfig;
     pub const StreamingGenerator = stub_root.StreamingGenerator;
@@ -473,9 +488,90 @@ pub const cache = struct {
 };
 
 pub const ops = struct {
-    pub fn matrixMultiply(_: anytype, _: anytype, _: anytype, _: usize, _: usize, _: usize) void {}
-    pub fn softmax(_: anytype) void {}
-    pub fn rmsnorm(_: anytype, _: anytype, _: f32) void {}
+    pub const attention = struct {
+        pub fn selfAttention(
+            _: std.mem.Allocator,
+            _: []const f32,
+            _: []const f32,
+            _: []const f32,
+            output: []f32,
+            _: u32,
+            _: u32,
+            _: u32,
+            _: bool,
+        ) !void {
+            @memset(output, 0);
+        }
+
+        pub fn scaledDotProductAttention(
+            allocator: std.mem.Allocator,
+            q: []const f32,
+            k: []const f32,
+            v: []const f32,
+            output: []f32,
+            seq_len: u32,
+            kv_len: u32,
+            head_dim: u32,
+            causal: bool,
+        ) !void {
+            _ = allocator;
+            _ = q;
+            _ = k;
+            _ = v;
+            _ = seq_len;
+            _ = kv_len;
+            _ = head_dim;
+            _ = causal;
+            @memset(output, 0);
+        }
+    };
+    pub const activations = struct {
+        pub fn softmax(input: []const f32, output: []f32) void {
+            @memcpy(output, input);
+            activations.softmaxInPlace(output);
+        }
+
+        pub fn softmaxInPlace(x: []f32) void {
+            if (x.len == 0) return;
+            const value = 1.0 / @as(f32, @floatFromInt(x.len));
+            @memset(x, value);
+        }
+
+        pub fn silu(x: f32) f32 {
+            return x / (1.0 + @exp(-x));
+        }
+
+        pub fn gelu(x: f32) f32 {
+            return 0.5 * x * (1.0 + std.math.tanh(0.7978846 * (x + 0.044715 * x * x * x)));
+        }
+    };
+    pub const rmsnorm = struct {
+        pub fn rmsNorm(x: []const f32, weight: []const f32, output: []f32, eps: f32) void {
+            _ = eps;
+            if (x.len == 0) return;
+            for (x, weight, 0..) |value, scale, idx| {
+                output[idx] = value * scale;
+            }
+        }
+
+        pub fn rmsNormInPlace(x: []f32, weight: []const f32, eps: f32) void {
+            rmsnorm.rmsNorm(x, weight, x, eps);
+        }
+    };
+    pub const matmul = struct {
+        pub fn matrixMultiply(_: anytype, _: anytype, c: []f32, _: usize, _: usize, _: usize) void {
+            @memset(c, 0);
+        }
+    };
+    pub const matrixMultiply = matmul.matrixMultiply;
+    pub const selfAttention = attention.selfAttention;
+    pub const scaledDotProductAttention = attention.scaledDotProductAttention;
+    pub const rmsNorm = rmsnorm.rmsNorm;
+    pub const rmsNormInPlace = rmsnorm.rmsNormInPlace;
+    pub const softmax = activations.softmax;
+    pub const softmaxInPlace = activations.softmaxInPlace;
+    pub const silu = activations.silu;
+    pub const gelu = activations.gelu;
 };
 
 pub const parallel = struct {

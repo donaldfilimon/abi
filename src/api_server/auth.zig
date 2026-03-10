@@ -4,6 +4,7 @@
 //! so that the raw key material is never persisted in memory after creation.
 
 const std = @import("std");
+const time = @import("../services/shared/time.zig");
 const Allocator = std.mem.Allocator;
 
 pub const ApiKey = struct {
@@ -57,7 +58,7 @@ pub const Auth = struct {
         try self.keys.put(self.allocator, name_owned, .{
             .name = name_owned,
             .hash = hash,
-            .created_at = std.time.timestamp(),
+            .created_at = time.unixSeconds(),
             .last_used = 0,
             .request_count = 0,
         });
@@ -78,7 +79,7 @@ pub const Auth = struct {
         var it = self.keys.iterator();
         while (it.next()) |entry| {
             if (std.mem.eql(u8, &entry.value_ptr.hash, &hash)) {
-                entry.value_ptr.last_used = std.time.timestamp();
+                entry.value_ptr.last_used = time.unixSeconds();
                 entry.value_ptr.request_count += 1;
                 return entry.value_ptr.name;
             }

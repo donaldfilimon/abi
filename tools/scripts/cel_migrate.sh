@@ -22,20 +22,80 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CEL_DIR="$REPO_ROOT/.cel"
-CEL_ZIG="$CEL_DIR/bin/zig"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-NC='\033[0m' # No Color
+# Source shared helpers (config.sh sets ZIG_VERSION, CEL_MIN_MACOS_MAJOR, etc.)
+source "$CEL_DIR/config.sh"
+source "$CEL_DIR/lib.sh"
 
-info()  { printf "${BLUE}[cel-migrate]${NC} %s\n" "$*"; }
-ok()    { printf "${GREEN}[cel-migrate]${NC} %s\n" "$*"; }
-warn()  { printf "${YELLOW}[cel-migrate]${NC} %s\n" "$*"; }
-error() { printf "${RED}[cel-migrate]${NC} %s\n" "$*" >&2; }
+BOOTSTRAP_BIN="$REPO_ROOT/.zig-bootstrap/bin"
+BOOTSTRAP_ZIG="$BOOTSTRAP_BIN/$(cel_binary_name zig)"
+CEL_ZIG="$CEL_DIR/bin/$(cel_binary_name zig)"
+CEL_ZLS="$CEL_DIR/bin/$(cel_binary_name zls)"
+BOOTSTRAP_HOST_ZIG="$REPO_ROOT/zig-bootstrap-emergency/out/host/bin/$(cel_binary_name zig)"
+EXPECTED_ZIG_VERSION="$(cel_expected_zig_version || true)"
+
+# Logging aliases with [cel-migrate] prefix
+info()  { printf "\033[1;34m[cel-migrate]\033[0m %s\n" "$*"; }
+ok()    { printf "\033[0;32m[cel-migrate]\033[0m %s\n" "$*"; }
+warn()  { printf "\033[1;33m[cel-migrate]\033[0m %s\n" "$*"; }
+error() { printf "\033[1;31m[cel-migrate]\033[0m %s\n" "$*" >&2; }
 die()   { error "$@"; exit 1; }
+
+# Delegate to lib.sh
+stock_zig_path()          { cel_stock_zig_path; }
+stock_zig_version()       { cel_stock_zig_version; }
+probe_stock_build_runner() { cel_classify_build_runner; }
+
+activation_bin_dir() {
+    if [[ -x "$BOOTSTRAP_ZIG" ]]; then
+        printf '%s' "$BOOTSTRAP_BIN"
+    else
+        printf '%s' "$CEL_DIR/bin"
+    fi
+}
+
+activation_command() {
+    if [[ -x "$REPO_ROOT/tools/scripts/use_zig_bootstrap.sh" ]]; then
+        printf './tools/scripts/use_zig_bootstrap.sh'
+    else
+        printf './tools/scripts/use_cel.sh'
+    fi
+}
+
+report_stock_zig() {
+    info "Step 2a: Inspecting stock Zig"
+
+    if ! command -v zig >/dev/null 2>&1; then
+        warn "  zig: not found on PATH"
+        return
+    fi
+
+    local path version state
+    path="$(stock_zig_path)"
+    version="$(stock_zig_version)"
+    ok "  zig: found ($path)"
+    info "  zig version: $version"
+
+    if [[ -n "$EXPECTED_ZIG_VERSION" && "$version" != "$EXPECTED_ZIG_VERSION" ]]; then
+        warn "  zig pin mismatch: expected $EXPECTED_ZIG_VERSION"
+    else
+        ok "  zig pin matches .zigversion"
+    fi
+
+    state="$(probe_stock_build_runner)"
+    case "$state" in
+        ok)
+            ok "  build runner: stock zig can start ABI build steps"
+            ;;
+        darwin-linker)
+            warn "  build runner: blocked by Darwin linker failure"
+            warn "  use CEL/bootstrap for repo validation on this host"
+            ;;
+        failing)
+            warn "  build runner: stock zig failed before ABI gates could run"
+            ;;
+    esac
+}
 
 # Parse arguments
 CHECK_ONLY=false
@@ -60,8 +120,8 @@ Options:
 Migration Steps:
   1. Check platform: macOS 26+ requires CEL for binary output
   2. Verify prerequisites: git, cmake, cc, LLVM
-  3. Build .cel toolchain: .cel/build.sh
-  4. Activate: export PATH=".cel/bin:$PATH"
+  3. Build bootstrap Zig bridge: ./.zig-bootstrap/build.sh
+  4. Activate: export PATH=".zig-bootstrap/bin:$PATH"
   5. Validate: zig build full-check
 USAGE
             exit 0
@@ -106,30 +166,60 @@ done
 
 # Check LLVM
 LLVM_FOUND=false
-if [[ -d "/opt/homebrew/opt/llvm" ]]; then
-    ok "  LLVM: Homebrew (Apple Silicon)"
-    LLVM_FOUND=true
-elif [[ -d "/usr/local/opt/llvm" ]]; then
-    ok "  LLVM: Homebrew (Intel)"
-    LLVM_FOUND=true
-elif command -v llvm-config >/dev/null 2>&1; then
-    LLVM_VER="$(llvm-config --version 2>/dev/null || echo 'unknown')"
-    ok "  LLVM: system ($LLVM_VER)"
-    LLVM_FOUND=true
-elif [[ -d "$REPO_ROOT/zig-bootstrap-emergency/out/build-llvm-host" ]]; then
+if [[ -d "$REPO_ROOT/zig-bootstrap-emergency/out/build-llvm-host" ]]; then
     ok "  LLVM: bootstrap artifacts"
     LLVM_FOUND=true
-else
-    warn "  LLVM: not found — install with 'brew install llvm'"
+elif [[ -d "/opt/homebrew/opt/llvm@21" ]]; then
+    ok "  LLVM: Homebrew llvm@21 (Apple Silicon)"
+    LLVM_FOUND=true
+elif [[ -d "/usr/local/opt/llvm@21" ]]; then
+    ok "  LLVM: Homebrew llvm@21 (Intel)"
+    LLVM_FOUND=true
+elif command -v brew >/dev/null 2>&1; then
+    BREW_LLVM21="$(brew --prefix llvm@21 2>/dev/null || true)"
+    if [[ -n "$BREW_LLVM21" && -d "$BREW_LLVM21" ]]; then
+        ok "  LLVM: Homebrew llvm@21 ($BREW_LLVM21)"
+        LLVM_FOUND=true
+    fi
 fi
+
+if ! $LLVM_FOUND && command -v llvm-config >/dev/null 2>&1; then
+    LLVM_VER="$(llvm-config --version 2>/dev/null || echo 'unknown')"
+    if [[ "$LLVM_VER" == 21.* ]]; then
+        ok "  LLVM: system ($LLVM_VER)"
+        LLVM_FOUND=true
+    else
+        warn "  LLVM: found system llvm-config $LLVM_VER, but CEL pin expects LLVM 21.x"
+    fi
+fi
+
+if ! $LLVM_FOUND && [[ -d "/opt/homebrew/opt/llvm" ]]; then
+    warn "  LLVM: Homebrew llvm found, but CEL pin expects llvm@21"
+elif ! $LLVM_FOUND && [[ -d "/usr/local/opt/llvm" ]]; then
+    warn "  LLVM: Homebrew llvm found, but CEL pin expects llvm@21"
+fi
+
+if [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+    BOOTSTRAP_VER="$("$BOOTSTRAP_HOST_ZIG" version 2>/dev/null || echo 'unknown')"
+    ok "  bootstrap zig: $BOOTSTRAP_VER ($BOOTSTRAP_HOST_ZIG)"
+elif [[ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]]; then
+    info "  bootstrap zig: source present, host binary not built yet"
+fi
+
+report_stock_zig
 
 if [[ ${#MISSING[@]} -gt 0 ]]; then
     die "Missing prerequisites: ${MISSING[*]}"
 fi
 
 if ! $LLVM_FOUND; then
-    warn "No LLVM found. .cel/build.sh will attempt to find system LLVM."
-    warn "If the build fails, install LLVM: brew install llvm"
+    warn "No compatible LLVM found. .cel/build.sh will look for llvm@21 or bootstrap LLVM."
+    warn "If the build fails, install LLVM 21: brew install llvm@21"
+fi
+
+if [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ ! -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+    info "macOS 26+ note: .zig-bootstrap/build.sh now prefers a bootstrap-host Zig when available."
+    info "If stage3 still cannot start, run 'abi bootstrap-zig bootstrap' to refresh zig-bootstrap-emergency."
 fi
 
 if $CHECK_ONLY; then
@@ -140,6 +230,11 @@ if $CHECK_ONLY; then
         ok "CEL toolchain already built: $CEL_VER"
     else
         info "CEL toolchain not yet built. Run without --check to build."
+        if [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+            info "Next action: ./.zig-bootstrap/build.sh"
+        elif [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]]; then
+            info "Next action: abi bootstrap-zig bootstrap"
+        fi
     fi
     exit 0
 fi
@@ -149,13 +244,14 @@ if $ACTIVATE_ONLY; then
     if [[ ! -x "$CEL_ZIG" ]]; then
         die "CEL toolchain not built. Run without --activate first."
     fi
-    export PATH="$CEL_DIR/bin:$PATH"
+    ACTIVATE_BIN="$(activation_bin_dir)"
+    export PATH="$ACTIVATE_BIN:$PATH"
     CEL_VER="$(zig version 2>/dev/null)"
     ok "Activated CEL toolchain: $CEL_VER"
-    ok "PATH updated: $CEL_DIR/bin is first"
+    ok "PATH updated: $ACTIVATE_BIN is first"
     
     # Print eval-friendly output for sourcing
-    echo "export PATH=\"$CEL_DIR/bin:\$PATH\""
+    echo "export PATH=\"$ACTIVATE_BIN:\$PATH\""
     exit 0
 fi
 
@@ -196,8 +292,17 @@ if [[ ! -x "$CEL_ZIG" ]]; then
     die "Build appeared to succeed but .cel/bin/zig not found"
 fi
 
+if [[ ! -x "$CEL_ZLS" ]]; then
+    warn "Build appeared to succeed but .cel/bin/zls not found (ZLS may not be built)"
+fi
+
 CEL_VER="$("$CEL_ZIG" version 2>/dev/null || echo 'unknown')"
 ok "CEL Zig version: $CEL_VER"
+
+if [[ -x "$CEL_ZLS" ]]; then
+    CEL_ZLS_VER="$("$CEL_ZLS" --version 2>/dev/null || echo 'unknown')"
+    ok "CEL ZLS version: $CEL_ZLS_VER"
+fi
 
 # Version consistency check
 if [[ -f "$REPO_ROOT/.zigversion" ]]; then
@@ -211,8 +316,9 @@ fi
 
 # ── Step 6: Activate ───────────────────────────────────────────────────
 info "Step 6: Activating CEL toolchain"
-export PATH="$CEL_DIR/bin:$PATH"
-ok "PATH updated: $CEL_DIR/bin is first"
+ACTIVATE_BIN="$(activation_bin_dir)"
+export PATH="$ACTIVATE_BIN:$PATH"
+ok "PATH updated: $ACTIVATE_BIN is first"
 
 # ── Step 7: Quick validation ────────────────────────────────────────────
 info "Step 7: Quick validation"
@@ -229,7 +335,7 @@ ok "═════════════════════════�
 ok "  CEL migration complete!"
 ok ""
 ok "  To activate in your current shell:"
-ok "    eval \"\$(./tools/scripts/use_cel.sh)\""
+ok "    eval \"\$($(activation_command))\""
 ok ""
 ok "  To run the full gate:"
 ok "    zig build full-check"

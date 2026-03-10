@@ -55,30 +55,30 @@ pub const BrainDashboardPanel = struct {
         const row2 = start_row + third_h * 2;
 
         // Row 1: WDBX Status | Learning Status
-        try self.renderPanel(term, theme, "WDBX Status", row0, start_col, half_w, third_h);
+        try self.renderBox(term, theme, "WDBX Status", row0, start_col, half_w, third_h);
         try self.renderWdbxStatus(data, row0 + 1, start_col + 1, half_w - 2, third_h - 2);
 
-        try self.renderPanel(term, theme, "Learning Status", row0, start_col + half_w, half_w, third_h);
+        try self.renderBox(term, theme, "Learning Status", row0, start_col + half_w, half_w, third_h);
         try self.renderLearningStatus(data, row0 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
         // Row 2: Throughput | Reward History
-        try self.renderPanel(term, theme, "Throughput", row1, start_col, half_w, third_h);
+        try self.renderBox(term, theme, "Throughput", row1, start_col, half_w, third_h);
         try self.renderThroughput(data, row1 + 1, start_col + 1, half_w - 2, third_h - 2);
 
-        try self.renderPanel(term, theme, "Reward History", row1, start_col + half_w, half_w, third_h);
+        try self.renderBox(term, theme, "Reward History", row1, start_col + half_w, half_w, third_h);
         try self.renderRewardHistory(data, row1 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
         // Row 3: Similarity Scores | Attention Pattern (uses remaining height)
-        try self.renderPanel(term, theme, "Similarity", row2, start_col, half_w, bottom_h);
+        try self.renderBox(term, theme, "Similarity", row2, start_col, half_w, bottom_h);
         try self.renderSimilarity(data, row2 + 1, start_col + 1, half_w - 2, bottom_h -| 2);
 
-        try self.renderPanel(term, theme, "Attention", row2, start_col + half_w, half_w, bottom_h);
+        try self.renderBox(term, theme, "Attention", row2, start_col + half_w, half_w, bottom_h);
         try self.renderAttention(data, row2 + 1, start_col + half_w + 1, half_w - 2, bottom_h -| 2);
     }
 
     // ── Panel Chrome ──────────────────────────────────────────────────────────
 
-    fn renderPanel(
+    fn renderBox(
         self: *const BrainDashboardPanel,
         term: *Terminal,
         theme: *const Theme,
@@ -407,21 +407,21 @@ pub const BrainDashboardPanel = struct {
         const start_col: u16 = 0;
 
         // Row 1: Training Status | Optimizer
-        try self.renderPanel(term, theme, "Training", row0, start_col, half_w, third_h);
+        try self.renderBox(term, theme, "Training", row0, start_col, half_w, third_h);
         try self.renderTrainingStatus(data, row0 + 1, start_col + 1, half_w - 2, third_h - 2);
-        try self.renderPanel(term, theme, "Optimizer", row0, start_col + half_w, half_w, third_h);
+        try self.renderBox(term, theme, "Optimizer", row0, start_col + half_w, half_w, third_h);
         try self.renderOptimizerStatus(data, row0 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
         // Row 2: Throughput | Loss / Accuracy
-        try self.renderPanel(term, theme, "Throughput", row1, start_col, half_w, third_h);
+        try self.renderBox(term, theme, "Throughput", row1, start_col, half_w, third_h);
         try self.renderThroughput(data, row1 + 1, start_col + 1, half_w - 2, third_h - 2);
-        try self.renderPanel(term, theme, "Loss / Accuracy", row1, start_col + half_w, half_w, third_h);
+        try self.renderBox(term, theme, "Loss / Accuracy", row1, start_col + half_w, half_w, third_h);
         try self.renderRewardHistory(data, row1 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
         // Row 3: Perplexity | GPU (uses remaining height)
-        try self.renderPanel(term, theme, "Perplexity", row2, start_col, half_w, bottom_h);
+        try self.renderBox(term, theme, "Perplexity", row2, start_col, half_w, bottom_h);
         try self.renderSimilarity(data, row2 + 1, start_col + 1, half_w - 2, bottom_h -| 2);
-        try self.renderPanel(term, theme, "GPU", row2, start_col + half_w, half_w, bottom_h);
+        try self.renderBox(term, theme, "GPU", row2, start_col + half_w, half_w, bottom_h);
         try self.renderAttention(data, row2 + 1, start_col + half_w + 1, half_w - 2, bottom_h -| 2);
     }
 

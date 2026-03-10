@@ -7,6 +7,7 @@
 //! - Category-level breakdown
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
 const collector_mod = @import("collector.zig");
 
 /// Satisfaction trend direction.
@@ -128,7 +129,7 @@ pub const FeedbackAnalyzer = struct {
             .total_entries = overall_count,
             .persona_stats = persona_stats,
             .overall_trend = if (overall_count < self.min_threshold) .insufficient_data else .stable,
-            .generated_at = std.time.timestamp(),
+            .generated_at = time.unixSeconds(),
         };
     }
 

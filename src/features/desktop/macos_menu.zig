@@ -14,7 +14,7 @@ pub const objc = struct {
 
     pub extern "c" fn objc_getClass(name: [*:0]const u8) Class;
     pub extern "c" fn sel_registerName(name: [*:0]const u8) SEL;
-    pub extern "c" fn objc_msgSend(self: id, op: SEL, ...) callconv(.C) id;
+    pub extern "c" fn objc_msgSend(self: id, op: SEL, ...) callconv(.c) id;
 };
 
 pub const MacMenu = struct {
@@ -45,7 +45,7 @@ pub const MacMenu = struct {
     /// Spawns the native NSStatusItem. Does nothing on non-macOS systems.
     pub fn spawn(self: *MacMenu, title: [:0]const u8) !void {
         if (builtin.os.tag != .macos) {
-            std.log.info("Native macOS menu bar integration is disabled on {t}.", .{builtin.os.tag});
+            std.log.info("Native macOS menu bar integration is disabled on {}.", .{builtin.os.tag});
             return;
         }
 

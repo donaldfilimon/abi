@@ -1,100 +1,93 @@
-# Global Agents Registry
+# AGENTS.md - Canonical Repo Workflow blueprint
 
-This file documents the personas active within the ABI Framework.
-
-1. **Abbey:** High-level orchestrator — strategic planning, user engagement, multi-agent delegation.
-2. **Aviva:** Dense executor — precision execution, debugging, factual synthesis.
-3. **Claude (`CLAUDE.md`):** External workflow manager.
-4. **Gemini (`GEMINI.md`):** Migration specialist CLI.
-
-## Canonical Interfaces
-
-• Repo workflow contract: `AGENTS.md`
-• Active execution tracker: `tasks/todo.md`
-• Correction log: `tasks/lessons.md`
-• Zig validation contract: `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)`
-
-## Global Multi-CLI Consensus
-
-### 0. Always Run Parallel Consensus
-
-• For every non-trivial task, run `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh --mode <code|vision> --timeout-sec 120 --prompt-file <file> --out-dir <dir>` before implementation.
-• Treat `run_tricli_consensus.sh` as the compatibility wrapper around `run_consensus.py`.
-• Use `--mode code` for normal tasks and `--mode vision` for image/screenshot-heavy tasks.
-• Keep `--timeout-sec 120` per tool.
-• Treat this as mandatory best-effort: continue with surviving tools if one fails.
-• Use Codex as final arbiter when outputs disagree.
-
-## Workflow Orchestration
-
-### 1. Plan Node Default
-
-• Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-• If something goes sideways, STOP and re-plan immediately - don't keep pushing
-• Use plan mode for verification steps, not just building
-• Write detailed specs upfront to reduce ambiguity
-• Present plan for approval before implementation on high-stakes changes
-
-### 2. Subagent Strategy
-
-• Use subagents liberally to keep main context window clean
-• Offload research, exploration, and parallel analysis to subagents
-• For complex problems, throw more compute at it via subagents
-• One task per subagent for focused execution
-• Aggregate and synthesize subagent results before proceeding
-
-### 3. Self-Improvement Loop
-
-• After ANY correction from the user: update `tasks/lessons.md` with the pattern
-• Write rules for yourself that prevent the same mistake
-• Ruthlessly iterate on these lessons until mistake rate drops
-• Review lessons at session start for relevant project
-• Patterns to capture: root causes, not just symptoms
-
-### 4. Verification Before Done
-
-• Never mark a task complete without proving it works
-• Diff behavior between main and your changes when relevant
-• Ask yourself: "Would a staff engineer approve this?"
-• Run tests, check logs, demonstrate correctness
-• For UI changes: verify visually; for API changes: test the endpoint
-
-### 5. Demand Elegance (Balanced)
-
-• For non-trivial changes: pause and ask "is there a more elegant way?"
-• If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
-• Skip this for simple, obvious fixes - don't over-engineer
-• Challenge your own work before presenting it
-• Simplicity is the ultimate sophistication
-
-### 6. Autonomous Bug Fixing
-
-• When given a bug report: just fix it. Don't ask for hand-holding
-• Point at logs, errors, failing tests - then resolve them
-• Zero context switching required from the user
-• Go fix failing CI tests without being told how
-• Investigate root cause; fix the disease, not the symptom
+This document defines the foundational expectations for all contributors—human and
+automated—working in the ABI repository. It serves as the authoritative task-execution
+contract, ensuring architectural consistency and technical integrity.
 
 ---
 
-## Task Management
+## 1. Governance & Onboarding
 
-1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
-2. **Verify Plan**: Check in before starting implementation
-3. **Track Progress**: Mark items complete as you go
-4. **Explain Changes**: High-level summary at each step
-5. **Document Results**: Add review section to `tasks/todo.md`
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
+All contributors MUST review this document alongside `CONTRIBUTING.md` and `CLAUDE.md`.
+For automated agents, this file acts as the primary mandate for all execution waves.
+
+- **Consolidated Guidance**: Detailed FAQs, style edge cases, and expanded command
+  documentation are hosted in [docs/FAQ-agents.md](docs/FAQ-agents.md).
+- **Consensus Rule**: Significant architectural changes or public API modifications
+  require tri-CLI consensus (where available) or explicit owner approval.
+- **Rollout Phase**: We are currently in **Phase 4: Rollout & Consolidation**.
+
+## 2. Core Commands
+
+Use the Zig toolchain pinned in `.zigversion` (`0.16.0-dev.1503+738d2be9d`).
+
+### Build & Maintenance
+- `zig build`: Build the main framework and CLI artifacts.
+- `zig build fix`: Run the repository-safe auto-formatter.
+- `zig build lint`: Verify formatting without applying changes.
+- `./tools/scripts/fmt_repo.sh --check`: Lint-check core sources (skips vendored fixtures).
+- `zig build refresh-cli-registry`: Update the generated CLI command metadata.
+
+### Validation & Testing
+- `zig build test --summary all`: Execute the primary service test suite.
+- `zig build feature-tests --summary all`: Execute manifest-driven feature coverage.
+- `zig build full-check`: Run the local CI-equivalent confidence gate.
+- `zig build verify-all`: Execute the full release validation suite.
+- `zig test <path> --test-filter "<pattern>"`: Run targeted tests by path or pattern.
+
+## 3. Coding Style & API Guidance
+
+- **Formatting**: Rely strictly on `zig fmt`. Never use manual vertical alignment.
+- **Imports**: Use relative imports (`@import("local.zig")`) within feature modules.
+  Use the canonical `@import("abi")` for all public framework consumption.
+- **Naming**:
+  - `lower_snake_case` for files, modules, and functions.
+  - `PascalCase` for types, structs, and error sets.
+- **Feature Gating**: Every feature module in `src/features/` must maintain a
+  `mod.zig` (implementation) and a `stub.zig` (public signature mirror). Both
+  files MUST have identical public signatures at all times.
+- **Errors**: Use explicit error sets; propagate with `try`; avoid silent swallows.
+
+## 4. Agent Policy (Placeholders)
+
+### Cursor Rules
+Cursor-specific constraints and task templates are defined in
+[docs/guides/cursor_rules.md](docs/guides/cursor_rules.md). Direct Cursor rules
+(e.g., `.cursorrules`) are pending formal policy approval.
+
+### Copilot Guidance
+Copilot usage is permitted for boilerplate. All logic MUST be manually validated
+against the Zig 0.16 baseline and repo conventions. Annotate generated logic
+where appropriate to indicate AI-assisted provenance.
+
+## 5. Rollout Plan (Phase 4)
+
+1. **Validation & Stability**: Maintain macOS 26+ bypass handling; restore CI gates.
+2. **Migration**: Complete the `profiles` API transition and delete legacy `personas/`.
+3. **Consolidation**: Prune duplicative guidelines across all root documentation.
+4. **Release**: Finalize `docs/api` generation rules and CLI command snapshots.
+
+## 6. Commit & Pull Request Guidelines
+
+- **Format**: Use short imperative subjects with prefixes (e.g., `fix:`, `feat:`,
+  `docs:`, `chore:`, `style:`).
+- **Scope**: Keep commits atomic and scoped to a single logical change wave.
+- **Validation trail**: Every PR description MUST include the summary of the
+  `zig build full-check` command results from the target environment.
+
+## 7. Acceptance Criteria
+
+A task is considered complete and "Accepted" only when:
+1. `zig build full-check` passes in a clean environment.
+2. All touched modules' `stub.zig` files are verified against their `mod.zig` counterparts.
+3. The `tasks/todo.md` tracker is updated with timestamped completion evidence.
+4. Duplicative content has been successfully migrated to the [Agent FAQ](docs/FAQ-agents.md).
 
 ---
 
-## Core Principles
+## Appendices & References
 
-| Principle | Description |
-|-----------|-------------|
-| **Simplicity First** | Make every change as simple as possible. Minimal code impact. |
-| **No Laziness** | Find root causes. No temporary fixes. Senior developer standards. |
-| **Minimal Impact** | Changes should only touch what's necessary. Avoid introducing bugs. |
-| **Review Lessons** | Review `lessons.md` at session start for the relevant project. |
-
-> **Note**: AI responses may include mistakes. Always verify critical changes.
+- [CONTRIBUTING.md](CONTRIBUTING.md): General contributor onboarding.
+- [CLAUDE.md](CLAUDE.md): Quick reference for Claude Code sessions.
+- [tasks/cleanup.md](tasks/cleanup.md): Active plan for documentation pruning.
+- [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md): Linker bypass logic.

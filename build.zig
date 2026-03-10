@@ -2,33 +2,23 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// ── Modular build system ────────────────────────────────────────────────
-const options_mod = @import("build/options.zig");
-const modules = @import("build/modules.zig");
-const flags = @import("build/flags.zig");
-const targets = @import("build/targets.zig");
-const mobile = @import("build/mobile.zig");
-const wasm = @import("build/wasm.zig");
-const gpu = @import("build/gpu.zig");
-const link = @import("build/link.zig");
-const cli_tests = @import("build/cli_tests.zig");
-const test_discovery = @import("build/test_discovery.zig");
 const cel = @import("build/cel.zig");
-
-// Re-export for external use
+const cli_tests = @import("build/cli_tests.zig");
+const flags = @import("build/flags.zig");
+const gpu = @import("build/gpu.zig");
 pub const GpuBackend = gpu.GpuBackend;
+const link = @import("build/link.zig");
+const mobile = @import("build/mobile.zig");
+const modules = @import("build/modules.zig");
+const options_mod = @import("build/options.zig");
 pub const BuildOptions = options_mod.BuildOptions;
+const targets = @import("build/targets.zig");
+const test_discovery = @import("build/test_discovery.zig");
+const wasm = @import("build/wasm.zig");
 
+// ── Modular build system ────────────────────────────────────────────────
+// Re-export for external use
 const is_blocked_darwin = builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26;
-
-comptime {
-    if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16)
-        @compileError(std.fmt.comptimePrint(
-            "ABI requires Zig 0.16.0-dev.2650+74f361a5c or newer (detected {d}.{d}.{d}). " ++
-                "Use `zvm use master` or install the version in `.zigversion`.",
-            .{ builtin.zig_version.major, builtin.zig_version.minor, builtin.zig_version.patch },
-        ));
-}
 
 pub fn build(b: *std.Build) void {
     const target = resolveNativeTarget(b);
@@ -49,6 +39,11 @@ pub fn build(b: *std.Build) void {
     if (is_blocked_darwin) {
         options.feat_database = false;
         options.feat_ai = false;
+        options.feat_explore = false;
+        options.feat_llm = false;
+        options.feat_vision = false;
+        options.feat_training = false;
+        options.feat_reasoning = false;
 
         // Emit platform-appropriate CEL suggestion
         const cel_status = cel.detectCelStatus(b);
@@ -89,19 +84,22 @@ pub fn build(b: *std.Build) void {
     link.applyAllPlatformLinks(exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     if (is_blocked_darwin) {
         exe.use_llvm = true;
-        exe.use_lld = true;
+        // Compile-only: don't install or run (linker is broken)
+        b.step("run", "Run the ABI CLI (unavailable on blocked Darwin)").dependOn(&exe.step);
+        b.step("editor", "Run the inline CLI TUI editor (unavailable on blocked Darwin)").dependOn(&exe.step);
+    } else {
+        b.installArtifact(exe);
+
+        const run_cli = b.addRunArtifact(exe);
+        if (b.args) |args| run_cli.addArgs(args);
+        b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
+
+        const run_editor = b.addRunArtifact(exe);
+        run_editor.addArg("ui");
+        run_editor.addArg("editor");
+        if (b.args) |args| run_editor.addArgs(args);
+        b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
     }
-    b.installArtifact(exe);
-
-    const run_cli = b.addRunArtifact(exe);
-    if (b.args) |args| run_cli.addArgs(args);
-    b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
-
-    const run_editor = b.addRunArtifact(exe);
-    run_editor.addArg("ui");
-    run_editor.addArg("editor");
-    if (b.args) |args| run_editor.addArgs(args);
-    b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
 
     // ── Examples (table-driven) ─────────────────────────────────────────
     const examples_step = b.step("examples", "Build all examples");
@@ -138,12 +136,15 @@ pub fn build(b: *std.Build) void {
     link.applyAllPlatformLinks(cli_tests_artifact.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     if (is_blocked_darwin) {
         cli_tests_artifact.use_llvm = true;
-        cli_tests_artifact.use_lld = true;
     }
-    const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
-    run_cli_tests.skip_foreign_checks = true;
     tui_tests_step = b.step("tui-tests", "Run TUI and CLI unit tests");
-    tui_tests_step.?.dependOn(&run_cli_tests.step);
+    if (is_blocked_darwin) {
+        tui_tests_step.?.dependOn(&cli_tests_artifact.step);
+    } else {
+        const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
+        run_cli_tests.skip_foreign_checks = true;
+        tui_tests_step.?.dependOn(&run_cli_tests.step);
+    }
 
     if (targets.pathExists(b, "tools/cli/launcher_tests_root.zig")) {
         const launcher_tests_mod = b.createModule(.{
@@ -159,13 +160,16 @@ pub fn build(b: *std.Build) void {
         });
         if (is_blocked_darwin) {
             launcher_tests.use_llvm = true;
-            launcher_tests.use_lld = true;
         }
-        const run_launcher_tests = b.addRunArtifact(launcher_tests);
-        run_launcher_tests.skip_foreign_checks = true;
 
         launcher_tests_step = b.step("launcher-tests", "Run focused launcher and shell editor tests");
-        launcher_tests_step.?.dependOn(&run_launcher_tests.step);
+        if (is_blocked_darwin) {
+            launcher_tests_step.?.dependOn(&launcher_tests.step);
+        } else {
+            const run_launcher_tests = b.addRunArtifact(launcher_tests);
+            run_launcher_tests.skip_foreign_checks = true;
+            launcher_tests_step.?.dependOn(&run_launcher_tests.step);
+        }
     }
 
     // ── Lint / format ───────────────────────────────────────────────────
@@ -193,7 +197,6 @@ pub fn build(b: *std.Build) void {
         link.applyAllPlatformLinks(tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
         if (is_blocked_darwin) {
             tests.use_llvm = true;
-            tests.use_lld = true;
         }
         typecheck_step = b.step("typecheck", "Compile tests without running");
         typecheck_step.?.dependOn(&tests.step);
@@ -209,7 +212,6 @@ pub fn build(b: *std.Build) void {
             });
             if (is_blocked_darwin) {
                 neural_wdbx_tests.use_llvm = true;
-                neural_wdbx_tests.use_lld = true;
             }
             typecheck_step.?.dependOn(&neural_wdbx_tests.step);
         }
@@ -228,21 +230,28 @@ pub fn build(b: *std.Build) void {
             link.applyAllPlatformLinks(wdbx_fast_tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
             if (is_blocked_darwin) {
                 wdbx_fast_tests.use_llvm = true;
-                wdbx_fast_tests.use_lld = true;
             }
 
-            const run_wdbx_fast_tests = b.addRunArtifact(wdbx_fast_tests);
-            run_wdbx_fast_tests.skip_foreign_checks = true;
-
-            wdbx_fast_tests_step = b.step("wdbx-fast-tests", "Run focused WDBX and database adapter tests");
-            wdbx_fast_tests_step.?.dependOn(&run_wdbx_fast_tests.step);
+            wdbx_fast_tests_step = b.step("wdbx-fast-tests", "Run focused WDBX and database adapter tests (typecheck-only on blocked Darwin)");
+            if (is_blocked_darwin) {
+                wdbx_fast_tests_step.?.dependOn(&wdbx_fast_tests.step);
+            } else {
+                const run_wdbx_fast_tests = b.addRunArtifact(wdbx_fast_tests);
+                run_wdbx_fast_tests.skip_foreign_checks = true;
+                wdbx_fast_tests_step.?.dependOn(&run_wdbx_fast_tests.step);
+            }
             typecheck_step.?.dependOn(&wdbx_fast_tests.step);
         }
 
-        const run_tests = b.addRunArtifact(tests);
-        run_tests.skip_foreign_checks = true;
         test_step = b.step("test", "Run unit tests");
-        test_step.?.dependOn(&run_tests.step);
+        if (is_blocked_darwin) {
+            // On blocked Darwin, "test" becomes typecheck-only (no linking/running)
+            test_step.?.dependOn(&tests.step);
+        } else {
+            const run_tests = b.addRunArtifact(tests);
+            run_tests.skip_foreign_checks = true;
+            test_step.?.dependOn(&run_tests.step);
+        }
     }
 
     // ── Feature tests (manifest-driven) ─────────────────────────────────
@@ -253,23 +262,58 @@ pub fn build(b: *std.Build) void {
 
     // ── Import rule check ───────────────────────────────────────────────
     const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
-    import_check_step.dependOn(&addScriptRunner(b, "abi-check-import-rules", "tools/scripts/check_import_rules.zig", target, optimize).step);
+    import_check_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-import-rules",
+        "tools/scripts/check_import_rules.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     // ── Consistency checks ──────────────────────────────────────────────
     const toolchain_doctor_step = b.step("toolchain-doctor", "Diagnose local Zig PATH/version drift against repository pin");
-    toolchain_doctor_step.dependOn(&addScriptRunner(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize).step);
+    toolchain_doctor_step.dependOn(addHostScriptStep(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize, &.{}));
 
     const check_zig_version_step = b.step("check-zig-version", "Verify Zig version consistency");
-    check_zig_version_step.dependOn(&addScriptRunner(b, "abi-check-zig-version-consistency", "tools/scripts/check_zig_version_consistency.zig", target, optimize).step);
+    check_zig_version_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-zig-version-consistency",
+        "tools/scripts/check_zig_version_consistency.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     const check_test_baseline_step = b.step("check-test-baseline", "Verify test baseline consistency");
-    check_test_baseline_step.dependOn(&addScriptRunner(b, "abi-check-test-baseline-consistency", "tools/scripts/check_test_baseline_consistency.zig", target, optimize).step);
+    check_test_baseline_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-test-baseline-consistency",
+        "tools/scripts/check_test_baseline_consistency.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     const check_zig_016_patterns_step = b.step("check-zig-016-patterns", "Verify Zig 0.16 conformance patterns");
-    check_zig_016_patterns_step.dependOn(&addScriptRunner(b, "abi-check-zig-016-patterns", "tools/scripts/check_zig_016_patterns.zig", target, optimize).step);
+    check_zig_016_patterns_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-zig-016-patterns",
+        "tools/scripts/check_zig_016_patterns.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     const check_feature_catalog_step = b.step("check-feature-catalog", "Verify feature catalog consistency");
-    check_feature_catalog_step.dependOn(&addScriptRunner(b, "abi-check-feature-catalog", "tools/scripts/check_feature_catalog.zig", target, optimize).step);
+    check_feature_catalog_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-feature-catalog",
+        "tools/scripts/check_feature_catalog.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     var check_gpu_policy_step: ?*std.Build.Step = null;
     if (targets.pathExists(b, "tools/scripts/check_gpu_policy_consistency.zig")) {
@@ -297,88 +341,92 @@ pub fn build(b: *std.Build) void {
         });
         if (is_blocked_darwin) {
             check_gpu_policy_exe.use_llvm = true;
-            check_gpu_policy_exe.use_lld = true;
         }
         check_gpu_policy_step = b.step("check-gpu-policy", "Verify GPU policy consistency");
-        check_gpu_policy_step.?.dependOn(&b.addRunArtifact(check_gpu_policy_exe).step);
+        check_gpu_policy_step.?.dependOn(
+            if (is_blocked_darwin) &check_gpu_policy_exe.step else &b.addRunArtifact(check_gpu_policy_exe).step,
+        );
     }
 
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
-    ralph_gate_step.dependOn(&addScriptRunner(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize).step);
+    ralph_gate_step.dependOn(addHostScriptStep(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize, &.{}));
 
     const workflow_contract_step = b.step("check-workflow-orchestration", "Advisory workflow-orchestration contract checks");
-    workflow_contract_step.dependOn(&addScriptRunner(
+    workflow_contract_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-workflow-orchestration",
         "tools/scripts/check_workflow_orchestration.zig",
         target,
         optimize,
-    ).step);
+        &.{},
+    ));
 
     const workflow_contract_strict_step = b.step("check-workflow-orchestration-strict", "Strict workflow-orchestration contract checks");
-    const workflow_contract_strict = addScriptRunner(
+    workflow_contract_strict_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-workflow-orchestration-strict",
         "tools/scripts/check_workflow_orchestration.zig",
         target,
         optimize,
-    );
-    workflow_contract_strict.addArg("--strict");
-    workflow_contract_strict_step.dependOn(&workflow_contract_strict.step);
+        &.{"--strict"},
+    ));
 
-    // ── CEL toolchain steps ──────────────────────────────────────────────
+    // ── Zig bootstrap steps ──────────────────────────────────────────────
+    _ = cel.addZigBootstrapCheckStep(b);
+    _ = cel.addZigBootstrapBuildStep(b);
+    _ = cel.addZigBootstrapStatusStep(b);
+    _ = cel.addZigBootstrapVerifyStep(b);
     _ = cel.addCelCheckStep(b);
     _ = cel.addCelBuildStep(b);
     _ = cel.addCelStatusStep(b);
     _ = cel.addCelVerifyStep(b);
 
-    const cel_doctor_step = b.step("cel-doctor", "Run .cel toolchain diagnostics and remediation");
-    cel_doctor_step.dependOn(&addScriptRunner(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize).step);
+    const zig_bootstrap_doctor_step = b.step("zig-bootstrap-doctor", "Run Zig bootstrap diagnostics and remediation");
+    zig_bootstrap_doctor_step.dependOn(addHostScriptStep(b, "abi-zig-bootstrap-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}));
+
+    const cel_doctor_step = b.step("cel-doctor", "Deprecated alias for zig-bootstrap-doctor");
+    cel_doctor_step.dependOn(addHostScriptStep(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}));
 
     // ── CLI DSL registry/codegen ───────────────────────────────────────
-    const generate_cli_registry = addScriptRunner(
+    const generate_cli_registry_step = b.step("generate-cli-registry", "Generate CLI registry artifact in build cache");
+    generate_cli_registry_step.dependOn(addHostScriptStep(
         b,
         "abi-generate-cli-registry",
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
-    );
-    generate_cli_registry.addArg("--output");
-    generate_cli_registry.addArg(".zig-cache/abi/generated/cli_registry.zig");
-    const generate_cli_registry_step = b.step("generate-cli-registry", "Generate CLI registry artifact in build cache");
-    generate_cli_registry_step.dependOn(&generate_cli_registry.step);
+        &.{ "--output", ".zig-cache/abi/generated/cli_registry.zig" },
+    ));
 
-    const refresh_cli_registry = addScriptRunner(
+    const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
+    refresh_cli_registry_step.dependOn(addHostScriptStep(
         b,
         "abi-refresh-cli-registry",
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
-    );
-    refresh_cli_registry.addArg("--snapshot");
-    const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
-    refresh_cli_registry_step.dependOn(&refresh_cli_registry.step);
+        &.{"--snapshot"},
+    ));
 
-    const check_cli_registry = addScriptRunner(
+    const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
+    check_cli_registry_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-cli-registry",
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
-    );
-    check_cli_registry.addArg("--check");
-    check_cli_registry.addArg("--snapshot");
-    const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
-    check_cli_registry_step.dependOn(&check_cli_registry.step);
+        &.{ "--check", "--snapshot" },
+    ));
 
     const check_cli_dsl_consistency_step = b.step("check-cli-dsl-consistency", "Verify CLI/TUI DSL organization contracts");
-    check_cli_dsl_consistency_step.dependOn(&addScriptRunner(
+    check_cli_dsl_consistency_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-cli-dsl-consistency",
         "tools/scripts/check_cli_dsl_consistency.zig",
         target,
         optimize,
-    ).step);
+        &.{},
+    ));
 
     // ── Full check ──────────────────────────────────────────────────────
     const full_check_step = b.step("full-check", "Run the local confidence gate across deterministic leaf checks");
@@ -435,13 +483,16 @@ pub fn build(b: *std.Build) void {
             });
             if (is_blocked_darwin) {
                 gendocs_source_tests.use_llvm = true;
-                gendocs_source_tests.use_lld = true;
             }
-            const run_gendocs_source_tests = b.addRunArtifact(gendocs_source_tests);
-            run_gendocs_source_tests.skip_foreign_checks = true;
 
             gendocs_source_tests_step = b.step("gendocs-source-tests", "Run focused gendocs CLI source discovery tests");
-            gendocs_source_tests_step.?.dependOn(&run_gendocs_source_tests.step);
+            if (is_blocked_darwin) {
+                gendocs_source_tests_step.?.dependOn(&gendocs_source_tests.step);
+            } else {
+                const run_gendocs_source_tests = b.addRunArtifact(gendocs_source_tests);
+                run_gendocs_source_tests.skip_foreign_checks = true;
+                gendocs_source_tests_step.?.dependOn(&run_gendocs_source_tests.step);
+            }
             full_check_step.dependOn(gendocs_source_tests_step.?);
         }
 
@@ -451,19 +502,27 @@ pub fn build(b: *std.Build) void {
         });
         if (is_blocked_darwin) {
             gendocs.use_llvm = true;
-            gendocs.use_lld = true;
         }
-        const run_gendocs = b.addRunArtifact(gendocs);
-        if (b.args) |args| run_gendocs.addArgs(args);
-        b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
+        if (is_blocked_darwin) {
+            // On blocked Darwin, gendocs/check-docs become compile-only
+            b.step("gendocs", "Generate docs (compile-only on blocked Darwin)").dependOn(&gendocs.step);
+            const docs_check = b.step("check-docs", "Validate docs (compile-only on blocked Darwin)");
+            docs_check.dependOn(&gendocs.step);
+            check_docs_step = docs_check;
+            full_check_step.dependOn(docs_check);
+        } else {
+            const run_gendocs = b.addRunArtifact(gendocs);
+            if (b.args) |args| run_gendocs.addArgs(args);
+            b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
 
-        const run_check_docs = b.addRunArtifact(gendocs);
-        run_check_docs.addArg("--check");
-        run_check_docs.addArg("--untracked-md");
-        const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
-        docs_check.dependOn(&run_check_docs.step);
-        check_docs_step = docs_check;
-        full_check_step.dependOn(docs_check);
+            const run_check_docs = b.addRunArtifact(gendocs);
+            run_check_docs.addArg("--check");
+            run_check_docs.addArg("--untracked-md");
+            const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
+            docs_check.dependOn(&run_check_docs.step);
+            check_docs_step = docs_check;
+            full_check_step.dependOn(docs_check);
+        }
     }
 
     // ── Profile build ───────────────────────────────────────────────────
@@ -487,10 +546,11 @@ pub fn build(b: *std.Build) void {
     link.applyAllPlatformLinks(profile_mod, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     if (is_blocked_darwin) {
         profile_exe.use_llvm = true;
-        profile_exe.use_lld = true;
+        b.step("profile", "Build with performance profiling (compile-only on blocked Darwin)").dependOn(&profile_exe.step);
+    } else {
+        b.installArtifact(profile_exe);
+        b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
     }
-    b.installArtifact(profile_exe);
-    b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
 
     // ── Mobile ──────────────────────────────────────────────────────────
     _ = mobile.addMobileBuild(b, options, optimize);
@@ -541,10 +601,9 @@ pub fn build(b: *std.Build) void {
         });
         if (is_blocked_darwin) {
             check_perf_exe.use_llvm = true;
-            check_perf_exe.use_lld = true;
         }
         b.step("check-perf", "Build performance verification tool (pipe benchmark JSON to run)")
-            .dependOn(&b.addInstallArtifact(check_perf_exe, .{}).step);
+            .dependOn(if (is_blocked_darwin) &check_perf_exe.step else &b.addInstallArtifact(check_perf_exe, .{}).step);
     }
 
     // ── WASM ────────────────────────────────────────────────────────────
@@ -614,7 +673,7 @@ pub fn build(b: *std.Build) void {
 
     // V3 Server executable
     const v3_server_mod = b.createModule(.{
-        .root_source_file = b.path("src/server_main.zig"),
+        .root_source_file = b.path("tools/server/main.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
@@ -628,9 +687,10 @@ pub fn build(b: *std.Build) void {
     });
     if (is_blocked_darwin) {
         v3_server.use_llvm = true;
-        v3_server.use_lld = true;
     }
-    b.step("v3-server", "Build v3 server executable").dependOn(&b.addInstallArtifact(v3_server, .{}).step);
+    b.step("v3-server", "Build v3 server executable").dependOn(
+        if (is_blocked_darwin) &v3_server.step else &b.addInstallArtifact(v3_server, .{}).step,
+    );
 
     // V3 Tests
     const v3_test_mod = b.createModule(.{
@@ -646,30 +706,9 @@ pub fn build(b: *std.Build) void {
     });
     if (is_blocked_darwin) {
         v3_tests.use_llvm = true;
-        v3_tests.use_lld = true;
     }
     const v3_test_step = b.step("v3-test", "Run v3 module tests");
-    v3_test_step.dependOn(&b.addRunArtifact(v3_tests).step);
-
-    // V3 Benchmarks
-    const v3_bench_mod = b.createModule(.{
-        .root_source_file = b.path("src/bench.zig"),
-        .target = target,
-        .optimize = .ReleaseFast,
-    });
-    v3_bench_mod.addImport("abi", abi_module);
-    v3_bench_mod.addImport("wdbx", wdbx_module);
-
-    const v3_bench = b.addExecutable(.{
-        .name = "abi-bench",
-        .root_module = v3_bench_mod,
-    });
-    if (is_blocked_darwin) {
-        v3_bench.use_llvm = true;
-        v3_bench.use_lld = true;
-    }
-    const v3_bench_step = b.step("v3-bench", "Run v3 benchmarks");
-    v3_bench_step.dependOn(&b.addRunArtifact(v3_bench).step);
+    v3_test_step.dependOn(if (is_blocked_darwin) &v3_tests.step else &b.addRunArtifact(v3_tests).step);
 
     // ── Verify-all ──────────────────────────────────────────────────────
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
@@ -742,9 +781,25 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
     return b.resolveTargetQuery(query);
 }
 
-/// Build and run a standalone Zig script (used for consistency checks, gate
-/// checks, etc.).  Returns the `Run` step so callers can add arguments or
-/// set dependencies.
+/// Build and run a standalone Zig script (used for generators, doctors,
+/// commands, and gates that still execute on the active host).
+fn addHostScriptStep(
+    b: *std.Build,
+    name: []const u8,
+    source: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    args: []const []const u8,
+) *std.Build.Step {
+    if (is_blocked_darwin) {
+        return addScriptCompileOnly(b, name, source, target, optimize);
+    }
+
+    const run = addScriptRunner(b, name, source, target, optimize);
+    for (args) |arg| run.addArg(arg);
+    return &run.step;
+}
+
 fn addScriptRunner(
     b: *std.Build,
     name: []const u8,
@@ -761,9 +816,48 @@ fn addScriptRunner(
             .link_libc = true,
         }),
     });
+
     if (is_blocked_darwin) {
         exe.use_llvm = true;
-        exe.use_lld = true;
     }
     return b.addRunArtifact(exe);
+}
+
+/// Get just the compile step from a script runner (for blocked Darwin where
+/// the host cannot execute standalone Zig validation binaries reliably).
+fn addScriptCompileOnly(
+    b: *std.Build,
+    name: []const u8,
+    source: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Step {
+    const obj = b.addObject(.{
+        .name = name,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(source),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    obj.use_llvm = true;
+    return &obj.step;
+}
+
+fn addValidationScriptStep(
+    b: *std.Build,
+    name: []const u8,
+    source: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    args: []const []const u8,
+) *std.Build.Step {
+    if (is_blocked_darwin) {
+        return addScriptCompileOnly(b, name, source, target, optimize);
+    }
+
+    const run = addScriptRunner(b, name, source, target, optimize);
+    for (args) |arg| run.addArg(arg);
+    return &run.step;
 }

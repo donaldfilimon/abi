@@ -6,7 +6,8 @@
 //! ## Modules
 //! - `App` / `AppBuilder`: Primary runtime orchestration types
 //! - `wdbx`: Vector database with HNSW indexing and SIMD distance functions
-//! - `personas`: Multi-persona system with Abbey, Aviva, and Abi moderator
+//! - `profiles`: Behavior-based interaction profiles (Canonical v3)
+//! - `personas`: Legacy multi-persona shim (Abbey, Aviva, Abi)
 //! - `inference`: Token generation with paged KV-cache and priority scheduling
 //! - `api`: REST API server with OpenAI-compatible endpoints
 
@@ -25,10 +26,10 @@ pub const quantize = @import("wdbx/quantize.zig");
 pub const engine = @import("wdbx/engine.zig");
 pub const distance = @import("wdbx/distance.zig");
 
-// ── Persona System ──────────────────────────────────────────────────────
-pub const personas = @import("personas/personas.zig");
-pub const routing = @import("personas/routing.zig");
-pub const safety = @import("personas/safety.zig");
+// ── AI Profiles & Personas ──────────────────────────────────────────────
+pub const profiles = @import("features/ai/profiles/mod.zig");
+pub const personas = @import("features/ai/personas/mod.zig");
+pub const routing = @import("features/ai/personas/routing/mod.zig");
 
 // ── Inference Engine ────────────────────────────────────────────────────
 pub const sampler = @import("inference/sampler.zig");
@@ -46,8 +47,8 @@ pub const server = @import("api_server/server.zig");
 pub const Database = engine.Engine;
 pub const HnswIndex = hnsw.HNSW;
 pub const Distance = distance.Distance;
-pub const PersonaType = personas.PersonaType;
-pub const AbiModerator = routing.AbiModerator;
+pub const PersonaType = profiles.LegacyPersonaType;
+pub const BehaviorProfile = profiles.BehaviorProfile;
 pub const Engine = engine.Engine;
 pub const InferenceEngine = inference_engine.Engine;
 pub const Server = server.Server;

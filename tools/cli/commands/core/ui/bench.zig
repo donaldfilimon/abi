@@ -3,10 +3,16 @@
 //! Interactive TUI dashboard for viewing benchmark suite status and throughput.
 
 const std = @import("std");
+const command = @import("../../../command.zig");
 const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
 const utils = @import("../../../utils/mod.zig");
 const dsl = @import("../../../terminal/dsl/mod.zig");
+
+pub const meta: command.Meta = .{
+    .name = "bench",
+    .description = "Interactive TUI dashboard for benchmark suite status and throughput",
+};
 
 const PanelType = tui.BenchmarkPanel;
 const Dash = tui.dashboard.Dashboard(PanelType);

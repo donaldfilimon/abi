@@ -8,6 +8,81 @@ const abi = @import("abi");
 const core = @import("../../core/mod.zig");
 const framework = @import("../../system/framework.zig");
 
+pub const EuclideanHNSW = struct {
+    allocator: std.mem.Allocator,
+    vectors: std.ArrayListUnmanaged([]f32) = .empty,
+    ids: std.ArrayListUnmanaged(u64) = .empty,
+
+    pub const SearchResult = struct {
+        id: u64,
+        score: f32,
+    };
+
+    const ScoredResult = struct {
+        id: u64,
+        distance: f32,
+    };
+
+    pub fn init(allocator: std.mem.Allocator, _: usize, _: usize) EuclideanHNSW {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *EuclideanHNSW) void {
+        for (self.vectors.items) |vector| {
+            self.allocator.free(vector);
+        }
+        self.vectors.deinit(self.allocator);
+        self.ids.deinit(self.allocator);
+    }
+
+    pub fn insert(self: *EuclideanHNSW, vector: []const f32, id: u64, _: anytype) !void {
+        const copy = try self.allocator.dupe(f32, vector);
+        try self.vectors.append(self.allocator, copy);
+        errdefer {
+            _ = self.vectors.pop();
+            self.allocator.free(copy);
+        }
+        try self.ids.append(self.allocator, id);
+    }
+
+    pub fn search(self: *const EuclideanHNSW, query: []const f32, top_k: usize, _: usize) ![]SearchResult {
+        var scored = try self.allocator.alloc(ScoredResult, self.vectors.items.len);
+        defer self.allocator.free(scored);
+
+        for (self.vectors.items, self.ids.items, 0..) |vector, id, idx| {
+            scored[idx] = .{
+                .id = id,
+                .distance = core.distance.compute(.euclidean_sq, vector, query),
+            };
+        }
+
+        std.mem.sort(ScoredResult, scored, {}, struct {
+            fn lessThan(_: void, lhs: ScoredResult, rhs: ScoredResult) bool {
+                return lhs.distance < rhs.distance;
+            }
+        }.lessThan);
+
+        const limit = @min(top_k, scored.len);
+        const results = try self.allocator.alloc(SearchResult, limit);
+        for (scored[0..limit], 0..) |entry, idx| {
+            results[idx] = .{
+                .id = entry.id,
+                .score = -entry.distance,
+            };
+        }
+        return results;
+    }
+
+    pub fn estimateMemoryUsage(self: *const EuclideanHNSW) u64 {
+        var bytes: u64 = @sizeOf(EuclideanHNSW);
+        bytes += @as(u64, @intCast(self.ids.items.len * @sizeOf(u64)));
+        for (self.vectors.items) |vector| {
+            bytes += @as(u64, @intCast(vector.len * @sizeOf(f32)));
+        }
+        return bytes;
+    }
+};
+
 pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.DatabaseBenchConfig) !void {
     var runner = framework.BenchmarkRunner.init(allocator);
     defer runner.deinit();
@@ -25,7 +100,7 @@ pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.Datab
             defer core.vectors.free(allocator, vectors);
 
             // 2. Benchmark Construction
-            var index: abi.HnswIndex = undefined;
+            var index: EuclideanHNSW = undefined;
             {
                 var name_buf: [64]u8 = undefined;
                 const name = std.fmt.bufPrint(&name_buf, "hnsw_build_{d}x{d}", .{ size, dim }) catch "hnsw_build";
@@ -38,21 +113,21 @@ pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.Datab
                         .max_iterations = 1, // Only build once for benchmark
                     },
                     struct {
-                        fn bench(a: std.mem.Allocator, vecs: [][]const f32) !abi.HnswIndex {
-                            var idx = try abi.HnswIndex.init(a, .{}, .cosine);
-                            for (vecs) |v| {
-                                _ = try idx.insert(v);
+                        fn bench(a: std.mem.Allocator, vecs: [][]f32, val_dim: usize) !EuclideanHNSW {
+                            var idx = EuclideanHNSW.init(a, val_dim, 16);
+                            for (vecs, 0..) |v, i| {
+                                try idx.insert(v, @intCast(i), {});
                             }
                             return idx;
                         }
                     }.bench,
-                    .{ allocator, vectors },
+                    .{ allocator, vectors, dim },
                 );
 
                 // Keep the index for search benchmarks
-                index = try abi.HnswIndex.init(allocator, .{}, .cosine);
-                for (vectors) |v| {
-                    _ = try index.insert(v);
+                index = EuclideanHNSW.init(allocator, dim, 16);
+                for (vectors, 0..) |v, i| {
+                    try index.insert(v, @intCast(i), {});
                 }
             }
             defer index.deinit();
@@ -73,14 +148,14 @@ pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.Datab
                         .min_time_ns = 100_000_000,
                     },
                     struct {
-                        fn bench(idx: *abi.HnswIndex, qs: [][]const f32, val_k: usize) !void {
+                        fn bench(idx: *EuclideanHNSW, qs: [][]f32, val_k: usize, a: std.mem.Allocator) !void {
                             for (qs) |q| {
                                 const results = try idx.search(q, val_k, 64);
-                                allocator.free(results);
+                                a.free(results);
                             }
                         }
                     }.bench,
-                    .{ &index, queries, k },
+                    .{ &index, queries, k, allocator },
                 );
             }
         }

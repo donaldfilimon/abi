@@ -108,11 +108,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     , .{ name_owned, desc_buf, body });
     defer allocator.free(content);
 
-    // Use shell mkdir -p for both relative and absolute paths
-    var mkdir_child = std.process.Child.init(&.{ "mkdir", "-p", dir_path }, allocator);
-    mkdir_child.stdout_behavior = .Ignore;
-    mkdir_child.stderr_behavior = .Ignore;
-    _ = try mkdir_child.spawnAndWait();
+    try utils.process.runChecked(io, &.{ "mkdir", "-p", dir_path }, .ignore, .ignore);
 
     const dir = std.Io.Dir.cwd();
     try dir.writeFile(io, .{ .sub_path = file_path, .data = content });

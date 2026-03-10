@@ -793,8 +793,10 @@ test "hmac" {
 test "encryption" {
     var key: [32]u8 = undefined;
     var nonce: [12]u8 = undefined;
-    crypto.random.bytes(&key);
-    crypto.random.bytes(&nonce);
+    var prng = std.Random.DefaultPrng.init(0xC0FFEE);
+    const random = prng.random();
+    random.bytes(&key);
+    random.bytes(&nonce);
 
     const plaintext = "Hello, World!";
     var ciphertext: [plaintext.len]u8 = undefined;

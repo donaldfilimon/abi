@@ -1,0 +1,20 @@
+[package]
+name = "abi"
+version = "0.2.0-stage0"
+language = "cel"
+
+[layout]
+module_root = "."
+stdlib_root = "stdlib/cel"
+entry = "examples/cel/hello.cel"
+
+[tests]
+roots = ["tests/cel"]
+
+[toolchain]
+mode = "stage0-c11"
+
+[stage0]
+compiler = "tools/cel/stage0/main.c"
+wrapper = "./cel"
+cache_dir = ".cel-stage0"

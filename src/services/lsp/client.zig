@@ -1,12 +1,105 @@
 //! ZLS LSP client (JSON-RPC over stdio).
 
 const std = @import("std");
-const config_mod = @import("../../core/config/mod.zig");
 const jsonrpc = @import("jsonrpc.zig");
 const types = @import("types.zig");
-const zig_toolchain = @import("../shared/utils/zig_toolchain.zig");
 
-pub const Config = config_mod.LspConfig;
+// Inline LspConfig to avoid cross-directory import to ../../core/config/.
+// Canonical definition: src/core/config/lsp.zig — keep in sync.
+pub const Config = struct {
+    zls_path: []const u8 = "zls",
+    zig_exe_path: ?[]const u8 = null,
+    workspace_root: ?[]const u8 = null,
+    log_level: []const u8 = "info",
+    enable_snippets: bool = true,
+
+    pub fn defaults() Config {
+        return .{};
+    }
+};
+
+// Inline toolchain resolution to avoid cross-directory relative imports
+// that break standalone compilation and ZLS analysis. The canonical
+// implementation lives in src/services/shared/utils/zig_toolchain.zig.
+const zig_toolchain = struct {
+    const builtin = @import("builtin");
+
+    fn zigBinaryName() []const u8 {
+        return if (builtin.os.tag == .windows) "zig.exe" else "zig";
+    }
+
+    pub fn zlsBinaryName() []const u8 {
+        return if (builtin.os.tag == .windows) "zls.exe" else "zls";
+    }
+
+    pub fn resolveExistingPreferredZigPath(
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        start_path: []const u8,
+    ) !?[]u8 {
+        if (try resolveExistingRepoLocalCelToolPath(allocator, io, start_path, zigBinaryName())) |path| {
+            return path;
+        }
+        // ZVM master fallback
+        const home_ptr = std.c.getenv("HOME") orelse std.c.getenv("USERPROFILE") orelse return null;
+        const home = std.mem.span(home_ptr);
+        const zvm_path = try std.fs.path.join(allocator, &.{ home, ".zvm", "master", zigBinaryName() });
+        if (!fileExistsAbsolute(io, zvm_path)) {
+            allocator.free(zvm_path);
+            return null;
+        }
+        return zvm_path;
+    }
+
+    pub fn resolveExistingRepoLocalCelToolPath(
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        start_path: []const u8,
+        tool_name: []const u8,
+    ) !?[]u8 {
+        const repo_root = try findAbiRepoRoot(allocator, io, start_path) orelse return null;
+        defer allocator.free(repo_root);
+        const tool_path = try std.fs.path.join(allocator, &.{ repo_root, ".cel", "bin", tool_name });
+        if (!fileExistsAbsolute(io, tool_path)) {
+            allocator.free(tool_path);
+            return null;
+        }
+        return tool_path;
+    }
+
+    fn findAbiRepoRoot(allocator: std.mem.Allocator, io: std.Io, start_path: []const u8) !?[]u8 {
+        var current = try std.fs.path.resolve(allocator, &.{start_path});
+        errdefer allocator.free(current);
+        while (true) {
+            if (try looksLikeAbiRepoRoot(allocator, io, current)) return current;
+            const parent = std.fs.path.dirname(current) orelse break;
+            if (std.mem.eql(u8, parent, current)) break;
+            const next = try allocator.dupe(u8, parent);
+            allocator.free(current);
+            current = next;
+        }
+        allocator.free(current);
+        return null;
+    }
+
+    fn looksLikeAbiRepoRoot(allocator: std.mem.Allocator, io: std.Io, root_path: []const u8) !bool {
+        const build_zig = try std.fs.path.join(allocator, &.{ root_path, "build.zig" });
+        defer allocator.free(build_zig);
+        if (!fileExistsAbsolute(io, build_zig)) return false;
+        const abi_root = try std.fs.path.join(allocator, &.{ root_path, "src", "abi.zig" });
+        defer allocator.free(abi_root);
+        if (!fileExistsAbsolute(io, abi_root)) return false;
+        const cel_build = try std.fs.path.join(allocator, &.{ root_path, ".cel", "build.sh" });
+        defer allocator.free(cel_build);
+        return fileExistsAbsolute(io, cel_build);
+    }
+
+    fn fileExistsAbsolute(io: std.Io, path: []const u8) bool {
+        const file = std.Io.Dir.openFileAbsolute(io, path, .{}) catch return false;
+        file.close(io);
+        return true;
+    }
+};
 
 pub const Response = struct {
     json: []u8,
@@ -26,6 +119,7 @@ pub const Client = struct {
     max_payload_bytes: usize,
     root_path: []u8,
     root_uri: []u8,
+    owned_zls_path: ?[]u8,
     owned_zig_path: ?[]u8,
 
     const Self = @This();
@@ -37,7 +131,10 @@ pub const Client = struct {
         const root_uri = try pathToUri(allocator, root_path);
         errdefer allocator.free(root_uri);
 
-        const argv = [_][]const u8{config.zls_path};
+        const zls_path = try resolveZlsPath(allocator, io, config, root_path);
+        errdefer if (zls_path.owned) |owned| allocator.free(owned);
+
+        const argv = [_][]const u8{zls_path.path};
         var child = try std.process.spawn(io, .{
             .argv = &argv,
             .stdin = .pipe,
@@ -65,6 +162,7 @@ pub const Client = struct {
             .max_payload_bytes = 8 * 1024 * 1024,
             .root_path = root_path,
             .root_uri = root_uri,
+            .owned_zls_path = zls_path.owned,
             .owned_zig_path = null,
         };
 
@@ -82,6 +180,9 @@ pub const Client = struct {
         }
         self.allocator.free(self.root_path);
         self.allocator.free(self.root_uri);
+        if (self.owned_zls_path) |owned| {
+            self.allocator.free(owned);
+        }
         if (self.owned_zig_path) |owned| {
             self.allocator.free(owned);
         }
@@ -294,7 +395,7 @@ pub const Client = struct {
     }
 
     fn initialize(self: *Self) !void {
-        const zig_path = try resolveZigPath(self.allocator, self.io, self.config);
+        const zig_path = try resolveZigPath(self.allocator, self.io, self.config, self.root_path);
         self.owned_zig_path = zig_path.owned;
 
         const root_name = std.fs.path.basename(self.root_path);
@@ -393,24 +494,48 @@ const ZigPathResult = struct {
     owned: ?[]u8,
 };
 
+const ZlsPathResult = struct {
+    path: []const u8,
+    owned: ?[]u8,
+};
+
 fn resolveZigPath(
     allocator: std.mem.Allocator,
     io: std.Io,
     config: Config,
+    root_path: []const u8,
 ) !ZigPathResult {
     if (config.zig_exe_path) |path| {
         return .{ .path = path, .owned = null };
     }
 
-    const candidate = zig_toolchain.resolveExistingZvmMasterZigPath(allocator, io) catch return .{
-        .path = null,
-        .owned = null,
-    };
-    if (candidate == null) {
-        return .{ .path = null, .owned = null };
+    if (try zig_toolchain.resolveExistingPreferredZigPath(allocator, io, root_path)) |candidate| {
+        return .{ .path = candidate, .owned = candidate };
     }
 
-    return .{ .path = candidate.?, .owned = candidate.? };
+    return .{ .path = null, .owned = null };
+}
+
+fn resolveZlsPath(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    config: Config,
+    root_path: []const u8,
+) !ZlsPathResult {
+    if (!std.mem.eql(u8, config.zls_path, Config.defaults().zls_path)) {
+        return .{ .path = config.zls_path, .owned = null };
+    }
+
+    if (try zig_toolchain.resolveExistingRepoLocalCelToolPath(
+        allocator,
+        io,
+        root_path,
+        zig_toolchain.zlsBinaryName(),
+    )) |candidate| {
+        return .{ .path = candidate, .owned = candidate };
+    }
+
+    return .{ .path = config.zls_path, .owned = null };
 }
 
 pub fn resolveWorkspaceRoot(
@@ -467,6 +592,117 @@ pub fn pathToUri(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
     const component = std.Uri.Component{ .raw = normalized };
     try component.formatPath(&writer.writer);
     return writer.toOwnedSlice();
+}
+
+fn createTestAbiRepo(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    repo_root: []const u8,
+    include_zig: bool,
+    include_zls: bool,
+) !void {
+    const dirs = [_][]const u8{
+        ".zig-bootstrap/bin",
+        ".cel/bin",
+        "src",
+    };
+    for (dirs) |sub| {
+        const full = try std.fs.path.join(allocator, &.{ repo_root, sub });
+        defer allocator.free(full);
+        std.Io.Dir.createDirPath(.cwd(), io, full) catch {};
+    }
+
+    const files = [_]struct { sub: []const u8, data: []const u8 }{
+        .{ .sub = "build.zig", .data = "pub fn build(_: *anyopaque) void {}\n" },
+        .{ .sub = "src/abi.zig", .data = "pub const test_value = 1;\n" },
+        .{ .sub = ".zig-bootstrap/build.sh", .data = "#!/bin/sh\n" },
+        .{ .sub = ".cel/build.sh", .data = "#!/bin/sh\n" },
+    };
+    for (files) |entry| {
+        const full = try std.fs.path.join(allocator, &.{ repo_root, entry.sub });
+        defer allocator.free(full);
+        const file = try std.Io.Dir.createFileAbsolute(io, full, .{});
+        try file.writeStreamingAll(io, entry.data);
+        file.close(io);
+    }
+
+    if (include_zig) {
+        const p = try std.fs.path.join(allocator, &.{ repo_root, ".zig-bootstrap/bin/zig" });
+        defer allocator.free(p);
+        const f = try std.Io.Dir.createFileAbsolute(io, p, .{});
+        f.close(io);
+    }
+    if (include_zls) {
+        const p = try std.fs.path.join(allocator, &.{ repo_root, ".zig-bootstrap/bin/zls" });
+        defer allocator.free(p);
+        const f = try std.Io.Dir.createFileAbsolute(io, p, .{});
+        f.close(io);
+    }
+}
+
+fn testRepoRootPath(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
+    const cwd = try std.process.currentPathAlloc(io, allocator);
+    defer allocator.free(cwd);
+    return std.fs.path.join(allocator, &.{ cwd, ".zig-cache", "tmp", "lsp-test-repo" });
+}
+
+fn cleanupTestRepo(allocator: std.mem.Allocator, io: std.Io, repo_root: []const u8) void {
+    std.Io.Dir.deleteTree(.cwd(), io, repo_root) catch {};
+    _ = allocator;
+}
+
+test "resolveZigPath prefers explicit override over repo-local bootstrap zig" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const repo_root = try testRepoRootPath(std.testing.allocator, io);
+    defer std.testing.allocator.free(repo_root);
+    defer cleanupTestRepo(std.testing.allocator, io, repo_root);
+
+    try createTestAbiRepo(std.testing.allocator, io, repo_root, true, false);
+
+    const result = try resolveZigPath(std.testing.allocator, io, .{
+        .zig_exe_path = "/override/zig",
+    }, repo_root);
+
+    try std.testing.expectEqualStrings("/override/zig", result.path.?);
+    try std.testing.expect(result.owned == null);
+}
+
+test "resolveZigPath prefers repo-local bootstrap zig before fallback" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const repo_root = try testRepoRootPath(std.testing.allocator, io);
+    defer std.testing.allocator.free(repo_root);
+    defer cleanupTestRepo(std.testing.allocator, io, repo_root);
+
+    try createTestAbiRepo(std.testing.allocator, io, repo_root, true, false);
+
+    const result = try resolveZigPath(std.testing.allocator, io, Config.defaults(), repo_root);
+    defer if (result.owned) |owned| std.testing.allocator.free(owned);
+
+    try std.testing.expect(result.path != null);
+    try std.testing.expect(std.mem.endsWith(u8, result.path.?, "/.zig-bootstrap/bin/zig"));
+}
+
+test "resolveZlsPath prefers repo-local bootstrap zls before PATH default" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const repo_root = try testRepoRootPath(std.testing.allocator, io);
+    defer std.testing.allocator.free(repo_root);
+    defer cleanupTestRepo(std.testing.allocator, io, repo_root);
+
+    try createTestAbiRepo(std.testing.allocator, io, repo_root, false, true);
+
+    const result = try resolveZlsPath(std.testing.allocator, io, Config.defaults(), repo_root);
+    defer if (result.owned) |owned| std.testing.allocator.free(owned);
+
+    try std.testing.expect(std.mem.endsWith(u8, result.path, "/.zig-bootstrap/bin/zls"));
 }
 
 test {

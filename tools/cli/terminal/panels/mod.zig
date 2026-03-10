@@ -4,16 +4,18 @@
 //! in the Panel vtable interface. Native panels implement the vtable directly.
 
 // Adapters (wrap existing panels)
-pub const gpu_adapter = @import("gpu_adapter.zig");
+// pub const gpu_adapter = @import("gpu_adapter.zig");
 pub const agent_adapter = @import("agent_adapter.zig");
 pub const training_adapter = @import("training_adapter.zig");
 pub const model_adapter = @import("model_adapter.zig");
 pub const streaming_adapter = @import("streaming_adapter.zig");
-pub const brain_adapter = @import("brain_adapter.zig");
+// pub const brain_adapter = @import("brain_adapter.zig");
 pub const bench_adapter = @import("bench_adapter.zig");
 pub const db_adapter = @import("db_adapter.zig");
 pub const network_adapter = @import("network_adapter.zig");
 pub const chat_adapter = @import("chat_adapter.zig");
+pub const gpu_monitor = @import("../gpu_monitor.zig");
+pub const brain_panel = @import("../brain_panel.zig");
 
 // Native panels (implement Panel vtable directly)
 pub const security_panel = @import("security_panel.zig");

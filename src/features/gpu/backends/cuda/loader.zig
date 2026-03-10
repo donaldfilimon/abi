@@ -6,18 +6,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 const shared = @import("../shared.zig");
 
-// libc import for environment access (Zig 0.16 compatible)
-const c = if (builtin.target.os.tag != .freestanding and
-    builtin.target.cpu.arch != .wasm32 and
-    builtin.target.cpu.arch != .wasm64)
-    @cImport(@cInclude("stdlib.h"))
-else
-    struct {
-        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
-            return null;
-        }
-    };
-
 pub const CuResult = enum(i32) {
     success = 0,
     invalid_value = 1,
@@ -180,11 +168,8 @@ fn getEnv(name: [:0]const u8) ?[]const u8 {
     {
         return null;
     }
-    const value_ptr = c.getenv(name.ptr);
-    if (value_ptr) |ptr| {
-        return std.mem.span(ptr);
-    }
-    return null;
+    const value_ptr = std.c.getenv(name.ptr) orelse return null;
+    return std.mem.span(value_ptr);
 }
 
 fn appendOwnedPath(

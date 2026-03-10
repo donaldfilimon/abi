@@ -66,6 +66,9 @@ fn typeErasedRender(comptime T: type) fn (*anyopaque, *terminal.Terminal, layout
     return struct {
         fn call(ptr: *anyopaque, term: *terminal.Terminal, rect: layout.Rect, theme: *const themes.Theme) anyerror!void {
             const self: *T = @ptrCast(@alignCast(ptr));
+            if (@hasDecl(T, "renderPanel")) {
+                return self.renderPanel(term, rect, theme);
+            }
             return self.render(term, rect, theme);
         }
     }.call;

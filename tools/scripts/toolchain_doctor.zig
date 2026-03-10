@@ -23,7 +23,7 @@ pub fn main(_: std.process.Init) !void {
 
     if (!(try util.commandExists(allocator, io, "zig"))) {
         std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
-        std.debug.print("Install via zvm and ensure ~/.zvm/bin is on PATH.\n", .{});
+        std.debug.print("Build bootstrap Zig via ./.zig-bootstrap/build.sh and ensure .zig-bootstrap/bin is on PATH.\n", .{});
         std.process.exit(1);
     }
 
@@ -86,27 +86,35 @@ pub fn main(_: std.process.Init) !void {
         issues += 1;
     }
 
-    const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
-    defer allocator.free(home_res.output);
-    const home = util.trimSpace(home_res.output);
-
-    const zvm_zig = try std.fmt.allocPrint(allocator, "{s}/.zvm/bin/zig", .{home});
-    defer allocator.free(zvm_zig);
-
-    if (util.fileExists(io, zvm_zig) and !std.mem.eql(u8, active_zig, zvm_zig)) {
-        std.debug.print("ISSUE: active zig is not the zvm-managed binary\n", .{});
+    if (util.fileExists(io, ".zig-bootstrap/bin/zig") and
+        !std.mem.endsWith(u8, active_zig, "/.zig-bootstrap/bin/zig") and
+        !std.mem.eql(u8, active_zig, ".zig-bootstrap/bin/zig"))
+    {
+        std.debug.print("ISSUE: active zig is not the repo-local bootstrap-zig wrapper\n", .{});
         issues += 1;
+    } else {
+        const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
+        defer allocator.free(home_res.output);
+        const home = util.trimSpace(home_res.output);
+
+        const zvm_zig = try std.fmt.allocPrint(allocator, "{s}/.zvm/bin/zig", .{home});
+        defer allocator.free(zvm_zig);
+
+        if (util.fileExists(io, zvm_zig) and !std.mem.eql(u8, active_zig, zvm_zig)) {
+            std.debug.print("ISSUE: active zig is not the zvm-managed binary\n", .{});
+            issues += 1;
+        }
     }
 
-    // ── CEL toolchain check ────────────────────────────────────────────
-    std.debug.print(".cel toolchain:\n", .{});
+    // ── Zig bootstrap check ────────────────────────────────────────────
+    std.debug.print(".zig-bootstrap bridge:\n", .{});
     const cel_zig_exists = util.fileExists(io, ".cel/bin/zig");
     if (cel_zig_exists) {
         const cel_ver_res = util.captureCommand(allocator, io, ".cel/bin/zig version") catch null;
         if (cel_ver_res) |res| {
             defer allocator.free(res.output);
             const cel_ver = util.trimSpace(res.output);
-            std.debug.print("  .cel/bin/zig: {s}\n", .{cel_ver});
+            std.debug.print("  .zig-bootstrap/bin/zig: {s}\n", .{cel_ver});
 
             if (std.mem.eql(u8, cel_ver, expected_version)) {
                 std.debug.print("  Version match: YES\n", .{});
@@ -115,17 +123,27 @@ pub fn main(_: std.process.Init) !void {
             }
         }
     } else if (util.fileExists(io, ".cel/build.sh")) {
-        std.debug.print("  .cel/bin/zig: NOT BUILT\n", .{});
+        std.debug.print("  .zig-bootstrap/bin/zig: NOT BUILT\n", .{});
         if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
-            std.debug.print("  ACTION: Run .cel/build.sh to build patched toolchain\n", .{});
+            std.debug.print("  ACTION: Run .zig-bootstrap/build.sh to build bootstrap Zig\n", .{});
         }
     } else {
-        std.debug.print("  .cel: not present in this checkout\n", .{});
+        std.debug.print("  .zig-bootstrap: not present in this checkout\n", .{});
     }
 
-    // Check if active zig is CEL
-    if (std.mem.indexOf(u8, active_zig, ".cel/bin") != null) {
-        std.debug.print("  Active zig source: .cel patched toolchain\n", .{});
+    if (std.mem.indexOf(u8, active_zig, ".zig-bootstrap/bin") != null) {
+        std.debug.print("  Active zig source: .zig-bootstrap wrapper\n", .{});
+    } else if (std.mem.indexOf(u8, active_zig, ".cel/bin") != null) {
+        std.debug.print("  Active zig source: legacy .cel backing toolchain\n", .{});
+    }
+    if (util.fileExists(io, ".cel/bin/zls")) {
+        const cel_zls_res = util.captureCommand(allocator, io, ".cel/bin/zls --version") catch null;
+        if (cel_zls_res) |res| {
+            defer allocator.free(res.output);
+            std.debug.print("  .zig-bootstrap/bin/zls: {s}\n", .{util.trimSpace(res.output)});
+        }
+    } else if (cel_zig_exists) {
+        std.debug.print("  .zig-bootstrap/bin/zls: NOT BUILT (run .zig-bootstrap/build.sh --zls-only)\n", .{});
     }
     std.debug.print("\n", .{});
 
@@ -136,11 +154,11 @@ pub fn main(_: std.process.Init) !void {
 
     std.debug.print("\nSuggested fix:\n", .{});
 
-    // On blocked Darwin, recommend CEL first
+    // On blocked Darwin, recommend bootstrap Zig first
     if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
-        std.debug.print("  Recommended (macOS 26+): Use the .cel patched toolchain\n", .{});
-        std.debug.print("  1) ./.cel/build.sh\n", .{});
-        std.debug.print("  2) eval \"$(./tools/scripts/use_cel.sh)\"\n", .{});
+        std.debug.print("  Recommended (macOS 26+): Use the .zig-bootstrap bridge\n", .{});
+        std.debug.print("  1) ./.zig-bootstrap/build.sh\n", .{});
+        std.debug.print("  2) eval \"$(./tools/scripts/use_zig_bootstrap.sh)\"\n", .{});
         std.debug.print("  3) zig build full-check\n", .{});
         std.debug.print("\n  Alternative: Use ZVM\n", .{});
     }

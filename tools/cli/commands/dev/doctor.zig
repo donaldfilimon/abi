@@ -4,13 +4,20 @@
 //! about the active Zig toolchain and environment.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context.zig");
-const utils = @import("../../../utils/mod.zig");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
+const utils = @import("../../utils/mod.zig");
+const process_utils = utils.process;
+
+pub const meta: command_mod.Meta = .{
+    .name = "doctor",
+    .description = "Inspect the active Zig toolchain and ABI environment",
+};
 
 /// Logic adapted from tools/scripts/toolchain_doctor.zig
 const doctor_logic = struct {
     const util = struct {
-        fn readFileAlloc(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, path: []const u8, max_size: usize) ![]u8 {
+        fn readFileAlloc(allocator: std.mem.Allocator, io: std.Io, path: []const u8, max_size: usize) ![]u8 {
             return std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(max_size));
         }
 
@@ -18,13 +25,13 @@ const doctor_logic = struct {
             return std.mem.trim(u8, s, " \n\r\t");
         }
 
-        fn commandExists(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, cmd: []const u8) !bool {
-            _ = io;
-            var child = std.process.Child.init(&[_][]const u8{ "which", cmd }, allocator);
-            child.stdout_behavior = .Ignore;
-            child.stderr_behavior = .Ignore;
-            const term = try child.spawnAndWait();
-            return term == .Exited and term.Exited == 0;
+        fn commandExists(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8) !bool {
+            _ = allocator;
+            const term = try process_utils.run(io, &[_][]const u8{ "which", cmd }, .ignore, .ignore);
+            return switch (term) {
+                .exited => |code| code == 0,
+                else => false,
+            };
         }
 
         const CommandResult = struct {
@@ -32,25 +39,27 @@ const doctor_logic = struct {
             exit_code: u32,
         };
 
-        fn captureCommand(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, cmd: []const u8) !CommandResult {
-            _ = io;
-            const result = try std.process.Child.run(.{
-                .allocator = allocator,
+        fn captureCommand(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8) !CommandResult {
+            const result = try std.process.run(allocator, io, .{
                 .argv = &[_][]const u8{ "sh", "-c", cmd },
             });
+            defer allocator.free(result.stderr);
             return .{
                 .output = result.stdout,
-                .exit_code = if (result.term == .Exited) result.term.Exited else 1,
+                .exit_code = switch (result.term) {
+                    .exited => |code| code,
+                    else => 1,
+                },
             };
         }
 
-        fn fileExists(io: std.Io.Threaded.Io, path: []const u8) bool {
+        fn fileExists(io: std.Io, path: []const u8) bool {
             std.Io.Dir.accessAbsolute(io, path, .{}) catch return false;
             return true;
         }
     };
 
-    fn printEnvVar(allocator: std.mem.Allocator, io: std.Io.Threaded.Io, name: []const u8) !void {
+    fn printEnvVar(allocator: std.mem.Allocator, io: std.Io, name: []const u8) !void {
         const cmd = try std.fmt.allocPrint(allocator, "printf '%s' \"${s}\"", .{name});
         defer allocator.free(cmd);
 
@@ -67,7 +76,7 @@ const doctor_logic = struct {
 
     fn printCommandSummary(
         allocator: std.mem.Allocator,
-        io: std.Io.Threaded.Io,
+        io: std.Io,
         label: []const u8,
         cmd: []const u8,
     ) !void {
@@ -92,7 +101,7 @@ const doctor_logic = struct {
 
     fn printCommandFirstLine(
         allocator: std.mem.Allocator,
-        io: std.Io.Threaded.Io,
+        io: std.Io,
         label: []const u8,
         cmd: []const u8,
     ) !void {
@@ -138,7 +147,7 @@ pub fn run(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !voi
 
     if (!(try doctor_logic.util.commandExists(allocator, io, "zig"))) {
         std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
-        std.debug.print("Install via zvm and ensure ~/.zvm/bin is on PATH.\n", .{});
+        std.debug.print("Build bootstrap Zig via ./.zig-bootstrap/build.sh and ensure .zig-bootstrap/bin is on PATH.\n", .{});
         return error.ZigNotFound;
     }
 

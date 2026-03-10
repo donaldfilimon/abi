@@ -8,7 +8,7 @@ const baseline = @import("baseline.zig");
 /// Checks:
 ///   1. Platform detection (macOS version, whether CEL is needed)
 ///   2. .cel directory structure (config.sh, build.sh, patches/)
-///   3. .cel/bin/zig binary presence and version
+///   3. Backing .cel/bin/zig and .cel/bin/zls binary presence and version
 ///   4. Patch inventory and validation
 ///   5. Version consistency (.zigversion, .cel/config.sh, baseline)
 ///   6. Stock zig status and PATH precedence
@@ -25,6 +25,10 @@ pub fn main(_: std.process.Init) !void {
 
     var issues: usize = 0;
     var warnings: usize = 0;
+    var stock_zig_found = false;
+    var stock_zig_matches_pin = false;
+    var stock_build_runner_blocked = false;
+    var bootstrap_host_zig_exists = false;
 
     std.debug.print("\n", .{});
     std.debug.print("=== ABI .cel Toolchain Doctor ===\n\n", .{});
@@ -60,6 +64,7 @@ pub fn main(_: std.process.Init) !void {
 
     const cel_files = [_]struct { path: []const u8, label: []const u8, required: bool }{
         .{ .path = ".cel/config.sh", .label = "config.sh", .required = true },
+        .{ .path = ".cel/lib.sh", .label = "lib.sh", .required = true },
         .{ .path = ".cel/build.sh", .label = "build.sh", .required = true },
         .{ .path = ".cel/README.md", .label = "README.md", .required = false },
         .{ .path = ".cel/patches", .label = "patches/", .required = true },
@@ -91,7 +96,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n", .{});
 
     // ── 3. CEL binary ──────────────────────────────────────────────────
-    std.debug.print(".cel toolchain binary:\n", .{});
+    std.debug.print(".cel toolchain binaries:\n", .{});
     const cel_zig_exists = util.fileExists(io, ".cel/bin/zig");
     if (cel_zig_exists) {
         std.debug.print("  .cel/bin/zig: FOUND\n", .{});
@@ -113,8 +118,53 @@ pub fn main(_: std.process.Init) !void {
     } else {
         std.debug.print("  .cel/bin/zig: NOT BUILT\n", .{});
         if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
-            std.debug.print("  Action: Run .cel/build.sh to compile the patched toolchain\n", .{});
+            std.debug.print("  Action: Run .zig-bootstrap/build.sh to compile the bootstrap Zig bridge\n", .{});
             issues += 1;
+        }
+    }
+    const cel_zls_exists = util.fileExists(io, ".cel/bin/zls");
+    if (cel_zls_exists) {
+        std.debug.print("  .cel/bin/zls: FOUND\n", .{});
+        const ver_res = util.captureCommand(allocator, io, ".cel/bin/zls --version") catch null;
+        if (ver_res) |res| {
+            defer allocator.free(res.output);
+            const ver = util.trimSpace(res.output);
+            if (ver.len > 0) std.debug.print("  ZLS version: {s}\n", .{ver});
+        }
+    } else {
+        std.debug.print("  .cel/bin/zls: NOT BUILT\n", .{});
+        if (cel_zig_exists) {
+            std.debug.print("  Action: Run .zig-bootstrap/build.sh --zls-only to build ZLS with bootstrap Zig\n", .{});
+            warnings += 1;
+        }
+    }
+    // Report ZLS commit pin status from .cel/config.sh
+    const zls_pin_res = util.captureCommand(allocator, io,
+        \\sh -c '. .cel/config.sh 2>/dev/null && printf "%s" "${ZLS_UPSTREAM_COMMIT:-}"'
+    ) catch null;
+    if (zls_pin_res) |res| {
+        defer allocator.free(res.output);
+        const zls_pin = util.trimSpace(res.output);
+        if (zls_pin.len > 0) {
+            std.debug.print("  ZLS pin:     {s} (reproducible build)\n", .{zls_pin});
+        } else {
+            std.debug.print("  ZLS pin:     (latest — set ZLS_UPSTREAM_COMMIT in .cel/config.sh for reproducibility)\n", .{});
+        }
+    }
+    bootstrap_host_zig_exists = util.fileExists(io, "zig-bootstrap-emergency/out/host/bin/zig");
+    if (bootstrap_host_zig_exists) {
+        std.debug.print("  zig-bootstrap-emergency/out/host/bin/zig: FOUND\n", .{});
+        const ver_res = util.captureCommand(allocator, io, "zig-bootstrap-emergency/out/host/bin/zig version") catch null;
+        if (ver_res) |res| {
+            defer allocator.free(res.output);
+            const ver = util.trimSpace(res.output);
+            if (ver.len > 0) std.debug.print("  Bootstrap Zig version: {s}\n", .{ver});
+        }
+    } else if (util.dirExists(io, "zig-bootstrap-emergency/zig")) {
+        std.debug.print("  zig-bootstrap-emergency/out/host/bin/zig: NOT BUILT\n", .{});
+        std.debug.print("  Note: .zig-bootstrap/build.sh can use a bootstrap-host Zig here on macOS 26+\n", .{});
+        if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
+            warnings += 1;
         }
     }
     std.debug.print("\n", .{});
@@ -184,6 +234,7 @@ pub fn main(_: std.process.Init) !void {
     // ── 6. Stock zig and PATH ──────────────────────────────────────────
     std.debug.print("Stock Zig:\n", .{});
     if (try util.commandExists(allocator, io, "zig")) {
+        stock_zig_found = true;
         const path_res = try util.captureCommand(allocator, io, "command -v zig");
         defer allocator.free(path_res.output);
         const zig_path = util.trimSpace(path_res.output);
@@ -203,6 +254,31 @@ pub fn main(_: std.process.Init) !void {
         } else {
             std.debug.print("  Source:  System or other\n", .{});
         }
+
+        stock_zig_matches_pin = std.mem.eql(u8, zig_ver, baseline.zig_version);
+        if (stock_zig_matches_pin) {
+            std.debug.print("  Pin:     matches repo baseline\n", .{});
+        } else {
+            std.debug.print("  WARNING: stock zig does not match repo baseline ({s})\n", .{baseline.zig_version});
+            warnings += 1;
+        }
+
+        const build_res = util.captureCommand(allocator, io, "zig build --help 2>&1 1>/dev/null") catch null;
+        if (build_res) |res| {
+            defer allocator.free(res.output);
+            if (res.exit_code == 0) {
+                std.debug.print("  Build:   stock zig can start ABI build steps\n", .{});
+            } else if (std.mem.indexOf(u8, res.output, "__availability_version_check") != null or
+                std.mem.indexOf(u8, res.output, "undefined symbol:") != null)
+            {
+                std.debug.print("  Build:   BLOCKED by Darwin linker failure\n", .{});
+                stock_build_runner_blocked = true;
+                warnings += 1;
+            } else {
+                std.debug.print("  Build:   stock zig failed before ABI gates could run\n", .{});
+                warnings += 1;
+            }
+        }
     } else {
         std.debug.print("  Not found on PATH\n", .{});
         issues += 1;
@@ -210,7 +286,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n", .{});
 
     // ── 7. Build prerequisites ─────────────────────────────────────────
-    std.debug.print("Build prerequisites (for .cel/build.sh):\n", .{});
+    std.debug.print("Build prerequisites (for .zig-bootstrap/build.sh):\n", .{});
     const prereqs = [_][]const u8{ "git", "cmake", "cc", "c++" };
     for (prereqs) |cmd| {
         if (try util.commandExists(allocator, io, cmd)) {
@@ -222,29 +298,35 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Check for LLVM (needed for Zig compilation)
-    if (try util.commandExists(allocator, io, "llvm-config")) {
+    if (util.dirExists(io, "zig-bootstrap-emergency/out/build-llvm-host")) {
+        std.debug.print("  llvm: bootstrap LLVM artifacts\n", .{});
+    } else if (util.dirExists(io, "/opt/homebrew/opt/llvm@21")) {
+        std.debug.print("  llvm: Homebrew llvm@21 (/opt/homebrew/opt/llvm@21)\n", .{});
+    } else if (util.dirExists(io, "/usr/local/opt/llvm@21")) {
+        std.debug.print("  llvm: Homebrew llvm@21 (/usr/local/opt/llvm@21)\n", .{});
+    } else if (try util.commandExists(allocator, io, "llvm-config")) {
         const llvm_res = util.captureCommand(allocator, io, "llvm-config --version") catch null;
         if (llvm_res) |res| {
             defer allocator.free(res.output);
-            std.debug.print("  llvm: {s}\n", .{util.trimSpace(res.output)});
+            const ver = util.trimSpace(res.output);
+            std.debug.print("  llvm: {s}\n", .{ver});
+            if (!std.mem.startsWith(u8, ver, "21.")) {
+                std.debug.print("  WARNING: current CEL pin expects LLVM 21.x\n", .{});
+                warnings += 1;
+            }
         }
     } else if (try util.commandExists(allocator, io, "brew")) {
-        const brew_res = util.captureCommand(allocator, io, "brew --prefix llvm 2>/dev/null") catch null;
+        const brew_res = util.captureCommand(allocator, io, "brew --prefix llvm@21 2>/dev/null") catch null;
         if (brew_res) |res| {
             defer allocator.free(res.output);
             const prefix = util.trimSpace(res.output);
             if (prefix.len > 0 and util.dirExists(io, prefix)) {
-                std.debug.print("  llvm: Homebrew ({s})\n", .{prefix});
+                std.debug.print("  llvm: Homebrew llvm@21 ({s})\n", .{prefix});
             } else {
-                std.debug.print("  llvm: Not installed (run: brew install llvm)\n", .{});
+                std.debug.print("  llvm: Not installed (run: brew install llvm@21)\n", .{});
                 warnings += 1;
             }
         }
-    }
-
-    // Check for bootstrap LLVM artifacts
-    if (util.dirExists(io, "zig-bootstrap-emergency/out/build-llvm-host")) {
-        std.debug.print("  bootstrap LLVM: FOUND (will be reused by .cel/build.sh)\n", .{});
     }
     std.debug.print("\n", .{});
 
@@ -265,12 +347,26 @@ pub fn main(_: std.process.Init) !void {
     if (issues > 0 and builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
         std.debug.print("\nRemediation steps:\n", .{});
         if (!cel_zig_exists) {
-            std.debug.print("  1. Build the CEL toolchain:\n", .{});
-            std.debug.print("     ./.cel/build.sh\n\n", .{});
-            std.debug.print("  2. Activate it:\n", .{});
-            std.debug.print("     eval \"$(./tools/scripts/use_cel.sh)\"\n\n", .{});
-            std.debug.print("  3. Verify:\n", .{});
+            if (!bootstrap_host_zig_exists and util.dirExists(io, "zig-bootstrap-emergency/zig")) {
+                std.debug.print("  1. Refresh the bootstrap host Zig:\n", .{});
+                std.debug.print("     abi bootstrap-zig bootstrap\n\n", .{});
+                std.debug.print("  2. Build the CEL toolchain:\n", .{});
+                std.debug.print("     ./.zig-bootstrap/build.sh\n\n", .{});
+            } else {
+                std.debug.print("  1. Build the CEL toolchain:\n", .{});
+                std.debug.print("     ./.zig-bootstrap/build.sh\n\n", .{});
+            }
+            if (stock_zig_found and !stock_zig_matches_pin) {
+                std.debug.print("     Note: ignore the stock zig on PATH until it matches the repo pin.\n\n", .{});
+            }
+            if (stock_build_runner_blocked) {
+                std.debug.print("     Note: stock zig cannot link the ABI build runner on this Darwin host.\n\n", .{});
+            }
+            std.debug.print("  Activate it:\n", .{});
+            std.debug.print("     eval \"$(./tools/scripts/use_zig_bootstrap.sh)\"\n\n", .{});
+            std.debug.print("  Verify:\n", .{});
             std.debug.print("     zig version\n", .{});
+            std.debug.print("     zls --version\n", .{});
             std.debug.print("     zig build full-check\n\n", .{});
         }
     }

@@ -53,7 +53,7 @@ comptime {
 /// each feature solo, and each feature disabled with the rest enabled.
 pub const validation_matrix = [_]FlagCombo{
     // All enabled / all disabled
-    .{ .name = "all-enabled", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
+    .{ .name = "all-enabled", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
     .{ .name = "all-disabled" },
     // Solo tests — one feature at a time
     .{ .name = "ai-only", .feat_ai = true },
@@ -69,6 +69,7 @@ pub const validation_matrix = [_]FlagCombo{
     .{ .name = "cache-only", .feat_cache = true },
     .{ .name = "storage-only", .feat_storage = true },
     .{ .name = "search-only", .feat_search = true },
+    .{ .name = "mobile-only", .feat_mobile = true },
     .{ .name = "gateway-only", .feat_gateway = true },
     .{ .name = "benchmarks-only", .feat_benchmarks = true },
     .{ .name = "pages-only", .feat_pages = true },
@@ -89,6 +90,7 @@ pub const validation_matrix = [_]FlagCombo{
     .{ .name = "no-cache", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_storage = true, .feat_search = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
     .{ .name = "no-storage", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_search = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
     .{ .name = "no-search", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
+    .{ .name = "no-mobile", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
     .{ .name = "no-gateway", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
     .{ .name = "no-pages", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_gateway = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
     .{ .name = "no-benchmarks", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_gateway = true, .feat_pages = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },

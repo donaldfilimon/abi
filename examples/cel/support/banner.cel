@@ -1,0 +1,3 @@
+module examples.cel.support.banner;
+
+fn banner() {}

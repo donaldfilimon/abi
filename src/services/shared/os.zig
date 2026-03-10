@@ -35,21 +35,11 @@ const STD_OUTPUT_HANDLE: windows.DWORD = 0xFFFF_FFF5;
 
 // libc imports for cross-platform compatibility (Zig 0.16)
 // Not available on freestanding/WASM targets
-const libc = if (builtin.os.tag != .freestanding and
-    builtin.cpu.arch != .wasm32 and
-    builtin.cpu.arch != .wasm64)
-    @cImport({
-        @cInclude("stdlib.h");
-        if (builtin.os.tag == .windows) {
-            @cInclude("windows.h");
-        }
-    })
-else
-    struct {
-        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
-            return null;
-        }
-    };
+const libc = struct {
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+        return null;
+    }
+};
 
 // Helper to get environment variable via libc (Zig 0.16 compatible)
 fn getenvC(name: []const u8) ?[]const u8 {
@@ -58,7 +48,8 @@ fn getenvC(name: []const u8) ?[]const u8 {
     if (name.len >= name_buf.len) return null;
     @memcpy(name_buf[0..name.len], name);
     name_buf[name.len] = 0;
-    const ptr = libc.getenv(&name_buf);
+    const name_z: [:0]const u8 = name_buf[0..name.len :0];
+    const ptr = std.c.getenv(name_z.ptr);
     if (ptr) |p| {
         return std.mem.sliceTo(@as([*:0]const u8, @ptrCast(p)), 0);
     }

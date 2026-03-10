@@ -52,6 +52,8 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "feat_network", .path = "features/network/mod.zig" },
     .{ .flag = "feat_network", .path = "features/network/heartbeat.zig" },
     .{ .flag = "feat_network", .path = "features/network/rpc_protocol.zig" },
+    .{ .flag = "feat_network", .path = "features/network/raft_test.zig" },
+    .{ .flag = "feat_network", .path = "features/network/tests/distributed_computation_test.zig" },
     .{ .flag = "feat_web", .path = "features/web/mod.zig" },
     .{ .flag = "feat_cloud", .path = "features/cloud/mod.zig" },
 
@@ -68,7 +70,47 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     // ── Auth ────────────────────────────────────────────────────────────
     .{ .flag = "feat_auth", .path = "features/auth/auth_test.zig" },
 
+    // ── Compute, documents, desktop ────────────────────────────────────
+    .{ .flag = "feat_compute", .path = "features/compute/mod.zig" },
+    .{ .flag = "feat_documents", .path = "features/documents/mod.zig" },
+    .{ .flag = "feat_desktop", .path = "features/desktop/mod.zig" },
+
+    // ── AI sub-modules with test blocks ────────────────────────────────
+    .{ .flag = "feat_ai", .path = "features/ai/coordination/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/profiles/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/agents/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/embeddings/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/vision/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/training/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/training/self_learning_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/training/trainable_model_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/reasoning/mod.zig" },
+
+    // ── AI persona tests ───────────────────────────────────────────────
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/abbey_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/abi_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/aviva_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/benchmark_test.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/integration_test.zig" },
+
+    // ── Database sub-modules and tests ─────────────────────────────────
+    .{ .flag = "feat_database", .path = "features/database/semantic_store/mod.zig" },
+    .{ .flag = "feat_database", .path = "features/database/database_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/hnsw_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/batch_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/quantization_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/conflict_resolution_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/integration_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/shard_assignment_test.zig" },
+    .{ .flag = "feat_database", .path = "features/database/distributed/version_vector_test.zig" },
+
+    // ── Observability sub-modules ──────────────────────────────────────
+    .{ .flag = "feat_profiling", .path = "features/observability/tracing.zig" },
+    .{ .flag = "feat_profiling", .path = "features/observability/metrics/primitives.zig" },
+
     // ── Always-on services ──────────────────────────────────────────────
+    .{ .flag = null, .path = "services/mcp/mod.zig" },
     .{ .flag = null, .path = "services/mcp/server.zig" },
     .{ .flag = null, .path = "services/mcp/types.zig" },
     .{ .flag = null, .path = "services/acp/mod.zig" },
@@ -192,20 +234,32 @@ fn renderFeatureTestRoot(allocator: std.mem.Allocator) ![]u8 {
             "test {\n",
     );
 
-    for (feature_test_manifest, 0..) |entry, index| {
-        const import_name = try std.fmt.allocPrint(allocator, "feature_test_{d:0>3}", .{index});
+    for (feature_test_manifest) |entry| {
+        if (manifestEntryImportExpr(entry)) |expr| {
+            if (entry.flag) |flag| {
+                try out.writer.print("    if (build_options.{s}) _ = {s};\n", .{ flag, expr });
+            } else {
+                try out.writer.print("    _ = {s};\n", .{expr});
+            }
+            continue;
+        }
+
         if (entry.flag) |flag| {
-            try out.writer.print("    if (build_options.{s}) _ = @import(\"{s}\");\n", .{
-                flag,
-                import_name,
-            });
+            try out.writer.print("    if (build_options.{s}) _ = @import(\"{s}\");\n", .{ flag, entry.path });
         } else {
-            try out.writer.print("    _ = @import(\"{s}\");\n", .{import_name});
+            try out.writer.print("    _ = @import(\"{s}\");\n", .{entry.path});
         }
     }
 
     try out.writer.writeAll("}\n");
     return try out.toOwnedSlice();
+}
+
+fn manifestEntryImportExpr(entry: FeatureTestEntry) ?[]const u8 {
+    if (std.mem.eql(u8, entry.path, "wdbx/dist/mod.zig")) return "@import(\"wdbx\").dist";
+    if (std.mem.eql(u8, entry.path, "wdbx/dist/rpc.zig")) return "@import(\"wdbx\").dist.rpc";
+    if (std.mem.eql(u8, entry.path, "wdbx/dist/replication.zig")) return "@import(\"wdbx\").dist.replication";
+    return null;
 }
 
 /// Wire up the feature-test binary and return its run step.
@@ -221,50 +275,50 @@ pub fn addFeatureTests(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Step {
-    const generated = b.addWriteFiles();
-    const root_source = generated.add("feature_test_root.zig", renderFeatureTestRoot(b.allocator) catch @panic("renderFeatureTestRoot failed"));
+    const root_path = "src/generated_feature_tests.zig";
+    const root_source = renderFeatureTestRoot(b.allocator) catch @panic("renderFeatureTestRoot failed");
+    var root_file = std.Io.Dir.cwd().createFile(b.graph.io, root_path, .{ .truncate = true }) catch @panic("Failed to create generated feature test root");
+    defer root_file.close(b.graph.io);
+    root_file.writeStreamingAll(b.graph.io, root_source) catch @panic("Failed to write generated feature test root");
 
     const feature_test_root = b.createModule(.{
-        .root_source_file = root_source,
+        .root_source_file = b.path(root_path),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
+    feature_test_root.addImport("abi", abi_module);
     feature_test_root.addImport("build_options", build_opts);
 
-    for (feature_test_manifest, 0..) |entry, index| {
-        const import_name = b.fmt("feature_test_{d:0>3}", .{index});
-        const source_path = b.fmt("src/{s}", .{entry.path});
-        const feature_mod = b.createModule(.{
-            .root_source_file = b.path(source_path),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        });
-        feature_mod.addImport("abi", abi_module);
-        feature_mod.addImport("build_options", build_opts);
-        feature_test_root.addImport(import_name, feature_mod);
+    var it = abi_module.import_table.iterator();
+    while (it.next()) |import_entry| {
+        feature_test_root.addImport(import_entry.key_ptr.*, import_entry.value_ptr.*);
     }
 
-    const feature_tests = b.addTest(.{
-        .root_module = feature_test_root,
-    });
-    link.applyAllPlatformLinks(
-        feature_tests.root_module,
-        target.result.os.tag,
-        options.gpu_metal(),
-        options.gpu_backends,
-    );
     const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
-    if (is_blocked_darwin) {
-        feature_tests.use_llvm = true;
-        feature_tests.use_lld = true;
-    }
-
-    const run_feature_tests = b.addRunArtifact(feature_tests);
-    run_feature_tests.skip_foreign_checks = true;
     const ft_step = b.step("feature-tests", "Run feature module inline tests");
-    ft_step.dependOn(&run_feature_tests.step);
+
+    if (is_blocked_darwin) {
+        const feature_tests = b.addObject(.{
+            .name = "feature_tests",
+            .root_module = feature_test_root,
+        });
+        feature_tests.use_llvm = true;
+        ft_step.dependOn(&feature_tests.step);
+    } else {
+        const feature_tests = b.addTest(.{
+            .root_module = feature_test_root,
+        });
+        link.applyAllPlatformLinks(
+            feature_tests.root_module,
+            target.result.os.tag,
+            options.gpu_metal(),
+            options.gpu_backends,
+        );
+        const run_feature_tests = b.addRunArtifact(feature_tests);
+        run_feature_tests.skip_foreign_checks = true;
+        ft_step.dependOn(&run_feature_tests.step);
+    }
 
     return ft_step;
 }

@@ -15,8 +15,8 @@
 //! | ABI_DB_PATH | Database file path | abi.db |
 //! | ABI_OPENAI_API_KEY | OpenAI API key | none |
 //! | ABI_ANTHROPIC_API_KEY | Anthropic API key | none |
-//! | ABI_LSP_ZLS_PATH | ZLS binary path | zls |
-//! | ABI_LSP_ZIG_EXE_PATH | Zig compiler path for ZLS | none |
+//! | ABI_LSP_ZLS_PATH | ZLS binary path override | auto (`.zig-bootstrap/bin/zls`, then `.cel/bin/zls`, then `zls`) |
+//! | ABI_LSP_ZIG_EXE_PATH | Zig compiler path override for ZLS | auto (`.zig-bootstrap/bin/zig`, then `.cel/bin/zig`, then ZVM/PATH) |
 //! | ABI_LSP_WORKSPACE_ROOT | LSP workspace root | none |
 //! | ABI_LSP_LOG_LEVEL | ZLS log level (info, warn, error, debug) | info |
 //! | ABI_LSP_ENABLE_SNIPPETS | Enable completion snippets (true/false) | true |
@@ -342,17 +342,10 @@ test "ConfigLoader with base config" {
     defer loader.deinit();
 
     const base = Config.minimal();
-    const config = try loader.loadWithBase(base);
-
-    // Minimal config should still have no features enabled
-    // unless env vars override
-    _ = config;
+    _ = try loader.loadWithBase(base);
 }
 
 test "parseGpuBackend" {
-    const loader = ConfigLoader.init(std.testing.allocator);
-    _ = loader;
-
     try std.testing.expectEqual(GpuConfig.Backend.cuda, ConfigLoader.parseGpuBackend("cuda").?);
     try std.testing.expectEqual(GpuConfig.Backend.vulkan, ConfigLoader.parseGpuBackend("vulkan").?);
     try std.testing.expectEqual(GpuConfig.Backend.tpu, ConfigLoader.parseGpuBackend("tpu").?);

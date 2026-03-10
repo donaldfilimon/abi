@@ -1,7 +1,5 @@
 //! Canonical entity identifiers.
 
-const std = @import("std");
-
 pub const BlockId = struct {
     id: [32]u8,
 };

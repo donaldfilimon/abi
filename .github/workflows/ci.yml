@@ -11,25 +11,30 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ZIG_VERSION: "0.16.0-dev.2650+74f361a5c"
+  ZIG_VERSION: "0.16.0-dev.1503+738d2be9d"
 
 jobs:
+  shell-lint:
+    name: Shell Script Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax-check all shell scripts
+        run: bash -n .cel/*.sh tools/scripts/*.sh
+
   lint:
     name: Format Check
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
         with:
           version: ${{ env.ZIG_VERSION }}
-      - run: zig build lint
+      - run: zig fmt --check build.zig build/ src/ tools/
 
   test:
     name: Test Suite
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     needs: lint
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +48,7 @@ jobs:
 
   quality-gates:
     name: Quality Gates
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
@@ -62,10 +67,14 @@ jobs:
         run: zig build check-workflow-orchestration
       - name: CLI smoke tests
         run: zig build cli-tests
+      - name: Check CLI registry
+        run: zig build check-cli-registry
+      - name: Check docs
+        run: zig build check-docs
 
   examples:
     name: Examples
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     needs: lint
     steps:
       - uses: actions/checkout@v4

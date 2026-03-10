@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+TARGET="$REPO_ROOT/.cel/bin/zig"
+if [[ ! -x "$TARGET" ]]; then
+    echo "bootstrap-zig wrapper could not find $TARGET" >&2
+    echo "Build it with: $REPO_ROOT/.zig-bootstrap/build.sh" >&2
+    exit 1
+fi
+exec "$TARGET" "$@"

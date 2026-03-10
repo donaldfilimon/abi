@@ -42,8 +42,8 @@
 const std = @import("std");
 const cli = @import("cli");
 
-pub fn main(init: std.process.Init.Minimal) void {
-    cli.mainWithArgs(init.args, init.environ) catch |err| {
+pub fn main(init: std.process.Init) !void {
+    cli.main(init) catch |err| {
         switch (err) {
             error.InvalidArgument, error.ExecutionFailed => std.process.exit(1),
             else => {

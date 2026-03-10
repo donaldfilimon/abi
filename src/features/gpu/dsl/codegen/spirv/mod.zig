@@ -37,6 +37,9 @@ pub const constants_gen = @import("constants_gen.zig");
 pub const emit = @import("emit.zig");
 pub const codegen = @import("codegen.zig");
 pub const generator = @import("generator.zig");
+pub const type_codegen = @import("type_codegen.zig");
+pub const const_codegen = @import("const_codegen.zig");
+pub const instruction_emit = @import("instruction_emit.zig");
 
 // Re-export main types for convenience
 pub const SpirvGenerator = generator.SpirvGenerator;

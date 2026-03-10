@@ -73,6 +73,7 @@ pub const Context = struct {
 // --- Sub-module Namespace Re-exports ---
 
 pub const wdbx = semantic_store;
+pub const neural = @import("wdbx");
 pub const cli = misc.cli;
 
 pub const ParallelSearchConfig = parallel.ParallelSearchConfig;

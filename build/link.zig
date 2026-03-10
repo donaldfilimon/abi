@@ -179,11 +179,57 @@ pub fn applyAllPlatformLinks(
     gpu_backends: []const GpuBackend,
 ) void {
     applyFrameworkLinks(mod, os_tag, gpu_metal);
+    // On macOS 26+ with version-clamped targets, Zig's framework auto-detection
+    // breaks. Explicitly add SDK framework paths so linkFramework can resolve.
+    if (os_tag == .macos and @import("builtin").os.tag == .macos and
+        @import("builtin").os.version_range.semver.min.major >= 26)
+    {
+        addSdkFrameworkPaths(mod, mod.owner.graph.io);
+    }
     applyLinuxLinks(mod, os_tag, gpu_backends);
     applyWindowsLinks(mod, os_tag, gpu_backends);
     applyBsdLinks(mod, os_tag, gpu_backends);
     applySolarisLinks(mod, os_tag, gpu_backends);
     applyHaikuLinks(mod, os_tag, gpu_backends);
+}
+
+// =============================================================================
+// SDK Framework Search Paths (macOS 26+ workaround)
+// =============================================================================
+
+/// On macOS 26+ with version-clamped targets, Zig's automatic framework
+/// search breaks because the host SDK version doesn't match the clamped
+/// deployment target. This function explicitly adds the SDK's framework
+/// directories so that `-framework Accelerate` etc. can resolve.
+pub fn addSdkFrameworkPaths(mod: *std.Build.Module, io: std.Io) void {
+    const sdk_path = detectSdkPath(io) orelse return;
+    const alloc = mod.owner.allocator;
+
+    const fw_path = std.fmt.allocPrint(alloc, "{s}/System/Library/Frameworks", .{sdk_path}) catch return;
+    const lib_path = std.fmt.allocPrint(alloc, "{s}/usr/lib", .{sdk_path}) catch return;
+
+    mod.addSystemFrameworkPath(.{ .cwd_relative = fw_path });
+    mod.addLibraryPath(.{ .cwd_relative = lib_path });
+}
+
+/// Detect the macOS SDK path by probing known locations.
+fn detectSdkPath(io: std.Io) ?[]const u8 {
+    const candidates = [_][]const u8{
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+        "/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    };
+    for (candidates) |path| {
+        if (dirExists(io, path)) return path;
+    }
+    return null;
+}
+
+/// Check if a directory exists using Zig's Io.Dir API.
+fn dirExists(io: std.Io, path: []const u8) bool {
+    var dir = std.Io.Dir.openDirAbsolute(io, path, .{}) catch return false;
+    dir.close(io);
+    return true;
 }
 
 // =============================================================================
@@ -207,7 +253,7 @@ pub fn canLinkMetalFrameworks(io: std.Io, os_tag: std.Target.Os.Tag) bool {
         return true;
 
     for (required_metal_framework_paths) |path|
-        if (!commandSucceeds(io, &.{ "/usr/bin/test", "-e", path })) return false;
+        if (!dirExists(io, path)) return false;
     return true;
 }
 
