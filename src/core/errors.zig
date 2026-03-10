@@ -30,6 +30,7 @@ pub const AiFrameworkError = error{
     LlmDisabled,
     EmbeddingsDisabled,
     AgentsDisabled,
+    ReasoningDisabled,
     TrainingDisabled,
     ModelNotFound,
     InferenceFailed,

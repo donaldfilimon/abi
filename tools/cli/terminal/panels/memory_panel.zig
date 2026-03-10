@@ -120,7 +120,7 @@ pub const MemoryPanel = struct {
         // Current / Peak bytes
         try term.moveTo(y, col);
         try term.write(theme.text);
-        const cur_str = std.fmt.bufPrint(&buf, "Current: {s}  Peak: {s}", .{
+        const cur_str = std.fmt.bufPrint(&buf, "Current: {}  Peak: {}", .{
             formatBytes(stats.current_bytes),
             formatBytes(stats.peak_bytes),
         }) catch "";
@@ -278,8 +278,16 @@ pub const MemoryPanel = struct {
     }
 };
 
-fn formatBytes(bytes: u64) std.fmt.Formatter(formatBytesFn) {
-    return .{ .data = bytes };
+const BytesFormatter = struct {
+    bytes: u64,
+
+    pub fn format(self: BytesFormatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        return formatBytesFn(self.bytes, "", .{}, writer);
+    }
+};
+
+fn formatBytes(bytes: u64) BytesFormatter {
+    return .{ .bytes = bytes };
 }
 
 fn formatBytesFn(

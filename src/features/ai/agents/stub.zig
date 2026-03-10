@@ -36,8 +36,12 @@ pub const AgentError = error{
 pub const AgentBackend = enum {
     echo,
     openai,
+    anthropic,
+    gemini,
     ollama,
     huggingface,
+    codex,
+    llama_cpp,
     local,
     provider_router,
 };

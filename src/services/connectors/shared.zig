@@ -215,10 +215,9 @@ pub fn envIsSet(name: []const u8) bool {
     if (name.len >= buf.len) return false;
     @memcpy(buf[0..name.len], name);
     buf[name.len] = 0;
-    const value = c_stdlib.getenv(@ptrCast(buf[0..name.len :0]));
-    if (value == null) return false;
+    const value = c_stdlib.getenv(@ptrCast(buf[0..name.len :0])) orelse return false;
     // Treat empty string as unset (e.g., OPENAI_API_KEY="")
-    return std.mem.len(value) > 0;
+    return std.mem.sliceTo(value, 0).len > 0;
 }
 
 /// Check if any of the given environment variable names are set.

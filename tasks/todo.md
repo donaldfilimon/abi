@@ -12,6 +12,36 @@ a new plan when starting a wave.
 
 ## Active Queue
 
+### In Progress - Main Merge Finalization (2026-03-10)
+
+#### Objective
+Finish reviewing the local `main` branch, validate it on a linking-capable Zig
+toolchain, and update `origin/main` only after the required ABI gates pass.
+
+#### Plan
+- [x] Review `origin/main..HEAD` with attention to build/toolchain changes, feature/stub surface, WDBX coverage, and the new zig-abi-plugin guidance.
+- [x] Attempt to provision the local bootstrap Zig bridge via `.zig-bootstrap/build.sh` and activate it for validation.
+- [ ] Run the required ABI validation gates on a linking-capable toolchain: `validate-flags`, `wdbx-fast-tests`, `check-docs`, `full-check`, and `verify-all`.
+- [ ] Confirm the tree is clean, push `main` to `origin/main`, and record merge evidence and any residual limitations.
+
+#### Notes
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+- Local `main` is already ahead of `origin/main` by four commits, including `cc5b105c` (`Finalize main merge review`), so this wave is focused on validation and remote integration rather than additional feature work unless review finds a blocker.
+- `.zig-bootstrap/build.sh --zig-only` still fails on this Darwin host at stage3 with the known stock-Zig/linker break, so repo-local bootstrap validation remains unavailable here.
+- The exact pinned nightly from `.zigversion` (`0.16.0-dev.1503+738d2be9d`) is not installable via `zvm`, and current hosted CI runs are not usable for fallback validation.
+
+#### Review Notes
+- Reviewed `origin/main..HEAD` via `review_prep.py` (`37 files changed, +1379/-120`) plus the pending `zig-abi-plugin` docs edits; no additional correctness blockers were found beyond the validation failures surfaced by `check-docs`.
+- Confirmed the AI import-path cleanup in `cc5b105c` matches existing relative-import patterns under `src/features/ai/`.
+- Patched the current branch to restore Zig-master compatibility for the docs/CLI path: environment var handling, framework error-set parity, AI/database stub parity, CLI command metadata/registry alignment, modern `std.process`/`ArrayList` usage, and TUI panel formatting/adapters.
+- Validation results on this host after the patch set:
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh validate-flags` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh wdbx-fast-tests` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh check-docs` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh full-check` ❌ environment-blocked
+- `full-check` now fails in standalone verifier/CLI executables with Darwin libc/linker undefined symbols (for example `abi-check-workflow-orchestration-strict`, `abi-check-cli-registry`, `abi-cli-smoke-runner`), which is consistent with the known stock-Zig macOS 26 linker failure on this machine rather than a remaining branch semantic error.
+- `verify-all` was not run after `full-check` failed, and `origin/main` has not been updated from this host.
+
 ### In Progress - Wave 1 Toolchain and Validation Baseline (2026-03-10)
 
 #### Objective

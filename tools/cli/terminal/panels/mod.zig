@@ -14,6 +14,8 @@ pub const bench_adapter = @import("bench_adapter.zig");
 pub const db_adapter = @import("db_adapter.zig");
 pub const network_adapter = @import("network_adapter.zig");
 pub const chat_adapter = @import("chat_adapter.zig");
+pub const gpu_monitor = @import("../gpu_monitor.zig");
+pub const brain_panel = @import("../brain_panel.zig");
 
 // Native panels (implement Panel vtable directly)
 pub const security_panel = @import("security_panel.zig");

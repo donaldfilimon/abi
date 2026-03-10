@@ -208,10 +208,19 @@ fn expectNoTrailingArgs(parser: *ArgParser, name: []const u8) !void {
 }
 
 fn runCommand(allocator: std.mem.Allocator, argv: []const []const u8) !void {
-    var child = std.process.Child.init(argv, allocator);
-    const term = try child.spawnAndWait();
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var child = try std.process.spawn(io, .{
+        .argv = argv,
+        .stdin = .ignore,
+        .stdout = .inherit,
+        .stderr = .inherit,
+    });
+    const term = try child.wait(io);
     switch (term) {
-        .Exited => |code| if (code != 0) return error.CommandFailed,
+        .exited => |code| if (code != 0) return error.CommandFailed,
         else => return error.CommandFailed,
     }
 }
