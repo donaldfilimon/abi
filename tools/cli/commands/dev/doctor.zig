@@ -7,6 +7,7 @@ const std = @import("std");
 const command_mod = @import("../../command.zig");
 const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
+const process_utils = utils.process;
 
 pub const meta: command_mod.Meta = .{
     .name = "doctor",
@@ -26,13 +27,7 @@ const doctor_logic = struct {
 
         fn commandExists(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8) !bool {
             _ = allocator;
-            var child = try std.process.spawn(io, .{
-                .argv = &[_][]const u8{ "which", cmd },
-                .stdin = .ignore,
-                .stdout = .ignore,
-                .stderr = .ignore,
-            });
-            const term = try child.wait(io);
+            const term = try process_utils.run(io, &[_][]const u8{ "which", cmd }, .ignore, .ignore);
             return switch (term) {
                 .exited => |code| code == 0,
                 else => false,

@@ -12,6 +12,22 @@ a new plan when starting a wave.
 
 ## Active Queue
 
+### In Progress - CLI Tooling Refactor (2026-03-10)
+
+#### Objective
+Reduce duplication in the recently patched CLI/tooling path without changing
+behavior, focusing on repeated process-spawn and dashboard-forwarding helpers.
+
+#### Plan
+- [ ] Extract a shared CLI process helper for the Zig 0.16 `std.process.spawn` + `wait` path.
+- [ ] Extract a shared helper for forwarding `abi ui <view>` commands into the dashboard runtime.
+- [ ] Refactor the touched commands to use the shared helpers with minimal diff.
+- [ ] Run targeted checks and capture results below.
+
+#### Notes
+- Best-effort tri-CLI consensus was attempted again for this refactor wave and is still blocked because `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` is absent locally.
+- Scope is intentionally limited to the commands touched by `97f2bb14`; this wave is not attempting to solve the macOS 26 stock-Zig linker blocker that still prevents `full-check`.
+
 ### In Progress - Main Merge Finalization (2026-03-10)
 
 #### Objective

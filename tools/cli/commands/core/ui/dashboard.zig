@@ -12,6 +12,25 @@ pub const meta: command.Meta = .{
     .name = "dashboard",
     .description = "Shared UI shell with tabbed panel stack and command palette",
 };
+
+pub fn forwardToView(
+    ctx: *const context_mod.CommandContext,
+    args: []const [:0]const u8,
+    view_name: [:0]const u8,
+) !void {
+    const allocator = ctx.allocator;
+    var forwarded = try std.ArrayList([:0]const u8).initCapacity(allocator, args.len + 2);
+    defer forwarded.deinit(allocator);
+
+    try forwarded.append(allocator, "--view");
+    try forwarded.append(allocator, view_name);
+    for (args) |arg| {
+        try forwarded.append(allocator, arg);
+    }
+
+    try run(ctx, forwarded.items);
+}
+
 const launcher_actions = @import("../../../terminal/launcher/actions.zig");
 const launcher_palette = @import("../../../terminal/launcher/palette.zig");
 const panel_mod = @import("../../../terminal/panels/mod.zig");

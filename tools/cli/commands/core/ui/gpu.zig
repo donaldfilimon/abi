@@ -11,15 +11,5 @@ pub const meta: command.Meta = .{
 };
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var new_args = try std.ArrayList([:0]const u8).initCapacity(allocator, args.len + 2);
-    defer new_args.deinit(allocator);
-
-    try new_args.append(allocator, "--view");
-    try new_args.append(allocator, "gpu");
-    for (args) |arg| {
-        try new_args.append(allocator, arg);
-    }
-
-    try dashboard_cmd.run(ctx, new_args.items);
+    try dashboard_cmd.forwardToView(ctx, args, "gpu");
 }
