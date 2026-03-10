@@ -38,3 +38,4 @@ Establish a long-term maintenance cadence for the consolidated guidelines.
 2. [ ] Audit `tools/cli/commands/` for cross-platform robustness (Windows/WASM).
 3. [ ] Consolidate `examples/ai_*.zig` into a unified `ai_suite.zig`.
 4. [ ] Implement automated doc generation for the C bindings (if reinstated).
+5. [ ] Prepare release notes and changelog entry for the consolidation wave (link to PR 483).

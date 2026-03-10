@@ -32,7 +32,7 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
             \\Examples:
             \\  abi train generate-data
             \\  abi train generate-data --num-samples 100 --seq-length 32 --vocab-size 1000
-            \\  abi train generate-data --output /tmp/train.bin
+            \\  abi train generate-data --output test.bin
             \\
         , .{});
         return;
