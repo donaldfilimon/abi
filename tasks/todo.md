@@ -50,6 +50,8 @@ expanding default CI coverage.
 #### Plan
 - [x] Canonicalize toolchain-facing scripts and docs around `.zigversion` / `0.16.0-dev.1503+738d2be9d`.
 - [x] Update `.cel/build.sh`, `cel_migrate.sh`, `use_cel.sh`, `cel_doctor.zig`, and `build/cel.zig` to classify stock Zig mismatch, Darwin build-runner failure, bootstrap-host readiness, and `.cel` readiness.
+- [x] Build trap handler for SIGINT/SIGTERM cleanup in `.cel/build.sh` (25e58d44).
+- [x] cel-doctor ZLS awareness (25e58d44).
 - [x] Extract shared shell helpers into `.cel/lib.sh` (DRY refactor across build.sh, use_cel.sh, cel_migrate.sh).
 - [x] Add ZLS commit-pin support (`ZLS_UPSTREAM_COMMIT` in config.sh, pinned fetch in build.sh).
 - [x] Fix `use_cel.sh` sourcing bug (`set -euo pipefail` breaking caller shells).
