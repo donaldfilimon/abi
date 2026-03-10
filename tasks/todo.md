@@ -2,6 +2,18 @@
 
 Active task tracker. Use `git add -f tasks/todo.md` to stage.
 
+## Planned — Remove `.cel` Language + Legacy CEL Backing (2026-03-10 15:13 EDT)
+
+- [x] Consensus status: best-effort tri-CLI wrapper unavailable; `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` is missing locally.
+- [x] Inventory captured the current CEL footprint: `.cel/`, `cel.toml`, `./cel`, `tools/cel/stage0/`, `src/cel/`, `examples/cel/`, `tests/cel/`, `stdlib/cel/`, build wiring, wrapper scripts, docs, plugin guidance, `.claude` hooks, and LSP fallback paths.
+- [x] Verified the main coupling blocker: `.zig-bootstrap/build.sh` still execs `.cel/build.sh`, `tools/scripts/use_zig_bootstrap.sh` still requires `.cel/bin/zig`, `build.zig` still imports `build/cel.zig`, and multiple scripts/config loaders still probe `.cel/bin/*`.
+- [ ] Freeze the survivor surface: keep the Zig bootstrap bridge, Darwin build workaround, and repo-local wrapper commands; remove the CEL language/compiler/package track and all `.cel`-named backing implementation.
+- [ ] Workstream A — bootstrap migration: replace `.cel/config.sh`, `.cel/build.sh`, `.cel/lib.sh`, `.cel/patches`, and `.cel/bin/*` dependencies with a `.zig-bootstrap`-native implementation; rename `build/cel.zig` to a bootstrap/toolchain name and delete `cel-*` build aliases once the replacement is live.
+- [ ] Workstream B — language/runtime removal: delete `cel.toml`, `./cel`, `tools/cel/stage0/`, `src/cel/`, `examples/cel/`, `tests/cel/`, and `stdlib/cel/`; remove CEL-specific docs, smoke tests, and manifest parsing from the repo.
+- [ ] Workstream C — surface cleanup: remove `cel_migrate.sh`, `use_cel.sh`, `cel_doctor.zig`, `.cel` fallback logic in LSP/config/toolchain helpers, plugin docs, `.claude` settings, generated docs references, and compatibility wording that still treats CEL as the destination language.
+- [ ] Workstream D — validation + review: run `git diff --check`, `rg` sweeps proving `.cel` / `cel.toml` references are gone, `zig build check-zig-version`, `zig build check-cli-registry`, `zig build check-docs`, and the strongest available `zig build` gate on the target host; re-review Darwin bootstrap behavior and LSP path detection after the rename/removal wave.
+- [ ] Known blocker to resolve early: `./tools/scripts/run_build.sh check-docs` currently fails in `tools/gendocs/main.zig` with `error: no module named 'mod' available within module 'root'`, so docs/build validation is already broken before the `.cel` removal starts.
+
 ## Active — Docs Surface Cleanup (2026-03-10 16:10 EDT)
 
 - [x] Consensus status: best-effort tri-CLI wrapper unavailable; `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` is missing locally.

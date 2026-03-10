@@ -1,117 +1,146 @@
-# Zig Broken on macOS (Linker / Undefined Symbols) — Research Summary
+# Zig on macOS 26+: ABI Linker Notes
 
-This document summarizes why Zig can fail to **link** on macOS 26+ (Tahoe) and related Darwin environments, and what workarounds exist.
+This document captures the Darwin linker failure mode that affects ABI when a
+stock prebuilt Zig cannot link the build runner on newer macOS releases.
 
----
+## The important part
 
-## Symptoms
+When this failure happens, the first broken binary is usually the build runner
+that executes `build.zig`. That means:
 
-When building or testing with Zig on Darwin (e.g. macOS 26+, Apple Silicon or x86_64), you may see:
+- the failure happens before your `build.zig` logic runs
+- toggling `use_llvm` or other build settings inside `build.zig` cannot fix that first failure
+- the practical fixes are wrapper-based validation, compile-only checks, or a Zig toolchain built on the current machine
 
-- **Undefined symbol: `__availability_version_check`**  
-  Referenced by `libcompiler_rt.a` (e.g. from `___isPlatformVersionAtLeast`).
-- **Undefined symbol: `_arc4random_buf`**  
-  Referenced by the build output or compiler_rt.
-- **Undefined symbol: `_abort`**  
-  And other libc/libSystem symbols.
+## Typical symptoms
 
-Binary-emitting steps (`zig build`, `zig build test`, `zig test` without `-fno-emit-bin`) fail at **link** time, not compile time.
+Common undefined symbols include:
 
----
+- `__availability_version_check`
+- `_arc4random_buf`
+- `_abort`
+- `_malloc_size`
+- `_nanosleep`
 
-## Root Causes
+The error typically appears during `zig build`, `zig build test`, or other
+binary-emitting commands. If the output references `build_zcu.o`,
+`libcompiler_rt.a`, or other early build-runner artifacts, assume the build
+runner link is the first thing to verify.
 
-### 1. compiler_rt and `__availability_version_check`
+## Why this happens
 
-- Zig’s **compiler_rt** (see `zig/lib/compiler_rt/os_version_check.zig`) implements `__isPlatformVersionAtLeast` for Darwin when the target OS version is **≥ 10.15**.
-- That implementation **calls** the system API `_availability_version_check` (exposed as `__availability_version_check` in SDK stubs). It is used for `@available(macOS 10.15, *)`-style checks.
-- **Issue #18818** (ziglang/zig): “compiler_rt: avoid referencing symbol on versions where it doesn't exist” — for targets **below** 10.15, Zig **does not** export `__isPlatformVersionAtLeast`, so compiler_rt does not pull in `__availability_version_check` for those targets. For 10.15+, the symbol is expected to come from the **system** (libSystem) at link time.
+ABI tracks a Zig 0.16-dev nightly. On Darwin 26+, prebuilt Zig distributions
+can drift from the host SDK or linker expectations. The recurring failure mode
+is not a normal source compile error; it is a mismatch between the toolchain's
+link environment and the current macOS system libraries.
 
-So the failure is not that the symbol was removed from Zig, but that the **link step** does not resolve it. That usually means:
+Two details matter:
 
-- The linker is not being given the correct **SDK / sysroot** or **libSystem** for the host (e.g. macOS 26), or  
-- The **prebuilt Zig** (e.g. from ziglang.org or ZVM) was built with an SDK or toolchain that doesn’t match the current OS (e.g. Tahoe), so the link command or library search path is wrong.
+1. Darwin availability checks pull in system symbols such as `__availability_version_check`.
+2. If Zig does not resolve the correct SDK / libSystem inputs for the host, the link fails before ABI code runs.
 
-### 2. System symbols (`_abort`, `_arc4random_buf`, etc.)
+## What does not work
 
-- These are normal libc/libSystem symbols. If they are undefined at link time, the linker is not being pointed at the system libraries (e.g. **libSystem**) correctly.
-- This matches the class of bugs seen in **Issue #16118** (“zig ld: undefined symbols for macOS 14”), where “resolve library paths in the frontend” and SDK detection fixes were needed so that Zig’s driver passes the right libraries to the linker on macOS.
+These are common wrong turns:
 
-So on macOS 26+ you are effectively hitting the same class of issue: **Zig’s linker invocation or SDK/library detection is not correct for this OS version**, so system and compiler_rt-related symbols are left undefined.
+- Expecting `build.zig` changes to fix the initial build-runner link
+- Running `zig fmt .` from the repo root instead of the repo-safe format surface
+- Treating `use_lld = true` as a macOS fix
+- Assuming the old `.cel/build.sh` / `use_cel.sh` helpers are the canonical front door
 
-### 3. macOS 26 (Tahoe) specific
+ABI guidance is explicit here: never recommend `use_lld = true` for macOS
+targets.
 
-- **Issue #25521** (ziglang/zig): “zig build fails with a dyld error on x86_64 macOS Tahoe” — **segment `__CONST_ZIG` vm address out of order** when **running** the built binary. This is a **different** bug (self-hosted linker / layout on Tahoe), not the same as undefined-symbol at link time, but it shows that **macOS 26 is a sensitive target** for the current Zig toolchain.
-- **Issue #25463**: “Compilation failed on macos 26.0 with llvm 21” — turned out to be a wrong LLVM version; closed.
-- **#25152**, **#25813**: Fixes for duplicate LC_RPATH and SDK 26.0/26.1 headers — indicate ongoing Tahoe compatibility work.
+## Supported ABI workarounds
 
----
+### 1. Use the build-runner wrapper
 
-## Upstream references
-
-| Issue | Summary |
-|-------|--------|
-| **#16118** | zig ld: undefined symbols for macOS 14 (`_arc4random_buf`, `__availability_version_check`, `_abort`, etc.). Fixed by SDK/library path resolution in the frontend. |
-| **#18818** | compiler_rt: avoid referencing `__availability_version_check` on OS versions where it doesn’t exist (target &lt; 10.15). Documents that 10.15+ relies on the system symbol. |
-| **#25521** | `zig build` fails on x86_64 macOS Tahoe with dyld “segment `__CONST_ZIG` vm address out of order” (self-hosted linker / backend). **Open**, milestone 0.16.0. |
-| **#25152** | Fix duplicate LC_RPATH entries on macOS Tahoe. |
-| **#25813** | libc: Update macOS headers to SDK 26.1. |
-
----
-
-## Why “this Zig version” is broken on macOS
-
-- **Prebuilt** Zig (official tarballs, ZVM, etc.) is built on a specific host and against a specific SDK. If that build was made for an older macOS/SDK, the **linker driver logic** (paths, sysroot, which libs to pass) may not be correct for **macOS 26**, so you get undefined `__availability_version_check`, `_arc4random_buf`, `_abort`, etc.
-- **Zig’s compiler_rt** intentionally depends on the system’s `__availability_version_check` for Darwin targets ≥ 10.15; if the link environment doesn’t provide it (wrong SDK or missing libSystem), the link fails.
-
-So the “broken” behavior is not necessarily a single bug in “this Zig version,” but the combination of:
-
-1. compiler_rt requiring a system symbol that must be resolved at link time,  
-2. linker/SDK handling that hasn’t been fully adapted for macOS 26 (Tahoe), and  
-3. possible self-hosted linker bugs on Tahoe (e.g. #25521).
-
----
-
-## Workarounds (what we use in ABI)
-
-### Recommended: `.cel` toolchain fork
-
-The `.cel/` directory contains a patchable Zig fork that builds from source with macOS 26 fixes applied. This is the recommended approach:
+For build-system steps that need `zig build` semantics:
 
 ```bash
-./.cel/build.sh                          # Build patched Zig (reuses bootstrap LLVM)
-eval "$(./tools/scripts/use_cel.sh)"     # Set PATH to use .cel/bin/zig
-zig build full-check                     # Validate everything
+./tools/scripts/run_build.sh test --summary all
+./tools/scripts/run_build.sh feature-tests --summary all
+./tools/scripts/run_build.sh full-check
 ```
 
-The `.cel` fork pins the same upstream commit as `.zigversion` and applies patches from `.cel/patches/`. See `.cel/README.md` for details.
+This is the fastest way to keep using the stock toolchain when the failure is
+limited to the initial build-runner link.
 
-### Alternative: zig-bootstrap (legacy)
+### 2. Use direct no-link validation
 
-1. **When the build runner fails to link**
-   The first binary Zig builds is the **build runner** (the program that runs your `build.zig`). If you see undefined symbols when running `zig build` or `zig build test` and the references include `build_zcu.o` or similar, the failure is in that first link. **You cannot fix that from build.zig** (your code has not run yet). The only fix is to use a Zig that was **built on this machine** so its linker/SDK match the OS:
-   - Use **zig-bootstrap**: see **`zig-bootstrap-emergency/ABI-USAGE.md`**. From that directory run `./build aarch64-macos-none baseline` (Apple Silicon) or `./build x86_64-macos-none baseline` (Intel). Ensure the `build` script is executable (`chmod +x build`). Then point `PATH` at the resulting `out/zig-<target>-baseline/bin` and run `zig build test` from the ABI repo root.
+For formatting:
 
-2. **Compile-only tests**  
-   When you have a working Zig (e.g. from bootstrap) but want to validate code without linking:  
-   `zig test path/to/file.zig -fno-emit-bin`.  
-   Use this for unit tests when you want to skip the link step.
+```bash
+zig fmt --check build.zig build src tools examples
+./tools/scripts/fmt_repo.sh --check
+```
 
-3. **Older Zig (e.g. 0.14)**  
-   Some users report that `brew install zig@0.14` and using that Zig avoids the failure on newer macOS, at the cost of using an older language/stdlib.
+For compile-only targeted checks:
 
-4. **Force LLVM backend for ABI artifacts**  
-   When the build runner *does* link (e.g. you are using a bootstrap-built Zig), our `build.zig` sets `use_llvm = true` and `use_lld = true` on macOS 26+ for all host executables and tests we define. That may avoid self-hosted Mach-O linker issues (see #25521) for those artifacts. It does **not** affect the build runner itself.
+```bash
+zig test src/services/tests/mod.zig -fno-emit-bin
+zig test src/features/database/mod.zig -fno-emit-bin
+```
 
----
+These do not replace full runtime validation, but they are useful when the
+environment is linker-blocked.
 
-## References
+### 3. Use the repo-local bootstrap bridge
 
-- Zig compiler_rt OS version check: `zig/lib/compiler_rt/os_version_check.zig` (in zig-bootstrap or upstream).
-- Darwin libSystem stub (symbol list): `zig/lib/libc/darwin/libSystem.tbd` (contains `__availability_version_check`, `_arc4random_buf`, etc.).
-- Zig GitHub: [ziglang/zig](https://github.com/ziglang/zig) (mirror; development moved to Codeberg).
-- Zig bootstrap: [ziglang/zig-bootstrap](https://codeberg.org/ziglang/zig-bootstrap) (build Zig from source with minimal deps).
+ABI's canonical toolchain bridge is `abi bootstrap-zig ...` backed by
+`.zig-bootstrap/`.
 
----
+```bash
+abi bootstrap-zig install
+abi bootstrap-zig status
+abi bootstrap-zig path
+```
 
-*Summary written 2026-03; issues and milestones as of that date.*
+Equivalent direct path:
+
+```bash
+./.zig-bootstrap/build.sh
+eval "$(./tools/scripts/use_zig_bootstrap.sh)"
+```
+
+The older `.cel/` tree still exists as implementation backing, but the
+repository-facing interface is the bootstrap Zig bridge.
+
+## Decision guide
+
+Use this sequence when working locally on macOS 26+:
+
+1. Need formatting only: run `zig fmt --check build.zig build src tools examples`
+2. Need `zig build` behavior: run `./tools/scripts/run_build.sh <step>`
+3. Need a host-native toolchain: use `abi bootstrap-zig install`
+4. Need targeted syntax/type validation: use `zig test <path> -fno-emit-bin`
+
+## How to classify a failure
+
+Treat it as the known Darwin linker issue when all of these are true:
+
+- the failure happens during a binary-emitting Zig command
+- the output reports undefined system or compiler runtime symbols
+- the symbols are Darwin / libSystem related rather than project symbols
+- the failure shows up before any ABI tests actually run
+
+Treat it as a normal code issue when:
+
+- you get syntax, type, import, or test failures
+- the missing symbol is from ABI itself rather than libSystem or compiler runtime
+- a compile-only command reproduces the issue without linking
+
+## Repo implications
+
+- `zig build lint` may be environment-blocked on affected Darwin hosts
+- `zig build full-check` remains the canonical gate, but blocked hosts must record alternate evidence
+- docs and task notes should record exactly which command failed and which fallback was used
+
+## Related files
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `tasks/lessons.md`
+- `tools/scripts/run_build.sh`
+- `tools/scripts/use_zig_bootstrap.sh`
+- `tools/scripts/cel_doctor.zig`

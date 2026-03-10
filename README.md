@@ -1,80 +1,30 @@
-<div align="center">
-
 # ABI Framework
 
-<img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
-<img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Status"/>
-<img src="https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge" alt="License"/>
+ABI is a Zig 0.16 framework for AI services, semantic storage, GPU acceleration,
+distributed runtime features, and a large multi-command CLI. The public package
+entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 
-<br/>
+## What ABI includes
 
-<img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1290_unit_%2B_2836_feature-brightgreen?logo=checkmarx&logoColor=white" alt="Tests: 1290 unit + 2836 feature"/>
-<img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
+- `abi.App` / `abi.AppBuilder` for framework setup and feature wiring
+- `abi.features.database` for the semantic store and vector search surface
+- `abi.features.ai` for agents, profiles, training, reasoning, and LLM support
+- `abi.Gpu` / `abi.GpuBackend` for unified compute backends
+- `abi.services.*` for platform, connectors, MCP, ACP, tasks, and shared runtime services
+- `abi` CLI for operational workflows, diagnostics, docs generation, and local tooling
 
-<br/><br/>
+## Current baseline
 
-**A modern Zig 0.16 framework for AI services, vector search, and high-performance systems**
+| Item | Value |
+|------|-------|
+| Zig pin | `0.16.0-dev.1503+738d2be9d` |
+| Package root | `src/root.zig` |
+| Main validation gate | `zig build full-check` |
+| Full release gate | `zig build verify-all` |
+| Docs generator | `zig build gendocs` |
+| CLI registry refresh | `zig build refresh-cli-registry` |
 
-[Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
-
-<br/>
-
-```
-    ╔═══════════════════════════════════════════════════════════════╗
-    ║   LLM Inference  ·  Vector Database  ·  GPU Acceleration      ║
-    ║   Agent Runtime  ·  Distributed Compute  ·  Training Pipelines║
-    ╚═══════════════════════════════════════════════════════════════╝
-```
-
-</div>
-
-## Why ABI?
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### Lightning Fast
-Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal performance. SIMD-accelerated operations throughout.
-
-</td>
-<td width="33%" valign="top">
-
-### Production Ready
-Battle-tested with 1290 unit tests + 2836 feature tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
-
-</td>
-<td width="33%" valign="top">
-
-### Fully Modular
-Enable only what you need. Every feature is toggleable at compile-time with zero overhead for disabled modules.
-
-</td>
-</tr>
-</table>
-
----
-
-## Highlights
-
-| Feature | Description | Status |
-|:--------|:------------|:------:|
-| **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Autonomous Agent** | Deep research, CI watcher, multimodal vision, Dream State background tasks | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Semantic Store** | Canonical semantic store with HNSW/IVF-PQ indexing, hybrid search, and WDBX compatibility aliases | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Interactive CLI** | TUI launcher, GPU dashboard, training monitor | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Streaming API** | SSE/WebSocket inference, circuit breakers, session recovery | ![Ready](https://img.shields.io/badge/-Ready-success) |
-
----
-
-## Quick Start
-
-### Installation
+## Quick start
 
 ```bash
 git clone https://github.com/donaldfilimon/abi.git
@@ -83,43 +33,21 @@ zig build
 zig build run -- --help
 ```
 
-### Requirements
-
-| Dependency | Version | Required |
-|:-----------|:--------|:--------:|
-| Zig | 0.16.0-dev.1503+738d2be9d | Yes |
-| Git | Any | Yes |
-| GPU Drivers | Latest | Optional |
-
-### CEL Stage0
-
-ABI now carries a stage-0 CEL compiler bootstrap implemented in portable C11.
-This is the first step toward replacing Zig as the mainline language while
-keeping Zig only as temporary bootstrap infrastructure.
+If you are on macOS 26+ and stock Zig cannot link the build runner, use one of
+the repo-supported paths instead:
 
 ```bash
-# Canonical CEL commands
-abi bootstrap-zig install             # Install pinned Zig version
-abi bootstrap-zig check               # Verify toolchain
-abi toolchain status                  # Compatibility alias
-
-# CEL stage-0 compiler
-./cel check examples/cel/hello.cel
-./cel run examples/cel/hello.cel
-./cel test tests/cel/stage0_tests.cel
+./tools/scripts/run_build.sh test --summary all
+zig fmt --check build.zig build src tools examples
+abi bootstrap-zig install
+abi bootstrap-zig status
 ```
 
-`cel.toml` is now the canonical package manifest for CEL stage-0. The current
-stable fields are package name/version, module root, stdlib root, entry, test
-roots, and toolchain mode.
+`abi toolchain ...` still exists as a compatibility alias for `abi bootstrap-zig ...`.
 
-The canonical commands for Zig toolchain management are:
-- **`abi bootstrap-zig ...`** -- primary Zig bridge surface (install, check, status).
-- **`abi toolchain ...`** -- compatibility alias (will be removed in a future wave).
-- `.zig-bootstrap/` is the canonical wrapper namespace; the older `.cel/`
-  tree remains only as the backing implementation for now.
+## Library examples
 
-### Hello World
+### Minimal app
 
 ```zig
 const std = @import("std");
@@ -133,444 +61,212 @@ pub fn main() !void {
     var app = try abi.App.initDefault(allocator);
     defer app.deinit();
 
-    std.debug.print("ABI v{s} ready!\n", .{abi.version()});
+    std.debug.print("ABI {s}\n", .{abi.version()});
 }
 ```
 
----
-
-## API Migration (v3 Surface)
-
-ABI now exposes canonical v3 entrypoints only:
-
-- Use `abi.App` / `abi.AppBuilder` as the primary runtime types.
-- Use `abi.features.database` for the vector database, with submodules such as `semantic_store`, `hnsw`, and `simd`.
-- Use `abi.features.ai.profiles` for the multi-persona system (formerly `abi.personas`).
-- Use `abi.inference_engine` for high-performance token generation.
-- Use `abi.server` for the REST API server with OpenAI-compatible endpoints.
-- Legacy v2 aliases and the old `personas` module are fully consolidated into the v3 namespace.
-
----
-
-## Examples
-
-<details open>
-<summary><b>AI Agent Chat</b></summary>
+### Semantic store
 
 ```zig
+const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
     defer _ = gpa.deinit();
-
-    var agent = try abi.features.ai.Agent.init(allocator, .{
-        .name = "assistant",
-        .temperature = 0.7,
-        .enable_history = true,
-    });
-    defer agent.deinit();
-
-    const response = try agent.chat("Explain Zig's comptime in one sentence.", allocator);
-    defer allocator.free(response);
-
-    std.debug.print("Agent: {s}\n", .{response});
-}
-```
-
-</details>
-
-<details>
-<summary><b>Vector Database</b></summary>
-
-```zig
-const abi = @import("abi");
-const store = abi.features.database.semantic_store;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
+
+    const store = abi.features.database.semantic_store;
 
     var handle = try store.openStore(allocator, "vectors-db");
     defer store.closeStore(&handle);
 
-    // Insert vectors
-    try store.storeVector(&handle, 1, &embedding1, "doc1");
-    try store.storeVector(&handle, 2, &embedding2, "doc2");
+    try store.storeVector(&handle, 1, &[_]f32{ 0.1, 0.2, 0.3 }, "doc-1");
+    try store.storeVector(&handle, 2, &[_]f32{ 0.3, 0.2, 0.1 }, "doc-2");
 
-    // Search for similar vectors
-    const results = try store.searchStore(&handle, allocator, &query_embedding, 10);
+    const results = try store.searchStore(&handle, allocator, &[_]f32{ 0.1, 0.2, 0.25 }, 5);
     defer allocator.free(results);
 
     for (results) |result| {
-        std.debug.print("ID: {d}, Score: {d:.4}\n", .{ result.id, result.score });
+        std.debug.print("{d}: {d:.4}\n", .{ result.id, result.score });
     }
 }
 ```
 
-</details>
-
-<details>
-<summary><b>GPU-Accelerated Compute</b></summary>
+### Local echo agent
 
 ```zig
+const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
     defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    // Auto-selects best available backend (CUDA > Vulkan > Metal > CPU)
-    var gpu = try abi.Gpu.init(allocator, .{
-        .enable_profiling = true,
-        .memory_mode = .automatic,
+    var agent = try abi.features.ai.agents.Agent.init(allocator, .{
+        .name = "assistant",
+        .backend = .echo,
+        .enable_history = true,
     });
-    defer gpu.deinit();
+    defer agent.deinit();
 
-    const a = try gpu.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
-    const b = try gpu.createBufferFromSlice(f32, &[_]f32{ 4, 3, 2, 1 }, .{});
-    const result = try gpu.createBuffer(4 * @sizeOf(f32), .{});
-    defer { gpu.destroyBuffer(a); gpu.destroyBuffer(b); gpu.destroyBuffer(result); }
+    const response = try agent.chat("Explain comptime in one sentence.", allocator);
+    defer allocator.free(response);
 
-    // Executes on GPU with automatic SIMD/scalar fallback
-    _ = try gpu.vectorAdd(a, b, result);
-
-    var output: [4]f32 = undefined;
-    try result.read(f32, &output);
-    // output = { 5, 5, 5, 5 }
+    std.debug.print("{s}\n", .{response});
 }
 ```
 
-</details>
+## CLI quick reference
 
-<details>
-<summary><b>Training Pipeline</b></summary>
-
-```zig
-const abi = @import("abi");
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-
-    const config = abi.features.ai.TrainingConfig{
-        .epochs = 10,
-        .batch_size = 32,
-        .learning_rate = 0.001,
-        .optimizer = .adamw,
-    };
-
-    var result = try abi.features.ai.trainWithResult(allocator, config);
-    defer result.deinit();
-
-    std.debug.print("Final loss: {d:.6}\n", .{result.report.final_loss});
-}
-```
-
-</details>
-
----
-
-## CLI Reference
-
-### Adding CLI/TUI tools via the comptime DSL
-
-- Define command metadata in the command module using `pub const meta: command.Meta`.
-- Keep registry ordering/metadata overrides in `tools/cli/registry/overrides.zig`.
-- Refresh the generated registry snapshot with `zig build refresh-cli-registry` after adding commands.
-- Use command metadata fields for options/UI/risk so launcher/completion/help are derived from one source.
-- For simple UI dashboards, use `tools/cli/ui/dsl/mod.zig` to avoid repeated theme/session/dashboard boilerplate.
-- Refresh/check registry snapshots with:
-`zig build refresh-cli-registry`
-`zig build check-cli-registry`
+The CLI registry snapshot is generated from the command modules in
+`tools/cli/commands/`. Common entrypoints:
 
 ```bash
-# Core Commands
-abi --help                    # Show all commands
-abi system-info               # System and feature status
-abi ui                        # Shared UI shell with command palette
+# Runtime / diagnostics
+abi --help
+abi system-info
+abi doctor
+abi status
 
-# Database Operations
-abi db stats                  # Database statistics
-abi db add --id 1 --embed "text"
-abi db search --embed "query" --top 5
-abi db backup --path backup.db
+# Database
+abi db stats
+abi db add --id 1 --embed "hello world"
+abi db query --embed "hello" --top-k 5
 
-# AI & Agents
-abi agent                     # Interactive chat
-abi agent --persona coder     # Use specific persona
-abi agent -m "Hello"          # One-shot message
-abi llm chat model.gguf       # Chat with local model
+# AI
+abi agent
+abi llm chat model.gguf
+abi train help
+abi ralph status
 
-# GPU Management
-abi gpu backends              # List available backends
-abi gpu devices               # Enumerate all GPUs
-abi gpu summary               # Quick status
+# Infrastructure
+abi gpu summary
+abi network status
+abi ui
 
-# Training
-abi train run --epochs 10     # Start training
-abi train resume ./checkpoint # Resume from checkpoint
-abi train monitor             # Real-time metrics
-
-# Runtime Feature Flags
-abi --list-features           # Show feature status
-abi --enable-gpu db stats     # Enable feature for command
-abi --disable-ai system-info  # Disable feature for command
+# Tooling
+abi bootstrap-zig status
+abi gendocs --check
+zig build refresh-cli-registry
+zig build check-cli-registry
 ```
 
----
+## Public surface map
 
-## Performance
+ABI's public package surface is intentionally small at the top level and broad
+under feature and service namespaces.
 
-<div align="center">
+| Surface | Purpose |
+|---------|---------|
+| `abi.App` / `abi.AppBuilder` | Framework lifecycle and feature orchestration |
+| `abi.features.database` | Semantic store, search, backup, restore, diagnostics |
+| `abi.features.ai` | Agents, profiles, LLM, training, reasoning |
+| `abi.features.gpu` | GPU feature namespace |
+| `abi.Gpu` / `abi.GpuBackend` | Direct unified GPU runtime access |
+| `abi.services.*` | Shared runtime services and integration surfaces |
 
-| Benchmark | Operations/sec |
-|:----------|---------------:|
-| SIMD Vector Dot Product | **84,875,233** |
-| SIMD Vector Addition | **84,709,869** |
-| Configuration Loading | **66,476,102** |
-| Memory Allocation (1KB) | **464,712** |
-| Logging Operations | **331,960** |
-| Compute Engine Task | **93,368** |
-| Network Registry Ops | **84,831** |
-| JSON Parse/Serialize | **83,371** |
-| Database Vector Insert | **68,444** |
-| Database Vector Search | **56,563** |
+### Notes on migration surfaces
 
-<sub>ReleaseFast build on typical development workstation. Run `zig build benchmarks` to test your system.</sub>
+- `abi.features.ai.profiles` is the canonical behavior-profile namespace.
+- `abi.features.ai.personas` remains as a compatibility alias during the phase 4 transition.
+- The public named `wdbx` package surface has been removed; use `abi.features.database`.
+- `src/abi.zig` is the internal composition layer. External consumers should target `@import("abi")`, which resolves to `src/root.zig`.
 
-</div>
+## Repository layout
 
----
+| Path | Purpose |
+|------|---------|
+| `src/root.zig` | Public package root |
+| `src/abi.zig` | Internal composition layer |
+| `src/features/` | Comptime-gated feature modules with `mod.zig` / `stub.zig` parity |
+| `src/core/` | Always-on framework internals |
+| `src/services/` | Runtime services shared across features and tools |
+| `tools/cli/` | ABI CLI implementation |
+| `tools/gendocs/` | Documentation generator and templates |
+| `docs/` | Maintained docs plus generated API/plan output |
+| `build/` | Modular Zig build graph and validation steps |
 
-## Architecture
+## Build, test, and validation
 
-```
-abi/
-├── src/
-│   ├── abi.zig              # Internal composition surface
-│   ├── root.zig             # Package entry point for @import("abi")
-│   ├── core/                # Config, feature catalog, framework lifecycle
-│   ├── features/            # 19 comptime-gated feature modules
-│   │   ├── ai/              # LLM inference, agents, training, streaming
-│   │   │   ├── llm/         # Local LLM inference (Llama-CPP parity)
-│   │   │   ├── agents/      # Agent runtime
-│   │   │   ├── training/    # Training pipelines
-│   │   │   └── embeddings/  # Vector embeddings
-│   │   ├── gpu/             # GPU Acceleration
-│   │   │   ├── backends/    # CUDA, Vulkan, Metal, WebGPU, FPGA
-│   │   │   ├── kernels/     # Compute kernels
-│   │   │   └── dsl/         # Shader DSL & codegen
-│   │   ├── database/        # Semantic store public surface
-│   │   ├── network/         # Distributed compute, Raft consensus
-│   │   ├── web/             # HTTP client utilities
-│   │   └── ...              # 14 more feature modules
-│   ├── services/            # Shared runtime services (LSP, MCP, connectors)
-│   ├── core/database/       # Database engine and .wdbx format internals
-│   └── inference/           # High-performance token generation
-│
-├── build/                   # Modular build system (options, flags, test discovery)
-├── tools/cli/               # CLI executable and 90+ commands
-├── examples/                # Usage examples
-└── docs/                    # Documentation
-```
-
-<details>
-<summary><b>System Architecture Diagram</b></summary>
-
-```mermaid
-flowchart TB
-    subgraph "Public API"
-        ABI[root.zig]
-    end
-
-    subgraph "Framework Layer"
-        FW[Framework Orchestration]
-        CFG[Configuration]
-        REG[Feature Registry]
-    end
-
-    subgraph "Feature Modules"
-        AI[AI Runtime]
-        GPU[GPU Acceleration]
-        DB[Vector Database]
-        NET[Distributed Network]
-        OBS[Observability]
-    end
-
-    subgraph "Infrastructure"
-        RT[Runtime Engine]
-        MEM[Memory Management]
-        CONC[Concurrency]
-    end
-
-    ABI --> FW
-    FW --> CFG
-    FW --> REG
-    FW --> AI
-    FW --> GPU
-    FW --> DB
-    FW --> NET
-    FW --> OBS
-    AI --> RT
-    GPU --> RT
-    DB --> RT
-    RT --> MEM
-    RT --> CONC
-```
-
-</details>
-
----
-
-## Feature Flags
-
-All features are enabled by default. Disable unused features to reduce binary size.
-
-| Flag | Default | Description |
-|:-----|:-------:|:------------|
-| `-Dfeat-ai` | true | AI features, agents, and connectors |
-| `-Dfeat-llm` | true | Local LLM inference |
-| `-Dfeat-gpu` | true | GPU acceleration |
-| `-Dfeat-database` | true | Semantic store and vector database |
-| `-Dfeat-network` | true | Distributed compute |
-| `-Dfeat-web` | true | HTTP client utilities |
-| `-Dfeat-profiling` | true | Performance profiling |
-| `-Dfeat-analytics` | true | Analytics and metrics collection |
-| `-Dfeat-auth` | true | Authentication and authorization |
-| `-Dfeat-cache` | true | Caching layer |
-| `-Dfeat-cloud` | true | Cloud provider integrations |
-| `-Dfeat-compute` | true | Compute engine (work-stealing scheduler) |
-| `-Dfeat-desktop` | true | Desktop platform support |
-| `-Dfeat-documents` | true | Document processing |
-| `-Dfeat-gateway` | true | API gateway |
-| `-Dfeat-messaging` | true | Message queues and pub/sub |
-| `-Dfeat-mobile` | true | Mobile platform support |
-| `-Dfeat-search` | true | Search engine |
-| `-Dfeat-storage` | true | Storage backends |
-| `-Dfeat-training` | true | Training pipelines |
-| `-Dfeat-reasoning` | true | Reasoning / chain-of-thought |
-| `-Dfeat-benchmarks` | true | Benchmark suite |
-| `-Dfeat-pages` | true | Static page serving |
-
-### GPU Backend Selection
+### Core commands
 
 ```bash
-# Single backend
-zig build -Dgpu-backend=vulkan
-zig build -Dgpu-backend=cuda
-zig build -Dgpu-backend=metal
-
-# Multiple backends (comma-separated)
-zig build -Dgpu-backend=cuda,vulkan
-
-# Auto-detect best available
-zig build -Dgpu-backend=auto
-```
-
----
-
-## C Bindings (Reintroduction Planned)
-
-C bindings were removed during the 2026-01-30 cleanup and are being
-reintroduced as part of the language bindings roadmap. Track progress in
-[tasks/todo.md](tasks/todo.md).
-
----
-
-## Documentation
-
-| Resource | Description |
-|:---------|:------------|
-| [Online Docs](https://donaldfilimon.github.io/abi/) | Published documentation site |
-| [Docs Source](docs/README.md) | Docs build and layout |
-| [API Reference](docs/api/index.md) | Generated API reference |
-| [API Coverage](docs/api/coverage.md) | Per-module documentation coverage |
-| [Plans](docs/plans/index.md) | Active execution plans |
-| [Workflow Contract](AGENTS.md) | Canonical repo workflow, consensus, and task-tracking rules |
-| [Claude Quick Reference](CLAUDE.md) | Local command summary and convenience wrapper |
-
-```bash
-# Run all tests
+zig build
 zig build test --summary all
-
-# Test specific module
-zig test src/services/runtime/mod.zig
-
-# Filter tests by pattern
-zig test src/services/tests/mod.zig --test-filter "pattern"
-
-# Run benchmarks
-zig build benchmarks
-
-# Lint check
-zig build lint
-
-# Safe direct format check
-./tools/scripts/fmt_repo.sh --check
+zig build feature-tests --summary all
+zig build full-check
+zig build verify-all
 ```
 
----
+### Formatting and deterministic checks
 
-## Environment Variables
+```bash
+zig build fix
+zig build lint
+./tools/scripts/fmt_repo.sh --check
+zig fmt --check build.zig build src tools examples
+```
 
-| Variable | Description |
-|:---------|:------------|
-| `ABI_OPENAI_API_KEY` | OpenAI API key |
-| `ABI_ANTHROPIC_API_KEY` | Anthropic/Claude API key |
-| `ABI_OLLAMA_HOST` | Ollama host (default: `http://127.0.0.1:11434`) |
-| `ABI_OLLAMA_MODEL` | Default Ollama model |
-| `ABI_HF_API_TOKEN` | HuggingFace API token |
-| `DISCORD_BOT_TOKEN` | Discord bot token |
+Do not run `zig fmt .` at the repo root. The repo vendors upstream Zig fixtures
+that intentionally contain invalid compile-error cases.
 
----
+### Docs and generated artifacts
 
-## Project Status
+```bash
+zig build gendocs
+zig build gendocs -- --check --no-wasm --untracked-md
+zig build check-docs
+zig build refresh-cli-registry
+zig build check-cli-registry
+```
 
-| Milestone | Status |
-|:----------|:------:|
-| Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| C Library Bindings | ![Removed](https://img.shields.io/badge/-Removed-lightgrey) |
-| Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+Generated docs live under `docs/api/` and `docs/plans/`. Structural edits should
+go through `tools/gendocs/`, not direct manual edits to generated pages.
 
-See [tasks/todo.md](tasks/todo.md) for current task tracking and [docs/plans/index.md](docs/plans/index.md) for roadmap history.
+## Feature flags
 
----
+All features default to enabled. Disable features with `-Dfeat-<name>=false`.
+
+```bash
+zig build -Dfeat-gpu=false -Dfeat-ai=false
+zig build -Dgpu-backend=metal
+zig build -Dgpu-backend=cuda,vulkan
+```
+
+Feature definitions live in `build/options.zig`, and the source of truth for the
+catalog lives in `src/core/feature_catalog.zig`.
+
+## Toolchain notes
+
+ABI is pinned to the Zig version in `.zigversion`. When repinning Zig, update the
+pin atomically with:
+
+- `.zigversion`
+- `build.zig.zon`
+- `tools/scripts/baseline.zig`
+- `README.md`
+- related CI / toolchain docs
+
+For macOS linker issues, see [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md).
+For the repo-local bootstrap bridge, use `abi bootstrap-zig ...`.
+
+## Documentation map
+
+- [docs/README.md](docs/README.md) - docs tree layout and generation workflow
+- [docs/FAQ-agents.md](docs/FAQ-agents.md) - repo workflow FAQ for agents and contributors
+- [docs/guides/cursor_rules.md](docs/guides/cursor_rules.md) - Cursor-specific ABI rules
+- [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md) - Darwin linker failure notes
+- [docs/ABI_WDBX_ARCHITECTURE.md](docs/ABI_WDBX_ARCHITECTURE.md) - semantic-store architecture notes
 
 ## Contributing
 
-We welcome contributions! Please see:
+Before non-trivial changes:
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow
-- [AGENTS.md](AGENTS.md) - Canonical workflow and task-tracking contract
-- [CLAUDE.md](CLAUDE.md) - Local quick reference
+1. Read `AGENTS.md`, `CONTRIBUTING.md`, `CLAUDE.md`, `tasks/todo.md`, and `tasks/lessons.md`.
+2. Plan multi-file work in `tasks/todo.md`.
+3. Keep feature-module `mod.zig` and `stub.zig` public surfaces aligned.
+4. Run the strongest validation this environment supports and record blockers precisely.
 
-<div align="center">
-
-[![Issues](https://img.shields.io/badge/Issues-Report_Bug-red?logo=github)](https://github.com/donaldfilimon/abi/issues)
-[![Discussions](https://img.shields.io/badge/Discussions-Ask_Questions-blue?logo=github)](https://github.com/donaldfilimon/abi/discussions)
-[![Contributing](https://img.shields.io/badge/PRs-Welcome-brightgreen?logo=git)](CONTRIBUTING.md)
-
-</div>
-
----
-
-<div align="center">
-
-[![License](https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge)](LICENSE)
-
-MIT License - See [LICENSE](LICENSE) for details.
-
-<br/>
-
-**Built with Zig**
-
-</div>
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).

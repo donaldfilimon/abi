@@ -1,153 +1,172 @@
-WDBX and Abbey Architecture, written in longer form with Zig 0.16 as the reference frame
+# ABI WDBX Architecture
 
-WDBX makes the most sense if you stop thinking about it as “just a database” and instead treat it as a memory fabric for an AI system that has to do more than store rows and answer queries. A plain database can remember facts. WDBX is meant to remember meaning, relationships, priority, history, and why a thing mattered.
+WDBX is the historical name for ABI's semantic storage engine. In the current
+repo, the public package surface is `abi.features.database`, while the deeper
+implementation still contains WDBX-oriented modules and terminology.
 
-Using Zig 0.16 as the reference frame sharpens the idea, because Zig pushes you toward explicit design. It does not let you hide behind magical runtime behavior or vague abstractions for long. Memory ownership matters. Allocators matter. data layout matters. Concurrency decisions matter. Error sets matter. Build configuration matters.
+This document explains the architecture in terms of the current codebase rather
+than the older standalone-package model.
 
-The core idea of WDBX
-At its heart, WDBX is a weighted, distributed, block-oriented memory and retrieval system.
-“Weighted” means each stored element can carry significance. A memory block is not just present or absent. It may be ranked by recency, confidence, authority, relevance to a user, usage frequency, trust score, semantic closeness, task criticality, or some composite score derived from several of those factors.
-“Distributed” means the system should scale across multiple nodes or processes rather than depending on one giant stateful blob.
-“Block-oriented” means data is not forced into a single undifferentiated heap. Instead, the system stores units of knowledge or artifacts as addressable blocks. A block might hold a text summary, vector embedding, relationship list, code snippet, metadata structure, message fragment, or a compact binary representation of some task artifact.
+## Position in the repo
 
-A Zig 0.16 style decomposition of WDBX
-1. Block storage layer (BlockStore, backed by files, mmap regions, append-only segment logs)
-2. Metadata and index layer (B-tree, hash index, adjacency lists)
-3. Vector memory layer (Vector storage format, quantization strategy, distance metric, index, retrieval hooks)
-4. Relationship and graph layer (Adjacency lists, edge logs)
-5. Weighting and ranking layer (Structs, scoring functions, composable heuristics)
-6. Distributed coordination layer (Shard assignment, replication, write-ahead log, snapshotting)
-7. Reflection and backtrace layer (Which blocks, scoring path, persona mode, graph edges, summaries)
+- Public package entry: `abi.features.database`
+- Canonical implementation root: `src/core/database/`
+- Feature-gated facade: `src/features/database/mod.zig`
+- Compatibility and archival naming: `wdbx`, semantic memory, semantic store
 
-WDBX as memory, not merely storage
-WDBX needs to answer questions more like:
-• what prior information is semantically relevant to the current task?
-• what context is closest but also trustworthy and recent?
-• what memory path led from this project to that result?
-• what does Abbey need to sound coherent right now?
+The important boundary is:
 
-How my architecture fits into WDBX
-Layer A: inference core (Language and reasoning engine)
-Layer B: context assembly (Deterministic pipeline: ContextAssembler)
-Layer C: persona routing (Policy selection engine for tone, verbosity, constraint profiles)
-Layer D: tool and action interface (Action bus with tagged unions representing tool requests/responses)
-Layer E: memory feedback loop (Memory writer that decides what to retain, summarize, link, or decay)
+- external callers use `abi.features.database`
+- internal database implementation lives under `src/core/database/`
 
-The Abbey stack in practical terms
-1. Your message enters the front end.
-2. Intent detection estimates task type, urgency, and likely persona policy.
-3. Context assembly requests relevant memory from WDBX.
-4. Vector search, graph traversal, and metadata filters return candidate blocks.
-5. Weighting and reranking reduce that set to the most useful context.
-6. Persona routing chooses Abbey, Aviva, or a blend, with Abi-like regulation if needed.
-7. The inference core generates a response or action plan.
-8. Tools are called if necessary.
-9. The final result is produced.
-10. Important interaction state is summarized and written back into WDBX.
+## System goal
 
-## Module Responsibilities
+The database subsystem is not just a vector store. It is intended to support:
 
-### core/
-Common primitives shared everywhere.
-* **ids.zig**: BlockId, ShardId, NodeId, TraceId
-* **types.zig**: enums, tags, shared structs
-* **time.zig**: clocks, monotonic timestamps, logical clocks
-* **errors.zig**: canonical error sets
-* **alloc.zig**: allocator helpers and memory diagnostics
+- semantic similarity search
+- metadata-aware retrieval
+- weighted memory ranking
+- backup and restore flows
+- distributed coordination paths
+- operational surfaces such as CLI, HTTP, MCP, and diagnostics
 
-### block/
-Owns durable block persistence.
-* **header.zig**: versioned block headers
-* **block.zig**: StoredBlock and payload views
-* **codec.zig**: binary encode and decode logic
-* **checksum.zig**: integrity validation
-* **compression.zig**: optional compression strategies
-* **store.zig**: public BlockStore API
-* **segment_log.zig**: append-only segments
-* **compaction.zig**: merge, dedupe, reclaim, rewrite
+## Architecture layers
 
-### index/
-Owns symbolic lookup structures.
-* direct id lookup
-* namespace and user indexes
-* tag and type indexes
-* time-range or ordered retrieval
+### 1. Core and shared primitives
 
-### graph/
-Owns explicit relationships.
-* EdgeKind
-* adjacency lists
-* forward and reverse traversal
-* path scoring hooks
+`src/core/database/core/`
 
-### vector/
-Owns semantic retrieval.
-* embedding storage
-* distance metrics
-* quantization
-* flat and approximate indexes
-* reranking integration with metadata and graph scores
+Provides the small foundational building blocks used everywhere else:
 
-### ranking/
-Turns candidate sets into useful memory.
-Input signals may include: semantic similarity, recency, trust score, user pinning, project locality, persona preference, contradiction penalties, past usefulness. Output is a ranked candidate list plus score trace.
+- ids
+- common types
+- canonical error definitions
+- time and allocator helpers
 
-### query/
-Composes block, index, graph, and vector systems into executable retrieval plans.
-* parse request
-* determine retrieval path
-* fan out to subsystems
-* merge and score results
-* attach trace metadata
+### 2. Durable storage and block layout
 
-### memory/
-Controls writes back into long-term memory.
-* decide retain vs summarize vs drop
-* apply decay curves
-* promote pinned memories
-* manage rolling summaries
+Key files:
 
-### context/
-Produces compact packets for the inference engine.
-* gather candidates
-* trim to token or byte budget
-* preserve important lineage
-* optionally summarize oversized groups
-* emit ContextPacket
+- `src/core/database/storage.zig`
+- `src/core/database/block/`
+- `src/core/database/persistence.zig`
+- `src/core/database/formats/`
 
-### persona/
-Defines behavioral policy overlays.
-* PersonaMode = .abbey | .aviva | .abi
-* routing from request features
-* tone/verbosity/retrieval bias policies
-* moderation or regulation hooks
+This layer owns serialization, durable layout, backup materialization, and
+format-specific mechanics such as block headers, segment logs, compression, and
+binary codecs.
 
-### trace/
-Makes the system inspectable.
-* retrieval traces
-* score provenance
-* lineage graphs
-* audit logs for tool use and memory use
+### 3. Retrieval engines and indexes
 
-### dist/
-Allows growth from single-node to clustered deployment.
-* shard ownership
-* replication messages
-* snapshotting
-* recovery
-* merge logic for distributed queries
-* node health and rebalancing
+Key files:
 
-### api/
-Stable boundaries for outside use.
-* binary RPC for node communication
-* HTTP admin or query interface
-* internal operator APIs
+- `src/core/database/semantic_store/mod.zig`
+- `src/core/database/hnsw.zig`
+- `src/core/database/index.zig`
+- `src/core/database/fulltext.zig`
+- `src/core/database/hybrid.zig`
+- `src/core/database/filter.zig`
+- `src/core/database/parallel_search.zig`
 
-### cli/
-Developer and operator tooling.
-* ingest documents or blocks
-* query memory
-* inspect trace output
-* trigger compaction
-* create snapshots
+This is the primary retrieval plane. It combines vector search, metadata
+filters, full-text indexing, and hybrid ranking paths.
+
+### 4. Quantization, SIMD, and performance work
+
+Key files:
+
+- `src/core/database/simd.zig`
+- `src/core/database/quantization.zig`
+- `src/core/database/product_quantizer.zig`
+- `src/core/database/parallel_hnsw.zig`
+- `src/core/database/clustering.zig`
+
+This layer exists to keep the database useful at larger scales where storage
+size, search throughput, and approximation quality all matter.
+
+### 5. Memory, ranking, and query composition
+
+Key directories:
+
+- `src/core/database/query/`
+- `src/core/database/ranking/`
+- `src/core/database/memory/`
+- `src/core/database/trace/`
+- `src/core/database/graph/`
+- `src/core/database/vector/`
+- `src/core/database/persona/`
+
+These modules are where the "memory fabric" idea becomes concrete. They allow
+the subsystem to reason about more than raw nearest-neighbor search by layering
+ranking, traversal, scoring traces, and behavior-sensitive context assembly on
+top of core storage.
+
+### 6. Distributed and operational surfaces
+
+Key files:
+
+- `src/core/database/distributed/`
+- `src/core/database/dist/`
+- `src/core/database/http.zig`
+- `src/core/database/cli/`
+- `src/core/database/api/`
+
+These modules handle clustering, replication, recovery, remote coordination, and
+operator-facing access.
+
+## Request flow
+
+A typical semantic retrieval request follows this shape:
+
+1. Open or connect to a database handle.
+2. Insert vectors plus metadata into the semantic store.
+3. Query through vector, metadata, or hybrid retrieval paths.
+4. Rank or filter the candidate set.
+5. Return search results, diagnostics, or derived context to a caller.
+
+At the public ABI layer this usually looks like:
+
+- `abi.features.database.open`
+- `abi.features.database.insert`
+- `abi.features.database.search`
+- `abi.features.database.backup`
+- `abi.features.database.restore`
+
+At the more detailed surface it often routes through:
+
+- `abi.features.database.semantic_store`
+- `abi.features.database.neural`
+- `abi.features.database.fulltext`
+- `abi.features.database.hybrid`
+
+## Why WDBX terminology still exists
+
+WDBX still appears in:
+
+- historical filenames
+- lower-level engine modules
+- plan documents
+- dataset conversion paths
+- compatibility-oriented docs and comments
+
+That naming does not mean there is still a public `@import("wdbx")` package
+surface. The public package contract is now the ABI database feature namespace.
+
+## How to think about the subsystem
+
+The best mental model is:
+
+- storage layer for durable vector and metadata state
+- retrieval layer for semantic and hybrid search
+- memory layer for context shaping and ranking
+- operational layer for backups, diagnostics, and distributed coordination
+
+In other words, WDBX is the engine lineage; `abi.features.database` is the
+current consumer-facing API.
+
+## Practical guidance for contributors
+
+- Update `src/features/database/mod.zig` and `src/features/database/stub.zig` together when public signatures move.
+- Prefer fixing public docs to reference `abi.features.database`.
+- Keep generated docs and CLI help aligned when command or public-surface names change.
+- Treat `src/core/database/` as the canonical place to understand behavior, even when the exported surface is smaller.
