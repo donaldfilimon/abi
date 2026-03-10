@@ -273,7 +273,7 @@ pub fn build(b: *std.Build) void {
 
     // ── Consistency checks ──────────────────────────────────────────────
     const toolchain_doctor_step = b.step("toolchain-doctor", "Diagnose local Zig PATH/version drift against repository pin");
-    toolchain_doctor_step.dependOn(&addScriptRunner(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize).step);
+    toolchain_doctor_step.dependOn(addHostScriptStep(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize, &.{}));
 
     const check_zig_version_step = b.step("check-zig-version", "Verify Zig version consistency");
     check_zig_version_step.dependOn(addValidationScriptStep(
@@ -349,7 +349,7 @@ pub fn build(b: *std.Build) void {
     }
 
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
-    ralph_gate_step.dependOn(&addScriptRunner(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize).step);
+    ralph_gate_step.dependOn(addHostScriptStep(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize, &.{}));
 
     const workflow_contract_step = b.step("check-workflow-orchestration", "Advisory workflow-orchestration contract checks");
     workflow_contract_step.dependOn(addValidationScriptStep(
@@ -382,34 +382,31 @@ pub fn build(b: *std.Build) void {
     _ = cel.addCelVerifyStep(b);
 
     const zig_bootstrap_doctor_step = b.step("zig-bootstrap-doctor", "Run Zig bootstrap diagnostics and remediation");
-    zig_bootstrap_doctor_step.dependOn(&addScriptRunner(b, "abi-zig-bootstrap-doctor", "tools/scripts/cel_doctor.zig", target, optimize).step);
+    zig_bootstrap_doctor_step.dependOn(addHostScriptStep(b, "abi-zig-bootstrap-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}));
 
     const cel_doctor_step = b.step("cel-doctor", "Deprecated alias for zig-bootstrap-doctor");
-    cel_doctor_step.dependOn(&addScriptRunner(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize).step);
+    cel_doctor_step.dependOn(addHostScriptStep(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}));
 
     // ── CLI DSL registry/codegen ───────────────────────────────────────
-    const generate_cli_registry = addScriptRunner(
+    const generate_cli_registry_step = b.step("generate-cli-registry", "Generate CLI registry artifact in build cache");
+    generate_cli_registry_step.dependOn(addHostScriptStep(
         b,
         "abi-generate-cli-registry",
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
-    );
-    generate_cli_registry.addArg("--output");
-    generate_cli_registry.addArg(".zig-cache/abi/generated/cli_registry.zig");
-    const generate_cli_registry_step = b.step("generate-cli-registry", "Generate CLI registry artifact in build cache");
-    generate_cli_registry_step.dependOn(&generate_cli_registry.step);
+        &.{ "--output", ".zig-cache/abi/generated/cli_registry.zig" },
+    ));
 
-    const refresh_cli_registry = addScriptRunner(
+    const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
+    refresh_cli_registry_step.dependOn(addHostScriptStep(
         b,
         "abi-refresh-cli-registry",
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
-    );
-    refresh_cli_registry.addArg("--snapshot");
-    const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
-    refresh_cli_registry_step.dependOn(&refresh_cli_registry.step);
+        &.{ "--snapshot" },
+    ));
 
     const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
     check_cli_registry_step.dependOn(addValidationScriptStep(
@@ -813,7 +810,7 @@ fn addHostScriptStep(
     optimize: std.builtin.OptimizeMode,
     args: []const []const u8,
 ) *std.Build.Step {
-    const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
+
     if (is_blocked_darwin) {
         return addScriptCompileOnly(b, name, source, target, optimize);
     }
@@ -839,7 +836,7 @@ fn addScriptRunner(
             .link_libc = true,
         }),
     });
-    const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
+
     if (is_blocked_darwin) {
         exe.use_llvm = true;
     }
