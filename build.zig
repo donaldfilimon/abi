@@ -326,13 +326,20 @@ pub fn build(b: *std.Build) void {
     workflow_contract_strict.addArg("--strict");
     workflow_contract_strict_step.dependOn(&workflow_contract_strict.step);
 
-    // ── CEL toolchain steps ──────────────────────────────────────────────
+    // ── Zig bootstrap steps ──────────────────────────────────────────────
+    _ = cel.addZigBootstrapCheckStep(b);
+    _ = cel.addZigBootstrapBuildStep(b);
+    _ = cel.addZigBootstrapStatusStep(b);
+    _ = cel.addZigBootstrapVerifyStep(b);
     _ = cel.addCelCheckStep(b);
     _ = cel.addCelBuildStep(b);
     _ = cel.addCelStatusStep(b);
     _ = cel.addCelVerifyStep(b);
 
-    const cel_doctor_step = b.step("cel-doctor", "Run .cel toolchain diagnostics and remediation");
+    const zig_bootstrap_doctor_step = b.step("zig-bootstrap-doctor", "Run Zig bootstrap diagnostics and remediation");
+    zig_bootstrap_doctor_step.dependOn(&addScriptRunner(b, "abi-zig-bootstrap-doctor", "tools/scripts/cel_doctor.zig", target, optimize).step);
+
+    const cel_doctor_step = b.step("cel-doctor", "Deprecated alias for zig-bootstrap-doctor");
     cel_doctor_step.dependOn(&addScriptRunner(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize).step);
 
     // ── CLI DSL registry/codegen ───────────────────────────────────────

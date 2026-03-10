@@ -1,5 +1,5 @@
 name: CI
-
+/
 on:
   push:
     branches: [main, master]
@@ -14,15 +14,23 @@ env:
   ZIG_VERSION: "0.16.0-dev.1503+738d2be9d"
 
 jobs:
+  shell-lint:
+    name: Shell Script Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax-check all shell scripts
+        run: bash -n .cel/*.sh tools/scripts/*.sh
+
   lint:
     name: Format Check
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
         with:
           version: ${{ env.ZIG_VERSION }}
-      - run: zig build lint
+      - run: zig fmt --check build.zig build/ src/ tools/
 
   test:
     name: Test Suite

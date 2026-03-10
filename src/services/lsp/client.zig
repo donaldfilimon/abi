@@ -602,6 +602,7 @@ fn createTestAbiRepo(
     include_zls: bool,
 ) !void {
     const dirs = [_][]const u8{
+        ".zig-bootstrap/bin",
         ".cel/bin",
         "src",
     };
@@ -614,6 +615,7 @@ fn createTestAbiRepo(
     const files = [_]struct { sub: []const u8, data: []const u8 }{
         .{ .sub = "build.zig", .data = "pub fn build(_: *anyopaque) void {}\n" },
         .{ .sub = "src/abi.zig", .data = "pub const test_value = 1;\n" },
+        .{ .sub = ".zig-bootstrap/build.sh", .data = "#!/bin/sh\n" },
         .{ .sub = ".cel/build.sh", .data = "#!/bin/sh\n" },
     };
     for (files) |entry| {
@@ -625,13 +627,13 @@ fn createTestAbiRepo(
     }
 
     if (include_zig) {
-        const p = try std.fs.path.join(allocator, &.{ repo_root, ".cel/bin/zig" });
+        const p = try std.fs.path.join(allocator, &.{ repo_root, ".zig-bootstrap/bin/zig" });
         defer allocator.free(p);
         const f = try std.Io.Dir.createFileAbsolute(io, p, .{});
         f.close(io);
     }
     if (include_zls) {
-        const p = try std.fs.path.join(allocator, &.{ repo_root, ".cel/bin/zls" });
+        const p = try std.fs.path.join(allocator, &.{ repo_root, ".zig-bootstrap/bin/zls" });
         defer allocator.free(p);
         const f = try std.Io.Dir.createFileAbsolute(io, p, .{});
         f.close(io);
@@ -649,7 +651,7 @@ fn cleanupTestRepo(allocator: std.mem.Allocator, io: std.Io, repo_root: []const 
     _ = allocator;
 }
 
-test "resolveZigPath prefers explicit override over repo-local CEL" {
+test "resolveZigPath prefers explicit override over repo-local bootstrap zig" {
     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
     defer io_backend.deinit();
     const io = io_backend.io();
@@ -668,7 +670,7 @@ test "resolveZigPath prefers explicit override over repo-local CEL" {
     try std.testing.expect(result.owned == null);
 }
 
-test "resolveZigPath prefers repo-local CEL zig before fallback" {
+test "resolveZigPath prefers repo-local bootstrap zig before fallback" {
     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
     defer io_backend.deinit();
     const io = io_backend.io();
@@ -683,10 +685,10 @@ test "resolveZigPath prefers repo-local CEL zig before fallback" {
     defer if (result.owned) |owned| std.testing.allocator.free(owned);
 
     try std.testing.expect(result.path != null);
-    try std.testing.expect(std.mem.endsWith(u8, result.path.?, "/.cel/bin/zig"));
+    try std.testing.expect(std.mem.endsWith(u8, result.path.?, "/.zig-bootstrap/bin/zig"));
 }
 
-test "resolveZlsPath prefers repo-local CEL zls before PATH default" {
+test "resolveZlsPath prefers repo-local bootstrap zls before PATH default" {
     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
     defer io_backend.deinit();
     const io = io_backend.io();
@@ -700,7 +702,7 @@ test "resolveZlsPath prefers repo-local CEL zls before PATH default" {
     const result = try resolveZlsPath(std.testing.allocator, io, Config.defaults(), repo_root);
     defer if (result.owned) |owned| std.testing.allocator.free(owned);
 
-    try std.testing.expect(std.mem.endsWith(u8, result.path, "/.cel/bin/zls"));
+    try std.testing.expect(std.mem.endsWith(u8, result.path, "/.zig-bootstrap/bin/zls"));
 }
 
 test {

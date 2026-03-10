@@ -91,6 +91,25 @@ zig build run -- --help
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
+### CEL Stage0
+
+ABI now carries a stage-0 CEL compiler bootstrap implemented in portable C11.
+This is the first step toward replacing Zig as the mainline language while
+keeping Zig only as temporary bootstrap infrastructure.
+
+```bash
+./cel check examples/cel/hello.cel
+./cel run examples/cel/hello.cel
+./cel test tests/cel/stage0_tests.cel
+abi bootstrap-zig install
+```
+
+During the transition:
+- `abi bootstrap-zig ...` is the canonical Zig bridge surface.
+- `abi toolchain ...` remains as a compatibility alias for one migration wave.
+- `.zig-bootstrap/` is the canonical wrapper namespace; the older `.cel/`
+  tree remains only as the backing implementation for now.
+
 ### Hello World
 
 ```zig

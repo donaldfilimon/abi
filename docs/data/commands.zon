@@ -366,9 +366,9 @@
         },
     },
     .{
-        .name = "toolchain",
-        .description = "Manage the repo-local CEL Zig/ZLS toolchain (install, update, status, bootstrap)",
-        .aliases = .{},
+        .name = "bootstrap-zig",
+        .description = "Manage the repo-local Zig bootstrap bridge that backs ABI's CEL transition",
+        .aliases = .{"toolchain"},
         .subcommands = .{
             "install",
             "zig",
@@ -376,6 +376,7 @@
             "status",
             "update",
             "path",
+            "bootstrap",
             "help",
         },
     },

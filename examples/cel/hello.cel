@@ -1,0 +1,7 @@
+module examples.hello;
+
+fn main() {
+    let greeting = "Hello from CEL stage0";
+    print(greeting);
+    defer print("goodbye from defer");
+}

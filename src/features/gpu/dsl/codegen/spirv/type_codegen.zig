@@ -8,6 +8,7 @@ const std = @import("std");
 const constants = @import("constants.zig");
 const types_gen = @import("types_gen.zig");
 const constants_gen = @import("constants_gen.zig");
+const instruction_emit = @import("instruction_emit.zig");
 const dsl_types = @import("../../types.zig");
 
 pub const OpCode = constants.OpCode;
@@ -74,7 +75,7 @@ pub fn getVoidType(self: *SpirvGenerator) !u32 {
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeVoid, &.{id});
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeVoid, &.{id});
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -84,7 +85,7 @@ pub fn getBoolType(self: *SpirvGenerator) !u32 {
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeBool, &.{id});
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeBool, &.{id});
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -94,7 +95,7 @@ pub fn getIntType(self: *SpirvGenerator, width: u32, signed: bool) !u32 {
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeInt, &.{ id, width, if (signed) @as(u32, 1) else 0 });
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeInt, &.{ id, width, if (signed) @as(u32, 1) else 0 });
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -104,7 +105,7 @@ pub fn getFloatType(self: *SpirvGenerator, width: u32) !u32 {
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeFloat, &.{ id, width });
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeFloat, &.{ id, width });
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -114,7 +115,7 @@ pub fn getVectorType(self: *SpirvGenerator, element_type: u32, count: u8) !u32 {
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeVector, &.{ id, element_type, count });
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeVector, &.{ id, element_type, count });
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -124,7 +125,7 @@ pub fn getMatrixType(self: *SpirvGenerator, column_type: u32, column_count: u8) 
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeMatrix, &.{ id, column_type, column_count });
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeMatrix, &.{ id, column_type, column_count });
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -136,7 +137,7 @@ pub fn getArrayType(self: *SpirvGenerator, element_type: u32, length: u32) !u32 
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeArray, &.{ id, element_type, length_const });
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeArray, &.{ id, element_type, length_const });
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -146,7 +147,7 @@ pub fn getRuntimeArrayType(self: *SpirvGenerator, element_type: u32) !u32 {
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypeRuntimeArray, &.{ id, element_type });
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeRuntimeArray, &.{ id, element_type });
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -156,7 +157,7 @@ pub fn getPointerType(self: *SpirvGenerator, pointee_type: u32, storage_class: S
     if (self.type_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.type_section, .OpTypePointer, &.{ id, @intFromEnum(storage_class), pointee_type });
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypePointer, &.{ id, @intFromEnum(storage_class), pointee_type });
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }
@@ -171,7 +172,7 @@ pub fn getFunctionType(self: *SpirvGenerator, return_type: u32, param_types: []c
     try operands.append(self.allocator, id);
     try operands.append(self.allocator, return_type);
     try operands.appendSlice(self.allocator, param_types);
-    try self.emitOp(&self.type_section, .OpTypeFunction, operands.items);
+    try instruction_emit.emitOp(self, &self.type_section, .OpTypeFunction, operands.items);
     try self.type_ids.put(self.allocator, key, id);
     return id;
 }

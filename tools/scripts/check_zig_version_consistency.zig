@@ -49,15 +49,15 @@ pub fn main(_: std.process.Init) !void {
         errors += 1;
     }
 
-    const cel_zig = ".cel/bin/zig";
-    if (util.fileExists(io, cel_zig)) {
-        if (!std.mem.endsWith(u8, active_path, "/.cel/bin/zig") and !std.mem.eql(u8, active_path, cel_zig)) {
+    const bootstrap_zig = ".zig-bootstrap/bin/zig";
+    if (util.fileExists(io, bootstrap_zig)) {
+        if (!std.mem.endsWith(u8, active_path, "/.zig-bootstrap/bin/zig") and !std.mem.eql(u8, active_path, bootstrap_zig)) {
             std.debug.print(
-                "ERROR: PATH precedence mismatch: active zig is '{s}' but repo-local CEL zig is '{s}'\n",
-                .{ active_path, cel_zig },
+                "ERROR: PATH precedence mismatch: active zig is '{s}' but repo-local bootstrap zig is '{s}'\n",
+                .{ active_path, bootstrap_zig },
             );
             std.debug.print(
-                "       Fix by prepending '.cel/bin' ahead of other zig locations in PATH.\n",
+                "       Fix by prepending '.zig-bootstrap/bin' ahead of other zig locations in PATH.\n",
                 .{},
             );
             errors += 1;
@@ -168,7 +168,7 @@ pub fn main(_: std.process.Init) !void {
     if (errors > 0) {
         std.debug.print("FAILED: Zig version consistency check found {d} issue(s)\n", .{errors});
         std.debug.print("Hint: run 'zig run tools/scripts/toolchain_doctor.zig' for a full local diagnosis.\n", .{});
-        std.debug.print("Hint: run 'zig build cel-doctor' for .cel toolchain diagnosis.\n", .{});
+        std.debug.print("Hint: run 'zig build zig-bootstrap-doctor' for bootstrap Zig diagnosis.\n", .{});
         std.process.exit(1);
     }
 

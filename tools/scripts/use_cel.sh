@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Use the .cel toolchain's Zig for this repo.
+# Legacy helper for the bootstrap Zig backing toolchain.
 # Usage:
 #   eval "$(./tools/scripts/use_cel.sh)"
 #   — or —
 #   source tools/scripts/use_cel.sh
 #
-# This script sets the PATH so that .cel/bin/{zig,zls} take precedence.
-# It also validates the version against .zigversion.
+# Prefer `tools/scripts/use_zig_bootstrap.sh` for the canonical surface.
+# This compatibility helper still sets PATH so that .cel/bin/{zig,zls} take
+# precedence and validates the version against .zigversion.
 
 # Only enable strict mode when executed (not sourced), to avoid breaking
 # the caller's shell environment.
@@ -42,13 +43,13 @@ if [[ ! -x "$CEL_ZIG" ]]; then
   echo "" >&2
   if [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
     echo "Next action:" >&2
-    echo "  cd $REPO_ROOT && ./.cel/build.sh" >&2
+    echo "  cd $REPO_ROOT && ./.zig-bootstrap/build.sh" >&2
   elif [[ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]]; then
     echo "Next action:" >&2
-    echo "  cd $REPO_ROOT && abi toolchain bootstrap" >&2
+    echo "  cd $REPO_ROOT && abi bootstrap-zig bootstrap" >&2
   else
     echo "Next action:" >&2
-    echo "  cd $REPO_ROOT && ./tools/scripts/cel_migrate.sh --check" >&2
+    echo "  cd $REPO_ROOT && ./tools/scripts/zig_bootstrap_migrate.sh --check" >&2
   fi
   # Return 1 when sourced, exit 1 when executed
   if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
@@ -73,7 +74,7 @@ if [[ -f "$REPO_ROOT/.zigversion" ]]; then
 fi
 
 if [[ "${USE_CEL_QUIET:-0}" != "1" ]]; then
-  echo "Using Zig (.cel): $(zig version)"
+  echo "Using bootstrap Zig (.cel backing): $(zig version)"
   echo "  Binary: $CEL_ZIG"
   if [[ -x "$REPO_ROOT/.cel/bin/$(cel_binary_name zls)" ]]; then
     echo "  ZLS: $REPO_ROOT/.cel/bin/$(cel_binary_name zls)"

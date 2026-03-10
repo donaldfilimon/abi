@@ -12,6 +12,34 @@ a new plan when starting a wave.
 
 ## Active Queue
 
+### In Progress - CEL Language Replacement Wave 0 (2026-03-10)
+
+#### Objective
+Start the hard-break CEL replacement program with a mergeable foundation:
+introduce a real stage-0 CEL compiler surface, reserve `.zig-bootstrap` as the
+canonical Zig-bridge namespace, and keep the legacy `.cel` implementation only
+as a temporary backing layer.
+
+#### Plan
+- [x] Add the stage-0 CEL surface (`cel`, `cel.toml`, `cel.lock`, `.cel` examples/tests, C11 compiler scaffold).
+- [x] Introduce `.zig-bootstrap/` wrappers and `abi bootstrap-zig` as the canonical Zig bootstrap surface.
+- [x] Repoint key CLI/build/LSP/tooling paths to `.zig-bootstrap` while preserving `.cel` compatibility underneath.
+- [x] Update canonical docs/task tracking to distinguish CEL language from Zig bootstrap.
+- [x] Verify the stage-0 CEL surface with C-compiler smoke tests and verify modified Zig/shell files with targeted checks.
+
+#### Notes
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+- `.cel/build.sh`, `.cel/config.sh`, and `.cel/README.md` already have local modifications, so the new `.zig-bootstrap/` layer must not overwrite or regress that work.
+- This wave is intentionally foundational. It does not claim ABI CLI parity under CEL yet.
+
+#### Review Notes
+- Added a real C11 stage-0 CEL launcher at repo root (`./cel`) with `check`, `fmt`, `run`, `test`, and `emit-c`, plus `cel.toml`, `cel.lock`, `examples/cel/hello.cel`, `tests/cel/*`, and `stdlib/cel/prelude.cel`.
+- Added `.zig-bootstrap/` as the canonical wrapper namespace and `tools/scripts/use_zig_bootstrap.sh` / `zig_bootstrap_migrate.sh`, while keeping `.cel/` as the backing implementation.
+- Renamed the canonical CLI/docs/build surface to `bootstrap-zig` while preserving `toolchain` as a compatibility alias.
+- Verification passed: `./cel --help`, `./tests/cel/stage0_smoke.sh`, `bash -n` for modified shell scripts, and `zig test -fno-emit-bin` for `build/cel.zig`, `src/services/shared/utils/zig_toolchain.zig`, `src/services/lsp/client.zig`, `tools/scripts/toolchain_doctor.zig`, `tools/scripts/check_zig_version_consistency.zig`, and `tools/scripts/cel_doctor.zig`.
+- Runtime bootstrap checks passed: `./.zig-bootstrap/build.sh --status` and `./tools/scripts/zig_bootstrap_migrate.sh --check` now converge on `abi bootstrap-zig bootstrap`, and `./tools/scripts/use_zig_bootstrap.sh` fails fast when the backing `.cel/bin/zig` is absent.
+- Residual risk: standalone `zig test -fno-emit-bin` on CLI command files remains blocked by ABI's existing import-outside-module-root limitation, so those command changes were verified via targeted shell/runtime evidence instead.
+
 ### In Progress - Wave 1 Toolchain and Validation Baseline (2026-03-10)
 
 #### Objective

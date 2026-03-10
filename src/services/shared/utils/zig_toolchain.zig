@@ -33,12 +33,18 @@ pub fn resolveExistingRepoLocalCelToolPath(
     const repo_root = try findAbiRepoRoot(allocator, io, start_path) orelse return null;
     defer allocator.free(repo_root);
 
-    const tool_path = try std.fs.path.join(allocator, &.{ repo_root, ".cel", "bin", tool_name });
-    if (!fileExistsAbsolute(io, tool_path)) {
-        allocator.free(tool_path);
+    const bootstrap_path = try std.fs.path.join(allocator, &.{ repo_root, ".zig-bootstrap", "bin", tool_name });
+    if (fileExistsAbsolute(io, bootstrap_path)) {
+        return bootstrap_path;
+    }
+    allocator.free(bootstrap_path);
+
+    const legacy_path = try std.fs.path.join(allocator, &.{ repo_root, ".cel", "bin", tool_name });
+    if (!fileExistsAbsolute(io, legacy_path)) {
+        allocator.free(legacy_path);
         return null;
     }
-    return tool_path;
+    return legacy_path;
 }
 
 pub fn resolveExistingPreferredZigPath(
@@ -90,9 +96,13 @@ fn looksLikeAbiRepoRoot(
     defer allocator.free(abi_root);
     if (!fileExistsAbsolute(io, abi_root)) return false;
 
-    const cel_build = try std.fs.path.join(allocator, &.{ root_path, ".cel", "build.sh" });
-    defer allocator.free(cel_build);
-    return fileExistsAbsolute(io, cel_build);
+    const bootstrap_build = try std.fs.path.join(allocator, &.{ root_path, ".zig-bootstrap", "build.sh" });
+    defer allocator.free(bootstrap_build);
+    if (fileExistsAbsolute(io, bootstrap_build)) return true;
+
+    const legacy_build = try std.fs.path.join(allocator, &.{ root_path, ".cel", "build.sh" });
+    defer allocator.free(legacy_build);
+    return fileExistsAbsolute(io, legacy_build);
 }
 
 fn fileExistsAbsolute(io: std.Io, path: []const u8) bool {

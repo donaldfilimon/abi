@@ -14,6 +14,7 @@ pub const ConstKey = constants_gen.ConstKey;
 /// The generator type — imported lazily to avoid circular deps.
 const SpirvGenerator = @import("generator.zig").SpirvGenerator;
 
+const instruction_emit = @import("instruction_emit.zig");
 const type_codegen = @import("type_codegen.zig");
 
 pub fn getConstantTrue(self: *SpirvGenerator) !u32 {
@@ -22,7 +23,7 @@ pub fn getConstantTrue(self: *SpirvGenerator) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstantTrue, &.{ bool_type, id });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstantTrue, &.{ bool_type, id });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }
@@ -33,7 +34,7 @@ pub fn getConstantFalse(self: *SpirvGenerator) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstantFalse, &.{ bool_type, id });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstantFalse, &.{ bool_type, id });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }
@@ -44,7 +45,7 @@ pub fn getConstantI32(self: *SpirvGenerator, value: i32) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @bitCast(value)) });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @bitCast(value)) });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }
@@ -55,7 +56,7 @@ pub fn getConstantU32(self: *SpirvGenerator, value: u32) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, value });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstant, &.{ int_type, id, value });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }
@@ -67,7 +68,7 @@ pub fn getConstantI64(self: *SpirvGenerator, value: i64) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @truncate(bits)), @as(u32, @truncate(bits >> 32)) });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @truncate(bits)), @as(u32, @truncate(bits >> 32)) });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }
@@ -78,7 +79,7 @@ pub fn getConstantU64(self: *SpirvGenerator, value: u64) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @truncate(value)), @as(u32, @truncate(value >> 32)) });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @truncate(value)), @as(u32, @truncate(value >> 32)) });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }
@@ -90,7 +91,7 @@ pub fn getConstantF32(self: *SpirvGenerator, value: f32) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstant, &.{ float_type, id, bits });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstant, &.{ float_type, id, bits });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }
@@ -102,7 +103,7 @@ pub fn getConstantF64(self: *SpirvGenerator, value: f64) !u32 {
     if (self.const_ids.get(key)) |id| return id;
 
     const id = self.allocId();
-    try self.emitOp(&self.const_section, .OpConstant, &.{ float_type, id, @as(u32, @truncate(bits)), @as(u32, @truncate(bits >> 32)) });
+    try instruction_emit.emitOp(self, &self.const_section, .OpConstant, &.{ float_type, id, @as(u32, @truncate(bits)), @as(u32, @truncate(bits >> 32)) });
     try self.const_ids.put(self.allocator, key, id);
     return id;
 }

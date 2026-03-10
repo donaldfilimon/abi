@@ -136,7 +136,7 @@ print_stock_zig_status() {
     info "Stock Zig path:    $path"
     info "Stock Zig version: ${version:-unknown}"
     if [[ "$path" == "$ZIG_BIN" ]]; then
-        info "Stock Zig source:  repo-local .cel toolchain"
+        info "Stock Zig source:  repo-local bootstrap Zig backing toolchain"
     elif [[ "$path" == *".zvm/"* ]]; then
         info "Stock Zig source:  ZVM managed"
     else
@@ -154,7 +154,7 @@ print_stock_zig_status() {
             info "Build runner:      stock zig can start ABI build steps"
             ;;
         cel-active)
-            info "Build runner:      using active .cel Zig on PATH"
+            info "Build runner:      using active bootstrap Zig on PATH"
             ;;
         darwin-linker)
             warn "Build runner:      blocked by Darwin linker failure"
@@ -171,23 +171,23 @@ print_stock_zig_status() {
 print_next_action() {
     printf '\n'
     if [[ -x "$ZIG_BIN" ]]; then
-        info "Next action:       eval \"\$(./tools/scripts/use_cel.sh)\""
+        info "Next action:       eval \"\$(./tools/scripts/use_zig_bootstrap.sh)\""
         return
     fi
 
     if bootstrap_host_zig_required; then
         if [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
-            info "Next action:       ./.cel/build.sh"
+            info "Next action:       ./.zig-bootstrap/build.sh"
             return
         fi
 
         if [[ -d "$BOOTSTRAP_ROOT/zig" ]]; then
-            info "Next action:       abi toolchain bootstrap"
+            info "Next action:       abi bootstrap-zig bootstrap"
             return
         fi
     fi
 
-    info "Next action:       ./tools/scripts/cel_migrate.sh --check"
+    info "Next action:       ./tools/scripts/zig_bootstrap_migrate.sh --check"
 }
 
 # job_count / bootstrap_host_zig_required: delegated to lib.sh

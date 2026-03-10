@@ -1,0 +1,5 @@
+module std.prelude;
+
+fn prelude_banner() {
+    print("CEL stage0 prelude");
+}

@@ -1,0 +1,11 @@
+module tests.stage0;
+
+test "prints literals" {
+    print("alpha");
+}
+
+test "supports bindings and defer" {
+    let message = "bound value";
+    print(message);
+    defer print("cleanup");
+}

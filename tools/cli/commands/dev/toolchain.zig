@@ -1,13 +1,13 @@
-//! CEL-first Zig toolchain management.
+//! Zig bootstrap management for the CEL transition.
 //!
 //! Usage:
-//!   abi toolchain install           Build CEL Zig and ZLS into .cel/bin
-//!   abi toolchain zig               Build only CEL Zig
-//!   abi toolchain zls               Build only ZLS with CEL Zig
-//!   abi toolchain status            Show CEL Zig/ZLS status
-//!   abi toolchain update            Rebuild the repo-local CEL toolchain
-//!   abi toolchain path              Print the repo-local .cel/bin path
-//!   abi toolchain bootstrap         Run the emergency bootstrap prerequisite
+//!   abi bootstrap-zig install       Build bootstrap Zig and ZLS into .zig-bootstrap/bin
+//!   abi bootstrap-zig zig           Build only bootstrap Zig
+//!   abi bootstrap-zig zls           Build only ZLS using bootstrap Zig
+//!   abi bootstrap-zig status        Show bootstrap Zig/ZLS status
+//!   abi bootstrap-zig update        Rebuild the repo-local bootstrap Zig bridge
+//!   abi bootstrap-zig path          Print the repo-local .zig-bootstrap/bin path
+//!   abi bootstrap-zig bootstrap     Run the emergency bootstrap prerequisite
 
 const std = @import("std");
 const command_mod = @import("../../command.zig");
@@ -26,17 +26,18 @@ const BuildTarget = enum {
 };
 
 pub const meta: command_mod.Meta = .{
-    .name = "toolchain",
-    .description = "Manage the repo-local CEL Zig/ZLS toolchain (install, update, status, bootstrap)",
+    .name = "bootstrap-zig",
+    .description = "Manage the repo-local Zig bootstrap bridge that backs ABI's CEL transition",
+    .aliases = &.{"toolchain"},
     .kind = .group,
     .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "bootstrap", "help" },
     .children = &.{
-        .{ .name = "install", .description = "Build CEL Zig and ZLS into .cel/bin", .handler = command_mod.parserHandler(runInstallBoth) },
-        .{ .name = "zig", .description = "Build only CEL Zig into .cel/bin", .handler = command_mod.parserHandler(runInstallZig) },
-        .{ .name = "zls", .description = "Build only ZLS using .cel/bin/zig", .handler = command_mod.parserHandler(runInstallZls) },
-        .{ .name = "status", .description = "Show CEL Zig/ZLS status", .handler = command_mod.parserHandler(runStatusSubcommand) },
-        .{ .name = "update", .description = "Rebuild the repo-local CEL toolchain", .handler = command_mod.parserHandler(runUpdateSubcommand) },
-        .{ .name = "path", .description = "Print the repo-local .cel/bin path", .handler = command_mod.parserHandler(runPathSubcommand) },
+        .{ .name = "install", .description = "Build bootstrap Zig and ZLS into .zig-bootstrap/bin", .handler = command_mod.parserHandler(runInstallBoth) },
+        .{ .name = "zig", .description = "Build only bootstrap Zig into .zig-bootstrap/bin", .handler = command_mod.parserHandler(runInstallZig) },
+        .{ .name = "zls", .description = "Build only ZLS using bootstrap Zig", .handler = command_mod.parserHandler(runInstallZls) },
+        .{ .name = "status", .description = "Show bootstrap Zig/ZLS status", .handler = command_mod.parserHandler(runStatusSubcommand) },
+        .{ .name = "update", .description = "Rebuild the repo-local bootstrap Zig bridge", .handler = command_mod.parserHandler(runUpdateSubcommand) },
+        .{ .name = "path", .description = "Print the repo-local .zig-bootstrap/bin path", .handler = command_mod.parserHandler(runPathSubcommand) },
         .{ .name = "bootstrap", .description = "Run the emergency bootstrap prerequisite path", .handler = command_mod.parserHandler(runBootstrapSubcommand) },
     },
 };
@@ -51,7 +52,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         printHelp(ctx.allocator);
         return;
     }
-    output.printError("Unknown toolchain command: {s}", .{cmd});
+    output.printError("Unknown bootstrap-zig command: {s}", .{cmd});
     if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         output.println("Did you mean: {s}", .{suggestion});
     }
@@ -75,7 +76,7 @@ fn runStatusSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
         return;
     }
     try expectNoTrailingArgs(parser, "status");
-    try runCommand(allocator, &.{ "./.cel/build.sh", "--status" });
+    try runCommand(allocator, &.{ "./.zig-bootstrap/build.sh", "--status" });
 }
 
 fn runUpdateSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -102,7 +103,7 @@ fn runUpdateSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
         }
         const arg = parser.next().?;
         output.printError("Unexpected argument for 'update': {s}", .{arg});
-        output.printInfo("Usage: abi toolchain update [--zig|--zls] [--clean]", .{});
+        output.printInfo("Usage: abi bootstrap-zig update [--zig|--zls] [--clean]", .{});
         return;
     }
 
@@ -115,7 +116,7 @@ fn runPathSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
         return;
     }
     try expectNoTrailingArgs(parser, "path");
-    output.println(".cel/bin", .{});
+    output.println(".zig-bootstrap/bin", .{});
 }
 
 fn runBootstrapSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -125,7 +126,7 @@ fn runBootstrapSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !voi
     }
     try expectNoTrailingArgs(parser, "bootstrap");
 
-    output.printHeader("CEL Emergency Bootstrap");
+    output.printHeader("Bootstrap Zig Emergency Bootstrap");
     output.printInfo("Compiling and running tools/scripts/emergency_bootstrap.c", .{});
     try runCommand(allocator, &.{
         "sh",
@@ -157,7 +158,7 @@ fn runBuildSubcommand(
         }
         const arg = parser.next().?;
         output.printError("Unexpected argument: {s}", .{arg});
-        output.printInfo("Usage: abi toolchain install|zig|zls [--clean]", .{});
+        output.printInfo("Usage: abi bootstrap-zig install|zig|zls [--clean]", .{});
         return;
     }
 
@@ -165,35 +166,35 @@ fn runBuildSubcommand(
 }
 
 fn runBuildCommand(allocator: std.mem.Allocator, target: BuildTarget, clean: bool) !void {
-    output.printHeader("CEL Toolchain");
+    output.printHeader("Bootstrap Zig");
     output.printKeyValue("Target", switch (target) {
         .both => "zig + zls",
         .zig_only => "zig",
         .zls_only => "zls",
     });
-    output.printKeyValue("Location", ".cel/bin");
+    output.printKeyValue("Location", ".zig-bootstrap/bin");
     if (clean) output.printInfo("Clean rebuild requested", .{});
 
     switch (target) {
         .both => {
             if (clean) {
-                try runCommand(allocator, &.{ "./.cel/build.sh", "--clean" });
+                try runCommand(allocator, &.{ "./.zig-bootstrap/build.sh", "--clean" });
             } else {
-                try runCommand(allocator, &.{"./.cel/build.sh"});
+                try runCommand(allocator, &.{"./.zig-bootstrap/build.sh"});
             }
         },
         .zig_only => {
             if (clean) {
-                try runCommand(allocator, &.{ "./.cel/build.sh", "--clean", "--zig-only" });
+                try runCommand(allocator, &.{ "./.zig-bootstrap/build.sh", "--clean", "--zig-only" });
             } else {
-                try runCommand(allocator, &.{ "./.cel/build.sh", "--zig-only" });
+                try runCommand(allocator, &.{ "./.zig-bootstrap/build.sh", "--zig-only" });
             }
         },
         .zls_only => {
             if (clean) {
-                try runCommand(allocator, &.{ "./.cel/build.sh", "--clean", "--zls-only" });
+                try runCommand(allocator, &.{ "./.zig-bootstrap/build.sh", "--clean", "--zls-only" });
             } else {
-                try runCommand(allocator, &.{ "./.cel/build.sh", "--zls-only" });
+                try runCommand(allocator, &.{ "./.zig-bootstrap/build.sh", "--zls-only" });
             }
         },
     }
@@ -220,30 +221,30 @@ fn printHelp(allocator: std.mem.Allocator) void {
     defer builder.deinit();
 
     _ = builder
-        .usage("abi toolchain", "<command> [options]")
-        .description("Manage ABI's repo-local CEL Zig/ZLS toolchain.")
+        .usage("abi bootstrap-zig", "<command> [options]")
+        .description("Manage ABI's repo-local Zig bootstrap bridge during the CEL transition.")
         .section("Commands")
-        .subcommand(.{ .name = "install", .description = "Build CEL Zig and ZLS into .cel/bin" })
-        .subcommand(.{ .name = "zig", .description = "Build only CEL Zig into .cel/bin" })
-        .subcommand(.{ .name = "zls", .description = "Build only ZLS using .cel/bin/zig" })
-        .subcommand(.{ .name = "status", .description = "Show CEL Zig/ZLS status" })
-        .subcommand(.{ .name = "update", .description = "Rebuild the repo-local CEL toolchain" })
-        .subcommand(.{ .name = "path", .description = "Print the repo-local .cel/bin path" })
+        .subcommand(.{ .name = "install", .description = "Build bootstrap Zig and ZLS into .zig-bootstrap/bin" })
+        .subcommand(.{ .name = "zig", .description = "Build only bootstrap Zig into .zig-bootstrap/bin" })
+        .subcommand(.{ .name = "zls", .description = "Build only ZLS using bootstrap Zig" })
+        .subcommand(.{ .name = "status", .description = "Show bootstrap Zig/ZLS status" })
+        .subcommand(.{ .name = "update", .description = "Rebuild the repo-local bootstrap Zig bridge" })
+        .subcommand(.{ .name = "path", .description = "Print the repo-local .zig-bootstrap/bin path" })
         .subcommand(.{ .name = "bootstrap", .description = "Run the emergency bootstrap prerequisite path" })
         .newline()
         .section("Options")
-        .option(.{ .short = "-c", .long = "--clean", .description = "Remove generated CEL source/build state first" })
-        .option(.{ .long = "--zig", .description = "Update only CEL Zig" })
+        .option(.{ .short = "-c", .long = "--clean", .description = "Remove generated bootstrap Zig source/build state first" })
+        .option(.{ .long = "--zig", .description = "Update only bootstrap Zig" })
         .option(.{ .long = "--zls", .description = "Update only ZLS" })
         .option(common_options.help)
         .newline()
         .section("Examples")
-        .example("abi toolchain install", "Build CEL Zig and ZLS")
-        .example("abi toolchain zig --clean", "Clean-rebuild only CEL Zig")
-        .example("abi toolchain zls", "Build only ZLS using .cel/bin/zig")
-        .example("abi toolchain status", "Inspect the repo-local CEL toolchain")
-        .example("abi toolchain path", "Print .cel/bin")
-        .example("abi toolchain bootstrap", "Run the emergency bootstrap prerequisite");
+        .example("abi bootstrap-zig install", "Build bootstrap Zig and ZLS")
+        .example("abi bootstrap-zig zig --clean", "Clean-rebuild only bootstrap Zig")
+        .example("abi bootstrap-zig zls", "Build only ZLS using bootstrap Zig")
+        .example("abi bootstrap-zig status", "Inspect the repo-local bootstrap Zig bridge")
+        .example("abi bootstrap-zig path", "Print .zig-bootstrap/bin")
+        .example("abi bootstrap-zig bootstrap", "Run the emergency bootstrap prerequisite");
 
     builder.print();
 }

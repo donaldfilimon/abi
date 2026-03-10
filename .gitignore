@@ -258,6 +258,7 @@ zig-bootstrap-emergency/
 !/GEMINI.md
 !/SECURITY.md
 !/CODE_OF_CONDUCT.md
+!/.zig-bootstrap/README.md
 !/docs/README.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
@@ -270,6 +271,7 @@ zig-bootstrap-emergency/
 .cel/bin/
 .cel/.src/
 .cel/out/
+.cel-stage0/
 !/.cel/README.md
 
 # ── Local one-off artifacts ──────────────────────────────────────────

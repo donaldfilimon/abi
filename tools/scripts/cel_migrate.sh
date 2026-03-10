@@ -200,8 +200,8 @@ if ! $LLVM_FOUND; then
 fi
 
 if [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ ! -x "$BOOTSTRAP_HOST_ZIG" ]]; then
-    info "macOS 26+ note: .cel/build.sh now prefers a bootstrap-host Zig when available."
-    info "If stage3 still cannot start, run 'abi toolchain bootstrap' to refresh zig-bootstrap-emergency."
+    info "macOS 26+ note: .zig-bootstrap/build.sh now prefers a bootstrap-host Zig when available."
+    info "If stage3 still cannot start, run 'abi bootstrap-zig bootstrap' to refresh zig-bootstrap-emergency."
 fi
 
 if $CHECK_ONLY; then
@@ -213,9 +213,9 @@ if $CHECK_ONLY; then
     else
         info "CEL toolchain not yet built. Run without --check to build."
         if [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
-            info "Next action: ./.cel/build.sh"
+            info "Next action: ./.zig-bootstrap/build.sh"
         elif [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]]; then
-            info "Next action: abi toolchain bootstrap"
+            info "Next action: abi bootstrap-zig bootstrap"
         fi
     fi
     exit 0
@@ -315,7 +315,7 @@ ok "═════════════════════════�
 ok "  CEL migration complete!"
 ok ""
 ok "  To activate in your current shell:"
-ok "    eval \"\$(./tools/scripts/use_cel.sh)\""
+ok "    eval \"\$(./tools/scripts/use_zig_bootstrap.sh)\""
 ok ""
 ok "  To run the full gate:"
 ok "    zig build full-check"

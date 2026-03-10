@@ -8,7 +8,7 @@ const baseline = @import("baseline.zig");
 /// Checks:
 ///   1. Platform detection (macOS version, whether CEL is needed)
 ///   2. .cel directory structure (config.sh, build.sh, patches/)
-///   3. .cel/bin/zig and .cel/bin/zls binary presence and version
+///   3. Backing .cel/bin/zig and .cel/bin/zls binary presence and version
 ///   4. Patch inventory and validation
 ///   5. Version consistency (.zigversion, .cel/config.sh, baseline)
 ///   6. Stock zig status and PATH precedence
@@ -118,7 +118,7 @@ pub fn main(_: std.process.Init) !void {
     } else {
         std.debug.print("  .cel/bin/zig: NOT BUILT\n", .{});
         if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
-            std.debug.print("  Action: Run .cel/build.sh to compile the patched toolchain\n", .{});
+            std.debug.print("  Action: Run .zig-bootstrap/build.sh to compile the bootstrap Zig bridge\n", .{});
             issues += 1;
         }
     }
@@ -134,7 +134,7 @@ pub fn main(_: std.process.Init) !void {
     } else {
         std.debug.print("  .cel/bin/zls: NOT BUILT\n", .{});
         if (cel_zig_exists) {
-            std.debug.print("  Action: Run .cel/build.sh --zls-only to build ZLS with CEL Zig\n", .{});
+            std.debug.print("  Action: Run .zig-bootstrap/build.sh --zls-only to build ZLS with bootstrap Zig\n", .{});
             warnings += 1;
         }
     }
@@ -162,7 +162,7 @@ pub fn main(_: std.process.Init) !void {
         }
     } else if (util.dirExists(io, "zig-bootstrap-emergency/zig")) {
         std.debug.print("  zig-bootstrap-emergency/out/host/bin/zig: NOT BUILT\n", .{});
-        std.debug.print("  Note: .cel/build.sh can use a bootstrap-host Zig here on macOS 26+\n", .{});
+        std.debug.print("  Note: .zig-bootstrap/build.sh can use a bootstrap-host Zig here on macOS 26+\n", .{});
         if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
             warnings += 1;
         }
@@ -286,7 +286,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\n", .{});
 
     // ── 7. Build prerequisites ─────────────────────────────────────────
-    std.debug.print("Build prerequisites (for .cel/build.sh):\n", .{});
+    std.debug.print("Build prerequisites (for .zig-bootstrap/build.sh):\n", .{});
     const prereqs = [_][]const u8{ "git", "cmake", "cc", "c++" };
     for (prereqs) |cmd| {
         if (try util.commandExists(allocator, io, cmd)) {
@@ -349,12 +349,12 @@ pub fn main(_: std.process.Init) !void {
         if (!cel_zig_exists) {
             if (!bootstrap_host_zig_exists and util.dirExists(io, "zig-bootstrap-emergency/zig")) {
                 std.debug.print("  1. Refresh the bootstrap host Zig:\n", .{});
-                std.debug.print("     abi toolchain bootstrap\n\n", .{});
+                std.debug.print("     abi bootstrap-zig bootstrap\n\n", .{});
                 std.debug.print("  2. Build the CEL toolchain:\n", .{});
-                std.debug.print("     ./.cel/build.sh\n\n", .{});
+                std.debug.print("     ./.zig-bootstrap/build.sh\n\n", .{});
             } else {
                 std.debug.print("  1. Build the CEL toolchain:\n", .{});
-                std.debug.print("     ./.cel/build.sh\n\n", .{});
+                std.debug.print("     ./.zig-bootstrap/build.sh\n\n", .{});
             }
             if (stock_zig_found and !stock_zig_matches_pin) {
                 std.debug.print("     Note: ignore the stock zig on PATH until it matches the repo pin.\n\n", .{});
@@ -363,7 +363,7 @@ pub fn main(_: std.process.Init) !void {
                 std.debug.print("     Note: stock zig cannot link the ABI build runner on this Darwin host.\n\n", .{});
             }
             std.debug.print("  Activate it:\n", .{});
-            std.debug.print("     eval \"$(./tools/scripts/use_cel.sh)\"\n\n", .{});
+            std.debug.print("     eval \"$(./tools/scripts/use_zig_bootstrap.sh)\"\n\n", .{});
             std.debug.print("  Verify:\n", .{});
             std.debug.print("     zig version\n", .{});
             std.debug.print("     zls --version\n", .{});
