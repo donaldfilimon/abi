@@ -43,4 +43,4 @@ Create the default MCP server with both WDBX and ZLS tools registered.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the repo-local CEL toolchain for ABI Zig validation, docs generation, and build-wiring changes when Darwin blocks stock Zig.
+Use the pinned Zig on PATH for ABI validation. When Darwin blocks binary-emitting steps, use compile-only checks locally and Linux CI for full gates.

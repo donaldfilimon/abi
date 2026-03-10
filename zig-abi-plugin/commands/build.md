@@ -20,23 +20,16 @@ Run a build step with automatic Darwin workaround detection.
    uname -s
    ```
 
-3. **If Darwin**: Check for CEL toolchain first, then fall back:
+3. **If Darwin**: Use the wrapper first, then fall back:
    ```bash
-   # Check if CEL toolchain is available
-   if [ -x ".zig-bootstrap/bin/zig" ]; then
-       # Use CEL — full fidelity build
-       PATH="$(pwd)/.zig-bootstrap/bin:$PATH" zig build <step> --summary all
-   else
-       # Fall back to run_build.sh wrapper
-       ./tools/scripts/run_build.sh <step>
-   fi
+   ./tools/scripts/run_build.sh <step>
    ```
-   If both fail with the known linker error (`__availability_version_check`), fall back to:
+   If that still fails with the known linker error (`__availability_version_check`), fall back to:
    - For `lint`/`fmt`: `./tools/scripts/fmt_repo.sh --check`
    - For `fix`: `./tools/scripts/fmt_repo.sh`
    - For `test`: `zig test src/services/tests/mod.zig -fno-emit-bin` (compile-only — no actual test execution)
    - For `validate-flags`: Report that this requires a linking-capable toolchain
-   - Otherwise: Report that this step requires the CEL toolchain or Linux CI
+   - Otherwise: Report that this step requires Linux CI or another host with a working Zig linker
 
 4. **If Linux**: Run directly:
    ```bash
@@ -67,4 +60,4 @@ Run a build step with automatic Darwin workaround detection.
 ## Tips
 
 - After CLI changes, always run `refresh-cli-registry`
-- `cel-status` / `cel-check` / `cel-doctor` diagnose the CEL toolchain state
+- `zig build toolchain-doctor` diagnoses Zig version/path drift against `.zigversion`

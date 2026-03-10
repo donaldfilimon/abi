@@ -70,9 +70,8 @@ pub const KernelParam = struct {
 ///
 /// Search order:
 ///  1. `ABI_ZIG_PATH` environment variable.
-///  2. Repo-local `.cel/bin/zig`.
-///  3. `~/.zvm/master/zig` (legacy compatibility fallback).
-///  4. `"zig"` (assumed to be on `PATH`).
+///  2. `~/.zvm/master/zig`.
+///  3. `"zig"` (assumed to be on `PATH`).
 pub fn resolveZigPath(allocator: Allocator) ![]const u8 {
     // 1. Environment override
     if (std.c.getenv("ABI_ZIG_PATH")) |ptr| {

@@ -35,7 +35,6 @@ pub const plugins = generated.plugins;
 pub const profile = generated.profile;
 pub const completions = generated.completions;
 pub const status = generated.status;
-pub const toolchain = generated.toolchain;
 pub const lsp = generated.lsp;
 pub const mcp = generated.mcp;
 pub const acp = generated.acp;

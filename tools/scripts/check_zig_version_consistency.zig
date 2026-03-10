@@ -49,40 +49,6 @@ pub fn main(_: std.process.Init) !void {
         errors += 1;
     }
 
-    const bootstrap_zig = ".zig-bootstrap/bin/zig";
-    if (util.fileExists(io, bootstrap_zig)) {
-        if (!std.mem.endsWith(u8, active_path, "/.zig-bootstrap/bin/zig") and !std.mem.eql(u8, active_path, bootstrap_zig)) {
-            std.debug.print(
-                "ERROR: PATH precedence mismatch: active zig is '{s}' but repo-local bootstrap zig is '{s}'\n",
-                .{ active_path, bootstrap_zig },
-            );
-            std.debug.print(
-                "       Fix by prepending '.zig-bootstrap/bin' ahead of other zig locations in PATH.\n",
-                .{},
-            );
-            errors += 1;
-        }
-    } else if (try util.commandExists(allocator, io, "zvm")) {
-        const home_res = try util.captureCommand(allocator, io, "printf '%s' \"$HOME\"");
-        defer allocator.free(home_res.output);
-        const home = util.trimSpace(home_res.output);
-
-        const zvm_zig = try std.fmt.allocPrint(allocator, "{s}/.zvm/bin/zig", .{home});
-        defer allocator.free(zvm_zig);
-
-        if (util.fileExists(io, zvm_zig) and !std.mem.eql(u8, active_path, zvm_zig)) {
-            std.debug.print(
-                "ERROR: PATH precedence mismatch: active zig is '{s}' but zvm-managed zig is '{s}'\n",
-                .{ active_path, zvm_zig },
-            );
-            std.debug.print(
-                "       Fix by prepending '$HOME/.zvm/bin' ahead of other zig locations in PATH.\n",
-                .{},
-            );
-            errors += 1;
-        }
-    }
-
     const files = [_][]const u8{
         "README.md",
     };
@@ -147,28 +113,9 @@ pub fn main(_: std.process.Init) !void {
         }
     }
 
-    // ── CEL config version consistency ────────────────────────────────
-    if (util.fileExists(io, ".cel/config.sh")) {
-        const cel_res = util.captureCommand(allocator, io,
-            \\sh -c '. .cel/config.sh 2>/dev/null && printf "%s" "$ZIG_VERSION"'
-        ) catch null;
-        if (cel_res) |res| {
-            defer allocator.free(res.output);
-            const cel_ver = util.trimSpace(res.output);
-            if (cel_ver.len > 0 and !std.mem.eql(u8, cel_ver, baseline.zig_version)) {
-                std.debug.print(
-                    "ERROR: .cel/config.sh ZIG_VERSION ({s}) does not match baseline ({s})\n",
-                    .{ cel_ver, baseline.zig_version },
-                );
-                errors += 1;
-            }
-        }
-    }
-
     if (errors > 0) {
         std.debug.print("FAILED: Zig version consistency check found {d} issue(s)\n", .{errors});
         std.debug.print("Hint: run 'zig run tools/scripts/toolchain_doctor.zig' for a full local diagnosis.\n", .{});
-        std.debug.print("Hint: run 'zig build zig-bootstrap-doctor' for bootstrap Zig diagnosis.\n", .{});
         std.process.exit(1);
     }
 

@@ -147,7 +147,7 @@ pub fn run(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !voi
 
     if (!(try doctor_logic.util.commandExists(allocator, io, "zig"))) {
         std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
-        std.debug.print("Build bootstrap Zig via ./.zig-bootstrap/build.sh and ensure .zig-bootstrap/bin is on PATH.\n", .{});
+        std.debug.print("Install Zig {s} or activate a matching ZVM version.\n", .{expected_version});
         return error.ZigNotFound;
     }
 

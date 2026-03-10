@@ -366,21 +366,6 @@
         },
     },
     .{
-        .name = "bootstrap-zig",
-        .description = "Manage the repo-local Zig bootstrap bridge that backs ABI's CEL transition",
-        .aliases = .{"toolchain"},
-        .subcommands = .{
-            "install",
-            "zig",
-            "zls",
-            "status",
-            "update",
-            "path",
-            "bootstrap",
-            "help",
-        },
-    },
-    .{
         .name = "train",
         .description = "Training pipeline (run, llm, vision, auto, self, resume, info)",
         .aliases = .{},

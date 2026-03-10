@@ -66,6 +66,6 @@ All flags default to `true`. Disable with `-Dfeat-<name>=false`.
 ## Platform Notes
 
 On macOS 26+ (Darwin 26+), the stock Zig linker fails. The plugin auto-detects this and routes to:
-1. CEL toolchain (if available)
-2. `run_build.sh` wrapper
-3. Fallback validation (`zig fmt --check`, `zig test -fno-emit-bin`)
+1. `run_build.sh` wrapper
+2. Fallback validation (`zig fmt --check`, `zig test -fno-emit-bin`)
+3. Linux CI when a build step still needs binary emission

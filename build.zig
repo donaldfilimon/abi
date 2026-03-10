@@ -2,7 +2,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const cel = @import("build/cel.zig");
 const cli_tests = @import("build/cli_tests.zig");
 const flags = @import("build/flags.zig");
 const gpu = @import("build/gpu.zig");
@@ -44,10 +43,6 @@ pub fn build(b: *std.Build) void {
         options.feat_vision = false;
         options.feat_training = false;
         options.feat_reasoning = false;
-
-        // Emit platform-appropriate CEL suggestion
-        const cel_status = cel.detectCelStatus(b);
-        cel.emitCelSuggestion(b, cel_status);
     }
     options_mod.validateOptions(options);
 
@@ -386,22 +381,6 @@ pub fn build(b: *std.Build) void {
         &.{"--strict"},
         &.{.{ .name = "util", .module = util_module }},
     ));
-
-    // ── Zig bootstrap steps ──────────────────────────────────────────────
-    _ = cel.addZigBootstrapCheckStep(b);
-    _ = cel.addZigBootstrapBuildStep(b);
-    _ = cel.addZigBootstrapStatusStep(b);
-    _ = cel.addZigBootstrapVerifyStep(b);
-    _ = cel.addCelCheckStep(b);
-    _ = cel.addCelBuildStep(b);
-    _ = cel.addCelStatusStep(b);
-    _ = cel.addCelVerifyStep(b);
-
-    const zig_bootstrap_doctor_step = b.step("zig-bootstrap-doctor", "Run Zig bootstrap diagnostics and remediation");
-    zig_bootstrap_doctor_step.dependOn(addHostScriptStep(b, "abi-zig-bootstrap-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
-
-    const cel_doctor_step = b.step("cel-doctor", "Deprecated alias for zig-bootstrap-doctor");
-    cel_doctor_step.dependOn(addHostScriptStep(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
 
     // ── CLI DSL registry/codegen ───────────────────────────────────────
     const generate_cli_registry_step = b.step("generate-cli-registry", "Generate CLI registry artifact in build cache");

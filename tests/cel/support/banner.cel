@@ -1,3 +1,0 @@
-module tests.cel.support.banner;
-
-fn banner() {}

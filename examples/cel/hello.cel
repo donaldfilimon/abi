@@ -1,9 +1,0 @@
-module examples.cel.hello;
-import std.prelude;
-import examples.cel.support.banner;
-
-fn main() {
-    let greeting = "Hello from CEL stage0";
-    print(greeting);
-    defer print("goodbye from defer");
-}

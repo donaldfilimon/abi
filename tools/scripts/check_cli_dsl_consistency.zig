@@ -33,12 +33,12 @@ pub fn main(_: std.process.Init) !void {
             .violation_when_matched = false,
         },
         .{
-            .command = "rg -n 'fn wrap[A-Z]' tools/cli/commands/core/profile.zig tools/cli/commands/infra/network.zig tools/cli/commands/dev/task.zig tools/cli/commands/dev/toolchain.zig tools/cli/commands/dev/lsp.zig tools/cli/commands/ai/model.zig tools/cli/commands/ai/train/mod.zig tools/cli/commands/ai/ralph/mod.zig",
+            .command = "rg -n 'fn wrap[A-Z]' tools/cli/commands/core/profile.zig tools/cli/commands/infra/network.zig tools/cli/commands/dev/task.zig tools/cli/commands/dev/lsp.zig tools/cli/commands/ai/model.zig tools/cli/commands/ai/train/mod.zig tools/cli/commands/ai/ralph/mod.zig",
             .description = "migrated command families must not use legacy wrapX shim functions",
             .violation_when_matched = true,
         },
         .{
-            .command = "rg -n 'const [a-z_]+_subcommands = \\[_\\]\\[\\]const u8' tools/cli/commands/core/profile.zig tools/cli/commands/infra/network.zig tools/cli/commands/dev/task.zig tools/cli/commands/dev/toolchain.zig tools/cli/commands/dev/lsp.zig tools/cli/commands/ai/model.zig tools/cli/commands/ai/train/mod.zig tools/cli/commands/ai/ralph/mod.zig",
+            .command = "rg -n 'const [a-z_]+_subcommands = \\[_\\]\\[\\]const u8' tools/cli/commands/core/profile.zig tools/cli/commands/infra/network.zig tools/cli/commands/dev/task.zig tools/cli/commands/dev/lsp.zig tools/cli/commands/ai/model.zig tools/cli/commands/ai/train/mod.zig tools/cli/commands/ai/ralph/mod.zig",
             .description = "migrated command families must derive suggestions from command metadata",
             .violation_when_matched = true,
         },

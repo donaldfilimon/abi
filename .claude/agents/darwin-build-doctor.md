@@ -112,14 +112,14 @@ zig fmt --check build.zig build/ src/ tools/
 
 This works because `zig fmt` does not link anything.
 
-**Workaround 3 (nuclear option): CEL toolchain**
-Build Zig from source on the host machine. This produces a toolchain that links correctly on the current OS:
+**Workaround 3 (compile-only validation)**
+If the command still cannot link, drop to compile-only validation locally:
 
 ```bash
-./.zig-bootstrap/build.sh && eval "$(./tools/scripts/use_zig_bootstrap.sh)"
+zig test src/services/tests/mod.zig -fno-emit-bin
 ```
 
-This takes significant time (30+ minutes). Only recommend if `run_build.sh` also fails.
+If the task still needs binaries or runtime execution, route it to Linux CI or another host with a working Zig linker.
 
 #### For Category B (Real Code Error):
 

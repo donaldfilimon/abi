@@ -107,7 +107,7 @@ else
 Run `zig fmt --check` on all modified files, then report:
 - Files created/modified
 - Which validation steps still need to run (validate-flags, full-check)
-- On Darwin: note that full validation requires CEL toolchain or Linux CI
+- On Darwin: note that full validation may still require Linux CI or another host with a working Zig linker
 
 ## Important
 - Use snake_case for the flag name (convert kebab-case: `my-feature` → `feat_my_feature`)

@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Syntax-check all shell scripts
-        run: bash -n .cel/*.sh tools/scripts/*.sh
+        run: bash -n tools/scripts/*.sh
 
   lint:
     name: Format Check

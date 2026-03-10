@@ -36,7 +36,6 @@ pub const lsp = @import("../commands/dev/lsp");
 pub const matrix = @import("../commands/dev/matrix");
 pub const status = @import("../commands/dev/status");
 pub const task = @import("../commands/dev/task");
-pub const toolchain = @import("../commands/dev/toolchain");
 pub const gpu = @import("../commands/infra/gpu");
 pub const network = @import("../commands/infra/network");
 pub const simd = @import("../commands/infra/simd");
@@ -78,7 +77,6 @@ pub const command_modules = .{
     matrix,
     status,
     task,
-    toolchain,
     gpu,
     network,
     simd,

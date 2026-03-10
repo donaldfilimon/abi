@@ -1,7 +1,0 @@
-module   tests.cel.format_input;
-import   std.prelude;
-
-fn main(){
-print("fmt");
-defer   print("later");
-}

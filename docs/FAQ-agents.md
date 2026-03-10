@@ -72,7 +72,7 @@ zig build check-cli-registry
 - Use `./tools/scripts/run_build.sh <step>` when you need build-system behavior with the stock toolchain.
 - Use `zig fmt --check build.zig build src tools examples` for no-link formatting validation.
 - Use `zig test <path> -fno-emit-bin` for compile-only targeted validation.
-- Use `abi bootstrap-zig ...` for the repo-local bootstrap Zig bridge.
+- Use Linux CI or another host for binary-emitting gates that still fail locally.
 - Never recommend `use_lld = true` for macOS targets.
 
 ## Completion checklist

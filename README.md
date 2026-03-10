@@ -33,17 +33,14 @@ zig build
 zig build run -- --help
 ```
 
-If you are on macOS 26+ and stock Zig cannot link the build runner, use one of
-the repo-supported paths instead:
+If you are on macOS 26+ and stock Zig cannot link the build runner, start with
+the repo-supported fallback paths instead:
 
 ```bash
 ./tools/scripts/run_build.sh test --summary all
 zig fmt --check build.zig build src tools examples
-abi bootstrap-zig install
-abi bootstrap-zig status
+zig test src/services/tests/mod.zig -fno-emit-bin
 ```
-
-`abi toolchain ...` still exists as a compatibility alias for `abi bootstrap-zig ...`.
 
 ## Library examples
 
@@ -147,7 +144,6 @@ abi network status
 abi ui
 
 # Tooling
-abi bootstrap-zig status
 abi gendocs --check
 zig build refresh-cli-registry
 zig build check-cli-registry
@@ -250,7 +246,7 @@ pin atomically with:
 - related CI / toolchain docs
 
 For macOS linker issues, see [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md).
-For the repo-local bootstrap bridge, use `abi bootstrap-zig ...`.
+For blocked Darwin hosts, use `run_build.sh`, compile-only checks, or Linux CI for binary-emitting gates.
 
 ## Documentation map
 

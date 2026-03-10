@@ -30,7 +30,6 @@
 //!   profile          User profile and settings management
 //!   completions      Shell completions (bash, zsh, fish, powershell)
 //!   status           Show framework health and component status
-//!   toolchain        Zig/ZLS toolchain (install, update, status)
 //!   lsp              ZLS LSP client (hover, completion, definition, etc.)
 //!   ralph            Ralph orchestrator (init, run, status, gate, improve, skills)
 //!   os-agent         OS-level agent operations

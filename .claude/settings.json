@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zigversion'; then echo 'WARNING: .zigversion edit detected — MUST also update atomically: build.zig.zon, tools/scripts/baseline.zig, README.md, .cel/config.sh, and CI config'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zigversion'; then echo 'WARNING: .zigversion edit detected — MUST also update atomically: build.zig.zon, tools/scripts/baseline.zig, README.md, and CI config'; fi"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zig$'; then if [ -x ./.cel/bin/zig ]; then ./.cel/bin/zig fmt \"$FILE\" 2>/dev/null || true; elif [ -x \"$HOME/.zvm/master/zig\" ]; then \"$HOME/.zvm/master/zig\" fmt \"$FILE\" 2>/dev/null || true; fi; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zig$'; then if [ -x \"$HOME/.zvm/master/zig\" ]; then \"$HOME/.zvm/master/zig\" fmt \"$FILE\" 2>/dev/null || true; elif command -v zig >/dev/null 2>&1; then zig fmt \"$FILE\" 2>/dev/null || true; fi; fi"
           }
         ]
       },

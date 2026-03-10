@@ -103,10 +103,10 @@ Zig's `std.fmt` does NOT support `{t}`. Common valid specifiers:
 Direct `zig build` fails with undefined symbols (`__availability_version_check`, `_arc4random_buf`). The build runner itself can't link — no `build.zig` workaround helps.
 
 **Workarounds** (in order of preference):
-1. CEL toolchain (`./tools/scripts/cel_migrate.sh`) — patched Zig built from source (full fidelity)
-2. `./tools/scripts/run_build.sh <step>` — relinks build runner with Apple ld
-3. `zig fmt --check build.zig build/ src/ tools/` — direct format check (no linking)
-4. `zig test <file> -fno-emit-bin` — compile-only check (no binary output, no linking)
+1. `./tools/scripts/run_build.sh <step>` — relinks build runner with Apple ld
+2. `zig fmt --check build.zig build/ src/ tools/` — direct format check (no linking)
+3. `zig test <file> -fno-emit-bin` — compile-only check (no binary output, no linking)
+4. Linux CI or another host with a working Zig linker for binary-emitting gates
 
 Note: Options 3-4 are partial validation only — they verify syntax and type correctness but cannot run tests or produce binaries.
 

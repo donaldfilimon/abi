@@ -597,7 +597,6 @@ fn commandMatchesSection(section: []const u8, name: []const u8) bool {
     }
     if (std.mem.eql(u8, section, "Operations")) {
         return std.mem.eql(u8, name, "status") or
-            std.mem.eql(u8, name, "toolchain") or
             std.mem.eql(u8, name, "config") or
             std.mem.eql(u8, name, "plugins") or
             std.mem.eql(u8, name, "profile");

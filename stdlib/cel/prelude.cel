@@ -1,5 +1,0 @@
-module std.prelude;
-import std.io.print;
-import std.testing.assert;
-import std.process.exit;
-import std.env.path;

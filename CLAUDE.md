@@ -62,8 +62,8 @@ Zig's pre-built toolchain cannot link on macOS 25+ (undefined symbols in the bui
 # Format check (no linking needed — always works)
 zig fmt --check build.zig build/ src/ tools/
 
-# Full fix: build CEL toolchain from source
-./.zig-bootstrap/build.sh && eval "$(./tools/scripts/use_zig_bootstrap.sh)"
+# Compile-only validation when linking is still blocked
+zig test src/services/tests/mod.zig -fno-emit-bin
 ```
 
 LLD has **zero** Mach-O support — never set `use_lld = true` for macOS targets.

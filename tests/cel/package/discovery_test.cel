@@ -1,7 +1,0 @@
-module tests.cel.package.discovery_test;
-import std.testing.assert;
-import tests.cel.support.banner;
-
-test "discovers package tests" {
-    print("beta");
-}

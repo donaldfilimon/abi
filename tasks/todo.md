@@ -2,17 +2,21 @@
 
 Active task tracker. Use `git add -f tasks/todo.md` to stage.
 
-## Planned — Remove `.cel` Language + Legacy CEL Backing (2026-03-10 15:13 EDT)
+## Active — Hard-Cut CEL + Bootstrap Removal (2026-03-10 17:26 EDT)
 
 - [x] Consensus status: best-effort tri-CLI wrapper unavailable; `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` is missing locally.
-- [x] Inventory captured the current CEL footprint: `.cel/`, `cel.toml`, `./cel`, `tools/cel/stage0/`, `src/cel/`, `examples/cel/`, `tests/cel/`, `stdlib/cel/`, build wiring, wrapper scripts, docs, plugin guidance, `.claude` hooks, and LSP fallback paths.
-- [x] Verified the main coupling blocker: `.zig-bootstrap/build.sh` still execs `.cel/build.sh`, `tools/scripts/use_zig_bootstrap.sh` still requires `.cel/bin/zig`, `build.zig` still imports `build/cel.zig`, and multiple scripts/config loaders still probe `.cel/bin/*`.
-- [ ] Freeze the survivor surface: keep the Zig bootstrap bridge, Darwin build workaround, and repo-local wrapper commands; remove the CEL language/compiler/package track and all `.cel`-named backing implementation.
-- [ ] Workstream A — bootstrap migration: replace `.cel/config.sh`, `.cel/build.sh`, `.cel/lib.sh`, `.cel/patches`, and `.cel/bin/*` dependencies with a `.zig-bootstrap`-native implementation; rename `build/cel.zig` to a bootstrap/toolchain name and delete `cel-*` build aliases once the replacement is live.
-- [ ] Workstream B — language/runtime removal: delete `cel.toml`, `./cel`, `tools/cel/stage0/`, `src/cel/`, `examples/cel/`, `tests/cel/`, and `stdlib/cel/`; remove CEL-specific docs, smoke tests, and manifest parsing from the repo.
-- [ ] Workstream C — surface cleanup: remove `cel_migrate.sh`, `use_cel.sh`, `cel_doctor.zig`, `.cel` fallback logic in LSP/config/toolchain helpers, plugin docs, `.claude` settings, generated docs references, and compatibility wording that still treats CEL as the destination language.
-- [ ] Workstream D — validation + review: run `git diff --check`, `rg` sweeps proving `.cel` / `cel.toml` references are gone, `zig build check-zig-version`, `zig build check-cli-registry`, `zig build check-docs`, and the strongest available `zig build` gate on the target host; re-review Darwin bootstrap behavior and LSP path detection after the rename/removal wave.
-- [ ] Known blocker to resolve early: `./tools/scripts/run_build.sh check-docs` currently fails in `tools/gendocs/main.zig` with `error: no module named 'mod' available within module 'root'`, so docs/build validation is already broken before the `.cel` removal starts.
+- [x] Review base recorded for post-change ABI review prep: `d76dc9d9b1c9e0fc5be5b82f3574f1fd1d542712`.
+- [x] Inventory captured the tracked CEL/bootstrap surface: `./cel`, `.cel/`, `.zig-bootstrap/`, `cel.toml`, `cel.lock`, `tools/cel/`, `src/cel/`, `examples/cel/`, `tests/cel/`, `stdlib/cel/`, bootstrap build wiring, wrapper scripts, CLI commands, docs metadata, plugin guidance, `.claude` hooks, and LSP/toolchain fallback paths.
+- [x] Confirmed the worktree already contained partial bootstrap-migration edits in `.claude/settings.json`, `src/core/config/{loader,lsp}.zig`, `src/services/{lsp/client.zig,shared/utils/zig_toolchain.zig}`, `src/features/gpu/dsl/spirv.zig`, `tools/cli/commands/dev/lsp.zig`, and toolchain scripts; this wave must fold those edits into the hard-cut removal instead of preserving a `.zig-bootstrap` survivor surface.
+- [x] Delete the tracked CEL/bootstrap roots and obsolete scripts/commands in one wave: `.cel/`, `.zig-bootstrap/`, `cel`, `cel.toml`, `cel.lock`, `tools/cel/`, `src/cel/`, `examples/cel/`, `tests/cel/`, `stdlib/cel/`, `build/cel.zig`, `tools/scripts/{cel_doctor.zig,cel_migrate.sh,use_cel.sh,use_zig_bootstrap.sh,zig_bootstrap_migrate.sh}`, and `tools/cli/commands/dev/toolchain.zig`.
+- [x] Remove bootstrap build-step wiring and CLI registry/docs coupling from `build.zig`, `tools/cli/generated/cli_registry_snapshot.zig`, `tools/cli/commands/mod.zig`, `tools/cli/registry/overrides.zig`, docs metadata, launcher/help text, and CLI tests.
+- [x] Rewire surviving toolchain and LSP behavior to Zig-only defaults: no `.cel` / `.zig-bootstrap` probes, no bootstrap precedence checks, Zig fallback via ZVM master or `zig` on `PATH`, ZLS via explicit override or `zls` on `PATH`.
+- [x] Scrub live and archived repo text so repo-tracked content no longer presents CEL/bootstrap as supported workflow, including `README.md`, `CLAUDE.md`, `docs/`, `.claude/`, `zig-abi-plugin/`, and `tasks/`.
+- [x] Validation + review: run `git diff --check`, `rg` absence sweeps for `.cel` / `.zig-bootstrap` / `bootstrap-zig` / `toolchain` alias references, repo-safe format checks, targeted compile-only probes for touched Zig surfaces, and record Darwin build-runner blockers for any binary-emitting gates that still cannot run locally.
+- [x] Review notes (2026-03-10 15:42 EDT): fixed-string absence sweeps found no live `.zig-bootstrap`, `bootstrap-zig`, `cel.toml`, `tools/cel`, or `src/cel` references outside this bookkeeping entry and the intentionally deleted files in this wave.
+- [x] Validation evidence (2026-03-10 15:42 EDT): `git diff --check`; `zig fmt --check build.zig build src tools examples`; `zig test src/services/lsp/client.zig -fno-emit-bin`; `zig test src/services/shared/utils/zig_toolchain.zig -fno-emit-bin`; `zig test src/core/config/lsp.zig -fno-emit-bin`; `zig test tools/scripts/check_zig_version_consistency.zig -fno-emit-bin`; `zig test tools/scripts/toolchain_doctor.zig -fno-emit-bin`; `zig test tools/scripts/check_cli_dsl_consistency.zig -fno-emit-bin`; `bash -n tools/scripts/*.sh`.
+- [x] Environment blockers (2026-03-10 15:42 EDT): `zig build refresh-cli-registry` and `zig build check-docs` both fail on this macOS host with the known Darwin build-runner undefined-symbol linker error before `build.zig` executes.
+- [x] Standalone probe note (2026-03-10 15:42 EDT): isolated `zig test` on `tools/cli/generated/cli_registry_snapshot.zig`, `tools/cli/commands/mod.zig`, and `tools/cli/main.zig` is not meaningful because those files depend on build-graph-provided module wiring.
 
 ## Active — Docs Surface Cleanup (2026-03-10 16:10 EDT)
 
@@ -31,7 +35,7 @@ Active task tracker. Use `git add -f tasks/todo.md` to stage.
 - [x] Verified `origin/main` already contains PR #485 as merge commit `28af94db` on 2026-03-10.
 - [x] Reviewed the remaining branch tail against `origin/main`: keep `997f3143` and `8c9b3ee4`; drop junk-only commit `6ffa7483` (`.!94407!test_link`, `full-check-current.txt`, `full-check-output.txt`, `zls.json`).
 - [x] Clean replay validation on `codex/main-integration-cleanup`: `zig fmt --check` passed for retained Zig diffs, `git diff --check` passed after removing the stray `.gitignore` blank-line regression, and compile-only `zig build-obj -fno-emit-bin` probes passed for `src/core/mod.zig`, `src/features/database/mod.zig`, `src/features/database/stub.zig`, `src/services/mcp/mod.zig`, `src/core/database_fast_tests_root.zig`, and `src/root.zig`.
-- [x] Validation evidence remains blocked in this environment: local `zig build` gates still hit the known Darwin linker failure, `.cel/build.sh --zig-only` failed during stage3 Zig bootstrap on this host, and GitHub Actions run `22911876542` could not provide Linux gate results because the account is billing-locked (`Test Suite`, `Examples`, and `Quality Gates` skipped).
+- [x] Validation evidence remains blocked in this environment: local `zig build` gates still hit the known Darwin linker failure, and GitHub Actions run `22911876542` could not provide Linux gate results because the account is billing-locked (`Test Suite`, `Examples`, and `Quality Gates` skipped).
 - [x] Replayed the clean branch-tail commits onto `main` and pushed `main` to `origin` at commit `3fbb03a5`.
 - [x] Deleted `fix/codebase-quality-sweep` locally and on `origin` after `main` contained the cleaned changes.
 - [x] Deleted the live merged remote branch `origin/claude/init-project-setup-TcKbR` and pruned stale tracking refs for `origin/codex/agent-a761c502-reviewable` and `origin/feat/agnts-consolidation`; only `origin/main` remains.
@@ -43,7 +47,7 @@ Active task tracker. Use `git add -f tasks/todo.md` to stage.
 - [ ] **CI Restoration**: Push to main and verify GitHub Actions pass on Linux
 - [ ] **WASM Optimization**: Refine freestanding distance functions for browser-side inference
 - [ ] **API Expansion**: Implement missing OpenAI-compatible streaming endpoints
-- [ ] **CEL Toolchain**: Build Zig from source on Darwin 25+ for native linking
+- [ ] **Darwin Validation**: Keep compile-only and Linux CI guidance current for linker-blocked hosts
 - [ ] **Plugin Registry**: Push `zig-abi-plugin` to the official Claude Code registry
 
 ## Backlog

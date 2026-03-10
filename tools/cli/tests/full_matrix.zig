@@ -394,19 +394,6 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
             use_help_fallback = false;
             try addArg(&args, matrix.allocator, "profile-export.json");
         }
-    } else if (std.mem.eql(u8, command, "toolchain")) {
-        if (isAny(subcommand, &.{ "install", "zig", "zls", "update" })) {
-            use_help_fallback = false;
-            build.kind = .long_running_probe;
-            build.timeout_ms = 180_000;
-            build.cwd_mode = .repo_copy;
-            build.exit_policy = .allow_signal_after_probe;
-            try addReq(&build, matrix.allocator, "tool:git");
-            try addReq(&build, matrix.allocator, "tool:cmake");
-            try addReq(&build, matrix.allocator, "tool:llvm-config");
-        } else {
-            use_help_fallback = false;
-        }
     } else if (std.mem.eql(u8, command, "mcp")) {
         if (std.mem.eql(u8, subcommand, "serve")) {
             use_help_fallback = false;

@@ -46,7 +46,7 @@ These are common wrong turns:
 - Expecting `build.zig` changes to fix the initial build-runner link
 - Running `zig fmt .` from the repo root instead of the repo-safe format surface
 - Treating `use_lld = true` as a macOS fix
-- Assuming the old `.cel/build.sh` / `use_cel.sh` helpers are the canonical front door
+- Assuming older helper wrappers are still the canonical front door
 
 ABI guidance is explicit here: never recommend `use_lld = true` for macOS
 targets.
@@ -85,26 +85,17 @@ zig test src/features/database/mod.zig -fno-emit-bin
 These do not replace full runtime validation, but they are useful when the
 environment is linker-blocked.
 
-### 3. Use the repo-local bootstrap bridge
+### 3. Use wrapper and compile-only validation
 
-ABI's canonical toolchain bridge is `abi bootstrap-zig ...` backed by
-`.zig-bootstrap/`.
-
-```bash
-abi bootstrap-zig install
-abi bootstrap-zig status
-abi bootstrap-zig path
-```
-
-Equivalent direct path:
+ABI no longer carries a repo-local workaround toolchain. On blocked Darwin hosts,
+use the wrapper for build-system behavior and use compile-only checks when the
+host linker still cannot emit binaries.
 
 ```bash
-./.zig-bootstrap/build.sh
-eval "$(./tools/scripts/use_zig_bootstrap.sh)"
+./tools/scripts/run_build.sh test --summary all
+zig fmt --check build.zig build src tools examples
+zig test src/services/tests/mod.zig -fno-emit-bin
 ```
-
-The older `.cel/` tree still exists as implementation backing, but the
-repository-facing interface is the bootstrap Zig bridge.
 
 ## Decision guide
 
@@ -112,8 +103,8 @@ Use this sequence when working locally on macOS 26+:
 
 1. Need formatting only: run `zig fmt --check build.zig build src tools examples`
 2. Need `zig build` behavior: run `./tools/scripts/run_build.sh <step>`
-3. Need a host-native toolchain: use `abi bootstrap-zig install`
-4. Need targeted syntax/type validation: use `zig test <path> -fno-emit-bin`
+3. Need targeted syntax/type validation: use `zig test <path> -fno-emit-bin`
+4. Need binary-emitting validation: use Linux CI or another host with a working Zig linker
 
 ## How to classify a failure
 
@@ -142,5 +133,3 @@ Treat it as a normal code issue when:
 - `CLAUDE.md`
 - `tasks/lessons.md`
 - `tools/scripts/run_build.sh`
-- `tools/scripts/use_zig_bootstrap.sh`
-- `tools/scripts/cel_doctor.zig`
