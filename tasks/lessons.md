@@ -56,3 +56,11 @@
 ## 2026-03-09 - Zig nightly pins must come from artifact metadata, not GitHub master
 - **Root cause**: Treating the current `ziglang/zig` `master` commit as interchangeable with the pinned nightly version drifted CEL to a source snapshot that did not match ABI's expected Zig 0.16-dev API level.
 - **Prevention rule**: When repinning Zig nightlies, validate the version/commit pair against the actual `ziglang.org/builds` artifact metadata first. Only then update `.zigversion`, `.cel/config.sh`, `build.zig.zon`, `tools/scripts/baseline.zig`, and docs together.
+
+## 2026-03-09 - Zig 0.16 removed usingnamespace; file splits need parameter-passing
+- **Root cause**: Splitting large Zig files (e.g. GPU unified.zig, metal.zig) into submodules fails if submodules try to `@import` parent types circularly. Zig 0.16 removed `usingnamespace`.
+- **Prevention rule**: When splitting large files into submodules, pass parent context as parameters to submodule init functions rather than circular imports. Keep the parent file as the orchestrator.
+
+## 2026-03-09 - macOS linker prevents full verification on Darwin 25+
+- **Root cause**: `zig build lint` and other build steps fail with undefined symbol errors (`_malloc_size`, `_nanosleep`, etc.) on macOS 25+ due to upstream Zig linker incompatibility.
+- **Prevention rule**: On affected macOS versions, use `zig fmt --check` directly for format validation, or use the CEL toolchain. Don't block commits on `zig build lint` if the failure is the known linker issue.
