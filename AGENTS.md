@@ -1,71 +1,96 @@
-# Repository Guidelines (AGENTS.md)
+# AGENTS.md - Canonical Workflow for Code Agents
 
-This document serves as the canonical reference for code agents and human contributors working within the ABI Framework. It defines the core commands, style expectations, and governance rules required to maintain codebase integrity.
+This document defines the repo-wide expectations for automated and human agents
+working in the ABI codebase. It complements CONTRIBUTING.md, CLAUDE.md, and the docs,
+and serves as the contract used by agentic tools during plan-to-build work.
+Last updated: 2026-03-10
 
-## Governance & Onboarding
+## 1. Project Organization & Structure
 
-All contributors MUST read this document alongside `CONTRIBUTING.md` and `CLAUDE.md` before initiating changes. For automated agents, this file acts as the primary task-execution contract.
+The ABI project follows a modular, feature-oriented structure designed for high
+concurrency and strict API gating.
 
-- **Consolidated Guidance**: Detailed FAQ and edge-case guidance are hosted in [docs/FAQ-agents.md](docs/FAQ-agents.md).
-- **Consensus Rule**: Major architectural changes require tri-CLI consensus (where available) or explicit owner approval.
-- **Rollout Phase**: We are currently in **Phase 4** of the framework rollout (see below).
+- **`src/`**: Core framework logic.
+  - **`abi.zig`**: Public API entry point.
+  - **`features/`**: Feature-gated modules. Every feature MUST have a `mod.zig`
+    (implementation) and a `stub.zig` (public signature mirror for gating).
+- **`build/`**: Build system logic, target definitions, and test discovery.
+- **`tools/`**: Internal tooling.
+  - **`cli/`**: Main ABI CLI implementation.
+  - **`scripts/`**: Maintenance and validation scripts.
+- **`docs/`**: API documentation, architecture guides, and FAQs.
+- **`examples/`**: Usage demonstrations and integration tests.
 
-## Core Commands
+## 2. Core Development Commands
 
-Use the Zig toolchain pinned in `.zigversion` (`0.16.0-dev.1503+738d2be9d`).
+Use the Zig toolchain pinned in `.zigversion`.
 
-### Build & Lint
-- `zig build`: Build the main framework and CLI.
-- `zig build lint`: Check code formatting.
-- `zig build fix`: Auto-format Zig sources.
-- `./tools/scripts/fmt_repo.sh --check`: Repo-safe format check (skips vendored fixtures).
+### Build & Maintenance
+- `zig build`: Build the framework and CLI artifacts.
+- `zig build fix`: Run the repository-safe auto-formatter.
+- `zig build lint`: Verify formatting without applying changes.
+- `./tools/scripts/fmt_repo.sh --check`: Lint-check core sources (skips vendored fixtures).
+- `zig build refresh-cli-registry`: Update the generated CLI command registry.
 
-### Testing
-- `zig build test --summary all`: Run the primary service test root.
-- `zig build feature-tests --summary all`: Run manifest-driven feature coverage.
-- `zig test <path> --test-filter "<pattern>"`: Run a single test or group.
-- `zig build full-check`: Local confidence gate (format + tests + CLI checks).
-- `zig build verify-all`: Release gate (full-check + examples + cross-compilation).
+### Validation & Testing
+- `zig build test --summary all`: Execute the primary service test suite.
+- `zig build feature-tests --summary all`: Execute manifest-driven feature tests.
+- `zig build full-check`: Run the local CI-equivalent confidence gate.
+- `zig build verify-all`: Execute the full release validation suite.
+- `zig test <path> --test-filter "<pattern>"`: Run targeted tests.
 
-### Registry & Docs
-- `zig build refresh-cli-registry`: Regenerate `tools/cli/generated/` after command changes.
-- `zig build check-docs`: Verify documentation consistency.
+## 3. Coding Style & Conventions
 
-## Coding Style & API Guidance
+- **Formatting**: Rely strictly on `zig fmt`. Never use manual vertical alignment.
+- **Imports**: Use relative imports (`@import("local_file.zig")`) within feature
+  modules. Use the canonical `@import("abi")` for all public framework consumption.
+- **Naming**:
+  - `lower_snake_case` for files, modules, and functions.
+  - `PascalCase` for types, structs, and error sets.
+  - `CONSTANT_CASE` for global constants and comptime values.
+- **Errors**: Return explicit error sets; propagate using `try`; never swallow
+  errors with `_ = ...` unless strictly justified and commented.
+- **Feature Gating**: Public signatures in `mod.zig` and `stub.zig` MUST remain
+  identical. Use the `is_blocked_darwin` flag to bypass linker issues on macOS 26+.
 
-- **Formatting**: Rely exclusively on `zig fmt`. Never perform manual alignment.
-- **Imports**: Use relative imports inside `src/features/`. Use `@import("abi")` for public consumers.
-- **Naming**: `lower_snake_case` for functions/modules; `PascalCase` for types/structs.
-- **Feature Gating**: Every feature module in `src/features/` must have a matching `mod.zig` and `stub.zig`. Public signatures must be identical in both.
-- **Errors**: Use explicit error sets; propagate with `try`; never swallow errors silently.
+## 4. Agent Execution Policy
 
-Detailed style rules are maintained in the [Agent FAQ](docs/FAQ-agents.md#code-style--api-guidance).
+### Cursor & Copilot Guidelines
+- **Cursor Rules**: Refer to `docs/guides/cursor_rules.md` for task templates and
+  constraint definitions. `.cursorrules` are pending formal policy approval.
+- **Copilot**: Usage is permitted for boilerplate generation. All generated
+  logic MUST be manually validated against the Zig 0.16 baseline.
 
-## Agent Policy (Placeholders)
+### Automated Refactoring
+- Before performing batch edits, generate a research report or plan.
+- Perform surgical `replace` calls instead of full-file rewrites where possible.
+- Always run `full-check` after any automated modification wave.
 
-### Cursor Rules
-Cursor-specific constraints and templates are located in [docs/guides/cursor_rules.md](docs/guides/cursor_rules.md). Direct Cursor rules (e.g., `.cursorrules`) are pending policy approval.
+## 5. Governance & Rollout (Phase 4)
 
-### Copilot Guidance
-Copilot usage is permitted for boilerplate; however, all logic must be validated against the Zig 0.16 baseline. Annotate complex generated logic where appropriate.
+We are currently in **Phase 4: Rollout & Consolidation**.
 
-## Commit & Pull Request Guidelines
+1. **Stability**: Maintain macOS 26 bypasses until upstream toolchain fixes land.
+2. **Migration**: Move legacy `personas` to the new `profiles` API.
+3. **Consolidation**: Centralize duplicative guidance from `AGENTS.md` and
+   `CONTRIBUTING.md` into the [docs/FAQ-agents.md](docs/FAQ-agents.md).
 
-- **Format**: Use short imperative subjects with prefixes: `fix:`, `feat:`, `docs:`, `chore:`, `style:`.
-- **Scope**: Keep commits scoped to a single logical change or "wave".
-- **Validation**: PRs must list the specific validation commands run (e.g., `full-check`) and their results.
-- **Screenshots**: Required for TUI or dashboard UI changes.
+## 6. Pull Request & Commit Standards
 
-## Phase 4 — Rollout Plan
+- **Commit Format**: Use short imperative subjects with prefixes (e.g., `fix:`,
+  `feat:`, `docs:`, `chore:`).
+- **Atomic Patches**: Each commit should represent a single logical change wave.
+- **Validation**: Every PR description MUST include the output summary of the
+  `zig build full-check` command.
 
-1. **Validation & Stability (Current)**: Maintain compile-only macOS 26 bypasses; restore hosted CI gates.
-2. **CEL Stage 0 Transition**: Shift default operations to `.zig-bootstrap/bin/zig`.
-3. **Cleanup & Pruning**: Eliminate legacy `src/features/ai/personas/` after `profiles` migration.
-4. **Documentation & Release**: Finalize `docs/api` generation and CLI command snapshots.
+## 7. Acceptance Criteria
 
-## Validation & Acceptance
+A task is considered complete when:
+- `zig build full-check` passes on the target platform.
+- The `tasks/todo.md` entry is updated with a timestamped completion note.
+- All related `stub.zig` files reflect the updated public signatures.
+- Duplicative guidance has been relocated to the central FAQ.
 
-A task is considered "Accepted" only when:
-1. `zig build full-check` passes in a clean environment.
-2. All touched modules' `stub.zig` files are verified against `mod.zig`.
-3. The `tasks/todo.md` tracker is updated with completion evidence.
+---
+*Refer to [docs/FAQ-agents.md](docs/FAQ-agents.md) for detailed style edge cases and
+extended command documentation.*
