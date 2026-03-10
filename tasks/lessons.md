@@ -64,3 +64,19 @@
 ## 2026-03-09 - macOS linker prevents full verification on Darwin 25+
 - **Root cause**: `zig build lint` and other build steps fail with undefined symbol errors (`_malloc_size`, `_nanosleep`, etc.) on macOS 25+ due to upstream Zig linker incompatibility.
 - **Prevention rule**: On affected macOS versions, use `zig fmt --check` directly for format validation, or use the CEL toolchain. Don't block commits on `zig build lint` if the failure is the known linker issue.
+
+## 2026-03-09 - lib.sh DRY pattern for shell scripts
+- **Root cause**: Multiple CEL shell scripts (`.cel/build.sh`, `tools/scripts/cel_migrate.sh`, `tools/scripts/use_cel.sh`) duplicated the same functions for stock Zig detection, platform checks, and logging.
+- **Prevention rule**: When multiple shell scripts share utility functions, extract them to a shared `lib.sh` (e.g. `.cel/lib.sh`) and `source` it. This reduces drift between scripts and keeps behavior consistent.
+
+## 2026-03-09 - Sourcing bug with set -euo pipefail
+- **Root cause**: `set -euo pipefail` at the top of a script breaks when the script is `source`'d into an interactive shell, because the strict error/unset settings leak into the caller's environment.
+- **Prevention rule**: Guard strict mode with `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then set -euo pipefail; fi` so it only applies when the script is executed directly, not sourced. Applied to `tools/scripts/use_cel.sh`.
+
+## 2026-03-09 - SIGINT trap handler for long-running build scripts
+- **Root cause**: Long-running build scripts (e.g. `.cel/build.sh` building Zig from source) leave partial state (incomplete cmake build dirs, half-written binaries) when interrupted with Ctrl-C.
+- **Prevention rule**: Trap SIGINT/SIGTERM in long-running build scripts to clean up partial state before exiting. Applied to `.cel/build.sh`.
+
+## 2026-03-09 - Comptime string formatting to reduce build step boilerplate
+- **Root cause**: Build steps in `build/cel.zig` that differed only by a flag string had duplicated logic for constructing step names and descriptions.
+- **Prevention rule**: Use Zig's `std.fmt.comptimePrint` to parameterize build step creation when steps differ only by a flag or name string. Applied to `build/cel.zig` `addCelShellStep`.

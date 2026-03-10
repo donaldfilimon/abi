@@ -1,3 +1,5 @@
+#include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -15,6 +17,12 @@ typedef struct {
     size_t len;
     size_t cap;
 } StrBuf;
+
+typedef struct {
+    char **items;
+    size_t len;
+    size_t cap;
+} StringList;
 
 typedef enum {
     TOK_EOF = 0,
@@ -103,6 +111,31 @@ typedef struct {
     int line;
     int column;
 } Error;
+
+typedef struct {
+    char *name;
+    char *version;
+    char *module_root;
+    char *stdlib_root;
+    char *entry;
+    char *toolchain_mode;
+    StringList test_roots;
+    char *root_dir;
+    char *manifest_path;
+} PackageManifest;
+
+typedef struct {
+    char *path;
+    char *source;
+    Program program;
+} LoadedModule;
+
+typedef struct {
+    LoadedModule *items;
+    size_t len;
+    size_t cap;
+    StringList loading_paths;
+} ModuleGraph;
 
 static void die(const char *fmt, ...) {
     va_list args;
@@ -196,6 +229,313 @@ static char *sb_take(StrBuf *sb) {
     sb->len = 0;
     sb->cap = 0;
     return out;
+}
+
+static bool string_list_contains(const StringList *list, const char *value) {
+    for (size_t i = 0; i < list->len; i++) {
+        if (strcmp(list->items[i], value) == 0) return true;
+    }
+    return false;
+}
+
+static void string_list_push_owned(StringList *list, char *value) {
+    if (string_list_contains(list, value)) {
+        free(value);
+        return;
+    }
+    if (list->len == list->cap) {
+        size_t next = list->cap ? list->cap * 2 : 8;
+        list->items = xrealloc(list->items, next * sizeof(char *));
+        list->cap = next;
+    }
+    list->items[list->len++] = value;
+}
+
+static void string_list_push_copy(StringList *list, const char *value) {
+    string_list_push_owned(list, xstrdup(value));
+}
+
+static int string_cmp(const void *lhs, const void *rhs) {
+    const char *const *a = lhs;
+    const char *const *b = rhs;
+    return strcmp(*a, *b);
+}
+
+static void string_list_sort(StringList *list) {
+    if (list->len > 1) qsort(list->items, list->len, sizeof(char *), string_cmp);
+}
+
+static void string_list_pop(StringList *list) {
+    if (list->len == 0) return;
+    free(list->items[list->len - 1]);
+    list->items[list->len - 1] = NULL;
+    list->len--;
+}
+
+static void string_list_free(StringList *list) {
+    for (size_t i = 0; i < list->len; i++) free(list->items[i]);
+    free(list->items);
+    list->items = NULL;
+    list->len = 0;
+    list->cap = 0;
+}
+
+static bool starts_with(const char *value, const char *prefix) {
+    size_t prefix_len = strlen(prefix);
+    return strncmp(value, prefix, prefix_len) == 0;
+}
+
+static bool ends_with(const char *value, const char *suffix) {
+    size_t value_len = strlen(value);
+    size_t suffix_len = strlen(suffix);
+    return value_len >= suffix_len && strcmp(value + value_len - suffix_len, suffix) == 0;
+}
+
+static bool path_is_dir(const char *path) {
+    struct stat st;
+    return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+static bool path_is_regular(const char *path) {
+    struct stat st;
+    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+static char *path_canonicalize(const char *path) {
+    char *resolved = realpath(path, NULL);
+    if (resolved) return resolved;
+    return xstrdup(path);
+}
+
+static char *path_dirname(const char *path) {
+    size_t len = strlen(path);
+    while (len > 1 && path[len - 1] == '/') len--;
+    while (len > 0 && path[len - 1] != '/') len--;
+    if (len == 0) return xstrdup(".");
+    if (len == 1) return xstrdup("/");
+    return xstrndup(path, len - 1);
+}
+
+static char *path_join(const char *base, const char *child) {
+    if (!base || base[0] == '\0') return xstrdup(child);
+    if (!child || child[0] == '\0') return xstrdup(base);
+    if (child[0] == '/') return xstrdup(child);
+    StrBuf sb;
+    sb_init(&sb);
+    sb_append(&sb, base);
+    if (sb.len > 0 && sb.data[sb.len - 1] != '/') sb_append_char(&sb, '/');
+    sb_append(&sb, child);
+    return sb_take(&sb);
+}
+
+static char *cwd_path(void) {
+    char *cwd = getcwd(NULL, 0);
+    if (!cwd) die("getcwd failed: %s", strerror(errno));
+    return cwd;
+}
+
+static char *find_manifest_path_from(const char *start_path) {
+    char *cursor = NULL;
+    if (!start_path) {
+        cursor = cwd_path();
+    } else if (path_is_dir(start_path)) {
+        cursor = path_canonicalize(start_path);
+    } else {
+        char *dir = path_dirname(start_path);
+        cursor = path_canonicalize(dir);
+        free(dir);
+    }
+
+    for (;;) {
+        char *manifest = path_join(cursor, "cel.toml");
+        if (path_is_regular(manifest)) {
+            free(cursor);
+            return manifest;
+        }
+        free(manifest);
+
+        char *parent = path_dirname(cursor);
+        if (strcmp(parent, cursor) == 0) {
+            free(parent);
+            break;
+        }
+        free(cursor);
+        cursor = parent;
+    }
+
+    free(cursor);
+    return NULL;
+}
+
+static char *trim_in_place(char *line) {
+    while (*line && isspace((unsigned char)*line)) line++;
+    size_t len = strlen(line);
+    while (len > 0 && isspace((unsigned char)line[len - 1])) {
+        line[--len] = '\0';
+    }
+    return line;
+}
+
+static char *parse_manifest_string(const char *value, const char *manifest_path, const char *key) {
+    while (*value && isspace((unsigned char)*value)) value++;
+    size_t len = strlen(value);
+    while (len > 0 && isspace((unsigned char)value[len - 1])) len--;
+    if (len < 2 || value[0] != '"' || value[len - 1] != '"') {
+        die("%s: expected quoted string for %s", manifest_path, key);
+    }
+    return xstrndup(value + 1, len - 2);
+}
+
+static void parse_manifest_string_array(StringList *list, const char *value, const char *manifest_path, const char *key) {
+    char *copy = xstrdup(value);
+    char *cursor = trim_in_place(copy);
+    size_t len = strlen(cursor);
+    if (len < 2 || cursor[0] != '[' || cursor[len - 1] != ']') {
+        free(copy);
+        die("%s: expected string array for %s", manifest_path, key);
+    }
+    cursor[len - 1] = '\0';
+    cursor++;
+
+    for (;;) {
+        cursor = trim_in_place(cursor);
+        if (*cursor == '\0') break;
+        if (*cursor != '"') {
+            free(copy);
+            die("%s: expected quoted array item for %s", manifest_path, key);
+        }
+        cursor++;
+        char *end = strchr(cursor, '"');
+        if (!end) {
+            free(copy);
+            die("%s: unterminated string array item for %s", manifest_path, key);
+        }
+        string_list_push_owned(list, xstrndup(cursor, (size_t)(end - cursor)));
+        cursor = end + 1;
+        cursor = trim_in_place(cursor);
+        if (*cursor == '\0') break;
+        if (*cursor != ',') {
+            free(copy);
+            die("%s: expected ',' in array for %s", manifest_path, key);
+        }
+        cursor++;
+    }
+
+    free(copy);
+}
+
+static char *read_file(const char *path);
+
+static PackageManifest load_manifest(const char *start_path) {
+    char *manifest_path = find_manifest_path_from(start_path);
+    if (!manifest_path) {
+        if (start_path) {
+            die("failed to find cel.toml starting from %s", start_path);
+        }
+        die("failed to find cel.toml from current directory");
+    }
+
+    PackageManifest manifest;
+    memset(&manifest, 0, sizeof(manifest));
+    manifest.manifest_path = path_canonicalize(manifest_path);
+    manifest.root_dir = path_dirname(manifest.manifest_path);
+    manifest.module_root = xstrdup(".");
+    manifest.stdlib_root = xstrdup("stdlib/cel");
+    manifest.toolchain_mode = xstrdup("stage0-c11");
+    free(manifest_path);
+
+    char *contents = read_file(manifest.manifest_path);
+    char *saveptr = NULL;
+    char *section = NULL;
+    for (char *line = strtok_r(contents, "\n", &saveptr); line; line = strtok_r(NULL, "\n", &saveptr)) {
+        char *trimmed = trim_in_place(line);
+        if (*trimmed == '\0' || *trimmed == '#') continue;
+        size_t trimmed_len = strlen(trimmed);
+        if (trimmed[0] == '[' && trimmed[trimmed_len - 1] == ']') {
+            free(section);
+            section = xstrndup(trimmed + 1, trimmed_len - 2);
+            continue;
+        }
+
+        char *eq = strchr(trimmed, '=');
+        if (!eq) {
+            free(contents);
+            free(section);
+            die("%s: expected key = value", manifest.manifest_path);
+        }
+        *eq = '\0';
+        char *key = trim_in_place(trimmed);
+        char *value = trim_in_place(eq + 1);
+
+        if (section && strcmp(section, "package") == 0) {
+            if (strcmp(key, "name") == 0) {
+                free(manifest.name);
+                manifest.name = parse_manifest_string(value, manifest.manifest_path, key);
+            } else if (strcmp(key, "version") == 0) {
+                free(manifest.version);
+                manifest.version = parse_manifest_string(value, manifest.manifest_path, key);
+            }
+        } else if (section && strcmp(section, "layout") == 0) {
+            if (strcmp(key, "module_root") == 0) {
+                free(manifest.module_root);
+                manifest.module_root = parse_manifest_string(value, manifest.manifest_path, key);
+            } else if (strcmp(key, "stdlib_root") == 0) {
+                free(manifest.stdlib_root);
+                manifest.stdlib_root = parse_manifest_string(value, manifest.manifest_path, key);
+            } else if (strcmp(key, "entry") == 0) {
+                free(manifest.entry);
+                manifest.entry = parse_manifest_string(value, manifest.manifest_path, key);
+            }
+        } else if (section && strcmp(section, "tests") == 0) {
+            if (strcmp(key, "roots") == 0) {
+                string_list_free(&manifest.test_roots);
+                parse_manifest_string_array(&manifest.test_roots, value, manifest.manifest_path, key);
+            }
+        } else if (section && strcmp(section, "toolchain") == 0) {
+            if (strcmp(key, "mode") == 0) {
+                free(manifest.toolchain_mode);
+                manifest.toolchain_mode = parse_manifest_string(value, manifest.manifest_path, key);
+            }
+        }
+    }
+
+    free(contents);
+    free(section);
+
+    if (!manifest.name) die("%s: missing [package].name", manifest.manifest_path);
+    if (!manifest.version) die("%s: missing [package].version", manifest.manifest_path);
+    if (!manifest.entry) die("%s: missing [layout].entry", manifest.manifest_path);
+    if (manifest.test_roots.len == 0) string_list_push_copy(&manifest.test_roots, "tests/cel");
+
+    return manifest;
+}
+
+static void free_manifest(PackageManifest *manifest) {
+    free(manifest->name);
+    free(manifest->version);
+    free(manifest->module_root);
+    free(manifest->stdlib_root);
+    free(manifest->entry);
+    free(manifest->toolchain_mode);
+    free(manifest->root_dir);
+    free(manifest->manifest_path);
+    string_list_free(&manifest->test_roots);
+    memset(manifest, 0, sizeof(*manifest));
+}
+
+static char *manifest_entry_path(const PackageManifest *manifest) {
+    char *path = path_join(manifest->root_dir, manifest->entry);
+    char *canonical = path_canonicalize(path);
+    free(path);
+    return canonical;
+}
+
+static bool target_is_package_ref(const char *path) {
+    if (!path) return true;
+    if (path_is_dir(path)) return true;
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    return strcmp(base, "cel.toml") == 0;
 }
 
 static bool is_ident_start(char c) {
@@ -367,14 +707,27 @@ static void parser_expect(Parser *parser, TokenKind kind, const char *message) {
     parser_advance(parser);
 }
 
+static bool token_is_path_segment(TokenKind kind) {
+    return kind == TOK_IDENT ||
+           kind == TOK_KW_MODULE ||
+           kind == TOK_KW_IMPORT ||
+           kind == TOK_KW_FN ||
+           kind == TOK_KW_TEST ||
+           kind == TOK_KW_DEFER ||
+           kind == TOK_KW_LET ||
+           kind == TOK_KW_VAR ||
+           kind == TOK_KW_RETURN ||
+           kind == TOK_KW_PRINT;
+}
+
 static char *parse_path_like(Parser *parser) {
-    if (parser->current.kind != TOK_IDENT) parser_fail(parser, "expected identifier path");
+    if (!token_is_path_segment(parser->current.kind)) parser_fail(parser, "expected identifier path");
     StrBuf sb;
     sb_init(&sb);
     sb_append(&sb, parser->current.text);
     parser_advance(parser);
     while (parser_accept(parser, TOK_DOT)) {
-        if (parser->current.kind != TOK_IDENT) parser_fail(parser, "expected identifier after '.'");
+        if (!token_is_path_segment(parser->current.kind)) parser_fail(parser, "expected identifier after '.'");
         sb_append_char(&sb, '.');
         sb_append(&sb, parser->current.text);
         parser_advance(parser);
@@ -596,6 +949,114 @@ static void validate_program(const Program *program) {
         }
         nameset_free(&names);
     }
+}
+
+static void module_graph_free(ModuleGraph *graph) {
+    for (size_t i = 0; i < graph->len; i++) {
+        free(graph->items[i].path);
+        free(graph->items[i].source);
+        free_program(&graph->items[i].program);
+    }
+    free(graph->items);
+    graph->items = NULL;
+    graph->len = 0;
+    graph->cap = 0;
+    string_list_free(&graph->loading_paths);
+}
+
+static const LoadedModule *module_graph_find(const ModuleGraph *graph, const char *path) {
+    for (size_t i = 0; i < graph->len; i++) {
+        if (strcmp(graph->items[i].path, path) == 0) return &graph->items[i];
+    }
+    return NULL;
+}
+
+static LoadedModule *module_graph_push(ModuleGraph *graph, char *path, char *source, Program program) {
+    if (graph->len == graph->cap) {
+        size_t next = graph->cap ? graph->cap * 2 : 8;
+        graph->items = xrealloc(graph->items, next * sizeof(LoadedModule));
+        graph->cap = next;
+    }
+    LoadedModule *slot = &graph->items[graph->len++];
+    slot->path = path;
+    slot->source = source;
+    slot->program = program;
+    return slot;
+}
+
+static char *module_name_to_relative_path(const char *module_name, bool strip_std_prefix) {
+    const char *name = module_name;
+    if (strip_std_prefix) {
+        if (!starts_with(module_name, "std.")) die("invalid std module name '%s'", module_name);
+        name = module_name + 4;
+    }
+    StrBuf sb;
+    sb_init(&sb);
+    for (const char *cursor = name; *cursor; cursor++) {
+        sb_append_char(&sb, *cursor == '.' ? '/' : *cursor);
+    }
+    sb_append(&sb, ".cel");
+    return sb_take(&sb);
+}
+
+static char *resolve_import_path(const PackageManifest *manifest, const char *import_name) {
+    if (!manifest) die("import '%s' requires a cel.toml package context", import_name);
+    bool is_std = starts_with(import_name, "std.");
+    char *relative = module_name_to_relative_path(import_name, is_std);
+    char *root = path_join(manifest->root_dir, is_std ? manifest->stdlib_root : manifest->module_root);
+    char *candidate = path_join(root, relative);
+    if (!path_is_regular(candidate)) {
+        die("failed to resolve import '%s' via %s", import_name, candidate);
+    }
+    char *resolved = path_canonicalize(candidate);
+    free(relative);
+    free(root);
+    free(candidate);
+    return resolved;
+}
+
+static const LoadedModule *load_module_recursive(ModuleGraph *graph, const PackageManifest *manifest, const char *path, const char *expected_module_name) {
+    char *canonical_path = path_canonicalize(path);
+    const LoadedModule *existing = module_graph_find(graph, canonical_path);
+    if (existing) {
+        if (expected_module_name) {
+            if (!existing->program.module_name) {
+                die("module %s is missing a module declaration", canonical_path);
+            }
+            if (strcmp(existing->program.module_name, expected_module_name) != 0) {
+                die("module %s resolved to %s but declares %s", expected_module_name, canonical_path, existing->program.module_name);
+            }
+        }
+        free(canonical_path);
+        return existing;
+    }
+
+    if (string_list_contains(&graph->loading_paths, canonical_path)) {
+        die("circular import detected while loading %s", canonical_path);
+    }
+    string_list_push_copy(&graph->loading_paths, canonical_path);
+
+    char *source = read_file(canonical_path);
+    Program program = parse_program(canonical_path, source);
+    validate_program(&program);
+    if (expected_module_name) {
+        if (!program.module_name) {
+            die("module %s resolved to %s but the file has no module declaration", expected_module_name, canonical_path);
+        }
+        if (strcmp(program.module_name, expected_module_name) != 0) {
+            die("module %s resolved to %s but declares %s", expected_module_name, canonical_path, program.module_name);
+        }
+    }
+
+    LoadedModule *loaded = module_graph_push(graph, canonical_path, source, program);
+    for (size_t i = 0; i < loaded->program.import_len; i++) {
+        char *import_path = resolve_import_path(manifest, loaded->program.imports[i]);
+        (void)load_module_recursive(graph, manifest, import_path, loaded->program.imports[i]);
+        free(import_path);
+    }
+
+    string_list_pop(&graph->loading_paths);
+    return loaded;
 }
 
 static void append_indent(StrBuf *sb, int depth) {
@@ -863,16 +1324,145 @@ static void build_and_run(const char *c_source, bool run_binary) {
     free(exe_path.data);
 }
 
+static void collect_cel_files(const char *path, StringList *out) {
+    if (path_is_regular(path)) {
+        if (ends_with(path, ".cel")) {
+            char *canonical = path_canonicalize(path);
+            string_list_push_owned(out, canonical);
+        }
+        return;
+    }
+    if (!path_is_dir(path)) return;
+
+    DIR *dir = opendir(path);
+    if (!dir) die("failed to open directory %s: %s", path, strerror(errno));
+    struct dirent *entry = NULL;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (entry->d_name[0] == '.') continue;
+        char *child = path_join(path, entry->d_name);
+        if (path_is_dir(child)) {
+            collect_cel_files(child, out);
+        } else if (path_is_regular(child) && ends_with(child, ".cel")) {
+            char *canonical = path_canonicalize(child);
+            string_list_push_owned(out, canonical);
+        }
+        free(child);
+    }
+    closedir(dir);
+}
+
+static void collect_package_files(const PackageManifest *manifest, StringList *out) {
+    char *entry = manifest_entry_path(manifest);
+    string_list_push_owned(out, entry);
+
+    char *module_root = path_join(manifest->root_dir, manifest->module_root);
+    collect_cel_files(module_root, out);
+    free(module_root);
+
+    char *stdlib_root = path_join(manifest->root_dir, manifest->stdlib_root);
+    collect_cel_files(stdlib_root, out);
+    free(stdlib_root);
+
+    for (size_t i = 0; i < manifest->test_roots.len; i++) {
+        char *test_root = path_join(manifest->root_dir, manifest->test_roots.items[i]);
+        collect_cel_files(test_root, out);
+        free(test_root);
+    }
+
+    string_list_sort(out);
+}
+
+static void collect_test_files(const PackageManifest *manifest, StringList *out) {
+    for (size_t i = 0; i < manifest->test_roots.len; i++) {
+        char *test_root = path_join(manifest->root_dir, manifest->test_roots.items[i]);
+        collect_cel_files(test_root, out);
+        free(test_root);
+    }
+    string_list_sort(out);
+}
+
+static void format_file_in_place(const char *path) {
+    char *source = read_file(path);
+    Program program = parse_program(path, source);
+    char *formatted = format_program(&program);
+    write_file(path, formatted);
+    free(formatted);
+    free_program(&program);
+    free(source);
+}
+
+static void format_package_in_place(const PackageManifest *manifest) {
+    StringList files = {0};
+    collect_package_files(manifest, &files);
+    if (files.len == 0) die("no .cel files found under %s", manifest->root_dir);
+    for (size_t i = 0; i < files.len; i++) {
+        format_file_in_place(files.items[i]);
+    }
+    string_list_free(&files);
+}
+
+static void check_package(const PackageManifest *manifest) {
+    StringList roots = {0};
+    char *entry = manifest_entry_path(manifest);
+    string_list_push_owned(&roots, entry);
+    collect_test_files(manifest, &roots);
+    if (roots.len == 0) die("no CEL roots found for package %s", manifest->name);
+
+    ModuleGraph graph = {0};
+    for (size_t i = 0; i < roots.len; i++) {
+        (void)load_module_recursive(&graph, manifest, roots.items[i], NULL);
+    }
+    module_graph_free(&graph);
+    string_list_free(&roots);
+}
+
+static void run_package_tests(const PackageManifest *manifest) {
+    StringList files = {0};
+    collect_test_files(manifest, &files);
+    if (files.len == 0) die("no CEL test files found for package %s", manifest->name);
+
+    bool ran_any = false;
+    for (size_t i = 0; i < files.len; i++) {
+        ModuleGraph graph = {0};
+        const LoadedModule *root = load_module_recursive(&graph, manifest, files.items[i], NULL);
+        bool has_tests = false;
+        for (size_t decl_index = 0; decl_index < root->program.decl_len; decl_index++) {
+            if (root->program.decls[decl_index].is_test) {
+                has_tests = true;
+                break;
+            }
+        }
+        if (has_tests) {
+            ran_any = true;
+            if (files.len > 1) {
+                printf("==> %s\n", files.items[i]);
+                fflush(stdout);
+            }
+            char *c_source = emit_c_tests(&root->program);
+            build_and_run(c_source, true);
+            free(c_source);
+        }
+        module_graph_free(&graph);
+    }
+
+    if (!ran_any) die("no CEL test blocks found under %s", manifest->root_dir);
+    string_list_free(&files);
+}
+
 static void usage(FILE *stream) {
     fprintf(stream,
             "CEL stage0 compiler\n"
             "\n"
             "Usage:\n"
-            "  cel check <file.cel>\n"
-            "  cel fmt [-w] <file.cel>\n"
-            "  cel run <file.cel>\n"
-            "  cel test <file.cel>\n"
-            "  cel emit-c <file.cel>\n");
+            "  cel check [file.cel|package-dir]\n"
+            "  cel fmt [-w] <file.cel|package-dir>\n"
+            "  cel run [file.cel|package-dir]\n"
+            "  cel test [file.cel|package-dir]\n"
+            "  cel emit-c [file.cel|package-dir]\n"
+            "\n"
+            "When a package directory (or no path) is given, cel.toml controls entry,\n"
+            "module roots, stdlib roots, and test discovery.\n");
 }
 
 int main(int argc, char **argv) {
@@ -883,59 +1473,103 @@ int main(int argc, char **argv) {
 
     const char *command = argv[1];
     bool write_in_place = false;
-    const char *path = NULL;
+    const char *target = NULL;
 
     if (strcmp(command, "fmt") == 0) {
         for (int i = 2; i < argc; i++) {
             if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--write") == 0) {
                 write_in_place = true;
             } else {
-                path = argv[i];
+                target = argv[i];
             }
         }
     } else if (argc >= 3) {
-        path = argv[2];
+        target = argv[2];
     }
 
+    bool package_mode = target_is_package_ref(target);
+    bool manifest_loaded = false;
+    PackageManifest manifest;
+    memset(&manifest, 0, sizeof(manifest));
+
+    if (package_mode || target != NULL) {
+        char *manifest_path = find_manifest_path_from(target);
+        if (manifest_path) {
+            free(manifest_path);
+            manifest = load_manifest(target);
+            manifest_loaded = true;
+        } else if (package_mode) {
+            die("failed to find cel.toml for %s", target ? target : "current directory");
+        }
+    }
+
+    if (strcmp(command, "check") == 0 && package_mode) {
+        check_package(&manifest);
+        printf("ok: package %s\n", manifest.root_dir);
+        free_manifest(&manifest);
+        return 0;
+    }
+
+    if (strcmp(command, "fmt") == 0 && package_mode) {
+        if (!write_in_place) die("cel fmt on a package requires -w");
+        format_package_in_place(&manifest);
+        free_manifest(&manifest);
+        return 0;
+    }
+
+    if (strcmp(command, "test") == 0 && package_mode) {
+        run_package_tests(&manifest);
+        free_manifest(&manifest);
+        return 0;
+    }
+
+    const char *path = target;
+    char *owned_path = NULL;
+    if (!path && manifest_loaded && (strcmp(command, "run") == 0 || strcmp(command, "emit-c") == 0 || strcmp(command, "check") == 0)) {
+        owned_path = manifest_entry_path(&manifest);
+        path = owned_path;
+    }
     if (!path) {
         usage(stderr);
+        free_manifest(&manifest);
         return 1;
     }
 
-    char *source = read_file(path);
-    Program program = parse_program(path, source);
-    validate_program(&program);
+    ModuleGraph graph = {0};
+    const LoadedModule *root = load_module_recursive(&graph, manifest_loaded ? &manifest : NULL, path, NULL);
 
     if (strcmp(command, "check") == 0) {
-        printf("ok: %s\n", path);
+        printf("ok: %s\n", root->path);
     } else if (strcmp(command, "fmt") == 0) {
-        char *formatted = format_program(&program);
+        char *formatted = format_program(&root->program);
         if (write_in_place) {
-            write_file(path, formatted);
+            write_file(root->path, formatted);
         } else {
             fputs(formatted, stdout);
         }
         free(formatted);
     } else if (strcmp(command, "emit-c") == 0) {
-        char *c_source = emit_c_main(&program);
+        char *c_source = emit_c_main(&root->program);
         fputs(c_source, stdout);
         free(c_source);
     } else if (strcmp(command, "run") == 0) {
-        char *c_source = emit_c_main(&program);
+        char *c_source = emit_c_main(&root->program);
         build_and_run(c_source, true);
         free(c_source);
     } else if (strcmp(command, "test") == 0) {
-        char *c_source = emit_c_tests(&program);
+        char *c_source = emit_c_tests(&root->program);
         build_and_run(c_source, true);
         free(c_source);
     } else {
         usage(stderr);
-        free_program(&program);
-        free(source);
+        module_graph_free(&graph);
+        free(owned_path);
+        free_manifest(&manifest);
         return 1;
     }
 
-    free_program(&program);
-    free(source);
+    module_graph_free(&graph);
+    free(owned_path);
+    free_manifest(&manifest);
     return 0;
 }

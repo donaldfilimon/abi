@@ -1,4 +1,4 @@
-module   tests.format;
+module   tests.cel.format_input;
 import   std.prelude;
 
 fn main(){

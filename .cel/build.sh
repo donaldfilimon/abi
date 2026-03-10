@@ -597,4 +597,8 @@ if $BUILD_ZLS; then
 fi
 
 print_status
-info "Done. To activate: eval \"\$(./tools/scripts/use_cel.sh)\""
+if [[ -x "$REPO_ROOT/tools/scripts/use_zig_bootstrap.sh" ]]; then
+    info "Done. To activate: eval \"\$(./tools/scripts/use_zig_bootstrap.sh)\""
+else
+    info "Done. To activate: eval \"\$(./tools/scripts/use_cel.sh)\""
+fi

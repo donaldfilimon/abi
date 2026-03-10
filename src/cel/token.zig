@@ -1,6 +1,5 @@
 ///! CEL Token definitions.
 ///! Comprehensive token types for the CEL systems programming language.
-
 const std = @import("std");
 
 pub const Token = struct {

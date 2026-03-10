@@ -98,11 +98,18 @@ This is the first step toward replacing Zig as the mainline language while
 keeping Zig only as temporary bootstrap infrastructure.
 
 ```bash
+./cel check
+./cel run
+./cel test
 ./cel check examples/cel/hello.cel
 ./cel run examples/cel/hello.cel
 ./cel test tests/cel/stage0_tests.cel
 abi bootstrap-zig install
 ```
+
+`cel.toml` is now the canonical package manifest for CEL stage-0. The current
+stable fields are package name/version, module root, stdlib root, entry, test
+roots, and toolchain mode.
 
 During the transition:
 - `abi bootstrap-zig ...` is the canonical Zig bridge surface.

@@ -637,12 +637,13 @@ test "variable declaration: const x: i32 = 42;" {
 
 test "function declaration" {
     try expectTags("fn add(a: i32, b: i32) i32 { return a + b; }", &.{
-        .kw_fn,       .identifier, .l_paren,
-        .identifier,  .colon,      .identifier, .comma,
-        .identifier,  .colon,      .identifier, .r_paren,
-        .identifier,  .l_brace,    .kw_return,
-        .identifier,  .plus,       .identifier, .semicolon,
-        .r_brace,     .eof,
+        .kw_fn,      .identifier, .l_paren,
+        .identifier, .colon,      .identifier,
+        .comma,      .identifier, .colon,
+        .identifier, .r_paren,    .identifier,
+        .l_brace,    .kw_return,  .identifier,
+        .plus,       .identifier, .semicolon,
+        .r_brace,    .eof,
     });
 }
 
@@ -662,8 +663,9 @@ test "shift operators" {
 
 test "assignment operators" {
     try expectTags("+= -= *= /= %= &= |= ^=", &.{
-        .plus_equal, .minus_equal, .star_equal, .slash_equal,
-        .percent_equal, .ampersand_equal, .pipe_equal, .caret_equal, .eof,
+        .plus_equal,    .minus_equal,     .star_equal, .slash_equal,
+        .percent_equal, .ampersand_equal, .pipe_equal, .caret_equal,
+        .eof,
     });
 }
 

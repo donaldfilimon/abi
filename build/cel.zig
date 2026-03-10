@@ -181,7 +181,7 @@ fn addBootstrapShellStep(b: *std.Build, name: []const u8, desc: []const u8, flag
     const step = b.step(name, desc);
 
     const shell = if (flag) |f|
-        std.fmt.comptimePrint(
+        b.fmt(
             \\set -e
             \\if [ -x ".zig-bootstrap/build.sh" ]; then
             \\  exec ./.zig-bootstrap/build.sh {s}

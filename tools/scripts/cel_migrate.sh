@@ -27,6 +27,8 @@ CEL_DIR="$REPO_ROOT/.cel"
 source "$CEL_DIR/config.sh"
 source "$CEL_DIR/lib.sh"
 
+BOOTSTRAP_BIN="$REPO_ROOT/.zig-bootstrap/bin"
+BOOTSTRAP_ZIG="$BOOTSTRAP_BIN/$(cel_binary_name zig)"
 CEL_ZIG="$CEL_DIR/bin/$(cel_binary_name zig)"
 CEL_ZLS="$CEL_DIR/bin/$(cel_binary_name zls)"
 BOOTSTRAP_HOST_ZIG="$REPO_ROOT/zig-bootstrap-emergency/out/host/bin/$(cel_binary_name zig)"
@@ -43,6 +45,22 @@ die()   { error "$@"; exit 1; }
 stock_zig_path()          { cel_stock_zig_path; }
 stock_zig_version()       { cel_stock_zig_version; }
 probe_stock_build_runner() { cel_classify_build_runner; }
+
+activation_bin_dir() {
+    if [[ -x "$BOOTSTRAP_ZIG" ]]; then
+        printf '%s' "$BOOTSTRAP_BIN"
+    else
+        printf '%s' "$CEL_DIR/bin"
+    fi
+}
+
+activation_command() {
+    if [[ -x "$REPO_ROOT/tools/scripts/use_zig_bootstrap.sh" ]]; then
+        printf './tools/scripts/use_zig_bootstrap.sh'
+    else
+        printf './tools/scripts/use_cel.sh'
+    fi
+}
 
 report_stock_zig() {
     info "Step 2a: Inspecting stock Zig"
@@ -102,8 +120,8 @@ Options:
 Migration Steps:
   1. Check platform: macOS 26+ requires CEL for binary output
   2. Verify prerequisites: git, cmake, cc, LLVM
-  3. Build .cel toolchain: .cel/build.sh
-  4. Activate: export PATH=".cel/bin:$PATH"
+  3. Build bootstrap Zig bridge: ./.zig-bootstrap/build.sh
+  4. Activate: export PATH=".zig-bootstrap/bin:$PATH"
   5. Validate: zig build full-check
 USAGE
             exit 0
@@ -226,13 +244,14 @@ if $ACTIVATE_ONLY; then
     if [[ ! -x "$CEL_ZIG" ]]; then
         die "CEL toolchain not built. Run without --activate first."
     fi
-    export PATH="$CEL_DIR/bin:$PATH"
+    ACTIVATE_BIN="$(activation_bin_dir)"
+    export PATH="$ACTIVATE_BIN:$PATH"
     CEL_VER="$(zig version 2>/dev/null)"
     ok "Activated CEL toolchain: $CEL_VER"
-    ok "PATH updated: $CEL_DIR/bin is first"
+    ok "PATH updated: $ACTIVATE_BIN is first"
     
     # Print eval-friendly output for sourcing
-    echo "export PATH=\"$CEL_DIR/bin:\$PATH\""
+    echo "export PATH=\"$ACTIVATE_BIN:\$PATH\""
     exit 0
 fi
 
@@ -297,8 +316,9 @@ fi
 
 # ── Step 6: Activate ───────────────────────────────────────────────────
 info "Step 6: Activating CEL toolchain"
-export PATH="$CEL_DIR/bin:$PATH"
-ok "PATH updated: $CEL_DIR/bin is first"
+ACTIVATE_BIN="$(activation_bin_dir)"
+export PATH="$ACTIVATE_BIN:$PATH"
+ok "PATH updated: $ACTIVATE_BIN is first"
 
 # ── Step 7: Quick validation ────────────────────────────────────────────
 info "Step 7: Quick validation"
@@ -315,7 +335,7 @@ ok "═════════════════════════�
 ok "  CEL migration complete!"
 ok ""
 ok "  To activate in your current shell:"
-ok "    eval \"\$(./tools/scripts/use_zig_bootstrap.sh)\""
+ok "    eval \"\$($(activation_command))\""
 ok ""
 ok "  To run the full gate:"
 ok "    zig build full-check"

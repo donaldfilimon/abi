@@ -28,16 +28,20 @@ build runner does not depend on the broken prebuilt native linker path.
 
 ```bash
 # Build the patched toolchain
-./.cel/build.sh
+./.zig-bootstrap/build.sh
 
 # Activate in current shell
-eval "$(./tools/scripts/use_cel.sh)"
+eval "$(./tools/scripts/use_zig_bootstrap.sh)"
 
 # Verify
 zig version
 zls --version
 zig build full-check
 ```
+
+Legacy compatibility note: `eval "$(./tools/scripts/use_cel.sh)"` still works,
+but now prefers `.zig-bootstrap/bin` so it does not bypass the canonical
+wrapper namespace.
 
 ### Build system integration
 

@@ -1,4 +1,5 @@
-module tests.stage0;
+module tests.cel.stage0_tests;
+import std.prelude;
 
 test "prints literals" {
     print("alpha");

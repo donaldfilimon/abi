@@ -1,6 +1,5 @@
 ///! CEL source file management.
 ///! Provides line/column tracking and source text access.
-
 const std = @import("std");
 
 pub const SourceFile = struct {

@@ -219,7 +219,7 @@ Upstream Zig linker incompatibility (`__availability_version_check`, `_arc4rando
 ```bash
 ./tools/scripts/cel_migrate.sh           # Full guided build + activate + validate
 # Or step-by-step:
-./.cel/build.sh && eval "$(./tools/scripts/use_cel.sh)"
+./.zig-bootstrap/build.sh && eval "$(./tools/scripts/use_zig_bootstrap.sh)"
 # Diagnostics: zig build cel-check | cel-doctor | cel-status | cel-verify
 ```
 

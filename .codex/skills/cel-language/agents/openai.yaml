@@ -1,0 +1,4 @@
+interface:
+  display_name: "CEL Language"
+  short_description: "Guide CEL compiler and migration work"
+  default_prompt: "Improve ABI's CEL language, stage-0 compiler, and migration path while keeping the C toolchain authoritative and Zig src/cel as the reference track."
