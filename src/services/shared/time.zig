@@ -255,16 +255,7 @@ pub fn getSeed() u64 {
         // On native platforms, timestamp provides good uniqueness
         return timestampNs();
     } else {
-        if (builtin.os.tag == .wasi) {
-            // On WASI, use cryptographic randomness + counter for uniqueness
-            var seed_bytes: [8]u8 = undefined;
-            std.c.arc4random_buf(&seed_bytes, seed_bytes.len);
-            const random_part = std.mem.readInt(u64, &seed_bytes, .little);
-            const counter = @as(u64, wasm_counter.fetchAdd(1, .monotonic));
-            return random_part ^ counter;
-        }
-
-        // On freestanding WASM, use a counter + address salt fallback.
+        // On WASI or freestanding WASM, use a counter + address salt fallback.
         const counter = @as(u64, wasm_counter.fetchAdd(1, .monotonic));
         const salt = @as(u64, @intFromPtr(&wasm_counter));
         return counter ^ (salt *% 0x9e3779b97f4a7c15);

@@ -35,21 +35,11 @@ const STD_OUTPUT_HANDLE: windows.DWORD = 0xFFFF_FFF5;
 
 // libc imports for cross-platform compatibility (Zig 0.16)
 // Not available on freestanding/WASM targets
-const libc = if (builtin.os.tag != .freestanding and
-    builtin.cpu.arch != .wasm32 and
-    builtin.cpu.arch != .wasm64)
-    @cImport({
-        @cInclude("stdlib.h");
-        if (builtin.os.tag == .windows) {
-            @cInclude("windows.h");
-        }
-    })
-else
-    struct {
-        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
-            return null;
-        }
-    };
+const libc = struct {
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+        return null;
+    }
+};
 
 // Helper to get environment variable via libc (Zig 0.16 compatible)
 fn getenvC(name: []const u8) ?[]const u8 {

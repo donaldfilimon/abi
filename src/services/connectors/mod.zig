@@ -79,7 +79,9 @@ pub fn isInitialized() bool {
 const builtin = @import("builtin");
 
 // libc import for environment access - required for Zig 0.16
-const c = @cImport(@cInclude("stdlib.h"));
+const c = struct {
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+};
 
 /// Read environment variable by name; returns owned slice or null if unset. Caller must free.
 pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {

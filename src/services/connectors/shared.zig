@@ -200,7 +200,9 @@ pub fn encodeStringArray(
 // Availability Helpers
 // ============================================================================
 
-const c_stdlib = @cImport(@cInclude("stdlib.h"));
+const c_stdlib = struct {
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+};
 
 /// Check if an environment variable is set and non-empty.
 /// Returns false for unset vars AND empty strings (e.g., `VAR=""`).

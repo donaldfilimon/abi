@@ -7,16 +7,9 @@ const builtin = @import("builtin");
 const shared = @import("../shared.zig");
 
 // libc import for environment access (Zig 0.16 compatible)
-const c = if (builtin.target.os.tag != .freestanding and
-    builtin.target.cpu.arch != .wasm32 and
-    builtin.target.cpu.arch != .wasm64)
-    @cImport(@cInclude("stdlib.h"))
-else
-    struct {
-        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
-            return null;
-        }
-    };
+const c = struct {
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+};
 
 pub const CuResult = enum(i32) {
     success = 0,

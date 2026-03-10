@@ -27,16 +27,9 @@ const app_paths = @import("../../../services/shared/app_paths.zig");
 
 // libc import for environment access - required for Zig 0.16
 // Not available on freestanding/WASM targets
-const c = if (builtin.target.os.tag != .freestanding and
-    builtin.target.cpu.arch != .wasm32 and
-    builtin.target.cpu.arch != .wasm64)
-    @cImport(@cInclude("stdlib.h"))
-else
-    struct {
-        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
-            return null;
-        }
-    };
+const c = struct {
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+};
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and
