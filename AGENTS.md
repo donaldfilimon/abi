@@ -29,3 +29,21 @@ Write Zig tests with `test "..."` blocks close to the code they cover. Add broad
 ## Commit & Pull Request Guidelines
 
 Recent history favors short imperative subjects with prefixes such as `fix:`, `docs:`, `style:`, and `chore:`. Keep commits scoped to one change wave. PRs should summarize user-visible impact, list validation commands and results, link the relevant issue or task, and include screenshots only for TUI/dashboard changes. For non-trivial work, review `tasks/todo.md` and `tasks/lessons.md` first and capture outcomes in `tasks/todo.md`.
+
+## Phase 4 — Rollout Plan
+
+1. **Validation & Stability (Current)**
+   - Maintain compile-only macOS 26 bypasses until upstream Zig fixes `__availability_version_check`.
+   - Re-enable GitHub Actions CI to confirm cross-platform baseline.
+   
+2. **CEL Stage 0 Transition**
+   - Shift default local operations to `.zig-bootstrap/bin/zig` over `.cel/bin/zig`.
+   - Maintain the `tools/scripts/use_cel.sh` legacy aliases until all devs have migrated.
+
+3. **Cleanup & Pruning**
+   - Eliminate all legacy `src/features/ai/personas/` components once `profiles` migration is fully complete.
+   - Refactor duplicate examples into generalized workflows and tests.
+
+4. **Documentation & Release**
+   - Finalize `docs/api` generation rules.
+   - Push updated CLI commands snapshot.
