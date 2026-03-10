@@ -1,0 +1,15 @@
+--- a/src/Compilation/Config.zig
++++ b/src/Compilation/Config.zig
+@@ -414,6 +414,12 @@
+
+         if (options.use_lld) |x| break :b x;
+
++        // Safety net: force LLD on Darwin 26+ even if use_llvm was
++        // overridden to false by the user. Prevents self-hosted linker
++        // from producing binaries with bad segment ordering on Tahoe.
++        if (target.os.tag.isDarwin() and
++            target.os.version_range.semver.min.major >= 26) break :b true;
++
+         // If we have no zig code to compile, no need for the self-hosted linker.
+         if (!options.have_zcu) break :b true;
+
