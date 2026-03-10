@@ -25,6 +25,7 @@ CEL_DIR="$REPO_ROOT/.cel"
 CEL_ZIG="$CEL_DIR/bin/zig"
 CEL_ZLS="$CEL_DIR/bin/zls"
 BOOTSTRAP_HOST_ZIG="$REPO_ROOT/zig-bootstrap-emergency/out/host/bin/zig"
+EXPECTED_ZIG_VERSION="$(tr -d '[:space:]' < "$REPO_ROOT/.zigversion" 2>/dev/null || true)"
 
 # Colors
 RED='\033[0;31m'
@@ -38,6 +39,69 @@ ok()    { printf "${GREEN}[cel-migrate]${NC} %s\n" "$*"; }
 warn()  { printf "${YELLOW}[cel-migrate]${NC} %s\n" "$*"; }
 error() { printf "${RED}[cel-migrate]${NC} %s\n" "$*" >&2; }
 die()   { error "$@"; exit 1; }
+
+stock_zig_path() {
+    if command -v zig >/dev/null 2>&1; then
+        command -v zig
+    else
+        return 1
+    fi
+}
+
+stock_zig_version() {
+    local path
+    path="$(stock_zig_path)" || return 1
+    "$path" version 2>/dev/null | tr -d '\r' | head -n 1
+}
+
+probe_stock_build_runner() {
+    local output
+    if output="$(cd "$REPO_ROOT" && zig build --help 2>&1 1>/dev/null)"; then
+        printf 'ok'
+        return 0
+    fi
+
+    if [[ "$output" == *"__availability_version_check"* || "$output" == *"undefined symbol:"* ]]; then
+        printf 'darwin-linker'
+    else
+        printf 'failing'
+    fi
+}
+
+report_stock_zig() {
+    info "Step 2a: Inspecting stock Zig"
+
+    if ! command -v zig >/dev/null 2>&1; then
+        warn "  zig: not found on PATH"
+        return
+    fi
+
+    local path version state
+    path="$(stock_zig_path)"
+    version="$(stock_zig_version)"
+    ok "  zig: found ($path)"
+    info "  zig version: $version"
+
+    if [[ -n "$EXPECTED_ZIG_VERSION" && "$version" != "$EXPECTED_ZIG_VERSION" ]]; then
+        warn "  zig pin mismatch: expected $EXPECTED_ZIG_VERSION"
+    else
+        ok "  zig pin matches .zigversion"
+    fi
+
+    state="$(probe_stock_build_runner)"
+    case "$state" in
+        ok)
+            ok "  build runner: stock zig can start ABI build steps"
+            ;;
+        darwin-linker)
+            warn "  build runner: blocked by Darwin linker failure"
+            warn "  use CEL/bootstrap for repo validation on this host"
+            ;;
+        failing)
+            warn "  build runner: stock zig failed before ABI gates could run"
+            ;;
+    esac
+}
 
 # Parse arguments
 CHECK_ONLY=false
@@ -148,6 +212,8 @@ elif [[ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]]; then
     info "  bootstrap zig: source present, host binary not built yet"
 fi
 
+report_stock_zig
+
 if [[ ${#MISSING[@]} -gt 0 ]]; then
     die "Missing prerequisites: ${MISSING[*]}"
 fi
@@ -170,6 +236,9 @@ if $CHECK_ONLY; then
         ok "CEL toolchain already built: $CEL_VER"
     else
         info "CEL toolchain not yet built. Run without --check to build."
+        if [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+            info "Next action: ./.cel/build.sh"
+        fi
     fi
     exit 0
 fi

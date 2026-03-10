@@ -1,7 +1,13 @@
 const std = @import("std");
+const command = @import("../../../command.zig");
 const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
+
+pub const meta: command.Meta = .{
+    .name = "plugins",
+    .description = "Manage LLM provider plugins",
+};
 
 const plugins = abi.features.ai.llm.providers.plugins;
 

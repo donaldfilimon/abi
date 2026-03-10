@@ -43,9 +43,14 @@ const adaptive_tiling_mod = @import("adaptive_tiling.zig");
 const policy_mod = @import("policy/mod.zig");
 const interface_mod = @import("interface.zig");
 
+// Submodule imports
+const dev_mgr = @import("device_manager.zig");
+const buf_pool = @import("buffer_pool.zig");
+const stream_orch = @import("stream_orchestrator.zig");
+
 const Mutex = sync.Mutex;
 
-// Re-export key types
+// Re-export key types (preserving full public API)
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
 pub const DeviceSelector = device_mod.DeviceSelector;
@@ -93,95 +98,15 @@ pub const KernelArgs = dispatcher_mod.KernelArgs;
 pub const DispatcherLaunchConfig = LaunchConfig;
 pub const DispatcherExecutionResult = ExecutionResult;
 
-/// Load balance strategy for multi-GPU.
-pub const LoadBalanceStrategy = enum {
-    /// Round-robin distribution.
-    round_robin,
-    /// Memory-aware distribution.
-    memory_aware,
-    /// Compute-aware distribution.
-    compute_aware,
-    /// Manual assignment.
-    manual,
-};
-
-/// GPU configuration.
-pub const GpuConfig = struct {
-    /// Preferred backend (null = auto-select best).
-    preferred_backend: ?Backend = null,
-    /// Allow fallback to other backends if preferred unavailable.
-    allow_fallback: bool = true,
-    /// Memory management mode.
-    memory_mode: MemoryMode = .automatic,
-    /// Maximum memory to use (0 = unlimited).
-    max_memory_bytes: usize = 0,
-    /// Enable profiling.
-    enable_profiling: bool = false,
-    /// Enable multi-GPU support.
-    multi_gpu: bool = false,
-    /// Load balance strategy for multi-GPU.
-    load_balance_strategy: LoadBalanceStrategy = .memory_aware,
-};
-
-/// Matrix dimensions for matrix operations.
-pub const MatrixDims = struct {
-    m: usize,
-    n: usize,
-    k: usize,
-};
-
-/// Compiled kernel handle.
-pub const CompiledKernel = struct {
-    allocator: std.mem.Allocator,
-    name: []const u8,
-    backend: Backend,
-    source: []const u8,
-    entry_point: []const u8,
-    /// Backend-specific handle.
-    handle: ?*anyopaque,
-
-    pub fn deinit(self: *CompiledKernel) void {
-        self.allocator.free(self.name);
-        self.allocator.free(self.source);
-        self.allocator.free(self.entry_point);
-        // Backend would free handle here
-        self.* = undefined;
-    }
-};
-
-/// GPU memory information.
-pub const MemoryInfo = struct {
-    total_bytes: u64,
-    used_bytes: u64,
-    free_bytes: u64,
-    peak_used_bytes: u64,
-};
-
-/// GPU statistics.
-pub const GpuStats = struct {
-    kernels_launched: u64,
-    buffers_created: u64,
-    bytes_allocated: u64,
-    host_to_device_transfers: u64,
-    device_to_host_transfers: u64,
-    total_execution_time_ns: u64,
-};
-
-/// Health status.
-pub const HealthStatus = enum {
-    healthy,
-    degraded,
-    unhealthy,
-    unknown,
-};
-
-/// Multi-GPU configuration.
-pub const MultiGpuConfig = struct {
-    /// Devices to use (empty = use all).
-    devices: []const u32 = &.{},
-    /// Load balance strategy.
-    strategy: LoadBalanceStrategy = .memory_aware,
-};
+// Re-export types from submodules
+pub const LoadBalanceStrategy = dev_mgr.LoadBalanceStrategy;
+pub const MultiGpuConfig = dev_mgr.MultiGpuConfig;
+pub const HealthStatus = dev_mgr.HealthStatus;
+pub const MemoryInfo = buf_pool.MemoryInfo;
+pub const MatrixDims = stream_orch.MatrixDims;
+pub const CompiledKernel = stream_orch.CompiledKernel;
+pub const GpuStats = stream_orch.GpuStats;
+pub const GpuConfig = stream_orch.GpuConfig;
 
 /// Main unified GPU API.
 pub const Gpu = struct {
@@ -232,12 +157,7 @@ pub const Gpu = struct {
         var device_group: ?DeviceGroup = null;
         if (effective_config.multi_gpu) {
             const multi_config = multi_device.MultiDeviceConfig{
-                .strategy = switch (effective_config.load_balance_strategy) {
-                    .round_robin => .round_robin,
-                    .memory_aware => .memory_aware,
-                    .compute_aware => .capability_weighted,
-                    .manual => .pinned,
-                },
+                .strategy = dev_mgr.toMultiDeviceStrategy(effective_config.load_balance_strategy),
             };
             device_group = DeviceGroup.init(allocator, multi_config) catch null;
         }
@@ -250,42 +170,28 @@ pub const Gpu = struct {
         }
         errdefer if (metrics) |*m| m.deinit();
 
-        // Select initial device
-        var active_device: ?*const Device = null;
-        var default_stream: ?*Stream = null;
-
-        if (device_manager.hasDevices()) {
-            if (effective_config.preferred_backend) |backend| {
-                active_device = device_manager.selectDevice(.{ .by_backend = backend }) catch null;
-            }
-
-            if (active_device == null and effective_config.allow_fallback) {
-                active_device = device_manager.selectBestDevice() catch null;
-            }
-
-            // Create default stream for active device
-            if (active_device) |device| {
-                default_stream = stream_manager.createStream(device, .{}) catch null;
-            }
-        }
-
-        // Initialize kernel dispatcher for active device
-        var disp: ?KernelDispatcher = null;
-        if (active_device) |dev| {
-            disp = KernelDispatcher.init(allocator, dev.backend, dev) catch null;
-        }
-        errdefer if (disp) |*d| d.deinit();
+        // Discover devices and select initial
+        const init_result = dev_mgr.initDevices(
+            allocator,
+            &device_manager,
+            &stream_manager,
+            effective_config,
+        );
+        errdefer if (init_result.dispatcher) |*d| {
+            var dd = d.*;
+            dd.deinit();
+        };
 
         return .{
             .allocator = allocator,
             .config = effective_config,
             .device_manager = device_manager,
             .stream_manager = stream_manager,
-            .dispatcher = disp,
+            .dispatcher = init_result.dispatcher,
             .device_group = device_group,
             .metrics = metrics,
-            .active_device = active_device,
-            .default_stream = default_stream,
+            .active_device = init_result.active_device,
+            .default_stream = init_result.default_stream,
             .buffers = .empty,
             .buffer_mutex = .{},
             .stats = std.mem.zeroes(GpuStats),
@@ -295,28 +201,16 @@ pub const Gpu = struct {
     /// Deinitialize and cleanup.
     pub fn deinit(self: *Gpu) void {
         // Destroy all buffers
-        self.buffer_mutex.lock();
-        for (self.buffers.items) |buf| {
-            buf.deinit();
-            self.allocator.destroy(buf);
-        }
-        self.buffers.deinit(self.allocator);
-        self.buffer_mutex.unlock();
+        buf_pool.destroyAllBuffers(self.allocator, &self.buffers, &self.buffer_mutex);
 
         // Clean up dispatcher
-        if (self.dispatcher) |*d| {
-            d.deinit();
-        }
+        if (self.dispatcher) |*d| d.deinit();
 
         // Clean up metrics
-        if (self.metrics) |*m| {
-            m.deinit();
-        }
+        if (self.metrics) |*m| m.deinit();
 
         // Clean up device group
-        if (self.device_group) |*dg| {
-            dg.deinit();
-        }
+        if (self.device_group) |*dg| dg.deinit();
 
         self.stream_manager.deinit();
         self.device_manager.deinit();
@@ -324,18 +218,18 @@ pub const Gpu = struct {
     }
 
     // ========================================================================
-    // Device Management
+    // Device Management (delegates to device_manager.zig)
     // ========================================================================
 
     /// Select a device based on criteria.
     pub fn selectDevice(self: *Gpu, selector: DeviceSelector) !void {
-        const device = try self.device_manager.selectDevice(selector);
-        self.active_device = device;
-
-        // Create stream for new device if needed
-        if (self.default_stream == null) {
-            self.default_stream = try self.stream_manager.createStream(device, .{});
-        }
+        return dev_mgr.selectDevice(
+            &self.device_manager,
+            &self.stream_manager,
+            &self.active_device,
+            &self.default_stream,
+            selector,
+        );
     }
 
     /// Get the currently active device.
@@ -350,82 +244,38 @@ pub const Gpu = struct {
 
     /// Enable multi-GPU mode.
     pub fn enableMultiGpu(self: *Gpu, config: MultiGpuConfig) !void {
-        // Initialize device group if not already
-        if (self.device_group == null) {
-            const multi_config = multi_device.MultiDeviceConfig{
-                .strategy = switch (config.strategy) {
-                    .round_robin => .round_robin,
-                    .memory_aware => .memory_aware,
-                    .compute_aware => .capability_weighted,
-                    .manual => .pinned,
-                },
-                .preferred_devices = config.devices,
-            };
-            self.device_group = try DeviceGroup.init(self.allocator, multi_config);
-        }
-
-        // Configure active devices
-        if (self.device_group) |*dg| {
-            if (config.devices.len > 0) {
-                // First disable all, then enable specified
-                for (dg.getAllDevices()) |device| {
-                    dg.disableDevice(device.id);
-                }
-                for (config.devices) |device_id| {
-                    try dg.enableDevice(device_id);
-                }
-            }
-        }
+        return dev_mgr.enableMultiGpu(self.allocator, &self.device_group, config);
     }
 
     /// Get multi-GPU device group (if enabled).
     pub fn getDeviceGroup(self: *Gpu) ?*DeviceGroup {
-        if (self.device_group) |*dg| {
-            return dg;
-        }
+        if (self.device_group) |*dg| return dg;
         return null;
     }
 
     /// Distribute work across multiple GPUs.
     pub fn distributeWork(self: *Gpu, total_work: usize) ![]WorkDistribution {
-        if (self.device_group) |*dg| {
-            return dg.distributeWork(total_work);
-        }
-        // Single device fallback
-        var result = try self.allocator.alloc(WorkDistribution, 1);
-        result[0] = .{
-            .device_id = if (self.active_device) |d| d.id else 0,
-            .offset = 0,
-            .size = total_work,
-        };
-        return result;
+        return dev_mgr.distributeWork(self.allocator, &self.device_group, self.active_device, total_work);
     }
 
     // ========================================================================
-    // Buffer Management
+    // Buffer Management (delegates to buffer_pool.zig)
     // ========================================================================
 
     /// Create a new buffer.
     pub fn createBuffer(self: *Gpu, size: usize, options: BufferOptions) !*Buffer {
         const device = self.active_device orelse return error.NoActiveDevice;
-
-        var opts = options;
-        if (opts.mode == .automatic and self.config.memory_mode != .automatic) {
-            opts.mode = self.config.memory_mode;
-        }
-
-        const buffer = try self.allocator.create(Buffer);
-        errdefer self.allocator.destroy(buffer);
-
-        buffer.* = try Buffer.init(self.allocator, size, device, opts);
-
-        self.buffer_mutex.lock();
-        defer self.buffer_mutex.unlock();
-        try self.buffers.append(self.allocator, buffer);
-
+        const buffer = try buf_pool.createBuffer(
+            self.allocator,
+            &self.buffers,
+            &self.buffer_mutex,
+            device,
+            size,
+            options,
+            self.config.memory_mode,
+        );
         self.stats.buffers_created += 1;
         self.stats.bytes_allocated += size;
-
         return buffer;
     }
 
@@ -437,105 +287,41 @@ pub const Gpu = struct {
         options: BufferOptions,
     ) !*Buffer {
         const device = self.active_device orelse return error.NoActiveDevice;
-
-        var opts = options;
-        if (opts.mode == .automatic and self.config.memory_mode != .automatic) {
-            opts.mode = self.config.memory_mode;
-        }
-
-        const buffer = try self.allocator.create(Buffer);
-        errdefer self.allocator.destroy(buffer);
-
-        buffer.* = try buffer_mod.createFromSlice(self.allocator, T, data, device, opts);
-
-        self.buffer_mutex.lock();
-        defer self.buffer_mutex.unlock();
-        try self.buffers.append(self.allocator, buffer);
-
+        const buffer = try buf_pool.createBufferFromSlice(
+            self.allocator,
+            &self.buffers,
+            &self.buffer_mutex,
+            device,
+            T,
+            data,
+            options,
+            self.config.memory_mode,
+        );
         self.stats.buffers_created += 1;
         self.stats.bytes_allocated += data.len * @sizeOf(T);
-
         return buffer;
     }
 
     /// Destroy a buffer.
     pub fn destroyBuffer(self: *Gpu, buffer: *Buffer) void {
-        self.buffer_mutex.lock();
-        defer self.buffer_mutex.unlock();
-
-        // Remove from tracking list
-        for (self.buffers.items, 0..) |b, i| {
-            if (b == buffer) {
-                _ = self.buffers.swapRemove(i);
-                break;
-            }
-        }
-
-        buffer.deinit();
-        self.allocator.destroy(buffer);
+        buf_pool.destroyBuffer(self.allocator, &self.buffers, &self.buffer_mutex, buffer);
     }
 
     // ========================================================================
-    // High-Level Operations
+    // High-Level Operations (delegates to stream_orchestrator.zig)
     // ========================================================================
 
     /// Vector addition: result = a + b
     pub fn vectorAdd(self: *Gpu, a: *Buffer, b: *Buffer, result: *Buffer) !ExecutionResult {
-        const device = self.active_device orelse return error.NoActiveDevice;
-
-        var timer = time.Timer.start() catch return error.TimerFailed;
-        var gpu_executed = false;
-
-        // Try dispatcher-based execution first
-        if (self.dispatcher) |*disp| {
-            const kernel = disp.getBuiltinKernel(.vector_add) catch null;
-            if (kernel) |k| {
-                const config = dispatcher_mod.LaunchConfig.for1D(a.elementCount(), 256);
-                const exec_result = disp.execute(k, config, .{
-                    .buffers = &.{ a, b, result },
-                }) catch null;
-                if (exec_result) |res| {
-                    gpu_executed = res.gpu_executed;
-                }
-            }
-        }
-
-        // Fallback to host computation if dispatcher not available or failed
-        if (!gpu_executed) {
-            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"vectorAdd"});
-            if (a.host_data != null and b.host_data != null and result.host_data != null) {
-                const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
-                const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
-                var r_data = std.mem.bytesAsSlice(f32, result.host_data.?);
-
-                const len = @min(a_data.len, @min(b_data.len, r_data.len));
-                for (0..len) |i| {
-                    r_data[i] = a_data[i] + b_data[i];
-                }
-
-                result.markHostDirty();
-            }
-        }
-
-        const elapsed = timer.read();
-        self.stats.kernels_launched += 1;
-        self.stats.total_execution_time_ns += elapsed;
-
-        // Record metrics if profiling enabled
-        if (self.metrics) |*m| {
-            m.recordKernel("vectorAdd", elapsed) catch |err| {
-                std.log.debug("Failed to record vectorAdd metrics: {t}", .{err});
-            };
-        }
-
-        return ExecutionResult{
-            .execution_time_ns = elapsed,
-            .elements_processed = a.elementCount(),
-            .bytes_transferred = a.getSize() + b.getSize() + result.getSize(),
-            .backend = device.backend,
-            .device_id = device.id,
-            .gpu_executed = gpu_executed,
-        };
+        return stream_orch.vectorAdd(
+            &self.dispatcher,
+            self.active_device,
+            &self.metrics,
+            &self.stats,
+            a,
+            b,
+            result,
+        );
     }
 
     /// Matrix multiplication: result = a * b
@@ -546,499 +332,118 @@ pub const Gpu = struct {
         result: *Buffer,
         dims: MatrixDims,
     ) !ExecutionResult {
-        const device = self.active_device orelse return error.NoActiveDevice;
-
-        var timer = time.Timer.start() catch return error.TimerFailed;
-        var gpu_executed = false;
-
-        // Try dispatcher-based execution first
-        if (self.dispatcher) |*disp| {
-            const kernel = disp.getBuiltinKernel(.matrix_multiply) catch null;
-            if (kernel) |k| {
-                // Use adaptive tiling based on matrix dimensions and device capabilities
-                // Default warp size: 32 for NVIDIA, 64 for AMD, 32 for others
-                const warp_size: u32 = switch (device.backend) {
-                    .cuda => 32,
-                    .vulkan => 32, // Varies, but 32 is common
-                    .metal => 32,
-                    else => 32,
-                };
-
-                // Default compute capability based on backend
-                // CUDA: assume SM 7.0 (Volta) as baseline
-                // Others: use conservative defaults
-                const cc_major: u32 = switch (device.backend) {
-                    .cuda => 7,
-                    .vulkan, .metal => 7, // Similar tier
-                    else => 6,
-                };
-
-                const tiling = adaptive_tiling_mod.AdaptiveTiling.init(.{
-                    .max_threads_per_block = device.maxWorkgroupSize(),
-                    .max_shared_memory = device.maxSharedMemory(),
-                    .warp_size = warp_size,
-                    .compute_capability = .{ .major = cc_major, .minor = 0 },
-                });
-
-                const tile = tiling.selectTile(
-                    @intCast(dims.m),
-                    @intCast(dims.n),
-                    @intCast(dims.k),
-                    .f32,
-                );
-
-                const config = dispatcher_mod.LaunchConfig.for2D(dims.n, dims.m, tile.n, tile.m);
-                const exec_result = disp.execute(k, config, .{
-                    .buffers = &.{ a, b, result },
-                }) catch null;
-                if (exec_result) |res| {
-                    gpu_executed = res.gpu_executed;
-                }
-            }
-        }
-
-        // Fallback to host computation if dispatcher not available or failed
-        if (!gpu_executed) {
-            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"matrixMultiply"});
-            if (a.host_data != null and b.host_data != null and result.host_data != null) {
-                const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
-                const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
-                var r_data = std.mem.bytesAsSlice(f32, result.host_data.?);
-
-                // C[i,j] = sum(A[i,k] * B[k,j])
-                for (0..dims.m) |i| {
-                    for (0..dims.n) |j| {
-                        var sum: f32 = 0;
-                        for (0..dims.k) |k| {
-                            sum += a_data[i * dims.k + k] * b_data[k * dims.n + j];
-                        }
-                        r_data[i * dims.n + j] = sum;
-                    }
-                }
-
-                result.markHostDirty();
-            }
-        }
-
-        const elapsed = timer.read();
-        self.stats.kernels_launched += 1;
-        self.stats.total_execution_time_ns += elapsed;
-
-        // Record metrics if profiling enabled
-        if (self.metrics) |*m| {
-            m.recordKernel("matrixMultiply", elapsed) catch |err| {
-                std.log.debug("Failed to record matrixMultiply metrics: {t}", .{err});
-            };
-        }
-
-        return ExecutionResult{
-            .execution_time_ns = elapsed,
-            .elements_processed = dims.m * dims.n,
-            .bytes_transferred = a.getSize() + b.getSize() + result.getSize(),
-            .backend = device.backend,
-            .device_id = device.id,
-            .gpu_executed = gpu_executed,
-        };
+        return stream_orch.matrixMultiply(
+            &self.dispatcher,
+            self.active_device,
+            &self.metrics,
+            &self.stats,
+            a,
+            b,
+            result,
+            dims,
+        );
     }
 
     /// Reduce sum: returns sum of all elements.
     pub fn reduceSum(self: *Gpu, input: *Buffer) !struct { value: f32, stats: ExecutionResult } {
-        const device = self.active_device orelse return error.NoActiveDevice;
-
-        var timer = time.Timer.start() catch return error.TimerFailed;
-        var sum: f32 = 0;
-        var gpu_executed = false;
-
-        // Try dispatcher-based execution first
-        if (self.dispatcher) |*disp| {
-            const kernel = disp.getBuiltinKernel(.reduce_sum) catch null;
-            if (kernel) |k| {
-                // Create a temporary result buffer for the reduction
-                const result_buf = self.createBuffer(@sizeOf(f32), .{ .mode = .explicit }) catch null;
-                if (result_buf) |rbuf| {
-                    defer self.destroyBuffer(rbuf);
-
-                    const config = dispatcher_mod.LaunchConfig.for1D(input.elementCount(), 256);
-                    const exec_result = disp.execute(k, config, .{
-                        .buffers = &.{ input, rbuf },
-                    }) catch null;
-                    if (exec_result) |res| {
-                        gpu_executed = res.gpu_executed;
-                        if (gpu_executed) {
-                            var result_val: [1]f32 = undefined;
-                            rbuf.read(f32, &result_val) catch |err| {
-                                std.log.warn("Failed to read GPU result: {t}", .{err});
-                                gpu_executed = false; // Fall back to CPU
-                            };
-                            sum = result_val[0];
-                        }
-                    }
-                }
-            }
-        }
-
-        // Fallback to host computation
-        if (!gpu_executed) {
-            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"reduceSum"});
-            if (input.host_data) |host| {
-                const data = std.mem.bytesAsSlice(f32, host);
-                for (data) |v| {
-                    sum += v;
-                }
-            }
-        }
-
-        const elapsed = timer.read();
-        self.stats.kernels_launched += 1;
-        self.stats.total_execution_time_ns += elapsed;
-
-        // Record metrics if profiling enabled
-        if (self.metrics) |*m| {
-            m.recordKernel("reduceSum", elapsed) catch |err| {
-                std.log.debug("Failed to record reduceSum metrics: {t}", .{err});
-            };
-        }
-
-        return .{
-            .value = sum,
-            .stats = ExecutionResult{
-                .execution_time_ns = elapsed,
-                .elements_processed = input.elementCount(),
-                .bytes_transferred = input.getSize(),
-                .backend = device.backend,
-                .device_id = device.id,
-                .gpu_executed = gpu_executed,
+        return stream_orch.reduceSum(
+            &self.dispatcher,
+            self.active_device,
+            &self.metrics,
+            &self.stats,
+            .{
+                .allocator = self.allocator,
+                .buffers = &self.buffers,
+                .buffer_mutex = &self.buffer_mutex,
+                .active_device = self.active_device,
+                .memory_mode = self.config.memory_mode,
+                .stats = &self.stats,
             },
-        };
+            input,
+        );
     }
 
     /// Dot product: returns a · b
     pub fn dotProduct(self: *Gpu, a: *Buffer, b: *Buffer) !struct { value: f32, stats: ExecutionResult } {
-        const device = self.active_device orelse return error.NoActiveDevice;
-
-        var timer = time.Timer.start() catch return error.TimerFailed;
-        var sum: f32 = 0;
-        var gpu_executed = false;
-
-        // Try dispatcher-based execution first
-        if (self.dispatcher) |*disp| {
-            const kernel = disp.getBuiltinKernel(.dot_product) catch null;
-            if (kernel) |k| {
-                // Create a temporary result buffer for the dot product
-                const result_buf = self.createBuffer(@sizeOf(f32), .{ .mode = .explicit }) catch null;
-                if (result_buf) |rbuf| {
-                    defer self.destroyBuffer(rbuf);
-
-                    const config = dispatcher_mod.LaunchConfig.for1D(a.elementCount(), 256);
-                    const exec_result = disp.execute(k, config, .{
-                        .buffers = &.{ a, b, rbuf },
-                    }) catch null;
-                    if (exec_result) |res| {
-                        gpu_executed = res.gpu_executed;
-                        if (gpu_executed) {
-                            var result_val: [1]f32 = undefined;
-                            rbuf.read(f32, &result_val) catch |err| {
-                                std.log.warn("Failed to read GPU result: {t}", .{err});
-                                gpu_executed = false; // Fall back to CPU
-                            };
-                            sum = result_val[0];
-                        }
-                    }
-                }
-            }
-        }
-
-        // Fallback to host computation
-        if (!gpu_executed) {
-            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"dotProduct"});
-            if (a.host_data != null and b.host_data != null) {
-                const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
-                const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
-
-                const len = @min(a_data.len, b_data.len);
-                for (0..len) |i| {
-                    sum += a_data[i] * b_data[i];
-                }
-            }
-        }
-
-        const elapsed = timer.read();
-        self.stats.kernels_launched += 1;
-        self.stats.total_execution_time_ns += elapsed;
-
-        // Record metrics if profiling enabled
-        if (self.metrics) |*m| {
-            m.recordKernel("dotProduct", elapsed) catch |err| {
-                std.log.debug("Failed to record dotProduct metrics: {t}", .{err});
-            };
-        }
-
-        return .{
-            .value = sum,
-            .stats = ExecutionResult{
-                .execution_time_ns = elapsed,
-                .elements_processed = a.elementCount(),
-                .bytes_transferred = a.getSize() + b.getSize(),
-                .backend = device.backend,
-                .device_id = device.id,
-                .gpu_executed = gpu_executed,
+        return stream_orch.dotProduct(
+            &self.dispatcher,
+            self.active_device,
+            &self.metrics,
+            &self.stats,
+            .{
+                .allocator = self.allocator,
+                .buffers = &self.buffers,
+                .buffer_mutex = &self.buffer_mutex,
+                .active_device = self.active_device,
+                .memory_mode = self.config.memory_mode,
+                .stats = &self.stats,
             },
-        };
+            a,
+            b,
+        );
     }
 
     /// Softmax: output = softmax(input)
     pub fn softmax(self: *Gpu, input: *Buffer, output: *Buffer) !ExecutionResult {
-        const device = self.active_device orelse return error.NoActiveDevice;
-
-        var timer = time.Timer.start() catch return error.TimerFailed;
-        var gpu_executed = false;
-
-        // Try dispatcher-based execution first
-        if (self.dispatcher) |*disp| {
-            const kernel = disp.getBuiltinKernel(.softmax) catch null;
-            if (kernel) |k| {
-                const config = dispatcher_mod.LaunchConfig.for1D(input.elementCount(), 256);
-                const exec_result = disp.execute(k, config, .{
-                    .buffers = &.{ input, output },
-                }) catch null;
-                if (exec_result) |res| {
-                    gpu_executed = res.gpu_executed;
-                }
-            }
-        }
-
-        // Fallback to host computation
-        if (!gpu_executed) {
-            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"softmax"});
-            if (input.host_data != null and output.host_data != null) {
-                const in_data = std.mem.bytesAsSlice(f32, input.host_data.?);
-                var out_data = std.mem.bytesAsSlice(f32, output.host_data.?);
-
-                const len = @min(in_data.len, out_data.len);
-
-                // Find max for numerical stability
-                var max_val: f32 = in_data[0];
-                for (in_data[1..]) |v| {
-                    if (v > max_val) max_val = v;
-                }
-
-                // Compute exp(x - max) and sum
-                var sum: f32 = 0;
-                for (0..len) |i| {
-                    out_data[i] = @exp(in_data[i] - max_val);
-                    sum += out_data[i];
-                }
-
-                // Normalize
-                for (0..len) |i| {
-                    out_data[i] /= sum;
-                }
-
-                output.markHostDirty();
-            }
-        }
-
-        const elapsed = timer.read();
-        self.stats.kernels_launched += 1;
-        self.stats.total_execution_time_ns += elapsed;
-
-        // Record metrics if profiling enabled
-        if (self.metrics) |*m| {
-            m.recordKernel("softmax", elapsed) catch |err| {
-                std.log.debug("Failed to record softmax metrics: {t}", .{err});
-            };
-        }
-
-        return ExecutionResult{
-            .execution_time_ns = elapsed,
-            .elements_processed = input.elementCount(),
-            .bytes_transferred = input.getSize() + output.getSize(),
-            .backend = device.backend,
-            .device_id = device.id,
-            .gpu_executed = gpu_executed,
-        };
+        return stream_orch.softmax(
+            &self.dispatcher,
+            self.active_device,
+            &self.metrics,
+            &self.stats,
+            input,
+            output,
+        );
     }
 
     // ========================================================================
-    // Custom Kernel Support
+    // Custom Kernel Support (delegates to stream_orchestrator.zig)
     // ========================================================================
 
     /// Compile a kernel from portable source.
-    ///
-    /// Generates backend-specific code from the portable kernel IR, then
-    /// delegates to the dispatcher's backend VTable to obtain a compiled
-    /// handle that can be launched later with `launchKernel()`.
-    ///
-    /// The `source.ir` field must be set (non-null) for compilation to succeed.
     pub fn compileKernel(self: *Gpu, source: PortableKernelSource) !CompiledKernel {
-        const device = self.active_device orelse return error.NoActiveDevice;
-        const ir = source.ir orelse return error.InvalidKernelIR;
-
-        // If we have a dispatcher, delegate to it — this compiles IR through
-        // the DSL compiler *and* sends the result to the backend VTable.
-        if (self.dispatcher) |*disp| {
-            const handle = disp.compileKernel(ir) catch |err| {
-                std.log.debug("Dispatcher compilation failed for {s}: {t}, falling back to source-only", .{
-                    ir.name,
-                    err,
-                });
-                // Fall through to source-only path below
-                return self.compileKernelSourceOnly(ir, device);
-            };
-
-            // Duplicate the generated code for the CompiledKernel (the
-            // dispatcher keeps its own copy via the cache).
-            var generated = dsl.compile(self.allocator, ir, device.backend, .{}) catch {
-                // Even if re-generation fails, we have the handle
-                return CompiledKernel{
-                    .allocator = self.allocator,
-                    .name = try self.allocator.dupe(u8, ir.name),
-                    .backend = device.backend,
-                    .source = try self.allocator.dupe(u8, ""),
-                    .entry_point = try self.allocator.dupe(u8, handle.name),
-                    .handle = handle.handle,
-                };
-            };
-            defer generated.deinit(self.allocator);
-
-            return CompiledKernel{
-                .allocator = self.allocator,
-                .name = try self.allocator.dupe(u8, ir.name),
-                .backend = device.backend,
-                .source = try self.allocator.dupe(u8, generated.code),
-                .entry_point = try self.allocator.dupe(u8, generated.entry_point),
-                .handle = handle.handle,
-            };
-        }
-
-        // No dispatcher available — compile to source only (no backend handle).
-        return self.compileKernelSourceOnly(ir, device);
+        return stream_orch.compileKernel(self.allocator, &self.dispatcher, self.active_device, source);
     }
 
     /// Compile kernel IR directly (convenience overload).
-    ///
-    /// Wraps the IR pointer in a `PortableKernelSource` and delegates to
-    /// `compileKernel`.
     pub fn compileKernelIR(self: *Gpu, ir: *const KernelIR) !CompiledKernel {
-        return self.compileKernel(.{ .name = ir.name, .ir = ir });
-    }
-
-    /// Compile kernel to source code only (no backend handle).
-    /// Used as fallback when the dispatcher is unavailable.
-    fn compileKernelSourceOnly(self: *Gpu, ir: *const KernelIR, device: *const Device) !CompiledKernel {
-        var generated = try dsl.compile(self.allocator, ir, device.backend, .{});
-        defer generated.deinit(self.allocator);
-
-        return CompiledKernel{
-            .allocator = self.allocator,
-            .name = try self.allocator.dupe(u8, ir.name),
-            .backend = device.backend,
-            .source = try self.allocator.dupe(u8, generated.code),
-            .entry_point = try self.allocator.dupe(u8, generated.entry_point),
-            .handle = null,
-        };
+        return stream_orch.compileKernelIR(self.allocator, &self.dispatcher, self.active_device, ir);
     }
 
     /// Launch a compiled kernel.
-    ///
-    /// Dispatches the compiled kernel to the backend for execution. The `args`
-    /// parameter accepts a `KernelArgs` struct containing buffer and uniform
-    /// arguments. Host-dirty buffers are automatically synced to the device
-    /// before launch.
     pub fn launchKernel(
         self: *Gpu,
         kernel: *const CompiledKernel,
         config: LaunchConfig,
         args: KernelArgs,
     ) !ExecutionResult {
-        const device = self.active_device orelse return error.NoActiveDevice;
-
-        var timer = time.Timer.start() catch return error.TimerFailed;
-        var gpu_executed = false;
-        var bytes_transferred: usize = 0;
-
-        // Sync host-dirty buffers to device before launch
-        for (args.buffers) |buf| {
-            bytes_transferred += buf.getSize();
-            if (buf.isHostDirty()) {
-                buf.toDevice() catch |err| {
-                    std.log.debug("Failed to sync buffer to device: {}", .{err});
-                };
-                self.stats.host_to_device_transfers += 1;
-            }
-        }
-
-        // Try dispatcher-based execution if we have a compiled handle
-        if (self.dispatcher) |*disp| {
-            if (kernel.handle != null) {
-                // Build a CompiledKernelHandle from the CompiledKernel
-                const dispatch_handle = dispatcher_mod.CompiledKernelHandle{
-                    .handle = kernel.handle,
-                    .name = kernel.name,
-                    .backend = kernel.backend,
-                    .workgroup_size = config.local_size orelse .{ 256, 1, 1 },
-                    .buffer_count = @intCast(args.buffers.len),
-                    .uniform_count = @intCast(args.uniforms.len),
-                };
-
-                const exec_result = disp.execute(dispatch_handle, config, args) catch null;
-                if (exec_result) |res| {
-                    gpu_executed = res.gpu_executed;
-                }
-            }
-        }
-
-        // Mark output buffers as device-dirty after execution
-        if (gpu_executed) {
-            for (args.buffers) |buf| {
-                buf.markDeviceDirty();
-            }
-        }
-
-        const elapsed = timer.read();
-        self.stats.kernels_launched += 1;
-        self.stats.total_execution_time_ns += elapsed;
-
-        // Record metrics if profiling enabled
-        if (self.metrics) |*m| {
-            m.recordKernel(kernel.name, elapsed) catch |err| {
-                std.log.debug("Failed to record {s} metrics: {t}", .{ kernel.name, err });
-            };
-        }
-
-        const total_threads = @as(usize, config.global_size[0]) *
-            @as(usize, config.global_size[1]) *
-            @as(usize, config.global_size[2]);
-
-        return ExecutionResult{
-            .execution_time_ns = elapsed,
-            .elements_processed = total_threads,
-            .bytes_transferred = bytes_transferred,
-            .backend = device.backend,
-            .device_id = device.id,
-            .gpu_executed = gpu_executed,
-        };
+        return stream_orch.launchKernel(
+            &self.dispatcher,
+            self.active_device,
+            &self.metrics,
+            &self.stats,
+            kernel,
+            config,
+            args,
+        );
     }
 
     // ========================================================================
-    // Synchronization
+    // Synchronization (delegates to stream_orchestrator.zig)
     // ========================================================================
 
     /// Synchronize all pending operations.
     pub fn synchronize(self: *Gpu) !void {
-        try self.stream_manager.synchronizeAll();
+        try stream_orch.synchronize(&self.stream_manager);
     }
 
     /// Create a new stream.
     pub fn createStream(self: *Gpu, options: StreamOptions) !*Stream {
-        const device = self.active_device orelse return error.NoActiveDevice;
-        return self.stream_manager.createStream(device, options);
+        return stream_orch.createStream(&self.stream_manager, self.active_device, options);
     }
 
     /// Create a new event.
     pub fn createEvent(self: *Gpu, options: EventOptions) !*Event {
-        const device = self.active_device orelse return error.NoActiveDevice;
-        return self.stream_manager.createEvent(device, options);
+        return stream_orch.createEvent(&self.stream_manager, self.active_device, options);
     }
 
     // ========================================================================
@@ -1052,39 +457,17 @@ pub const Gpu = struct {
 
     /// Get memory information.
     pub fn getMemoryInfo(self: *Gpu) MemoryInfo {
-        var total: u64 = 0;
-        var used: u64 = 0;
-
-        if (self.active_device) |device| {
-            total = device.total_memory orelse 0;
-        }
-
-        // Sum up allocated buffer sizes
-        self.buffer_mutex.lock();
-        defer self.buffer_mutex.unlock();
-        for (self.buffers.items) |buf| {
-            used += buf.getSize();
-        }
-
-        return .{
-            .total_bytes = total,
-            .used_bytes = used,
-            .free_bytes = if (total > used) total - used else 0,
-            .peak_used_bytes = self.stats.bytes_allocated,
-        };
+        return buf_pool.getMemoryInfo(
+            self.active_device,
+            &self.buffers,
+            &self.buffer_mutex,
+            self.stats.bytes_allocated,
+        );
     }
 
     /// Check GPU health.
     pub fn checkHealth(self: *const Gpu) HealthStatus {
-        if (self.active_device == null) {
-            return .unhealthy;
-        }
-
-        if (!self.device_manager.hasDevices()) {
-            return .unhealthy;
-        }
-
-        return .healthy;
+        return dev_mgr.checkHealth(self.active_device, &self.device_manager);
     }
 
     /// Check if GPU is available.
@@ -1094,17 +477,13 @@ pub const Gpu = struct {
 
     /// Get the active backend.
     pub fn getBackend(self: *const Gpu) ?Backend {
-        if (self.active_device) |device| {
-            return device.backend;
-        }
+        if (self.active_device) |device| return device.backend;
         return null;
     }
 
     /// Get the kernel dispatcher (for advanced usage).
     pub fn getDispatcher(self: *Gpu) ?*KernelDispatcher {
-        if (self.dispatcher) |*d| {
-            return d;
-        }
+        if (self.dispatcher) |*d| return d;
         return null;
     }
 
@@ -1116,9 +495,7 @@ pub const Gpu = struct {
         cache_misses: u64,
         cache_hit_rate: f64,
     } {
-        if (self.dispatcher) |*d| {
-            return d.getStats();
-        }
+        if (self.dispatcher) |*d| return d.getStats();
         return null;
     }
 
@@ -1148,33 +525,25 @@ pub const Gpu = struct {
 
     /// Get metrics summary (if profiling enabled).
     pub fn getMetricsSummary(self: *Gpu) ?MetricsSummary {
-        if (self.metrics) |*m| {
-            return m.getSummary();
-        }
+        if (self.metrics) |*m| return m.getSummary();
         return null;
     }
 
     /// Get kernel-specific metrics (if profiling enabled).
     pub fn getKernelMetrics(self: *Gpu, name: []const u8) ?KernelMetrics {
-        if (self.metrics) |*m| {
-            return m.getKernelMetrics(name);
-        }
+        if (self.metrics) |*m| return m.getKernelMetrics(name);
         return null;
     }
 
     /// Get the metrics collector directly (for advanced usage).
     pub fn getMetricsCollector(self: *Gpu) ?*MetricsCollector {
-        if (self.metrics) |*m| {
-            return m;
-        }
+        if (self.metrics) |*m| return m;
         return null;
     }
 
     /// Reset all profiling metrics.
     pub fn resetMetrics(self: *Gpu) void {
-        if (self.metrics) |*m| {
-            m.reset();
-        }
+        if (self.metrics) |*m| m.reset();
     }
 
     // ========================================================================
@@ -1188,17 +557,13 @@ pub const Gpu = struct {
 
     /// Get multi-GPU statistics (if enabled).
     pub fn getMultiGpuStats(self: *const Gpu) ?multi_device.GroupStats {
-        if (self.device_group) |*dg| {
-            return dg.getStats();
-        }
+        if (self.device_group) |*dg| return dg.getStats();
         return null;
     }
 
     /// Get the number of active devices.
     pub fn activeDeviceCount(self: *const Gpu) usize {
-        if (self.device_group) |*dg| {
-            return dg.activeDeviceCount();
-        }
+        if (self.device_group) |*dg| return dg.activeDeviceCount();
         return if (self.active_device != null) 1 else 0;
     }
 };
@@ -1249,9 +614,6 @@ pub const GpuDevice = struct {
     }
 
     /// Query device capabilities via the backend VTable.
-    ///
-    /// Returns a `DeviceCaps` populated by the backend, or a zeroed default
-    /// if the backend is unavailable.
     pub fn capabilities(self: *const GpuDevice) DeviceCaps {
         if (self.gpu.active_device) |dev| {
             const name_bytes = dev.name;

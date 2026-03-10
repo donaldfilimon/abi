@@ -3,10 +3,16 @@
 //! Interactive TUI dashboard for database monitoring.
 
 const std = @import("std");
+const command = @import("../../../command.zig");
 const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
 const utils = @import("../../../utils/mod.zig");
 const dsl = @import("../../../terminal/dsl/mod.zig");
+
+pub const meta: command.Meta = .{
+    .name = "db",
+    .description = "Interactive TUI dashboard for database monitoring",
+};
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     try dsl.runSimpleDashboard(tui.DatabasePanel, ctx, args, .{

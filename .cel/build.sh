@@ -14,6 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
+REPO_ROOT="$(cd "$CEL_DIR/.." && pwd)"
 
 ZIG_SRC_DIR="$CEL_DIR/.src"
 ZLS_SRC_DIR="$CEL_DIR/.zls-src"
@@ -100,6 +101,121 @@ print_binary_status() {
     else
         warn "$label: not built ($path)"
     fi
+}
+
+expected_zig_version() {
+    printf '%s' "$ZIG_VERSION"
+}
+
+stock_zig_path() {
+    if command -v zig >/dev/null 2>&1; then
+        command -v zig
+    else
+        return 1
+    fi
+}
+
+stock_zig_version() {
+    local path
+    path="$(stock_zig_path)" || return 1
+    "$path" version 2>/dev/null | tr -d '\r' | head -n 1
+}
+
+classify_stock_build_runner() {
+    local path
+    path="$(stock_zig_path)" || {
+        printf 'missing'
+        return 0
+    }
+
+    if [[ "$path" == "$ZIG_BIN" ]]; then
+        printf 'cel-active'
+        return 0
+    fi
+
+    local output
+    if output="$(cd "$REPO_ROOT" && zig build --help 2>&1 1>/dev/null)"; then
+        printf 'ok'
+        return 0
+    fi
+
+    if [[ "$output" == *"__availability_version_check"* || "$output" == *"undefined symbol:"* ]]; then
+        printf 'darwin-linker'
+        return 0
+    fi
+
+    printf 'failing'
+}
+
+print_stock_zig_status() {
+    local expected
+    expected="$(expected_zig_version)"
+
+    if ! command -v zig >/dev/null 2>&1; then
+        warn "Stock Zig:         not found on PATH"
+        return
+    fi
+
+    local path version state
+    path="$(stock_zig_path)"
+    version="$(stock_zig_version)"
+    state="$(classify_stock_build_runner)"
+
+    info "Stock Zig path:    $path"
+    info "Stock Zig version: ${version:-unknown}"
+    if [[ "$path" == "$ZIG_BIN" ]]; then
+        info "Stock Zig source:  repo-local .cel toolchain"
+    elif [[ "$path" == *".zvm/"* ]]; then
+        info "Stock Zig source:  ZVM managed"
+    else
+        info "Stock Zig source:  system or custom PATH entry"
+    fi
+
+    if [[ -n "$version" && "$version" == "$expected" ]]; then
+        info "Stock Zig pin:     matches repo pin"
+    else
+        warn "Stock Zig pin:     mismatch (expected $expected)"
+    fi
+
+    case "$state" in
+        ok)
+            info "Build runner:      stock zig can start ABI build steps"
+            ;;
+        cel-active)
+            info "Build runner:      using active .cel Zig on PATH"
+            ;;
+        darwin-linker)
+            warn "Build runner:      blocked by Darwin linker failure"
+            ;;
+        failing)
+            warn "Build runner:      stock zig failed before ABI gates could run"
+            ;;
+        missing)
+            warn "Build runner:      unavailable (zig not found on PATH)"
+            ;;
+    esac
+}
+
+print_next_action() {
+    printf '\n'
+    if [[ -x "$ZIG_BIN" ]]; then
+        info "Next action:       eval \"\$(./tools/scripts/use_cel.sh)\""
+        return
+    fi
+
+    if bootstrap_host_zig_required; then
+        if [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
+            info "Next action:       ./.cel/build.sh"
+            return
+        fi
+
+        if [[ -d "$BOOTSTRAP_ROOT/zig" ]]; then
+            info "Next action:       abi toolchain bootstrap"
+            return
+        fi
+    fi
+
+    info "Next action:       ./tools/scripts/cel_migrate.sh --check"
 }
 
 job_count() {
@@ -258,6 +374,8 @@ print_status() {
     print_binary_status "CEL Zig" "$ZIG_BIN" version
     print_binary_status "CEL ZLS" "$ZLS_BIN" --version
     print_binary_status "Bootstrap host Zig" "$BOOTSTRAP_HOST_ZIG" version
+    print_stock_zig_status
+    print_next_action
     printf '\n'
 }
 

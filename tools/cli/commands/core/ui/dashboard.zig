@@ -4,8 +4,14 @@
 //! tabbed panel stack with an in-shell command palette.
 
 const std = @import("std");
+const command = @import("../../../command.zig");
 const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
+
+pub const meta: command.Meta = .{
+    .name = "dashboard",
+    .description = "Shared UI shell with tabbed panel stack and command palette",
+};
 const launcher_actions = @import("../../../terminal/launcher/actions.zig");
 const launcher_palette = @import("../../../terminal/launcher/palette.zig");
 const panel_mod = @import("../../../terminal/panels/mod.zig");

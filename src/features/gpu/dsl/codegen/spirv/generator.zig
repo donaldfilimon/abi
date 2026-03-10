@@ -2,13 +2,20 @@
 //!
 //! Main SpirvGenerator struct and the generate() method that produces
 //! SPIR-V binary bytecode from kernel IR.
+//!
+//! This file is the orchestrator that delegates to submodules:
+//! - type_codegen.zig — type generation/encoding logic
+//! - const_codegen.zig — constant generation logic
+//! - instruction_emit.zig — instruction emission logic
+//! - codegen.zig — statement/expression code generation (legacy mixin, not used here)
 
 const std = @import("std");
 const constants = @import("constants.zig");
 const types_gen = @import("types_gen.zig");
 const constants_gen = @import("constants_gen.zig");
-const emit_mod = @import("emit.zig");
-const codegen_mod = @import("codegen.zig");
+const type_codegen = @import("type_codegen.zig");
+const const_codegen = @import("const_codegen.zig");
+const instruction_emit = @import("instruction_emit.zig");
 
 const dsl_types = @import("../../types.zig");
 const dsl_expr = @import("../../expr.zig");
@@ -73,6 +80,23 @@ pub const SpirvGenerator = struct {
 
     const Self = @This();
 
+    // =========================================================================
+    // Delegated submodule mixins
+    // =========================================================================
+
+    /// Type generation methods (typeFromIR, getVoidType, getIntType, etc.)
+    pub usingnamespace type_codegen.TypeCodeGenMixin(Self);
+
+    /// Constant generation methods (getConstantTrue, getConstantU32, etc.)
+    pub usingnamespace const_codegen.ConstCodeGenMixin(Self);
+
+    /// Instruction emission methods (emitOp, emitCapability, emitVariable, etc.)
+    pub usingnamespace instruction_emit.InstructionEmitMixin(Self);
+
+    // =========================================================================
+    // Core lifecycle
+    // =========================================================================
+
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
@@ -119,6 +143,10 @@ pub const SpirvGenerator = struct {
 
     /// Errors produced during SPIR-V code generation.
     pub const CodeGenError = error{ InvalidIR, OutOfMemory };
+
+    // =========================================================================
+    // Main generate() orchestrator
+    // =========================================================================
 
     /// Generate SPIR-V binary from kernel IR.
     pub fn generate(
@@ -364,7 +392,7 @@ pub const SpirvGenerator = struct {
     }
 
     // =========================================================================
-    // Code Generation (from codegen.zig)
+    // Code Generation (statement/expression handling)
     // =========================================================================
 
     /// Generate code for a statement.
@@ -837,7 +865,7 @@ pub const SpirvGenerator = struct {
             },
             .log10 => {
                 // GLSL.std.450 has no Log10; compute as Log2(x) / Log2(10)
-                // Log2(10) ≈ 3.321928... → precompute as constant
+                // Log2(10) ~ 3.321928... -> precompute as constant
                 const log2_id = self.allocId();
                 try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, log2_id, self.glsl_ext_id, @as(u32, 30), operand }); // Log2
                 const log2_10 = try self.getConstantF32(3.321928094887362);
@@ -1037,10 +1065,10 @@ pub const SpirvGenerator = struct {
                     const value = try self.generateExpr(c.args[1]);
                     const uint_type = try self.getIntType(32, false);
                     const scope = try self.getConstantU32(@intFromEnum(Scope.Device));
-                    const semantics = try self.getConstantU32(0);
-                    const result_id = self.allocId();
-                    try self.emitOp(&self.function_section, .OpAtomicIAdd, &.{ uint_type, result_id, ptr, scope, semantics, value });
-                    return result_id;
+                    const semantics_val = try self.getConstantU32(0);
+                    const result_id_inner = self.allocId();
+                    try self.emitOp(&self.function_section, .OpAtomicIAdd, &.{ uint_type, result_id_inner, ptr, scope, semantics_val, value });
+                    return result_id_inner;
                 }
                 return 0;
             },
@@ -1050,10 +1078,10 @@ pub const SpirvGenerator = struct {
                     const min_val = try self.generateExpr(c.args[1]);
                     const max_val = try self.generateExpr(c.args[2]);
                     const float_type = try self.getFloatType(32);
-                    const result_id = self.allocId();
+                    const result_id_inner = self.allocId();
                     // GLSL.std.450 FClamp = 43
-                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, 43, x, min_val, max_val });
-                    return result_id;
+                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id_inner, self.glsl_ext_id, 43, x, min_val, max_val });
+                    return result_id_inner;
                 }
                 return 0;
             },
@@ -1063,10 +1091,10 @@ pub const SpirvGenerator = struct {
                     const y = try self.generateExpr(c.args[1]);
                     const a = try self.generateExpr(c.args[2]);
                     const float_type = try self.getFloatType(32);
-                    const result_id = self.allocId();
+                    const result_id_inner = self.allocId();
                     // GLSL.std.450 FMix = 46
-                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, 46, x, y, a });
-                    return result_id;
+                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id_inner, self.glsl_ext_id, 46, x, y, a });
+                    return result_id_inner;
                 }
                 return 0;
             },
@@ -1076,10 +1104,10 @@ pub const SpirvGenerator = struct {
                     const b = try self.generateExpr(c.args[1]);
                     const cc = try self.generateExpr(c.args[2]);
                     const float_type = try self.getFloatType(32);
-                    const result_id = self.allocId();
+                    const result_id_inner = self.allocId();
                     // GLSL.std.450 Fma = 50
-                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, 50, a, b, cc });
-                    return result_id;
+                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id_inner, self.glsl_ext_id, 50, a, b, cc });
+                    return result_id_inner;
                 }
                 return 0;
             },
@@ -1089,10 +1117,10 @@ pub const SpirvGenerator = struct {
                     const edge1 = try self.generateExpr(c.args[1]);
                     const x = try self.generateExpr(c.args[2]);
                     const float_type = try self.getFloatType(32);
-                    const result_id = self.allocId();
+                    const result_id_inner = self.allocId();
                     // GLSL.std.450 SmoothStep = 49
-                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, 49, edge0, edge1, x });
-                    return result_id;
+                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id_inner, self.glsl_ext_id, 49, edge0, edge1, x });
+                    return result_id_inner;
                 }
                 return 0;
             },
@@ -1134,455 +1162,6 @@ pub const SpirvGenerator = struct {
         const result_id = self.allocId();
         try self.emitOp(&self.function_section, .OpBitcast, &.{ target_type, result_id, value });
         return result_id;
-    }
-
-    // =========================================================================
-    // Type Generation (from types_gen.zig)
-    // =========================================================================
-
-    pub fn typeFromIR(self: *Self, ty: dsl_types.Type) !u32 {
-        return switch (ty) {
-            .scalar => |s| try self.scalarTypeFromIR(s),
-            .vector => |v| try self.getVectorType(try self.scalarTypeFromIR(v.element), v.size),
-            .array => |a| {
-                const elem = try self.typeFromIR(a.element.*);
-                if (a.size) |size| {
-                    return try self.getArrayType(elem, @intCast(size));
-                } else {
-                    return try self.getRuntimeArrayType(elem);
-                }
-            },
-            .ptr => |p| {
-                const pointee = try self.typeFromIR(p.pointee.*);
-                const storage_class: StorageClass = switch (p.address_space) {
-                    .private => .Private,
-                    .workgroup => .Workgroup,
-                    .storage => .StorageBuffer,
-                    .uniform => .Uniform,
-                };
-                return try self.getPointerType(pointee, storage_class);
-            },
-            .void_ => try self.getVoidType(),
-            .matrix => |m| {
-                const vec = try self.getVectorType(try self.scalarTypeFromIR(m.element), m.rows);
-                return try self.getMatrixType(vec, m.cols);
-            },
-        };
-    }
-
-    pub fn scalarTypeFromIR(self: *Self, s: dsl_types.ScalarType) !u32 {
-        return switch (s) {
-            .bool_ => try self.getBoolType(),
-            .i8, .i16, .i32 => try self.getIntType(32, true),
-            .i64 => try self.getIntType(64, true),
-            .u8, .u16, .u32 => try self.getIntType(32, false),
-            .u64 => try self.getIntType(64, false),
-            .f16 => try self.getFloatType(16),
-            .f32 => try self.getFloatType(32),
-            .f64 => try self.getFloatType(64),
-        };
-    }
-
-    pub fn getTypeSize(self: *Self, ty: dsl_types.Type) u32 {
-        _ = self;
-        return switch (ty) {
-            .scalar => |s| @as(u32, s.byteSize()),
-            .vector => |v| @as(u32, v.element.byteSize()) * @as(u32, v.size),
-            else => 4,
-        };
-    }
-
-    pub fn getVoidType(self: *Self) !u32 {
-        const key = TypeKey{ .tag = .void_, .data = 0, .extra = 0 };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeVoid, &.{id});
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getBoolType(self: *Self) !u32 {
-        const key = TypeKey{ .tag = .bool_, .data = 0, .extra = 0 };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeBool, &.{id});
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getIntType(self: *Self, width: u32, signed: bool) !u32 {
-        const key = TypeKey{ .tag = .int, .data = width, .extra = if (signed) 1 else 0 };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeInt, &.{ id, width, if (signed) @as(u32, 1) else 0 });
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getFloatType(self: *Self, width: u32) !u32 {
-        const key = TypeKey{ .tag = .float, .data = width, .extra = 0 };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeFloat, &.{ id, width });
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getVectorType(self: *Self, element_type: u32, count: u8) !u32 {
-        const key = TypeKey{ .tag = .vector, .data = element_type, .extra = count };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeVector, &.{ id, element_type, count });
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getMatrixType(self: *Self, column_type: u32, column_count: u8) !u32 {
-        const key = TypeKey{ .tag = .matrix, .data = column_type, .extra = column_count };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeMatrix, &.{ id, column_type, column_count });
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getArrayType(self: *Self, element_type: u32, length: u32) !u32 {
-        const length_const = try self.getConstantU32(length);
-        const key = TypeKey{ .tag = .array, .data = element_type, .extra = length };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeArray, &.{ id, element_type, length_const });
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getRuntimeArrayType(self: *Self, element_type: u32) !u32 {
-        const key = TypeKey{ .tag = .runtime_array, .data = element_type, .extra = 0 };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypeRuntimeArray, &.{ id, element_type });
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getPointerType(self: *Self, pointee_type: u32, storage_class: StorageClass) !u32 {
-        const key = TypeKey{ .tag = .ptr, .data = pointee_type, .extra = @intFromEnum(storage_class) };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.type_section, .OpTypePointer, &.{ id, @intFromEnum(storage_class), pointee_type });
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getFunctionType(self: *Self, return_type: u32, param_types: []const u32) !u32 {
-        const key = TypeKey{ .tag = .function, .data = return_type, .extra = @intCast(param_types.len) };
-        if (self.type_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, id);
-        try operands.append(self.allocator, return_type);
-        try operands.appendSlice(self.allocator, param_types);
-        try self.emitOp(&self.type_section, .OpTypeFunction, operands.items);
-        try self.type_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    // =========================================================================
-    // Constant Generation (from constants_gen.zig)
-    // =========================================================================
-
-    pub fn getConstantTrue(self: *Self) !u32 {
-        const bool_type = try self.getBoolType();
-        const key = ConstKey{ .type_id = bool_type, .value = 1 };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstantTrue, &.{ bool_type, id });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getConstantFalse(self: *Self) !u32 {
-        const bool_type = try self.getBoolType();
-        const key = ConstKey{ .type_id = bool_type, .value = 0 };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstantFalse, &.{ bool_type, id });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getConstantI32(self: *Self, value: i32) !u32 {
-        const int_type = try self.getIntType(32, true);
-        const key = ConstKey{ .type_id = int_type, .value = @bitCast(@as(u64, @bitCast(@as(i64, value)))) };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @bitCast(value)) });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getConstantU32(self: *Self, value: u32) !u32 {
-        const int_type = try self.getIntType(32, false);
-        const key = ConstKey{ .type_id = int_type, .value = value };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, value });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getConstantI64(self: *Self, value: i64) !u32 {
-        const int_type = try self.getIntType(64, true);
-        const bits: u64 = @bitCast(value);
-        const key = ConstKey{ .type_id = int_type, .value = bits };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @truncate(bits)), @as(u32, @truncate(bits >> 32)) });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getConstantU64(self: *Self, value: u64) !u32 {
-        const int_type = try self.getIntType(64, false);
-        const key = ConstKey{ .type_id = int_type, .value = value };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstant, &.{ int_type, id, @as(u32, @truncate(value)), @as(u32, @truncate(value >> 32)) });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getConstantF32(self: *Self, value: f32) !u32 {
-        const float_type = try self.getFloatType(32);
-        const bits: u32 = @bitCast(value);
-        const key = ConstKey{ .type_id = float_type, .value = bits };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstant, &.{ float_type, id, bits });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    pub fn getConstantF64(self: *Self, value: f64) !u32 {
-        const float_type = try self.getFloatType(64);
-        const bits: u64 = @bitCast(value);
-        const key = ConstKey{ .type_id = float_type, .value = bits };
-        if (self.const_ids.get(key)) |id| return id;
-
-        const id = self.allocId();
-        try self.emitOp(&self.const_section, .OpConstant, &.{ float_type, id, @as(u32, @truncate(bits)), @as(u32, @truncate(bits >> 32)) });
-        try self.const_ids.put(self.allocator, key, id);
-        return id;
-    }
-
-    // =========================================================================
-    // Instruction Emission (from emit.zig)
-    // =========================================================================
-
-    pub fn emitOp(self: *Self, section: *std.ArrayListUnmanaged(u32), opcode: OpCode, operands: []const u32) !void {
-        const word_count: u32 = @intCast(1 + operands.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(opcode));
-        try section.append(self.allocator, first_word);
-        try section.appendSlice(self.allocator, operands);
-    }
-
-    pub fn emitCapability(self: *Self, cap: Capability) !void {
-        try self.emitOp(&self.words, .OpCapability, &.{@intFromEnum(cap)});
-    }
-
-    pub fn emitExtInstImport(self: *Self, result_id: u32, name_str: []const u8) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, result_id);
-        try self.appendString(&operands, name_str);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpExtInstImport));
-        try self.words.append(self.allocator, first_word);
-        try self.words.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitMemoryModel(self: *Self, addressing: AddressingModel, memory: MemoryModel) !void {
-        try self.emitOp(&self.words, .OpMemoryModel, &.{ @intFromEnum(addressing), @intFromEnum(memory) });
-    }
-
-    pub fn emitEntryPoint(self: *Self, model: ExecutionModel, func_id: u32, name_str: []const u8, interface: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, @intFromEnum(model));
-        try operands.append(self.allocator, func_id);
-        try self.appendString(&operands, name_str);
-        try operands.appendSlice(self.allocator, interface);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpEntryPoint));
-        try self.entry_section.append(self.allocator, first_word);
-        try self.entry_section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitExecutionMode(self: *Self, func_id: u32, mode: ExecutionMode, params: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, func_id);
-        try operands.append(self.allocator, @intFromEnum(mode));
-        try operands.appendSlice(self.allocator, params);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpExecutionMode));
-        try self.entry_section.append(self.allocator, first_word);
-        try self.entry_section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitName(self: *Self, section: *std.ArrayListUnmanaged(u32), id: u32, name_str: []const u8) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, id);
-        try self.appendString(&operands, name_str);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpName));
-        try section.append(self.allocator, first_word);
-        try section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitMemberName(self: *Self, section: *std.ArrayListUnmanaged(u32), type_id: u32, member: u32, name_str: []const u8) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, type_id);
-        try operands.append(self.allocator, member);
-        try self.appendString(&operands, name_str);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpMemberName));
-        try section.append(self.allocator, first_word);
-        try section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitDecorate(self: *Self, section: *std.ArrayListUnmanaged(u32), target: u32, decoration: Decoration, params: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, target);
-        try operands.append(self.allocator, @intFromEnum(decoration));
-        try operands.appendSlice(self.allocator, params);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpDecorate));
-        try section.append(self.allocator, first_word);
-        try section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitMemberDecorate(self: *Self, section: *std.ArrayListUnmanaged(u32), struct_type: u32, member: u32, decoration: Decoration, params: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, struct_type);
-        try operands.append(self.allocator, member);
-        try operands.append(self.allocator, @intFromEnum(decoration));
-        try operands.appendSlice(self.allocator, params);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpMemberDecorate));
-        try section.append(self.allocator, first_word);
-        try section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitTypeStruct(self: *Self, section: *std.ArrayListUnmanaged(u32), result_id: u32, member_types: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, result_id);
-        try operands.appendSlice(self.allocator, member_types);
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpTypeStruct));
-        try section.append(self.allocator, first_word);
-        try section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitVariable(self: *Self, section: *std.ArrayListUnmanaged(u32), result_id: u32, type_id: u32, storage_class: StorageClass, initializer: ?u32) !void {
-        var operands = std.ArrayListUnmanaged(u32).empty;
-        defer operands.deinit(self.allocator);
-        try operands.append(self.allocator, type_id);
-        try operands.append(self.allocator, result_id);
-        try operands.append(self.allocator, @intFromEnum(storage_class));
-        if (initializer) |init_id| {
-            try operands.append(self.allocator, init_id);
-        }
-
-        const word_count: u32 = @intCast(1 + operands.items.len);
-        const first_word = (word_count << 16) | @as(u32, @intFromEnum(OpCode.OpVariable));
-        try section.append(self.allocator, first_word);
-        try section.appendSlice(self.allocator, operands.items);
-    }
-
-    pub fn emitFunction(self: *Self, section: *std.ArrayListUnmanaged(u32), result_id: u32, return_type: u32, control: anytype, func_type: u32) !void {
-        _ = control;
-        try self.emitOp(section, .OpFunction, &.{ return_type, result_id, 0, func_type });
-    }
-
-    pub fn emitFunctionEnd(self: *Self, section: *std.ArrayListUnmanaged(u32)) !void {
-        try self.emitOp(section, .OpFunctionEnd, &.{});
-    }
-
-    pub fn emitLabel(self: *Self, section: *std.ArrayListUnmanaged(u32), id: u32) !void {
-        try self.emitOp(section, .OpLabel, &.{id});
-    }
-
-    pub fn emitReturn(self: *Self, section: *std.ArrayListUnmanaged(u32)) !void {
-        try self.emitOp(section, .OpReturn, &.{});
-    }
-
-    pub fn emitBranch(self: *Self, section: *std.ArrayListUnmanaged(u32), target: u32) !void {
-        try self.emitOp(section, .OpBranch, &.{target});
-    }
-
-    pub fn emitBranchConditional(self: *Self, section: *std.ArrayListUnmanaged(u32), condition: u32, true_label: u32, false_label: u32) !void {
-        try self.emitOp(section, .OpBranchConditional, &.{ condition, true_label, false_label });
-    }
-
-    pub fn emitSelectionMerge(self: *Self, section: *std.ArrayListUnmanaged(u32), merge_label: u32) !void {
-        try self.emitOp(section, .OpSelectionMerge, &.{ merge_label, 0 }); // 0 = None
-    }
-
-    pub fn emitLoopMerge(self: *Self, section: *std.ArrayListUnmanaged(u32), merge_label: u32, continue_label: u32) !void {
-        try self.emitOp(section, .OpLoopMerge, &.{ merge_label, continue_label, 0 }); // 0 = None
-    }
-
-    pub fn emitStore(self: *Self, section: *std.ArrayListUnmanaged(u32), ptr: u32, value: u32) !void {
-        try self.emitOp(section, .OpStore, &.{ ptr, value });
-    }
-
-    pub fn appendString(self: *Self, operands: *std.ArrayListUnmanaged(u32), str: []const u8) !void {
-        var word: u32 = 0;
-        var byte_idx: usize = 0;
-
-        for (str) |c| {
-            word |= @as(u32, c) << @intCast(byte_idx * 8);
-            byte_idx += 1;
-            if (byte_idx == 4) {
-                try operands.append(self.allocator, word);
-                word = 0;
-                byte_idx = 0;
-            }
-        }
-        // Append null terminator
-        try operands.append(self.allocator, word); // Includes null terminator in remaining bytes
     }
 };
 
