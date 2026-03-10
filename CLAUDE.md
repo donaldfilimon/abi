@@ -1,56 +1,122 @@
 # CLAUDE.md
 
-This file provides quick-reference guidance to Claude Code (claude.ai/code) when
-working with code in this repository.
-
-**Canonical Reference: [AGENTS.md](AGENTS.md)**
-(Read this first for build/test commands and repo guidelines.)
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Architecture Overview
 
-ABI is a modular Zig 0.16 framework. Every feature module in `src/features/`
-MUST maintain a `mod.zig` and a `stub.zig` with matching public signatures.
-The build system selects the implementation based on `feat_<name>` flags.
+ABI is a modular Zig 0.16 framework for AI services, vector search, and GPU compute. The core design principle is **comptime feature gating**: every feature in `src/features/<name>/` has a `mod.zig` (real implementation) and `stub.zig` (no-op with matching public signatures). The build system selects which to compile based on `-Dfeat-<name>` flags, giving zero overhead for disabled features.
 
-### Key Source Layout
-- `src/abi.zig`: Public API entry point.
-- `src/features/`: Feature modules (agents, vectors, GPU, network).
-- `build/`: Modular build system (options, flags, modules, test discovery).
-- `tools/cli/`: Main CLI implementation and registry.
-- `docs/`: Documentation and architecture guides.
+### Source Layout
 
-## Essential Development Commands
+- `src/abi.zig` — Public API entry point; all external code uses `@import("abi")`
+- `src/features/` — 19 comptime-gated feature modules (ai, gpu, database, network, web, etc.)
+- `src/services/` — Shared runtime services (connectors, LSP, MCP, runtime engine, security)
+- `src/core/` — Config, feature catalog, framework lifecycle, registry
+- `build/` — Modular build system (options.zig, flags.zig, modules.zig, test_discovery.zig)
+- `tools/cli/` — CLI executable with 90+ commands; registry in `tools/cli/registry/`
+- `benchmarks/` — Performance benchmark suite
 
-Refer to [AGENTS.md](AGENTS.md) for the full canonical list.
+### Key Architecture Concepts
+
+- **Feature gating**: `build_options` (from `build/options.zig`) sets `feat_*` booleans. `src/abi.zig` uses `if (build_options.feat_gpu)` to conditionally import mod vs stub.
+- **mod/stub contract**: When editing any `src/features/<name>/mod.zig`, the corresponding `stub.zig` MUST have identical public function signatures. Sub-module stubs are NOT needed — parent gating covers all children.
+- **Import convention**: Within a feature module, use relative imports (`@import("local.zig")`). For the framework API, always use `@import("abi")`. Cross-directory relative imports (e.g., `../../core/`) are fragile and break standalone compilation — avoid them.
+- **CLI registry**: After adding/modifying CLI commands, run `zig build refresh-cli-registry` to update the generated snapshot.
+
+## Zig Version
+
+Pinned to `0.16.0-dev.1503+738d2be9d` (see `.zigversion`). Do not upgrade without testing. When repinning, update atomically: `.zigversion`, `build.zig.zon`, `tools/scripts/baseline.zig`, `README.md`, and CI config.
+
+## Development Commands
 
 ```bash
-# Confidence gates
-zig build full-check              # Mandatory before any commit
-zig build verify-all              # Full release gate
+# Build & format
+zig build                             # Build framework and CLI
+zig build fix                         # Auto-format codebase
+zig build lint                        # Check formatting (may fail on Darwin 25+)
+zig fmt --check build.zig build/ src/ tools/  # Safe format check (always works)
 
-# Core lifecycle
-zig build test --summary all      # Primary service tests
-zig build feature-tests           # Manifest-driven feature coverage
-zig build refresh-cli-registry    # Update generated CLI snapshot
-zig build fix                     # Auto-format codebase
+# Testing
+zig build test --summary all          # Primary test suite (~1290 tests)
+zig build feature-tests --summary all # Manifest-driven feature coverage (~2836 tests)
+zig test <path> --test-filter "pat"   # Run specific tests by file/pattern
+
+# Validation gates
+zig build full-check                  # Local CI gate — mandatory before commits
+zig build verify-all                  # Full release validation
+
+# CLI
+zig build refresh-cli-registry        # Regenerate CLI command metadata
+zig build run -- --help               # Run CLI with args
 ```
 
-## Workflow Rules
+### Darwin 25+ Linker Workaround
 
-- **Plugin**: Use `zig-abi-plugin/` for smart build routing and feature scaffolding.
-- **Atomic Edits**: Plan multi-file changes with a detailed research report first.
-- **Validation**: Never mark a task as complete without passing `zig build full-check`.
-- **Lessons**: Review `tasks/lessons.md` at session start and update it after fixing any recurring pitfalls.
-
-## Known Issues & Bypass (macOS 26+)
-
-Due to upstream Zig linker issues on Darwin Tahoe, use the `addObject` bypass
-mechanism provided by the build system. Host-executing scripts (doctors, registry
-generators) use `addHostScriptStep` to maintain compile-only compatibility.
+Zig's pre-built toolchain cannot link on macOS 25+ (undefined symbols in the build runner). Workarounds:
 
 ```bash
-# Use the CEL toolchain (patched Zig) if full linking is required locally:
+# Quick: use wrapper that relinks build runner with Apple ld
+./tools/scripts/run_build.sh lint
+./tools/scripts/run_build.sh test --summary all
+
+# Format check (no linking needed — always works)
+zig fmt --check build.zig build/ src/ tools/
+
+# Full fix: build CEL toolchain from source
 ./.zig-bootstrap/build.sh && eval "$(./tools/scripts/use_zig_bootstrap.sh)"
 ```
 
-*See [docs/FAQ-agents.md](docs/FAQ-agents.md) for detailed style rules and command documentation.*
+LLD has **zero** Mach-O support — never set `use_lld = true` for macOS targets.
+
+## Coding Conventions
+
+- **Formatting**: `zig fmt` only. Never manual vertical alignment.
+- **Naming**: `lower_snake_case` for files/functions, `PascalCase` for types/structs/error sets.
+- **Errors**: Explicit error sets, propagate with `try`, never silently swallow.
+- **Commits**: Conventional commits (`fix:`, `feat:`, `docs:`, `chore:`, `style:`). Atomic scope.
+- **Format safety**: Never `zig fmt .` from repo root (walks vendored fixtures). Use the targeted paths above.
+
+## Zig 0.16 API Gotchas
+
+These APIs changed from 0.15 and cause recurring mistakes:
+
+- **No `std.time.timestamp()`** — use `std.time.unixSeconds()` (or the Io-based equivalent)
+- **No `File.writeAll`** — use `file.writeStreamingAll(io, data)` or `Dir.writeFile(dir, io, .{...})`
+- **No `makeDirAbsolute*`** — use `std.Io.Dir.createDirPath(.cwd(), io, path)`
+- **No `deleteTreeAbsolute`** — use `std.Io.Dir.deleteTree(.cwd(), io, path)`
+- **No `usingnamespace`** — pass parent context as parameters to submodule init functions
+- **`LazyPath`**: Use `.cwd_relative` or `.src_path`, not the removed `.path` field
+- **`addTest`/`addExecutable`**: Use `root_module` field, not top-level `root_source_file`
+- **ZON parsing**: `std.zon.parse.fromSliceAlloc` — use arena-backed parsing and deinit arena at scope end
+- **`zig env`** outputs ZON format (`.lib_dir = "..."`) not JSON
+
+## Feature Flags
+
+All features enabled by default. Disable with `-Dfeat-<name>=false`:
+
+```bash
+zig build -Dfeat-gpu=false -Dfeat-ai=false   # Minimal build
+zig build -Dgpu-backend=metal                 # GPU backend selection
+zig build -Dgpu-backend=cuda,vulkan           # Multiple backends
+```
+
+25 `feat_*` flags defined in `build/options.zig` (including 2 internal: `feat_explore`, `feat_vision`). The validation matrix in `build/flags.zig` tests 42 flag combinations (2 baseline + 20 solo + 20 no-X). The feature catalog (`src/core/feature_catalog.zig`) is the source of truth — comptime validation enforces catalog↔BuildOptions consistency.
+
+## Workflow Rules
+
+1. **Review `tasks/lessons.md`** at session start — it contains corrections for recurring pitfalls.
+2. **Plan first** for multi-file changes — write to `tasks/todo.md` before editing.
+3. **Validate before completing** — `zig build full-check` must pass (or `zig fmt --check` on Darwin 25+).
+4. **Verify stub sync** — any change to `mod.zig` requires matching `stub.zig` update.
+5. **Update `tasks/lessons.md`** after fixing any mistake that could recur.
+
+## Plugin
+
+`zig-abi-plugin/` provides a Claude Code plugin with build routing, feature scaffolding, and stub-sync validation. Install with `claude --plugin-dir zig-abi-plugin`.
+
+## References
+
+- [AGENTS.md](AGENTS.md) — Full workflow contract, commit guidelines, acceptance criteria
+- [docs/FAQ-agents.md](docs/FAQ-agents.md) — Detailed style rules and expanded command docs
+- [tasks/todo.md](tasks/todo.md) — Active task tracker
+- [tasks/lessons.md](tasks/lessons.md) — Correction log for recurring pitfalls

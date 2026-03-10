@@ -6,8 +6,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../interface.zig");
-const opengl = @import("opengl.zig");
+const interface = @import("../interface");
+const opengl = @import("opengl");
 const gl_runtime = @import("gl/runtime.zig");
 
 /// OpenGL VTable Backend
@@ -220,8 +220,8 @@ pub const OpenGLBackend = struct {
         source: []const u8,
         kernel_name: []const u8,
     ) interface.KernelError!*anyopaque {
-        const kernel_types = @import("../kernel_types.zig");
-        const backend_mod = @import("../backend.zig");
+        const kernel_types = @import("../kernel_types");
+        const backend_mod = @import("../backend");
 
         // Create kernel source for OpenGL (GLSL compute shader)
         const kernel_source = kernel_types.KernelSource{
@@ -261,7 +261,7 @@ pub const OpenGLBackend = struct {
         args: []const *anyopaque,
     ) interface.KernelError!void {
         _ = self;
-        const kernel_types = @import("../kernel_types.zig");
+        const kernel_types = @import("../kernel_types");
 
         // Validate configuration
         if (config.block_x == 0 or config.block_y == 0 or config.block_z == 0) {

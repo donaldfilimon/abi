@@ -88,3 +88,11 @@
 ## 2026-03-10 - Manifest-driven feature tests must share one module graph
 - Root cause: Creating one synthetic Zig module per `feature_test_manifest` entry caused duplicate file ownership when feature files imported each other, and the per-entry path materialization could degrade into malformed cache paths like `sfeatures/...`.
 - Prevention rule: Generate one ignored feature-test root under `src/` and import manifest entries through that shared module graph instead of creating a separate module for each manifest entry.
+
+## 2026-03-10 - Bulk find-and-replace can corrupt string literals across files
+- Root cause: A bulk operation that stripped the word "zig" from file content also removed it from inside string literals (`@import("...zig")`, `"zig"` comparisons, `"which -a zig"` commands). The displaced `")` characters appeared as stray suffixes on nearby expression lines.
+- Prevention rule: Never run bulk find-and-replace on source code without excluding string literal interiors. After any bulk text operation, run `zig fmt --check` immediately to catch truncated string literals (they show as "invalid byte: '\n'" errors). Always verify with format check before committing.
+
+## 2026-03-10 - Validation matrix no-X entries must enable ALL other features
+- Root cause: 19 of 20 `no-X` entries in `build/flags.zig` validation_matrix were missing `.feat_mobile = true`, meaning they silently tested with mobile disabled — hiding potential mobile interaction bugs.
+- Prevention rule: When adding a new feature flag, add it to ALL existing no-X entries (except no-<self>), not just the solo and no-self entries. Verify total count matches formula: 2 baseline + N solo + N no-X.

@@ -1,6 +1,6 @@
 const std = @import("std");
-const FileStats = @import("fs.zig").FileStats;
-const MatchType = @import("results.zig").MatchType;
+const FileStats = @import("fs").FileStats;
+const MatchType = @import("results").MatchType;
 
 pub const AstNode = struct {
     node_type: AstNodeType,

@@ -352,7 +352,7 @@ abi/
 ├── src/
 │   ├── abi.zig              # Public API entry point (comptime feature selection)
 │   ├── core/                # Config, feature catalog, framework lifecycle
-│   ├── features/            # 27 comptime-gated feature modules
+│   ├── features/            # 19 comptime-gated feature modules
 │   │   ├── ai/              # LLM inference, agents, training, streaming
 │   │   │   ├── llm/         # Local LLM inference (Llama-CPP parity)
 │   │   │   ├── agents/      # Agent runtime
@@ -372,7 +372,7 @@ abi/
 │   └── inference/           # High-performance token generation
 │
 ├── build/                   # Modular build system (options, flags, test discovery)
-├── tools/cli/               # CLI executable and 40+ commands
+├── tools/cli/               # CLI executable and 90+ commands
 ├── examples/                # Usage examples
 └── docs/                    # Documentation
 ```
