@@ -165,6 +165,7 @@ GPU backend: `-Dgpu-backend=auto|cuda|vulkan|metal` (comma-separated for multipl
 
 ## Workflow
 
+- **Plugin**: `zig-abi-plugin/` provides smart build routing, feature scaffolding, and stub sync validation for Claude Code sessions. Install with `claude --plugin-dir zig-abi-plugin`.
 - Canonical workflow contract: `AGENTS.md`
 - Active task tracker: `tasks/todo.md`
 - Correction log: `tasks/lessons.md` — review at session start, update after corrections
@@ -201,6 +202,8 @@ These patterns are distilled from `tasks/lessons.md`:
 6. **Async I/O in TUI**: Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
 7. **Never `use_lld` on macOS**: LLD has zero Mach-O support. Use Apple's `/usr/bin/ld` via `run_build.sh` or the CEL toolchain.
 8. **Standalone test files**: Files in `build/test_discovery.zig` must compile with `zig test <file> -fno-emit-bin`. Inline small cross-directory deps rather than using relative `@import("../../")`.
+9. **`tasks/` is gitignored but tracked**: Use `git add -f tasks/todo.md` to stage changes.
+10. **`build/` subdirectories**: `.gitignore` pattern `build/*` / `!build/*.zig` only allows `.zig` files directly in `build/`, not in subdirs like `build/validate/`. Add explicit entries for new subdirectories.
 
 ## Adding or Modifying Feature Modules
 
@@ -236,7 +239,7 @@ zig fmt --check build.zig build/ src/ tools/  # Direct format check (no build ru
 
 ## Zig 0.16 std API notes
 
-- **Time:** `std.time` has no `timestamp()`; use platform time (e.g. `abi.services.shared.time` for `timestampSec()`/`timestampNs()`) or pass `now: i64` from the caller. See `src/wdbx/dist/mod.zig` (Coordinator) and `src/features/ai/training/self_learning.zig` (getCurrentTimestamp).
+- **Time:** `std.time` has no `timestamp()`; use `src/services/shared/time.zig` which provides `unixSeconds()` (returns `i64`, 0 on WASM), `timestampSec()`, and `timestampNs()`. Import as `const time = @import("../../services/shared/time.zig");`. For distributed components, pass `now: i64` from the caller instead.
 - **Enums:** Prefer `@enumFromInt(x)` for int→enum; for validated parsing use a `switch (x) { 0 => .a, 1 => .b, else => return error.Invalid; }`. Do not rely on `std.meta.intToEnum` (removed in 0.16).
 - **HashMap iteration:** Use `valueIterator()` / `keyIterator()` (e.g. `while (map.valueIterator().next()) |v|`) rather than `.values()` on `AutoHashMapUnmanaged` (`.values()` is not part of the public API).
 - **Allocator vtable (0.16):** `alloc`/`resize`/`free` use `alignment: std.mem.Alignment`, not `u8`. Use `std.mem.Alignment.fromByteUnits(n)` when converting from byte alignment.
