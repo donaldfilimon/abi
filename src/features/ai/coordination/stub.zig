@@ -1,11 +1,11 @@
 //! Coordination stub surface when AI features are disabled.
 
 const std = @import("std");
-const legacy_personas = @import("../personas/stub.zig");
-const legacy_types = @import("../personas/types.zig");
-const legacy_config = @import("../personas/config.zig");
-const profiles = @import("../profiles/stub.zig");
-const semantic_store = @import("../../database/semantic_store/stub.zig");
+const legacy_personas = @import("../profiles/stub");
+const legacy_types = @import("../types");
+const legacy_config = @import("../config");
+const profiles = @import("../profiles/stub");
+const semantic_store = @import("../../../core/database/semantic_store/stub");
 
 pub const InteractionRequest = legacy_types.PersonaRequest;
 pub const InteractionResponse = legacy_types.PersonaResponse;
