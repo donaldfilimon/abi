@@ -26,8 +26,9 @@ Targets for Consolidation
 - Code style guidelines: align with Zig conventions and repo conventions. [DONE]
 - Cursor/Copilot policy sections: add if present; otherwise keep as a note. [DONE]
 - Onboarding and governance references: centralize cross-doc links. [DONE]
-- CONTRIBUTING.md: Prune redundant validation list; point to AGENTS.md. [PLANNED]
-- CLAUDE.md: Shorten architecture and build sections; point to AGENTS.md and FAQ. [PLANNED]
+- CONTRIBUTING.md: Prune redundant validation list; point to AGENTS.md. [DONE]
+- CLAUDE.md: Shorten architecture and build sections; point to AGENTS.md and FAQ. [DONE]
+- Final Review: Schedule quarterly governance review in tasks/todo.md. [PLANNED]
 
 Patch & Validation Plan
 - Patch AGENTS.md to reflect the new consolidated structure. [DONE]

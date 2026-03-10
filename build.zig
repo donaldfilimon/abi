@@ -405,7 +405,7 @@ pub fn build(b: *std.Build) void {
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
-        &.{ "--snapshot" },
+        &.{"--snapshot"},
     ));
 
     const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
@@ -810,7 +810,6 @@ fn addHostScriptStep(
     optimize: std.builtin.OptimizeMode,
     args: []const []const u8,
 ) *std.Build.Step {
-
     if (is_blocked_darwin) {
         return addScriptCompileOnly(b, name, source, target, optimize);
     }
