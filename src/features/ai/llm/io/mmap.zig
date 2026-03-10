@@ -28,14 +28,26 @@ const c = struct {
     pub const MADV_WILLNEED: c_int = 3;
     pub const MADV_DONTNEED: c_int = 4;
     pub const struct_stat = extern struct { st_size: i64 };
-    
+
     // Stub functions
-    pub fn open(_: [*:0]const u8, _: c_int) c_int { return -1; }
-    pub fn close(_: c_int) c_int { return -1; }
-    pub fn mmap(_: ?*anyopaque, _: usize, _: c_int, _: c_int, _: c_int, _: i64) *anyopaque { return MAP_FAILED; }
-    pub fn munmap(_: *anyopaque, _: usize) c_int { return -1; }
-    pub fn madvise(_: *anyopaque, _: usize, _: c_int) c_int { return -1; }
-    pub fn fstat(_: c_int, _: *struct_stat) c_int { return -1; }
+    pub fn open(_: [*:0]const u8, _: c_int) c_int {
+        return -1;
+    }
+    pub fn close(_: c_int) c_int {
+        return -1;
+    }
+    pub fn mmap(_: ?*anyopaque, _: usize, _: c_int, _: c_int, _: c_int, _: i64) *anyopaque {
+        return MAP_FAILED;
+    }
+    pub fn munmap(_: *anyopaque, _: usize) c_int {
+        return -1;
+    }
+    pub fn madvise(_: *anyopaque, _: usize, _: c_int) c_int {
+        return -1;
+    }
+    pub fn fstat(_: c_int, _: *struct_stat) c_int {
+        return -1;
+    }
 };
 
 /// Page size constant (4KB on most platforms)

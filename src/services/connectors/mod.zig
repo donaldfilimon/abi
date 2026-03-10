@@ -80,7 +80,9 @@ const builtin = @import("builtin");
 
 // libc import for environment access - required for Zig 0.16
 const c = struct {
-    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+        return null;
+    }
 };
 
 /// Read environment variable by name; returns owned slice or null if unset. Caller must free.

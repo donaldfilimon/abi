@@ -201,7 +201,9 @@ pub fn encodeStringArray(
 // ============================================================================
 
 const c_stdlib = struct {
-    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+        return null;
+    }
 };
 
 /// Check if an environment variable is set and non-empty.

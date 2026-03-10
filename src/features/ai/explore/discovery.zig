@@ -28,7 +28,9 @@ const app_paths = @import("../../../services/shared/app_paths.zig");
 // libc import for environment access - required for Zig 0.16
 // Not available on freestanding/WASM targets
 const c = struct {
-    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+        return null;
+    }
 };
 
 /// Whether threading is available on this target

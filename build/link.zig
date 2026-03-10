@@ -203,71 +203,33 @@ pub fn applyAllPlatformLinks(
 /// directories so that `-framework Accelerate` etc. can resolve.
 pub fn addSdkFrameworkPaths(mod: *std.Build.Module, io: std.Io) void {
     const sdk_path = detectSdkPath(io) orelse return;
+    const alloc = mod.owner.allocator;
 
-    // System/Library/Frameworks is where all Apple frameworks live
-    const fw_suffix = "/System/Library/Frameworks";
-    const lib_suffix = "/usr/lib";
+    const fw_path = std.fmt.allocPrint(alloc, "{s}/System/Library/Frameworks", .{sdk_path}) catch return;
+    const lib_path = std.fmt.allocPrint(alloc, "{s}/usr/lib", .{sdk_path}) catch return;
 
-    // Build full paths — use cwd_relative which accepts absolute paths
-    var fw_buf: [512]u8 = undefined;
-    var lib_buf: [512]u8 = undefined;
-
-    const fw_path = std.fmt.bufPrint(&fw_buf, "{s}{s}", .{ sdk_path, fw_suffix }) catch return;
-    const lib_path = std.fmt.bufPrint(&lib_buf, "{s}{s}", .{ sdk_path, lib_suffix }) catch return;
-
-    mod.addFrameworkPath(.{ .cwd_relative = fw_path });
+    mod.addSystemFrameworkPath(.{ .cwd_relative = fw_path });
     mod.addLibraryPath(.{ .cwd_relative = lib_path });
 }
 
-/// Detect the macOS SDK path via xcrun, with fallbacks.
+/// Detect the macOS SDK path by probing known locations.
 fn detectSdkPath(io: std.Io) ?[]const u8 {
-    // Try xcrun first
-    const xcrun_result = runCapture(io, &.{ "/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path" });
-    if (xcrun_result) |path| return path;
-
-    // Common fallback paths
-    const fallbacks = [_][]const u8{
+    const candidates = [_][]const u8{
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
         "/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
     };
-    for (fallbacks) |path| {
-        if (commandSucceeds(io, &.{ "/usr/bin/test", "-d", path })) return path;
+    for (candidates) |path| {
+        if (dirExists(io, path)) return path;
     }
     return null;
 }
 
-/// Run a command and capture its stdout (trimmed). Returns null on failure.
-fn runCapture(io: std.Io, argv: []const []const u8) ?[]const u8 {
-    var child = std.process.spawn(io, .{
-        .argv = argv,
-        .stdin = .ignore,
-        .stdout = .pipe,
-        .stderr = .ignore,
-    }) catch return null;
-
-    // Read stdout into a static buffer
-    const Static = struct {
-        var buf: [512]u8 = undefined;
-    };
-    var len: usize = 0;
-    while (len < Static.buf.len) {
-        const chunk = child.stdout.?.readSome(io, Static.buf[len..]) catch break;
-        if (chunk.len == 0) break;
-        len += chunk.len;
-    }
-
-    const term = child.wait(io) catch return null;
-    switch (term) {
-        .exited => |code| if (code != 0) return null,
-        else => return null,
-    }
-
-    // Trim trailing whitespace
-    var end = len;
-    while (end > 0 and (Static.buf[end - 1] == '\n' or Static.buf[end - 1] == '\r' or Static.buf[end - 1] == ' ')) end -= 1;
-    if (end == 0) return null;
-    return Static.buf[0..end];
+/// Check if a directory exists using Zig's Io.Dir API.
+fn dirExists(io: std.Io, path: []const u8) bool {
+    var dir = std.Io.Dir.openDirAbsolute(io, path, .{}) catch return false;
+    dir.close(io);
+    return true;
 }
 
 // =============================================================================

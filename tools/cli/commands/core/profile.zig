@@ -13,7 +13,9 @@ const app_paths = abi.services.shared.app_paths;
 
 // libc import for environment access - required for Zig 0.16
 const c = struct {
-    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 { return null; }
+    pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+        return null;
+    }
 };
 
 pub const meta: command_mod.Meta = .{
