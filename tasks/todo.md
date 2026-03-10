@@ -22,6 +22,10 @@ expanding default CI coverage.
 #### Plan
 - [x] Canonicalize toolchain-facing scripts and docs around `.zigversion` / `0.16.0-dev.1503+738d2be9d`.
 - [x] Update `.cel/build.sh`, `cel_migrate.sh`, `use_cel.sh`, `cel_doctor.zig`, and `build/cel.zig` to classify stock Zig mismatch, Darwin build-runner failure, bootstrap-host readiness, and `.cel` readiness.
+- [x] Extract shared shell helpers into `.cel/lib.sh` (DRY refactor across build.sh, use_cel.sh, cel_migrate.sh).
+- [x] Add ZLS commit-pin support (`ZLS_UPSTREAM_COMMIT` in config.sh, pinned fetch in build.sh).
+- [x] Fix `use_cel.sh` sourcing bug (`set -euo pipefail` breaking caller shells).
+- [x] Deduplicate `build/cel.zig` build steps via `addCelShellStep` helper.
 - [x] Extend default CI coverage with `zig build check-cli-registry` and `zig build check-docs`.
 - [ ] Restore GitHub Actions billing and rerun the existing failed `main` CI workflow.
 - [ ] Run `zig build verify-all` and `zig build benchmarks` on a working Linux/CEL host after CI is green.
@@ -68,6 +72,12 @@ expanding default CI coverage.
 
 ### TUI / CLI
 - [ ] **CLI registry**: Run `zig build refresh-cli-registry` and `zig build check-cli-registry` after any command changes; keep docs in sync.
+
+### CEL Toolchain Hardening
+- [ ] **Pin ZLS commit**: Determine compatible ZLS commit for Zig 0.16.0-dev.1503 and set `ZLS_UPSTREAM_COMMIT` in `.cel/config.sh`.
+- [ ] **CI shell lint**: Add `bash -n` checks for `.cel/*.sh` and `tools/scripts/*.sh` in CI.
+- [ ] **Build trap handler**: Add SIGINT/SIGTERM trap in `.cel/build.sh` to clean partial builds.
+- [ ] **cel-doctor ZLS awareness**: Report ZLS pin status in `tools/scripts/cel_doctor.zig` diagnostics.
 
 ### Build / Toolchain
 - [ ] **Run full-check on working host**: Execute `zig build full-check` and `zig build verify-all` on Linux/CI or once Darwin linker is fixed.

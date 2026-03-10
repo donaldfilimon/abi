@@ -64,6 +64,7 @@ pub fn main(_: std.process.Init) !void {
 
     const cel_files = [_]struct { path: []const u8, label: []const u8, required: bool }{
         .{ .path = ".cel/config.sh", .label = "config.sh", .required = true },
+        .{ .path = ".cel/lib.sh", .label = "lib.sh", .required = true },
         .{ .path = ".cel/build.sh", .label = "build.sh", .required = true },
         .{ .path = ".cel/README.md", .label = "README.md", .required = false },
         .{ .path = ".cel/patches", .label = "patches/", .required = true },
@@ -135,6 +136,19 @@ pub fn main(_: std.process.Init) !void {
         if (cel_zig_exists) {
             std.debug.print("  Action: Run .cel/build.sh --zls-only to build ZLS with CEL Zig\n", .{});
             warnings += 1;
+        }
+    }
+    // Report ZLS commit pin status from .cel/config.sh
+    const zls_pin_res = util.captureCommand(allocator, io,
+        \\sh -c '. .cel/config.sh 2>/dev/null && printf "%s" "${ZLS_UPSTREAM_COMMIT:-}"'
+    ) catch null;
+    if (zls_pin_res) |res| {
+        defer allocator.free(res.output);
+        const zls_pin = util.trimSpace(res.output);
+        if (zls_pin.len > 0) {
+            std.debug.print("  ZLS pin:     {s} (reproducible build)\n", .{zls_pin});
+        } else {
+            std.debug.print("  ZLS pin:     (latest — set ZLS_UPSTREAM_COMMIT in .cel/config.sh for reproducibility)\n", .{});
         }
     }
     bootstrap_host_zig_exists = util.fileExists(io, "zig-bootstrap-emergency/out/host/bin/zig");

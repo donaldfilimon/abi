@@ -17,6 +17,18 @@ source "$SCRIPT_DIR/config.sh"
 REPO_ROOT="$(cd "$CEL_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
+# Trap handler: clean up partial builds on interrupt
+cleanup_on_interrupt() {
+    warn "Interrupted — cleaning up partial build state..."
+    # Remove cmake build dir if incomplete (no zig binary produced)
+    if [[ -d "$CEL_DIR/.src/build" ]] && [[ ! -x "$CEL_DIR/bin/zig" ]]; then
+        rm -rf "$CEL_DIR/.src/build"
+        warn "Removed incomplete Zig build directory."
+    fi
+    exit 130
+}
+trap cleanup_on_interrupt INT TERM
+
 ZIG_SRC_DIR="$CEL_DIR/.src"
 ZLS_SRC_DIR="$CEL_DIR/.zls-src"
 PATCHES_DIR="$CEL_DIR/patches"
