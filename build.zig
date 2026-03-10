@@ -79,18 +79,22 @@ pub fn build(b: *std.Build) void {
     link.applyAllPlatformLinks(exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     if (is_blocked_darwin) {
         exe.use_llvm = true;
+        // Compile-only: don't install or run (linker is broken)
+        b.step("run", "Run the ABI CLI (unavailable on blocked Darwin)").dependOn(&exe.step);
+        b.step("editor", "Run the inline CLI TUI editor (unavailable on blocked Darwin)").dependOn(&exe.step);
+    } else {
+        b.installArtifact(exe);
+
+        const run_cli = b.addRunArtifact(exe);
+        if (b.args) |args| run_cli.addArgs(args);
+        b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
+
+        const run_editor = b.addRunArtifact(exe);
+        run_editor.addArg("ui");
+        run_editor.addArg("editor");
+        if (b.args) |args| run_editor.addArgs(args);
+        b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
     }
-    b.installArtifact(exe);
-
-    const run_cli = b.addRunArtifact(exe);
-    if (b.args) |args| run_cli.addArgs(args);
-    b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
-
-    const run_editor = b.addRunArtifact(exe);
-    run_editor.addArg("ui");
-    run_editor.addArg("editor");
-    if (b.args) |args| run_editor.addArgs(args);
-    b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
 
     // ── Examples (table-driven) ─────────────────────────────────────────
     const examples_step = b.step("examples", "Build all examples");
@@ -128,10 +132,14 @@ pub fn build(b: *std.Build) void {
     if (is_blocked_darwin) {
         cli_tests_artifact.use_llvm = true;
     }
-    const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
-    run_cli_tests.skip_foreign_checks = true;
     tui_tests_step = b.step("tui-tests", "Run TUI and CLI unit tests");
-    tui_tests_step.?.dependOn(&run_cli_tests.step);
+    if (is_blocked_darwin) {
+        tui_tests_step.?.dependOn(&cli_tests_artifact.step);
+    } else {
+        const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
+        run_cli_tests.skip_foreign_checks = true;
+        tui_tests_step.?.dependOn(&run_cli_tests.step);
+    }
 
     if (targets.pathExists(b, "tools/cli/launcher_tests_root.zig")) {
         const launcher_tests_mod = b.createModule(.{
@@ -148,11 +156,15 @@ pub fn build(b: *std.Build) void {
         if (is_blocked_darwin) {
             launcher_tests.use_llvm = true;
         }
-        const run_launcher_tests = b.addRunArtifact(launcher_tests);
-        run_launcher_tests.skip_foreign_checks = true;
 
         launcher_tests_step = b.step("launcher-tests", "Run focused launcher and shell editor tests");
-        launcher_tests_step.?.dependOn(&run_launcher_tests.step);
+        if (is_blocked_darwin) {
+            launcher_tests_step.?.dependOn(&launcher_tests.step);
+        } else {
+            const run_launcher_tests = b.addRunArtifact(launcher_tests);
+            run_launcher_tests.skip_foreign_checks = true;
+            launcher_tests_step.?.dependOn(&run_launcher_tests.step);
+        }
     }
 
     // ── Lint / format ───────────────────────────────────────────────────
@@ -215,18 +227,26 @@ pub fn build(b: *std.Build) void {
                 wdbx_fast_tests.use_llvm = true;
             }
 
-            const run_wdbx_fast_tests = b.addRunArtifact(wdbx_fast_tests);
-            run_wdbx_fast_tests.skip_foreign_checks = true;
-
-            wdbx_fast_tests_step = b.step("wdbx-fast-tests", "Run focused WDBX and database adapter tests");
-            wdbx_fast_tests_step.?.dependOn(&run_wdbx_fast_tests.step);
+            wdbx_fast_tests_step = b.step("wdbx-fast-tests", "Run focused WDBX and database adapter tests (typecheck-only on blocked Darwin)");
+            if (is_blocked_darwin) {
+                wdbx_fast_tests_step.?.dependOn(&wdbx_fast_tests.step);
+            } else {
+                const run_wdbx_fast_tests = b.addRunArtifact(wdbx_fast_tests);
+                run_wdbx_fast_tests.skip_foreign_checks = true;
+                wdbx_fast_tests_step.?.dependOn(&run_wdbx_fast_tests.step);
+            }
             typecheck_step.?.dependOn(&wdbx_fast_tests.step);
         }
 
-        const run_tests = b.addRunArtifact(tests);
-        run_tests.skip_foreign_checks = true;
         test_step = b.step("test", "Run unit tests");
-        test_step.?.dependOn(&run_tests.step);
+        if (is_blocked_darwin) {
+            // On blocked Darwin, "test" becomes typecheck-only (no linking/running)
+            test_step.?.dependOn(&tests.step);
+        } else {
+            const run_tests = b.addRunArtifact(tests);
+            run_tests.skip_foreign_checks = true;
+            test_step.?.dependOn(&run_tests.step);
+        }
     }
 
     // ── Feature tests (manifest-driven) ─────────────────────────────────
@@ -283,7 +303,9 @@ pub fn build(b: *std.Build) void {
             check_gpu_policy_exe.use_llvm = true;
         }
         check_gpu_policy_step = b.step("check-gpu-policy", "Verify GPU policy consistency");
-        check_gpu_policy_step.?.dependOn(&b.addRunArtifact(check_gpu_policy_exe).step);
+        check_gpu_policy_step.?.dependOn(
+            if (is_blocked_darwin) &check_gpu_policy_exe.step else &b.addRunArtifact(check_gpu_policy_exe).step,
+        );
     }
 
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
@@ -426,11 +448,15 @@ pub fn build(b: *std.Build) void {
             if (is_blocked_darwin) {
                 gendocs_source_tests.use_llvm = true;
             }
-            const run_gendocs_source_tests = b.addRunArtifact(gendocs_source_tests);
-            run_gendocs_source_tests.skip_foreign_checks = true;
 
             gendocs_source_tests_step = b.step("gendocs-source-tests", "Run focused gendocs CLI source discovery tests");
-            gendocs_source_tests_step.?.dependOn(&run_gendocs_source_tests.step);
+            if (is_blocked_darwin) {
+                gendocs_source_tests_step.?.dependOn(&gendocs_source_tests.step);
+            } else {
+                const run_gendocs_source_tests = b.addRunArtifact(gendocs_source_tests);
+                run_gendocs_source_tests.skip_foreign_checks = true;
+                gendocs_source_tests_step.?.dependOn(&run_gendocs_source_tests.step);
+            }
             full_check_step.dependOn(gendocs_source_tests_step.?);
         }
 
@@ -441,17 +467,26 @@ pub fn build(b: *std.Build) void {
         if (is_blocked_darwin) {
             gendocs.use_llvm = true;
         }
-        const run_gendocs = b.addRunArtifact(gendocs);
-        if (b.args) |args| run_gendocs.addArgs(args);
-        b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
+        if (is_blocked_darwin) {
+            // On blocked Darwin, gendocs/check-docs become compile-only
+            b.step("gendocs", "Generate docs (compile-only on blocked Darwin)").dependOn(&gendocs.step);
+            const docs_check = b.step("check-docs", "Validate docs (compile-only on blocked Darwin)");
+            docs_check.dependOn(&gendocs.step);
+            check_docs_step = docs_check;
+            full_check_step.dependOn(docs_check);
+        } else {
+            const run_gendocs = b.addRunArtifact(gendocs);
+            if (b.args) |args| run_gendocs.addArgs(args);
+            b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
 
-        const run_check_docs = b.addRunArtifact(gendocs);
-        run_check_docs.addArg("--check");
-        run_check_docs.addArg("--untracked-md");
-        const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
-        docs_check.dependOn(&run_check_docs.step);
-        check_docs_step = docs_check;
-        full_check_step.dependOn(docs_check);
+            const run_check_docs = b.addRunArtifact(gendocs);
+            run_check_docs.addArg("--check");
+            run_check_docs.addArg("--untracked-md");
+            const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
+            docs_check.dependOn(&run_check_docs.step);
+            check_docs_step = docs_check;
+            full_check_step.dependOn(docs_check);
+        }
     }
 
     // ── Profile build ───────────────────────────────────────────────────
@@ -475,9 +510,11 @@ pub fn build(b: *std.Build) void {
     link.applyAllPlatformLinks(profile_mod, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     if (is_blocked_darwin) {
         profile_exe.use_llvm = true;
+        b.step("profile", "Build with performance profiling (compile-only on blocked Darwin)").dependOn(&profile_exe.step);
+    } else {
+        b.installArtifact(profile_exe);
+        b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
     }
-    b.installArtifact(profile_exe);
-    b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
 
     // ── Mobile ──────────────────────────────────────────────────────────
     _ = mobile.addMobileBuild(b, options, optimize);
@@ -530,7 +567,7 @@ pub fn build(b: *std.Build) void {
             check_perf_exe.use_llvm = true;
         }
         b.step("check-perf", "Build performance verification tool (pipe benchmark JSON to run)")
-            .dependOn(&b.addInstallArtifact(check_perf_exe, .{}).step);
+            .dependOn(if (is_blocked_darwin) &check_perf_exe.step else &b.addInstallArtifact(check_perf_exe, .{}).step);
     }
 
     // ── WASM ────────────────────────────────────────────────────────────
@@ -615,7 +652,9 @@ pub fn build(b: *std.Build) void {
     if (is_blocked_darwin) {
         v3_server.use_llvm = true;
     }
-    b.step("v3-server", "Build v3 server executable").dependOn(&b.addInstallArtifact(v3_server, .{}).step);
+    b.step("v3-server", "Build v3 server executable").dependOn(
+        if (is_blocked_darwin) &v3_server.step else &b.addInstallArtifact(v3_server, .{}).step,
+    );
 
     // V3 Tests
     const v3_test_mod = b.createModule(.{
@@ -633,7 +672,7 @@ pub fn build(b: *std.Build) void {
         v3_tests.use_llvm = true;
     }
     const v3_test_step = b.step("v3-test", "Run v3 module tests");
-    v3_test_step.dependOn(&b.addRunArtifact(v3_tests).step);
+    v3_test_step.dependOn(if (is_blocked_darwin) &v3_tests.step else &b.addRunArtifact(v3_tests).step);
 
     // V3 Benchmarks
     const v3_bench_mod = b.createModule(.{
@@ -652,7 +691,7 @@ pub fn build(b: *std.Build) void {
         v3_bench.use_llvm = true;
     }
     const v3_bench_step = b.step("v3-bench", "Run v3 benchmarks");
-    v3_bench_step.dependOn(&b.addRunArtifact(v3_bench).step);
+    v3_bench_step.dependOn(if (is_blocked_darwin) &v3_bench.step else &b.addRunArtifact(v3_bench).step);
 
     // ── Verify-all ──────────────────────────────────────────────────────
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
@@ -728,6 +767,12 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
 /// Build and run a standalone Zig script (used for consistency checks, gate
 /// checks, etc.).  Returns the `Run` step so callers can add arguments or
 /// set dependencies.
+///
+/// On blocked Darwin (macOS 26+), the binary cannot be linked so the Run
+/// step will reference a compile-only artifact.  Steps that depend on this
+/// will succeed at the compile stage but fail if execution is actually
+/// attempted — callers should guard with `is_blocked_darwin` if they need
+/// to conditionally skip execution.
 fn addScriptRunner(
     b: *std.Build,
     name: []const u8,
@@ -748,4 +793,26 @@ fn addScriptRunner(
         exe.use_llvm = true;
     }
     return b.addRunArtifact(exe);
+}
+
+/// Get just the compile step from a script runner (for blocked Darwin where
+/// we can't link or run).
+fn addScriptCompileOnly(
+    b: *std.Build,
+    name: []const u8,
+    source: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Step {
+    const exe = b.addExecutable(.{
+        .name = name,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(source),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    exe.use_llvm = true;
+    return &exe.step;
 }

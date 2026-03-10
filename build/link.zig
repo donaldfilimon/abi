@@ -253,7 +253,7 @@ pub fn canLinkMetalFrameworks(io: std.Io, os_tag: std.Target.Os.Tag) bool {
         return true;
 
     for (required_metal_framework_paths) |path|
-        if (!commandSucceeds(io, &.{ "/usr/bin/test", "-e", path })) return false;
+        if (!dirExists(io, path)) return false;
     return true;
 }
 
