@@ -25,6 +25,10 @@ pub fn main(_: std.process.Init) !void {
 
     var issues: usize = 0;
     var warnings: usize = 0;
+    var stock_zig_found = false;
+    var stock_zig_matches_pin = false;
+    var stock_build_runner_blocked = false;
+    var bootstrap_host_zig_exists = false;
 
     std.debug.print("\n", .{});
     std.debug.print("=== ABI .cel Toolchain Doctor ===\n\n", .{});
@@ -133,7 +137,7 @@ pub fn main(_: std.process.Init) !void {
             warnings += 1;
         }
     }
-    const bootstrap_host_zig_exists = util.fileExists(io, "zig-bootstrap-emergency/out/host/bin/zig");
+    bootstrap_host_zig_exists = util.fileExists(io, "zig-bootstrap-emergency/out/host/bin/zig");
     if (bootstrap_host_zig_exists) {
         std.debug.print("  zig-bootstrap-emergency/out/host/bin/zig: FOUND\n", .{});
         const ver_res = util.captureCommand(allocator, io, "zig-bootstrap-emergency/out/host/bin/zig version") catch null;
@@ -216,6 +220,7 @@ pub fn main(_: std.process.Init) !void {
     // ── 6. Stock zig and PATH ──────────────────────────────────────────
     std.debug.print("Stock Zig:\n", .{});
     if (try util.commandExists(allocator, io, "zig")) {
+        stock_zig_found = true;
         const path_res = try util.captureCommand(allocator, io, "command -v zig");
         defer allocator.free(path_res.output);
         const zig_path = util.trimSpace(path_res.output);
@@ -234,6 +239,31 @@ pub fn main(_: std.process.Init) !void {
             std.debug.print("  Source:  ZVM managed\n", .{});
         } else {
             std.debug.print("  Source:  System or other\n", .{});
+        }
+
+        stock_zig_matches_pin = std.mem.eql(u8, zig_ver, baseline.zig_version);
+        if (stock_zig_matches_pin) {
+            std.debug.print("  Pin:     matches repo baseline\n", .{});
+        } else {
+            std.debug.print("  WARNING: stock zig does not match repo baseline ({s})\n", .{baseline.zig_version});
+            warnings += 1;
+        }
+
+        const build_res = util.captureCommand(allocator, io, "zig build --help 2>&1 1>/dev/null") catch null;
+        if (build_res) |res| {
+            defer allocator.free(res.output);
+            if (res.exit_code == 0) {
+                std.debug.print("  Build:   stock zig can start ABI build steps\n", .{});
+            } else if (std.mem.indexOf(u8, res.output, "__availability_version_check") != null or
+                std.mem.indexOf(u8, res.output, "undefined symbol:") != null)
+            {
+                std.debug.print("  Build:   BLOCKED by Darwin linker failure\n", .{});
+                stock_build_runner_blocked = true;
+                warnings += 1;
+            } else {
+                std.debug.print("  Build:   stock zig failed before ABI gates could run\n", .{});
+                warnings += 1;
+            }
         }
     } else {
         std.debug.print("  Not found on PATH\n", .{});
@@ -303,15 +333,24 @@ pub fn main(_: std.process.Init) !void {
     if (issues > 0 and builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
         std.debug.print("\nRemediation steps:\n", .{});
         if (!cel_zig_exists) {
-            std.debug.print("  1. Build the CEL toolchain:\n", .{});
-            std.debug.print("     ./.cel/build.sh\n\n", .{});
             if (!bootstrap_host_zig_exists and util.dirExists(io, "zig-bootstrap-emergency/zig")) {
-                std.debug.print("     If the stage3 build runner still fails, refresh the bootstrap host Zig:\n", .{});
+                std.debug.print("  1. Refresh the bootstrap host Zig:\n", .{});
                 std.debug.print("     abi toolchain bootstrap\n\n", .{});
+                std.debug.print("  2. Build the CEL toolchain:\n", .{});
+                std.debug.print("     ./.cel/build.sh\n\n", .{});
+            } else {
+                std.debug.print("  1. Build the CEL toolchain:\n", .{});
+                std.debug.print("     ./.cel/build.sh\n\n", .{});
             }
-            std.debug.print("  2. Activate it:\n", .{});
+            if (stock_zig_found and !stock_zig_matches_pin) {
+                std.debug.print("     Note: ignore the stock zig on PATH until it matches the repo pin.\n\n", .{});
+            }
+            if (stock_build_runner_blocked) {
+                std.debug.print("     Note: stock zig cannot link the ABI build runner on this Darwin host.\n\n", .{});
+            }
+            std.debug.print("  Activate it:\n", .{});
             std.debug.print("     eval \"$(./tools/scripts/use_cel.sh)\"\n\n", .{});
-            std.debug.print("  3. Verify:\n", .{});
+            std.debug.print("  Verify:\n", .{});
             std.debug.print("     zig version\n", .{});
             std.debug.print("     zls --version\n", .{});
             std.debug.print("     zig build full-check\n\n", .{});

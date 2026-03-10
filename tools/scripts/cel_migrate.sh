@@ -238,6 +238,8 @@ if $CHECK_ONLY; then
         info "CEL toolchain not yet built. Run without --check to build."
         if [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ -x "$BOOTSTRAP_HOST_ZIG" ]]; then
             info "Next action: ./.cel/build.sh"
+        elif [[ "$MAJOR" -ge 26 ]] 2>/dev/null && [[ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]]; then
+            info "Next action: abi toolchain bootstrap"
         fi
     fi
     exit 0

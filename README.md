@@ -510,7 +510,7 @@ zig build lint
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [tasks/todo.md](tasks/todo.md) for current task tracking and [docs/_docs/roadmap.md](docs/_docs/roadmap.md) for roadmap history.
+See [tasks/todo.md](tasks/todo.md) for current task tracking and [docs/plans/index.md](docs/plans/index.md) for roadmap history.
 
 ---
 

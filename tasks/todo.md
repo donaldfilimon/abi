@@ -12,34 +12,36 @@ a new plan when starting a wave.
 
 ## Active Queue
 
-### In Progress - CEL Primary Replacement Completion (2026-03-09)
+### In Progress - Wave 1 Toolchain and Validation Baseline (2026-03-10)
 
 #### Objective
-Finish the repo-local CEL path so Darwin hosts can bootstrap Zig/ZLS without
-depending on the broken prebuilt native build-runner path.
+Make ABI validation trustworthy again before broader codebase work by
+canonicalizing the Zig pin, hardening the Darwin/CEL bootstrap path, and
+expanding default CI coverage.
 
 #### Plan
-- [ ] Replace the current "clone GitHub master and run zig2 stage3" assumption with a source/bootstrap flow that can build on this Darwin host.
-- [ ] Wire `.cel/build.sh`, `cel_migrate.sh`, and `cel_doctor.zig` to report and prefer a repo-local bootstrap-host Zig when available.
-- [ ] Reconcile the CEL version/source contract with the actual Zig artifact source instead of assuming GitHub `master` equals the pinned nightly.
-- [ ] Re-run CEL status/build verification and record exact residual blockers if the full toolchain still cannot be produced locally.
+- [x] Canonicalize toolchain-facing scripts and docs around `.zigversion` / `0.16.0-dev.1503+738d2be9d`.
+- [x] Update `.cel/build.sh`, `cel_migrate.sh`, `use_cel.sh`, `cel_doctor.zig`, and `build/cel.zig` to classify stock Zig mismatch, Darwin build-runner failure, bootstrap-host readiness, and `.cel` readiness.
+- [x] Extend default CI coverage with `zig build check-cli-registry` and `zig build check-docs`.
+- [ ] Restore GitHub Actions billing and rerun the existing failed `main` CI workflow.
+- [ ] Run `zig build verify-all` and `zig build benchmarks` on a working Linux/CEL host after CI is green.
 
 #### Notes
 - The AGENTS-required tri-CLI consensus wrapper is absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+- Local Darwin `zig build` remains blocked at build-runner link time (`__availability_version_check`, `_arc4random_buf`, etc.) even when `zig` is available on PATH.
+- External GitHub Actions execution is still blocked by repository billing; the rerun attempt for run `22876292804` failed before any code-level job started.
 
 ---
 
 ## Next steps (actionable)
 
-*Environment-blocked items noted. Darwin linker still blocks binary builds; use CI (Linux) or CEL toolchain.*
+*Wave 1 is repo-side complete but externally blocked. Hosted CI and post-baseline gates still require billing recovery plus a working validation host.*
 
-1. [ ] **Push and validate CI**: Push current branch; confirm CI passes on Linux (tests, format, flag validation).
-2. [ ] **Benchmarks**: Run `zig build benchmarks` on CI or CEL host; confirm no regression. *(Requires working linker.)*
-3. [ ] **Full gate**: Run `zig build full-check` and `zig build verify-all` on Linux/CI or CEL.
-4. [ ] **CLI registry**: Run `zig build refresh-cli-registry` and `zig build check-cli-registry`. *(When build succeeds.)*
-5. [ ] **check-docs**: Run `zig build check-docs` when build succeeds.
-6. [ ] **Build CEL toolchain**: Run `.cel/build.sh` to unblock all local Darwin binary builds.
-7. [ ] **Feature-flag validation**: Run `zig build validate-flags` (38 combos); fix any mod/stub drift.
+1. [ ] **Restore Actions billing**: Unblock hosted CI for repository `donaldfilimon/abi`.
+2. [ ] **Rerun current `main` CI**: Re-run workflow `22876292804` after billing recovery and confirm `Format Check`, `Test Suite`, `Quality Gates`, and `Examples` all start and pass.
+3. [ ] **Hosted validation wave**: Confirm `check-cli-registry` and `check-docs` now pass in default CI.
+4. [ ] **Post-baseline gates**: Run `zig build verify-all` and `zig build benchmarks` on a working Linux or CEL-capable host.
+5. [ ] **Wave 2 planning**: Open the next improvement wave only after validation is green.
 
 ### Completed - Code Quality Improvements (2026-03-09)
 - [x] Fix CLAUDE.md/README.md/SKILL.md feature count: 19→27 modules (across 19 directories)
@@ -104,7 +106,7 @@ Validate the codebase using formatting and static AST checks (`zig ast-check`) w
 #### Evidence
 - All checklist items completed except benchmarks and full-check (blocked by Darwin linker).
 - CEL toolchain integration landed with ZLS support. F32 training pipeline hardened.
-- Version pin wave: `0.16.0-dev.2722+738d2be9d` aligned across all files.
+- Version pin wave: `0.16.0-dev.1503+738d2be9d` aligned across canonical repo files.
 - LSP client implementation with CEL-first resolution added (`src/services/lsp/client.zig`).
 - Compile-only tests pass. Format clean.
 

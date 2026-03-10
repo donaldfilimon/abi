@@ -26,7 +26,6 @@ BOOTSTRAP_LLVM_DIR="$CEL_DIR/../zig-bootstrap-emergency/out/build-llvm-host"
 BOOTSTRAP_ROOT="$CEL_DIR/../zig-bootstrap-emergency"
 BOOTSTRAP_BUILD_ZIG_HOST_DIR="$BOOTSTRAP_ROOT/out/build-zig-host"
 BOOTSTRAP_HOST_PREFIX="$BOOTSTRAP_ROOT/out/host"
-BOOTSTRAP_HOST_ZIG="$BOOTSTRAP_HOST_PREFIX/bin/$ZIG_EXE"
 
 info()  { printf "\033[1;34m[cel]\033[0m %s\n" "$*"; }
 warn()  { printf "\033[1;33m[cel]\033[0m %s\n" "$*"; }
@@ -64,6 +63,7 @@ ZIG_EXE="$(binary_name zig)"
 ZLS_EXE="$(binary_name zls)"
 ZIG_BIN="$BIN_DIR/$ZIG_EXE"
 ZLS_BIN="$BIN_DIR/$ZLS_EXE"
+BOOTSTRAP_HOST_ZIG="$BOOTSTRAP_HOST_PREFIX/bin/$ZIG_EXE"
 
 CLEAN=false
 PATCH_ONLY=false

@@ -62,6 +62,8 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\CEL_DIR="$REPO_ROOT/.cel"
         \\CEL_ZIG="$CEL_DIR/bin/zig"
         \\CEL_ZLS="$CEL_DIR/bin/zls"
+        \\BOOTSTRAP_HOST_ZIG="$REPO_ROOT/zig-bootstrap-emergency/out/host/bin/zig"
+        \\EXPECTED="$(tr -d '[:space:]' < "$REPO_ROOT/.zigversion" 2>/dev/null || true)"
         \\
         \\# Platform check
         \\OS_VER="$(sw_vers -productVersion 2>/dev/null || echo 'unknown')"
@@ -93,7 +95,7 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\  fi
         \\elif [ -f "$CEL_DIR/build.sh" ]; then
         \\  printf '  .cel/bin/zig:  NOT BUILT\n'
-        \\  printf '  Action:        Run .cel/build.sh to build the patched toolchain\n'
+        \\  printf '  Action:        Run ./.cel/build.sh to build the patched toolchain\n'
         \\else
         \\  printf '  .cel/bin/zig:  NOT PRESENT\n'
         \\  printf '  Action:        CEL infrastructure not found in this checkout\n'
@@ -103,6 +105,12 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\  printf '  .cel/bin/zls:  FOUND (%s)\n' "$ZLS_VER"
         \\elif [ -x "$CEL_ZIG" ]; then
         \\  printf '  .cel/bin/zls:  NOT BUILT\n'
+        \\fi
+        \\if [ -x "$BOOTSTRAP_HOST_ZIG" ]; then
+        \\  BOOTSTRAP_VER="$("$BOOTSTRAP_HOST_ZIG" version 2>/dev/null || echo 'unknown')"
+        \\  printf '  bootstrap zig: FOUND (%s)\n' "$BOOTSTRAP_VER"
+        \\elif [ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]; then
+        \\  printf '  bootstrap zig: source present, host binary not built\n'
         \\fi
         \\
         \\# Check patches
@@ -116,6 +124,18 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\  STOCK_VER="$(zig version 2>/dev/null || echo 'unknown')"
         \\  STOCK_PATH="$(command -v zig)"
         \\  printf '  Stock zig:     %s (%s)\n' "$STOCK_VER" "$STOCK_PATH"
+        \\  if [ -n "$EXPECTED" ] && [ "$STOCK_VER" = "$EXPECTED" ]; then
+        \\    printf '  Stock pin:     matches repo pin\n'
+        \\  elif [ -n "$EXPECTED" ]; then
+        \\    printf '  Stock pin:     mismatch (expected %s)\n' "$EXPECTED"
+        \\  fi
+        \\  if BUILD_ERR="$(zig build --help 2>&1 1>/dev/null)"; then
+        \\    printf '  Build runner:  stock zig can start ABI build steps\n'
+        \\  elif printf '%s' "$BUILD_ERR" | grep -q '__availability_version_check\\|undefined symbol:'; then
+        \\    printf '  Build runner:  BLOCKED by Darwin linker failure\n'
+        \\  else
+        \\    printf '  Build runner:  stock zig failed before ABI gates could run\n'
+        \\  fi
         \\else
         \\  printf '  Stock zig:     NOT FOUND\n'
         \\fi
@@ -123,7 +143,18 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
         \\printf '\n'
         \\
         \\# Instructions
-        \\if [ ! -x "$CEL_ZIG" ] && [ "$MAJOR" -ge 26 ] 2>/dev/null; then
+        \\if [ -x "$CEL_ZIG" ]; then
+        \\  printf '  Next action:\n'
+        \\  printf '    eval "$(./tools/scripts/use_cel.sh)"\n\n'
+        \\elif [ "$MAJOR" -ge 26 ] 2>/dev/null && [ -x "$BOOTSTRAP_HOST_ZIG" ]; then
+        \\  printf '  Next action:\n'
+        \\  printf '    ./.cel/build.sh\n\n'
+        \\elif [ "$MAJOR" -ge 26 ] 2>/dev/null && [ -d "$REPO_ROOT/zig-bootstrap-emergency/zig" ]; then
+        \\  printf '  Next action:\n'
+        \\  printf '    abi toolchain bootstrap\n\n'
+        \\elif [ ! -x "$CEL_ZIG" ] && [ "$MAJOR" -ge 26 ] 2>/dev/null; then
+        \\  printf '  To inspect CEL prerequisites first:\n'
+        \\  printf '    ./tools/scripts/cel_migrate.sh --check\n\n'
         \\  printf '  To build the CEL toolchain:\n'
         \\  printf '    ./.cel/build.sh\n\n'
         \\  printf '  To use it:\n'
@@ -210,8 +241,18 @@ pub fn emitCelSuggestion(b: *std.Build, status: CelStatus) void {
         .needs_build => {
             const note = b.addSystemCommand(&.{
                 "sh", "-c",
-                \\printf '\n  NOTE: macOS 26+ detected. Build the .cel patched toolchain:\n'
-                \\printf '    ./.cel/build.sh\n'
+                \\if [ -x "zig-bootstrap-emergency/out/host/bin/zig" ]; then
+                \\  printf '\n  NOTE: macOS 26+ detected. Bootstrap host Zig is ready; build the .cel toolchain:\n'
+                \\  printf '    ./.cel/build.sh\n'
+                \\elif [ -d "zig-bootstrap-emergency/zig" ]; then
+                \\  printf '\n  NOTE: macOS 26+ detected. Refresh the bootstrap host Zig first:\n'
+                \\  printf '    abi toolchain bootstrap\n'
+                \\  printf '    ./.cel/build.sh\n'
+                \\else
+                \\  printf '\n  NOTE: macOS 26+ detected. Inspect prerequisites, then build the .cel toolchain:\n'
+                \\  printf '    ./tools/scripts/cel_migrate.sh --check\n'
+                \\  printf '    ./.cel/build.sh\n'
+                \\fi
                 \\printf '    eval "$(./tools/scripts/use_cel.sh)"\n\n'
             });
             b.getInstallStep().dependOn(&note.step);
