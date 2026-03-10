@@ -7,8 +7,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const cuda_loader = @import("loader.zig");
-const shared = @import("../shared.zig");
+const cuda_loader = @import("loader");
+const shared = @import("../shared");
 
 /// cuBLAS status codes
 pub const CublasStatus = enum(i32) {

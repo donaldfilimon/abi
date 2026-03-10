@@ -1,12 +1,12 @@
 //! ralph run — Execute iterative loop via Abbey engine or provider router
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context.zig");
+const context_mod = @import("../../../framework/context");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const cfg = @import("config.zig");
-const skills_store = @import("skills_store.zig");
+const cfg = @import("config");
+const skills_store = @import("skills_store");
 
 const providers = abi.features.ai.llm.providers;
 const ProviderId = providers.ProviderId;

@@ -12,11 +12,11 @@
 //!   try bot.start(); // Starts listening for messages
 
 const std = @import("std");
-const engine = @import("engine.zig");
-const core_types = @import("../core/types.zig");
-const core_config = @import("../core/config.zig");
-const discord = @import("../../../services/connectors/discord/mod.zig");
-const emotions = @import("emotions.zig");
+const engine = @import("engine");
+const core_types = @import("types");
+const core_config = @import("../core/config");
+const discord = @import("../../../services/connectors/discord");
+const emotions = @import("emotions");
 
 // ============================================================================
 // Discord Bot Types

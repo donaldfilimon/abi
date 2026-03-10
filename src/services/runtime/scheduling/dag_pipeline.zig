@@ -14,7 +14,7 @@
 // ============================================================================
 
 const std = @import("std");
-const time = @import("../../shared/time.zig");
+const time = @import("shared_services").time;
 
 // ─── Stage Status ────────────────────────────────────────────────────────────
 

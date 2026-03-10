@@ -7,12 +7,12 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const events = @import("events.zig");
-const terminal_mod = @import("terminal.zig");
-const themes_mod = @import("themes.zig");
-const async_loop_mod = @import("async_loop.zig");
-const keybindings = @import("keybindings.zig");
-const help_overlay_mod = @import("help_overlay.zig");
+const events = @import("events");
+const terminal_mod = @import("terminal");
+const themes_mod = @import("themes");
+const async_loop_mod = @import("async_loop");
+const keybindings = @import("keybindings");
+const help_overlay_mod = @import("help_overlay");
 
 /// Create a generic dashboard wrapper around any panel type.
 ///

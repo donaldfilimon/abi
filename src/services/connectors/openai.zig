@@ -21,10 +21,10 @@
 //! ```
 
 const std = @import("std");
-const connectors = @import("mod.zig");
-const shared = @import("shared.zig");
-const async_http = @import("../shared/utils.zig").async_http;
-const json_utils = @import("../shared/utils.zig").json;
+const connectors = @import("mod");
+const shared = @import("shared");
+const async_http = @import("shared_services").utils.async_http;
+const json_utils = @import("shared_services").utils.json;
 
 /// Errors that can occur when interacting with the OpenAI API.
 pub const OpenAIError = error{

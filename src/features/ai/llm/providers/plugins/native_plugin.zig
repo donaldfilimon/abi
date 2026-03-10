@@ -1,8 +1,8 @@
 const std = @import("std");
-const types = @import("../types.zig");
-const errors = @import("../errors.zig");
-const manifest = @import("manifest.zig");
-const abi_v1 = @import("native_abi_v1.zig");
+const types = @import("types");
+const errors = @import("../errors");
+const manifest = @import("manifest");
+const abi_v1 = @import("native_abi_v1");
 
 const default_symbol: [:0]const u8 = "abi_llm_plugin_v1";
 

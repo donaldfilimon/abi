@@ -53,7 +53,7 @@ pub const RuntimeBridge = struct {
 
         // Write synthetic script to a temporary file
         var tmp_name_buf: [64]u8 = [_]u8{0} ** 64;
-        const ts = @import("../../../services/shared/time.zig").timestampMs();
+        const ts = @import("shared_services").time.timestampMs();
         const tmp_file_name = try std.fmt.bufPrint(&tmp_name_buf, ".abi_synthetic_script_{d}{s}", .{ ts, ext });
 
         var file = try std.Io.Dir.cwd().createFile(self.io.*, tmp_file_name, .{ .truncate = true });

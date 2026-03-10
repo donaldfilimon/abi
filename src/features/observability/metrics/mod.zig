@@ -7,7 +7,7 @@
 //! ## Quick Start
 //!
 //! ```zig
-//! const metrics = @import("observability/metrics/mod.zig");
+//! const metrics = @import("observability/metrics");
 //!
 //! // Create a counter
 //! var requests = metrics.Counter{};
@@ -31,10 +31,10 @@
 //! - FloatGauge and Histogram use mutex protection
 //! - SlidingWindow uses mutex protection
 
-pub const primitives = @import("primitives.zig");
-pub const prometheus = @import("prometheus.zig");
-pub const sliding_window = @import("sliding_window.zig");
-pub const collector = @import("collector.zig");
+pub const primitives = @import("primitives");
+pub const prometheus = @import("prometheus");
+pub const sliding_window = @import("sliding_window");
+pub const collector = @import("collector");
 const std = @import("std");
 
 // Re-export core types (lightweight, no name field)

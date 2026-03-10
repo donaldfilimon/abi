@@ -8,7 +8,7 @@
 //! Handles SSE parsing for streaming responses from each provider.
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 
 /// External API provider types
 pub const Provider = enum {

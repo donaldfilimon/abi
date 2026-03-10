@@ -62,7 +62,7 @@ pub fn createAbiModule(
 ) *std.Build.Module {
     const build_opts = createBuildOptionsModule(b, options);
     const abi = b.createModule(.{
-        .root_source_file = b.path("src/abi.zig"),
+        .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });

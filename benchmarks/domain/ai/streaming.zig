@@ -13,7 +13,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const streaming = @import("streaming.zig");
+//! const streaming = @import("streaming");
 //!
 //! // Run with default config
 //! try streaming.runStreamingBenchmarks(allocator, .standard);
@@ -24,7 +24,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../../system/framework.zig");
+const framework = @import("../../system/framework");
 
 /// Configuration for streaming benchmarks
 pub const StreamingBenchConfig = struct {

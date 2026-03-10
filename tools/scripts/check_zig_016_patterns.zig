@@ -1,5 +1,5 @@
 const std = @import("std");
-const util = @import("util.zig");
+const util = @import("util");
 
 fn scanForbidden(
     allocator: std.mem.Allocator,

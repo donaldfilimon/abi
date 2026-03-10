@@ -4,7 +4,7 @@
 //! when invoked via `zig run`.
 
 const std = @import("std");
-const full_matrix = @import("tests/full_matrix.zig");
+const full_matrix = @import("tests/full_matrix");
 
 pub fn main(init: std.process.Init.Minimal) !void {
     return full_matrix.main(init);

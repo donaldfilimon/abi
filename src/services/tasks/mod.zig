@@ -6,7 +6,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const tasks = @import("tasks/mod.zig");
+//! const tasks = @import("tasks");
 //!
 //! var manager = try tasks.Manager.init(allocator, .{});
 //! defer manager.deinit();
@@ -16,14 +16,14 @@
 //! ```
 
 const std = @import("std");
-const app_paths = @import("../shared/app_paths.zig");
+const app_paths = @import("shared_services").utils.fs;
 
 // Re-export types
-pub const types = @import("types.zig");
-pub const persistence = @import("persistence.zig");
-pub const querying = @import("querying.zig");
-pub const lifecycle = @import("lifecycle.zig");
-pub const roadmap = @import("roadmap.zig");
+pub const types = @import("types");
+pub const persistence = @import("persistence");
+pub const querying = @import("querying");
+pub const lifecycle = @import("lifecycle");
+pub const roadmap = @import("roadmap");
 pub const roadmap_catalog = roadmap.catalog;
 
 // Type re-exports for convenience

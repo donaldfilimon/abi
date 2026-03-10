@@ -9,10 +9,10 @@
 //! - Theme name completion for ui commands
 
 const std = @import("std");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 const utils = @import("../../utils/mod.zig");
-const spec = @import("../../spec.zig");
+const spec = @import("../../spec");
 const Feature = @import("abi").config.Feature;
 
 pub const meta: command_mod.Meta = .{

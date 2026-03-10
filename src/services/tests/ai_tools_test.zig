@@ -23,7 +23,7 @@ test "tools: hasPathTraversal detects .. components" {
 test "tools: hasPathTraversal allows normal paths" {
     if (!build_options.feat_ai) return error.SkipZigTest;
 
-    try std.testing.expect(!tools.hasPathTraversal("src/main.zig"));
+    try std.testing.expect(!tools.hasPathTraversal("src/root.zig"));
     try std.testing.expect(!tools.hasPathTraversal("./relative/path"));
     try std.testing.expect(!tools.hasPathTraversal("/absolute/path/file.txt"));
     try std.testing.expect(!tools.hasPathTraversal(""));

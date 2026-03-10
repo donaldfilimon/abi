@@ -1,4 +1,4 @@
-pub const Request = @import("types.zig").GenerateConfig;
+pub const Request = @import("types").GenerateConfig;
 const std = @import("std");
 
 test {

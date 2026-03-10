@@ -4,7 +4,7 @@
 //! Domain inference + deduplication prevent unbounded growth.
 
 const std = @import("std");
-const cfg = @import("config.zig");
+const cfg = @import("config");
 
 fn nowEpochSeconds() i64 {
     var ts: std.c.timespec = undefined;
@@ -46,6 +46,25 @@ const SkillRecord = struct {
     source_run_id: ?[]const u8,
     score: f32,
     domain: []const u8 = "general",
+    execution_count: u32 = 0,
+    success_count: u32 = 0,
+    total_quality_score: f32 = 0.0,
+
+    pub fn recordExecution(self: *SkillRecord, success: bool, quality: f32) void {
+        self.execution_count += 1;
+        if (success) self.success_count += 1;
+        self.total_quality_score += quality;
+    }
+
+    pub fn averageQuality(self: SkillRecord) f32 {
+        if (self.execution_count == 0) return 0.0;
+        return self.total_quality_score / @as(f32, @floatFromInt(self.execution_count));
+    }
+
+    pub fn successRate(self: SkillRecord) f32 {
+        if (self.execution_count == 0) return 0.0;
+        return @as(f32, @floatFromInt(self.success_count)) / @as(f32, @floatFromInt(self.execution_count));
+    }
 };
 
 /// Infer domain from skill text by keyword matching.
@@ -186,6 +205,85 @@ pub fn appendSkill(
 pub fn clearSkills(allocator: std.mem.Allocator, io: std.Io) !void {
     cfg.ensureDir(io, cfg.WORKSPACE_DIR);
     try cfg.writeFile(allocator, io, cfg.SKILLS_FILE, "");
+}
+
+/// Remove skills whose average quality falls below `min_quality`.
+/// Skills with zero executions are kept (no data to judge).
+/// Returns the number of pruned entries.
+pub fn pruneByQuality(allocator: std.mem.Allocator, io: std.Io, min_quality: f32) !usize {
+    const contents = std.Io.Dir.cwd().readFileAlloc(
+        io,
+        cfg.SKILLS_FILE,
+        allocator,
+        .limited(2 * 1024 * 1024),
+    ) catch return 0;
+    defer allocator.free(contents);
+
+    var kept = std.ArrayListUnmanaged(u8).empty;
+    defer kept.deinit(allocator);
+
+    var total: usize = 0;
+    var kept_count: usize = 0;
+
+    var lines = std.mem.splitScalar(u8, contents, '\n');
+    while (lines.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, " \t\r");
+        if (trimmed.len == 0) continue;
+        total += 1;
+
+        // Parse to check quality fields
+        const parsed = std.json.parseFromSlice(std.json.Value, allocator, trimmed, .{}) catch {
+            // Unparseable lines are kept to avoid data loss
+            try kept.appendSlice(allocator, trimmed);
+            try kept.append(allocator, '\n');
+            kept_count += 1;
+            continue;
+        };
+        defer parsed.deinit();
+
+        const obj = switch (parsed.value) {
+            .object => |o| o,
+            else => {
+                try kept.appendSlice(allocator, trimmed);
+                try kept.append(allocator, '\n');
+                kept_count += 1;
+                continue;
+            },
+        };
+
+        const exec_count: u32 = if (obj.get("execution_count")) |v| switch (v) {
+            .integer => |i| @intCast(@max(0, i)),
+            else => 0,
+        } else 0;
+
+        // Keep skills with no execution data (nothing to judge)
+        if (exec_count == 0) {
+            try kept.appendSlice(allocator, trimmed);
+            try kept.append(allocator, '\n');
+            kept_count += 1;
+            continue;
+        }
+
+        const total_qs: f32 = if (obj.get("total_quality_score")) |v| switch (v) {
+            .float => |f| @floatCast(f),
+            .integer => |i| @floatFromInt(i),
+            else => 0.0,
+        } else 0.0;
+
+        const avg = total_qs / @as(f32, @floatFromInt(exec_count));
+        if (avg >= min_quality) {
+            try kept.appendSlice(allocator, trimmed);
+            try kept.append(allocator, '\n');
+            kept_count += 1;
+        }
+    }
+
+    const pruned = total - kept_count;
+    if (pruned > 0) {
+        cfg.ensureDir(io, cfg.WORKSPACE_DIR);
+        try cfg.writeFile(allocator, io, cfg.SKILLS_FILE, kept.items);
+    }
+    return pruned;
 }
 
 pub fn countSkills(allocator: std.mem.Allocator, io: std.Io) usize {

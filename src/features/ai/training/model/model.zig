@@ -5,7 +5,7 @@
 //! config, layer, weights, cache, and utility types.  The full model struct
 //! (with forward, backward, checkpoint, etc.) lives in `trainable_model/`.
 
-const core = @import("../trainable_model/core.zig");
+const core = @import("../trainable_model/core");
 
 pub const TrainableModel = core.TrainableModel;
 

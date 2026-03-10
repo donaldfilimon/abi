@@ -6,13 +6,13 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const s = @import("metal_state.zig");
-const metal_types = @import("metal_types.zig");
-const gpu_family = @import("metal/gpu_family.zig");
-const capabilities = @import("metal/capabilities.zig");
+const s = @import("metal_state");
+const metal_types = @import("metal_types");
+const gpu_family = @import("metal/gpu_family");
+const capabilities = @import("metal/capabilities");
 
-const Device = @import("../device.zig").Device;
-const DeviceType = @import("../device.zig").DeviceType;
+const Device = @import("../device").Device;
+const DeviceType = @import("../device").DeviceType;
 
 // Re-export public types
 pub const DeviceInfo = metal_types.DeviceInfo;

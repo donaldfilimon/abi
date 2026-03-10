@@ -11,7 +11,7 @@
 //!     can read messages for its id or broadcast.
 
 const std = @import("std");
-const Channel = @import("../../../services/runtime/concurrency/channel.zig").Channel;
+const Channel = @import("../../../services/runtime/concurrency/channel").Channel;
 
 /// Maximum content length per message (fits in channel slot without heap).
 pub const max_message_content_len = 1024;

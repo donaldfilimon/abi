@@ -15,8 +15,8 @@
 //!   pool.waitIdle();
 
 const std = @import("std");
-const ralph_multi = @import("ralph_multi.zig");
-const engine_mod = @import("engine.zig");
+const ralph_multi = @import("ralph_multi");
+const engine_mod = @import("engine");
 
 /// Context for one parallel Ralph worker. Use with ThreadPool.schedule(parallelRalphWorker, .{ ctx, index }).
 /// Allocator must be thread-safe (e.g. std.heap.page_allocator or std.heap.ThreadSafeAllocator).

@@ -16,7 +16,7 @@
 //! ## Quick Start
 //!
 //! ```zig
-//! const ai = @import("ai/mod.zig");
+//! const ai = @import("ai");
 //!
 //! // Initialize GPU-aware agent
 //! var agent = try ai.GpuAgent.init(allocator);
@@ -51,12 +51,12 @@
 //! for concurrent access from multiple threads.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
+const time = @import("shared_services").time;
 const build_options = @import("build_options");
 
 // GPU integration (conditional)
 const gpu_available = build_options.feat_gpu;
-const gpu_mod = if (gpu_available) @import("../../gpu/mod.zig") else struct {
+const gpu_mod = if (gpu_available) @import("../../gpu") else struct {
     pub const mega = struct {
         pub const Coordinator = void;
         pub const LearningScheduler = void;

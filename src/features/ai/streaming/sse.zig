@@ -4,7 +4,7 @@
 //! and decoding SSE streams back to events.
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 const StreamEvent = mod.StreamEvent;
 const StreamEventType = mod.StreamEventType;
 const StreamToken = mod.StreamToken;

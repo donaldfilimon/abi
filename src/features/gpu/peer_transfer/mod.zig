@@ -13,7 +13,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const peer = @import("peer_transfer/mod.zig");
+//! const peer = @import("peer_transfer");
 //!
 //! var manager = try peer.PeerTransferManager.init(allocator, device_group);
 //! defer manager.deinit();
@@ -28,25 +28,25 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 const build_options = @import("build_options");
-const shared_utils = @import("../../../services/shared/utils.zig");
-const backend_shared = @import("../backends/shared.zig");
+const shared_utils = @import("shared_services").utils;
+const backend_shared = @import("../backends/shared");
 
-const multi_device = @import("../multi_device.zig");
-const stream_mod = @import("../stream.zig");
-const backend_mod = @import("../backend.zig");
-const device_mod = @import("../device.zig");
+const multi_device = @import("../multi_device");
+const stream_mod = @import("../stream");
+const backend_mod = @import("../backend");
+const device_mod = @import("../device");
 
 // Backend implementations
-pub const host_staged = @import("host_staged.zig");
-pub const cuda_backend = if (build_options.gpu_cuda and backend_shared.dynlibSupported) @import("cuda.zig") else struct {};
-pub const vulkan_backend = if (build_options.gpu_vulkan) @import("vulkan.zig") else struct {};
-pub const metal_backend = if (build_options.gpu_metal) @import("metal.zig") else struct {};
+pub const host_staged = @import("host_staged");
+pub const cuda_backend = if (build_options.gpu_cuda and backend_shared.dynlibSupported) @import("cuda") else struct {};
+pub const vulkan_backend = if (build_options.gpu_vulkan) @import("vulkan") else struct {};
+pub const metal_backend = if (build_options.gpu_metal) @import("metal") else struct {};
 
 // Network-based cross-node peer transfer
-pub const network = @import("network.zig");
+pub const network = @import("network");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const DeviceGroup = multi_device.DeviceGroup;

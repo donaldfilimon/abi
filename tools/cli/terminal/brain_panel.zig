@@ -4,10 +4,10 @@
 //! in a 3x2 grid layout with sparklines, gauges, and bar charts.
 
 const std = @import("std");
-const terminal_mod = @import("terminal.zig");
-const themes = @import("themes.zig");
-const widgets = @import("widgets.zig");
-const ring_buffer = @import("ring_buffer.zig");
+const terminal_mod = @import("terminal");
+const themes = @import("themes");
+const widgets = @import("widgets");
+const ring_buffer = @import("ring_buffer");
 
 const Terminal = terminal_mod.Terminal;
 const Theme = themes.Theme;
@@ -524,7 +524,7 @@ pub const BrainDashboardPanel = struct {
 
     // -- Panel vtable methods --
 
-    pub fn renderPanel(self: *BrainDashboardPanel, term: *Terminal, rect: @import("layout.zig").Rect, theme: *const Theme) anyerror!void {
+    pub fn renderPanel(self: *BrainDashboardPanel, term: *Terminal, rect: @import("layout").Rect, theme: *const Theme) anyerror!void {
         self.theme = theme;
         self.term = term;
         // In full panel mode, we maintain internal data
@@ -543,7 +543,7 @@ pub const BrainDashboardPanel = struct {
         }
     }
 
-    pub fn handleEvent(_: *BrainDashboardPanel, _: @import("events.zig").Event) anyerror!bool {
+    pub fn handleEvent(_: *BrainDashboardPanel, _: @import("events").Event) anyerror!bool {
         return false;
     }
 
@@ -557,8 +557,8 @@ pub const BrainDashboardPanel = struct {
 
     pub fn deinit(_: *BrainDashboardPanel) void {}
 
-    pub fn panel(self: *BrainDashboardPanel) @import("panel.zig").Panel {
-        return @import("panel.zig").Panel.from(BrainDashboardPanel, self);
+    pub fn panel(self: *BrainDashboardPanel) @import("panel").Panel {
+        return @import("panel").Panel.from(BrainDashboardPanel, self);
     }
 };
 
@@ -578,7 +578,7 @@ pub const DashboardData = struct {
     total_inserts: u64,
 
     // Abbey learning metrics
-    learning_phase: @import("agent_panel.zig").LearningPhase,
+    learning_phase: @import("agent_panel").LearningPhase,
     exploration_rate: f32,
     episode_count: u64,
     reward_history: RingBuf120,

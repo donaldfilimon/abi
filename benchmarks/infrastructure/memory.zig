@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../system/framework.zig");
+const framework = @import("../system/framework");
 
 pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: anytype) !void {
     _ = config;

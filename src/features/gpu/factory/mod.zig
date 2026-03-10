@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const backend_factory = @import("../backend_factory.zig");
-pub const simulated = @import("simulated.zig");
+const backend_factory = @import("../backend_factory");
+pub const simulated = @import("simulated");
 
 pub const BackendFactory = backend_factory.BackendFactory;
 pub const BackendInstance = backend_factory.BackendInstance;

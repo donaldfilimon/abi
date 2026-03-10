@@ -26,8 +26,8 @@
 //! ```
 
 const std = @import("std");
-const sync = @import("../../shared/sync.zig");
-const numa = @import("numa.zig");
+const sync = @import("shared_services").sync;
+const numa = @import("numa");
 
 /// Configuration for steal policy.
 pub const StealPolicyConfig = struct {

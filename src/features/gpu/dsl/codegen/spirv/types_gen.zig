@@ -3,8 +3,8 @@
 //! Methods for generating SPIR-V type declarations with caching.
 
 const std = @import("std");
-const constants = @import("constants.zig");
-const dsl_types = @import("../../types.zig");
+const constants = @import("constants");
+const dsl_types = @import("../../types");
 
 pub const OpCode = constants.OpCode;
 pub const StorageClass = constants.StorageClass;

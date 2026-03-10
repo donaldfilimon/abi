@@ -9,8 +9,8 @@
 //! Uses the SIMD operations from src/services/shared/simd/mod.zig
 
 const std = @import("std");
-const property = @import("mod.zig");
-const generators = @import("generators.zig");
+const property = @import("mod");
+const generators = @import("generators");
 const abi = @import("abi");
 const simd = abi.services.simd;
 

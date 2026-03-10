@@ -4,7 +4,7 @@
 //! Supports runtime reconfiguration and validation.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 /// Main Abbey configuration
 pub const AbbeyConfig = struct {

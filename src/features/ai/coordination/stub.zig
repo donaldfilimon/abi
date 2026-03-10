@@ -5,7 +5,7 @@ const legacy_personas = @import("../profiles/stub");
 const legacy_types = @import("../types");
 const legacy_config = @import("../config");
 const profiles = @import("../profiles/stub");
-const semantic_store = @import("../../../core/database/semantic_store/stub");
+const semantic_store = @import("../../database/stub").semantic_store;
 
 pub const InteractionRequest = legacy_types.PersonaRequest;
 pub const InteractionResponse = legacy_types.PersonaResponse;

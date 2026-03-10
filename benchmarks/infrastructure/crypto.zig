@@ -12,7 +12,7 @@
 //! - Hex encoding/decoding
 
 const std = @import("std");
-const framework = @import("../system/framework.zig");
+const framework = @import("../system/framework");
 const crypto = std.crypto;
 
 /// Crypto benchmark configuration

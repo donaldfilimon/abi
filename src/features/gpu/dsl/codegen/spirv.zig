@@ -17,15 +17,15 @@
 //! Specification: https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html
 
 const std = @import("std");
-const types = @import("../types.zig");
-const expr = @import("../expr.zig");
-const stmt = @import("../stmt.zig");
-const kernel = @import("../kernel.zig");
-const backend = @import("backend.zig");
-const gpu_backend = @import("../../backend.zig");
+const types = @import("../types");
+const expr = @import("../expr");
+const stmt = @import("../stmt");
+const kernel = @import("../kernel");
+const backend = @import("backend");
+const gpu_backend = @import("../../backend");
 
 // Import the modular implementation
-const spirv = @import("spirv/mod.zig");
+const spirv = @import("spirv");
 
 // Re-export constants for backward compatibility
 pub const SPIRV_MAGIC = spirv.SPIRV_MAGIC;

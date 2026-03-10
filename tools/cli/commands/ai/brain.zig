@@ -9,8 +9,8 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 
 fn wrapExport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     try runExport(ctx, args);

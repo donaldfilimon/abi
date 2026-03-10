@@ -7,9 +7,9 @@
 //! - `batch`: Batched small-operation dispatcher
 const std = @import("std");
 
-pub const types = @import("types.zig");
-pub const coordinator = @import("coordinator.zig");
-pub const batch = @import("batch.zig");
+pub const types = @import("types");
+pub const coordinator = @import("coordinator");
+pub const batch = @import("batch");
 
 // Re-export core dispatch types
 pub const DispatchError = types.DispatchError;

@@ -1,9 +1,9 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../interface.zig");
-const backend_mod = @import("../backend.zig");
-const simulated = @import("../factory/simulated.zig");
-const backend_shared = @import("shared.zig");
+const interface = @import("../interface");
+const backend_mod = @import("../backend");
+const simulated = @import("../factory/simulated");
+const backend_shared = @import("shared");
 
 pub const Backend = backend_mod.Backend;
 
@@ -44,7 +44,7 @@ pub fn isEnabledAtBuild(backend: Backend) bool {
 
 fn createCuda(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
     if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
-        const cuda_vtable = @import("cuda/vtable.zig");
+        const cuda_vtable = @import("cuda/vtable");
         return cuda_vtable.createCudaVTable(allocator);
     }
     return interface.BackendError.NotAvailable;
@@ -52,37 +52,37 @@ fn createCuda(allocator: std.mem.Allocator) interface.BackendError!interface.Bac
 
 fn createVulkan(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
     if (comptime !build_options.gpu_vulkan) return interface.BackendError.NotAvailable;
-    const vulkan = @import("vulkan.zig");
+    const vulkan = @import("vulkan");
     return vulkan.createVulkanVTable(allocator);
 }
 
 fn createMetal(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
     if (comptime !build_options.gpu_metal) return interface.BackendError.NotAvailable;
-    const metal_vtable = @import("metal_vtable.zig");
+    const metal_vtable = @import("metal_vtable");
     return metal_vtable.createMetalVTable(allocator);
 }
 
 fn createWebGPU(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
     if (comptime !build_options.gpu_webgpu) return interface.BackendError.NotAvailable;
-    const webgpu_vtable = @import("webgpu_vtable.zig");
+    const webgpu_vtable = @import("webgpu_vtable");
     return webgpu_vtable.createWebGpuVTable(allocator);
 }
 
 fn createOpenGL(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
-    const gl_backend = @import("gl/backend.zig");
-    const gl_profile = @import("gl/profile.zig");
+    const gl_backend = @import("gl/backend");
+    const gl_profile = @import("gl/profile");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.desktop);
 }
 
 fn createOpenGLES(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
-    const gl_backend = @import("gl/backend.zig");
-    const gl_profile = @import("gl/profile.zig");
+    const gl_backend = @import("gl/backend");
+    const gl_profile = @import("gl/profile");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.es);
 }
 
 fn createFpga(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
     if (comptime !build_options.gpu_fpga) return interface.BackendError.NotAvailable;
-    const fpga_vtable = @import("fpga/vtable.zig");
+    const fpga_vtable = @import("fpga/vtable");
     return fpga_vtable.createFpgaVTable(allocator);
 }
 

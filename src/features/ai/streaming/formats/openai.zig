@@ -6,9 +6,9 @@
 //! Reference: https://platform.openai.com/docs/api-reference/chat
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
-const sync = @import("../../../../services/shared/sync.zig");
-const backends = @import("../backends/mod.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const backends = @import("../backends");
 
 /// Chat message role
 pub const Role = enum {

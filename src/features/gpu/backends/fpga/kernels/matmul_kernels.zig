@@ -11,10 +11,10 @@
 //! - Latency: <10us for typical LLM weight matrices
 
 const std = @import("std");
-const time = @import("../../../../../services/shared/time.zig");
-const sync = @import("../../../../../services/shared/sync.zig");
+const time = @import("../../../../../services/shared/time");
+const sync = @import("../../../../../services/shared/sync");
 const build_options = @import("build_options");
-const distance_kernels = @import("distance_kernels.zig");
+const distance_kernels = @import("distance_kernels");
 
 /// Configuration for FPGA MatMul kernels
 pub const MatMulKernelConfig = struct {

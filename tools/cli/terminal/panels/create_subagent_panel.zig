@@ -4,11 +4,11 @@
 //! Run the actual creation via CLI: abi create-subagent [options] [name].
 
 const std = @import("std");
-const terminal = @import("../terminal.zig");
-const layout = @import("../layout.zig");
-const themes = @import("../themes.zig");
-const events = @import("../events.zig");
-const Panel = @import("../panel.zig");
+const terminal = @import("../terminal");
+const layout = @import("../layout");
+const themes = @import("../themes");
+const events = @import("../events");
+const Panel = @import("../panel");
 
 pub const CreateSubagentPanel = struct {
     allocator: std.mem.Allocator,

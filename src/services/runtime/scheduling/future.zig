@@ -4,8 +4,8 @@
 //! at some point, with combinators for composition and transformation.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 
 /// Common future errors
 pub const FutureError = std.mem.Allocator.Error || error{

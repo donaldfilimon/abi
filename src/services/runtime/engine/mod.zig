@@ -20,12 +20,12 @@ const has_threads = !(@import("builtin").cpu.arch == .wasm32 or
     @import("builtin").os.tag == .freestanding);
 
 // Local imports (implementation files) - conditionally compiled
-pub const engine_impl = if (has_threads) @import("engine.zig") else @import("engine_stub.zig");
-pub const types = @import("types.zig");
-pub const numa = if (has_threads) @import("numa.zig") else @import("numa_stub.zig");
-pub const benchmark = if (has_threads) @import("benchmark.zig") else @import("benchmark_stub.zig");
-pub const result_cache = @import("result_cache.zig");
-pub const steal_policy = if (has_threads) @import("steal_policy.zig") else struct {
+pub const engine_impl = if (has_threads) @import("engine") else @import("engine_stub");
+pub const types = @import("types");
+pub const numa = if (has_threads) @import("numa") else @import("numa_stub");
+pub const benchmark = if (has_threads) @import("benchmark") else @import("benchmark_stub");
+pub const result_cache = @import("result_cache");
+pub const steal_policy = if (has_threads) @import("steal_policy") else struct {
     // Stub for platforms without thread support
     pub const NumaStealPolicy = struct {
         pub fn init(_: anytype, _: anytype, _: anytype, _: anytype) !@This() {
@@ -86,7 +86,7 @@ pub const StealPolicyConfig = if (has_threads) steal_policy.StealPolicyConfig el
 pub const StealStats = if (has_threads) steal_policy.StealStats else struct {};
 
 // Workload types — defined in engine_stub.zig only; provide stubs when threaded.
-const stub_types = @import("engine_stub.zig");
+const stub_types = @import("engine_stub");
 pub const ExecutionContext = stub_types.ExecutionContext;
 pub const WorkloadHints = stub_types.WorkloadHints;
 pub const WorkloadVTable = stub_types.WorkloadVTable;

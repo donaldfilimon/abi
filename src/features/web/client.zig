@@ -16,7 +16,7 @@
 
 const std = @import("std");
 
-const http_utils = @import("../../services/shared/utils.zig").http;
+const http_utils = @import("shared_services").utils.http;
 
 /// HTTP-specific errors that can occur during requests.
 /// These are re-exported from the shared http utilities module.

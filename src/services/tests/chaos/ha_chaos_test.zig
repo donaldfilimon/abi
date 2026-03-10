@@ -18,8 +18,8 @@ const abi = @import("abi");
 const time = abi.services.shared.time;
 const sync = abi.services.shared.sync;
 const ha = abi.services.ha;
-const chaos = @import("mod.zig");
-const helpers = @import("../helpers.zig");
+const chaos = @import("mod");
+const helpers = @import("../helpers");
 
 // Re-export sleep from helpers for convenience
 const sleepMs = helpers.sleepMs;

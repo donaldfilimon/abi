@@ -98,7 +98,7 @@ pub const HelpBuilder = struct {
     /// Respects NO_COLOR / --no-color. Existing callers of `section()` are
     /// unaffected; this is an opt-in variant for commands that want richer output.
     pub fn sectionColored(self: *HelpBuilder, title: []const u8) *HelpBuilder {
-        const output_mod = @import("output.zig");
+        const output_mod = @import("output");
         const C = output_mod.Color;
         self.captureError(self.writeFmt("{s}{s}{s}:{s}\n", .{
             C.bold(), C.cyan(), title, C.reset(),
@@ -204,7 +204,7 @@ pub const HelpBuilder = struct {
 
     /// Build and print help text.
     pub fn print(self: *HelpBuilder) void {
-        const output_mod = @import("output.zig");
+        const output_mod = @import("output");
         output_mod.print("{s}", .{self.buffer.items});
     }
 
@@ -268,7 +268,7 @@ pub fn printSimpleHelp(
     desc: []const u8,
     opts: []const Option,
 ) void {
-    const output_mod = @import("output.zig");
+    const output_mod = @import("output");
     output_mod.println("Usage: {s} {s}", .{ command, usage_args });
     output_mod.println("", .{});
     output_mod.println("{s}", .{desc});
@@ -401,7 +401,7 @@ test "HelpBuilder: sectionColored" {
     defer builder.deinit();
 
     // Set color environment for test determinism
-    const output_mod = @import("output.zig");
+    const output_mod = @import("output");
     output_mod.enableColor();
     _ = builder.sectionColored("Advanced");
     const result = try builder.build();

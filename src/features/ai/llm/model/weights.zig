@@ -3,9 +3,9 @@
 //! Handles loading, storing, and accessing model weights.
 
 const std = @import("std");
-const config_mod = @import("config.zig");
-const gguf = @import("../io/gguf.zig");
-const tensor_loader = @import("../io/tensor_loader.zig");
+const config_mod = @import("config");
+const gguf = @import("../io/gguf");
+const tensor_loader = @import("../io/tensor_loader");
 
 /// Layer weights for a single transformer layer.
 pub const LayerWeights = struct {

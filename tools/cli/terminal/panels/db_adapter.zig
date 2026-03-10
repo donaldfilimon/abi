@@ -3,12 +3,12 @@
 //! Wraps `db_panel.DatabasePanel` to conform to the Panel vtable interface.
 
 const std = @import("std");
-const panel_mod = @import("../panel.zig");
-const terminal = @import("../terminal.zig");
-const layout = @import("../layout.zig");
-const themes = @import("../themes.zig");
-const events = @import("../events.zig");
-const db_panel = @import("../db_panel.zig");
+const panel_mod = @import("../panel");
+const terminal = @import("../terminal");
+const layout = @import("../layout");
+const themes = @import("../themes");
+const events = @import("../events");
+const db_panel = @import("../db_panel");
 
 pub const DbAdapter = struct {
     inner: db_panel.DatabasePanel,

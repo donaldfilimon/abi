@@ -7,11 +7,11 @@
 //! - discovery_types.zig: Type definitions, config, errors, and utilities
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
-const registry = @import("registry.zig");
+const time = @import("shared_services").utils;
+const registry = @import("registry");
 
 // Import types from submodule
-pub const discovery_types = @import("discovery_types.zig");
+pub const discovery_types = @import("discovery_types");
 
 // Re-export types
 pub const DiscoveryBackend = discovery_types.DiscoveryBackend;

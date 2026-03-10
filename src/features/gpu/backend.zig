@@ -2,9 +2,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
-const shared = @import("backends/shared.zig");
-const metal_caps = @import("backends/metal/capabilities.zig");
-const vulkan_caps = @import("backends/vulkan/capabilities.zig");
+const shared = @import("backends/shared");
+const metal_caps = @import("backends/metal/capabilities");
+const vulkan_caps = @import("backends/vulkan/capabilities");
 
 pub const Backend = enum {
     cuda,

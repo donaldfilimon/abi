@@ -5,7 +5,7 @@
 //! - Custom ABI format
 
 const std = @import("std");
-pub const openai = @import("openai.zig");
+pub const openai = @import("openai");
 
 /// Format type enumeration
 pub const FormatType = enum {

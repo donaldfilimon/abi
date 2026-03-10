@@ -3,7 +3,7 @@
 //! Comptime configuration for MSL code generation targeting Apple Metal.
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 
 /// MSL type names.
 pub const type_names = mod.TypeNames{
@@ -33,7 +33,7 @@ pub const vector_naming = mod.VectorNaming{
 
 /// MSL-specific vector element type names.
 pub const vector_element_names = struct {
-    pub fn get(comptime element: @import("../../types.zig").ScalarType) []const u8 {
+    pub fn get(comptime element: @import("../../types").ScalarType) []const u8 {
         return switch (element) {
             .bool_ => "bool",
             .i8 => "char",

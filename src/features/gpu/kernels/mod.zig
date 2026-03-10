@@ -16,24 +16,24 @@
 //! ## Usage
 //!
 //! ```zig
-//! const kernels = @import("gpu/kernels/mod.zig");
+//! const kernels = @import("gpu/kernels");
 //!
 //! var ir = try kernels.buildKernelIR(allocator, .vector_add);
 //! // Use ir with dsl.compile() to generate backend code
 //! ```
 
 const std = @import("std");
-const dsl = @import("../dsl/mod.zig");
+const dsl = @import("../dsl");
 
 // Re-export sub-modules
-pub const elementwise = @import("elementwise.zig");
-pub const matrix = @import("matrix.zig");
-pub const reduction = @import("reduction.zig");
-pub const activation = @import("activation.zig");
-pub const normalization = @import("normalization.zig");
-pub const linalg = @import("linalg.zig");
-pub const batch = @import("batch.zig");
-pub const vision = @import("vision.zig");
+pub const elementwise = @import("elementwise");
+pub const matrix = @import("matrix");
+pub const reduction = @import("reduction");
+pub const activation = @import("activation");
+pub const normalization = @import("normalization");
+pub const linalg = @import("linalg");
+pub const batch = @import("batch");
+pub const vision = @import("vision");
 
 // Re-export common types
 pub const KernelIR = dsl.KernelIR;

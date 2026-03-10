@@ -3,8 +3,8 @@
 //! CRUD operations and status management for tasks.
 
 const std = @import("std");
-const types = @import("types.zig");
-const persistence = @import("persistence.zig");
+const types = @import("types");
+const persistence = @import("persistence");
 
 const Task = types.Task;
 const Status = types.Status;
@@ -13,7 +13,7 @@ const Category = types.Category;
 const AddOptions = types.AddOptions;
 const ManagerError = types.ManagerError;
 
-const time_utils = @import("../shared/utils.zig");
+const time_utils = @import("shared_services").utils;
 
 /// Add a new task
 pub fn add(

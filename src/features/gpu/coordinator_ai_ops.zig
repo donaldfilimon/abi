@@ -5,8 +5,8 @@
 //! to the coordinator's execution pipeline with automatic GPU → SIMD → scalar fallback.
 
 const std = @import("std");
-const ai_ops = @import("ai_ops.zig");
-const execution_coordinator = @import("execution_coordinator.zig");
+const ai_ops = @import("ai_ops");
+const execution_coordinator = @import("execution_coordinator");
 
 const AiOps = ai_ops.AiOps;
 const AiOpsError = ai_ops.AiOpsError;

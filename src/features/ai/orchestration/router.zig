@@ -4,8 +4,8 @@
 //! various strategies including task type, load balancing, and model capabilities.
 
 const std = @import("std");
-const mod = @import("mod.zig");
-const time = @import("../../../services/shared/time.zig");
+const mod = @import("mod");
+const time = @import("shared_services").time;
 
 // ============================================================================
 // Types

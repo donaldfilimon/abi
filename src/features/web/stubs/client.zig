@@ -5,7 +5,7 @@
 //! network I/O.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 /// Stub HTTP client.
 ///

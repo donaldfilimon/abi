@@ -5,11 +5,11 @@
 
 const std = @import("std");
 
-pub const cache = @import("cache.zig");
-pub const search = @import("search.zig");
-pub const gateway = @import("gateway.zig");
-pub const messaging = @import("messaging.zig");
-pub const storage = @import("storage.zig");
+pub const cache = @import("cache");
+pub const search = @import("search");
+pub const gateway = @import("gateway");
+pub const messaging = @import("messaging");
+pub const storage = @import("storage");
 
 pub fn runAllBenchmarks(allocator: std.mem.Allocator) !void {
     try cache.run(allocator);

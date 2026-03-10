@@ -38,7 +38,7 @@ pub fn addWasmBuild(
 
     const wasm_build_opts = modules.createBuildOptionsModule(b, wasm_opts);
     const abi_wasm = b.addModule("abi-wasm", .{
-        .root_source_file = b.path("src/abi.zig"),
+        .root_source_file = b.path("src/root.zig"),
         .target = wasm_target,
         .optimize = optimize,
     });

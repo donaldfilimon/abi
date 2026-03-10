@@ -4,11 +4,11 @@
 //! original monolithic simd.zig is available here.
 const std = @import("std");
 
-pub const vector_ops = @import("vector_ops.zig");
-pub const activations = @import("activations.zig");
-pub const distances = @import("distances.zig");
-pub const integer_ops = @import("integer_ops.zig");
-pub const extras = @import("extras.zig");
+pub const vector_ops = @import("vector_ops");
+pub const activations = @import("activations");
+pub const distances = @import("distances");
+pub const integer_ops = @import("integer_ops");
+pub const extras = @import("extras");
 
 // ============================================================================
 // Re-exports: vector_ops.zig
@@ -97,7 +97,7 @@ test {
     _ = distances;
     _ = integer_ops;
     _ = extras;
-    _ = @import("simd_test.zig");
+    _ = @import("simd_test");
 }
 
 test {

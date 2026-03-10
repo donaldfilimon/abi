@@ -10,7 +10,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const orchestration = @import("orchestration/mod.zig");
+//! const orchestration = @import("orchestration");
 //!
 //! // Create orchestrator with configuration
 //! var orch = try orchestration.Orchestrator.init(allocator, .{
@@ -33,19 +33,19 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const utils = @import("../../../services/shared/utils.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const utils = @import("shared_services").utils;
+const sync = @import("shared_services").sync;
 
 const Mutex = sync.Mutex;
 
 // Provider router for real inference dispatch
-const provider_router = @import("../llm/providers/router.zig");
-const provider_types = @import("../llm/providers/types.zig");
+const provider_router = @import("../llm/providers/router");
+const provider_types = @import("../llm/providers/types");
 
 // Sub-modules
-pub const router = @import("router.zig");
-pub const ensemble = @import("ensemble.zig");
-pub const fallback = @import("fallback.zig");
+pub const router = @import("router");
+pub const ensemble = @import("ensemble");
+pub const fallback = @import("fallback");
 
 // Re-exports
 pub const Router = router.Router;

@@ -7,7 +7,7 @@
 //! - batch_cosine_similarity: Cosine similarity for vector search
 
 const std = @import("std");
-const dsl = @import("../dsl/mod.zig");
+const dsl = @import("../dsl");
 
 pub const KernelIR = dsl.KernelIR;
 pub const KernelBuilder = dsl.KernelBuilder;

@@ -7,7 +7,7 @@
 //! - Reflection: Constitutional alignment scoring for Abbey
 
 const std = @import("std");
-const principles = @import("principles.zig");
+const principles = @import("principles");
 
 const Principle = principles.Principle;
 const Severity = principles.Severity;

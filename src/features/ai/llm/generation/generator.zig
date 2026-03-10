@@ -1,9 +1,9 @@
 //! Text generator for autoregressive generation.
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
-const sampler_mod = @import("sampler.zig");
-const tokenizer = @import("../tokenizer/mod.zig");
+const time = @import("shared_services").time;
+const sampler_mod = @import("sampler");
+const tokenizer = @import("../tokenizer");
 
 /// Error set for model forward pass operations.
 pub const ForwardError = error{

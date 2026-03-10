@@ -4,10 +4,10 @@
 //! stub implementations. For actual GPU compute in web environments, use WebGPU.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const types = @import("../kernel_types.zig");
-const shared = @import("shared.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const types = @import("../kernel_types");
+const shared = @import("shared");
 
 pub const WebGl2Error = error{
     NotSupported,

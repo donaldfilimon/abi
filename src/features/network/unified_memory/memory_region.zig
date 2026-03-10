@@ -4,9 +4,9 @@
 //! memory system. Regions track ownership, permissions, and coherence state.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const shared_utils = @import("../../../services/shared/utils.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const shared_utils = @import("shared_services").utils;
 
 /// Unique identifier for a memory region.
 pub const RegionId = u64;

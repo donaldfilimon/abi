@@ -4,7 +4,7 @@
 //! reducing boilerplate in CLI command implementations.
 
 const std = @import("std");
-const output = @import("output.zig");
+const output = @import("output");
 
 /// Check if text matches any of the provided options.
 pub fn matchesAny(text: []const u8, options: []const []const u8) bool {
@@ -53,7 +53,7 @@ pub fn suggestCommand(input: []const u8, commands: []const []const u8) ?[]const 
     }
 
     // 4. Fuzzy match via Levenshtein edit distance (max distance 3)
-    const help_utils = @import("help.zig");
+    const help_utils = @import("help");
     var best: ?[]const u8 = null;
     var best_dist: usize = 4; // threshold: only suggest if distance <= 3
     for (commands) |cmd| {

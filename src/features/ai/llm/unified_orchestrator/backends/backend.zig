@@ -1,7 +1,7 @@
 //! Backend interface for the unified orchestrator.
 
 const std = @import("std");
-const types = @import("../protocol/types.zig");
+const types = @import("../protocol/types");
 
 pub const BackendInterface = struct {
     /// Run non-streaming inference.

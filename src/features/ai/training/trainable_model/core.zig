@@ -4,17 +4,17 @@
 //! checkpoint persistence are implemented in dedicated modules.
 
 const std = @import("std");
-const ops = @import("../../llm/ops/mod.zig");
-const model_config = @import("../model/config.zig");
-const trainable_ckpt = @import("../trainable_checkpoint.zig");
+const ops = @import("../../llm/ops");
+const model_config = @import("../model/config");
+const trainable_ckpt = @import("../trainable_checkpoint");
 
 // Re-exports from related modules.
-const weights_mod = @import("../weights.zig");
-const forward_mod = @import("forward.zig");
-const backward_mod = @import("backward.zig");
-const io_mod = @import("io.zig");
-const checkpoint_mod = @import("checkpoint.zig");
-const training_bridge = @import("../../../gpu/training_bridge.zig");
+const weights_mod = @import("../weights");
+const forward_mod = @import("forward");
+const backward_mod = @import("backward");
+const io_mod = @import("io");
+const checkpoint_mod = @import("checkpoint");
+const training_bridge = @import("../../../gpu/training_bridge");
 
 pub const TrainableLayerWeights = weights_mod.TrainableLayerWeights;
 pub const TrainableWeights = weights_mod.TrainableWeights;

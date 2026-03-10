@@ -3,16 +3,16 @@
 //! Talks to ZLS over JSON-RPC and exposes common LSP requests.
 //!
 //! Usage:
-//!   abi lsp hover --path src/main.zig --line 0 --character 0
-//!   abi lsp completion --path src/main.zig --line 3 --character 10
+//!   abi lsp hover --path src/root.zig --line 0 --character 0
+//!   abi lsp completion --path src/root.zig --line 3 --character 10
 //!   abi lsp request --method textDocument/hover --params '{...}'
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 const utils = @import("../../utils/mod.zig");
-const cli_io = @import("../../utils/io_backend.zig");
+const cli_io = @import("../../utils/io_backend");
 
 const lsp = abi.services.lsp;
 const ArgParser = utils.args.ArgParser;
@@ -628,8 +628,8 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .option(common_options.help)
         .newline()
         .section("Examples")
-        .example("abi lsp hover --path src/main.zig --line 0 --character 0", "Hover")
-        .example("abi lsp completion --path src/main.zig --line 3 --character 10", "Completion")
+        .example("abi lsp hover --path src/root.zig --line 0 --character 0", "Hover")
+        .example("abi lsp completion --path src/root.zig --line 3 --character 10", "Completion")
         .example("abi lsp request --method textDocument/definition --params '{...}'", "Raw request");
 
     builder.print();

@@ -9,8 +9,8 @@
 //! ## Usage
 //!
 //! ```zig
-//! const comparator = @import("baseline_comparator.zig");
-//! const store = @import("baseline_store.zig");
+//! const comparator = @import("baseline_comparator");
+//! const store = @import("baseline_store");
 //!
 //! var baseline_store = store.BaselineStore.init(allocator, "benchmarks/baselines");
 //! defer baseline_store.deinit();
@@ -26,7 +26,7 @@
 
 const std = @import("std");
 const time = @import("abi").services.shared.time;
-const baseline_store = @import("baseline_store.zig");
+const baseline_store = @import("baseline_store");
 
 pub const BenchmarkResult = baseline_store.BenchmarkResult;
 pub const BaselineStore = baseline_store.BaselineStore;

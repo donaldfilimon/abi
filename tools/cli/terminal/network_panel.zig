@@ -7,11 +7,11 @@
 //! - Bandwidth utilization
 
 const std = @import("std");
-const terminal = @import("terminal.zig");
-const themes = @import("themes.zig");
-const render_utils = @import("render_utils.zig");
-const widgets = @import("widgets.zig");
-const RingBuffer = @import("ring_buffer.zig").RingBuffer;
+const terminal = @import("terminal");
+const themes = @import("themes");
+const render_utils = @import("render_utils");
+const widgets = @import("widgets");
+const RingBuffer = @import("ring_buffer").RingBuffer;
 
 pub const NetworkPanel = struct {
     allocator: std.mem.Allocator,

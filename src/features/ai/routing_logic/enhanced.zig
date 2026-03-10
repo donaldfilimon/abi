@@ -20,8 +20,8 @@ const std = @import("std");
 const time = @import("shared_services").time;
 const personas = @import("..");
 const types = personas.types;
-const block_chain = @import("../../../database/block_chain");
-const embeddings = @import("../../../ai/embeddings");
+const block_chain = @import("../../../core/database/block_chain");
+const embeddings = @import("../embeddings");
 
 /// Enhanced routing result with mathematical blending and WDBX integration
 pub const EnhancedRoutingDecision = struct {

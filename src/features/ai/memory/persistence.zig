@@ -8,9 +8,9 @@
 //! Session files are stored under the platform-specific ABI app root by default.
 
 const std = @import("std");
-const time = @import("../../../services/shared/utils.zig");
-const app_paths = @import("../../../services/shared/app_paths.zig");
-const mod = @import("mod.zig");
+const time = @import("shared_services").utils;
+const app_paths = @import("shared_services").app_paths;
+const mod = @import("mod");
 
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;

@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const loader = @import("loader.zig");
+const loader = @import("loader");
 
 pub const MemoryError = error{
     OutOfMemory,

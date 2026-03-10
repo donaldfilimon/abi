@@ -3,7 +3,7 @@
 //! ZON serialization and file I/O for task data.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 const Task = types.Task;
 const Status = types.Status;

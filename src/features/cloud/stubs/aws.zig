@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 pub const LambdaRuntime = struct {
     pub fn init(allocator: std.mem.Allocator, handler: types.CloudHandler) !LambdaRuntime {

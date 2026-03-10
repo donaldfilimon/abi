@@ -4,11 +4,11 @@
 //! messages when the token limit is exceeded.
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
 const MemoryStats = mod.MemoryStats;
-const MemoryType = @import("manager.zig").MemoryType;
+const MemoryType = @import("manager").MemoryType;
 
 /// Sliding window memory with token-based capacity.
 pub const SlidingWindowMemory = struct {

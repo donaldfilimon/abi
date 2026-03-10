@@ -1,18 +1,18 @@
 //! AI Reasoning Stub Module — disabled when AI reasoning is off.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../../core/config");
 
 pub const Error = error{ ReasoningDisabled, InvalidConfig };
 
 // Sub-module stubs
-pub const abbey = @import("../abbey/stub.zig");
-pub const rag = @import("../rag/stub.zig");
-pub const eval = @import("../eval/stub.zig");
-pub const templates = @import("../templates/stub.zig");
-pub const explore = @import("../explore/stub.zig");
-pub const orchestration = @import("../orchestration/stub.zig");
-pub const documents = @import("../documents/stub.zig");
+pub const abbey = @import("../abbey/stub");
+pub const rag = @import("../rag/stub");
+pub const eval = @import("../eval/stub");
+pub const templates = @import("../templates/stub");
+pub const explore = @import("../explore/stub");
+pub const orchestration = @import("../orchestration/stub");
+pub const documents = @import("../documents/stub");
 
 // Re-exports
 pub const AbbeyEngine = abbey.AbbeyEngine;

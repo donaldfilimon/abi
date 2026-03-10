@@ -1,9 +1,9 @@
 const std = @import("std");
 
-const multi_device = @import("../multi_device.zig");
+const multi_device = @import("../multi_device");
 
-pub const cluster = @import("../gpu_cluster.zig");
-pub const group = @import("../device_group.zig");
+pub const cluster = @import("../gpu_cluster");
+pub const group = @import("../device_group");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const DeviceType = multi_device.DeviceType;

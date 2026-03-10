@@ -4,13 +4,13 @@
 //! and tensor parallelism across multiple GPU devices.
 
 const std = @import("std");
-const unified = @import("unified.zig");
-const peer_transfer = @import("peer_transfer/mod.zig");
-const device_group_mod = @import("device_group.zig");
-const backend_pool_mod = @import("backends/pool.zig");
-const backend_mod = @import("backend.zig");
+const unified = @import("unified");
+const peer_transfer = @import("peer_transfer");
+const device_group_mod = @import("device_group");
+const backend_pool_mod = @import("backends/pool");
+const backend_mod = @import("backend");
 
-const sync = @import("../../services/shared/sync.zig");
+const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;
 
 // Re-import types from device_group for use in this module

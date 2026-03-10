@@ -7,8 +7,8 @@
 //! - Anthropic: Claude API streaming
 
 const std = @import("std");
-pub const local = @import("local.zig");
-pub const external = @import("external.zig");
+pub const local = @import("local");
+pub const external = @import("external");
 
 /// Available backend types
 pub const BackendType = enum {
@@ -205,8 +205,8 @@ pub const BackendRouter = struct {
     recovery: ?*Recovery,
 
     const Self = @This();
-    const Recovery = @import("../recovery.zig").StreamRecovery;
-    const RecoveryConfig = @import("../recovery.zig").RecoveryConfig;
+    const Recovery = @import("../recovery").StreamRecovery;
+    const RecoveryConfig = @import("../recovery").RecoveryConfig;
 
     pub fn init(allocator: std.mem.Allocator) !Self {
         return initWithRecovery(allocator, null);
@@ -313,7 +313,7 @@ pub const BackendRouter = struct {
         // Record metrics on stream start
         if (self.recovery) |r| {
             if (r.getMetrics()) |m| {
-                const metrics_type = @import("../metrics.zig").BackendType;
+                const metrics_type = @import("../metrics").BackendType;
                 m.recordStreamStart(@enumFromInt(@intFromEnum(backend_type)));
                 _ = metrics_type;
             }

@@ -4,8 +4,8 @@
 //! and host-to-device / device-to-host / device-to-device memory copies.
 
 const std = @import("std");
-const s = @import("metal_state.zig");
-const metal_types = @import("metal_types.zig");
+const s = @import("metal_state");
+const metal_types = @import("metal_types");
 
 /// Safely cast an opaque pointer to a MetalBuffer pointer with validation.
 /// Returns null if the pointer is null or the magic value doesn't match.

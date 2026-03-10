@@ -12,16 +12,16 @@
 //! - nvrtc.zig: Runtime compilation support
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
-const sync = @import("../../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 const build_options = @import("build_options");
-const types = @import("../../kernel_types.zig");
-const shared = @import("../shared.zig");
-const fallback = @import("../fallback.zig");
+const types = @import("../../kernel_types");
+const shared = @import("../shared");
+const fallback = @import("../fallback");
 const gpu = std.gpu;
 
 const cuda_native = if (shared.dynlibSupported)
-    @import("native.zig")
+    @import("native")
 else
     struct {
         pub const CudaError = error{
@@ -71,7 +71,7 @@ else
     };
 
 const cuda_loader = if (shared.dynlibSupported)
-    @import("loader.zig")
+    @import("loader")
 else
     struct {
         pub const CuResult = enum(i32) { success = 0, _ };
@@ -100,7 +100,7 @@ else
     };
 
 const device_query_mod = if (shared.dynlibSupported)
-    @import("device_query.zig")
+    @import("device_query")
 else
     struct {
         pub const CudaArchitecture = enum {
@@ -121,7 +121,7 @@ else
     };
 
 const nvrtc_mod = if (shared.dynlibSupported)
-    @import("nvrtc.zig")
+    @import("nvrtc")
 else
     struct {
         pub fn isAvailable() bool {
@@ -133,7 +133,7 @@ else
 pub const loader = cuda_loader;
 pub const native = cuda_native;
 pub const memory = if (shared.dynlibSupported)
-    @import("memory.zig")
+    @import("memory")
 else
     struct {
         pub fn init(_: std.mem.Allocator) error{InitializationFailed}!void {
@@ -142,7 +142,7 @@ else
         pub fn deinit() void {}
     };
 pub const stream = if (shared.dynlibSupported)
-    @import("stream.zig")
+    @import("stream")
 else
     struct {
         pub fn init() error{InitializationFailed}!void {
@@ -153,7 +153,7 @@ else
 pub const device_query = device_query_mod;
 pub const nvrtc = nvrtc_mod;
 pub const cublas = if (build_options.feat_gpu and build_options.gpu_cuda and shared.dynlibSupported)
-    @import("cublas.zig")
+    @import("cublas")
 else
     struct {
         pub const CublasContext = void;
@@ -162,7 +162,7 @@ else
         }
     };
 pub const llm_kernels = if (shared.dynlibSupported)
-    @import("llm_kernels.zig")
+    @import("llm_kernels")
 else
     struct {
         pub fn isAvailable() bool {
@@ -170,7 +170,7 @@ else
         }
     };
 pub const quantized_kernels = if (shared.dynlibSupported)
-    @import("quantized_kernels.zig")
+    @import("quantized_kernels")
 else
     struct {
         pub const QuantConfig = struct {};
@@ -185,7 +185,7 @@ else
         };
     };
 pub const cudnn = if (shared.dynlibSupported)
-    @import("cudnn.zig")
+    @import("cudnn")
 else
     struct {
         pub const CudnnError = error{
@@ -209,7 +209,7 @@ else
             return false;
         }
     };
-pub const vtable = @import("vtable.zig");
+pub const vtable = @import("vtable");
 
 // VTable backend exports
 pub const CudaBackend = vtable.CudaBackend;

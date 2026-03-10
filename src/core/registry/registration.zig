@@ -3,7 +3,7 @@
 //! Registration APIs for different feature modes: comptime, runtime toggle, and dynamic.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 const Feature = types.Feature;
 const RegistrationMode = types.RegistrationMode;

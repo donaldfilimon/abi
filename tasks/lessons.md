@@ -93,6 +93,14 @@
 - Root cause: A bulk operation that stripped the word "zig" from file content also removed it from inside string literals (`@import("...zig")`, `"zig"` comparisons, `"which -a zig"` commands). The displaced `")` characters appeared as stray suffixes on nearby expression lines.
 - Prevention rule: Never run bulk find-and-replace on source code without excluding string literal interiors. After any bulk text operation, run `zig fmt --check` immediately to catch truncated string literals (they show as "invalid byte: '\n'" errors). Always verify with format check before committing.
 
+## 2026-03-10 - Corruption patterns cascade: one bulk operation creates multiple fix waves
+- Root cause: The initial "zig" stripping corruption was fixed in 33 files, but 33 more files had the same pattern in different directories (services/, tools/, gpu/). A third wave found 22 more in doc comments and file path strings.
+- Prevention rule: After fixing bulk corruption, run `zig fmt --check build.zig build/ src/ tools/` immediately and count remaining parse errors — they indicate more files with the same pattern. Don't commit until parse errors reach 0. Search for all corruption patterns systematically (not just the first directory).
+
+## 2026-03-10 - Mod/stub parity must be checked after migration
+- Root cause: After migrating database from features/ to core/, the features/database/mod.zig facade only re-exported 7 sub-modules while stub.zig provided the full 58-item API. Code using `database.open()` would compile with feat_database=true but fail with feat_database=false.
+- Prevention rule: After any feature module migration, run a mod↔stub parity check to ensure both export identical public API surfaces. The stub-sync-validator agent in zig-abi-plugin can automate this.
+
 ## 2026-03-10 - Validation matrix no-X entries must enable ALL other features
 - Root cause: 19 of 20 `no-X` entries in `build/flags.zig` validation_matrix were missing `.feat_mobile = true`, meaning they silently tested with mobile disabled — hiding potential mobile interaction bugs.
 - Prevention rule: When adding a new feature flag, add it to ALL existing no-X entries (except no-<self>), not just the solo and no-self entries. Verify total count matches formula: 2 baseline + N solo + N no-X.

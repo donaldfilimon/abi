@@ -4,8 +4,8 @@
 //! for the self-learning system.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const learning_types = @import("learning_types.zig");
+const time = @import("shared_services").time;
+const learning_types = @import("learning_types");
 
 pub const LearningExperience = learning_types.LearningExperience;
 

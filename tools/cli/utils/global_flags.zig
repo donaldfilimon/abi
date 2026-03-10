@@ -25,7 +25,7 @@
 //! Features: gpu, ai, llm, embeddings, agents, training, database, network, observability, web
 
 const std = @import("std");
-const output = @import("output.zig");
+const output = @import("output");
 const config_module = @import("abi").config;
 const registry_mod = @import("abi").registry;
 
@@ -282,7 +282,7 @@ fn printUnknownFeatureError(feature_name: []const u8) void {
     inline for (features, 0..) |field, i| {
         names_buf[i] = field.name;
     }
-    if (@import("args.zig").suggestCommand(feature_name, &names_buf)) |suggestion| {
+    if (@import("args").suggestCommand(feature_name, &names_buf)) |suggestion| {
         output.printInfo("Did you mean: {s}?", .{suggestion});
     }
 

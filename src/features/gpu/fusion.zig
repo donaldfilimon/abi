@@ -12,7 +12,7 @@
 //! - Reduction chains: sum(mul(a, b)) -> fused_dot_product
 
 const std = @import("std");
-const occupancy = @import("occupancy.zig");
+const occupancy = @import("occupancy");
 
 /// Operation types that can be fused.
 pub const OpType = enum {

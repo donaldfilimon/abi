@@ -16,8 +16,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const mod = @import("mod.zig");
-const framework = @import("../system/framework.zig");
+const mod = @import("mod");
+const framework = @import("../system/framework");
 const simd = abi.services.simd;
 
 /// Vector database reference baselines

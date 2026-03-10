@@ -3,9 +3,9 @@
 //! Monitors node health and triggers automatic failover when primary fails.
 
 const std = @import("std");
-const loadbalancer = @import("loadbalancer.zig");
-const platform_time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
+const loadbalancer = @import("loadbalancer");
+const platform_time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 
 pub const FailoverConfig = struct {
     /// Health check interval in milliseconds.

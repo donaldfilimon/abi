@@ -9,12 +9,12 @@
 //! is disabled.
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
+const time = @import("shared_services").time;
 const build_options = @import("build_options");
 
 // Centralized GPU interface - handles compile-time gating and stubs
 // Direct import avoids circular dependency (feature modules cannot @import("abi"))
-const ai_ops = @import("../../../gpu/ai_ops.zig");
+const ai_ops = @import("../../../gpu/ai_ops");
 
 // Re-export GPU modules from ai_ops (stubs provided when GPU disabled)
 const cuda_mod = struct {

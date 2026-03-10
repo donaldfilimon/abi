@@ -1,8 +1,8 @@
 //! Training Stub Module
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
-const vision = @import("../vision/stub.zig");
+const config_module = @import("../../../core/config");
+const vision = @import("../vision/stub");
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 

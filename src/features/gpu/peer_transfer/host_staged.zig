@@ -13,9 +13,9 @@
 //! This is the slowest transfer method but always works.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const multi_device = @import("../multi_device.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const multi_device = @import("../multi_device");
 
 pub const DeviceId = multi_device.DeviceId;
 

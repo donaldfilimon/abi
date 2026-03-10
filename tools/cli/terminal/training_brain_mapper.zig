@@ -10,8 +10,8 @@
 //! - Output layer (48-63): accuracy/convergence glow
 
 const std = @import("std");
-const brain_panel = @import("brain_panel.zig");
-const training_metrics = @import("training_metrics.zig");
+const brain_panel = @import("brain_panel");
+const training_metrics = @import("training_metrics");
 
 /// GPU stats for visualization (mirrors training_bridge.GpuTrainingStats).
 pub const GpuStats = struct {

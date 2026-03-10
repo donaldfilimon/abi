@@ -4,7 +4,7 @@
 //! evaluating machine translation and text generation quality.
 
 const std = @import("std");
-const tokenizer = @import("tokenizer.zig");
+const tokenizer = @import("tokenizer");
 
 /// Smoothing method for BLEU calculation.
 pub const SmoothingMethod = enum {

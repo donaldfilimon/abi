@@ -4,12 +4,12 @@
 //! including performance benchmarks, stress tests, and correctness verification.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const gpu = @import("../mod.zig");
-const unified = @import("../unified.zig");
-const device_mod = @import("../device.zig");
-const profiling = @import("../profiling.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const gpu = @import("..");
+const unified = @import("../unified");
+const device_mod = @import("../device");
+const profiling = @import("../profiling");
 
 /// Test configuration for comprehensive testing
 pub const TestConfig = struct {

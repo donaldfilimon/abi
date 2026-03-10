@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 pub fn parseProviderId(value: []const u8) ?types.ProviderId {
     if (types.ProviderId.fromString(value)) |provider| return provider;

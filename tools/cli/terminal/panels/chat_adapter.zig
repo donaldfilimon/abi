@@ -3,12 +3,12 @@
 //! Wraps `chat_panel.ChatPanel` to conform to the Panel vtable interface.
 
 const std = @import("std");
-const panel_mod = @import("../panel.zig");
-const terminal = @import("../terminal.zig");
-const layout = @import("../layout.zig");
-const themes = @import("../themes.zig");
-const events = @import("../events.zig");
-const chat_panel = @import("chat_panel.zig");
+const panel_mod = @import("../panel");
+const terminal = @import("../terminal");
+const layout = @import("../layout");
+const themes = @import("../themes");
+const events = @import("../events");
+const chat_panel = @import("chat_panel");
 
 pub const ChatAdapter = struct {
     inner: ?chat_panel.ChatPanel,

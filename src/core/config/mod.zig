@@ -8,23 +8,23 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const feature_catalog = @import("../feature_catalog.zig");
+const feature_catalog = @import("../feature_catalog");
 
 // Domain-specific config imports
-pub const gpu_config = @import("gpu.zig");
-pub const ai_config = @import("ai.zig");
-pub const database_config = @import("database.zig");
-pub const network_config = @import("network.zig");
-pub const observability_config = @import("observability.zig");
-pub const web_config = @import("web.zig");
-pub const cloud_config = @import("cloud.zig");
-pub const platform_config = @import("platform.zig");
-pub const content_config = @import("content.zig");
-pub const gateway_config = @import("gateway.zig");
-pub const benchmarks_config = @import("benchmarks.zig");
-pub const plugin_config = @import("plugin.zig");
-pub const lsp_config = @import("lsp.zig");
-pub const loader = @import("loader.zig");
+pub const gpu_config = @import("gpu");
+pub const ai_config = @import("ai");
+pub const database_config = @import("database");
+pub const network_config = @import("network");
+pub const observability_config = @import("observability");
+pub const web_config = @import("web");
+pub const cloud_config = @import("cloud");
+pub const platform_config = @import("platform");
+pub const content_config = @import("content");
+pub const gateway_config = @import("gateway");
+pub const benchmarks_config = @import("benchmarks");
+pub const plugin_config = @import("plugin");
+pub const lsp_config = @import("lsp");
+pub const loader = @import("loader");
 
 // Re-export loader types
 pub const ConfigLoader = loader.ConfigLoader;

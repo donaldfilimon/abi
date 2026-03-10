@@ -5,7 +5,7 @@
 //! All functions take a pointer to SpirvGenerator as the first argument.
 
 const std = @import("std");
-const constants = @import("constants.zig");
+const constants = @import("constants");
 
 pub const OpCode = constants.OpCode;
 pub const Capability = constants.Capability;
@@ -17,7 +17,7 @@ pub const StorageClass = constants.StorageClass;
 pub const Decoration = constants.Decoration;
 
 /// The generator type — imported lazily to avoid circular deps.
-const SpirvGenerator = @import("generator.zig").SpirvGenerator;
+const SpirvGenerator = @import("generator").SpirvGenerator;
 
 pub fn emitOp(self: *SpirvGenerator, section: *std.ArrayListUnmanaged(u32), opcode: OpCode, operands: []const u32) !void {
     const word_count: u32 = @intCast(1 + operands.len);

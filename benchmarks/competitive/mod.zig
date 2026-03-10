@@ -17,11 +17,11 @@
 //! CI/CD pipelines and visualization tools.
 
 const std = @import("std");
-const framework = @import("../system/framework.zig");
+const framework = @import("../system/framework");
 
-pub const faiss = @import("faiss_comparison.zig");
-pub const vector_db = @import("vector_db_comparison.zig");
-pub const llm = @import("llm_comparison.zig");
+pub const faiss = @import("faiss_comparison");
+pub const vector_db = @import("vector_db_comparison");
+pub const llm = @import("llm_comparison");
 
 /// Competitive benchmark configuration
 pub const CompetitiveConfig = struct {

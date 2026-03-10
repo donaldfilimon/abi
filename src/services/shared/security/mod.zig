@@ -78,21 +78,25 @@
 /// Supports SHA-256, SHA-512, and BLAKE3 hashing algorithms with configurable
 /// iteration counts for key stretching. Includes timing-safe comparison to
 /// prevent timing attacks.
-pub const api_keys = @import("api_keys.zig");
+pub const api_keys = @import("api_keys");
 
 /// Mutual TLS (mTLS) for bidirectional certificate authentication.
 /// Extends TLS with client certificate verification for service-to-service
 /// authentication in zero-trust architectures.
-pub const mtls = @import("mtls.zig");
+pub const mtls = @import("mtls");
 
 /// Role-based access control (RBAC) with permission caching.
 /// Provides hierarchical roles, permission checks, and cache invalidation.
 /// Default roles: admin, user, readonly, metrics, manager, memory_user, link_admin.
-pub const rbac = @import("rbac.zig");
+pub const rbac = @import("rbac");
 
 /// TLS/SSL connection management supporting TLS 1.2 and 1.3.
 /// Includes certificate validation, hostname verification, and ALPN negotiation.
-pub const tls = @import("tls.zig");
+pub const tls = @import("tls");
+
+/// Cross-platform CSPRNG helper for Zig 0.16.
+/// Provides seeded random generation from OS entropy sources.
+pub const csprng = @import("csprng.zig");
 
 // ============================================================================
 // Extended Security Modules
@@ -101,61 +105,61 @@ pub const tls = @import("tls.zig");
 /// Security audit logging with tamper-evident hash chains.
 /// Provides structured event logging with severity levels, categories,
 /// and optional HMAC-based integrity verification for compliance.
-pub const audit = @import("audit.zig");
+pub const audit = @import("audit");
 
 /// X.509 certificate management and rotation.
 /// Handles certificate lifecycle including generation, validation,
 /// expiration tracking, and automatic rotation.
-pub const certificates = @import("certificates.zig");
+pub const certificates = @import("certificates");
 
 /// Cross-Origin Resource Sharing (CORS) configuration.
 /// Configurable allowed origins, methods, headers, and credentials handling.
 /// Includes presets for common configurations.
-pub const cors = @import("cors.zig");
+pub const cors = @import("cors");
 
 /// Encryption at rest using AEAD algorithms.
 /// Supports AES-256-GCM and ChaCha20-Poly1305 with key derivation
 /// (HKDF, PBKDF2, Argon2id, scrypt) and envelope encryption.
-pub const encryption = @import("encryption.zig");
+pub const encryption = @import("encryption");
 
 /// Security headers middleware for HTTP responses.
 /// Configures Content-Security-Policy, HSTS, X-Frame-Options,
 /// X-Content-Type-Options, Referrer-Policy, and more.
-pub const headers = @import("headers.zig");
+pub const headers = @import("headers");
 
 /// IP address filtering with allow/deny lists.
 /// Supports IPv4/IPv6 addresses and CIDR ranges.
 /// Includes automatic blocking with configurable ban durations.
-pub const ip_filter = @import("ip_filter.zig");
+pub const ip_filter = @import("ip_filter");
 
 /// JSON Web Token (JWT) authentication.
 /// Supports HMAC algorithms (HS256, HS384, HS512) with token creation,
 /// verification, refresh, and blacklist-based revocation.
-pub const jwt = @import("jwt.zig");
+pub const jwt = @import("jwt");
 
 /// Secure password hashing with Argon2id, PBKDF2, and scrypt.
 /// Includes password strength analysis and secure random generation.
-pub const password = @import("password.zig");
+pub const password = @import("password");
 
 /// Rate limiting with multiple algorithms.
 /// Token bucket (allows bursts), sliding window (smooth distribution),
 /// fixed window (simple), and leaky bucket (constant rate).
 /// Supports per-IP, per-user, per-API-key, and global scopes.
-pub const rate_limit = @import("rate_limit.zig");
+pub const rate_limit = @import("rate_limit");
 
 /// Secrets management with encrypted storage.
 /// Supports environment variables, encrypted files, and vault backends.
 /// Includes automatic rotation and secure memory handling.
-pub const secrets = @import("secrets.zig");
+pub const secrets = @import("secrets");
 
 /// Session management for user sessions.
 /// Configurable expiration, secure token generation, and session invalidation.
-pub const session = @import("session.zig");
+pub const session = @import("session");
 
 /// Input validation and sanitization.
 /// Prevents injection attacks through configurable validation rules
 /// and automatic sanitization of user input.
-pub const validation = @import("validation.zig");
+pub const validation = @import("validation");
 
 // ============================================================================
 // API Key Management Types

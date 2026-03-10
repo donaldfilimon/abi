@@ -7,8 +7,8 @@
 //! - Export capabilities
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const config = @import("config.zig");
+const time = @import("shared_services").time;
+const config = @import("config");
 
 /// Types of audit events.
 pub const AuditEventType = enum {

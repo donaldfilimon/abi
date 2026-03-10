@@ -9,11 +9,11 @@
 //! When no tracker is connected, shows a placeholder message.
 
 const std = @import("std");
-const terminal = @import("../terminal.zig");
-const layout = @import("../layout.zig");
-const themes = @import("../themes.zig");
-const events = @import("../events.zig");
-const Panel = @import("../panel.zig");
+const terminal = @import("../terminal");
+const layout = @import("../layout");
+const themes = @import("../themes");
+const events = @import("../events");
+const Panel = @import("../panel");
 
 const tracking = @import("abi").services.shared.utils.memory.tracking;
 pub const TrackingStats = tracking.TrackingStats;

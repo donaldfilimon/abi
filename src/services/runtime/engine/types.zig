@@ -52,8 +52,8 @@
 //! 2. After 16 spins: Yield to OS scheduler
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 
 /// Backoff strategy for spin-wait loops in the engine.
 pub const Backoff = struct {
@@ -147,7 +147,7 @@ pub const EngineConfig = struct {
     worker_count: ?usize = null,
     numa_enabled: bool = false,
     cpu_affinity_enabled: bool = false,
-    numa_topology: ?*@import("numa.zig").CpuTopology = null,
+    numa_topology: ?*@import("numa").CpuTopology = null,
 };
 
 pub const ResultKind = enum {

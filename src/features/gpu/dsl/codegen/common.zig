@@ -4,10 +4,10 @@
 //! type mapping, and expression formatting.
 
 const std = @import("std");
-const types = @import("../types.zig");
-const expr = @import("../expr.zig");
-const stmt = @import("../stmt.zig");
-const kernel = @import("../kernel.zig");
+const types = @import("../types");
+const expr = @import("../expr");
+const stmt = @import("../stmt");
+const kernel = @import("../kernel");
 
 /// String builder for generating source code.
 pub const CodeWriter = struct {

@@ -10,11 +10,11 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const matmul_backward = @import("matmul_backward.zig");
-const attention_backward = @import("attention_backward.zig");
+const matmul_backward = @import("matmul_backward");
+const attention_backward = @import("attention_backward");
 
 // Centralized GPU interface - handles compile-time gating and stubs
-const ai_ops = @import("../../../gpu/ai_ops.zig");
+const ai_ops = @import("../../../gpu/ai_ops");
 
 // Re-export GPU modules from ai_ops (stubs provided when GPU disabled)
 const cublas = ai_ops.cublas;

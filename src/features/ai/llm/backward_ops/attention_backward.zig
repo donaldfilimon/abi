@@ -13,8 +13,8 @@
 //!   d_V = attn^T @ d_output
 
 const std = @import("std");
-const matmul = @import("../ops/matmul.zig");
-const softmax_backward = @import("softmax_backward.zig");
+const matmul = @import("../ops/matmul");
+const softmax_backward = @import("softmax_backward");
 
 /// Cached activations needed for attention backward pass.
 pub const AttentionCache = struct {
@@ -267,7 +267,7 @@ pub fn attentionWithProjectionsBackward(
 
     // d_attn_out = d_output @ W_o^T
     // d_W_o = d_output^T @ attn_output
-    const matmul_backward = @import("matmul_backward.zig");
+    const matmul_backward = @import("matmul_backward");
 
     // Simplified: assume attn_output is cached
     // In practice, you'd cache this during forward

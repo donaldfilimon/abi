@@ -11,8 +11,8 @@
 //! - 0-RTT reconnection
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 const builtin = @import("builtin");
 
 /// Internet transport configuration.

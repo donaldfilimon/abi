@@ -18,10 +18,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const multi_device = @import("../multi_device.zig");
-const stream_mod = @import("../stream.zig");
-const vulkan = @import("../backends/vulkan.zig");
-const vulkan_ext = @import("vulkan_ext.zig");
+const multi_device = @import("../multi_device");
+const stream_mod = @import("../stream");
+const vulkan = @import("../backends/vulkan");
+const vulkan_ext = @import("vulkan_ext");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const ReduceOp = multi_device.ReduceOp;

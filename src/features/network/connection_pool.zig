@@ -4,9 +4,9 @@
 //! HTTP clients and other network resources.
 
 const std = @import("std");
-const platform_time = @import("../../services/shared/utils.zig");
+const platform_time = @import("shared_services").utils;
 const time = platform_time;
-const sync = @import("../../services/shared/sync.zig");
+const sync = @import("shared_services").sync;
 
 /// Connection state.
 pub const ConnectionState = enum {

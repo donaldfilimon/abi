@@ -4,14 +4,14 @@
 //! used by the generic code generator to produce backend-specific output.
 
 const std = @import("std");
-const types = @import("../../types.zig");
-const expr = @import("../../expr.zig");
+const types = @import("../../types");
+const expr = @import("../../expr");
 
 // Re-export all backend configs
-pub const glsl = @import("glsl_config.zig");
-pub const wgsl = @import("wgsl_config.zig");
-pub const msl = @import("msl_config.zig");
-pub const cuda = @import("cuda_config.zig");
+pub const glsl = @import("glsl_config");
+pub const wgsl = @import("wgsl_config");
+pub const msl = @import("msl_config");
+pub const cuda = @import("cuda_config");
 
 /// Shading language enumeration.
 pub const ShadingLanguage = enum {

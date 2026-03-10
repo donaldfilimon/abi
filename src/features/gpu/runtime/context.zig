@@ -1,4 +1,4 @@
-const unified = @import("../unified.zig");
+const unified = @import("../unified");
 const std = @import("std");
 
 pub const Gpu = unified.Gpu;

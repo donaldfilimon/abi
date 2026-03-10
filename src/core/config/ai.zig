@@ -7,11 +7,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
-// NOTE: Intentional layering exception — core/config imports from features/ai/personas
-// for type compatibility. This is NOT circular: personas/config.zig only depends on
-// personas/types.zig, not on core/config. The alternative (duplicating the struct here)
-// creates type identity mismatches in Zig's nominal type system.
-const personas_config = @import("../../features/ai/personas/config.zig");
+// NOTE: Intentional layering exception — core/config imports from features/ai
+// for type compatibility. This is NOT circular: features/ai/config.zig only depends on
+// features/ai/types.zig, not on core/config.
+const personas_config = @import("../../features/ai/config");
 pub const PersonasConfig = personas_config.MultiPersonaConfig;
 
 /// AI configuration with independent sub-features.
@@ -207,7 +206,7 @@ pub const TrainingConfig = struct {
     }
 };
 
-// PersonasConfig is re-exported from features/ai/personas/config.zig above.
+// PersonasConfig is re-exported from features/ai/config.zig above.
 // See the layering exception comment at the top of this file.
 
 test {

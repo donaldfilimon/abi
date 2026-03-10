@@ -21,7 +21,7 @@
 //! - `abi.features.auth.headers` — Security headers middleware
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform.zig");
+const core_config = @import("../../core/config/platform");
 
 pub const AuthConfig = core_config.AuthConfig;
 
@@ -29,22 +29,23 @@ pub const AuthConfig = core_config.AuthConfig;
 // Security Sub-modules (re-exported from services/shared/security/)
 // ============================================================================
 
-pub const api_keys = @import("../../services/shared/security/api_keys.zig");
-pub const audit = @import("../../services/shared/security/audit.zig");
-pub const certificates = @import("../../services/shared/security/certificates.zig");
-pub const cors = @import("../../services/shared/security/cors.zig");
-pub const encryption = @import("../../services/shared/security/encryption.zig");
-pub const headers = @import("../../services/shared/security/headers.zig");
-pub const ip_filter = @import("../../services/shared/security/ip_filter.zig");
-pub const jwt = @import("../../services/shared/security/jwt.zig");
-pub const mtls = @import("../../services/shared/security/mtls.zig");
-pub const password = @import("../../services/shared/security/password.zig");
-pub const rate_limit = @import("../../services/shared/security/rate_limit.zig");
-pub const rbac = @import("../../services/shared/security/rbac.zig");
-pub const secrets = @import("../../services/shared/security/secrets.zig");
-pub const session = @import("../../services/shared/security/session.zig");
-pub const tls = @import("../../services/shared/security/tls.zig");
-pub const validation = @import("../../services/shared/security/validation.zig");
+const shared = @import("shared_services");
+pub const api_keys = shared.security.api_keys;
+pub const audit = @import("shared_services").security.audit;
+pub const certificates = @import("shared_services").security.certificates;
+pub const cors = @import("shared_services").security.cors;
+pub const encryption = @import("shared_services").security.encryption;
+pub const headers = @import("shared_services").security.headers;
+pub const ip_filter = @import("shared_services").security.ip_filter;
+pub const jwt = @import("shared_services").security.jwt;
+pub const mtls = @import("shared_services").security.mtls;
+pub const password = @import("shared_services").security.password;
+pub const rate_limit = @import("shared_services").security.rate_limit;
+pub const rbac = @import("shared_services").security.rbac;
+pub const secrets = @import("shared_services").security.secrets;
+pub const session = @import("shared_services").security.session;
+pub const tls = @import("shared_services").security.tls;
+pub const validation = @import("shared_services").security.validation;
 
 // ============================================================================
 // Auth-level Types
@@ -303,7 +304,7 @@ pub fn checkPermission(user_id: []const u8, permission: Permission) AuthError!bo
 // Test discovery — standalone test file avoids pulling in security sub-modules
 // that have pre-existing Zig 0.16 compile issues
 test {
-    _ = @import("auth_test.zig");
+    _ = @import("auth_test");
 }
 
 test {

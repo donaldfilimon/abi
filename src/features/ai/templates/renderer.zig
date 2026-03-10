@@ -4,10 +4,10 @@
 //! strict mode that errors on missing variables.
 
 const std = @import("std");
-const parser = @import("parser.zig");
+const parser = @import("parser");
 const Token = parser.Token;
-const string_utils = @import("../../../services/shared/utils.zig");
-const json_utils = @import("../../../services/shared/utils/json/mod.zig");
+const string_utils = @import("shared_services").utils;
+const json_utils = @import("shared_services").utils.json;
 
 pub const RenderError = error{
     MissingVariable,

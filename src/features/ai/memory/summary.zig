@@ -4,11 +4,11 @@
 //! while reducing token usage. Uses a rolling summarization strategy.
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
 const MemoryStats = mod.MemoryStats;
-const MemoryType = @import("manager.zig").MemoryType;
+const MemoryType = @import("manager").MemoryType;
 
 /// Summarization configuration.
 pub const SummaryConfig = struct {

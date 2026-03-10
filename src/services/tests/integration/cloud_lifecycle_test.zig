@@ -13,7 +13,7 @@ const abi = @import("abi");
 const time = abi.services.shared.time;
 const sync = abi.services.shared.sync;
 
-const fixtures = @import("fixtures.zig");
+const fixtures = @import("fixtures");
 
 // ============================================================================
 // Cloud Event and Response Tests

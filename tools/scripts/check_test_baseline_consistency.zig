@@ -1,6 +1,6 @@
 const std = @import("std");
-const baseline = @import("baseline.zig");
-const util = @import("util.zig");
+const baseline = @import("baseline");
+const util = @import("util");
 
 /// Verify test baseline consistency:
 /// - The feature test manifest in build/test_discovery.zig references
@@ -83,10 +83,10 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // ── WDBX fast test root ─────────────────────────────────────────────
-    const wdbx_fast_root = "src/wdbx_fast_tests_root.zig";
+    const wdbx_fast_root = "src/core/database_fast_tests_root.zig";
     if (util.fileExists(io, wdbx_fast_root)) {
         // If it exists, make sure the WDBX engine file exists too
-        const wdbx_engine = "src/wdbx/wdbx.zig";
+        const wdbx_engine = "src/core/database/wdbx.zig";
         if (!util.fileExists(io, wdbx_engine)) {
             std.debug.print("ERROR: WDBX fast test root exists but engine missing: {s}\n", .{wdbx_engine});
             errors += 1;

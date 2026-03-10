@@ -4,7 +4,7 @@
 //! so that the raw key material is never persisted in memory after creation.
 
 const std = @import("std");
-const time = @import("../services/shared/time.zig");
+const time = @import("shared_services").time;
 const Allocator = std.mem.Allocator;
 
 pub const ApiKey = struct {

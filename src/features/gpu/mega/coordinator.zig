@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const mega = @import("mega/mod.zig");
+//! const mega = @import("mega");
 //!
 //! var coordinator = try mega.Coordinator.init(allocator);
 //! defer coordinator.deinit();
@@ -32,12 +32,12 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 const build_options = @import("build_options");
-const multi_device = @import("../multi_device.zig");
-const backend_mod = @import("../backend.zig");
-const interface = @import("../interface.zig");
+const multi_device = @import("../multi_device");
+const backend_mod = @import("../backend");
+const interface = @import("../interface");
 
 /// Backend instance with metadata for cross-backend coordination.
 pub const BackendInstance = struct {

@@ -12,14 +12,14 @@
 //! - RwLock for concurrent route lookups
 
 const std = @import("std");
-const sync = @import("../../services/shared/sync.zig");
-const time_mod = @import("../../services/shared/time.zig");
-const gateway_types = @import("types.zig");
-const routing = @import("routing.zig");
-const rate_limit_mod = @import("rate_limit.zig");
-const circuit_breaker_mod = @import("circuit_breaker.zig");
-const gateway_stats = @import("stats.zig");
-const middleware = @import("middleware.zig");
+const sync = @import("shared_services").sync;
+const time_mod = @import("shared_services").time;
+const gateway_types = @import("types");
+const routing = @import("routing");
+const rate_limit_mod = @import("rate_limit");
+const circuit_breaker_mod = @import("circuit_breaker");
+const gateway_stats = @import("stats");
+const middleware = @import("middleware");
 
 /// Shared radix tree instantiated for route indices.
 const RouteTree = routing.RouteTree;

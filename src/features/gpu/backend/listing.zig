@@ -1,4 +1,4 @@
-const backend = @import("../backend.zig");
+const backend = @import("../backend");
 const std = @import("std");
 
 pub const listBackendInfo = backend.listBackendInfo;

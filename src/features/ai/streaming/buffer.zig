@@ -4,7 +4,7 @@
 //! in streaming scenarios.
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 const StreamToken = mod.StreamToken;
 
 /// Buffer strategy.

@@ -1,6 +1,6 @@
 const std = @import("std");
-const device = @import("../device.zig");
-const backend_factory = @import("../backend_factory.zig");
+const device = @import("../device");
+const backend_factory = @import("../backend_factory");
 
 test "enumerate all available GPU devices" {
     const allocator = std.testing.allocator;

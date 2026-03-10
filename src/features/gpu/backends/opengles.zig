@@ -4,11 +4,11 @@
 //! for mobile and embedded platforms. Requires OpenGL ES 3.1+ for compute shader support.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const types = @import("../kernel_types.zig");
-const shared = @import("shared.zig");
-const fallback = @import("fallback.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const types = @import("../kernel_types");
+const shared = @import("shared");
+const fallback = @import("fallback");
 
 pub const OpenGlesError = error{
     InitializationFailed,
@@ -768,7 +768,7 @@ pub fn getVersion() struct { major: i32, minor: i32 } {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../device.zig").Device;
+const Device = @import("../device").Device;
 
 /// Check if OpenGL ES compute is available on this system.
 pub fn isAvailable() bool {

@@ -3,7 +3,7 @@
 //! Initialization, deinitialization, and enable/disable operations for features.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 const Feature = types.Feature;
 const RegistrationMode = types.RegistrationMode;

@@ -1,5 +1,5 @@
 const std = @import("std");
-const model = @import("model.zig");
+const model = @import("model");
 
 pub fn loadBuildMeta(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) !model.BuildMeta {
     const path = "tools/scripts/baseline.zig";

@@ -4,7 +4,7 @@
 //! for autoregressive text generation.
 
 const std = @import("std");
-const time = @import("../services/shared/time.zig");
+const time = @import("shared_services").time;
 
 pub const SamplingParams = struct {
     temperature: f32 = 0.7,

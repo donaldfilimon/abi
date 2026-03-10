@@ -1,6 +1,6 @@
 const std = @import("std");
-const ExploreConfig = @import("config.zig").ExploreConfig;
-const FileFilter = @import("config.zig").FileFilter;
+const ExploreConfig = @import("config").ExploreConfig;
+const FileFilter = @import("config").FileFilter;
 
 pub const FileStats = struct {
     path: []const u8,

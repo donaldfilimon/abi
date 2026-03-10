@@ -1,5 +1,5 @@
 const std = @import("std");
-const util = @import("util.zig");
+const util = @import("util");
 
 const required_files = [_][]const u8{
     "src/core/config/mod.zig",

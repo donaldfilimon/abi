@@ -6,14 +6,15 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const shared_utils = @import("../../../services/shared/utils.zig");
+const shared_utils = @import("shared_services").utils;
 const http = shared_utils.async_http;
 const retry = shared_utils.http_retry;
-const connectors = @import("../../../services/connectors/mod.zig");
+const connectors = @import("../../../services/connectors");
 const time = shared_utils;
-const platform_time = @import("../../../services/shared/time.zig");
-const provider_router_mod = @import("../llm/providers/router.zig");
-const provider_types = @import("../llm/providers/types.zig");
+const platform_time = @import("shared_services").time;
+const provider_router_mod = @import("../llm/providers/router");
+const provider_types = @import("../llm/providers/types");
+const advanced_cognition = @import("../abbey/advanced");
 
 // ============================================================================
 // Constants
@@ -245,6 +246,52 @@ pub const AgentBackend = enum {
     provider_router,
 };
 
+/// Tracks per-backend performance for adaptive routing.
+pub const BackendMetrics = struct {
+    success_count: u32 = 0,
+    failure_count: u32 = 0,
+    total_latency_ms: u64 = 0,
+    total_quality: f32 = 0.0,
+
+    pub fn record(self: *BackendMetrics, success: bool, latency_ms: u64, quality: f32) void {
+        if (success) {
+            self.success_count += 1;
+        } else {
+            self.failure_count += 1;
+        }
+        self.total_latency_ms += latency_ms;
+        self.total_quality += quality;
+    }
+
+    pub fn totalCalls(self: BackendMetrics) u32 {
+        return self.success_count + self.failure_count;
+    }
+
+    pub fn successRate(self: BackendMetrics) f32 {
+        const total = self.totalCalls();
+        if (total == 0) return 0.0;
+        return @as(f32, @floatFromInt(self.success_count)) / @as(f32, @floatFromInt(total));
+    }
+
+    pub fn avgLatencyMs(self: BackendMetrics) f32 {
+        const total = self.totalCalls();
+        if (total == 0) return 0.0;
+        return @as(f32, @floatFromInt(self.total_latency_ms)) / @as(f32, @floatFromInt(total));
+    }
+
+    pub fn avgQuality(self: BackendMetrics) f32 {
+        const total = self.totalCalls();
+        if (total == 0) return 0.0;
+        return self.total_quality / @as(f32, @floatFromInt(total));
+    }
+
+    /// Combined score: higher is better. Weights success heavily, penalizes latency.
+    pub fn score(self: BackendMetrics) f32 {
+        if (self.totalCalls() == 0) return 0.5; // Neutral for untried backends
+        return self.successRate() * 0.4 + self.avgQuality() * 0.4 + (1.0 / (1.0 + self.avgLatencyMs() / 1000.0)) * 0.2;
+    }
+};
+
 pub const AgentConfig = struct {
     name: []const u8,
     enable_history: bool = true,
@@ -290,6 +337,8 @@ pub const Agent = struct {
     config: AgentConfig,
     history: std.ArrayListUnmanaged(Message) = .{},
     total_tokens_used: u64 = 0,
+    cognition: ?*advanced_cognition.AdvancedCognition = null,
+    backend_metrics: [8]BackendMetrics = [_]BackendMetrics{.{}} ** 8,
 
     pub fn init(allocator: std.mem.Allocator, config: AgentConfig) AgentError!Agent {
         try config.validate();
@@ -853,6 +902,22 @@ pub const Agent = struct {
 
     pub fn setModel(self: *Agent, model: []const u8) !void {
         self.config.model = model;
+    }
+
+    /// Record a backend call result for adaptive routing metrics.
+    /// `backend_index` maps to a slot in the fixed-size metrics array (0..7).
+    pub fn recordBackendResult(self: *Agent, backend_index: usize, success: bool, latency_ms: u64, quality: f32) void {
+        if (backend_index >= self.backend_metrics.len) return;
+        self.backend_metrics[backend_index].record(success, latency_ms, quality);
+    }
+
+    pub fn setCognition(self: *Agent, cog: *advanced_cognition.AdvancedCognition) void {
+        self.cognition = cog;
+    }
+
+    pub fn getCognitionInsight(self: *Agent, query: []const u8) ?advanced_cognition.CognitiveResult {
+        const cog = self.cognition orelse return null;
+        return cog.process("agent", query) catch return null;
     }
 
     pub fn setHistoryEnabled(self: *Agent, enabled: bool) void {

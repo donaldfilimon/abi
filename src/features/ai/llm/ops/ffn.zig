@@ -5,8 +5,8 @@
 //! - SwiGLU FFN: Gate * Up -> SiLU -> Down (used in LLaMA)
 
 const std = @import("std");
-const matmul = @import("matmul.zig");
-const activations = @import("activations.zig");
+const matmul = @import("matmul");
+const activations = @import("activations");
 
 /// SwiGLU FFN configuration.
 pub const SwigluConfig = struct {

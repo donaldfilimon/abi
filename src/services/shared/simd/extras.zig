@@ -8,7 +8,7 @@ const std = @import("std");
 
 const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
 
-const activations = @import("activations.zig");
+const activations = @import("activations");
 
 // ============================================================================
 // Element-wise Operations

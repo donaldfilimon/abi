@@ -2,8 +2,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../../interface.zig");
-const profile_mod = @import("profile.zig");
+const interface = @import("../../interface");
+const profile_mod = @import("profile");
 
 pub fn isProfileEnabledAtBuild(profile: profile_mod.Profile) bool {
     return switch (profile) {
@@ -22,11 +22,11 @@ pub fn createVTableForProfile(
 
     return switch (profile) {
         .desktop => blk: {
-            const opengl_vtable = @import("../opengl_vtable.zig");
+            const opengl_vtable = @import("../opengl_vtable");
             break :blk opengl_vtable.createOpenGLVTable(allocator);
         },
         .es => blk: {
-            const opengles_vtable = @import("../opengles_vtable.zig");
+            const opengles_vtable = @import("../opengles_vtable");
             break :blk opengles_vtable.createOpenGLESVTable(allocator);
         },
     };

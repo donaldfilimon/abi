@@ -551,10 +551,10 @@ test "c_api: error string lookup" {
 // ============================================================================
 
 test {
-    _ = @import("c_api_simd_test.zig");
-    _ = @import("c_api_database_test.zig");
-    _ = @import("c_api_gpu_test.zig");
+    _ = @import("c_api_simd_test");
+    _ = @import("c_api_database_test");
+    _ = @import("c_api_gpu_test");
     if (build_options.feat_ai) {
-        _ = @import("c_api_agent_test.zig");
+        _ = @import("c_api_agent_test");
     }
 }

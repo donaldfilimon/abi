@@ -156,7 +156,7 @@ pub fn registerAllAgentTools(_: *ToolRegistry) !void {
 // ToolAgent types (merged from stubs/tool_agent.zig)
 // ---------------------------------------------------------------------------
 
-const agent_stub = @import("../agents/stub.zig");
+const agent_stub = @import("../agents/stub");
 
 pub const ToolAgentConfig = struct {
     agent: agent_stub.AgentConfig = .{ .name = "tool-agent" },

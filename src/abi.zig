@@ -55,20 +55,20 @@ comptime {
 // ============================================================================
 
 /// Unified configuration system.
-pub const config = @import("core/config/mod.zig");
+pub const config = @import("core/config");
 pub const Config = config.Config;
 pub const Feature = config.Feature;
-pub const feature_catalog = @import("core/feature_catalog.zig");
+pub const feature_catalog = @import("core/feature_catalog");
 
 /// Framework orchestration with builder pattern.
-pub const framework = @import("core/framework.zig");
+pub const framework = @import("core/framework");
 
 /// Composable error hierarchy for framework operations.
-pub const errors = @import("core/errors.zig");
+pub const errors = @import("core/errors");
 pub const FrameworkError = errors.FrameworkError;
 
 /// Plugin registry for feature management.
-pub const registry = @import("core/registry/mod.zig");
+pub const registry = @import("core/registry");
 pub const Registry = registry.Registry;
 
 // ============================================================================
@@ -77,106 +77,107 @@ pub const Registry = registry.Registry;
 
 /// Canonical services namespace.
 pub const services = struct {
-    pub const runtime = @import("services/runtime/mod.zig");
-    pub const platform = @import("services/platform/mod.zig");
-    pub const shared = @import("services/shared/mod.zig");
-    pub const connectors = @import("services/connectors/mod.zig");
-    pub const ha = @import("services/ha/mod.zig");
-    pub const tasks = @import("services/tasks/mod.zig");
-    pub const lsp = @import("services/lsp/mod.zig");
-    pub const mcp = @import("services/mcp/mod.zig");
-    pub const acp = @import("services/acp/mod.zig");
-    pub const simd = @import("services/shared/simd/mod.zig");
+    pub const runtime = @import("services/runtime");
+    pub const platform = @import("services/platform");
+    pub const shared = @import("shared_services");
+    pub const connectors = @import("services/connectors");
+    pub const ha = @import("services/ha");
+    pub const tasks = @import("services/tasks");
+    pub const lsp = @import("services/lsp");
+    pub const mcp = @import("services/mcp");
+    pub const acp = @import("services/acp");
+    pub const simd = shared.simd;
 };
 
 /// Canonical features namespace.
 pub const features = struct {
     pub const gpu = if (build_options.feat_gpu)
-        @import("features/gpu/mod.zig")
+        @import("features/gpu")
     else
-        @import("features/gpu/stub.zig");
+        @import("features/gpu/stub");
     pub const ai = if (build_options.feat_ai)
-        @import("features/ai/mod.zig")
+        @import("features/ai")
     else
-        @import("features/ai/stub.zig");
+        @import("features/ai/stub");
     pub const database = if (build_options.feat_database)
-        @import("features/database/mod.zig")
+        @import("wdbx")
     else
-        @import("features/database/stub.zig");
+        @import("wdbx").stub;
+
     pub const network = if (build_options.feat_network)
-        @import("features/network/mod.zig")
+        @import("features/network")
     else
-        @import("features/network/stub.zig");
+        @import("features/network/stub");
     pub const observability = if (build_options.feat_profiling)
-        @import("features/observability/mod.zig")
+        @import("features/observability")
     else
-        @import("features/observability/stub.zig");
+        @import("features/observability/stub");
     pub const web = if (build_options.feat_web)
-        @import("features/web/mod.zig")
+        @import("features/web")
     else
-        @import("features/web/stub.zig");
+        @import("features/web/stub");
     pub const analytics = if (build_options.feat_analytics)
-        @import("features/analytics/mod.zig")
+        @import("features/analytics")
     else
-        @import("features/analytics/stub.zig");
+        @import("features/analytics/stub");
     pub const cloud = if (build_options.feat_cloud)
-        @import("features/cloud/mod.zig")
+        @import("features/cloud")
     else
-        @import("features/cloud/stub.zig");
+        @import("features/cloud/stub");
     pub const auth = if (build_options.feat_auth)
-        @import("features/auth/mod.zig")
+        @import("features/auth")
     else
-        @import("features/auth/stub.zig");
+        @import("features/auth/stub");
     pub const messaging = if (build_options.feat_messaging)
-        @import("features/messaging/mod.zig")
+        @import("features/messaging")
     else
-        @import("features/messaging/stub.zig");
+        @import("features/messaging/stub");
     pub const cache = if (build_options.feat_cache)
-        @import("features/cache/mod.zig")
+        @import("features/cache")
     else
-        @import("features/cache/stub.zig");
+        @import("features/cache/stub");
     pub const storage = if (build_options.feat_storage)
-        @import("features/storage/mod.zig")
+        @import("features/storage")
     else
-        @import("features/storage/stub.zig");
+        @import("features/storage/stub");
     pub const mobile = if (build_options.feat_mobile)
-        @import("features/mobile/mod.zig")
+        @import("features/mobile")
     else
-        @import("features/mobile/stub.zig");
+        @import("features/mobile/stub");
     pub const gateway = if (build_options.feat_gateway)
-        @import("features/gateway/mod.zig")
+        @import("features/gateway")
     else
-        @import("features/gateway/stub.zig");
+        @import("features/gateway/stub");
     pub const search = if (build_options.feat_search)
-        @import("features/search/mod.zig")
+        @import("features/search")
     else
-        @import("features/search/stub.zig");
+        @import("features/search/stub");
     pub const pages = if (build_options.feat_pages)
-        @import("features/observability/pages/mod.zig")
+        @import("features/observability/pages")
     else
-        @import("features/observability/pages/stub.zig");
+        @import("features/observability/pages/stub");
     pub const benchmarks = if (build_options.feat_benchmarks)
-        @import("features/benchmarks/mod.zig")
+        @import("features/benchmarks")
     else
-        @import("features/benchmarks/stub.zig");
+        @import("features/benchmarks/stub");
 
     // Distributed compute mesh
     pub const compute = if (build_options.feat_compute)
-        @import("features/compute/mod.zig")
+        @import("features/compute")
     else
-        @import("features/compute/stub.zig");
+        @import("features/compute/stub");
 
     // Omni-modal document parsing
     pub const documents = if (build_options.feat_documents)
-        @import("features/documents/mod.zig")
+        @import("features/documents")
     else
-        @import("features/documents/stub.zig");
+        @import("features/documents/stub");
 
     // Native Desktop extensions
     pub const desktop = if (build_options.feat_desktop)
-        @import("features/desktop/mod.zig")
+        @import("features/desktop")
     else
-        @import("features/desktop/stub.zig");
+        @import("features/desktop/stub");
 };
 
 /// Build and package metadata.

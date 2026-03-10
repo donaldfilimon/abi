@@ -8,34 +8,36 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../../core/config");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
 pub const llm = if (build_options.feat_llm)
-    @import("../llm/mod.zig")
+    @import("../llm")
 else
-    @import("../llm/stub.zig");
+    @import("../llm/stub");
 
 pub const embeddings = if (build_options.feat_ai)
-    @import("../embeddings/mod.zig")
+    @import("../embeddings")
 else
-    @import("../embeddings/stub.zig");
+    @import("../embeddings/stub");
 
 pub const vision = if (build_options.feat_vision)
-    @import("../vision/mod.zig")
+    @import("../vision")
 else
-    @import("../vision/stub.zig");
+    @import("../vision/stub");
 
-pub const streaming = @import("../streaming/mod.zig");
-pub const transformer = @import("../transformer/mod.zig");
+pub const streaming = @import("../streaming");
+pub const transformer = @import("../transformer");
 
-pub const personas = if (build_options.feat_ai)
-    @import("../personas/mod.zig")
+pub const profiles = if (build_options.feat_ai)
+    @import("../profiles")
 else
-    @import("../personas/stub.zig");
+    @import("../profiles/stub");
+
+pub const personas = profiles;
 
 // ============================================================================
 // Convenience type re-exports
@@ -82,7 +84,7 @@ pub const Context = struct {
     config: config_module.AiConfig,
     llm_ctx: ?*llm.Context = null,
     embeddings_ctx: ?*embeddings.Context = null,
-    personas_ctx: ?*personas.Context = null,
+    profiles_ctx: ?*profiles.Context(config_module.PersonasConfig) = null,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -112,7 +114,7 @@ pub const Context = struct {
         }
 
         if (cfg.personas) |personas_cfg| {
-            ctx.personas_ctx = try personas.Context.init(
+            ctx.profiles_ctx = try profiles.Context(config_module.PersonasConfig).init(
                 allocator,
                 personas_cfg,
             );
@@ -127,18 +129,18 @@ pub const Context = struct {
     }
 
     fn deinitSubFeatures(self: *Context) void {
-        if (self.personas_ctx) |p| p.deinit();
+        if (self.profiles_ctx) |p| p.deinit();
         if (self.embeddings_ctx) |e| e.deinit();
         if (self.llm_ctx) |l| l.deinit();
     }
 
-    pub const SubFeature = enum { llm, embeddings, personas };
+    pub const SubFeature = enum { llm, embeddings, profiles };
 
     pub fn SubFeatureContext(comptime feature: SubFeature) type {
         return switch (feature) {
             .llm => llm.Context,
             .embeddings => embeddings.Context,
-            .personas => personas.Context,
+            .profiles => profiles.Context(config_module.PersonasConfig),
         };
     }
 
@@ -146,7 +148,7 @@ pub const Context = struct {
         return @field(self, @tagName(feature) ++ "_ctx") orelse switch (feature) {
             .llm => error.LlmDisabled,
             .embeddings => error.EmbeddingsDisabled,
-            .personas => error.EmbeddingsDisabled,
+            .profiles => error.EmbeddingsDisabled,
         };
     }
 };

@@ -8,7 +8,7 @@
 //! works, find definitions, and trace dependencies.
 
 const std = @import("std");
-const app_paths = @import("../../../services/shared/app_paths.zig");
+const app_paths = @import("shared_services").app_paths;
 
 // ============================================================================
 // Types
@@ -349,7 +349,7 @@ test "CodebaseIndex - index file" {
     defer index.deinit();
 
     const content = "line 1\nline 2\nline 3\nline 4\nline 5\n";
-    try index.indexFile("src/main.zig", content);
+    try index.indexFile("src/root.zig", content);
 
     const stats = index.getStats();
     try std.testing.expectEqual(@as(usize, 1), stats.file_count);
@@ -362,7 +362,7 @@ test "CodebaseIndex - query" {
     defer index.deinit();
 
     const content = "pub fn init(allocator: std.mem.Allocator) !Self {\n    return .{};\n}\n";
-    try index.indexFile("src/main.zig", content);
+    try index.indexFile("src/root.zig", content);
 
     var answer = try index.query("init function allocator");
     defer answer.deinit();

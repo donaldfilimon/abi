@@ -35,12 +35,12 @@
 //! by eliminating allocation latency during inference.
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
-const sync = @import("../../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 const build_options = @import("build_options");
 
 // GPU memory interface (stubs when GPU disabled)
-const ai_ops = @import("../../../gpu/ai_ops.zig");
+const ai_ops = @import("../../../gpu/ai_ops");
 const cuda_memory = ai_ops.memory;
 
 /// Number of size classes (powers of 2 from 256 bytes to 1GB)
@@ -1076,7 +1076,7 @@ pub fn copyFromBuffer(buffer: *const PooledBuffer, dest: []u8) !void {
 // ============================================================================
 
 test {
-    _ = @import("gpu_memory_pool_test.zig");
+    _ = @import("gpu_memory_pool_test");
 }
 
 test {

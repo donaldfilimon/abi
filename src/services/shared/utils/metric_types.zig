@@ -5,7 +5,7 @@
 //! (observability, GPU, AI) for consistent metrics collection.
 
 const std = @import("std");
-const sync = @import("../sync.zig");
+const sync = @import("../sync");
 
 /// Monotonically increasing counter.
 pub const Counter = struct {

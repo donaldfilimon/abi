@@ -204,16 +204,16 @@ pub const RoadmapItem = struct {
 // ============================================================================
 
 pub const types = struct {
-    pub const Task = @import("stub.zig").Task;
-    pub const Priority = @import("stub.zig").Priority;
-    pub const Status = @import("stub.zig").Status;
-    pub const Category = @import("stub.zig").Category;
-    pub const Filter = @import("stub.zig").Filter;
-    pub const SortBy = @import("stub.zig").SortBy;
-    pub const Stats = @import("stub.zig").Stats;
-    pub const ManagerConfig = @import("stub.zig").ManagerConfig;
-    pub const AddOptions = @import("stub.zig").AddOptions;
-    pub const ManagerError = @import("stub.zig").ManagerError;
+    pub const Task = @import("stub").Task;
+    pub const Priority = @import("stub").Priority;
+    pub const Status = @import("stub").Status;
+    pub const Category = @import("stub").Category;
+    pub const Filter = @import("stub").Filter;
+    pub const SortBy = @import("stub").SortBy;
+    pub const Stats = @import("stub").Stats;
+    pub const ManagerConfig = @import("stub").ManagerConfig;
+    pub const AddOptions = @import("stub").AddOptions;
+    pub const ManagerError = @import("stub").ManagerError;
 };
 
 pub const persistence = struct {
@@ -268,7 +268,7 @@ pub const lifecycle = struct {
 };
 
 pub const roadmap = struct {
-    pub const RoadmapItem = @import("stub.zig").RoadmapItem;
+    pub const RoadmapItem = @import("stub").RoadmapItem;
 
     pub fn importAll(_: std.mem.Allocator, _: anytype, _: *u64, _: anytype) !usize {
         return error.FeatureDisabled;

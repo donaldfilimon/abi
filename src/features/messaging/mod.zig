@@ -12,9 +12,9 @@
 //! - RwLock for concurrent topic lookups
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform.zig");
-const sync = @import("../../services/shared/sync.zig");
-const time_mod = @import("../../services/shared/time.zig");
+const core_config = @import("../../core/config/platform");
+const sync = @import("shared_services").sync;
+const time_mod = @import("shared_services").time;
 
 pub const MessagingConfig = core_config.MessagingConfig;
 

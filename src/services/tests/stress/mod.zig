@@ -62,7 +62,7 @@ pub const TrackingConfig = abi.services.shared.utils.memory.tracking.TrackingCon
 pub const TrackingStats = abi.services.shared.utils.memory.tracking.TrackingStats;
 
 // Core infrastructure
-pub const profiles = @import("profiles.zig");
+pub const profiles = @import("profiles");
 
 // Re-export key types
 pub const StressProfile = profiles.StressProfile;
@@ -82,17 +82,17 @@ test {
     _ = profiles;
 
     // HA stress tests
-    _ = @import("ha_stress_test.zig");
+    _ = @import("ha_stress_test");
 
     // Observability stress tests (when profiling enabled)
     if (build_options.feat_profiling) {
-        _ = @import("observability_stress_test.zig");
+        _ = @import("observability_stress_test");
     }
 
     // Database stress tests (when database enabled)
     if (build_options.feat_database) {
-        _ = @import("database_stress_test.zig");
-        _ = @import("hnsw_parallel_test.zig");
+        _ = @import("database_stress_test");
+        _ = @import("hnsw_parallel_test");
     }
 }
 

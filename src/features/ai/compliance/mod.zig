@@ -10,11 +10,11 @@
 //! - Audit: `getAuditTrail()` → query compliance event history
 
 const std = @import("std");
-pub const config = @import("config.zig");
-pub const gdpr = @import("gdpr.zig");
-pub const hipaa = @import("hipaa.zig");
-pub const ccpa = @import("ccpa.zig");
-pub const audit = @import("audit.zig");
+pub const config = @import("config");
+pub const gdpr = @import("gdpr");
+pub const hipaa = @import("hipaa");
+pub const ccpa = @import("ccpa");
+pub const audit = @import("audit");
 
 // Re-export core types
 pub const ComplianceConfig = config.ComplianceConfig;

@@ -7,8 +7,8 @@
 //! - Category-level breakdown
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const collector_mod = @import("collector.zig");
+const time = @import("shared_services").time;
+const collector_mod = @import("collector");
 
 /// Satisfaction trend direction.
 pub const Trend = enum {

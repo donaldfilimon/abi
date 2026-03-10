@@ -4,7 +4,7 @@
 //! of truth for common keyboard shortcuts across all dashboard views.
 
 const std = @import("std");
-const events = @import("events.zig");
+const events = @import("events");
 
 pub const KeyAction = enum {
     quit,

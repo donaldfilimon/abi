@@ -25,10 +25,10 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const accelerate = @import("accelerate.zig");
-const mps = @import("mps.zig");
-const coreml = @import("coreml.zig");
-const gpu_family = @import("gpu_family.zig");
+const accelerate = @import("accelerate");
+const mps = @import("mps");
+const coreml = @import("coreml");
+const gpu_family = @import("gpu_family");
 
 /// Backend selection for a given operation.
 pub const AcceleratorBackend = enum {

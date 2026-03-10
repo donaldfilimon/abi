@@ -3,8 +3,8 @@
 //! Placeholder when benchmarks module is disabled via build flags.
 
 const std = @import("std");
-const core_config = @import("../../core/config/benchmarks.zig");
-const stub_context = @import("../../core/stub_context.zig");
+const core_config = @import("../../core/config/benchmarks");
+const stub_context = @import("../../core/stub_context");
 
 pub const Config = core_config.BenchmarksConfig;
 pub const BenchmarksError = error{

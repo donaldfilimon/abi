@@ -2,9 +2,9 @@
 //!
 //! The editor engine lives under `tools/cli/ui/editor` so command wiring stays thin.
 
-const command_mod = @import("../../../command.zig");
-const context_mod = @import("../../../framework/context.zig");
-const engine = @import("../../../terminal/editor/engine.zig");
+const command_mod = @import("../../../command");
+const context_mod = @import("../../../framework/context");
+const engine = @import("../../../terminal/editor/engine");
 
 pub const meta: command_mod.Meta = .{
     .name = "editor",

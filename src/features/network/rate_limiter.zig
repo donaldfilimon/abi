@@ -9,9 +9,9 @@
 //! and auth integration, see `services/shared/security/rate_limit.zig`.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
-const sync = @import("../../services/shared/sync.zig");
-const shared_rl = @import("../../services/shared/resilience/rate_limiter.zig");
+const time = @import("shared_services").utils;
+const sync = @import("shared_services").sync;
+const shared_rl = @import("shared_services").resilience.rate_limiter;
 
 pub const RateLimitAlgorithm = enum { token_bucket, sliding_window, fixed_window, leaky_bucket };
 

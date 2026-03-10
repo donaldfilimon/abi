@@ -15,7 +15,7 @@
 //! - Auto-ban after 10 consecutive violations (1 hour ban)
 
 const std = @import("std");
-const rate_limit = @import("../../../services/shared/security/rate_limit.zig");
+const rate_limit = @import("shared_services").security.rate_limit;
 
 /// Helper to serialize a value to JSON using Zig 0.16 API
 fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std.json.Stringify.Options) ![]u8 {
@@ -24,8 +24,8 @@ fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std
     try std.json.Stringify.value(value, options, &out.writer);
     return out.toOwnedSlice();
 }
-const personas = @import("../../ai/personas/mod.zig");
-const types = @import("../../ai/personas/types.zig");
+const personas = @import("../../ai").personas;
+const types = @import("../../ai/types");
 
 /// Chat request from client.
 pub const ChatRequest = struct {

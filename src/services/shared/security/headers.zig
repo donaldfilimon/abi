@@ -12,7 +12,7 @@
 //! - Custom header injection
 
 const std = @import("std");
-const csprng = @import("csprng.zig");
+const csprng = @import("csprng");
 
 /// Security header configuration
 pub const SecurityHeadersConfig = struct {

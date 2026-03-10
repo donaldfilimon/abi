@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const Io = std.Io;
-const collector_mod = @import("metrics/collector.zig");
+const collector_mod = @import("metrics/collector");
 
 // ============================================================================
 // Alerting System (from alerting.zig)

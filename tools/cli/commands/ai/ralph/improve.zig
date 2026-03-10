@@ -1,12 +1,12 @@
 //! ralph improve — autonomous self-improvement loop with guardrails.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context.zig");
+const context_mod = @import("../../../framework/context");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const cfg = @import("config.zig");
-const runtime = @import("runtime.zig");
+const cfg = @import("config");
+const runtime = @import("runtime");
 
 pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;

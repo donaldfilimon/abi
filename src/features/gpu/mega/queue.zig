@@ -4,9 +4,9 @@
 //! deadline support, and retry policies.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const coordinator = @import("coordinator.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const coordinator = @import("coordinator");
 
 /// Workload priority levels.
 pub const Priority = enum(u8) {

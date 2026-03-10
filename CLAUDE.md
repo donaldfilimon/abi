@@ -110,6 +110,25 @@ zig build -Dgpu-backend=cuda,vulkan           # Multiple backends
 4. **Verify stub sync** — any change to `mod.zig` requires matching `stub.zig` update.
 5. **Update `tasks/lessons.md`** after fixing any mistake that could recur.
 
+## AI Self-Improvement Architecture
+
+The AI subsystem has a feedback→learning loop connecting these components:
+
+```
+User Feedback → FeedbackSystem → LearningBridge → SelfLearningSystem
+                 (collector.zig)   (learning_bridge.zig)  (self_learning.zig)
+                                         ↓
+                                   ExperienceBuffer → DPO Optimizer
+                                   (experience_buffer.zig)  (dpo_optimizer.zig)
+```
+
+- **Agents** (`src/features/ai/agents/`) — Multi-backend conversational agents with optional AdvancedCognition and per-backend performance tracking
+- **Multi-agent** (`src/features/ai/multi_agent/`) — Coordinator with parallel/pipeline execution, blackboard shared state, DAG workflows
+- **Training** (`src/features/ai/training/`) — Self-learning (text, vision, audio, document), DPO optimization, experience replay
+- **Feedback** (`src/features/ai/feedback/`) — Star/thumbs ratings, per-persona analysis, learning bridge for auto-retraining
+- **Abbey Advanced** (`src/features/ai/abbey/advanced/`) — Meta-learning, theory of mind, compositional reasoning, self-reflection
+- **Ralph** (`tools/cli/commands/ai/ralph/`) — Iterative agent loop with skill storage and quality ranking
+
 ## Plugin
 
 `zig-abi-plugin/` provides a Claude Code plugin with build routing, feature scaffolding, and stub-sync validation. Install with `claude --plugin-dir zig-abi-plugin`.

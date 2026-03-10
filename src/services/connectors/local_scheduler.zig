@@ -24,7 +24,7 @@
 
 const std = @import("std");
 
-const connectors = @import("mod.zig");
+const connectors = @import("mod");
 
 pub const Config = struct {
     url: []u8,

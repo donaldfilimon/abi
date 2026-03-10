@@ -4,11 +4,11 @@
 //! Supports text-embedding-3-small, text-embedding-3-large, and text-embedding-ada-002.
 
 const std = @import("std");
-const backend = @import("../backend.zig");
-const connectors = @import("../../../../services/connectors/mod.zig");
-const openai_connector = @import("../../../../services/connectors/openai.zig");
-const json_utils = @import("../../../../services/shared/utils.zig").json;
-const async_http = @import("../../../../services/shared/utils.zig").async_http;
+const backend = @import("../backend");
+const connectors = @import("../../../../services/connectors");
+const openai_connector = @import("../../../../services/connectors/openai");
+const json_utils = @import("shared_services").utils.json;
+const async_http = @import("shared_services").utils.async_http;
 
 /// OpenAI embedding model configurations.
 pub const Model = struct {

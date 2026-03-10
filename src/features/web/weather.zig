@@ -33,7 +33,7 @@
 
 const std = @import("std");
 
-const client = @import("client.zig");
+const client = @import("client");
 
 /// Weather-specific errors.
 pub const WeatherError = error{

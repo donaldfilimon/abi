@@ -1,18 +1,18 @@
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 const builtin = @import("builtin");
-const ExploreConfig = @import("config.zig").ExploreConfig;
+const ExploreConfig = @import("config").ExploreConfig;
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm32 and
     builtin.target.cpu.arch != .wasm64;
-const ExploreResult = @import("results.zig").ExploreResult;
-const FileStats = @import("fs.zig").FileStats;
-const SearchPattern = @import("search.zig").SearchPattern;
-const PatternCompiler = @import("search.zig").PatternCompiler;
-const fs = @import("fs.zig");
+const ExploreResult = @import("results").ExploreResult;
+const FileStats = @import("fs").FileStats;
+const SearchPattern = @import("search").SearchPattern;
+const PatternCompiler = @import("search").PatternCompiler;
+const fs = @import("fs");
 
 pub const WorkItem = struct {
     file_stat: FileStats,
@@ -181,12 +181,12 @@ pub const ParallelExplorer = struct {
     }
 
     fn matchesPattern(_: *ParallelExplorer, pattern: *const SearchPattern, text: []const u8) !bool {
-        const search = @import("search.zig");
+        const search = @import("search");
         return search.match(pattern.*, text);
     }
 
     fn addMatch(self: *ParallelExplorer, file_path: []const u8, line_number: usize, line_content: []const u8) !void {
-        const Match = @import("results.zig").Match;
+        const Match = @import("results").Match;
 
         const match = Match{
             .file_path = try self.allocator.dupe(u8, file_path),
@@ -243,7 +243,7 @@ pub fn parallelExplore(
     defer visitor.deinit();
 
     visitor.visit(root_path) catch {
-        result.explore_error = @import("results.zig").ExploreError.PathNotFound;
+        result.explore_error = @import("results").ExploreError.PathNotFound;
         const msg = try std.fmt.allocPrint(allocator, "Failed to access path: {s}", .{root_path});
         result.error_message = msg;
         return result;

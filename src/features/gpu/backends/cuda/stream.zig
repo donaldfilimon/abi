@@ -4,7 +4,7 @@
 //! asynchronous kernel execution.
 
 const std = @import("std");
-const loader = @import("loader.zig");
+const loader = @import("loader");
 
 pub const StreamError = error{
     CreationFailed,

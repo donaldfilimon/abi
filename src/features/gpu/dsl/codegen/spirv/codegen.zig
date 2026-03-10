@@ -3,9 +3,9 @@
 //! Methods for generating SPIR-V code from IR statements and expressions.
 
 const std = @import("std");
-const constants = @import("constants.zig");
-const expr = @import("../../expr.zig");
-const stmt = @import("../../stmt.zig");
+const constants = @import("constants");
+const expr = @import("../../expr");
+const stmt = @import("../../stmt");
 
 pub const OpCode = constants.OpCode;
 pub const Scope = constants.Scope;

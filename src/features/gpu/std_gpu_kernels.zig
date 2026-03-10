@@ -23,7 +23,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const std_gpu = @import("std_gpu.zig");
+const std_gpu = @import("std_gpu");
 
 // ============================================================================
 // Kernel Configuration

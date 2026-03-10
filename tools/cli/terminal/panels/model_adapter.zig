@@ -3,12 +3,12 @@
 //! Wraps `model_panel.ModelManagementPanel` to conform to the Panel vtable interface.
 
 const std = @import("std");
-const panel_mod = @import("../panel.zig");
-const terminal = @import("../terminal.zig");
-const layout = @import("../layout.zig");
-const themes = @import("../themes.zig");
-const events = @import("../events.zig");
-const model_panel = @import("../model_panel.zig");
+const panel_mod = @import("../panel");
+const terminal = @import("../terminal");
+const layout = @import("../layout");
+const themes = @import("../themes");
+const events = @import("../events");
+const model_panel = @import("../model_panel");
 
 pub const ModelAdapter = struct {
     inner: model_panel.ModelManagementPanel,

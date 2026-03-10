@@ -2,7 +2,7 @@
 //!
 //! Provides native UI extensions and integrations for the host OS.
 
-pub const macos_menu = @import("macos_menu.zig");
+pub const macos_menu = @import("macos_menu");
 
 const std = @import("std");
 

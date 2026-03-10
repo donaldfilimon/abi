@@ -40,7 +40,7 @@
 //! ```
 const std = @import("std");
 
-pub const quantized_kernels = @import("quantized_kernels.zig");
+pub const quantized_kernels = @import("quantized_kernels");
 
 /// Re-export key types for convenience
 pub const QuantizedKernelModule = quantized_kernels.QuantizedKernelModule;

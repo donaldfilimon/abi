@@ -15,15 +15,15 @@
 //! - Checkpointing and resumption
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const trainable_model = @import("trainable_model.zig");
-const loss_mod = @import("loss.zig");
-const mod = @import("mod.zig");
-const llm_checkpoint = @import("llm_checkpoint.zig");
-const logging = @import("logging.zig");
-const ai_ops = @import("../../gpu/ai_ops.zig");
-const training_bridge = @import("../../gpu/training_bridge.zig");
-const mixed_precision = @import("mixed_precision.zig");
+const time = @import("shared_services").time;
+const trainable_model = @import("trainable_model");
+const loss_mod = @import("loss");
+const mod = @import("mod");
+const llm_checkpoint = @import("llm_checkpoint");
+const logging = @import("logging");
+const ai_ops = @import("../../gpu/ai_ops");
+const training_bridge = @import("../../gpu/training_bridge");
+const mixed_precision = @import("mixed_precision");
 
 /// Training configuration for LLM.
 pub const LlmTrainingConfig = struct {

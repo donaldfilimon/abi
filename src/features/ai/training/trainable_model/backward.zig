@@ -1,7 +1,7 @@
 const std = @import("std");
-const ops = @import("../../llm/ops/mod.zig");
+const ops = @import("../../llm/ops");
 const backward_ops = ops.backward;
-const training_bridge = @import("../../../gpu/training_bridge.zig");
+const training_bridge = @import("../../../gpu/training_bridge");
 
 pub fn backward(model: anytype, d_logits: []const f32, input_ids: []const u32) !void {
     const seq_len: u32 = @intCast(input_ids.len);

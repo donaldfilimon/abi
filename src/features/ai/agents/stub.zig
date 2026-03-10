@@ -1,8 +1,8 @@
 //! Agents Stub Module
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
-const llm_providers = @import("../llm/stub.zig").providers;
+const config_module = @import("../../../core/config");
+const llm_providers = @import("../llm/stub").providers;
 
 pub const Error = error{ FeatureDisabled, AgentNotFound, ToolNotFound, ExecutionFailed, MaxAgentsReached };
 

@@ -10,16 +10,16 @@
 //! This is the main entry point for Abbey interactions.
 
 const std = @import("std");
-const core_types = @import("../core/types.zig");
-const core_config = @import("../core/config.zig");
-const memory_mod = @import("memory/mod.zig");
-const neural = @import("neural/mod.zig");
-const calibration = @import("calibration.zig");
-const client = @import("client.zig");
-const reasoning = @import("reasoning.zig");
-const emotions = @import("emotions.zig");
-const context = @import("context.zig");
-const prompts = @import("../prompts/mod.zig");
+const core_types = @import("types");
+const core_config = @import("../core/config");
+const memory_mod = @import("memory");
+const neural = @import("neural");
+const calibration = @import("calibration");
+const client = @import("client");
+const reasoning = @import("reasoning");
+const emotions = @import("emotions");
+const context = @import("context");
+const prompts = @import("prompts");
 
 // ============================================================================
 // Abbey Engine

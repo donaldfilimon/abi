@@ -28,8 +28,8 @@ const builtin = @import("builtin");
 const build_options = @import("build_options");
 
 // Core infrastructure
-pub const fixtures = @import("fixtures.zig");
-pub const mocks = @import("mocks.zig");
+pub const fixtures = @import("fixtures");
+pub const mocks = @import("mocks");
 
 // Re-export key types
 pub const IntegrationFixture = fixtures.IntegrationFixture;
@@ -58,19 +58,19 @@ test {
     _ = mocks;
 
     // Cross-module integration tests
-    _ = @import("ha_network_test.zig");
-    _ = @import("cloud_lifecycle_test.zig");
-    _ = @import("full_stack_test.zig");
+    _ = @import("ha_network_test");
+    _ = @import("cloud_lifecycle_test");
+    _ = @import("full_stack_test");
     if (build_options.feat_ai) {
-        _ = @import("streaming_recovery.zig");
+        _ = @import("streaming_recovery");
     }
-    _ = @import("c_api_test.zig");
+    _ = @import("c_api_test");
 
     // Cross-module feature integration (cache+storage, search, messaging+gateway)
-    _ = @import("cross_module_test.zig");
+    _ = @import("cross_module_test");
 
     // v2 integration tests
-    _ = @import("v2.zig");
+    _ = @import("v2");
 }
 
 // ============================================================================

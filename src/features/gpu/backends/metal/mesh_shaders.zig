@@ -31,8 +31,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const metal_types = @import("../metal_types.zig");
-const gpu_family = @import("gpu_family.zig");
+const metal_types = @import("../metal_types");
+const gpu_family = @import("gpu_family");
 
 const ID = metal_types.ID;
 const SEL = metal_types.SEL;

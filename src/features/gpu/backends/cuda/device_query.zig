@@ -4,7 +4,7 @@
 //! and performance characteristics using CUDA Driver API.
 
 const std = @import("std");
-const shared = @import("../shared.zig");
+const shared = @import("../shared");
 
 /// CUDA GPU architecture generation derived from compute capability.
 pub const CudaArchitecture = enum {

@@ -44,7 +44,7 @@ For each feature directory in `src/features/*/`:
 
 For each `.zig` file under `src/features/`:
 
-1. Search for `@import("../../wdbx/wdbx.zig")` or any relative path to `src/wdbx/`
+1. Search for direct relative paths to `src/core/database/wdbx.zig` or legacy `src/wdbx/`
 2. These are MODULE CONFLICTS — the wdbx module is registered as a named module in build.zig
 3. The correct import is `@import("wdbx")` (named module), not a relative path
 4. Also check for `@import("abi")` violations (features must use relative imports or named modules, never `@import("abi")`)

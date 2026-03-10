@@ -7,9 +7,9 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const events = @import("events.zig");
-const terminal = @import("terminal.zig");
-const render_utils = @import("render_utils.zig");
+const events = @import("events");
+const terminal = @import("terminal");
+const render_utils = @import("render_utils");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Constants

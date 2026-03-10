@@ -3,8 +3,8 @@
 //! Catches errors and converts them to appropriate HTTP responses.
 
 const std = @import("std");
-const types = @import("types.zig");
-const server = @import("../server/mod.zig");
+const types = @import("types");
+const server = @import("../server");
 const MiddlewareContext = types.MiddlewareContext;
 
 /// Error response format.

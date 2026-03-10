@@ -13,7 +13,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const e2e = @import("e2e/mod.zig");
+const e2e = @import("e2e");
 
 // Use the prompts module which has the simple getPersona/listPersonas API
 const prompts = abi.features.ai.prompts;

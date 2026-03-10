@@ -21,14 +21,18 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const workflow_mod = @import("workflow.zig");
-const blackboard_mod = @import("blackboard.zig");
-const roles = @import("roles.zig");
-const supervisor_mod = @import("supervisor.zig");
-const messaging = @import("messaging.zig");
-const protocol = @import("protocol.zig");
-const agents_mod = @import("../agents/mod.zig");
-const time = @import("../../../services/shared/time.zig");
+const workflow_mod = @import("workflow");
+const blackboard_mod = @import("blackboard");
+const roles = @import("roles");
+const supervisor_mod = @import("supervisor");
+const messaging = @import("messaging");
+const protocol = @import("protocol");
+const agents_mod = @import("agents");
+const time = @import("shared_services").time;
+const training = @import("training");
+const SelfLearningSystem = training.SelfLearningSystem;
+const FeedbackType = training.FeedbackType;
+const ExperienceType = training.ExperienceType;
 
 // ============================================================================
 // WorkflowRunner
@@ -43,6 +47,7 @@ pub const WorkflowRunner = struct {
     event_bus: messaging.EventBus,
     conversation_manager: protocol.ConversationManager,
     agent_map: std.StringHashMapUnmanaged(*agents_mod.Agent),
+    learning_system: ?*SelfLearningSystem = null,
 
     pub const RunnerConfig = struct {
         max_retries: u32 = 3,
@@ -128,6 +133,11 @@ pub const WorkflowRunner = struct {
     /// Register a named agent for use in workflows.
     pub fn registerAgent(self: *WorkflowRunner, name: []const u8, agent: *agents_mod.Agent) !void {
         try self.agent_map.put(self.allocator, name, agent);
+    }
+
+    /// Connect a self-learning system to receive workflow outcome feedback.
+    pub fn setLearningSystem(self: *WorkflowRunner, sys: *SelfLearningSystem) void {
+        self.learning_system = sys;
     }
 
     /// Execute a complete workflow DAG.
@@ -409,6 +419,11 @@ pub const WorkflowRunner = struct {
             self.event_bus.taskFailed(task_id, "workflow had failures");
         }
 
+        // 13. Feed outcome into self-learning system (if connected)
+        if (self.learning_system != null) {
+            self.recordWorkflowOutcome(success);
+        }
+
         return WorkflowResult{
             .success = success,
             .step_results = step_results,
@@ -517,6 +532,50 @@ pub const WorkflowRunner = struct {
         };
 
         return decision.action;
+    }
+
+    /// Feed workflow results into the self-learning experience buffer.
+    /// Iterates blackboard entries and records each as a learning experience
+    /// with a reward score derived from the workflow success/failure outcome.
+    fn recordWorkflowOutcome(self: *WorkflowRunner, success: bool) void {
+        const sys = self.learning_system orelse return;
+
+        const bb_keys = self.blackboard.keys(self.allocator) catch return;
+        defer {
+            for (bb_keys) |k| self.allocator.free(k);
+            self.allocator.free(bb_keys);
+        }
+
+        const feedback: FeedbackType = if (success) .positive else .negative;
+        const confidence: f32 = if (success) 0.8 else 0.3;
+
+        for (bb_keys) |key| {
+            const entry = self.blackboard.get(key) orelse continue;
+
+            // Build a compact text summary: "key=value"
+            const summary = std.fmt.allocPrint(
+                self.allocator,
+                "{s}={s}",
+                .{ key, entry.value },
+            ) catch continue;
+            defer self.allocator.free(summary);
+
+            // Convert summary bytes to u32 token slice for recordExperience
+            const tokens = self.allocator.alloc(u32, summary.len) catch continue;
+            defer self.allocator.free(tokens);
+            for (summary, 0..) |byte, i| {
+                tokens[i] = @intCast(byte);
+            }
+
+            // Record with the summary as both input and output context
+            sys.recordExperience(
+                tokens,
+                tokens,
+                feedback,
+                confidence,
+                .conversation,
+            ) catch continue;
+        }
     }
 };
 

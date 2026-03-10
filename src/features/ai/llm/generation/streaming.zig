@@ -40,10 +40,10 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
-const sampler_mod = @import("sampler.zig");
-const tokenizer = @import("../tokenizer/mod.zig");
-const generator_mod = @import("generator.zig");
+const time = @import("shared_services").time;
+const sampler_mod = @import("sampler");
+const tokenizer = @import("../tokenizer");
+const generator_mod = @import("generator");
 
 /// Error set for streaming generation callbacks.
 pub const StreamingError = error{

@@ -4,7 +4,7 @@
 //! and efficient transfer operations. Uses consolidated cuda_loader.
 
 const std = @import("std");
-const cuda_loader = @import("loader.zig");
+const cuda_loader = @import("loader");
 
 pub const MemoryError = error{
     AllocationFailed,

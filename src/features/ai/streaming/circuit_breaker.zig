@@ -4,8 +4,8 @@
 //! in streaming pipelines.
 
 const std = @import("std");
-const platform_time = @import("../../../services/shared/time.zig");
-const resilience = @import("../../../services/shared/resilience/circuit_breaker.zig");
+const platform_time = @import("shared_services").time;
+const resilience = @import("shared_services").resilience.circuit_breaker;
 
 // Re-export shared types
 pub const CircuitState = resilience.CircuitState;

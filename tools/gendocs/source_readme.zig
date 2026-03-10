@@ -1,5 +1,5 @@
 const std = @import("std");
-const model = @import("model.zig");
+const model = @import("model");
 
 pub fn collectReadmeSummaries(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) ![]model.ReadmeSummary {
     var root = try cwd.openDir(io, "src", .{ .iterate = true });

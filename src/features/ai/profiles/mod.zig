@@ -4,16 +4,18 @@
 //! selection, and coordination of AI behavior profiles.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const obs = @import("../../observability/mod.zig");
-const legacy_types = @import("../personas/types.zig");
-const legacy_registry = @import("../personas/registry.zig");
-const legacy_abi = @import("../personas/abi/mod.zig");
-const legacy_abbey = @import("../personas/abbey/mod.zig");
-const legacy_aviva = @import("../personas/aviva/mod.zig");
-const legacy_generic = @import("../personas/generic.zig");
-const legacy_health = @import("../personas/health.zig");
-const legacy_loadbalancer = @import("../personas/loadbalancer.zig");
+const time = @import("shared_services").time;
+const obs = @import("../../observability");
+
+// Relative imports to flattened feature root
+const types = @import("types");
+const registry = @import("../registry");
+const abi_logic = @import("../abi_logic");
+const abbey_logic = @import("../abbey_logic");
+const aviva_logic = @import("aviva_logic");
+const generic = @import("../generic");
+const health = @import("../health");
+const loadbalancer = @import("../loadbalancer");
 
 pub const BehaviorProfile = enum {
     collaborative,
@@ -31,8 +33,8 @@ pub const BehaviorProfile = enum {
     }
 };
 
-pub const LegacyPersonaType = legacy_types.PersonaType;
-pub const ProfileRegistry = legacy_registry.PersonaRegistry;
+pub const LegacyPersonaType = types.PersonaType;
+pub const ProfileRegistry = registry.PersonaRegistry;
 
 pub fn fromLegacyPersona(persona: LegacyPersonaType) BehaviorProfile {
     return switch (persona) {
@@ -53,7 +55,6 @@ pub fn defaultLegacyPersona(profile: BehaviorProfile) LegacyPersonaType {
 }
 
 /// Profiles context for framework integration.
-/// Ported from legacy personas/Context.
 pub fn Context(comptime Config: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -82,23 +83,22 @@ pub fn Context(comptime Config: type) type {
             self.allocator.destroy(self);
         }
 
-        pub fn registerPersona(self: *Self, persona_type: LegacyPersonaType, persona: legacy_types.PersonaInterface) !void {
+        pub fn registerPersona(self: *Self, persona_type: LegacyPersonaType, persona: types.PersonaInterface) !void {
             try self.registry.registerPersona(persona_type, persona);
         }
 
-        pub fn getPersona(self: *Self, persona_type: LegacyPersonaType) ?legacy_types.PersonaInterface {
+        pub fn getPersona(self: *Self, persona_type: LegacyPersonaType) ?types.PersonaInterface {
             return self.registry.getPersona(persona_type);
         }
     };
 }
 
 /// High-level orchestrator for behavior profiles.
-/// Ported from legacy personas/MultiPersonaSystem.
 pub fn ProfileSystem(comptime Config: type) type {
     return struct {
         allocator: std.mem.Allocator,
         ctx: *Context(Config),
-        router: *legacy_abi.AbiRouter,
+        router: *abi_logic.AbiRouter,
 
         const Self = @This();
 
@@ -109,7 +109,7 @@ pub fn ProfileSystem(comptime Config: type) type {
             const ctx = try Context(Config).init(allocator, cfg);
             errdefer ctx.deinit();
 
-            const router = try legacy_abi.AbiRouter.init(allocator, cfg.abi);
+            const router = try abi_logic.AbiRouter.init(allocator, cfg.abi);
             errdefer router.deinit();
 
             self.* = .{
@@ -127,10 +127,10 @@ pub fn ProfileSystem(comptime Config: type) type {
             self.allocator.destroy(self);
         }
 
-        pub fn process(self: *Self, request: legacy_types.PersonaRequest) !legacy_types.PersonaResponse {
+        pub fn process(self: *Self, request: types.PersonaRequest) !types.PersonaResponse {
             _ = self;
             _ = request;
-            return error.NotImplemented; // Stubbed for initial porting wave
+            return error.NotImplemented; // Stubbed for close-out wave
         }
     };
 }

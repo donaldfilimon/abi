@@ -6,8 +6,8 @@
 //! - Export to structured format
 
 const std = @import("std");
-const collector_mod = @import("collector.zig");
-const cfg = @import("config.zig");
+const collector_mod = @import("collector");
+const cfg = @import("config");
 
 /// Query filter for retrieving feedback.
 pub const FeedbackQuery = struct {

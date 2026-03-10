@@ -1,7 +1,7 @@
 //! Ralph workspace helpers (runs, lock file, latest pointers).
 
 const std = @import("std");
-const cfg = @import("config.zig");
+const cfg = @import("config");
 
 pub const LockError = error{
     LockHeld,

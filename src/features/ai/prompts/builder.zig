@@ -4,7 +4,7 @@
 //! for debugging and inspection via --show-prompt flags.
 
 const std = @import("std");
-const personas = @import("personas.zig");
+const personas = @import("personas");
 
 /// Message role in conversation
 pub const Role = enum {

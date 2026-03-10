@@ -23,7 +23,7 @@ const simd_alignment: usize = std.simd.suggestVectorLength(f32) orelse 4;
 const simd_byte_width: usize = simd_alignment * @sizeOf(f32);
 
 // ─── Math Helpers (shared primitives) ────────────────────────────────────
-const Math = @import("../primitives.zig").Math;
+const Math = @import("../primitives").Math;
 
 const isPowerOfTwo = Math.isPowerOfTwo;
 

@@ -1,5 +1,5 @@
 const std = @import("std");
-const util = @import("util.zig");
+const util = @import("util");
 
 pub fn main(_: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};

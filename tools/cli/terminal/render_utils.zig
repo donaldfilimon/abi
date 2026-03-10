@@ -4,10 +4,10 @@
 //! and cursor positioning used by all dashboard panels.
 
 const std = @import("std");
-const unicode = @import("unicode.zig");
-const layout = @import("layout.zig");
-const terminal_mod = @import("terminal.zig");
-const themes = @import("themes.zig");
+const unicode = @import("unicode");
+const layout = @import("layout");
+const terminal_mod = @import("terminal");
+const themes = @import("themes");
 
 pub const Terminal = terminal_mod.Terminal;
 pub const Rect = layout.Rect;

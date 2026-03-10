@@ -9,8 +9,8 @@
 //! For per-connection rate limiting, see `features/network/rate_limiter.zig`.
 
 const std = @import("std");
-const types = @import("types.zig");
-const shared_rl = @import("../../services/shared/resilience/rate_limiter.zig");
+const types = @import("types");
+const shared_rl = @import("shared_services").resilience.rate_limiter;
 
 pub const RateLimitConfig = types.RateLimitConfig;
 pub const RateLimitAlgorithm = types.RateLimitAlgorithm;

@@ -1,5 +1,5 @@
 const std = @import("std");
-const util = @import("util.zig");
+const util = @import("util");
 
 fn isAllowedCommandUiImport(file: []const u8) bool {
     return std.mem.startsWith(u8, file, "tools/cli/commands/ui/") or

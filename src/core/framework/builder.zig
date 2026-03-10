@@ -1,7 +1,7 @@
 //! Builder logic split out of the framework façade.
 
 const std = @import("std");
-const config_module = @import("../config/mod.zig");
+const config_module = @import("../config");
 
 pub fn init(comptime Builder: type, allocator: std.mem.Allocator) Builder {
     return .{

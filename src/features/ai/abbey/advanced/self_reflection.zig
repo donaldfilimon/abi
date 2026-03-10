@@ -10,8 +10,8 @@
 //! - Continuous improvement tracking
 
 const std = @import("std");
-const types = @import("../../core/types.zig");
-const reasoning = @import("../reasoning.zig");
+const types = @import("types");
+const reasoning = @import("../reasoning");
 
 // ============================================================================
 // Self-Reflection Types

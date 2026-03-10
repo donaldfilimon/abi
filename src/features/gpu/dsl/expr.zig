@@ -4,7 +4,7 @@
 //! Expressions represent computations that produce values.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 /// Reference to a value (variable, parameter, built-in, etc.).
 pub const ValueRef = struct {

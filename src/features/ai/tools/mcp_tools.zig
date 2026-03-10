@@ -1,12 +1,12 @@
 const std = @import("std");
-const tool = @import("tool.zig");
+const tool = @import("tool");
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
 const Context = tool.Context;
 const Parameter = tool.Parameter;
 const json = std.json;
-const os = @import("../../../services/shared/os.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const os = @import("shared_services").os;
+const sync = @import("shared_services").sync;
 
 // Registry for tracking spawned background server PIDs
 var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .{};

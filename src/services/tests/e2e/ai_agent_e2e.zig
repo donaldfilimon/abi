@@ -10,7 +10,7 @@ const std = @import("std");
 const abi = @import("abi");
 const time = abi.services.shared.time;
 const sync = abi.services.shared.sync;
-const e2e = @import("mod.zig");
+const e2e = @import("mod");
 
 // ============================================================================
 // Helper Functions
