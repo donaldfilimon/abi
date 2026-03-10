@@ -10,10 +10,11 @@ Active task tracker. Use `git add -f tasks/todo.md` to stage.
 - [x] Reviewed the remaining branch tail against `origin/main`: keep `997f3143` and `8c9b3ee4`; drop junk-only commit `6ffa7483` (`.!94407!test_link`, `full-check-current.txt`, `full-check-output.txt`, `zls.json`).
 - [x] Clean replay validation on `codex/main-integration-cleanup`: `zig fmt --check` passed for retained Zig diffs, `git diff --check` passed after removing the stray `.gitignore` blank-line regression, and compile-only `zig build-obj -fno-emit-bin` probes passed for `src/core/mod.zig`, `src/features/database/mod.zig`, `src/features/database/stub.zig`, `src/services/mcp/mod.zig`, `src/core/database_fast_tests_root.zig`, and `src/root.zig`.
 - [x] Validation evidence remains blocked in this environment: local `zig build` gates still hit the known Darwin linker failure, `.cel/build.sh --zig-only` failed during stage3 Zig bootstrap on this host, and GitHub Actions run `22911876542` could not provide Linux gate results because the account is billing-locked (`Test Suite`, `Examples`, and `Quality Gates` skipped).
-- [ ] Replay the clean branch-tail commits onto `main` and push.
-- [ ] Delete `fix/codebase-quality-sweep` locally and on `origin` after `main` contains the cleaned changes.
-- [ ] Delete merged remote branches `origin/claude/init-project-setup-TcKbR`, `origin/codex/agent-a761c502-reviewable`, and `origin/feat/agnts-consolidation`.
-- [ ] Restore or relocate the parked `tools/synthetic_pipeline/` work after branch cleanup.
+- [x] Replayed the clean branch-tail commits onto `main` and pushed `main` to `origin` at commit `3fbb03a5`.
+- [x] Deleted `fix/codebase-quality-sweep` locally and on `origin` after `main` contained the cleaned changes.
+- [x] Deleted the live merged remote branch `origin/claude/init-project-setup-TcKbR` and pruned stale tracking refs for `origin/codex/agent-a761c502-reviewable` and `origin/feat/agnts-consolidation`; only `origin/main` remains.
+- [x] Preserved the parked `tools/synthetic_pipeline/` work outside `main` in local stash entry `park synthetic pipeline before main merge`; no extra local branches remain.
+- [x] Post-push workflow status on `main`: GitHub Actions run `22918697812` fired for commit `3fbb03a5` but still failed before running `Test Suite`, `Quality Gates`, or `Examples`, while `pages build and deployment` run `22918697285` succeeded.
 
 ## Next Phase — Release & Scale
 
