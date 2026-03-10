@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ABI is a Zig 0.16 framework for AI services, vector search, and high-performance compute. It has 27 comptime-gated feature modules (across 19 feature directories), a CLI with 40 commands, and a TUI dashboard. The public API is exposed through `src/abi.zig` via `@import("abi")`.
+ABI is a Zig 0.16 framework for AI services, vector search, and high-performance compute. It has 27 comptime-gated feature modules (across 19 feature directories), a CLI with 40 registered commands (plus subcommands), and a TUI dashboard. The public API is exposed through `src/abi.zig` via `@import("abi")`.
 
 ## Build Commands
 
@@ -21,7 +21,7 @@ zig build cli-tests                          # CLI unit tests
 zig build tui-tests                          # TUI unit tests
 zig build launcher-tests                     # Shell/launcher tests
 zig build wdbx-fast-tests                    # WDBX vector database tests
-zig build validate-flags                     # Check 38 feature flag combos
+zig build validate-flags                     # Check 40 feature flag combos
 zig build lint                               # Check formatting
 zig build fix                                # Auto-format
 
@@ -83,7 +83,7 @@ tools/scripts/           # Toolchain doctor, baseline, utilities
 
 `build.zig` imports modular components from `build/`:
 - `options.zig` — `BuildOptions` struct and flag reading
-- `flags.zig` — `FlagCombo` validation matrix (38 combos)
+- `flags.zig` — `FlagCombo` validation matrix (40 combos)
 - `modules.zig` — module creation helpers
 - `test_discovery.zig` — **single source of truth** for feature test manifest
 - `cli_smoke_runner.zig` — descriptor-driven CLI smoke tests
@@ -100,7 +100,7 @@ Two test roots:
 1. **Main tests**: `src/services/tests/mod.zig` → `zig build test` (1289-1290 pass is normal variance due to one hardware-gated test)
 2. **Feature tests**: `build/test_discovery.zig` manifest → `zig build feature-tests` (generated root, no tracked mirror file)
 
-After adding tests: run `zig build update-baseline`.
+After adding tests: add entries to `build/test_discovery.zig` manifest (the single source of truth).
 
 ### CLI Commands
 
@@ -199,6 +199,8 @@ These patterns are distilled from `tasks/lessons.md`:
 4. **Build runner links first**: If `zig build` fails with undefined symbols (`__availability_version_check`, `_arc4random_buf`), the build runner itself can't link. No `build.zig` workaround helps — you need a Zig built from source on the same host (see CEL toolchain below).
 5. **Registry refresh after CLI changes**: Always run `zig build refresh-cli-registry` after adding/modifying commands in `tools/cli/commands/`.
 6. **Async I/O in TUI**: Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
+7. **Never `use_lld` on macOS**: LLD has zero Mach-O support. Use Apple's `/usr/bin/ld` via `run_build.sh` or the CEL toolchain.
+8. **Standalone test files**: Files in `build/test_discovery.zig` must compile with `zig test <file> -fno-emit-bin`. Inline small cross-directory deps rather than using relative `@import("../../")`.
 
 ## Adding or Modifying Feature Modules
 
@@ -221,6 +223,13 @@ Upstream Zig linker incompatibility (`__availability_version_check`, `_arc4rando
 # Or step-by-step:
 ./.zig-bootstrap/build.sh && eval "$(./tools/scripts/use_zig_bootstrap.sh)"
 # Diagnostics: zig build cel-check | cel-doctor | cel-status | cel-verify
+```
+
+**Current workaround — `run_build.sh`** (relinks build runner with Apple ld):
+```bash
+./tools/scripts/run_build.sh lint         # Format check (works on Darwin 25+)
+./tools/scripts/run_build.sh test         # Tests (may hit wdbx module conflict)
+zig fmt --check build.zig build/ src/ tools/  # Direct format check (no build runner)
 ```
 
 **Fallbacks:** `zig-bootstrap-emergency/` (see `zig-bootstrap-emergency/ABI-USAGE.md`), or `zig test -fno-emit-bin` for compile-only validation.

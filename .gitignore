@@ -11,6 +11,8 @@ docs_html/
 # build/ contains source .zig files — only ignore non-Zig artifacts
 build/*
 !build/*.zig
+!build/validate/
+!build/validate/*.zig
 
 # ── Documentation build artifacts ─────────────────────────────────────
 docs-src/build/

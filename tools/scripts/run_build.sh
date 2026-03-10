@@ -19,6 +19,14 @@ ZIG="${ZIG_REAL:-${ZIG:-$(which zig)}}"
 SYSROOT="${SDKROOT:-$(xcrun --show-sdk-path 2>/dev/null || echo /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk)}"
 MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo 26.0)"
 
+find_compiler_rt() {
+    local from_stderr
+    from_stderr="$(grep -oE '/[^ )]*libcompiler_rt\.a' "$STDERR_FILE" | head -1)"
+    if [[ -n "$from_stderr" && -f "$from_stderr" ]]; then
+        echo "$from_stderr"
+    fi
+}
+
 # ── Step 1: Try zig build normally ───────────────────────────────────────
 STDERR_FILE="$(mktemp)"
 trap 'rm -f "$STDERR_FILE"' EXIT
@@ -43,7 +51,7 @@ BUILD_DIR="$(dirname "$BUILD_O")"
 BUILD_BIN="$BUILD_DIR/build"
 
 # ── Step 3: Find compiler_rt ─────────────────────────────────────────────
-COMPILER_RT="$(find "${HOME}/.cache/zig/o" -name 'libcompiler_rt.a' -print -quit 2>/dev/null || true)"
+COMPILER_RT="$(find_compiler_rt)"
 RT_ARGS=()
 if [[ -n "$COMPILER_RT" ]]; then
     RT_ARGS=("$COMPILER_RT")

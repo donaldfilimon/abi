@@ -130,7 +130,7 @@ pub fn buildTargets(
         const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
         if (is_blocked_darwin) {
             exe.use_llvm = true;
-            exe.use_lld = true;
+            // LLD has zero Mach-O support; Apple /usr/bin/ld used via run_build.sh
         }
         exe.root_module.addImport("abi", abi_module);
         exe.root_module.addImport("build_options", build_opts);

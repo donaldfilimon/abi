@@ -7,6 +7,7 @@
 //! - Transition hooks for pre/post swap actions
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
 const types = @import("types.zig");
 
 /// The result of a persona swap operation.
@@ -124,7 +125,7 @@ pub const PersonaSwapManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         const current = self.session_personas.get(session_id) orelse .abbey;
 
         // Check: same persona

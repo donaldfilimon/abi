@@ -47,9 +47,9 @@ trap 'rm -f "$STDERR_FILE"' EXIT
 # Run the real zig command, capture stderr
 if "$ZIG" "$@" 2>"$STDERR_FILE"; then
     exit 0
+else
+    ZIG_EXIT=$?
 fi
-
-ZIG_EXIT=$?
 
 # Check if this is a linker failure we can fix
 if ! grep -qE '(undefined.*_arc4random_buf|undefined.*__availability_version|using LLD to link|MachO|lld-link)' "$STDERR_FILE" 2>/dev/null; then
@@ -71,7 +71,11 @@ find_object_file() {
 
 # Find compiler_rt
 find_compiler_rt() {
-    find "${HOME}/.cache/zig/o" -name 'libcompiler_rt.a' -print -quit 2>/dev/null || true
+    local from_stderr
+    from_stderr="$(grep -oE '/[^ )]*libcompiler_rt\.a' "$STDERR_FILE" | head -1)"
+    if [[ -n "$from_stderr" && -f "$from_stderr" ]]; then
+        echo "$from_stderr"
+    fi
 }
 
 relink_with_apple_ld() {

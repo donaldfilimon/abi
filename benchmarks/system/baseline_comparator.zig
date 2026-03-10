@@ -25,6 +25,7 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../src/services/shared/time.zig");
 const baseline_store = @import("baseline_store.zig");
 
 pub const BenchmarkResult = baseline_store.BenchmarkResult;
@@ -629,7 +630,7 @@ pub fn compareAllWithConfig(
         .no_baseline = no_baseline,
         .results = try results.toOwnedSlice(allocator),
         .config = config,
-        .timestamp = std.time.timestamp(),
+        .timestamp = time.unixSeconds(),
         .branch = branch,
         .commit = commit,
     };

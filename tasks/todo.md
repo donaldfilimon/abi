@@ -12,85 +12,6 @@ a new plan when starting a wave.
 
 ## Active Queue
 
-### In Progress - CEL Forward Progress Wave 1 (2026-03-10)
-
-#### Objective
-Turn CEL stage-0 into a package-aware toolchain slice with a canonical manifest,
-import resolution, stdlib layout, reusable skill guidance, and smoke-tested
-package commands that move ABI closer to replacing Zig.
-
-#### Plan
-- [x] Canonicalize `cel.toml` around package name/version, module root, stdlib root, entry, test roots, and toolchain mode.
-- [x] Expand `./cel` from file-only operation to package-aware `check`, `fmt`, `run`, `test`, and `emit-c`.
-- [x] Add recursive package/std import resolution rooted in `cel.toml`.
-- [x] Replace the placeholder stdlib with a minimal importable tree (`prelude`, `io`, `testing`, `process`, `env`).
-- [x] Add package-oriented CEL fixtures and smoke coverage, including no-arg package execution.
-- [x] Create a repo-local `cel-language` skill that captures the dual-track CEL workflow.
-
-#### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- `tasks/todo.md` and `tools/scripts/use_cel.sh` were already dirty before this wave; only the tracker was updated as part of the CEL work.
-- This wave intentionally improves package plumbing and workflow discipline, not full language-core features like structs, pattern matching, or borrow checking.
-
-#### Review Notes
-- `tools/cel/stage0/main.c` now loads `cel.toml`, discovers package roots, resolves package/std imports recursively, and supports package-level `check`, `run`, `test`, `emit-c`, and `fmt -w`.
-- `cel.toml` now declares stable Wave 1 package fields, and the CEL fixtures were updated to use path-stable module names (`examples.cel.*`, `tests.cel.*`).
-- `stdlib/cel/` now contains a minimal importable layout: `prelude`, `io/print`, `testing/assert`, `process/exit`, and `env/path`.
-- Added the repo-local skill `.codex/skills/cel-language/` so future CEL work follows the same C-stage0/Zig-reference split.
-- Verification passed: `./cel --help`, `./cel check`, `./cel run`, `./cel test`, `./cel check examples/cel/hello.cel`, `./cel emit-c`, `./tests/cel/stage0_smoke.sh`, and a temporary package-copy proof for `./cel fmt -w <package-dir>`.
-
-### In Progress - CEL Activation Canonicalization Follow-up (2026-03-10)
-
-#### Objective
-Keep the legacy CEL entrypoints working without bypassing ABI's canonical
-`.zig-bootstrap` wrapper surface, so activation guidance, doctor output, and
-the actual PATH state all agree during the transition.
-
-#### Plan
-- [x] Update legacy CEL activation/migration scripts to prefer `.zig-bootstrap/bin` when wrappers exist, while preserving `.cel/bin` compatibility as a fallback.
-- [x] Refresh CEL-facing docs and build-script success messages to point at the canonical bootstrap wrapper commands.
-- [x] Verify the updated activation/status flows with targeted shell checks on this host.
-- [x] Remove stale merged worktrees/branches that carry no unique changes relative to `main`.
-
-#### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- Both `worktree-agent-a268a3e0` and `worktree-agent-a761c502` are already ancestors of `main`; deletion still requires checking their worktrees for unique uncommitted content first.
-
-#### Review Notes
-- `tools/scripts/use_cel.sh` now validates the backing `.cel/bin` toolchain but prepends `.zig-bootstrap/bin` when the wrapper exists, so legacy activation no longer conflicts with `toolchain_doctor` and other canonical-path checks.
-- `tools/scripts/cel_migrate.sh` now emits and activates `.zig-bootstrap/bin` during `--activate` and in its help/success output, keeping the migration path aligned with ABI's canonical bootstrap surface.
-- `.cel/build.sh`, `.cel/README.md`, and `CLAUDE.md` now point successful activation guidance at `use_zig_bootstrap.sh` / `.zig-bootstrap/build.sh` instead of the legacy `.cel/bin` activation path.
-- Validation passed: `bash -n .cel/*.sh tools/scripts/*.sh`, `./tools/scripts/cel_migrate.sh --help`, `./.cel/build.sh --status`, and a temporary stubbed repo exercise confirmed `source ./tools/scripts/use_cel.sh` and `./tools/scripts/cel_migrate.sh --activate` both resolve `zig` via `.zig-bootstrap/bin`.
-- Cleanup passed: both stale worktrees were removed and both already-merged worktree branches were deleted, leaving `main` as the only remaining worktree checkout.
-
-### In Progress - CEL Language Replacement Wave 0 (2026-03-10)
-
-#### Objective
-Start the hard-break CEL replacement program with a mergeable foundation:
-introduce a real stage-0 CEL compiler surface, reserve `.zig-bootstrap` as the
-canonical Zig-bridge namespace, and keep the legacy `.cel` implementation only
-as a temporary backing layer.
-
-#### Plan
-- [x] Add the stage-0 CEL surface (`cel`, `cel.toml`, `cel.lock`, `.cel` examples/tests, C11 compiler scaffold).
-- [x] Introduce `.zig-bootstrap/` wrappers and `abi bootstrap-zig` as the canonical Zig bootstrap surface.
-- [x] Repoint key CLI/build/LSP/tooling paths to `.zig-bootstrap` while preserving `.cel` compatibility underneath.
-- [x] Update canonical docs/task tracking to distinguish CEL language from Zig bootstrap.
-- [x] Verify the stage-0 CEL surface with C-compiler smoke tests and verify modified Zig/shell files with targeted checks.
-
-#### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- `.cel/build.sh`, `.cel/config.sh`, and `.cel/README.md` already have local modifications, so the new `.zig-bootstrap/` layer must not overwrite or regress that work.
-- This wave is intentionally foundational. It does not claim ABI CLI parity under CEL yet.
-
-#### Review Notes
-- Added a real C11 stage-0 CEL launcher at repo root (`./cel`) with `check`, `fmt`, `run`, `test`, and `emit-c`, plus `cel.toml`, `cel.lock`, `examples/cel/hello.cel`, `tests/cel/*`, and `stdlib/cel/prelude.cel`.
-- Added `.zig-bootstrap/` as the canonical wrapper namespace and `tools/scripts/use_zig_bootstrap.sh` / `zig_bootstrap_migrate.sh`, while keeping `.cel/` as the backing implementation.
-- Renamed the canonical CLI/docs/build surface to `bootstrap-zig` while preserving `toolchain` as a compatibility alias.
-- Verification passed: `./cel --help`, `./tests/cel/stage0_smoke.sh`, `bash -n` for modified shell scripts, and `zig test -fno-emit-bin` for `build/cel.zig`, `src/services/shared/utils/zig_toolchain.zig`, `src/services/lsp/client.zig`, `tools/scripts/toolchain_doctor.zig`, `tools/scripts/check_zig_version_consistency.zig`, and `tools/scripts/cel_doctor.zig`.
-- Runtime bootstrap checks passed: `./.zig-bootstrap/build.sh --status` and `./tools/scripts/zig_bootstrap_migrate.sh --check` now converge on `abi bootstrap-zig bootstrap`, and `./tools/scripts/use_zig_bootstrap.sh` fails fast when the backing `.cel/bin/zig` is absent.
-- Residual risk: standalone `zig test -fno-emit-bin` on CLI command files remains blocked by ABI's existing import-outside-module-root limitation, so those command changes were verified via targeted shell/runtime evidence instead.
-
 ### In Progress - Wave 1 Toolchain and Validation Baseline (2026-03-10)
 
 #### Objective
@@ -135,13 +56,6 @@ expanding default CI coverage.
 4. [ ] **Post-baseline gates**: Run `zig build verify-all` and `zig build benchmarks` on a working Linux or CEL-capable host.
 5. [ ] **Wave 2 planning**: Open the next improvement wave only after validation is green.
 
-### Completed - Code Quality Improvements (2026-03-09)
-- [x] Fix CLAUDE.md/README.md/SKILL.md feature count: 19→27 modules (across 19 directories)
-- [x] Fix CLAUDE.md flag combo count: 34→38
-- [x] Stub audit: confirmed no sub-module stubs needed (parent gating covers all)
-- [x] Test manifest expansion: +12 mod.zig entries (compute, documents, desktop, AI sub-modules, database sub-module)
-- [x] Test manifest expansion: +20 dedicated test files (database, network, AI training, personas, observability)
-
 ---
 
 ## Backlog (expanded tasks)
@@ -157,8 +71,8 @@ expanding default CI coverage.
 ### CEL Toolchain Hardening
 - [ ] **Pin ZLS commit**: Determine compatible ZLS commit for Zig 0.16.0-dev.1503 and set `ZLS_UPSTREAM_COMMIT` in `.cel/config.sh`.
 - [ ] **CI shell lint**: Add `bash -n` checks for `.cel/*.sh` and `tools/scripts/*.sh` in CI.
-- [ ] **Build trap handler**: Add SIGINT/SIGTERM trap in `.cel/build.sh` to clean partial builds.
-- [ ] **cel-doctor ZLS awareness**: Report ZLS pin status in `tools/scripts/cel_doctor.zig` diagnostics.
+- [x] **Build trap handler**: Add SIGINT/SIGTERM trap in `.cel/build.sh` to clean partial builds. *(Done in Wave 1, commit 25e58d44.)*
+- [x] **cel-doctor ZLS awareness**: Report ZLS pin status in `tools/scripts/cel_doctor.zig` diagnostics. *(Done in Wave 1, commit 25e58d44.)*
 
 ### Build / Toolchain
 - [ ] **Run full-check on working host**: Execute `zig build full-check` and `zig build verify-all` on Linux/CI or once Darwin linker is fixed.
@@ -167,10 +81,136 @@ expanding default CI coverage.
 
 ### Docs / Consistency
 - [x] **CLAUDE.md**: Add a one-line note on WDBX dist (heartbeat + RPC codec) and where to find Coordinator/RPC usage. *(Key Modules: dist, dist.rpc, dist.replication.)*
+- [x] **CLAUDE.md flag combo count**: Corrected 38 to 40 (actual `validation_matrix` size in `build/flags.zig`). *(2026-03-10 doc audit.)*
+- [x] **AGENTS.md stale paths**: Removed dead `zig-master` skill reference, pointed to `CLAUDE.md` instead. *(2026-03-10 doc audit.)*
 - [ ] **lessons.md**: After any production bug or correction, append a short lesson and prevention rule.
 - [ ] **check-docs**: Run `zig build check-docs` when build succeeds; fix broken or stale references.
+- [ ] **Validation matrix mobile gap**: `build/flags.zig` `validation_matrix` has no `mobile-only` or `no-mobile` combo despite `FlagCombo` having `feat_mobile`. Add when toolchain allows.
 
 ## Archive
+
+### Completed - Documentation Accuracy Audit (2026-03-10)
+
+#### Objective
+Audit CLAUDE.md, README.md, AGENTS.md, and tasks/todo.md for stale counts and dead references.
+
+#### Evidence
+- **Flag combo count**: CLAUDE.md said 38; actual `validation_matrix` in `build/flags.zig` has 40 entries. Corrected in two places.
+- **CLI command count**: Verified 40 top-level entries in `tools/cli/generated/cli_registry_snapshot.zig`. CLAUDE.md was correct.
+- **Feature directories**: Verified 19 directories under `src/features/`. Correct.
+- **Catalog entries**: Verified 27 entries in `src/core/feature_catalog.zig` `Feature` enum. Correct.
+- **AGENTS.md**: Replaced dead `zig-master` skill link with pointer to `CLAUDE.md`.
+- **todo.md**: Moved 4 fully-completed plans from Active Queue to Archive; marked 2 completed backlog items; added doc audit findings.
+- **Discovered**: `validation_matrix` is missing `mobile-only` and `no-mobile` combos (logged to backlog).
+
+### Completed - Darwin Review Follow-up (2026-03-10)
+
+#### Objective
+Address the current code-review findings in the Darwin workaround scripts and
+the CUDA loader so the branch is again Zig-0.16-compatible and shell failure
+paths stay trustworthy.
+
+#### Plan
+- [x] Replace the invalid `std.posix.getenv` usage in the CUDA loader with the repo-standard Zig 0.16 environment access path.
+- [x] Preserve real failure exit codes in `tools/scripts/zig_darwin26_wrapper.sh`.
+- [x] Resolve `libcompiler_rt.a` from the active Zig toolchain instead of the first cache hit, and keep the two Darwin helper scripts aligned.
+- [x] Verify the touched shell scripts with `bash -n` and run targeted repo checks for the Zig 0.16 pattern gate.
+
+#### Notes
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+
+#### Review Notes
+- `src/features/gpu/backends/cuda/loader.zig` now uses `std.c.getenv`, matching the repo's Zig 0.16 rule set and removing the review-blocking `std.posix.getenv` call.
+- `tools/scripts/zig_darwin26_wrapper.sh` now preserves the wrapped Zig command's real exit code on unrecoverable failures; a fake-`zig` probe confirmed the wrapper returns exit code `7` for a passthrough failure.
+- `tools/scripts/run_build.sh` and `tools/scripts/zig_darwin26_wrapper.sh` now derive `libcompiler_rt.a` from the failing Zig invocation's stderr instead of the first arbitrary cache hit.
+- Validation passed: `bash -n tools/scripts/run_build.sh tools/scripts/zig_darwin26_wrapper.sh`, `zig fmt --check src/features/gpu/backends/cuda/loader.zig`, and `git diff --check -- src/features/gpu/backends/cuda/loader.zig tools/scripts/run_build.sh tools/scripts/zig_darwin26_wrapper.sh tasks/todo.md`.
+- Validation limitation: `zig run tools/scripts/check_zig_016_patterns.zig` is still blocked on this Darwin host by the known upstream linker failure (`__availability_version_check`, `_arc4random_buf`, libc symbols), so the follow-up used direct pattern scans and targeted probes instead of the full gate.
+
+### Completed - CEL Forward Progress Wave 1 (2026-03-10)
+
+#### Objective
+Turn CEL stage-0 into a package-aware toolchain slice with a canonical manifest,
+import resolution, stdlib layout, reusable skill guidance, and smoke-tested
+package commands that move ABI closer to replacing Zig.
+
+#### Plan
+- [x] Canonicalize `cel.toml` around package name/version, module root, stdlib root, entry, test roots, and toolchain mode.
+- [x] Expand `./cel` from file-only operation to package-aware `check`, `fmt`, `run`, `test`, and `emit-c`.
+- [x] Add recursive package/std import resolution rooted in `cel.toml`.
+- [x] Replace the placeholder stdlib with a minimal importable tree (`prelude`, `io`, `testing`, `process`, `env`).
+- [x] Add package-oriented CEL fixtures and smoke coverage, including no-arg package execution.
+- [x] Create a repo-local `cel-language` skill that captures the dual-track CEL workflow.
+
+#### Notes
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+- `tasks/todo.md` and `tools/scripts/use_cel.sh` were already dirty before this wave; only the tracker was updated as part of the CEL work.
+- This wave intentionally improves package plumbing and workflow discipline, not full language-core features like structs, pattern matching, or borrow checking.
+
+#### Review Notes
+- `tools/cel/stage0/main.c` now loads `cel.toml`, discovers package roots, resolves package/std imports recursively, and supports package-level `check`, `run`, `test`, `emit-c`, and `fmt -w`.
+- `cel.toml` now declares stable Wave 1 package fields, and the CEL fixtures were updated to use path-stable module names (`examples.cel.*`, `tests.cel.*`).
+- `stdlib/cel/` now contains a minimal importable layout: `prelude`, `io/print`, `testing/assert`, `process/exit`, and `env/path`.
+- Added the repo-local skill `.codex/skills/cel-language/` so future CEL work follows the same C-stage0/Zig-reference split.
+- Verification passed: `./cel --help`, `./cel check`, `./cel run`, `./cel test`, `./cel check examples/cel/hello.cel`, `./cel emit-c`, `./tests/cel/stage0_smoke.sh`, and a temporary package-copy proof for `./cel fmt -w <package-dir>`.
+
+### Completed - CEL Activation Canonicalization Follow-up (2026-03-10)
+
+#### Objective
+Keep the legacy CEL entrypoints working without bypassing ABI's canonical
+`.zig-bootstrap` wrapper surface, so activation guidance, doctor output, and
+the actual PATH state all agree during the transition.
+
+#### Plan
+- [x] Update legacy CEL activation/migration scripts to prefer `.zig-bootstrap/bin` when wrappers exist, while preserving `.cel/bin` compatibility as a fallback.
+- [x] Refresh CEL-facing docs and build-script success messages to point at the canonical bootstrap wrapper commands.
+- [x] Verify the updated activation/status flows with targeted shell checks on this host.
+- [x] Remove stale merged worktrees/branches that carry no unique changes relative to `main`.
+
+#### Notes
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+- Both `worktree-agent-a268a3e0` and `worktree-agent-a761c502` are already ancestors of `main`; deletion still requires checking their worktrees for unique uncommitted content first.
+
+#### Review Notes
+- `tools/scripts/use_cel.sh` now validates the backing `.cel/bin` toolchain but prepends `.zig-bootstrap/bin` when the wrapper exists, so legacy activation no longer conflicts with `toolchain_doctor` and other canonical-path checks.
+- `tools/scripts/cel_migrate.sh` now emits and activates `.zig-bootstrap/bin` during `--activate` and in its help/success output, keeping the migration path aligned with ABI's canonical bootstrap surface.
+- `.cel/build.sh`, `.cel/README.md`, and `CLAUDE.md` now point successful activation guidance at `use_zig_bootstrap.sh` / `.zig-bootstrap/build.sh` instead of the legacy `.cel/bin` activation path.
+- Validation passed: `bash -n .cel/*.sh tools/scripts/*.sh`, `./tools/scripts/cel_migrate.sh --help`, `./.cel/build.sh --status`, and a temporary stubbed repo exercise confirmed `source ./tools/scripts/use_cel.sh` and `./tools/scripts/cel_migrate.sh --activate` both resolve `zig` via `.zig-bootstrap/bin`.
+- Cleanup passed: both stale worktrees were removed and both already-merged worktree branches were deleted, leaving `main` as the only remaining worktree checkout.
+
+### Completed - CEL Language Replacement Wave 0 (2026-03-10)
+
+#### Objective
+Start the hard-break CEL replacement program with a mergeable foundation:
+introduce a real stage-0 CEL compiler surface, reserve `.zig-bootstrap` as the
+canonical Zig-bridge namespace, and keep the legacy `.cel` implementation only
+as a temporary backing layer.
+
+#### Plan
+- [x] Add the stage-0 CEL surface (`cel`, `cel.toml`, `cel.lock`, `.cel` examples/tests, C11 compiler scaffold).
+- [x] Introduce `.zig-bootstrap/` wrappers and `abi bootstrap-zig` as the canonical Zig bootstrap surface.
+- [x] Repoint key CLI/build/LSP/tooling paths to `.zig-bootstrap` while preserving `.cel` compatibility underneath.
+- [x] Update canonical docs/task tracking to distinguish CEL language from Zig bootstrap.
+- [x] Verify the stage-0 CEL surface with C-compiler smoke tests and verify modified Zig/shell files with targeted checks.
+
+#### Notes
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+- `.cel/build.sh`, `.cel/config.sh`, and `.cel/README.md` already have local modifications, so the new `.zig-bootstrap/` layer must not overwrite or regress that work.
+- This wave is intentionally foundational. It does not claim ABI CLI parity under CEL yet.
+
+#### Review Notes
+- Added a real C11 stage-0 CEL launcher at repo root (`./cel`) with `check`, `fmt`, `run`, `test`, and `emit-c`, plus `cel.toml`, `cel.lock`, `examples/cel/hello.cel`, `tests/cel/*`, and `stdlib/cel/prelude.cel`.
+- Added `.zig-bootstrap/` as the canonical wrapper namespace and `tools/scripts/use_zig_bootstrap.sh` / `zig_bootstrap_migrate.sh`, while keeping `.cel/` as the backing implementation.
+- Renamed the canonical CLI/docs/build surface to `bootstrap-zig` while preserving `toolchain` as a compatibility alias.
+- Verification passed: `./cel --help`, `./tests/cel/stage0_smoke.sh`, `bash -n` for modified shell scripts, and `zig test -fno-emit-bin` for `build/cel.zig`, `src/services/shared/utils/zig_toolchain.zig`, `src/services/lsp/client.zig`, `tools/scripts/toolchain_doctor.zig`, `tools/scripts/check_zig_version_consistency.zig`, and `tools/scripts/cel_doctor.zig`.
+- Runtime bootstrap checks passed: `./.zig-bootstrap/build.sh --status` and `./tools/scripts/zig_bootstrap_migrate.sh --check` now converge on `abi bootstrap-zig bootstrap`, and `./tools/scripts/use_zig_bootstrap.sh` fails fast when the backing `.cel/bin/zig` is absent.
+- Residual risk: standalone `zig test -fno-emit-bin` on CLI command files remains blocked by ABI's existing import-outside-module-root limitation, so those command changes were verified via targeted shell/runtime evidence instead.
+
+### Completed - Code Quality Improvements (2026-03-09)
+- [x] Fix CLAUDE.md/README.md/SKILL.md feature count: 19->27 modules (across 19 directories)
+- [x] Fix CLAUDE.md flag combo count: 34->38 *(Note: actual count later found to be 40 in 2026-03-10 audit)*
+- [x] Stub audit: confirmed no sub-module stubs needed (parent gating covers all)
+- [x] Test manifest expansion: +12 mod.zig entries (compute, documents, desktop, AI sub-modules, database sub-module)
+- [x] Test manifest expansion: +20 dedicated test files (database, network, AI training, personas, observability)
 
 ### Completed - ABI Codex Skill Bootstrap (2026-03-09)
 
@@ -199,7 +239,7 @@ Validate the codebase using formatting and static AST checks (`zig ast-check`) w
 #### Residual Risk
 - The logic is currently validated by syntax and structural integrity; full behavioral and compilation validation requires a working linker.
 
-### Completed - Core Engine Optimization and Feature Hardening (2026-03-06 → 2026-03-09)
+### Completed - Core Engine Optimization and Feature Hardening (2026-03-06 -> 2026-03-09)
 
 #### Evidence
 - All checklist items completed except benchmarks and full-check (blocked by Darwin linker).
@@ -214,8 +254,8 @@ Validate the codebase using formatting and static AST checks (`zig ast-check`) w
 ### Completed - Do all (this host) 2026-03-08
 
 - **Test manifest**: Confirmed `build/test_discovery.zig` includes `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`.
-- **Format**: `zig fmt --check build.zig build/ src/ tools/` — pass.
-- **Compile-only tests**: `zig test … -fno-emit-bin` pass for `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`, `graph/mod.zig`, `wdbx/core/alloc.zig`, `features/network/protocol.zig`.
+- **Format**: `zig fmt --check build.zig build/ src/ tools/` -- pass.
+- **Compile-only tests**: `zig test ... -fno-emit-bin` pass for `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`, `graph/mod.zig`, `wdbx/core/alloc.zig`, `features/network/protocol.zig`.
 - **Build**: `zig build cel-status` fails at link (`__availability_version_check` etc.) as documented.
 
 
@@ -226,7 +266,7 @@ Aggressively finish the .cel (Custom Environment Linker) toolchain infrastructur
 
 #### Evidence
 - **`build/cel.zig`**: New build module with `detectCelStatus()`, `addCelCheckStep()`, `addCelBuildStep()`, `addCelStatusStep()`, `addCelVerifyStep()`, `emitCelSuggestion()`. Compiles clean.
-- **`tools/scripts/cel_doctor.zig`**: Comprehensive diagnostics — platform detection, directory structure, binary check, patch inventory, version consistency, stock zig status, build prerequisites, actionable remediation. Compiles clean.
+- **`tools/scripts/cel_doctor.zig`**: Comprehensive diagnostics -- platform detection, directory structure, binary check, patch inventory, version consistency, stock zig status, build prerequisites, actionable remediation. Compiles clean.
 - **`tools/scripts/cel_migrate.sh`**: Guided migration script with `--check`, `--activate`, `--clean` modes. Syntax valid.
 - **`build.zig` integration**: CEL module imported; `cel-check`, `cel-build`, `cel-status`, `cel-verify`, `cel-doctor` build steps registered; blocked Darwin feature-disable now uses `cel.emitCelSuggestion()` for context-aware guidance.
 - **`toolchain_doctor.zig`**: Updated with CEL binary detection, version matching, and CEL-first remediation on blocked Darwin.
@@ -236,7 +276,7 @@ Aggressively finish the .cel (Custom Environment Linker) toolchain infrastructur
 - **`.cel/patches/003-macho-segment-ordering.patch`**: Placeholder for Mach-O segment fix (upstream #25521).
 - **`tools/scripts/use_cel.sh`**: Enhanced with better error messages and CEL migration guidance.
 - **`CLAUDE.md`**: Updated to document CEL as primary path with all build steps.
-- **Format**: `zig fmt --check build.zig build/ src/ tools/` — pass.
+- **Format**: `zig fmt --check build.zig build/ src/ tools/` -- pass.
 - **Compile-only**: All 4 modified/new Zig files pass `zig test -fno-emit-bin`.
 
 #### Residual Risk
@@ -246,8 +286,8 @@ Aggressively finish the .cel (Custom Environment Linker) toolchain infrastructur
 ### Completed - Do all (this host) 2026-03-06
 
 - **Test manifest**: Confirmed `build/test_discovery.zig` includes `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`.
-- **Format**: `zig fmt --check build.zig build/ src/ tools/` — pass.
-- **Compile-only tests**: `zig test … -fno-emit-bin` pass for `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`, `graph/mod.zig`, `wdbx/core/alloc.zig`, `features/network/protocol.zig`.
+- **Format**: `zig fmt --check build.zig build/ src/ tools/` -- pass.
+- **Compile-only tests**: `zig test ... -fno-emit-bin` pass for `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`, `graph/mod.zig`, `wdbx/core/alloc.zig`, `features/network/protocol.zig`.
 - **Build**: `zig build test` fails at link (undefined symbol `__availability_version_check` etc.) as documented; run full-check/verify-all on a host where the toolchain links.
 - **Stress tests**: Added `Coordinator: many nodes and shards (stress)` (20 nodes, 50 shards, unassign) and `GraphStore: many edges (stress)` (64-node chain, bfs, remove middle edge).
 

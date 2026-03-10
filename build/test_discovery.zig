@@ -300,7 +300,7 @@ pub fn addFeatureTests(
     const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
     if (is_blocked_darwin) {
         feature_tests.use_llvm = true;
-        feature_tests.use_lld = true;
+        // LLD has zero Mach-O support; Apple /usr/bin/ld used via run_build.sh
     }
 
     const run_feature_tests = b.addRunArtifact(feature_tests);

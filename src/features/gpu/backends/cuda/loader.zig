@@ -6,8 +6,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 const shared = @import("../shared.zig");
 
-// No @cImport needed — we use std.posix.getenv on native targets.
-
 pub const CuResult = enum(i32) {
     success = 0,
     invalid_value = 1,
@@ -170,7 +168,8 @@ fn getEnv(name: [:0]const u8) ?[]const u8 {
     {
         return null;
     }
-    return std.posix.getenv(name);
+    const value_ptr = std.c.getenv(name.ptr) orelse return null;
+    return std.mem.span(value_ptr);
 }
 
 fn appendOwnedPath(

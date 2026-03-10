@@ -12,7 +12,7 @@ This file documents the personas active within the ABI Framework.
 • Repo workflow contract: `AGENTS.md`
 • Active execution tracker: `tasks/todo.md`
 • Correction log: `tasks/lessons.md`
-• Zig validation contract: `[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)`
+• Zig validation contract: See `CLAUDE.md` (Zig 0.16 std API notes and build commands)
 
 ## Global Multi-CLI Consensus
 

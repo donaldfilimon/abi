@@ -14,6 +14,8 @@ pub const Error = error{
     AgentsDisabled,
     /// Training sub-feature is disabled
     TrainingDisabled,
+    /// Reasoning sub-feature is disabled
+    ReasoningDisabled,
     /// Model not found
     ModelNotFound,
     /// Inference failed
@@ -32,6 +34,7 @@ pub const database = @import("database/stub.zig");
 pub const documents = @import("documents/stub.zig");
 pub const vision = @import("vision/stub.zig");
 pub const orchestration = @import("orchestration/stub.zig");
+pub const reasoning = @import("reasoning/stub.zig");
 pub const multi_agent = @import("multi_agent/stub.zig");
 pub const models = @import("models/stub.zig");
 pub const memory = @import("memory/stub.zig");
@@ -83,7 +86,7 @@ pub const discovery = @import("explore/stub.zig");
 
 // Context
 pub const Context = struct {
-    pub const SubFeature = enum { llm, embeddings, agents, training, personas };
+    pub const SubFeature = enum { llm, embeddings, agents, training, reasoning, personas };
 
     pub fn SubFeatureContext(comptime feature: SubFeature) type {
         return switch (feature) {
@@ -91,6 +94,7 @@ pub const Context = struct {
             .embeddings => embeddings.Context,
             .agents => agents.Context,
             .training => training.Context,
+            .reasoning => reasoning.Context,
             .personas => personas.Context,
         };
     }
@@ -99,7 +103,7 @@ pub const Context = struct {
         return error.AiDisabled;
     }
     pub fn deinit(_: *Context) void {}
-    pub fn get(_: *Context, comptime _: SubFeature) Error!*SubFeatureContext(SubFeature.llm) {
+    pub fn get(_: *Context, comptime feature: SubFeature) Error!*SubFeatureContext(feature) {
         return error.AiDisabled;
     }
     pub fn isSubFeatureEnabled(_: *Context, _: SubFeature) bool {

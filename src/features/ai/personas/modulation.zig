@@ -10,6 +10,7 @@
 //! routing decision, adjusting scores based on learned user preferences.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
 const types = @import("types.zig");
 
 /// Configuration for the adaptive modulation system.
@@ -180,7 +181,7 @@ pub const AdaptiveModulator = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         // Get or create profile
         const entry = self.profiles.getEntry(session_id);

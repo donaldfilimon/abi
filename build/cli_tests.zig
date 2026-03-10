@@ -30,7 +30,7 @@ pub fn addCliTests(
     const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
     if (is_blocked_darwin) {
         smoke_runner.use_llvm = true;
-        smoke_runner.use_lld = true;
+        // LLD has zero Mach-O support; Apple /usr/bin/ld used via run_build.sh
     }
 
     const run_smoke = b.addRunArtifact(smoke_runner);

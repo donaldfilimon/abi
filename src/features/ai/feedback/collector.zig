@@ -7,6 +7,7 @@
 //! - Session and persona association
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
 const cfg = @import("config.zig");
 
 /// Rating type for feedback.
@@ -213,7 +214,7 @@ pub const FeedbackCollector = struct {
             .session_id_len = 0,
             .text = undefined,
             .text_len = 0,
-            .timestamp = std.time.timestamp(),
+            .timestamp = time.unixSeconds(),
         };
 
         const sid_len: u8 = @intCast(@min(session_id.len, 64));

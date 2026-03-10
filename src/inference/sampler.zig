@@ -4,6 +4,7 @@
 //! for autoregressive text generation.
 
 const std = @import("std");
+const time = @import("../services/shared/time.zig");
 
 pub const SamplingParams = struct {
     temperature: f32 = 0.7,
@@ -21,7 +22,7 @@ pub const Sampler = struct {
     pub fn init(params: SamplingParams) Self {
         return .{
             .params = params,
-            .rng = std.Random.DefaultPrng.init(@bitCast(std.time.timestamp())),
+            .rng = std.Random.DefaultPrng.init(@bitCast(time.unixSeconds())),
         };
     }
 
