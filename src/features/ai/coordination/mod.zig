@@ -6,7 +6,7 @@ const legacy_types = @import("../types");
 const legacy_config = @import("../config");
 const legacy_abi = @import("../abi_logic");
 const profiles = @import("../profiles");
-const semantic_store = @import("wdbx").semantic_store;
+const semantic_store = @import("../../database").semantic_store;
 
 pub const InteractionRequest = legacy_types.PersonaRequest;
 pub const InteractionResponse = legacy_types.PersonaResponse;

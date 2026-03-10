@@ -38,7 +38,7 @@ const panel_registry = @import("../../../terminal/panels/registry");
 const session_runner = @import("./session_runner");
 const theme_options = @import("./theme_options");
 const utils = @import("../../../utils/mod.zig");
-const wdbx_alloc = @import("abi").wdbx.core.alloc;
+const database_alloc = @import("abi").features.database.core.alloc;
 
 const panel_count = panel_registry.panel_specs.len;
 
@@ -116,9 +116,9 @@ const ShellPanel = struct {
         };
     }
 
-    /// Connect WDBX engine allocator to the Memory panel for live stats (e.g. when running UI with an engine that uses TrackingAllocator).
-    pub fn connectWdbxTracker(self: *ShellPanel, tracker: *wdbx_alloc.TrackingAllocator) void {
-        self.memory_panel.connectWdbxTracker(tracker);
+    /// Connect the database allocator to the Memory panel for live stats.
+    pub fn connectDatabaseTracker(self: *ShellPanel, tracker: *database_alloc.TrackingAllocator) void {
+        self.memory_panel.connectDatabaseTracker(tracker);
     }
 
     pub fn wirePanels(self: *ShellPanel) void {

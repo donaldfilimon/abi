@@ -34,7 +34,7 @@ test "database stub parity - types exist" {
     try testing.expect(@hasDecl(Database, "isEnabled"));
 
     // Verify sub-modules
-    try testing.expect(@hasDecl(Database, "wdbx"));
+    try testing.expect(@hasDecl(Database, "semantic_store"));
     try testing.expect(@hasDecl(Database, "fulltext"));
     try testing.expect(@hasDecl(Database, "hybrid"));
     try testing.expect(@hasDecl(Database, "filter"));

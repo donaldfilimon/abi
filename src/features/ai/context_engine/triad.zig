@@ -5,16 +5,16 @@
 //! and feeds their analysis to ABI (Moderator) to synthesize the final action.
 
 const std = @import("std");
-const wdbx = @import("wdbx");
+const neural_database = @import("../../database").neural;
 
 pub const TriadEngine = struct {
     allocator: std.mem.Allocator,
     io: *std.Io,
     soul_prompt: []const u8,
-    brain: *wdbx.Engine,
+    brain: *neural_database.Engine,
     interaction_count: u64,
 
-    pub fn init(allocator: std.mem.Allocator, io: *std.Io, soul_prompt: []const u8, brain: *wdbx.Engine) !TriadEngine {
+    pub fn init(allocator: std.mem.Allocator, io: *std.Io, soul_prompt: []const u8, brain: *neural_database.Engine) !TriadEngine {
         var engine = TriadEngine{
             .allocator = allocator,
             .io = io,
@@ -23,7 +23,7 @@ pub const TriadEngine = struct {
             .interaction_count = 0,
         };
 
-        // Deep Soul Prompt Integration into WDBX Neural Matrix
+        // Deep soul prompt integration into the neural database matrix.
         // Since we are running natively without external APIs by default, we embed a synthetic
         // high-dimensional anchor vector representing the Soul Prompt's gravity.
         var soul_vector: [1536]f32 = .{0} ** 1536;
@@ -130,7 +130,7 @@ pub const TriadEngine = struct {
             return self.criticalOverride(input);
         }
 
-        // [ABI] Synthesis and WDBX Commit
+        // [ABI] Synthesis and neural-database commit
         self.interaction_count += 1;
         var interaction_id_buf: [32]u8 = undefined;
         const interaction_id = try std.fmt.bufPrint(&interaction_id_buf, "interaction_{d}", .{self.interaction_count});
@@ -142,7 +142,7 @@ pub const TriadEngine = struct {
             .text = "Interaction snapshot",
         });
 
-        const final_out = try std.fmt.allocPrint(self.allocator, "Synthesized Action. Permanently embedded interaction into WDBX matrix at node '{s}'.", .{interaction_id});
+        const final_out = try std.fmt.allocPrint(self.allocator, "Synthesized Action. Permanently embedded interaction into the neural database matrix at node '{s}'.", .{interaction_id});
 
         return SynthesisResult{
             .abbey_analysis = abbey_out,

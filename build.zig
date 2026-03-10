@@ -54,18 +54,7 @@ pub fn build(b: *std.Build) void {
     // ── Core modules ────────────────────────────────────────────────────
     const build_opts = modules.createBuildOptionsModule(b, options);
 
-    const wdbx_module = b.addModule("wdbx", .{
-        .root_source_file = b.path("src/core/database/wdbx.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const shared_services_module = b.addModule("shared_services", .{
-        .root_source_file = b.path("src/services/shared/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    shared_services_module.addImport("build_options", build_opts);
+    const shared_services_module = modules.createSharedServicesModule(b, build_opts, target, optimize);
 
     const util_module = b.addModule("util", .{
         .root_source_file = b.path("tools/scripts/util.zig"),
@@ -73,17 +62,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    wdbx_module.addImport("build_options", build_opts);
-    wdbx_module.addImport("shared_services", shared_services_module);
-
     const abi_module = b.addModule("abi", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    abi_module.addImport("build_options", build_opts);
-    abi_module.addImport("wdbx", wdbx_module);
-    abi_module.addImport("shared_services", shared_services_module);
+    modules.wireAbiImports(abi_module, build_opts, shared_services_module);
 
     // ── CLI executable ──────────────────────────────────────────────────
     const exe = b.addExecutable(.{
@@ -220,13 +204,16 @@ pub fn build(b: *std.Build) void {
         typecheck_step.?.dependOn(&tests.step);
 
         if (targets.pathExists(b, "src/core/database/wdbx.zig")) {
+            const database_neural_mod = b.createModule(.{
+                .root_source_file = b.path("src/core/database/wdbx.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            });
+            database_neural_mod.addImport("build_options", build_opts);
+            database_neural_mod.addImport("shared_services", shared_services_module);
             const neural_wdbx_tests = b.addTest(.{
-                .root_module = b.createModule(.{
-                    .root_source_file = b.path("src/core/database/wdbx.zig"),
-                    .target = target,
-                    .optimize = optimize,
-                    .link_libc = true,
-                }),
+                .root_module = database_neural_mod,
             });
             if (is_blocked_darwin) {
                 neural_wdbx_tests.use_llvm = true;
@@ -234,33 +221,33 @@ pub fn build(b: *std.Build) void {
             typecheck_step.?.dependOn(&neural_wdbx_tests.step);
         }
 
-        if (targets.pathExists(b, "src/wdbx_fast_tests_root.zig")) {
-            const wdbx_fast_tests_mod = b.createModule(.{
-                .root_source_file = b.path("src/wdbx_fast_tests_root.zig"),
+        if (targets.pathExists(b, "src/core/database_fast_tests_root.zig")) {
+            const database_fast_tests_mod = b.createModule(.{
+                .root_source_file = b.path("src/core/database_fast_tests_root.zig"),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = true,
             });
-            wdbx_fast_tests_mod.addImport("wdbx", wdbx_module);
-            wdbx_fast_tests_mod.addImport("build_options", build_opts);
+            database_fast_tests_mod.addImport("build_options", build_opts);
+            database_fast_tests_mod.addImport("shared_services", shared_services_module);
 
-            const wdbx_fast_tests = b.addTest(.{
-                .root_module = wdbx_fast_tests_mod,
+            const database_fast_tests = b.addTest(.{
+                .root_module = database_fast_tests_mod,
             });
-            link.applyAllPlatformLinks(wdbx_fast_tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+            link.applyAllPlatformLinks(database_fast_tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
             if (is_blocked_darwin) {
-                wdbx_fast_tests.use_llvm = true;
+                database_fast_tests.use_llvm = true;
             }
 
-            wdbx_fast_tests_step = b.step("wdbx-fast-tests", "Run focused WDBX and database adapter tests (typecheck-only on blocked Darwin)");
+            wdbx_fast_tests_step = b.step("database-fast-tests", "Run focused database adapter tests (typecheck-only on blocked Darwin)");
             if (is_blocked_darwin) {
-                wdbx_fast_tests_step.?.dependOn(&wdbx_fast_tests.step);
+                wdbx_fast_tests_step.?.dependOn(&database_fast_tests.step);
             } else {
-                const run_wdbx_fast_tests = b.addRunArtifact(wdbx_fast_tests);
-                run_wdbx_fast_tests.skip_foreign_checks = true;
-                wdbx_fast_tests_step.?.dependOn(&run_wdbx_fast_tests.step);
+                const run_database_fast_tests = b.addRunArtifact(database_fast_tests);
+                run_database_fast_tests.skip_foreign_checks = true;
+                wdbx_fast_tests_step.?.dependOn(&run_database_fast_tests.step);
             }
-            typecheck_step.?.dependOn(&wdbx_fast_tests.step);
+            typecheck_step.?.dependOn(&database_fast_tests.step);
         }
 
         test_step = b.step("test", "Run unit tests");
@@ -668,12 +655,13 @@ pub fn build(b: *std.Build) void {
             cross_opts.gpu_backends = &.{.stdgpu};
         }
         const cross_build_opts = modules.createBuildOptionsModule(b, cross_opts);
+        const cross_shared_services = modules.createSharedServicesModule(b, cross_build_opts, cross_target, optimize);
         const cross_abi_mod = b.createModule(.{
-            .root_source_file = b.path("src/abi.zig"),
+            .root_source_file = b.path("src/root.zig"),
             .target = cross_target,
             .optimize = optimize,
         });
-        cross_abi_mod.addImport("build_options", cross_build_opts);
+        modules.wireAbiImports(cross_abi_mod, cross_build_opts, cross_shared_services);
         const cross_lib = b.addLibrary(.{
             .name = "cross-" ++ ct.name,
             .root_module = cross_abi_mod,
@@ -685,14 +673,13 @@ pub fn build(b: *std.Build) void {
     // ── V3 Refactored Modules ─────────────────────────────────────────
     // New flat module structure: root.zig → core/database/, personas/, inference/, api_server/
 
-    // Helper: create a v3 root module with abi and wdbx imports wired in.
+    // Helper: create a v3 root module with package runtime imports wired in.
     const v3_root_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    v3_root_mod.addImport("abi", abi_module);
-    v3_root_mod.addImport("wdbx", wdbx_module);
+    modules.wireAbiImports(v3_root_mod, build_opts, shared_services_module);
 
     // V3 Static library
     const v3_lib = b.addLibrary(.{
@@ -710,7 +697,6 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     v3_server_mod.addImport("abi", abi_module);
-    v3_server_mod.addImport("wdbx", wdbx_module);
 
     const v3_server = b.addExecutable(.{
         .name = "abi-server",
@@ -729,8 +715,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    v3_test_mod.addImport("abi", abi_module);
-    v3_test_mod.addImport("wdbx", wdbx_module);
+    modules.wireAbiImports(v3_test_mod, build_opts, shared_services_module);
 
     const v3_tests = b.addTest(.{
         .root_module = v3_test_mod,

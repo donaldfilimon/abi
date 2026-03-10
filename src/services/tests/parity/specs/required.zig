@@ -57,7 +57,7 @@ pub const database = [_][]const u8{
     "SearchResult",
     "VectorView",
     "Stats",
-    "wdbx",
+    "semantic_store",
     "init",
     "deinit",
     "isEnabled",

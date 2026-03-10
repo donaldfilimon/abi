@@ -52,7 +52,7 @@ pub fn build(b: *std.Build) void {
     const build_options_module = build_options.createModule();
 
     const abi = b.addModule("abi", .{
-        .root_source_file = b.path("src/abi.zig"),
+        .root_source_file = b.path("src/root.zig"),
     });
     abi.addImport("build_options", build_options_module);
 

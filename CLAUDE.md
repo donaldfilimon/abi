@@ -8,7 +8,7 @@ ABI is a modular Zig 0.16 framework for AI services, vector search, and GPU comp
 
 ### Source Layout
 
-- `src/abi.zig` — Public API entry point; all external code uses `@import("abi")`
+- `src/root.zig` — Public package entry point; external code uses `@import("abi")`
 - `src/features/` — 19 comptime-gated feature modules (ai, gpu, database, network, web, etc.)
 - `src/services/` — Shared runtime services (connectors, LSP, MCP, runtime engine, security)
 - `src/core/` — Config, feature catalog, framework lifecycle, registry
@@ -18,7 +18,7 @@ ABI is a modular Zig 0.16 framework for AI services, vector search, and GPU comp
 
 ### Key Architecture Concepts
 
-- **Feature gating**: `build_options` (from `build/options.zig`) sets `feat_*` booleans. `src/abi.zig` uses `if (build_options.feat_gpu)` to conditionally import mod vs stub.
+- **Feature gating**: `build_options` (from `build/options.zig`) sets `feat_*` booleans. The root composition layer selects mod vs stub implementations at comptime.
 - **mod/stub contract**: When editing any `src/features/<name>/mod.zig`, the corresponding `stub.zig` MUST have identical public function signatures. Sub-module stubs are NOT needed — parent gating covers all children.
 - **Import convention**: Within a feature module, use relative imports (`@import("local.zig")`). For the framework API, always use `@import("abi")`. Cross-directory relative imports (e.g., `../../core/`) are fragile and break standalone compilation — avoid them.
 - **CLI registry**: After adding/modifying CLI commands, run `zig build refresh-cli-registry` to update the generated snapshot.

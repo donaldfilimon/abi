@@ -26,6 +26,10 @@ All 5 waves committed on branch `fix/codebase-quality-sweep`:
 
 ## Active — Post-Sweep Cleanup
 
+- [x] **Database boundary refactor (single change set)**: removed the public `wdbx` package surface, standardized on `abi.features.database`, rewired build/test roots away from the named `wdbx` module, and migrated in-tree callers/docs/parity checks together.
+- [ ] Consensus status: best-effort tri-CLI wrapper unavailable at `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`; record this refactor as proceeding without wrapper output.
+- [x] 2026-03-10 evidence: `zig fmt` applied to touched Zig files; compile-only checks passed via `zig build-obj -fno-emit-bin` for `src/root.zig`, `src/features/database/mod.zig`, `src/features/database/stub.zig`, `src/generated_feature_tests.zig`, `src/services/mcp/mod.zig`, and `src/core/database_fast_tests_root.zig`.
+- [x] 2026-03-10 residual risk: `zig build validate-flags` and `zig build feature-tests --summary all` both failed in this environment with the known Darwin linker undefined-symbol issue before broader gate execution; `full-check` / `verify-all` remain pending on a host with a working Zig link path.
 - [x] Fix stale README.md references (`abi.personas` → `abi.features.ai.profiles`)
 - [x] Fix stale docs/api/v1.md references
 - [x] Fix coordination mod/stub — inline CoordinationContext and InteractionCoordinator (removed dependency on deleted MultiPersonaSystem)

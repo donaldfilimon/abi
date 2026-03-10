@@ -1,15 +1,19 @@
 //! Canonical semantic-store surface for weighted memory, retrieval, and lineage.
 
 const std = @import("std");
-const legacy_wdbx = @import("../wdbx");
+const database = @import("../database");
+const storage = @import("../storage");
+const fs = @import("shared_services").utils.fs;
 
-pub const StoreHandle = legacy_wdbx.DatabaseHandle;
+pub const StoreHandle = struct {
+    db: database.Database,
+};
 pub const DatabaseHandle = StoreHandle;
-pub const SearchResult = legacy_wdbx.SearchResult;
-pub const VectorView = legacy_wdbx.VectorView;
-pub const Stats = legacy_wdbx.Stats;
-pub const DatabaseConfig = legacy_wdbx.DatabaseConfig;
-pub const BatchItem = legacy_wdbx.BatchItem;
+pub const SearchResult = database.SearchResult;
+pub const VectorView = database.VectorView;
+pub const Stats = database.Stats;
+pub const DatabaseConfig = database.DatabaseConfig;
+pub const BatchItem = database.Database.BatchItem;
 
 pub const MemoryBlock = struct {
     id: u64 = 0,
@@ -76,7 +80,7 @@ pub const RetrievalHit = struct {
 };
 
 pub fn openStore(allocator: std.mem.Allocator, name: []const u8) !StoreHandle {
-    return legacy_wdbx.createDatabase(allocator, name);
+    return .{ .db = try database.Database.init(allocator, name) };
 }
 
 pub fn openStoreWithConfig(
@@ -84,15 +88,16 @@ pub fn openStoreWithConfig(
     name: []const u8,
     config: DatabaseConfig,
 ) !StoreHandle {
-    return legacy_wdbx.createDatabaseWithConfig(allocator, name, config);
+    return .{ .db = try database.Database.initWithConfig(allocator, name, config) };
 }
 
 pub fn connectStore(allocator: std.mem.Allocator, name: []const u8) !StoreHandle {
-    return legacy_wdbx.connectDatabase(allocator, name);
+    return openStore(allocator, name);
 }
 
 pub fn closeStore(handle: *StoreHandle) void {
-    legacy_wdbx.closeDatabase(handle);
+    handle.db.deinit();
+    handle.* = undefined;
 }
 
 pub fn storeVector(
@@ -101,7 +106,7 @@ pub fn storeVector(
     vector: []const f32,
     metadata: ?[]const u8,
 ) !void {
-    try legacy_wdbx.insertVector(handle, id, vector, metadata);
+    try handle.db.insert(id, vector, metadata);
 }
 
 pub fn searchStore(
@@ -110,15 +115,89 @@ pub fn searchStore(
     query: []const f32,
     top_k: usize,
 ) ![]SearchResult {
-    return legacy_wdbx.searchVectors(handle, allocator, query, top_k);
+    return handle.db.search(allocator, query, top_k);
+}
+
+pub fn insertBatch(handle: *StoreHandle, items: []const BatchItem) !void {
+    try handle.db.insertBatch(items);
+}
+
+pub fn searchVectorsInto(
+    handle: *StoreHandle,
+    query: []const f32,
+    top_k: usize,
+    results: []SearchResult,
+) usize {
+    return handle.db.searchInto(query, top_k, results);
+}
+
+pub fn deleteVector(handle: *StoreHandle, id: u64) bool {
+    return handle.db.delete(id);
+}
+
+pub fn updateVector(handle: *StoreHandle, id: u64, vector: []const f32) !bool {
+    return handle.db.update(id, vector);
+}
+
+pub fn getVector(handle: *StoreHandle, id: u64) ?VectorView {
+    return handle.db.get(id);
+}
+
+pub fn listVectors(
+    handle: *StoreHandle,
+    allocator: std.mem.Allocator,
+    limit: usize,
+) ![]VectorView {
+    return handle.db.list(allocator, limit);
+}
+
+pub fn getStats(handle: *StoreHandle) Stats {
+    return handle.db.stats();
+}
+
+pub fn optimize(handle: *StoreHandle) !void {
+    handle.db.optimize();
+}
+
+fn ensureParentDirExists(allocator: std.mem.Allocator, path: []const u8) !void {
+    const dir_path = std.fs.path.dirname(path) orelse return;
+    if (dir_path.len == 0) return;
+
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    std.Io.Dir.cwd().createDirPath(io, dir_path) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+}
+
+pub fn backupToPath(handle: *StoreHandle, path: []const u8) !void {
+    try ensureParentDirExists(handle.db.allocator, path);
+    try storage.saveDatabase(handle.db.allocator, &handle.db, path);
+}
+
+pub fn restoreFromPath(handle: *StoreHandle, path: []const u8) !void {
+    const allocator = handle.db.allocator;
+    const restored = try storage.loadDatabase(allocator, path);
+    handle.db.deinit();
+    handle.db = restored;
 }
 
 pub fn backupStore(handle: *StoreHandle, path: []const u8) !void {
-    try legacy_wdbx.backup(handle, path);
+    if (!fs.isSafeBackupPath(path)) return fs.PathValidationError.InvalidPath;
+    const safe_path = try fs.normalizeBackupPath(handle.db.allocator, path);
+    defer handle.db.allocator.free(safe_path);
+    try backupToPath(handle, safe_path);
 }
 
 pub fn restoreStore(handle: *StoreHandle, path: []const u8) !void {
-    try legacy_wdbx.restore(handle, path);
+    if (!fs.isSafeBackupPath(path)) return fs.PathValidationError.InvalidPath;
+    const allocator = handle.db.allocator;
+    const safe_path = try fs.normalizeBackupPath(allocator, path);
+    defer allocator.free(safe_path);
+    try restoreFromPath(handle, safe_path);
 }
 
 pub const createDatabase = openStore;
@@ -126,22 +205,15 @@ pub const createDatabaseWithConfig = openStoreWithConfig;
 pub const connectDatabase = connectStore;
 pub const closeDatabase = closeStore;
 pub const insertVector = storeVector;
-pub const insertBatch = legacy_wdbx.insertBatch;
 pub const searchVectors = searchStore;
-pub const searchVectorsInto = legacy_wdbx.searchVectorsInto;
-pub const deleteVector = legacy_wdbx.deleteVector;
-pub const updateVector = legacy_wdbx.updateVector;
-pub const getVector = legacy_wdbx.getVector;
-pub const listVectors = legacy_wdbx.listVectors;
-pub const getStats = legacy_wdbx.getStats;
-pub const optimize = legacy_wdbx.optimize;
-pub const backupToPath = legacy_wdbx.backupToPath;
-pub const restoreFromPath = legacy_wdbx.restoreFromPath;
 pub const backup = backupStore;
 pub const restore = restoreStore;
 
-test "semantic_store aliases the legacy handle surface" {
-    try std.testing.expect(StoreHandle == legacy_wdbx.DatabaseHandle);
+test "semantic_store owns the database handle surface" {
+    var handle = try openStore(std.testing.allocator, "semantic-store-handle");
+    defer closeStore(&handle);
+
+    try std.testing.expect(@TypeOf(handle) == StoreHandle);
 }
 
 test "influence trace captures retrieval metadata" {

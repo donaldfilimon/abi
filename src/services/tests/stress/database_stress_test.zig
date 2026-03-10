@@ -134,7 +134,7 @@ test "database stress: batch insertion" {
     const batch_count = @min(profile.operations / batch_size, 100);
 
     for (0..batch_count) |batch_idx| {
-        var items = try allocator.alloc(db.wdbx.BatchItem, batch_size);
+        var items = try allocator.alloc(db.semantic_store.BatchItem, batch_size);
         defer allocator.free(items);
 
         var vectors = try allocator.alloc([TEST_DIM]f32, batch_size);
@@ -150,7 +150,7 @@ test "database stress: batch insertion" {
         }
 
         const timer = Timer.start();
-        try db.wdbx.insertBatch(&handle, items);
+        try db.semantic_store.insertBatch(&handle, items);
         try latency.recordUnsafe(timer.read());
     }
 

@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const wdbx = @import("wdbx");
 const db_helpers = @import("db_helpers");
+const semantic_store = @import("semantic_store");
 const json_utils = @import("shared_services").utils.json;
 const net_utils = @import("shared_services").utils.net;
 
@@ -27,23 +27,23 @@ pub const ServerConfig = struct {
 };
 
 pub fn serve(allocator: std.mem.Allocator, address: []const u8) !void {
-    var handle = try wdbx.createDatabase(allocator, "http");
-    defer wdbx.closeDatabase(&handle);
+    var handle = try semantic_store.createDatabase(allocator, "http");
+    defer semantic_store.closeDatabase(&handle);
 
     try serveDatabaseWithConfig(allocator, &handle, address, .{});
 }
 
 /// Serve with authentication enabled
 pub fn serveWithAuth(allocator: std.mem.Allocator, address: []const u8, auth_token: []const u8) !void {
-    var handle = try wdbx.createDatabase(allocator, "http");
-    defer wdbx.closeDatabase(&handle);
+    var handle = try semantic_store.createDatabase(allocator, "http");
+    defer semantic_store.closeDatabase(&handle);
 
     try serveDatabaseWithConfig(allocator, &handle, address, .{ .auth_token = auth_token });
 }
 
 pub fn serveDatabase(
     allocator: std.mem.Allocator,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     address: []const u8,
 ) !void {
     try serveDatabaseWithConfig(allocator, handle, address, .{});
@@ -51,7 +51,7 @@ pub fn serveDatabase(
 
 pub fn serveDatabaseWithConfig(
     allocator: std.mem.Allocator,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     address: []const u8,
     config: ServerConfig,
 ) !void {
@@ -99,7 +99,7 @@ fn resolveAddress(
 fn handleConnection(
     allocator: std.mem.Allocator,
     io: std.Io,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     stream: std.Io.net.Stream,
 ) !void {
     return handleConnectionWithConfig(allocator, io, handle, stream, .{});
@@ -108,7 +108,7 @@ fn handleConnection(
 fn handleConnectionWithConfig(
     allocator: std.mem.Allocator,
     io: std.Io,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     stream: std.Io.net.Stream,
     config: ServerConfig,
 ) !void {
@@ -153,7 +153,7 @@ fn handleConnectionWithConfig(
 
 fn dispatchRequest(
     allocator: std.mem.Allocator,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     request: *std.http.Server.Request,
 ) !void {
     return dispatchRequestWithConfig(allocator, handle, request, .{});
@@ -161,7 +161,7 @@ fn dispatchRequest(
 
 fn dispatchRequestWithConfig(
     allocator: std.mem.Allocator,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     request: *std.http.Server.Request,
     config: ServerConfig,
 ) !void {
@@ -181,7 +181,7 @@ fn dispatchRequestWithConfig(
         if (!config.allow_stats_without_auth) {
             try validateAuth(request, config);
         }
-        const stats = wdbx.getStats(handle);
+        const stats = semantic_store.getStats(handle);
         const body = try buildStatsJson(allocator, stats);
         defer allocator.free(body);
         return respondJson(request, body, .ok);
@@ -214,7 +214,7 @@ fn dispatchRequestWithConfig(
 }
 
 fn handleBackup(
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -226,12 +226,12 @@ fn handleBackup(
     if (path.len == 0 or hasPathTraversal(path)) {
         return respondJson(request, "{\"error\":\"invalid path\"}", .bad_request);
     }
-    try wdbx.backup(handle, path);
+    try semantic_store.backup(handle, path);
     return respondJson(request, "{\"status\":\"backed up\"}", .ok);
 }
 
 fn handleRestore(
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -243,21 +243,21 @@ fn handleRestore(
     if (path.len == 0 or hasPathTraversal(path)) {
         return respondJson(request, "{\"error\":\"invalid path\"}", .bad_request);
     }
-    try wdbx.restore(handle, path);
+    try semantic_store.restore(handle, path);
     return respondJson(request, "{\"status\":\"restored\"}", .ok);
 }
 
-fn handleOptimize(handle: *wdbx.DatabaseHandle, request: *std.http.Server.Request) !void {
+fn handleOptimize(handle: *semantic_store.DatabaseHandle, request: *std.http.Server.Request) !void {
     if (request.head.method != .POST) {
         return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
     }
-    try wdbx.optimize(handle);
+    try semantic_store.optimize(handle);
     return respondJson(request, "{\"status\":\"optimized\"}", .ok);
 }
 
 fn handleVectors(
     allocator: std.mem.Allocator,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -268,7 +268,7 @@ fn handleVectors(
             const id = std.fmt.parseInt(u64, id_text, 10) catch {
                 return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
             };
-            const view = wdbx.getVector(handle, id) orelse
+            const view = semantic_store.getVector(handle, id) orelse
                 return respondJson(request, "{\"error\":\"not found\"}", .not_found);
             const body = try buildVectorJson(allocator, view);
             defer allocator.free(body);
@@ -276,7 +276,7 @@ fn handleVectors(
         }
 
         const limit = parseQueryInt(query, "limit", usize, 25);
-        const views = try wdbx.listVectors(handle, allocator, limit);
+        const views = try semantic_store.listVectors(handle, allocator, limit);
         defer allocator.free(views);
         const body = try buildVectorListJson(allocator, views);
         defer allocator.free(body);
@@ -310,7 +310,7 @@ fn handleVectors(
 
         if (method == .POST) {
             const meta = getQueryParam(query, "meta");
-            wdbx.insertVector(handle, id, vector, meta) catch |err| switch (err) {
+            semantic_store.insertVector(handle, id, vector, meta) catch |err| switch (err) {
                 error.DuplicateId => {
                     return respondJson(request, "{\"error\":\"duplicate id\"}", .conflict);
                 },
@@ -319,7 +319,7 @@ fn handleVectors(
             return respondJson(request, "{\"status\":\"inserted\"}", .created);
         }
 
-        const updated = try wdbx.updateVector(handle, id, vector);
+        const updated = try semantic_store.updateVector(handle, id, vector);
         if (!updated) {
             return respondJson(request, "{\"error\":\"not found\"}", .not_found);
         }
@@ -332,7 +332,7 @@ fn handleVectors(
         const id = std.fmt.parseInt(u64, id_text, 10) catch {
             return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
         };
-        if (!wdbx.deleteVector(handle, id)) {
+        if (!semantic_store.deleteVector(handle, id)) {
             return respondJson(request, "{\"error\":\"not found\"}", .not_found);
         }
         return respondJson(request, "{\"status\":\"deleted\"}", .ok);
@@ -343,7 +343,7 @@ fn handleVectors(
 
 fn handleSearch(
     allocator: std.mem.Allocator,
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -360,7 +360,7 @@ fn handleSearch(
     defer allocator.free(vector);
 
     const top_k = parseQueryInt(query, "top_k", usize, 3);
-    const results = try wdbx.searchVectors(handle, allocator, vector, top_k);
+    const results = try semantic_store.searchVectors(handle, allocator, vector, top_k);
     defer allocator.free(results);
 
     const body = try buildSearchResultsJson(allocator, results);
@@ -576,7 +576,7 @@ fn respondText(
     });
 }
 
-fn buildStatsJson(allocator: std.mem.Allocator, stats: wdbx.Stats) ![]u8 {
+fn buildStatsJson(allocator: std.mem.Allocator, stats: semantic_store.Stats) ![]u8 {
     return std.fmt.allocPrint(
         allocator,
         "{{\"count\":{d},\"dimension\":{d}}}",
@@ -584,7 +584,7 @@ fn buildStatsJson(allocator: std.mem.Allocator, stats: wdbx.Stats) ![]u8 {
     );
 }
 
-fn buildVectorJson(allocator: std.mem.Allocator, view: wdbx.VectorView) ![]u8 {
+fn buildVectorJson(allocator: std.mem.Allocator, view: semantic_store.VectorView) ![]u8 {
     var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
 
@@ -605,7 +605,7 @@ fn buildVectorJson(allocator: std.mem.Allocator, view: wdbx.VectorView) ![]u8 {
     return list.toOwnedSlice(allocator);
 }
 
-fn buildVectorListJson(allocator: std.mem.Allocator, views: []const wdbx.VectorView) ![]u8 {
+fn buildVectorListJson(allocator: std.mem.Allocator, views: []const semantic_store.VectorView) ![]u8 {
     var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
     try list.appendSlice(allocator, "{\"vectors\":[");
@@ -621,7 +621,7 @@ fn buildVectorListJson(allocator: std.mem.Allocator, views: []const wdbx.VectorV
 
 fn buildSearchResultsJson(
     allocator: std.mem.Allocator,
-    results: []const wdbx.SearchResult,
+    results: []const semantic_store.SearchResult,
 ) ![]u8 {
     var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
@@ -708,7 +708,7 @@ test "parseQueryInt returns default on invalid" {
 
 test "buildStatsJson formats correctly" {
     const allocator = std.testing.allocator;
-    const stats = wdbx.Stats{ .count = 100, .dimension = 384 };
+    const stats = semantic_store.Stats{ .count = 100, .dimension = 384 };
 
     const json = try buildStatsJson(allocator, stats);
     defer allocator.free(json);
@@ -718,7 +718,7 @@ test "buildStatsJson formats correctly" {
 
 test "buildSearchResultsJson formats results" {
     const allocator = std.testing.allocator;
-    const results = [_]wdbx.SearchResult{
+    const results = [_]semantic_store.SearchResult{
         .{ .id = 1, .score = 0.95 },
         .{ .id = 2, .score = 0.85 },
     };

@@ -19,8 +19,8 @@ const tracking = @import("abi").services.shared.utils.memory.tracking;
 pub const TrackingStats = tracking.TrackingStats;
 pub const TrackingAllocator = tracking.TrackingAllocator;
 
-/// WDBX core allocator stats (optional; connect via connectWdbxTracker).
-const wdbx_alloc = @import("abi").wdbx.core.alloc;
+/// Database core allocator stats (optional; connect via connectDatabaseTracker).
+const database_alloc = @import("abi").features.database.core.alloc;
 
 /// Fixed-size ring buffer for sparkline history.
 fn RingBuffer(comptime capacity: usize) type {
@@ -59,7 +59,7 @@ fn RingBuffer(comptime capacity: usize) type {
 pub const MemoryPanel = struct {
     allocator: std.mem.Allocator,
     tracker: ?*TrackingAllocator,
-    wdbx_tracker: ?*wdbx_alloc.TrackingAllocator = null,
+    database_tracker: ?*database_alloc.TrackingAllocator = null,
 
     bytes_history: RingBuffer(60),
     alloc_rate_history: RingBuffer(60),
@@ -89,9 +89,9 @@ pub const MemoryPanel = struct {
         self.tracker = tracker;
     }
 
-    /// Connect to WDBX engine allocator for live stats (e.g. when using abi.wdbx with tracking).
-    pub fn connectWdbxTracker(self: *MemoryPanel, tracker: *wdbx_alloc.TrackingAllocator) void {
-        self.wdbx_tracker = tracker;
+    /// Connect to the database allocator for live stats.
+    pub fn connectDatabaseTracker(self: *MemoryPanel, tracker: *database_alloc.TrackingAllocator) void {
+        self.database_tracker = tracker;
     }
 
     pub fn render(self: *MemoryPanel, term: *terminal.Terminal, rect: layout.Rect, theme: *const themes.Theme) anyerror!void {
@@ -107,7 +107,7 @@ pub const MemoryPanel = struct {
         try term.write(theme.reset);
         y += 2;
 
-        if (self.tracker == null and self.wdbx_tracker == null) {
+        if (self.tracker == null and self.database_tracker == null) {
             try term.moveTo(y, col);
             try term.write(theme.text_dim);
             try term.write("No tracker connected");
@@ -227,7 +227,7 @@ pub const MemoryPanel = struct {
         if (self.tracker) |tracker| {
             const stats = tracker.getStats();
             self.updateStatsFrom(stats);
-        } else if (self.wdbx_tracker) |tracker| {
+        } else if (self.database_tracker) |tracker| {
             const s = tracker.getStats();
             const stats: TrackingStats = .{
                 .total_allocations = s.total_allocations,

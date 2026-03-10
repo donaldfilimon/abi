@@ -92,9 +92,9 @@ fn looksLikeAbiRepoRoot(
     defer allocator.free(build_zig);
     if (!fileExistsAbsolute(io, build_zig)) return false;
 
-    const abi_root = try std.fs.path.join(allocator, &.{ root_path, "src", "abi.zig" });
-    defer allocator.free(abi_root);
-    if (!fileExistsAbsolute(io, abi_root)) return false;
+    const root_entry = try std.fs.path.join(allocator, &.{ root_path, "src", "root.zig" });
+    defer allocator.free(root_entry);
+    if (!fileExistsAbsolute(io, root_entry)) return false;
 
     const bootstrap_build = try std.fs.path.join(allocator, &.{ root_path, ".zig-bootstrap", "build.sh" });
     defer allocator.free(bootstrap_build);

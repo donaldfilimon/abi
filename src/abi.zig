@@ -100,9 +100,9 @@ pub const features = struct {
     else
         @import("features/ai/stub");
     pub const database = if (build_options.feat_database)
-        @import("wdbx")
+        @import("features/database")
     else
-        @import("wdbx").stub;
+        @import("features/database/stub");
 
     pub const network = if (build_options.feat_network)
         @import("features/network")
@@ -202,9 +202,6 @@ pub const AppBuilder = framework.FrameworkBuilder;
 pub const Gpu = features.gpu.Gpu;
 /// GPU backend enum (cuda, vulkan, metal, webgpu, tpu, etc.); use `abi.features.gpu` for full API.
 pub const GpuBackend = features.gpu.Backend;
-
-/// WDBX vector engine (HNSW, dist, graph, core.alloc). Use for engine, persistence, and optional TrackingAllocator wiring.
-pub const wdbx = @import("wdbx");
 
 // ============================================================================
 // Primary API

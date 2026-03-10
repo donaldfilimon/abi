@@ -5,6 +5,7 @@ const context_mod = @import("../../../framework/context");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const mod = @import("mod");
+const semantic_store = abi.features.database.semantic_store;
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -1303,18 +1304,18 @@ pub fn appendBenchRecordToWdbx(
     local_runtime: ?RuntimeBenchResult,
     ollama_runtime: ?OllamaRuntimeBenchResult,
 ) !void {
-    var handle = try abi.features.database.wdbx.createDatabaseWithConfig(allocator, output_path, .{
+    var handle = try semantic_store.createDatabaseWithConfig(allocator, output_path, .{
         .cache_norms = false,
         .initial_capacity = 0,
         .use_vector_pool = false,
         .thread_safe = false,
     });
-    defer abi.features.database.wdbx.closeDatabase(&handle);
+    defer semantic_store.closeDatabase(&handle);
 
-    abi.features.database.wdbx.restore(&handle, output_path) catch {};
+    semantic_store.restore(&handle, output_path) catch {};
 
     const now_ms = abi.services.shared.time.unixMs();
-    const stats = abi.features.database.wdbx.getStats(&handle);
+    const stats = semantic_store.getStats(&handle);
     const record_id: u64 = stats.count + 1;
 
     var local_runs_json: []RuntimeRunRecordJson = &.{};
@@ -1419,8 +1420,8 @@ pub fn appendBenchRecordToWdbx(
     const metadata = try metadata_writer.toOwnedSlice();
     defer allocator.free(metadata);
 
-    try abi.features.database.wdbx.insertVector(&handle, record_id, &[_]f32{}, metadata);
-    try abi.features.database.wdbx.backup(&handle, output_path);
+    try semantic_store.insertVector(&handle, record_id, &[_]f32{}, metadata);
+    try semantic_store.backup(&handle, output_path);
     utils.output.printSuccess("WDBX benchmark record appended: {s}", .{output_path});
 }
 

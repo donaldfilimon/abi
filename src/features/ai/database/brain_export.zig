@@ -8,6 +8,7 @@ const std = @import("std");
 const training = @import("../training");
 const export_mod = @import("export");
 const database = @import("../../database");
+const semantic_store = database.semantic_store;
 
 /// Configuration for dual brain export.
 pub const BrainExportConfig = struct {
@@ -58,22 +59,22 @@ pub fn exportDual(
 
     // ── WDBX export ─────────────────────────────────────────────────────
     {
-        var handle = try database.wdbx.createDatabase(allocator, "brain_export");
-        defer database.wdbx.closeDatabase(&handle);
+        var handle = try semantic_store.createDatabase(allocator, "brain_export");
+        defer semantic_store.closeDatabase(&handle);
 
         // Store weights as vector ID 0
-        try database.wdbx.insertVector(&handle, 0, model.weights, model.name);
+        try semantic_store.insertVector(&handle, 0, model.weights, model.name);
 
         // Store training metadata as JSON in a metadata vector
         if (config.include_training_history) {
             if (metadata) |meta| {
                 const meta_json = try serializeTrainingMeta(allocator, meta);
                 defer allocator.free(meta_json);
-                try database.wdbx.insertVector(&handle, 1, &.{}, meta_json);
+                try semantic_store.insertVector(&handle, 1, &.{}, meta_json);
             }
         }
 
-        try database.wdbx.backup(&handle, config.wdbx_path);
+        try semantic_store.backup(&handle, config.wdbx_path);
         result.wdbx_written = true;
     }
 

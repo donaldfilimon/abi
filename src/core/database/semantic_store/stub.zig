@@ -2,7 +2,6 @@
 
 const std = @import("std");
 const types = @import("../stubs/types");
-const legacy_wdbx = @import("../stubs/wdbx").wdbx;
 const misc = @import("../stubs/misc");
 
 pub const StoreHandle = types.DatabaseHandle;
@@ -92,7 +91,7 @@ pub fn connectStore(_: std.mem.Allocator, _: []const u8) !StoreHandle {
 }
 
 pub fn closeStore(handle: *StoreHandle) void {
-    legacy_wdbx.closeDatabase(handle);
+    handle.* = .{};
 }
 
 pub fn storeVector(
@@ -126,17 +125,37 @@ pub const createDatabaseWithConfig = openStoreWithConfig;
 pub const connectDatabase = connectStore;
 pub const closeDatabase = closeStore;
 pub const insertVector = storeVector;
-pub const insertBatch = legacy_wdbx.insertBatch;
+pub fn insertBatch(_: *StoreHandle, _: []const BatchItem) !void {
+    return error.DatabaseDisabled;
+}
 pub const searchVectors = searchStore;
-pub const searchVectorsInto = legacy_wdbx.searchVectorsInto;
-pub const deleteVector = legacy_wdbx.deleteVector;
-pub const updateVector = legacy_wdbx.updateVector;
-pub const getVector = legacy_wdbx.getVector;
-pub const listVectors = legacy_wdbx.listVectors;
-pub const getStats = legacy_wdbx.getStats;
-pub const optimize = legacy_wdbx.optimize;
-pub const backupToPath = legacy_wdbx.backup;
-pub const restoreFromPath = legacy_wdbx.restore;
+pub fn searchVectorsInto(_: *StoreHandle, _: []const f32, _: usize, _: []SearchResult) usize {
+    return 0;
+}
+pub fn deleteVector(_: *StoreHandle, _: u64) bool {
+    return false;
+}
+pub fn updateVector(_: *StoreHandle, _: u64, _: []const f32) !bool {
+    return error.DatabaseDisabled;
+}
+pub fn getVector(_: *StoreHandle, _: u64) ?VectorView {
+    return null;
+}
+pub fn listVectors(_: *StoreHandle, _: std.mem.Allocator, _: usize) ![]VectorView {
+    return error.DatabaseDisabled;
+}
+pub fn getStats(_: *StoreHandle) Stats {
+    return .{};
+}
+pub fn optimize(_: *StoreHandle) !void {
+    return error.DatabaseDisabled;
+}
+pub fn backupToPath(_: *StoreHandle, _: []const u8) !void {
+    return error.DatabaseDisabled;
+}
+pub fn restoreFromPath(_: *StoreHandle, _: []const u8) !void {
+    return error.DatabaseDisabled;
+}
 pub const backup = backupStore;
 pub const restore = restoreStore;
 

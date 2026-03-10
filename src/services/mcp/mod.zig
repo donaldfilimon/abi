@@ -10,7 +10,7 @@
 //! ```
 //!
 //! ## Exposed Tools
-//! - `db_*` — WDBX database tools
+//! - `db_*` — Database tools
 //! - `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
 
 const std = @import("std");
@@ -22,14 +22,14 @@ pub const zls_bridge = @import("zls_bridge");
 
 pub const createZlsServer = zls_bridge.createZlsServer;
 
-/// Create an MCP server pre-configured with both WDBX database and ZLS tools
+/// Create an MCP server pre-configured with both database and ZLS tools
 pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !Server {
-    var server = Server.init(allocator, "abi-wdbx-zls", version);
+    var server = Server.init(allocator, "abi-database-zls", version);
 
-    // Unpack WDBX tools
-    var wdbx_server = try createWdbxServer(allocator, version);
-    defer wdbx_server.deinit();
-    for (wdbx_server.tools.items) |tool| {
+    // Unpack database tools
+    var database_server = try createDatabaseServer(allocator, version);
+    defer database_server.deinit();
+    for (database_server.tools.items) |tool| {
         try server.addTool(tool);
     }
 
@@ -43,14 +43,14 @@ pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !
     return server;
 }
 
-/// Create an MCP server pre-configured with WDBX database tools
-pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server {
-    var server = Server.init(allocator, "abi-wdbx", version);
+/// Create an MCP server pre-configured with database tools
+pub fn createDatabaseServer(allocator: std.mem.Allocator, version: []const u8) !Server {
+    var server = Server.init(allocator, "abi-database", version);
 
     try server.addTool(.{
         .def = .{
             .name = "db_query",
-            .description = "Search for similar vectors in the WDBX database using cosine similarity",
+            .description = "Search for similar vectors in the database using cosine similarity",
             .input_schema =
             \\{"type":"object","properties":{"vector":{"type":"array","items":{"type":"number"},"description":"Query vector (float32 array)"},"top_k":{"type":"integer","description":"Number of results to return (default: 5)","default":5},"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":["vector"]}
             ,
@@ -61,7 +61,7 @@ pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Serv
     try server.addTool(.{
         .def = .{
             .name = "db_insert",
-            .description = "Insert a vector with optional metadata into the WDBX database",
+            .description = "Insert a vector with optional metadata into the database",
             .input_schema =
             \\{"type":"object","properties":{"id":{"type":"integer","description":"Unique vector ID"},"vector":{"type":"array","items":{"type":"number"},"description":"Vector data (float32 array)"},"metadata":{"type":"string","description":"Optional metadata string"},"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":["id","vector"]}
             ,
@@ -72,7 +72,7 @@ pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Serv
     try server.addTool(.{
         .def = .{
             .name = "db_stats",
-            .description = "Get statistics about the WDBX database (vector count, dimensions, memory usage)",
+            .description = "Get statistics about the database (vector count, dimensions, memory usage)",
             .input_schema =
             \\{"type":"object","properties":{"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":[]}
             ,
@@ -83,7 +83,7 @@ pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Serv
     try server.addTool(.{
         .def = .{
             .name = "db_list",
-            .description = "List vectors stored in the WDBX database",
+            .description = "List vectors stored in the database",
             .input_schema =
             \\{"type":"object","properties":{"limit":{"type":"integer","description":"Max vectors to return (default: 10)","default":10},"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":[]}
             ,
@@ -94,7 +94,7 @@ pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Serv
     try server.addTool(.{
         .def = .{
             .name = "db_delete",
-            .description = "Delete a vector by ID from the WDBX database",
+            .description = "Delete a vector by ID from the database",
             .input_schema =
             \\{"type":"object","properties":{"id":{"type":"integer","description":"Vector ID to delete"},"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":["id"]}
             ,
@@ -329,9 +329,9 @@ fn handleDbDelete(
 // Tests
 // ═══════════════════════════════════════════════════════════════
 
-test "createWdbxServer registers tools" {
+test "createDatabaseServer registers tools" {
     const allocator = std.testing.allocator;
-    var server = try createWdbxServer(allocator, "0.4.0");
+    var server = try createDatabaseServer(allocator, "0.4.0");
     defer server.deinit();
 
     try std.testing.expectEqual(@as(usize, 5), server.tools.items.len);
@@ -342,7 +342,7 @@ test "createWdbxServer registers tools" {
     try std.testing.expectEqualStrings("db_delete", server.tools.items[4].def.name);
 }
 
-test "createCombinedServer registers WDBX and ZLS tools" {
+test "createCombinedServer registers database and ZLS tools" {
     const allocator = std.testing.allocator;
     var server = try createCombinedServer(allocator, "0.4.0");
     defer server.deinit();

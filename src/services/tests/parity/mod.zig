@@ -327,7 +327,7 @@ const database_specs = [_]DeclSpec{
     .{ .name = "SearchResult", .kind = .type_decl },
     .{ .name = "VectorView", .kind = .type_decl },
     .{ .name = "Stats", .kind = .type_decl },
-    .{ .name = "wdbx", .kind = .type_decl },
+    .{ .name = "semantic_store", .kind = .type_decl },
     .{ .name = "init", .kind = .function },
     .{ .name = "deinit", .kind = .function },
     .{ .name = "isEnabled", .kind = .function },

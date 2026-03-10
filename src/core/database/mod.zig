@@ -7,20 +7,14 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../core/config");
 
+pub const core = @import("core");
 pub const database = @import("database");
 pub const storage = @import("storage");
 pub const semantic_store = @import("semantic_store");
 pub const fulltext = @import("fulltext");
 pub const hybrid = @import("hybrid");
 pub const filter = @import("filter");
-
-/// Compatibility surface for legacy callers.
-pub const wdbx = @import("wdbx");
-
-/// Neural vector engine surface (ANN/HNSW internals and engine API).
-/// Uses the named 'wdbx' module registered in build.zig (not a relative path)
-/// to avoid module conflict — a file can only belong to one Zig module.
-pub const neural = @import("wdbx");
+pub const neural = @import("neural");
 
 /// Additional public modules still used by in-tree callers.
 pub const cli = @import("cli");
@@ -34,11 +28,11 @@ pub const parallel_hnsw = @import("parallel_hnsw");
 pub const parallel_search = @import("parallel_search");
 
 pub const StoreHandle = semantic_store.StoreHandle;
-pub const DatabaseHandle = wdbx.DatabaseHandle;
-pub const SearchResult = wdbx.SearchResult;
-pub const VectorView = wdbx.VectorView;
-pub const Stats = wdbx.Stats;
-pub const BatchItem = wdbx.BatchItem;
+pub const DatabaseHandle = semantic_store.DatabaseHandle;
+pub const SearchResult = semantic_store.SearchResult;
+pub const VectorView = semantic_store.VectorView;
+pub const Stats = semantic_store.Stats;
+pub const BatchItem = semantic_store.BatchItem;
 pub const DatabaseError = database.DatabaseError;
 pub const DiagnosticsInfo = database.DiagnosticsInfo;
 pub const KMeans = clustering.KMeans;
@@ -68,7 +62,7 @@ pub const Context = struct {
         };
 
         if (cfg.path.len > 0) {
-            ctx.handle = try wdbx.createDatabase(allocator, cfg.path);
+            ctx.handle = try semantic_store.createDatabase(allocator, cfg.path);
         }
 
         return ctx;
@@ -76,7 +70,7 @@ pub const Context = struct {
 
     pub fn deinit(self: *Context) void {
         if (self.handle) |*h| {
-            wdbx.closeDatabase(h);
+            semantic_store.closeDatabase(h);
         }
         self.allocator.destroy(self);
     }
@@ -85,42 +79,42 @@ pub const Context = struct {
         if (self.handle) |*h| {
             return h;
         }
-        self.handle = try wdbx.createDatabase(self.allocator, self.config.path);
+        self.handle = try semantic_store.createDatabase(self.allocator, self.config.path);
         return &self.handle.?;
     }
 
     pub fn openDatabase(self: *Context, name: []const u8) !*DatabaseHandle {
         if (self.handle) |*h| {
-            wdbx.closeDatabase(h);
+            semantic_store.closeDatabase(h);
             self.handle = null;
         }
-        self.handle = try wdbx.createDatabase(self.allocator, name);
+        self.handle = try semantic_store.createDatabase(self.allocator, name);
         return &self.handle.?;
     }
 
     pub fn insertVector(self: *Context, id: u64, vector: []const f32, metadata: ?[]const u8) !void {
         const h = try self.getHandle();
-        try wdbx.insertVector(h, id, vector, metadata);
+        try semantic_store.insertVector(h, id, vector, metadata);
     }
 
     pub fn searchVectors(self: *Context, query: []const f32, top_k: usize) ![]SearchResult {
         const h = try self.getHandle();
-        return wdbx.searchVectors(h, self.allocator, query, top_k);
+        return semantic_store.searchVectors(h, self.allocator, query, top_k);
     }
 
     pub fn searchVectorsInto(self: *Context, query: []const f32, top_k: usize, results: []SearchResult) !usize {
         const h = try self.getHandle();
-        return wdbx.searchVectorsInto(h, query, top_k, results);
+        return semantic_store.searchVectorsInto(h, query, top_k, results);
     }
 
     pub fn getStats(self: *Context) !Stats {
         const h = try self.getHandle();
-        return wdbx.getStats(h);
+        return semantic_store.getStats(h);
     }
 
     pub fn optimize(self: *Context) !void {
         const h = try self.getHandle();
-        try wdbx.optimize(h);
+        try semantic_store.optimize(h);
     }
 };
 
@@ -144,19 +138,19 @@ pub fn isInitialized() bool {
 }
 
 pub fn open(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
-    return wdbx.createDatabase(allocator, name);
+    return semantic_store.createDatabase(allocator, name);
 }
 
 pub fn connect(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
-    return wdbx.connectDatabase(allocator, name);
+    return semantic_store.connectDatabase(allocator, name);
 }
 
 pub fn close(handle: *DatabaseHandle) void {
-    wdbx.closeDatabase(handle);
+    semantic_store.closeDatabase(handle);
 }
 
 pub fn insert(handle: *DatabaseHandle, id: u64, vector: []const f32, metadata: ?[]const u8) !void {
-    try wdbx.insertVector(handle, id, vector, metadata);
+    try semantic_store.insertVector(handle, id, vector, metadata);
 }
 
 pub fn search(
@@ -165,7 +159,7 @@ pub fn search(
     query: []const f32,
     top_k: usize,
 ) ![]SearchResult {
-    return wdbx.searchVectors(handle, allocator, query, top_k);
+    return semantic_store.searchVectors(handle, allocator, query, top_k);
 }
 
 pub fn searchInto(
@@ -174,27 +168,27 @@ pub fn searchInto(
     top_k: usize,
     results: []SearchResult,
 ) usize {
-    return wdbx.searchVectorsInto(handle, query, top_k, results);
+    return semantic_store.searchVectorsInto(handle, query, top_k, results);
 }
 
 pub fn remove(handle: *DatabaseHandle, id: u64) bool {
-    return wdbx.deleteVector(handle, id);
+    return semantic_store.deleteVector(handle, id);
 }
 
 pub fn update(handle: *DatabaseHandle, id: u64, vector: []const f32) !bool {
-    return wdbx.updateVector(handle, id, vector);
+    return semantic_store.updateVector(handle, id, vector);
 }
 
 pub fn get(handle: *DatabaseHandle, id: u64) ?VectorView {
-    return wdbx.getVector(handle, id);
+    return semantic_store.getVector(handle, id);
 }
 
 pub fn list(handle: *DatabaseHandle, allocator: std.mem.Allocator, limit: usize) ![]VectorView {
-    return wdbx.listVectors(handle, allocator, limit);
+    return semantic_store.listVectors(handle, allocator, limit);
 }
 
 pub fn stats(handle: *DatabaseHandle) Stats {
-    return wdbx.getStats(handle);
+    return semantic_store.getStats(handle);
 }
 
 pub fn diagnostics(handle: *DatabaseHandle) DiagnosticsInfo {
@@ -202,23 +196,23 @@ pub fn diagnostics(handle: *DatabaseHandle) DiagnosticsInfo {
 }
 
 pub fn optimize(handle: *DatabaseHandle) !void {
-    try wdbx.optimize(handle);
+    try semantic_store.optimize(handle);
 }
 
 pub fn backup(handle: *DatabaseHandle, path: []const u8) !void {
-    try wdbx.backup(handle, path);
+    try semantic_store.backup(handle, path);
 }
 
 pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
-    try wdbx.restore(handle, path);
+    try semantic_store.restore(handle, path);
 }
 
 pub fn backupToPath(handle: *DatabaseHandle, path: []const u8) !void {
-    try wdbx.backupToPath(handle, path);
+    try semantic_store.backupToPath(handle, path);
 }
 
 pub fn restoreFromPath(handle: *DatabaseHandle, path: []const u8) !void {
-    try wdbx.restoreFromPath(handle, path);
+    try semantic_store.restoreFromPath(handle, path);
 }
 
 pub fn openFromFile(allocator: std.mem.Allocator, path: []const u8) !DatabaseHandle {
@@ -231,7 +225,7 @@ pub fn openOrCreate(allocator: std.mem.Allocator, path: []const u8) !DatabaseHan
     if (loaded) |db| {
         return .{ .db = db };
     } else |err| switch (err) {
-        error.FileNotFound => return wdbx.createDatabase(allocator, path),
+        error.FileNotFound => return semantic_store.createDatabase(allocator, path),
         else => return err,
     }
 }
@@ -248,7 +242,6 @@ test "database module exports stable compatibility surfaces" {
     _ = database.Database;
     _ = database.DatabaseError;
     _ = semantic_store.StoreHandle;
-    _ = wdbx.DatabaseHandle;
     _ = batch.ImportFormat;
     _ = neural.Engine;
 }

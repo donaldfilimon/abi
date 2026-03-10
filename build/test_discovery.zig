@@ -249,9 +249,7 @@ fn renderFeatureTestRoot(allocator: std.mem.Allocator) ![]u8 {
 }
 
 fn manifestEntryImportExpr(entry: FeatureTestEntry) ?[]const u8 {
-    if (std.mem.eql(u8, entry.path, "core/database/dist/mod.zig")) return "@import(\"wdbx\").dist";
-    if (std.mem.eql(u8, entry.path, "core/database/dist/rpc.zig")) return "@import(\"wdbx\").dist.rpc";
-    if (std.mem.eql(u8, entry.path, "core/database/dist/replication.zig")) return "@import(\"wdbx\").dist.replication";
+    _ = entry;
     return null;
 }
 

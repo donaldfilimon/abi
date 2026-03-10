@@ -101,7 +101,7 @@ fn runToolsSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParse
 
 fn runServe(allocator: std.mem.Allocator, used_compat_flag: bool) !void {
     // Write startup message to stderr (stdout is reserved for JSON-RPC)
-    std.log.info("ABI MCP Server v{s} starting (WDBX + ZLS)", .{abi.version()});
+    std.log.info("ABI MCP Server v{s} starting (database + ZLS)", .{abi.version()});
     if (used_compat_flag) {
         std.log.warn("`abi mcp serve --zls` is deprecated; the default server already includes ZLS tools.", .{});
     }
@@ -125,7 +125,7 @@ fn runTools(allocator: std.mem.Allocator, used_compat_flag: bool) !void {
     var server = try mcp.createCombinedServer(allocator, abi.version());
     defer server.deinit();
 
-    utils.output.printHeader("MCP Tools (WDBX + ZLS)");
+    utils.output.printHeader("MCP Tools (database + ZLS)");
 
     for (server.tools.items) |tool| {
         utils.output.println("", .{});
@@ -147,7 +147,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
 
     _ = builder
         .usage("abi mcp <subcommand>", "")
-        .description("Model Context Protocol server for combined WDBX and ZLS tools.")
+        .description("Model Context Protocol server for combined database and ZLS tools.")
         .section("Subcommands")
         .subcommand(.{ .name = "serve", .description = "Start MCP server (JSON-RPC over stdio)" })
         .subcommand(.{ .name = "tools", .description = "List available MCP tools" })
@@ -157,12 +157,12 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .option(.{ .long = "--zls", .description = "Deprecated compatibility alias; default server already includes ZLS tools" })
         .newline()
         .section("MCP Tools Exposed")
-        .text("  db_*         WDBX database tools\n")
+        .text("  db_*         Database tools\n")
         .text("  zls_*        ZLS LSP tools (hover, completion, definition, ...)\n")
         .newline()
         .section("Examples")
         .example("abi mcp serve", "Start the combined MCP server")
-        .example("abi mcp tools", "List WDBX and ZLS tools")
+        .example("abi mcp tools", "List database and ZLS tools")
         .example("abi mcp serve --zls", "Deprecated alias for the combined MCP server");
 
     builder.print();

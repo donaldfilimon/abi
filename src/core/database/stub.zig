@@ -22,6 +22,7 @@ const types = @import("stubs/types");
 const parallel = @import("stubs/parallel");
 const misc = @import("stubs/misc");
 pub const semantic_store = @import("semantic_store/stub");
+pub const core = @import("core");
 
 // --- Core Types Re-exports ---
 
@@ -72,8 +73,7 @@ pub const Context = struct {
 
 // --- Sub-module Namespace Re-exports ---
 
-pub const wdbx = semantic_store;
-pub const neural = @import("wdbx");
+pub const neural = @import("stubs/neural");
 pub const cli = misc.cli;
 
 pub const ParallelSearchConfig = parallel.ParallelSearchConfig;

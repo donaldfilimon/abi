@@ -20,8 +20,8 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
 
     const target = if (obj.get("target")) |v| switch (v) {
         .string => |s| s,
-        else => "wdbx",
-    } else "wdbx";
+        else => "database",
+    } else "database";
 
     const bg_cmd = std.fmt.allocPrint(ctx.allocator, "nohup abi mcp serve {s} > /tmp/abi-mcp.log 2>&1 & echo $!", .{target}) catch
         return error.OutOfMemory;
@@ -52,7 +52,7 @@ pub const serve_mcp_tool = Tool{
     .name = "serve_mcp",
     .description = "Start an MCP (Model Context Protocol) server",
     .parameters = &[_]Parameter{
-        .{ .name = "target", .type = .string, .required = false, .description = "Target service (e.g., wdbx, zls)" },
+        .{ .name = "target", .type = .string, .required = false, .description = "Target service (e.g., database, zls)" },
     },
     .execute = &executeServeMcp,
 };

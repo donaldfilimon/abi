@@ -1,7 +1,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const wdbx = @import("wdbx");
 const database = @import("database");
+const semantic_store = @import("semantic_store");
 const storage = @import("storage");
 const db_helpers = @import("db_helpers");
 const http = @import("http");
@@ -191,7 +191,7 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var ctx = try DbContext.init(allocator, path);
     defer ctx.deinit();
 
-    try wdbx.insertVector(&ctx.handle, id_value, vector, meta);
+    try semantic_store.insertVector(&ctx.handle, id_value, vector, meta);
     try ctx.persist();
     std.debug.print("Inserted vector {d} (dim {d}).\n", .{ id_value, vector.len });
 }
@@ -280,7 +280,7 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         try seedDatabase(&ctx.handle);
     }
 
-    const results = try wdbx.searchVectors(&ctx.handle, allocator, query, top_k);
+    const results = try semantic_store.searchVectors(&ctx.handle, allocator, query, top_k);
     defer allocator.free(results);
 
     if (results.len == 0) {
@@ -306,7 +306,7 @@ fn handleStats(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (ctx.path == null) {
         try seedDatabase(&ctx.handle);
     }
-    const stats = wdbx.getStats(&ctx.handle);
+    const stats = semantic_store.getStats(&ctx.handle);
     std.debug.print(
         "Database stats: {d} vectors, dimension {d}\n",
         .{ stats.count, stats.dimension },
@@ -340,7 +340,7 @@ fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
 
     var ctx = try DbContext.init(allocator, path);
     defer ctx.deinit();
-    try wdbx.optimize(&ctx.handle);
+    try semantic_store.optimize(&ctx.handle);
     try ctx.persist();
     std.debug.print("Database optimized.\n", .{});
 }
@@ -435,7 +435,7 @@ fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 
     var ctx = try DbContext.init(allocator, resolved.db_path);
     defer ctx.deinit();
-    try wdbx.backupToPath(&ctx.handle, resolved.out_path);
+    try semantic_store.backupToPath(&ctx.handle, resolved.out_path);
     std.debug.print("Backup written to {s} (db: {s})\n", .{ resolved.out_path, resolved.db_path });
 }
 
@@ -454,11 +454,11 @@ fn handleRestore(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
     defer ctx.deinit();
     try restoreWithLegacyFallback(&ctx.handle, allocator, resolved.in_path);
     try ctx.persist();
-    const stats = wdbx.getStats(&ctx.handle);
+    const stats = semantic_store.getStats(&ctx.handle);
     std.debug.print("Restored database: {d} vectors (db: {s}).\n", .{ stats.count, resolved.db_path });
 }
 
-fn seedDatabase(handle: *wdbx.DatabaseHandle) !void {
+fn seedDatabase(handle: *semantic_store.DatabaseHandle) !void {
     const samples = [_][]const f32{
         &.{ 0.1, 0.2, 0.3 },
         &.{ 0.0, 0.4, 0.8 },
@@ -466,7 +466,7 @@ fn seedDatabase(handle: *wdbx.DatabaseHandle) !void {
     };
     var id: u64 = 1;
     for (samples) |vector| {
-        try wdbx.insertVector(handle, id, vector, null);
+        try semantic_store.insertVector(handle, id, vector, null);
         id += 1;
     }
 }
@@ -604,25 +604,25 @@ fn loadDatabaseWithLegacyFallback(allocator: std.mem.Allocator, file_path: []con
 }
 
 fn restoreWithLegacyFallback(
-    handle: *wdbx.DatabaseHandle,
+    handle: *semantic_store.DatabaseHandle,
     allocator: std.mem.Allocator,
     input_path: []const u8,
 ) !void {
-    if (wdbx.restoreFromPath(handle, input_path)) {
+    if (semantic_store.restoreFromPath(handle, input_path)) {
         return;
     } else |err| switch (err) {
         error.FileNotFound => {
             if (!isBareLegacyFilename(input_path)) return err;
             const legacy_path = fs.normalizeBackupPath(allocator, input_path) catch return err;
             defer allocator.free(legacy_path);
-            try wdbx.restoreFromPath(handle, legacy_path);
+            try semantic_store.restoreFromPath(handle, legacy_path);
         },
         else => return err,
     }
 }
 
 const DbContext = struct {
-    handle: wdbx.DatabaseHandle,
+    handle: semantic_store.DatabaseHandle,
     path: ?[]const u8,
 
     fn init(allocator: std.mem.Allocator, path: ?[]const u8) !DbContext {
@@ -632,23 +632,23 @@ const DbContext = struct {
                 return .{ .handle = .{ .db = db }, .path = file_path };
             } else |err| switch (err) {
                 std.Io.Dir.ReadFileAllocError.FileNotFound => {
-                    const handle = try wdbx.createDatabase(allocator, file_path);
+                    const handle = try semantic_store.createDatabase(allocator, file_path);
                     return .{ .handle = handle, .path = file_path };
                 },
                 else => return err,
             }
         }
-        const handle = try wdbx.createDatabase(allocator, "cli");
+        const handle = try semantic_store.createDatabase(allocator, "cli");
         return .{ .handle = handle, .path = null };
     }
 
     fn deinit(self: *DbContext) void {
-        wdbx.closeDatabase(&self.handle);
+        semantic_store.closeDatabase(&self.handle);
     }
 
     fn persist(self: *DbContext) !void {
         if (self.path) |file_path| {
-            try wdbx.backupToPath(&self.handle, file_path);
+            try semantic_store.backupToPath(&self.handle, file_path);
         }
     }
 };

@@ -29,7 +29,7 @@ pub const loss = @import("loss");
 pub const trainable_model = @import("trainable_model");
 pub const llm_trainer = @import("llm_trainer");
 pub const data_loader = @import("data_loader");
-pub const wdbx_dataset = @import("../database/wdbx");
+pub const token_dataset = @import("../database/wdbx");
 pub const lora = @import("lora");
 pub const mixed_precision = @import("mixed_precision");
 pub const logging = @import("logging");
@@ -88,12 +88,12 @@ pub const BatchIterator = data_loader.BatchIterator;
 pub const SequencePacker = data_loader.SequencePacker;
 pub const InstructionSample = data_loader.InstructionSample;
 pub const parseInstructionDataset = data_loader.parseInstructionDataset;
-pub const WdbxTokenDataset = wdbx_dataset.WdbxTokenDataset;
-pub const TokenBlock = wdbx_dataset.TokenBlock;
-pub const encodeTokenBlock = wdbx_dataset.encodeTokenBlock;
-pub const decodeTokenBlock = wdbx_dataset.decodeTokenBlock;
-pub const readTokenBinFile = wdbx_dataset.readTokenBinFile;
-pub const writeTokenBinFile = wdbx_dataset.writeTokenBinFile;
+pub const WdbxTokenDataset = token_dataset.WdbxTokenDataset;
+pub const TokenBlock = token_dataset.TokenBlock;
+pub const encodeTokenBlock = token_dataset.encodeTokenBlock;
+pub const decodeTokenBlock = token_dataset.decodeTokenBlock;
+pub const readTokenBinFile = token_dataset.readTokenBinFile;
+pub const writeTokenBinFile = token_dataset.writeTokenBinFile;
 
 // LoRA exports
 pub const LoraAdapter = lora.LoraAdapter;
@@ -661,14 +661,14 @@ pub fn clipGradients(gradients: []f32, max_norm: f32) f32 {
 }
 
 pub fn saveModelToWdbx(allocator: std.mem.Allocator, model: *const ModelState, path: []const u8) !void {
-    var handle = try database.wdbx.createDatabase(allocator, "model_checkpoint");
-    defer database.wdbx.closeDatabase(&handle);
+    var handle = try database.semantic_store.createDatabase(allocator, "model_checkpoint");
+    defer database.semantic_store.closeDatabase(&handle);
 
     // Store weights as vector ID 0
     // In a real scenario we'd split layers, but for this concise implementation we store flattened weights
-    try database.wdbx.insertVector(&handle, 0, model.weights, model.name);
+    try database.semantic_store.insertVector(&handle, 0, model.weights, model.name);
 
-    try database.wdbx.backup(&handle, path);
+    try database.semantic_store.backup(&handle, path);
 }
 
 pub fn train(

@@ -2,7 +2,7 @@
 //!
 //! The full matrix generator imports CLI command descriptors which transitively
 //! import `@import("abi")`. Outside build.zig, we provide this lightweight
-//! module so `src/abi.zig` can resolve `@import("build_options")`.
+//! module so `src/root.zig` can resolve `@import("build_options")`.
 
 pub const package_version: []const u8 = "0.4.0";
 

@@ -142,7 +142,7 @@ pub fn main() !void {
 ABI now exposes canonical v3 entrypoints only:
 
 - Use `abi.App` / `abi.AppBuilder` as the primary runtime types.
-- Use `abi.wdbx` for the vector database, with `abi.hnsw` and `abi.simd` as sub-modules.
+- Use `abi.features.database` for the vector database, with submodules such as `semantic_store`, `hnsw`, and `simd`.
 - Use `abi.features.ai.profiles` for the multi-persona system (formerly `abi.personas`).
 - Use `abi.inference_engine` for high-performance token generation.
 - Use `abi.server` for the REST API server with OpenAI-compatible endpoints.
@@ -350,7 +350,8 @@ abi --disable-ai system-info  # Disable feature for command
 ```
 abi/
 ├── src/
-│   ├── abi.zig              # Public API entry point (comptime feature selection)
+│   ├── abi.zig              # Internal composition surface
+│   ├── root.zig             # Package entry point for @import("abi")
 │   ├── core/                # Config, feature catalog, framework lifecycle
 │   ├── features/            # 19 comptime-gated feature modules
 │   │   ├── ai/              # LLM inference, agents, training, streaming
@@ -362,12 +363,12 @@ abi/
 │   │   │   ├── backends/    # CUDA, Vulkan, Metal, WebGPU, FPGA
 │   │   │   ├── kernels/     # Compute kernels
 │   │   │   └── dsl/         # Shader DSL & codegen
-│   │   ├── database/        # Semantic store (WDBX alias)
+│   │   ├── database/        # Semantic store public surface
 │   │   ├── network/         # Distributed compute, Raft consensus
 │   │   ├── web/             # HTTP client utilities
 │   │   └── ...              # 14 more feature modules
 │   ├── services/            # Shared runtime services (LSP, MCP, connectors)
-│   ├── core/database/       # WDBX vector database engine (canonical)
+│   ├── core/database/       # Database engine and .wdbx format internals
 │   └── inference/           # High-performance token generation
 │
 ├── build/                   # Modular build system (options, flags, test discovery)
@@ -382,7 +383,7 @@ abi/
 ```mermaid
 flowchart TB
     subgraph "Public API"
-        ABI[abi.zig]
+        ABI[root.zig]
     end
 
     subgraph "Framework Layer"
@@ -433,7 +434,7 @@ All features are enabled by default. Disable unused features to reduce binary si
 | `-Dfeat-ai` | true | AI features, agents, and connectors |
 | `-Dfeat-llm` | true | Local LLM inference |
 | `-Dfeat-gpu` | true | GPU acceleration |
-| `-Dfeat-database` | true | Semantic store and vector database (`wdbx` alias) |
+| `-Dfeat-database` | true | Semantic store and vector database |
 | `-Dfeat-network` | true | Distributed compute |
 | `-Dfeat-web` | true | HTTP client utilities |
 | `-Dfeat-profiling` | true | Performance profiling |

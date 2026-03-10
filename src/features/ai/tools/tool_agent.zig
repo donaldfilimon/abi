@@ -10,7 +10,7 @@
 //!
 //! The LLM emits tool calls using XML-style markers:
 //! ```
-//! <tool_call>{"name": "read_file", "args": {"path": "src/abi.zig"}}</tool_call>
+//! <tool_call>{"name": "read_file", "args": {"path": "src/root.zig"}}</tool_call>
 //! ```
 //!
 //! Multiple tool calls can appear in a single response.
@@ -571,7 +571,7 @@ test "parseToolCalls - single tool call" {
 
     const response =
         \\Let me read that file for you.
-        \\<tool_call>{"name": "read_file", "args": {"path": "src/abi.zig"}}</tool_call>
+        \\<tool_call>{"name": "read_file", "args": {"path": "src/root.zig"}}</tool_call>
     ;
 
     var calls = try parseToolCalls(response, allocator);
@@ -665,7 +665,7 @@ test "parseToolCalls - fenced JSON tool call" {
 
     const response =
         \\```json
-        \\{"name":"read_file","args":{"path":"src/abi.zig"}}
+        \\{"name":"read_file","args":{"path":"src/root.zig"}}
         \\```
     ;
 

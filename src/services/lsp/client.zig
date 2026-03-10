@@ -86,9 +86,9 @@ const zig_toolchain = struct {
         const build_zig = try std.fs.path.join(allocator, &.{ root_path, "build.zig" });
         defer allocator.free(build_zig);
         if (!fileExistsAbsolute(io, build_zig)) return false;
-        const abi_root = try std.fs.path.join(allocator, &.{ root_path, "src", "abi.zig" });
-        defer allocator.free(abi_root);
-        if (!fileExistsAbsolute(io, abi_root)) return false;
+        const root_entry = try std.fs.path.join(allocator, &.{ root_path, "src", "root.zig" });
+        defer allocator.free(root_entry);
+        if (!fileExistsAbsolute(io, root_entry)) return false;
         const cel_build = try std.fs.path.join(allocator, &.{ root_path, ".cel", "build.sh" });
         defer allocator.free(cel_build);
         return fileExistsAbsolute(io, cel_build);
@@ -614,7 +614,7 @@ fn createTestAbiRepo(
 
     const files = [_]struct { sub: []const u8, data: []const u8 }{
         .{ .sub = "build.zig", .data = "pub fn build(_: *anyopaque) void {}\n" },
-        .{ .sub = "src/abi.zig", .data = "pub const test_value = 1;\n" },
+        .{ .sub = "src/root.zig", .data = "pub const test_value = 1;\n" },
         .{ .sub = ".zig-bootstrap/build.sh", .data = "#!/bin/sh\n" },
         .{ .sub = ".cel/build.sh", .data = "#!/bin/sh\n" },
     };
