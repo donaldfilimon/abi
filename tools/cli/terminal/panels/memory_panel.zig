@@ -15,7 +15,7 @@ const themes = @import("../themes.zig");
 const events = @import("../events.zig");
 const Panel = @import("../panel.zig");
 
-const tracking = @import("../../../../src/services/shared/utils/memory/tracking.zig");
+const tracking = @import("abi").services.shared.utils.memory.tracking;
 pub const TrackingStats = tracking.TrackingStats;
 pub const TrackingAllocator = tracking.TrackingAllocator;
 
