@@ -143,10 +143,10 @@ ABI now exposes canonical v3 entrypoints only:
 
 - Use `abi.App` / `abi.AppBuilder` as the primary runtime types.
 - Use `abi.wdbx` for the vector database, with `abi.hnsw` and `abi.simd` as sub-modules.
-- Use `abi.personas` for the multi-persona system and `abi.routing` for the Abi moderator.
+- Use `abi.features.ai.profiles` for the multi-persona system (formerly `abi.personas`).
 - Use `abi.inference_engine` for high-performance token generation.
 - Use `abi.server` for the REST API server with OpenAI-compatible endpoints.
-- Legacy v2 aliases are now fully consolidated into the v3 namespace.
+- Legacy v2 aliases and the old `personas` module are fully consolidated into the v3 namespace.
 
 ---
 
@@ -367,8 +367,7 @@ abi/
 │   │   ├── web/             # HTTP client utilities
 │   │   └── ...              # 14 more feature modules
 │   ├── services/            # Shared runtime services (LSP, MCP, connectors)
-│   ├── wdbx/                # WDBX vector database engine
-│   ├── personas/            # Multi-persona system
+│   ├── core/database/       # WDBX vector database engine (canonical)
 │   └── inference/           # High-performance token generation
 │
 ├── build/                   # Modular build system (options, flags, test discovery)

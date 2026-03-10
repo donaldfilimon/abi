@@ -1,7 +1,7 @@
 //! HNSW Index Tests
 
 const std = @import("std");
-const hnsw_mod = @import("../src/wdbx/hnsw.zig");
+const hnsw_mod = @import("../src/core/database/hnsw");
 
 test "hnsw insert maintains count" {
     const allocator = std.testing.allocator;

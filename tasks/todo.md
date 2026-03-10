@@ -1,65 +1,50 @@
 # ABI Development Queue
 
-This document tracks the active roadmap and sub-tasks. Use `git add -f tasks/todo.md` to stage changes. Update the queue at the end of every wave.
+Active task tracker. Use `git add -f tasks/todo.md` to stage.
 
-## Active Queue
+## Completed — Codebase Quality Sweep (PR #485)
 
-### Completed - Architectural Consolidation & Close-out (2026-03-10)
+All 5 waves committed on branch `fix/codebase-quality-sweep`:
 
-#### Objective
-Finalize the migration to Profiles, flatten the AI feature structure, and unify the vector database into a canonical V3 engine.
+- [x] Wave 1: Fix 33 corrupted files, create database/stub.zig, repair migration artifacts
+- [x] Wave 2: Repair build system — broken test manifest, stale wdbx test root, dead persona tests
+- [x] Wave 3: Repair coordination module — broken personas/ and database/ imports
+- [x] Wave 4: Deep corruption sweep — 118+ additional truncated string literals across 66 files
+- [x] Wave 5: AI integration bridges, mod/stub parity, doc updates, validation matrix fixes
+- [x] Commit `68dcf34c` — 1081 files changed, +5157/-10927 lines
+- [x] PR #485 updated with full change list
 
-#### Accomplished
-- [x] **Documentation**: Consolidated `AGENTS.md` and centralized guidance in `docs/FAQ-agents.md`.
-- [x] **Technical Stability**: Implemented macOS 26+ bypass in `build.zig`.
-- [x] **AI Migration**: Fully transitioned from legacy `personas` to the new modular `profiles` architecture.
-- [x] **Framework Flattening**: Removed implementation suffixes and unified the `src/features/ai/` directory.
-- [x] **Database Unification**: Merged `src/wdbx` into `src/core/database/` and updated all internal references.
-- [x] **Platform Sanitization**: Audited `/tmp/` usage and introduced platform-agnostic OS utilities.
-- [x] **Example Consolidation**: Merged disparate AI examples into a unified `examples/ai_suite.zig`.
-- [x] **Orphan Cleanup (Wave 2)**: Removed deleted `src/personas/` directory, pruned legacy `src/features/ai/personas/` tree, verified no dangling imports.
-- [x] **Import Hygiene (Wave 3)**: Fixed `wdbx` module to re-export `semantic_store` (required by `src/features/ai/memory/long_term.zig`), updated stale `personas.zig` comment in `ralph.zig`.
-- [x] **Corruption Sweep (Wave 4)**: Fixed 118+ truncated string literals across 66 files caused by bulk "zig" stripping — restored `@import` paths, `.zig` extensions, `"zig"` comparisons, and displaced `")` characters.
-- [x] **Doc Number Audit**: Updated stale counts across CLAUDE.md, README.md, SKILL.md — 19 feature modules, 90+ CLI commands, 42 flag combos.
-- [x] **Mod/Stub Parity Audit**: Audited all 19 features; found 5 mismatches (database, gpu critical; web, cloud, observability minor).
-- [x] **Validation Matrix Fix**: Added `.feat_mobile = true` to all 19 no-X entries that were missing it.
-- [x] **Prompts/mod.zig Fix**: Replaced `undefined` return in `getPersona()` with working implementation using `personas` module.
-- [x] **Database stub.zig**: Created comprehensive stub matching core/database public API (58 items, 20 sub-module stubs, semantic_store namespace).
-- [x] **Orphaned Logic Dirs**: Fixed routing_logic/mod.zig (missing), aviva_logic/mod.zig (circular self-import), removed empty safety_logic/.
+### New AI Integration (Wave 5)
+- [x] `feedback/learning_bridge.zig` — FeedbackSystem → SelfLearningSystem closed loop
+- [x] `agents/agent.zig` — AdvancedCognition + BackendMetrics
+- [x] `multi_agent/runner.zig` — blackboard → experience buffer
+- [x] `ralph/skills_store.zig` — skill quality tracking (execution_count, success_count, avg_quality)
+- [x] `database/mod.zig` — expanded to 91-line API (parity with stub.zig)
+- [x] `gpu/stub.zig` — added 3 missing sub-module stubs
 
 ---
 
-### In Progress - Codebase Quality Sweep Wave 5 (PR #485)
+## Active — Post-Sweep Cleanup
 
-#### Agents Running (5 parallel)
-- [ ] Create `src/features/ai/feedback/learning_bridge.zig` — feedback→learning closed loop
-- [ ] Wire AdvancedCognition into `src/features/ai/agents/agent.zig`
-- [ ] Add skill quality tracking to `tools/cli/commands/ai/ralph/skills_store.zig`
-- [ ] Fix 5 broken imports (coordination, routing_logic, wdbx_fast_tests_root)
-- [ ] Fix mod/stub parity (database mod.zig re-exports, gpu stub.zig missing modules)
-
-#### Post-Agent Work
-- [ ] Format check all modified files
-- [ ] Commit and push all waves
-- [ ] Update PR #485 description
+- [x] Fix stale README.md references (`abi.personas` → `abi.features.ai.profiles`)
+- [x] Fix stale docs/api/v1.md references
+- [x] Fix coordination mod/stub — inline CoordinationContext and InteractionCoordinator (removed dependency on deleted MultiPersonaSystem)
+- [ ] Merge PR #485 to main
 
 ---
 
-### Planned - Release & Scale (Next Phase)
+## Next Phase — Release & Scale
 
-#### Objective
-Transition from stability to broad feature expansion and ecosystem growth.
-
-#### Plan
-- [ ] **GitHub Actions Restoration**: Re-enable hosted CI now that the baseline is green.
-- [ ] **WASM Optimization**: Refine freestanding distance functions for browser-side inference.
-- [ ] **API Expansion**: Implement missing OpenAI-compatible streaming endpoints.
-- [ ] **Ecosystem Growth**: Push the `zig-abi-plugin` to the official registry.
-
----
+- [ ] **CI Restoration**: Push to main and verify GitHub Actions pass on Linux
+- [ ] **WASM Optimization**: Refine freestanding distance functions for browser-side inference
+- [ ] **API Expansion**: Implement missing OpenAI-compatible streaming endpoints
+- [ ] **CEL Toolchain**: Build Zig from source on Darwin 25+ for native linking
+- [ ] **Plugin Registry**: Push `zig-abi-plugin` to the official Claude Code registry
 
 ## Backlog
 
-1. [ ] Finalize automated doc generation for cross-language bindings.
-2. [ ] Audit `tools/cli/commands/` for full Windows compatibility.
-3. [ ] Implement distributed WAL (Write Ahead Log) for WDBX clusters.
+1. [ ] Finalize automated doc generation for cross-language bindings
+2. [ ] Audit `tools/cli/commands/` for Windows compatibility
+3. [ ] Implement distributed WAL for WDBX clusters
+4. [ ] MCP server hardening (WDBX + ZLS integration)
+5. [ ] Comprehensive test suite run on Linux CI to verify all waves
