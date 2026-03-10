@@ -225,6 +225,8 @@ zig-bootstrap-emergency/
 /test_socket.zig
 /test_writer.zig
 /zig-master/
+/zig-aarch64-*/
+/zig-x86_64-*/
 
 # ── Root-level scratch/test files (never track) ─────────────────────
 /hello
