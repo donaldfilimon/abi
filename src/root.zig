@@ -29,8 +29,7 @@ pub const distance = @import("wdbx/distance.zig");
 // ── AI Profiles & Personas ──────────────────────────────────────────────
 pub const profiles = @import("features/ai/profiles/mod.zig");
 pub const personas = @import("features/ai/personas/mod.zig");
-pub const routing = @import("personas/routing.zig");
-pub const safety = @import("personas/safety.zig");
+pub const routing = @import("features/ai/personas/routing/mod.zig");
 
 // ── Inference Engine ────────────────────────────────────────────────────
 pub const sampler = @import("inference/sampler.zig");

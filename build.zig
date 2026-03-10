@@ -673,7 +673,7 @@ pub fn build(b: *std.Build) void {
 
     // V3 Server executable
     const v3_server_mod = b.createModule(.{
-        .root_source_file = b.path("src/server_main.zig"),
+        .root_source_file = b.path("tools/server/main.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
@@ -709,25 +709,6 @@ pub fn build(b: *std.Build) void {
     }
     const v3_test_step = b.step("v3-test", "Run v3 module tests");
     v3_test_step.dependOn(if (is_blocked_darwin) &v3_tests.step else &b.addRunArtifact(v3_tests).step);
-
-    // V3 Benchmarks
-    const v3_bench_mod = b.createModule(.{
-        .root_source_file = b.path("src/bench.zig"),
-        .target = target,
-        .optimize = .ReleaseFast,
-    });
-    v3_bench_mod.addImport("abi", abi_module);
-    v3_bench_mod.addImport("wdbx", wdbx_module);
-
-    const v3_bench = b.addExecutable(.{
-        .name = "abi-bench",
-        .root_module = v3_bench_mod,
-    });
-    if (is_blocked_darwin) {
-        v3_bench.use_llvm = true;
-    }
-    const v3_bench_step = b.step("v3-bench", "Run v3 benchmarks");
-    v3_bench_step.dependOn(if (is_blocked_darwin) &v3_bench.step else &b.addRunArtifact(v3_bench).step);
 
     // ── Verify-all ──────────────────────────────────────────────────────
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
