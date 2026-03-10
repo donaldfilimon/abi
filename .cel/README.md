@@ -131,11 +131,12 @@ the upstream `zig2` build runner.
 ```
 .cel/
   config.sh          # Upstream pin and version config
+  lib.sh             # Shared shell helpers (sourced by all scripts)
   build.sh           # Build script (executable)
   README.md          # This file
   patches/           # Patch files applied in lexicographic order
     001-*.patch
-    /002-*.patch
+    002-*.patch
     003-*.patch
     004-*.patch
   bin/               # Build output (git-ignored)

@@ -282,6 +282,11 @@ print_status() {
     info "Pinned Zig commit:  $ZIG_UPSTREAM_COMMIT"
     info "Pinned Zig version: $ZIG_VERSION"
     info "Pinned ZLS repo:    $ZLS_UPSTREAM_REPO"
+    if [[ -n "${ZLS_UPSTREAM_COMMIT:-}" ]]; then
+        info "Pinned ZLS commit:  $ZLS_UPSTREAM_COMMIT"
+    else
+        info "Pinned ZLS commit:  (latest)"
+    fi
 
     if [[ -d "$ZIG_SRC_DIR/.git" ]]; then
         local src_commit
@@ -521,6 +526,9 @@ clone_or_sync_zls_source() {
     if [[ ! -d "$ZLS_SRC_DIR/.git" ]]; then
         info "Cloning ZLS source..."
         git clone "$ZLS_UPSTREAM_REPO" "$ZLS_SRC_DIR" >/dev/null 2>&1 || die "Failed to clone ZLS source."
+        if [[ -n "${ZLS_UPSTREAM_COMMIT:-}" ]]; then
+            git -C "$ZLS_SRC_DIR" checkout "$ZLS_UPSTREAM_COMMIT" >/dev/null 2>&1 || die "Failed to checkout ZLS at $ZLS_UPSTREAM_COMMIT."
+        fi
         return
     fi
 
@@ -528,9 +536,21 @@ clone_or_sync_zls_source() {
         die "ZLS source at $ZLS_SRC_DIR is dirty. Re-run with --clean."
     fi
 
-    info "Refreshing ZLS source..."
-    git -C "$ZLS_SRC_DIR" fetch --depth 1 origin >/dev/null 2>&1 || die "Failed to fetch ZLS source."
-    git -C "$ZLS_SRC_DIR" pull --ff-only >/dev/null 2>&1 || die "Failed to fast-forward ZLS source."
+    if [[ -n "${ZLS_UPSTREAM_COMMIT:-}" ]]; then
+        local current_commit
+        current_commit="$(git -C "$ZLS_SRC_DIR" rev-parse --short=9 HEAD)"
+        if [[ "$current_commit" == "$ZLS_UPSTREAM_COMMIT"* ]]; then
+            info "ZLS source already at pinned commit $current_commit"
+            return
+        fi
+        info "Updating ZLS source to pinned commit $ZLS_UPSTREAM_COMMIT..."
+        git -C "$ZLS_SRC_DIR" fetch --depth 1 origin "$ZLS_UPSTREAM_COMMIT" >/dev/null 2>&1 || die "Failed to fetch ZLS commit $ZLS_UPSTREAM_COMMIT."
+        git -C "$ZLS_SRC_DIR" checkout "$ZLS_UPSTREAM_COMMIT" >/dev/null 2>&1 || die "Failed to checkout ZLS at $ZLS_UPSTREAM_COMMIT."
+    else
+        info "Refreshing ZLS source (no commit pin — using latest)..."
+        git -C "$ZLS_SRC_DIR" fetch --depth 1 origin >/dev/null 2>&1 || die "Failed to fetch ZLS source."
+        git -C "$ZLS_SRC_DIR" pull --ff-only >/dev/null 2>&1 || die "Failed to fast-forward ZLS source."
+    fi
 }
 
 build_zls() {

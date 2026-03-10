@@ -15,6 +15,7 @@ ZIG_UPSTREAM_REPO="https://github.com/ziglang/zig.git"
 ZIG_UPSTREAM_COMMIT="738d2be9d" # matches .zigversion 0.16.0-dev.1503+738d2be9d
 ZIG_VERSION="0.16.0-dev.1503+738d2be9d"
 ZLS_UPSTREAM_REPO="https://github.com/zigtools/zls.git"
+ZLS_UPSTREAM_COMMIT=""  # Empty = use latest; set to a short hash for reproducible builds
 CEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Platform requirements for CEL
@@ -25,4 +26,4 @@ CEL_BUILD_TYPE="Release"
 CEL_PREFER_STATIC_LLVM=true
 
 # Export for child scripts
-export ZIG_UPSTREAM_REPO ZIG_UPSTREAM_COMMIT ZIG_VERSION ZLS_UPSTREAM_REPO CEL_DIR
+export ZIG_UPSTREAM_REPO ZIG_UPSTREAM_COMMIT ZIG_VERSION ZLS_UPSTREAM_REPO ZLS_UPSTREAM_COMMIT CEL_DIR
