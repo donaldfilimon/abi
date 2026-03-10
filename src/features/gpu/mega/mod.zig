@@ -23,7 +23,7 @@
 //! ## Quick Start
 //!
 //! ```zig
-//! const mega = @import("mega/mod.zig");
+//! const mega = @import("mega");
 //!
 //! // Initialize coordinator
 //! var coordinator = try mega.Coordinator.init(allocator);
@@ -67,13 +67,13 @@
 //! Multiple threads can call `schedule()` concurrently.
 const std = @import("std");
 
-pub const coordinator = @import("coordinator.zig");
-pub const scheduler = @import("scheduler.zig");
-pub const hybrid = @import("hybrid.zig");
-pub const queue = @import("queue.zig");
-pub const failover = @import("failover.zig");
-pub const power = @import("power.zig");
-pub const metrics = @import("metrics.zig");
+pub const coordinator = @import("coordinator");
+pub const scheduler = @import("scheduler");
+pub const hybrid = @import("hybrid");
+pub const queue = @import("queue");
+pub const failover = @import("failover");
+pub const power = @import("power");
+pub const metrics = @import("metrics");
 
 // Re-export main types
 pub const Coordinator = coordinator.Coordinator;

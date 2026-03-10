@@ -5,11 +5,11 @@
 //! and optional GGUF export.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context.zig");
+const context_mod = @import("../../../framework/context");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
-const common = @import("common.zig");
-const mod = @import("mod.zig");
+const common = @import("common");
+const mod = @import("mod");
 
 pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;

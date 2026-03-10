@@ -16,12 +16,12 @@
 //! - ABI_DISCORD_PUBLIC_KEY / DISCORD_PUBLIC_KEY - Interaction verification key
 
 const std = @import("std");
-const connectors = @import("../mod.zig");
+const connectors = @import("..");
 
 // Re-export submodules
-pub const types = @import("types.zig");
-pub const rest = @import("rest.zig");
-pub const utils = @import("utils.zig");
+pub const types = @import("types");
+pub const rest = @import("rest");
+pub const utils = @import("utils");
 
 // Re-export common types for convenience
 pub const DiscordError = types.DiscordError;

@@ -1,21 +1,21 @@
 //! UI command family (CLI/TUI v2).
 
 const std = @import("std");
-const command_mod = @import("../../../command.zig");
-const context_mod = @import("../../../framework/context.zig");
+const command_mod = @import("../../../command");
+const context_mod = @import("../../../framework/context");
 const utils = @import("../../../utils/mod.zig");
-const gpu_cmd = @import("./gpu.zig");
-const train_cmd = @import("./train.zig");
-const neural = @import("./neural.zig");
-const model_cmd = @import("./model.zig");
-const streaming_cmd = @import("./streaming.zig");
-const db_cmd = @import("./db.zig");
-const network_cmd = @import("./network.zig");
-const bench_cmd = @import("./bench.zig");
-const brain_cmd = @import("./brain.zig");
-const dashboard_cmd = @import("./dashboard.zig");
-const editor_cmd = @import("./editor.zig");
-const chat_cmd = @import("./chat.zig");
+const gpu_cmd = @import("./gpu");
+const train_cmd = @import("./train");
+const neural = @import("./neural");
+const model_cmd = @import("./model");
+const streaming_cmd = @import("./streaming");
+const db_cmd = @import("./db");
+const network_cmd = @import("./network");
+const bench_cmd = @import("./bench");
+const brain_cmd = @import("./brain");
+const dashboard_cmd = @import("./dashboard");
+const editor_cmd = @import("./editor");
+const chat_cmd = @import("./chat");
 
 pub const meta: command_mod.Meta = .{
     .name = "ui",

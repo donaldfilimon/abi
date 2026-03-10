@@ -1,8 +1,8 @@
 //! Batch generation for processing multiple prompts.
 
 const std = @import("std");
-const generator_mod = @import("generator.zig");
-const sampler = @import("sampler.zig");
+const generator_mod = @import("generator");
+const sampler = @import("sampler");
 
 /// Batch generation configuration.
 pub const BatchConfig = struct {

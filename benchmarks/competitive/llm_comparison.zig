@@ -15,8 +15,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const mod = @import("mod.zig");
-const framework = @import("../system/framework.zig");
+const mod = @import("mod");
+const framework = @import("../system/framework");
 
 /// LLM inference reference baselines
 pub const LlmBaseline = struct {

@@ -6,7 +6,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const core = @import("../../core/mod.zig");
-const framework = @import("../../system/framework.zig");
+const framework = @import("../../system/framework");
 
 pub const EuclideanHNSW = struct {
     allocator: std.mem.Allocator,

@@ -1,8 +1,8 @@
 //! GPU Stub Module — API-compatible no-ops when GPU is disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../core/config/mod.zig");
-const stub_common = @import("../../services/shared/stub_common.zig");
+const config_module = @import("../../core/config");
+const stub_common = @import("shared_services").stub_common;
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
@@ -13,29 +13,29 @@ pub const KernelError = error{ CompilationFailed, InvalidKernel, InvalidArgument
 
 // ── Local Stubs Imports ────────────────────────────────────────────────────
 
-const backend = @import("backend.zig");
-const memory = @import("stubs/memory.zig");
-const kernel = @import("stubs/kernel.zig");
-const dsl_mod = @import("stubs/dsl.zig");
-const execution = @import("stubs/execution.zig");
-const recovery_mod = @import("stubs/recovery.zig");
-const multi_gpu = @import("stubs/multi_gpu.zig");
-const config = @import("stubs/config.zig");
-const platform_mod = @import("stubs/platform.zig");
-const backend_factory_mod = @import("stubs/backend_factory.zig");
-const dispatcher_mod = @import("stubs/dispatcher.zig");
-const diagnostics_mod = @import("stubs/diagnostics.zig");
-const execution_coordinator_mod = @import("stubs/execution_coordinator.zig");
-const std_gpu_mod = @import("stubs/std_gpu.zig");
-const misc = @import("stubs/misc.zig");
-const profiler = @import("stubs/profiler.zig");
+const backend = @import("backend");
+const memory = @import("stubs/memory");
+const kernel = @import("stubs/kernel");
+const dsl_mod = @import("stubs/dsl");
+const execution = @import("stubs/execution");
+const recovery_mod = @import("stubs/recovery");
+const multi_gpu = @import("stubs/multi_gpu");
+const config = @import("stubs/config");
+const platform_mod = @import("stubs/platform");
+const backend_factory_mod = @import("stubs/backend_factory");
+const dispatcher_mod = @import("stubs/dispatcher");
+const diagnostics_mod = @import("stubs/diagnostics");
+const execution_coordinator_mod = @import("stubs/execution_coordinator");
+const std_gpu_mod = @import("stubs/std_gpu");
+const misc = @import("stubs/misc");
+const profiler = @import("stubs/profiler");
 
 // ── Essential Shared Types ─────────────────────────────────────────────────
 
-pub const Backend = @import("backend.zig").Backend;
+pub const Backend = @import("backend").Backend;
 
-pub const Device = @import("stubs/device.zig").Device;
-pub const DeviceType = @import("stubs/device.zig").DeviceType;
+pub const Device = @import("stubs/device").Device;
+pub const DeviceType = @import("stubs/device").DeviceType;
 
 pub const Buffer = memory.Buffer;
 pub const GpuBuffer = Buffer;
@@ -43,10 +43,10 @@ pub const UnifiedBuffer = memory.UnifiedBuffer;
 pub const BufferFlags = memory.BufferFlags;
 pub const BufferOptions = memory.BufferOptions;
 
-pub const Stream = @import("stubs/stream.zig").Stream;
-pub const StreamOptions = @import("stubs/stream.zig").StreamOptions;
-pub const Event = @import("stubs/stream.zig").Event;
-pub const EventOptions = @import("stubs/stream.zig").EventOptions;
+pub const Stream = @import("stubs/stream").Stream;
+pub const StreamOptions = @import("stubs/stream").StreamOptions;
+pub const Event = @import("stubs/stream").Event;
+pub const EventOptions = @import("stubs/stream").EventOptions;
 
 pub const LaunchConfig = execution.LaunchConfig;
 pub const ExecutionResult = execution.ExecutionResult;
@@ -71,8 +71,8 @@ pub const std_gpu = misc.std_gpu;
 pub const std_gpu_kernels = misc.std_gpu_kernels;
 pub const unified = misc.unified;
 pub const unified_buffer = misc.unified_buffer;
-pub const device = @import("stubs/device.zig");
-pub const stream = @import("stubs/stream.zig");
+pub const device = @import("stubs/device");
+pub const stream = @import("stubs/stream");
 pub const dsl = dsl_mod.dsl;
 pub const interface = misc.interface;
 pub const cuda_loader = misc.cuda_loader;
@@ -88,16 +88,151 @@ pub const recovery = recovery_mod.recovery;
 pub const failover = recovery_mod.failover;
 pub const failover_types = misc.failover_types;
 
+// AI training bridge stubs (parity with mod.zig)
+pub const coordinator_ai_ops = struct {
+    pub const CoordinatorAiOps = struct {
+        allocator: std.mem.Allocator,
+        coordinator: ?void = null,
+        initialized: bool = false,
+
+        pub fn init(allocator: std.mem.Allocator) CoordinatorAiOps {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *CoordinatorAiOps) void {}
+        pub fn isAvailable(_: *const CoordinatorAiOps) bool {
+            return false;
+        }
+    };
+};
+
+pub const training_bridge = struct {
+    pub const GpuTrainingStats = struct {
+        total_gpu_ops: u64 = 0,
+        gpu_time_ns: u64 = 0,
+        cpu_fallback_ops: u64 = 0,
+        utilization: f32 = 0,
+        backend_name: []const u8 = "none",
+        gpu_available: bool = false,
+
+        pub fn avgKernelTimeMs(self: GpuTrainingStats) f32 {
+            if (self.total_gpu_ops == 0) return 0;
+            return @as(f32, @floatFromInt(self.gpu_time_ns)) / @as(f32, @floatFromInt(self.total_gpu_ops)) / 1e6;
+        }
+        pub fn gpuRatio(self: GpuTrainingStats) f32 {
+            const total = self.total_gpu_ops + self.cpu_fallback_ops;
+            if (total == 0) return 0;
+            return @as(f32, @floatFromInt(self.total_gpu_ops)) / @as(f32, @floatFromInt(total));
+        }
+    };
+
+    pub const GpuTrainingBridge = struct {
+        gpu_ops: ?void = null,
+        gpu_available: bool = false,
+        stats: GpuTrainingStats = .{},
+        allocator: std.mem.Allocator,
+
+        pub fn init(allocator: std.mem.Allocator) GpuTrainingBridge {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *GpuTrainingBridge) void {}
+        pub fn getStats(self: *const GpuTrainingBridge) GpuTrainingStats {
+            return self.stats;
+        }
+        pub fn matmul(_: *GpuTrainingBridge, _: []const f32, _: []const f32, _: []f32, _: u32, _: u32, _: u32) void {}
+        pub fn rmsNorm(_: *GpuTrainingBridge, _: []f32, _: []const f32, _: f32) void {}
+        pub fn softmax(_: *GpuTrainingBridge, _: []f32) void {}
+        pub fn silu(_: *GpuTrainingBridge, _: []f32) void {}
+        pub fn elementwiseMul(_: *GpuTrainingBridge, _: []f32, _: []const f32) void {}
+        pub fn elementwiseAdd(_: *GpuTrainingBridge, _: []f32, _: []const f32) void {}
+        pub fn updateUtilization(_: *GpuTrainingBridge) void {}
+    };
+};
+
+pub const gradient_compression = struct {
+    pub const CompressedGradient = struct {
+        indices: []u32 = &.{},
+        values: []f32 = &.{},
+        original_size: usize = 0,
+        compression_ratio: f32 = 0,
+        allocator: std.mem.Allocator,
+
+        pub fn deinit(_: *CompressedGradient) void {}
+        pub fn compressedBytes(_: *const CompressedGradient) usize {
+            return 0;
+        }
+        pub fn originalBytes(_: *const CompressedGradient) usize {
+            return 0;
+        }
+    };
+
+    pub const CompressionStats = struct {
+        compressed_bytes: usize = 0,
+        original_bytes: usize = 0,
+        ratio: f32 = 0,
+        residual_norm: f32 = 0,
+        compressions_count: u64 = 0,
+    };
+
+    pub const GradientCompressor = struct {
+        residual: []f32 = &.{},
+        ratio: f32 = 0,
+        allocator: std.mem.Allocator,
+        gradient_size: usize = 0,
+        compressions_count: u64 = 0,
+
+        pub fn init(allocator: std.mem.Allocator, _: usize, _: f32) !GradientCompressor {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *GradientCompressor) void {}
+        pub fn compress(_: *GradientCompressor, _: []const f32) !CompressedGradient {
+            return error.FeatureDisabled;
+        }
+        pub fn decompress(_: *const CompressedGradient, output: []f32) void {
+            @memset(output, 0);
+        }
+        pub fn getStats(_: *const GradientCompressor) CompressionStats {
+            return .{};
+        }
+    };
+
+    pub const GradientBucketManager = struct {
+        bucket_size: usize = 0,
+        allocator: std.mem.Allocator,
+
+        pub const Bucket = struct {
+            data: []f32 = &.{},
+            used: usize = 0,
+            capacity: usize = 0,
+
+            pub fn deinit(_: *Bucket, _: std.mem.Allocator) void {}
+        };
+
+        pub fn init(allocator: std.mem.Allocator, _: usize) GradientBucketManager {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *GradientBucketManager) void {}
+        pub fn addGradient(_: *GradientBucketManager, _: u32, _: []const f32) !void {
+            return error.FeatureDisabled;
+        }
+        pub fn hasReadyBucket(_: *const GradientBucketManager) bool {
+            return false;
+        }
+        pub fn bucketCount(_: *const GradientBucketManager) usize {
+            return 0;
+        }
+    };
+};
+
 // Namespaced GPU API surface (hard API cutover)
 pub const backends = struct {
     pub const types = struct {
-        pub const Backend = @import("backend.zig").Backend;
-        pub const DetectionLevel = @import("backend.zig").DetectionLevel;
-        pub const BackendAvailability = @import("backend.zig").BackendAvailability;
-        pub const BackendInfo = @import("backend.zig").BackendInfo;
-        pub const DeviceCapability = @import("backend.zig").DeviceCapability;
-        pub const DeviceInfo = @import("backend.zig").DeviceInfo;
-        pub const Summary = @import("backend.zig").Summary;
+        pub const Backend = @import("backend").Backend;
+        pub const DetectionLevel = @import("backend").DetectionLevel;
+        pub const BackendAvailability = @import("backend").BackendAvailability;
+        pub const BackendInfo = @import("backend").BackendInfo;
+        pub const DeviceCapability = @import("backend").DeviceCapability;
+        pub const DeviceInfo = @import("backend").DeviceInfo;
+        pub const Summary = @import("backend").Summary;
     };
 
     pub const detect = struct {

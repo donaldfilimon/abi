@@ -1,9 +1,9 @@
 //! Tests for multi-device GPU management.
 
 const std = @import("std");
-const device_group_mod = @import("device_group.zig");
-const gpu_cluster_mod = @import("gpu_cluster.zig");
-const gradient_sync_mod = @import("gradient_sync.zig");
+const device_group_mod = @import("device_group");
+const gpu_cluster_mod = @import("gpu_cluster");
+const gradient_sync_mod = @import("gradient_sync");
 
 const DeviceGroup = device_group_mod.DeviceGroup;
 const GPUCluster = gpu_cluster_mod.GPUCluster;

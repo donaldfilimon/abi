@@ -1,5 +1,5 @@
 const std = @import("std");
-const manifest = @import("manifest.zig");
+const manifest = @import("manifest");
 
 pub fn loadManifest(allocator: std.mem.Allocator) !manifest.Manifest {
     return manifest.loadDefault(allocator);

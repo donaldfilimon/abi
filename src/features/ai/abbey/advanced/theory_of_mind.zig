@@ -9,8 +9,8 @@
 //! - Communication adaptation
 
 const std = @import("std");
-const types = @import("../../core/types.zig");
-const emotions = @import("../emotions.zig");
+const types = @import("types");
+const emotions = @import("../emotions");
 
 // ============================================================================
 // Mental Model Types

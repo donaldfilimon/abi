@@ -15,7 +15,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
-const e2e = @import("e2e/mod.zig");
+const e2e = @import("e2e");
 
 // ============================================================================
 // Basic CRUD Operations

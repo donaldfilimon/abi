@@ -1,5 +1,5 @@
 const std = @import("std");
-const explore = @import("mod.zig");
+const explore = @import("mod");
 
 test "explore agent creation" {
     const allocator = std.testing.allocator;

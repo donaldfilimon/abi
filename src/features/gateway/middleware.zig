@@ -1,4 +1,4 @@
-const types = @import("types.zig");
+const types = @import("types");
 const std = @import("std");
 
 /// Gateway middleware type aliases are centralized here so future middleware

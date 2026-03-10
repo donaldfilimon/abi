@@ -30,7 +30,7 @@
 //! ```
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 const Config = mod.Config;
 const GpuConfig = mod.GpuConfig;
 const AiConfig = mod.AiConfig;

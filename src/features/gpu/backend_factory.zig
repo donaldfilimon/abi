@@ -7,7 +7,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const factory = @import("backend_factory.zig");
+//! const factory = @import("backend_factory");
 //!
 //! // Create a backend for a specific type
 //! const backend = try factory.createBackend(allocator, .cuda);
@@ -40,13 +40,13 @@
 //! | stdgpu  | All | None (CPU emulation) |
 
 const std = @import("std");
-const interface = @import("interface.zig");
-const backend_mod = @import("backend.zig");
+const interface = @import("interface");
+const backend_mod = @import("backend");
 const build_options = @import("build_options");
-const policy = @import("policy/mod.zig");
-const backend_registry = @import("backends/registry.zig");
-const backend_shared = @import("backends/shared.zig");
-const android_probe = @import("device/android_probe.zig");
+const policy = @import("policy");
+const backend_registry = @import("backends/registry");
+const backend_shared = @import("backends/shared");
+const android_probe = @import("device/android_probe");
 
 pub const Backend = backend_mod.Backend;
 pub const BackendInterface = interface.Backend;
@@ -571,7 +571,7 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
         return FactoryError.BackendNotAvailable;
     }
 
-    const fpga_vtable = @import("backends/fpga/vtable.zig");
+    const fpga_vtable = @import("backends/fpga/vtable");
     return fpga_vtable.createFpgaVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -580,7 +580,7 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
 fn createCudaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
     // Check if CUDA is available at comptime
     if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
-        const cuda_vtable = @import("backends/cuda/vtable.zig");
+        const cuda_vtable = @import("backends/cuda/vtable");
         return cuda_vtable.createCudaVTable(allocator) catch |err| {
             return mapBackendCreateError(err);
         };
@@ -595,7 +595,7 @@ fn createVulkanVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     }
 
     // Try to create real Vulkan backend
-    const vulkan = @import("backends/vulkan.zig");
+    const vulkan = @import("backends/vulkan");
     return vulkan.createVulkanVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -608,7 +608,7 @@ fn createMetalVTableBackend(allocator: std.mem.Allocator) FactoryError!interface
     }
 
     // Try to create real Metal backend
-    const metal_vtable = @import("backends/metal_vtable.zig");
+    const metal_vtable = @import("backends/metal_vtable");
     return metal_vtable.createMetalVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -621,23 +621,23 @@ fn createWebGPUVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     }
 
     // Try to create real WebGPU backend
-    const webgpu_vtable = @import("backends/webgpu_vtable.zig");
+    const webgpu_vtable = @import("backends/webgpu_vtable");
     return webgpu_vtable.createWebGpuVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
 }
 
 fn createOpenGLVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    const gl_backend = @import("backends/gl/backend.zig");
-    const gl_profile = @import("backends/gl/profile.zig");
+    const gl_backend = @import("backends/gl/backend");
+    const gl_profile = @import("backends/gl/profile");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.desktop) catch |err| {
         return mapBackendCreateError(err);
     };
 }
 
 fn createOpenGLESVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    const gl_backend = @import("backends/gl/backend.zig");
-    const gl_profile = @import("backends/gl/profile.zig");
+    const gl_backend = @import("backends/gl/backend");
+    const gl_profile = @import("backends/gl/profile");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.es) catch |err| {
         return mapBackendCreateError(err);
     };

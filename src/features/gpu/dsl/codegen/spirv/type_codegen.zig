@@ -5,11 +5,11 @@
 //! All functions take a pointer to SpirvGenerator as the first argument.
 
 const std = @import("std");
-const constants = @import("constants.zig");
-const types_gen = @import("types_gen.zig");
-const constants_gen = @import("constants_gen.zig");
-const instruction_emit = @import("instruction_emit.zig");
-const dsl_types = @import("../../types.zig");
+const constants = @import("constants");
+const types_gen = @import("types_gen");
+const constants_gen = @import("constants_gen");
+const instruction_emit = @import("instruction_emit");
+const dsl_types = @import("../../types");
 
 pub const OpCode = constants.OpCode;
 pub const StorageClass = constants.StorageClass;
@@ -17,7 +17,7 @@ pub const TypeKey = types_gen.TypeKey;
 pub const ConstKey = constants_gen.ConstKey;
 
 /// The generator type — imported lazily to avoid circular deps.
-const SpirvGenerator = @import("generator.zig").SpirvGenerator;
+const SpirvGenerator = @import("generator").SpirvGenerator;
 
 pub fn typeFromIR(self: *SpirvGenerator, ty: dsl_types.Type) !u32 {
     return switch (ty) {
@@ -131,7 +131,7 @@ pub fn getMatrixType(self: *SpirvGenerator, column_type: u32, column_count: u8) 
 }
 
 pub fn getArrayType(self: *SpirvGenerator, element_type: u32, length: u32) !u32 {
-    const const_codegen_mod = @import("const_codegen.zig");
+    const const_codegen_mod = @import("const_codegen");
     const length_const = try const_codegen_mod.getConstantU32(self, length);
     const key = TypeKey{ .tag = .array, .data = element_type, .extra = length };
     if (self.type_ids.get(key)) |id| return id;

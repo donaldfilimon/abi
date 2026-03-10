@@ -1,7 +1,7 @@
 //! Embeddings Stub Module — disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../../core/config");
 
 pub const Error = error{ FeatureDisabled, ModelNotFound, EmbeddingFailed, InvalidInput };
 

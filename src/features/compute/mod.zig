@@ -3,7 +3,7 @@
 //! Provides the distributed mesh networking, multi-GPU orchestration,
 //! and tensor sharing protocols.
 
-pub const mesh = @import("mesh.zig");
+pub const mesh = @import("mesh");
 
 const std = @import("std");
 test {

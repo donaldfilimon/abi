@@ -12,11 +12,11 @@
 //! - --output <file> - Write results to file
 
 const std = @import("std");
-const command_mod = @import("../../../command.zig");
-const context_mod = @import("../../../framework/context.zig");
+const command_mod = @import("../../../command");
+const context_mod = @import("../../../framework/context");
 const utils = @import("../../../utils/mod.zig");
-const suites = @import("suites.zig");
-const micro = @import("micro.zig");
+const suites = @import("suites");
+const micro = @import("micro");
 
 pub const meta: command_mod.Meta = .{
     .name = "bench",

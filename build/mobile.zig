@@ -23,7 +23,7 @@ pub fn addMobileBuild(
     const abi_android = b.addLibrary(.{
         .name = "abi-android",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/abi.zig"),
+            .root_source_file = b.path("src/root.zig"),
             .target = android_target,
             .optimize = optimize,
         }),
@@ -42,7 +42,7 @@ pub fn addMobileBuild(
     const abi_ios = b.addLibrary(.{
         .name = "abi-ios",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/abi.zig"),
+            .root_source_file = b.path("src/root.zig"),
             .target = ios_target,
             .optimize = optimize,
         }),

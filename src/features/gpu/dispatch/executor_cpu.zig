@@ -1,4 +1,4 @@
-const coordinator = @import("coordinator.zig");
+const coordinator = @import("coordinator");
 const std = @import("std");
 
 pub const DispatchError = coordinator.DispatchError;

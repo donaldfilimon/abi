@@ -1,7 +1,7 @@
 //! Skill registry stub (WDBX-backed skill sync).
 
 const std = @import("std");
-const types = @import("../protocol/types.zig");
+const types = @import("../protocol/types");
 
 pub const SkillRegistry = struct {
     allocator: std.mem.Allocator,

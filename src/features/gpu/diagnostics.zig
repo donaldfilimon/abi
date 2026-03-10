@@ -4,12 +4,12 @@
 //! memory usage, kernel cache, failover status, and error history.
 
 const std = @import("std");
-const interface = @import("interface.zig");
-const backend = @import("backend.zig");
-const memory = @import("memory/base.zig");
-const kernel_cache = @import("kernel_cache.zig");
-const failover = @import("failover.zig");
-const error_handling = @import("error_handling.zig");
+const interface = @import("interface");
+const backend = @import("backend");
+const memory = @import("memory/base");
+const kernel_cache = @import("kernel_cache");
+const failover = @import("failover");
+const error_handling = @import("error_handling");
 
 /// Comprehensive GPU diagnostics information.
 pub const DiagnosticsInfo = struct {

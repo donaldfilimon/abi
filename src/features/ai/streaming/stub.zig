@@ -1,7 +1,7 @@
 //! Stub implementation for enhanced streaming when AI features are disabled.
 
 const std = @import("std");
-const transformer = @import("../transformer/mod.zig");
+const transformer = @import("../transformer");
 const stub_root = @This();
 
 // ── Sub-module re-exports (API parity with mod.zig) ────────────────────────

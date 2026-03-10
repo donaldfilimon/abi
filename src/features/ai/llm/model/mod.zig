@@ -4,10 +4,10 @@
 
 const std = @import("std");
 
-pub const config = @import("config.zig");
-pub const weights = @import("weights.zig");
-pub const layer = @import("layer.zig");
-pub const llama = @import("llama.zig");
+pub const config = @import("config");
+pub const weights = @import("weights");
+pub const layer = @import("layer");
+pub const llama = @import("llama");
 
 // Re-exports
 pub const LlamaConfig = config.LlamaConfig;

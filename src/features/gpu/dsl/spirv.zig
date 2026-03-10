@@ -8,7 +8,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
-const zig_toolchain = @import("../../../services/shared/utils/zig_toolchain.zig");
+const zig_toolchain = @import("shared_services").utils.zig_toolchain;
 
 // ---------------------------------------------------------------------------
 // Public types

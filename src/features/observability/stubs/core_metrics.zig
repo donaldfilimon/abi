@@ -3,9 +3,9 @@
 //! Provides stub implementations of shared metric primitives when observability
 //! is disabled. These stubs maintain API parity with the real implementation.
 
-pub const primitives = @import("./core_metrics/primitives.zig");
-pub const prometheus = @import("./core_metrics/prometheus.zig");
-pub const sliding_window = @import("./core_metrics/sliding_window.zig");
+pub const primitives = @import("./core_metrics/primitives");
+pub const prometheus = @import("./core_metrics/prometheus");
+pub const sliding_window = @import("./core_metrics/sliding_window");
 const std = @import("std");
 
 // Re-export core types

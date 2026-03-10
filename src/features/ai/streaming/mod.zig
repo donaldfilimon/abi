@@ -93,24 +93,24 @@
 //! | `/v1/models` | GET | List available models (OpenAI-compatible) |
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-pub const sse = @import("sse.zig");
-pub const backpressure = @import("backpressure.zig");
-pub const buffer = @import("buffer.zig");
-pub const generator = @import("generator.zig");
+const time = @import("shared_services").time;
+pub const sse = @import("sse");
+pub const backpressure = @import("backpressure");
+pub const buffer = @import("buffer");
+pub const generator = @import("generator");
 
 // Streaming inference server
-pub const server = @import("server.zig");
-pub const websocket = @import("websocket.zig");
-pub const backends = @import("backends/mod.zig");
-pub const formats = @import("formats/mod.zig");
+pub const server = @import("server");
+pub const websocket = @import("websocket");
+pub const backends = @import("backends");
+pub const formats = @import("formats");
 
 // Error recovery and resilience
-pub const recovery = @import("recovery.zig");
-pub const circuit_breaker = @import("circuit_breaker.zig");
-pub const retry_config = @import("retry_config.zig");
-pub const session_cache = @import("session_cache.zig");
-pub const streaming_metrics = @import("metrics.zig");
+pub const recovery = @import("recovery");
+pub const circuit_breaker = @import("circuit_breaker");
+pub const retry_config = @import("retry_config");
+pub const session_cache = @import("session_cache");
+pub const streaming_metrics = @import("metrics");
 
 // Server types
 
@@ -620,8 +620,8 @@ test {
     _ = retry_config;
     _ = session_cache;
     _ = streaming_metrics;
-    _ = @import("request_types.zig");
-    _ = @import("server_test.zig");
+    _ = @import("request_types");
+    _ = @import("server_test");
 }
 
 test {

@@ -11,7 +11,7 @@
 //! - **Audit trail**: Full history of all turns in a conversation
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
+const time = @import("shared_services").time;
 
 /// The intent of a message in a conversation.
 pub const SpeechAct = enum {

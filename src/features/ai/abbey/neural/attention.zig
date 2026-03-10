@@ -4,9 +4,9 @@
 //! Supports adaptive attention patterns that evolve during conversations.
 
 const std = @import("std");
-const tensor = @import("tensor.zig");
-const layer = @import("layer.zig");
-const types = @import("../../core/types.zig");
+const tensor = @import("tensor");
+const layer = @import("layer");
+const types = @import("types");
 
 const F32Tensor = tensor.F32Tensor;
 const LinearLayer = layer.LinearLayer;

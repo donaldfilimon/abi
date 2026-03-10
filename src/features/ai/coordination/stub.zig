@@ -1,16 +1,38 @@
 //! Coordination stub surface when AI features are disabled.
 
 const std = @import("std");
-const legacy_personas = @import("../personas/stub.zig");
-const legacy_types = @import("../personas/types.zig");
-const legacy_config = @import("../personas/config.zig");
-const profiles = @import("../profiles/stub.zig");
-const semantic_store = @import("../../database/semantic_store/stub.zig");
+const legacy_personas = @import("../profiles/stub");
+const legacy_types = @import("../types");
+const legacy_config = @import("../config");
+const profiles = @import("../profiles/stub");
+const semantic_store = @import("../../database/stub").semantic_store;
 
 pub const InteractionRequest = legacy_types.PersonaRequest;
 pub const InteractionResponse = legacy_types.PersonaResponse;
-pub const CoordinationContext = legacy_personas.Context;
-pub const InteractionCoordinator = legacy_personas.MultiPersonaSystem;
+/// Stub coordination context.
+pub const CoordinationContext = struct {
+    allocator: std.mem.Allocator,
+    profile: ?profiles.BehaviorProfile = null,
+
+    pub fn init(allocator: std.mem.Allocator) CoordinationContext {
+        return .{ .allocator = allocator };
+    }
+    pub fn deinit(_: *CoordinationContext) void {}
+};
+
+/// Stub interaction coordinator.
+pub const InteractionCoordinator = struct {
+    allocator: std.mem.Allocator,
+    context: CoordinationContext,
+
+    pub fn init(allocator: std.mem.Allocator) InteractionCoordinator {
+        return .{ .allocator = allocator, .context = CoordinationContext.init(allocator) };
+    }
+    pub fn deinit(self: *InteractionCoordinator) void {
+        self.context.deinit();
+    }
+};
+
 pub const CoordinationConfig = legacy_config.MultiPersonaConfig;
 pub const LegacyRoutingDecision = legacy_types.RoutingDecision;
 pub const PolicyFlags = legacy_types.PolicyFlags;

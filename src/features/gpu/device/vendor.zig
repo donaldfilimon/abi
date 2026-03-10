@@ -1,4 +1,4 @@
-const device = @import("../device.zig");
+const device = @import("../device");
 const std = @import("std");
 
 pub const Vendor = device.Vendor;

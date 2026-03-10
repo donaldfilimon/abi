@@ -8,8 +8,8 @@
 //! the HTTP server.
 
 const std = @import("std");
-const mod = @import("mod.zig");
-const llm = @import("../../llm/mod.zig");
+const mod = @import("mod");
+const llm = @import("../../llm");
 
 /// Error set for local backend operations
 pub const LocalBackendError = error{

@@ -12,8 +12,8 @@
 //! - **Snapshots**: Capture consistent point-in-time state
 
 const std = @import("std");
-const sync = @import("../../../services/shared/sync.zig");
-const time = @import("../../../services/shared/time.zig");
+const sync = @import("shared_services").sync;
+const time = @import("shared_services").time;
 
 // ============================================================================
 // Types

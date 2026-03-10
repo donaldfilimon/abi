@@ -1,5 +1,5 @@
 const std = @import("std");
-const loader = @import("loader.zig");
+const loader = @import("loader");
 
 test "CUDA loader basic functionality" {
     // Ensure that attempting to load does not panic even when driver missing.

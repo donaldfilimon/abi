@@ -1,17 +1,39 @@
 //! Canonical coordination surface over the legacy multi-persona system.
 
 const std = @import("std");
-const legacy_personas = @import("../personas/mod.zig");
-const legacy_types = @import("../personas/types.zig");
-const legacy_config = @import("../personas/config.zig");
-const legacy_abi = @import("../personas/abi/mod.zig");
-const profiles = @import("../profiles/mod.zig");
-const semantic_store = @import("../../database/semantic_store/mod.zig");
+const legacy_personas = @import("../profiles");
+const legacy_types = @import("../types");
+const legacy_config = @import("../config");
+const legacy_abi = @import("../abi_logic");
+const profiles = @import("../profiles");
+const semantic_store = @import("wdbx").semantic_store;
 
 pub const InteractionRequest = legacy_types.PersonaRequest;
 pub const InteractionResponse = legacy_types.PersonaResponse;
-pub const CoordinationContext = legacy_personas.Context;
-pub const InteractionCoordinator = legacy_personas.MultiPersonaSystem;
+/// Coordination context wrapping profile selection state.
+pub const CoordinationContext = struct {
+    allocator: std.mem.Allocator,
+    profile: ?profiles.BehaviorProfile = null,
+
+    pub fn init(allocator: std.mem.Allocator) CoordinationContext {
+        return .{ .allocator = allocator };
+    }
+    pub fn deinit(_: *CoordinationContext) void {}
+};
+
+/// Interaction coordinator that routes requests to behavior profiles.
+pub const InteractionCoordinator = struct {
+    allocator: std.mem.Allocator,
+    context: CoordinationContext,
+
+    pub fn init(allocator: std.mem.Allocator) InteractionCoordinator {
+        return .{ .allocator = allocator, .context = CoordinationContext.init(allocator) };
+    }
+    pub fn deinit(self: *InteractionCoordinator) void {
+        self.context.deinit();
+    }
+};
+
 pub const CoordinationConfig = legacy_config.MultiPersonaConfig;
 pub const LegacyRoutingDecision = legacy_types.RoutingDecision;
 pub const PolicyFlags = legacy_types.PolicyFlags;

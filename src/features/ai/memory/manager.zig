@@ -4,11 +4,11 @@
 //! long-term) into a single interface for conversation management.
 
 const std = @import("std");
-const mod = @import("mod.zig");
-const short_term = @import("short_term.zig");
-const window = @import("window.zig");
-const summary = @import("summary.zig");
-const long_term = @import("long_term.zig");
+const mod = @import("mod");
+const short_term = @import("short_term");
+const window = @import("window");
+const summary = @import("summary");
+const long_term = @import("long_term");
 
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;

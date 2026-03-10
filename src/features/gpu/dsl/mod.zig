@@ -16,7 +16,7 @@
 //! ## Quick Start
 //!
 //! ```zig
-//! const dsl = @import("gpu/dsl/mod.zig");
+//! const dsl = @import("gpu/dsl");
 //!
 //! // Create a kernel builder
 //! var builder = dsl.KernelBuilder.init(allocator, "vector_add");
@@ -52,7 +52,7 @@ const std = @import("std");
 // ============================================================================
 
 /// Type system for the kernel DSL.
-pub const types = @import("types.zig");
+pub const types = @import("types");
 
 /// Scalar types (bool, i8-i64, u8-u64, f16-f64).
 pub const ScalarType = types.ScalarType;
@@ -77,7 +77,7 @@ pub const AccessMode = types.AccessMode;
 // ============================================================================
 
 /// Expression AST nodes.
-pub const expr = @import("expr.zig");
+pub const expr = @import("expr");
 
 /// Value reference.
 pub const ValueRef = expr.ValueRef;
@@ -105,7 +105,7 @@ pub const BuiltinVar = expr.BuiltinVar;
 // ============================================================================
 
 /// Statement AST nodes.
-pub const stmt = @import("stmt.zig");
+pub const stmt = @import("stmt");
 
 /// Statement node.
 pub const Stmt = stmt.Stmt;
@@ -129,7 +129,7 @@ pub const block = stmt.block;
 // ============================================================================
 
 /// Kernel IR definitions.
-pub const kernel = @import("kernel.zig");
+pub const kernel = @import("kernel");
 
 /// Buffer binding descriptor.
 pub const BufferBinding = kernel.BufferBinding;
@@ -166,7 +166,7 @@ pub const BuiltinKernel = kernel.BuiltinKernel;
 // ============================================================================
 
 /// Kernel builder module.
-pub const builder = @import("builder.zig");
+pub const builder = @import("builder");
 
 /// Kernel builder for constructing IR.
 pub const KernelBuilder = builder.KernelBuilder;
@@ -180,11 +180,11 @@ pub const Value = builder.Value;
 
 /// Code generator backend interface.
 pub const codegen = struct {
-    pub const backend = @import("codegen/backend.zig");
-    pub const common = @import("codegen/common.zig");
-    pub const generic = @import("codegen/generic.zig");
-    pub const spirv = @import("codegen/spirv.zig");
-    const vision = @import("codegen/vision_kernels.zig");
+    pub const backend = @import("codegen/backend");
+    pub const common = @import("codegen/common");
+    pub const generic = @import("codegen/generic");
+    pub const spirv = @import("codegen/spirv");
+    const vision = @import("codegen/vision_kernels");
 
     // Language-specific namespaces (inlined from former wrapper files)
     pub const cuda = struct {
@@ -259,7 +259,7 @@ pub const GeneratedSource = codegen.GeneratedSource;
 // ============================================================================
 
 /// Kernel IR optimizer module.
-pub const optimizer = @import("optimizer.zig");
+pub const optimizer = @import("optimizer");
 
 /// Optimizer for kernel IR.
 pub const Optimizer = optimizer.Optimizer;
@@ -278,7 +278,7 @@ pub const OptimizationStats = optimizer.OptimizationStats;
 // ============================================================================
 
 /// Unified compiler module.
-pub const compiler = @import("compiler.zig");
+pub const compiler = @import("compiler");
 
 /// Compile error type.
 pub const CompileError = compiler.CompileError;
@@ -302,7 +302,7 @@ pub const getBestBackend = compiler.getBestBackend;
 pub const backendSupportsCompilation = compiler.backendSupportsCompilation;
 
 /// Zig-to-SPIRV compiler integration.
-pub const zig_spirv = @import("spirv.zig");
+pub const zig_spirv = @import("spirv");
 
 // ============================================================================
 // Tests

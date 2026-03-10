@@ -21,7 +21,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const runtime = @import("runtime/mod.zig");
+//! const runtime = @import("runtime");
 //!
 //! // Create runtime context
 //! var ctx = try runtime.Context.init(allocator);
@@ -35,13 +35,13 @@
 const std = @import("std");
 
 // Submodules - organized by domain (local implementations)
-pub const engine = @import("engine/mod.zig");
-pub const scheduling = @import("scheduling/mod.zig");
-pub const concurrency = @import("concurrency/mod.zig");
-pub const memory = @import("memory/mod.zig");
+pub const engine = @import("engine");
+pub const scheduling = @import("scheduling");
+pub const concurrency = @import("concurrency");
+pub const memory = @import("memory");
 
 // Workload types (local)
-pub const workload = @import("workload.zig");
+pub const workload = @import("workload");
 
 // ============================================================================
 // Engine Types (re-exported for convenience)

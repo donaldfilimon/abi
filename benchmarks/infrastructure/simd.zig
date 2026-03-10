@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../system/framework.zig");
+const framework = @import("../system/framework");
 const simd_mod = abi.wdbx;
 const simd_alignment = std.mem.Alignment.fromByteUnits(64);
 

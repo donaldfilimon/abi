@@ -3,10 +3,10 @@
 const std = @import("std");
 const abi = @import("abi");
 const tui = @import("../mod.zig");
-const render_utils = @import("../render_utils.zig");
-const completion = @import("completion.zig");
-const launcher_catalog = @import("launcher_catalog.zig");
-const types = @import("types.zig");
+const render_utils = @import("../render_utils");
+const completion = @import("completion");
+const launcher_catalog = @import("launcher_catalog");
+const types = @import("types");
 
 const MenuItem = types.MenuItem;
 const Action = types.Action;

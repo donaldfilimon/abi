@@ -20,12 +20,12 @@ pub const domains = struct {
 
 // Infrastructure benchmarks (concurrency, crypto, memory, etc.)
 pub const infrastructure = struct {
-    pub const concurrency = @import("infrastructure/concurrency.zig");
-    pub const crypto = @import("infrastructure/crypto.zig");
-    pub const memory = @import("infrastructure/memory.zig");
-    pub const simd = @import("infrastructure/simd.zig");
+    pub const concurrency = @import("infrastructure/concurrency");
+    pub const crypto = @import("infrastructure/crypto");
+    pub const memory = @import("infrastructure/memory");
+    pub const simd = @import("infrastructure/simd");
     pub const network = @import("infrastructure/network/mod.zig");
-    pub const v2_modules = @import("infrastructure/v2_modules.zig");
+    pub const v2_modules = @import("infrastructure/v2_modules");
 
     // Utility functions
     pub const runner = struct {

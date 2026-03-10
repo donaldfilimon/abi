@@ -1,6 +1,6 @@
-const common = @import("common.zig");
-const opengl = @import("../opengl.zig");
-const opengles = @import("../opengles.zig");
+const common = @import("common");
+const opengl = @import("../opengl");
+const opengles = @import("../opengles");
 const std = @import("std");
 
 const GlInitError = opengl.OpenGlError || opengles.OpenGlesError;

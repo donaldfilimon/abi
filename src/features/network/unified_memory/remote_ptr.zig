@@ -4,8 +4,8 @@
 //! Handles serialization, network transfer, and caching transparently.
 
 const std = @import("std");
-const memory_region = @import("memory_region.zig");
-const mod = @import("mod.zig");
+const memory_region = @import("memory_region");
+const mod = @import("mod");
 
 const RegionId = memory_region.RegionId;
 const UnifiedMemoryManager = mod.UnifiedMemoryManager;

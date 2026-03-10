@@ -8,8 +8,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 

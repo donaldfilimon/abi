@@ -15,8 +15,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
 const network = abi.features.network;
-const chaos = @import("mod.zig");
-const helpers = @import("../helpers.zig");
+const chaos = @import("mod");
+const helpers = @import("../helpers");
 
 // Re-export sleep from helpers for convenience
 const sleepMs = helpers.sleepMs;

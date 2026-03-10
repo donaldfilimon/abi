@@ -2,9 +2,9 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const framework = @import("../../../system/framework.zig");
+const framework = @import("../../../system/framework");
 const parent_mod = @import("../mod.zig");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 const cpu = mod.cpu_baselines;
 const gpu = mod.gpu;
 

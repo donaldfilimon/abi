@@ -32,8 +32,8 @@
 //! ```
 
 const std = @import("std");
-const circuit_breaker = @import("circuit_breaker.zig");
-const sync = @import("../sync.zig");
+const circuit_breaker = @import("circuit_breaker");
+const sync = @import("../sync");
 
 /// Reuse the same SyncStrategy as circuit_breaker.
 pub const SyncStrategy = circuit_breaker.SyncStrategy;

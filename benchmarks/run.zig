@@ -6,7 +6,7 @@
 //! Run with: `zig build benchmarks`
 
 const std = @import("std");
-const benchmark = @import("mod.zig");
+const benchmark = @import("mod");
 const abi = @import("abi");
 
 // Framework initialization benchmark

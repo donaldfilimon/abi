@@ -11,8 +11,8 @@
 //! - **Event integration**: Publishes supervisor events to the messaging EventBus
 
 const std = @import("std");
-const messaging = @import("messaging.zig");
-const time = @import("../../../services/shared/time.zig");
+const messaging = @import("messaging");
+const time = @import("shared_services").time;
 
 // ============================================================================
 // Types

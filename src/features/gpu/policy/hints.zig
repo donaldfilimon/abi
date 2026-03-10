@@ -1,4 +1,4 @@
-const catalog = @import("catalog.zig");
+const catalog = @import("catalog");
 const std = @import("std");
 
 pub const OptimizationHints = struct {

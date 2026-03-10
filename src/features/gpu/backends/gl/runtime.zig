@@ -1,8 +1,8 @@
 const std = @import("std");
-const common = @import("common.zig");
-const types = @import("../../kernel_types.zig");
-const opengl = @import("../opengl.zig");
-const opengles = @import("../opengles.zig");
+const common = @import("common");
+const types = @import("../../kernel_types");
+const opengl = @import("../opengl");
+const opengles = @import("../opengles");
 
 const GlError = opengl.OpenGlError || opengles.OpenGlesError;
 const KernelCompileError = types.KernelError || GlError;

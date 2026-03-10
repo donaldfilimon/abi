@@ -1,7 +1,7 @@
 //! Simple logging helpers with scoped timing.
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 
 pub const Level = enum {
     trace,

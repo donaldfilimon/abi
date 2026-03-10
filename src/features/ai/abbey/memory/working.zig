@@ -4,7 +4,7 @@
 //! Manages what's "in focus" with attention-based prioritization.
 
 const std = @import("std");
-const types = @import("../../core/types.zig");
+const types = @import("types");
 
 // ============================================================================
 // Working Memory Item

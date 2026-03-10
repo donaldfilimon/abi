@@ -16,7 +16,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const metal_types = @import("../metal_types.zig");
+const metal_types = @import("../metal_types");
 
 const ID = metal_types.ID;
 const SEL = metal_types.SEL;

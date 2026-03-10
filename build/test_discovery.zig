@@ -78,7 +78,7 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     // ── AI sub-modules with test blocks ────────────────────────────────
     .{ .flag = "feat_ai", .path = "features/ai/coordination/mod.zig" },
     .{ .flag = "feat_ai", .path = "features/ai/profiles/mod.zig" },
-    .{ .flag = "feat_ai", .path = "features/ai/personas/mod.zig" },
+    .{ .flag = "feat_ai", .path = "features/ai/mod.zig" },
     .{ .flag = "feat_ai", .path = "features/ai/agents/mod.zig" },
     .{ .flag = "feat_ai", .path = "features/ai/embeddings/mod.zig" },
     .{ .flag = "feat_ai", .path = "features/ai/vision/mod.zig" },
@@ -87,23 +87,16 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "feat_ai", .path = "features/ai/training/trainable_model_test.zig" },
     .{ .flag = "feat_ai", .path = "features/ai/reasoning/mod.zig" },
 
-    // ── AI persona tests ───────────────────────────────────────────────
-    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/abbey_test.zig" },
-    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/abi_test.zig" },
-    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/aviva_test.zig" },
-    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/benchmark_test.zig" },
-    .{ .flag = "feat_ai", .path = "features/ai/personas/tests/integration_test.zig" },
-
-    // ── Database sub-modules and tests ─────────────────────────────────
-    .{ .flag = "feat_database", .path = "features/database/semantic_store/mod.zig" },
-    .{ .flag = "feat_database", .path = "features/database/database_test.zig" },
-    .{ .flag = "feat_database", .path = "features/database/hnsw_test.zig" },
-    .{ .flag = "feat_database", .path = "features/database/batch_test.zig" },
-    .{ .flag = "feat_database", .path = "features/database/quantization_test.zig" },
-    .{ .flag = "feat_database", .path = "features/database/distributed/conflict_resolution_test.zig" },
-    .{ .flag = "feat_database", .path = "features/database/distributed/integration_test.zig" },
-    .{ .flag = "feat_database", .path = "features/database/distributed/shard_assignment_test.zig" },
-    .{ .flag = "feat_database", .path = "features/database/distributed/version_vector_test.zig" },
+    // ── Database sub-modules and tests (canonical location: core/database/) ──
+    .{ .flag = "feat_database", .path = "core/database/semantic_store/mod.zig" },
+    .{ .flag = "feat_database", .path = "core/database/database_test.zig" },
+    .{ .flag = "feat_database", .path = "core/database/hnsw_test.zig" },
+    .{ .flag = "feat_database", .path = "core/database/batch_test.zig" },
+    .{ .flag = "feat_database", .path = "core/database/quantization_test.zig" },
+    .{ .flag = "feat_database", .path = "core/database/distributed/conflict_resolution_test.zig" },
+    .{ .flag = "feat_database", .path = "core/database/distributed/integration_test.zig" },
+    .{ .flag = "feat_database", .path = "core/database/distributed/shard_assignment_test.zig" },
+    .{ .flag = "feat_database", .path = "core/database/distributed/version_vector_test.zig" },
 
     // ── Observability sub-modules ──────────────────────────────────────
     .{ .flag = "feat_profiling", .path = "features/observability/tracing.zig" },
@@ -190,9 +183,9 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "services/tasks/mod.zig" },
     .{ .flag = null, .path = "core/errors.zig" },
     .{ .flag = null, .path = "core/feature_catalog.zig" },
-    .{ .flag = null, .path = "wdbx/dist/mod.zig" },
-    .{ .flag = null, .path = "wdbx/dist/rpc.zig" },
-    .{ .flag = null, .path = "wdbx/dist/replication.zig" },
+    .{ .flag = null, .path = "core/database/dist/mod.zig" },
+    .{ .flag = null, .path = "core/database/dist/rpc.zig" },
+    .{ .flag = null, .path = "core/database/dist/replication.zig" },
     .{ .flag = null, .path = "core/registry/mod.zig" },
     .{ .flag = null, .path = "core/registry/stub.zig" },
     .{ .flag = null, .path = "services/shared/security/mod.zig" },
@@ -256,9 +249,9 @@ fn renderFeatureTestRoot(allocator: std.mem.Allocator) ![]u8 {
 }
 
 fn manifestEntryImportExpr(entry: FeatureTestEntry) ?[]const u8 {
-    if (std.mem.eql(u8, entry.path, "wdbx/dist/mod.zig")) return "@import(\"wdbx\").dist";
-    if (std.mem.eql(u8, entry.path, "wdbx/dist/rpc.zig")) return "@import(\"wdbx\").dist.rpc";
-    if (std.mem.eql(u8, entry.path, "wdbx/dist/replication.zig")) return "@import(\"wdbx\").dist.replication";
+    if (std.mem.eql(u8, entry.path, "core/database/dist/mod.zig")) return "@import(\"wdbx\").dist";
+    if (std.mem.eql(u8, entry.path, "core/database/dist/rpc.zig")) return "@import(\"wdbx\").dist.rpc";
+    if (std.mem.eql(u8, entry.path, "core/database/dist/replication.zig")) return "@import(\"wdbx\").dist.replication";
     return null;
 }
 

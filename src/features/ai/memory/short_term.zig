@@ -4,11 +4,11 @@
 //! When capacity is exceeded, oldest messages are discarded.
 
 const std = @import("std");
-const mod = @import("mod.zig");
+const mod = @import("mod");
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
 const MemoryStats = mod.MemoryStats;
-const MemoryType = @import("manager.zig").MemoryType;
+const MemoryType = @import("manager").MemoryType;
 
 /// Short-term memory with fixed message capacity.
 pub const ShortTermMemory = struct {

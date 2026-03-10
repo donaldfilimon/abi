@@ -1,7 +1,7 @@
 //! Integration Tests — End-to-end verification of the ABI framework
 
 const std = @import("std");
-const root = @import("../src/root.zig");
+const root = @import("../src/root");
 
 test "database insert and vector search round-trip" {
     const allocator = std.testing.allocator;

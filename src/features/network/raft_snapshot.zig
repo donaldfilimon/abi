@@ -4,7 +4,7 @@
 //! changes for the Raft consensus protocol.
 
 const std = @import("std");
-const raft = @import("raft.zig");
+const raft = @import("raft");
 const RaftNode = raft.RaftNode;
 const LogEntry = raft.LogEntry;
 const initIoBackend = raft.initIoBackend;

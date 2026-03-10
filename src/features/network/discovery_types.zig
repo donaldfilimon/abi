@@ -4,7 +4,7 @@
 //! and helper functions used by the ServiceDiscovery implementation.
 
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
+const time = @import("shared_services").time;
 
 var service_id_counter: std.atomic.Value(u64) = .{ .raw = 0 };
 

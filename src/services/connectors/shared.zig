@@ -160,7 +160,7 @@ pub fn jsonGetUint(comptime T: type, value: std.json.Value, field: []const u8) ?
 // JSON Encoding Helpers
 // ============================================================================
 
-const json_utils = @import("../shared/utils.zig").json;
+const json_utils = @import("shared_services").utils.json;
 
 /// Encode an array of ChatMessages as JSON array elements.
 /// Produces: {"role":"...","content":"..."},{"role":"...","content":"..."}
@@ -259,7 +259,7 @@ fn addJitter(delay: u64, attempt: u32) u64 {
 }
 
 /// Re-export RetryOptions from async_http for connector convenience.
-pub const RetryOptions = @import("../shared/utils.zig").async_http.RetryOptions;
+pub const RetryOptions = @import("shared_services").utils.async_http.RetryOptions;
 
 /// Default retry options for AI API connectors.
 /// 3 retries, 1s base, 30s max, retries on 429/5xx/network errors.

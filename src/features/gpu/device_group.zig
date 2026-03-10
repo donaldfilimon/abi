@@ -5,10 +5,10 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const backend_mod = @import("backend.zig");
-const device_mod = @import("device.zig");
+const backend_mod = @import("backend");
+const device_mod = @import("device");
 
-const sync = @import("../../services/shared/sync.zig");
+const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;
 
 /// Device identifier.

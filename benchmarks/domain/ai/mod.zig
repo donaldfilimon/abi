@@ -19,11 +19,11 @@
 
 const std = @import("std");
 const core = @import("../../core/mod.zig");
-const framework = @import("../../system/framework.zig");
+const framework = @import("../../system/framework");
 
-pub const kernels = @import("kernels.zig");
-pub const llm_metrics = @import("llm_metrics.zig");
-pub const streaming = @import("streaming.zig");
+pub const kernels = @import("kernels");
+pub const llm_metrics = @import("llm_metrics");
+pub const streaming = @import("streaming");
 
 // Re-export common types
 pub const HelmDimension = llm_metrics.HelmDimension;

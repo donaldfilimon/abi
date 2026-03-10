@@ -1,12 +1,12 @@
 //! ralph status — show runtime state, latest run, and persisted skills.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context.zig");
+const context_mod = @import("../../../framework/context");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const cfg = @import("config.zig");
-const workspace = @import("workspace.zig");
-const skills_store = @import("skills_store.zig");
+const cfg = @import("config");
+const workspace = @import("workspace");
+const skills_store = @import("skills_store");
 
 const ReportView = struct {
     run_id: []u8 = &.{},

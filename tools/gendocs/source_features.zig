@@ -1,5 +1,5 @@
 const std = @import("std");
-const model = @import("model.zig");
+const model = @import("model");
 
 /// Discover feature metadata by parsing `src/core/feature_catalog.zig`.
 ///

@@ -4,10 +4,10 @@
 //! and manages graceful degradation to fallback backends.
 
 const std = @import("std");
-const platform_time = @import("../../services/shared/utils.zig");
+const platform_time = @import("shared_services").utils;
 const time = platform_time;
-const sync = @import("../../services/shared/sync.zig");
-const backend = @import("backend.zig");
+const sync = @import("shared_services").sync;
+const backend = @import("backend");
 
 /// Recovery strategy for device failures.
 pub const RecoveryStrategy = enum {

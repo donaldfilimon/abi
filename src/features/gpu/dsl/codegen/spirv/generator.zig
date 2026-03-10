@@ -10,18 +10,18 @@
 //! - codegen.zig — statement/expression code generation (legacy mixin, not used here)
 
 const std = @import("std");
-const constants = @import("constants.zig");
-const types_gen = @import("types_gen.zig");
-const constants_gen = @import("constants_gen.zig");
-const type_codegen = @import("type_codegen.zig");
-const const_codegen = @import("const_codegen.zig");
-const instruction_emit = @import("instruction_emit.zig");
+const constants = @import("constants");
+const types_gen = @import("types_gen");
+const constants_gen = @import("constants_gen");
+const type_codegen = @import("type_codegen");
+const const_codegen = @import("const_codegen");
+const instruction_emit = @import("instruction_emit");
 
-const dsl_types = @import("../../types.zig");
-const dsl_expr = @import("../../expr.zig");
-const dsl_stmt = @import("../../stmt.zig");
-const kernel = @import("../../kernel.zig");
-const backend = @import("../backend.zig");
+const dsl_types = @import("../../types");
+const dsl_expr = @import("../../expr");
+const dsl_stmt = @import("../../stmt");
+const kernel = @import("../../kernel");
+const backend = @import("../backend");
 
 pub const SPIRV_MAGIC = constants.SPIRV_MAGIC;
 pub const SPIRV_VERSION = constants.SPIRV_VERSION;

@@ -4,7 +4,7 @@
 //! for GPU operations and kernel launches.
 
 const std = @import("std");
-const platform_time = @import("../../services/shared/utils.zig");
+const platform_time = @import("shared_services").utils;
 const time = platform_time;
 
 pub const ProfilingError = error{

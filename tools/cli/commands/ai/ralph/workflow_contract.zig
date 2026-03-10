@@ -1,7 +1,7 @@
 //! Workflow-orchestration contract helpers for Ralph runtime.
 
 const std = @import("std");
-const cfg = @import("config.zig");
+const cfg = @import("config");
 
 pub const ReplanTrigger = enum {
     invalid_assumption,

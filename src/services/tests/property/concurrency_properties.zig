@@ -9,8 +9,8 @@
 //! Uses the runtime/concurrency module
 
 const std = @import("std");
-const property = @import("mod.zig");
-const generators = @import("generators.zig");
+const property = @import("mod");
+const generators = @import("generators");
 const abi = @import("abi");
 const runtime = abi.services.runtime;
 // Priority is exported from concurrency submodule

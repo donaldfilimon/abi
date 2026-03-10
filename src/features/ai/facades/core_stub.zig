@@ -1,22 +1,22 @@
 //! AI Core Stub Module — disabled when AI core is off.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../../core/config");
 
 pub const Error = error{ AiDisabled, AgentsDisabled, ModelNotFound, InvalidConfig };
 
 // Sub-module stubs
-pub const core = @import("../core/stub.zig");
-pub const agents = @import("../agents/stub.zig");
-pub const tools = @import("../tools/stub.zig");
-pub const prompts = @import("../prompts/stub.zig");
-pub const memory = @import("../memory/stub.zig");
-pub const multi_agent = @import("../multi_agent/stub.zig");
-pub const models = @import("../models/stub.zig");
-pub const agent = @import("../agents/stub.zig");
-pub const model_registry = @import("../models/stub.zig");
-pub const gpu_agent = @import("../agents/stub.zig");
-pub const discovery = @import("../explore/stub.zig");
+pub const core = @import("../core/stub");
+pub const agents = @import("../agents/stub");
+pub const tools = @import("../tools/stub");
+pub const prompts = @import("../prompts/stub");
+pub const memory = @import("../memory/stub");
+pub const multi_agent = @import("../multi_agent/stub");
+pub const models = @import("../models/stub");
+pub const agent = @import("../agents/stub");
+pub const model_registry = @import("../models/stub");
+pub const gpu_agent = @import("../agents/stub");
+pub const discovery = @import("../explore/stub");
 
 // Re-exports
 pub const Agent = agent.Agent;

@@ -4,8 +4,8 @@
 //! the most frequent pairs of tokens until a vocabulary size is reached.
 
 const std = @import("std");
-const vocab_mod = @import("vocab.zig");
-const special_tokens = @import("special_tokens.zig");
+const vocab_mod = @import("vocab");
+const special_tokens = @import("special_tokens");
 
 pub const TokenizerError = error{
     InvalidUtf8,

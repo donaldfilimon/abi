@@ -5,7 +5,7 @@
 //! Uses C stdio for file access (no Io backend needed in TUI tools).
 
 const std = @import("std");
-const training_metrics = @import("training_metrics.zig");
+const training_metrics = @import("training_metrics");
 
 pub const MetricsFileReader = struct {
     /// Path stored as null-terminated fixed buffer.

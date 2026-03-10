@@ -16,7 +16,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const spirv = @import("spirv/mod.zig");
+//! const spirv = @import("spirv");
 //!
 //! var gen = spirv.SpirvGenerator.init(allocator);
 //! defer gen.deinit();
@@ -31,15 +31,15 @@
 const std = @import("std");
 
 // Re-export sub-modules
-pub const constants = @import("constants.zig");
-pub const types_gen = @import("types_gen.zig");
-pub const constants_gen = @import("constants_gen.zig");
-pub const emit = @import("emit.zig");
-pub const codegen = @import("codegen.zig");
-pub const generator = @import("generator.zig");
-pub const type_codegen = @import("type_codegen.zig");
-pub const const_codegen = @import("const_codegen.zig");
-pub const instruction_emit = @import("instruction_emit.zig");
+pub const constants = @import("constants");
+pub const types_gen = @import("types_gen");
+pub const constants_gen = @import("constants_gen");
+pub const emit = @import("emit");
+pub const codegen = @import("codegen");
+pub const generator = @import("generator");
+pub const type_codegen = @import("type_codegen");
+pub const const_codegen = @import("const_codegen");
+pub const instruction_emit = @import("instruction_emit");
 
 // Re-export main types for convenience
 pub const SpirvGenerator = generator.SpirvGenerator;
@@ -67,8 +67,8 @@ pub const TypeKey = types_gen.TypeKey;
 pub const ConstKey = constants_gen.ConstKey;
 
 // Import for tests
-const dsl_types = @import("../../types.zig");
-const kernel = @import("../../kernel.zig");
+const dsl_types = @import("../../types");
+const kernel = @import("../../kernel");
 
 // ============================================================================
 // Tests

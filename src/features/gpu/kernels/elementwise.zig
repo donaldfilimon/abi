@@ -11,7 +11,7 @@
 //! - vector_scale: b[i] = a[i] * scale
 
 const std = @import("std");
-const dsl = @import("../dsl/mod.zig");
+const dsl = @import("../dsl");
 
 pub const KernelIR = dsl.KernelIR;
 pub const KernelBuilder = dsl.KernelBuilder;

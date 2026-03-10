@@ -1,8 +1,8 @@
 //! Trainable layer weights.
 
 const std = @import("std");
-const config_mod = @import("config.zig");
-const utils = @import("utils.zig");
+const config_mod = @import("config");
+const utils = @import("utils");
 
 /// Trainable weights for a single transformer layer.
 pub const TrainableLayerWeights = struct {

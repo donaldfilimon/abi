@@ -4,7 +4,7 @@
 //! Supports temporal organization, emotional tagging, and consolidation.
 
 const std = @import("std");
-const types = @import("../../core/types.zig");
+const types = @import("types");
 const simd = @import("../../../../services/shared/simd/mod.zig");
 
 // ============================================================================

@@ -1,8 +1,8 @@
 const std = @import("std");
-const device = @import("../device.zig");
-const backend_factory = @import("../backend_factory.zig");
-const exec_coordinator = @import("../execution_coordinator.zig");
-const multi_device = @import("../multi_device.zig");
+const device = @import("../device");
+const backend_factory = @import("../backend_factory");
+const exec_coordinator = @import("../execution_coordinator");
+const multi_device = @import("../multi_device");
 const GPUCluster = multi_device.GPUCluster;
 const DeviceId = multi_device.DeviceId;
 

@@ -1,5 +1,5 @@
 const std = @import("std");
-const cli_catalog = @import("catalog.zig");
+const cli_catalog = @import("catalog");
 
 const CommandSubcommands = struct {
     command: []const u8,

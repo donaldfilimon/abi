@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const unified_memory = @import("unified_memory/mod.zig");
+//! const unified_memory = @import("unified_memory");
 //!
 //! var manager = try unified_memory.UnifiedMemoryManager.init(allocator, config);
 //! defer manager.deinit();
@@ -28,15 +28,15 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 const build_options = @import("build_options");
-const shared_utils = @import("../../../services/shared/utils.zig");
+const shared_utils = @import("shared_services").utils;
 
 // Sub-module imports
-pub const memory_region = @import("memory_region.zig");
-pub const coherence = @import("coherence.zig");
-pub const remote_ptr = @import("remote_ptr.zig");
+pub const memory_region = @import("memory_region");
+pub const coherence = @import("coherence");
+pub const remote_ptr = @import("remote_ptr");
 
 // Re-exports
 pub const MemoryRegion = memory_region.MemoryRegion;

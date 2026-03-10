@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../../system/framework.zig");
+const framework = @import("../../system/framework");
 const core = @import("../../core/mod.zig");
 
 // ============================================================================

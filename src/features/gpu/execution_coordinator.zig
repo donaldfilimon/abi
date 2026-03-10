@@ -33,13 +33,14 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const sync = @import("../../services/shared/sync.zig");
-const backend_factory = @import("backend_factory.zig");
-const simd = @import("../../services/shared/simd/mod.zig");
-const dispatcher_mod = @import("dispatch/coordinator.zig");
-const device_mod = @import("device.zig");
-const unified_buffer = @import("unified_buffer.zig");
-const metal_mod = @import("backends/metal/mod.zig");
+const sync = @import("shared_services").sync;
+const backend_factory = @import("backend_factory");
+const shared = @import("shared_services");
+const simd = shared.simd;
+const dispatcher_mod = @import("dispatch/coordinator");
+const device_mod = @import("device");
+const unified_buffer = @import("unified_buffer");
+const metal_mod = @import("backends/metal");
 
 const KernelDispatcher = dispatcher_mod.KernelDispatcher;
 const LaunchConfig = dispatcher_mod.LaunchConfig;

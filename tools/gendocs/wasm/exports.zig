@@ -1,5 +1,5 @@
 const std = @import("std");
-const engine = @import("engine.zig");
+const engine = @import("engine");
 
 var bump_memory: [512 * 1024]u8 align(16) = undefined;
 var bump_cursor: u32 = 8;

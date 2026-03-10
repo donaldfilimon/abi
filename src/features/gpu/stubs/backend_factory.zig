@@ -1,5 +1,5 @@
 const std = @import("std");
-const backend_mod = @import("backend.zig");
+const backend_mod = @import("backend");
 
 pub const BackendFactory = struct {
     pub fn init(_: std.mem.Allocator) @This() {

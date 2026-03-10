@@ -1,8 +1,8 @@
 //! Dynamic 3D neural network visualization for terminal UI.
 
 const std = @import("std");
-const command = @import("../../../command.zig");
-const context_mod = @import("../../../framework/context.zig");
+const command = @import("../../../command");
+const context_mod = @import("../../../framework/context");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 

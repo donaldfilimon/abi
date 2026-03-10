@@ -6,7 +6,7 @@
 //!   dB = A^T @ dC  (gradient w.r.t. B)
 
 const std = @import("std");
-const matmul = @import("../ops/matmul.zig");
+const matmul = @import("../ops/matmul");
 
 /// Compute gradients for matrix multiplication.
 /// C = A @ B

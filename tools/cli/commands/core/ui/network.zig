@@ -3,8 +3,8 @@
 //! Interactive TUI dashboard for network status and latency trends.
 
 const std = @import("std");
-const command = @import("../../../command.zig");
-const context_mod = @import("../../../framework/context.zig");
+const command = @import("../../../command");
+const context_mod = @import("../../../framework/context");
 const tui = @import("../../../terminal/mod.zig");
 const utils = @import("../../../utils/mod.zig");
 const dsl = @import("../../../terminal/dsl/mod.zig");

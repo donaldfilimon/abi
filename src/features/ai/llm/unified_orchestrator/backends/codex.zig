@@ -1,8 +1,8 @@
 //! Codex CLI backend stub.
 
 const std = @import("std");
-const types = @import("../protocol/types.zig");
-const BackendInterface = @import("backend.zig").BackendInterface;
+const types = @import("../protocol/types");
+const BackendInterface = @import("backend").BackendInterface;
 
 fn run(
     allocator: std.mem.Allocator,

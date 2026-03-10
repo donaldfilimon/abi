@@ -10,32 +10,32 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../../core/config");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
-pub const agent = @import("../agents/agent.zig");
+pub const agent = @import("agents");
 pub const agents = if (build_options.feat_ai)
-    @import("../agents/mod.zig")
+    @import("agents")
 else
-    @import("../agents/stub.zig");
-pub const tools = @import("../tools/mod.zig");
-pub const prompts = @import("../prompts/mod.zig");
-pub const memory = @import("../memory/mod.zig");
+    @import("../agents/stub");
+pub const tools = @import("../tools");
+pub const prompts = @import("prompts");
+pub const memory = @import("../memory");
 pub const multi_agent = if (build_options.feat_ai)
-    @import("../multi_agent/mod.zig")
+    @import("../multi_agent")
 else
-    @import("../multi_agent/stub.zig");
-pub const core = @import("../core/mod.zig");
-pub const gpu_agent = @import("../agents/gpu_agent.zig");
-pub const discovery = @import("../explore/discovery.zig");
+    @import("../multi_agent/stub");
+pub const core = @import("core");
+pub const gpu_agent = @import("../agents/gpu_agent");
+pub const discovery = @import("../explore/discovery");
 pub const models = if (build_options.feat_ai)
-    @import("../models/mod.zig")
+    @import("../models")
 else
-    @import("../models/stub.zig");
-pub const model_registry = @import("../models/registry.zig");
+    @import("../models/stub");
+pub const model_registry = @import("../models/registry");
 
 // ============================================================================
 // Convenience type re-exports

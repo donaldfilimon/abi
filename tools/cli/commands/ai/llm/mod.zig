@@ -8,23 +8,23 @@
 //! - `abi llm plugins`
 
 const std = @import("std");
-const command_mod = @import("../../../command.zig");
-const context_mod = @import("../../../framework/context.zig");
+const command_mod = @import("../../../command");
+const context_mod = @import("../../../framework/context");
 const utils = @import("../../../utils/mod.zig");
 
-const run_cmd = @import("run.zig");
-const session_cmd = @import("session.zig");
-const providers_cmd = @import("providers.zig");
-const plugins_cmd = @import("plugins.zig");
-const serve_cmd = @import("serve.zig");
-const discover_cmd = @import("discover.zig");
-const bench_cmd = @import("bench.zig");
-const chat_cmd = @import("chat.zig");
-const demo_cmd = @import("demo.zig");
-const download_cmd = @import("download.zig");
-const generate_cmd = @import("generate.zig");
-const info_cmd = @import("info.zig");
-const list_cmd = @import("list.zig");
+const run_cmd = @import("run");
+const session_cmd = @import("session");
+const providers_cmd = @import("providers");
+const plugins_cmd = @import("plugins");
+const serve_cmd = @import("serve");
+const discover_cmd = @import("discover");
+const bench_cmd = @import("bench");
+const chat_cmd = @import("chat");
+const demo_cmd = @import("demo");
+const download_cmd = @import("download");
+const generate_cmd = @import("generate");
+const info_cmd = @import("info");
+const list_cmd = @import("list");
 
 pub const meta: command_mod.Meta = .{
     .name = "llm",

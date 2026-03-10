@@ -10,7 +10,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const registry = @import("registry/mod.zig");
+//! const registry = @import("registry");
 //!
 //! var reg = registry.Registry.init(allocator);
 //! defer reg.deinit();
@@ -29,9 +29,9 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 // Import sub-modules
-pub const types = @import("types.zig");
-pub const registration = @import("registration.zig");
-pub const lifecycle = @import("lifecycle.zig");
+pub const types = @import("types");
+pub const registration = @import("registration");
+pub const lifecycle = @import("lifecycle");
 
 // Re-export types for backward compatibility
 pub const Feature = types.Feature;

@@ -3,7 +3,7 @@
 //! This file is intentionally a compatibility façade that delegates to the
 //! split implementation modules under `src/features/ai/training/trainable_model/`.
 
-const core = @import("trainable_model/core.zig");
+const core = @import("trainable_model/core");
 const std = @import("std");
 
 pub const TrainableLayerWeights = core.TrainableLayerWeights;

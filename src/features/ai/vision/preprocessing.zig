@@ -8,7 +8,7 @@
 //! - Padding
 
 const std = @import("std");
-const image_mod = @import("image.zig");
+const image_mod = @import("image");
 const Image = image_mod.Image;
 const Channels = image_mod.Channels;
 

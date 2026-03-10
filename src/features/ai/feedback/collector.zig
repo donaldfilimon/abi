@@ -7,8 +7,8 @@
 //! - Session and persona association
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const cfg = @import("config.zig");
+const time = @import("shared_services").time;
+const cfg = @import("config");
 
 /// Rating type for feedback.
 pub const RatingType = enum {

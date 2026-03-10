@@ -3,7 +3,7 @@
 //! pre-existing Zig 0.16 compile issues (rbac, secrets, session, validation).
 
 const std = @import("std");
-const auth = @import("mod.zig");
+const auth = @import("mod");
 
 test "auth context init and deinit" {
     const allocator = std.testing.allocator;

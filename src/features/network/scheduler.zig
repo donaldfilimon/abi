@@ -4,7 +4,7 @@
 //! across multiple compute nodes.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const time = @import("shared_services").utils;
 
 pub const SchedulerError = error{
     NodeUnavailable,

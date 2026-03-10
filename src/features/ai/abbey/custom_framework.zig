@@ -26,13 +26,13 @@
 //! ```
 
 const std = @import("std");
-const engine = @import("engine.zig");
-const config = @import("../core/config.zig");
-const types = @import("../core/types.zig");
-const emotions = @import("emotions.zig");
-const reasoning = @import("reasoning.zig");
-const advanced = @import("advanced.zig");
-const client = @import("client.zig");
+const engine = @import("engine");
+const config = @import("../core/config");
+const types = @import("types");
+const emotions = @import("emotions");
+const reasoning = @import("reasoning");
+const advanced = @import("advanced");
+const client = @import("client");
 
 // ============================================================================
 // Seed Prompt Templates

@@ -4,25 +4,25 @@
 //! The detailed implementation remains in `advanced/mod.zig` and its
 //! sub-modules.
 
-pub const AdvancedCognition = @import("advanced/mod.zig").AdvancedCognition;
-pub const CognitiveResult = @import("advanced/mod.zig").CognitiveResult;
-pub const CognitiveState = @import("advanced/mod.zig").CognitiveState;
+pub const AdvancedCognition = @import("advanced").AdvancedCognition;
+pub const CognitiveResult = @import("advanced").CognitiveResult;
+pub const CognitiveState = @import("advanced").CognitiveState;
 // Re-export other public symbols as needed
-pub const TaskProfile = @import("advanced/mod.zig").TaskProfile;
-pub const TaskDomain = @import("advanced/mod.zig").TaskDomain;
-pub const LearningStrategy = @import("advanced/mod.zig").LearningStrategy;
-pub const MetaLearner = @import("advanced/mod.zig").MetaLearner;
-pub const FewShotLearner = @import("advanced/mod.zig").FewShotLearner;
-pub const CurriculumScheduler = @import("advanced/mod.zig").CurriculumScheduler;
-pub const MentalModel = @import("advanced/mod.zig").MentalModel;
-pub const BeliefSystem = @import("advanced/mod.zig").BeliefSystem;
-pub const KnowledgeState = @import("advanced/mod.zig").KnowledgeState;
-pub const IntentionTracker = @import("advanced/mod.zig").IntentionTracker;
-pub const EmotionalModel = @import("advanced/mod.zig").EmotionalModel;
-pub const TheoryOfMind = @import("advanced/mod.zig").TheoryOfMind;
-pub const ProblemDecomposer = @import("advanced/mod.zig").ProblemDecomposer;
-pub const SelfEvaluation = @import("advanced/mod.zig").SelfEvaluation;
-pub const UncertaintyArea = @import("advanced/mod.zig").UncertaintyArea;
-pub const DetectedBias = @import("advanced/mod.zig").DetectedBias;
-pub const ReasoningQuality = @import("advanced/mod.zig").ReasoningQuality;
-pub const SelfReflectionEngine = @import("advanced/mod.zig").SelfReflectionEngine;
+pub const TaskProfile = @import("advanced").TaskProfile;
+pub const TaskDomain = @import("advanced").TaskDomain;
+pub const LearningStrategy = @import("advanced").LearningStrategy;
+pub const MetaLearner = @import("advanced").MetaLearner;
+pub const FewShotLearner = @import("advanced").FewShotLearner;
+pub const CurriculumScheduler = @import("advanced").CurriculumScheduler;
+pub const MentalModel = @import("advanced").MentalModel;
+pub const BeliefSystem = @import("advanced").BeliefSystem;
+pub const KnowledgeState = @import("advanced").KnowledgeState;
+pub const IntentionTracker = @import("advanced").IntentionTracker;
+pub const EmotionalModel = @import("advanced").EmotionalModel;
+pub const TheoryOfMind = @import("advanced").TheoryOfMind;
+pub const ProblemDecomposer = @import("advanced").ProblemDecomposer;
+pub const SelfEvaluation = @import("advanced").SelfEvaluation;
+pub const UncertaintyArea = @import("advanced").UncertaintyArea;
+pub const DetectedBias = @import("advanced").DetectedBias;
+pub const ReasoningQuality = @import("advanced").ReasoningQuality;
+pub const SelfReflectionEngine = @import("advanced").SelfReflectionEngine;

@@ -8,13 +8,13 @@
 const std = @import("std");
 
 // Core benchmark framework
-pub const framework = @import("framework.zig");
+pub const framework = @import("framework");
 
 // Baseline persistence
-pub const baseline_store = @import("baseline_store.zig");
+pub const baseline_store = @import("baseline_store");
 
 // Baseline comparison
-pub const baseline_comparator = @import("baseline_comparator.zig");
+pub const baseline_comparator = @import("baseline_comparator");
 
 // Re-export commonly used types for convenience
 

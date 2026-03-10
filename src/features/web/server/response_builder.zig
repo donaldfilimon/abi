@@ -4,7 +4,7 @@
 //! for JSON, HTML, text, and binary content.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 /// Fluent response builder for constructing HTTP responses.
 pub const ResponseBuilder = struct {

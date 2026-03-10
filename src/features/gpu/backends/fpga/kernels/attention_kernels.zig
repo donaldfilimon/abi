@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const matmul_kernels = @import("matmul_kernels.zig");
+const matmul_kernels = @import("matmul_kernels");
 
 /// Configuration for FPGA attention kernels
 pub const AttentionKernelConfig = struct {

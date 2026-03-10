@@ -9,7 +9,7 @@
 //! ## Quick Start
 //!
 //! ```zig
-//! const ha = @import("ha/mod.zig");
+//! const ha = @import("ha");
 //!
 //! var manager = ha.HaManager.init(allocator, .{
 //!     .replication_factor = 3,
@@ -23,14 +23,14 @@
 //! ```
 
 const std = @import("std");
-const platform_time = @import("../shared/time.zig");
+const platform_time = @import("shared_services").time;
 
-const sync = @import("../shared/sync.zig");
+const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;
 
-pub const replication = @import("replication.zig");
-pub const backup = @import("backup.zig");
-pub const pitr = @import("pitr.zig");
+pub const replication = @import("replication");
+pub const backup = @import("backup");
+pub const pitr = @import("pitr");
 
 // Re-export main types
 pub const ReplicationManager = replication.ReplicationManager;

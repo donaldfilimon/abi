@@ -11,18 +11,18 @@
 //!   ralph multi    — Zig-native multithreaded multi-agent (ThreadPool + RalphBus)
 
 const std = @import("std");
-const command_mod = @import("../../../command.zig");
-const context_mod = @import("../../../framework/context.zig");
+const command_mod = @import("../../../command");
+const context_mod = @import("../../../framework/context");
 const utils = @import("../../../utils/mod.zig");
 
-const init_mod = @import("init.zig");
-const run_mod = @import("run_loop.zig");
-const status_mod = @import("status.zig");
-const gate_mod = @import("gate.zig");
-const improve_mod = @import("improve.zig");
-const skills_mod = @import("skills.zig");
-const super_mod = @import("super.zig");
-const multi_mod = @import("multi.zig");
+const init_mod = @import("init");
+const run_mod = @import("run_loop");
+const status_mod = @import("status");
+const gate_mod = @import("gate");
+const improve_mod = @import("improve");
+const skills_mod = @import("skills");
+const super_mod = @import("super");
+const multi_mod = @import("multi");
 
 pub const meta: command_mod.Meta = .{
     .name = "ralph",

@@ -7,8 +7,8 @@
 //! - Relationship memory
 
 const std = @import("std");
-const core_types = @import("../core/types.zig");
-const platform_time = @import("../../../services/shared/time.zig");
+const core_types = @import("types");
+const platform_time = @import("shared_services").time;
 
 // Re-export the canonical EmotionType from core types
 // This ensures type consistency across the AI module

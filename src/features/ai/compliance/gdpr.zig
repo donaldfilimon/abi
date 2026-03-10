@@ -7,7 +7,7 @@
 //! - PII detection patterns (email, phone, SSN, IP, credit card)
 
 const std = @import("std");
-const config = @import("config.zig");
+const config = @import("config");
 
 /// Types of PII that can be detected in content.
 pub const PiiType = enum {

@@ -4,7 +4,7 @@
 //! for distributed compute clusters.
 
 const std = @import("std");
-const heartbeat_mod = @import("heartbeat.zig");
+const heartbeat_mod = @import("heartbeat");
 
 pub const HaError = error{
     NoHealthyNodes,

@@ -4,7 +4,7 @@
 //! Usage: abi-server [--port PORT] [--host HOST] [--no-auth]
 
 const std = @import("std");
-const root = @import("root.zig");
+const root = @import("root");
 
 pub fn main(init: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

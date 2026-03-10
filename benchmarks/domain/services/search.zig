@@ -7,7 +7,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../../system/framework.zig");
+const framework = @import("../../system/framework");
 
 pub const SearchBenchConfig = struct {
     doc_sizes: []const usize = &.{ 64, 256, 1024, 4096 },

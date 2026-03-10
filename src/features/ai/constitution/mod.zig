@@ -11,8 +11,8 @@
 //! - Reflection: `alignmentScore()` → Abbey self-evaluation
 const std = @import("std");
 
-pub const principles = @import("principles.zig");
-pub const enforcement = @import("enforcement.zig");
+pub const principles = @import("principles");
+pub const enforcement = @import("enforcement");
 
 // Re-export key types
 pub const Principle = principles.Principle;

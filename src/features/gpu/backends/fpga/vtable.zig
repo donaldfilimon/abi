@@ -4,18 +4,18 @@
 //! Targeted for AMD Alveo and Intel Agilex platforms as per research docs.
 
 const std = @import("std");
-const interface = @import("../../interface.zig");
-const kernels = @import("kernels.zig");
-const fpga_mod = @import("mod.zig");
-const loader = @import("loader.zig");
+const interface = @import("../../interface");
+const kernels = @import("kernels");
+const fpga_mod = @import("mod");
+const loader = @import("loader");
 
 // Phase 1 kernels (vector distance operations)
-const distance_kernels = @import("kernels/distance_kernels.zig");
+const distance_kernels = @import("kernels/distance_kernels");
 
 // Phase 2 kernels (LLM inference acceleration)
-const matmul_kernels = @import("kernels/matmul_kernels.zig");
-const attention_kernels = @import("kernels/attention_kernels.zig");
-const kv_cache_kernels = @import("kernels/kv_cache_kernels.zig");
+const matmul_kernels = @import("kernels/matmul_kernels");
+const attention_kernels = @import("kernels/attention_kernels");
+const kv_cache_kernels = @import("kernels/kv_cache_kernels");
 
 pub const FpgaBackend = struct {
     allocator: std.mem.Allocator,

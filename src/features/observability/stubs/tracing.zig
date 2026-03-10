@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 // Tracing types (API-compatible stubs)
 pub const Tracer = struct {

@@ -4,17 +4,17 @@
 //! Build with `-Dfeat-profiling=true` for the real implementation.
 
 const std = @import("std");
-const config_module = @import("../../core/config/mod.zig");
+const config_module = @import("../../core/config");
 
 // ============================================================================
 // Local Stubs Imports
 // ============================================================================
 
-pub const types = @import("stubs/types.zig");
-pub const metrics = @import("stubs/metrics.zig");
-pub const tracing = @import("stubs/tracing.zig");
-pub const alerting = @import("stubs/alerting.zig");
-pub const exporters = @import("stubs/exporters.zig");
+pub const types = @import("stubs/types");
+pub const metrics = @import("stubs/metrics");
+pub const tracing = @import("stubs/tracing");
+pub const alerting = @import("stubs/alerting");
+pub const exporters = @import("stubs/exporters");
 
 // ============================================================================
 // Re-exports
@@ -155,11 +155,11 @@ pub fn init(_: std.mem.Allocator) Error!void {
 pub fn deinit() void {}
 
 // System Information Helper (Stub)
-pub const system_info = @import("stubs/system_info.zig");
+pub const system_info = @import("stubs/system_info");
 pub const SystemInfo = system_info.SystemInfo;
 
 // Core Metrics Module (Stub)
-pub const core_metrics = @import("stubs/core_metrics.zig");
+pub const core_metrics = @import("stubs/core_metrics");
 
 test {
     std.testing.refAllDecls(@This());

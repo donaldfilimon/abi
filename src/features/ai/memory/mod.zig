@@ -7,12 +7,12 @@
 //! - Long-term memory: Vector-based retrieval for relevant past context
 
 const std = @import("std");
-const short_term = @import("short_term.zig");
-const window = @import("window.zig");
-const summary = @import("summary.zig");
-const long_term = @import("long_term.zig");
-const manager = @import("manager.zig");
-pub const persistence = @import("persistence.zig");
+const short_term = @import("short_term");
+const window = @import("window");
+const summary = @import("summary");
+const long_term = @import("long_term");
+const manager = @import("manager");
+pub const persistence = @import("persistence");
 
 pub const ShortTermMemory = short_term.ShortTermMemory;
 pub const SlidingWindowMemory = window.SlidingWindowMemory;

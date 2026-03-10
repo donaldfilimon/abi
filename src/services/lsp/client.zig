@@ -1,8 +1,8 @@
 //! ZLS LSP client (JSON-RPC over stdio).
 
 const std = @import("std");
-const jsonrpc = @import("jsonrpc.zig");
-const types = @import("types.zig");
+const jsonrpc = @import("jsonrpc");
+const types = @import("types");
 
 // Inline LspConfig to avoid cross-directory import to ../../core/config/.
 // Canonical definition: src/core/config/lsp.zig — keep in sync.

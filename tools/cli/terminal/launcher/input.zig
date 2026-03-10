@@ -5,11 +5,11 @@
 
 const std = @import("std");
 const tui = @import("../mod.zig");
-const theme_options = @import("../../commands/core/ui/theme_options.zig");
-const types = @import("types.zig");
-const state_mod = @import("state.zig");
-const menu_mod = @import("menu.zig");
-const actions = @import("actions.zig");
+const theme_options = @import("../../commands/core/ui/theme_options");
+const types = @import("types");
+const state_mod = @import("state");
+const menu_mod = @import("menu");
+const actions = @import("actions");
 
 const TuiState = state_mod.TuiState;
 const Action = types.Action;

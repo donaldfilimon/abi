@@ -4,7 +4,7 @@
 //! Extends the GPU DSL type system with general-purpose language constructs.
 
 const std = @import("std");
-const token = @import("token.zig");
+const token = @import("token");
 
 pub const Loc = token.Loc;
 

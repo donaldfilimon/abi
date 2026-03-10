@@ -3,9 +3,9 @@
 //! OpenAI-compatible connector for Ollama passthrough endpoints.
 
 const std = @import("std");
-const connectors = @import("mod.zig");
-const shared = @import("shared.zig");
-const vllm = @import("vllm.zig");
+const connectors = @import("mod");
+const shared = @import("shared");
+const vllm = @import("vllm");
 
 pub const OllamaPassthroughError = vllm.VLLMError;
 pub const Config = vllm.Config;

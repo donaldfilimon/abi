@@ -1,10 +1,7 @@
 const std = @import("std");
+const wdbx = @import("wdbx");
 
 test {
-    _ = @import("wdbx/wdbx.zig");
-    _ = @import("features/database/wdbx.zig");
-}
-
-test {
-    std.testing.refAllDecls(@This());
+    // Pull in all WDBX declarations for fast compile-check / unit test
+    std.testing.refAllDecls(wdbx);
 }

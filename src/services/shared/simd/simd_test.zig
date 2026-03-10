@@ -3,7 +3,7 @@
 
 const std = @import("std");
 
-const simd = @import("mod.zig");
+const simd = @import("mod");
 
 // Pull in individual submodules for direct access where needed
 const vector_ops = simd.vector_ops;

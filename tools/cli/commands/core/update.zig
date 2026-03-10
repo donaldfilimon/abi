@@ -4,8 +4,8 @@
 //! and rebuild the CLI entirely natively using Zig.
 
 const std = @import("std");
-const context_mod = @import("../../framework/context.zig");
-const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command");
 const utils = @import("../../utils/mod.zig");
 const os = @import("abi").services.shared.os;
 

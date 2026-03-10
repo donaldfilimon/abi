@@ -3,8 +3,8 @@
 //! API-compatible no-op implementations when storage is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform.zig");
-const stub_context = @import("../../core/stub_context.zig");
+const core_config = @import("../../core/config/platform");
+const stub_context = @import("../../core/stub_context");
 
 pub const StorageConfig = core_config.StorageConfig;
 pub const StorageBackend = core_config.StorageBackend;

@@ -1,36 +1,44 @@
-//! Behavior-profile stub surface when AI features are disabled.
+//! Profiles Stub — disabled at compile time.
 
 const std = @import("std");
-const legacy_personas = @import("../personas/stub.zig");
+const types = @import("types");
+const registry = @import("../registry");
 
-pub const BehaviorProfile = enum {
-    collaborative,
-    direct,
-    governance,
-    iterative,
-};
+pub const BehaviorProfile = enum { collaborative, direct, governance, iterative };
+pub const LegacyPersonaType = types.PersonaType;
+pub const ProfileRegistry = registry.PersonaRegistry;
 
-pub const LegacyPersonaType = legacy_personas.PersonaType;
-pub const ProfileRegistry = legacy_personas.PersonaRegistry;
+pub fn fromLegacyPersona(_: LegacyPersonaType) BehaviorProfile {
+    return .collaborative;
+}
 
-pub fn fromLegacyPersona(persona: LegacyPersonaType) BehaviorProfile {
-    return switch (persona) {
-        .assistant, .companion, .docs, .abbey => .collaborative,
-        .coder, .analyst, .reviewer, .minimal, .aviva => .direct,
-        .abi => .governance,
-        .writer, .ralph => .iterative,
+pub fn defaultLegacyPersona(_: BehaviorProfile) LegacyPersonaType {
+    return .assistant;
+}
+
+pub fn Context(comptime Config: type) type {
+    return struct {
+        const Self = @This();
+        pub fn init(_: std.mem.Allocator, _: Config) !*Self {
+            return error.AiDisabled;
+        }
+        pub fn deinit(_: *Self) void {}
+        pub fn registerPersona(_: *Self, _: LegacyPersonaType, _: types.PersonaInterface) !void {}
+        pub fn getPersona(_: *Self, _: LegacyPersonaType) ?types.PersonaInterface {
+            return null;
+        }
     };
 }
 
-pub fn defaultLegacyPersona(profile: BehaviorProfile) LegacyPersonaType {
-    return switch (profile) {
-        .collaborative => .abbey,
-        .direct => .aviva,
-        .governance => .abi,
-        .iterative => .ralph,
+pub fn ProfileSystem(comptime Config: type) type {
+    return struct {
+        const Self = @This();
+        pub fn init(_: std.mem.Allocator, _: Config) !*Self {
+            return error.AiDisabled;
+        }
+        pub fn deinit(_: *Self) void {}
+        pub fn process(_: *Self, _: types.PersonaRequest) !types.PersonaResponse {
+            return error.AiDisabled;
+        }
     };
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

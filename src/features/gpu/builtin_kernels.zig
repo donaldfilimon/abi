@@ -16,7 +16,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const kernel = @import("builtin_kernels.zig");
+//! const kernel = @import("builtin_kernels");
 //!
 //! var ir = try kernel.buildKernelIR(allocator, .vector_add);
 //! // Use ir with dsl.compile() to generate backend code
@@ -36,10 +36,10 @@
 //! - `kernels/vision.zig` - Vision/CNN operations
 
 const std = @import("std");
-const dsl = @import("dsl/mod.zig");
+const dsl = @import("dsl");
 
 // Import the modular implementation
-const kernels = @import("kernels/mod.zig");
+const kernels = @import("kernels");
 
 // Re-export types for backward compatibility
 pub const KernelIR = kernels.KernelIR;

@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 pub const AzureConfig = struct {
     port: u16 = 7071,

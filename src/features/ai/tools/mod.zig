@@ -8,18 +8,18 @@
 
 const std = @import("std");
 
-pub const tool = @import("tool.zig");
-pub const task = @import("task.zig");
-pub const discord_tools = @import("discord.zig");
-pub const os_tools = @import("os_tools.zig");
-pub const file_tools = @import("file_tools.zig");
-pub const search_tools = @import("search_tools.zig");
-pub const edit_tools = @import("edit_tools.zig");
-pub const process_tools = @import("process_tools.zig");
-pub const network_tools = @import("network_tools.zig");
-pub const system_tools = @import("system_tools.zig");
-pub const mcp_tools = @import("mcp_tools.zig");
-pub const deep_research = @import("deep_research.zig");
+pub const tool = @import("tool");
+pub const task = @import("task");
+pub const discord_tools = @import("discord");
+pub const os_tools = @import("os_tools");
+pub const file_tools = @import("file_tools");
+pub const search_tools = @import("search_tools");
+pub const edit_tools = @import("edit_tools");
+pub const process_tools = @import("process_tools");
+pub const network_tools = @import("network_tools");
+pub const system_tools = @import("system_tools");
+pub const mcp_tools = @import("mcp_tools");
+pub const deep_research = @import("deep_research");
 
 pub const Tool = tool.Tool;
 pub const ToolResult = tool.ToolResult;

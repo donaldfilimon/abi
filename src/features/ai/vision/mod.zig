@@ -36,29 +36,29 @@ const build_options = @import("build_options");
 // ============================================================================
 
 /// Core image type and operations
-pub const image = @import("image.zig");
+pub const image = @import("image");
 
 /// Image preprocessing operations (resize, normalize, crop, etc.)
-pub const preprocessing = @import("preprocessing.zig");
+pub const preprocessing = @import("preprocessing");
 
 // ============================================================================
 // Neural Network Layer Modules
 // ============================================================================
 
 /// 2D Convolution layer
-pub const conv = @import("conv.zig");
+pub const conv = @import("conv");
 
 /// Pooling layers (MaxPool, AvgPool, AdaptiveAvgPool)
-pub const pooling = @import("pooling.zig");
+pub const pooling = @import("pooling");
 
 /// Batch normalization
-pub const batchnorm = @import("batchnorm.zig");
+pub const batchnorm = @import("batchnorm");
 
 /// Vision Transformer (ViT) for image encoding
-pub const vit = @import("vit.zig");
+pub const vit = @import("vit");
 
 /// Multi-modal fusion and contrastive learning
-pub const multimodal = @import("multimodal.zig");
+pub const multimodal = @import("multimodal");
 
 // ============================================================================
 // Image Type Re-exports

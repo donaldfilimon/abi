@@ -1,6 +1,6 @@
 const std = @import("std");
-const shared = @import("../shared.zig");
-const contract = @import("contract.zig");
+const shared = @import("../shared");
+const contract = @import("contract");
 
 pub const LMStudioError = error{
     ApiRequestFailed,

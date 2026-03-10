@@ -1,8 +1,8 @@
 //! Framework lifecycle façade over context init/shutdown modules.
 
-const framework_state = @import("state.zig");
-const shutdown_mod = @import("shutdown.zig");
-const context_init = @import("context_init.zig");
+const framework_state = @import("state");
+const shutdown_mod = @import("shutdown");
+const context_init = @import("context_init");
 
 pub const State = framework_state.State;
 pub const RegistryError = shutdown_mod.RegistryError;

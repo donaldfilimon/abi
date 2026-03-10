@@ -11,13 +11,13 @@
 
 const std = @import("std");
 
-pub const matmul_backward = @import("matmul_backward.zig");
-pub const rmsnorm_backward = @import("rmsnorm_backward.zig");
-pub const softmax_backward = @import("softmax_backward.zig");
-pub const rope_backward = @import("rope_backward.zig");
-pub const attention_backward = @import("attention_backward.zig");
-pub const ffn_backward = @import("ffn_backward.zig");
-pub const gpu_backward = @import("gpu_backward.zig");
+pub const matmul_backward = @import("matmul_backward");
+pub const rmsnorm_backward = @import("rmsnorm_backward");
+pub const softmax_backward = @import("softmax_backward");
+pub const rope_backward = @import("rope_backward");
+pub const attention_backward = @import("attention_backward");
+pub const ffn_backward = @import("ffn_backward");
+pub const gpu_backward = @import("gpu_backward");
 
 // Re-exports for convenience
 pub const matmulBackward = matmul_backward.matmulBackward;

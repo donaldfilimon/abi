@@ -24,11 +24,11 @@
 //! ```
 
 const std = @import("std");
-const observability = @import("../../observability/mod.zig");
+const observability = @import("../../observability");
 const Counter = observability.Counter;
 const Gauge = observability.Gauge;
 const Histogram = observability.Histogram;
-const backends = @import("backends/mod.zig");
+const backends = @import("backends");
 
 /// Backend types for per-backend metrics (re-exported from backends).
 pub const BackendType = backends.BackendType;

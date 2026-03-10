@@ -4,8 +4,8 @@
 //! Simpler and more stable than PPO-based RLHF.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const reward_policy = @import("reward_policy.zig");
+const time = @import("shared_services").time;
+const reward_policy = @import("reward_policy");
 
 pub const PolicyNetwork = reward_policy.PolicyNetwork;
 

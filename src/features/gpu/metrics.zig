@@ -4,9 +4,9 @@
 //! real-time monitoring for GPU operations across all backends.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const time = @import("shared_services").utils;
 
-const sync = @import("../../services/shared/sync.zig");
+const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;
 
 /// Metric type classification.

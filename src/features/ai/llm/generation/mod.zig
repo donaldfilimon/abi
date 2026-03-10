@@ -4,10 +4,10 @@
 
 const std = @import("std");
 
-pub const sampler = @import("sampler.zig");
-pub const generator = @import("generator.zig");
-pub const batch = @import("batch.zig");
-pub const streaming = @import("streaming.zig");
+pub const sampler = @import("sampler");
+pub const generator = @import("generator");
+pub const batch = @import("batch");
+pub const streaming = @import("streaming");
 
 // Re-exports
 pub const Sampler = sampler.Sampler;

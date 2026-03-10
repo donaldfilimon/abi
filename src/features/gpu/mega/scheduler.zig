@@ -13,7 +13,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const mega = @import("mega/mod.zig");
+//! const mega = @import("mega");
 //!
 //! var coordinator = try mega.Coordinator.init(allocator);
 //! defer coordinator.deinit();
@@ -37,9 +37,9 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const coordinator = @import("coordinator.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const coordinator = @import("coordinator");
 
 /// Experience for replay buffer - stores a single state transition.
 pub const Experience = struct {

@@ -23,8 +23,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const detection = @import("detection.zig");
-pub const cpu = @import("cpu.zig");
+pub const detection = @import("detection");
+pub const cpu = @import("cpu");
 
 // Re-export common types from detection
 pub const Os = detection.Os;

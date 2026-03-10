@@ -4,8 +4,8 @@
 //! health tracking, circuit breakers, and failover strategies.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const utils = @import("../../../services/shared/utils.zig");
+const time = @import("shared_services").time;
+const utils = @import("shared_services").utils;
 
 // ============================================================================
 // Types

@@ -4,7 +4,7 @@
 //! streaming inference server's custom ABI endpoint.
 
 const std = @import("std");
-const backends = @import("backends/mod.zig");
+const backends = @import("backends");
 
 /// ABI streaming request format
 pub const AbiStreamRequest = struct {

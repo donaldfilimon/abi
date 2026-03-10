@@ -4,7 +4,7 @@
 //! Supports SIMD acceleration and efficient memory layouts.
 
 const std = @import("std");
-const types = @import("../../core/types.zig");
+const types = @import("types");
 
 // ============================================================================
 // Tensor Type

@@ -10,10 +10,10 @@
 //! - Tuning: `analyzePersona()` → per-persona insights for model refinement
 
 const std = @import("std");
-pub const config_mod = @import("config.zig");
-pub const collector = @import("collector.zig");
-pub const analyzer = @import("analyzer.zig");
-pub const storage = @import("storage.zig");
+pub const config_mod = @import("config");
+pub const collector = @import("collector");
+pub const analyzer = @import("analyzer");
+pub const storage = @import("storage");
 
 // Re-export core types
 pub const FeedbackConfig = config_mod.FeedbackConfig;

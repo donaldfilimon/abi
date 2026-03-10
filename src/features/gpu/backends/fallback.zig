@@ -3,8 +3,8 @@
 //! Provides simulated kernel compilation/execution and host-backed device
 //! memory primitives used by backend stubs.
 const std = @import("std");
-const types = @import("../kernel_types.zig");
-const simulated = @import("simulated.zig");
+const types = @import("../kernel_types");
+const simulated = @import("simulated");
 
 pub const DeviceMemoryError = error{
     BufferTooSmall,

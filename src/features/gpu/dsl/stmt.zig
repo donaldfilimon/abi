@@ -4,8 +4,8 @@
 //! Statements represent actions that don't produce values.
 
 const std = @import("std");
-const types = @import("types.zig");
-const expr = @import("expr.zig");
+const types = @import("types");
+const expr = @import("expr");
 
 /// Statement node.
 pub const Stmt = union(enum) {

@@ -4,9 +4,9 @@
 //! variables and fallback to Anthropic env names.
 
 const std = @import("std");
-const connectors = @import("mod.zig");
-const shared = @import("shared.zig");
-const anthropic = @import("anthropic.zig");
+const connectors = @import("mod");
+const shared = @import("shared");
+const anthropic = @import("anthropic");
 
 pub const ClaudeError = anthropic.AnthropicError;
 pub const Config = anthropic.Config;

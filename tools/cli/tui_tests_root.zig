@@ -1,11 +1,11 @@
 const std = @import("std");
 
 test {
-    _ = @import("mod.zig");
+    _ = @import("mod");
     _ = @import("utils/mod.zig");
     _ = @import("framework/mod.zig");
     _ = @import("commands/mod.zig");
-    _ = @import("tests/nested_integration_test.zig");
+    _ = @import("tests/nested_integration_test");
 }
 
 test {

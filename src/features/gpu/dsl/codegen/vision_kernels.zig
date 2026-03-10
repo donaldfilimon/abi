@@ -5,10 +5,10 @@
 //! shading languages using the generic CodeGenerator.
 
 const std = @import("std");
-const kernel = @import("../kernel.zig");
-const stmt = @import("../stmt.zig");
-const expr = @import("../expr.zig");
-const types = @import("../types.zig");
+const kernel = @import("../kernel");
+const stmt = @import("../stmt");
+const expr = @import("../expr");
+const types = @import("../types");
 
 /// Specialized generator for common vision/tensor operations.
 pub const VisionKernels = struct {

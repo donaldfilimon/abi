@@ -3,12 +3,12 @@
 //! Wraps `bench_panel.BenchmarkPanel` to conform to the Panel vtable interface.
 
 const std = @import("std");
-const panel_mod = @import("../panel.zig");
-const terminal = @import("../terminal.zig");
-const layout = @import("../layout.zig");
-const themes = @import("../themes.zig");
-const events = @import("../events.zig");
-const bench_panel = @import("../bench_panel.zig");
+const panel_mod = @import("../panel");
+const terminal = @import("../terminal");
+const layout = @import("../layout");
+const themes = @import("../themes");
+const events = @import("../events");
+const bench_panel = @import("../bench_panel");
 
 pub const BenchAdapter = struct {
     inner: bench_panel.BenchmarkPanel,

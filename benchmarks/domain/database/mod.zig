@@ -20,11 +20,11 @@
 
 const std = @import("std");
 const core = @import("../../core/mod.zig");
-const framework = @import("../../system/framework.zig");
+const framework = @import("../../system/framework");
 
-pub const hnsw = @import("hnsw.zig");
-pub const operations = @import("operations.zig");
-pub const ann_benchmarks = @import("ann_benchmarks.zig");
+pub const hnsw = @import("hnsw");
+pub const operations = @import("operations");
+pub const ann_benchmarks = @import("ann_benchmarks");
 
 // Re-export common types
 pub const SearchResult = hnsw.SearchResult;

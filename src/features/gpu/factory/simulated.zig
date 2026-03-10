@@ -1,5 +1,5 @@
 const std = @import("std");
-const interface = @import("../interface.zig");
+const interface = @import("../interface");
 
 /// Simulated/CPU backend implementing the full VTable interface.
 pub const SimulatedBackend = struct {

@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const shared = @import("../shared.zig");
+const shared = @import("../shared");
 
 pub const VulkanError = error{
     LibraryNotFound,

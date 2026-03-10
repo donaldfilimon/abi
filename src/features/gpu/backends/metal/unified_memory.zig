@@ -37,8 +37,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const time = @import("../../../../services/shared/time.zig");
-const accelerate = @import("accelerate.zig");
+const time = @import("shared_services").time;
+const accelerate = @import("accelerate");
 
 /// Configuration for the unified memory manager
 pub const UnifiedMemoryConfig = struct {

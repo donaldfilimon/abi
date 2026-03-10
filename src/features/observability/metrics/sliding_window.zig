@@ -3,8 +3,8 @@
 //! Time-windowed metrics that automatically expire old samples.
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
 
 /// A sample with timestamp.
 pub const TimestampedSample = struct {

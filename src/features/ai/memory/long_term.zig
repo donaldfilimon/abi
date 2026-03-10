@@ -4,14 +4,14 @@
 //! based on semantic similarity to the current query.
 
 const std = @import("std");
-const time = @import("../../../services/shared/utils.zig");
-const simd = @import("../../../services/shared/simd/mod.zig");
-const mod = @import("mod.zig");
-const semantic_store = @import("../../database/semantic_store/mod.zig");
+const time = @import("shared_services").utils;
+const simd = @import("shared_services").simd;
+const mod = @import("mod");
+const semantic_store = @import("wdbx").semantic_store;
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
 const MemoryStats = mod.MemoryStats;
-const MemoryType = @import("manager.zig").MemoryType;
+const MemoryType = @import("manager").MemoryType;
 
 /// Long-term memory configuration.
 pub const LongTermConfig = struct {

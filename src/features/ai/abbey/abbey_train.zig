@@ -11,11 +11,11 @@
 //!                   --epochs 3 --batch-size 4
 
 const std = @import("std");
-const training = @import("../training/mod.zig");
-const lora_mod = @import("../training/lora.zig");
-const bpe = @import("../llm/tokenizer/bpe.zig");
-const gguf_reader = @import("../llm/io/gguf.zig");
-const brain_export = @import("../database/brain_export.zig");
+const training = @import("../training");
+const lora_mod = @import("../training/lora");
+const bpe = @import("../llm/tokenizer/bpe");
+const gguf_reader = @import("../llm/io/gguf");
+const brain_export = @import("../database/brain_export");
 
 /// Configuration for Abbey fine-tuning.
 pub const AbbyTrainConfig = struct {
@@ -224,7 +224,7 @@ pub fn run(allocator: std.mem.Allocator, config: AbbyTrainConfig) !void {
 
     // ── Step 8: Export merged model as GGUF ─────────────────────────────
     std.log.info("Exporting GGUF to: {s}", .{config.output_path});
-    const gguf_export_config = @import("../training/trainable_model/checkpoint.zig").GgufExportConfig{
+    const gguf_export_config = @import("../training/trainable_model/checkpoint").GgufExportConfig{
         .name = "abbey",
     };
     try model.exportToGguf(allocator, config.output_path, gguf_export_config);

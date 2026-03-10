@@ -1,12 +1,12 @@
 //! Self-training orchestration: auto-train + Ralph self-improvement + optional visualization.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context.zig");
+const context_mod = @import("../../../framework/context");
 const utils = @import("../../../utils/mod.zig");
-const auto = @import("auto.zig");
-const ralph_improve = @import("../ralph/improve.zig");
-const ralph_workspace = @import("../ralph/workspace.zig");
-const neural_ui = @import("../../core/ui/neural.zig");
+const auto = @import("auto");
+const ralph_improve = @import("../ralph/improve");
+const ralph_workspace = @import("../ralph/workspace");
+const neural_ui = @import("../../core/ui/neural");
 
 pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;

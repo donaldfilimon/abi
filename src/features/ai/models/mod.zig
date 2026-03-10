@@ -42,9 +42,9 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 // Re-export submodules
-pub const manager = @import("manager.zig");
-pub const downloader = @import("downloader.zig");
-pub const huggingface = @import("huggingface.zig");
+pub const manager = @import("manager");
+pub const downloader = @import("downloader");
+pub const huggingface = @import("huggingface");
 
 // Re-export main types
 pub const Manager = manager.Manager;

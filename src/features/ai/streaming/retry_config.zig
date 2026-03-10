@@ -4,7 +4,7 @@
 //! including token-level timeouts and backend-specific retry policies.
 
 const std = @import("std");
-const retry = @import("../../network/retry.zig");
+const retry = @import("../../network/retry");
 
 /// Streaming-specific retry configuration.
 ///

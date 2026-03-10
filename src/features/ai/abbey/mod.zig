@@ -18,61 +18,61 @@ const std = @import("std");
 // ============================================================================
 
 pub const core = struct {
-    pub const types = @import("../core/types.zig");
-    pub const config = @import("../core/config.zig");
+    pub const types = @import("types");
+    pub const config = @import("../core/config");
 };
 
 // ============================================================================
 // Neural Module (Tensors, Layers, Attention, Learning)
 // ============================================================================
 
-pub const neural = @import("neural/mod.zig");
+pub const neural = @import("neural");
 
 // ============================================================================
 // Memory Module (Episodic, Semantic, Working)
 // ============================================================================
 
-pub const memory = @import("memory/mod.zig");
+pub const memory = @import("memory");
 
 // ============================================================================
 // Legacy Modules (Original Abbey components)
 // ============================================================================
 
-pub const reasoning = @import("reasoning.zig");
-pub const emotions = @import("emotions.zig");
-pub const context = @import("context.zig");
+pub const reasoning = @import("reasoning");
+pub const emotions = @import("emotions");
+pub const context = @import("context");
 
 // ============================================================================
 // New Advanced Modules
 // ============================================================================
 
-pub const calibration = @import("calibration.zig");
-pub const client = @import("client.zig");
-pub const engine = @import("engine.zig");
-pub const server = @import("server.zig");
-pub const discord_bot = @import("discord.zig");
+pub const calibration = @import("calibration");
+pub const client = @import("client");
+pub const engine = @import("engine");
+pub const server = @import("server");
+pub const discord_bot = @import("discord");
 /// Multi-Ralph coordination: lock-free message bus for communication between Ralph loops.
-pub const ralph_multi = @import("ralph_multi.zig");
+pub const ralph_multi = @import("ralph_multi");
 /// Multi-agent swarm: parallel Ralph workers via ThreadPool + RalphBus (Zig-native, fast).
-pub const ralph_swarm = @import("ralph_swarm.zig");
+pub const ralph_swarm = @import("ralph_swarm");
 
 // ============================================================================
 // Fine-Tuning Pipeline (lilex JSONL → LoRA → GGUF)
 // ============================================================================
 
-pub const abbey_train = @import("abbey_train.zig");
+pub const abbey_train = @import("abbey_train");
 
 // ============================================================================
 // Customizable AI Framework
 // ============================================================================
 
-pub const custom_framework = @import("custom_framework.zig");
+pub const custom_framework = @import("custom_framework");
 
 // ============================================================================
 // Advanced Cognitive Modules
 // ============================================================================
 
-pub const advanced = @import("advanced/mod.zig");
+pub const advanced = @import("advanced");
 
 // ============================================================================
 // Type Re-exports (Core)
@@ -297,8 +297,8 @@ pub fn createAdvancedCognitionWithConfig(
 // Legacy Abbey Implementation (Kept for backwards compatibility)
 // ============================================================================
 
-const legacy_memory = @import("../memory/mod.zig");
-const tools = @import("../tools/mod.zig");
+const legacy_memory = @import("../memory");
+const tools = @import("../tools");
 
 /// Legacy Abbey - original implementation for backwards compatibility
 /// Use AbbeyEngine for new implementations

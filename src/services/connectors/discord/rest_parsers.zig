@@ -5,8 +5,8 @@
 //! the parsed Discord type.
 
 const std = @import("std");
-const types = @import("types.zig");
-const json_utils = @import("../../shared/utils.zig").json;
+const types = @import("types");
+const json_utils = @import("shared_services").utils.json;
 
 const User = types.User;
 const Guild = types.Guild;

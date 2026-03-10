@@ -8,8 +8,8 @@
 //! - Few-shot learning optimization
 
 const std = @import("std");
-const neural = @import("../neural/mod.zig");
-const types = @import("../../core/types.zig");
+const neural = @import("../neural");
+const types = @import("types");
 
 // ============================================================================
 // Meta-Learning Types

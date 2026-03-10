@@ -61,13 +61,13 @@ pub const ContextMessage = struct {
 };
 
 // Context Engine Modules
-pub const triad = @import("triad.zig");
-pub const jumpstart = @import("jumpstart.zig");
-pub const audio = @import("audio.zig");
-pub const telemetry = @import("telemetry.zig");
-pub const vision = @import("vision.zig");
-pub const codebase_indexer = @import("codebase_indexer.zig");
-pub const vad = @import("vad.zig");
+pub const triad = @import("triad");
+pub const jumpstart = @import("jumpstart");
+pub const audio = @import("audio");
+pub const telemetry = @import("telemetry");
+pub const vision = @import("vision");
+pub const codebase_indexer = @import("codebase_indexer");
+pub const vad = @import("vad");
 
 /// High-performance contextual understanding processor.
 pub const ContextProcessor = struct {

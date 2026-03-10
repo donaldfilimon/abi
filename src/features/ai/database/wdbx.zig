@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const tokenizer_mod = @import("../llm/tokenizer/mod.zig");
+const tokenizer_mod = @import("../llm/tokenizer");
 
 // Import the modern neural engine via named module (avoids module conflict)
 const wdbx_engine = @import("wdbx");

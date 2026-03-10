@@ -10,8 +10,8 @@
 //! - Automatic threat detection
 
 const std = @import("std");
-const time = @import("../time.zig");
-const sync = @import("../sync.zig");
+const time = @import("../time");
+const sync = @import("../sync");
 
 /// IP version
 pub const IpVersion = enum {

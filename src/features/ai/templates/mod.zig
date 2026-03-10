@@ -4,9 +4,9 @@
 //! for common LLM interaction patterns like chat, RAG, and tool use.
 
 const std = @import("std");
-const parser = @import("parser.zig");
-const renderer = @import("renderer.zig");
-const library = @import("library.zig");
+const parser = @import("parser");
+const renderer = @import("renderer");
+const library = @import("library");
 
 pub const Parser = parser.Parser;
 pub const ParseError = parser.ParseError;

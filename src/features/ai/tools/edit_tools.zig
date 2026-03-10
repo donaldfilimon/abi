@@ -7,7 +7,7 @@
 
 const std = @import("std");
 const json = std.json;
-const tool = @import("tool.zig");
+const tool = @import("tool");
 
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;

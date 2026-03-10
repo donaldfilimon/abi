@@ -7,8 +7,8 @@
 //! - Reasoning summaries for transparency
 
 const std = @import("std");
-const core_types = @import("../core/types.zig");
-const platform_time = @import("../../../services/shared/time.zig");
+const core_types = @import("types");
+const platform_time = @import("shared_services").time;
 
 // Re-export canonical types from core for consistency
 pub const ConfidenceLevel = core_types.ConfidenceLevel;

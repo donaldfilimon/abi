@@ -4,8 +4,8 @@
 //! dispatch overhead for many small kernel launches.
 
 const std = @import("std");
-const dispatch_types = @import("types.zig");
-const dispatcher_mod = @import("coordinator.zig");
+const dispatch_types = @import("types");
+const dispatcher_mod = @import("coordinator");
 
 pub const DispatchError = dispatch_types.DispatchError;
 pub const CompiledKernelHandle = dispatch_types.CompiledKernelHandle;

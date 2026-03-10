@@ -52,7 +52,7 @@ std.mem.Alignment.fromByteUnits(n)
 ### Build System
 ```zig
 // Module creation (no root_source_file on compile step)
-const mod = b.createModule(.{ .root_source_file = b.path("src/main.zig") });
+const mod = b.createModule(.{ .root_source_file = b.path("src/root.zig") });
 const exe = b.addExecutable(.{ .name = "app", .root_module = mod });
 
 // LazyPath — no .path field
@@ -82,7 +82,7 @@ REMOVED in 0.16. Pass parent context as parameters to submodule init functions i
 When a file is registered as a named module root in `build.zig` (e.g., `wdbx`), NEVER import it via relative path from other modules. Use the named import:
 ```zig
 // WRONG — causes "file exists in modules 'wdbx' and 'abi'" error
-const wdbx = @import("../../wdbx/wdbx.zig");
+const wdbx = @import("wdbx");
 // CORRECT — uses the named module
 const wdbx = @import("wdbx");
 ```

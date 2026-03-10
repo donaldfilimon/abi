@@ -4,10 +4,10 @@
 //! This is the primary interface for creating portable GPU kernels.
 
 const std = @import("std");
-const types = @import("types.zig");
-const expr = @import("expr.zig");
-const stmt = @import("stmt.zig");
-const kernel = @import("kernel.zig");
+const types = @import("types");
+const expr = @import("expr");
+const stmt = @import("stmt");
+const kernel = @import("kernel");
 
 /// Builder for constructing kernel IR.
 pub const KernelBuilder = struct {

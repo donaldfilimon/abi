@@ -23,7 +23,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
-const app_paths = @import("../../../services/shared/app_paths.zig");
+const app_paths = @import("shared_services").app_paths;
 
 // libc import for environment access - required for Zig 0.16
 // Not available on freestanding/WASM targets

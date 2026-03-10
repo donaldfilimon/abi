@@ -6,9 +6,9 @@
 //! bridge (catalog → descriptor → wiring) that previously existed.
 
 const std = @import("std");
-const context_mod = @import("framework/context.zig");
-const types = @import("framework/types.zig");
-const args_mod = @import("utils/args.zig");
+const context_mod = @import("framework/context");
+const types = @import("framework/types");
+const args_mod = @import("utils/args");
 
 pub const CommandDescriptor = types.CommandDescriptor;
 pub const CommandHandler = types.CommandHandler;

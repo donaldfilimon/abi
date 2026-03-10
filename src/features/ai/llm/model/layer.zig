@@ -1,10 +1,10 @@
 //! Transformer layer implementation.
 
 const std = @import("std");
-const config_mod = @import("config.zig");
-const weights_mod = @import("weights.zig");
-const ops = @import("../ops/mod.zig");
-const cache = @import("../cache/mod.zig");
+const config_mod = @import("config");
+const weights_mod = @import("weights");
+const ops = @import("../ops");
+const cache = @import("../cache");
 
 /// Single transformer layer.
 pub const TransformerLayer = struct {

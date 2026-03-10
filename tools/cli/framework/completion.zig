@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 pub fn resolveAlias(descriptors: []const types.CommandDescriptor, raw: []const u8) []const u8 {
     for (descriptors) |descriptor| {

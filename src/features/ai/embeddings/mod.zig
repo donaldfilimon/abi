@@ -12,7 +12,7 @@
 //! ## Example
 //!
 //! ```zig
-//! const embeddings = @import("embeddings/mod.zig");
+//! const embeddings = @import("embeddings");
 //!
 //! var ctx = try embeddings.Context.init(allocator, .{});
 //! defer ctx.deinit();
@@ -26,12 +26,12 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
-const simd = @import("../../../services/shared/simd/mod.zig");
+const config_module = @import("../../../core/config");
+const simd = @import("shared_services").simd;
 
 // Backend system
-pub const backend = @import("backend.zig");
-pub const backends = @import("backends/mod.zig");
+pub const backend = @import("backend");
+pub const backends = @import("backends");
 
 pub const EmbeddingBackend = backend.EmbeddingBackend;
 pub const BackendError = backend.BackendError;

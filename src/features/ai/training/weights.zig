@@ -3,9 +3,9 @@
 //! Contains TrainableLayerWeights, TrainableWeights, and ActivationCache.
 
 const std = @import("std");
-const ops = @import("../llm/ops/mod.zig");
+const ops = @import("../llm/ops");
 const backward_ops = ops.backward;
-const model_config = @import("model/config.zig");
+const model_config = @import("model/config");
 
 /// Configuration for a trainable model.
 pub const TrainableModelConfig = model_config.TrainableModelConfig;

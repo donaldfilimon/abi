@@ -7,8 +7,8 @@
 //! - Enter/Backspace/Delete/Tab: editing
 
 const std = @import("std");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 const utils = @import("../../utils/mod.zig");
 const tui = @import("../mod.zig");
 

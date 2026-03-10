@@ -1,5 +1,5 @@
 const std = @import("std");
-const model = @import("model.zig");
+const model = @import("model");
 
 pub fn discoverModules(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) ![]model.ModuleDoc {
     const source = try cwd.readFileAlloc(io, "src/abi.zig", allocator, .limited(4 * 1024 * 1024));

@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../system/framework.zig");
+const framework = @import("../system/framework");
 
 // v2 modules accessed via abi re-exports
 const simd = abi.services.shared.simd;

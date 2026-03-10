@@ -6,22 +6,22 @@
 //! zero/empty default.
 
 const std = @import("std");
-const retry = @import("../../../services/shared/utils/retry.zig");
-const sync = @import("../../../services/shared/sync.zig");
-const agents = @import("../agents/stub.zig");
-const workflow_mod = @import("workflow.zig");
-const blackboard_mod = @import("blackboard.zig");
-const roles_mod = @import("roles.zig");
-const supervisor_mod = @import("supervisor.zig");
-const protocol_mod = @import("protocol.zig");
+const retry = @import("shared_services").utils.retry;
+const sync = @import("shared_services").sync;
+const agents = @import("../agents/stub");
+const workflow_mod = @import("workflow");
+const blackboard_mod = @import("blackboard");
+const roles_mod = @import("roles");
+const supervisor_mod = @import("supervisor");
+const protocol_mod = @import("protocol");
 
-pub const aggregation = @import("aggregation.zig");
-pub const messaging = @import("messaging.zig");
-pub const roles = @import("roles.zig");
-pub const blackboard = @import("blackboard.zig");
-pub const workflow = @import("workflow.zig");
-pub const supervisor = @import("supervisor.zig");
-pub const protocol = @import("protocol.zig");
+pub const aggregation = @import("aggregation");
+pub const messaging = @import("messaging");
+pub const roles = @import("roles");
+pub const blackboard = @import("blackboard");
+pub const workflow = @import("workflow");
+pub const supervisor = @import("supervisor");
+pub const protocol = @import("protocol");
 
 // ---------------------------------------------------------------------------
 // Runner stub (inline — cannot import runner.zig because it depends on the

@@ -6,7 +6,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const core = @import("../../core/mod.zig");
-const framework = @import("../../system/framework.zig");
+const framework = @import("../../system/framework");
 
 const DistanceResult = struct {
     id: u64,

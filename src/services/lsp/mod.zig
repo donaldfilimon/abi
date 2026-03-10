@@ -1,14 +1,14 @@
 //! LSP (ZLS) service module.
 
 const std = @import("std");
-const client = @import("client.zig");
+const client = @import("client");
 
 // Inline from core/config/lsp.zig to avoid cross-directory import.
 pub const Config = client.Config;
 pub const Client = client.Client;
 pub const Response = client.Response;
-pub const types = @import("types.zig");
-pub const jsonrpc = @import("jsonrpc.zig");
+pub const types = @import("types");
+pub const jsonrpc = @import("jsonrpc");
 
 pub const resolveWorkspaceRoot = client.resolveWorkspaceRoot;
 pub const resolvePath = client.resolvePath;

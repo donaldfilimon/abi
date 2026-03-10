@@ -7,10 +7,10 @@
 //! - Context injection and prompt building
 
 const std = @import("std");
-const document = @import("document.zig");
-const chunker = @import("chunker.zig");
-const retriever = @import("retriever.zig");
-const context = @import("context.zig");
+const document = @import("document");
+const chunker = @import("chunker");
+const retriever = @import("retriever");
+const context = @import("context");
 
 // Document types
 pub const Document = document.Document;

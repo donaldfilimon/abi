@@ -1,5 +1,5 @@
 const std = @import("std");
-const util = @import("util.zig");
+const util = @import("util");
 
 fn addScore(value: std.json.Value, sum: *f64, count: *usize) void {
     switch (value) {

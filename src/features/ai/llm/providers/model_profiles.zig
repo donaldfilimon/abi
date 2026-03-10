@@ -5,7 +5,7 @@
 //! Used by the router to select optimal providers for a given model name.
 
 const std = @import("std");
-const types = @import("types.zig");
+const types = @import("types");
 
 pub const Quantization = enum {
     none,

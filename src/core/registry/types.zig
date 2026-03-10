@@ -4,8 +4,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../config/mod.zig");
-const feature_catalog = @import("../feature_catalog.zig");
+const config_module = @import("../config");
+const feature_catalog = @import("../feature_catalog");
 
 pub const Feature = config_module.Feature;
 

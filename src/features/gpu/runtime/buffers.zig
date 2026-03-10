@@ -1,4 +1,4 @@
-const unified_buffer = @import("../unified_buffer.zig");
+const unified_buffer = @import("../unified_buffer");
 const std = @import("std");
 
 pub const Buffer = unified_buffer.Buffer;

@@ -8,7 +8,7 @@
 //! - Quantized tensor export (F32, F16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0)
 
 const std = @import("std");
-const gguf = @import("gguf.zig");
+const gguf = @import("gguf");
 
 pub const GgufWriterError = error{
     InvalidAlignment,

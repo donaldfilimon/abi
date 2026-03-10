@@ -5,12 +5,12 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const terminal = @import("terminal.zig");
-const themes = @import("themes.zig");
-const widgets = @import("widgets.zig");
-const unicode = @import("unicode.zig");
-const render_utils = @import("render_utils.zig");
-const layout = @import("layout.zig");
+const terminal = @import("terminal");
+const themes = @import("themes");
+const widgets = @import("widgets");
+const unicode = @import("unicode");
+const render_utils = @import("render_utils");
+const layout = @import("layout");
 
 // ===============================================================================
 // Types

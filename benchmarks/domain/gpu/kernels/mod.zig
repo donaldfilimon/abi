@@ -14,13 +14,13 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const framework = @import("../../../system/framework.zig");
+const framework = @import("../../../system/framework");
 const parent_mod = @import("../mod.zig");
 
-pub const cpu_baselines = @import("cpu_baselines.zig");
-pub const matmul = @import("matmul.zig");
-pub const vector_ops = @import("vector_ops.zig");
-pub const memory_ops = @import("memory_ops.zig");
+pub const cpu_baselines = @import("cpu_baselines");
+pub const matmul = @import("matmul");
+pub const vector_ops = @import("vector_ops");
+pub const memory_ops = @import("memory_ops");
 
 const GpuBenchConfig = parent_mod.GpuBenchConfig;
 

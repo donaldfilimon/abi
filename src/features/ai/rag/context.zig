@@ -4,7 +4,7 @@
 //! for language model input.
 
 const std = @import("std");
-const retriever = @import("retriever.zig");
+const retriever = @import("retriever");
 const RetrievalResult = retriever.RetrievalResult;
 
 /// Context building configuration.
@@ -303,7 +303,7 @@ test "context builder basic" {
     var builder = ContextBuilder.init(allocator, .{});
     defer builder.deinit();
 
-    const chunk = @import("chunker.zig").Chunk{
+    const chunk = @import("chunker").Chunk{
         .content = "This is test content.",
         .start_offset = 0,
         .end_offset = 21,
@@ -330,7 +330,7 @@ test "context builder truncation" {
     });
     defer builder.deinit();
 
-    const chunk = @import("chunker.zig").Chunk{
+    const chunk = @import("chunker").Chunk{
         .content = "A" ** 100,
         .start_offset = 0,
         .end_offset = 100,

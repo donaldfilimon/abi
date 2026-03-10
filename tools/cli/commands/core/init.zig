@@ -4,8 +4,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 
@@ -86,14 +86,14 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     };
     utils.output.printSuccess("Created build.zig", .{});
 
-    // Generate src/main.zig
+    // Generate src/root.zig
     dir.createDir(io, "src", .default_dir) catch {};
     const main_content = generateMainZig(template);
-    dir.writeFile(io, .{ .sub_path = "src/main.zig", .data = main_content }) catch |err| {
-        utils.output.printError("Could not write src/main.zig: {t}", .{err});
+    dir.writeFile(io, .{ .sub_path = "src/root.zig", .data = main_content }) catch |err| {
+        utils.output.printError("Could not write src/root.zig: {t}", .{err});
         return;
     };
-    utils.output.printSuccess("Created src/main.zig", .{});
+    utils.output.printSuccess("Created src/root.zig", .{});
 
     // Generate .gitignore
     dir.writeFile(io, .{ .sub_path = ".gitignore", .data = gitignore_content }) catch |err| {
@@ -169,7 +169,7 @@ const build_zig_default =
     \\
     \\    const exe = b.addExecutable(.{
     \\        .name = "app",
-    \\        .root_source_file = b.path("src/main.zig"),
+    \\        .root_source_file = b.path("src/root.zig"),
     \\        .target = target,
     \\        .optimize = optimize,
     \\    });

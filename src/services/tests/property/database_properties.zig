@@ -9,8 +9,8 @@
 //! Uses the database module from src/features/database/
 
 const std = @import("std");
-const property = @import("mod.zig");
-const generators = @import("generators.zig");
+const property = @import("mod");
+const generators = @import("generators");
 const abi = @import("abi");
 const build_options = @import("build_options");
 

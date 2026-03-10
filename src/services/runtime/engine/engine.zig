@@ -38,7 +38,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const engine = @import("engine/engine.zig");
+//! const engine = @import("engine/engine");
 //!
 //! // Initialize with configuration
 //! var compute = try engine.DistributedComputeEngine.init(allocator, .{
@@ -92,10 +92,10 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const numa = @import("numa.zig");
-const concurrency = @import("../concurrency/mod.zig");
+const numa = @import("numa");
+const concurrency = @import("../concurrency");
 
-const sync = @import("../../shared/sync.zig");
+const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;
 
 // Zig 0.16 compatibility: Simple Condition (busy-wait implementation)
@@ -129,7 +129,7 @@ const is_threaded_target = builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm64;
 
 // Import types from submodule
-pub const engine_types = @import("types.zig");
+pub const engine_types = @import("types");
 
 // Re-export types
 pub const Backoff = engine_types.Backoff;

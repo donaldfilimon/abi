@@ -7,8 +7,8 @@ const cli_io = utils.io_backend;
 const app_paths = abi.services.shared.app_paths;
 
 // Use the shared config module for file-based configuration (legacy format)
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 const shared_config = abi.services.shared.utils.config;
 
 const OutputFormat = enum {

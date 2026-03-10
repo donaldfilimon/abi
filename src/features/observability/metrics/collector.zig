@@ -5,7 +5,7 @@
 //! lightweight primitives in `services/shared/utils/metric_types.zig`.
 
 const std = @import("std");
-const sync = @import("../../../services/shared/sync.zig");
+const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;
 
 // ============================================================================

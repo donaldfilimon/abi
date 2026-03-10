@@ -3,7 +3,7 @@
 //! Converts between raw formats (TokenBin, JSONL) and WDBX.
 
 const std = @import("std");
-const wdbx = @import("wdbx.zig"); // Import the newly implemented wdbx.zig
+const wdbx = @import("wdbx"); // Import the newly implemented wdbx.zig
 
 pub const ConversionError = error{
     FileNotFound,

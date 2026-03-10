@@ -105,45 +105,45 @@
 //! - Lifecycle management internals (gpu_lifecycle, cuda_backend_init_lock)
 //! - Backend-specific initialization functions (initCudaComponents, etc.)
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
-const backend = @import("backend.zig");
-const kernels = @import("runtime_kernels.zig");
-const memory = @import("memory/base.zig");
-const kernel_cache = @import("kernel_cache.zig");
-const backend_shared = @import("backends/shared.zig");
-pub const profiling = @import("profiling.zig");
+const time = @import("shared_services").time;
+const sync = @import("shared_services").sync;
+const backend = @import("backend");
+const kernels = @import("runtime_kernels");
+const memory = @import("memory/base");
+const kernel_cache = @import("kernel_cache");
+const backend_shared = @import("backends/shared");
+pub const profiling = @import("profiling");
 
 // Performance optimization modules
-pub const occupancy = @import("occupancy.zig");
-pub const fusion = @import("fusion.zig");
-pub const execution_coordinator = @import("execution_coordinator.zig");
-pub const memory_pool_advanced = @import("memory/pool.zig");
-pub const memory_pool_lockfree = @import("memory/lockfree.zig");
-pub const sync_event = @import("sync_event.zig");
-pub const kernel_ring = @import("kernel_ring.zig");
-pub const adaptive_tiling = @import("adaptive_tiling.zig");
+pub const occupancy = @import("occupancy");
+pub const fusion = @import("fusion");
+pub const execution_coordinator = @import("execution_coordinator");
+pub const memory_pool_advanced = @import("memory/pool");
+pub const memory_pool_lockfree = @import("memory/lockfree");
+pub const sync_event = @import("sync_event");
+pub const kernel_ring = @import("kernel_ring");
+pub const adaptive_tiling = @import("adaptive_tiling");
 
 // std.gpu integration (Zig 0.16+ native GPU support)
-pub const std_gpu = @import("std_gpu.zig");
-pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
+pub const std_gpu = @import("std_gpu");
+pub const std_gpu_kernels = @import("std_gpu_kernels");
 
 // Unified API modules
-pub const unified = @import("unified.zig");
-pub const unified_buffer = @import("unified_buffer.zig");
-pub const device = @import("device.zig");
-pub const stream = @import("stream.zig");
-pub const dsl = @import("dsl/mod.zig");
-pub const runtime = @import("runtime/mod.zig");
-pub const devices = @import("device/mod.zig");
-pub const policy = @import("policy/mod.zig");
-pub const multi = @import("multi/mod.zig");
-pub const factory = @import("factory/mod.zig");
+pub const unified = @import("unified");
+pub const unified_buffer = @import("unified_buffer");
+pub const device = @import("device");
+pub const stream = @import("stream");
+pub const dsl = @import("dsl");
+pub const runtime = @import("runtime");
+pub const devices = @import("device");
+pub const policy = @import("policy");
+pub const multi = @import("multi");
+pub const factory = @import("factory");
 
 // Backend interface and loaders
-pub const interface = @import("interface.zig");
+pub const interface = @import("interface");
 pub const cuda_loader = if (backend_shared.dynlibSupported)
-    @import("backends/cuda/loader.zig")
+    @import("backends/cuda/loader")
 else
     struct {
         pub const CuResult = enum(i32) { success = 0, _ };
@@ -167,87 +167,87 @@ else
     };
 
 // Platform detection
-pub const platform = @import("platform.zig");
+pub const platform = @import("platform");
 
 // Modular backend abstraction layer
-pub const backends = @import("backends/mod.zig");
-pub const dispatch = @import("dispatch/mod.zig");
-pub const builtin_kernels = @import("builtin_kernels.zig");
+pub const backends = @import("backends");
+pub const dispatch = @import("dispatch");
+pub const builtin_kernels = @import("builtin_kernels");
 
 // Recovery and failover
-pub const recovery = @import("recovery.zig");
-pub const failover = @import("failover.zig");
-pub const failover_types = @import("failover_types.zig");
+pub const recovery = @import("recovery");
+pub const failover = @import("failover");
+pub const failover_types = @import("failover_types");
 
 // Diagnostics and error handling
-pub const diagnostics = @import("diagnostics.zig");
-pub const error_handling = @import("error_handling.zig");
+pub const diagnostics = @import("diagnostics");
+pub const error_handling = @import("error_handling");
 
 // Multi-device and peer transfer
-pub const multi_device = @import("multi_device.zig");
-pub const peer_transfer = @import("peer_transfer/mod.zig");
+pub const multi_device = @import("multi_device");
+pub const peer_transfer = @import("peer_transfer");
 
 // Mega GPU orchestration (cross-backend coordinator)
-pub const mega = @import("mega/mod.zig");
+pub const mega = @import("mega");
 
 // AI training bridge (GPU-accelerated training ops with CPU fallback)
-pub const coordinator_ai_ops = @import("coordinator_ai_ops.zig");
-pub const training_bridge = @import("training_bridge.zig");
+pub const coordinator_ai_ops = @import("coordinator_ai_ops");
+pub const training_bridge = @import("training_bridge");
 
 // Gradient compression for distributed training
-pub const gradient_compression = @import("gradient_compression.zig");
+pub const gradient_compression = @import("gradient_compression");
 
 // Include test modules in test builds
 comptime {
     if (@import("builtin").is_test) {
-        _ = @import("tests/device_enumeration_test.zig");
-        _ = @import("tests/backend_detection_test.zig");
-        _ = @import("tests/std_gpu_test.zig");
-        _ = @import("tests/execution_fallback_test.zig");
-        _ = @import("tests/integration_test.zig");
-        _ = @import("tests/all_backends_test.zig");
-        _ = @import("peer_transfer/tests.zig");
-        _ = @import("peer_transfer/network.zig");
+        _ = @import("tests/device_enumeration_test");
+        _ = @import("tests/backend_detection_test");
+        _ = @import("tests/std_gpu_test");
+        _ = @import("tests/execution_fallback_test");
+        _ = @import("tests/integration_test");
+        _ = @import("tests/all_backends_test");
+        _ = @import("peer_transfer/tests");
+        _ = @import("peer_transfer/network");
         // Performance optimization module tests
-        _ = @import("sync_event.zig");
-        _ = @import("kernel_ring.zig");
-        _ = @import("adaptive_tiling.zig");
-        _ = @import("memory/lockfree.zig");
+        _ = @import("sync_event");
+        _ = @import("kernel_ring");
+        _ = @import("adaptive_tiling");
+        _ = @import("memory/lockfree");
         // std.gpu integration tests
-        _ = @import("std_gpu.zig");
-        _ = @import("std_gpu_kernels.zig");
+        _ = @import("std_gpu");
+        _ = @import("std_gpu_kernels");
         // Shared failover types tests
-        _ = @import("failover_types.zig");
+        _ = @import("failover_types");
         // Mega GPU orchestration tests
-        _ = @import("mega/mod.zig");
+        _ = @import("mega");
         // Platform detection tests
-        _ = @import("platform.zig");
+        _ = @import("platform");
         // Built-in kernel tests (includes linalg, reduction, etc.)
-        _ = @import("builtin_kernels.zig");
+        _ = @import("builtin_kernels");
         // Extracted submodule tests
-        _ = @import("dispatcher_test.zig");
-        _ = @import("multi_device_test.zig");
+        _ = @import("dispatcher_test");
+        _ = @import("multi_device_test");
         // Extracted type modules (compile-check)
-        _ = @import("dispatch/types.zig");
-        _ = @import("dispatch/batch.zig");
-        _ = @import("device_group.zig");
-        _ = @import("gpu_cluster.zig");
-        _ = @import("gradient_sync.zig");
+        _ = @import("dispatch/types");
+        _ = @import("dispatch/batch");
+        _ = @import("device_group");
+        _ = @import("gpu_cluster");
+        _ = @import("gradient_sync");
         // Backend extracted tests
-        _ = @import("backends/metal_test.zig");
-        _ = @import("backends/vulkan_test.zig");
+        _ = @import("backends/metal_test");
+        _ = @import("backends/vulkan_test");
         // Training bridge tests
-        _ = @import("coordinator_ai_ops.zig");
-        _ = @import("training_bridge.zig");
+        _ = @import("coordinator_ai_ops");
+        _ = @import("training_bridge");
         // Gradient compression tests
-        _ = @import("gradient_compression.zig");
+        _ = @import("gradient_compression");
     }
 }
 
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils
-const lifecycle = @import("../../services/shared/utils.zig");
+const lifecycle = @import("shared_services").utils;
 const SimpleModuleLifecycle = lifecycle.SimpleModuleLifecycle;
 const LifecycleError = lifecycle.LifecycleError;
 
@@ -308,7 +308,7 @@ fn initCudaComponents() !void {
         defer cuda_backend_init_lock.unlock();
 
         if (!cuda_backend_initialized) {
-            const cuda_module = @import("backends/cuda/mod.zig");
+            const cuda_module = @import("backends/cuda");
             const allocator = cached_gpu_allocator orelse return error.OutOfMemory;
 
             cuda_module.init(allocator) catch |err| {
@@ -316,12 +316,12 @@ fn initCudaComponents() !void {
             };
 
             if (comptime build_options.feat_gpu) {
-                const cuda_stream = @import("backends/cuda/stream.zig");
+                const cuda_stream = @import("backends/cuda/stream");
                 cuda_stream.init() catch |err| {
                     std.log.warn("CUDA stream initialization failed: {t}", .{err});
                 };
 
-                const cuda_memory = @import("backends/cuda/memory.zig");
+                const cuda_memory = @import("backends/cuda/memory");
                 cuda_memory.init(allocator) catch |err| {
                     std.log.warn("CUDA memory initialization failed: {t}", .{err});
                 };
@@ -335,14 +335,14 @@ fn initCudaComponents() !void {
 fn deinitCudaComponents() void {
     if (cuda_backend_initialized) {
         if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
-            const cuda_module = @import("backends/cuda/mod.zig");
+            const cuda_module = @import("backends/cuda");
             cuda_module.deinit();
 
             if (comptime build_options.feat_gpu) {
-                const cuda_stream = @import("backends/cuda/stream.zig");
+                const cuda_stream = @import("backends/cuda/stream");
                 cuda_stream.deinit();
 
-                const cuda_memory = @import("backends/cuda/memory.zig");
+                const cuda_memory = @import("backends/cuda/memory");
                 cuda_memory.deinit();
             }
         }
@@ -369,7 +369,7 @@ pub fn isInitialized() bool {
 // Context - Framework Integration
 // ============================================================================
 
-const config_module = @import("../../core/config/mod.zig");
+const config_module = @import("../../core/config");
 
 /// GPU Context for Framework integration.
 ///

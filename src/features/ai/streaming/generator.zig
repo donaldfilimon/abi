@@ -4,7 +4,7 @@
 //! transformer models for token-by-token text generation.
 
 const std = @import("std");
-const transformer = @import("../transformer/mod.zig");
+const transformer = @import("../transformer");
 
 pub const StreamingError = error{
     StreamClosed,

@@ -1,14 +1,14 @@
 const std = @import("std");
-const server = @import("server.zig");
+const server = @import("server");
 const ServerConfig = server.ServerConfig;
 const StreamingServerError = server.StreamingServerError;
-const request_types = @import("request_types.zig");
+const request_types = @import("request_types");
 const parseAbiStreamRequest = request_types.parseAbiStreamRequest;
 const extractJsonString = request_types.extractJsonString;
 const extractJsonInt = request_types.extractJsonInt;
 const splitTarget = server.splitTarget;
-const backends = @import("backends/mod.zig");
-const websocket = @import("websocket.zig");
+const backends = @import("backends");
+const websocket = @import("websocket");
 
 test "streaming server config defaults" {
     const config = ServerConfig{};

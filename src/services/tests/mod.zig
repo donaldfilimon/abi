@@ -44,232 +44,232 @@ test {
         _ = abi.features.ai.vision;
     }
     // Connector tests
-    _ = @import("connectors_test.zig");
+    _ = @import("connectors_test");
     // Connector integration tests (isAvailable consistency, boundary conditions)
-    _ = @import("connector_integration_test.zig");
+    _ = @import("connector_integration_test");
     // MCP/ACP service tests (force test discovery through abi module)
     _ = abi.services.mcp;
     _ = abi.services.acp;
     // Integration test matrix
-    _ = @import("test_matrix.zig");
+    _ = @import("test_matrix");
     // Include training demo test
-    _ = @import("training_demo.zig");
+    _ = @import("training_demo");
     // LLM reference vectors for llama-cpp compatibility
     if (build_options.feat_llm) {
-        _ = @import("llm_reference_vectors.zig");
+        _ = @import("llm_reference_vectors");
     }
     // Cross-platform OS features tests
-    _ = @import("os_test.zig");
+    _ = @import("os_test");
     // Shared utilities tests (via abi module)
     _ = abi.services.shared.errors;
     // High Availability module tests
-    _ = @import("ha_test.zig");
+    _ = @import("ha_test");
     // Stub parity verification tests (runtime checks)
-    _ = @import("stub_parity.zig");
+    _ = @import("stub_parity");
     // Comptime API parity tests (catches drift at compile time)
-    _ = @import("parity/mod.zig");
+    _ = @import("parity");
     // End-to-end integration tests (issue #397)
     if (build_options.feat_ai) {
-        _ = @import("e2e_llm_test.zig");
+        _ = @import("e2e_llm_test");
     }
-    _ = @import("e2e_database_test.zig");
-    _ = @import("e2e_personas_test.zig");
-    _ = @import("error_handling_test.zig");
+    _ = @import("e2e_database_test");
+    _ = @import("e2e_personas_test");
+    _ = @import("error_handling_test");
     // KernelRing fast‑path test
-    _ = @import("kernel_ring_test.zig");
+    _ = @import("kernel_ring_test");
 
     // Network module comprehensive tests
     if (build_options.feat_network) {
-        _ = @import("network_test.zig");
+        _ = @import("network_test");
     }
 
     // Cloud adapter tests
     if (build_options.feat_web) {
-        _ = @import("cloud_test.zig");
+        _ = @import("cloud_test");
     }
 
     // Web module tests (handlers, routes, context)
     if (build_options.feat_web) {
-        _ = @import("web_test.zig");
+        _ = @import("web_test");
     }
 
     // Cross-module integration tests
-    _ = @import("integration_test.zig");
+    _ = @import("integration_test");
 
     // Concurrency stress tests (lock-free primitives)
-    _ = @import("concurrency_stress_test.zig");
+    _ = @import("concurrency_stress_test");
 
     // Quantized kernel correctness tests (CPU reference implementations)
-    _ = @import("quantized_kernels_test.zig");
+    _ = @import("quantized_kernels_test");
 
     // Integration test infrastructure (fixtures, mocks, cross-module tests)
-    _ = @import("integration/mod.zig");
+    _ = @import("integration");
 
     // Observability module comprehensive tests
     if (build_options.feat_profiling) {
-        _ = @import("observability_test.zig");
-        _ = @import("observability_alerting_test.zig");
-        _ = @import("observability_metrics_test.zig");
-        _ = @import("observability_edge_test.zig");
-        _ = @import("observability_tracing_test.zig");
+        _ = @import("observability_test");
+        _ = @import("observability_alerting_test");
+        _ = @import("observability_metrics_test");
+        _ = @import("observability_edge_test");
+        _ = @import("observability_tracing_test");
     }
 
     // Stress test infrastructure (HA, observability, database stress tests)
-    _ = @import("stress/mod.zig");
+    _ = @import("stress");
 
     // Chaos testing framework (production-grade reliability testing)
-    _ = @import("chaos/mod.zig");
+    _ = @import("chaos");
 
     // Property-based testing infrastructure (comprehensive property tests)
-    _ = @import("property/mod.zig");
+    _ = @import("property");
 
     // E2E workflow tests (complete user workflow validation)
-    _ = @import("e2e/mod.zig");
+    _ = @import("e2e");
 
     // Common test helpers and utilities
-    _ = @import("helpers.zig");
+    _ = @import("helpers");
 
     // v2 module integration tests (SwissMap, ArenaPool, Channel, ThreadPool, DagPipeline)
-    _ = @import("v2_integration_test.zig");
+    _ = @import("v2_integration_test");
 
     // SIMD kernel validation (v2 kernels vs scalar reference)
-    _ = @import("simd_validation_test.zig");
+    _ = @import("simd_validation_test");
 
     // Analytics module tests
     if (@hasDecl(build_options, "feat_analytics") and build_options.feat_analytics) {
         _ = abi.features.analytics;
-        _ = @import("analytics_test.zig");
+        _ = @import("analytics_test");
     }
 
     // AI math correctness tests (Phase 5B)
     if (build_options.feat_ai) {
-        _ = @import("ai_eval_test.zig");
+        _ = @import("ai_eval_test");
     }
     if (build_options.feat_llm) {
-        _ = @import("ai_sampler_test.zig");
-        _ = @import("ai_quantization_test.zig");
-        _ = @import("ai_attention_test.zig");
+        _ = @import("ai_sampler_test");
+        _ = @import("ai_quantization_test");
+        _ = @import("ai_attention_test");
     }
 
     // AI state machine & resilience tests (Phase 5C)
     if (build_options.feat_ai) {
-        _ = @import("ai_streaming_test.zig");
-        _ = @import("ai_memory_test.zig");
-        _ = @import("ai_rag_test.zig");
+        _ = @import("ai_streaming_test");
+        _ = @import("ai_memory_test");
+        _ = @import("ai_rag_test");
     }
 
     // AI secondary coverage tests (Phase 5D)
     if (build_options.feat_ai) {
-        _ = @import("ai_orchestration_test.zig");
-        _ = @import("ai_templates_test.zig");
-        _ = @import("ai_tools_test.zig");
+        _ = @import("ai_orchestration_test");
+        _ = @import("ai_templates_test");
+        _ = @import("ai_tools_test");
     }
 
     // Multi-agent integration tests (coordinator, circuit breaker, mailbox)
     if (build_options.feat_ai) {
-        _ = @import("multi_agent_test.zig");
+        _ = @import("multi_agent_test");
     }
 
     // Non-AI gap coverage tests (Phase 5E)
     if (build_options.feat_database) {
-        _ = @import("database_batch_test.zig");
+        _ = @import("database_batch_test");
     }
     if (build_options.feat_gpu) {
-        _ = @import("gpu_dispatcher_test.zig");
+        _ = @import("gpu_dispatcher_test");
     }
     if (build_options.feat_network) {
-        _ = @import("network_raft_test.zig");
+        _ = @import("network_raft_test");
     }
 }
 
 // Connector tests
-pub const connectors_test = @import("connectors_test.zig");
+pub const connectors_test = @import("connectors_test");
 
 // Connector integration tests (isAvailable consistency, boundary conditions)
-pub const connector_integration_test = @import("connector_integration_test.zig");
+pub const connector_integration_test = @import("connector_integration_test");
 
 // Integration test matrix
-pub const test_matrix = @import("test_matrix.zig");
+pub const test_matrix = @import("test_matrix");
 pub const TestMatrix = test_matrix.TestMatrix;
 
 // Legacy property-based testing (prefer property/mod.zig for new tests)
-pub const proptest = @import("proptest.zig");
+pub const proptest = @import("proptest");
 
 // Common test helpers and utilities
-pub const helpers = @import("helpers.zig");
+pub const helpers = @import("helpers");
 
 // Cross-platform test utilities
-pub const platform = @import("platform.zig");
+pub const platform = @import("platform");
 
 // Cross-platform OS features tests
-pub const os_test = @import("os_test.zig");
+pub const os_test = @import("os_test");
 
 // LLM reference vectors for llama-cpp compatibility testing
-pub const llm_reference_vectors = if (build_options.feat_llm) @import("llm_reference_vectors.zig") else struct {};
+pub const llm_reference_vectors = if (build_options.feat_llm) @import("llm_reference_vectors") else struct {};
 
 // End-to-end integration tests (issue #397)
-pub const e2e_llm_test = if (build_options.feat_ai) @import("e2e_llm_test.zig") else struct {};
-pub const e2e_database_test = @import("e2e_database_test.zig");
-pub const e2e_personas_test = @import("e2e_personas_test.zig");
-pub const error_handling_test = @import("error_handling_test.zig");
+pub const e2e_llm_test = if (build_options.feat_ai) @import("e2e_llm_test") else struct {};
+pub const e2e_database_test = @import("e2e_database_test");
+pub const e2e_personas_test = @import("e2e_personas_test");
+pub const error_handling_test = @import("error_handling_test");
 
 // Cross-module integration tests
-pub const integration_test = @import("integration_test.zig");
+pub const integration_test = @import("integration_test");
 
 // Concurrency stress tests (64+ thread high-contention scenarios)
-pub const concurrency_stress_test = @import("concurrency_stress_test.zig");
+pub const concurrency_stress_test = @import("concurrency_stress_test");
 
 // Quantized kernel correctness tests (CPU reference implementations)
-pub const quantized_kernels_test = @import("quantized_kernels_test.zig");
+pub const quantized_kernels_test = @import("quantized_kernels_test");
 
 // Integration test infrastructure
-pub const integration = @import("integration/mod.zig");
+pub const integration = @import("integration");
 
 // Observability module comprehensive tests
-pub const observability_test = if (build_options.feat_profiling) @import("observability_test.zig") else struct {};
-pub const observability_alerting_test = if (build_options.feat_profiling) @import("observability_alerting_test.zig") else struct {};
-pub const observability_metrics_test = if (build_options.feat_profiling) @import("observability_metrics_test.zig") else struct {};
-pub const observability_edge_test = if (build_options.feat_profiling) @import("observability_edge_test.zig") else struct {};
-pub const observability_tracing_test = if (build_options.feat_profiling) @import("observability_tracing_test.zig") else struct {};
+pub const observability_test = if (build_options.feat_profiling) @import("observability_test") else struct {};
+pub const observability_alerting_test = if (build_options.feat_profiling) @import("observability_alerting_test") else struct {};
+pub const observability_metrics_test = if (build_options.feat_profiling) @import("observability_metrics_test") else struct {};
+pub const observability_edge_test = if (build_options.feat_profiling) @import("observability_edge_test") else struct {};
+pub const observability_tracing_test = if (build_options.feat_profiling) @import("observability_tracing_test") else struct {};
 
 // Stress test infrastructure (production-grade stress tests)
-pub const stress = @import("stress/mod.zig");
+pub const stress = @import("stress");
 
 // Chaos testing framework (production-grade reliability testing)
-pub const chaos = @import("chaos/mod.zig");
+pub const chaos = @import("chaos");
 
 // Property-based testing infrastructure (comprehensive property tests)
-pub const property = @import("property/mod.zig");
+pub const property = @import("property");
 
 // E2E workflow tests (complete user workflow validation)
-pub const e2e = @import("e2e/mod.zig");
+pub const e2e = @import("e2e");
 
 // Comptime API parity verification (stub/real module consistency)
-pub const parity = @import("parity/mod.zig");
+pub const parity = @import("parity");
 
 // AI math correctness tests (Phase 5B)
-pub const ai_eval_test = if (build_options.feat_ai) @import("ai_eval_test.zig") else struct {};
-pub const ai_sampler_test = if (build_options.feat_llm) @import("ai_sampler_test.zig") else struct {};
-pub const ai_quantization_test = if (build_options.feat_llm) @import("ai_quantization_test.zig") else struct {};
-pub const ai_attention_test = if (build_options.feat_llm) @import("ai_attention_test.zig") else struct {};
+pub const ai_eval_test = if (build_options.feat_ai) @import("ai_eval_test") else struct {};
+pub const ai_sampler_test = if (build_options.feat_llm) @import("ai_sampler_test") else struct {};
+pub const ai_quantization_test = if (build_options.feat_llm) @import("ai_quantization_test") else struct {};
+pub const ai_attention_test = if (build_options.feat_llm) @import("ai_attention_test") else struct {};
 
 // AI state machine & resilience tests (Phase 5C)
-pub const ai_streaming_test = if (build_options.feat_ai) @import("ai_streaming_test.zig") else struct {};
-pub const ai_memory_test = if (build_options.feat_ai) @import("ai_memory_test.zig") else struct {};
-pub const ai_rag_test = if (build_options.feat_ai) @import("ai_rag_test.zig") else struct {};
+pub const ai_streaming_test = if (build_options.feat_ai) @import("ai_streaming_test") else struct {};
+pub const ai_memory_test = if (build_options.feat_ai) @import("ai_memory_test") else struct {};
+pub const ai_rag_test = if (build_options.feat_ai) @import("ai_rag_test") else struct {};
 
 // AI secondary coverage tests (Phase 5D)
-pub const ai_orchestration_test = if (build_options.feat_ai) @import("ai_orchestration_test.zig") else struct {};
-pub const ai_templates_test = if (build_options.feat_ai) @import("ai_templates_test.zig") else struct {};
-pub const ai_tools_test = if (build_options.feat_ai) @import("ai_tools_test.zig") else struct {};
+pub const ai_orchestration_test = if (build_options.feat_ai) @import("ai_orchestration_test") else struct {};
+pub const ai_templates_test = if (build_options.feat_ai) @import("ai_templates_test") else struct {};
+pub const ai_tools_test = if (build_options.feat_ai) @import("ai_tools_test") else struct {};
 
 // Multi-agent integration tests (coordinator, circuit breaker, mailbox)
-pub const multi_agent_test = if (build_options.feat_ai) @import("multi_agent_test.zig") else struct {};
+pub const multi_agent_test = if (build_options.feat_ai) @import("multi_agent_test") else struct {};
 
 // Non-AI gap coverage tests (Phase 5E)
-pub const database_batch_test = if (build_options.feat_database) @import("database_batch_test.zig") else struct {};
-pub const gpu_dispatcher_test = if (build_options.feat_gpu) @import("gpu_dispatcher_test.zig") else struct {};
-pub const network_raft_test = if (build_options.feat_network) @import("network_raft_test.zig") else struct {};
+pub const database_batch_test = if (build_options.feat_database) @import("database_batch_test") else struct {};
+pub const gpu_dispatcher_test = if (build_options.feat_gpu) @import("gpu_dispatcher_test") else struct {};
+pub const network_raft_test = if (build_options.feat_network) @import("network_raft_test") else struct {};
 
 test "abi version returns build package version" {
     try std.testing.expectEqualStrings("0.4.0", abi.version());

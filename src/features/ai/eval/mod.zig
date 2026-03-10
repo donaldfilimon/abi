@@ -4,10 +4,10 @@
 //! perplexity, and custom evaluation functions.
 
 const std = @import("std");
-const bleu = @import("bleu.zig");
-const rouge = @import("rouge.zig");
-const perplexity = @import("perplexity.zig");
-const metrics = @import("metrics.zig");
+const bleu = @import("bleu");
+const rouge = @import("rouge");
+const perplexity = @import("perplexity");
+const metrics = @import("metrics");
 
 pub const BleuScore = bleu.BleuScore;
 pub const computeBleu = bleu.computeBleu;
@@ -45,7 +45,7 @@ pub const computePerplexityFromProbs = perplexity.computePerplexityFromProbs;
 pub const SmoothingMethod = bleu.SmoothingMethod;
 
 // Shared tokenizer
-pub const tokenizer = @import("tokenizer.zig");
+pub const tokenizer = @import("tokenizer");
 pub const tokenize = tokenizer.tokenize;
 
 /// Evaluation configuration.

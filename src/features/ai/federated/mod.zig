@@ -1,6 +1,6 @@
 //! Federated learning registry and coordinator utilities.
 const std = @import("std");
-const time = @import("../../../services/shared/utils.zig");
+const time = @import("shared_services").utils;
 
 pub const NodeInfo = struct {
     id: []const u8,

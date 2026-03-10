@@ -20,11 +20,11 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command.zig");
-const context_mod = @import("../../framework/context.zig");
+const command_mod = @import("../../command");
+const context_mod = @import("../../framework/context");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const super_ = @import("ralph/super.zig");
+const super_ = @import("ralph/super");
 const app_paths = abi.services.shared.app_paths;
 
 pub const meta: command_mod.Meta = .{

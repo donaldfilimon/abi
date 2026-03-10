@@ -8,8 +8,8 @@
 //! have compile-time optimized scale factors.
 
 const std = @import("std");
-const matmul = @import("matmul.zig");
-const activations = @import("activations.zig");
+const matmul = @import("matmul");
+const activations = @import("activations");
 
 // ============================================================================
 // Comptime Scale Factors

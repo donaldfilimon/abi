@@ -1,5 +1,5 @@
 const std = @import("std");
-const catalog = @import("catalog.zig");
+const catalog = @import("catalog");
 
 pub const BackendNameList = struct {
     items: [12][]const u8 = undefined,

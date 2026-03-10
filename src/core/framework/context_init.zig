@@ -5,13 +5,13 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../config/mod.zig");
-const registry_mod = @import("../registry/mod.zig");
-const state_machine = @import("state_machine.zig");
-const shutdown = @import("shutdown.zig");
+const config_module = @import("../config");
+const registry_mod = @import("../registry");
+const state_machine = @import("state_machine");
+const shutdown = @import("shutdown");
 
 // Shared comptime-gated feature imports (DRY: single source of truth).
-const fi = @import("feature_imports.zig");
+const fi = @import("feature_imports");
 const gpu_mod = fi.gpu_mod;
 const ai_mod = fi.ai_mod;
 const database_mod = fi.database_mod;
@@ -33,8 +33,8 @@ const ai_core_mod = fi.ai_core_mod;
 const ai_inference_mod = fi.ai_inference_mod;
 const ai_training_mod = fi.ai_training_mod;
 const ai_reasoning_mod = fi.ai_reasoning_mod;
-const ha_mod = @import("../../services/ha/mod.zig");
-const runtime_mod = @import("../../services/runtime/mod.zig");
+const ha_mod = @import("../../services/ha");
+const runtime_mod = @import("../../services/runtime");
 
 /// Initialize a framework with the provided configuration.
 pub fn init(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config) Framework.Error!Framework {
