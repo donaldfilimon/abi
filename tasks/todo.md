@@ -7,8 +7,9 @@ Active task tracker. Use `git add -f tasks/todo.md` to stage.
 - [x] Consensus status: best-effort tri-CLI wrapper unavailable; `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` is missing locally.
 - [x] Reviewed canonical workflow inputs before edits: `AGENTS.md`, `CONTRIBUTING.md`, `CLAUDE.md`, `tasks/lessons.md`, and the ABI review references for docs-coupled paths.
 - [ ] Rewrite the top-level docs entrypoints (`README.md`, `docs/README.md`) so install, validation, docs generation, and navigation are easier to follow.
-- [ ] Tighten agent/developer Markdown (`docs/FAQ-agents.md`, `docs/guides/cursor_rules.md`, `GEMINI.md`) around the current Zig/tooling workflow and generated-docs expectations.
-- [ ] Improve supporting Markdown with clearer repository-specific guidance and less stale marketing language.
+- [ ] Tighten agent/developer Markdown (`docs/FAQ-agents.md`, `docs/guides/cursor_rules.md`, `GEMINI.md`, `.claude/*`, `zig0abi-codebase/SKILL.md`) around the current Zig/tooling workflow and generated-docs expectations.
+- [ ] Remove stale `wdbx` named-module guidance from `zig-abi-plugin/` Markdown and align it with the current `src/root.zig` + `abi.features.database` surface.
+- [ ] Improve supporting Markdown with clearer repository-specific guidance and less stale transition language around `profiles` / `personas`.
 - [ ] Run docs-focused validation (`zig build check-docs` if possible, otherwise alternate evidence) and record blockers.
 
 ## Active — Main Integration Cleanup (2026-03-10 14:38 EDT)
