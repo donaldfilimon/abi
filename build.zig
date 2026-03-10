@@ -2,26 +2,23 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// ── Modular build system ────────────────────────────────────────────────
-const options_mod = @import("build/options.zig");
-const modules = @import("build/modules.zig");
-const flags = @import("build/flags.zig");
-const targets = @import("build/targets.zig");
-const mobile = @import("build/mobile.zig");
-const wasm = @import("build/wasm.zig");
-const gpu = @import("build/gpu.zig");
-const link = @import("build/link.zig");
-const cli_tests = @import("build/cli_tests.zig");
-const test_discovery = @import("build/test_discovery.zig");
 const cel = @import("build/cel.zig");
-
-// Re-export for external use
+const cli_tests = @import("build/cli_tests.zig");
+const flags = @import("build/flags.zig");
+const gpu = @import("build/gpu.zig");
 pub const GpuBackend = gpu.GpuBackend;
+const link = @import("build/link.zig");
+const mobile = @import("build/mobile.zig");
+const modules = @import("build/modules.zig");
+const options_mod = @import("build/options.zig");
 pub const BuildOptions = options_mod.BuildOptions;
+const targets = @import("build/targets.zig");
+const test_discovery = @import("build/test_discovery.zig");
+const wasm = @import("build/wasm.zig");
 
+// ── Modular build system ────────────────────────────────────────────────
+// Re-export for external use
 const is_blocked_darwin = builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26;
-
-
 
 pub fn build(b: *std.Build) void {
     const target = resolveNativeTarget(b);
