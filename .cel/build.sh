@@ -15,6 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 REPO_ROOT="$(cd "$CEL_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
 ZIG_SRC_DIR="$CEL_DIR/.src"
 ZLS_SRC_DIR="$CEL_DIR/.zls-src"
@@ -27,10 +28,11 @@ BOOTSTRAP_ROOT="$CEL_DIR/../zig-bootstrap-emergency"
 BOOTSTRAP_BUILD_ZIG_HOST_DIR="$BOOTSTRAP_ROOT/out/build-zig-host"
 BOOTSTRAP_HOST_PREFIX="$BOOTSTRAP_ROOT/out/host"
 
-info()  { printf "\033[1;34m[cel]\033[0m %s\n" "$*"; }
-warn()  { printf "\033[1;33m[cel]\033[0m %s\n" "$*"; }
-error() { printf "\033[1;31m[cel]\033[0m %s\n" "$*" >&2; }
-die()   { error "$@"; exit 1; }
+# Logging aliases (delegate to lib.sh)
+info()  { cel_info "$@"; }
+warn()  { cel_warn "$@"; }
+error() { cel_error "$@"; }
+die()   { cel_die "$@"; }
 
 usage() {
     cat <<'USAGE'
@@ -51,16 +53,8 @@ USAGE
     exit 0
 }
 
-binary_name() {
-    if [[ "$(uname -s)" == "MINGW"* || "$(uname -s)" == "MSYS"* || "$(uname -s)" == "CYGWIN"* ]]; then
-        printf '%s.exe' "$1"
-    else
-        printf '%s' "$1"
-    fi
-}
-
-ZIG_EXE="$(binary_name zig)"
-ZLS_EXE="$(binary_name zls)"
+ZIG_EXE="$(cel_binary_name zig)"
+ZLS_EXE="$(cel_binary_name zls)"
 ZIG_BIN="$BIN_DIR/$ZIG_EXE"
 ZLS_BIN="$BIN_DIR/$ZLS_EXE"
 BOOTSTRAP_HOST_ZIG="$BOOTSTRAP_HOST_PREFIX/bin/$ZIG_EXE"
@@ -103,49 +97,15 @@ print_binary_status() {
     fi
 }
 
-expected_zig_version() {
-    printf '%s' "$ZIG_VERSION"
-}
+# expected_zig_version: delegated to cel_expected_zig_version in lib.sh
+expected_zig_version() { cel_expected_zig_version; }
 
-stock_zig_path() {
-    if command -v zig >/dev/null 2>&1; then
-        command -v zig
-    else
-        return 1
-    fi
-}
+# stock_zig_path / stock_zig_version: delegated to lib.sh
+stock_zig_path()    { cel_stock_zig_path; }
+stock_zig_version() { cel_stock_zig_version; }
 
-stock_zig_version() {
-    local path
-    path="$(stock_zig_path)" || return 1
-    "$path" version 2>/dev/null | tr -d '\r' | head -n 1
-}
-
-classify_stock_build_runner() {
-    local path
-    path="$(stock_zig_path)" || {
-        printf 'missing'
-        return 0
-    }
-
-    if [[ "$path" == "$ZIG_BIN" ]]; then
-        printf 'cel-active'
-        return 0
-    fi
-
-    local output
-    if output="$(cd "$REPO_ROOT" && zig build --help 2>&1 1>/dev/null)"; then
-        printf 'ok'
-        return 0
-    fi
-
-    if [[ "$output" == *"__availability_version_check"* || "$output" == *"undefined symbol:"* ]]; then
-        printf 'darwin-linker'
-        return 0
-    fi
-
-    printf 'failing'
-}
+# classify_stock_build_runner: delegated to lib.sh
+classify_stock_build_runner() { cel_classify_build_runner; }
 
 print_stock_zig_status() {
     local expected
@@ -218,22 +178,9 @@ print_next_action() {
     info "Next action:       ./tools/scripts/cel_migrate.sh --check"
 }
 
-job_count() {
-    local jobs
-    jobs="${CMAKE_JOBS:-$(( ($(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4) + 1) / 2 ))}"
-    [[ "$jobs" -lt 1 ]] && jobs=1
-    printf '%s' "$jobs"
-}
-
-bootstrap_host_zig_required() {
-    [[ "$(uname -s)" == "Darwin" ]] || return 1
-
-    local os_ver major
-    os_ver="$(sw_vers -productVersion 2>/dev/null || echo 0)"
-    major="${os_ver%%.*}"
-    [[ "$major" =~ ^[0-9]+$ ]] || return 1
-    (( major >= CEL_MIN_MACOS_MAJOR ))
-}
+# job_count / bootstrap_host_zig_required: delegated to lib.sh
+job_count() { cel_job_count; }
+bootstrap_host_zig_required() { cel_is_blocked_darwin; }
 
 load_bootstrap_host_zig_version() {
     [[ -f "$BOOTSTRAP_ROOT/build" ]] || return 0

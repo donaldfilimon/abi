@@ -168,12 +168,21 @@ pub fn addCelCheckStep(b: *std.Build) *std.Build.Step {
     return step;
 }
 
-/// Add a `cel-build` build step that triggers the CEL toolchain build.
-pub fn addCelBuildStep(b: *std.Build) *std.Build.Step {
-    const step = b.step("cel-build", "Build the .cel patched Zig toolchain and ZLS from source");
+/// Helper: create a build step that delegates to .cel/build.sh with an optional flag.
+fn addCelShellStep(b: *std.Build, name: []const u8, desc: []const u8, flag: ?[]const u8) *std.Build.Step {
+    const step = b.step(name, desc);
 
-    const cmd = b.addSystemCommand(&.{
-        "sh", "-c",
+    const shell = if (flag) |f|
+        std.fmt.comptimePrint(
+            \\set -e
+            \\if [ -x ".cel/build.sh" ]; then
+            \\  exec ./.cel/build.sh {s}
+            \\else
+            \\  printf 'ERROR: .cel/build.sh not found\n' >&2
+            \\  exit 1
+            \\fi
+        , .{f})
+    else
         \\set -e
         \\if [ -x ".cel/build.sh" ]; then
         \\  exec ./.cel/build.sh
@@ -181,48 +190,26 @@ pub fn addCelBuildStep(b: *std.Build) *std.Build.Step {
         \\  printf 'ERROR: .cel/build.sh not found\n' >&2
         \\  exit 1
         \\fi
-    });
+    ;
 
+    const cmd = b.addSystemCommand(&.{ "sh", "-c", shell });
     step.dependOn(&cmd.step);
     return step;
+}
+
+/// Add a `cel-build` build step that triggers the CEL toolchain build.
+pub fn addCelBuildStep(b: *std.Build) *std.Build.Step {
+    return addCelShellStep(b, "cel-build", "Build the .cel patched Zig toolchain and ZLS from source", null);
 }
 
 /// Add a `cel-status` step that runs .cel/build.sh --status.
 pub fn addCelStatusStep(b: *std.Build) *std.Build.Step {
-    const step = b.step("cel-status", "Show detailed .cel toolchain build status");
-
-    const cmd = b.addSystemCommand(&.{
-        "sh", "-c",
-        \\set -e
-        \\if [ -x ".cel/build.sh" ]; then
-        \\  exec ./.cel/build.sh --status
-        \\else
-        \\  printf 'ERROR: .cel/build.sh not found\n' >&2
-        \\  exit 1
-        \\fi
-    });
-
-    step.dependOn(&cmd.step);
-    return step;
+    return addCelShellStep(b, "cel-status", "Show detailed .cel toolchain build status", "--status");
 }
 
 /// Add a `cel-verify` step that runs .cel/build.sh --verify.
 pub fn addCelVerifyStep(b: *std.Build) *std.Build.Step {
-    const step = b.step("cel-verify", "Verify .cel patched Zig/ZLS binaries are ready");
-
-    const cmd = b.addSystemCommand(&.{
-        "sh", "-c",
-        \\set -e
-        \\if [ -x ".cel/build.sh" ]; then
-        \\  exec ./.cel/build.sh --verify
-        \\else
-        \\  printf 'ERROR: .cel/build.sh not found\n' >&2
-        \\  exit 1
-        \\fi
-    });
-
-    step.dependOn(&cmd.step);
-    return step;
+    return addCelShellStep(b, "cel-verify", "Verify .cel patched Zig/ZLS binaries are ready", "--verify");
 }
 
 /// Emit a build-time note suggesting CEL when on a blocked Darwin host.

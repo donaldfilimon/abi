@@ -87,6 +87,7 @@ Set `CMAKE_JOBS=N` to control parallel build jobs (defaults to nproc/2).
 | `001-darwin26-force-lld.patch` | Force LLVM backend on Darwin 26+ hosts |
 | `002-sdk-version-clamp.patch` | Force LLD on Darwin 26+ even if use_llvm=false |
 | `003-macho-segment-ordering.patch` | Restore synthetic `__*_ZIG` segment load-command ordering to match vmaddr order |
+| `004-darwin26-force-stage3-build-runner-lld.patch` | Force LLD on stage3 build runner CMake config |
 
 ## Updating the Upstream Pin
 
@@ -134,8 +135,9 @@ the upstream `zig2` build runner.
   README.md          # This file
   patches/           # Patch files applied in lexicographic order
     001-*.patch
-    002-*.patch
+    /002-*.patch
     003-*.patch
+    004-*.patch
   bin/               # Build output (git-ignored)
     zig              # Patched Zig binary
     zls              # ZLS built with CEL Zig

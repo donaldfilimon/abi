@@ -22,51 +22,27 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CEL_DIR="$REPO_ROOT/.cel"
-CEL_ZIG="$CEL_DIR/bin/zig"
-CEL_ZLS="$CEL_DIR/bin/zls"
-BOOTSTRAP_HOST_ZIG="$REPO_ROOT/zig-bootstrap-emergency/out/host/bin/zig"
-EXPECTED_ZIG_VERSION="$(tr -d '[:space:]' < "$REPO_ROOT/.zigversion" 2>/dev/null || true)"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-NC='\033[0m' # No Color
+# Source shared helpers (config.sh sets ZIG_VERSION, CEL_MIN_MACOS_MAJOR, etc.)
+source "$CEL_DIR/config.sh"
+source "$CEL_DIR/lib.sh"
 
-info()  { printf "${BLUE}[cel-migrate]${NC} %s\n" "$*"; }
-ok()    { printf "${GREEN}[cel-migrate]${NC} %s\n" "$*"; }
-warn()  { printf "${YELLOW}[cel-migrate]${NC} %s\n" "$*"; }
-error() { printf "${RED}[cel-migrate]${NC} %s\n" "$*" >&2; }
+CEL_ZIG="$CEL_DIR/bin/$(cel_binary_name zig)"
+CEL_ZLS="$CEL_DIR/bin/$(cel_binary_name zls)"
+BOOTSTRAP_HOST_ZIG="$REPO_ROOT/zig-bootstrap-emergency/out/host/bin/$(cel_binary_name zig)"
+EXPECTED_ZIG_VERSION="$(cel_expected_zig_version || true)"
+
+# Logging aliases with [cel-migrate] prefix
+info()  { printf "\033[1;34m[cel-migrate]\033[0m %s\n" "$*"; }
+ok()    { printf "\033[0;32m[cel-migrate]\033[0m %s\n" "$*"; }
+warn()  { printf "\033[1;33m[cel-migrate]\033[0m %s\n" "$*"; }
+error() { printf "\033[1;31m[cel-migrate]\033[0m %s\n" "$*" >&2; }
 die()   { error "$@"; exit 1; }
 
-stock_zig_path() {
-    if command -v zig >/dev/null 2>&1; then
-        command -v zig
-    else
-        return 1
-    fi
-}
-
-stock_zig_version() {
-    local path
-    path="$(stock_zig_path)" || return 1
-    "$path" version 2>/dev/null | tr -d '\r' | head -n 1
-}
-
-probe_stock_build_runner() {
-    local output
-    if output="$(cd "$REPO_ROOT" && zig build --help 2>&1 1>/dev/null)"; then
-        printf 'ok'
-        return 0
-    fi
-
-    if [[ "$output" == *"__availability_version_check"* || "$output" == *"undefined symbol:"* ]]; then
-        printf 'darwin-linker'
-    else
-        printf 'failing'
-    fi
-}
+# Delegate to lib.sh
+stock_zig_path()          { cel_stock_zig_path; }
+stock_zig_version()       { cel_stock_zig_version; }
+probe_stock_build_runner() { cel_classify_build_runner; }
 
 report_stock_zig() {
     info "Step 2a: Inspecting stock Zig"
