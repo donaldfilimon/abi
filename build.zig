@@ -55,18 +55,35 @@ pub fn build(b: *std.Build) void {
     const build_opts = modules.createBuildOptionsModule(b, options);
 
     const wdbx_module = b.addModule("wdbx", .{
-        .root_source_file = b.path("src/wdbx/wdbx.zig"),
+        .root_source_file = b.path("src/core/database/wdbx.zig"),
         .target = target,
         .optimize = optimize,
     });
 
+    const shared_services_module = b.addModule("shared_services", .{
+        .root_source_file = b.path("src/services/shared/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    shared_services_module.addImport("build_options", build_opts);
+
+    const util_module = b.addModule("util", .{
+        .root_source_file = b.path("tools/scripts/util.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    wdbx_module.addImport("build_options", build_opts);
+    wdbx_module.addImport("shared_services", shared_services_module);
+
     const abi_module = b.addModule("abi", .{
-        .root_source_file = b.path("src/abi.zig"),
+        .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
     abi_module.addImport("build_options", build_opts);
     abi_module.addImport("wdbx", wdbx_module);
+    abi_module.addImport("shared_services", shared_services_module);
 
     // ── CLI executable ──────────────────────────────────────────────────
     const exe = b.addExecutable(.{
@@ -119,6 +136,7 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     cli_root_mod.addImport("abi", abi_module);
+    cli_root_mod.addImport("shared_services", shared_services_module);
 
     const cli_test_mod = b.createModule(.{
         .root_source_file = b.path("build/cli_tui_tests_root.zig"),
@@ -201,10 +219,10 @@ pub fn build(b: *std.Build) void {
         typecheck_step = b.step("typecheck", "Compile tests without running");
         typecheck_step.?.dependOn(&tests.step);
 
-        if (targets.pathExists(b, "src/wdbx/wdbx.zig")) {
+        if (targets.pathExists(b, "src/core/database/wdbx.zig")) {
             const neural_wdbx_tests = b.addTest(.{
                 .root_module = b.createModule(.{
-                    .root_source_file = b.path("src/wdbx/wdbx.zig"),
+                    .root_source_file = b.path("src/core/database/wdbx.zig"),
                     .target = target,
                     .optimize = optimize,
                     .link_libc = true,
@@ -223,6 +241,8 @@ pub fn build(b: *std.Build) void {
                 .optimize = optimize,
                 .link_libc = true,
             });
+            wdbx_fast_tests_mod.addImport("wdbx", wdbx_module);
+            wdbx_fast_tests_mod.addImport("build_options", build_opts);
 
             const wdbx_fast_tests = b.addTest(.{
                 .root_module = wdbx_fast_tests_mod,
@@ -262,57 +282,62 @@ pub fn build(b: *std.Build) void {
 
     // ── Import rule check ───────────────────────────────────────────────
     const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
-    import_check_step.dependOn(addValidationScriptStep(
+    import_check_step.dependOn(addHostScriptStep(
         b,
         "abi-check-import-rules",
         "tools/scripts/check_import_rules.zig",
         target,
         optimize,
         &.{},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     // ── Consistency checks ──────────────────────────────────────────────
     const toolchain_doctor_step = b.step("toolchain-doctor", "Diagnose local Zig PATH/version drift against repository pin");
-    toolchain_doctor_step.dependOn(addHostScriptStep(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize, &.{}));
+    toolchain_doctor_step.dependOn(addHostScriptStep(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
 
     const check_zig_version_step = b.step("check-zig-version", "Verify Zig version consistency");
-    check_zig_version_step.dependOn(addValidationScriptStep(
+    check_zig_version_step.dependOn(addHostScriptStep(
         b,
         "abi-check-zig-version-consistency",
         "tools/scripts/check_zig_version_consistency.zig",
         target,
         optimize,
         &.{},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     const check_test_baseline_step = b.step("check-test-baseline", "Verify test baseline consistency");
-    check_test_baseline_step.dependOn(addValidationScriptStep(
+    check_test_baseline_step.dependOn(addHostScriptStep(
         b,
         "abi-check-test-baseline-consistency",
         "tools/scripts/check_test_baseline_consistency.zig",
         target,
         optimize,
         &.{},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     const check_zig_016_patterns_step = b.step("check-zig-016-patterns", "Verify Zig 0.16 conformance patterns");
-    check_zig_016_patterns_step.dependOn(addValidationScriptStep(
+    check_zig_016_patterns_step.dependOn(addHostScriptStep(
         b,
         "abi-check-zig-016-patterns",
         "tools/scripts/check_zig_016_patterns.zig",
         target,
         optimize,
         &.{},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     const check_feature_catalog_step = b.step("check-feature-catalog", "Verify feature catalog consistency");
-    check_feature_catalog_step.dependOn(addValidationScriptStep(
+    check_feature_catalog_step.dependOn(addHostScriptStep(
         b,
         "abi-check-feature-catalog",
         "tools/scripts/check_feature_catalog.zig",
         target,
         optimize,
         &.{},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     var check_gpu_policy_step: ?*std.Build.Step = null;
@@ -349,26 +374,28 @@ pub fn build(b: *std.Build) void {
     }
 
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
-    ralph_gate_step.dependOn(addHostScriptStep(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize, &.{}));
+    ralph_gate_step.dependOn(addHostScriptStep(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
 
     const workflow_contract_step = b.step("check-workflow-orchestration", "Advisory workflow-orchestration contract checks");
-    workflow_contract_step.dependOn(addValidationScriptStep(
+    workflow_contract_step.dependOn(addHostScriptStep(
         b,
         "abi-check-workflow-orchestration",
         "tools/scripts/check_workflow_orchestration.zig",
         target,
         optimize,
         &.{},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     const workflow_contract_strict_step = b.step("check-workflow-orchestration-strict", "Strict workflow-orchestration contract checks");
-    workflow_contract_strict_step.dependOn(addValidationScriptStep(
+    workflow_contract_strict_step.dependOn(addHostScriptStep(
         b,
         "abi-check-workflow-orchestration-strict",
         "tools/scripts/check_workflow_orchestration.zig",
         target,
         optimize,
         &.{"--strict"},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     // ── Zig bootstrap steps ──────────────────────────────────────────────
@@ -382,10 +409,10 @@ pub fn build(b: *std.Build) void {
     _ = cel.addCelVerifyStep(b);
 
     const zig_bootstrap_doctor_step = b.step("zig-bootstrap-doctor", "Run Zig bootstrap diagnostics and remediation");
-    zig_bootstrap_doctor_step.dependOn(addHostScriptStep(b, "abi-zig-bootstrap-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}));
+    zig_bootstrap_doctor_step.dependOn(addHostScriptStep(b, "abi-zig-bootstrap-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
 
     const cel_doctor_step = b.step("cel-doctor", "Deprecated alias for zig-bootstrap-doctor");
-    cel_doctor_step.dependOn(addHostScriptStep(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}));
+    cel_doctor_step.dependOn(addHostScriptStep(b, "abi-cel-doctor", "tools/scripts/cel_doctor.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
 
     // ── CLI DSL registry/codegen ───────────────────────────────────────
     const generate_cli_registry_step = b.step("generate-cli-registry", "Generate CLI registry artifact in build cache");
@@ -396,6 +423,7 @@ pub fn build(b: *std.Build) void {
         target,
         optimize,
         &.{ "--output", ".zig-cache/abi/generated/cli_registry.zig" },
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
@@ -406,26 +434,29 @@ pub fn build(b: *std.Build) void {
         target,
         optimize,
         &.{"--snapshot"},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
-    check_cli_registry_step.dependOn(addValidationScriptStep(
+    check_cli_registry_step.dependOn(addHostScriptStep(
         b,
         "abi-check-cli-registry",
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
         &.{ "--check", "--snapshot" },
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     const check_cli_dsl_consistency_step = b.step("check-cli-dsl-consistency", "Verify CLI/TUI DSL organization contracts");
-    check_cli_dsl_consistency_step.dependOn(addValidationScriptStep(
+    check_cli_dsl_consistency_step.dependOn(addHostScriptStep(
         b,
         "abi-check-cli-dsl-consistency",
         "tools/scripts/check_cli_dsl_consistency.zig",
         target,
         optimize,
         &.{},
+        &.{.{ .name = "util", .module = util_module }},
     ));
 
     // ── Full check ──────────────────────────────────────────────────────
@@ -652,7 +683,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── V3 Refactored Modules ─────────────────────────────────────────
-    // New flat module structure: root.zig → wdbx/, personas/, inference/, api_server/
+    // New flat module structure: root.zig → core/database/, personas/, inference/, api_server/
 
     // Helper: create a v3 root module with abi and wdbx imports wired in.
     const v3_root_mod = b.createModule(.{
@@ -781,48 +812,6 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
     return b.resolveTargetQuery(query);
 }
 
-/// Build and run a standalone Zig script (used for generators, doctors,
-/// commands, and gates that still execute on the active host).
-fn addHostScriptStep(
-    b: *std.Build,
-    name: []const u8,
-    source: []const u8,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    args: []const []const u8,
-) *std.Build.Step {
-    if (is_blocked_darwin) {
-        return addScriptCompileOnly(b, name, source, target, optimize);
-    }
-
-    const run = addScriptRunner(b, name, source, target, optimize);
-    for (args) |arg| run.addArg(arg);
-    return &run.step;
-}
-
-fn addScriptRunner(
-    b: *std.Build,
-    name: []const u8,
-    source: []const u8,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-) *std.Build.Step.Run {
-    const exe = b.addExecutable(.{
-        .name = name,
-        .root_module = b.createModule(.{
-            .root_source_file = b.path(source),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-    });
-
-    if (is_blocked_darwin) {
-        exe.use_llvm = true;
-    }
-    return b.addRunArtifact(exe);
-}
-
 /// Get just the compile step from a script runner (for blocked Darwin where
 /// the host cannot execute standalone Zig validation binaries reliably).
 fn addScriptCompileOnly(
@@ -845,6 +834,45 @@ fn addScriptCompileOnly(
     return &obj.step;
 }
 
+fn addHostScriptStep(
+    b: *std.Build,
+    name: []const u8,
+    source: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    args: []const []const u8,
+    deps: []const struct { name: []const u8, module: *std.Build.Module },
+) *std.Build.Step {
+    if (is_blocked_darwin) {
+        const obj = b.addObject(.{
+            .name = name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(source),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            }),
+        });
+        for (deps) |dep| obj.root_module.addImport(dep.name, dep.module);
+        obj.use_llvm = true;
+        return &obj.step;
+    }
+
+    const exe = b.addExecutable(.{
+        .name = name,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(source),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    for (deps) |dep| exe.root_module.addImport(dep.name, dep.module);
+    const run = b.addRunArtifact(exe);
+    for (args) |arg| run.addArg(arg);
+    return &run.step;
+}
+
 fn addValidationScriptStep(
     b: *std.Build,
     name: []const u8,
@@ -853,11 +881,5 @@ fn addValidationScriptStep(
     optimize: std.builtin.OptimizeMode,
     args: []const []const u8,
 ) *std.Build.Step {
-    if (is_blocked_darwin) {
-        return addScriptCompileOnly(b, name, source, target, optimize);
-    }
-
-    const run = addScriptRunner(b, name, source, target, optimize);
-    for (args) |arg| run.addArg(arg);
-    return &run.step;
+    return addHostScriptStep(b, name, source, target, optimize, args, &.{});
 }

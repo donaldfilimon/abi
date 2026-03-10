@@ -12,19 +12,15 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
 const types = @import("types");
 const config = @import("../config");
-const core_types = @import("types");
 const agent_mod = @import("agents");
 
-// Import enhanced modules
 pub const classifier_mod = @import("classifier");
 pub const knowledge_mod = @import("knowledge");
 pub const code_mod = @import("code");
 pub const facts_mod = @import("facts");
 
-// Re-export key types
 pub const QueryClassifier = classifier_mod.QueryClassifier;
 pub const QueryType = classifier_mod.QueryType;
 pub const ClassificationResult = classifier_mod.ClassificationResult;
@@ -173,13 +169,7 @@ pub const AvivaPersona = struct {
         if (classification.query_type.recommendsCodeBlock()) {
             // Check if response contains code and format it
             const validation = self.code_generator.validateStructure(raw_response, classification.language);
-            if (!validation.is_valid) {
-                // Log the error message for debugging if available
-                // In production, could attempt to fix formatting issues here
-                if (validation.error_message) |_| {
-                    // Could log: validation error
-                }
-            }
+            _ = validation;
         }
 
         // Step 5: Fact check the response
@@ -226,9 +216,8 @@ pub const AvivaPersona = struct {
         }
 
         // Add sources if knowledge was retrieved
-        if (knowledge_context != null and self.config.cite_sources) {
-            const sources = knowledge_context.?;
-            if (sources.len > 0) {
+        if (knowledge_context) |sources| {
+            if (self.config.cite_sources and sources.len > 0) {
                 var refs = try self.allocator.alloc(types.Source, sources.len);
                 for (sources, 0..) |frag, i| {
                     refs[i] = .{
@@ -280,29 +269,6 @@ pub const AvivaPersona = struct {
                 .getName = @ptrCast(&getName),
                 .getType = @ptrCast(&getType),
             },
-        };
-    }
-
-    /// Internal helper to get language name.
-    fn getLanguageName(self: *const Self, language: Language) []const u8 {
-        _ = self;
-        return switch (language) {
-            .zig => "zig",
-            .rust => "rust",
-            .python => "python",
-            .javascript => "javascript",
-            .typescript => "typescript",
-            .go => "go",
-            .c => "c",
-            .cpp => "cpp",
-            .java => "java",
-            .csharp => "csharp",
-            .ruby => "ruby",
-            .sql => "sql",
-            .bash => "bash",
-            .html => "html",
-            .css => "css",
-            .unknown => "",
         };
     }
 };

@@ -5,14 +5,11 @@
 //! so that callers compile regardless of the `feat_database` build flag.
 
 const std = @import("std");
-const stub_context = @import("../../core/stub_context");
 const core_config = @import("../../core/config/database");
 
 pub const DatabaseConfig = core_config.DatabaseConfig;
 
-// ============================================================================
-// Error types
-// ============================================================================
+// --- Error types ---
 
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,
@@ -29,9 +26,7 @@ pub const DatabaseError = error{
     ReadError,
 };
 
-// ============================================================================
-// Core types
-// ============================================================================
+// --- Core types ---
 
 pub const DatabaseHandle = struct {
     _unused: u8 = 0,
@@ -81,9 +76,7 @@ pub const ProductQuantizer = struct {
     _unused: u8 = 0,
 };
 
-// ============================================================================
-// Context (framework integration)
-// ============================================================================
+// --- Context (framework integration) ---
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -127,9 +120,7 @@ pub const Context = struct {
     }
 };
 
-// ============================================================================
-// Module-level functions
-// ============================================================================
+// --- Module-level functions ---
 
 pub fn init(_: std.mem.Allocator) !void {
     return DatabaseFeatureError.DatabaseDisabled;
@@ -229,35 +220,30 @@ pub fn openOrCreate(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
     return error.DatabaseDisabled;
 }
 
-// ============================================================================
-// Sub-module stubs (parity with core/database/mod.zig)
-// ============================================================================
+// --- Sub-module stubs (parity with core/database/mod.zig) ---
 
-/// Stub sub-module providing empty namespace.
-fn StubSubmodule() type {
-    return struct {};
-}
+const EmptyStub = struct {};
 
-pub const engine = StubSubmodule();
-pub const hnsw = StubSubmodule();
-pub const distance = StubSubmodule();
-pub const simd = StubSubmodule();
-pub const quantize = StubSubmodule();
-pub const batch = StubSubmodule();
-pub const fulltext = StubSubmodule();
-pub const wdbx = StubSubmodule();
-pub const hybrid = StubSubmodule();
-pub const filter = StubSubmodule();
-pub const clustering = StubSubmodule();
-pub const formats = StubSubmodule();
-pub const index = StubSubmodule();
-pub const quantization = StubSubmodule();
-pub const parallel_hnsw = StubSubmodule();
-pub const parallel_search = StubSubmodule();
-pub const database = StubSubmodule();
-pub const storage = StubSubmodule();
-pub const cli = StubSubmodule();
-pub const neural = StubSubmodule();
+pub const engine = EmptyStub;
+pub const hnsw = EmptyStub;
+pub const distance = EmptyStub;
+pub const simd = EmptyStub;
+pub const quantize = EmptyStub;
+pub const batch = EmptyStub;
+pub const fulltext = EmptyStub;
+pub const wdbx = EmptyStub;
+pub const hybrid = EmptyStub;
+pub const filter = EmptyStub;
+pub const clustering = EmptyStub;
+pub const formats = EmptyStub;
+pub const index = EmptyStub;
+pub const quantization = EmptyStub;
+pub const parallel_hnsw = EmptyStub;
+pub const parallel_search = EmptyStub;
+pub const database = EmptyStub;
+pub const storage = EmptyStub;
+pub const cli = EmptyStub;
+pub const neural = EmptyStub;
 
 const root = @This();
 
@@ -311,19 +297,17 @@ pub const semantic_store = struct {
         trace: InfluenceTrace = .{},
     };
 
-    const Self = @This();
-
-    pub fn openStore(_: std.mem.Allocator, _: []const u8) !Self.StoreHandle {
+    pub fn openStore(_: std.mem.Allocator, _: []const u8) !StoreHandle {
         return error.DatabaseDisabled;
     }
 
-    pub fn closeStore(_: *Self.StoreHandle) void {}
+    pub fn closeStore(_: *StoreHandle) void {}
 
-    pub fn storeVector(_: *Self.StoreHandle, _: u64, _: []const f32, _: ?[]const u8) !void {
+    pub fn storeVector(_: *StoreHandle, _: u64, _: []const f32, _: ?[]const u8) !void {
         return error.DatabaseDisabled;
     }
 
-    pub fn searchStore(_: *Self.StoreHandle, _: std.mem.Allocator, _: []const f32, _: usize) ![]Self.SearchResult {
+    pub fn searchStore(_: *StoreHandle, _: std.mem.Allocator, _: []const f32, _: usize) ![]SearchResult {
         return error.DatabaseDisabled;
     }
 };
