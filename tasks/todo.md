@@ -2,6 +2,19 @@
 
 Active task tracker. Use `git add -f tasks/todo.md` to stage.
 
+## Active — Main Integration Cleanup (2026-03-10 14:38 EDT)
+
+- [x] Consensus status: best-effort tri-CLI wrapper unavailable; `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` is missing locally.
+- [x] Parked untracked `tools/synthetic_pipeline/` outside the merge path in stash entry `park synthetic pipeline before main merge`.
+- [x] Verified `origin/main` already contains PR #485 as merge commit `28af94db` on 2026-03-10.
+- [x] Reviewed the remaining branch tail against `origin/main`: keep `997f3143` and `8c9b3ee4`; drop junk-only commit `6ffa7483` (`.!94407!test_link`, `full-check-current.txt`, `full-check-output.txt`, `zls.json`).
+- [x] Clean replay validation on `codex/main-integration-cleanup`: `zig fmt --check` passed for retained Zig diffs, `git diff --check` passed after removing the stray `.gitignore` blank-line regression, and compile-only `zig build-obj -fno-emit-bin` probes passed for `src/core/mod.zig`, `src/features/database/mod.zig`, `src/features/database/stub.zig`, `src/services/mcp/mod.zig`, `src/core/database_fast_tests_root.zig`, and `src/root.zig`.
+- [x] Validation evidence remains blocked in this environment: local `zig build` gates still hit the known Darwin linker failure, `.cel/build.sh --zig-only` failed during stage3 Zig bootstrap on this host, and GitHub Actions run `22911876542` could not provide Linux gate results because the account is billing-locked (`Test Suite`, `Examples`, and `Quality Gates` skipped).
+- [ ] Replay the clean branch-tail commits onto `main` and push.
+- [ ] Delete `fix/codebase-quality-sweep` locally and on `origin` after `main` contains the cleaned changes.
+- [ ] Delete merged remote branches `origin/claude/init-project-setup-TcKbR`, `origin/codex/agent-a761c502-reviewable`, and `origin/feat/agnts-consolidation`.
+- [ ] Restore or relocate the parked `tools/synthetic_pipeline/` work after branch cleanup.
+
 ## Next Phase — Release & Scale
 
 - [ ] **CI Restoration**: Push to main and verify GitHub Actions pass on Linux
@@ -9,7 +22,6 @@ Active task tracker. Use `git add -f tasks/todo.md` to stage.
 - [ ] **API Expansion**: Implement missing OpenAI-compatible streaming endpoints
 - [ ] **CEL Toolchain**: Build Zig from source on Darwin 25+ for native linking
 - [ ] **Plugin Registry**: Push `zig-abi-plugin` to the official Claude Code registry
-- [ ] **Merge PR #485** to main (commit `68dcf34c` on branch `fix/codebase-quality-sweep`)
 
 ## Backlog
 
@@ -34,6 +46,7 @@ All 5 waves committed on branch `fix/codebase-quality-sweep`:
 - [x] Wave 5: AI integration bridges, mod/stub parity, doc updates, validation matrix fixes
 - [x] Commit `68dcf34c` — 1081 files changed, +5157/-10927 lines
 - [x] PR #485 updated with full change list
+- [x] PR #485 merged to `origin/main` as merge commit `28af94db` on 2026-03-10.
 
 #### AI Integration (Wave 5)
 - [x] `feedback/learning_bridge.zig` — FeedbackSystem → SelfLearningSystem closed loop
