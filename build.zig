@@ -805,6 +805,24 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
 
 /// Build and run a standalone Zig script (used for generators, doctors,
 /// commands, and gates that still execute on the active host).
+fn addHostScriptStep(
+    b: *std.Build,
+    name: []const u8,
+    source: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    args: []const []const u8,
+) *std.Build.Step {
+    const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
+    if (is_blocked_darwin) {
+        return addScriptCompileOnly(b, name, source, target, optimize);
+    }
+
+    const run = addScriptRunner(b, name, source, target, optimize);
+    for (args) |arg| run.addArg(arg);
+    return &run.step;
+}
+
 fn addScriptRunner(
     b: *std.Build,
     name: []const u8,
@@ -821,6 +839,7 @@ fn addScriptRunner(
             .link_libc = true,
         }),
     });
+    const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
     if (is_blocked_darwin) {
         exe.use_llvm = true;
     }
