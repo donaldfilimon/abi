@@ -126,17 +126,8 @@ fn runBootstrapSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !voi
     }
     try expectNoTrailingArgs(parser, "bootstrap");
 
-    output.printHeader("Bootstrap Zig Emergency Bootstrap");
-    output.printInfo("Compiling and running tools/scripts/emergency_bootstrap.c", .{});
-    try runCommand(allocator, &.{
-        "sh",
-        "-c",
-        \\set -e
-        \\tmp="${TMPDIR:-/tmp}/abi-emergency-bootstrap.$$"
-        \\cc tools/scripts/emergency_bootstrap.c -o "$tmp"
-        \\"$tmp"
-        \\rm -f "$tmp"
-    });
+    output.printHeader("Bootstrap Zig");
+    output.printInfo("Use `abi bootstrap-zig bootstrap` to initialize the toolchain.", .{});
 }
 
 fn runBuildSubcommand(

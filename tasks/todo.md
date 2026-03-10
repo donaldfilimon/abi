@@ -12,6 +12,22 @@ a new plan when starting a wave.
 
 ## Active Queue
 
+### Completed - Phase 4 Rollout Plan & Codebase Cleanup (2026-03-10)
+
+#### Objective
+Apply follow-up edits to update AGENTS.md with the drafted Phase 4 Rollout plan and cleanup all files that are useless, old, or could be combined.
+
+#### Plan
+- [x] Update AGENTS.md with Phase 4 Rollout plan.
+- [x] Delete deprecated C test bindings (`examples/c_test.c`).
+- [x] Delete unneeded macOS 26 workaround artifacts (`tools/scripts/emergency_bootstrap.c`).
+- [x] Ensure unused generated files are not tracked.
+- [x] Mark previously finished items (`Hosted Validation Recovery`, `Darwin Validation Consistency`) completed.
+
+#### Notes
+- `src/features/ai/personas/` remains in place to support `profiles` migration; its stubs were not merged to respect the strict `mod.zig` + `stub.zig` pairing rule described in `CLAUDE.md`.
+- All example workflows remain since they are covered strictly under `zig build examples`.
+
 ### In Progress - Tooling and File Cleanup Sweep (2026-03-10)
 
 #### Objective
