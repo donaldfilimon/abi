@@ -38,12 +38,13 @@ pub fn addWasmBuild(
 
     const wasm_build_opts = modules.createBuildOptionsModule(b, wasm_opts);
     const wasm_shared_services = modules.createSharedServicesModule(b, wasm_build_opts, wasm_target, optimize);
+    const wasm_core_module = modules.createCoreModule(b, wasm_target, optimize, wasm_build_opts);
     const abi_wasm = b.addModule("abi-wasm", .{
         .root_source_file = b.path("src/root.zig"),
         .target = wasm_target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(abi_wasm, wasm_build_opts, wasm_shared_services);
+    modules.wireAbiImports(abi_wasm, wasm_build_opts, wasm_shared_services, wasm_core_module);
     _ = abi_module;
 
     const wasm_lib = b.addExecutable(.{

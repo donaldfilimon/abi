@@ -81,8 +81,8 @@ REMOVED in 0.16. Pass parent context as parameters to submodule init functions i
 ### Named Module Imports
 When a file is registered as a named module root in `build.zig` (e.g., `wdbx`), NEVER import it via relative path from other modules. Use the named import:
 ```zig
-// WRONG — causes "file exists in modules 'wdbx' and 'abi'" error
-const wdbx = @import("wdbx");
+// WRONG — cross-directory relative import causes "file exists in modules 'wdbx' and 'abi'" error
+const wdbx = @import("../../wdbx/wdbx.zig");
 // CORRECT — uses the named module
 const wdbx = @import("wdbx");
 ```

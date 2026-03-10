@@ -21,3 +21,7 @@ pub const personas = profiles;
 pub fn init(_: std.mem.Allocator, _: config.AiConfig) !void {
     return error.AiDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

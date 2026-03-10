@@ -62,12 +62,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const core_module = modules.createCoreModule(b, target, optimize, build_opts);
+
     const abi_module = b.addModule("abi", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(abi_module, build_opts, shared_services_module);
+    modules.wireAbiImports(abi_module, build_opts, shared_services_module, core_module);
 
     // ── CLI executable ──────────────────────────────────────────────────
     const exe = b.addExecutable(.{
@@ -656,12 +658,13 @@ pub fn build(b: *std.Build) void {
         }
         const cross_build_opts = modules.createBuildOptionsModule(b, cross_opts);
         const cross_shared_services = modules.createSharedServicesModule(b, cross_build_opts, cross_target, optimize);
+        const cross_core_module = modules.createCoreModule(b, cross_target, optimize, cross_build_opts);
         const cross_abi_mod = b.createModule(.{
             .root_source_file = b.path("src/root.zig"),
             .target = cross_target,
             .optimize = optimize,
         });
-        modules.wireAbiImports(cross_abi_mod, cross_build_opts, cross_shared_services);
+        modules.wireAbiImports(cross_abi_mod, cross_build_opts, cross_shared_services, cross_core_module);
         const cross_lib = b.addLibrary(.{
             .name = "cross-" ++ ct.name,
             .root_module = cross_abi_mod,
@@ -679,7 +682,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(v3_root_mod, build_opts, shared_services_module);
+    modules.wireAbiImports(v3_root_mod, build_opts, shared_services_module, core_module);
 
     // V3 Static library
     const v3_lib = b.addLibrary(.{
@@ -715,7 +718,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(v3_test_mod, build_opts, shared_services_module);
+    modules.wireAbiImports(v3_test_mod, build_opts, shared_services_module, core_module);
 
     const v3_tests = b.addTest(.{
         .root_module = v3_test_mod,

@@ -9,7 +9,7 @@
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1290_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-1290_unit_%2B_2836_feature-brightgreen?logo=checkmarx&logoColor=white" alt="Tests: 1290 unit + 2836 feature"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
@@ -42,7 +42,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 1296 tests (1290 passing, 6 skip), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 1290 unit tests + 2836 feature tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -98,22 +98,24 @@ This is the first step toward replacing Zig as the mainline language while
 keeping Zig only as temporary bootstrap infrastructure.
 
 ```bash
-./cel check
-./cel run
-./cel test
+# Canonical CEL commands
+abi bootstrap-zig install             # Install pinned Zig version
+abi bootstrap-zig check               # Verify toolchain
+abi toolchain status                  # Compatibility alias
+
+# CEL stage-0 compiler
 ./cel check examples/cel/hello.cel
 ./cel run examples/cel/hello.cel
 ./cel test tests/cel/stage0_tests.cel
-abi bootstrap-zig install
 ```
 
 `cel.toml` is now the canonical package manifest for CEL stage-0. The current
 stable fields are package name/version, module root, stdlib root, entry, test
 roots, and toolchain mode.
 
-During the transition:
-- `abi bootstrap-zig ...` is the canonical Zig bridge surface.
-- `abi toolchain ...` remains as a compatibility alias for one migration wave.
+The canonical commands for Zig toolchain management are:
+- **`abi bootstrap-zig ...`** -- primary Zig bridge surface (install, check, status).
+- **`abi toolchain ...`** -- compatibility alias (will be removed in a future wave).
 - `.zig-bootstrap/` is the canonical wrapper namespace; the older `.cel/`
   tree remains only as the backing implementation for now.
 

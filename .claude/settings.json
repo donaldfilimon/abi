@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q 'features/.*\\.zig$'; then CONTENT=$(jq -r '(.tool_input.new_string // \"\") + (.tool_input.content // \"\")'); if echo \"$CONTENT\" | grep -q '@import(\"abi\")'; then echo '🚫 BLOCKED: @import(\"abi\") in features/ causes circular imports. Use relative imports to services/shared/ instead.' >&2; exit 1; fi; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q 'features/.*\\.zig$'; then CONTENT=$(jq -r '(.tool_input.new_string // \"\") + (.tool_input.content // \"\")'); if echo \"$CONTENT\" | grep -q '@import(\"abi\")'; then echo 'BLOCKED: @import(\"abi\") in features/ causes circular imports. Use relative imports to services/shared/ instead.' >&2; exit 1; fi; fi"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zigversion'; then echo '⚠ .zigversion edit detected — MUST also update atomically: build.zig.zon, tools/scripts/baseline.zig, README.md, .cel/config.sh, and CI config'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zigversion'; then echo 'WARNING: .zigversion edit detected — MUST also update atomically: build.zig.zon, tools/scripts/baseline.zig, README.md, .cel/config.sh, and CI config'; fi"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/mod\\.zig$'; then STUB=$(echo \"$FILE\" | sed 's/mod\\.zig$/stub.zig/'); [ -f \"$STUB\" ] && echo \"⚠ stub.zig exists alongside this mod.zig — remember to update $STUB to keep signatures in sync\" || true; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/mod\\.zig$'; then STUB=$(echo \"$FILE\" | sed 's/mod\\.zig$/stub.zig/'); [ -f \"$STUB\" ] && echo \"WARNING: stub.zig exists alongside this mod.zig — remember to update $STUB to keep signatures in sync\" || true; fi"
           }
         ]
       },
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/build/options\\.zig$'; then echo '⚠ build/options.zig changed — also update build/flags.zig (FlagCombo, validation_matrix, comboToBuildOptions)'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/build/options\\.zig$'; then echo 'WARNING: build/options.zig changed — also update build/flags.zig (FlagCombo, validation_matrix, comboToBuildOptions)'; fi"
           }
         ]
       },
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q 'feature_catalog\\.zig$'; then echo '⚠ feature_catalog.zig changed — also update: registry/types.zig (isFeatureCompiledIn), config/mod.zig (Feature enum, Config field), stub_parity.zig'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q 'feature_catalog\\.zig$'; then echo 'WARNING: feature_catalog.zig changed — also update: registry/types.zig (isFeatureCompiledIn), config/mod.zig (Feature enum, Config field), stub_parity.zig'; fi"
           }
         ]
       },
@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/stub\\.zig$'; then MOD=$(echo \"$FILE\" | sed 's/stub\\.zig$/mod.zig/'); [ -f \"$MOD\" ] && echo \"⚠ mod.zig exists alongside this stub.zig — verify $MOD doesn't need matching changes\" || true; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/stub\\.zig$'; then MOD=$(echo \"$FILE\" | sed 's/stub\\.zig$/mod.zig/'); [ -f \"$MOD\" ] && echo \"WARNING: mod.zig exists alongside this stub.zig — verify $MOD doesn't need matching changes\" || true; fi"
           }
         ]
       },
@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/build/flags\\.zig$'; then echo '⚠ build/flags.zig changed — also check build/options.zig (enable field + CLI option)'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/build/flags\\.zig$'; then echo 'WARNING: build/flags.zig changed — also check build/options.zig (enable field + CLI option)'; fi"
           }
         ]
       },
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '_test\\.zig$' && [ -f \"$FILE\" ] && grep -q 'comptime.*{.*_.*=.*@import' \"$FILE\" 2>/dev/null; then echo '⚠ Found comptime { _ = @import(...) } — use test { _ = @import(...); } for test discovery (comptime does NOT discover tests)'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '_test\\.zig$' && [ -f \"$FILE\" ] && grep -q 'comptime.*{.*_.*=.*@import' \"$FILE\" 2>/dev/null; then echo 'WARNING: Found comptime { _ = @import(...) } — use test { _ = @import(...); } for test discovery (comptime does NOT discover tests)'; fi"
           }
         ]
       },
@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/src/abi\\.zig$'; then echo '⚠ src/abi.zig changed — update examples/ and verify public API surface. Run: zig build test --summary all'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/src/abi\\.zig$'; then echo 'WARNING: src/abi.zig changed — update examples/ and verify public API surface. Run: zig build test --summary all'; fi"
           }
         ]
       },
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/tools/scripts/baseline\\.zig$'; then echo '⚠ Editing baseline.zig (source of truth for CI). Verify new numbers match actual test output. Run /baseline-sync after.'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/tools/scripts/baseline\\.zig$'; then echo 'WARNING: Editing baseline.zig (source of truth for CI). Verify new numbers match actual test output. Run /baseline-sync after.'; fi"
           }
         ]
       },
@@ -107,7 +107,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "COMMAND=$(jq -r '.tool_input.command // empty'); if echo \"$COMMAND\" | grep -qE 'zig build.*(feature-tests|test).*--summary'; then OUTPUT=$(jq -r '.tool_output // empty'); PASS=$(echo \"$OUTPUT\" | grep -oE '[0-9]+ pass' | head -1 | grep -oE '[0-9]+'); BASELINE_MAIN=$(grep test_main_pass tools/scripts/baseline.zig 2>/dev/null | grep -oE '[0-9]+'); BASELINE_FEAT=$(grep test_feature_pass tools/scripts/baseline.zig 2>/dev/null | grep -oE '[0-9]+'); if [ -n \"$PASS\" ] && [ -n \"$BASELINE_MAIN\" ] && [ \"$PASS\" != \"$BASELINE_MAIN\" ] && [ -n \"$BASELINE_FEAT\" ] && [ \"$PASS\" != \"$BASELINE_FEAT\" ]; then echo \"⚠ Test count $PASS differs from baselines (main=$BASELINE_MAIN, feature=$BASELINE_FEAT). Run /baseline-sync if counts changed.\"; fi; fi"
+            "command": "COMMAND=$(jq -r '.tool_input.command // empty'); if echo \"$COMMAND\" | grep -qE 'zig build.*(feature-tests|test).*--summary'; then OUTPUT=$(jq -r '.tool_output // empty'); PASS=$(echo \"$OUTPUT\" | grep -oE '[0-9]+ pass' | head -1 | grep -oE '[0-9]+'); BASELINE_MAIN=$(grep test_main_pass tools/scripts/baseline.zig 2>/dev/null | grep -oE '[0-9]+'); BASELINE_FEAT=$(grep test_feature_pass tools/scripts/baseline.zig 2>/dev/null | grep -oE '[0-9]+'); if [ -n \"$PASS\" ] && [ -n \"$BASELINE_MAIN\" ] && [ \"$PASS\" != \"$BASELINE_MAIN\" ] && [ -n \"$BASELINE_FEAT\" ] && [ \"$PASS\" != \"$BASELINE_FEAT\" ]; then echo \"WARNING: Test count $PASS differs from baselines (main=$BASELINE_MAIN, feature=$BASELINE_FEAT). Run /baseline-sync if counts changed.\"; fi; fi"
           }
         ]
       }
