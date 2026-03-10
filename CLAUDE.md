@@ -21,7 +21,7 @@ zig build cli-tests                          # CLI unit tests
 zig build tui-tests                          # TUI unit tests
 zig build launcher-tests                     # Shell/launcher tests
 zig build wdbx-fast-tests                    # WDBX vector database tests
-zig build validate-flags                     # Check 40 feature flag combos
+zig build validate-flags                     # Check 39 feature flag combos (mobile gap pending)
 zig build lint                               # Check formatting
 zig build fix                                # Auto-format
 

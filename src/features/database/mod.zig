@@ -18,7 +18,9 @@ pub const filter = @import("filter.zig");
 pub const wdbx = @import("wdbx.zig");
 
 /// Neural vector engine surface (ANN/HNSW internals and engine API).
-pub const neural = @import("../../wdbx/wdbx.zig");
+/// Uses the named 'wdbx' module registered in build.zig (not a relative path)
+/// to avoid module conflict — a file can only belong to one Zig module.
+pub const neural = @import("wdbx");
 
 /// Additional public modules still used by in-tree callers.
 pub const cli = @import("cli.zig");

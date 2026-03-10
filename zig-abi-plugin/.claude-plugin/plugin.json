@@ -1,0 +1,9 @@
+{
+  "name": "zig-abi",
+  "version": "0.2.0",
+  "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, cross-module import validation, and real-time verification for the ABI Zig codebase.",
+  "author": {
+    "name": "Donald Filimon"
+  },
+  "keywords": ["zig", "abi", "build", "validation", "feature-gating"]
+}

@@ -159,6 +159,9 @@ perf.data*
 !.claude/agents/**
 !.claude/settings.json
 .claude-plugin/
+# But allow plugin manifests inside zig-abi-plugin/
+!/zig-abi-plugin/.claude-plugin/
+!/zig-abi-plugin/.claude-plugin/**
 
 # ── Local task tracking (agent notes) ────────────────────────────────
 /tasks/
@@ -277,6 +280,7 @@ zig-bootstrap-emergency/
 .cel/out/
 .cel-stage0/
 !/.cel/README.md
+!/zig-abi-plugin/**/*.md
 
 # ── Local one-off artifacts ──────────────────────────────────────────
 .zig-global-cache/

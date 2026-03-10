@@ -5,7 +5,7 @@
       "hooks": [
         {
           "type": "prompt",
-          "prompt": "If this edit modified a file matching `src/features/*/mod.zig`, remind the user: 'Remember to update the matching stub.zig with the same public function signatures. Run /zig-abi:check stub-sync to verify.' Only warn if the file path matches that pattern — otherwise say nothing and output empty string."
+          "prompt": "Check the edit for TWO patterns:\n1. If this edit modified a file matching `src/features/*/mod.zig`, remind: 'Remember to update the matching stub.zig with the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n2. If this edit introduced `@import(\"../../wdbx/` or any relative path to `wdbx.zig` from within `src/features/`, warn: 'Use `@import(\"wdbx\")` (named module) instead of a relative path to avoid module conflict.'\nOnly warn if matched — otherwise output empty string."
         }
       ]
     }

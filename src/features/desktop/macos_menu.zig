@@ -45,7 +45,7 @@ pub const MacMenu = struct {
     /// Spawns the native NSStatusItem. Does nothing on non-macOS systems.
     pub fn spawn(self: *MacMenu, title: [:0]const u8) !void {
         if (builtin.os.tag != .macos) {
-            std.log.info("Native macOS menu bar integration is disabled on {t}.", .{builtin.os.tag});
+            std.log.info("Native macOS menu bar integration is disabled on {}.", .{builtin.os.tag});
             return;
         }
 
