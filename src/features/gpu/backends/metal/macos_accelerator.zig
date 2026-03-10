@@ -132,7 +132,7 @@ pub const MacOSAccelerator = struct {
         if (comptime builtin.os.tag != .macos) return error.PlatformNotSupported;
 
         // MTLCreateSystemDefaultDevice() returns an MTLDevice ID
-        const create_device = @extern(*const fn () callconv(.C) ?*anyopaque, .{
+        const create_device = @extern(*const fn () callconv(.c) ?*anyopaque, .{
             .name = "MTLCreateSystemDefaultDevice",
             .library_name = "Metal",
         });
@@ -140,7 +140,7 @@ pub const MacOSAccelerator = struct {
 
         // Create command queue: [device newCommandQueue]
         const sel_new_queue = mps.sel_register("newCommandQueue");
-        const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.C) ?*anyopaque = @ptrCast(&mps.objc_msgSend);
+        const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) ?*anyopaque = @ptrCast(&mps.objc_msgSend);
         self.command_queue = msg_send(self.metal_device.?, sel_new_queue) orelse return error.CommandQueueCreationFailed;
 
         // Initialize MPS with the device
@@ -156,13 +156,13 @@ pub const MacOSAccelerator = struct {
 
         if (self.command_queue) |queue| {
             const sel_release = mps.sel_register("release");
-            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.C) void = @ptrCast(&mps.objc_msgSend);
+            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(&mps.objc_msgSend);
             msg_send(queue, sel_release);
             self.command_queue = null;
         }
         if (self.metal_device) |device| {
             const sel_release = mps.sel_register("release");
-            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.C) void = @ptrCast(&mps.objc_msgSend);
+            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(&mps.objc_msgSend);
             msg_send(device, sel_release);
             self.metal_device = null;
         }
@@ -501,7 +501,7 @@ pub const MacOSAccelerator = struct {
 
         // Create command buffer from queue
         const sel_cmd_buf = mps.sel_register("commandBuffer");
-        const msg_send_obj: *const fn (*anyopaque, *anyopaque) callconv(.C) ?*anyopaque = @ptrCast(&mps.objc_msgSend);
+        const msg_send_obj: *const fn (*anyopaque, *anyopaque) callconv(.c) ?*anyopaque = @ptrCast(&mps.objc_msgSend);
         const cmd_buf = msg_send_obj(queue, sel_cmd_buf) orelse return error.CommandBufferCreationFailed;
 
         // Encode the matmul operation
@@ -510,7 +510,7 @@ pub const MacOSAccelerator = struct {
         // Commit and wait
         const sel_commit = mps.sel_register("commit");
         const sel_wait = mps.sel_register("waitUntilCompleted");
-        const msg_send_void: *const fn (*anyopaque, *anyopaque) callconv(.C) void = @ptrCast(&mps.objc_msgSend);
+        const msg_send_void: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(&mps.objc_msgSend);
         msg_send_void(cmd_buf, sel_commit);
         msg_send_void(cmd_buf, sel_wait);
     }

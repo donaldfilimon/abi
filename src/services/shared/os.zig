@@ -48,7 +48,8 @@ fn getenvC(name: []const u8) ?[]const u8 {
     if (name.len >= name_buf.len) return null;
     @memcpy(name_buf[0..name.len], name);
     name_buf[name.len] = 0;
-    const ptr = libc.getenv(&name_buf);
+    const name_z: [:0]const u8 = name_buf[0..name.len :0];
+    const ptr = std.c.getenv(name_z.ptr);
     if (ptr) |p| {
         return std.mem.sliceTo(@as([*:0]const u8, @ptrCast(p)), 0);
     }

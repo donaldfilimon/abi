@@ -25,7 +25,7 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../src/services/shared/time.zig");
+const time = @import("abi").services.shared.time;
 const baseline_store = @import("baseline_store.zig");
 
 pub const BenchmarkResult = baseline_store.BenchmarkResult;

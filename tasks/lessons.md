@@ -80,3 +80,11 @@
 ## 2026-03-09 - Comptime string formatting to reduce build step boilerplate
 - **Root cause**: Build steps in `build/cel.zig` that differed only by a flag string had duplicated logic for constructing step names and descriptions.
 - **Prevention rule**: Use Zig's `std.fmt.comptimePrint` to parameterize build step creation when steps differ only by a flag or name string. Applied to `build/cel.zig` `addCelShellStep`.
+
+## 2026-03-10 - Vendored bootstrap fixtures must stay out of repo-root fmt runs
+- Root cause: `zig-bootstrap-emergency/zig/test/cases/compile_errors/` vendors upstream Zig compile-error fixtures, so `zig fmt .` at repo root walks intentionally invalid sources and reports false-positive formatter failures.
+- Prevention rule: Use the repo-safe format surface (`zig fmt build.zig build src tools examples` or `zig build lint` / `zig build fix`) and never use `zig fmt .` from the ABI repo root.
+
+## 2026-03-10 - Manifest-driven feature tests must share one module graph
+- Root cause: Creating one synthetic Zig module per `feature_test_manifest` entry caused duplicate file ownership when feature files imported each other, and the per-entry path materialization could degrade into malformed cache paths like `sfeatures/...`.
+- Prevention rule: Generate one ignored feature-test root under `src/` and import manifest entries through that shared module graph instead of creating a separate module for each manifest entry.

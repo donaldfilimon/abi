@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const framework = @import("../../system/framework.zig");
 const core = @import("../../core/mod.zig");
-const ops = abi.personas.routing.context_engine.triad.ai.llm.ops; // Deep path to canonical ops
+const ops = abi.features.ai.llm.ops;
 
 pub fn runKernelBenchmarks(allocator: std.mem.Allocator, config: core.config.AIBenchConfig) !void {
     var runner = framework.BenchmarkRunner.init(allocator);
@@ -116,7 +116,17 @@ fn benchmarkAttention(allocator: std.mem.Allocator, runner: *framework.Benchmark
 
         _ = try runner.run(.{ .name = name, .category = "ai/ops", .max_iterations = 20 }, struct {
             fn bench(alloc: std.mem.Allocator, bq: []f32, bk: []f32, bv: []f32, bo: []f32, sl: usize, hd: usize) !void {
-                try ops.scaledDotProductAttention(alloc, bq, bk, bv, bo, sl, hd);
+                try ops.scaledDotProductAttention(
+                    alloc,
+                    bq,
+                    bk,
+                    bv,
+                    bo,
+                    @intCast(sl),
+                    @intCast(sl),
+                    @intCast(hd),
+                    true,
+                );
             }
         }.bench, .{ allocator, q, k, v, out, seq_len, head_dim });
     }

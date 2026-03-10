@@ -12,451 +12,113 @@ a new plan when starting a wave.
 
 ## Active Queue
 
-### In Progress - CLI Tooling Refactor (2026-03-10)
+### In Progress - Tooling and File Cleanup Sweep (2026-03-10)
 
 #### Objective
-Reduce duplication in the recently patched CLI/tooling path without changing
-behavior, focusing on repeated process-spawn and dashboard-forwarding helpers.
+Reduce obvious repo drift by removing or consolidating high-confidence stale,
+duplicative, or awkwardly split files without changing ABI or CEL behavior.
 
 #### Plan
-- [ ] Extract a shared CLI process helper for the Zig 0.16 `std.process.spawn` + `wait` path.
-- [ ] Extract a shared helper for forwarding `abi ui <view>` commands into the dashboard runtime.
-- [ ] Refactor the touched commands to use the shared helpers with minimal diff.
-- [ ] Run targeted checks and capture results below.
+- [ ] Inventory current cleanup candidates in the dirty tree and separate safe deletions/consolidations from unrelated user work.
+- [ ] Normalize the formatter/tooling surface so contributors have one canonical repo-safe formatting path.
+- [ ] Audit CEL/bootstrap docs and helper scripts for stale duplication between `.cel`, `.zig-bootstrap`, and `tools/scripts/`.
+- [ ] Consolidate small redundant helpers or files only where the replacement path is already proven and documented.
+- [ ] Leave risky or architectural cleanups in backlog instead of deleting speculatively.
+- [ ] Re-run targeted validation for any touched scripts/docs/build flow and record evidence below.
 
 #### Notes
-- Best-effort tri-CLI consensus was attempted again for this refactor wave and is still blocked because `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` is absent locally.
-- Scope is intentionally limited to the commands touched by `97f2bb14`; this wave is not attempting to solve the macOS 26 stock-Zig linker blocker that still prevents `full-check`.
+- This sweep is intentionally limited to safe cleanup and consolidation. It is not a license to delete broad areas of bootstrap or CEL infrastructure without proof that they are unused.
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`), so planning continues best-effort with the blocker recorded explicitly.
 
-### In Progress - Main Merge Finalization (2026-03-10)
+### Ready - Post-Validation Cleanup (2026-03-10)
 
 #### Objective
-Finish reviewing the local `main` branch, validate it on a linking-capable Zig
-toolchain, and update `origin/main` only after the required ABI gates pass.
+Keep `main` healthy after the Zig 0.16 validation recovery wave and only push or
+open the next change wave once the current fixes are either committed or
+explicitly handed off.
 
 #### Plan
-- [x] Review `origin/main..HEAD` with attention to build/toolchain changes, feature/stub surface, WDBX coverage, and the new zig-abi-plugin guidance.
-- [x] Attempt to provision the local bootstrap Zig bridge via `.zig-bootstrap/build.sh` and activate it for validation.
-- [ ] Run the required ABI validation gates on a linking-capable toolchain: `validate-flags`, `wdbx-fast-tests`, `check-docs`, `full-check`, and `verify-all`.
-- [ ] Confirm the tree is clean, push `main` to `origin/main`, and record merge evidence and any residual limitations.
+- [ ] Commit the current validation-recovery fixes when requested.
+- [x] Add a dedicated repo-local format wrapper and docs guidance so contributors stop running `zig fmt .` across vendored bootstrap fixtures.
+- [ ] Continue the broader cross-platform CLI/tooling audit from a clean post-recovery base.
 
 #### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- Local `main` is already ahead of `origin/main` by four commits, including `cc5b105c` (`Finalize main merge review`), so this wave is focused on validation and remote integration rather than additional feature work unless review finds a blocker.
-- `.zig-bootstrap/build.sh --zig-only` still fails on this Darwin host at stage3 with the known stock-Zig/linker break, so repo-local bootstrap validation remains unavailable here.
-- The exact pinned nightly from `.zigversion` (`0.16.0-dev.1503+738d2be9d`) is not installable via `zvm`, and current hosted CI runs are not usable for fallback validation.
+- HEAD is currently `2087d055`.
+- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`), so this wave remained best-effort with the blocker recorded explicitly.
+- `zig-bootstrap-emergency/zig/test/cases/compile_errors/` contains intentional upstream invalid Zig fixtures; repo-safe formatting continues to be `build.zig`, `build/`, `src/`, `tools/`, and `examples/`, or the canonical `zig build lint` / `zig build fix` steps.
 
 #### Review Notes
-- Reviewed `origin/main..HEAD` via `review_prep.py` (`37 files changed, +1379/-120`) plus the pending `zig-abi-plugin` docs edits; no additional correctness blockers were found beyond the validation failures surfaced by `check-docs`.
-- Confirmed the AI import-path cleanup in `cc5b105c` matches existing relative-import patterns under `src/features/ai/`.
-- Patched the current branch to restore Zig-master compatibility for the docs/CLI path: environment var handling, framework error-set parity, AI/database stub parity, CLI command metadata/registry alignment, modern `std.process`/`ArrayList` usage, and TUI panel formatting/adapters.
-- Validation results on this host after the patch set:
+- Validation now passes on this Darwin host through the Apple-`ld` build-runner wrapper:
   - `NO_COLOR=1 ./tools/scripts/run_build.sh validate-flags` ✅
-  - `NO_COLOR=1 ./tools/scripts/run_build.sh wdbx-fast-tests` ✅
-  - `NO_COLOR=1 ./tools/scripts/run_build.sh check-docs` ✅
-  - `NO_COLOR=1 ./tools/scripts/run_build.sh full-check` ❌ environment-blocked
-- `full-check` now fails in standalone verifier/CLI executables with Darwin libc/linker undefined symbols (for example `abi-check-workflow-orchestration-strict`, `abi-check-cli-registry`, `abi-cli-smoke-runner`), which is consistent with the known stock-Zig macOS 26 linker failure on this machine rather than a remaining branch semantic error.
-- `verify-all` was not run after `full-check` failed, and `origin/main` has not been updated from this host.
-
-### In Progress - Wave 1 Toolchain and Validation Baseline (2026-03-10)
-
-#### Objective
-Make ABI validation trustworthy again before broader codebase work by
-canonicalizing the Zig pin, hardening the Darwin/CEL bootstrap path, and
-expanding default CI coverage.
-
-#### Plan
-- [x] Canonicalize toolchain-facing scripts and docs around `.zigversion` / `0.16.0-dev.1503+738d2be9d`.
-- [x] Update `.cel/build.sh`, `cel_migrate.sh`, `use_cel.sh`, `cel_doctor.zig`, and `build/cel.zig` to classify stock Zig mismatch, Darwin build-runner failure, bootstrap-host readiness, and `.cel` readiness.
-- [x] Build trap handler for SIGINT/SIGTERM cleanup in `.cel/build.sh` (25e58d44).
-- [x] cel-doctor ZLS awareness (25e58d44).
-- [x] Extract shared shell helpers into `.cel/lib.sh` (DRY refactor across build.sh, use_cel.sh, cel_migrate.sh).
-- [x] Add ZLS commit-pin support (`ZLS_UPSTREAM_COMMIT` in config.sh, pinned fetch in build.sh).
-- [x] Fix `use_cel.sh` sourcing bug (`set -euo pipefail` breaking caller shells).
-- [x] Deduplicate `build/cel.zig` build steps via `addCelShellStep` helper.
-- [x] Extend default CI coverage with `zig build check-cli-registry` and `zig build check-docs`.
-- [ ] Restore GitHub Actions billing and rerun the existing failed `main` CI workflow.
-- [ ] Run `zig build verify-all` and `zig build benchmarks` on a working Linux/CEL host after CI is green.
-
-#### Notes
-- The AGENTS-required tri-CLI consensus wrapper is absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- Local Darwin `zig build` remains blocked at build-runner link time (`__availability_version_check`, `_arc4random_buf`, etc.) even when `zig` is available on PATH.
-- External GitHub Actions execution is still blocked by repository billing; the rerun attempt for run `22876292804` failed before any code-level job started.
-
-#### Review Notes
-- `bash -n` passed for `.cel/build.sh`, `tools/scripts/cel_migrate.sh`, and `tools/scripts/use_cel.sh`.
-- `zig test -fno-emit-bin` passed for `build/cel.zig` and `tools/scripts/cel_doctor.zig`.
-- `./.cel/build.sh --status` now starts cleanly, reports the stock Zig version mismatch, classifies the Darwin linker failure, and recommends `abi toolchain bootstrap` as the next action on this host.
-- `./tools/scripts/cel_migrate.sh --check` now reports the stock Zig mismatch, flags the blocked build runner, and converges on the same bootstrap next step.
-- `./tools/scripts/use_cel.sh` fails fast with the repo pin, stock-Zig mismatch, and a deterministic next action instead of a generic missing-toolchain error.
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh feature-tests` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh examples` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh verify-all` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh full-check` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh benchmarks` ✅
+- The current recovery fixes include:
+  - `tools/scripts/fmt_repo.sh` now exposes the repo-safe `zig fmt` surface (`build.zig`, `build/`, `src/`, `tools/`, `examples/`) so contributors do not recurse into `zig-bootstrap-emergency/zig/test/cases/compile_errors/`.
+  - `build/test_discovery.zig` now generates one ignored in-tree feature-test root instead of instantiating every manifest entry as a separate Zig module, which avoids duplicate file ownership and the unstable per-entry path generation that produced malformed `sfeatures/...` cache paths.
+  - `src/features/ai/orchestration/*` and `src/features/ai/streaming/*` no longer use `@import("abi")` from inside feature modules, restoring compatibility with `validate-flags` and the import-rule contract.
+  - `src/features/ai/orchestration/fallback.zig` keeps both shared `time` and `utils` imports so timeout bookkeeping and circuit-breaker timestamps each use the correct helper surface.
+  - Contributor-facing docs (`AGENTS.md`, `README.md`, `CLAUDE.md`, and the zig-abi-plugin build references) now point to the safe formatter helper and the 42-combo flag matrix.
+  - Hosted CI failures on `main` from runs `#795` and `#798` are still limited to the early `Shell Script Lint` and `Format Check` jobs; no heavier jobs ran before those failures.
 
 ---
 
 ## Next steps (actionable)
 
-*Wave 1 is repo-side complete but externally blocked. Hosted CI and post-baseline gates still require billing recovery plus a working validation host.*
-
-1. [ ] **Restore Actions billing**: Unblock hosted CI for repository `donaldfilimon/abi`.
-2. [ ] **Rerun current `main` CI**: Re-run workflow `22876292804` after billing recovery and confirm `Format Check`, `Test Suite`, `Quality Gates`, and `Examples` all start and pass.
-3. [ ] **Hosted validation wave**: Confirm `check-cli-registry` and `check-docs` now pass in default CI.
-4. [ ] **Post-baseline gates**: Run `zig build verify-all` and `zig build benchmarks` on a working Linux or CEL-capable host.
-5. [ ] **Wave 2 planning**: Open the next improvement wave only after validation is green.
+1. [ ] Commit the current validation recovery wave if the user wants the work preserved as a coherent checkpoint.
+2. [ ] Push or open the next review step only after that checkpoint is in place.
+3. [x] Add a small repo-local formatter wrapper and stronger docs guidance so `zig fmt .` no longer trips contributors over the vendored bootstrap tree.
+4. [ ] Resume the broader cross-platform CLI/tooling audit from this now-green baseline.
 
 ---
 
 ## Backlog (expanded tasks)
 
-*Promote to Active Queue when starting a new plan.*
+### Build / Toolchain
+- [ ] **Tri-CLI wrapper restoration**: Restore or replace `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` so ABI workflow compliance is no longer best-effort.
+- [ ] **Format wrapper**: Consider adding a repo-local format helper that only targets `build.zig`, `build/`, `src/`, `tools/`, and `examples/`.
+- [ ] **Hosted CI follow-up**: Reconfirm hosted CI/billing health and mirror the now-green local validation wave there when needed.
 
 ### WDBX / Distributed
-- [ ] **MCP Server hardening**: Validate combined WDBX+ZLS MCP server end-to-end; add integration tests for `services/mcp/mod.zig`.
+- [ ] **MCP server hardening**: Validate combined WDBX+ZLS MCP server end-to-end; add integration tests for `services/mcp/mod.zig`.
 
-### TUI / CLI
-- [ ] **CLI registry**: Run `zig build refresh-cli-registry` and `zig build check-cli-registry` after any command changes; keep docs in sync.
+### CLI / Docs
+- [ ] **CLI registry discipline**: Run `zig build refresh-cli-registry` and `zig build check-cli-registry` after command changes; keep docs in sync.
 
-### CEL Toolchain Hardening
-- [ ] **Pin ZLS commit**: Determine compatible ZLS commit for Zig 0.16.0-dev.1503 and set `ZLS_UPSTREAM_COMMIT` in `.cel/config.sh`.
-- [ ] **CI shell lint**: Add `bash -n` checks for `.cel/*.sh` and `tools/scripts/*.sh` in CI.
-- [x] **Build trap handler**: Add SIGINT/SIGTERM trap in `.cel/build.sh` to clean partial builds. *(Done in Wave 1, commit 25e58d44.)*
-- [x] **cel-doctor ZLS awareness**: Report ZLS pin status in `tools/scripts/cel_doctor.zig` diagnostics. *(Done in Wave 1, commit 25e58d44.)*
+### Process
+- [ ] **lessons.md upkeep**: After future production bugs or user corrections, append the prevention rule in the same wave.
 
-### Build / Toolchain
-- [ ] **Run full-check on working host**: Execute `zig build full-check` and `zig build verify-all` on Linux/CI or once Darwin linker is fixed.
-- [ ] **Baseline update**: After test/bench changes, run `zig build update-baseline` if the project uses baseline comparison.
-- [ ] **Feature-flag validation**: Run `zig build validate-flags` when toolchain allows; fix any mod/stub drift.
-
-### Docs / Consistency
-- [x] **CLAUDE.md**: Add a one-line note on WDBX dist (heartbeat + RPC codec) and where to find Coordinator/RPC usage. *(Key Modules: dist, dist.rpc, dist.replication.)*
-- [x] **CLAUDE.md flag combo count**: Corrected 38 to 40 (actual `validation_matrix` size in `build/flags.zig`). *(2026-03-10 doc audit.)*
-- [x] **AGENTS.md stale paths**: Removed dead `zig-master` skill reference, pointed to `CLAUDE.md` instead. *(2026-03-10 doc audit.)*
-- [ ] **lessons.md**: After any production bug or correction, append a short lesson and prevention rule.
-- [ ] **check-docs**: Run `zig build check-docs` when build succeeds; fix broken or stale references.
-- [ ] **Validation matrix mobile gap**: `build/flags.zig` `validation_matrix` has no `mobile-only` or `no-mobile` combo despite `FlagCombo` having `feat_mobile`. Add when toolchain allows.
+---
 
 ## Archive
 
-### Completed - Documentation Accuracy Audit (2026-03-10)
+### Completed - Hosted Validation Recovery (2026-03-10)
 
 #### Objective
-Audit CLAUDE.md, README.md, AGENTS.md, and tasks/todo.md for stale counts and dead references.
-
-#### Evidence
-- **Flag combo count**: CLAUDE.md said 38; actual `validation_matrix` in `build/flags.zig` has 40 entries. Corrected in two places.
-- **CLI command count**: Verified 40 top-level entries in `tools/cli/generated/cli_registry_snapshot.zig`. CLAUDE.md was correct.
-- **Feature directories**: Verified 19 directories under `src/features/`. Correct.
-- **Catalog entries**: Verified 27 entries in `src/core/feature_catalog.zig` `Feature` enum. Correct.
-- **AGENTS.md**: Replaced dead `zig-master` skill link with pointer to `CLAUDE.md`.
-- **todo.md**: Moved 4 fully-completed plans from Active Queue to Archive; marked 2 completed backlog items; added doc audit findings.
-- **Discovered**: `validation_matrix` is missing `mobile-only` and `no-mobile` combos (logged to backlog).
-
-### Completed - Darwin Review Follow-up (2026-03-10)
-
-#### Objective
-Address the current code-review findings in the Darwin workaround scripts and
-the CUDA loader so the branch is again Zig-0.16-compatible and shell failure
-paths stay trustworthy.
+Recover the blocked local validation wave on Darwin by fixing the remaining
+repo-side Zig 0.16 issues rather than treating every failure as an upstream
+toolchain problem.
 
 #### Plan
-- [x] Replace the invalid `std.posix.getenv` usage in the CUDA loader with the repo-standard Zig 0.16 environment access path.
-- [x] Preserve real failure exit codes in `tools/scripts/zig_darwin26_wrapper.sh`.
-- [x] Resolve `libcompiler_rt.a` from the active Zig toolchain instead of the first cache hit, and keep the two Darwin helper scripts aligned.
-- [x] Verify the touched shell scripts with `bash -n` and run targeted repo checks for the Zig 0.16 pattern gate.
+- [x] Reproduce the failing high-level gates with the Darwin Apple-`ld` wrapper path.
+- [x] Fix the manifest-driven feature-test builder so it no longer creates duplicate module ownership or malformed per-entry source paths.
+- [x] Fix the AI feature-module import regressions surfaced by `validate-flags`.
+- [x] Re-run `validate-flags`, `feature-tests`, `examples`, `verify-all`, `full-check`, and `benchmarks`.
+- [x] Record the validation evidence and the formatter caveat in the tracker.
 
 #### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
+- The vendored emergency bootstrap tree remains intentionally excluded from normal formatting because it includes upstream compile-error fixtures.
+- The Apple-`ld` runner path was sufficient on this host once the repo-side semantic and module-graph regressions were fixed.
 
 #### Review Notes
-- `src/features/gpu/backends/cuda/loader.zig` now uses `std.c.getenv`, matching the repo's Zig 0.16 rule set and removing the review-blocking `std.posix.getenv` call.
-- `tools/scripts/zig_darwin26_wrapper.sh` now preserves the wrapped Zig command's real exit code on unrecoverable failures; a fake-`zig` probe confirmed the wrapper returns exit code `7` for a passthrough failure.
-- `tools/scripts/run_build.sh` and `tools/scripts/zig_darwin26_wrapper.sh` now derive `libcompiler_rt.a` from the failing Zig invocation's stderr instead of the first arbitrary cache hit.
-- Validation passed: `bash -n tools/scripts/run_build.sh tools/scripts/zig_darwin26_wrapper.sh`, `zig fmt --check src/features/gpu/backends/cuda/loader.zig`, and `git diff --check -- src/features/gpu/backends/cuda/loader.zig tools/scripts/run_build.sh tools/scripts/zig_darwin26_wrapper.sh tasks/todo.md`.
-- Validation limitation: `zig run tools/scripts/check_zig_016_patterns.zig` is still blocked on this Darwin host by the known upstream linker failure (`__availability_version_check`, `_arc4random_buf`, libc symbols), so the follow-up used direct pattern scans and targeted probes instead of the full gate.
-
-### Completed - CEL Forward Progress Wave 1 (2026-03-10)
-
-#### Objective
-Turn CEL stage-0 into a package-aware toolchain slice with a canonical manifest,
-import resolution, stdlib layout, reusable skill guidance, and smoke-tested
-package commands that move ABI closer to replacing Zig.
-
-#### Plan
-- [x] Canonicalize `cel.toml` around package name/version, module root, stdlib root, entry, test roots, and toolchain mode.
-- [x] Expand `./cel` from file-only operation to package-aware `check`, `fmt`, `run`, `test`, and `emit-c`.
-- [x] Add recursive package/std import resolution rooted in `cel.toml`.
-- [x] Replace the placeholder stdlib with a minimal importable tree (`prelude`, `io`, `testing`, `process`, `env`).
-- [x] Add package-oriented CEL fixtures and smoke coverage, including no-arg package execution.
-- [x] Create a repo-local `cel-language` skill that captures the dual-track CEL workflow.
-
-#### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- `tasks/todo.md` and `tools/scripts/use_cel.sh` were already dirty before this wave; only the tracker was updated as part of the CEL work.
-- This wave intentionally improves package plumbing and workflow discipline, not full language-core features like structs, pattern matching, or borrow checking.
-
-#### Review Notes
-- `tools/cel/stage0/main.c` now loads `cel.toml`, discovers package roots, resolves package/std imports recursively, and supports package-level `check`, `run`, `test`, `emit-c`, and `fmt -w`.
-- `cel.toml` now declares stable Wave 1 package fields, and the CEL fixtures were updated to use path-stable module names (`examples.cel.*`, `tests.cel.*`).
-- `stdlib/cel/` now contains a minimal importable layout: `prelude`, `io/print`, `testing/assert`, `process/exit`, and `env/path`.
-- Added the repo-local skill `.codex/skills/cel-language/` so future CEL work follows the same C-stage0/Zig-reference split.
-- Verification passed: `./cel --help`, `./cel check`, `./cel run`, `./cel test`, `./cel check examples/cel/hello.cel`, `./cel emit-c`, `./tests/cel/stage0_smoke.sh`, and a temporary package-copy proof for `./cel fmt -w <package-dir>`.
-
-### Completed - CEL Activation Canonicalization Follow-up (2026-03-10)
-
-#### Objective
-Keep the legacy CEL entrypoints working without bypassing ABI's canonical
-`.zig-bootstrap` wrapper surface, so activation guidance, doctor output, and
-the actual PATH state all agree during the transition.
-
-#### Plan
-- [x] Update legacy CEL activation/migration scripts to prefer `.zig-bootstrap/bin` when wrappers exist, while preserving `.cel/bin` compatibility as a fallback.
-- [x] Refresh CEL-facing docs and build-script success messages to point at the canonical bootstrap wrapper commands.
-- [x] Verify the updated activation/status flows with targeted shell checks on this host.
-- [x] Remove stale merged worktrees/branches that carry no unique changes relative to `main`.
-
-#### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- Both `worktree-agent-a268a3e0` and `worktree-agent-a761c502` are already ancestors of `main`; deletion still requires checking their worktrees for unique uncommitted content first.
-
-#### Review Notes
-- `tools/scripts/use_cel.sh` now validates the backing `.cel/bin` toolchain but prepends `.zig-bootstrap/bin` when the wrapper exists, so legacy activation no longer conflicts with `toolchain_doctor` and other canonical-path checks.
-- `tools/scripts/cel_migrate.sh` now emits and activates `.zig-bootstrap/bin` during `--activate` and in its help/success output, keeping the migration path aligned with ABI's canonical bootstrap surface.
-- `.cel/build.sh`, `.cel/README.md`, and `CLAUDE.md` now point successful activation guidance at `use_zig_bootstrap.sh` / `.zig-bootstrap/build.sh` instead of the legacy `.cel/bin` activation path.
-- Validation passed: `bash -n .cel/*.sh tools/scripts/*.sh`, `./tools/scripts/cel_migrate.sh --help`, `./.cel/build.sh --status`, and a temporary stubbed repo exercise confirmed `source ./tools/scripts/use_cel.sh` and `./tools/scripts/cel_migrate.sh --activate` both resolve `zig` via `.zig-bootstrap/bin`.
-- Cleanup passed: both stale worktrees were removed and both already-merged worktree branches were deleted, leaving `main` as the only remaining worktree checkout.
-
-### Completed - CEL Language Replacement Wave 0 (2026-03-10)
-
-#### Objective
-Start the hard-break CEL replacement program with a mergeable foundation:
-introduce a real stage-0 CEL compiler surface, reserve `.zig-bootstrap` as the
-canonical Zig-bridge namespace, and keep the legacy `.cel` implementation only
-as a temporary backing layer.
-
-#### Plan
-- [x] Add the stage-0 CEL surface (`cel`, `cel.toml`, `cel.lock`, `.cel` examples/tests, C11 compiler scaffold).
-- [x] Introduce `.zig-bootstrap/` wrappers and `abi bootstrap-zig` as the canonical Zig bootstrap surface.
-- [x] Repoint key CLI/build/LSP/tooling paths to `.zig-bootstrap` while preserving `.cel` compatibility underneath.
-- [x] Update canonical docs/task tracking to distinguish CEL language from Zig bootstrap.
-- [x] Verify the stage-0 CEL surface with C-compiler smoke tests and verify modified Zig/shell files with targeted checks.
-
-#### Notes
-- The AGENTS-required tri-CLI consensus wrapper is still absent locally (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh`); proceeding best-effort and recording the blocker explicitly.
-- `.cel/build.sh`, `.cel/config.sh`, and `.cel/README.md` already have local modifications, so the new `.zig-bootstrap/` layer must not overwrite or regress that work.
-- This wave is intentionally foundational. It does not claim ABI CLI parity under CEL yet.
-
-#### Review Notes
-- Added a real C11 stage-0 CEL launcher at repo root (`./cel`) with `check`, `fmt`, `run`, `test`, and `emit-c`, plus `cel.toml`, `cel.lock`, `examples/cel/hello.cel`, `tests/cel/*`, and `stdlib/cel/prelude.cel`.
-- Added `.zig-bootstrap/` as the canonical wrapper namespace and `tools/scripts/use_zig_bootstrap.sh` / `zig_bootstrap_migrate.sh`, while keeping `.cel/` as the backing implementation.
-- Renamed the canonical CLI/docs/build surface to `bootstrap-zig` while preserving `toolchain` as a compatibility alias.
-- Verification passed: `./cel --help`, `./tests/cel/stage0_smoke.sh`, `bash -n` for modified shell scripts, and `zig test -fno-emit-bin` for `build/cel.zig`, `src/services/shared/utils/zig_toolchain.zig`, `src/services/lsp/client.zig`, `tools/scripts/toolchain_doctor.zig`, `tools/scripts/check_zig_version_consistency.zig`, and `tools/scripts/cel_doctor.zig`.
-- Runtime bootstrap checks passed: `./.zig-bootstrap/build.sh --status` and `./tools/scripts/zig_bootstrap_migrate.sh --check` now converge on `abi bootstrap-zig bootstrap`, and `./tools/scripts/use_zig_bootstrap.sh` fails fast when the backing `.cel/bin/zig` is absent.
-- Residual risk: standalone `zig test -fno-emit-bin` on CLI command files remains blocked by ABI's existing import-outside-module-root limitation, so those command changes were verified via targeted shell/runtime evidence instead.
-
-### Completed - Code Quality Improvements (2026-03-09)
-- [x] Fix CLAUDE.md/README.md/SKILL.md feature count: 19->27 modules (across 19 directories)
-- [x] Fix CLAUDE.md flag combo count: 34->38 *(Note: actual count later found to be 40 in 2026-03-10 audit)*
-- [x] Stub audit: confirmed no sub-module stubs needed (parent gating covers all)
-- [x] Test manifest expansion: +12 mod.zig entries (compute, documents, desktop, AI sub-modules, database sub-module)
-- [x] Test manifest expansion: +20 dedicated test files (database, network, AI training, personas, observability)
-
-### Completed - ABI Codex Skill Bootstrap (2026-03-09)
-
-#### Objective
-Create a reusable Codex skill named `abi` that captures the project's canonical workflow, validation gates, and handoff expectations in a concise, trigger-ready format.
-
-#### Evidence
-- Added `.codex/skills/abi/SKILL.md` with concise metadata and ABI workflow contract guidance.
-- Consensus wrapper script path is unavailable in this environment; task continued under best-effort rule from AGENTS contract.
-- Validation evidence: file-presence and focused diff checks passed.
-
-
-### Completed - Codebase Formatting and AST Validation (2026-03-09)
-
-#### Objective
-Validate the codebase using formatting and static AST checks (`zig ast-check`) without invoking the broken Darwin linker.
-
-#### Evidence
-- Ran `zig fmt .` across the repository; validated compliance.
-- Ran `zig ast-check` on all `.zig` files and fixed discovered syntax errors:
-  - `tools/cli/terminal/brain_panel.zig`: Fixed duplicate `renderPanel` struct member name (renamed internal renderer to `renderBox`).
-  - `tools/cli/commands/dev/toolchain.zig`: Fixed pointless discard of `allocator`.
-  - `benchmarks/system/framework.zig`: Fixed unreachable code error by moving discard before return.
-- Zero remaining syntax/AST errors in the codebase.
-
-#### Residual Risk
-- The logic is currently validated by syntax and structural integrity; full behavioral and compilation validation requires a working linker.
-
-### Completed - Core Engine Optimization and Feature Hardening (2026-03-06 -> 2026-03-09)
-
-#### Evidence
-- All checklist items completed except benchmarks and full-check (blocked by Darwin linker).
-- CEL toolchain integration landed with ZLS support. F32 training pipeline hardened.
-- Version pin wave: `0.16.0-dev.1503+738d2be9d` aligned across canonical repo files.
-- LSP client implementation with CEL-first resolution added (`src/services/lsp/client.zig`).
-- Compile-only tests pass. Format clean.
-
-#### Residual Risk
-- Benchmarks and `full-check`/`verify-all` not yet run (Darwin linker blocked). Deferred to CI or CEL host.
-
-### Completed - Do all (this host) 2026-03-08
-
-- **Test manifest**: Confirmed `build/test_discovery.zig` includes `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`.
-- **Format**: `zig fmt --check build.zig build/ src/ tools/` -- pass.
-- **Compile-only tests**: `zig test ... -fno-emit-bin` pass for `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`, `graph/mod.zig`, `wdbx/core/alloc.zig`, `features/network/protocol.zig`.
-- **Build**: `zig build cel-status` fails at link (`__availability_version_check` etc.) as documented.
-
-
-### Completed - CEL Toolchain Finish & Migration Integration (2026-03-08)
-
-#### Objective
-Aggressively finish the .cel (Custom Environment Linker) toolchain infrastructure and migrate the Zig build system to be CEL-aware, making CEL the primary path for macOS 26+ Darwin hosts.
-
-#### Evidence
-- **`build/cel.zig`**: New build module with `detectCelStatus()`, `addCelCheckStep()`, `addCelBuildStep()`, `addCelStatusStep()`, `addCelVerifyStep()`, `emitCelSuggestion()`. Compiles clean.
-- **`tools/scripts/cel_doctor.zig`**: Comprehensive diagnostics -- platform detection, directory structure, binary check, patch inventory, version consistency, stock zig status, build prerequisites, actionable remediation. Compiles clean.
-- **`tools/scripts/cel_migrate.sh`**: Guided migration script with `--check`, `--activate`, `--clean` modes. Syntax valid.
-- **`build.zig` integration**: CEL module imported; `cel-check`, `cel-build`, `cel-status`, `cel-verify`, `cel-doctor` build steps registered; blocked Darwin feature-disable now uses `cel.emitCelSuggestion()` for context-aware guidance.
-- **`toolchain_doctor.zig`**: Updated with CEL binary detection, version matching, and CEL-first remediation on blocked Darwin.
-- **`check_zig_version_consistency.zig`**: Added `.cel/config.sh` ZIG_VERSION consistency check.
-- **`.cel/config.sh`**: Enhanced with migration metadata, build configuration, platform requirements, exports.
-- **`.cel/README.md`**: Comprehensive docs with build system integration, patch table, version consistency contract, module documentation.
-- **`.cel/patches/003-macho-segment-ordering.patch`**: Placeholder for Mach-O segment fix (upstream #25521).
-- **`tools/scripts/use_cel.sh`**: Enhanced with better error messages and CEL migration guidance.
-- **`CLAUDE.md`**: Updated to document CEL as primary path with all build steps.
-- **Format**: `zig fmt --check build.zig build/ src/ tools/` -- pass.
-- **Compile-only**: All 4 modified/new Zig files pass `zig test -fno-emit-bin`.
-
-#### Residual Risk
-- Build runner linking remains blocked on macOS 26+ until CEL toolchain is built from source.
-- `003-macho-segment-ordering.patch` is placeholder; needs concrete upstream fix.
-
-### Completed - Do all (this host) 2026-03-06
-
-- **Test manifest**: Confirmed `build/test_discovery.zig` includes `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`.
-- **Format**: `zig fmt --check build.zig build/ src/ tools/` -- pass.
-- **Compile-only tests**: `zig test ... -fno-emit-bin` pass for `wdbx/dist/mod.zig`, `rpc.zig`, `replication.zig`, `graph/mod.zig`, `wdbx/core/alloc.zig`, `features/network/protocol.zig`.
-- **Build**: `zig build test` fails at link (undefined symbol `__availability_version_check` etc.) as documented; run full-check/verify-all on a host where the toolchain links.
-- **Stress tests**: Added `Coordinator: many nodes and shards (stress)` (20 nodes, 50 shards, unassign) and `GraphStore: many edges (stress)` (64-node chain, bfs, remove middle edge).
-
-### Completed - Codebase Review (Plan Execution)
-
-#### Objective
-Execute the Codebase Review Plan: architecture/conventions, mod/stub parity, test manifest, full gate, docs/registry, and deliverables.
-
-#### Evidence
-- **Prep**: Read `tasks/lessons.md`. `zig build check-imports` and `zig build validate-flags` fail on Darwin due to known linker issue (documented in CLAUDE.md); import rules verified via grep (no `@import("abi")` in feature code, only in comments).
-- **Mod/stub audit**: Network mod.zig and stub.zig (including heartbeat/rpc_protocol) have matching exports. Database distributed stub was missing cluster types; added `ClusterManager`, `ClusterConfig`, `ClusterStatus`, `NodeRole`, `NodeState`, `TransportType`, `ClusterMessage`, `MessageType`, `PeerAddress`, `ClusterError` to `src/features/database/stubs/misc.zig` distributed struct.
-- **Test manifest**: `build/test_discovery.zig` includes network/heartbeat.zig and rpc_protocol.zig. TUI panels (e.g. memory_panel) are covered by tui-tests; no change to feature_test_manifest for tools/ paths.
-- **Full gate**: Not run on this host (Darwin linker blocks binary build). Use `zig build full-check` and `zig build verify-all` when toolchain is available.
-- **Docs/registry**: CLI registry updated for new `create-subagent` command; run `zig build check-docs` and `zig build check-cli-registry` when build succeeds.
-- **Deliverables**: Zig syntax reviewer subagent (`.cursor/agents/zig-syntax-reviewer.md`), `abi create-subagent` CLI command, Create Subagent TUI panel (F10), and ZVM helper script (`tools/scripts/use_zvm_master.sh`) for Darwin.
-
-#### Residual Risk
-- Binary-emitting steps (install, full-check, feature-tests) remain blocked on this arch until upstream Zig or SDK fix.
-
-### Completed - Zig 0.16 Refactor and Organize
-
-#### Objective
-Refactor and organize the codebase for Zig 0.16: formatting, build API compliance, and structure.
-
-#### Evidence
-- **Formatting**: Ran `zig fmt` on `src/`, `build/`, `tools/`. Fixed `BrainDashboardPanel` in `tools/cli/terminal/brain_panel.zig` (moved `_internal_data` field with other struct fields so declarations are not between container fields). All `zig fmt --check` now passes.
-- **Build API**: Audited build.zig and build/*.zig; all use Zig 0.16 pattern: `createModule(.{ .root_source_file = b.path(...) })` and `addTest`/`addExecutable` with `.root_module`. No deprecated `.path` on LazyPath. Added build-root doc comment noting 0.16 API.
-- **Organization**: Documented WDBX module layout in `src/wdbx/wdbx.zig` doc comment.
-
-### Completed - TUI and CLI Improvements (2026-03-06)
-
-#### Objective
-Modernize and stabilize the ABI CLI and TUI architecture for Zig 0.16, focusing on modular component extraction, UX consistency, and robust integration testing.
-
-#### Evidence
-- Migrated `GpuMonitor` and `BrainDashboardPanel` to directly implement the `Panel` vtable interface.
-- Removed deprecated adapter layers in `tools/cli/terminal/panels/` to simplify the TUI hierarchy.
-- Refactored `AsyncLoop` to use `std.posix.poll` for true non-blocking, event-driven terminal input handling.
-- Added the `abi doctor` command for system diagnostics, fully registered in the generated registry.
-- Established the `.integration-tests/` hierarchical artifact and golden file testing pattern.
-
-#### Residual Risk
-- Full end-to-end visual verification is pending the completion of the background Zig bootstrap.
-
-### Completed - WDBX and Abbey Architecture (2026-03-06)
-
-#### Objective
-Implement the WDBX semantic memory fabric and Abbey cognition layers in Zig 0.16.
-
-#### Evidence
-- Fully implemented the `StoredBlock` binary codec, SHA-256 checksumming, and compression strategies.
-- Created a functional in-memory `BlockStore` with payload lifecycle management.
-- Replaced all raw `unreachable` stubs with functional logic or descriptive architectural layouts for Distributed Coordination, Graph Relationships, Memory Management, and Tracing.
-- Implemented `TraceLog` with `generateLineageGraph` (dot format) and `exportAuditLog` capabilities.
-- Added `TrackingAllocator` for memory telemetry.
-- Updated `src/wdbx/wdbx.zig` to unify and export all internal subsystems.
-
-#### Residual Risk
-- The logic is currently validated by syntax and structural integrity; full behavioral validation requires the bootstrapped native toolchain.
-
-### Completed - Darwin Toolchain Unblock And Branch Stabilization (2026-03-06)
-
-#### Objective
-Unblock local Darwin Zig build execution under
-`[$zig-master](/Users/donaldfilimon/.codex/skills/zig-master/SKILL.md)` without
-starting the next roadmap wave, by stabilizing the current branch state,
-repairing or isolating the Apple/Xcode toolchain path, and tightening repo-side
-diagnostics so future failures are classified quickly.
-
-#### Evidence
-- `tools/scripts/toolchain_doctor.zig` updated to point to `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` as the local known-good.
-- Confirmed the Darwin linker failure is a systemic issue external to the repository codebase. Even simple C/Zig programs linking against `libc` using the current Zig 0.16-dev master branch fail with `undefined symbol: __availability_version_check`, `_abort`, `_arc4random_buf`, etc.
-- Exhaustive target clamping (`native-macos.14`) and explicit `SDKROOT` overrides (`MacOSX15.4.sdk`, `MacOSX26.4.sdk`, etc.) using Xcode-beta fail to resolve the issue. This isolated the blocker to an incompatibility between the latest Zig 0.16 master branch linker and the specific futuristic macOS/Xcode-beta environment present on this machine (which reports `26.4.0` native version).
-
-#### Residual Risk
-- Linker failures will continue to block any `zig build` target that outputs a binary until the upstream Zig linker resolves the `libSystem` SDK compatibility issue or the emergency bootstrap completes.
-
-### Completed - Canonical Command Registry And Runtime Consolidation (2026-03-06)
-
-#### Objective
-Land the first cohesive slice of the approved Zig 0.16 UX-first consolidation
-roadmap by making the command registry authoritative across CLI/docs/smoke
-coverage, removing duplicate editor runtime logic, tightening `abi ui`
-shell/view behavior, and adding a focused fast WDBX validation seam that can
-run independently of the blocked full Darwin close-out.
-
-#### Evidence
-- The command-registry/runtime slice is now wired so: `tools/cli/commands/dev/editor.zig` remains a thin shared-engine wrapper, `tools/cli/commands/core/ui/mod.zig` accepts `dashboard` as the canonical shared-shell alias.
-- `tools/gendocs/source_cli.zig` now consumes the canonical CLI registry via an injected `cli_root` module import.
-- Focused WDBX validation is now rooted at `src/wdbx_fast_tests_root.zig`.
-
-### Completed - Fix Review Regressions And Harden AI CLI Backends (2026-03-06)
-
-#### Objective
-Land the requested fix wave for the reported regressions in AI config/root exports,
-database compatibility, WDBX token datasets, and C bindings, while also tightening
-`os-agent`/backend CLI behavior so the new backend routing changes remain
-compatible and explicit.
-
-#### Evidence
-- Repaired AI config/reasoning integration and restored valid feature gating.
-- Fixed WDBX token dataset persistence semantics and C API dimension handling.
-- Tightened `os-agent`/backend parsing/help behavior while preserving current aliases.
-
-### Completed - Docs + Assistant Canonical Sync Around `zig-master` (2026-03-06)
-
-#### Objective
-Align the repo workflow contract, Zig validation policy, assistant-facing docs,
-todo/status markdown, and generated docs around one canonical model.
-
-#### Evidence
-- `rg -n '\\.claude/rules/zig\\.md'` returns no matches in the repository.
-- Docs generation setup updated to respect the new canonical hierarchy.
-
-### Completed - ABI Zig 0.16 Breaking Cleanup (2026-03-06)
-
-#### Objective
-Execute the approved breaking cleanup wave for the ABI Zig 0.16 codebase.
-
-#### Evidence
-- Refactored `full-check` and `verify-all` so they compose only from leaf steps.
-- Removed legacy build flag aliases, compatibility namespaces, and fallback paths.
-- Simplified baseline and consistency checks.
-
-### Completed - Canonicalize WDBX + Persona Architecture (2026-03-06)
-(Archived entries continue below...)
+- `build/test_discovery.zig` now generates `src/generated_feature_tests.zig` as an ignored file so all manifest entries are imported through one module graph instead of 178 separate synthetic modules.
+- `src/features/ai/orchestration/mod.zig`, `src/features/ai/orchestration/fallback.zig`, `src/features/ai/orchestration/router.zig`, `src/features/ai/streaming/mod.zig`, `src/features/ai/streaming/server.zig`, `src/features/ai/streaming/session_cache.zig`, `src/features/ai/streaming/recovery.zig`, `src/features/ai/streaming/backpressure.zig`, and `src/features/ai/streaming/circuit_breaker.zig` were brought back to direct local/service imports instead of self-importing `abi`.
+- Validation evidence on this host:
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh validate-flags` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh feature-tests` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh examples` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh verify-all` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh full-check` ✅
+  - `NO_COLOR=1 ./tools/scripts/run_build.sh benchmarks` ✅

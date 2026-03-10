@@ -63,7 +63,7 @@ find_object_file() {
     local pattern="$1"
     # Try extracting from stderr first
     local from_stderr
-    from_stderr="$(grep -oE '\.zig-cache/o/[a-f0-9]+/'"$pattern" "$STDERR_FILE" | head -1)"
+    from_stderr="$(grep -oE '\.zig-cache/o/[a-f0-9]+/'"$pattern" "$STDERR_FILE" | head -1 || true)"
     if [[ -n "$from_stderr" && -f "$from_stderr" ]]; then echo "$from_stderr"; return; fi
     # Fallback: most recent match in cache
     find .zig-cache/o -name "$pattern" -newer "$STDERR_FILE" -print 2>/dev/null | head -1
@@ -72,7 +72,7 @@ find_object_file() {
 # Find compiler_rt
 find_compiler_rt() {
     local from_stderr
-    from_stderr="$(grep -oE '/[^ )]*libcompiler_rt\.a' "$STDERR_FILE" | head -1)"
+    from_stderr="$(grep -oE '/[^ )]*libcompiler_rt\.a' "$STDERR_FILE" | head -1 || true)"
     if [[ -n "$from_stderr" && -f "$from_stderr" ]]; then
         echo "$from_stderr"
     fi

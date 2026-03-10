@@ -54,6 +54,7 @@ pub const SIMDFeatures = @import("simd.zig").Features;
 pub const dotProduct = @import("simd.zig").dotProduct;
 pub const norm = @import("simd.zig").norm;
 pub const normalize = @import("simd.zig").normalize;
+pub const Quantize = @import("simd.zig").Quantize;
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
 

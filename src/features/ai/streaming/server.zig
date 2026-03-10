@@ -18,7 +18,6 @@
 
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
 const mod = @import("mod.zig");
 const sse = @import("sse.zig");
 const websocket = @import("websocket.zig");

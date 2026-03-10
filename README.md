@@ -507,6 +507,9 @@ zig build benchmarks
 
 # Lint check
 zig build lint
+
+# Safe direct format check
+./tools/scripts/fmt_repo.sh --check
 ```
 
 ---

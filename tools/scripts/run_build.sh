@@ -21,7 +21,7 @@ MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo 26.0)"
 
 find_compiler_rt() {
     local from_stderr
-    from_stderr="$(grep -oE '/[^ )]*libcompiler_rt\.a' "$STDERR_FILE" | head -1)"
+    from_stderr="$(grep -oE '/[^ )]*libcompiler_rt\.a' "$STDERR_FILE" | head -1 || true)"
     if [[ -n "$from_stderr" && -f "$from_stderr" ]]; then
         echo "$from_stderr"
     fi
@@ -36,7 +36,7 @@ if "$ZIG" build "$@" 2>"$STDERR_FILE"; then
 fi
 
 # ── Step 2: Find build_zcu.o ─────────────────────────────────────────────
-BUILD_O="$(grep -oE '\.zig-cache/o/[a-f0-9]+/build_zcu\.o' "$STDERR_FILE" | head -1)"
+BUILD_O="$(grep -oE '\.zig-cache/o/[a-f0-9]+/build_zcu\.o' "$STDERR_FILE" | head -1 || true)"
 if [[ -z "$BUILD_O" ]]; then
     BUILD_O="$(find .zig-cache/o -name 'build_zcu.o' -newer "$STDERR_FILE" -print -quit 2>/dev/null || true)"
 fi

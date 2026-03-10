@@ -345,7 +345,7 @@ pub const Gpu = struct {
     }
 
     /// Reduce sum: returns sum of all elements.
-    pub fn reduceSum(self: *Gpu, input: *Buffer) !struct { value: f32, stats: ExecutionResult } {
+    pub fn reduceSum(self: *Gpu, input: *Buffer) !stream_orch.ReduceResult {
         return stream_orch.reduceSum(
             &self.dispatcher,
             self.active_device,
@@ -364,7 +364,7 @@ pub const Gpu = struct {
     }
 
     /// Dot product: returns a · b
-    pub fn dotProduct(self: *Gpu, a: *Buffer, b: *Buffer) !struct { value: f32, stats: ExecutionResult } {
+    pub fn dotProduct(self: *Gpu, a: *Buffer, b: *Buffer) !stream_orch.ReduceResult {
         return stream_orch.dotProduct(
             &self.dispatcher,
             self.active_device,

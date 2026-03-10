@@ -87,6 +87,7 @@ probe_*.zig
 test_build.zig
 build_options.zig
 src/build_options.zig
+/src/generated_feature_tests.zig
 /abi_*_tmp*.zig
 /tmp_*.zig
 fix_*.py

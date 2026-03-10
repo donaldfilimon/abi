@@ -39,6 +39,11 @@ pub fn build(b: *std.Build) void {
     if (is_blocked_darwin) {
         options.feat_database = false;
         options.feat_ai = false;
+        options.feat_explore = false;
+        options.feat_llm = false;
+        options.feat_vision = false;
+        options.feat_training = false;
+        options.feat_reasoning = false;
 
         // Emit platform-appropriate CEL suggestion
         const cel_status = cel.detectCelStatus(b);
@@ -257,23 +262,58 @@ pub fn build(b: *std.Build) void {
 
     // ── Import rule check ───────────────────────────────────────────────
     const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
-    import_check_step.dependOn(&addScriptRunner(b, "abi-check-import-rules", "tools/scripts/check_import_rules.zig", target, optimize).step);
+    import_check_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-import-rules",
+        "tools/scripts/check_import_rules.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     // ── Consistency checks ──────────────────────────────────────────────
     const toolchain_doctor_step = b.step("toolchain-doctor", "Diagnose local Zig PATH/version drift against repository pin");
     toolchain_doctor_step.dependOn(&addScriptRunner(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize).step);
 
     const check_zig_version_step = b.step("check-zig-version", "Verify Zig version consistency");
-    check_zig_version_step.dependOn(&addScriptRunner(b, "abi-check-zig-version-consistency", "tools/scripts/check_zig_version_consistency.zig", target, optimize).step);
+    check_zig_version_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-zig-version-consistency",
+        "tools/scripts/check_zig_version_consistency.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     const check_test_baseline_step = b.step("check-test-baseline", "Verify test baseline consistency");
-    check_test_baseline_step.dependOn(&addScriptRunner(b, "abi-check-test-baseline-consistency", "tools/scripts/check_test_baseline_consistency.zig", target, optimize).step);
+    check_test_baseline_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-test-baseline-consistency",
+        "tools/scripts/check_test_baseline_consistency.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     const check_zig_016_patterns_step = b.step("check-zig-016-patterns", "Verify Zig 0.16 conformance patterns");
-    check_zig_016_patterns_step.dependOn(&addScriptRunner(b, "abi-check-zig-016-patterns", "tools/scripts/check_zig_016_patterns.zig", target, optimize).step);
+    check_zig_016_patterns_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-zig-016-patterns",
+        "tools/scripts/check_zig_016_patterns.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     const check_feature_catalog_step = b.step("check-feature-catalog", "Verify feature catalog consistency");
-    check_feature_catalog_step.dependOn(&addScriptRunner(b, "abi-check-feature-catalog", "tools/scripts/check_feature_catalog.zig", target, optimize).step);
+    check_feature_catalog_step.dependOn(addValidationScriptStep(
+        b,
+        "abi-check-feature-catalog",
+        "tools/scripts/check_feature_catalog.zig",
+        target,
+        optimize,
+        &.{},
+    ));
 
     var check_gpu_policy_step: ?*std.Build.Step = null;
     if (targets.pathExists(b, "tools/scripts/check_gpu_policy_consistency.zig")) {
@@ -312,24 +352,24 @@ pub fn build(b: *std.Build) void {
     ralph_gate_step.dependOn(&addScriptRunner(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize).step);
 
     const workflow_contract_step = b.step("check-workflow-orchestration", "Advisory workflow-orchestration contract checks");
-    workflow_contract_step.dependOn(&addScriptRunner(
+    workflow_contract_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-workflow-orchestration",
         "tools/scripts/check_workflow_orchestration.zig",
         target,
         optimize,
-    ).step);
+        &.{},
+    ));
 
     const workflow_contract_strict_step = b.step("check-workflow-orchestration-strict", "Strict workflow-orchestration contract checks");
-    const workflow_contract_strict = addScriptRunner(
+    workflow_contract_strict_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-workflow-orchestration-strict",
         "tools/scripts/check_workflow_orchestration.zig",
         target,
         optimize,
-    );
-    workflow_contract_strict.addArg("--strict");
-    workflow_contract_strict_step.dependOn(&workflow_contract_strict.step);
+        &.{"--strict"},
+    ));
 
     // ── Zig bootstrap steps ──────────────────────────────────────────────
     _ = cel.addZigBootstrapCheckStep(b);
@@ -371,26 +411,25 @@ pub fn build(b: *std.Build) void {
     const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
     refresh_cli_registry_step.dependOn(&refresh_cli_registry.step);
 
-    const check_cli_registry = addScriptRunner(
+    const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
+    check_cli_registry_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-cli-registry",
         "tools/scripts/generate_cli_registry.zig",
         target,
         optimize,
-    );
-    check_cli_registry.addArg("--check");
-    check_cli_registry.addArg("--snapshot");
-    const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
-    check_cli_registry_step.dependOn(&check_cli_registry.step);
+        &.{ "--check", "--snapshot" },
+    ));
 
     const check_cli_dsl_consistency_step = b.step("check-cli-dsl-consistency", "Verify CLI/TUI DSL organization contracts");
-    check_cli_dsl_consistency_step.dependOn(&addScriptRunner(
+    check_cli_dsl_consistency_step.dependOn(addValidationScriptStep(
         b,
         "abi-check-cli-dsl-consistency",
         "tools/scripts/check_cli_dsl_consistency.zig",
         target,
         optimize,
-    ).step);
+        &.{},
+    ));
 
     // ── Full check ──────────────────────────────────────────────────────
     const full_check_step = b.step("full-check", "Run the local confidence gate across deterministic leaf checks");
@@ -764,15 +803,8 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
     return b.resolveTargetQuery(query);
 }
 
-/// Build and run a standalone Zig script (used for consistency checks, gate
-/// checks, etc.).  Returns the `Run` step so callers can add arguments or
-/// set dependencies.
-///
-/// On blocked Darwin (macOS 26+), the binary cannot be linked so the Run
-/// step will reference a compile-only artifact.  Steps that depend on this
-/// will succeed at the compile stage but fail if execution is actually
-/// attempted — callers should guard with `is_blocked_darwin` if they need
-/// to conditionally skip execution.
+/// Build and run a standalone Zig script (used for generators, doctors,
+/// commands, and gates that still execute on the active host).
 fn addScriptRunner(
     b: *std.Build,
     name: []const u8,
@@ -796,7 +828,7 @@ fn addScriptRunner(
 }
 
 /// Get just the compile step from a script runner (for blocked Darwin where
-/// we can't link or run).
+/// the host cannot execute standalone Zig validation binaries reliably).
 fn addScriptCompileOnly(
     b: *std.Build,
     name: []const u8,
@@ -804,7 +836,7 @@ fn addScriptCompileOnly(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Step {
-    const exe = b.addExecutable(.{
+    const obj = b.addObject(.{
         .name = name,
         .root_module = b.createModule(.{
             .root_source_file = b.path(source),
@@ -813,6 +845,23 @@ fn addScriptCompileOnly(
             .link_libc = true,
         }),
     });
-    exe.use_llvm = true;
-    return &exe.step;
+    obj.use_llvm = true;
+    return &obj.step;
+}
+
+fn addValidationScriptStep(
+    b: *std.Build,
+    name: []const u8,
+    source: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    args: []const []const u8,
+) *std.Build.Step {
+    if (is_blocked_darwin) {
+        return addScriptCompileOnly(b, name, source, target, optimize);
+    }
+
+    const run = addScriptRunner(b, name, source, target, optimize);
+    for (args) |arg| run.addArg(arg);
+    return &run.step;
 }

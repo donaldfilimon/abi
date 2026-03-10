@@ -32,8 +32,8 @@ Run a build step with automatic Darwin workaround detection.
    fi
    ```
    If both fail with the known linker error (`__availability_version_check`), fall back to:
-   - For `lint`/`fmt`: `zig fmt --check build.zig build/ src/ tools/`
-   - For `fix`: `zig fmt build.zig build/ src/ tools/`
+   - For `lint`/`fmt`: `./tools/scripts/fmt_repo.sh --check`
+   - For `fix`: `./tools/scripts/fmt_repo.sh`
    - For `test`: `zig test src/services/tests/mod.zig -fno-emit-bin` (compile-only — no actual test execution)
    - For `validate-flags`: Report that this requires a linking-capable toolchain
    - Otherwise: Report that this step requires the CEL toolchain or Linux CI
@@ -58,7 +58,7 @@ Run a build step with automatic Darwin workaround detection.
 | `verify-all` | full-check + examples + wasm + cross + docs (release gate) |
 | `lint` | Check formatting (alias for format check) |
 | `fix` | Auto-format |
-| `validate-flags` | Check 39 feature flag combos |
+| `validate-flags` | Check 42 feature flag combos |
 | `refresh-cli-registry` | Regenerate CLI registry snapshot |
 | `check-cli-registry` | Verify registry is current |
 | `check-docs` | Docs consistency check |

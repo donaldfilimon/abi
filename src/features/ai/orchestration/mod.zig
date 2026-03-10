@@ -33,10 +33,9 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-// Shared utilities for timestamps
 const utils = @import("../../../services/shared/utils.zig");
-
 const sync = @import("../../../services/shared/sync.zig");
+
 const Mutex = sync.Mutex;
 
 // Provider router for real inference dispatch
@@ -61,6 +60,10 @@ pub const EnsembleResult = ensemble.EnsembleResult;
 pub const FallbackManager = fallback.FallbackManager;
 pub const FallbackPolicy = fallback.FallbackPolicy;
 pub const HealthStatus = fallback.HealthStatus;
+
+fn unixMs() i64 {
+    return utils.unixMs();
+}
 
 // ============================================================================
 // Configuration
@@ -750,7 +753,7 @@ pub const Orchestrator = struct {
         // Update stats while still holding the lock
         model.active_requests += 1;
         model.total_requests += 1;
-        model.last_request_time = utils.unixMs();
+        model.last_request_time = unixMs();
         self.mutex.unlock();
 
         defer {
@@ -779,7 +782,7 @@ pub const Orchestrator = struct {
             self.mutex.lock();
             model.consecutive_failures += 1;
             model.total_failures += 1;
-            model.last_failure_time = utils.unixMs();
+            model.last_failure_time = unixMs();
             if (model.consecutive_failures >= 3) {
                 model.status = .unhealthy;
             }

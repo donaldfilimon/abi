@@ -1,4 +1,5 @@
 const std = @import("std");
+const modules = @import("modules.zig");
 
 pub fn addCliTests(
     b: *std.Build,
@@ -39,6 +40,29 @@ pub fn addCliTests(
     run_smoke.skip_foreign_checks = true;
 
     const step = b.step("cli-tests", "Run descriptor-driven CLI smoke coverage");
-    step.dependOn(&run_smoke.step);
+    if (is_blocked_darwin) {
+        const cli_main_check = b.addObject(.{
+            .name = "abi-cli-main-typecheck",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/cli/main.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            }),
+        });
+        cli_main_check.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
+        cli_main_check.use_llvm = true;
+
+        const smoke_runner_check = b.addObject(.{
+            .name = "abi-cli-smoke-runner-typecheck",
+            .root_module = smoke_runner_mod,
+        });
+        smoke_runner_check.use_llvm = true;
+
+        step.dependOn(&cli_main_check.step);
+        step.dependOn(&smoke_runner_check.step);
+    } else {
+        step.dependOn(&run_smoke.step);
+    }
     return step;
 }

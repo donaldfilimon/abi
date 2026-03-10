@@ -246,6 +246,8 @@ pub fn matrixMultiply(
     };
 }
 
+pub const ReduceResult = struct { value: f32, stats: ExecutionResult };
+
 /// Context passed to reduceSum/dotProduct to allow buffer creation/destruction.
 pub const BufferContext = struct {
     allocator: std.mem.Allocator,
@@ -264,7 +266,7 @@ pub fn reduceSum(
     stats: *GpuStats,
     buf_ctx: BufferContext,
     input: *Buffer,
-) !struct { value: f32, stats: ExecutionResult } {
+) !ReduceResult {
     const device = active_device orelse return error.NoActiveDevice;
 
     var timer = time.Timer.start() catch return error.TimerFailed;
@@ -345,7 +347,7 @@ pub fn dotProduct(
     buf_ctx: BufferContext,
     a: *Buffer,
     b: *Buffer,
-) !struct { value: f32, stats: ExecutionResult } {
+) !ReduceResult {
     const device = active_device orelse return error.NoActiveDevice;
 
     var timer = time.Timer.start() catch return error.TimerFailed;

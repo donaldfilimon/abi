@@ -60,6 +60,11 @@ pub const AnnBenchmarkResult = struct {
     }
 };
 
+pub const CurvePoint = struct {
+    recall: f64,
+    qps: f64,
+};
+
 /// ANN-Benchmarks configuration
 pub const AnnBenchConfig = struct {
     /// Dataset to benchmark
@@ -220,8 +225,8 @@ pub fn generateRecallQpsCurve(
     ef_construction: usize,
     ef_search_values: []const usize,
     k: usize,
-) ![]struct { recall: f64, qps: f64 } {
-    var curve = std.ArrayListUnmanaged(struct { recall: f64, qps: f64 }).empty;
+) ![]CurvePoint {
+    var curve = std.ArrayListUnmanaged(CurvePoint).empty;
     errdefer curve.deinit(allocator);
 
     // Build index

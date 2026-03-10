@@ -1,4 +1,4 @@
-# CLAUDE.md
+/# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -21,9 +21,10 @@ zig build cli-tests                          # CLI unit tests
 zig build tui-tests                          # TUI unit tests
 zig build launcher-tests                     # Shell/launcher tests
 zig build wdbx-fast-tests                    # WDBX vector database tests
-zig build validate-flags                     # Check 39 feature flag combos (mobile gap pending)
+zig build validate-flags                     # Check 42 feature flag combos
 zig build lint                               # Check formatting
 zig build fix                                # Auto-format
+./tools/scripts/fmt_repo.sh --check          # Safe direct format check (skips vendored bootstrap fixtures)
 
 # Registry and docs
 zig build refresh-cli-registry               # Regenerate CLI registry snapshot
@@ -83,7 +84,7 @@ tools/scripts/           # Toolchain doctor, baseline, utilities
 
 `build.zig` imports modular components from `build/`:
 - `options.zig` — `BuildOptions` struct and flag reading
-- `flags.zig` — `FlagCombo` validation matrix (40 combos)
+- `flags.zig` — `FlagCombo` validation matrix (42 combos)
 - `modules.zig` — module creation helpers
 - `test_discovery.zig` — **single source of truth** for feature test manifest
 - `cli_smoke_runner.zig` — descriptor-driven CLI smoke tests
@@ -231,8 +232,8 @@ Upstream Zig linker incompatibility (`__availability_version_check`, `_arc4rando
 **Current workaround — `run_build.sh`** (relinks build runner with Apple ld):
 ```bash
 ./tools/scripts/run_build.sh lint         # Format check (works on Darwin 25+)
-./tools/scripts/run_build.sh test         # Tests (may hit wdbx module conflict)
-zig fmt --check build.zig build/ src/ tools/  # Direct format check (no build runner)
+./tools/scripts/run_build.sh test         # Main tests via Apple ld relink
+./tools/scripts/fmt_repo.sh --check       # Direct format check (no build runner)
 ```
 
 **Fallbacks:** `zig-bootstrap-emergency/` (see `zig-bootstrap-emergency/ABI-USAGE.md`), or `zig test -fno-emit-bin` for compile-only validation.

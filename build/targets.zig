@@ -135,11 +135,22 @@ pub fn buildTargets(
         exe.root_module.addImport("abi", abi_module);
         exe.root_module.addImport("build_options", build_opts);
         applyPerformanceTweaks(exe, exe_optimize);
+        const step = b.step(t.step_name, t.description);
+        if (is_blocked_darwin) {
+            const typecheck = b.addObject(.{ .name = t.name, .root_module = exe.root_module });
+            typecheck.use_llvm = true;
+
+            step.dependOn(&typecheck.step);
+            if (aggregate) |agg| {
+                agg.dependOn(&typecheck.step);
+            }
+            continue;
+        }
+
         b.installArtifact(exe);
 
         const run = b.addRunArtifact(exe);
         if (b.args) |args| run.addArgs(args);
-        const step = b.step(t.step_name, t.description);
         step.dependOn(&run.step);
         if (aggregate) |agg| {
             if (aggregate_runs) {

@@ -1,100 +1,31 @@
-# Global Agents Registry
+# Repository Guidelines
 
-This file documents the personas active within the ABI Framework.
+## Project Structure & Module Organization
 
-1. **Abbey:** High-level orchestrator — strategic planning, user engagement, multi-agent delegation.
-2. **Aviva:** Dense executor — precision execution, debugging, factual synthesis.
-3. **Claude (`CLAUDE.md`):** External workflow manager.
-4. **Gemini (`GEMINI.md`):** Migration specialist CLI.
+`src/` holds the framework, with the public API rooted at `src/abi.zig`. Feature-gated modules live in `src/features/<name>/`; when you change a public feature API, update both `mod.zig` and `stub.zig`. Build logic is split across `build/`, CLI and TUI code live in `tools/cli/`, docs generation lives in `tools/gendocs/`, and CEL stage-0 sources live under `tools/cel/`, `stdlib/cel/`, and the root `./cel` launcher. Examples are in `examples/` and `examples/cel/`.
 
-## Canonical Interfaces
+## Build, Test, and Development Commands
 
-• Repo workflow contract: `AGENTS.md`
-• Active execution tracker: `tasks/todo.md`
-• Correction log: `tasks/lessons.md`
-• Zig validation contract: See `CLAUDE.md` (Zig 0.16 std API notes and build commands)
+Use the Zig toolchain pinned in `.zigversion` (`0.16.0-dev.1503+738d2be9d`).
 
-## Global Multi-CLI Consensus
+- `zig build`: build the main project.
+- `zig build test --summary all`: run the primary test root in `src/services/tests/mod.zig`.
+- `zig build feature-tests --summary all`: run manifest-driven feature coverage from `build/test_discovery.zig`.
+- `zig build full-check`: local confidence gate for formatting, tests, docs, and CLI checks.
+- `zig build verify-all`: broader release gate.
+- `./tools/scripts/fmt_repo.sh [--check]`: repo-safe formatter surface; skips vendored bootstrap fixtures.
+- `zig build fix` / `zig build lint`: format or format-check Zig sources.
+- `zig build refresh-cli-registry`: regenerate `tools/cli/generated/` after command metadata changes.
+- `./cel check`, `./cel run`, `./cel test`: exercise the CEL stage-0 toolchain.
 
-### 0. Always Run Parallel Consensus
+## Coding Style & Naming Conventions
 
-• For every non-trivial task, run `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh --mode <code|vision> --timeout-sec 120 --prompt-file <file> --out-dir <dir>` before implementation.
-• Treat `run_tricli_consensus.sh` as the compatibility wrapper around `run_consensus.py`.
-• Use `--mode code` for normal tasks and `--mode vision` for image/screenshot-heavy tasks.
-• Keep `--timeout-sec 120` per tool.
-• Treat this as mandatory best-effort: continue with surviving tools if one fails.
-• Use Codex as final arbiter when outputs disagree.
+Let `zig fmt` set formatting; avoid manual alignment. Do not run `zig fmt .` from the repo root because `zig-bootstrap-emergency/` vendors intentionally invalid Zig fixtures. Use `./tools/scripts/fmt_repo.sh --check`, `zig build lint`, or `zig build fix`. Use relative imports inside `src/features/`, but use `@import("abi")` for public consumers. Keep file and function names in `lower_snake_case`. Feature flags use the `feat_<name>` pattern. CLI commands should keep their `pub const meta: command.Meta` block in sync with behavior and docs.
 
-## Workflow Orchestration
+## Testing Guidelines
 
-### 1. Plan Node Default
+Write Zig tests with `test "..."` blocks close to the code they cover. Add broader feature coverage to `build/test_discovery.zig`, and keep CEL coverage under `tests/cel/`. For CLI changes, run `zig build cli-tests`, `zig build check-docs`, and refresh the CLI registry. Do not merge without `zig build full-check`, or record the exact environment blocker in your review notes.
 
-• Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-• If something goes sideways, STOP and re-plan immediately - don't keep pushing
-• Use plan mode for verification steps, not just building
-• Write detailed specs upfront to reduce ambiguity
-• Present plan for approval before implementation on high-stakes changes
+## Commit & Pull Request Guidelines
 
-### 2. Subagent Strategy
-
-• Use subagents liberally to keep main context window clean
-• Offload research, exploration, and parallel analysis to subagents
-• For complex problems, throw more compute at it via subagents
-• One task per subagent for focused execution
-• Aggregate and synthesize subagent results before proceeding
-
-### 3. Self-Improvement Loop
-
-• After ANY correction from the user: update `tasks/lessons.md` with the pattern
-• Write rules for yourself that prevent the same mistake
-• Ruthlessly iterate on these lessons until mistake rate drops
-• Review lessons at session start for relevant project
-• Patterns to capture: root causes, not just symptoms
-
-### 4. Verification Before Done
-
-• Never mark a task complete without proving it works
-• Diff behavior between main and your changes when relevant
-• Ask yourself: "Would a staff engineer approve this?"
-• Run tests, check logs, demonstrate correctness
-• For UI changes: verify visually; for API changes: test the endpoint
-
-### 5. Demand Elegance (Balanced)
-
-• For non-trivial changes: pause and ask "is there a more elegant way?"
-• If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
-• Skip this for simple, obvious fixes - don't over-engineer
-• Challenge your own work before presenting it
-• Simplicity is the ultimate sophistication
-
-### 6. Autonomous Bug Fixing
-
-• When given a bug report: just fix it. Don't ask for hand-holding
-• Point at logs, errors, failing tests - then resolve them
-• Zero context switching required from the user
-• Go fix failing CI tests without being told how
-• Investigate root cause; fix the disease, not the symptom
-
----
-
-## Task Management
-
-1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
-2. **Verify Plan**: Check in before starting implementation
-3. **Track Progress**: Mark items complete as you go
-4. **Explain Changes**: High-level summary at each step
-5. **Document Results**: Add review section to `tasks/todo.md`
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
-
----
-
-## Core Principles
-
-| Principle | Description |
-|-----------|-------------|
-| **Simplicity First** | Make every change as simple as possible. Minimal code impact. |
-| **No Laziness** | Find root causes. No temporary fixes. Senior developer standards. |
-| **Minimal Impact** | Changes should only touch what's necessary. Avoid introducing bugs. |
-| **Review Lessons** | Review `lessons.md` at session start for the relevant project. |
-
-> **Note**: AI responses may include mistakes. Always verify critical changes.
+Recent history favors short imperative subjects with prefixes such as `fix:`, `docs:`, `style:`, and `chore:`. Keep commits scoped to one change wave. PRs should summarize user-visible impact, list validation commands and results, link the relevant issue or task, and include screenshots only for TUI/dashboard changes. For non-trivial work, review `tasks/todo.md` and `tasks/lessons.md` first and capture outcomes in `tasks/todo.md`.

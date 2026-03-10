@@ -4,7 +4,6 @@
 //! health tracking, circuit breakers, and failover strategies.
 
 const std = @import("std");
-// Shared utilities for millisecond timestamps
 const time = @import("../../../services/shared/time.zig");
 const utils = @import("../../../services/shared/utils.zig");
 

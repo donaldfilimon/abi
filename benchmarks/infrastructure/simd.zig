@@ -6,7 +6,8 @@
 const std = @import("std");
 const abi = @import("abi");
 const framework = @import("../system/framework.zig");
-const simd_mod = abi.wdbx.neural; // Unified neural engine exposes SIMD
+const simd_mod = abi.wdbx;
+const simd_alignment = std.mem.Alignment.fromByteUnits(64);
 
 /// SIMD benchmark configuration
 pub const SIMDBenchConfig = struct {
@@ -50,9 +51,9 @@ fn benchmarkDotProduct(
     std.debug.print("[Dot Product: Canonical SIMD vs Naive Scalar]\n", .{});
 
     for (config.dimensions) |dim| {
-        const a = try allocator.alignedAlloc(f32, 64, dim);
+        const a = try allocator.alignedAlloc(f32, simd_alignment, dim);
         defer allocator.free(a);
-        const b = try allocator.alignedAlloc(f32, 64, dim);
+        const b = try allocator.alignedAlloc(f32, simd_alignment, dim);
         defer allocator.free(b);
 
         // Fill with dummy data
@@ -103,7 +104,7 @@ fn benchmarkNormalization(
     std.debug.print("\n[Vector Normalization]\n", .{});
 
     for (config.dimensions) |dim| {
-        const a = try allocator.alignedAlloc(f32, 64, dim);
+        const a = try allocator.alignedAlloc(f32, simd_alignment, dim);
         defer allocator.free(a);
         for (a, 0..) |*v, i| v.* = @floatFromInt(i + 1);
 
@@ -131,7 +132,7 @@ fn benchmarkQuantization(
     std.debug.print("\n[Vector Quantization]\n", .{});
 
     for (config.dimensions) |dim| {
-        const src = try allocator.alignedAlloc(f32, 64, dim);
+        const src = try allocator.alignedAlloc(f32, simd_alignment, dim);
         defer allocator.free(src);
         const dst = try allocator.alloc(i8, dim);
         defer allocator.free(dst);

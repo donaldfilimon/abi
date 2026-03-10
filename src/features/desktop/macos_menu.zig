@@ -14,7 +14,7 @@ pub const objc = struct {
 
     pub extern "c" fn objc_getClass(name: [*:0]const u8) Class;
     pub extern "c" fn sel_registerName(name: [*:0]const u8) SEL;
-    pub extern "c" fn objc_msgSend(self: id, op: SEL, ...) callconv(.C) id;
+    pub extern "c" fn objc_msgSend(self: id, op: SEL, ...) callconv(.c) id;
 };
 
 pub const MacMenu = struct {

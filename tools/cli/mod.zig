@@ -10,15 +10,15 @@ const utils = @import("utils/mod.zig");
 const cli_io = utils.io_backend;
 const spec = @import("spec.zig");
 
-/// Main entry point with args from Zig 0.16 Init.Minimal
-pub fn main() !void {
+/// Main entry point with args from Zig 0.16 process init.
+pub fn main(init: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
-    const raw_args = try std.process.argsAlloc(arena.allocator());
+    const raw_args = try init.minimal.args.toSlice(arena.allocator());
 
     var global_flags = try utils.global_flags.parseGlobalFlags(allocator, raw_args);
     defer global_flags.deinit();
@@ -34,7 +34,7 @@ pub fn main() !void {
         std.process.exit(1);
     }
 
-    var io_backend = cli_io.initIoBackend(allocator);
+    var io_backend = cli_io.initIoBackendWithEnv(allocator, init.minimal.environ);
     defer io_backend.deinit();
     const io = io_backend.io();
 

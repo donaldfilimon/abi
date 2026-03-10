@@ -41,7 +41,7 @@ The build system selects mod vs stub via `build_options.feat_<name>`. **When cha
 | File | Purpose |
 |------|---------|
 | `options.zig` | `BuildOptions` struct, flag reading, comptime validation |
-| `flags.zig` | `FlagCombo` validation matrix (39 combos; mobile gap pending) |
+| `flags.zig` | `FlagCombo` validation matrix (42 combos) |
 | `modules.zig` | Module creation helpers |
 | `test_discovery.zig` | Single source of truth for feature test manifest |
 | `cli_smoke_runner.zig` | CLI smoke test descriptors |
