@@ -31,6 +31,13 @@ expanding default CI coverage.
 - Local Darwin `zig build` remains blocked at build-runner link time (`__availability_version_check`, `_arc4random_buf`, etc.) even when `zig` is available on PATH.
 - External GitHub Actions execution is still blocked by repository billing; the rerun attempt for run `22876292804` failed before any code-level job started.
 
+#### Review Notes
+- `bash -n` passed for `.cel/build.sh`, `tools/scripts/cel_migrate.sh`, and `tools/scripts/use_cel.sh`.
+- `zig test -fno-emit-bin` passed for `build/cel.zig` and `tools/scripts/cel_doctor.zig`.
+- `./.cel/build.sh --status` now starts cleanly, reports the stock Zig version mismatch, classifies the Darwin linker failure, and recommends `abi toolchain bootstrap` as the next action on this host.
+- `./tools/scripts/cel_migrate.sh --check` now reports the stock Zig mismatch, flags the blocked build runner, and converges on the same bootstrap next step.
+- `./tools/scripts/use_cel.sh` fails fast with the repo pin, stock-Zig mismatch, and a deterministic next action instead of a generic missing-toolchain error.
+
 ---
 
 ## Next steps (actionable)
