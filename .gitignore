@@ -278,3 +278,18 @@ zig-bootstrap-emergency/
 .zig-global-cache/
 /hashmap_check
 /hashmap_check2
+
+# ── Scratch/workaround artifacts (superseded by CEL) ────────────────
+*.dSYM/
+*.wasm
+bin_wrap/
+/fake_build_options.zig
+/main.c
+/test_link.c
+/test_lld.zig
+/build_cli.sh
+/build_modules.sh
+/patch_cmake.sh
+/patch_zig_main.sh
+/hi.cel
+tools/synthetic_pipeline/
