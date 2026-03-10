@@ -427,15 +427,15 @@ pub const StreamManager = struct {
 };
 
 // ID generation
-var stream_id_counter = std.atomic.Value(u64).init(0);
-var event_id_counter = std.atomic.Value(u64).init(0);
+var stream_id_counter = std.atomic.Value(usize).init(0);
+var event_id_counter = std.atomic.Value(usize).init(0);
 
 fn generateStreamId() u64 {
-    return stream_id_counter.fetchAdd(1, .monotonic);
+    return @as(u64, stream_id_counter.fetchAdd(1, .monotonic));
 }
 
 fn generateEventId() u64 {
-    return event_id_counter.fetchAdd(1, .monotonic);
+    return @as(u64, event_id_counter.fetchAdd(1, .monotonic));
 }
 
 // ============================================================================

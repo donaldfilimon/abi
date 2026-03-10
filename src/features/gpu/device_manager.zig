@@ -51,7 +51,7 @@ pub const HealthStatus = enum {
 };
 
 /// Convert a LoadBalanceStrategy to the multi_device strategy enum.
-pub fn toMultiDeviceStrategy(strategy: LoadBalanceStrategy) multi_device.MultiDeviceConfig.Strategy {
+pub fn toMultiDeviceStrategy(strategy: LoadBalanceStrategy) multi_device.LoadBalanceStrategy {
     return switch (strategy) {
         .round_robin => .round_robin,
         .memory_aware => .memory_aware,

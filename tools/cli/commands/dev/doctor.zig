@@ -4,8 +4,8 @@
 //! about the active Zig toolchain and environment.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context.zig");
-const utils = @import("../../../utils/mod.zig");
+const context_mod = @import("../../framework/context.zig");
+const utils = @import("../../utils/mod.zig");
 
 /// Logic adapted from tools/scripts/toolchain_doctor.zig
 const doctor_logic = struct {

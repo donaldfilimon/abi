@@ -21,14 +21,7 @@ pub const BuildOptions = options_mod.BuildOptions;
 
 const is_blocked_darwin = builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26;
 
-comptime {
-    if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16)
-        @compileError(std.fmt.comptimePrint(
-            "ABI requires Zig 0.16.0-dev.1503+738d2be9d or newer (detected {d}.{d}.{d}). " ++
-                "Build CEL via `./.cel/build.sh` or install the version in `.zigversion`.",
-            .{ builtin.zig_version.major, builtin.zig_version.minor, builtin.zig_version.patch },
-        ));
-}
+
 
 pub fn build(b: *std.Build) void {
     const target = resolveNativeTarget(b);
