@@ -20,25 +20,51 @@ Run a build step with automatic Darwin workaround detection.
    uname -s
    ```
 
-3. **If Darwin**: Use the workaround wrapper:
+3. **If Darwin**: Check for CEL toolchain first, then fall back:
    ```bash
-   ./tools/scripts/run_build.sh <step>
+   # Check if CEL toolchain is available
+   if [ -x ".zig-bootstrap/bin/zig" ]; then
+       # Use CEL — full fidelity build
+       PATH="$(pwd)/.zig-bootstrap/bin:$PATH" zig build <step> --summary all
+   else
+       # Fall back to run_build.sh wrapper
+       ./tools/scripts/run_build.sh <step>
+   fi
    ```
-   If `run_build.sh` fails with the known linker error, fall back to:
-   - For `lint`: `zig fmt --check build.zig build/ src/ tools/`
+   If both fail with the known linker error (`__availability_version_check`), fall back to:
+   - For `lint`/`fmt`: `zig fmt --check build.zig build/ src/ tools/`
    - For `fix`: `zig fmt build.zig build/ src/ tools/`
-   - For `test`: `zig test src/services/tests/mod.zig -fno-emit-bin` (compile-only)
-   - Otherwise: Report that this step requires the CEL toolchain
+   - For `test`: `zig test src/services/tests/mod.zig -fno-emit-bin` (compile-only — no actual test execution)
+   - For `validate-flags`: Report that this requires a linking-capable toolchain
+   - Otherwise: Report that this step requires the CEL toolchain or Linux CI
 
 4. **If Linux**: Run directly:
    ```bash
    zig build <step> --summary all
    ```
 
-5. Report the result clearly, including any warnings about partial validation.
+5. Report the result clearly. If using a fallback, warn about reduced validation scope:
+   - `zig fmt --check` validates formatting only (no type checking)
+   - `-fno-emit-bin` validates types and compilation but runs zero tests
+   - Only `zig build` with a linking-capable toolchain runs actual tests
+
+## Build Steps Quick Reference
+
+| Step | What it does |
+|------|-------------|
+| `test` | Main test suite (~1290 tests) |
+| `feature-tests` | Feature test suite (~2836 tests) |
+| `full-check` | format + tests + feature tests + flag validation + CLI smoke |
+| `verify-all` | full-check + examples + wasm + cross + docs (release gate) |
+| `lint` | Check formatting (alias for format check) |
+| `fix` | Auto-format |
+| `validate-flags` | Check 39 feature flag combos |
+| `refresh-cli-registry` | Regenerate CLI registry snapshot |
+| `check-cli-registry` | Verify registry is current |
+| `check-docs` | Docs consistency check |
+| `benchmarks` | Run benchmarks |
 
 ## Tips
 
-- `full-check` = format + tests + feature tests + flag validation + CLI smoke
-- `verify-all` = full-check + examples + wasm + cross + docs (release gate)
 - After CLI changes, always run `refresh-cli-registry`
+- `cel-status` / `cel-check` / `cel-doctor` diagnose the CEL toolchain state

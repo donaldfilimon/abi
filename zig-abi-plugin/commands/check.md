@@ -29,10 +29,14 @@ Search for import rule violations:
 - Report violations with file paths and line numbers
 
 ### `modules`
-Check for cross-module import violations:
-- Grep `src/features/` for relative paths to `wdbx/wdbx.zig` — these should use `@import("wdbx")`
-- A file can only belong to ONE Zig module; relative paths to named module roots cause conflicts
-- Check `src/` broadly for any `@import("../../wdbx/wdbx.zig")` patterns
+Check for cross-module import violations. Named modules registered in `build.zig` must not be imported via relative paths from other modules — a Zig file can only belong to ONE module.
+
+Search for these patterns:
+- Grep `src/features/` for `@import("` containing `wdbx/wdbx.zig` — should be `@import("wdbx")`
+- Grep `src/` broadly for relative imports to any named module root:
+  - `../../wdbx/wdbx.zig` → `@import("wdbx")`
+  - Any `../` chain ending in a build.zig-registered module root
+- Named modules in build.zig: `wdbx` (root: `src/wdbx/wdbx.zig`), `build_options`, `abi` (root: `src/abi.zig`)
 
 ### `registry`
 Check if CLI registry is current. Read `tools/cli/generated/` and compare against command files in `tools/cli/commands/`.
@@ -64,5 +68,5 @@ Run all checks above in sequence. Report a summary table:
 | deprecated | PASS/FAIL | N patterns |
 
 ## Tips
-- On Darwin 25+, `zig build full-check` won't work directly — use this command instead
+- On Darwin 26+, `zig build full-check` won't work directly due to linker incompatibility — use this command instead
 - For full build-system verification, use `/zig-abi:build full-check` which wraps `run_build.sh`

@@ -1,13 +1,39 @@
 {
-  "PostToolUse": [
-    {
-      "matcher": "Edit|Write",
-      "hooks": [
-        {
-          "type": "prompt",
-          "prompt": "Check the edit for TWO patterns:\n1. If this edit modified a file matching `src/features/*/mod.zig`, remind: 'Remember to update the matching stub.zig with the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n2. If this edit introduced `@import(\"../../wdbx/` or any relative path to `wdbx.zig` from within `src/features/`, warn: 'Use `@import(\"wdbx\")` (named module) instead of a relative path to avoid module conflict.'\nOnly warn if matched — otherwise output empty string."
-        }
-      ]
-    }
-  ]
+  "description": "ABI development guardrails: stub sync warnings, module import validation, and completion verification",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check the edit for THREE patterns:\n1. If this edit modified a file matching `src/features/*/mod.zig`, remind: 'Remember to update the matching stub.zig with the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n2. If this edit modified a file matching `src/features/*/stub.zig`, remind: 'Ensure the matching mod.zig has the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n3. If this edit introduced `@import(\"../../wdbx/` or `@import(\"../../../wdbx/` or any relative path containing `wdbx/wdbx.zig` from within `src/features/`, warn: 'Use `@import(\"wdbx\")` (named module) instead of a relative path to avoid module conflict — a file can only belong to one Zig module.'\nOnly warn if matched — otherwise output empty string."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before stopping, verify these ABI project standards:\n1. If any file in src/features/*/mod.zig was edited this session, was the matching stub.zig also updated? If not, remind the user.\n2. If any Zig files were edited, was `zig fmt --check` run on them? If not, suggest it.\n3. If any CLI commands in tools/cli/commands/ were added or modified, was `refresh-cli-registry` mentioned? If not, remind.\n4. If the task involved build.zig changes, were the is_blocked_darwin guards considered?\nReturn 'approve' if all checks pass or no Zig files were edited. Return 'block' with specific reminders if checks fail."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/load-context.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
 }

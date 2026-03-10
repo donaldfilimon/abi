@@ -7,7 +7,7 @@
 //! - Export capabilities
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
+const time = @import("../../../services/shared/time.zig");
 const config = @import("config.zig");
 
 /// Types of audit events.

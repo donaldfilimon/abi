@@ -1,7 +1,7 @@
 ---
 name: stub-sync-validator
 description: Validates that mod.zig and stub.zig signatures stay in sync across all ABI feature modules, and checks for cross-module import violations. Use proactively after editing any file in src/features/*/mod.zig, or when the user asks to verify stub synchronization.
-model: haiku
+model: claude-haiku-4-5-20251001
 color: yellow
 whenToUse: |
   Use this agent after ANY edit to a feature module's mod.zig file. Also use when the user mentions "stub sync", "validate stubs", "check feature modules", "import check", or before running validate-flags.

@@ -7,7 +7,7 @@
 //! - Session and persona association
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
+const time = @import("../../../services/shared/time.zig");
 const cfg = @import("config.zig");
 
 /// Rating type for feedback.

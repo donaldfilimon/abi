@@ -7,7 +7,7 @@
 //! - Category-level breakdown
 
 const std = @import("std");
-const time = @import("../../../../services/shared/time.zig");
+const time = @import("../../../services/shared/time.zig");
 const collector_mod = @import("collector.zig");
 
 /// Satisfaction trend direction.

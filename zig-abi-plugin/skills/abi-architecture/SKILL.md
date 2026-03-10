@@ -91,5 +91,5 @@ Two test roots:
 1. **Main tests** (`zig build test`): `src/services/tests/mod.zig` → ~1290 pass
 2. **Feature tests** (`zig build feature-tests`): `build/test_discovery.zig` manifest → ~2836 pass
 
-After adding tests: run `zig build update-baseline`.
 After modifying CLI commands: run `zig build refresh-cli-registry`.
+Baseline consistency is checked automatically by `zig build full-check` (via `check-test-baseline`).
