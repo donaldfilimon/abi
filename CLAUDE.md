@@ -139,6 +139,7 @@ CI runs on push/PR to `main`/`master` (pinned to `ZIG_VERSION: "0.16.0-dev.1503+
 4. **Verify stub sync** — any change to `mod.zig` requires matching `stub.zig` update.
 5. **Update `tasks/lessons.md`** after fixing any mistake that could recur.
 6. **Version pin atomicity** — when changing version strings, grep for all occurrences first, then update all files in one pass.
+7. **PR validation trail** — every PR description must include a summary of `zig build full-check` results from the target environment.
 
 ## Common Pitfalls
 
@@ -175,7 +176,7 @@ User Feedback → FeedbackSystem → LearningBridge → SelfLearningSystem
 
 ## References
 
-- [AGENTS.md](AGENTS.md) — Full workflow contract, commit guidelines, acceptance criteria
+- [AGENTS.md](AGENTS.md) — Canonical workflow contract, acceptance criteria, commit/PR guidelines
 - [docs/FAQ-agents.md](docs/FAQ-agents.md) — Detailed style rules and expanded command docs
 - [tasks/todo.md](tasks/todo.md) — Active task tracker
 - [tasks/lessons.md](tasks/lessons.md) — Correction log for recurring pitfalls
