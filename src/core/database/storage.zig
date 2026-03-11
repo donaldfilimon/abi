@@ -543,25 +543,30 @@ pub const StorageV2Config = struct {
 };
 
 /// Save database with v2 format
-pub fn saveDatabaseV2(
-    allocator: std.mem.Allocator,
-    db: *database.Database,
-    path: []const u8,
-    config: StorageV2Config,
-) !void {
-    var io_backend = initIoBackend(allocator);
-    defer io_backend.deinit();
-    const io = io_backend.io();
+/// Accumulated state during a v2 save operation.
+const SaveState = struct {
+    data_crc: Crc32,
+    file_crc: Crc32,
+    total_size: u64,
+    num_blocks: u32,
 
-    var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
-    defer file.close(io);
+    fn init() SaveState {
+        return .{ .data_crc = Crc32{}, .file_crc = Crc32{}, .total_size = 0, .num_blocks = 0 };
+    }
 
-    var data_crc = Crc32{};
-    var file_crc = Crc32{};
-    var total_size: u64 = 0;
-    var num_blocks: u32 = 0;
+    fn updateData(self: *SaveState, bytes: []const u8) void {
+        self.data_crc.update(bytes);
+        self.file_crc.update(bytes);
+        self.total_size += bytes.len;
+    }
 
-    // 1. Write header
+    fn updateFileOnly(self: *SaveState, bytes: []const u8) void {
+        self.file_crc.update(bytes);
+        self.total_size += bytes.len;
+    }
+};
+
+fn writeHeaderV2(file: anytype, io: anytype, db: *database.Database, config: StorageV2Config) !struct { header_checksum: u32, header: FileHeader } {
     const dimension: u32 = if (db.records.items.len > 0)
         @intCast(db.records.items[0].vector.len)
     else
@@ -575,7 +580,7 @@ pub fn saveDatabaseV2(
             .compressed = config.enable_quantization,
             .has_index = config.include_index,
         },
-        .created_at = 0, // Would use actual timestamp
+        .created_at = 0,
         .modified_at = 0,
         .vector_count = db.records.items.len,
         .dimension = dimension,
@@ -584,11 +589,16 @@ pub fn saveDatabaseV2(
 
     const header_bytes = header.serialize();
     try file.writeStreamingAll(io, &header_bytes);
-    const header_checksum = Crc32.compute(&header_bytes);
-    file_crc.update(&header_bytes);
-    total_size += HEADER_SIZE;
+    return .{ .header_checksum = Crc32.compute(&header_bytes), .header = header };
+}
 
-    // 2. Write metadata block
+fn writeMetadataBlock(
+    allocator: std.mem.Allocator,
+    file: anytype,
+    io: anytype,
+    db: *database.Database,
+    state: *SaveState,
+) !void {
     const name_len: u16 = @intCast(@min(db.name.len, 65535));
     const metadata_len: usize = 2 + name_len;
     const metadata = try allocator.alloc(u8, metadata_len);
@@ -598,46 +608,96 @@ pub fn saveDatabaseV2(
     @memcpy(metadata[2..][0..name_len], db.name[0..name_len]);
 
     try file.writeStreamingAll(io, metadata);
-    data_crc.update(metadata);
-    file_crc.update(metadata);
-    total_size += metadata_len;
-    num_blocks += 1;
+    state.updateData(metadata);
+    state.num_blocks += 1;
+}
 
-    // 3. Write bloom filter (optional)
-    if (config.enable_bloom_filter and db.records.items.len > 0) {
-        var bloom = try BloomFilter.init(allocator, db.records.items.len, config.bloom_fp_rate);
-        defer bloom.deinit();
+fn writeBloomBlock(
+    allocator: std.mem.Allocator,
+    file: anytype,
+    io: anytype,
+    db: *database.Database,
+    config: StorageV2Config,
+    state: *SaveState,
+) !void {
+    if (!config.enable_bloom_filter or db.records.items.len == 0) return;
 
-        for (db.records.items) |record| {
-            bloom.add(record.id);
-        }
+    var bloom = try BloomFilter.init(allocator, db.records.items.len, config.bloom_fp_rate);
+    defer bloom.deinit();
 
-        const bloom_data = try bloom.serialize(allocator);
-        defer allocator.free(bloom_data);
-
-        // Write bloom block header
-        var bloom_header: [8]u8 = undefined;
-        bloom_header[0] = @intFromEnum(BlockType.bloom_filter);
-        bloom_header[1] = 0; // flags
-        std.mem.writeInt(u16, bloom_header[2..4], 0, .little); // reserved
-        std.mem.writeInt(u32, bloom_header[4..8], @intCast(bloom_data.len), .little);
-
-        try file.writeStreamingAll(io, &bloom_header);
-        try file.writeStreamingAll(io, bloom_data);
-        data_crc.update(&bloom_header);
-        data_crc.update(bloom_data);
-        file_crc.update(&bloom_header);
-        file_crc.update(bloom_data);
-        total_size += 8 + bloom_data.len;
-        num_blocks += 1;
+    for (db.records.items) |record| {
+        bloom.add(record.id);
     }
 
-    // 4. Write vector data
+    const bloom_data = try bloom.serialize(allocator);
+    defer allocator.free(bloom_data);
+
+    var bloom_header: [8]u8 = undefined;
+    bloom_header[0] = @intFromEnum(BlockType.bloom_filter);
+    bloom_header[1] = 0;
+    std.mem.writeInt(u16, bloom_header[2..4], 0, .little);
+    std.mem.writeInt(u32, bloom_header[4..8], @intCast(bloom_data.len), .little);
+
+    try file.writeStreamingAll(io, &bloom_header);
+    try file.writeStreamingAll(io, bloom_data);
+    state.updateData(&bloom_header);
+    state.updateData(bloom_data);
+    state.num_blocks += 1;
+}
+
+/// Flush a write buffer through the file, updating CRCs and counters.
+fn flushWriteBuffer(
+    file: anytype,
+    io: anytype,
+    write_buffer: []u8,
+    buffer_pos: *usize,
+    state: *SaveState,
+) !void {
+    if (buffer_pos.* > 0) {
+        const pending = write_buffer[0..buffer_pos.*];
+        try file.writeStreamingAll(io, pending);
+        state.updateData(pending);
+        buffer_pos.* = 0;
+    }
+}
+
+/// Buffer `src` bytes into `write_buffer`, flushing to disk as needed.
+fn bufferBytes(
+    file: anytype,
+    io: anytype,
+    write_buffer: []u8,
+    buffer_pos: *usize,
+    state: *SaveState,
+    src: []const u8,
+) !void {
+    var offset: usize = 0;
+    while (offset < src.len) {
+        const space = write_buffer.len - buffer_pos.*;
+        if (space == 0) {
+            try flushWriteBuffer(file, io, write_buffer, buffer_pos, state);
+            continue;
+        }
+        const to_copy = @min(src.len - offset, space);
+        @memcpy(write_buffer[buffer_pos.*..][0..to_copy], src[offset..][0..to_copy]);
+        buffer_pos.* += to_copy;
+        offset += to_copy;
+    }
+}
+
+fn writeVectorBlocks(
+    allocator: std.mem.Allocator,
+    file: anytype,
+    io: anytype,
+    db: *database.Database,
+    header: FileHeader,
+    config: StorageV2Config,
+    state: *SaveState,
+) !void {
     const write_buffer = try allocator.alloc(u8, config.write_buffer_size);
     defer allocator.free(write_buffer);
     var buffer_pos: usize = 0;
 
-    // Write vector data block header
+    // Compute total vector data size
     var vector_data_size: u64 = 0;
     for (db.records.items) |record| {
         const metadata_size: u64 = if (record.metadata) |meta| @intCast(meta.len) else 0;
@@ -646,100 +706,163 @@ pub fn saveDatabaseV2(
         vector_data_size += metadata_size;
     }
 
+    // Write vector data block header
     var vector_header: [16]u8 = undefined;
     vector_header[0] = @intFromEnum(BlockType.vector_data);
     vector_header[1] = @intFromEnum(header.compression);
-    std.mem.writeInt(u16, vector_header[2..4], 0, .little); // reserved
+    std.mem.writeInt(u16, vector_header[2..4], 0, .little);
     std.mem.writeInt(u32, vector_header[4..8], @intCast(db.records.items.len), .little);
     std.mem.writeInt(u64, vector_header[8..16], vector_data_size, .little);
 
     try file.writeStreamingAll(io, &vector_header);
-    data_crc.update(&vector_header);
-    file_crc.update(&vector_header);
-    total_size += 16;
-    num_blocks += 1;
+    state.updateData(&vector_header);
+    state.num_blocks += 1;
 
-    // Write each record
+    // Write each record using the shared write buffer
     for (db.records.items) |record| {
         const meta_length: u32 = if (record.metadata) |m| @intCast(m.len) else 0;
 
-        // Record header: id (8) + vec_len (4) + meta_len (4)
         var record_header: [16]u8 = undefined;
         std.mem.writeInt(u64, record_header[0..8], record.id, .little);
         std.mem.writeInt(u32, record_header[8..12], @intCast(record.vector.len), .little);
         std.mem.writeInt(u32, record_header[12..16], meta_length, .little);
 
-        // Flush buffer if needed
-        if (buffer_pos + 16 > write_buffer.len) {
-            try file.writeStreamingAll(io, write_buffer[0..buffer_pos]);
-            data_crc.update(write_buffer[0..buffer_pos]);
-            file_crc.update(write_buffer[0..buffer_pos]);
-            total_size += buffer_pos;
-            buffer_pos = 0;
-        }
-
-        @memcpy(write_buffer[buffer_pos..][0..16], &record_header);
-        buffer_pos += 16;
-
-        // Write vector data
-        const vector_bytes = std.mem.sliceAsBytes(record.vector);
-        var vec_offset: usize = 0;
-        while (vec_offset < vector_bytes.len) {
-            const space = write_buffer.len - buffer_pos;
-            if (space == 0) {
-                try file.writeStreamingAll(io, write_buffer[0..buffer_pos]);
-                data_crc.update(write_buffer[0..buffer_pos]);
-                file_crc.update(write_buffer[0..buffer_pos]);
-                total_size += buffer_pos;
-                buffer_pos = 0;
-                continue;
-            }
-            const to_copy = @min(vector_bytes.len - vec_offset, space);
-            @memcpy(write_buffer[buffer_pos..][0..to_copy], vector_bytes[vec_offset..][0..to_copy]);
-            buffer_pos += to_copy;
-            vec_offset += to_copy;
-        }
-
-        // Write metadata
+        try bufferBytes(file, io, write_buffer, &buffer_pos, state, &record_header);
+        try bufferBytes(file, io, write_buffer, &buffer_pos, state, std.mem.sliceAsBytes(record.vector));
         if (record.metadata) |meta| {
-            var meta_offset: usize = 0;
-            while (meta_offset < meta.len) {
-                const space = write_buffer.len - buffer_pos;
-                if (space == 0) {
-                    try file.writeStreamingAll(io, write_buffer[0..buffer_pos]);
-                    data_crc.update(write_buffer[0..buffer_pos]);
-                    file_crc.update(write_buffer[0..buffer_pos]);
-                    total_size += buffer_pos;
-                    buffer_pos = 0;
-                    continue;
-                }
-                const to_copy = @min(meta.len - meta_offset, space);
-                @memcpy(write_buffer[buffer_pos..][0..to_copy], meta[meta_offset..][0..to_copy]);
-                buffer_pos += to_copy;
-                meta_offset += to_copy;
-            }
+            try bufferBytes(file, io, write_buffer, &buffer_pos, state, meta);
         }
     }
 
-    // Final flush
-    if (buffer_pos > 0) {
-        try file.writeStreamingAll(io, write_buffer[0..buffer_pos]);
-        data_crc.update(write_buffer[0..buffer_pos]);
-        file_crc.update(write_buffer[0..buffer_pos]);
-        total_size += buffer_pos;
-    }
+    try flushWriteBuffer(file, io, write_buffer, &buffer_pos, state);
+}
 
-    // 5. Write footer
+fn writeFooterV2(file: anytype, io: anytype, header_checksum: u32, state: *const SaveState) !void {
     const footer = FileFooter{
         .header_checksum = header_checksum,
-        .data_checksum = data_crc.finalize(),
-        .file_checksum = file_crc.finalize(),
-        .file_size = total_size,
-        .num_blocks = num_blocks,
+        .data_checksum = @constCast(&state.data_crc).finalize(),
+        .file_checksum = @constCast(&state.file_crc).finalize(),
+        .file_size = state.total_size,
+        .num_blocks = state.num_blocks,
     };
-
     const footer_bytes = footer.serialize();
     try file.writeStreamingAll(io, &footer_bytes);
+}
+
+pub fn saveDatabaseV2(
+    allocator: std.mem.Allocator,
+    db: *database.Database,
+    path: []const u8,
+    config: StorageV2Config,
+) !void {
+    var io_backend = initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+    defer file.close(io);
+
+    var state = SaveState.init();
+
+    // 1. Write header
+    const hdr = try writeHeaderV2(&file, io, db, config);
+    const header_bytes = hdr.header.serialize();
+    state.updateFileOnly(&header_bytes);
+
+    // 2. Write metadata block
+    try writeMetadataBlock(allocator, &file, io, db, &state);
+
+    // 3. Write bloom filter (optional)
+    try writeBloomBlock(allocator, &file, io, db, config, &state);
+
+    // 4. Write vector data
+    try writeVectorBlocks(allocator, &file, io, db, hdr.header, config, &state);
+
+    // 5. Write footer
+    try writeFooterV2(&file, io, hdr.header_checksum, &state);
+}
+
+fn verifyV2Checksums(data: []const u8, header_bytes: []const u8, footer: FileFooter, payload_end: usize) !void {
+    const header_checksum = Crc32.compute(header_bytes);
+    if (header_checksum != footer.header_checksum) return error.InvalidChecksum;
+
+    const data_checksum = Crc32.compute(data[HEADER_SIZE..payload_end]);
+    if (data_checksum != footer.data_checksum) return error.InvalidChecksum;
+
+    const file_checksum = Crc32.compute(data[0..payload_end]);
+    const legacy_checksum = Crc32.compute(header_bytes);
+    if (footer.file_checksum != file_checksum and footer.file_checksum != legacy_checksum) {
+        return error.InvalidChecksum;
+    }
+}
+
+fn parseMetadataBlock(data: []const u8, cursor: *usize, payload_end: usize) ![]const u8 {
+    if (cursor.* + 2 > payload_end) return error.TruncatedData;
+    const name_len = std.mem.readInt(u16, data[cursor.*..][0..2], .little);
+    cursor.* += 2;
+
+    if (cursor.* + name_len > payload_end) return error.TruncatedData;
+    const db_name = data[cursor.*..][0..name_len];
+    cursor.* += name_len;
+    return db_name;
+}
+
+fn skipBloomFilter(data: []const u8, cursor: *usize, payload_end: usize, header: FileHeader) !void {
+    const expect_bloom = header.flags.has_bloom_filter and header.vector_count > 0;
+    if (!header.flags.has_bloom_filter) return;
+
+    if (cursor.* + 8 > payload_end) return error.TruncatedData;
+    const block_type = data[cursor.*];
+    if (block_type == @intFromEnum(BlockType.bloom_filter)) {
+        cursor.* += 4;
+        const bloom_size = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+        cursor.* += 4;
+        if (expect_bloom and bloom_size == 0) return error.InvalidBloomFilter;
+        const bloom_size_usize: usize = @intCast(bloom_size);
+        if (bloom_size_usize > payload_end - cursor.*) return error.TruncatedData;
+        cursor.* += bloom_size_usize;
+    } else if (expect_bloom) {
+        return error.InvalidBloomFilter;
+    }
+}
+
+fn readVectorRecord(
+    allocator: std.mem.Allocator,
+    data: []const u8,
+    cursor: *usize,
+    payload_end: usize,
+    expected_dimension: u32,
+) !struct { id: u64, vector: []f32, metadata: ?[]u8 } {
+    if (cursor.* + 16 > payload_end) return error.TruncatedData;
+
+    const id = std.mem.readInt(u64, data[cursor.*..][0..8], .little);
+    cursor.* += 8;
+    const vec_len = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+    cursor.* += 4;
+    const meta_len = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+    cursor.* += 4;
+
+    if (expected_dimension != 0 and vec_len != expected_dimension) {
+        return error.CorruptedData;
+    }
+
+    const vec_bytes_len = vec_len * @sizeOf(f32);
+    if (cursor.* + vec_bytes_len > payload_end) return error.TruncatedData;
+
+    const vector = try allocator.alloc(f32, vec_len);
+    errdefer allocator.free(vector);
+    @memcpy(std.mem.sliceAsBytes(vector), data[cursor.*..][0..vec_bytes_len]);
+    cursor.* += vec_bytes_len;
+
+    var metadata: ?[]u8 = null;
+    if (meta_len > 0) {
+        if (cursor.* + meta_len > payload_end) return error.TruncatedData;
+        metadata = try allocator.alloc(u8, meta_len);
+        @memcpy(metadata.?, data[cursor.*..][0..meta_len]);
+        cursor.* += meta_len;
+    }
+
+    return .{ .id = id, .vector = vector, .metadata = metadata };
 }
 
 /// Load database with v2 format
@@ -756,86 +879,42 @@ pub fn loadDatabaseV2(
         io,
         path,
         allocator,
-        .limited(1024 * 1024 * 1024), // 1GB limit
+        .limited(1024 * 1024 * 1024),
     );
     defer allocator.free(data);
 
     if (data.len < HEADER_SIZE + FOOTER_SIZE) return error.TruncatedData;
     const payload_end = data.len - FOOTER_SIZE;
 
-    // 1. Parse header
+    // 1. Parse and verify header/footer
     var header_bytes: [64]u8 = undefined;
     @memcpy(&header_bytes, data[0..HEADER_SIZE]);
     const header = try FileHeader.deserialize(header_bytes);
 
-    // 2. Verify footer
     var footer_bytes: [32]u8 = undefined;
     @memcpy(&footer_bytes, data[payload_end..]);
     const footer = try FileFooter.deserialize(footer_bytes);
 
-    if (footer.file_size != payload_end) {
-        return error.CorruptedData;
-    }
+    if (footer.file_size != payload_end) return error.CorruptedData;
 
-    // 3. Verify checksums if enabled
     if (config.verify_checksums) {
-        const header_checksum = Crc32.compute(&header_bytes);
-        if (header_checksum != footer.header_checksum) {
-            return error.InvalidChecksum;
-        }
-
-        const data_checksum = Crc32.compute(data[HEADER_SIZE..payload_end]);
-        if (data_checksum != footer.data_checksum) {
-            return error.InvalidChecksum;
-        }
-
-        const file_checksum = Crc32.compute(data[0..payload_end]);
-        const legacy_checksum = Crc32.compute(&header_bytes);
-        if (footer.file_checksum != file_checksum and footer.file_checksum != legacy_checksum) {
-            return error.InvalidChecksum;
-        }
+        try verifyV2Checksums(data, &header_bytes, footer, payload_end);
     }
 
-    // 4. Parse data
+    // 2. Parse metadata and create database
     var cursor: usize = HEADER_SIZE;
-
-    // Parse metadata
-    if (cursor + 2 > payload_end) return error.TruncatedData;
-    const name_len = std.mem.readInt(u16, data[cursor..][0..2], .little);
-    cursor += 2;
-
-    if (cursor + name_len > payload_end) return error.TruncatedData;
-    const db_name = data[cursor..][0..name_len];
-    cursor += name_len;
+    const db_name = try parseMetadataBlock(data, &cursor, payload_end);
 
     var db = try database.Database.init(allocator, db_name);
     errdefer db.deinit();
 
-    // Skip bloom filter if present
-    const expect_bloom = header.flags.has_bloom_filter and header.vector_count > 0;
-    if (header.flags.has_bloom_filter) {
-        if (cursor + 8 > payload_end) return error.TruncatedData;
-        const block_type = data[cursor];
-        if (block_type == @intFromEnum(BlockType.bloom_filter)) {
-            cursor += 4; // skip type + flags + reserved
-            const bloom_size = std.mem.readInt(u32, data[cursor..][0..4], .little);
-            cursor += 4;
-            if (expect_bloom and bloom_size == 0) return error.InvalidBloomFilter;
-            const bloom_size_usize: usize = @intCast(bloom_size);
-            if (bloom_size_usize > payload_end - cursor) return error.TruncatedData;
-            cursor += bloom_size_usize;
-        } else if (expect_bloom) {
-            return error.InvalidBloomFilter;
-        }
-    }
+    // 3. Skip bloom filter if present
+    try skipBloomFilter(data, &cursor, payload_end, header);
 
-    // Parse vector data block
+    // 4. Parse vector data block header
     if (cursor + 16 > payload_end) return error.TruncatedData;
-    const block_type = data[cursor];
-    if (block_type != @intFromEnum(BlockType.vector_data)) {
-        return error.CorruptedData;
-    }
-    cursor += 4; // skip type + compression + reserved
+    if (data[cursor] != @intFromEnum(BlockType.vector_data)) return error.CorruptedData;
+    cursor += 4;
     const vector_count = std.mem.readInt(u32, data[cursor..][0..4], .little);
     cursor += 4;
     const vector_data_size = std.mem.readInt(u64, data[cursor..][0..8], .little);
@@ -843,61 +922,25 @@ pub fn loadDatabaseV2(
 
     if (@as(u64, vector_count) != header.vector_count) return error.CorruptedData;
     if (vector_count > 0 and header.dimension == 0) return error.CorruptedData;
-    const min_vector_payload = @as(u64, vector_count) * 16;
-    if (vector_data_size < min_vector_payload) return error.CorruptedData;
+    if (vector_data_size < @as(u64, vector_count) * 16) return error.CorruptedData;
+    if (vector_data_size > @as(u64, @intCast(payload_end - cursor))) return error.TruncatedData;
 
-    const remaining_payload = payload_end - cursor;
-    if (vector_data_size > @as(u64, @intCast(remaining_payload))) {
-        return error.TruncatedData;
-    }
-
+    // 5. Read vector records
     const vector_payload_start = cursor;
-
-    // Read vectors
     var i: usize = 0;
     while (i < vector_count) : (i += 1) {
-        if (cursor + 16 > payload_end) return error.TruncatedData;
-
-        const id = std.mem.readInt(u64, data[cursor..][0..8], .little);
-        cursor += 8;
-        const vec_len = std.mem.readInt(u32, data[cursor..][0..4], .little);
-        cursor += 4;
-        const meta_len = std.mem.readInt(u32, data[cursor..][0..4], .little);
-        cursor += 4;
-
-        if (header.dimension != 0 and vec_len != header.dimension) {
-            return error.CorruptedData;
+        const rec = try readVectorRecord(allocator, data, &cursor, payload_end, header.dimension);
+        errdefer {
+            allocator.free(rec.vector);
+            if (rec.metadata) |m| allocator.free(m);
         }
-
-        // Read vector
-        const vec_bytes_len = vec_len * @sizeOf(f32);
-        if (cursor + vec_bytes_len > payload_end) return error.TruncatedData;
-
-        const vector = try allocator.alloc(f32, vec_len);
-        errdefer allocator.free(vector);
-        @memcpy(std.mem.sliceAsBytes(vector), data[cursor..][0..vec_bytes_len]);
-        cursor += vec_bytes_len;
-
-        // Read metadata
-        var metadata: ?[]u8 = null;
-        if (meta_len > 0) {
-            if (cursor + meta_len > payload_end) return error.TruncatedData;
-            metadata = try allocator.alloc(u8, meta_len);
-            @memcpy(metadata.?, data[cursor..][0..meta_len]);
-            cursor += meta_len;
-        }
-        errdefer if (metadata) |m| allocator.free(m);
-
-        try db.insertOwned(id, vector, metadata);
+        try db.insertOwned(rec.id, rec.vector, rec.metadata);
     }
 
-    const consumed_vector_payload = cursor - vector_payload_start;
-    if (@as(u64, @intCast(consumed_vector_payload)) != vector_data_size) {
-        return error.CorruptedData;
-    }
-    if (cursor != payload_end) {
-        return error.CorruptedData;
-    }
+    // 6. Verify consumed payload matches declared size
+    const consumed = cursor - vector_payload_start;
+    if (@as(u64, @intCast(consumed)) != vector_data_size) return error.CorruptedData;
+    if (cursor != payload_end) return error.CorruptedData;
 
     return db;
 }
