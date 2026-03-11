@@ -342,7 +342,9 @@ const LocalBackend = struct {
         // Ensure the base directory exists on disk.
         const io = lb.io_backend.io();
         const cwd = std.Io.Dir.cwd();
-        _ = cwd.createDirPathOpen(io, owned_path, .{}) catch {};
+        _ = cwd.createDirPathOpen(io, owned_path, .{}) catch |err| {
+            std.log.warn("Failed to create storage base directory '{s}': {t}", .{ owned_path, err });
+        };
 
         return lb;
     }
@@ -426,7 +428,9 @@ const LocalBackend = struct {
                 const disk_data = self.readFromDisk(allocator, key) orelse
                     return error.ObjectNotFound;
                 // Re-populate memory cache (best-effort).
-                MemoryBackend.putImpl(@ptrCast(self.inner), key, disk_data, null) catch {};
+                MemoryBackend.putImpl(@ptrCast(self.inner), key, disk_data, null) catch |cache_err| {
+                    std.log.debug("Cache warm-up skipped for '{s}': {t}", .{ key, cache_err });
+                };
                 return disk_data;
             },
             else => return err,

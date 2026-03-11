@@ -333,11 +333,15 @@ pub const Server = struct {
             handler(self.allocator, &req, &res) catch |err| {
                 std.log.err("Handler error: {t}", .{err});
                 _ = res.setStatus(.internal_server_error);
-                _ = res.text("Internal Server Error") catch {};
+                _ = res.text("Internal Server Error") catch |text_err| {
+                    std.log.err("Failed to send error response: {t}", .{text_err});
+                };
             };
         } else {
             _ = res.setStatus(.not_found);
-            _ = res.text("No handler configured") catch {};
+            _ = res.text("No handler configured") catch |text_err| {
+                std.log.err("Failed to send fallback response: {t}", .{text_err});
+            };
         }
 
         var out_buffer = std.ArrayListUnmanaged(u8).empty;
