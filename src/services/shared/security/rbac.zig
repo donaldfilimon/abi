@@ -81,7 +81,9 @@ pub const RbacManager = struct {
 
     pub fn deinit(self: *RbacManager) void {
         // Role.deinit frees .name which is also the map key — don't free both
-        for (self.roles.values()) |role| {
+        var role_it = self.roles.values();
+        while (role_it.next()) |role_ptr| {
+            const role = role_ptr.*;
             role.deinit(self.allocator);
             self.allocator.destroy(role);
         }
