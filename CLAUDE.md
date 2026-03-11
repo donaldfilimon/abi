@@ -44,6 +44,10 @@ zig test <path> --test-filter "pat"   # Run specific tests by file/pattern
 # Validation gates
 zig build full-check                  # Local CI gate — mandatory before commits
 zig build verify-all                  # Full release validation
+zig build validate-flags              # Check feature flag combos
+zig build check-cli-registry          # Verify CLI registry is current
+zig build check-docs                  # Docs consistency check
+zig build check-test-baseline         # Validate test baselines
 
 # CLI
 zig build refresh-cli-registry        # Regenerate CLI command metadata
@@ -89,6 +93,10 @@ These APIs changed from 0.15 and cause recurring mistakes:
 - **`addTest`/`addExecutable`**: Use `root_module` field, not top-level `root_source_file`
 - **ZON parsing**: `std.zon.parse.fromSliceAlloc` — use arena-backed parsing and deinit arena at scope end
 - **`zig env`** outputs ZON format (`.lib_dir = "..."`) not JSON
+- **Enums**: Prefer `@enumFromInt(x)` for int→enum; `std.meta.intToEnum` was removed
+- **HashMap iteration**: Use `valueIterator()` / `keyIterator()`, not `.values()` on `AutoHashMapUnmanaged`
+- **Allocator vtable**: `alloc`/`resize`/`free` use `alignment: std.mem.Alignment`, not `u8`
+- **mem.readInt/writeInt**: Use `std.builtin.Endian.little`/`.big`
 
 ## Feature Flags
 
@@ -102,6 +110,27 @@ zig build -Dgpu-backend=cuda,vulkan           # Multiple backends
 
 25 `feat_*` flags defined in `build/options.zig` (including 2 internal: `feat_explore`, `feat_vision`). The validation matrix in `build/flags.zig` tests 42 flag combinations (2 baseline + 20 solo + 20 no-X). The feature catalog (`src/core/feature_catalog.zig`) is the source of truth — comptime validation enforces catalog↔BuildOptions consistency.
 
+## CI Pipeline
+
+CI runs on push/PR to `main`/`master` (pinned to `ZIG_VERSION: "0.16.0-dev.1503+738d2be9d"`):
+
+1. **shell-lint** — `bash -n` syntax check on `.cel/*.sh` and `tools/scripts/*.sh`
+2. **lint** — `zig fmt --check build.zig build/ src/ tools/`
+3. **test** (after lint) — `zig build test` + `zig build feature-tests`
+4. **quality-gates** (after test) — `full-check`, `check-test-baseline`, `validate-flags`, `cli-tests`, `check-cli-registry`, `check-docs`
+5. **examples** (after lint) — builds example programs
+
+## Environment Variables
+
+| Variable | Description |
+|:---------|:------------|
+| `ABI_OPENAI_API_KEY` | OpenAI API key |
+| `ABI_ANTHROPIC_API_KEY` | Anthropic/Claude API key |
+| `ABI_OLLAMA_HOST` | Ollama host (default: `http://127.0.0.1:11434`) |
+| `ABI_OLLAMA_MODEL` | Default Ollama model |
+| `ABI_HF_API_TOKEN` | HuggingFace API token |
+| `DISCORD_BOT_TOKEN` | Discord bot token |
+
 ## Workflow Rules
 
 1. **Review `tasks/lessons.md`** at session start — it contains corrections for recurring pitfalls.
@@ -109,6 +138,17 @@ zig build -Dgpu-backend=cuda,vulkan           # Multiple backends
 3. **Validate before completing** — `zig build full-check` must pass (or `zig fmt --check` on Darwin 25+).
 4. **Verify stub sync** — any change to `mod.zig` requires matching `stub.zig` update.
 5. **Update `tasks/lessons.md`** after fixing any mistake that could recur.
+6. **Version pin atomicity** — when changing version strings, grep for all occurrences first, then update all files in one pass.
+
+## Common Pitfalls
+
+1. **mod.zig ↔ stub.zig sync**: Always update matching `stub.zig` when changing public signatures. Validate with `zig build validate-flags`.
+2. **Version pin wave**: Update `.zigversion`, `build.zig.zon`, `tools/scripts/baseline.zig`, `README.md`, CI config, and `.cel/config.sh` together.
+3. **Nightly pin source**: Validate version/commit pairs against `ziglang.org/builds` artifact metadata, not GitHub master HEAD.
+4. **Build runner links first**: If `zig build` fails with undefined symbols, the build runner can't link — no `build.zig` workaround helps. Use CEL toolchain.
+5. **Test manifest standalone compilation**: Files in `build/test_discovery.zig` must compile with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this.
+6. **Async I/O in TUI**: Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
+7. **Shell script sourcing**: Guard `set -euo pipefail` with `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then ... fi` so strict mode only applies when executed directly.
 
 ## AI Self-Improvement Architecture
 
