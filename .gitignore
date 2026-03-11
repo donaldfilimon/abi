@@ -272,7 +272,10 @@ zig-bootstrap-emergency/
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
 !/docs/plans/*.md
 !/docs/api/*.md
+!/docs/guides/*.md
+!/docs/FAQ-agents.md
 !/tasks/todo.md
+!/tasks/cleanup.md
 !/tasks/lessons.md
 
 # ── .cel toolchain fork (build outputs only) ────────────────────────

@@ -150,6 +150,9 @@ CI runs on push/PR to `main`/`master` (pinned to `ZIG_VERSION: "0.16.0-dev.1503+
 5. **Test manifest standalone compilation**: Files in `build/test_discovery.zig` must compile with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this.
 6. **Async I/O in TUI**: Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
 7. **Shell script sourcing**: Guard `set -euo pipefail` with `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then ... fi` so strict mode only applies when executed directly.
+8. **Bulk find-and-replace can corrupt string literals**: Never do repo-wide text substitution without reviewing each match in context. One bulk operation can cascade into multiple fix waves.
+9. **Validation matrix no-X entries**: Each `no-X` flag combo must enable ALL other features, not just disable one. Verify with `zig build validate-flags`.
+10. **Vendored fixtures stay out of fmt runs**: Never `zig fmt .` from repo root — vendored Zig test fixtures will be reformatted. Use the repo-safe surface (`zig build fix` or targeted `zig fmt --check`).
 
 ## AI Self-Improvement Architecture
 
