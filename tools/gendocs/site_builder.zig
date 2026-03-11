@@ -205,13 +205,7 @@ fn writePage(
     try writeFile(io, output_path, rendered);
 }
 
-fn writeDocument(
-    writer: anytype,
-    manifest: Manifest,
-    page: PageConfig,
-    nav_html: []const u8,
-    page_body: []const u8,
-) !void {
+fn writeHtmlHead(writer: anytype, manifest: Manifest, page: PageConfig) !void {
     try writer.writeAll("<!doctype html>\n<html lang=\"en\">\n<head>\n");
     try writer.writeAll("  <meta charset=\"utf-8\">\n");
     try writer.writeAll("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
@@ -224,6 +218,9 @@ fn writeDocument(
     try writeAssetPath(writer, manifest.site.base_url, "assets/style.css");
     try writer.writeAll("\">\n");
     try writer.writeAll("</head>\n<body>\n");
+}
+
+fn writeSidebar(writer: anytype, manifest: Manifest, nav_html: []const u8) !void {
     try writer.writeAll("<div class=\"layout\">\n");
     try writer.writeAll("  <aside class=\"sidebar\">\n");
     try writer.writeAll("    <div class=\"brand\">");
@@ -238,6 +235,9 @@ fn writeDocument(
     try writer.writeAll(nav_html);
     try writer.writeAll("    </nav>\n");
     try writer.writeAll("  </aside>\n");
+}
+
+fn writeContentBody(writer: anytype, manifest: Manifest, page: PageConfig, page_body: []const u8) !void {
     try writer.writeAll("  <main class=\"content\">\n");
     try writer.writeAll("    <header class=\"page-header\">\n");
     try writer.writeAll("      <h1>");
@@ -253,11 +253,27 @@ fn writeDocument(
     }
     try writer.writeAll("</footer>\n");
     try writer.writeAll("  </main>\n");
+}
+
+fn writeFooterScripts(writer: anytype, manifest: Manifest) !void {
     try writer.writeAll("</div>\n");
     try writer.writeAll("<script src=\"");
     try writeAssetPath(writer, manifest.site.base_url, "assets/main.js");
     try writer.writeAll("\"></script>\n");
     try writer.writeAll("</body>\n</html>\n");
+}
+
+fn writeDocument(
+    writer: anytype,
+    manifest: Manifest,
+    page: PageConfig,
+    nav_html: []const u8,
+    page_body: []const u8,
+) !void {
+    try writeHtmlHead(writer, manifest, page);
+    try writeSidebar(writer, manifest, nav_html);
+    try writeContentBody(writer, manifest, page, page_body);
+    try writeFooterScripts(writer, manifest);
 }
 
 fn buildNav(allocator: std.mem.Allocator, manifest: Manifest, active_slug: []const u8) ![]const u8 {
