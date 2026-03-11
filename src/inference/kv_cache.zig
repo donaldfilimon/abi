@@ -96,7 +96,9 @@ pub const PagedKVCache = struct {
             for (page_list.items) |page_id| {
                 self.pages[page_id].seq_id = null;
                 self.pages[page_id].used_tokens = 0;
-                self.free_pages.append(self.allocator, page_id) catch {};
+                self.free_pages.append(self.allocator, page_id) catch |err| {
+                    std.log.err("KV cache page {d} leaked — free list append failed: {t}", .{ page_id, err });
+                };
             }
             page_list.deinit(self.allocator);
         }

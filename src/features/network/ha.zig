@@ -83,7 +83,9 @@ pub const HealthCheck = struct {
     pub fn addNode(self: *HealthCheck, node_id: []const u8) !void {
         try self.node_health.put(self.allocator, node_id, .unknown);
         try self.check_count.put(self.allocator, node_id, 0);
-        self.fsm.registerNode(node_id) catch {};
+        self.fsm.registerNode(node_id) catch |err| {
+            std.log.warn("FSM node registration failed for '{s}': {t}", .{ node_id, err });
+        };
     }
 
     pub fn removeNode(self: *HealthCheck, node_id: []const u8) void {
