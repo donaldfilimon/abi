@@ -12,6 +12,8 @@ pub const KeyAction = enum {
     theme_next,
     theme_prev,
     help_toggle,
+    focus_next,
+    focus_prev,
     none,
 };
 
@@ -19,6 +21,7 @@ pub const KeyAction = enum {
 pub fn resolve(key: events.Key) KeyAction {
     switch (key.code) {
         .ctrl_c, .escape => return .quit,
+        .tab => return if (key.mods.shift) .focus_prev else .focus_next,
         .character => {
             if (key.char) |ch| {
                 return switch (ch) {
@@ -58,6 +61,34 @@ test "resolve unknown keys return none" {
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .character, .char = 'x' }));
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .up }));
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .character, .char = 'z' }));
+}
+
+test "resolve tab maps to focus_next" {
+    try std.testing.expectEqual(KeyAction.focus_next, resolve(.{ .code = .tab }));
+    try std.testing.expectEqual(KeyAction.focus_next, resolve(.{ .code = .tab, .mods = .{} }));
+    // Tab with ctrl or alt but not shift is still focus_next
+    try std.testing.expectEqual(KeyAction.focus_next, resolve(.{ .code = .tab, .mods = .{ .ctrl = true } }));
+}
+
+test "resolve shift-tab maps to focus_prev" {
+    try std.testing.expectEqual(KeyAction.focus_prev, resolve(.{ .code = .tab, .mods = .{ .shift = true } }));
+    try std.testing.expectEqual(KeyAction.focus_prev, resolve(.{ .code = .tab, .mods = .{ .shift = true, .ctrl = true } }));
+}
+
+test "no action maps to two different results" {
+    // Verify each character key maps to exactly one action and there
+    // are no accidental overlaps in the character switch.
+    const char_actions = [_]struct { char: u8, expected: KeyAction }{
+        .{ .char = 'q', .expected = .quit },
+        .{ .char = 'p', .expected = .pause },
+        .{ .char = 't', .expected = .theme_next },
+        .{ .char = 'T', .expected = .theme_prev },
+        .{ .char = 'h', .expected = .help_toggle },
+        .{ .char = '?', .expected = .help_toggle },
+    };
+    for (char_actions) |entry| {
+        try std.testing.expectEqual(entry.expected, resolve(.{ .code = .character, .char = entry.char }));
+    }
 }
 
 test {

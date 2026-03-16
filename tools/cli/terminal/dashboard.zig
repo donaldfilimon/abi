@@ -290,6 +290,14 @@ pub fn Dashboard(comptime PanelType: type) type {
                     self.showNotification("Theme changed");
                 },
                 .help_toggle => self.show_help = true,
+                .focus_next, .focus_prev => {
+                    // Delegate panel focus cycling to the host via extra_key_handler.
+                    // In single-panel mode this is a no-op; multi-panel hosts
+                    // set extra_key_handler to intercept Tab / Shift-Tab.
+                    if (self.extra_key_handler) |handler| {
+                        return handler(self, key);
+                    }
+                },
                 .none => {
                     // Delegate to panel-specific key handler
                     if (self.extra_key_handler) |handler| {
