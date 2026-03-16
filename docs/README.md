@@ -24,22 +24,26 @@ API references. Understanding which is which prevents accidental overwrites.
 
 | Directory | Source | Regenerate |
 |-----------|--------|------------|
-| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig, and use `./tools/scripts/run_build.sh gendocs` only if stock Zig is linker-blocked |
-| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig, and use `./tools/scripts/run_build.sh gendocs` only if stock Zig is linker-blocked |
-| `data/` | Structured data exports | `zig build gendocs`; on Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig, and use `./tools/scripts/run_build.sh gendocs` only if stock Zig is linker-blocked |
+| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
+| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
+| `data/` | Structured data exports | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
 
 Generated files are overwritten each time `gendocs` runs. Do not hand-edit them;
 instead, modify the source templates in `tools/gendocs/` or the catalog data.
 
 ## How to Regenerate
 
-On Darwin 25+ / macOS 26+, ABI's supported docs-validation path is a host-built
-or otherwise known-good Zig matching `.zigversion`. Use `run_build.sh` only as
-fallback evidence when stock prebuilt Zig is linker-blocked before `build.zig`
-runs.
+On Darwin 25+ / macOS 26+, ABI's supported docs-validation path is the pinned
+host-built Zig from `./tools/scripts/bootstrap_host_zig.sh`, then prepending
+`$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`. Use
+`run_build.sh` only as fallback evidence when stock prebuilt Zig is
+linker-blocked before `build.zig` runs.
 
 ```bash
 # Full regeneration
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
 zig build gendocs
 
 # With options (skip WASM, check untracked markdown)

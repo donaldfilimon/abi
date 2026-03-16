@@ -18,7 +18,7 @@ that executes `build.zig`. That means:
 
 - the failure happens before your `build.zig` logic runs
 - toggling `use_llvm` or other build settings inside `build.zig` cannot fix that first failure
-- the supported fix for full local validation is a host-built or otherwise known-good Zig toolchain on the current machine
+- the supported fix for full local validation is the pinned host-built Zig produced by `./tools/scripts/bootstrap_host_zig.sh`
 - wrapper-based validation and compile-only checks are fallback evidence paths while the host toolchain is being replaced
 
 ## Typical symptoms
@@ -62,18 +62,24 @@ targets.
 
 ## Supported ABI paths
 
-### 1. Preferred: use a host-built or otherwise known-good Zig
+### 1. Preferred: use the pinned host-built Zig bootstrap
 
 This is ABI's supported full-validation path on macOS 26.4. The goal is a Zig
 toolchain that can run the normal gates directly:
 
 ```bash
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
+zig build toolchain-doctor
 zig build full-check
 zig build check-docs
 zig build gendocs -- --check --no-wasm --untracked-md
 ```
 
-If these commands succeed locally, no wrapper path is needed.
+This wave does not repin ABI. `.zigversion`, `build.zig.zon`,
+`tools/scripts/baseline.zig`, and CI remain pinned while the helper provides
+the working Darwin compiler path.
 
 ### 2. Fallback evidence: use the build-runner wrapper
 
@@ -109,7 +115,8 @@ environment is linker-blocked.
 
 ### 4. Use wrapper and compile-only validation together
 
-ABI no longer carries a repo-local workaround toolchain. On blocked Darwin hosts,
+ABI now carries a permanent repo-managed bootstrap path under
+`$HOME/.cache/abi-host-zig/<.zigversion>/bin/zig`. On blocked Darwin hosts,
 use the wrapper for interim typecheck evidence and use compile-only checks when
 the host linker still cannot emit binaries.
 
@@ -123,7 +130,7 @@ zig test src/services/tests/mod.zig -fno-emit-bin
 
 Use this sequence when working locally on macOS 26+:
 
-1. Need full local validation: install or switch to a host-built / otherwise known-good Zig matching `.zigversion`
+1. Need full local validation: run `./tools/scripts/bootstrap_host_zig.sh`, prepend the canonical cache bin dir to `PATH`, then rerun `zig build ...`
 2. Need formatting only: run `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
 3. Temporarily blocked on stock Zig: run `./tools/scripts/run_build.sh typecheck --summary all`
 4. Need targeted syntax/type validation: use `zig test <path> -fno-emit-bin`
@@ -147,7 +154,7 @@ Treat it as a normal code issue when:
 ## Repo implications
 
 - `zig build lint`, `zig build full-check`, and `zig build check-docs` may be blocked on affected stock Darwin toolchains
-- `zig build full-check` remains the canonical gate, and ABI expects a host-built or otherwise known-good Zig for full local validation on macOS 26.4
+- `zig build full-check` remains the canonical gate, and ABI expects the canonical cached host-built Zig for full local validation on macOS 26.4
 - blocked hosts should record alternate evidence explicitly, including `./tools/scripts/run_build.sh typecheck --summary all`
 - docs and task notes should record exactly which command failed and which fallback was used
 
@@ -156,4 +163,6 @@ Treat it as a normal code issue when:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `tasks/lessons.md`
+- `tools/scripts/bootstrap_host_zig.sh`
+- `tools/scripts/inspect_toolchain.sh`
 - `tools/scripts/run_build.sh`

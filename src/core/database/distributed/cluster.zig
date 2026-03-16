@@ -8,8 +8,12 @@
 //! high-speed paths (Thunderbolt/shared memory on macOS).
 
 const std = @import("std");
+const build_options = @import("build_options");
 const shard_manager = @import("shard_manager.zig");
-const heartbeat_mod = @import("../../network/heartbeat");
+const heartbeat_mod = if (build_options.feat_network)
+    @import("../../../features/network/heartbeat.zig")
+else
+    @import("../../../features/network/stubs/heartbeat.zig");
 
 // ============================================================================
 // Types

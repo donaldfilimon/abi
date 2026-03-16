@@ -32,7 +32,7 @@ entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 | Full release gate | `zig build verify-all` |
 | Docs generator | `zig build gendocs` |
 | CLI registry refresh | `zig build refresh-cli-registry` |
-| Darwin 26.4 full-validation toolchain | Host-built or otherwise known-good Zig matching `.zigversion` |
+| Darwin 26.4 full-validation toolchain | Canonical cached host-built Zig from `./tools/scripts/bootstrap_host_zig.sh` |
 
 ## Quick start
 
@@ -44,10 +44,22 @@ zig build run -- --help
 ```
 
 On macOS 26.4 / Darwin 25.x, stock prebuilt Zig on this host is linker-blocked
-before `build.zig` runs. ABI's supported full-validation path is a host-built
-or otherwise known-good Zig matching `.zigversion`. If you are temporarily on a
-blocked stock toolchain, use `./tools/scripts/run_build.sh` only as fallback
-evidence while replacing the toolchain.
+before `build.zig` runs. ABI's supported full-validation path is the pinned
+host-built Zig produced by `./tools/scripts/bootstrap_host_zig.sh`, then
+prepended to `PATH` before running direct `zig build` gates:
+
+```bash
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
+zig build toolchain-doctor
+zig build full-check
+zig build check-docs
+```
+
+If you are temporarily on a blocked stock toolchain, use
+`./tools/scripts/run_build.sh` only as fallback evidence while replacing the
+toolchain.
 
 ## Library examples
 
@@ -246,9 +258,10 @@ zig build check-cli-registry
 Generated docs live under `docs/api/` and `docs/plans/`. Structural edits should
 go through `tools/gendocs/`, not direct manual edits to generated pages.
 On macOS 26.4, full local `zig build gendocs` / `zig build check-docs` support
-requires a host-built or otherwise known-good Zig. If stock prebuilt Zig is
-linker-blocked, use `./tools/scripts/run_build.sh typecheck --summary all` as
-fallback evidence while obtaining a working toolchain.
+requires the pinned host-built Zig from `./tools/scripts/bootstrap_host_zig.sh`
+to be first on `PATH`. If stock prebuilt Zig is linker-blocked, use
+`./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence
+while obtaining the bootstrapped compiler.
 
 ## Feature flags
 
@@ -273,6 +286,22 @@ pin atomically with:
 - `tools/scripts/baseline.zig`
 - `README.md`
 - related CI / toolchain docs
+
+This bootstrap wave does **not** repin ABI. `.zigversion`, `build.zig.zon`,
+`tools/scripts/baseline.zig`, and CI remain pinned and unchanged.
+
+On macOS 26.4, the supported local path is:
+
+```bash
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
+zig build toolchain-doctor
+zig build check-zig-version
+zig build full-check
+zig build check-docs
+zig build gendocs -- --check --no-wasm --untracked-md
+```
 
 For macOS linker issues, see [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md).
 For blocked Darwin hosts, use `run_build.sh`, compile-only checks, or Linux CI for binary-emitting gates.

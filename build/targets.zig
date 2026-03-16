@@ -111,13 +111,13 @@ pub fn buildTargets(
     build_opts: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    is_blocked_darwin: bool,
     aggregate: ?*std.Build.Step,
     aggregate_runs: bool,
 ) void {
     for (table) |t| {
         if (!pathExists(b, t.source_path)) continue;
         const exe_optimize = t.optimize orelse optimize;
-        const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
 
         const exe = if (is_blocked_darwin) b.addObject(.{
             .name = t.name,

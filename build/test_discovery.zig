@@ -26,11 +26,10 @@ pub fn addFeatureTests(
     abi_module: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    is_blocked_darwin: bool,
 ) *std.Build.Step {
     _ = build_opts; // abi_module already has build_options wired
     _ = optimize; // abi_module already has optimize configured
-
-    const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
     const ft_step = b.step("feature-tests", "Run feature module inline tests");
 
     if (is_blocked_darwin) {

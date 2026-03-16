@@ -48,6 +48,7 @@ pub fn wireAbiImports(
 pub fn createCliModule(
     b: *std.Build,
     abi_module: *std.Build.Module,
+    toolchain_support_module: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Module {
@@ -55,8 +56,10 @@ pub fn createCliModule(
         .root_source_file = b.path("tools/cli/mod.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
     cli.addImport("abi", abi_module);
+    cli.addImport("toolchain_support", toolchain_support_module);
     return cli;
 }
 

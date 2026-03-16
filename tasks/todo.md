@@ -45,10 +45,27 @@ Upcoming goals for framework maturity and ecosystem expansion.
 5. [ ] **Bare Metal Examples**: Add `examples/embedded/` showing deployment to RISC-V 32 and Thumb bare-metal boards.
 6. [x] **Import-Rule Guardrail Hardening**: Restored bare `build_options` named imports, normalized targeted AI shorthand imports to explicit relative `.zig` paths, and strengthened `check-imports` to distinguish named-module imports from file imports. Evidence: `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`, `./tools/scripts/run_build.sh check-imports --summary all`, `./tools/scripts/run_build.sh typecheck --summary all`.
 
-47. [ ] **Zig 0.16 Syntax Perfection**: Refactor codebase to achieve syntax perfection per Zig 0.16-dev requirements, including .zig extensions in imports, correct error handling, API updates, and feature module contract completion.
-    - Completed: Added .zig extensions to imports in:
-        src/core/database/distributed/cluster.zig
-        src/core/database/distributed/mod.zig
-        src/features/gpu/backends/tests/performance_refactor_test.zig
-        src/features/gpu/tests/performance_benchmark_test.zig
-    - Pending: Fix src/services/tests/ai_quantization_test.zig module path issues
+47. [x] **Import Boundary and Skill Repair Wave**: Repaired the broken Zig 0.16 import cleanup, aligned skill guidance with ABI's real module boundaries, and deferred baseline sync until executable suite counts are available.
+    - [x] Restored the touched `src/services/tests/` and property tests to the separate-root `@import("abi")` pattern.
+    - [x] Replaced the distributed database's nonexistent `network` file imports with `build_options`-gated `features/network` imports.
+    - [x] Replaced the touched GPU test placeholder imports with real GPU-relative module paths without broadening test discovery.
+    - [x] Updated repo/home ABI skills, baseline-sync, and the ABI code-review helper to document separate-root callers, missing consensus-wrapper fallback, and dirty-worktree review.
+    - [x] Validation evidence: `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`; `./tools/scripts/run_build.sh typecheck --summary all`; `./tools/scripts/run_build.sh test --summary all`; `./tools/scripts/run_build.sh feature-tests --summary all`; `python3 /Users/donaldfilimon/.codex/skills/abi-code-review/scripts/review_prep.py --repo /Users/donaldfilimon/abi --base HEAD`.
+    - Residual: `test` and `feature-tests` were compile-only cached steps on the blocked Darwin host, so they did not emit runnable suite counts; `tools/scripts/baseline.zig` was intentionally left unchanged this wave.
+
+48. [ ] **Pinned macOS Host-Zig Bootstrap Wave**: Add a deterministic host-built Zig bootstrap/discovery path for Darwin without repinning ABI away from `0.16.0-dev.2905+5d71e3051`.
+    - [x] Kept the existing dirty worktree intact and left unrelated source-fix edits untouched while landing the toolchain changes.
+    - [x] Added `tools/scripts/bootstrap_host_zig.sh` plus shared shell helpers for pinned-version discovery, canonical cache paths, and consistent Zig resolution order (`ABI_HOST_ZIG`, `ZIG_REAL`, `ZIG`, canonical cache, PATH).
+    - [x] Taught `build.zig` and the Darwin-specific build surfaces to leave degraded compile-only mode when the active Zig is the canonical cached host-built compiler.
+    - [x] Updated `toolchain_doctor`, `check_zig_version_consistency`, and `abi doctor` to report the active Zig path/version, canonical cache state, and the next bootstrap/path-export command.
+    - [x] Updated contributor docs and generated-guide sources with the bootstrap/path-export flow and the Darwin fallback boundary.
+    - [ ] Validate the helper and the pinned host-built path with `zig fmt --check ...`, `zig build toolchain-doctor`, `zig build check-zig-version`, `zig build full-check`, `zig build check-docs`, `zig build gendocs -- --check --no-wasm --untracked-md`, plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback regression evidence.
+    - Validation evidence so far:
+      `zig fmt --check build.zig build/ tools/cli/commands/dev/doctor.zig tools/gendocs/render_guides_md.zig tools/scripts/check_zig_version_consistency.zig tools/scripts/toolchain_doctor.zig tools/scripts/toolchain_support.zig`
+      `bash -n tools/scripts/bootstrap_host_zig.sh tools/scripts/inspect_toolchain.sh tools/scripts/zig_toolchain.sh tools/scripts/run_build.sh tools/scripts/fmt_repo.sh tools/scripts/zig_darwin26_wrapper.sh`
+      `./tools/scripts/inspect_toolchain.sh`
+      `./tools/scripts/run_build.sh typecheck --summary all`
+      `git diff --check`
+    - Residual blocker:
+      `./tools/scripts/bootstrap_host_zig.sh` still does not produce `/Users/donaldfilimon/.cache/abi-host-zig/0.16.0-dev.2905+5d71e3051/bin/zig` on this Darwin/Xcode-beta host. The helper now gets past the build-runner link wall, but the final `compile exe zig` self-link remains unresolved. Additional detached-worktree experiments with `/Users/donaldfilimon/zig/build-release/stage4-release/bin/zig` (`0.16.0-dev.2922+abd099e97`), explicit SDK/Homebrew library paths, and bootstrap-only source compatibility edits advanced the failure but did not produce a pinned compiler.
+    - Note: multi-CLI consensus helper unavailable in this environment (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing); proceeding best-effort.

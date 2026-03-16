@@ -17,9 +17,10 @@ const wasm = @import("build/wasm.zig");
 
 // ── Modular build system ────────────────────────────────────────────────
 // Re-export for external use
-const is_blocked_darwin = builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26;
+const host_is_affected_darwin = builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26;
 
 pub fn build(b: *std.Build) void {
+    const is_blocked_darwin = useDarwinDegradedMode(b);
     const target = resolveNativeTarget(b);
     const optimize = b.standardOptimizeOption(.{});
     const can_link_metal = link.canLinkMetalFrameworks(b.graph.io, target.result.os.tag);
@@ -55,6 +56,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const toolchain_support_module = b.addModule("toolchain_support", .{
+        .root_source_file = b.path("tools/scripts/toolchain_support.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const abi_module = b.addModule("abi", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -74,7 +81,7 @@ pub fn build(b: *std.Build) void {
     }) else null;
     if (exe_obj) |obj| {
         obj.root_module.addImport("abi", abi_module);
-        obj.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
+        obj.root_module.addImport("cli", modules.createCliModule(b, abi_module, toolchain_support_module, target, optimize));
         targets.applyPerformanceTweaks(obj, optimize);
         link.applyAllPlatformLinks(obj.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
         obj.use_llvm = true;
@@ -91,7 +98,7 @@ pub fn build(b: *std.Build) void {
     }) else null;
     if (exe) |e| {
         e.root_module.addImport("abi", abi_module);
-        e.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
+        e.root_module.addImport("cli", modules.createCliModule(b, abi_module, toolchain_support_module, target, optimize));
         targets.applyPerformanceTweaks(e, optimize);
         link.applyAllPlatformLinks(e.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     }
@@ -167,23 +174,25 @@ pub fn build(b: *std.Build) void {
 
     // ── Examples (table-driven) ─────────────────────────────────────────
     const examples_step = b.step("examples", "Build all examples");
-    targets.buildTargets(b, &targets.example_targets, abi_module, build_opts, target, optimize, examples_step, false);
+    targets.buildTargets(b, &targets.example_targets, abi_module, build_opts, target, optimize, is_blocked_darwin, examples_step, false);
 
     // ── CLI smoke tests ─────────────────────────────────────────────────
     const cli_test_exe: *std.Build.Step.Compile = if (is_blocked_darwin) exe_obj.? else exe.?;
-    const cli_tests_step = cli_tests.addCliTests(b, cli_test_exe, abi_module, target, optimize);
+    const cli_tests_step = cli_tests.addCliTests(
+        b,
+        cli_test_exe,
+        abi_module,
+        toolchain_support_module,
+        target,
+        optimize,
+        is_blocked_darwin,
+    );
 
     // ── TUI / CLI unit tests ───────────────────────────────────────────
     var tui_tests_step: ?*std.Build.Step = null;
     var gendocs_source_tests_step: ?*std.Build.Step = null;
     var launcher_tests_step: ?*std.Build.Step = null;
-    const cli_root_mod = b.createModule(.{
-        .root_source_file = b.path("tools/cli/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    cli_root_mod.addImport("abi", abi_module);
+    const cli_root_mod = modules.createCliModule(b, abi_module, toolchain_support_module, target, optimize);
 
     const cli_test_mod = b.createModule(.{
         .root_source_file = b.path("build/cli_tui_tests_root.zig"),
@@ -323,7 +332,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Feature tests (manifest-driven) ─────────────────────────────────
-    const feature_tests_step = test_discovery.addFeatureTests(b, options, build_opts, abi_module, target, optimize);
+    const feature_tests_step = test_discovery.addFeatureTests(b, options, build_opts, abi_module, target, optimize, is_blocked_darwin);
 
     // ── Flag validation matrix ──────────────────────────────────────────
     const validate_flags_step = flags.addFlagValidation(b, target, optimize);
@@ -342,7 +351,18 @@ pub fn build(b: *std.Build) void {
 
     // ── Consistency checks ──────────────────────────────────────────────
     const toolchain_doctor_step = b.step("toolchain-doctor", "Diagnose local Zig PATH/version drift against repository pin");
-    toolchain_doctor_step.dependOn(addHostScriptStep(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
+    toolchain_doctor_step.dependOn(addHostScriptStep(
+        b,
+        "abi-toolchain-doctor",
+        "tools/scripts/toolchain_doctor.zig",
+        target,
+        optimize,
+        &.{},
+        &.{
+            .{ .name = "util", .module = util_module },
+            .{ .name = "toolchain_support", .module = toolchain_support_module },
+        },
+    ));
 
     const preflight_step = b.step("preflight", "Run integration-test preflight environment diagnostics");
     preflight_step.dependOn(addHostScriptStep(b, "abi-preflight", "tests/integration/preflight.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
@@ -355,7 +375,10 @@ pub fn build(b: *std.Build) void {
         target,
         optimize,
         &.{},
-        &.{.{ .name = "util", .module = util_module }},
+        &.{
+            .{ .name = "util", .module = util_module },
+            .{ .name = "toolchain_support", .module = toolchain_support_module },
+        },
     ));
 
     const check_test_baseline_step = b.step("check-test-baseline", "Verify test baseline consistency");
@@ -669,7 +692,7 @@ pub fn build(b: *std.Build) void {
     });
     const profile_mod = profile_exe.root_module;
     profile_mod.addImport("abi", abi_profile);
-    profile_mod.addImport("cli", modules.createCliModule(b, abi_profile, target, optimize));
+    profile_mod.addImport("cli", modules.createCliModule(b, abi_profile, toolchain_support_module, target, optimize));
     profile_mod.strip = false;
     profile_mod.omit_frame_pointer = false;
     link.applyAllPlatformLinks(profile_mod, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
@@ -895,6 +918,27 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
     return b.resolveTargetQuery(query);
 }
 
+fn useDarwinDegradedMode(b: *std.Build) bool {
+    if (!host_is_affected_darwin) return false;
+    return !usesKnownGoodHostZig(b);
+}
+
+fn usesKnownGoodHostZig(b: *std.Build) bool {
+    const expected_version = std.mem.trim(u8, @embedFile(".zigversion"), " \n\r\t");
+    const zig_exe = b.graph.zig_exe;
+
+    if (b.graph.environ_map.get("ABI_HOST_ZIG")) |explicit_host_zig| {
+        if (std.mem.eql(u8, zig_exe, explicit_host_zig)) return true;
+    }
+
+    const cache_root = b.graph.environ_map.get("ABI_HOST_ZIG_CACHE_DIR") orelse blk: {
+        const home = b.graph.environ_map.get("HOME") orelse return false;
+        break :blk b.fmt("{s}/.cache/abi-host-zig", .{home});
+    };
+    const canonical_host_zig = b.fmt("{s}/{s}/bin/zig", .{ cache_root, expected_version });
+    return std.mem.eql(u8, zig_exe, canonical_host_zig);
+}
+
 fn findCompilerRt(b: *std.Build) ?[]const u8 {
     const home = b.graph.environ_map.get("HOME") orelse return null;
     const global_cache = std.fs.path.join(b.allocator, &.{ home, ".cache", "zig", "o" }) catch return null;
@@ -946,7 +990,7 @@ fn addHostScriptStep(
     args: []const []const u8,
     deps: []const struct { name: []const u8, module: *std.Build.Module },
 ) *std.Build.Step {
-    if (is_blocked_darwin) {
+    if (useDarwinDegradedMode(b)) {
         const obj = b.addObject(.{
             .name = name,
             .root_module = b.createModule(.{

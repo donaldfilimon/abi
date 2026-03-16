@@ -60,16 +60,19 @@ Run the strongest gate your environment supports:
 | Gate | Command | When |
 |------|---------|------|
 | Format check | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | Every change (always works) |
-| Full check | `zig build full-check` | Before completing (non-Darwin) |
+| Full check | `zig build full-check` | Before completing when the active Zig is the pinned canonical host-built compiler or another known-good build |
 | Darwin fallback evidence | `./tools/scripts/run_build.sh typecheck --summary all` | Only when stock Zig is linker-blocked on Darwin 25+ / macOS 26+ |
 | Full release | `zig build verify-all` | Release prep |
 
 On Darwin 25+ / macOS 26+, stock prebuilt Zig may fail at the linker stage
-before `build.zig` runs. ABI's supported full-validation path is a host-built
-or otherwise known-good Zig matching `.zigversion`. When the local host is
-still linker-blocked, record `zig fmt --check ...` and
-`./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence,
-not as a replacement for `zig build full-check` / `zig build check-docs`.
+before `build.zig` runs. ABI's supported full-validation path is the pinned
+host-built Zig from `./tools/scripts/bootstrap_host_zig.sh`, then prepending
+`$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH` before running
+`zig build toolchain-doctor`, `zig build full-check`, and
+`zig build check-docs`. When the local host is still linker-blocked, record
+`zig fmt --check ...` and `./tools/scripts/run_build.sh typecheck --summary all`
+as fallback evidence, not as a replacement for `zig build full-check` /
+`zig build check-docs`.
 See [CLAUDE.md](CLAUDE.md) for details.
 
 ## Documentation Changes

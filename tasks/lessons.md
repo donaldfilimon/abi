@@ -46,9 +46,13 @@
 
 ## Tool & Workflow Discipline
 - Use dedicated edit tools for file mutations, reserve shell for inspection. Review `tasks/lessons.md` and refresh `tasks/todo.md` before making repo-tracked edits.
-- Keep supported Zig resolution to pinned Zig on PATH or ZVM. Don't add repo-local toolchain surfaces unless intended to be permanent.
+- Keep supported Zig resolution to the pinned Zig on PATH, `ABI_HOST_ZIG`, or ABI's canonical host-built cache under `$HOME/.cache/abi-host-zig/<.zigversion>/bin/zig`. Don't add extra ad hoc toolchain surfaces beyond the permanent bootstrap flow.
+- Bootstrapping a pinned host-built Zig is not enough by itself for direct `zig build` gates on Darwin 25+ / macOS 26+. `zig build` uses the compiler you invoked, so prepend the canonical cache bin dir to `PATH` (or invoke that binary explicitly) before expecting `zig build full-check` / `zig build check-docs` to leave degraded mode.
+- On blocked Darwin hosts, direct `zig run tools/scripts/toolchain_doctor.zig` and `zig run tools/scripts/check_zig_version_consistency.zig` hit the same pre-`build.zig` linker wall as `zig build`. Use `./tools/scripts/inspect_toolchain.sh` plus `./tools/scripts/run_build.sh typecheck --summary all` for fallback evidence until a known-good host-built Zig exists.
 - Resolve generated registry artifacts explicitly; keep deterministic parser paths for generated ZON.
 - External hooks/linters may rewrite source files destructively (reordering imports before doc comments, changing `@import("abi")` to relative internal paths). Use `git checkout HEAD -- <file>` to restore, or atomic `sed -i '' + git add` for edits that must survive hooks.
+- `src/services/tests/mod.zig` is a separate test root with named imports injected by `build.zig`. Child files under `src/services/tests/` and `src/services/tests/property/` should keep `@import("abi")`; swapping them to `src/root.zig` creates duplicate module ownership (`abi` and `root`) during `zig build test` / `typecheck`.
+- Before appending `.zig` to a local import, resolve the target path. A suffix-only rewrite against a nonexistent target leaves the code just as broken and can hide that the real fix is a gated import or a different module path.
 
 ## Cross-Feature Import Safety
 - Feature modules must not directly import other feature modules' `mod.zig` — this bypasses the compile-time feature gate. Use `build_options` conditional imports: `const obs = if (build_options.feat_profiling) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");`

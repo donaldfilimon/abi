@@ -118,9 +118,36 @@
 - API updates (timestamp, etc.) depend on correct imports and error handling.
 - Feature module contract fixes may require import fixes first.
 
+## Repair Batch Results
+- [x] Restored the touched `src/services/tests/` files to named-module imports via `@import("abi")`.
+- [x] Repaired the distributed database's network imports with `build_options`-gated feature/stub paths.
+- [x] Replaced the touched GPU test placeholder imports with verified GPU-relative module paths.
+- [x] Aligned the ABI skills and review helper with separate-root test modules, Darwin fallback validation, and dirty-worktree review.
+- [x] Validation evidence recorded:
+  `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
+  `./tools/scripts/run_build.sh typecheck --summary all`
+  `./tools/scripts/run_build.sh test --summary all`
+  `./tools/scripts/run_build.sh feature-tests --summary all`
+  `python3 /Users/donaldfilimon/.codex/skills/abi-code-review/scripts/review_prep.py --repo /Users/donaldfilimon/abi --base HEAD`
+- Residual:
+  `test` and `feature-tests` completed as blocked-Darwin compile-only cached steps, so no executable suite counts were available. Baseline synchronization was intentionally deferred and `tools/scripts/baseline.zig` was not changed.
+
 ## Files to Fix First
 1. Start with `src/core/` and `src/services/shared/` as they are foundational.
 2. Then move to feature modules in `src/features/`.
 3. Finally, address `build.zig`, `tools/`, and `tests/`.
 
 This plan ensures systematic refactoring while maintaining verification gate compliance.
+
+## Host-Zig Bootstrap Wave (In Progress)
+- [x] Added repo-managed Zig resolution helpers and a canonical cache contract for `ABI_HOST_ZIG`, `ZIG_REAL`, `ZIG`, the pinned host-built cache, and PATH.
+- [x] Wired the Darwin-facing shell surfaces, `build.zig`, `toolchain_doctor`, `check_zig_version_consistency`, and `abi doctor` to the same resolution contract.
+- [x] Updated `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/guides/integration-environment.md`, `docs/ZIG_MACOS_LINKER_RESEARCH.md`, `docs/README.md`, and `tools/gendocs/render_guides_md.zig` to describe the intended pinned-host bootstrap path and the fallback boundary.
+- [x] Recorded repo-side validation evidence:
+  `zig fmt --check build.zig build/ tools/cli/commands/dev/doctor.zig tools/gendocs/render_guides_md.zig tools/scripts/check_zig_version_consistency.zig tools/scripts/toolchain_doctor.zig tools/scripts/toolchain_support.zig`
+  `bash -n tools/scripts/bootstrap_host_zig.sh tools/scripts/inspect_toolchain.sh tools/scripts/zig_toolchain.sh tools/scripts/run_build.sh tools/scripts/fmt_repo.sh tools/scripts/zig_darwin26_wrapper.sh`
+  `./tools/scripts/inspect_toolchain.sh`
+  `./tools/scripts/run_build.sh typecheck --summary all`
+  `git diff --check`
+- [ ] Remaining blocker: `./tools/scripts/bootstrap_host_zig.sh` still fails during the final Zig self-link on this Darwin/Xcode-beta host, so the canonical cached pinned compiler is not available yet.
+- [ ] Full direct `zig build toolchain-doctor`, `zig build check-zig-version`, `zig build full-check`, `zig build check-docs`, and `zig build gendocs -- --check --no-wasm --untracked-md` remain blocked until the pinned host-built Zig exists.

@@ -1,5 +1,6 @@
 const std = @import("std");
 const baseline = @import("baseline.zig");
+const toolchain = @import("toolchain_support.zig");
 const util = @import("util.zig");
 
 pub fn main(_: std.process.Init) !void {
@@ -28,23 +29,68 @@ pub fn main(_: std.process.Init) !void {
         std.process.exit(1);
     }
 
-    if (!(try util.commandExists(allocator, io, "zig"))) {
-        std.debug.print("ERROR: no 'zig' binary found on PATH\n", .{});
-        std.process.exit(1);
+    var inspection = try toolchain.inspect(allocator, io);
+    defer inspection.deinit(allocator);
+
+    switch (inspection.selected_status) {
+        .ok => {},
+        .abi_host_zig_missing => {
+            std.debug.print(
+                "ERROR: ABI_HOST_ZIG points to a missing or non-executable binary ({s})\n",
+                .{inspection.selected_path orelse "(unset)"},
+            );
+            errors += 1;
+        },
+        .abi_host_zig_mismatch => {
+            std.debug.print(
+                "ERROR: ABI_HOST_ZIG resolved to {s} ({s}), expected pinned baseline ({s})\n",
+                .{
+                    inspection.selected_path orelse "(unresolved)",
+                    inspection.selected_version orelse "(unresolved)",
+                    baseline.zig_version,
+                },
+            );
+            errors += 1;
+        },
+        .zig_real_missing => {
+            std.debug.print(
+                "ERROR: ZIG_REAL points to a missing or non-executable binary ({s})\n",
+                .{inspection.selected_path orelse "(unset)"},
+            );
+            errors += 1;
+        },
+        .zig_missing => {
+            std.debug.print(
+                "ERROR: ZIG points to a missing or non-executable binary ({s})\n",
+                .{inspection.selected_path orelse "(unset)"},
+            );
+            errors += 1;
+        },
+        .cache_stale => {
+            std.debug.print(
+                "ERROR: canonical cached host-built Zig is stale ({s} from {s}, expected {s})\n",
+                .{
+                    inspection.selected_version orelse inspection.cache_version orelse "(unresolved)",
+                    inspection.cache_path,
+                    baseline.zig_version,
+                },
+            );
+            errors += 1;
+        },
+        .no_zig_found, .unknown => {
+            std.debug.print("ERROR: no usable zig binary was resolved\n", .{});
+            errors += 1;
+        },
     }
 
-    const active_path_res = try util.captureCommand(allocator, io, "command -v zig");
-    defer allocator.free(active_path_res.output);
-    const active_path = util.trimSpace(active_path_res.output);
-
-    const active_ver_res = try util.captureCommand(allocator, io, "zig version");
-    defer allocator.free(active_ver_res.output);
-    const active_version = util.trimSpace(active_ver_res.output);
-
-    if (!std.mem.eql(u8, active_version, baseline.zig_version)) {
+    if (inspection.selected_status == .ok and !inspection.selected_matches_expected) {
         std.debug.print(
             "ERROR: active zig version ({s} from {s}) does not match pinned baseline ({s})\n",
-            .{ active_version, active_path, baseline.zig_version },
+            .{
+                inspection.selected_version orelse "(unresolved)",
+                inspection.selected_path orelse "(unresolved)",
+                baseline.zig_version,
+            },
         );
         errors += 1;
     }
@@ -115,7 +161,7 @@ pub fn main(_: std.process.Init) !void {
 
     if (errors > 0) {
         std.debug.print("FAILED: Zig version consistency check found {d} issue(s)\n", .{errors});
-        std.debug.print("Hint: run 'zig run tools/scripts/toolchain_doctor.zig' for a full local diagnosis.\n", .{});
+        std.debug.print("Hint: run 'zig build toolchain-doctor' or 'abi doctor' for a full local diagnosis.\n", .{});
         std.process.exit(1);
     }
 

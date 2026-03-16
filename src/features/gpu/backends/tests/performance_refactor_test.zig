@@ -1,5 +1,5 @@
 const std = @import("std");
-const dispatcher = @import("../dispatcher");
+const dispatcher = @import("../../dispatch/mod.zig");
 const builtin_kernels = @import("../../builtin_kernels.zig");
 const Backend = dispatcher.Backend;
 const Device = dispatcher.Device;

@@ -13,16 +13,19 @@ zig build test --summary all          # primary tests
 zig build feature-tests --summary all # feature coverage
 zig build full-check                  # pre-commit gate
 zig build validate-flags              # flag combo check
+zig build toolchain-doctor            # inspect active Zig resolution
+zig build check-zig-version           # verify pin + docs consistency
 zig build preflight                   # integration environment diagnostics
 zig build refresh-cli-registry        # after CLI changes
 zig build gendocs                     # regenerate docs
 zig build check-docs                  # verify docs consistency
 zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  # format check (always works)
+./tools/scripts/bootstrap_host_zig.sh # build pinned host Zig into the canonical cache
 ```
 
 **Running a single test**: `zig test src/path/to/file.zig -fno-emit-bin` for standalone files. For module-integrated tests, use `zig build test --summary all` with feature flags to narrow scope.
 
-**Darwin 25+ / macOS 26+**: stock prebuilt Zig can fail at the linker before `build.zig` runs. Use a host-built Zig matching `.zigversion` for full validation. Fallback evidence: `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all`. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
+**Darwin 25+ / macOS 26+**: stock prebuilt Zig can fail at the linker before `build.zig` runs. Bootstrap the pinned host-built Zig with `./tools/scripts/bootstrap_host_zig.sh`, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`, then run `zig build toolchain-doctor`, `zig build full-check`, and `zig build check-docs`. Fallback evidence remains `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all`. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
 
 ## Architecture
 

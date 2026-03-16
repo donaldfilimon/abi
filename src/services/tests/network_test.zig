@@ -8,8 +8,9 @@
 //! - Integration tests for components working together
 
 const std = @import("std");
+const abi = @import("abi");
 const build_options = @import("build_options");
-const network = @import("abi").network;
+const network = abi.network;
 
 // =============================================================================
 // Raft Consensus Tests
@@ -576,7 +577,7 @@ test "network context lifecycle" {
     if (!network.isEnabled()) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
-    const config = @import("abi").config;
+    const config = abi.config;
 
     const ctx = try network.Context.init(allocator, config.NetworkConfig{});
     defer ctx.deinit();

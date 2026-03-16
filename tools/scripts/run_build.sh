@@ -13,9 +13,12 @@
 
 set -euo pipefail
 
-cd "$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+source "$SCRIPT_DIR/zig_toolchain.sh"
 
-ZIG="${ZIG_REAL:-${ZIG:-$(which zig)}}"
+cd "$(abi_toolchain_repo_root)"
+
+ZIG="$(abi_toolchain_resolve_active_zig)"
 SYSROOT="${SDKROOT:-$(xcrun --show-sdk-path 2>/dev/null || echo /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk)}"
 MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo 26.0)"
 

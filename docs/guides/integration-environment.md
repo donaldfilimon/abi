@@ -95,7 +95,7 @@ issue, not an ABI bug.
 
 **Resolution options (pick one):**
 
-1. **Host-built Zig** matching `.zigversion` — full gate support
+1. **Canonical cached host-built Zig** — run `./tools/scripts/bootstrap_host_zig.sh`, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`, then use direct `zig build` gates
 2. **`./tools/scripts/run_build.sh`** — two-pass workaround that relinks
    the build runner with Apple's `/usr/bin/ld` (see `tools/scripts/run_build.sh`)
 3. **Fallback evidence** — when neither option above is available, record:
@@ -103,6 +103,18 @@ issue, not an ABI bug.
    - `./tools/scripts/run_build.sh typecheck --summary all`
 
    This is fallback evidence only, not a replacement for `zig build full-check`.
+
+The supported full-validation path on Darwin is:
+
+```bash
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
+zig build toolchain-doctor
+zig build check-zig-version
+zig build full-check
+zig build check-docs
+```
 
 **Never** set `use_lld = true` on macOS — LLD has zero Mach-O support.
 
@@ -128,6 +140,12 @@ zig test src/path/to/file.zig -fno-emit-bin
 
 # Format check (always works, even when linker is broken)
 zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
+
+# Canonical host-built Zig path
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
+zig build toolchain-doctor
 
 # Build runner workaround
 ./tools/scripts/run_build.sh test --summary all
