@@ -42,8 +42,8 @@ The following structural changes have landed on `main`:
 ### Validation
 
 - [x] `zig fmt --check build.zig build/ src/ tools/ tests/ bindings/ lang/`
-- [x] `./tools/scripts/run_build.sh typecheck --summary all` (all errors cleared, including SPIR-V/HNSW/ArrayListUnmanaged)
-- [~] `./tools/scripts/run_build.sh feature-tests --summary all` (blocked by Zig 0.16 module ownership: abbey cross-imports memory)
+- [x] `./tools/scripts/run_build.sh typecheck --summary all` (passes; fixed AI stubs importing `abi` within `abi` module; Abbey no longer imports `abi`)
+- [~] `./tools/scripts/run_build.sh feature-tests --summary all` (still blocked by Zig 0.16 module ownership in feature-test harness; current failure: duplicate module ownership for `src/features/ai/llm/mod.zig`)
 - [x] `./tools/scripts/run_build.sh validate-flags`
 - [x] `./tools/scripts/run_build.sh database-fast-tests` (all errors cleared)
 - [x] `./tools/scripts/run_build.sh cli-tests`
@@ -54,7 +54,8 @@ The following structural changes have landed on `main`:
 
 Validation evidence:
 - `2026-03-16`: `zig fmt --check build.zig build/ src/ tools/ tests/ bindings/ lang/` passed.
-- `2026-03-16`: `./tools/scripts/run_build.sh typecheck --summary all` passed for the entire package graph, including database/GPU roots (SPIR-V/HNSW/ArrayListUnmanaged errors fixed).
+- `2026-03-16`: `./tools/scripts/run_build.sh typecheck --summary all` passed (after removing `@import("abi")` from AI stub facades and Abbey).
+- `2026-03-16`: `./tools/scripts/run_build.sh feature-tests --summary all` still fails on Zig 0.16 module ownership conflicts in the generated feature-tests compilation graph (not an Abbey import-cycle anymore).
 - `2026-03-16`: `./tools/scripts/run_build.sh database-fast-tests` passed after fixing Zig 0.16 compatibility.
 - `2026-03-16`: `./tools/scripts/run_build.sh check-docs` passed after fixing Zig 0.16 compatibility.
 - `2026-03-16`: Established `src/internal/` family wrappers for all core domains. Updated `src/root.zig` to use these wrappers.
