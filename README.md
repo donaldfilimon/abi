@@ -57,7 +57,8 @@ evidence while replacing the toolchain.
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    _ = init;
     var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -75,7 +76,8 @@ pub fn main() !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    _ = init;
     var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -103,7 +105,8 @@ pub fn main() !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    _ = init;
     var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

@@ -1,6 +1,17 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+// ── Timeout Policy ──────────────────────────────────────────────────────
+
+/// Default timeout for standard CLI test functions (30 seconds).
+pub const cli_timeout_ns: u64 = 30 * std.time.ns_per_s;
+
+/// Default timeout for TUI / interactive test functions (60 seconds).
+pub const tui_timeout_ns: u64 = 60 * std.time.ns_per_s;
+
+/// Active timeout used by the runner. TUI tests get the longer deadline.
+const active_timeout_ns: u64 = tui_timeout_ns;
+
 pub fn main(_: std.process.Init) anyerror!void {
     @disableInstrumentation();
 
@@ -8,27 +19,56 @@ pub fn main(_: std.process.Init) anyerror!void {
     var passed: u64 = 0;
     var skipped: u64 = 0;
     var failed: u64 = 0;
+    var timed_out: u64 = 0;
 
     for (test_fn_list) |test_fn| {
         std.debug.print("{s}... ", .{test_fn.name});
 
+        var timer = std.time.Timer.start() catch {
+            std.debug.print("FAIL (timer unavailable)\n", .{});
+            failed += 1;
+            continue;
+        };
+
         if (test_fn.func()) |_| {
-            std.debug.print("PASS\n", .{});
-            passed += 1;
-        } else |err| {
-            if (err != error.SkipZigTest) {
-                std.debug.print("FAIL\n", .{});
-                failed += 1;
-                return err;
+            const elapsed_ns = timer.read();
+            if (elapsed_ns > active_timeout_ns) {
+                const elapsed_s = elapsed_ns / std.time.ns_per_s;
+                const limit_s = active_timeout_ns / std.time.ns_per_s;
+                std.debug.print(
+                    "TIMEOUT [{s}] exceeded {d}s limit ({d}s actual)\n",
+                    .{ test_fn.name, limit_s, elapsed_s },
+                );
+                timed_out += 1;
+            } else {
+                std.debug.print("PASS\n", .{});
+                passed += 1;
             }
-            if (err == error.SkipZigTest) {
+        } else |err| {
+            const elapsed_ns = timer.read();
+            if (elapsed_ns > active_timeout_ns) {
+                const elapsed_s = elapsed_ns / std.time.ns_per_s;
+                const limit_s = active_timeout_ns / std.time.ns_per_s;
+                std.debug.print(
+                    "TIMEOUT [{s}] exceeded {d}s limit ({d}s actual, error: {s})\n",
+                    .{ test_fn.name, limit_s, elapsed_s, @errorName(err) },
+                );
+                timed_out += 1;
+            } else if (err == error.SkipZigTest) {
                 std.debug.print("SKIP\n", .{});
                 skipped += 1;
+            } else {
+                std.debug.print("FAIL ({s})\n", .{@errorName(err)});
+                failed += 1;
+                return err;
             }
         }
     }
 
-    std.debug.print("{} passed, {} skipped, {} failed\n", .{ passed, skipped, failed });
+    std.debug.print(
+        "{d} passed, {d} skipped, {d} failed, {d} timed-out\n",
+        .{ passed, skipped, failed, timed_out },
+    );
 
-    if (failed != 0) std.process.exit(1);
+    if (failed != 0 or timed_out != 0) std.process.exit(1);
 }

@@ -344,6 +344,9 @@ pub fn build(b: *std.Build) void {
     const toolchain_doctor_step = b.step("toolchain-doctor", "Diagnose local Zig PATH/version drift against repository pin");
     toolchain_doctor_step.dependOn(addHostScriptStep(b, "abi-toolchain-doctor", "tools/scripts/toolchain_doctor.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
 
+    const preflight_step = b.step("preflight", "Run integration-test preflight environment diagnostics");
+    preflight_step.dependOn(addHostScriptStep(b, "abi-preflight", "tests/integration/preflight.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
+
     const check_zig_version_step = b.step("check-zig-version", "Verify Zig version consistency");
     check_zig_version_step.dependOn(addHostScriptStep(
         b,

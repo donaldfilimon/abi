@@ -276,6 +276,7 @@ zig-bootstrap-emergency/
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
 !/docs/plans/*.md
 !/docs/api/*.md
+!/docs/guides/*.md
 !/benchmarks/README.md
 !/benchmarks/STRUCTURE.md
 !/examples/README.md
