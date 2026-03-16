@@ -1,7 +1,6 @@
 //! Top-level inference primitives.
 //!
-//! This module owns the lightweight inference runtime that was temporarily
-//! staged under `src/features/ai/llm/inference/` during the structure sweep.
+//! This module is the canonical public home for ABI inference runtime types.
 
 pub const engine = @import("engine.zig");
 pub const scheduler = @import("scheduler.zig");

@@ -190,8 +190,8 @@ test "discoverFeatures parses a minimal catalog" {
         \\        .compile_flag_field = "feat_llm",
         \\        .parity_spec = .ai,
         \\        .parent = .ai,
-        \\        .real_module_path = "features/ai/facades/inference.zig",
-        \\        .stub_module_path = "features/ai/facades/inference_stub.zig",
+        \\        .real_module_path = "features/ai/llm/mod.zig",
+        \\        .stub_module_path = "features/ai/llm/stub.zig",
         \\    },
         \\};
     ;
@@ -218,8 +218,8 @@ test "discoverFeatures parses a minimal catalog" {
     try std.testing.expectEqualStrings("Local LLM inference", features[2].description);
     try std.testing.expectEqualStrings("feat_llm", features[2].compile_flag);
     try std.testing.expectEqualStrings("ai", features[2].parent);
-    try std.testing.expectEqualStrings("features/ai/facades/inference.zig", features[2].real_module_path);
-    try std.testing.expectEqualStrings("features/ai/facades/inference_stub.zig", features[2].stub_module_path);
+    try std.testing.expectEqualStrings("features/ai/llm/mod.zig", features[2].real_module_path);
+    try std.testing.expectEqualStrings("features/ai/llm/stub.zig", features[2].stub_module_path);
 }
 
 test "findMatchingBrace handles nested braces and strings" {

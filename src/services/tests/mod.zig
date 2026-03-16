@@ -25,7 +25,7 @@ test {
     }
     // Persona integration tests
     if (build_options.feat_ai) {
-        _ = abi.ai.personas;
+        _ = abi.ai.profiles;
     }
     // AI submodule tests (previously undiscovered)
     if (build_options.feat_ai) {

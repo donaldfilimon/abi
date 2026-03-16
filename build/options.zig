@@ -55,6 +55,8 @@ pub const CanonicalFlags = struct {
     feat_compute: bool,
     feat_documents: bool,
     feat_desktop: bool,
+    feat_lsp: bool,
+    feat_mcp: bool,
 };
 
 /// All compile-time build options for the ABI project.
@@ -88,6 +90,8 @@ pub const BuildOptions = struct {
     feat_compute: bool,
     feat_documents: bool,
     feat_desktop: bool,
+    feat_lsp: bool,
+    feat_mcp: bool,
 
     gpu_backends: []const GpuBackend,
 
@@ -169,6 +173,8 @@ pub fn canonicalToBuildOptions(canonical: CanonicalFlags, gpu_backends: []const 
         .feat_compute = canonical.feat_compute,
         .feat_documents = canonical.feat_documents,
         .feat_desktop = canonical.feat_desktop,
+        .feat_lsp = canonical.feat_lsp,
+        .feat_mcp = canonical.feat_mcp,
         .gpu_backends = gpu_backends,
     };
 }
@@ -200,6 +206,8 @@ pub fn buildOptionsToCanonical(options: BuildOptions) CanonicalFlags {
         .feat_compute = options.feat_compute,
         .feat_documents = options.feat_documents,
         .feat_desktop = options.feat_desktop,
+        .feat_lsp = options.feat_lsp,
+        .feat_mcp = options.feat_mcp,
     };
 }
 
@@ -268,6 +276,8 @@ pub fn readBuildOptions(
         .feat_compute = readFeatureGate(b, "feat-compute", "Enable distributed compute mesh", true),
         .feat_documents = readFeatureGate(b, "feat-documents", "Enable native document parsing", true),
         .feat_desktop = readFeatureGate(b, "feat-desktop", "Enable native desktop extensions", true),
+        .feat_lsp = readFeatureGate(b, "feat-lsp", "Enable LSP (ZLS) service", true),
+        .feat_mcp = readFeatureGate(b, "feat-mcp", "Enable MCP service", true),
     };
 
     const gpu_backends = gpu.parseGpuBackends(

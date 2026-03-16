@@ -762,6 +762,8 @@ pub fn build(b: *std.Build) void {
             cross_opts.feat_web = false;
             cross_opts.feat_cloud = false;
             cross_opts.feat_storage = false;
+            cross_opts.feat_lsp = false;
+            cross_opts.feat_mcp = false;
             cross_opts.gpu_backends = &.{};
         } else {
             cross_opts.gpu_backends = &.{.stdgpu};

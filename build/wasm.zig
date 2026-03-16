@@ -34,6 +34,8 @@ pub fn addWasmBuild(
     wasm_opts.feat_web = false;
     wasm_opts.feat_cloud = false;
     wasm_opts.feat_storage = false;
+    wasm_opts.feat_lsp = false;
+    wasm_opts.feat_mcp = false;
     wasm_opts.gpu_backends = &.{};
 
     const wasm_build_opts = modules.createBuildOptionsModule(b, wasm_opts);

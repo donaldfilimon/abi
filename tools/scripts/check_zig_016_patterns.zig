@@ -267,12 +267,12 @@ pub fn main(_: std.process.Init) !void {
         "--glob '!tools/gendocs/wasm/exports.zig' ",
     );
 
-    // #7/#19: Removed facade aliases from v0.4.0 (abi.ai_core, abi.inference, etc.)
+    // #7/#19: Removed facade aliases from v0.4.0 (abi.ai_core, abi.training, abi.reasoning)
     try scanForbidden(
         allocator,
         io,
-        "^[[:space:]]*[^/].*abi\\.(ai_core|inference|training|reasoning)\\b",
-        "removed v0.4.0 facade alias; use abi.ai.core, abi.ai.llm, abi.ai.training, abi.ai.orchestration",
+        "^[[:space:]]*[^/].*abi\\.(ai_core|training|reasoning)\\b",
+        "removed v0.4.0 facade alias; use abi.ai.core, abi.ai.training, or abi.ai.reasoning",
         &errors,
     );
 
@@ -291,12 +291,13 @@ pub fn main(_: std.process.Init) !void {
         "legacy abi.init* helpers removed; use abi.App.init/abi.App.initDefault",
         &errors,
     );
-    try scanForbidden(
+    try scanForbiddenFlags(
         allocator,
         io,
-        "^[[:space:]]*[^/].*\\babi\\.(ai|gpu|database|network|web|cloud|analytics|auth|messaging|cache|storage|search|gateway|pages|observability|mobile|benchmarks|runtime|platform|shared|connectors|ha|tasks|lsp|mcp|acp|simd)\\b",
-        "legacy top-level abi feature/service aliases removed; use abi.features.* and abi.services.*",
+        "^[[:space:]]*[^/].*\\babi\\.(features|services)\\.",
+        "compat abi.features.* / abi.services.* usage in src/build/tools; use canonical abi.<domain> exports",
         &errors,
+        "--glob '!**/stub_surface_check.zig' ",
     );
 
     // #4 extended: @tagName/@errorName with {s} in any writer.print (not just std.debug.print)

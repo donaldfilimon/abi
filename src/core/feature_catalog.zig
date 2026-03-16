@@ -34,6 +34,8 @@ pub const Feature = enum {
     compute,
     documents,
     desktop,
+    lsp,
+    mcp,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -78,6 +80,8 @@ pub const ParitySpec = enum {
     compute,
     documents,
     desktop,
+    lsp,
+    mcp,
 };
 
 pub const Metadata = struct {
@@ -313,6 +317,22 @@ pub const all = [_]Metadata{
         .parity_spec = .desktop,
         .real_module_path = "features/desktop/mod.zig",
         .stub_module_path = "features/desktop/stub.zig",
+    },
+    .{
+        .feature = .lsp,
+        .description = "LSP (ZLS) service",
+        .compile_flag_field = "feat_lsp",
+        .parity_spec = .lsp,
+        .real_module_path = "services/lsp/mod.zig",
+        .stub_module_path = "services/lsp/stub.zig",
+    },
+    .{
+        .feature = .mcp,
+        .description = "MCP (Model Context Protocol) service",
+        .compile_flag_field = "feat_mcp",
+        .parity_spec = .mcp,
+        .real_module_path = "services/mcp/mod.zig",
+        .stub_module_path = "services/mcp/stub.zig",
     },
 };
 

@@ -31,7 +31,7 @@ pub fn main(_: std.process.Init) !void {
         .network,
         .observability,
         .web,
-        .personas,
+        .profiles,
         .cloud,
     };
 
@@ -69,7 +69,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Demonstrate feature hierarchy
     std.debug.print("\nFeature Hierarchy:\n", .{});
-    const sub_features = [_]abi.config.Feature{ .llm, .embeddings, .agents, .training, .personas };
+    const sub_features = [_]abi.config.Feature{ .llm, .embeddings, .agents, .training, .profiles };
     for (sub_features) |feature| {
         if (abi.registry.getParentFeature(feature)) |parent| {
             std.debug.print("  {s} -> parent: {s}\n", .{ feature.name(), parent.name() });

@@ -31,7 +31,7 @@ const global_flags = [_]Option{
 const features_text =
     \\Features: gpu, ai, llm, embeddings, agents, training, reasoning, database, network,
     \\          observability, web, cloud, analytics, auth, messaging, cache, storage,
-    \\          search, mobile, gateway, pages, benchmarks, personas, constitution
+    \\          search, mobile, gateway, pages, benchmarks, profiles, constitution
 ;
 
 /// Print the top-level help screen using the unified HelpBuilder.

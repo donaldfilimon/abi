@@ -46,6 +46,7 @@ const default_config = StressConfig{};
 
 // High-contention test: many thieves competing for work
 test "chase-lev deque high contention - 64 thieves" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const config = default_config;
 
@@ -124,6 +125,7 @@ test "chase-lev deque high contention - 64 thieves" {
 
 // Stress test: rapid resize under contention
 test "chase-lev deque resize stress" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var deque = try runtime.ChaseLevDeque(u64).initWithCapacity(allocator, 16);
@@ -192,6 +194,7 @@ test "chase-lev deque resize stress" {
 
 // High-contention MPMC: 32 producers, 32 consumers
 test "mpmc queue high contention - 32P/32C" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var queue = try runtime.MpmcQueue(u64).init(allocator, 4096);
@@ -273,6 +276,7 @@ test "mpmc queue high contention - 32P/32C" {
 
 // MPMC queue full/empty stress
 test "mpmc queue full/empty contention" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Small queue to maximize full/empty races
@@ -335,6 +339,7 @@ test "mpmc queue full/empty contention" {
 
 // Result cache concurrent access stress
 test "result cache concurrent stress" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     var cache = try runtime.ResultCache(u64, u64).init(allocator, .{
@@ -388,6 +393,7 @@ test "result cache concurrent stress" {
 
 // Result cache eviction stress
 test "result cache eviction stress" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Small cache to trigger many evictions
@@ -438,6 +444,7 @@ test "epoch reclamation stress" {
 
 // Work stealing scheduler completion under contention.
 test "work stealing scheduler balance" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     const worker_count = 16;
@@ -505,6 +512,7 @@ test "work stealing scheduler balance" {
 
 // Combined stress: deque + cache
 test "combined primitives stress" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
 
     // Use simple u64 for task IDs (ChaseLevDeque requires extern-compatible types)

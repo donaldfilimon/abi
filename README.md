@@ -159,8 +159,8 @@ zig build check-cli-registry
 
 ## Public surface map
 
-ABI's public package surface is intentionally small at the top level and broad
-under feature and service namespaces.
+ABI's public package surface is intentionally small at the top level and
+organized by domain.
 
 | Surface | Purpose |
 |---------|---------|
@@ -169,7 +169,8 @@ under feature and service namespaces.
 | `abi.ai` | Agents, profiles, LLM, training, reasoning |
 | `abi.gpu` | GPU feature namespace |
 | `abi.Gpu` / `abi.GpuBackend` | Direct unified GPU runtime access |
-| `abi.services.*` | Shared runtime services and integration surfaces |
+| `abi.foundation` / `abi.runtime` | Shared foundations, time/sync/SIMD, and always-on runtime primitives |
+| `abi.connectors` / `abi.ha` / `abi.tasks` / `abi.lsp` / `abi.mcp` / `abi.acp` / `abi.inference` | Service and integration surfaces |
 
 ### Notes on migration surfaces
 

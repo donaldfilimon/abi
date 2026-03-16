@@ -26,7 +26,7 @@ fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std
 }
 const build_options = @import("build_options");
 const ai_mod = if (build_options.feat_ai) @import("../../ai/mod.zig") else @import("../../ai/stub.zig");
-const personas = ai_mod.personas;
+const profiles = ai_mod.profiles;
 const types = @import("../../ai/types.zig");
 
 /// Chat request from client.
@@ -155,7 +155,7 @@ fn dupeOptional(allocator: std.mem.Allocator, value: ?[]const u8) !?[]const u8 {
 /// Chat handler that wraps the persona system.
 pub const ChatHandler = struct {
     allocator: std.mem.Allocator,
-    orchestrator: ?*personas.MultiPersonaSystem = null,
+    orchestrator: ?*profiles.MultiPersonaSystem = null,
     rate_limiter: rate_limit.RateLimiter,
 
     const Self = @This();
@@ -189,7 +189,7 @@ pub const ChatHandler = struct {
     }
 
     /// Set the orchestrator reference.
-    pub fn setOrchestrator(self: *Self, orchestrator: *personas.MultiPersonaSystem) void {
+    pub fn setOrchestrator(self: *Self, orchestrator: *profiles.MultiPersonaSystem) void {
         self.orchestrator = orchestrator;
     }
 
