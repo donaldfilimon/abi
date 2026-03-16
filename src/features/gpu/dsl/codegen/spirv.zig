@@ -25,7 +25,7 @@ const backend = @import("backend.zig");
 const gpu_backend = @import("../../backend.zig");
 
 // Import the modular implementation
-const spirv = @import("spirv.zig");
+const spirv = @import("spirv/mod.zig");
 
 // Re-export constants for backward compatibility
 pub const SPIRV_MAGIC = spirv.SPIRV_MAGIC;
