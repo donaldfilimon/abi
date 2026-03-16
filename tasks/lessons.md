@@ -28,6 +28,8 @@
 - Use `std.fmt.comptimePrint` to parameterize build steps that differ only by a flag string. One shared module graph for manifest-driven tests, not per-entry modules.
 - Tool-side Zig modules under `tools/` cannot reach into `../../build/*.zig` with relative imports. Pass shared build metadata as a named module import from `build.zig` instead.
 - In `src/root.zig`, keep private module/type aliases distinct from public compatibility re-exports. Reusing the same identifier inside nested namespace structs creates ambiguous references under Zig master.
+- Feature-test per-entry modules violate Zig 0.16 single-file ownership when entries share files through import graphs. Fix: use the `abi` module directly as the test root (`addTest(.{ .root_module = abi_module })`). The `feature_test_manifest` in `module_catalog.zig` is preserved as documentation.
+- `@import("abi")` cannot be used within files that ARE part of the `abi` module — this creates a circular "no module named 'abi' available within module 'abi'" error. It only works from external modules (CLI, tests with separate roots) or lazy-evaluated code paths.
 
 ## `foundation` Named Module Pattern
 - **What**: `src/services/shared/mod.zig` is the root of the `foundation` named module, created by `build/modules.zig:createFoundationModule`. It provides shared service types (allocators, logging, config) to all compilation targets.
@@ -46,3 +48,4 @@
 - Use dedicated edit tools for file mutations, reserve shell for inspection. Review `tasks/lessons.md` and refresh `tasks/todo.md` before making repo-tracked edits.
 - Keep supported Zig resolution to pinned Zig on PATH or ZVM. Don't add repo-local toolchain surfaces unless intended to be permanent.
 - Resolve generated registry artifacts explicitly; keep deterministic parser paths for generated ZON.
+- External hooks/linters may rewrite source files destructively (reordering imports before doc comments, changing `@import("abi")` to relative internal paths). Use `git checkout HEAD -- <file>` to restore, or atomic `sed -i '' + git add` for edits that must survive hooks.
