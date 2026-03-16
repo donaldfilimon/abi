@@ -13,6 +13,7 @@ zig build test --summary all          # primary tests
 zig build feature-tests --summary all # feature coverage
 zig build full-check                  # pre-commit gate
 zig build validate-flags              # flag combo check
+zig build preflight                   # integration environment diagnostics
 zig build refresh-cli-registry        # after CLI changes
 zig build gendocs                     # regenerate docs
 zig build check-docs                  # verify docs consistency
@@ -29,12 +30,13 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `src/features/<name>/` — 19 comptime-gated modules, each with `mod.zig` + `stub.zig` + `types.zig`
 - `src/services/` — Non-gated services: connectors, LSP, MCP, runtime, security, platform
 - `src/services/shared/` — Shared foundations exposed as `abi.foundation` (logging, security, time/SIMD)
-- `src/core/` — Config, feature catalog, registry, `stub_context.zig`
+- `src/core/` — Config, feature catalog, registry (incl. plugin system), `stub_context.zig`
 - `src/inference/` — ML inference: engine, scheduler, sampler, paged KV cache
 - `build/` — Modular build system (options, flags, modules, test discovery, `module_catalog.zig`)
 - `tools/cli/` — CLI commands and registry (`tools/cli/registry/`)
 - `tools/gendocs/` — Documentation generator (edits go here, not in generated `docs/api/`)
-- `bindings/` — C and WASM language bindings
+- `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
+- `tests/integration/` — Integration test matrix manifest and preflight diagnostics
 
 ### Feature gating in root.zig
 
@@ -66,6 +68,8 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - Conventional commits (`fix:`, `feat:`, `docs:`, `chore:`), atomic scope
 - Explicit error sets, propagate with `try`
 
+See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
+
 ## Zig 0.16 API Changes
 
 - `std.heap.DebugAllocator(.{}){}` not `GeneralPurposeAllocator`
@@ -77,6 +81,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - `valueIterator()` not `.values()` on hash maps
 - `@enumFromInt(x)` not `intToEnum`
 - `ArrayListUnmanaged` / `AutoHashMapUnmanaged` init: `.empty` not `.{}`
+- `pub fn main(init: std.process.Init) !void` not `pub fn main() !void`
 
 ## Feature Flags
 
@@ -101,9 +106,19 @@ Catalog source of truth: `src/core/feature_catalog.zig`.
 5. Update `tasks/lessons.md` after corrections
 6. Version pin changes: update `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, CI config atomically
 
+## Plugin System
+
+External modules register at runtime via `abi.registry.plugin.PluginRegistry`. Plugins declare capabilities (`ai_provider`, `connector`, `storage_backend`, `gpu_backend`, etc.) and follow a `registered → loading → active → unloading` lifecycle. C bindings available in `bindings/c/include/abi.h` (`abi_plugin_register`, etc.).
+
+## Raft Consensus
+
+`src/features/network/raft.zig` implements Raft with pre-vote protocol (prevents disruptive elections from partitioned nodes) and partition tolerance (leader steps down on quorum loss). Fault injection via `FaultInjector` for testing. Gated by `feat-networking`.
+
 ## References
 
 - [AGENTS.md](AGENTS.md) — Workflow contract and verification gates
 - [tasks/lessons.md](tasks/lessons.md) — Correction log (prevents repeat mistakes)
 - [docs/PATTERNS.md](docs/PATTERNS.md) — Zig 0.16 codebase patterns
 - [docs/STRUCTURE.md](docs/STRUCTURE.md) — Full directory tree reference
+- [docs/guides/integration-environment.md](docs/guides/integration-environment.md) — CI/local/degraded mode contract
+- [docs/plans/index.md](docs/plans/index.md) — Active execution plans and status
