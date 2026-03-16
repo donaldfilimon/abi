@@ -79,7 +79,6 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "feat_storage", .path = "src/features/storage/mod.zig" },
     .{ .flag = "feat_pages", .path = "src/features/observability/pages/mod.zig" },
     .{ .flag = "feat_analytics", .path = "src/features/analytics/mod.zig" },
-    .{ .flag = "feat_profiling", .path = "src/features/observability/mod.zig" },
     .{ .flag = "feat_mobile", .path = "src/features/mobile/mod.zig" },
     .{ .flag = "feat_benchmarks", .path = "src/features/benchmarks/mod.zig" },
     .{ .flag = "feat_network", .path = "src/features/network/mod.zig" },
