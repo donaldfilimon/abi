@@ -28,6 +28,12 @@ pub const ABI_ERROR_GPU_UNAVAILABLE: c_int = -9;
 pub const ABI_ERROR_DATABASE_ERROR: c_int = -10;
 pub const ABI_ERROR_NETWORK_ERROR: c_int = -11;
 pub const ABI_ERROR_AI_ERROR: c_int = -12;
+pub const ABI_ERROR_PLUGIN_NOT_FOUND: c_int = -13;
+pub const ABI_ERROR_PLUGIN_EXISTS: c_int = -14;
+pub const ABI_ERROR_PLUGIN_INCOMPATIBLE: c_int = -15;
+pub const ABI_ERROR_PLUGIN_LOAD_FAILED: c_int = -16;
+pub const ABI_ERROR_PLUGIN_STATE: c_int = -17;
+pub const ABI_ERROR_PLUGIN_INVALID_NAME: c_int = -18;
 pub const ABI_ERROR_UNKNOWN: c_int = -99;
 
 /// Get human-readable error message for an error code.
@@ -46,8 +52,161 @@ export fn abi_error_string(err: c_int) [*:0]const u8 {
         ABI_ERROR_DATABASE_ERROR => "Database error",
         ABI_ERROR_NETWORK_ERROR => "Network error",
         ABI_ERROR_AI_ERROR => "AI operation error",
+        ABI_ERROR_PLUGIN_NOT_FOUND => "Plugin not found",
+        ABI_ERROR_PLUGIN_EXISTS => "Plugin already registered",
+        ABI_ERROR_PLUGIN_INCOMPATIBLE => "Plugin ABI version incompatible",
+        ABI_ERROR_PLUGIN_LOAD_FAILED => "Plugin load failed",
+        ABI_ERROR_PLUGIN_STATE => "Plugin in wrong state",
+        ABI_ERROR_PLUGIN_INVALID_NAME => "Invalid plugin name",
         else => "Unknown error",
     };
+}
+
+// ============================================================================
+// Plugin Registry Operations
+// ============================================================================
+
+/// Opaque plugin registry handle
+const PluginRegistryHandle = opaque {};
+
+/// Plugin registry wrapper
+const PluginRegistryWrapper = struct {
+    handle: abi.registry.plugin.PluginRegistry,
+    allocator: std.mem.Allocator,
+};
+
+/// Plugin descriptor (C layout)
+const CPluginDescriptor = extern struct {
+    name: [*:0]const u8 = "",
+    version_major: c_int = 1,
+    version_minor: c_int = 0,
+    version_patch: c_int = 0,
+    author: [*:0]const u8 = "",
+    description: [*:0]const u8 = "",
+    capabilities: ?[*]const c_int = null,
+    num_capabilities: usize = 0,
+};
+
+/// Map plugin errors to C error codes.
+fn mapPluginError(err: anyerror) c_int {
+    return switch (err) {
+        error.PluginAlreadyRegistered => ABI_ERROR_PLUGIN_EXISTS,
+        error.PluginNotFound => ABI_ERROR_PLUGIN_NOT_FOUND,
+        error.PluginLoadFailed => ABI_ERROR_PLUGIN_LOAD_FAILED,
+        error.PluginStateInvalid => ABI_ERROR_PLUGIN_STATE,
+        error.IncompatibleAbiVersion => ABI_ERROR_PLUGIN_INCOMPATIBLE,
+        error.InvalidPluginName => ABI_ERROR_PLUGIN_INVALID_NAME,
+        error.OutOfMemory => ABI_ERROR_OUT_OF_MEMORY,
+        else => ABI_ERROR_UNKNOWN,
+    };
+}
+
+/// Create a new plugin registry.
+export fn abi_plugin_registry_create(out_registry: *?*PluginRegistryHandle) c_int {
+    out_registry.* = null;
+
+    const wrapper = c_allocator.create(PluginRegistryWrapper) catch {
+        return ABI_ERROR_OUT_OF_MEMORY;
+    };
+
+    wrapper.* = .{
+        .handle = abi.registry.plugin.PluginRegistry.init(),
+        .allocator = c_allocator,
+    };
+
+    out_registry.* = @ptrCast(wrapper);
+    return ABI_OK;
+}
+
+/// Destroy a plugin registry.
+export fn abi_plugin_registry_destroy(registry: ?*PluginRegistryHandle) void {
+    if (registry) |r| {
+        const wrapper: *PluginRegistryWrapper = @ptrCast(@alignCast(r));
+        wrapper.handle.deinit(wrapper.allocator);
+        wrapper.allocator.destroy(wrapper);
+    }
+}
+
+/// Register a plugin.
+export fn abi_plugin_register(
+    registry: ?*PluginRegistryHandle,
+    desc: ?*const CPluginDescriptor,
+    callbacks: ?*const anyopaque,
+) c_int {
+    _ = callbacks;
+    const r = registry orelse return ABI_ERROR_NOT_INITIALIZED;
+    const wrapper: *PluginRegistryWrapper = @ptrCast(@alignCast(r));
+    const d = desc orelse return ABI_ERROR_INVALID_ARGUMENT;
+
+    const zig_desc = abi.registry.plugin.PluginDescriptor{
+        .name = std.mem.sliceTo(d.name, 0),
+        .version = .{
+            .major = @intCast(@as(u32, @bitCast(d.version_major))),
+            .minor = @intCast(@as(u32, @bitCast(d.version_minor))),
+            .patch = @intCast(@as(u32, @bitCast(d.version_patch))),
+        },
+        .author = std.mem.sliceTo(d.author, 0),
+        .description = std.mem.sliceTo(d.description, 0),
+        .capabilities = &.{},
+    };
+
+    wrapper.handle.register(wrapper.allocator, zig_desc, .{}) catch |err| {
+        return mapPluginError(err);
+    };
+
+    return ABI_OK;
+}
+
+/// Unregister a plugin by name.
+export fn abi_plugin_unregister(
+    registry: ?*PluginRegistryHandle,
+    name: [*:0]const u8,
+) c_int {
+    const r = registry orelse return ABI_ERROR_NOT_INITIALIZED;
+    const wrapper: *PluginRegistryWrapper = @ptrCast(@alignCast(r));
+
+    wrapper.handle.unregister(std.mem.sliceTo(name, 0)) catch |err| {
+        return mapPluginError(err);
+    };
+
+    return ABI_OK;
+}
+
+/// Load a registered plugin.
+export fn abi_plugin_load(
+    registry: ?*PluginRegistryHandle,
+    name: [*:0]const u8,
+) c_int {
+    const r = registry orelse return ABI_ERROR_NOT_INITIALIZED;
+    const wrapper: *PluginRegistryWrapper = @ptrCast(@alignCast(r));
+
+    wrapper.handle.load(std.mem.sliceTo(name, 0)) catch |err| {
+        return mapPluginError(err);
+    };
+
+    return ABI_OK;
+}
+
+/// Unload an active plugin.
+export fn abi_plugin_unload(
+    registry: ?*PluginRegistryHandle,
+    name: [*:0]const u8,
+) c_int {
+    const r = registry orelse return ABI_ERROR_NOT_INITIALIZED;
+    const wrapper: *PluginRegistryWrapper = @ptrCast(@alignCast(r));
+
+    wrapper.handle.unload(std.mem.sliceTo(name, 0)) catch |err| {
+        return mapPluginError(err);
+    };
+
+    return ABI_OK;
+}
+
+/// Get number of registered plugins.
+export fn abi_plugin_count(registry: ?*PluginRegistryHandle) c_int {
+    const r = registry orelse return 0;
+    const wrapper: *PluginRegistryWrapper = @ptrCast(@alignCast(r));
+    return @intCast(wrapper.handle.count());
 }
 
 // ============================================================================
@@ -1085,4 +1244,51 @@ test "agent null handle returns error" {
 
     const status = abi_agent_get_status(null);
     try std.testing.expectEqual(ABI_AGENT_STATUS_ERROR, status);
+}
+
+test "plugin registry create and destroy" {
+    var registry: ?*PluginRegistryHandle = null;
+    const result = abi_plugin_registry_create(&registry);
+    try std.testing.expectEqual(ABI_OK, result);
+    try std.testing.expect(registry != null);
+
+    abi_plugin_registry_destroy(registry);
+}
+
+test "plugin register and count" {
+    var registry: ?*PluginRegistryHandle = null;
+    const create_result = abi_plugin_registry_create(&registry);
+    try std.testing.expectEqual(ABI_OK, create_result);
+    defer abi_plugin_registry_destroy(registry);
+
+    const desc = CPluginDescriptor{
+        .name = "test-c-plugin",
+        .version_major = 1,
+        .version_minor = 0,
+        .version_patch = 0,
+        .author = "test",
+        .description = "A C plugin",
+    };
+
+    const reg_result = abi_plugin_register(registry, &desc, null);
+    try std.testing.expectEqual(ABI_OK, reg_result);
+    try std.testing.expectEqual(@as(c_int, 1), abi_plugin_count(registry));
+
+    const unreg_result = abi_plugin_unregister(registry, "test-c-plugin");
+    try std.testing.expectEqual(ABI_OK, unreg_result);
+    try std.testing.expectEqual(@as(c_int, 0), abi_plugin_count(registry));
+}
+
+test "plugin error string" {
+    const s = abi_error_string(ABI_ERROR_PLUGIN_NOT_FOUND);
+    try std.testing.expectEqualStrings("Plugin not found", std.mem.sliceTo(s, 0));
+}
+
+test "plugin null registry returns error" {
+    const desc = CPluginDescriptor{ .name = "x" };
+    try std.testing.expectEqual(ABI_ERROR_NOT_INITIALIZED, abi_plugin_register(null, &desc, null));
+    try std.testing.expectEqual(ABI_ERROR_NOT_INITIALIZED, abi_plugin_unregister(null, "x"));
+    try std.testing.expectEqual(ABI_ERROR_NOT_INITIALIZED, abi_plugin_load(null, "x"));
+    try std.testing.expectEqual(ABI_ERROR_NOT_INITIALIZED, abi_plugin_unload(null, "x"));
+    try std.testing.expectEqual(@as(c_int, 0), abi_plugin_count(null));
 }

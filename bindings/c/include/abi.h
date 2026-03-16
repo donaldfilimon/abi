@@ -82,6 +82,24 @@ extern "C" {
 /** AI operation error. */
 #define ABI_ERROR_AI_ERROR           -12
 
+/** Plugin not found in registry. */
+#define ABI_ERROR_PLUGIN_NOT_FOUND   -13
+
+/** Plugin with same name already registered. */
+#define ABI_ERROR_PLUGIN_EXISTS      -14
+
+/** Plugin ABI version incompatible. */
+#define ABI_ERROR_PLUGIN_INCOMPATIBLE -15
+
+/** Plugin load callback failed. */
+#define ABI_ERROR_PLUGIN_LOAD_FAILED -16
+
+/** Plugin in wrong state for requested operation. */
+#define ABI_ERROR_PLUGIN_STATE       -17
+
+/** Plugin name is empty or invalid. */
+#define ABI_ERROR_PLUGIN_INVALID_NAME -18
+
 /** Unknown or unspecified error. */
 #define ABI_ERROR_UNKNOWN            -99
 
@@ -746,6 +764,156 @@ static inline void abi_agent_config_init(abi_agent_config_t *config) {
     config->top_p = 0.9f;
     config->max_tokens = 1024;
     config->enable_history = true;
+}
+
+/* ============================================================================
+ * Plugin Capability Constants
+ * ============================================================================ */
+
+#define ABI_PLUGIN_CAP_AI_PROVIDER      0
+#define ABI_PLUGIN_CAP_CONNECTOR        1
+#define ABI_PLUGIN_CAP_STORAGE_BACKEND  2
+#define ABI_PLUGIN_CAP_GPU_BACKEND      3
+#define ABI_PLUGIN_CAP_INFERENCE_ENGINE 4
+#define ABI_PLUGIN_CAP_VECTOR_INDEX     5
+#define ABI_PLUGIN_CAP_AUTH_PROVIDER    6
+#define ABI_PLUGIN_CAP_CACHE_BACKEND   7
+#define ABI_PLUGIN_CAP_SEARCH_ENGINE   8
+#define ABI_PLUGIN_CAP_MESSAGE_BROKER  9
+#define ABI_PLUGIN_CAP_CUSTOM          10
+
+/* ============================================================================
+ * Plugin State Constants
+ * ============================================================================ */
+
+#define ABI_PLUGIN_STATE_REGISTERED  0
+#define ABI_PLUGIN_STATE_LOADING     1
+#define ABI_PLUGIN_STATE_ACTIVE      2
+#define ABI_PLUGIN_STATE_UNLOADING   3
+#define ABI_PLUGIN_STATE_FAILED      4
+
+/* ============================================================================
+ * Plugin Types
+ * ============================================================================ */
+
+/** Opaque plugin registry handle. */
+typedef struct abi_plugin_registry abi_plugin_registry_t;
+
+/**
+ * Plugin version (semantic versioning).
+ */
+typedef struct abi_plugin_version {
+    int major;
+    int minor;
+    int patch;
+} abi_plugin_version_t;
+
+/**
+ * Plugin descriptor.
+ */
+typedef struct abi_plugin_descriptor {
+    const char *name;
+    int version_major;
+    int version_minor;
+    int version_patch;
+    const char *author;
+    const char *description;
+    const int *capabilities;
+    size_t num_capabilities;
+} abi_plugin_descriptor_t;
+
+/**
+ * Plugin info snapshot.
+ */
+typedef struct abi_plugin_info {
+    const char *name;
+    int version_major;
+    int version_minor;
+    int version_patch;
+    const char *author;
+    int state;
+} abi_plugin_info_t;
+
+/* ============================================================================
+ * Plugin Registry Operations
+ * ============================================================================ */
+
+/**
+ * Create a new plugin registry.
+ *
+ * @param[out] out_registry Pointer to receive the registry handle.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_plugin_registry_create(abi_plugin_registry_t **out_registry);
+
+/**
+ * Destroy a plugin registry and release all resources.
+ *
+ * @param registry Registry handle to destroy. May be NULL (no-op).
+ */
+void abi_plugin_registry_destroy(abi_plugin_registry_t *registry);
+
+/**
+ * Register a plugin with the registry.
+ *
+ * @param registry Registry handle.
+ * @param desc     Plugin descriptor.
+ * @param callbacks Reserved for future use (pass NULL).
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_plugin_register(abi_plugin_registry_t *registry,
+                        const abi_plugin_descriptor_t *desc,
+                        const void *callbacks);
+
+/**
+ * Unregister a plugin by name.
+ *
+ * @param registry Registry handle.
+ * @param name     Null-terminated plugin name.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_plugin_unregister(abi_plugin_registry_t *registry, const char *name);
+
+/**
+ * Load a registered plugin.
+ *
+ * @param registry Registry handle.
+ * @param name     Null-terminated plugin name.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_plugin_load(abi_plugin_registry_t *registry, const char *name);
+
+/**
+ * Unload an active plugin.
+ *
+ * @param registry Registry handle.
+ * @param name     Null-terminated plugin name.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_plugin_unload(abi_plugin_registry_t *registry, const char *name);
+
+/**
+ * Get the number of registered plugins.
+ *
+ * @param registry Registry handle.
+ * @return Number of plugins, or 0 if registry is NULL.
+ */
+int abi_plugin_count(abi_plugin_registry_t *registry);
+
+/**
+ * Initialize a plugin descriptor with default values.
+ *
+ * @param[out] desc Pointer to descriptor to initialize.
+ */
+static inline void abi_plugin_descriptor_init(abi_plugin_descriptor_t *desc) {
+    desc->name = "";
+    desc->version_major = 1;
+    desc->version_minor = 0;
+    desc->version_patch = 0;
+    desc->author = "";
+    desc->description = "";
+    desc->capabilities = NULL;
+    desc->num_capabilities = 0;
 }
 
 #ifdef __cplusplus
