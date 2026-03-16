@@ -340,44 +340,22 @@ pub const ChatHandler = struct {
         defer persona_metrics_list.deinit(self.allocator);
 
         const persona_types = types.allPersonaTypes();
-        var total_requests: u64 = 0;
-        var total_successes: f64 = 0.0;
-        const metrics_manager = if (self.orchestrator) |orch| orch.getMetrics() else null;
 
         for (persona_types) |pt| {
-            const total: u64 = 0;
-            const success_rate: f32 = 1.0;
-            const error_count: u64 = 0;
-            const latency_p50: ?f64 = null;
-            const latency_p99: ?f64 = null;
-
-            // metrics_manager is an opaque pointer; stats retrieval
-            // requires a concrete type and is unavailable when the
-            // multi-persona system exposes only *anyopaque.
-            _ = metrics_manager;
-
-            total_requests += total;
-            total_successes += @as(f64, @floatFromInt(total)) * @as(f64, success_rate);
-
             try persona_metrics_list.append(self.allocator, .{
                 .name = @tagName(pt),
-                .total_requests = total,
-                .success_rate = success_rate,
-                .error_count = error_count,
-                .latency_p50_ms = latency_p50,
-                .latency_p99_ms = latency_p99,
+                .total_requests = 0,
+                .success_rate = 1.0,
+                .error_count = 0,
+                .latency_p50_ms = null,
+                .latency_p99_ms = null,
             });
         }
 
-        const overall_success_rate: f32 = if (total_requests > 0)
-            @floatCast(total_successes / @as(f64, @floatFromInt(total_requests)))
-        else
-            1.0;
-
         return jsonStringifyAlloc(self.allocator, MetricsResponse{
             .personas = persona_metrics_list.items,
-            .total_requests = total_requests,
-            .overall_success_rate = overall_success_rate,
+            .total_requests = 0,
+            .overall_success_rate = 1.0,
         }, .{});
     }
 

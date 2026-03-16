@@ -3,38 +3,14 @@
 //! API-compatible no-op implementations when search is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/content.zig");
 const stub_context = @import("../../core/stub_context.zig");
+const types = @import("types.zig");
 
-pub const SearchConfig = core_config.SearchConfig;
-
-pub const SearchError = error{
-    FeatureDisabled,
-    IndexNotFound,
-    InvalidQuery,
-    IndexCorrupted,
-    OutOfMemory,
-    IndexAlreadyExists,
-    DocumentNotFound,
-};
-
-pub const SearchResult = struct {
-    doc_id: []const u8 = "",
-    score: f32 = 0.0,
-    snippet: []const u8 = "",
-};
-
-pub const SearchIndex = struct {
-    name: []const u8 = "",
-    doc_count: u64 = 0,
-    size_bytes: u64 = 0,
-};
-
-pub const SearchStats = struct {
-    total_indexes: u32 = 0,
-    total_documents: u64 = 0,
-    total_terms: u64 = 0,
-};
+pub const SearchConfig = types.SearchConfig;
+pub const SearchError = types.SearchError;
+pub const SearchResult = types.SearchResult;
+pub const SearchIndex = types.SearchIndex;
+pub const SearchStats = types.SearchStats;
 
 pub const Context = stub_context.StubContext(SearchConfig);
 

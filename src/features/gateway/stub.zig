@@ -1,82 +1,28 @@
 //! Gateway Stub Module
 //!
 //! API-compatible no-op implementations when gateway is disabled.
+//! Types are shared with the real module via types.zig.
 
 const std = @import("std");
 const core_config = @import("../../core/config/gateway.zig");
 const stub_context = @import("../../core/stub_context.zig");
+const gateway_types = @import("types.zig");
 
+// Config re-exports (from core config)
 pub const GatewayConfig = core_config.GatewayConfig;
 pub const RateLimitConfig = core_config.RateLimitConfig;
 pub const RateLimitAlgorithm = core_config.RateLimitAlgorithm;
 pub const CircuitBreakerConfig = core_config.CircuitBreakerConfig;
 pub const CircuitBreakerState = core_config.CircuitBreakerState;
 
-pub const GatewayError = error{
-    FeatureDisabled,
-    RouteNotFound,
-    RateLimitExceeded,
-    CircuitOpen,
-    UpstreamTimeout,
-    InvalidRoute,
-    TooManyRoutes,
-    MiddlewareError,
-    OutOfMemory,
-};
-
-pub const HttpMethod = enum { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS };
-
-pub const Route = struct {
-    path: []const u8 = "/",
-    method: HttpMethod = .GET,
-    upstream: []const u8 = "",
-    timeout_ms: u64 = 30_000,
-    rate_limit: ?RateLimitConfig = null,
-    middlewares: []const MiddlewareType = &.{},
-};
-
-pub const MiddlewareType = enum {
-    auth,
-    rate_limit,
-    circuit_breaker,
-    access_log,
-    cors,
-    response_transform,
-    request_id,
-};
-
-pub const GatewayStats = struct {
-    total_requests: u64 = 0,
-    active_routes: u32 = 0,
-    rate_limited_count: u64 = 0,
-    circuit_breaker_trips: u64 = 0,
-    upstream_errors: u64 = 0,
-    avg_latency_ms: u64 = 0,
-};
-
-pub const MatchResult = struct {
-    route: Route,
-    params: [8]Param = [_]Param{.{}} ** 8,
-    param_count: u8 = 0,
-    matched_route_idx: ?u32 = null,
-
-    pub const Param = struct {
-        name: []const u8 = "",
-        value: []const u8 = "",
-    };
-
-    pub fn getParam(self: *const MatchResult, name: []const u8) ?[]const u8 {
-        _ = self;
-        _ = name;
-        return null;
-    }
-};
-
-pub const RateLimitResult = struct {
-    allowed: bool = true,
-    remaining: u32 = 0,
-    reset_after_ms: u64 = 0,
-};
+// Type re-exports (shared with mod.zig via types.zig)
+pub const GatewayError = gateway_types.GatewayError;
+pub const HttpMethod = gateway_types.HttpMethod;
+pub const Route = gateway_types.Route;
+pub const MiddlewareType = gateway_types.MiddlewareType;
+pub const GatewayStats = gateway_types.GatewayStats;
+pub const MatchResult = gateway_types.MatchResult;
+pub const RateLimitResult = gateway_types.RateLimitResult;
 
 pub const Context = stub_context.StubContextWithConfig(GatewayConfig);
 

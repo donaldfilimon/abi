@@ -22,6 +22,8 @@
 ## Build System Patterns
 - Files in `build/test_discovery.zig` must compile standalone with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this — inline small deps or use build-system modules.
 - Use `std.fmt.comptimePrint` to parameterize build steps that differ only by a flag string. One shared module graph for manifest-driven tests, not per-entry modules.
+- Tool-side Zig modules under `tools/` cannot reach into `../../build/*.zig` with relative imports. Pass shared build metadata as a named module import from `build.zig` instead.
+- In `src/root.zig`, keep private module/type aliases distinct from public compatibility re-exports. Reusing the same identifier inside nested namespace structs creates ambiguous references under Zig master.
 
 ## `foundation` Named Module Pattern
 - **What**: `src/services/shared/mod.zig` is the root of the `foundation` named module, created by `build/modules.zig:createFoundationModule`. It provides shared service types (allocators, logging, config) to all compilation targets.

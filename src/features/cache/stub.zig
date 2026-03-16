@@ -3,35 +3,14 @@
 //! API-compatible no-op implementations when cache is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform.zig");
 const stub_context = @import("../../core/stub_context.zig");
+const types = @import("types.zig");
 
-pub const CacheConfig = core_config.CacheConfig;
-pub const EvictionPolicy = core_config.EvictionPolicy;
-
-pub const CacheError = error{
-    FeatureDisabled,
-    CacheFull,
-    KeyNotFound,
-    InvalidTTL,
-    OutOfMemory,
-};
-
-pub const CacheEntry = struct {
-    key: []const u8 = "",
-    value: []const u8 = "",
-    ttl_ms: u64 = 0,
-    created_at: u64 = 0,
-};
-
-pub const CacheStats = struct {
-    hits: u64 = 0,
-    misses: u64 = 0,
-    entries: u32 = 0,
-    memory_used: u64 = 0,
-    evictions: u64 = 0,
-    expired: u64 = 0,
-};
+pub const CacheConfig = types.CacheConfig;
+pub const EvictionPolicy = types.EvictionPolicy;
+pub const CacheError = types.CacheError;
+pub const CacheEntry = types.CacheEntry;
+pub const CacheStats = types.CacheStats;
 
 pub const Context = stub_context.StubContext(CacheConfig);
 

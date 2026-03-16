@@ -30,18 +30,7 @@ pub const RateLimitAlgorithm = gateway_types.RateLimitAlgorithm;
 pub const CircuitBreakerConfig = gateway_types.CircuitBreakerConfig;
 pub const CircuitBreakerState = gateway_types.CircuitBreakerState;
 
-pub const GatewayError = error{
-    FeatureDisabled,
-    RouteNotFound,
-    RateLimitExceeded,
-    CircuitOpen,
-    UpstreamTimeout,
-    InvalidRoute,
-    TooManyRoutes,
-    MiddlewareError,
-    OutOfMemory,
-};
-
+pub const GatewayError = gateway_types.GatewayError;
 pub const HttpMethod = gateway_types.HttpMethod;
 pub const Route = gateway_types.Route;
 pub const MiddlewareType = middleware.MiddlewareType;

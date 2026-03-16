@@ -20,28 +20,28 @@ The following structural changes have landed on `main`:
 
 ### Phase 1 — Logical Graph Normalization
 
-- [ ] Rewrite `src/root.zig` to expose the direct-domain surface (`abi.runtime`, `abi.database`, `abi.ai`, `abi.foundation`, etc.)
-- [ ] Add `build/module_catalog.zig` as the build/docs/test source of truth for public modules and feature-test entries
-- [ ] Replace tracked generated test roots with build outputs and stop writing to `src/generated_feature_tests.zig`
-- [x] Move aggregate test entrypoints to `tests/zig/` wrappers while preserving current test coverage
+- [x] Rewrite `src/root.zig` to expose the direct-domain surface (`abi.runtime`, `abi.database`, `abi.ai`, `abi.foundation`, etc.)
+- [x] Add `build/module_catalog.zig` as the build/docs/test source of truth for public modules and feature-test entries
+- [x] Replace tracked generated test roots with build outputs and stop writing to `src/generated_feature_tests.zig`
+- [ ] Make `tests/zig/` authoritative for aggregate test entrypoints. Wrapper files exist, but the main build still roots tests at `src/services/tests/mod.zig` because standalone module-path constraints block direct `tests/zig -> src/` imports.
 - [ ] Fix current master-branch import failures:
-  - [ ] package-root import assumptions in the public surface
-  - [ ] pseudo-submodule imports in `src/core/database/*`
-  - [ ] ambient file imports in `src/services/tests/mod.zig`
-- [ ] Rewire `tools/gendocs` to discover modules from the new catalog and root surface
-- [ ] Keep the existing build command surface stable (`test`, `feature-tests`, `full-check`, `verify-all`, `check-docs`, `validate-flags`)
+  - [x] package-root import assumptions in the public surface
+  - [x] pseudo-submodule imports in `src/core/database/*`
+  - [x] ambient file imports in `src/services/tests/mod.zig`
+- [x] Rewire `tools/gendocs` to discover modules from the new catalog and root surface
+- [x] Keep the existing build command surface stable (`test`, `feature-tests`, `full-check`, `verify-all`, `check-docs`, `validate-flags`)
 
 ### Phase 2 — Physical Relayout
 
 - [ ] Establish `src/internal/` family wrappers for app, foundation, runtime, ai, data, network, platform, integrations, observe, and tooling
 - [x] Move bindings from `src/bindings/` to top-level `bindings/` and update build/install paths
-- [ ] Reserve the `lang/cel/` lane and wire package metadata/build paths for future CEL relocation without changing stage0 behavior
+- [x] Reserve the `lang/cel/` lane and wire package metadata/build paths for future CEL relocation without changing stage0 behavior
 - [ ] Update docs/templates/CLI surfaces toward the direct-domain API
-- [ ] Delete obsolete tracked generated files and stale structure assumptions after the new paths are authoritative
+- [x] Delete obsolete tracked generated files and stale structure assumptions where Phase 1 now has authoritative replacements (`src/generated_feature_tests.zig`, old bindings paths)
 
 ### Validation
 
-- [ ] `zig fmt --check build.zig build/ src/ tools/ tests/ bindings/`
+- [x] `zig fmt --check build.zig build/ src/ tools/ tests/ bindings/ lang/`
 - [ ] `./tools/scripts/run_build.sh typecheck --summary all`
 - [ ] `./tools/scripts/run_build.sh feature-tests --summary all`
 - [ ] `./tools/scripts/run_build.sh validate-flags`
@@ -52,6 +52,11 @@ The following structural changes have landed on `main`:
 - [ ] `./tools/scripts/run_build.sh check-docs`
 - [ ] Linux/CI follow-up: `zig build full-check` and `zig build verify-all`
 
+Validation evidence:
+- `2026-03-16`: `zig fmt --check build.zig build/ src/ tools/ tests/ bindings/ lang/` passed.
+- `2026-03-16`: `./tools/scripts/run_build.sh typecheck --summary all` now clears the main `src/services/tests/mod.zig` package graph. Remaining failures are in `src/database_wdbx_tests_root.zig` and `src/database_fast_tests_root.zig` and are pre-existing Zig master migration issues in database/GPU/shared-service code (`ArrayListUnmanaged` initializers, missing `HNSW`, missing `Logger`, signal type mismatch, SPIR-V self-reference, etc.).
+- `2026-03-16`: `./tools/scripts/run_build.sh check-docs` now wires `module_catalog` explicitly into `tools/gendocs`, but still fails in pre-existing CLI/shared-service/database code paths unrelated to the structure redesign.
+
 ### Notes
 
-- [ ] Record the unavailable tri-cli consensus helper as an environment limitation if implementation completes without it
+- [x] Tri-CLI consensus helper unavailable locally: `/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` not present in this environment.

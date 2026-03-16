@@ -10,6 +10,18 @@ pub const RateLimitAlgorithm = core_config.RateLimitAlgorithm;
 pub const CircuitBreakerConfig = core_config.CircuitBreakerConfig;
 pub const CircuitBreakerState = core_config.CircuitBreakerState;
 
+pub const GatewayError = error{
+    FeatureDisabled,
+    RouteNotFound,
+    RateLimitExceeded,
+    CircuitOpen,
+    UpstreamTimeout,
+    InvalidRoute,
+    TooManyRoutes,
+    MiddlewareError,
+    OutOfMemory,
+};
+
 pub const HttpMethod = enum { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS };
 
 pub const MiddlewareType = enum {
