@@ -16,6 +16,7 @@ const llm_options = [_]types.OptionInfo{
     .{ .flag = "--prompt", .description = "Input prompt text" },
     .{ .flag = "--backend", .description = "Provider backend (ollama, mlx, etc.)" },
     .{ .flag = "--fallback", .description = "Comma-separated fallback providers" },
+    .{ .flag = "--strict-backend", .description = "Fail immediately if backend unavailable (no fallback)" },
     .{ .flag = "--temperature", .description = "Sampling temperature" },
     .{ .flag = "--max-tokens", .description = "Maximum tokens to generate" },
     .{ .flag = "--stream", .description = "Enable streaming output" },

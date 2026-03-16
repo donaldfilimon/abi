@@ -20,16 +20,29 @@ pub fn generate(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.
     for (chain) |provider| {
         if (!health.isAvailable(allocator, provider, cfg.plugin_id)) {
             last_err = errors.ProviderError.NotAvailable;
-            if (cfg.strict_backend and cfg.backend != null and provider == cfg.backend.?) {
-                return last_err;
+            if (cfg.strict_backend) {
+                // In strict mode, fail immediately when the pinned backend
+                // (or the only candidate) is unavailable.
+                if (cfg.backend != null and provider == cfg.backend.?) {
+                    std.log.warn("strict-backend: {s} is unavailable, refusing fallback", .{provider.label()});
+                    return errors.ProviderError.StrictBackendUnavailable;
+                }
+                // Even without a pinned backend, strict mode prevents
+                // silently skipping unavailable providers.
+                if (cfg.backend == null) {
+                    continue;
+                }
             }
             continue;
         }
 
         const result = generateWithProvider(allocator, cfg, provider) catch |err| {
             last_err = err;
-            if (cfg.strict_backend and cfg.backend != null and provider == cfg.backend.?) {
-                return err;
+            if (cfg.strict_backend) {
+                if (cfg.backend != null and provider == cfg.backend.?) {
+                    std.log.warn("strict-backend: {s} generation failed, refusing fallback", .{provider.label()});
+                    return err;
+                }
             }
             continue;
         };
@@ -37,7 +50,10 @@ pub fn generate(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.
         return result;
     }
 
-    if (cfg.strict_backend and cfg.backend != null) return last_err;
+    if (cfg.strict_backend and cfg.backend != null) {
+        std.log.warn("strict-backend: all providers exhausted without fallback", .{});
+        return last_err;
+    }
     return errors.ProviderError.NoProviderAvailable;
 }
 

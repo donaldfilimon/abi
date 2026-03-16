@@ -123,7 +123,7 @@ pub fn parseRunArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !R
             continue;
         }
 
-        if (std.mem.eql(u8, arg, "--strict-backend")) {
+        if (std.mem.eql(u8, arg, "--strict-backend") or std.mem.eql(u8, arg, "--strict")) {
             options.strict_backend = true;
             continue;
         }
@@ -269,7 +269,7 @@ pub fn printRunHelp() void {
             "  -p, --prompt <text>     Prompt text\\n" ++
             "  --backend <id>          Pin backend (local_gguf, llama_cpp, mlx, ollama, ollama_passthrough, lm_studio, vllm, anthropic, openai, codex, opencode, claude, gemini, plugin_http, plugin_native)\\n" ++
             "  --fallback <csv>        Comma-separated fallback backend chain\\n" ++
-            "  --strict-backend        Disable fallback when backend is unavailable\\n" ++
+            "  --strict-backend, --strict  Fail immediately if backend is unavailable (no fallback)\\n" ++
             "  --plugin <id>           Pin plugin id for plugin_http/plugin_native\\n" ++
             "  -n, --max-tokens <n>    Max tokens (default: 256)\\n" ++
             "  -t, --temperature <f>   Temperature (default: 0.7)\\n" ++

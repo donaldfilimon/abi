@@ -16,7 +16,7 @@ pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]co
         }
         if (std.mem.eql(u8, cmd, "check")) {
             if (args.len < 2) {
-                utils.output.println("Usage: abi llm providers check <id>", .{});
+                utils.output.println("Usage: abi llm providers check <id> [--strict]", .{});
                 return;
             }
             const id_text = std.mem.sliceTo(args[1], 0);
@@ -24,8 +24,23 @@ pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]co
                 utils.output.printError("Unknown provider: {s}", .{id_text});
                 return;
             };
+
+            // Check for --strict / --strict-backend flag in remaining args
+            var strict = false;
+            for (args[2..]) |extra| {
+                const flag = std.mem.sliceTo(extra, 0);
+                if (std.mem.eql(u8, flag, "--strict") or std.mem.eql(u8, flag, "--strict-backend")) {
+                    strict = true;
+                }
+            }
+
             const available = abi.ai.llm.providers.health.isAvailable(allocator, provider, null);
             utils.output.println("{s}: {s}", .{ provider.label(), if (available) "available" else "unavailable" });
+
+            if (strict and !available) {
+                utils.output.printError("strict: provider {s} is unavailable", .{provider.label()});
+                return error.StrictBackendUnavailable;
+            }
             return;
         }
     }
@@ -58,11 +73,14 @@ fn printChain(chain: []const ProviderId) void {
 
 pub fn printProvidersHelp() void {
     utils.output.print(
-        "Usage: abi llm providers [list|check <id>]\\n\\n" ++
+        "Usage: abi llm providers [list|check <id> [--strict]]\\n\\n" ++
             "List provider availability and routing order.\\n\\n" ++
+            "Options:\\n" ++
+            "  --strict, --strict-backend  Exit with error if checked provider is unavailable\\n\\n" ++
             "Examples:\\n" ++
             "  abi llm providers\\n" ++
-            "  abi llm providers check ollama\\n",
+            "  abi llm providers check ollama\\n" ++
+            "  abi llm providers check anthropic --strict\\n",
         .{},
     );
 }

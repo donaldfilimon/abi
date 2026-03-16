@@ -593,6 +593,7 @@ pub const providers = struct {
         PromptRequired,
         NotAvailable,
         NoProviderAvailable,
+        StrictBackendUnavailable,
         PluginNotFound,
         PluginDisabled,
         InvalidPlugin,
