@@ -10,9 +10,9 @@
 
 const std = @import("std");
 
-pub const kv_cache = @import("kv_cache");
-pub const ring_buffer = @import("ring_buffer");
-pub const paged_kv_cache = @import("paged_kv_cache");
+pub const kv_cache = @import("kv_cache.zig");
+pub const ring_buffer = @import("ring_buffer.zig");
+pub const paged_kv_cache = @import("paged_kv_cache.zig");
 
 // Re-exports - Basic KV cache
 pub const KvCache = kv_cache.KvCache;

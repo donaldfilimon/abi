@@ -1,5 +1,5 @@
 const std = @import("std");
-const backend_mod = @import("backend");
+const backend_mod = @import("backend.zig");
 
 pub const Device = struct {
     id: u32 = 0,

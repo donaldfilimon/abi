@@ -4,7 +4,7 @@
 //! various providers.
 const std = @import("std");
 
-pub const openai = @import("openai");
+pub const openai = @import("openai.zig");
 
 pub const OpenAIBackend = openai.OpenAIBackend;
 pub const OpenAIModel = openai.Model;

@@ -11,7 +11,7 @@
 //! - Dynamic rebalancing with minimal data movement
 
 const std = @import("std");
-const parent = @import(".");
+const parent = @import("./mod.zig");
 const time = parent.time;
 const network = parent.network;
 

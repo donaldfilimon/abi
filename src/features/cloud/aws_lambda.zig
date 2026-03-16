@@ -21,8 +21,8 @@
 //! ```
 
 const std = @import("std");
-const types = @import("types");
-const utils = @import("shared_services").utils;
+const types = @import("types.zig");
+const utils = @import("../../services/shared/mod.zig").utils;
 const this_module = @This();
 
 pub const CloudEvent = types.CloudEvent;

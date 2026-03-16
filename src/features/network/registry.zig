@@ -5,7 +5,7 @@
 
 const std = @import("std");
 
-const time = @import("shared_services").utils;
+const time = @import("../../services/shared/mod.zig").utils;
 
 pub const NodeStatus = enum {
     healthy,
@@ -22,9 +22,9 @@ pub const NodeInfo = struct {
 
 pub const NodeRegistry = struct {
     allocator: std.mem.Allocator,
-    nodes: std.ArrayListUnmanaged(NodeInfo) = .{},
+    nodes: std.ArrayListUnmanaged(NodeInfo) = .empty,
     /// O(1) lookup index: node id string -> array index
-    id_index: std.StringHashMapUnmanaged(usize) = .{},
+    id_index: std.StringHashMapUnmanaged(usize) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) NodeRegistry {
         return .{ .allocator = allocator };

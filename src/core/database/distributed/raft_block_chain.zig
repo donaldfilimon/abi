@@ -10,7 +10,7 @@
 //! - Followers apply committed blocks to their local chains
 
 const std = @import("std");
-const parent = @import(".");
+const parent = @import("./mod.zig");
 const time = parent.time;
 const network = parent.network;
 const block_chain = parent.block_chain;

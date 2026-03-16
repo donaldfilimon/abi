@@ -1,7 +1,7 @@
 //! Model configuration for LLaMA and similar architectures.
 
 const std = @import("std");
-const gguf = @import("../io/gguf");
+const gguf = @import("../io/gguf.zig");
 
 /// LLaMA model configuration.
 pub const LlamaConfig = struct {

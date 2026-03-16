@@ -15,16 +15,16 @@
 //!   try node.tick(); // Process timeouts and state transitions
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 // Re-export persistence and snapshot types for backward compatibility
-const raft_persistence = @import("raft_persistence");
+const raft_persistence = @import("raft_persistence.zig");
 pub const PersistentState = raft_persistence.PersistentState;
 pub const PersistentLogEntry = raft_persistence.PersistentLogEntry;
 pub const RaftPersistence = raft_persistence.RaftPersistence;
 
-const raft_snapshot = @import("raft_snapshot");
+const raft_snapshot = @import("raft_snapshot.zig");
 pub const SnapshotMetadata = raft_snapshot.SnapshotMetadata;
 pub const RaftSnapshotManager = raft_snapshot.RaftSnapshotManager;
 pub const SnapshotConfig = raft_snapshot.SnapshotConfig;
@@ -259,7 +259,7 @@ pub const RaftNode = struct {
             .config = config,
             .current_term = 0,
             .voted_for = null,
-            .log = .{},
+            .log = .empty,
             .commit_index = 0,
             .last_applied = 0,
             .state = .follower,
@@ -850,9 +850,9 @@ pub fn createCluster(allocator: std.mem.Allocator, node_ids: []const []const u8,
 }
 
 test {
-    _ = @import("raft_persistence");
-    _ = @import("raft_snapshot");
-    _ = @import("raft_test");
+    _ = @import("raft_persistence.zig");
+    _ = @import("raft_snapshot.zig");
+    _ = @import("raft_test.zig");
 }
 
 test {

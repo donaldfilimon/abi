@@ -3,11 +3,11 @@
 //! Extracted from `unified.zig` to separate device lifecycle concerns.
 
 const std = @import("std");
-const device_mod = @import("device");
-const multi_device = @import("multi_device");
-const stream_mod = @import("stream");
-const dispatcher_mod = @import("dispatch/coordinator");
-const policy_mod = @import("policy");
+const device_mod = @import("device.zig");
+const multi_device = @import("multi_device.zig");
+const stream_mod = @import("stream.zig");
+const dispatcher_mod = @import("dispatch/coordinator.zig");
+const policy_mod = @import("policy/mod.zig");
 
 pub const Device = device_mod.Device;
 pub const DeviceSelector = device_mod.DeviceSelector;

@@ -4,8 +4,8 @@
 //! and the WDBX vector database for fast similarity search.
 
 const std = @import("std");
-const unified = @import("unified");
-const simd = @import("shared_services").simd;
+const unified = @import("unified.zig");
+const simd = @import("../../../services/shared/mod.zig").simd;
 
 pub const VectorDbError = error{
     InvalidDimension,

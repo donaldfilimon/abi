@@ -2,10 +2,10 @@
 //! Manages registration, discovery, and lifecycle of all AI personas.
 
 const std = @import("std");
-const types = @import("types");
-const config = @import("config");
+const types = @import("types.zig");
+const config = @import("config.zig");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../services/shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Central registry managing the lifecycle and discovery of AI personas.
@@ -96,7 +96,7 @@ pub const PersonaRegistry = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var list: std.ArrayListUnmanaged(types.PersonaType) = .{};
+        var list: std.ArrayListUnmanaged(types.PersonaType) = .empty;
         errdefer list.deinit(allocator);
 
         var it = self.personas.keyIterator();

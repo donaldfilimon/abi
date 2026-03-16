@@ -4,8 +4,8 @@
 //! tabbed panel stack with an in-shell command palette.
 
 const std = @import("std");
-const command = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
 
 pub const meta: command.Meta = .{
@@ -31,12 +31,12 @@ pub fn forwardToView(
     try run(ctx, forwarded.items);
 }
 
-const launcher_actions = @import("../../../terminal/launcher/actions");
-const launcher_palette = @import("../../../terminal/launcher/palette");
+const launcher_actions = @import("../../../terminal/launcher/actions.zig");
+const launcher_palette = @import("../../../terminal/launcher/palette.zig");
 const panel_mod = @import("../../../terminal/panels/mod.zig");
-const panel_registry = @import("../../../terminal/panels/registry");
-const session_runner = @import("./session_runner");
-const theme_options = @import("./theme_options");
+const panel_registry = @import("../../../terminal/panels/registry.zig");
+const session_runner = @import("./session_runner.zig");
+const theme_options = @import("./theme_options.zig");
 const utils = @import("../../../utils/mod.zig");
 const database_alloc = @import("abi").features.database.core.alloc;
 

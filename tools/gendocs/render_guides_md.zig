@@ -1,6 +1,6 @@
 const std = @import("std");
-const model = @import("model");
-const site_map = @import("site_map");
+const model = @import("model.zig");
+const site_map = @import("site_map.zig");
 
 const generated_footer = model.generated_footer;
 
@@ -191,7 +191,7 @@ fn buildAutoContent(
             \\- Canonical policy: [AGENTS.md](../../AGENTS.md)
             \\- Task plan interface: `tasks/todo.md`
             \\- Lessons interface: `tasks/lessons.md`
-            \\- Zig validation: local `$zig-master` skill
+            \\- Zig validation: `zig build full-check` (or `zig fmt --check` on Darwin)
             \\
             \\Use the workflow contract checks during iteration and close-out:
             \\
@@ -346,7 +346,7 @@ fn appendGpuSummary(
     try out.appendSlice(allocator,
         \\## GPU Module Surface
         \\
-        \\The GPU subsystem is namespaced under `abi.features.gpu` with runtime API groups: `backends`, `devices`, `runtime`, `policy`, `multi`, `factory`.
+        \\The GPU subsystem is namespaced under `abi.gpu` with runtime API groups: `backends`, `devices`, `runtime`, `policy`, `multi`, `factory`.
         \\
         \\### Related API modules
         \\

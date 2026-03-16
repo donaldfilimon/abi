@@ -8,7 +8,7 @@ pub fn forFeature(comptime feature: feature_catalog.Feature) []const []const u8 
 
 pub fn forParitySpec(comptime spec: feature_catalog.ParitySpec) []const []const u8 {
     return switch (spec) {
-        .gpu => @import("gpu").required[0..],
+        .gpu => @import("gpu.zig").required[0..],
         .ai => ai[0..],
         .database => database[0..],
         .network => network[0..],

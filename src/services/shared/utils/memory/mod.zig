@@ -34,15 +34,15 @@
 //! ```
 const std = @import("std");
 
-pub const pool = @import("pool");
-pub const zerocopy = @import("zerocopy");
-pub const tracking = @import("tracking");
-pub const ring = @import("ring");
-pub const aligned = @import("aligned");
-pub const stack = @import("stack");
-pub const thread_cache = @import("thread_cache");
-pub const arena_pool = @import("arena_pool");
-pub const combinators = @import("combinators");
+pub const pool = @import("pool.zig");
+pub const zerocopy = @import("zerocopy.zig");
+pub const tracking = @import("tracking.zig");
+pub const ring = @import("ring.zig");
+pub const aligned = @import("aligned.zig");
+pub const stack = @import("stack.zig");
+pub const thread_cache = @import("thread_cache.zig");
+pub const arena_pool = @import("arena_pool.zig");
+pub const combinators = @import("combinators.zig");
 
 // Re-export commonly used types
 pub const MemoryPool = pool.MemoryPool;

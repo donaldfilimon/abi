@@ -4,8 +4,8 @@
 //! strategies for GPU operations.
 
 const std = @import("std");
-const interface = @import("interface");
-const platform_time = @import("shared_services").time;
+const interface = @import("interface.zig");
+const platform_time = @import("../../services/shared/mod.zig").time;
 
 pub const GpuErrorCode = enum(u32) {
     success = 0,

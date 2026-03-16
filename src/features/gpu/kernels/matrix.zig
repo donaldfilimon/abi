@@ -7,8 +7,8 @@
 //! - matrix_transpose: B = A^T
 
 const std = @import("std");
-const dsl = @import("../dsl");
-const adaptive_tiling = @import("../adaptive_tiling");
+const dsl = @import("../dsl/mod.zig");
+const adaptive_tiling = @import("../adaptive_tiling.zig");
 
 pub const KernelIR = dsl.KernelIR;
 pub const KernelBuilder = dsl.KernelBuilder;

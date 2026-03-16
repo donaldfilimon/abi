@@ -1,8 +1,8 @@
 //! Defines behavioral policy overlays and persona routing.
 
 const std = @import("std");
-const context = @import("../context");
-const core = @import("../core");
+const context = @import("../context/mod.zig");
+const core = @import("../core/mod.zig");
 
 pub const PersonaMode = enum {
     abbey,

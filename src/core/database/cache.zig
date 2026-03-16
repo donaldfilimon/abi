@@ -5,7 +5,7 @@
 //! made to outer neural services boundaries.
 
 const std = @import("std");
-const sync = @import("sync_compat");
+const sync = @import("sync_compat.zig");
 
 pub const Cache = struct {
     const Entry = struct {

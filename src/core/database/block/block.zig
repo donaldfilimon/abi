@@ -1,7 +1,7 @@
 //! StoredBlock and payload views.
 
 const std = @import("std");
-const header = @import("header");
+const header = @import("header.zig");
 
 pub const StoredBlock = struct {
     header: header.BlockHeader,

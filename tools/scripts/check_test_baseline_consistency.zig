@@ -1,5 +1,5 @@
 const std = @import("std");
-const baseline = @import("baseline");
+const baseline = @import("baseline.zig");
 const util = @import("util");
 
 /// Verify test baseline consistency:
@@ -8,7 +8,7 @@ const util = @import("util");
 /// - The main test root src/services/tests/mod.zig exists.
 /// - The WDBX fast test root exists if referenced.
 pub fn main(_: std.process.Init) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 
@@ -83,7 +83,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // ── WDBX fast test root ─────────────────────────────────────────────
-    const wdbx_fast_root = "src/core/database_fast_tests_root.zig";
+    const wdbx_fast_root = "src/database_fast_tests_root.zig";
     if (util.fileExists(io, wdbx_fast_root)) {
         // If it exists, make sure the WDBX engine file exists too
         const wdbx_engine = "src/core/database/wdbx.zig";

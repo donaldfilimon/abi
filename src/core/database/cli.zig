@@ -1,11 +1,11 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const database = @import("database");
-const semantic_store = @import("semantic_store");
-const storage = @import("storage");
-const db_helpers = @import("db_helpers");
-const http = @import("http");
-const transformer = if (build_options.feat_ai) @import("../../features/ai/transformer") else struct {
+const database = @import("database.zig");
+const semantic_store = @import("semantic_store/mod.zig");
+const storage = @import("storage.zig");
+const db_helpers = @import("db_helpers.zig");
+const http = @import("http.zig");
+const transformer = if (build_options.feat_ai) @import("../../features/ai/transformer/mod.zig") else struct {
     pub const TransformerModel = struct {
         pub fn init(_: std.mem.Allocator, _: anytype) !TransformerModel {
             return error.AiDisabled;
@@ -471,7 +471,7 @@ fn seedDatabase(handle: *semantic_store.DatabaseHandle) !void {
     }
 }
 
-const fs = @import("shared_services").utils.fs;
+const fs = @import("../../services/shared/mod.zig").utils.fs;
 
 /// Parse CLI arguments for the add command. Returns parsed options or null on validation error.
 /// Exposed for testing purposes.

@@ -15,10 +15,10 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-pub const types = @import("types");
-pub const Server = @import("server").Server;
-pub const RegisteredTool = @import("server").RegisteredTool;
-pub const zls_bridge = @import("zls_bridge");
+pub const types = @import("types.zig");
+pub const Server = @import("server.zig").Server;
+pub const RegisteredTool = @import("server.zig").RegisteredTool;
+pub const zls_bridge = @import("zls_bridge.zig");
 
 pub const createZlsServer = zls_bridge.createZlsServer;
 
@@ -111,9 +111,9 @@ pub fn createDatabaseServer(allocator: std.mem.Allocator, version: []const u8) !
 
 /// Shared database access — comptime-gated to support disabled database feature.
 const database = if (build_options.feat_database)
-    @import("../../features/database")
+    @import("../../features/database/mod.zig")
 else
-    @import("../../features/database/stub");
+    @import("../../features/database/stub.zig");
 
 fn getOrCreateDb(allocator: std.mem.Allocator, name_opt: ?[]const u8) !database.DatabaseHandle {
     const name = name_opt orelse "default";

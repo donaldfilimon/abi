@@ -7,9 +7,9 @@
 //! use std.Io.Dir.cwd() with proper I/O context for full Zig 0.16 compliance.
 
 const std = @import("std");
-const platform_time = @import("shared_services").utils;
+const platform_time = @import("../../services/shared/mod.zig").utils;
 const time = platform_time;
-const sync = @import("shared_services").sync;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 // ============================================================================
 // Constants

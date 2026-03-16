@@ -3,7 +3,7 @@
 //! Core type definitions for the task management system.
 
 const std = @import("std");
-const time_utils = @import("shared_services").utils;
+const time_utils = @import("../shared/mod.zig").utils;
 
 // ============================================================================
 // Enums

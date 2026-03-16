@@ -13,8 +13,8 @@
 //!   d_x = gate^T @ d_gate + up^T @ d_up
 
 const std = @import("std");
-const matmul_backward = @import("matmul_backward");
-const activations = @import("../ops/activations");
+const matmul_backward = @import("matmul_backward.zig");
+const activations = @import("../ops/activations.zig");
 
 /// Cached activations needed for SwiGLU backward pass.
 pub const SwigluCache = struct {

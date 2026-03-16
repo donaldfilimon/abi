@@ -38,8 +38,8 @@
 //! - Cache put: ~100ns (hash + lock + insert)
 
 const std = @import("std");
-const sync = @import("shared_services").sync;
-const platform_time = @import("shared_services").time;
+const sync = @import("../../shared/mod.zig").sync;
+const platform_time = @import("../../shared/mod.zig").time;
 
 /// Configuration for the result cache.
 pub const CacheConfig = struct {

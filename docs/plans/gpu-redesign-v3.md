@@ -55,4 +55,4 @@ Roadmap guide: [../roadmap/](../roadmap/)
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.

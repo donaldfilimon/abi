@@ -20,16 +20,16 @@
 //! - Intel Macs (x86_64): Uses objc_msgSend_stret for struct returns
 
 const std = @import("std");
-const types = @import("../kernel_types");
+const types = @import("../kernel_types.zig");
 
 // Re-export extracted type definitions for build discovery
-pub const metal_types = @import("metal_types");
+pub const metal_types = @import("metal_types.zig");
 
 // Submodules
-pub const metal_device = @import("metal_device");
-pub const metal_buffers = @import("metal_buffers");
-pub const metal_compute = @import("metal_compute");
-pub const metal_state = @import("metal_state");
+pub const metal_device = @import("metal_device.zig");
+pub const metal_buffers = @import("metal_buffers.zig");
+pub const metal_compute = @import("metal_compute.zig");
+pub const metal_state = @import("metal_state.zig");
 
 pub const MetalError = metal_types.MetalError;
 
@@ -44,11 +44,25 @@ pub const MTLOrigin = metal_types.MTLOrigin;
 pub const MTLRegion = metal_types.MTLRegion;
 
 // Metal GPU Family / Feature detection
-pub const gpu_family = @import("metal/gpu_family");
-pub const capabilities = @import("metal/capabilities");
+pub const gpu_family = @import("metal/gpu_family.zig");
+pub const capabilities = @import("metal/capabilities.zig");
 pub const MetalGpuFamily = gpu_family.MetalGpuFamily;
 pub const MetalFeatureSet = gpu_family.MetalFeatureSet;
 pub const MetalLevel = capabilities.MetalLevel;
+
+// Accelerate framework (vDSP / vBLAS on macOS)
+pub const accelerate = @import("metal/accelerate.zig");
+
+// macOS Accelerator pipeline (unified Accelerate + MPS + CoreML)
+pub const macos_accelerator = @import("metal/macos_accelerator.zig");
+pub const MacOSAccelerator = macos_accelerator.MacOSAccelerator;
+pub const AcceleratorBackend = macos_accelerator.AcceleratorBackend;
+pub const AcceleratorConfig = macos_accelerator.AcceleratorConfig;
+
+/// Check if the unified macOS accelerator is available (Accelerate + MPS + CoreML).
+pub fn hasAccelerator() bool {
+    return accelerate.is_available;
+}
 
 // Re-export device info type
 pub const DeviceInfo = metal_types.DeviceInfo;
@@ -159,7 +173,7 @@ pub fn isAvailable() bool {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../device").Device;
+const Device = @import("../device.zig").Device;
 
 /// Enumerate all Metal devices available on this Mac.
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
@@ -189,18 +203,18 @@ pub fn supportsMetal4() bool {
 // ============================================================================
 
 test {
-    _ = @import("metal_types");
-    _ = @import("metal_test");
-    _ = @import("metal/gpu_family");
-    _ = @import("metal/capabilities");
-    _ = @import("metal/mps");
-    _ = @import("metal/coreml");
-    _ = @import("metal/mesh_shaders");
-    _ = @import("metal/ray_tracing");
-    _ = @import("metal_state");
-    _ = @import("metal_device");
-    _ = @import("metal_buffers");
-    _ = @import("metal_compute");
+    _ = @import("metal_types.zig");
+    _ = @import("metal_test.zig");
+    _ = @import("metal/gpu_family.zig");
+    _ = @import("metal/capabilities.zig");
+    _ = @import("metal/mps.zig");
+    _ = @import("metal/coreml.zig");
+    _ = @import("metal/mesh_shaders.zig");
+    _ = @import("metal/ray_tracing.zig");
+    _ = @import("metal_state.zig");
+    _ = @import("metal_device.zig");
+    _ = @import("metal_buffers.zig");
+    _ = @import("metal_compute.zig");
 }
 
 test {

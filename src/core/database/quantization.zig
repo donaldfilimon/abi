@@ -14,10 +14,10 @@
 //! - Zilliz Quantization: https://zilliz.com/learn/scalar-quantization-and-product-quantization
 
 const std = @import("std");
-const simd = @import("shared_services").simd;
+const simd = @import("../../services/shared/mod.zig").simd;
 
 // Re-export ProductQuantizer for backward compatibility
-const product_quantizer = @import("product_quantizer");
+const product_quantizer = @import("product_quantizer.zig");
 pub const ProductQuantizer = product_quantizer.ProductQuantizer;
 
 // ============================================================================
@@ -661,15 +661,16 @@ pub fn packBits(output: []u8, bit_offset: usize, value: u16, bits: u8) void {
     if (bit_pos + bits <= 8) {
         // Fits in one byte
         const mask = (@as(u8, 1) << @as(u3, @intCast(bits))) - 1;
-        output[byte_offset] &= ~(mask << (8 - bit_pos - bits));
-        output[byte_offset] |= @as(u8, @truncate(value)) << (8 - bit_pos - bits);
+        const shift: u3 = @intCast(8 - bit_pos - bits);
+        output[byte_offset] &= ~(mask << shift);
+        output[byte_offset] |= @as(u8, @truncate(value)) << shift;
     } else {
         // Spans two bytes
         const first_bits = 8 - bit_pos;
         const second_bits = bits - first_bits;
-        output[byte_offset] |= @as(u8, @truncate(value >> second_bits));
+        output[byte_offset] |= @as(u8, @truncate(value >> @as(u4, @intCast(second_bits))));
         const mask2 = (@as(u8, 1) << @as(u3, @intCast(second_bits))) - 1;
-        output[byte_offset + 1] = (@as(u8, @truncate(value)) & mask2) << (8 - second_bits);
+        output[byte_offset + 1] = (@as(u8, @truncate(value)) & mask2) << @as(u3, @intCast(8 - second_bits));
     }
 }
 
@@ -692,6 +693,6 @@ pub fn unpackBits(input: []const u8, bit_offset: usize, bits: u8) u16 {
 }
 
 test {
-    _ = @import("product_quantizer");
-    _ = @import("quantization_test");
+    _ = @import("product_quantizer.zig");
+    _ = @import("quantization_test.zig");
 }

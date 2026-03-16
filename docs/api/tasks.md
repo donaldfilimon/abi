@@ -1,3 +1,10 @@
+---
+title: tasks API
+purpose: Generated API reference for tasks
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # tasks
 
 > Task Management Module
@@ -8,7 +15,7 @@ items, and distributed compute jobs.
 ## Usage
 
 ```zig
-const tasks = @import("tasks/mod.zig");
+const tasks = @import("tasks");
 
 var manager = try tasks.Manager.init(allocator, .{});
 defer manager.deinit();
@@ -152,4 +159,4 @@ Import all roadmap items as tasks
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.

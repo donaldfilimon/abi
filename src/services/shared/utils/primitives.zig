@@ -77,7 +77,7 @@ pub const String = struct {
     }
 
     pub const Builder = struct {
-        buffer: std.ArrayListUnmanaged(u8) = .{},
+        buffer: std.ArrayListUnmanaged(u8) = .empty,
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) Builder {

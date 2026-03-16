@@ -5,7 +5,7 @@
 const std = @import("std");
 
 /// Shared connector types (available even when connectors are disabled).
-pub const shared = @import("shared");
+pub const shared = @import("shared.zig");
 
 /// Connectors module errors.
 pub const Error = error{
@@ -67,72 +67,72 @@ pub fn buildBearerHeader(_: std.mem.Allocator, _: []const u8) !AuthHeader {
 // OpenAI Connector Stub
 // ============================================================================
 
-pub const openai = @import("stubs/openai");
-pub const codex = @import("stubs/codex");
-pub const opencode = @import("stubs/opencode");
-pub const claude = @import("stubs/claude");
-pub const gemini = @import("stubs/gemini");
+pub const openai = @import("stubs/openai.zig");
+pub const codex = @import("stubs/codex.zig");
+pub const opencode = @import("stubs/opencode.zig");
+pub const claude = @import("stubs/claude.zig");
+pub const gemini = @import("stubs/gemini.zig");
 
 // ============================================================================
 // HuggingFace Connector Stub
 // ============================================================================
 
-pub const huggingface = @import("stubs/huggingface");
+pub const huggingface = @import("stubs/huggingface.zig");
 
 // ============================================================================
 // Ollama Connector Stub
 // ============================================================================
 
-pub const ollama = @import("stubs/ollama");
-pub const ollama_passthrough = @import("stubs/ollama_passthrough");
+pub const ollama = @import("stubs/ollama.zig");
+pub const ollama_passthrough = @import("stubs/ollama_passthrough.zig");
 
 // ============================================================================
 // Anthropic Connector Stub
 // ============================================================================
 
-pub const anthropic = @import("stubs/anthropic");
+pub const anthropic = @import("stubs/anthropic.zig");
 
 // ============================================================================
 // Mistral Connector Stub
 // ============================================================================
 
-pub const mistral = @import("stubs/mistral");
+pub const mistral = @import("stubs/mistral.zig");
 
 // ============================================================================
 // Cohere Connector Stub
 // ============================================================================
 
-pub const cohere = @import("stubs/cohere");
+pub const cohere = @import("stubs/cohere.zig");
 
 // ============================================================================
 // LM Studio Connector Stub
 // ============================================================================
 
-pub const lm_studio = @import("stubs/lm_studio");
+pub const lm_studio = @import("stubs/lm_studio.zig");
 
 // ============================================================================
 // vLLM Connector Stub
 // ============================================================================
 
-pub const vllm = @import("stubs/vllm");
+pub const vllm = @import("stubs/vllm.zig");
 
 // ============================================================================
 // MLX Connector Stub
 // ============================================================================
 
-pub const mlx = @import("stubs/mlx");
+pub const mlx = @import("stubs/mlx.zig");
 
 // ============================================================================
 // llama.cpp Connector Stub
 // ============================================================================
 
-pub const llama_cpp = @import("stubs/llama_cpp");
+pub const llama_cpp = @import("stubs/llama_cpp.zig");
 
 // ============================================================================
 // Local Scheduler Connector Stub
 // ============================================================================
 
-pub const local_scheduler = @import("stubs/local_scheduler");
+pub const local_scheduler = @import("stubs/local_scheduler.zig");
 
 // ============================================================================
 // Discord Connector Stub

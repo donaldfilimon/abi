@@ -3,12 +3,12 @@
 //! Wraps `agent_panel.AgentPanel` to conform to the Panel vtable interface.
 
 const std = @import("std");
-const panel_mod = @import("../panel");
-const terminal = @import("../terminal");
-const layout = @import("../layout");
-const themes = @import("../themes");
-const events = @import("../events");
-const agent_panel = @import("../agent_panel");
+const panel_mod = @import("../panel.zig");
+const terminal = @import("../terminal.zig");
+const layout = @import("../layout.zig");
+const themes = @import("../themes.zig");
+const events = @import("../events.zig");
+const agent_panel = @import("../agent_panel.zig");
 
 pub const AgentAdapter = struct {
     inner: agent_panel.AgentPanel,

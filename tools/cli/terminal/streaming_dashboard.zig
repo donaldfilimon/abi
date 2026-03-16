@@ -11,16 +11,16 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const events = @import("events");
-const widgets = @import("widgets");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const events = @import("events.zig");
+const widgets = @import("widgets.zig");
 const box = widgets.box;
-const unicode = @import("unicode");
-const render_utils = @import("render_utils");
-const layout = @import("layout");
-const RingBuffer = @import("ring_buffer").RingBuffer;
-const PercentileTracker = @import("percentile_tracker").PercentileTracker;
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
+const PercentileTracker = @import("percentile_tracker.zig").PercentileTracker;
 
 /// Streaming Inference Dashboard for monitoring real-time LLM inference
 pub const StreamingDashboard = struct {
@@ -105,7 +105,7 @@ pub const StreamingDashboard = struct {
 
         pub fn init(method: []const u8, path: []const u8, status: u16, latency: u32, tokens: u32) RequestLogEntry {
             var entry = RequestLogEntry{
-                .timestamp = abi.services.shared.utils.unixMs(),
+                .timestamp = abi.foundation.utils.unixMs(),
                 .method = undefined,
                 .method_len = @intCast(@min(method.len, 8)),
                 .path = undefined,
@@ -178,7 +178,7 @@ pub const StreamingDashboard = struct {
 
     /// Poll metrics from the streaming server
     pub fn pollMetrics(self: *Self) !void {
-        const now = abi.services.shared.utils.unixMs();
+        const now = abi.foundation.utils.unixMs();
 
         // Check if enough time has passed
         if (now - self.last_poll < @as(i64, @intCast(self.poll_interval_ms))) {
@@ -199,7 +199,7 @@ pub const StreamingDashboard = struct {
         const metrics_url = try std.fmt.allocPrint(self.allocator, "{s}/metrics", .{base_url});
         defer self.allocator.free(metrics_url);
 
-        var client = try abi.features.web.HttpClient.init(self.allocator);
+        var client = try abi.web.HttpClient.init(self.allocator);
         defer client.deinit();
 
         const health_response = client.getWithOptions(health_url, .{ .max_response_bytes = 4096 }) catch {

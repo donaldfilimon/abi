@@ -14,13 +14,13 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const collector_mod = @import("collector");
-const feedback_mod = @import("mod");
+const time = @import("../../../services/shared/mod.zig").time;
+const collector_mod = @import("collector.zig");
+const feedback_mod = @import("mod.zig");
 const self_learning_mod = @import("self_learning");
 
 const PersonaRef = collector_mod.PersonaRef;
-const Trend = @import("analyzer").Trend;
+const Trend = @import("analyzer.zig").Trend;
 const FeedbackSystem = feedback_mod.FeedbackSystem;
 const SelfLearningSystem = self_learning_mod.SelfLearningSystem;
 

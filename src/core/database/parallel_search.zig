@@ -12,10 +12,10 @@
 //! - Batch distance: SIMD/GPU acceleration for candidate evaluation
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const builtin = @import("builtin");
-const simd = @import("shared_services").simd;
+const simd = @import("../../services/shared/mod.zig").simd;
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and
@@ -211,13 +211,22 @@ pub const ParallelBeamState = struct {
         return true;
     }
 
+    const CandidateItem = struct {
+        node: usize,
+        dist: f32,
+
+        fn lessThan(_: void, a: CandidateItem, b: CandidateItem) bool {
+            return a.dist < b.dist;
+        }
+    };
+
     /// Get top-k results.
     pub fn getTopK(self: *ParallelBeamState, k: usize, out: []SearchResult) usize {
         self.mutex.lock();
         defer self.mutex.unlock();
 
         // Collect all candidates
-        var items = self.allocator.alloc(struct { node: usize, dist: f32 }, self.candidates.count()) catch return 0;
+        var items = self.allocator.alloc(CandidateItem, self.candidates.count()) catch return 0;
         defer self.allocator.free(items);
 
         var it = self.candidates.iterator();
@@ -228,16 +237,7 @@ pub const ParallelBeamState = struct {
         }
 
         // Sort by distance
-        std.mem.sort(
-            struct { node: usize, dist: f32 },
-            items[0..i],
-            {},
-            struct {
-                fn lessThan(_: void, a: struct { node: usize, dist: f32 }, b: struct { node: usize, dist: f32 }) bool {
-                    return a.dist < b.dist;
-                }
-            }.lessThan,
-        );
+        std.mem.sort(CandidateItem, items[0..i], {}, CandidateItem.lessThan);
 
         // Copy top-k
         const count = @min(k, i);

@@ -3,8 +3,8 @@
 //! A standalone TUI animation demonstrating native terminal rendering speeds.
 
 const std = @import("std");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const tui = @import("../../terminal/mod.zig");
 

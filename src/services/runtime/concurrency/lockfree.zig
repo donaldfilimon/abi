@@ -24,7 +24,7 @@
 //! Thread-safe via per-shard mutex locking. Safe for multi-producer multi-consumer.
 const std = @import("std");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 pub fn LockFreeQueue(comptime T: type, comptime capacity: usize) type {
@@ -137,7 +137,7 @@ pub fn LockFreeStack(comptime T: type) type {
 /// Re-export the ABA-safe lock-free stack from the epoch module.
 /// Use this instead of LockFreeStack for production use with high concurrency.
 /// See `epoch.zig` for the implementation and usage documentation.
-pub const LockFreeStackEBR = @import("epoch").LockFreeStackEBR;
+pub const LockFreeStackEBR = @import("epoch.zig").LockFreeStackEBR;
 
 pub fn ShardedMap(
     comptime K: type,

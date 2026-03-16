@@ -7,7 +7,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const factory = @import("backend_factory");
+//! const factory = @import("backend_factory.zig");
 //!
 //! // Create a backend for a specific type
 //! const backend = try factory.createBackend(allocator, .cuda);
@@ -26,7 +26,7 @@
 //! Neural network inference and training can use:
 //! - **GPU**: CUDA, Metal, Vulkan, WebGPU (preferred when available).
 //! - **TPU**: Tensor Processing Unit slot; use `-Dgpu-backend=tpu` and link a TPU runtime (e.g. libtpu/cloud API) for availability.
-//! - **CPU**: Multi-threaded CPU via `abi.services.runtime.ThreadPool` and `parallelFor`; set `InferenceConfig.num_threads` for LLM CPU inference.
+//! - **CPU**: Multi-threaded CPU via `abi.runtime.ThreadPool` and `parallelFor`; set `InferenceConfig.num_threads` for LLM CPU inference.
 //!
 //! | Backend | Platform | Hardware Required |
 //! |---------|----------|-------------------|
@@ -40,13 +40,13 @@
 //! | stdgpu  | All | None (CPU emulation) |
 
 const std = @import("std");
-const interface = @import("interface");
-const backend_mod = @import("backend");
+const interface = @import("interface.zig");
+const backend_mod = @import("backend.zig");
 const build_options = @import("build_options");
-const policy = @import("policy");
-const backend_registry = @import("backends/registry");
-const backend_shared = @import("backends/shared");
-const android_probe = @import("device/android_probe");
+const policy = @import("policy/mod.zig");
+const backend_registry = @import("backends/registry.zig");
+const backend_shared = @import("backends/shared.zig");
+const android_probe = @import("device/android_probe.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const BackendInterface = interface.Backend;
@@ -84,7 +84,7 @@ pub const BackendInstance = struct {
 
 /// Stateful wrapper for backend creation APIs.
 ///
-/// Maintained for compatibility with the public `abi.features.gpu.BackendFactory` export.
+/// Maintained for compatibility with the public `abi.gpu.BackendFactory` export.
 pub const BackendFactory = struct {
     allocator: std.mem.Allocator,
 
@@ -571,7 +571,7 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
         return FactoryError.BackendNotAvailable;
     }
 
-    const fpga_vtable = @import("backends/fpga/vtable");
+    const fpga_vtable = @import("backends/fpga/vtable.zig");
     return fpga_vtable.createFpgaVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -580,7 +580,7 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
 fn createCudaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
     // Check if CUDA is available at comptime
     if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
-        const cuda_vtable = @import("backends/cuda/vtable");
+        const cuda_vtable = @import("backends/cuda/vtable.zig");
         return cuda_vtable.createCudaVTable(allocator) catch |err| {
             return mapBackendCreateError(err);
         };
@@ -595,7 +595,7 @@ fn createVulkanVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     }
 
     // Try to create real Vulkan backend
-    const vulkan = @import("backends/vulkan");
+    const vulkan = @import("backends/vulkan.zig");
     return vulkan.createVulkanVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -608,7 +608,7 @@ fn createMetalVTableBackend(allocator: std.mem.Allocator) FactoryError!interface
     }
 
     // Try to create real Metal backend
-    const metal_vtable = @import("backends/metal_vtable");
+    const metal_vtable = @import("backends/metal_vtable.zig");
     return metal_vtable.createMetalVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -621,23 +621,23 @@ fn createWebGPUVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     }
 
     // Try to create real WebGPU backend
-    const webgpu_vtable = @import("backends/webgpu_vtable");
+    const webgpu_vtable = @import("backends/webgpu_vtable.zig");
     return webgpu_vtable.createWebGpuVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
 }
 
 fn createOpenGLVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    const gl_backend = @import("backends/gl/backend");
-    const gl_profile = @import("backends/gl/profile");
+    const gl_backend = @import("backends/gl/backend.zig");
+    const gl_profile = @import("backends/gl/profile.zig");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.desktop) catch |err| {
         return mapBackendCreateError(err);
     };
 }
 
 fn createOpenGLESVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    const gl_backend = @import("backends/gl/backend");
-    const gl_profile = @import("backends/gl/profile");
+    const gl_backend = @import("backends/gl/backend.zig");
+    const gl_profile = @import("backends/gl/profile.zig");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.es) catch |err| {
         return mapBackendCreateError(err);
     };

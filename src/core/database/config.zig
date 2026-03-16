@@ -47,6 +47,7 @@ pub const Config = struct {
     // ═══════════════════════════════════════════════════════════
 
     index: IndexConfig = .{},
+    hnsw: HnswConfig = .{},
     cache: CacheConfig = .{},
     memory: MemoryConfig = .{},
     network: NetworkConfig = .{},
@@ -56,6 +57,12 @@ pub const Config = struct {
     // ═══════════════════════════════════════════════════════════
 
     pub const IndexAlgorithm = enum { hnsw, ivf, flat };
+
+    pub const HnswConfig = struct {
+        m: u16 = 32,
+        ef_construction: u16 = 200,
+        ef_search: u16 = 64,
+    };
 
     pub const IndexConfig = struct {
         algorithm: IndexAlgorithm = .hnsw,

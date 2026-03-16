@@ -3,7 +3,7 @@
 const std = @import("std");
 const framework = @import("../../framework/mod.zig");
 const commands = @import("../../commands/mod.zig");
-const types = @import("types");
+const types = @import("types.zig");
 
 const MenuItem = types.MenuItem;
 const CommandRef = types.CommandRef;

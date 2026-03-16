@@ -1,3 +1,10 @@
+---
+title: compute API
+purpose: Generated API reference for compute
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # compute
 
 > Omni-Compute Module
@@ -7,7 +14,7 @@ and tensor sharing protocols.
 
 **Source:** [`src/features/compute/mod.zig`](../../src/features/compute/mod.zig)
 
-**Availability:** Always enabled
+**Build flag:** `-Dfeat_compute=true`
 
 ---
 
@@ -22,5 +29,10 @@ No documented public symbols were discovered.
 *Generated automatically by `zig build gendocs`*
 
 
-## Zig Skill
-Use the `$zig-master` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+## Workflow Contract
+- Canonical repo workflow: [AGENTS.md](../../AGENTS.md)
+- Active execution tracker: [tasks/todo.md](../../tasks/todo.md)
+- Correction log: [tasks/lessons.md](../../tasks/lessons.md)
+
+## Zig Validation
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.

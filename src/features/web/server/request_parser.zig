@@ -4,8 +4,8 @@
 //! Supports path parameter extraction for route matching.
 
 const std = @import("std");
-const types = @import("types");
-const router_types = @import("../router/types");
+const types = @import("types.zig");
+const router_types = @import("../router/types.zig");
 
 /// Parsed HTTP request.
 pub const ParsedRequest = struct {

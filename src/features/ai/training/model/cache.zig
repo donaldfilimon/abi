@@ -1,8 +1,8 @@
 //! Activation cache for backward pass.
 
 const std = @import("std");
-const config_mod = @import("config");
-const backward_ops = @import("../../llm/ops").backward;
+const config_mod = @import("config.zig");
+const backward_ops = @import("../../llm/ops/mod.zig").backward;
 
 /// Activation cache for backward pass.
 pub const ActivationCache = struct {

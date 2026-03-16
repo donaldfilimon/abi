@@ -5,11 +5,11 @@
 //! TUI dashboard for tracking training progress.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const tui = @import("../../../terminal/mod.zig");
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 pub fn runResume(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -27,7 +27,7 @@ pub fn runResume(ctx: *const context_mod.CommandContext, args: []const [:0]const
     utils.output.println("Loading checkpoint: {s}", .{checkpoint_path});
 
     // Load checkpoint
-    var ckpt = abi.features.ai.training.loadCheckpoint(allocator, checkpoint_path) catch |err| {
+    var ckpt = abi.ai.training.loadCheckpoint(allocator, checkpoint_path) catch |err| {
         utils.output.printError("loading checkpoint: {t}", .{err});
         utils.output.println("", .{});
         utils.output.println("Note: Resume functionality loads model weights from a saved checkpoint.", .{});
@@ -109,7 +109,7 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 
     // Brain mode: launch brain dashboard with training data source
     if (brain_mode) {
-        const brain = @import("../../core/ui/brain");
+        const brain = @import("../../core/ui/brain.zig");
         const metrics_path = std.fmt.allocPrintSentinel(allocator, "{s}/metrics.jsonl", .{log_dir}, 0) catch |err| {
             utils.output.printError("Failed to build metrics path: {t}", .{err});
             return;

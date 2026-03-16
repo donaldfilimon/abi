@@ -9,11 +9,11 @@
 
 const std = @import("std");
 const types = @import("types");
-const config = @import("../../core/config");
+const config = @import("../../core/config.zig");
 
-pub const episodic = @import("episodic");
-pub const semantic = @import("semantic");
-pub const working = @import("working");
+pub const episodic = @import("episodic.zig");
+pub const semantic = @import("semantic.zig");
+pub const working = @import("working.zig");
 
 // Re-exports
 pub const Episode = episodic.Episode;
@@ -404,7 +404,7 @@ test "memory manager consolidation" {
 test {
     _ = episodic;
     _ = semantic;
-    _ = @import("working");
+    _ = @import("working.zig");
 }
 
 test {

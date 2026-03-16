@@ -2,12 +2,12 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const context_mod = @import("../../framework/context");
+const context_mod = @import("../../framework/context.zig");
 const framework_mod = @import("../../framework/mod.zig");
 const tui = @import("../mod.zig");
 const utils = @import("../../utils/mod.zig");
 const commands_mod = @import("../../commands/mod.zig");
-const types = @import("types");
+const types = @import("types.zig");
 
 const Action = types.Action;
 const CommandRef = types.CommandRef;

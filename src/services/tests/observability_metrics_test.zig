@@ -5,7 +5,7 @@ const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");
 
-const observability = abi.features.observability;
+const observability = abi.observability;
 const Counter = observability.Counter;
 const Gauge = observability.Gauge;
 const FloatGauge = observability.FloatGauge;

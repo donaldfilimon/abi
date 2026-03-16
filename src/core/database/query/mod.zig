@@ -1,7 +1,7 @@
 //! Composes block, index, graph, and vector systems into executable retrieval plans.
 
 const std = @import("std");
-const core = @import("../core");
+const core = @import("../core/mod.zig");
 
 pub const RetrievalQuery = struct {
     text: []const u8,

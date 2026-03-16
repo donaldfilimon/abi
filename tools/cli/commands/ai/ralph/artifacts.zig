@@ -1,9 +1,9 @@
 //! Ralph run artifact writing.
 
 const std = @import("std");
-const cfg = @import("config");
-const workspace = @import("workspace");
-const verification = @import("verification");
+const cfg = @import("config.zig");
+const workspace = @import("workspace.zig");
+const verification = @import("verification.zig");
 
 pub const RunReport = struct {
     run_id: []const u8,

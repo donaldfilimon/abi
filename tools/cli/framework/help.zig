@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 const utils = @import("../utils/mod.zig");
 
 const help_utils = utils.help;
@@ -92,7 +92,7 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
 }
 
 const HelpTestStubs = struct {
-    fn handler(_: *const @import("context").CommandContext, _: []const [:0]const u8) anyerror!void {}
+    fn handler(_: *const @import("context.zig").CommandContext, _: []const [:0]const u8) anyerror!void {}
 };
 
 test "printTopLevel: hidden descriptors are not rendered (smoke)" {

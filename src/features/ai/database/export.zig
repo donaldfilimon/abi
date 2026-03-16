@@ -3,8 +3,9 @@
 //! Exports trained models to GGUF format.
 
 const std = @import("std");
-const db = @import("../../database");
-const training = @import("../training");
+const abi = @import("abi");
+const db = abi.database;
+const training = @import("../training/mod.zig");
 
 pub fn exportGguf(
     allocator: std.mem.Allocator,

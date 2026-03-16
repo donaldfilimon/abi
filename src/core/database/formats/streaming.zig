@@ -8,9 +8,9 @@
 //! - Memory-efficient large file handling
 
 const std = @import("std");
-const unified = @import("unified");
-const compression = @import("compression");
-const mod = @import("mod");
+const unified = @import("unified.zig");
+const compression = @import("compression.zig");
+const mod = @import("mod.zig");
 
 pub const StreamingError = error{
     NotInitialized,

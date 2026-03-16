@@ -17,7 +17,7 @@
 //!
 //! ## Usage
 //! ```zig
-//! const unified = @import("unified_memory");
+//! const unified = @import("unified_memory.zig");
 //!
 //! var manager = try unified.UnifiedMemoryManager.init(allocator, .{});
 //! defer manager.deinit();
@@ -37,8 +37,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const time = @import("shared_services").time;
-const accelerate = @import("accelerate");
+const time = @import("../../../../services/shared/mod.zig").time;
+const accelerate = @import("accelerate.zig");
 
 /// Configuration for the unified memory manager
 pub const UnifiedMemoryConfig = struct {

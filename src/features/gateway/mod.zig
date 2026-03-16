@@ -12,14 +12,14 @@
 //! - RwLock for concurrent route lookups
 
 const std = @import("std");
-const sync = @import("shared_services").sync;
-const time_mod = @import("shared_services").time;
-const gateway_types = @import("types");
-const routing = @import("routing");
-const rate_limit_mod = @import("rate_limit");
-const circuit_breaker_mod = @import("circuit_breaker");
-const gateway_stats = @import("stats");
-const middleware = @import("middleware");
+const sync = @import("../../services/shared/mod.zig").sync;
+const time_mod = @import("../../services/shared/mod.zig").time;
+const gateway_types = @import("types.zig");
+const routing = @import("routing.zig");
+const rate_limit_mod = @import("rate_limit.zig");
+const circuit_breaker_mod = @import("circuit_breaker.zig");
+const gateway_stats = @import("stats.zig");
+const middleware = @import("middleware.zig");
 
 /// Shared radix tree instantiated for route indices.
 const RouteTree = routing.RouteTree;
@@ -30,18 +30,8 @@ pub const RateLimitAlgorithm = gateway_types.RateLimitAlgorithm;
 pub const CircuitBreakerConfig = gateway_types.CircuitBreakerConfig;
 pub const CircuitBreakerState = gateway_types.CircuitBreakerState;
 
-pub const GatewayError = error{
-    FeatureDisabled,
-    RouteNotFound,
-    RateLimitExceeded,
-    CircuitOpen,
-    UpstreamTimeout,
-    InvalidRoute,
-    TooManyRoutes,
-    MiddlewareError,
-    OutOfMemory,
-};
-
+pub const GatewayError = gateway_types.GatewayError;
+pub const Error = GatewayError;
 pub const HttpMethod = gateway_types.HttpMethod;
 pub const Route = gateway_types.Route;
 pub const MiddlewareType = middleware.MiddlewareType;

@@ -3,76 +3,26 @@
 //! API-compatible no-op implementations when messaging is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
-const stub_context = @import("../../core/stub_context");
+const stub_context = @import("../../core/stub_context.zig");
+const types = @import("types.zig");
 
-pub const MessagingConfig = core_config.MessagingConfig;
+pub const MessagingConfig = types.MessagingConfig;
+pub const MessagingError = types.MessagingError;
+pub const Error = MessagingError;
+pub const DeliveryResult = types.DeliveryResult;
+pub const Message = types.Message;
+pub const Channel = types.Channel;
+pub const MessagingStats = types.MessagingStats;
+pub const TopicInfo = types.TopicInfo;
+pub const DeadLetter = types.DeadLetter;
+pub const SubscriberCallback = types.SubscriberCallback;
 
-pub const MessagingError = error{
-    FeatureDisabled,
-    ChannelFull,
-    ChannelClosed,
-    InvalidMessage,
-    OutOfMemory,
-    TopicNotFound,
-    SubscriberNotFound,
-};
-
-pub const DeliveryResult = enum {
-    ok,
-    retry,
-    discard,
-};
-
-pub const Message = struct {
-    topic: []const u8 = "",
-    payload: []const u8 = "",
-    timestamp: u64 = 0,
-    id: u64 = 0,
-};
-
-pub const Channel = struct {
-    name: []const u8 = "",
-    subscriber_count: u32 = 0,
-};
-
-pub const MessagingStats = struct {
-    total_published: u64 = 0,
-    total_delivered: u64 = 0,
-    total_failed: u64 = 0,
-    active_topics: u32 = 0,
-    active_subscribers: u32 = 0,
-    dead_letter_count: u32 = 0,
-};
-
-pub const TopicInfo = struct {
-    name: []const u8 = "",
-    subscriber_count: u32 = 0,
-    messages_published: u64 = 0,
-    messages_delivered: u64 = 0,
-    messages_failed: u64 = 0,
-};
-
-pub const DeadLetter = struct {
-    message: Message,
-    reason: []const u8,
-    timestamp: u64,
-};
-
-pub const SubscriberCallback = *const fn (msg: Message, ctx: ?*anyopaque) DeliveryResult;
-
-pub const Context = stub_context.StubContextWithConfig(MessagingConfig);
-
-pub fn init(_: std.mem.Allocator, _: MessagingConfig) MessagingError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+const feature = stub_context.StubFeature(MessagingConfig, MessagingError);
+pub const Context = feature.Context;
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn publish(_: std.mem.Allocator, _: []const u8, _: []const u8) MessagingError!void {
     return error.FeatureDisabled;

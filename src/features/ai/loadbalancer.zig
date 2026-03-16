@@ -11,12 +11,12 @@
 //! - Latency-based weight adjustment
 
 const std = @import("std");
-const types = @import("types");
-const config = @import("config");
-const cb = @import("shared_services").resilience.circuit_breaker;
-const time = @import("shared_services").time;
+const types = @import("types.zig");
+const config = @import("config.zig");
+const cb = @import("../../services/shared/mod.zig").resilience.circuit_breaker;
+const time = @import("../../services/shared/mod.zig").time;
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../services/shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Status of a persona node.

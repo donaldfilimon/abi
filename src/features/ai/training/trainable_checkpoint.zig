@@ -4,8 +4,8 @@
 //! and dequantization helpers.
 
 const std = @import("std");
-const gguf = @import("../llm/io/gguf");
-const model_config = @import("model/config");
+const gguf = @import("../llm/io/gguf.zig");
+const model_config = @import("model/config.zig");
 
 /// Configuration for a trainable model.
 pub const TrainableModelConfig = model_config.TrainableModelConfig;

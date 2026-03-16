@@ -1,7 +1,7 @@
 //! Web stub — disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../core/config");
+const config_module = @import("../../core/config/mod.zig");
 
 const persona_types = struct {
     pub const PersonaType = enum { assistant, coder, writer, analyst, companion, docs, reviewer, minimal, abbey, aviva, abi, ralph };
@@ -9,8 +9,8 @@ const persona_types = struct {
 
 // --- Local Stubs Imports ---
 
-pub const types = @import("stubs/types");
-pub const client = @import("stubs/client");
+pub const types = @import("stubs/types.zig");
+pub const client = @import("stubs/client.zig");
 
 // --- Handlers and Routes ---
 

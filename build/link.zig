@@ -25,9 +25,12 @@ pub fn applyFrameworkLinks(
         // Accelerate provides BLAS, LAPACK, vDSP for CPU-side linear algebra
         mod.linkFramework("Accelerate", .{});
         mod.linkFramework("Foundation", .{});
+
         if (os_tag == .macos) {
             mod.linkFramework("AppKit", .{});
             mod.linkFramework("Cocoa", .{});
+        } else if (os_tag == .ios) {
+            mod.linkFramework("UIKit", .{});
         }
 
         if (gpu_metal) {
@@ -168,6 +171,24 @@ pub fn applyHaikuLinks(
 }
 
 // =============================================================================
+// Android System Library Linking
+// =============================================================================
+
+/// Link Android system libraries.
+pub fn applyAndroidLinks(
+    mod: *std.Build.Module,
+    os_tag: std.Target.Os.Tag,
+    abi: std.Target.Abi,
+) void {
+    if (os_tag == .linux and abi == .android) {
+        mod.linkSystemLibrary("log", .{});
+        mod.linkSystemLibrary("android", .{});
+        mod.linkSystemLibrary("EGL", .{});
+        mod.linkSystemLibrary("GLESv2", .{});
+    }
+}
+
+// =============================================================================
 // Unified Linker Entry Point
 // =============================================================================
 
@@ -179,18 +200,22 @@ pub fn applyAllPlatformLinks(
     gpu_backends: []const GpuBackend,
 ) void {
     applyFrameworkLinks(mod, os_tag, gpu_metal);
+
     // On macOS 26+ with version-clamped targets, Zig's framework auto-detection
     // breaks. Explicitly add SDK framework paths so linkFramework can resolve.
-    if (os_tag == .macos and @import("builtin").os.tag == .macos and
-        @import("builtin").os.version_range.semver.min.major >= 26)
-    {
+    const is_macos_host = @import("builtin").os.tag == .macos;
+    const is_blocked_darwin = is_macos_host and @import("builtin").os.version_range.semver.min.major >= 26;
+
+    if (os_tag == .macos and is_blocked_darwin) {
         addSdkFrameworkPaths(mod, mod.owner.graph.io);
     }
+
     applyLinuxLinks(mod, os_tag, gpu_backends);
     applyWindowsLinks(mod, os_tag, gpu_backends);
     applyBsdLinks(mod, os_tag, gpu_backends);
     applySolarisLinks(mod, os_tag, gpu_backends);
     applyHaikuLinks(mod, os_tag, gpu_backends);
+    applyAndroidLinks(mod, os_tag, mod.resolved_target.?.result.abi);
 }
 
 // =============================================================================
@@ -213,7 +238,7 @@ pub fn addSdkFrameworkPaths(mod: *std.Build.Module, io: std.Io) void {
 }
 
 /// Detect the macOS SDK path by probing known locations.
-fn detectSdkPath(io: std.Io) ?[]const u8 {
+pub fn detectSdkPath(io: std.Io) ?[]const u8 {
     const candidates = [_][]const u8{
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
         "/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
@@ -312,4 +337,25 @@ fn commandSucceeds(io: std.Io, argv: []const []const u8) bool {
         .exited => |code| code == 0,
         else => false,
     };
+}
+
+/// Find libcompiler_rt.a path by walking the Zig global cache.
+pub fn findCompilerRt(b: *std.Build) ?[]const u8 {
+    const home = b.graph.environ_map.get("HOME") orelse return null;
+    const global_cache = std.fs.path.join(b.allocator, &.{ home, ".cache", "zig", "o" }) catch return null;
+    defer b.allocator.free(global_cache);
+
+    const io = b.graph.io;
+    var dir = std.Io.Dir.openDirAbsolute(io, global_cache, .{ .iterate = true }) catch return null;
+    defer dir.close(io);
+
+    var walker = dir.walk(b.allocator) catch return null;
+    defer walker.deinit();
+
+    while (walker.next(io) catch null) |entry| {
+        if (std.mem.eql(u8, entry.basename, "libcompiler_rt.a")) {
+            return std.fs.path.join(b.allocator, &.{ global_cache, entry.path }) catch return null;
+        }
+    }
+    return null;
 }

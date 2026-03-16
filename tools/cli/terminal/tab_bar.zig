@@ -4,9 +4,9 @@
 //! Active tab is highlighted using theme.tab_active; others use theme.tab_inactive.
 
 const std = @import("std");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const render_utils = @import("render_utils");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const render_utils = @import("render_utils.zig");
 
 pub const TabBar = struct {
     labels: []const []const u8,

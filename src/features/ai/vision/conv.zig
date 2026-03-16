@@ -4,7 +4,7 @@
 //! Supports forward and backward passes for training.
 
 const std = @import("std");
-const platform_time = @import("shared_services").time;
+const platform_time = @import("../../../services/shared/mod.zig").time;
 
 // ============================================================================
 // Time utility for seeding (platform-aware)

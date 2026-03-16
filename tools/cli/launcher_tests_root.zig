@@ -1,8 +1,8 @@
 const std = @import("std");
 
 test {
-    _ = @import("terminal/launcher/launcher_catalog");
-    _ = @import("terminal/launcher/palette");
+    _ = @import("terminal/launcher/launcher_catalog.zig");
+    _ = @import("terminal/launcher/palette.zig");
 }
 
 test {

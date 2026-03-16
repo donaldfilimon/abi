@@ -9,10 +9,10 @@
 //! - Concurrent operation handling
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const abi = @import("../../src/abi");
-const gpu = abi.features.gpu;
+const gpu = abi.gpu;
 const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;
 
@@ -228,7 +228,7 @@ test "GPU dispatcher: concurrent execution performance" {
 }
 
 test "GPU dispatcher: memory allocation tracking" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const tracking_allocator = gpa.allocator();
 

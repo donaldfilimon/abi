@@ -6,9 +6,9 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const utils = @import("shared_services").utils;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
+const utils = @import("../../services/shared/mod.zig").utils;
 
 // ============================================================================
 // Core Types

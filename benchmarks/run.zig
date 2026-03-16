@@ -6,7 +6,7 @@
 //! Run with: `zig build benchmarks`
 
 const std = @import("std");
-const benchmark = @import("mod");
+const benchmark = @import("mod.zig");
 const abi = @import("abi");
 
 // Framework initialization benchmark
@@ -184,7 +184,7 @@ fn configBenchmark(allocator: std.mem.Allocator) !void {
 
 pub fn main(init: std.process.Init) !void {
     _ = init;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

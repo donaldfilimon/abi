@@ -9,11 +9,11 @@
 
 const std = @import("std");
 
-pub const tensor = @import("tensor");
-pub const layer = @import("layer");
-pub const attention = @import("attention");
-pub const learning = @import("learning");
-pub const gpu_ops = @import("gpu_ops");
+pub const tensor = @import("tensor.zig");
+pub const layer = @import("layer.zig");
+pub const attention = @import("attention.zig");
+pub const learning = @import("learning.zig");
+pub const gpu_ops = @import("gpu_ops.zig");
 
 // Tensor exports
 pub const Tensor = tensor.Tensor;

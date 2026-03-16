@@ -3,7 +3,7 @@
 //! Configuration for HTTP server and web utilities.
 
 const std = @import("std");
-const rate_limit = @import("shared_services").security.rate_limit;
+const rate_limit = @import("../../services/shared/mod.zig").security.rate_limit;
 
 /// Web/HTTP utilities configuration.
 pub const WebConfig = struct {

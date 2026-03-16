@@ -10,11 +10,11 @@
 //! - Integration with metrics and alerting
 
 const std = @import("std");
-const types = @import("types");
-const metrics_mod = @import("metrics");
-const loadbalancer = @import("loadbalancer");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const types = @import("types.zig");
+const metrics_mod = @import("metrics.zig");
+const loadbalancer = @import("loadbalancer.zig");
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 /// Health status of a persona.
 pub const HealthStatus = enum {
@@ -284,12 +284,12 @@ pub const HealthChecker = struct {
 
     /// Check all registered personas.
     pub fn checkAll(self: *Self) ![]HealthCheckResult {
-        var results: std.ArrayListUnmanaged(HealthCheckResult) = .{};
+        var results: std.ArrayListUnmanaged(HealthCheckResult) = .empty;
         errdefer results.deinit(self.allocator);
 
         // Get list of personas
         self.mutex.lock();
-        var persona_list: std.ArrayListUnmanaged(types.PersonaType) = .{};
+        var persona_list: std.ArrayListUnmanaged(types.PersonaType) = .empty;
         defer persona_list.deinit(self.allocator);
 
         var it = self.history.keyIterator();

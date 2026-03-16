@@ -1,5 +1,5 @@
 const std = @import("std");
-const app_paths = @import("../../../../../services/shared/app_paths");
+const app_paths = @import("../../../../../services/shared/app_paths.zig");
 
 pub const PluginKind = enum {
     http,

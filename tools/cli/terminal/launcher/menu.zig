@@ -1,8 +1,8 @@
 //! TUI menu item definitions and lookup helpers.
 
 const std = @import("std");
-const types = @import("types");
-const launcher_catalog = @import("launcher_catalog");
+const types = @import("types.zig");
+const launcher_catalog = @import("launcher_catalog.zig");
 
 const MenuItem = types.MenuItem;
 

@@ -12,16 +12,16 @@
 
 const std = @import("std");
 
-pub const matmul = @import("matmul");
-pub const matmul_quant = @import("matmul_quant");
-pub const attention = @import("attention");
-pub const rope = @import("rope");
-pub const rmsnorm = @import("rmsnorm");
-pub const activations = @import("activations");
-pub const ffn = @import("ffn");
-pub const gpu = @import("gpu");
-pub const gpu_memory_pool = @import("gpu_memory_pool");
-pub const backward = @import("../backward_ops");
+pub const matmul = @import("matmul.zig");
+pub const matmul_quant = @import("matmul_quant.zig");
+pub const attention = @import("attention.zig");
+pub const rope = @import("rope.zig");
+pub const rmsnorm = @import("rmsnorm.zig");
+pub const activations = @import("activations.zig");
+pub const ffn = @import("ffn.zig");
+pub const gpu = @import("gpu.zig");
+pub const gpu_memory_pool = @import("gpu_memory_pool.zig");
+pub const backward = @import("../backward_ops/mod.zig");
 
 // Re-exports for convenience
 pub const matrixMultiply = matmul.matrixMultiply;

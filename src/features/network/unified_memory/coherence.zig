@@ -5,10 +5,10 @@
 //! cluster sizes and topologies.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const shared_utils = @import("shared_services").utils;
-const memory_region = @import("memory_region");
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const shared_utils = @import("../../../services/shared/mod.zig").utils;
+const memory_region = @import("memory_region.zig");
 
 const RegionId = memory_region.RegionId;
 const RegionState = memory_region.RegionState;
@@ -381,7 +381,7 @@ pub const CoherenceProtocol = struct {
         errdefer allocator.destroy(cp);
 
         const pt: ProtocolType = switch (@TypeOf(protocol_type)) {
-            @TypeOf(@import("mod").UnifiedMemoryConfig.CoherenceProtocolType) => switch (protocol_type) {
+            @TypeOf(@import("mod.zig").UnifiedMemoryConfig.CoherenceProtocolType) => switch (protocol_type) {
                 .mesi => .mesi,
                 .moesi => .moesi,
                 .directory => .directory,

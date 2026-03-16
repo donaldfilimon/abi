@@ -16,17 +16,17 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("system/framework");
+const framework = @import("system/framework.zig");
 const infrastructure = @import("infrastructure/mod.zig");
-const domains = @import("mod").domains;
+const domains = @import("mod.zig").domains;
 
 // Individual infrastructure modules
-const simd = @import("infrastructure/simd");
-const memory = @import("infrastructure/memory");
-const concurrency = @import("infrastructure/concurrency");
+const simd = @import("infrastructure/simd.zig");
+const memory = @import("infrastructure/memory.zig");
+const concurrency = @import("infrastructure/concurrency.zig");
 const network = @import("infrastructure/network/mod.zig");
-const crypto = @import("infrastructure/crypto");
-const v2_modules = @import("infrastructure/v2_modules");
+const crypto = @import("infrastructure/crypto.zig");
+const v2_modules = @import("infrastructure/v2_modules.zig");
 
 // Consolidated domain modules
 const database = @import("domain/database/mod.zig");
@@ -244,7 +244,7 @@ fn writeJsonReport(
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

@@ -11,7 +11,7 @@ const testing = std.testing;
 const abi = @import("abi");
 
 // Import observability types from the module
-const observability = abi.features.observability;
+const observability = abi.observability;
 const Counter = observability.Counter;
 const Gauge = observability.Gauge;
 const FloatGauge = observability.FloatGauge;
@@ -335,8 +335,8 @@ test "observability: histogram overflow bucket" {
 // ============================================================================
 
 test {
-    _ = @import("observability_metrics_test");
-    _ = @import("observability_tracing_test");
-    _ = @import("observability_alerting_test");
-    _ = @import("observability_edge_test");
+    _ = @import("observability_metrics_test.zig");
+    _ = @import("observability_tracing_test.zig");
+    _ = @import("observability_alerting_test.zig");
+    _ = @import("observability_edge_test.zig");
 }

@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const core_types = @import("types");
-const platform_time = @import("shared_services").time;
+const platform_time = @import("../../../services/shared/mod.zig").time;
 
 // Re-export the canonical EmotionType from core types
 // This ensures type consistency across the AI module
@@ -269,7 +269,7 @@ pub const RelationshipMemory = struct {
     positive_interactions: usize = 0,
     negative_interactions: usize = 0,
     total_turns: usize = 0,
-    emotion_history: std.ArrayListUnmanaged(EmotionRecord) = .{},
+    emotion_history: std.ArrayListUnmanaged(EmotionRecord) = .empty,
     communication_preferences: CommunicationPreferences = .{},
 
     const Self = @This();

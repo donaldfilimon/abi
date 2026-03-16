@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const tui = @import("../mod.zig");
-const themes = @import("../themes");
+const themes = @import("../themes.zig");
 
 pub const ChatMessage = struct {
     role: enum { user, ai },

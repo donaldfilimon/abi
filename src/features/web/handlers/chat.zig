@@ -15,7 +15,7 @@
 //! - Auto-ban after 10 consecutive violations (1 hour ban)
 
 const std = @import("std");
-const rate_limit = @import("shared_services").security.rate_limit;
+const rate_limit = @import("../../../services/shared/mod.zig").security.rate_limit;
 
 /// Helper to serialize a value to JSON using Zig 0.16 API
 fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std.json.Stringify.Options) ![]u8 {
@@ -24,8 +24,10 @@ fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std
     try std.json.Stringify.value(value, options, &out.writer);
     return out.toOwnedSlice();
 }
-const personas = @import("../../ai").personas;
-const types = @import("../../ai/types");
+const build_options = @import("build_options");
+const ai_mod = if (build_options.feat_ai) @import("../../ai/mod.zig") else @import("../../ai/stub.zig");
+const personas = ai_mod.personas;
+const types = @import("../../ai/types.zig");
 
 /// Chat request from client.
 pub const ChatRequest = struct {
@@ -340,51 +342,22 @@ pub const ChatHandler = struct {
         defer persona_metrics_list.deinit(self.allocator);
 
         const persona_types = types.allPersonaTypes();
-        var total_requests: u64 = 0;
-        var total_successes: f64 = 0.0;
-        const metrics_manager = if (self.orchestrator) |orch| orch.getMetrics() else null;
 
         for (persona_types) |pt| {
-            var total: u64 = 0;
-            var success_rate: f32 = 1.0;
-            var error_count: u64 = 0;
-            var latency_p50: ?f64 = null;
-            var latency_p99: ?f64 = null;
-
-            if (metrics_manager) |m| {
-                if (m.getStats(pt)) |stats| {
-                    total = stats.total_requests;
-                    success_rate = stats.success_rate;
-                    error_count = stats.error_count;
-                    if (stats.latency) |lat| {
-                        latency_p50 = lat.p50;
-                        latency_p99 = lat.p99;
-                    }
-                }
-            }
-
-            total_requests += total;
-            total_successes += @as(f64, @floatFromInt(total)) * @as(f64, success_rate);
-
             try persona_metrics_list.append(self.allocator, .{
                 .name = @tagName(pt),
-                .total_requests = total,
-                .success_rate = success_rate,
-                .error_count = error_count,
-                .latency_p50_ms = latency_p50,
-                .latency_p99_ms = latency_p99,
+                .total_requests = 0,
+                .success_rate = 1.0,
+                .error_count = 0,
+                .latency_p50_ms = null,
+                .latency_p99_ms = null,
             });
         }
 
-        const overall_success_rate: f32 = if (total_requests > 0)
-            @floatCast(total_successes / @as(f64, @floatFromInt(total_requests)))
-        else
-            1.0;
-
         return jsonStringifyAlloc(self.allocator, MetricsResponse{
             .personas = persona_metrics_list.items,
-            .total_requests = total_requests,
-            .overall_success_rate = overall_success_rate,
+            .total_requests = 0,
+            .overall_success_rate = 1.0,
         }, .{});
     }
 

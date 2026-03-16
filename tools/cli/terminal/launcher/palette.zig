@@ -3,10 +3,10 @@
 const std = @import("std");
 const abi = @import("abi");
 const tui = @import("../mod.zig");
-const render_utils = @import("../render_utils");
-const completion = @import("completion");
-const launcher_catalog = @import("launcher_catalog");
-const types = @import("types");
+const render_utils = @import("../render_utils.zig");
+const completion = @import("completion.zig");
+const launcher_catalog = @import("launcher_catalog.zig");
+const types = @import("types.zig");
 
 const MenuItem = types.MenuItem;
 const Action = types.Action;
@@ -181,7 +181,7 @@ pub const CommandPalette = struct {
 
         try self.history.insert(self.allocator, 0, .{
             .command_id = command_id,
-            .timestamp = abi.services.shared.utils.unixMs(),
+            .timestamp = abi.foundation.utils.unixMs(),
         });
         while (self.history.items.len > 10) {
             _ = self.history.pop();

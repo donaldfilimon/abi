@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../system/framework");
+const framework = @import("../system/framework.zig");
 
 pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: anytype) !void {
     _ = config;
@@ -39,7 +39,7 @@ fn benchmarkStrategy(allocator: std.mem.Allocator, runner: *framework.BenchmarkR
                 fn bench(s: Strategy, sz: usize, c: usize, a: std.mem.Allocator) !void {
                     switch (s) {
                         .gpa => {
-                            var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+                            var gpa = std.heap.DebugAllocator(.{}){};
                             defer _ = gpa.deinit();
                             const gpa_alloc = gpa.allocator();
                             for (0..c) |_| {

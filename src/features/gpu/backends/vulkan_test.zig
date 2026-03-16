@@ -3,7 +3,7 @@
 //! Extracted from vulkan.zig for better code organization.
 
 const std = @import("std");
-const vulkan = @import("vulkan");
+const vulkan = @import("vulkan.zig");
 
 const VulkanError = vulkan.VulkanError;
 const VkResult = vulkan.VkResult;
@@ -47,7 +47,7 @@ test "vulkan_initialized starts as false" {
 }
 
 test "linux vulkan minimum api version is 1.3" {
-    const caps = @import("vulkan/capabilities");
+    const caps = @import("vulkan/capabilities.zig");
     try std.testing.expect(!caps.meetsTargetMinimum(.linux, caps.encodeApiVersion(.{ .major = 1, .minor = 2, .patch = 0 })));
     try std.testing.expect(caps.meetsTargetMinimum(.linux, caps.encodeApiVersion(.{ .major = 1, .minor = 3, .patch = 0 })));
 }

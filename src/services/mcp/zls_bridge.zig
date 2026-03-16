@@ -1,8 +1,8 @@
 //! MCP bridge for ZLS (LSP) tooling.
 
 const std = @import("std");
-const lsp = @import("../lsp");
-const Server = @import("server").Server;
+const lsp = @import("../lsp/mod.zig");
+const Server = @import("server.zig").Server;
 
 const max_doc_bytes = 4 * 1024 * 1024;
 

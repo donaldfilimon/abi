@@ -5,13 +5,13 @@
 //! for JWT and API key operations where possible.
 
 const std = @import("std");
-const types = @import("types");
-const server = @import("../server");
+const types = @import("types.zig");
+const server = @import("../server/mod.zig");
 const MiddlewareContext = types.MiddlewareContext;
 
 // Shared security modules — used for delegation where applicable.
-const shared_jwt = @import("shared_services").security.jwt;
-const shared_api_keys = @import("shared_services").security.api_keys;
+const shared_jwt = @import("../../../services/shared/mod.zig").security.jwt;
+const shared_api_keys = @import("../../../services/shared/mod.zig").security.api_keys;
 
 /// Authentication configuration.
 pub const AuthConfig = struct {

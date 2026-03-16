@@ -4,12 +4,12 @@
 //! for the TUI interface. Displays device information with sparkline visualizations.
 
 const std = @import("std");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const widgets = @import("widgets");
-const unicode = @import("unicode");
-const render_utils = @import("render_utils");
-const layout = @import("layout");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const widgets = @import("widgets.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 // ===============================================================================
 // Types
@@ -633,7 +633,7 @@ pub const GpuMonitor = struct {
         try self.update();
     }
 
-    pub fn handleEvent(_: *GpuMonitor, _: @import("events").Event) anyerror!bool {
+    pub fn handleEvent(_: *GpuMonitor, _: @import("events.zig").Event) anyerror!bool {
         return false;
     }
 
@@ -645,8 +645,8 @@ pub const GpuMonitor = struct {
         return "1";
     }
 
-    pub fn panel(self: *GpuMonitor) @import("panel").Panel {
-        return @import("panel").Panel.from(GpuMonitor, self);
+    pub fn panel(self: *GpuMonitor) @import("panel.zig").Panel {
+        return @import("panel.zig").Panel.from(GpuMonitor, self);
     }
 };
 

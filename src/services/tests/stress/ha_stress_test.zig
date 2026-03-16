@@ -15,8 +15,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const ha = abi.services.ha;
-const profiles = @import("profiles");
+const ha = abi.ha;
+const profiles = @import("profiles.zig");
 const StressProfile = profiles.StressProfile;
 const LatencyHistogram = profiles.LatencyHistogram;
 const Timer = profiles.Timer;

@@ -7,7 +7,7 @@
 
 const std = @import("std");
 const json = std.json;
-const tool = @import("tool");
+const tool = @import("tool.zig");
 
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
@@ -103,7 +103,7 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     }
 
     // Perform replacement
-    var new_content: std.ArrayListUnmanaged(u8) = .{};
+    var new_content: std.ArrayListUnmanaged(u8) = .empty;
     defer new_content.deinit(ctx.allocator);
 
     var replacements: usize = 0;
@@ -218,7 +218,7 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     defer ctx.allocator.free(file_content);
 
     // Split into lines
-    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+    var lines: std.ArrayListUnmanaged([]const u8) = .empty;
     defer lines.deinit(ctx.allocator);
 
     var iter = std.mem.splitScalar(u8, file_content, '\n');
@@ -230,7 +230,7 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     const insert_pos = @min(line_num - 1, lines.items.len);
 
     // Build new content
-    var new_content: std.ArrayListUnmanaged(u8) = .{};
+    var new_content: std.ArrayListUnmanaged(u8) = .empty;
     defer new_content.deinit(ctx.allocator);
 
     for (lines.items[0..insert_pos]) |l| {
@@ -346,7 +346,7 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     defer ctx.allocator.free(file_content);
 
     // Split into lines
-    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+    var lines: std.ArrayListUnmanaged([]const u8) = .empty;
     defer lines.deinit(ctx.allocator);
 
     var iter = std.mem.splitScalar(u8, file_content, '\n');
@@ -363,7 +363,7 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     const actual_end = @min(end_line, lines.items.len);
 
     // Build new content (skip deleted lines)
-    var new_content: std.ArrayListUnmanaged(u8) = .{};
+    var new_content: std.ArrayListUnmanaged(u8) = .empty;
     defer new_content.deinit(ctx.allocator);
 
     for (lines.items, 1..) |l, cur_line_num| {

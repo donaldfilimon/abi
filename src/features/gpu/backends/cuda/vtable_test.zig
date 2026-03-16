@@ -3,8 +3,8 @@
 //! Tests the complete CUDA backend through the VTable interface.
 
 const std = @import("std");
-const interface = @import("../../interface");
-const backend_factory = @import("../../backend_factory");
+const interface = @import("../../interface.zig");
+const backend_factory = @import("../../backend_factory.zig");
 
 test "CUDA VTable integration - device query" {
     const allocator = std.testing.allocator;

@@ -7,9 +7,9 @@
 //! - Lag monitoring
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../shared/mod.zig").time;
 
-const sync = @import("shared_services").sync;
+const sync = @import("../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Replication configuration

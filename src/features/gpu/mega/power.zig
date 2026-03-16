@@ -4,9 +4,9 @@
 //! scheduling recommendations based on power efficiency.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const backend_mod = @import("../backend");
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const backend_mod = @import("../backend.zig");
 
 /// Power profile for a GPU backend.
 pub const BackendPowerProfile = struct {

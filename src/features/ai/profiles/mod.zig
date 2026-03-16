@@ -4,18 +4,18 @@
 //! selection, and coordination of AI behavior profiles.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const obs = @import("../../observability");
+const time = @import("../../../services/shared/mod.zig").time;
+const obs = @import("../../observability/mod.zig");
 
 // Relative imports to flattened feature root
-const types = @import("types");
-const registry = @import("../registry");
-const abi_logic = @import("../abi_logic");
-const abbey_logic = @import("../abbey_logic");
-const aviva_logic = @import("aviva_logic");
-const generic = @import("../generic");
-const health = @import("../health");
-const loadbalancer = @import("../loadbalancer");
+const types = @import("../types.zig");
+const registry = @import("../registry.zig");
+const abi = @import("../abi/mod.zig");
+const abbey = @import("../abbey/persona.zig");
+const aviva = @import("../aviva/mod.zig");
+const generic = @import("../generic.zig");
+const health = @import("../health.zig");
+const loadbalancer = @import("../loadbalancer.zig");
 
 pub const BehaviorProfile = enum {
     collaborative,
@@ -98,7 +98,7 @@ pub fn ProfileSystem(comptime Config: type) type {
     return struct {
         allocator: std.mem.Allocator,
         ctx: *Context(Config),
-        router: *abi_logic.AbiRouter,
+        router: *abi.AbiRouter,
 
         const Self = @This();
 
@@ -109,7 +109,7 @@ pub fn ProfileSystem(comptime Config: type) type {
             const ctx = try Context(Config).init(allocator, cfg);
             errdefer ctx.deinit();
 
-            const router = try abi_logic.AbiRouter.init(allocator, cfg.abi);
+            const router = try abi.AbiRouter.init(allocator, cfg.abi);
             errdefer router.deinit();
 
             self.* = .{
@@ -134,6 +134,54 @@ pub fn ProfileSystem(comptime Config: type) type {
         }
     };
 }
+
+/// Concrete orchestrator facade used by web handlers.
+///
+/// Wraps the generic `ProfileSystem` behind a non-generic interface so that
+/// HTTP handlers can hold a `?*MultiPersonaSystem` pointer without knowing
+/// the concrete config type at compile time.
+pub const MultiPersonaSystem = struct {
+    allocator: std.mem.Allocator,
+    ctx: MultiPersonaContext,
+    _metrics: ?*MetricsManager = null,
+
+    pub const MultiPersonaContext = struct {
+        registry: ProfileRegistry,
+
+        pub fn getPersona(self: *MultiPersonaContext, persona_type: LegacyPersonaType) ?types.PersonaInterface {
+            return self.registry.getPersona(persona_type);
+        }
+    };
+
+    /// Stub metrics manager for web handler compatibility.
+    pub const MetricsManager = struct {
+        pub const PersonaStats = struct {
+            total_requests: u64 = 0,
+            success_rate: f32 = 1.0,
+            error_count: u64 = 0,
+            latency: ?LatencyStats = null,
+        };
+
+        pub const LatencyStats = struct {
+            p50: f64 = 0,
+            p99: f64 = 0,
+        };
+
+        pub fn getStats(_: *MetricsManager, _: LegacyPersonaType) ?PersonaStats {
+            return null;
+        }
+    };
+
+    pub fn process(self: *MultiPersonaSystem, request: types.PersonaRequest) !types.PersonaResponse {
+        _ = self;
+        _ = request;
+        return error.NotImplemented;
+    }
+
+    pub fn getMetrics(self: *MultiPersonaSystem) ?*MetricsManager {
+        return self._metrics;
+    }
+};
 
 test "behavior profiles normalize branded personas" {
     try std.testing.expectEqual(BehaviorProfile.collaborative, fromLegacyPersona(.abbey));

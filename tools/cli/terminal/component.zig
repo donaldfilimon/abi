@@ -5,11 +5,11 @@
 //! using renderStack() and renderRow().
 
 const std = @import("std");
-const layout = @import("layout");
-const render_utils = @import("render_utils");
-const unicode = @import("unicode");
-const terminal_mod = @import("terminal");
-const themes = @import("themes");
+const layout = @import("layout.zig");
+const render_utils = @import("render_utils.zig");
+const unicode = @import("unicode.zig");
+const terminal_mod = @import("terminal.zig");
+const themes = @import("themes.zig");
 
 pub const Terminal = terminal_mod.Terminal;
 pub const Rect = layout.Rect;

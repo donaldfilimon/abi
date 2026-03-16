@@ -7,8 +7,8 @@
 //! - Transition hooks for pre/post swap actions
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const types = @import("types");
+const time = @import("../../services/shared/mod.zig").time;
+const types = @import("types.zig");
 
 /// The result of a persona swap operation.
 pub const SwapResult = struct {

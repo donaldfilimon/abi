@@ -1,130 +1,47 @@
 const std = @import("std");
-const model = @import("model");
+const module_catalog = @import("module_catalog");
+const model = @import("model.zig");
 
 pub fn discoverModules(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) ![]model.ModuleDoc {
-    const source = try cwd.readFileAlloc(io, "src/abi.zig", allocator, .limited(4 * 1024 * 1024));
-    defer allocator.free(source);
-
     var modules = std.ArrayListUnmanaged(model.ModuleDoc).empty;
     errdefer {
         for (modules.items) |mod| mod.deinit(allocator);
         modules.deinit(allocator);
     }
 
-    var lines = std.mem.splitScalar(u8, source, '\n');
-    var line_buf = std.ArrayListUnmanaged(u8).empty;
-    defer line_buf.deinit(allocator);
+    _ = io;
+    _ = cwd;
 
-    var doc_buf = std.ArrayListUnmanaged(u8).empty;
-    defer doc_buf.deinit(allocator);
-
-    while (lines.next()) |raw_line| {
-        const line = std.mem.trim(u8, raw_line, " \t\r");
-
-        if (std.mem.startsWith(u8, line, "///")) {
-            const content = std.mem.trimStart(u8, if (line.len > 3) line[3..] else "", " ");
-            if (doc_buf.items.len > 0) try doc_buf.append(allocator, '\n');
-            try doc_buf.appendSlice(allocator, content);
+    for (module_catalog.public_modules) |entry| {
+        const parse_result = parseModuleFile(allocator, entry.path) catch {
+            try modules.append(allocator, .{
+                .name = try allocator.dupe(u8, entry.name),
+                .path = try allocator.dupe(u8, entry.path),
+                .description = try allocator.dupe(u8, entry.description),
+                .category = categorizeByPath(trimSourcePrefix(entry.path), entry.name),
+                .build_flag = try allocator.dupe(u8, entry.build_flag orelse "always-on"),
+                .symbols = try allocator.dupe(model.SymbolDoc, &.{}),
+            });
             continue;
-        }
+        };
 
-        if (std.mem.startsWith(u8, line, "pub const ")) {
-            line_buf.clearRetainingCapacity();
-            try line_buf.appendSlice(allocator, line);
+        const description = if (parse_result.module_doc.len > 0)
+            parse_result.module_doc
+        else
+            try allocator.dupe(u8, entry.description);
 
-            while (!endsDeclaration(line_buf.items)) {
-                const continuation = lines.next() orelse break;
-                const trimmed = std.mem.trim(u8, continuation, " \t\r");
-                if (trimmed.len == 0) continue;
-                try line_buf.append(allocator, ' ');
-                try line_buf.appendSlice(allocator, trimmed);
-            }
-
-            const declaration = line_buf.items;
-            const module_info = try parseModuleDeclaration(allocator, declaration, doc_buf.items);
-            if (module_info) |mod| {
-                try modules.append(allocator, mod);
-            }
-            doc_buf.clearRetainingCapacity();
-            continue;
-        }
-
-        if (line.len > 0 and !std.mem.startsWith(u8, line, "//")) {
-            doc_buf.clearRetainingCapacity();
-        }
+        try modules.append(allocator, .{
+            .name = try allocator.dupe(u8, entry.name),
+            .path = try allocator.dupe(u8, entry.path),
+            .description = description,
+            .category = categorizeByPath(trimSourcePrefix(entry.path), entry.name),
+            .build_flag = try allocator.dupe(u8, entry.build_flag orelse "always-on"),
+            .symbols = parse_result.symbols,
+        });
     }
 
     insertionSortModules(modules.items);
     return try modules.toOwnedSlice(allocator);
-}
-
-fn parseModuleDeclaration(
-    allocator: std.mem.Allocator,
-    declaration: []const u8,
-    docs: []const u8,
-) !?model.ModuleDoc {
-    const after_const = declaration["pub const ".len..];
-    const eq_pos = std.mem.indexOf(u8, after_const, " = ") orelse return null;
-    const name = std.mem.trim(u8, after_const[0..eq_pos], " \t");
-    const rhs = after_const[eq_pos + 3 ..];
-
-    const import_path = parseImportPath(rhs) orelse return null;
-    if (std.mem.eql(u8, import_path, "build_options") or
-        std.mem.eql(u8, import_path, "builtin") or
-        std.mem.eql(u8, import_path, "std"))
-    {
-        return null;
-    }
-
-    const build_flag = parseBuildFlag(rhs) orelse "always-on";
-    const full_path = try std.fmt.allocPrint(allocator, "src/{s}", .{import_path});
-    errdefer allocator.free(full_path);
-
-    const parse_result = parseModuleFile(allocator, full_path) catch {
-        return .{
-            .name = try allocator.dupe(u8, name),
-            .path = full_path,
-            .description = try allocator.dupe(u8, std.mem.trim(u8, docs, " \t\r\n")),
-            .category = categorizeByPath(import_path, name),
-            .build_flag = try allocator.dupe(u8, build_flag),
-            .symbols = try allocator.dupe(model.SymbolDoc, &.{}),
-        };
-    };
-
-    // Use /// doc from abi.zig if available, otherwise fall back to //! module doc
-    const trimmed_docs = std.mem.trim(u8, docs, " \t\r\n");
-    const description = if (trimmed_docs.len > 0) blk: {
-        if (parse_result.module_doc.len > 0) allocator.free(parse_result.module_doc);
-        break :blk try allocator.dupe(u8, trimmed_docs);
-    } else if (parse_result.module_doc.len > 0) blk: {
-        break :blk parse_result.module_doc;
-    } else blk: {
-        break :blk try allocator.dupe(u8, "");
-    };
-
-    return .{
-        .name = try allocator.dupe(u8, name),
-        .path = full_path,
-        .description = description,
-        .category = categorizeByPath(import_path, name),
-        .build_flag = try allocator.dupe(u8, build_flag),
-        .symbols = parse_result.symbols,
-    };
-}
-
-fn parseBuildFlag(rhs: []const u8) ?[]const u8 {
-    const needle = "if (build_options.";
-    const start = std.mem.indexOf(u8, rhs, needle) orelse return null;
-    const rest = rhs[start + needle.len ..];
-    const end = std.mem.indexOfScalar(u8, rest, ')') orelse return null;
-    return std.mem.trim(u8, rest[0..end], " \t");
-}
-
-fn parseImportPath(rhs: []const u8) ?[]const u8 {
-    const import_start = std.mem.indexOf(u8, rhs, "@import(\"") orelse return null;
-    const tail = rhs[import_start + "@import(\"".len ..];
-    const import_end = std.mem.indexOfScalar(u8, tail, '"') orelse return null;
-    return tail[0..import_end];
 }
 
 const ModuleParseResult = struct {
@@ -332,6 +249,11 @@ fn slugify(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     return out.toOwnedSlice(allocator);
 }
 
+fn trimSourcePrefix(path: []const u8) []const u8 {
+    if (std.mem.startsWith(u8, path, "src/")) return path["src/".len..];
+    return path;
+}
+
 fn categorizeByPath(path: []const u8, name: []const u8) model.Category {
     if (std.mem.startsWith(u8, path, "features/ai")) {
         return .ai;
@@ -404,11 +326,6 @@ fn insertionSortSymbols(items: []model.SymbolDoc) void {
     }
 }
 
-test "parseBuildFlag extracts enable flag" {
-    const flag = parseBuildFlag("if (build_options.feat_gpu) @import(\"features/gpu/mod.zig\")") orelse "";
-    try std.testing.expectEqualStrings("feat_gpu", flag);
-}
-
 test "trimDeclSignature handles assignment and braces" {
     try std.testing.expectEqualStrings("pub fn hello(x: usize) void", trimDeclSignature("pub fn hello(x: usize) void {"));
     try std.testing.expectEqualStrings("pub const Name", trimDeclSignature("pub const Name = \"x\";"));
@@ -424,4 +341,9 @@ test "endsDeclaration handles multiline function and const init" {
     try std.testing.expect(!endsDeclaration("pub fn render(\n"));
     try std.testing.expect(endsDeclaration("pub fn render(a: usize) void {"));
     try std.testing.expect(endsDeclaration("pub const gpu = if (build_options.feat_gpu) @import(\"features/gpu/mod.zig\") else @import(\"features/gpu/stub.zig\");"));
+}
+
+test "trimSourcePrefix drops src prefix when present" {
+    try std.testing.expectEqualStrings("services/runtime/mod.zig", trimSourcePrefix("src/services/runtime/mod.zig"));
+    try std.testing.expectEqualStrings("services/runtime/mod.zig", trimSourcePrefix("services/runtime/mod.zig"));
 }

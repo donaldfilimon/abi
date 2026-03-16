@@ -1,15 +1,15 @@
 const std = @import("std");
-const tool = @import("tool");
+const tool = @import("tool.zig");
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
 const Context = tool.Context;
 const Parameter = tool.Parameter;
 const json = std.json;
-const os = @import("shared_services").os;
-const sync = @import("shared_services").sync;
+const os = @import("../../../services/shared/mod.zig").os;
+const sync = @import("../../../services/shared/mod.zig").sync;
 
 // Registry for tracking spawned background server PIDs
-var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .{};
+var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .empty;
 var pid_mutex: sync.Mutex = .{};
 
 fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolResult {

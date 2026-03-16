@@ -1,9 +1,9 @@
 //! Vector operation benchmarks — add, mul, dot product, normalize.
 
 const std = @import("std");
-const framework = @import("../../../system/framework");
+const framework = @import("../../../system/framework.zig");
 const parent_mod = @import("../mod.zig");
-const mod = @import("mod");
+const mod = @import("mod.zig");
 const cpu = mod.cpu_baselines;
 
 const GpuBenchConfig = parent_mod.GpuBenchConfig;

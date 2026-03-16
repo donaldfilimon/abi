@@ -4,10 +4,10 @@
 //! normalized into descriptors at comptime.
 
 const std = @import("std");
-const command_mod = @import("../command");
+const command_mod = @import("../command.zig");
 const CommandDescriptor = command_mod.CommandDescriptor;
-const generated = @import("../generated/cli_registry_snapshot");
-const registry_overrides = @import("../registry/overrides");
+const generated = @import("../generated/cli_registry_snapshot.zig");
+const registry_overrides = @import("../registry/overrides.zig");
 
 // ─── Command module re-exports (pub for test discovery) ──────────────────────
 

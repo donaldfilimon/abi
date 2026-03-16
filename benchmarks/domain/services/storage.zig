@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../../system/framework");
+const framework = @import("../../system/framework.zig");
 
 pub const StorageBenchConfig = struct {
     value_sizes: []const usize = &.{ 64, 1024, 65536 },

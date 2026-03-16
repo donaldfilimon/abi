@@ -4,8 +4,8 @@
 //! Supports all GGUF v2/v3 features including quantization types.
 
 const std = @import("std");
-const unified = @import("unified");
-const mod = @import("mod");
+const unified = @import("unified.zig");
+const mod = @import("mod.zig");
 
 pub const GgufConversionError = error{
     InvalidMagic,

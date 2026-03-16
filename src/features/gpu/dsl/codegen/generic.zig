@@ -5,14 +5,14 @@
 //! duplication across GLSL, WGSL, MSL, CUDA, and other backends.
 
 const std = @import("std");
-const types = @import("../types");
-const expr = @import("../expr");
-const stmt = @import("../stmt");
-const kernel = @import("../kernel");
-const backend = @import("backend");
-const common = @import("common");
-const gpu_backend = @import("../../backend");
-const configs = @import("configs");
+const types = @import("../types.zig");
+const expr = @import("../expr.zig");
+const stmt = @import("../stmt.zig");
+const kernel = @import("../kernel.zig");
+const backend = @import("backend.zig");
+const common = @import("common.zig");
+const gpu_backend = @import("../../backend.zig");
+const configs = @import("configs/mod.zig");
 
 /// Create a code generator type for the given backend configuration.
 pub fn CodeGenerator(comptime Config: type) type {
@@ -1137,16 +1137,16 @@ pub fn CodeGenerator(comptime Config: type) type {
 // ============================================================================
 
 /// GLSL code generator using generic template.
-pub const GlslGenerator = CodeGenerator(@import("configs/glsl_config"));
+pub const GlslGenerator = CodeGenerator(@import("configs/glsl_config.zig"));
 
 /// WGSL code generator using generic template.
-pub const WgslGenerator = CodeGenerator(@import("configs/wgsl_config"));
+pub const WgslGenerator = CodeGenerator(@import("configs/wgsl_config.zig"));
 
 /// MSL code generator using generic template.
-pub const MslGenerator = CodeGenerator(@import("configs/msl_config"));
+pub const MslGenerator = CodeGenerator(@import("configs/msl_config.zig"));
 
 /// CUDA code generator using generic template.
-pub const CudaGenerator = CodeGenerator(@import("configs/cuda_config"));
+pub const CudaGenerator = CodeGenerator(@import("configs/cuda_config.zig"));
 
 // ============================================================================
 // Tests

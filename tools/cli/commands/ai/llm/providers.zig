@@ -1,10 +1,10 @@
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 
-const ProviderId = abi.features.ai.llm.providers.ProviderId;
-const provider_parser = abi.features.ai.llm.providers.parser;
+const ProviderId = abi.ai.llm.providers.ProviderId;
+const provider_parser = abi.ai.llm.providers.parser;
 
 pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -24,7 +24,7 @@ pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]co
                 utils.output.printError("Unknown provider: {s}", .{id_text});
                 return;
             };
-            const available = abi.features.ai.llm.providers.health.isAvailable(allocator, provider, null);
+            const available = abi.ai.llm.providers.health.isAvailable(allocator, provider, null);
             utils.output.println("{s}: {s}", .{ provider.label(), if (available) "available" else "unavailable" });
             return;
         }
@@ -36,16 +36,16 @@ pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]co
 fn printProviderTable(allocator: std.mem.Allocator) void {
     utils.output.printHeader("LLM providers (local-first)");
 
-    inline for (abi.features.ai.llm.providers.registry.all_providers) |provider| {
-        const available = abi.features.ai.llm.providers.health.isAvailable(allocator, provider, null);
+    inline for (abi.ai.llm.providers.registry.all_providers) |provider| {
+        const available = abi.ai.llm.providers.health.isAvailable(allocator, provider, null);
         utils.output.println("  {s:12}  {s}", .{ provider.label(), if (available) "available" else "unavailable" });
     }
 
     utils.output.println("", .{});
     utils.output.println("Default chain (model path):", .{});
-    printChain(abi.features.ai.llm.providers.registry.file_model_chain[0..]);
+    printChain(abi.ai.llm.providers.registry.file_model_chain[0..]);
     utils.output.println("Default chain (model id):", .{});
-    printChain(abi.features.ai.llm.providers.registry.model_name_chain[0..]);
+    printChain(abi.ai.llm.providers.registry.model_name_chain[0..]);
 }
 
 fn printChain(chain: []const ProviderId) void {

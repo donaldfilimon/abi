@@ -10,7 +10,7 @@
 //! Usage pattern (in `main.zig` or wherever the program entry lives):
 //! ```zig
 //! const abi = @import("abi");
-//! const IoBackend = abi.services.shared.io.IoBackend;
+//! const IoBackend = abi.foundation.io.IoBackend;
 //! var backend = try IoBackend.init(allocator);
 //! defer backend.deinit();
 //! // Pass `backend.io` down to the framework or any subsystem that
@@ -22,6 +22,7 @@
 //! When the process exits the backend is simply de‑initialised.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub const IoBackend = struct {
     /// Allocator used for any temporary allocations required by the
@@ -30,12 +31,13 @@ pub const IoBackend = struct {
 
     /// Owns the underlying Zig 0.16 I/O backend.
     /// Keeping this alive ensures `io` remains valid for the backend lifetime.
-    backend: std.Io.Threaded,
+    backend: if (builtin.os.tag == .freestanding) void else std.Io.Threaded,
 
     /// The `std.Io` instance that is passed to lower‑level modules.
-    io: std.Io,
+    io: if (builtin.os.tag == .freestanding) void else std.Io,
 
     fn initThreaded(allocator: std.mem.Allocator, options: anytype) !std.Io.Threaded {
+        if (comptime builtin.os.tag == .freestanding) return error.UnsupportedPlatform;
         // Zig 0.16 dev snapshots have shifted whether `std.Io.Threaded.init` returns
         // `Threaded` or `!Threaded`. Support both shapes for robustness.
         const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
@@ -49,6 +51,13 @@ pub const IoBackend = struct {
     /// For library usage we use an empty environment; a CLI can pass a
     /// populated environment if needed.
     pub fn init(allocator: std.mem.Allocator) !IoBackend {
+        if (comptime builtin.os.tag == .freestanding) {
+            return .{
+                .allocator = allocator,
+                .backend = {},
+                .io = {},
+            };
+        }
         // Initialise the threaded I/O backend with an empty environment.
         // This works for both library and CLI contexts. If a CLI needs
         // environment variables you can pass `init.environ` from
@@ -65,6 +74,7 @@ pub const IoBackend = struct {
 
     /// De‑initialise the backend.
     pub fn deinit(self: *IoBackend) void {
+        if (comptime builtin.os.tag == .freestanding) return;
         self.backend.deinit();
         self.* = undefined;
     }

@@ -8,9 +8,9 @@
 //! - Backup verification and integrity checks
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../shared/mod.zig").time;
 
-const sync = @import("shared_services").sync;
+const sync = @import("../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Backup configuration
@@ -148,7 +148,7 @@ pub const BackupOrchestrator = struct {
             .current_backup_id = 0,
             .last_backup_time = 0,
             .last_full_backup_id = 0,
-            .backup_history = .{},
+            .backup_history = .empty,
             .mutex = .{},
         };
     }

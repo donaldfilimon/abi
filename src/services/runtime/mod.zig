@@ -35,13 +35,13 @@
 const std = @import("std");
 
 // Submodules - organized by domain (local implementations)
-pub const engine = @import("engine");
-pub const scheduling = @import("scheduling");
-pub const concurrency = @import("concurrency");
-pub const memory = @import("memory");
+pub const engine = @import("engine/mod.zig");
+pub const scheduling = @import("scheduling/mod.zig");
+pub const concurrency = @import("concurrency/mod.zig");
+pub const memory = @import("memory/mod.zig");
 
 // Workload types (local)
-pub const workload = @import("workload");
+pub const workload = @import("workload.zig");
 
 // ============================================================================
 // Engine Types (re-exported for convenience)

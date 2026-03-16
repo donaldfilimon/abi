@@ -4,7 +4,7 @@
 //! and text generation quality.
 
 const std = @import("std");
-const tokenizer = @import("tokenizer");
+const tokenizer = @import("tokenizer.zig");
 
 /// ROUGE metric type.
 pub const RougeType = enum {

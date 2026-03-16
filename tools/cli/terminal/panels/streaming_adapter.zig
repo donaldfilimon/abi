@@ -3,12 +3,12 @@
 //! Wraps `streaming_dashboard.StreamingDashboard` to conform to the Panel vtable interface.
 
 const std = @import("std");
-const panel_mod = @import("../panel");
-const terminal = @import("../terminal");
-const layout = @import("../layout");
-const themes = @import("../themes");
-const events = @import("../events");
-const streaming_dashboard = @import("../streaming_dashboard");
+const panel_mod = @import("../panel.zig");
+const terminal = @import("../terminal.zig");
+const layout = @import("../layout.zig");
+const themes = @import("../themes.zig");
+const events = @import("../events.zig");
+const streaming_dashboard = @import("../streaming_dashboard.zig");
 
 pub const StreamingAdapter = struct {
     inner: streaming_dashboard.StreamingDashboard,

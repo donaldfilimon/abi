@@ -9,7 +9,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -20,7 +20,7 @@ pub fn main(_: std.process.Init) !void {
         .build();
     defer framework.deinit();
 
-    if (!abi.features.search.isEnabled()) {
+    if (!abi.search.isEnabled()) {
         std.debug.print("Search feature is disabled. Enable with -Denable-search=true\n", .{});
         return;
     }
@@ -28,7 +28,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI Full-Text Search Example ===\n\n", .{});
 
     // Create a search index
-    _ = abi.features.search.createIndex(allocator, "articles") catch |err| {
+    _ = abi.search.createIndex(allocator, "articles") catch |err| {
         std.debug.print("Failed to create index: {t}\n", .{err});
         return;
     };
@@ -42,7 +42,7 @@ pub fn main(_: std.process.Init) !void {
     };
 
     for (docs) |doc| {
-        abi.features.search.indexDocument("articles", doc.id, doc.content) catch |err| {
+        abi.search.indexDocument("articles", doc.id, doc.content) catch |err| {
             std.debug.print("Failed to index {s}: {t}\n", .{ doc.id, err });
             continue;
         };
@@ -51,7 +51,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Search with BM25 ranking
     std.debug.print("\nSearching for 'fox':\n", .{});
-    const results = abi.features.search.query(allocator, "articles", "fox") catch |err| {
+    const results = abi.search.query(allocator, "articles", "fox") catch |err| {
         std.debug.print("Search failed: {t}\n", .{err});
         return;
     };
@@ -66,7 +66,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Stats
-    const s = abi.features.search.stats();
+    const s = abi.search.stats();
     std.debug.print("\nSearch stats: {} indexes, {} documents, {} terms\n", .{
         s.total_indexes, s.total_documents, s.total_terms,
     });

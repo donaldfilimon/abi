@@ -16,24 +16,24 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
-const time_utils = @import("shared_services").utils;
-const time = @import("shared_services").time;
-const database = @import("../../database");
+const config_module = @import("../../../core/config/mod.zig");
+const time_utils = @import("../../../services/shared/mod.zig").utils;
+const time = @import("../../../services/shared/mod.zig").time;
+const database = @import("../../database/mod.zig");
 
 // Local submodule imports
-const checkpoint = @import("checkpoint");
-const llm_checkpoint = @import("llm_checkpoint");
-const gradient = @import("gradient");
-pub const loss = @import("loss");
-pub const trainable_model = @import("trainable_model");
-pub const llm_trainer = @import("llm_trainer");
-pub const data_loader = @import("data_loader");
-pub const token_dataset = @import("../database/wdbx");
-pub const lora = @import("lora");
-pub const mixed_precision = @import("mixed_precision");
-pub const logging = @import("logging");
-pub const distributed = @import("distributed");
+const checkpoint = @import("checkpoint.zig");
+const llm_checkpoint = @import("llm_checkpoint.zig");
+const gradient = @import("gradient.zig");
+pub const loss = @import("loss.zig");
+pub const trainable_model = @import("trainable_model.zig");
+pub const llm_trainer = @import("llm_trainer.zig");
+pub const data_loader = @import("data_loader.zig");
+pub const token_dataset = @import("../database/wdbx.zig");
+pub const lora = @import("lora.zig");
+pub const mixed_precision = @import("mixed_precision.zig");
+pub const logging = @import("logging.zig");
+pub const distributed = @import("distributed.zig");
 
 // Distributed training exports
 pub const DistributedConfig = distributed.DistributedConfig;
@@ -114,7 +114,7 @@ pub const TrainingLogConfig = logging.LoggerConfig;
 pub const TrainingLogMetric = logging.Metric;
 
 // Self-learning exports
-pub const self_learning = @import("self_learning");
+pub const self_learning = @import("self_learning.zig");
 pub const SelfLearningSystem = self_learning.SelfLearningSystem;
 pub const SelfLearningConfig = self_learning.SelfLearningConfig;
 
@@ -144,7 +144,7 @@ pub const FeedbackType = self_learning.FeedbackType;
 pub const DataKind = self_learning.DataKind;
 
 // Vision Transformer training exports
-pub const vision_trainer = @import("vision_trainer");
+pub const vision_trainer = @import("vision_trainer.zig");
 pub const TrainableViTModel = vision_trainer.TrainableViTModel;
 pub const TrainableViTConfig = vision_trainer.TrainableViTConfig;
 pub const TrainableViTWeights = vision_trainer.TrainableViTWeights;
@@ -153,7 +153,7 @@ pub const ViTActivationCache = vision_trainer.ViTActivationCache;
 pub const VisionTrainingError = vision_trainer.VisionTrainingError;
 
 // Multimodal (CLIP-style) training exports
-pub const multimodal_trainer = @import("multimodal_trainer");
+pub const multimodal_trainer = @import("multimodal_trainer.zig");
 pub const TrainableCLIPModel = multimodal_trainer.TrainableCLIPModel;
 pub const CLIPTrainingConfig = multimodal_trainer.CLIPTrainingConfig;
 pub const TrainableTextEncoderWeights = multimodal_trainer.TrainableTextEncoderWeights;
@@ -857,8 +857,8 @@ fn calculateAccuracy(weights: []f32, gradients: []f32) f32 {
 
 // Test discovery for extracted test files
 test {
-    _ = @import("self_learning_test");
-    _ = @import("trainable_model_test");
+    _ = @import("self_learning_test.zig");
+    _ = @import("trainable_model_test.zig");
 }
 
 test "training result includes checkpoints" {

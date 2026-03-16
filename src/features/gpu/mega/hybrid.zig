@@ -40,13 +40,13 @@
 //!    - Speculative decoding: GPU for draft, FPGA for verification
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const build_options = @import("build_options");
-const backend_mod = @import("../backend");
-const multi_device = @import("../multi_device");
-const coordinator = @import("coordinator");
-const fpga_kernels = @import("../backends/fpga/kernels");
+const backend_mod = @import("../backend.zig");
+const multi_device = @import("../multi_device.zig");
+const coordinator = @import("coordinator.zig");
+const fpga_kernels = @import("../backends/fpga/kernels.zig");
 
 /// Device type for hybrid routing
 pub const HybridDeviceType = enum {
@@ -280,7 +280,7 @@ pub const HybridCoordinator = struct {
             .fpga_available = detectFpgaAvailable(),
             .gpu_memory_available_mb = if (detectGpuAvailable()) 8192 else 0,
             .fpga_memory_available_mb = if (detectFpgaAvailable()) 4096 else 0,
-            .routing_history = .{},
+            .routing_history = .empty,
             .stats = .{},
             .mutex = .{},
         };

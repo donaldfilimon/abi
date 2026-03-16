@@ -7,9 +7,9 @@
 //! - Zero-shot classification support
 
 const std = @import("std");
-const vision_trainer = @import("vision_trainer");
-const vit = @import("../vision/vit");
-const mixed_precision = @import("mixed_precision");
+const vision_trainer = @import("vision_trainer.zig");
+const vit = @import("../vision/vit.zig");
+const mixed_precision = @import("mixed_precision.zig");
 
 /// Error types for multimodal training.
 pub const MultimodalTrainingError = error{

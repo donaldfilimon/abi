@@ -5,7 +5,7 @@ description: Generated active execution plans
 
 # Plans
 ## Summary
-Active generated plans: **7**. This index is generated from the canonical roadmap catalog and kept in sync with task import metadata.
+Active generated plans: **6**. This index is generated from the canonical roadmap catalog and kept in sync with task import metadata.
 
 ## Active Plans
 | Plan | Status | Owner | Scope |
@@ -15,13 +15,12 @@ Active generated plans: **7**. This index is generated from the canonical roadma
 | [Feature Modules Restructure v1](./feature-modules-restructure-v1.md) | In Progress | Abbey | Wave 5 active lane: remove legacy facades, finalize module boundaries, and consolidate shared primitives. |
 | [GPU Redesign v3](./gpu-redesign-v3.md) | In Progress | Abbey | Wave 3 active lane: enforce strict backend policy, pool lifecycle safety, and cross-target policy verification. |
 | [TUI Modular Extraction v2](./tui-modular-v2.md) | In Progress | Abbey | Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests. |
-| [WDBX and Abbey Architecture](./wdbx-architecture-v1.md) | In Progress | Abbey | Implement the WDBX semantic memory fabric and Abbey cognition layers in Zig 0.16. |
 | [Integration Gates v1](./integration-gates-v1.md) | Blocked | Abbey | Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green. |
 
 
 ## Roadmap Horizons
 
-- Now: **8** item(s)
+- Now: **7** item(s)
 - Next: **2** item(s)
 - Later: **3** item(s)
 
@@ -39,4 +38,4 @@ Roadmap guide: [../roadmap/](../roadmap/)
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.

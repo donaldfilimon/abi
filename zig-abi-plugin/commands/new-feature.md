@@ -94,8 +94,8 @@ Two changes in `build/flags.zig`:
    - `<name>-only` row (only this feature enabled, rest false)
    - `no-<name>` row (this feature false, rest true)
 
-### Step 7: Wire up in abi.zig
-Add comptime feature selection in `src/abi.zig`:
+### Step 7: Wire up in root.zig
+Add comptime feature selection in `src/root.zig`:
 ```zig
 pub const <name> = if (build_options.feat_<name>)
     @import("features/<name>/mod.zig")

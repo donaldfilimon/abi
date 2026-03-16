@@ -4,24 +4,24 @@
 //! Re-exports the full security infrastructure from `services/shared/security/`.
 //!
 //! When the `auth` feature is enabled, all security sub-modules are available:
-//! - `abi.features.auth.jwt` — JSON Web Tokens (HMAC-SHA256/384/512)
-//! - `abi.features.auth.api_keys` — API key management with secure hashing
-//! - `abi.features.auth.rbac` — Role-based access control
-//! - `abi.features.auth.session` — Session management
-//! - `abi.features.auth.password` — Secure password hashing (Argon2id, PBKDF2, scrypt)
-//! - `abi.features.auth.cors` — Cross-Origin Resource Sharing
-//! - `abi.features.auth.rate_limit` — Token bucket, sliding window, leaky bucket
-//! - `abi.features.auth.encryption` — AES-256-GCM, ChaCha20-Poly1305
-//! - `abi.features.auth.tls` / `abi.features.auth.mtls` — Transport security
-//! - `abi.features.auth.certificates` — X.509 certificate management
-//! - `abi.features.auth.secrets` — Encrypted credential storage
-//! - `abi.features.auth.audit` — Tamper-evident security event logging
-//! - `abi.features.auth.validation` — Input sanitization
-//! - `abi.features.auth.ip_filter` — IP allow/deny lists
-//! - `abi.features.auth.headers` — Security headers middleware
+//! - `abi.auth.jwt` — JSON Web Tokens (HMAC-SHA256/384/512)
+//! - `abi.auth.api_keys` — API key management with secure hashing
+//! - `abi.auth.rbac` — Role-based access control
+//! - `abi.auth.session` — Session management
+//! - `abi.auth.password` — Secure password hashing (Argon2id, PBKDF2, scrypt)
+//! - `abi.auth.cors` — Cross-Origin Resource Sharing
+//! - `abi.auth.rate_limit` — Token bucket, sliding window, leaky bucket
+//! - `abi.auth.encryption` — AES-256-GCM, ChaCha20-Poly1305
+//! - `abi.auth.tls` / `abi.auth.mtls` — Transport security
+//! - `abi.auth.certificates` — X.509 certificate management
+//! - `abi.auth.secrets` — Encrypted credential storage
+//! - `abi.auth.audit` — Tamper-evident security event logging
+//! - `abi.auth.validation` — Input sanitization
+//! - `abi.auth.ip_filter` — IP allow/deny lists
+//! - `abi.auth.headers` — Security headers middleware
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
+const core_config = @import("../../core/config/platform.zig");
 
 pub const AuthConfig = core_config.AuthConfig;
 
@@ -29,55 +29,34 @@ pub const AuthConfig = core_config.AuthConfig;
 // Security Sub-modules (re-exported from services/shared/security/)
 // ============================================================================
 
-const shared = @import("shared_services");
+const shared = @import("../../services/shared/mod.zig");
 pub const api_keys = shared.security.api_keys;
-pub const audit = @import("shared_services").security.audit;
-pub const certificates = @import("shared_services").security.certificates;
-pub const cors = @import("shared_services").security.cors;
-pub const encryption = @import("shared_services").security.encryption;
-pub const headers = @import("shared_services").security.headers;
-pub const ip_filter = @import("shared_services").security.ip_filter;
-pub const jwt = @import("shared_services").security.jwt;
-pub const mtls = @import("shared_services").security.mtls;
-pub const password = @import("shared_services").security.password;
-pub const rate_limit = @import("shared_services").security.rate_limit;
-pub const rbac = @import("shared_services").security.rbac;
-pub const secrets = @import("shared_services").security.secrets;
-pub const session = @import("shared_services").security.session;
-pub const tls = @import("shared_services").security.tls;
-pub const validation = @import("shared_services").security.validation;
+pub const audit = @import("../../services/shared/mod.zig").security.audit;
+pub const certificates = @import("../../services/shared/mod.zig").security.certificates;
+pub const cors = @import("../../services/shared/mod.zig").security.cors;
+pub const encryption = @import("../../services/shared/mod.zig").security.encryption;
+pub const headers = @import("../../services/shared/mod.zig").security.headers;
+pub const ip_filter = @import("../../services/shared/mod.zig").security.ip_filter;
+pub const jwt = @import("../../services/shared/mod.zig").security.jwt;
+pub const mtls = @import("../../services/shared/mod.zig").security.mtls;
+pub const password = @import("../../services/shared/mod.zig").security.password;
+pub const rate_limit = @import("../../services/shared/mod.zig").security.rate_limit;
+pub const rbac = @import("../../services/shared/mod.zig").security.rbac;
+pub const secrets = @import("../../services/shared/mod.zig").security.secrets;
+pub const session = @import("../../services/shared/mod.zig").security.session;
+pub const tls = @import("../../services/shared/mod.zig").security.tls;
+pub const validation = @import("../../services/shared/mod.zig").security.validation;
 
 // ============================================================================
-// Auth-level Types
+// Auth-level Types (from types.zig)
 // ============================================================================
 
-pub const AuthError = error{
-    FeatureDisabled,
-    InvalidCredentials,
-    TokenExpired,
-    Unauthorized,
-    OutOfMemory,
-};
-
-pub const Token = struct {
-    raw: []const u8 = "",
-    claims: Claims = .{},
-
-    pub const Claims = struct {
-        sub: []const u8 = "",
-        exp: u64 = 0,
-        iat: u64 = 0,
-    };
-};
-
-pub const Session = struct {
-    id: []const u8 = "",
-    user_id: []const u8 = "",
-    created_at: u64 = 0,
-    expires_at: u64 = 0,
-};
-
-pub const Permission = enum { read, write, admin };
+const auth_types = @import("types.zig");
+pub const AuthError = auth_types.AuthError;
+pub const Error = AuthError;
+pub const Token = auth_types.Token;
+pub const Session = auth_types.Session;
+pub const Permission = auth_types.Permission;
 
 // ============================================================================
 // Feature Context
@@ -304,7 +283,7 @@ pub fn checkPermission(user_id: []const u8, permission: Permission) AuthError!bo
 // Test discovery — standalone test file avoids pulling in security sub-modules
 // that have pre-existing Zig 0.16 compile issues
 test {
-    _ = @import("auth_test");
+    _ = @import("auth_test.zig");
 }
 
 test {

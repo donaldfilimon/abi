@@ -1,4 +1,4 @@
-const coordinator = @import("coordinator");
+const coordinator = @import("coordinator.zig");
 const std = @import("std");
 
 pub const KernelDispatcher = coordinator.KernelDispatcher;

@@ -8,23 +8,23 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const feature_catalog = @import("../feature_catalog");
+const feature_catalog = @import("../feature_catalog.zig");
 
 // Domain-specific config imports
-pub const gpu_config = @import("gpu");
-pub const ai_config = @import("ai");
-pub const database_config = @import("database");
-pub const network_config = @import("network");
-pub const observability_config = @import("observability");
-pub const web_config = @import("web");
-pub const cloud_config = @import("cloud");
-pub const platform_config = @import("platform");
-pub const content_config = @import("content");
-pub const gateway_config = @import("gateway");
-pub const benchmarks_config = @import("benchmarks");
-pub const plugin_config = @import("plugin");
-pub const lsp_config = @import("lsp");
-pub const loader = @import("loader");
+pub const gpu_config = @import("gpu.zig");
+pub const ai_config = @import("ai.zig");
+pub const database_config = @import("database.zig");
+pub const network_config = @import("network.zig");
+pub const observability_config = @import("observability.zig");
+pub const web_config = @import("web.zig");
+pub const cloud_config = @import("cloud.zig");
+pub const platform_config = @import("platform.zig");
+pub const content_config = @import("content.zig");
+pub const gateway_config = @import("gateway.zig");
+pub const benchmarks_config = @import("benchmarks.zig");
+pub const plugin_config = @import("plugin.zig");
+pub const lsp_config = @import("lsp.zig");
+pub const loader = @import("loader.zig");
 
 // Re-export loader types
 pub const ConfigLoader = loader.ConfigLoader;
@@ -37,6 +37,7 @@ pub const feature_count = feature_catalog.feature_count;
 pub const GpuConfig = gpu_config.GpuConfig;
 pub const RecoveryConfig = gpu_config.GpuConfig.RecoveryConfig;
 pub const AiConfig = ai_config.AiConfig;
+pub const ProfilesConfig = ai_config.ProfilesConfig;
 pub const LlmConfig = ai_config.LlmConfig;
 pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
 pub const AgentsConfig = ai_config.AgentsConfig;
@@ -134,7 +135,7 @@ pub const Config = struct {
             .network => self.network != null,
             .observability => self.observability != null,
             .web => self.web != null,
-            .personas => if (self.ai) |ai| ai.personas != null else false,
+            .profiles => if (self.ai) |ai| ai.profiles != null else false,
             .cloud => self.cloud != null,
             .analytics => self.analytics != null,
             .auth => self.auth != null,
@@ -200,7 +201,7 @@ pub const Builder = struct {
             .embeddings => EmbeddingsConfig,
             .agents => AgentsConfig,
             .training => TrainingConfig,
-            .personas,
+            .profiles,
             .reasoning,
             .constitution,
             .compute,
@@ -235,7 +236,7 @@ pub const Builder = struct {
                 self.config.ai = .{};
             }
             @field(self.config.ai.?, @tagName(feature)) = typed_cfg;
-        } else if (feature == .personas or feature == .reasoning or feature == .constitution) {
+        } else if (feature == .profiles or feature == .reasoning or feature == .constitution) {
             if (self.config.ai == null) {
                 self.config.ai = .{};
             }
@@ -256,7 +257,7 @@ pub const Builder = struct {
                 self.config.ai = .{};
             }
             self.config.ai.?.llm = LlmConfig.defaults();
-        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .personas or feature == .reasoning or feature == .constitution) {
+        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .profiles or feature == .reasoning or feature == .constitution) {
             // These don't have distinct config structs at the moment, handled through AiConfig
             if (self.config.ai == null) {
                 self.config.ai = .{};

@@ -1,4 +1,4 @@
-pub const Response = @import("types").GenerateResult;
+pub const Response = @import("types.zig").GenerateResult;
 const std = @import("std");
 
 test {

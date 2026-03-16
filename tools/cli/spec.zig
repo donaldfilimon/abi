@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const commands = @import("commands/mod.zig");
-const framework_types = @import("framework/types");
+const framework_types = @import("framework/types.zig");
 
 pub const CommandInfo = struct {
     name: []const u8,
@@ -188,7 +188,7 @@ const command_subcommand_infos_array: [children_info_count]CommandSubcommandInfo
     for (commands.descriptors) |desc| {
         if (desc.children.len > 0) {
             const Holder = struct {
-                fn build(comptime children: []const @import("framework/types").CommandDescriptor) []const SubcommandInfo {
+                fn build(comptime children: []const @import("framework/types.zig").CommandDescriptor) []const SubcommandInfo {
                     var infos: [children.len]SubcommandInfo = undefined;
                     for (children, 0..) |child, i| {
                         infos[i] = .{

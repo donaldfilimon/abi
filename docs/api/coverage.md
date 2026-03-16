@@ -1,3 +1,10 @@
+---
+title: API Documentation Coverage
+purpose: Per-module documentation coverage of public symbols
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # API Documentation Coverage
 
 > Per-module documentation coverage of public symbols.
@@ -5,23 +12,41 @@
 ---
 | Module | Documented | Total | Coverage |
 | --- | --- | --- | --- |
+| [app](app.md) | 24 | 24 | 100% |
 | [config](config.md) | 10 | 10 | 100% |
 | [errors](errors.md) | 16 | 16 | 100% |
-| [feature_catalog](feature_catalog.md) | 1 | 1 | 100% |
-| [framework](framework.md) | 24 | 24 | 100% |
 | [registry](registry.md) | 18 | 18 | 100% |
+| [benchmarks](benchmarks.md) | 4 | 4 | 100% |
+| [gpu](gpu.md) | 9 | 9 | 100% |
 | [runtime](runtime.md) | 10 | 10 | 100% |
-| [simd](simd.md) | 0 | 0 | 100% |
+| [ai](ai.md) | 0 | 0 | 100% |
+| [cache](cache.md) | 12 | 12 | 100% |
+| [database](database.md) | 1 | 1 | 100% |
+| [search](search.md) | 8 | 8 | 100% |
+| [storage](storage.md) | 9 | 9 | 100% |
 | [acp](acp.md) | 10 | 10 | 100% |
+| [cloud](cloud.md) | 19 | 19 | 100% |
+| [gateway](gateway.md) | 10 | 10 | 100% |
 | [ha](ha.md) | 12 | 12 | 100% |
-| [mcp](mcp.md) | 1 | 1 | 100% |
+| [mcp](mcp.md) | 2 | 2 | 100% |
+| [messaging](messaging.md) | 9 | 9 | 100% |
+| [mobile](mobile.md) | 10 | 10 | 100% |
+| [network](network.md) | 6 | 6 | 100% |
+| [observability](observability.md) | 0 | 0 | 100% |
+| [pages](pages.md) | 9 | 9 | 100% |
+| [web](web.md) | 7 | 7 | 100% |
+| [analytics](analytics.md) | 13 | 13 | 100% |
+| [auth](auth.md) | 5 | 5 | 100% |
+| [compute](compute.md) | 0 | 0 | 100% |
 | [connectors](connectors.md) | 5 | 5 | 100% |
+| [desktop](desktop.md) | 0 | 0 | 100% |
+| [documents](documents.md) | 0 | 0 | 100% |
+| [foundation](foundation.md) | 26 | 26 | 100% |
 | [lsp](lsp.md) | 0 | 0 | 100% |
 | [platform](platform.md) | 12 | 12 | 100% |
-| [shared](shared.md) | 25 | 25 | 100% |
 | [tasks](tasks.md) | 19 | 19 | 100% |
 
-**Overall: 163/163 symbols documented (100%)**
+**Overall: 295/295 symbols documented (100%)**
 
 
 ---
@@ -35,4 +60,4 @@
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.

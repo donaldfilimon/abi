@@ -99,24 +99,24 @@
 //! be used per-thread or with external synchronization.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const build_options = @import("build_options");
-const config_module = @import("../../core/config");
+const config_module = @import("../../core/config/mod.zig");
 
-const client = @import("client");
-const weather = @import("weather");
+const client = @import("client.zig");
+const weather = @import("weather.zig");
 
 // Server and middleware
-pub const server = @import("server");
-pub const middleware = @import("middleware");
+pub const server = @import("server/mod.zig");
+pub const middleware = @import("middleware/mod.zig");
 
 // Handlers and routes for persona API
 pub const handlers = struct {
-    pub const chat = @import("handlers/chat");
+    pub const chat = @import("handlers/chat.zig");
 };
 pub const routes = struct {
-    pub const personas = @import("routes/personas");
+    pub const personas = @import("routes/personas.zig");
 };
 
 // Re-export handler types
@@ -137,7 +137,7 @@ pub const HttpClient = client.HttpClient;
 pub const RequestOptions = client.RequestOptions;
 pub const WeatherClient = weather.WeatherClient;
 pub const WeatherConfig = weather.WeatherConfig;
-pub const http = @import("shared_services").utils.http;
+pub const http = @import("../../services/shared/mod.zig").utils.http;
 
 /// Errors specific to the web module.
 pub const WebError = error{

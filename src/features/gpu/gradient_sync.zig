@@ -26,7 +26,7 @@ pub const GradientBucket = struct {
             .buffer = try allocator.alloc(f32, capacity),
             .capacity = capacity,
             .used = 0,
-            .offsets = .{},
+            .offsets = .empty,
             .ready = false,
         };
     }
@@ -93,7 +93,7 @@ pub const GradientBucketManager = struct {
     pub fn init(allocator: std.mem.Allocator, num_buckets: usize, bucket_size: usize) !GradientBucketManager {
         var manager = GradientBucketManager{
             .allocator = allocator,
-            .buckets = .{},
+            .buckets = .empty,
             .bucket_size = bucket_size,
             .current_bucket = 0,
         };

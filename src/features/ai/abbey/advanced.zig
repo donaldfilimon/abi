@@ -4,25 +4,25 @@
 //! The detailed implementation remains in `advanced/mod.zig` and its
 //! sub-modules.
 
-pub const AdvancedCognition = @import("advanced").AdvancedCognition;
-pub const CognitiveResult = @import("advanced").CognitiveResult;
-pub const CognitiveState = @import("advanced").CognitiveState;
+pub const AdvancedCognition = @import("advanced.zig").AdvancedCognition;
+pub const CognitiveResult = @import("advanced.zig").CognitiveResult;
+pub const CognitiveState = @import("advanced.zig").CognitiveState;
 // Re-export other public symbols as needed
-pub const TaskProfile = @import("advanced").TaskProfile;
-pub const TaskDomain = @import("advanced").TaskDomain;
-pub const LearningStrategy = @import("advanced").LearningStrategy;
-pub const MetaLearner = @import("advanced").MetaLearner;
-pub const FewShotLearner = @import("advanced").FewShotLearner;
-pub const CurriculumScheduler = @import("advanced").CurriculumScheduler;
-pub const MentalModel = @import("advanced").MentalModel;
-pub const BeliefSystem = @import("advanced").BeliefSystem;
-pub const KnowledgeState = @import("advanced").KnowledgeState;
-pub const IntentionTracker = @import("advanced").IntentionTracker;
-pub const EmotionalModel = @import("advanced").EmotionalModel;
-pub const TheoryOfMind = @import("advanced").TheoryOfMind;
-pub const ProblemDecomposer = @import("advanced").ProblemDecomposer;
-pub const SelfEvaluation = @import("advanced").SelfEvaluation;
-pub const UncertaintyArea = @import("advanced").UncertaintyArea;
-pub const DetectedBias = @import("advanced").DetectedBias;
-pub const ReasoningQuality = @import("advanced").ReasoningQuality;
-pub const SelfReflectionEngine = @import("advanced").SelfReflectionEngine;
+pub const TaskProfile = @import("advanced.zig").TaskProfile;
+pub const TaskDomain = @import("advanced.zig").TaskDomain;
+pub const LearningStrategy = @import("advanced.zig").LearningStrategy;
+pub const MetaLearner = @import("advanced.zig").MetaLearner;
+pub const FewShotLearner = @import("advanced.zig").FewShotLearner;
+pub const CurriculumScheduler = @import("advanced.zig").CurriculumScheduler;
+pub const MentalModel = @import("advanced.zig").MentalModel;
+pub const BeliefSystem = @import("advanced.zig").BeliefSystem;
+pub const KnowledgeState = @import("advanced.zig").KnowledgeState;
+pub const IntentionTracker = @import("advanced.zig").IntentionTracker;
+pub const EmotionalModel = @import("advanced.zig").EmotionalModel;
+pub const TheoryOfMind = @import("advanced.zig").TheoryOfMind;
+pub const ProblemDecomposer = @import("advanced.zig").ProblemDecomposer;
+pub const SelfEvaluation = @import("advanced.zig").SelfEvaluation;
+pub const UncertaintyArea = @import("advanced.zig").UncertaintyArea;
+pub const DetectedBias = @import("advanced.zig").DetectedBias;
+pub const ReasoningQuality = @import("advanced.zig").ReasoningQuality;
+pub const SelfReflectionEngine = @import("advanced.zig").SelfReflectionEngine;

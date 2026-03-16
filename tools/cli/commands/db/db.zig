@@ -4,8 +4,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 
 pub const meta: command_mod.Meta = .{
@@ -25,13 +25,13 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Check if database feature is enabled
-    if (!abi.features.database.isEnabled()) {
+    if (!abi.database.isEnabled()) {
         utils.output.printError("Database feature is disabled.", .{});
         utils.output.printInfo("Rebuild with: zig build -Dfeat-database=true", .{});
         return;
     }
 
-    try abi.features.database.cli.run(allocator, args);
+    try abi.database.cli.run(allocator, args);
 }
 
 fn printHelp() void {

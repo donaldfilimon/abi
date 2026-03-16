@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const simd = abi.services.shared.simd;
+const simd = abi.foundation.simd;
 
 // ============================================================================
 // Scalar Reference Implementations

@@ -1,7 +1,7 @@
 //! Owns semantic retrieval.
 
 const std = @import("std");
-const core = @import("../core");
+const core = @import("../core/mod.zig");
 
 pub const VectorConfig = struct {
     dimensions: u32,

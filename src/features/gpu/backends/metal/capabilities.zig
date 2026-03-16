@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const gpu_family = @import("gpu_family");
+const gpu_family = @import("gpu_family.zig");
 
 pub const MetalLevel = enum(u8) {
     none = 0,

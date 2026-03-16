@@ -34,8 +34,8 @@
 //! ```
 
 const std = @import("std");
-const platform_time = @import("../time");
-const sync = @import("../sync");
+const platform_time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// Circuit breaker state.
 pub const CircuitState = enum(u8) {

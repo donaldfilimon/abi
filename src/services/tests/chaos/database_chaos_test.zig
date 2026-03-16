@@ -14,10 +14,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const database = abi.features.database;
-const simd = abi.services.shared.simd;
-const chaos = @import("mod");
-const helpers = @import("../helpers");
+const database = abi.database;
+const simd = abi.foundation.simd;
+const chaos = @import("mod.zig");
+const helpers = @import("../helpers.zig");
 
 // ============================================================================
 // Test Helpers

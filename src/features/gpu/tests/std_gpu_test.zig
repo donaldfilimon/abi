@@ -1,5 +1,5 @@
 const std = @import("std");
-const std_gpu_integration = @import("../backends/std_gpu_integration");
+const std_gpu_integration = @import("../backends/std_gpu_integration.zig");
 
 test "std.gpu device initialization" {
     const allocator = std.testing.allocator;

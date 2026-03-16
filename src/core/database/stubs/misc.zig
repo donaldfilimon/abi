@@ -1,5 +1,5 @@
 const std = @import("std");
-const parallel_mod = @import("parallel");
+const parallel_mod = @import("parallel.zig");
 
 pub const cli = struct {
     pub fn run(_: std.mem.Allocator, _: []const [:0]const u8) !void {

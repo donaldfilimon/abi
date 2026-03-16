@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const testing = std.testing;
-const gpu_mem = @import("gpu_memory_pool");
+const gpu_mem = @import("gpu_memory_pool.zig");
 const LlmMemoryPool = gpu_mem.LlmMemoryPool;
 const PooledBuffer = gpu_mem.PooledBuffer;
 

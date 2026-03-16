@@ -18,12 +18,12 @@
 //! - `core_metrics.SlidingWindow` - Timestamp-based sliding window
 
 const std = @import("std");
-const types = @import("types");
-const obs = @import("../../features/observability");
-const alerts = @import("health");
+const types = @import("types.zig");
+const obs = @import("../../features/observability/mod.zig");
+const alerts = @import("health.zig");
 
 // Shared metrics primitives (for standalone use)
-const core_metrics = @import("shared_services").utils.metric_types;
+const core_metrics = @import("../../services/shared/mod.zig").utils.metric_types;
 
 /// Collection of metrics for a specific persona.
 pub const PersonaMetricSet = struct {

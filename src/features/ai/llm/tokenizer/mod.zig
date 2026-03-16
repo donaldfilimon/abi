@@ -6,12 +6,12 @@
 //! - SentencePiece (Unigram) - LLaMA-style tokenization
 
 const std = @import("std");
-const gguf = @import("../io/gguf");
+const gguf = @import("../io/gguf.zig");
 
-pub const bpe = @import("bpe");
-pub const sentencepiece = @import("sentencepiece");
-pub const vocab = @import("vocab");
-pub const special_tokens = @import("special_tokens");
+pub const bpe = @import("bpe.zig");
+pub const sentencepiece = @import("sentencepiece.zig");
+pub const vocab = @import("vocab.zig");
+pub const special_tokens = @import("special_tokens.zig");
 
 // Re-exports
 pub const BpeTokenizer = bpe.BpeTokenizer;

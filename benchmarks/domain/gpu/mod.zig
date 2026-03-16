@@ -8,12 +8,12 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const framework = @import("../../system/framework");
+const framework = @import("../../system/framework.zig");
 
 // GPU benchmark suites
 pub const kernels = @import("kernels/mod.zig");
-pub const backends = @import("backends");
-pub const gpu_vs_cpu = @import("gpu_vs_cpu");
+pub const backends = @import("backends.zig");
+pub const gpu_vs_cpu = @import("gpu_vs_cpu.zig");
 
 /// GPU benchmark configuration presets
 pub const GpuBenchmarkMode = enum {

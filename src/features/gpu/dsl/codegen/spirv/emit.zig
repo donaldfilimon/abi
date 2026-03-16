@@ -3,7 +3,7 @@
 //! Low-level methods for emitting SPIR-V instructions to output sections.
 
 const std = @import("std");
-const constants = @import("constants");
+const constants = @import("constants.zig");
 
 pub const OpCode = constants.OpCode;
 pub const Capability = constants.Capability;

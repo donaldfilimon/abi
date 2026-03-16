@@ -1,5 +1,5 @@
 const std = @import("std");
-const tool = @import("tool");
+const tool = @import("tool.zig");
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
 const Context = tool.Context;
@@ -20,7 +20,7 @@ fn executeWebSearch(ctx: *Context, args: json.Value) tool.ToolExecutionError!Too
 
     // In a full implementation, this hits an API (DuckDuckGo, Brave, etc.)
     // For now we simulate the native HTTP wrapper setup
-    const web_client_mod = @import("../../web/client");
+    const web_client_mod = @import("../../web/client.zig");
     var client = web_client_mod.HttpClient.init(ctx.allocator) catch {
         return ToolResult.fromError(ctx.allocator, "Failed to init HTTP client");
     };
@@ -90,7 +90,7 @@ fn executeWebFetch(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         else => return ToolResult.fromError(ctx.allocator, "Expected string url"),
     } else return ToolResult.fromError(ctx.allocator, "Missing url");
 
-    const web_client_mod = @import("../../web/client");
+    const web_client_mod = @import("../../web/client.zig");
     var client = web_client_mod.HttpClient.init(ctx.allocator) catch {
         return ToolResult.fromError(ctx.allocator, "Failed to init HTTP client");
     };
@@ -139,7 +139,7 @@ pub const DeepResearcher = struct {
     pub fn autonomousSearch(self: *DeepResearcher, query: []const u8) ![]const u8 {
         std.log.info("Executing deep autonomous search for: {s}", .{query});
 
-        const web_client_mod = @import("../../web/client");
+        const web_client_mod = @import("../../web/client.zig");
         var client = web_client_mod.HttpClient.init(self.allocator) catch {
             return error.HttpClientInitFailed;
         };
@@ -203,7 +203,7 @@ fn executeWebMine(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolR
     // 3. Queue unvisited domains and decrement max_depth.
     // 4. Send the concatenated payload chunks to WDBX matrix embeddings.
 
-    const os = @import("shared_services").os;
+    const os = @import("../../../services/shared/mod.zig").os;
     // We execute the actual deep research agent asynchronously so the tool immediately frees the executor thread.
     const spider_cmd = try std.fmt.allocPrint(ctx.allocator, "nohup abi agent --all-tools -m 'Recursive web fetch starting from {s} up to depth {d}' > /tmp/abi_spider.log 2>&1 &", .{ target_domain, max_depth });
     defer ctx.allocator.free(spider_cmd);

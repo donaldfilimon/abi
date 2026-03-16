@@ -3,7 +3,7 @@
 const std = @import("std");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 pub fn runList() void {
     utils.output.printHeader("Supported Model Formats");

@@ -1,13 +1,13 @@
 //! ralph super — one-shot: init if needed, run, optional gate
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const cfg = @import("config");
-const init_mod = @import("init");
-const run_mod = @import("run_loop");
-const gate_mod = @import("gate");
+const cfg = @import("config.zig");
+const init_mod = @import("init.zig");
+const run_mod = @import("run_loop.zig");
+const gate_mod = @import("gate.zig");
 
 pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var task_override: ?[]const u8 = null;

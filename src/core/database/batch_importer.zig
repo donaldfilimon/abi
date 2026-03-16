@@ -4,7 +4,7 @@
 //! Supports JSON Lines, CSV, and ZON (Zig Object Notation) formats.
 
 const std = @import("std");
-const batch = @import("batch");
+const batch = @import("batch.zig");
 
 const BatchRecord = batch.BatchRecord;
 const BatchConfig = batch.BatchConfig;

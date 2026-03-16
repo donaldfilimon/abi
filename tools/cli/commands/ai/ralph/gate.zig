@@ -1,11 +1,11 @@
 //! ralph gate — native replacement for check_ralph_gate.sh + score_ralph_results.py
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const cfg = @import("config");
-const workspace = @import("workspace");
+const cfg = @import("config.zig");
+const workspace = @import("workspace.zig");
 
 const ScoringRule = struct {
     name: []const u8,

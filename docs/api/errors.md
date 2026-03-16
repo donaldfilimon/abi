@@ -1,6 +1,17 @@
+---
+title: errors API
+purpose: Generated API reference for errors
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # errors
 
-> Composable error hierarchy for framework operations.
+> Composable Error Hierarchy
+
+Defines the framework's error taxonomy as composable error sets.
+Feature modules can import and extend these base categories.
+`FrameworkError` composes lifecycle, feature, config, and allocator errors.
 
 **Source:** [`src/core/errors.zig`](../../src/core/errors.zig)
 
@@ -30,79 +41,79 @@ AI feature errors visible at the framework level.
 
 ### <a id="pub-const-databaseframeworkerror"></a>`pub const DatabaseFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L39)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L40)
 
 Database feature errors visible at the framework level.
 
 ### <a id="pub-const-networkframeworkerror"></a>`pub const NetworkFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L48)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L49)
 
 Network feature errors visible at the framework level.
 
 ### <a id="pub-const-observabilityframeworkerror"></a>`pub const ObservabilityFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L56)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L57)
 
 Observability feature errors visible at the framework level.
 
 ### <a id="pub-const-webframeworkerror"></a>`pub const WebFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L64)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L65)
 
 Web feature errors visible at the framework level.
 
 ### <a id="pub-const-cloudframeworkerror"></a>`pub const CloudFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L71)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L72)
 
 Cloud feature errors visible at the framework level.
 
 ### <a id="pub-const-analyticsframeworkerror"></a>`pub const AnalyticsFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L83)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L84)
 
 Analytics feature errors visible at the framework level.
 
 ### <a id="pub-const-authframeworkerror"></a>`pub const AuthFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L90)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L91)
 
 Auth feature errors visible at the framework level.
 
 ### <a id="pub-const-messagingframeworkerror"></a>`pub const MessagingFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L98)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L99)
 
 Messaging feature errors visible at the framework level.
 
 ### <a id="pub-const-cacheframeworkerror"></a>`pub const CacheFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L105)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L106)
 
 Cache feature errors visible at the framework level.
 
 ### <a id="pub-const-storageframeworkerror"></a>`pub const StorageFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L112)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L113)
 
 Storage feature errors visible at the framework level.
 
 ### <a id="pub-const-searchframeworkerror"></a>`pub const SearchFrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L120)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L121)
 
 Search feature errors visible at the framework level.
 
 ### <a id="pub-const-allfeatureerrors"></a>`pub const AllFeatureErrors`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L128)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L129)
 
 All feature errors combined.
 
 ### <a id="pub-const-frameworkerror"></a>`pub const FrameworkError`
 
-<sup>**const**</sup> | [source](../../src/core/errors.zig#L144)
+<sup>**const**</sup> | [source](../../src/core/errors.zig#L145)
 
 The complete Framework error set.
 Composes lifecycle errors, all feature errors, and infrastructure errors.
@@ -120,4 +131,4 @@ Composes lifecycle errors, all feature errors, and infrastructure errors.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.

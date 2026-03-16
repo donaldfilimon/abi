@@ -5,9 +5,9 @@
 
 const std = @import("std");
 pub const types = @import("types");
-pub const builder = @import("builder");
-pub const ralph = @import("ralph");
-pub const personas = @import("personas");
+pub const builder = @import("builder.zig");
+pub const ralph = @import("ralph.zig");
+pub const personas = @import("personas.zig");
 
 // Re-export main types
 pub const PersonaType = types.PersonaType;

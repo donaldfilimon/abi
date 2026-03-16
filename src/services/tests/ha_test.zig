@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const ha = abi.services.ha;
+const ha = abi.ha;
 
 // ============================================================================
 // HaManager Integration Tests

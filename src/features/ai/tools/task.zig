@@ -1,10 +1,10 @@
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 const json = std.json;
-const Tool = @import("tool").Tool;
-const ToolResult = @import("tool").ToolResult;
-const Context = @import("tool").Context;
-const ToolExecutionError = @import("tool").ToolExecutionError;
+const Tool = @import("tool.zig").Tool;
+const ToolResult = @import("tool.zig").ToolResult;
+const Context = @import("tool.zig").Context;
+const ToolExecutionError = @import("tool.zig").ToolExecutionError;
 
 /// Error set for subagent operations
 pub const SubagentError = error{

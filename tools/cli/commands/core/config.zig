@@ -4,12 +4,12 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const app_paths = abi.services.shared.app_paths;
+const app_paths = abi.foundation.app_paths;
 
 // Use the shared config module for file-based configuration (legacy format)
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
-const shared_config = abi.services.shared.utils.config;
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
+const shared_config = abi.foundation.utils.config;
 
 const OutputFormat = enum {
     human,
@@ -499,7 +499,7 @@ fn printConfigJson(allocator: std.mem.Allocator, config: *const shared_config.Co
 }
 
 fn getDefaultConfigZon() []const u8 {
-    return 
+    return
     \\// ABI Framework Configuration (ZON format)
     \\.{
     \\    .framework = .{
@@ -565,7 +565,7 @@ fn getDefaultConfigZon() []const u8 {
 }
 
 fn getDefaultConfigJson() []const u8 {
-    return 
+    return
     \\{
     \\  "framework": {
     \\    "enable_ai": true,

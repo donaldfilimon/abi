@@ -21,7 +21,7 @@
 //! ```
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 pub const CloudEvent = types.CloudEvent;
 pub const CloudResponse = types.CloudResponse;

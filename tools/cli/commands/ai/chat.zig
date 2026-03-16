@@ -3,11 +3,11 @@
 //! Provides the primary interactive chat interface for ABI.
 
 const std = @import("std");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const tui = @import("../../terminal/mod.zig");
-const chat_panel = @import("../../terminal/panels/chat_panel");
+const chat_panel = @import("../../terminal/panels/chat_panel.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "chat-tui",

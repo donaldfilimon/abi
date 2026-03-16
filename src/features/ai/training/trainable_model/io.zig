@@ -1,7 +1,7 @@
 const std = @import("std");
-const gguf = @import("../../llm/io/gguf");
-const tensor_loader = @import("../../llm/io/tensor_loader");
-const model_config = @import("../model/config");
+const gguf = @import("../../llm/io/gguf.zig");
+const tensor_loader = @import("../../llm/io/tensor_loader.zig");
+const model_config = @import("../model/config.zig");
 
 pub fn loadFromGguf(model: anytype, path: []const u8) !void {
     var gguf_file = try gguf.GgufFile.open(model.allocator, path);

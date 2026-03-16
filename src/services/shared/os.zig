@@ -50,6 +50,7 @@ pub const current_os: OsKind = switch (builtin.os.tag) {
 };
 
 pub const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
+pub const no_os = is_wasm or builtin.os.tag == .freestanding;
 
 // ============================================================================
 // System Information
@@ -57,7 +58,7 @@ pub const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 
 /// Get the system temp directory path (platform-agnostic)
 pub fn getTempPath(allocator: std.mem.Allocator) ![]u8 {
-    if (comptime is_wasm) return allocator.dupe(u8, "/tmp");
+    if (comptime no_os) return allocator.dupe(u8, "/tmp");
 
     if (comptime builtin.os.tag == .windows) {
         if (Env.get("TEMP")) |val| return allocator.dupe(u8, val);
@@ -72,6 +73,7 @@ pub fn getTempPath(allocator: std.mem.Allocator) ![]u8 {
 /// Helper to get environment variable safely
 pub const Env = struct {
     pub fn get(name: []const u8) ?[]const u8 {
+        if (comptime no_os) return null;
         var buf: [256]u8 = undefined;
         if (name.len >= buf.len) return null;
         @memcpy(buf[0..name.len], name);
@@ -89,19 +91,34 @@ pub const Env = struct {
 
 /// Get CPU core count
 pub fn getCpuCount() u32 {
-    if (comptime is_wasm) return 1;
+    if (comptime no_os) return 1;
     const count = std.Thread.getCpuCount() catch 1;
     return @intCast(@max(1, count));
 }
 
-/// Simplified exec for internal tools
-pub fn exec(allocator: std.mem.Allocator, command: []const u8) !void {
-    if (comptime is_wasm) return;
+/// Simplified exec for internal tools.
+/// Returns the exit code of the spawned process (0 = success).
+/// Non-`.exited` terminations (signal, stop, unknown) return exit code 1.
+pub fn exec(allocator: std.mem.Allocator, command: []const u8) !u8 {
+    if (comptime no_os) return 0;
     const shell = if (comptime builtin.os.tag == .windows) "cmd.exe" else "/bin/sh";
     const flag = if (comptime builtin.os.tag == .windows) "/c" else "-c";
 
-    var child = std.process.Child.init(&[_][]const u8{ shell, flag, command }, allocator);
-    _ = try child.spawnAndWait();
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var child = try std.process.spawn(io, .{
+        .argv = &[_][]const u8{ shell, flag, command },
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    });
+    const term = try child.wait(io);
+    return switch (term) {
+        .exited => |code| code,
+        else => 1,
+    };
 }
 
 test "temp path detection" {

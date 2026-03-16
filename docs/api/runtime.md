@@ -1,3 +1,10 @@
+---
+title: runtime API
+purpose: Generated API reference for runtime
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # runtime
 
 > Runtime Module - Always-on Core Infrastructure
@@ -23,7 +30,7 @@ runtime/
 ## Usage
 
 ```zig
-const runtime = @import("runtime/mod.zig");
+const runtime = @import("runtime");
 
 // Create runtime context
 var ctx = try runtime.Context.init(allocator);
@@ -117,4 +124,4 @@ Create an engine with custom configuration.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.
