@@ -18,7 +18,8 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [registry](registry.md) | 18 | 18 | 100% |
 | [benchmarks](benchmarks.md) | 4 | 4 | 100% |
 | [gpu](gpu.md) | 9 | 9 | 100% |
-| [runtime](runtime.md) | 10 | 10 | 100% |
+| [inference](inference.md) | 0 | 0 | 100% |
+| [runtime](runtime.md) | 89 | 89 | 100% |
 | [ai](ai.md) | 0 | 0 | 100% |
 | [cache](cache.md) | 12 | 12 | 100% |
 | [database](database.md) | 1 | 1 | 100% |
@@ -28,7 +29,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [cloud](cloud.md) | 19 | 19 | 100% |
 | [gateway](gateway.md) | 10 | 10 | 100% |
 | [ha](ha.md) | 12 | 12 | 100% |
-| [mcp](mcp.md) | 2 | 2 | 100% |
+| [mcp](mcp.md) | 0 | 0 | 100% |
 | [messaging](messaging.md) | 9 | 9 | 100% |
 | [mobile](mobile.md) | 10 | 10 | 100% |
 | [network](network.md) | 6 | 6 | 100% |
@@ -44,9 +45,9 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [foundation](foundation.md) | 26 | 26 | 100% |
 | [lsp](lsp.md) | 0 | 0 | 100% |
 | [platform](platform.md) | 12 | 12 | 100% |
-| [tasks](tasks.md) | 19 | 19 | 100% |
+| [tasks](tasks.md) | 30 | 30 | 100% |
 
-**Overall: 295/295 symbols documented (100%)**
+**Overall: 383/383 symbols documented (100%)**
 
 
 ---
@@ -60,4 +61,4 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

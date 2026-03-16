@@ -260,6 +260,7 @@ fn categorizeByPath(path: []const u8, name: []const u8) model.Category {
     }
 
     if (std.mem.startsWith(u8, path, "features/gpu") or
+        std.mem.startsWith(u8, path, "inference/") or
         std.mem.eql(u8, name, "runtime") or
         std.mem.eql(u8, name, "simd") or
         std.mem.eql(u8, name, "benchmarks"))

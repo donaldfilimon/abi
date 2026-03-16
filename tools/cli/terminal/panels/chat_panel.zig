@@ -1,10 +1,11 @@
 //! Terminal UI Chat Panel
 //!
-//! Provides a split-pane multi-persona chat interface.
-//! Left pane: Switchable personas (custom local AIs)
+//! Provides a split-pane multi-profile chat interface.
+//! Left pane: Switchable profiles (custom local AIs)
 //! Right pane: Interaction buffer (Voice/Text/Vision context aware)
 
 const std = @import("std");
+const abi = @import("abi");
 const tui = @import("../mod.zig");
 const themes = @import("../themes.zig");
 
@@ -18,14 +19,14 @@ pub const ChatPanel = struct {
     term: ?*tui.Terminal = null,
     theme: *const themes.Theme,
 
-    personas: std.ArrayListUnmanaged([]const u8) = .empty,
-    active_persona_idx: usize = 0,
+    profiles: std.ArrayListUnmanaged([]const u8) = .empty,
+    active_profile_idx: usize = 0,
 
     messages: std.ArrayListUnmanaged(ChatMessage) = .empty,
     input_box: tui.widgets.TextInput,
 
     // Async synchronization
-    mutex: @import("abi").services.shared.sync.Mutex = .{},
+    mutex: abi.foundation.sync.Mutex = .{},
     is_generating: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const themes.Theme) !ChatPanel {
@@ -36,14 +37,14 @@ pub const ChatPanel = struct {
             .input_box = tui.widgets.TextInput.init(allocator),
         };
         out.input_box.is_active = true; // Always active
-        try out.personas.append(allocator, "Default AI");
-        try out.personas.append(allocator, "Code Expert");
-        try out.personas.append(allocator, "Analyzer");
+        try out.profiles.append(allocator, "Default AI");
+        try out.profiles.append(allocator, "Code Expert");
+        try out.profiles.append(allocator, "Analyzer");
         return out;
     }
 
     pub fn deinit(self: *ChatPanel) void {
-        self.personas.deinit(self.allocator);
+        self.profiles.deinit(self.allocator);
         for (self.messages.items) |msg| {
             self.allocator.free(msg.content);
         }
@@ -63,7 +64,7 @@ pub const ChatPanel = struct {
                 .tab => {
                     self.mutex.lock();
                     defer self.mutex.unlock();
-                    self.active_persona_idx = (self.active_persona_idx + 1) % self.personas.items.len;
+                    self.active_profile_idx = (self.active_profile_idx + 1) % self.profiles.items.len;
                     return true;
                 },
                 .enter => {
@@ -94,13 +95,13 @@ pub const ChatPanel = struct {
     }
 
     fn mockGenerateResponse(self: *ChatPanel) void {
-        @import("abi").services.shared.time.sleepMs(1000); // Simulate thinking
+        abi.foundation.time.sleepMs(1000); // Simulate thinking
 
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const persona = self.personas.items[self.active_persona_idx];
-        const resp = std.fmt.allocPrint(self.allocator, "Greetings! I am {s}. I have natively processed your request across the WDBX semantic matrix.", .{persona}) catch return;
+        const profile = self.profiles.items[self.active_profile_idx];
+        const resp = std.fmt.allocPrint(self.allocator, "Greetings! I am {s}. I have natively processed your request across the WDBX semantic matrix.", .{profile}) catch return;
 
         self.messages.append(self.allocator, .{ .role = .ai, .content = resp }) catch {
             self.allocator.free(resp);
@@ -115,26 +116,26 @@ pub const ChatPanel = struct {
 
         if (rect.isEmpty() or rect.width < 10) return;
 
-        // Split: 25% Personas, 75% Chat
+        // Split: 25% Profiles, 75% Chat
         const left_w = @max(rect.width / 4, 15);
         const right_w = rect.width - left_w;
 
-        // Render Left Pane (Personas)
+        // Render Left Pane (Profiles)
         const left_rect = tui.Rect{ .x = rect.x, .y = rect.y, .width = left_w, .height = rect.height };
         try tui.render_utils.drawBox(term, left_rect, .rounded, theme);
 
         try term.moveTo(rect.y + 1, rect.x + 2);
         try term.write(theme.text_dim);
-        try term.write("PERSONAS (Tab)");
+        try term.write("PROFILES (Tab)");
         try term.write(theme.reset);
 
         self.mutex.lock();
         defer self.mutex.unlock();
 
         var y_offset: u16 = 3;
-        for (self.personas.items, 0..) |p, i| {
+        for (self.profiles.items, 0..) |p, i| {
             try term.moveTo(rect.y + y_offset, rect.x + 2);
-            if (i == self.active_persona_idx) {
+            if (i == self.active_profile_idx) {
                 try term.write(theme.selection_bg);
                 try term.write(theme.selection_fg);
                 try term.write(" > ");

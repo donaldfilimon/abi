@@ -14,6 +14,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const os = abi.foundation.os;
 const database = abi.database;
 const simd = abi.foundation.simd;
 const chaos = @import("mod.zig");
@@ -475,6 +476,7 @@ test "database chaos: batch processor handles failures gracefully" {
 // ============================================================================
 
 test "database chaos: concurrent access survives random failures" {
+    if (comptime os.no_os) return error.SkipZigTest;
     if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;

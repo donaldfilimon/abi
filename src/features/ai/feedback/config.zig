@@ -10,8 +10,8 @@ pub const FeedbackConfig = struct {
     enable_analysis: bool = true,
     /// Minimum number of entries before analysis results are considered reliable.
     min_analysis_threshold: u32 = 10,
-    /// Whether to track per-persona satisfaction scores.
-    track_persona_scores: bool = true,
+    /// Whether to track per-profile satisfaction scores.
+    track_profile_scores: bool = true,
     /// Maximum length of text feedback (in bytes).
     max_text_length: u32 = 2048,
 

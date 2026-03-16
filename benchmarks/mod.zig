@@ -107,14 +107,13 @@ pub const BenchmarkSuite = struct {
         comptime bench_fn: fn (std.mem.Allocator) anyerror!void,
         args: anytype,
     ) !void {
-        _ = args; // Allocator passed via runWithAllocator
-        _ = self.runner.runWithAllocator(.{
+        _ = self.runner.run(.{
             .name = name,
             .category = "suite",
             .warmup_iterations = 3,
             .min_iterations = 5,
             .min_time_ns = 50_000_000, // 50ms
-        }, bench_fn, .{}) catch |err| {
+        }, bench_fn, args) catch |err| {
             std.debug.print("  {s}: FAILED ({t})\n", .{ name, err });
             return;
         };

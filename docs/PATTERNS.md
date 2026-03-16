@@ -86,9 +86,10 @@ if (feat_gpu) {
 }
 ```
 
-25 feature flags exist, all enabled by default. Disable with
-`-Dfeat-<name>=false`. The 54 validated flag combinations live in
-`build/flags.zig`.
+27 feature flags exist (including AI subfeature flags `feat_explore`,
+`feat_llm`, `feat_vision`, `feat_training`, `feat_reasoning`), all enabled by
+default. Disable with `-Dfeat-<name>=false`. The 54 validated flag
+combinations live in `build/flags.zig`.
 
 ## Zig 0.16 API Patterns
 
@@ -166,8 +167,10 @@ libraries. The codebase handles this with:
 
 1. **`is_blocked_darwin`** constant in `build.zig` — gates linking behavior
 2. **`use_llvm = true`** on all artifacts — allows compilation without linking
-3. **`./tools/scripts/run_build.sh`** — wrapper script for build commands
-4. **Compile-only steps** — `test` becomes typecheck, `gendocs` becomes compile-check
+3. **Manual relinking** — `build.zig` uses Apple's `/usr/bin/ld` to link
+   `gendocs` and the main `abi` CLI executable.
+4. **`./tools/scripts/run_build.sh`** — wrapper script for initial build runner
+   bootstrap.
 
 ```zig
 // build.zig pattern

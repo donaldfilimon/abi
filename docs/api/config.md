@@ -38,49 +38,49 @@ Create a config with all compile-time enabled features using defaults.
 
 ### <a id="pub-fn-minimal-config"></a>`pub fn minimal() Config`
 
-<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L121)
+<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L122)
 
 Create a minimal config with no features enabled.
 
 ### <a id="pub-fn-isenabled-self-config-feature-feature-bool"></a>`pub fn isEnabled(self: Config, feature: Feature) bool`
 
-<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L126)
+<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L127)
 
 Check if a feature is enabled in this config.
 
 ### <a id="pub-fn-enabledfeatures-self-config-allocator-std-mem-allocator-feature"></a>`pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature`
 
-<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L159)
+<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L162)
 
 Get list of enabled features.
 
 ### <a id="pub-const-builder"></a>`pub const Builder`
 
-<sup>**const**</sup> | [source](../../src/core/config/mod.zig#L179)
+<sup>**const**</sup> | [source](../../src/core/config/mod.zig#L182)
 
 Fluent builder for constructing Config.
 
 ### <a id="pub-fn-with-self-builder-comptime-feature-feature-cfg-anytype-builder"></a>`pub fn with(self: *Builder, comptime feature: Feature, cfg: anytype) *Builder`
 
-<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L230)
+<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L235)
 
 Enable a feature with explicit configuration.
 
 ### <a id="pub-fn-withdefault-self-builder-comptime-feature-feature-builder"></a>`pub fn withDefault(self: *Builder, comptime feature: Feature) *Builder`
 
-<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L252)
+<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L257)
 
 Enable a feature with its default configuration.
 
 ### <a id="pub-fn-build-self-builder-config"></a>`pub fn build(self: *Builder) Config`
 
-<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L274)
+<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L279)
 
 Finalize and return the built config; no allocation.
 
 ### <a id="pub-fn-validate-cfg-config-configerror-void"></a>`pub fn validate(cfg: Config) ConfigError!void`
 
-<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L296)
+<sup>**fn**</sup> | [source](../../src/core/config/mod.zig#L301)
 
 Validate configuration against compile-time constraints.
 
@@ -97,4 +97,4 @@ Validate configuration against compile-time constraints.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

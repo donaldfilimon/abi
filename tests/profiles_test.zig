@@ -1,7 +1,7 @@
-//! Persona/Profile System Tests
+//! Profile/Profile System Tests
 //!
 //! These tests verify the canonical behavior profiles system (v3).
-//! Legacy persona tests were removed during the personas→profiles migration.
+//! Legacy profile tests were removed during the profiles→profiles migration.
 //! Profile-specific tests now live in src/features/ai/profiles/mod.zig.
 
 const std = @import("std");

@@ -15,7 +15,7 @@ not a separate workflow or Zig policy source.
 - Repo workflow: [AGENTS.md](AGENTS.md)
 - Active execution tracker: [tasks/todo.md](tasks/todo.md)
 - Correction log: [tasks/lessons.md](tasks/lessons.md)
-- Zig validation: `zig build full-check` (or `zig fmt --check` on Darwin)
+- Zig validation: `zig build full-check` with a host-built or otherwise known-good Zig on Darwin 25+ / macOS 26+; if stock Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence
 
 ## Expectations
 

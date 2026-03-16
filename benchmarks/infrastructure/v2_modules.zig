@@ -12,10 +12,10 @@ const abi = @import("abi");
 const framework = @import("../system/framework.zig");
 
 // v2 modules accessed via abi re-exports
-const simd = abi.services.shared.simd;
-const matrix_mod = abi.services.shared.matrix;
-const tensor_mod = abi.services.shared.tensor;
-const utils = abi.services.shared.utils;
+const simd = abi.foundation.simd;
+const matrix_mod = abi.foundation.matrix;
+const tensor_mod = abi.foundation.tensor;
+const utils = abi.foundation.utils;
 
 pub const V2BenchConfig = struct {
     /// Vector sizes for SIMD benchmarks

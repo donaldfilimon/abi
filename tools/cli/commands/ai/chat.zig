@@ -1,4 +1,4 @@
-//! Integrated Multi-Persona Chat TUI
+//! Integrated Multi-Profile Chat TUI
 //!
 //! Provides the primary interactive chat interface for ABI.
 
@@ -11,7 +11,7 @@ const chat_panel = @import("../../terminal/panels/chat_panel.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "chat-tui",
-    .description = "Launch the interactive multi-persona TUI chat interface",
+    .description = "Launch the interactive multi-profile TUI chat interface",
     .aliases = &.{"ctui"},
 };
 
@@ -39,7 +39,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         tm.current,
         panel,
         .{
-            .title = "ABI Multi-Persona Chat",
+            .title = "ABI Multi-Profile Chat",
             .refresh_rate_ms = 100,
         },
     );

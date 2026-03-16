@@ -9,7 +9,9 @@ standalone Zig source file that imports `@import("abi")`.
 # Build all examples
 zig build examples
 
-# On Darwin 25+ (linker blocked)
+# On Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig.
+# If stock prebuilt Zig is linker-blocked before build.zig runs, use the
+# fallback wrapper:
 ./tools/scripts/run_build.sh examples
 ```
 

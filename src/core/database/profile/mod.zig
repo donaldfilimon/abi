@@ -1,10 +1,10 @@
-//! Defines behavioral policy overlays and persona routing.
+//! Defines behavioral policy overlays and profile routing.
 
 const std = @import("std");
 const context = @import("../context/mod.zig");
 const core = @import("../core/mod.zig");
 
-pub const PersonaMode = enum {
+pub const ProfileMode = enum {
     abbey,
     aviva,
     abi,
@@ -17,19 +17,19 @@ pub const RequestFeatures = struct {
 };
 
 pub const RoutingDecision = struct {
-    mode: PersonaMode,
+    mode: ProfileMode,
     tone_policy: []const u8,
     verbosity_limit: u32,
 };
 
-pub const PersonaRouter = struct {
+pub const ProfileRouter = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) PersonaRouter {
+    pub fn init(allocator: std.mem.Allocator) ProfileRouter {
         return .{ .allocator = allocator };
     }
 
-    pub fn route(self: *PersonaRouter, features: RequestFeatures) RoutingDecision {
+    pub fn route(self: *ProfileRouter, features: RequestFeatures) RoutingDecision {
         _ = self;
         if (features.urgency > 0.8) {
             return .{

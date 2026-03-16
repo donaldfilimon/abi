@@ -11,15 +11,15 @@
 const std = @import("std");
 const os = @import("../os.zig");
 const sync = @import("../sync.zig");
+const time = @import("../time.zig");
 const crypto = std.crypto;
 const csprng = @import("csprng.zig");
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
-    return std.Io.Threaded.init(allocator, .{ 
+    return std.Io.Threaded.init(allocator, .{
         .environ = if (comptime !os.no_os) std.process.Environ.empty else .{},
     });
 }
-
 
 /// Secret provider types
 pub const ProviderType = enum {

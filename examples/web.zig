@@ -1,6 +1,6 @@
 //! Web Example
 //!
-//! Demonstrates the web module: HTTP client, persona routing,
+//! Demonstrates the web module: HTTP client, profile routing,
 //! chat handling, and JSON utilities.
 //!
 //! Run with: `zig build run-web`
@@ -34,12 +34,12 @@ pub fn main(_: std.process.Init) !void {
     };
     std.debug.print("  Content: {s}\n", .{request.content});
     std.debug.print("  Session: {s}\n", .{request.session_id orelse "(none)"});
-    std.debug.print("  Persona: {s}\n", .{request.persona orelse "(auto-route)"});
+    std.debug.print("  Profile: {s}\n", .{request.profile orelse "(auto-route)"});
 
-    // Persona routing
-    std.debug.print("\n--- Persona Router ---\n", .{});
-    std.debug.print("  PersonaRouter and Route types available\n", .{});
-    std.debug.print("  Routes map URL paths to AI persona handlers\n", .{});
+    // Profile routing
+    std.debug.print("\n--- Profile Router ---\n", .{});
+    std.debug.print("  ProfileRouter and Route types available\n", .{});
+    std.debug.print("  Routes map URL paths to AI profile handlers\n", .{});
 
     // HTTP Client type
     std.debug.print("\n--- HTTP Client ---\n", .{});

@@ -9,7 +9,7 @@
 //! B_t = { V_t, M_t, T_t, R_t, H_t }
 //! Where:
 //! - V_t: Query and response embeddings (vector representations)
-//! - M_t: Metadata (persona tag, routing weights, intent, risk score)
+//! - M_t: Metadata (profile tag, routing weights, intent, risk score)
 //! - T_t: Temporal markers (commit and end timestamps for MVCC)
 //! - R_t: References (parent block, skip pointer, summary pointers)
 //! - H_t: Integrity fields (cryptographic hash chain)
@@ -32,7 +32,7 @@ pub const ConversationBlock = struct {
     response_embedding: ?[]const f32 = null,
 
     // Metadata (M_t)
-    persona_tag: PersonaTag,
+    profile_tag: ProfileTag,
     routing_weights: RoutingWeights,
     intent: IntentCategory,
     risk_score: f32 = 0.0,
@@ -67,7 +67,7 @@ pub const ConversationBlock = struct {
                 try allocator.dupe(f32, resp)
             else
                 null,
-            .persona_tag = config.persona_tag,
+            .profile_tag = config.profile_tag,
             .routing_weights = config.routing_weights,
             .intent = config.intent,
             .risk_score = config.risk_score,
@@ -112,7 +112,7 @@ pub const ConversationBlock = struct {
 pub const BlockConfig = struct {
     query_embedding: []const f32,
     response_embedding: ?[]const f32 = null,
-    persona_tag: PersonaTag,
+    profile_tag: ProfileTag,
     routing_weights: RoutingWeights,
     intent: IntentCategory,
     risk_score: f32 = 0.0,
@@ -123,13 +123,13 @@ pub const BlockConfig = struct {
     previous_hash: [32]u8 = .{0} ** 32,
 };
 
-/// Persona tag with blending coefficient
-pub const PersonaTag = struct {
-    primary_persona: PersonaType,
+/// Profile tag with blending coefficient
+pub const ProfileTag = struct {
+    primary_profile: ProfileType,
     blend_coefficient: f32 = 0.0, // 0.0 = pure secondary, 1.0 = pure primary
-    secondary_persona: ?PersonaType = null,
+    secondary_profile: ?ProfileType = null,
 
-    pub const PersonaType = enum {
+    pub const ProfileType = enum {
         abbey,
         aviva,
         abi,
@@ -143,7 +143,7 @@ pub const RoutingWeights = struct {
     aviva_weight: f32 = 0.0,
     abi_weight: f32 = 0.0,
 
-    pub fn getPrimaryPersona(self: RoutingWeights) PersonaTag.PersonaType {
+    pub fn getPrimaryProfile(self: RoutingWeights) ProfileTag.ProfileType {
         if (self.abbey_weight >= self.aviva_weight and self.abbey_weight >= self.abi_weight) {
             return .abbey;
         } else if (self.aviva_weight >= self.abbey_weight and self.aviva_weight >= self.abi_weight) {
@@ -327,7 +327,7 @@ pub const BlockChain = struct {
         defer self.allocator.free(query_sum);
         @memset(query_sum, 0.0);
 
-        var persona_weights = RoutingWeights{};
+        var profile_weights = RoutingWeights{};
         var intent_counts: std.AutoHashMapUnmanaged(IntentCategory, usize) = .empty;
         defer intent_counts.deinit(self.allocator);
 
@@ -339,9 +339,9 @@ pub const BlockChain = struct {
                 }
 
                 // Accumulate routing weights
-                persona_weights.abbey_weight += block.routing_weights.abbey_weight;
-                persona_weights.aviva_weight += block.routing_weights.aviva_weight;
-                persona_weights.abi_weight += block.routing_weights.abi_weight;
+                profile_weights.abbey_weight += block.routing_weights.abbey_weight;
+                profile_weights.aviva_weight += block.routing_weights.aviva_weight;
+                profile_weights.abi_weight += block.routing_weights.abi_weight;
 
                 // Count intents
                 const count = intent_counts.get(block.intent) orelse 0;
@@ -371,11 +371,11 @@ pub const BlockChain = struct {
         // Create summary block config
         const summary_config = BlockConfig{
             .query_embedding = query_avg,
-            .persona_tag = .{
-                .primary_persona = persona_weights.getPrimaryPersona(),
-                .blend_coefficient = persona_weights.getBlendCoefficient(),
+            .profile_tag = .{
+                .primary_profile = profile_weights.getPrimaryProfile(),
+                .blend_coefficient = profile_weights.getBlendCoefficient(),
             },
-            .routing_weights = persona_weights,
+            .routing_weights = profile_weights,
             .intent = dominant_intent,
             .parent_block_id = self.current_head,
             .previous_hash = .{0} ** 32, // Special summary hash
@@ -418,7 +418,7 @@ fn computeBlockHash(allocator: std.mem.Allocator, config: BlockConfig) ![32]u8 {
     }
 
     // Hash metadata
-    hasher.update(std.mem.asBytes(&config.persona_tag));
+    hasher.update(std.mem.asBytes(&config.profile_tag));
     hasher.update(std.mem.asBytes(&config.routing_weights));
     hasher.update(std.mem.asBytes(&config.intent));
     hasher.update(std.mem.asBytes(&config.risk_score));
@@ -515,7 +515,7 @@ test "ConversationBlock creation and MVCC" {
 
     const config = BlockConfig{
         .query_embedding = embedding,
-        .persona_tag = .{ .primary_persona = .abbey },
+        .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
         .previous_hash = .{0} ** 32,
@@ -546,7 +546,7 @@ test "BlockChain basic operations" {
 
     const config = BlockConfig{
         .query_embedding = embedding,
-        .persona_tag = .{ .primary_persona = .abbey },
+        .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
         .previous_hash = .{0} ** 32,
@@ -558,7 +558,7 @@ test "BlockChain basic operations" {
     // Add second block with parent reference
     const config2 = BlockConfig{
         .query_embedding = embedding,
-        .persona_tag = .{ .primary_persona = .aviva },
+        .profile_tag = .{ .primary_profile = .aviva },
         .routing_weights = .{ .abbey_weight = 0.3, .aviva_weight = 0.7 },
         .intent = .technical_problem,
         .parent_block_id = block1_id,
@@ -594,7 +594,7 @@ test "MvccStore visibility control" {
 
     const config = BlockConfig{
         .query_embedding = embedding,
-        .persona_tag = .{ .primary_persona = .abbey },
+        .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
         .previous_hash = .{0} ** 32,

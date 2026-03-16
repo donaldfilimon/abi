@@ -1,15 +1,15 @@
-//! Canonical coordination surface over the legacy multi-persona system.
+//! Canonical coordination surface over the legacy multi-profile system.
 
 const std = @import("std");
-const legacy_personas = @import("../profiles/mod.zig");
+const legacy_profiles = @import("../profiles/mod.zig");
 const legacy_types = @import("../types.zig");
 const legacy_config = @import("../config.zig");
 const legacy_abi = @import("../abi/mod.zig");
 const profiles = @import("../profiles/mod.zig");
 const semantic_store = @import("../../database/mod.zig").semantic_store;
 
-pub const InteractionRequest = legacy_types.PersonaRequest;
-pub const InteractionResponse = legacy_types.PersonaResponse;
+pub const InteractionRequest = legacy_types.ProfileRequest;
+pub const InteractionResponse = legacy_types.ProfileResponse;
 /// Coordination context wrapping profile selection state.
 pub const CoordinationContext = struct {
     allocator: std.mem.Allocator,
@@ -34,13 +34,13 @@ pub const InteractionCoordinator = struct {
     }
 };
 
-pub const CoordinationConfig = legacy_config.MultiPersonaConfig;
+pub const CoordinationConfig = legacy_config.MultiProfileConfig;
 pub const LegacyRoutingDecision = legacy_types.RoutingDecision;
 pub const PolicyFlags = legacy_types.PolicyFlags;
 
 pub const ProfileSelection = struct {
     selected_profile: profiles.BehaviorProfile,
-    legacy_persona: profiles.LegacyPersonaType,
+    legacy_profile: profiles.LegacyProfileType,
     confidence: f32,
     policy_flags: PolicyFlags,
     reasoning: []const u8,
@@ -58,8 +58,8 @@ pub const ProfileSelection = struct {
         trace: ?semantic_store.InfluenceTrace,
     ) !ProfileSelection {
         return .{
-            .selected_profile = profiles.fromLegacyPersona(decision.selected_persona),
-            .legacy_persona = decision.selected_persona,
+            .selected_profile = profiles.fromLegacyProfile(decision.selected_profile),
+            .legacy_profile = decision.selected_profile,
             .confidence = decision.confidence,
             .policy_flags = try clonePolicyFlags(allocator, decision.policy_flags),
             .reasoning = try allocator.dupe(u8, decision.routing_reason),
@@ -136,7 +136,7 @@ fn clonePolicyFlags(
 test "profile selection maps legacy routing decisions" {
     const allocator = std.testing.allocator;
     const decision = LegacyRoutingDecision{
-        .selected_persona = .abbey,
+        .selected_profile = .abbey,
         .confidence = 0.9,
         .emotional_context = .{},
         .policy_flags = .{},

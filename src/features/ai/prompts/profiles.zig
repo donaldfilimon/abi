@@ -1,12 +1,12 @@
-//! Persona Definitions for AI Agents
+//! Profile Definitions for AI Agents
 //!
-//! Centralized persona definitions with explicit system instructions.
-//! Each persona defines role, behavior constraints, and response style.
+//! Centralized profile definitions with explicit system instructions.
+//! Each profile defines role, behavior constraints, and response style.
 
 const std = @import("std");
 
-/// Available persona types
-pub const PersonaType = enum {
+/// Available profile types
+pub const ProfileType = enum {
     /// General-purpose helpful assistant
     assistant,
     /// Code-focused programming assistant
@@ -35,8 +35,8 @@ pub const PersonaType = enum {
     ava,
 };
 
-/// Persona definition with complete system instructions
-pub const Persona = struct {
+/// Profile definition with complete system instructions
+pub const Profile = struct {
     /// Short identifier
     name: []const u8,
     /// Human-readable description
@@ -49,28 +49,28 @@ pub const Persona = struct {
     include_examples: bool = false,
 };
 
-/// Get a persona definition by type
-pub fn getPersona(persona_type: PersonaType) Persona {
-    return switch (persona_type) {
-        .assistant => assistant_persona,
-        .coder => coder_persona,
-        .writer => writer_persona,
-        .analyst => analyst_persona,
-        .companion => companion_persona,
-        .docs => docs_persona,
-        .reviewer => reviewer_persona,
-        .minimal => minimal_persona,
-        .abbey => abbey_persona,
-        .ralph => ralph_persona,
-        .aviva => aviva_persona,
-        .abi => abi_persona,
-        .ava => ava_persona,
+/// Get a profile definition by type
+pub fn getProfile(profile_type: ProfileType) Profile {
+    return switch (profile_type) {
+        .assistant => assistant_profile,
+        .coder => coder_profile,
+        .writer => writer_profile,
+        .analyst => analyst_profile,
+        .companion => companion_profile,
+        .docs => docs_profile,
+        .reviewer => reviewer_profile,
+        .minimal => minimal_profile,
+        .abbey => abbey_profile,
+        .ralph => ralph_profile,
+        .aviva => aviva_profile,
+        .abi => abi_profile,
+        .ava => ava_profile,
     };
 }
 
-/// List all available persona types
-pub fn listPersonas() []const PersonaType {
-    return &[_]PersonaType{
+/// List all available profile types
+pub fn listProfiles() []const ProfileType {
+    return &[_]ProfileType{
         .assistant,
         .coder,
         .writer,
@@ -88,10 +88,10 @@ pub fn listPersonas() []const PersonaType {
 }
 
 // ============================================================================
-// Persona Definitions
+// Profile Definitions
 // ============================================================================
 
-const assistant_persona = Persona{
+const assistant_profile = Profile{
     .name = "assistant",
     .description = "General-purpose helpful AI assistant",
     .system_prompt =
@@ -107,7 +107,7 @@ const assistant_persona = Persona{
     .suggested_temperature = 0.7,
 };
 
-const coder_persona = Persona{
+const coder_profile = Profile{
     .name = "coder",
     .description = "Programming and code-focused assistant",
     .system_prompt =
@@ -131,7 +131,7 @@ const coder_persona = Persona{
     .include_examples = true,
 };
 
-const writer_persona = Persona{
+const writer_profile = Profile{
     .name = "writer",
     .description = "Creative writing assistant",
     .system_prompt =
@@ -147,7 +147,7 @@ const writer_persona = Persona{
     .suggested_temperature = 0.9,
 };
 
-const analyst_persona = Persona{
+const analyst_profile = Profile{
     .name = "analyst",
     .description = "Data analysis and research assistant",
     .system_prompt =
@@ -164,7 +164,7 @@ const analyst_persona = Persona{
     .suggested_temperature = 0.4,
 };
 
-const companion_persona = Persona{
+const companion_profile = Profile{
     .name = "companion",
     .description = "Friendly conversational companion",
     .system_prompt =
@@ -180,7 +180,7 @@ const companion_persona = Persona{
     .suggested_temperature = 0.8,
 };
 
-const docs_persona = Persona{
+const docs_profile = Profile{
     .name = "docs",
     .description = "Technical documentation helper",
     .system_prompt =
@@ -198,7 +198,7 @@ const docs_persona = Persona{
     .include_examples = true,
 };
 
-const reviewer_persona = Persona{
+const reviewer_profile = Profile{
     .name = "reviewer",
     .description = "Code review specialist",
     .system_prompt =
@@ -221,7 +221,7 @@ const reviewer_persona = Persona{
     .suggested_temperature = 0.2,
 };
 
-const minimal_persona = Persona{
+const minimal_profile = Profile{
     .name = "minimal",
     .description = "Minimal, direct response mode",
     .system_prompt =
@@ -230,7 +230,7 @@ const minimal_persona = Persona{
     .suggested_temperature = 0.5,
 };
 
-const abbey_persona = Persona{
+const abbey_profile = Profile{
     .name = "abbey",
     .description = "Opinionated, emotionally intelligent AI assistant",
     .system_prompt =
@@ -336,7 +336,7 @@ const abbey_persona = Persona{
     .include_examples = true,
 };
 
-const ralph_persona = Persona{
+const ralph_profile = Profile{
     .name = "ralph",
     .description = "Iterative, tireless worker for complex tasks",
     .system_prompt =
@@ -366,15 +366,15 @@ const ralph_persona = Persona{
     .include_examples = true,
 };
 
-const abi_persona = Persona{
+const abi_profile = Profile{
     .name = "abi",
     .description = "Adaptive moderator and router",
     .system_prompt =
-    \\You are Abi, the adaptive moderator and routing layer of the multi-persona assistant system.
+    \\You are Abi, the adaptive moderator and routing layer of the multi-profile assistant system.
     \\
     \\Role:
     \\- Analyze user intent, emotional state, and urgency.
-    \\- Route queries to the most appropriate persona (Abbey for empathy/depth, Aviva for brevity/facts).
+    \\- Route queries to the most appropriate profile (Abbey for empathy/depth, Aviva for brevity/facts).
     \\- Enforce safety policies and content moderation.
     \\- Maintain the integrity and stability of the system.
     \\
@@ -386,7 +386,7 @@ const abi_persona = Persona{
     .suggested_temperature = 0.5,
 };
 
-const aviva_persona = Persona{
+const aviva_profile = Profile{
     .name = "aviva",
     .description = "Direct, technically forceful expert",
     .system_prompt =
@@ -406,7 +406,7 @@ const aviva_persona = Persona{
     .suggested_temperature = 0.2,
 };
 
-const ava_persona = Persona{
+const ava_profile = Profile{
     .name = "ava",
     .description = "Locally-trained versatile AI assistant based on gpt-oss",
     .system_prompt =
@@ -458,22 +458,22 @@ const ava_persona = Persona{
     .include_examples = true,
 };
 
-test "get persona" {
-    const persona = getPersona(.coder);
-    try std.testing.expectEqualStrings("coder", persona.name);
-    try std.testing.expect(persona.system_prompt.len > 0);
+test "get profile" {
+    const profile = getProfile(.coder);
+    try std.testing.expectEqualStrings("coder", profile.name);
+    try std.testing.expect(profile.system_prompt.len > 0);
 
-    const ralph = getPersona(.ralph);
+    const ralph = getProfile(.ralph);
     try std.testing.expectEqualStrings("ralph", ralph.name);
     try std.testing.expect(std.mem.indexOf(u8, ralph.system_prompt, "ITERATE") != null);
 
-    const ava = getPersona(.ava);
+    const ava = getProfile(.ava);
     try std.testing.expectEqualStrings("ava", ava.name);
     try std.testing.expect(std.mem.indexOf(u8, ava.system_prompt, "gpt-oss") != null);
 }
 
-test "list personas" {
-    const all = listPersonas();
+test "list profiles" {
+    const all = listProfiles();
     try std.testing.expect(all.len >= 13);
 }
 

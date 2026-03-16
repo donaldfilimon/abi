@@ -1,13 +1,13 @@
 //! Learning Bridge — Connects feedback quality monitoring to self-learning retraining.
 //!
-//! Monitors per-persona satisfaction ratings from the FeedbackSystem and
+//! Monitors per-profile satisfaction ratings from the FeedbackSystem and
 //! triggers the SelfLearningSystem when quality drops below a configurable
 //! threshold. This closes the feedback loop: poor ratings automatically
 //! initiate a retraining cycle.
 //!
 //! Integration:
 //! ```
-//!  FeedbackSystem ──analyzePersona()──► LearningBridge ──update()──► SelfLearningSystem
+//!  FeedbackSystem ──analyzeProfile()──► LearningBridge ──update()──► SelfLearningSystem
 //!                                           │
 //!                                     checks threshold,
 //!                                     respects interval
@@ -19,19 +19,19 @@ const collector_mod = @import("collector.zig");
 const feedback_mod = @import("mod.zig");
 const self_learning_mod = @import("self_learning");
 
-const PersonaRef = collector_mod.PersonaRef;
+const ProfileRef = collector_mod.ProfileRef;
 const Trend = @import("analyzer.zig").Trend;
 const FeedbackSystem = feedback_mod.FeedbackSystem;
 const SelfLearningSystem = self_learning_mod.SelfLearningSystem;
 
-/// All PersonaRef variants for iteration.
-const all_personas = [_]PersonaRef{ .abbey, .aviva, .abi, .ralph, .other };
+/// All ProfileRef variants for iteration.
+const all_profiles = [_]ProfileRef{ .abbey, .aviva, .abi, .ralph, .other };
 
 /// Configuration for the learning bridge.
 pub const BridgeConfig = struct {
     /// Average rating below this triggers retraining.
     quality_threshold: f32 = 3.0,
-    /// Minimum feedback entries before evaluating a persona.
+    /// Minimum feedback entries before evaluating a profile.
     min_entries: usize = 10,
     /// Minimum seconds between automatic checks.
     check_interval_seconds: u64 = 3600,
@@ -39,9 +39,9 @@ pub const BridgeConfig = struct {
     auto_retrain: bool = true,
 };
 
-/// Per-persona quality health report.
-pub const PersonaHealth = struct {
-    persona: PersonaRef,
+/// Per-profile quality health report.
+pub const ProfileHealth = struct {
+    profile: ProfileRef,
     average_rating: f32,
     entry_count: usize,
     needs_retrain: bool,
@@ -50,8 +50,8 @@ pub const PersonaHealth = struct {
 
 /// Bridges the FeedbackSystem to the SelfLearningSystem.
 ///
-/// Periodically evaluates persona satisfaction via the feedback analyzer
-/// and triggers a learning update when any persona falls below the
+/// Periodically evaluates profile satisfaction via the feedback analyzer
+/// and triggers a learning update when any profile falls below the
 /// configured quality threshold.
 pub const LearningBridge = struct {
     feedback: *FeedbackSystem,
@@ -80,7 +80,7 @@ pub const LearningBridge = struct {
         _ = self;
     }
 
-    /// Check all personas and trigger retraining if any falls below threshold.
+    /// Check all profiles and trigger retraining if any falls below threshold.
     ///
     /// Respects `check_interval_seconds`: returns `false` immediately if called
     /// before the interval has elapsed (unless this is the first check).
@@ -102,9 +102,9 @@ pub const LearningBridge = struct {
             return false;
         }
 
-        // Evaluate each persona
-        for (all_personas) |persona| {
-            const stats = try self.feedback.analyzePersona(persona);
+        // Evaluate each profile
+        for (all_profiles) |profile| {
+            const stats = try self.feedback.analyzeProfile(profile);
 
             if (stats.total_entries >= self.config.min_entries and
                 stats.average_rating < self.config.quality_threshold)
@@ -117,12 +117,12 @@ pub const LearningBridge = struct {
         return false;
     }
 
-    /// Return a health report for a single persona.
-    pub fn getPersonaHealth(self: *Self, persona: PersonaRef) !PersonaHealth {
-        const stats = try self.feedback.analyzePersona(persona);
+    /// Return a health report for a single profile.
+    pub fn getProfileHealth(self: *Self, profile: ProfileRef) !ProfileHealth {
+        const stats = try self.feedback.analyzeProfile(profile);
 
         return .{
-            .persona = persona,
+            .profile = profile,
             .average_rating = stats.average_rating,
             .entry_count = stats.total_entries,
             .needs_retrain = stats.total_entries >= self.config.min_entries and

@@ -38,7 +38,7 @@ const StubWorkflowRunner = struct {
     allocator: std.mem.Allocator,
     config: RunnerConfig,
     blackboard: blackboard_mod.Blackboard,
-    persona_registry: roles_mod.PersonaRegistry,
+    profile_registry: roles_mod.ProfileRegistry,
     supervisor: supervisor_mod.Supervisor,
     event_bus: messaging.EventBus,
     conversation_manager: protocol_mod.ConversationManager,
@@ -77,7 +77,7 @@ const StubWorkflowRunner = struct {
         step_id: []const u8,
         output: ?[]const u8,
         status: workflow_mod.StepStatus,
-        assigned_persona: ?[]const u8,
+        assigned_profile: ?[]const u8,
         attempts: u32,
         duration_ms: u64,
     };
@@ -104,7 +104,7 @@ const StubWorkflowRunner = struct {
             .allocator = allocator,
             .config = config,
             .blackboard = blackboard_mod.Blackboard.init(allocator, config.max_history),
-            .persona_registry = roles_mod.PersonaRegistry.init(allocator),
+            .profile_registry = roles_mod.ProfileRegistry.init(allocator),
             .supervisor = supervisor_mod.Supervisor.init(allocator, .{
                 .restart_strategy = config.restart_strategy,
                 .max_retries = config.max_retries,
@@ -120,7 +120,7 @@ const StubWorkflowRunner = struct {
         self.conversation_manager.deinit();
         self.event_bus.deinit();
         self.supervisor.deinit();
-        self.persona_registry.deinit();
+        self.profile_registry.deinit();
         self.blackboard.deinit();
     }
 

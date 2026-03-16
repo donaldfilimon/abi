@@ -22,7 +22,7 @@ All features are enabled by default. Disable with `-Dfeat-<name>=false`.
 | network | `feat_network` | — | `src/features/network/` |
 | observability | `feat_profiling` | — | `src/features/observability/` |
 | web | `feat_web` | — | `src/features/web/` |
-| personas | `feat_ai` | ai | `src/features/ai/profiles/` |
+| profiles | `feat_ai` | ai | `src/features/ai/profiles/` |
 | cloud | `feat_cloud` | — | `src/features/cloud/` |
 | analytics | `feat_analytics` | — | `src/features/analytics/` |
 | auth | `feat_auth` | — | `src/features/auth/` |

@@ -5,14 +5,14 @@ const types = @import("../types.zig");
 const registry = @import("../registry.zig");
 
 pub const BehaviorProfile = enum { collaborative, direct, governance, iterative };
-pub const LegacyPersonaType = types.PersonaType;
-pub const ProfileRegistry = registry.PersonaRegistry;
+pub const LegacyProfileType = types.ProfileType;
+pub const ProfileRegistry = registry.ProfileRegistry;
 
-pub fn fromLegacyPersona(_: LegacyPersonaType) BehaviorProfile {
+pub fn fromLegacyProfile(_: LegacyProfileType) BehaviorProfile {
     return .collaborative;
 }
 
-pub fn defaultLegacyPersona(_: BehaviorProfile) LegacyPersonaType {
+pub fn defaultLegacyProfile(_: BehaviorProfile) LegacyProfileType {
     return .assistant;
 }
 
@@ -23,8 +23,8 @@ pub fn Context(comptime Config: type) type {
             return error.AiDisabled;
         }
         pub fn deinit(_: *Self) void {}
-        pub fn registerPersona(_: *Self, _: LegacyPersonaType, _: types.PersonaInterface) !void {}
-        pub fn getPersona(_: *Self, _: LegacyPersonaType) ?types.PersonaInterface {
+        pub fn registerProfile(_: *Self, _: LegacyProfileType, _: types.ProfileInterface) !void {}
+        pub fn getProfile(_: *Self, _: LegacyProfileType) ?types.ProfileInterface {
             return null;
         }
     };
@@ -37,46 +37,46 @@ pub fn ProfileSystem(comptime Config: type) type {
             return error.AiDisabled;
         }
         pub fn deinit(_: *Self) void {}
-        pub fn process(_: *Self, _: types.PersonaRequest) !types.PersonaResponse {
+        pub fn process(_: *Self, _: types.ProfileRequest) !types.ProfileResponse {
             return error.AiDisabled;
         }
     };
 }
 
-pub const MultiPersonaSystem = struct {
+pub const MultiProfileSystem = struct {
     pub const MetricsManager = struct {
         pub const LatencyStats = struct {
             p50: f64 = 0,
             p99: f64 = 0,
         };
 
-        pub const PersonaStats = struct {
+        pub const ProfileStats = struct {
             total_requests: u64 = 0,
             success_rate: f32 = 1.0,
             error_count: u64 = 0,
             latency: ?LatencyStats = null,
         };
 
-        pub fn getStats(_: *MetricsManager, _: LegacyPersonaType) ?PersonaStats {
+        pub fn getStats(_: *MetricsManager, _: LegacyProfileType) ?ProfileStats {
             return null;
         }
     };
 
-    pub const MultiPersonaContext = struct {
-        pub fn getPersona(_: *MultiPersonaContext, _: LegacyPersonaType) ?types.PersonaInterface {
+    pub const MultiProfileContext = struct {
+        pub fn getProfile(_: *MultiProfileContext, _: LegacyProfileType) ?types.ProfileInterface {
             return null;
         }
     };
 
     allocator: std.mem.Allocator,
-    ctx: MultiPersonaContext = .{},
+    ctx: MultiProfileContext = .{},
     _metrics: ?*MetricsManager = null,
 
-    pub fn process(_: *MultiPersonaSystem, _: types.PersonaRequest) !types.PersonaResponse {
+    pub fn process(_: *MultiProfileSystem, _: types.ProfileRequest) !types.ProfileResponse {
         return error.AiDisabled;
     }
 
-    pub fn getMetrics(self: *MultiPersonaSystem) ?*MetricsManager {
+    pub fn getMetrics(self: *MultiProfileSystem) ?*MetricsManager {
         return self._metrics;
     }
 };

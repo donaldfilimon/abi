@@ -26,17 +26,27 @@ pub const lifecycle = @import("lifecycle.zig");
 pub const roadmap = @import("roadmap.zig");
 pub const roadmap_catalog = roadmap.catalog;
 
-// Type re-exports for convenience
+/// A task representing a unit of work.
 pub const Task = types.Task;
+/// Task priority levels.
 pub const Priority = types.Priority;
+/// Task lifecycle statuses.
 pub const Status = types.Status;
+/// Task categories.
 pub const Category = types.Category;
+/// Filter criteria for listing tasks.
 pub const Filter = types.Filter;
+/// Sorting criteria for task lists.
 pub const SortBy = types.SortBy;
+/// Task statistics and metrics.
 pub const Stats = types.Stats;
+/// Configuration for the Task Manager.
 pub const ManagerConfig = types.ManagerConfig;
+/// Options for adding a new task.
 pub const AddOptions = types.AddOptions;
+/// Error set for task operations.
 pub const ManagerError = types.ManagerError;
+/// An item from the project roadmap.
 pub const RoadmapItem = roadmap.RoadmapItem;
 
 /// Task Manager - main interface for task operations

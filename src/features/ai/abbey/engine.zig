@@ -289,10 +289,10 @@ pub const AbbeyEngine = struct {
             try self.startConversation(null);
         }
 
-        const ralph_persona = prompts.getPersona(.ralph);
+        const ralph_profile = prompts.getProfile(.ralph);
 
-        // Build system prompt: base persona + optional learned skills (Zig 0.16 / self-improving Ralph)
-        var system_content = try self.allocator.dupe(u8, ralph_persona.system_prompt);
+        // Build system prompt: base profile + optional learned skills (Zig 0.16 / self-improving Ralph)
+        var system_content = try self.allocator.dupe(u8, ralph_profile.system_prompt);
         defer self.allocator.free(system_content);
         const skills_text = self.memory.getSkillsContext(self.allocator, 1024) catch null;
         if (skills_text) |text| {
@@ -336,7 +336,7 @@ pub const AbbeyEngine = struct {
             const request = client.CompletionRequest{
                 .messages = history.items,
                 .model = self.config.llm.model,
-                .temperature = ralph_persona.suggested_temperature,
+                .temperature = ralph_profile.suggested_temperature,
                 .max_tokens = self.config.behavior.max_tokens,
             };
 
@@ -384,7 +384,7 @@ pub const AbbeyEngine = struct {
             const verify_request = client.CompletionRequest{
                 .messages = history.items,
                 .model = self.config.llm.model,
-                .temperature = ralph_persona.suggested_temperature,
+                .temperature = ralph_profile.suggested_temperature,
                 .max_tokens = self.config.behavior.max_tokens,
             };
 

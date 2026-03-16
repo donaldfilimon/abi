@@ -1,7 +1,7 @@
 //! Web Module - HTTP Client and Web Utilities
 //!
 //! This module provides HTTP client functionality, weather API integration,
-//! and persona API handlers for the ABI framework. It wraps Zig's standard
+//! and profile API handlers for the ABI framework. It wraps Zig's standard
 //! library HTTP client with convenient utilities for common web operations.
 //!
 //! ## Features
@@ -15,7 +15,7 @@
 //!   - Coordinate-based weather forecasts
 //!   - Location validation and URL building
 //!
-//! - **Persona API**: HTTP handlers and routes for AI persona system
+//! - **Profile API**: HTTP handlers and routes for AI profile system
 //!   - Chat request/response handlers
 //!   - REST API routes with OpenAPI documentation
 //!   - Health check and metrics endpoints
@@ -111,12 +111,12 @@ const weather = @import("weather.zig");
 pub const server = @import("server/mod.zig");
 pub const middleware = @import("middleware/mod.zig");
 
-// Handlers and routes for persona API
+// Handlers and routes for profile API
 pub const handlers = struct {
     pub const chat = @import("handlers/chat.zig");
 };
 pub const routes = struct {
-    pub const personas = @import("routes/personas.zig");
+    pub const profiles = @import("routes/profiles.zig");
 };
 
 // Re-export handler types
@@ -126,9 +126,9 @@ pub const ChatResponse = handlers.chat.ChatResponse;
 pub const ChatResult = handlers.chat.ChatResult;
 
 // Re-export route types
-pub const PersonaRouter = routes.personas.Router;
-pub const Route = routes.personas.Route;
-pub const RouteContext = routes.personas.RouteContext;
+pub const ProfileRouter = routes.profiles.Router;
+pub const Route = routes.profiles.Route;
+pub const RouteContext = routes.profiles.RouteContext;
 
 pub const JsonValue = std.json.Value;
 pub const ParsedJson = std.json.Parsed(JsonValue);

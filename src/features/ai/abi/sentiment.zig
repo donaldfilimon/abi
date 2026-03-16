@@ -1,7 +1,7 @@
 //! Sentiment Analysis Module for Abi Router
 //!
 //! Analyzes user input to detect emotional state, urgency, and technical content.
-//! This data is used by the router to select the optimal persona.
+//! This data is used by the router to select the optimal profile.
 //!
 //! Features:
 //! - Multi-emotion detection with primary and secondary emotions
@@ -36,7 +36,7 @@ pub const SentimentResult = struct {
         allocator.free(self.secondary_emotions);
     }
 
-    /// Convert result to a core EmotionalState for use in PersonaRequests.
+    /// Convert result to a core EmotionalState for use in ProfileRequests.
     pub fn toEmotionalState(self: SentimentResult) core_types.EmotionalState {
         return .{
             .current = self.primary_emotion,

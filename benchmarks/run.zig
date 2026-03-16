@@ -23,11 +23,11 @@ fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
     });
     defer framework.deinit();
 
-    var db_handle = try abi.features.database.open(allocator, "bench");
-    defer abi.features.database.close(&db_handle);
+    var db_handle = try abi.database.open(allocator, "bench");
+    defer abi.database.close(&db_handle);
 
     const vector = [_]f32{ 1.0, 0.5, 0.2, 0.8 };
-    try abi.features.database.insert(&db_handle, 1, &vector, null);
+    try abi.database.insert(&db_handle, 1, &vector, null);
 }
 
 fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
@@ -36,8 +36,8 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     });
     defer framework.deinit();
 
-    var db_handle = try abi.features.database.open(allocator, "bench");
-    defer abi.features.database.close(&db_handle);
+    var db_handle = try abi.database.open(allocator, "bench");
+    defer abi.database.close(&db_handle);
 
     // Insert some test data
     const vectors = [_][4]f32{
@@ -48,18 +48,18 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     };
 
     for (vectors, 0..) |vec, i| {
-        try abi.features.database.insert(&db_handle, @intCast(i + 1), &vec, null);
+        try abi.database.insert(&db_handle, @intCast(i + 1), &vec, null);
     }
 
     // Perform search
     const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const results = try abi.features.database.search(&db_handle, allocator, &query, 3);
+    const results = try abi.database.search(&db_handle, allocator, &query, 3);
     defer allocator.free(results);
     std.mem.doNotOptimizeAway(results);
 }
 
 fn neuralAnnSearchBenchmark(allocator: std.mem.Allocator) !void {
-    var engine = try abi.features.database.neural.Engine.init(allocator, .{
+    var engine = try abi.database.neural.Engine.init(allocator, .{
         .dimensions = 4,
         .metric = .cosine,
     });
@@ -93,7 +93,7 @@ fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
     while (i < 10000) : (i += 1) {
         const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
         const vec_b = [_]f32{ @floatFromInt(@mod(i, 10)), @floatFromInt(@mod(i + 1, 10)), @floatFromInt(@mod(i + 2, 10)), @floatFromInt(@mod(i + 3, 10)) };
-        sum += abi.services.simd.vectorDot(&vec_a, &vec_b);
+        sum += abi.foundation.simd.vectorDot(&vec_a, &vec_b);
     }
     std.mem.doNotOptimizeAway(sum);
 }
@@ -102,7 +102,7 @@ fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
 fn simdVectorBenchmark(_: std.mem.Allocator) !void {
     const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vec_b = [_]f32{ 4.0, 3.0, 2.0, 1.0 };
-    const result = abi.services.simd.vectorDot(&vec_a, &vec_b);
+    const result = abi.foundation.simd.vectorDot(&vec_a, &vec_b);
     std.mem.doNotOptimizeAway(result);
 }
 
@@ -110,7 +110,7 @@ fn simdAddBenchmark(_: std.mem.Allocator) !void {
     const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vec_b = [_]f32{ 4.0, 3.0, 2.0, 1.0 };
     var result = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
-    abi.services.simd.vectorAdd(&vec_a, &vec_b, &result);
+    abi.foundation.simd.vectorAdd(&vec_a, &vec_b, &result);
     std.mem.doNotOptimizeAway(&result);
 }
 
@@ -133,7 +133,7 @@ fn gpuAvailabilityBenchmark(allocator: std.mem.Allocator) !void {
     };
     defer framework.deinit();
 
-    const available = abi.features.gpu.moduleEnabled();
+    const available = abi.gpu.backends.detect.moduleEnabled();
     std.mem.doNotOptimizeAway(available);
 }
 
@@ -146,7 +146,7 @@ fn networkRegistryBenchmark(allocator: std.mem.Allocator) !void {
     defer framework.deinit();
 
     // Attempt to obtain the default registry; if that fails, simply skip the benchmark.
-    const registry = abi.features.network.defaultRegistry() catch return;
+    const registry = abi.network.defaultRegistry() catch return;
     const node_id = "bench-node";
     // Register a node – ignore errors (e.g., bind failures) to keep benchmark stable.
     _ = registry.register(node_id, "127.0.0.1:8080") catch {};

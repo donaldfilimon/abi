@@ -1,7 +1,7 @@
 //! Auto-training handler.
 //!
 //! Handles the `abi train auto` subcommand which runs automated training
-//! with seed data for Abbey, Aviva, and Abi personas, with optional
+//! with seed data for Abbey, Aviva, and Abi profiles, with optional
 //! vision/multimodal micro-training steps.
 
 const std = @import("std");
@@ -45,7 +45,7 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     };
     defer system.deinit();
 
-    // Seed text experiences for Abbey, Aviva, Abi (dummy token IDs per persona)
+    // Seed text experiences for Abbey, Aviva, Abi (dummy token IDs per profile)
     const abbey_in: []const u32 = &[_]u32{ 1, 2, 3, 4, 5 };
     const abbey_out: []const u32 = &[_]u32{ 1, 2, 3, 4, 5, 6 };
     const aviva_in: []const u32 = &[_]u32{ 10, 11, 12, 13, 14 };

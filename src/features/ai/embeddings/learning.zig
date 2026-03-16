@@ -1,8 +1,8 @@
-//! Adaptive Learning Module for Personas
+//! Adaptive Learning Module for Profiles
 //!
 //! Tracks routing decisions and interaction outcomes to dynamically adjust
-//! persona selection weights over time. This enables the system to "learn"
-//! which personas perform best for certain users or domains.
+//! profile selection weights over time. This enables the system to "learn"
+//! which profiles perform best for certain users or domains.
 //!
 //! Features:
 //! - Exponential moving average for smooth weight updates
@@ -13,10 +13,10 @@
 const std = @import("std");
 const types = @import("types");
 
-/// Result of a single interaction with a persona.
+/// Result of a single interaction with a profile.
 pub const InteractionResult = struct {
-    /// The persona that was used.
-    persona: types.PersonaType,
+    /// The profile that was used.
+    profile: types.ProfileType,
     /// Success score from user feedback or automated evaluation (0.0 to 1.0).
     success_score: f32,
     /// Processing latency in milliseconds.
@@ -25,12 +25,12 @@ pub const InteractionResult = struct {
     timestamp: i64,
     /// Optional domain/category for domain-specific learning.
     domain: ?[]const u8 = null,
-    /// Optional user/session ID for personalized learning.
+    /// Optional user/session ID for profilelized learning.
     user_id: ?[]const u8 = null,
     /// Whether this was an explicit user correction.
     is_correction: bool = false,
-    /// The persona that should have been used (for corrections).
-    corrected_to: ?types.PersonaType = null,
+    /// The profile that should have been used (for corrections).
+    corrected_to: ?types.ProfileType = null,
 };
 
 /// Configuration for the adaptive learner.
@@ -41,9 +41,9 @@ pub const LearnerConfig = struct {
     learning_rate: f32 = 0.1,
     /// How much weight is decayed over time toward 1.0 (baseline).
     decay_rate: f32 = 0.95,
-    /// Minimum weight to prevent complete suppression of a persona.
+    /// Minimum weight to prevent complete suppression of a profile.
     min_weight: f32 = 0.5,
-    /// Maximum weight to prevent over-reliance on a single persona.
+    /// Maximum weight to prevent over-reliance on a single profile.
     max_weight: f32 = 1.5,
     /// Whether to enable domain-specific learning.
     enable_domain_learning: bool = true,
@@ -56,25 +56,25 @@ pub const LearnerConfig = struct {
 /// Domain-specific weight tracking.
 pub const DomainWeights = struct {
     domain: []const u8,
-    weights: std.AutoHashMapUnmanaged(types.PersonaType, f32),
+    weights: std.AutoHashMapUnmanaged(types.ProfileType, f32),
     interaction_count: usize = 0,
 };
 
-/// Logic for adjusting persona weights based on historical success.
+/// Logic for adjusting profile weights based on historical success.
 pub const AdaptiveLearner = struct {
     allocator: std.mem.Allocator,
     /// Configuration.
     config: LearnerConfig,
-    /// Map of persona types to their current success weights (centered at 1.0).
-    weights: std.AutoHashMapUnmanaged(types.PersonaType, f32),
+    /// Map of profile types to their current success weights (centered at 1.0).
+    weights: std.AutoHashMapUnmanaged(types.ProfileType, f32),
     /// Interaction history for trend analysis.
     history: std.ArrayListUnmanaged(InteractionResult),
     /// Domain-specific weight maps.
     domain_weights: std.StringHashMapUnmanaged(DomainWeights),
     /// User-specific weight maps.
-    user_weights: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(types.PersonaType, f32)),
+    user_weights: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(types.ProfileType, f32)),
     /// Correction tracking for learning from mistakes.
-    correction_counts: std.AutoHashMapUnmanaged(types.PersonaType, CorrectionStats),
+    correction_counts: std.AutoHashMapUnmanaged(types.ProfileType, CorrectionStats),
     /// Total interactions processed.
     total_interactions: usize = 0,
 
@@ -82,9 +82,9 @@ pub const AdaptiveLearner = struct {
 
     /// Statistics about routing corrections.
     pub const CorrectionStats = struct {
-        /// How many times this persona was incorrectly chosen.
+        /// How many times this profile was incorrectly chosen.
         incorrect_count: u32 = 0,
-        /// How many times this persona was the correct choice.
+        /// How many times this profile was the correct choice.
         correct_count: u32 = 0,
     };
 
@@ -139,19 +139,19 @@ pub const AdaptiveLearner = struct {
         try self.history.append(self.allocator, result);
 
         // Update global weights
-        try self.updateWeight(result.persona, result.success_score);
+        try self.updateWeight(result.profile, result.success_score);
 
         // Update domain-specific weights
         if (self.config.enable_domain_learning) {
             if (result.domain) |domain| {
-                try self.updateDomainWeight(domain, result.persona, result.success_score);
+                try self.updateDomainWeight(domain, result.profile, result.success_score);
             }
         }
 
         // Update user-specific weights
         if (self.config.enable_user_learning) {
             if (result.user_id) |user| {
-                try self.updateUserWeight(user, result.persona, result.success_score);
+                try self.updateUserWeight(user, result.profile, result.success_score);
             }
         }
 
@@ -166,9 +166,9 @@ pub const AdaptiveLearner = struct {
         }
     }
 
-    /// Update individual persona weight.
-    fn updateWeight(self: *Self, persona: types.PersonaType, success_score: f32) !void {
-        const current = self.weights.get(persona) orelse 1.0;
+    /// Update individual profile weight.
+    fn updateWeight(self: *Self, profile: types.ProfileType, success_score: f32) !void {
+        const current = self.weights.get(profile) orelse 1.0;
 
         // Adjust weight toward the outcome: new = old + lr * (target - old)
         // We normalize the target weight so that a score of 0.5 is "neutral" (1.0 weight)
@@ -179,11 +179,11 @@ pub const AdaptiveLearner = struct {
         // Clamp to configured bounds
         updated = std.math.clamp(updated, self.config.min_weight, self.config.max_weight);
 
-        try self.weights.put(self.allocator, persona, updated);
+        try self.weights.put(self.allocator, profile, updated);
     }
 
     /// Update domain-specific weight.
-    fn updateDomainWeight(self: *Self, domain: []const u8, persona: types.PersonaType, score: f32) !void {
+    fn updateDomainWeight(self: *Self, domain: []const u8, profile: types.ProfileType, score: f32) !void {
         const entry = try self.domain_weights.getOrPut(self.allocator, domain);
         if (!entry.found_existing) {
             entry.value_ptr.* = .{
@@ -192,42 +192,42 @@ pub const AdaptiveLearner = struct {
             };
         }
 
-        const current = entry.value_ptr.weights.get(persona) orelse 1.0;
+        const current = entry.value_ptr.weights.get(profile) orelse 1.0;
         const target = 0.5 + score;
         var updated = current + self.config.learning_rate * (target - current);
         updated = std.math.clamp(updated, self.config.min_weight, self.config.max_weight);
 
-        try entry.value_ptr.weights.put(self.allocator, persona, updated);
+        try entry.value_ptr.weights.put(self.allocator, profile, updated);
         entry.value_ptr.interaction_count += 1;
     }
 
     /// Update user-specific weight.
-    fn updateUserWeight(self: *Self, user_id: []const u8, persona: types.PersonaType, score: f32) !void {
+    fn updateUserWeight(self: *Self, user_id: []const u8, profile: types.ProfileType, score: f32) !void {
         const entry = try self.user_weights.getOrPut(self.allocator, user_id);
         if (!entry.found_existing) {
             entry.value_ptr.* = .{};
         }
 
-        const current = entry.value_ptr.get(persona) orelse 1.0;
+        const current = entry.value_ptr.get(profile) orelse 1.0;
         const target = 0.5 + score;
         var updated = current + self.config.learning_rate * (target - current);
         updated = std.math.clamp(updated, self.config.min_weight, self.config.max_weight);
 
-        try entry.value_ptr.put(self.allocator, persona, updated);
+        try entry.value_ptr.put(self.allocator, profile, updated);
     }
 
     /// Record a correction for learning.
     fn recordCorrection(self: *Self, result: InteractionResult) !void {
-        // Track that this persona was wrong
-        const incorrect = try self.correction_counts.getOrPut(self.allocator, result.persona);
+        // Track that this profile was wrong
+        const incorrect = try self.correction_counts.getOrPut(self.allocator, result.profile);
         if (!incorrect.found_existing) {
             incorrect.value_ptr.* = .{};
         }
         incorrect.value_ptr.incorrect_count += 1;
 
-        // Track that the corrected persona was right
-        if (result.corrected_to) |correct_persona| {
-            const correct = try self.correction_counts.getOrPut(self.allocator, correct_persona);
+        // Track that the corrected profile was right
+        if (result.corrected_to) |correct_profile| {
+            const correct = try self.correction_counts.getOrPut(self.allocator, correct_profile);
             if (!correct.found_existing) {
                 correct.value_ptr.* = .{};
             }
@@ -236,33 +236,33 @@ pub const AdaptiveLearner = struct {
             // Apply stronger weight adjustment for explicit corrections
             const correction_boost = self.config.learning_rate * 2.0;
 
-            // Penalize the incorrectly chosen persona
-            if (self.weights.get(result.persona)) |w| {
+            // Penalize the incorrectly chosen profile
+            if (self.weights.get(result.profile)) |w| {
                 const new_w = std.math.clamp(w - correction_boost, self.config.min_weight, self.config.max_weight);
-                try self.weights.put(self.allocator, result.persona, new_w);
+                try self.weights.put(self.allocator, result.profile, new_w);
             }
 
-            // Boost the correct persona
-            if (self.weights.get(correct_persona)) |w| {
+            // Boost the correct profile
+            if (self.weights.get(correct_profile)) |w| {
                 const new_w = std.math.clamp(w + correction_boost, self.config.min_weight, self.config.max_weight);
-                try self.weights.put(self.allocator, correct_persona, new_w);
+                try self.weights.put(self.allocator, correct_profile, new_w);
             }
         }
     }
 
-    /// Retrieve the current weight boost for a specific persona.
+    /// Retrieve the current weight boost for a specific profile.
     /// Returns 1.0 if no learning data exists.
-    pub fn getWeight(self: *const Self, persona: types.PersonaType) f32 {
-        return self.weights.get(persona) orelse 1.0;
+    pub fn getWeight(self: *const Self, profile: types.ProfileType) f32 {
+        return self.weights.get(profile) orelse 1.0;
     }
 
     /// Get weight considering domain context.
-    pub fn getWeightForDomain(self: *const Self, persona: types.PersonaType, domain: ?[]const u8) f32 {
-        var weight = self.weights.get(persona) orelse 1.0;
+    pub fn getWeightForDomain(self: *const Self, profile: types.ProfileType, domain: ?[]const u8) f32 {
+        var weight = self.weights.get(profile) orelse 1.0;
 
         if (domain) |d| {
             if (self.domain_weights.get(d)) |dw| {
-                const domain_weight = dw.weights.get(persona) orelse 1.0;
+                const domain_weight = dw.weights.get(profile) orelse 1.0;
                 // Blend global and domain weights (60% domain, 40% global)
                 weight = domain_weight * 0.6 + weight * 0.4;
             }
@@ -272,12 +272,12 @@ pub const AdaptiveLearner = struct {
     }
 
     /// Get weight considering user context.
-    pub fn getWeightForUser(self: *const Self, persona: types.PersonaType, user_id: ?[]const u8) f32 {
-        var weight = self.weights.get(persona) orelse 1.0;
+    pub fn getWeightForUser(self: *const Self, profile: types.ProfileType, user_id: ?[]const u8) f32 {
+        var weight = self.weights.get(profile) orelse 1.0;
 
         if (user_id) |uid| {
             if (self.user_weights.get(uid)) |uw| {
-                const user_weight = uw.get(persona) orelse 1.0;
+                const user_weight = uw.get(profile) orelse 1.0;
                 // Blend global and user weights (70% user, 30% global)
                 weight = user_weight * 0.7 + weight * 0.3;
             }
@@ -289,24 +289,24 @@ pub const AdaptiveLearner = struct {
     /// Get combined weight considering all context.
     pub fn getCombinedWeight(
         self: *const Self,
-        persona: types.PersonaType,
+        profile: types.ProfileType,
         domain: ?[]const u8,
         user_id: ?[]const u8,
     ) f32 {
-        const global = self.weights.get(persona) orelse 1.0;
+        const global = self.weights.get(profile) orelse 1.0;
 
         var domain_contrib: f32 = global;
         var user_contrib: f32 = global;
 
         if (domain) |d| {
             if (self.domain_weights.get(d)) |dw| {
-                domain_contrib = dw.weights.get(persona) orelse 1.0;
+                domain_contrib = dw.weights.get(profile) orelse 1.0;
             }
         }
 
         if (user_id) |uid| {
             if (self.user_weights.get(uid)) |uw| {
-                user_contrib = uw.get(persona) orelse 1.0;
+                user_contrib = uw.get(profile) orelse 1.0;
             }
         }
 
@@ -334,13 +334,13 @@ pub const AdaptiveLearner = struct {
         }
     }
 
-    /// Get current average success rate for a specific persona from recent history.
-    pub fn getAverageSuccess(self: *const Self, persona: types.PersonaType) f32 {
+    /// Get current average success rate for a specific profile from recent history.
+    pub fn getAverageSuccess(self: *const Self, profile: types.ProfileType) f32 {
         var count: usize = 0;
         var sum: f32 = 0;
 
         for (self.history.items) |item| {
-            if (item.persona == persona) {
+            if (item.profile == profile) {
                 count += 1;
                 sum += item.success_score;
             }
@@ -350,21 +350,21 @@ pub const AdaptiveLearner = struct {
         return sum / @as(f32, @floatFromInt(count));
     }
 
-    /// Get correction statistics for a persona.
-    pub fn getCorrectionStats(self: *const Self, persona: types.PersonaType) ?CorrectionStats {
-        return self.correction_counts.get(persona);
+    /// Get correction statistics for a profile.
+    pub fn getCorrectionStats(self: *const Self, profile: types.ProfileType) ?CorrectionStats {
+        return self.correction_counts.get(profile);
     }
 
     /// Get accuracy rate based on corrections.
-    pub fn getAccuracyRate(self: *const Self, persona: types.PersonaType) f32 {
-        const stats = self.correction_counts.get(persona) orelse return 1.0;
+    pub fn getAccuracyRate(self: *const Self, profile: types.ProfileType) f32 {
+        const stats = self.correction_counts.get(profile) orelse return 1.0;
         const total = stats.correct_count + stats.incorrect_count;
         if (total == 0) return 1.0;
         return @as(f32, @floatFromInt(stats.correct_count)) / @as(f32, @floatFromInt(total));
     }
 
-    /// Analyze trend for a persona over recent interactions.
-    pub fn analyzeTrend(self: *const Self, persona: types.PersonaType, window: usize) TrendAnalysis {
+    /// Analyze trend for a profile over recent interactions.
+    pub fn analyzeTrend(self: *const Self, profile: types.ProfileType, window: usize) TrendAnalysis {
         const items = self.history.items;
         if (items.len == 0) return .{ .trend = .stable, .change = 0.0 };
 
@@ -379,7 +379,7 @@ pub const AdaptiveLearner = struct {
         const midpoint = start + actual_window / 2;
 
         for (items[start..], start..) |item, i| {
-            if (item.persona != persona) continue;
+            if (item.profile != profile) continue;
 
             if (i < midpoint) {
                 first_half_sum += item.success_score;
@@ -464,7 +464,7 @@ test "AdaptiveLearner weight updates" {
 
     // Record a successful interaction
     try learner.recordInteraction(.{
-        .persona = .abbey,
+        .profile = .abbey,
         .success_score = 0.9,
         .timestamp = 1000,
     });
@@ -481,7 +481,7 @@ test "AdaptiveLearner domain weights" {
 
     // Record interactions in "code" domain favoring Aviva
     try learner.recordInteraction(.{
-        .persona = .aviva,
+        .profile = .aviva,
         .success_score = 0.95,
         .timestamp = 1000,
         .domain = "code",
@@ -498,7 +498,7 @@ test "AdaptiveLearner correction learning" {
 
     // Initial weight
     try learner.recordInteraction(.{
-        .persona = .aviva,
+        .profile = .aviva,
         .success_score = 0.5,
         .timestamp = 1000,
     });
@@ -507,7 +507,7 @@ test "AdaptiveLearner correction learning" {
 
     // Record a correction
     try learner.recordInteraction(.{
-        .persona = .aviva,
+        .profile = .aviva,
         .success_score = 0.0,
         .timestamp = 2000,
         .is_correction = true,
@@ -528,7 +528,7 @@ test "AdaptiveLearner trend analysis" {
     // Record improving trend
     for (0..10) |i| {
         try learner.recordInteraction(.{
-            .persona = .abbey,
+            .profile = .abbey,
             .success_score = 0.5 + @as(f32, @floatFromInt(i)) * 0.05, // 0.5 -> 0.95
             .timestamp = @intCast(i * 1000),
         });

@@ -491,7 +491,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
                     .output = "",
                     .error_message = "execution failed",
                     .duration_ns = dur,
-                    .assigned_persona = "",
+                    .assigned_profile = "",
                 }) catch {};
                 total_failed += 1;
                 continue;
@@ -510,7 +510,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
                 .output = result_text,
                 .error_message = "",
                 .duration_ns = dur,
-                .assigned_persona = step.assigned_persona,
+                .assigned_profile = step.assigned_profile,
             }) catch {};
 
             // Print step status line

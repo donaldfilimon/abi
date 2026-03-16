@@ -10,7 +10,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 > Web Module - HTTP Client and Web Utilities
 
 This module provides HTTP client functionality, weather API integration,
-and persona API handlers for the ABI framework. It wraps Zig's standard
+and profile API handlers for the ABI framework. It wraps Zig's standard
 library HTTP client with convenient utilities for common web operations.
 
 ## Features
@@ -24,7 +24,7 @@ library HTTP client with convenient utilities for common web operations.
 - Coordinate-based weather forecasts
 - Location validation and URL building
 
-- **Persona API**: HTTP handlers and routes for AI persona system
+- **Profile API**: HTTP handlers and routes for AI profile system
 - Chat request/response handlers
 - REST API routes with OpenAPI documentation
 - Health check and metrics endpoints
@@ -187,4 +187,4 @@ Parse a JSON response.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

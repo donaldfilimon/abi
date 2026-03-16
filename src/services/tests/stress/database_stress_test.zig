@@ -15,6 +15,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const os = abi.foundation.os;
 const db = abi.database;
 const profiles = @import("profiles.zig");
 const helpers = @import("../helpers.zig");
@@ -214,6 +215,7 @@ test "database stress: search throughput" {
 }
 
 test "database stress: concurrent search and write" {
+    if (comptime os.no_os) return error.SkipZigTest;
     if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
@@ -448,6 +450,7 @@ test "database stress: insert delete cycle" {
 // ============================================================================
 
 test "database stress: optimize under read pressure" {
+    if (comptime os.no_os) return error.SkipZigTest;
     if (!build_options.feat_database) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;

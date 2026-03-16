@@ -33,7 +33,7 @@ pub const meta: command_mod.Meta = .{
         .{ .name = "network", .description = "Open network status dashboard", .handler = network_cmd.run },
         .{ .name = "bench", .description = "Open benchmark results dashboard", .handler = bench_cmd.run },
         .{ .name = "brain", .description = "Open brain visualization dashboard", .handler = brain_cmd.run },
-        .{ .name = "chat", .description = "Open multi-persona chat dashboard", .handler = chat_cmd.run },
+        .{ .name = "chat", .description = "Open multi-profile chat dashboard", .handler = chat_cmd.run },
         .{ .name = "editor", .description = "Open an inline terminal text editor", .handler = editor_cmd.run },
         .{ .name = "dashboard", .description = "Open the shared tabbed shell (alias)", .handler = dashboard_cmd.run },
     },
@@ -91,7 +91,7 @@ pub fn printHelp() void {
         \\  network              Open network status dashboard
         \\  bench                Open benchmark results dashboard
         \\  brain                Open brain visualization dashboard
-        \\  chat                 Open multi-persona chat dashboard
+        \\  chat                 Open multi-profile chat dashboard
         \\  dashboard            Open the shared tabbed shell
         \\  editor [file]        Open the inline terminal editor
         \\  help                 Show this help

@@ -295,7 +295,7 @@ pub fn main(_: std.process.Init) !void {
         allocator,
         io,
         "^[[:space:]]*[^/].*\\babi\\.(features|services)\\.",
-        "compat abi.features.* / abi.services.* usage in src/build/tools; use canonical abi.<domain> exports",
+        "compat bridge usage in src/build/tools; use canonical abi.<domain> exports",
         &errors,
         "--glob '!**/stub_surface_check.zig' ",
     );

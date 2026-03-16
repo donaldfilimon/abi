@@ -18,7 +18,7 @@ const std = @import("std");
 const abi = @import("abi");
 const mod = @import("mod.zig");
 const framework = @import("../system/framework.zig");
-const simd = abi.services.simd;
+const simd = abi.foundation.simd;
 
 /// Vector database reference baselines
 pub const VectorDbBaseline = struct {
@@ -133,7 +133,7 @@ fn benchmarkAbiInsert(
         storage.deinit(tracked);
     }
 
-    var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.foundation.time.Timer.start() catch return error.TimerFailed;
 
     for (vectors) |vec| {
         const copy = try tracked.dupe(f32, vec);
@@ -168,7 +168,7 @@ fn benchmarkAbiQuery(
     var total_recall: f64 = 0.0;
 
     for (queries, 0..) |query, qi| {
-        var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
+        var timer = abi.foundation.time.Timer.start() catch return error.TimerFailed;
 
         // Use SIMD for distance computation
         var distances = try allocator.alloc(f32, vectors.len);

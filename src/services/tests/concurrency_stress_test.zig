@@ -14,8 +14,8 @@
 //! - Data corruption
 
 const std = @import("std");
-const os = @import("../shared/os.zig");
 const abi = @import("abi");
+const os = abi.foundation.os;
 const runtime = abi.runtime;
 const helpers = @import("helpers.zig");
 

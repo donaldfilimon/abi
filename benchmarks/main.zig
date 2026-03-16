@@ -263,7 +263,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     printHeader(allocator);
 
-    var timer = abi.services.shared.time.Timer.start() catch {
+    var timer = abi.foundation.time.Timer.start() catch {
         std.debug.print("Timer not supported on this platform\n", .{});
         return;
     };

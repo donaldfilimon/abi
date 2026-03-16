@@ -1,26 +1,19 @@
 ---
-title: observability API
-purpose: Generated API reference for observability
+title: inference API
+purpose: Generated API reference for inference
 last_updated: 2026-03-16
 target_zig_version: 0.16.0-dev.2905+5d71e3051
 ---
 
-# observability
+# inference
 
-> Observability Module
+> Top-level inference primitives.
 
-Unified observability with metrics, tracing, and profiling.
+This module is the canonical public home for ABI inference runtime types.
 
-## Features
-- Metrics collection and export (Prometheus, OpenTelemetry, StatsD)
-- Distributed tracing
-- Performance profiling
-- Circuit breakers and error aggregation
-- Alerting rules and notifications
+**Source:** [`src/inference/mod.zig`](../../src/inference/mod.zig)
 
-**Source:** [`src/features/observability/mod.zig`](../../src/features/observability/mod.zig)
-
-**Build flag:** `-Dfeat_profiling=true`
+**Availability:** Always enabled
 
 ---
 

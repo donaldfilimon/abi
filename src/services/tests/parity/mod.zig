@@ -369,7 +369,7 @@ const web_specs = [_]DeclSpec{
     .{ .name = "ChatRequest", .kind = .type_decl },
     .{ .name = "ChatResponse", .kind = .type_decl },
     .{ .name = "ChatResult", .kind = .type_decl },
-    .{ .name = "PersonaRouter", .kind = .type_decl },
+    .{ .name = "ProfileRouter", .kind = .type_decl },
     .{ .name = "Route", .kind = .type_decl },
     .{ .name = "RouteContext", .kind = .type_decl },
     .{ .name = "handlers", .kind = .type_decl },

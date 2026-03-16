@@ -486,7 +486,7 @@ pub const Topic = struct {
         database,
         devops,
         general,
-        personal,
+        profilel,
         creative,
     };
 

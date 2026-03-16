@@ -1,33 +1,33 @@
-//! Persona Seed Data Module
+//! Profile Seed Data Module
 //!
-//! Provides characteristic embeddings and configuration for each persona.
-//! These seed vectors are used to initialize the persona embedding index
+//! Provides characteristic embeddings and configuration for each profile.
+//! These seed vectors are used to initialize the profile embedding index
 //! and serve as baseline behavioral profiles.
 
 const std = @import("std");
 const types = @import("types");
 
 /// Characteristic text descriptions used for embedding generation.
-/// Each persona has multiple characteristic strings that capture its core traits.
-pub const PersonaCharacteristics = struct {
-    /// Display name for the persona.
+/// Each profile has multiple characteristic strings that capture its core traits.
+pub const ProfileCharacteristics = struct {
+    /// Display name for the profile.
     name: []const u8,
-    /// Short description of the persona's role.
+    /// Short description of the profile's role.
     description: []const u8,
     /// Characteristic phrases for embedding.
     characteristics: []const []const u8,
-    /// Keywords that strongly indicate this persona.
+    /// Keywords that strongly indicate this profile.
     keywords: []const []const u8,
     /// Temperature setting for response generation.
     temperature: f32,
-    /// Whether this persona prioritizes empathy.
+    /// Whether this profile prioritizes empathy.
     empathy_priority: bool,
-    /// Whether this persona prioritizes technical accuracy.
+    /// Whether this profile prioritizes technical accuracy.
     technical_priority: bool,
 };
 
-/// Abbey persona characteristics - empathetic polymath.
-pub const ABBEY_CHARACTERISTICS = PersonaCharacteristics{
+/// Abbey profile characteristics - empathetic polymath.
+pub const ABBEY_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Abbey",
     .description = "Empathetic polymath for supportive, deep technical assistance",
     .characteristics = &[_][]const u8{
@@ -59,8 +59,8 @@ pub const ABBEY_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = false,
 };
 
-/// Assistant persona characteristics - general purpose.
-pub const ASSISTANT_CHARACTERISTICS = PersonaCharacteristics{
+/// Assistant profile characteristics - general purpose.
+pub const ASSISTANT_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Assistant",
     .description = "General-purpose helpful assistant",
     .characteristics = &[_][]const u8{
@@ -81,8 +81,8 @@ pub const ASSISTANT_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = false,
 };
 
-/// Coder persona characteristics - programming specialist.
-pub const CODER_CHARACTERISTICS = PersonaCharacteristics{
+/// Coder profile characteristics - programming specialist.
+pub const CODER_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Coder",
     .description = "Code-focused programming specialist",
     .characteristics = &[_][]const u8{
@@ -104,8 +104,8 @@ pub const CODER_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = true,
 };
 
-/// Writer persona characteristics - creative writing.
-pub const WRITER_CHARACTERISTICS = PersonaCharacteristics{
+/// Writer profile characteristics - creative writing.
+pub const WRITER_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Writer",
     .description = "Creative writing and content generation specialist",
     .characteristics = &[_][]const u8{
@@ -126,8 +126,8 @@ pub const WRITER_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = false,
 };
 
-/// Analyst persona characteristics - research and analysis.
-pub const ANALYST_CHARACTERISTICS = PersonaCharacteristics{
+/// Analyst profile characteristics - research and analysis.
+pub const ANALYST_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Analyst",
     .description = "Data analysis and research specialist",
     .characteristics = &[_][]const u8{
@@ -148,8 +148,8 @@ pub const ANALYST_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = true,
 };
 
-/// Companion persona characteristics - conversational support.
-pub const COMPANION_CHARACTERISTICS = PersonaCharacteristics{
+/// Companion profile characteristics - conversational support.
+pub const COMPANION_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Companion",
     .description = "Friendly conversational companion",
     .characteristics = &[_][]const u8{
@@ -170,8 +170,8 @@ pub const COMPANION_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = false,
 };
 
-/// Docs persona characteristics - documentation specialist.
-pub const DOCS_CHARACTERISTICS = PersonaCharacteristics{
+/// Docs profile characteristics - documentation specialist.
+pub const DOCS_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Docs",
     .description = "Technical documentation specialist",
     .characteristics = &[_][]const u8{
@@ -192,8 +192,8 @@ pub const DOCS_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = true,
 };
 
-/// Reviewer persona characteristics - code review.
-pub const REVIEWER_CHARACTERISTICS = PersonaCharacteristics{
+/// Reviewer profile characteristics - code review.
+pub const REVIEWER_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Reviewer",
     .description = "Code and logic reviewer",
     .characteristics = &[_][]const u8{
@@ -214,8 +214,8 @@ pub const REVIEWER_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = true,
 };
 
-/// Minimal persona characteristics - terse responses.
-pub const MINIMAL_CHARACTERISTICS = PersonaCharacteristics{
+/// Minimal profile characteristics - terse responses.
+pub const MINIMAL_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Minimal",
     .description = "Minimal, direct response model",
     .characteristics = &[_][]const u8{
@@ -234,8 +234,8 @@ pub const MINIMAL_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = false,
 };
 
-/// Aviva persona characteristics - direct expert.
-pub const AVIVA_CHARACTERISTICS = PersonaCharacteristics{
+/// Aviva profile characteristics - direct expert.
+pub const AVIVA_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Aviva",
     .description = "Direct expert for concise, factual, and technically forceful output",
     .characteristics = &[_][]const u8{
@@ -269,8 +269,8 @@ pub const AVIVA_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = true,
 };
 
-/// Abi persona characteristics - router and moderator.
-pub const ABI_CHARACTERISTICS = PersonaCharacteristics{
+/// Abi profile characteristics - router and moderator.
+pub const ABI_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Abi",
     .description = "Content moderation, sentiment analysis, and routing layer",
     .characteristics = &[_][]const u8{
@@ -281,7 +281,7 @@ pub const ABI_CHARACTERISTICS = PersonaCharacteristics{
         "provides meta-level system information",
         "enforces content policies and guidelines",
         "detects sensitive or harmful content",
-        "orchestrates multi-persona conversations",
+        "orchestrates multi-profile conversations",
     },
     .keywords = &[_][]const u8{
         "system",
@@ -296,8 +296,8 @@ pub const ABI_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = false,
 };
 
-/// Ralph persona characteristics - iterative agent.
-pub const RALPH_CHARACTERISTICS = PersonaCharacteristics{
+/// Ralph profile characteristics - iterative agent.
+pub const RALPH_CHARACTERISTICS = ProfileCharacteristics{
     .name = "Ralph",
     .description = "Iterative agent loop specialist",
     .characteristics = &[_][]const u8{
@@ -318,9 +318,32 @@ pub const RALPH_CHARACTERISTICS = PersonaCharacteristics{
     .technical_priority = true,
 };
 
-/// Get persona characteristics by type.
-pub fn getCharacteristics(persona: types.PersonaType) PersonaCharacteristics {
-    return switch (persona) {
+/// Ava profile characteristics - locally-trained assistant.
+pub const AVA_CHARACTERISTICS = ProfileCharacteristics{
+    .name = "Ava",
+    .description = "Locally-trained versatile assistant based on gpt-oss",
+    .characteristics = &[_][]const u8{
+        "local inference without cloud dependencies",
+        "general knowledge and reasoning",
+        "code generation across multiple languages",
+        "task decomposition and step-by-step solving",
+        "fast response times and practical outputs",
+    },
+    .keywords = &[_][]const u8{
+        "local",
+        "offline",
+        "fast",
+        "practical",
+        "generate",
+    },
+    .temperature = 0.6,
+    .empathy_priority = false,
+    .technical_priority = true,
+};
+
+/// Get profile characteristics by type.
+pub fn getCharacteristics(profile: types.ProfileType) ProfileCharacteristics {
+    return switch (profile) {
         .assistant => ASSISTANT_CHARACTERISTICS,
         .coder => CODER_CHARACTERISTICS,
         .writer => WRITER_CHARACTERISTICS,
@@ -333,11 +356,12 @@ pub fn getCharacteristics(persona: types.PersonaType) PersonaCharacteristics {
         .ralph => RALPH_CHARACTERISTICS,
         .aviva => AVIVA_CHARACTERISTICS,
         .abi => ABI_CHARACTERISTICS,
+        .ava => AVA_CHARACTERISTICS,
     };
 }
 
-/// Get all personas with their characteristics.
-pub fn getAllPersonas() [12]PersonaCharacteristics {
+/// Get all profiles with their characteristics.
+pub fn getAllProfiles() [13]ProfileCharacteristics {
     return .{
         ASSISTANT_CHARACTERISTICS,
         CODER_CHARACTERISTICS,
@@ -351,12 +375,13 @@ pub fn getAllPersonas() [12]PersonaCharacteristics {
         ABBEY_CHARACTERISTICS,
         AVIVA_CHARACTERISTICS,
         RALPH_CHARACTERISTICS,
+        AVA_CHARACTERISTICS,
     };
 }
 
 /// Get the combined characteristic text for embedding generation.
-pub fn getCombinedCharacteristics(allocator: std.mem.Allocator, persona: types.PersonaType) ![]const u8 {
-    const chars = getCharacteristics(persona);
+pub fn getCombinedCharacteristics(allocator: std.mem.Allocator, profile: types.ProfileType) ![]const u8 {
+    const chars = getCharacteristics(profile);
 
     var result: std.ArrayListUnmanaged(u8) = .empty;
     errdefer result.deinit(allocator);
@@ -376,34 +401,34 @@ pub fn getCombinedCharacteristics(allocator: std.mem.Allocator, persona: types.P
     return result.toOwnedSlice(allocator);
 }
 
-/// Domain mapping to preferred personas.
-pub const DomainPersonaMapping = struct {
+/// Domain mapping to preferred profiles.
+pub const DomainProfileMapping = struct {
     domain: []const u8,
-    primary_persona: types.PersonaType,
-    secondary_persona: ?types.PersonaType,
+    primary_profile: types.ProfileType,
+    secondary_profile: ?types.ProfileType,
     weight: f32,
 };
 
-/// Domain-specific persona preferences.
-pub const DOMAIN_MAPPINGS = [_]DomainPersonaMapping{
+/// Domain-specific profile preferences.
+pub const DOMAIN_MAPPINGS = [_]DomainProfileMapping{
     // Technical domains prefer Aviva
-    .{ .domain = "programming", .primary_persona = .aviva, .secondary_persona = .abbey, .weight = 0.8 },
-    .{ .domain = "code", .primary_persona = .aviva, .secondary_persona = .abbey, .weight = 0.85 },
-    .{ .domain = "debugging", .primary_persona = .aviva, .secondary_persona = .abbey, .weight = 0.9 },
-    .{ .domain = "algorithm", .primary_persona = .aviva, .secondary_persona = null, .weight = 0.85 },
-    .{ .domain = "database", .primary_persona = .aviva, .secondary_persona = .abbey, .weight = 0.75 },
-    .{ .domain = "infrastructure", .primary_persona = .aviva, .secondary_persona = .abbey, .weight = 0.7 },
+    .{ .domain = "programming", .primary_profile = .aviva, .secondary_profile = .abbey, .weight = 0.8 },
+    .{ .domain = "code", .primary_profile = .aviva, .secondary_profile = .abbey, .weight = 0.85 },
+    .{ .domain = "debugging", .primary_profile = .aviva, .secondary_profile = .abbey, .weight = 0.9 },
+    .{ .domain = "algorithm", .primary_profile = .aviva, .secondary_profile = null, .weight = 0.85 },
+    .{ .domain = "database", .primary_profile = .aviva, .secondary_profile = .abbey, .weight = 0.75 },
+    .{ .domain = "infrastructure", .primary_profile = .aviva, .secondary_profile = .abbey, .weight = 0.7 },
 
     // Emotional/support domains prefer Abbey
-    .{ .domain = "frustration", .primary_persona = .abbey, .secondary_persona = null, .weight = 0.95 },
-    .{ .domain = "confusion", .primary_persona = .abbey, .secondary_persona = .aviva, .weight = 0.85 },
-    .{ .domain = "learning", .primary_persona = .abbey, .secondary_persona = .aviva, .weight = 0.7 },
-    .{ .domain = "explanation", .primary_persona = .abbey, .secondary_persona = .aviva, .weight = 0.75 },
-    .{ .domain = "support", .primary_persona = .abbey, .secondary_persona = null, .weight = 0.9 },
+    .{ .domain = "frustration", .primary_profile = .abbey, .secondary_profile = null, .weight = 0.95 },
+    .{ .domain = "confusion", .primary_profile = .abbey, .secondary_profile = .aviva, .weight = 0.85 },
+    .{ .domain = "learning", .primary_profile = .abbey, .secondary_profile = .aviva, .weight = 0.7 },
+    .{ .domain = "explanation", .primary_profile = .abbey, .secondary_profile = .aviva, .weight = 0.75 },
+    .{ .domain = "support", .primary_profile = .abbey, .secondary_profile = null, .weight = 0.9 },
 };
 
 /// Find the best domain mapping for a given query.
-pub fn findDomainMapping(domain: []const u8) ?DomainPersonaMapping {
+pub fn findDomainMapping(domain: []const u8) ?DomainProfileMapping {
     for (DOMAIN_MAPPINGS) |mapping| {
         if (std.mem.eql(u8, mapping.domain, domain)) {
             return mapping;
@@ -412,7 +437,7 @@ pub fn findDomainMapping(domain: []const u8) ?DomainPersonaMapping {
     return null;
 }
 
-/// Persona response templates for common scenarios.
+/// Profile response templates for common scenarios.
 pub const ResponseTemplates = struct {
     /// Prefix added before empathetic responses.
     empathy_prefix: []const u8,
@@ -436,7 +461,7 @@ pub const AVIVA_TEMPLATES = ResponseTemplates{
 
 // Tests
 
-test "getCharacteristics returns correct persona" {
+test "getCharacteristics returns correct profile" {
     const abbey = getCharacteristics(.abbey);
     try std.testing.expectEqualStrings("Abbey", abbey.name);
     try std.testing.expect(abbey.empathy_priority);
@@ -458,11 +483,11 @@ test "getCombinedCharacteristics allocates string" {
 test "findDomainMapping returns correct mapping" {
     const mapping = findDomainMapping("programming");
     try std.testing.expect(mapping != null);
-    try std.testing.expect(mapping.?.primary_persona == .aviva);
+    try std.testing.expect(mapping.?.primary_profile == .aviva);
 
     const frustration = findDomainMapping("frustration");
     try std.testing.expect(frustration != null);
-    try std.testing.expect(frustration.?.primary_persona == .abbey);
+    try std.testing.expect(frustration.?.primary_profile == .abbey);
 }
 
 test {

@@ -1,12 +1,12 @@
-//! Finance Industry Persona Templates
+//! Finance Industry Profile Templates
 //!
-//! Pre-configured persona settings for financial services:
+//! Pre-configured profile settings for financial services:
 //! - Customer Service (Abbey): Account inquiries, product recommendations
 //! - Fraud Detection (Aviva): Transaction analysis, anomaly detection
 //! - Regulatory Compliance (Abi): BSA/AML monitoring, financial regulations
 
 const std = @import("std");
-const persona_config = @import("../config.zig");
+const profile_config = @import("../config.zig");
 
 /// Finance-specific routing context.
 pub const FinanceRoutingContext = struct {
@@ -32,10 +32,10 @@ const default_compliance_keywords = [_][]const u8{
     "FINRA",      "SEC",        "disclosure", "fiduciary",
 };
 
-/// Create a finance-tuned MultiPersonaConfig.
-pub fn financeConfig() persona_config.MultiPersonaConfig {
+/// Create a finance-tuned MultiProfileConfig.
+pub fn financeConfig() profile_config.MultiProfileConfig {
     return .{
-        .default_persona = .abbey,
+        .default_profile = .abbey,
         .enable_dynamic_routing = true,
         .routing_confidence_threshold = 0.55,
         .abbey = .{
@@ -114,7 +114,7 @@ fn indexOfCaseInsensitive(haystack: []const u8, needle: []const u8) ?usize {
 
 test "financeConfig creates valid config" {
     const cfg = financeConfig();
-    try std.testing.expect(cfg.default_persona == .abbey);
+    try std.testing.expect(cfg.default_profile == .abbey);
     try std.testing.expect(cfg.aviva.include_disclaimers);
     try std.testing.expect(cfg.abi.content_filter_level == .strict);
 }

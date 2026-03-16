@@ -4,10 +4,11 @@
 //! and rebuild the CLI entirely natively using Zig.
 
 const std = @import("std");
+const abi = @import("abi");
 const context_mod = @import("../../framework/context.zig");
 const command_mod = @import("../../command.zig");
 const utils = @import("../../utils/mod.zig");
-const os = @import("abi").services.shared.os;
+const os = abi.foundation.os;
 
 pub const meta: command_mod.Meta = .{
     .name = "update",

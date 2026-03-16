@@ -3,8 +3,11 @@
 //! Exports trained models to GGUF format.
 
 const std = @import("std");
-const abi = @import("abi");
-const db = abi.database;
+const build_options = @import("build_options");
+const db = if (build_options.feat_database)
+    @import("../../database/mod.zig")
+else
+    @import("../../database/stub.zig");
 const training = @import("../training/mod.zig");
 
 pub fn exportGguf(

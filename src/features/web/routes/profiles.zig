@@ -1,15 +1,15 @@
-//! Persona API Routes
+//! Profile API Routes
 //!
-//! Defines HTTP routes for the Multi-Persona AI Assistant API.
+//! Defines HTTP routes for the Multi-Profile AI Assistant API.
 //! Can be integrated with any HTTP server framework.
 //!
 //! Routes:
 //! - POST /api/v1/chat              - Auto-routing chat
 //! - POST /api/v1/chat/abbey        - Abbey-specific chat
 //! - POST /api/v1/chat/aviva        - Aviva-specific chat
-//! - GET  /api/v1/personas          - List personas
-//! - GET  /api/v1/personas/metrics  - Get metrics
-//! - GET  /api/v1/personas/health   - Health check
+//! - GET  /api/v1/profiles          - List profiles
+//! - GET  /api/v1/profiles/metrics  - Get metrics
+//! - GET  /api/v1/profiles/health   - Health check
 
 const std = @import("std");
 const chat = @import("../handlers/chat.zig");
@@ -56,7 +56,7 @@ pub const RouteContext = struct {
     allocator: std.mem.Allocator,
     /// Request body.
     body: []const u8,
-    /// Path parameters (e.g., persona name).
+    /// Path parameters (e.g., profile name).
     path_params: std.StringHashMapUnmanaged([]const u8),
     /// Query parameters.
     query_params: std.StringHashMapUnmanaged([]const u8),
@@ -139,18 +139,18 @@ fn safeErrorMessage(err: anyerror) []const u8 {
 }
 
 /// Handle POST /api/v1/chat - Auto-routing chat.
-fn handlePersonaChat(ctx: *RouteContext, persona: []const u8) RouteError!void {
-    const forced_persona: ?types.PersonaType = if (std.mem.eql(u8, persona, "chat"))
+fn handleProfileChat(ctx: *RouteContext, profile: []const u8) RouteError!void {
+    const forced_profile: ?types.ProfileType = if (std.mem.eql(u8, profile, "chat"))
         null
     else
-        chat.parsePersonaType(persona);
+        chat.parseProfileType(profile);
 
-    if (!std.mem.eql(u8, persona, "chat") and forced_persona == null) {
-        try ctx.writeError(404, "NOT_FOUND", "Persona not found");
+    if (!std.mem.eql(u8, profile, "chat") and forced_profile == null) {
+        try ctx.writeError(404, "NOT_FOUND", "Profile not found");
         return RouteError.NotFound;
     }
 
-    const result = ctx.chat_handler.handleChatWithPersonaResult(ctx.body, forced_persona) catch |err| {
+    const result = ctx.chat_handler.handleChatWithProfileResult(ctx.body, forced_profile) catch |err| {
         std.log.err("chat handler failed: {t}", .{err});
         try ctx.writeError(500, "INTERNAL_ERROR", safeErrorMessage(err));
         return;
@@ -162,21 +162,21 @@ fn handlePersonaChat(ctx: *RouteContext, persona: []const u8) RouteError!void {
 }
 
 fn handleChat(ctx: *RouteContext) RouteError!void {
-    return handlePersonaChat(ctx, "chat");
+    return handleProfileChat(ctx, "chat");
 }
 
 fn handleAbbeyChat(ctx: *RouteContext) RouteError!void {
-    return handlePersonaChat(ctx, "abbey");
+    return handleProfileChat(ctx, "abbey");
 }
 
 fn handleAvivaChat(ctx: *RouteContext) RouteError!void {
-    return handlePersonaChat(ctx, "aviva");
+    return handleProfileChat(ctx, "aviva");
 }
 
-fn handleListPersonas(ctx: *RouteContext) RouteError!void {
-    const response = ctx.chat_handler.listPersonas() catch |err| {
+fn handleListProfiles(ctx: *RouteContext) RouteError!void {
+    const response = ctx.chat_handler.listProfiles() catch |err| {
         // Log the actual error server-side for debugging
-        std.log.err("listPersonas failed: {t}", .{err});
+        std.log.err("listProfiles failed: {t}", .{err});
         // Return sanitized error to client
         try ctx.writeError(500, "INTERNAL_ERROR", safeErrorMessage(err));
         return;
@@ -185,7 +185,7 @@ fn handleListPersonas(ctx: *RouteContext) RouteError!void {
     try ctx.writeJson(response);
 }
 
-/// Handle GET /api/v1/personas/metrics - Get metrics.
+/// Handle GET /api/v1/profiles/metrics - Get metrics.
 fn handleGetMetrics(ctx: *RouteContext) RouteError!void {
     const response = ctx.chat_handler.getMetrics() catch |err| {
         // Log the actual error server-side for debugging
@@ -198,7 +198,7 @@ fn handleGetMetrics(ctx: *RouteContext) RouteError!void {
     try ctx.writeJson(response);
 }
 
-/// Handle GET /api/v1/personas/health - Health check.
+/// Handle GET /api/v1/profiles/health - Health check.
 fn handleHealthCheck(ctx: *RouteContext) RouteError!void {
     var response_obj = std.json.ObjectMap.init(ctx.allocator);
     defer response_obj.deinit();
@@ -209,9 +209,9 @@ fn handleHealthCheck(ctx: *RouteContext) RouteError!void {
     // Add health details if checker is available
     if (ctx.health_checker) |checker| {
         const aggregate = checker.getAggregateHealth();
-        try response_obj.put("healthy_personas", std.json.Value{ .integer = @intCast(aggregate.healthy_count) });
-        try response_obj.put("degraded_personas", std.json.Value{ .integer = @intCast(aggregate.degraded_count) });
-        try response_obj.put("unhealthy_personas", std.json.Value{ .integer = @intCast(aggregate.unhealthy_count) });
+        try response_obj.put("healthy_profiles", std.json.Value{ .integer = @intCast(aggregate.healthy_count) });
+        try response_obj.put("degraded_profiles", std.json.Value{ .integer = @intCast(aggregate.degraded_count) });
+        try response_obj.put("unhealthy_profiles", std.json.Value{ .integer = @intCast(aggregate.unhealthy_count) });
 
         const status_str = switch (aggregate.getOverallStatus()) {
             .healthy => "healthy",
@@ -231,13 +231,13 @@ fn handleHealthCheck(ctx: *RouteContext) RouteError!void {
     try ctx.writeJson(payload);
 }
 
-/// All persona API routes.
+/// All profile API routes.
 pub const ROUTES = [_]Route{
     .{
         .path = "/api/v1/chat",
         .method = .POST,
         .handler = handleChat,
-        .description = "Send a chat message with auto-routing to best persona",
+        .description = "Send a chat message with auto-routing to best profile",
     },
     .{
         .path = "/api/v1/chat/abbey",
@@ -252,26 +252,26 @@ pub const ROUTES = [_]Route{
         .description = "Send a chat message to Aviva (direct expert)",
     },
     .{
-        .path = "/api/v1/personas",
+        .path = "/api/v1/profiles",
         .method = .GET,
-        .handler = handleListPersonas,
-        .description = "List available personas",
+        .handler = handleListProfiles,
+        .description = "List available profiles",
     },
     .{
-        .path = "/api/v1/personas/metrics",
+        .path = "/api/v1/profiles/metrics",
         .method = .GET,
         .handler = handleGetMetrics,
-        .description = "Get persona metrics and statistics",
+        .description = "Get profile metrics and statistics",
     },
     .{
-        .path = "/api/v1/personas/health",
+        .path = "/api/v1/profiles/health",
         .method = .GET,
         .handler = handleHealthCheck,
         .description = "Health check endpoint",
     },
 };
 
-/// Router for persona API.
+/// Router for profile API.
 pub const Router = struct {
     allocator: std.mem.Allocator,
     routes: []const Route,
@@ -355,9 +355,9 @@ pub fn generateOpenApiSpec(allocator: std.mem.Allocator) ![]const u8 {
         \\{
         \\  "openapi": "3.0.0",
         \\  "info": {
-        \\    "title": "Multi-Persona AI Assistant API",
+        \\    "title": "Multi-Profile AI Assistant API",
         \\    "version": "1.0.0",
-        \\    "description": "API for interacting with the Multi-Persona AI Assistant"
+        \\    "description": "API for interacting with the Multi-Profile AI Assistant"
         \\  },
         \\  "paths": {
         \\

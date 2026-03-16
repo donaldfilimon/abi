@@ -1,14 +1,14 @@
-//! Persona Chat Handler
+//! Profile Chat Handler
 //!
-//! Handles HTTP requests for the Multi-Persona AI Assistant.
+//! Handles HTTP requests for the Multi-Profile AI Assistant.
 //! Provides request parsing, response formatting, and error handling.
 //!
 //! API Endpoints:
-//! - POST /api/v1/chat - Auto-routing to best persona
-//! - POST /api/v1/chat/abbey - Force Abbey persona
-//! - POST /api/v1/chat/aviva - Force Aviva persona
-//! - GET /api/v1/personas - List available personas
-//! - GET /api/v1/personas/metrics - Get persona metrics
+//! - POST /api/v1/chat - Auto-routing to best profile
+//! - POST /api/v1/chat/abbey - Force Abbey profile
+//! - POST /api/v1/chat/aviva - Force Aviva profile
+//! - GET /api/v1/profiles - List available profiles
+//! - GET /api/v1/profiles/metrics - Get profile metrics
 //!
 //! Rate Limiting:
 //! - 100 requests per minute per user (token bucket algorithm)
@@ -37,8 +37,8 @@ pub const ChatRequest = struct {
     user_id: ?[]const u8 = null,
     /// Session/conversation ID for context.
     session_id: ?[]const u8 = null,
-    /// Preferred persona (null for auto-routing).
-    persona: ?[]const u8 = null,
+    /// Preferred profile (null for auto-routing).
+    profile: ?[]const u8 = null,
     /// Additional context or system instructions.
     context: ?[]const u8 = null,
     /// Maximum response tokens.
@@ -50,7 +50,7 @@ pub const ChatRequest = struct {
         allocator.free(self.content);
         if (self.user_id) |value| allocator.free(value);
         if (self.session_id) |value| allocator.free(value);
-        if (self.persona) |value| allocator.free(value);
+        if (self.profile) |value| allocator.free(value);
         if (self.context) |value| allocator.free(value);
     }
 
@@ -59,7 +59,7 @@ pub const ChatRequest = struct {
             .content = try allocator.dupe(u8, other.content),
             .user_id = try dupeOptional(allocator, other.user_id),
             .session_id = try dupeOptional(allocator, other.session_id),
-            .persona = try dupeOptional(allocator, other.persona),
+            .profile = try dupeOptional(allocator, other.profile),
             .context = try dupeOptional(allocator, other.context),
             .max_tokens = other.max_tokens,
             .temperature = other.temperature,
@@ -71,8 +71,8 @@ pub const ChatRequest = struct {
 pub const ChatResponse = struct {
     /// The generated response content.
     content: []const u8,
-    /// Which persona generated the response.
-    persona: []const u8,
+    /// Which profile generated the response.
+    profile: []const u8,
     /// Confidence score (0.0 - 1.0).
     confidence: f32,
     /// Generation time in milliseconds.
@@ -115,8 +115,8 @@ const ErrorDetail = struct {
     request_id: ?[]const u8 = null,
 };
 
-/// Persona info for listing.
-pub const PersonaInfo = struct {
+/// Profile info for listing.
+pub const ProfileInfo = struct {
     name: []const u8,
     type_name: []const u8,
     description: []const u8,
@@ -125,12 +125,12 @@ pub const PersonaInfo = struct {
 
 /// Metrics response.
 pub const MetricsResponse = struct {
-    personas: []const PersonaMetricsJson,
+    profiles: []const ProfileMetricsJson,
     total_requests: u64,
     overall_success_rate: f32,
 };
 
-const PersonaMetricsJson = struct {
+const ProfileMetricsJson = struct {
     name: []const u8,
     total_requests: u64,
     success_rate: f32,
@@ -152,10 +152,10 @@ fn dupeOptional(allocator: std.mem.Allocator, value: ?[]const u8) !?[]const u8 {
     return null;
 }
 
-/// Chat handler that wraps the persona system.
+/// Chat handler that wraps the profile system.
 pub const ChatHandler = struct {
     allocator: std.mem.Allocator,
-    orchestrator: ?*profiles.MultiPersonaSystem = null,
+    orchestrator: ?*profiles.MultiProfileSystem = null,
     rate_limiter: rate_limit.RateLimiter,
 
     const Self = @This();
@@ -189,19 +189,19 @@ pub const ChatHandler = struct {
     }
 
     /// Set the orchestrator reference.
-    pub fn setOrchestrator(self: *Self, orchestrator: *profiles.MultiPersonaSystem) void {
+    pub fn setOrchestrator(self: *Self, orchestrator: *profiles.MultiProfileSystem) void {
         self.orchestrator = orchestrator;
     }
 
     /// Handle a chat request (auto-routing).
     pub fn handleChat(self: *Self, request_json: []const u8) ![]const u8 {
-        return self.handleChatWithPersona(request_json, null);
+        return self.handleChatWithProfile(request_json, null);
     }
 
-    /// Handle a chat request with optional forced persona.
+    /// Handle a chat request with optional forced profile.
     /// Returns `error.RateLimited` if the user has exceeded the rate limit.
-    pub fn handleChatWithPersona(self: *Self, request_json: []const u8, forced_persona: ?types.PersonaType) ![]const u8 {
-        const result = try self.handleChatWithPersonaResult(request_json, forced_persona);
+    pub fn handleChatWithProfile(self: *Self, request_json: []const u8, forced_profile: ?types.ProfileType) ![]const u8 {
+        const result = try self.handleChatWithProfileResult(request_json, forced_profile);
         if (result.status == HttpStatus.too_many_requests) {
             if (std.mem.indexOf(u8, result.body, "temporarily banned") != null) {
                 return result.body;
@@ -213,10 +213,10 @@ pub const ChatHandler = struct {
     }
 
     /// Handle a chat request and return status + body for HTTP routing.
-    pub fn handleChatWithPersonaResult(
+    pub fn handleChatWithProfileResult(
         self: *Self,
         request_json: []const u8,
-        forced_persona: ?types.PersonaType,
+        forced_profile: ?types.ProfileType,
     ) !ChatResult {
         // Parse request
         var request = self.parseRequest(request_json) catch |err| {
@@ -249,12 +249,12 @@ pub const ChatHandler = struct {
         const orch = self.orchestrator orelse {
             return .{
                 .status = HttpStatus.service_unavailable,
-                .body = try self.formatError("SERVICE_UNAVAILABLE", "Persona service not initialized", null),
+                .body = try self.formatError("SERVICE_UNAVAILABLE", "Profile service not initialized", null),
             };
         };
 
-        // Build persona request
-        var persona_request = types.PersonaRequest{
+        // Build profile request
+        var profile_request = types.ProfileRequest{
             .content = request.content,
             .user_id = request.user_id,
             .session_id = request.session_id,
@@ -263,33 +263,33 @@ pub const ChatHandler = struct {
             .temperature = request.temperature,
         };
 
-        // Force persona if specified
-        if (forced_persona) |p| {
-            if (!self.isPersonaAvailable(p)) {
+        // Force profile if specified
+        if (forced_profile) |p| {
+            if (!self.isProfileAvailable(p)) {
                 return .{
                     .status = HttpStatus.not_found,
-                    .body = try self.formatError("PERSONA_UNAVAILABLE", "Requested persona is not registered", null),
+                    .body = try self.formatError("PROFILE_UNAVAILABLE", "Requested profile is not registered", null),
                 };
             }
-            persona_request.preferred_persona = p;
-        } else if (request.persona) |persona_name| {
-            const parsed = parsePersonaType(persona_name) orelse {
+            profile_request.preferred_profile = p;
+        } else if (request.profile) |profile_name| {
+            const parsed = parseProfileType(profile_name) orelse {
                 return .{
                     .status = HttpStatus.bad_request,
-                    .body = try self.formatError("INVALID_PERSONA", "Unknown persona", null),
+                    .body = try self.formatError("INVALID_PROFILE", "Unknown profile", null),
                 };
             };
-            if (!self.isPersonaAvailable(parsed)) {
+            if (!self.isProfileAvailable(parsed)) {
                 return .{
                     .status = HttpStatus.not_found,
-                    .body = try self.formatError("PERSONA_UNAVAILABLE", "Requested persona is not registered", null),
+                    .body = try self.formatError("PROFILE_UNAVAILABLE", "Requested profile is not registered", null),
                 };
             }
-            persona_request.preferred_persona = parsed;
+            profile_request.preferred_profile = parsed;
         }
 
         // Process request
-        const response = orch.process(persona_request) catch |err| {
+        const response = orch.process(profile_request) catch |err| {
             const err_name = try std.fmt.allocPrint(self.allocator, "{t}", .{err});
             defer self.allocator.free(err_name);
             return .{
@@ -308,43 +308,43 @@ pub const ChatHandler = struct {
 
     /// Handle Abbey-specific request.
     pub fn handleAbbeyChat(self: *Self, request_json: []const u8) ![]const u8 {
-        return self.handleChatWithPersona(request_json, .abbey);
+        return self.handleChatWithProfile(request_json, .abbey);
     }
 
     /// Handle Aviva-specific request.
     pub fn handleAvivaChat(self: *Self, request_json: []const u8) ![]const u8 {
-        return self.handleChatWithPersona(request_json, .aviva);
+        return self.handleChatWithProfile(request_json, .aviva);
     }
 
-    /// List available personas.
-    pub fn listPersonas(self: *Self) ![]const u8 {
-        var persona_list = std.ArrayListUnmanaged(PersonaInfo).empty;
-        defer persona_list.deinit(self.allocator);
+    /// List available profiles.
+    pub fn listProfiles(self: *Self) ![]const u8 {
+        var profile_list = std.ArrayListUnmanaged(ProfileInfo).empty;
+        defer profile_list.deinit(self.allocator);
 
-        const persona_types = types.allPersonaTypes();
-        for (persona_types) |pt| {
-            try persona_list.append(self.allocator, .{
+        const profile_types = types.allProfileTypes();
+        for (profile_types) |pt| {
+            try profile_list.append(self.allocator, .{
                 .name = @tagName(pt),
                 .type_name = @tagName(pt),
-                .description = describePersonaType(pt),
-                .available = self.isPersonaAvailable(pt),
+                .description = describeProfileType(pt),
+                .available = self.isProfileAvailable(pt),
             });
         }
 
         return jsonStringifyAlloc(self.allocator, .{
-            .personas = persona_list.items,
+            .profiles = profile_list.items,
         }, .{});
     }
 
-    /// Get persona metrics.
+    /// Get profile metrics.
     pub fn getMetrics(self: *Self) ![]const u8 {
-        var persona_metrics_list = std.ArrayListUnmanaged(PersonaMetricsJson).empty;
-        defer persona_metrics_list.deinit(self.allocator);
+        var profile_metrics_list = std.ArrayListUnmanaged(ProfileMetricsJson).empty;
+        defer profile_metrics_list.deinit(self.allocator);
 
-        const persona_types = types.allPersonaTypes();
+        const profile_types = types.allProfileTypes();
 
-        for (persona_types) |pt| {
-            try persona_metrics_list.append(self.allocator, .{
+        for (profile_types) |pt| {
+            try profile_metrics_list.append(self.allocator, .{
                 .name = @tagName(pt),
                 .total_requests = 0,
                 .success_rate = 1.0,
@@ -355,7 +355,7 @@ pub const ChatHandler = struct {
         }
 
         return jsonStringifyAlloc(self.allocator, MetricsResponse{
-            .personas = persona_metrics_list.items,
+            .profiles = profile_metrics_list.items,
             .total_requests = 0,
             .overall_success_rate = 1.0,
         }, .{});
@@ -370,8 +370,8 @@ pub const ChatHandler = struct {
         return ChatRequest.dupe(self.allocator, parsed.value);
     }
 
-    /// Format a persona response as JSON.
-    fn formatResponse(self: *Self, response: types.PersonaResponse) ![]const u8 {
+    /// Format a profile response as JSON.
+    fn formatResponse(self: *Self, response: types.ProfileResponse) ![]const u8 {
         var code_blocks: ?[]CodeBlockJson = null;
         if (response.code_blocks) |blocks| {
             const cb_list = try self.allocator.alloc(CodeBlockJson, blocks.len);
@@ -401,7 +401,7 @@ pub const ChatHandler = struct {
 
         const chat_response = ChatResponse{
             .content = response.content,
-            .persona = @tagName(response.persona),
+            .profile = @tagName(response.profile),
             .confidence = response.confidence,
             .latency_ms = response.generation_time_ms,
             .code_blocks = code_blocks,
@@ -423,10 +423,10 @@ pub const ChatHandler = struct {
         return jsonStringifyAlloc(self.allocator, error_response, .{});
     }
 
-    /// Check if a persona is available.
-    fn isPersonaAvailable(self: *const Self, persona_type: types.PersonaType) bool {
+    /// Check if a profile is available.
+    fn isProfileAvailable(self: *const Self, profile_type: types.ProfileType) bool {
         if (self.orchestrator) |orch| {
-            return orch.ctx.getPersona(persona_type) != null;
+            return orch.ctx.getProfile(profile_type) != null;
         }
         return false;
     }
@@ -476,8 +476,8 @@ pub const ChatHandler = struct {
     }
 };
 
-fn describePersonaType(persona_type: types.PersonaType) []const u8 {
-    return switch (persona_type) {
+fn describeProfileType(profile_type: types.ProfileType) []const u8 {
+    return switch (profile_type) {
         .assistant => "General-purpose helpful assistant",
         .coder => "Code-focused programming specialist",
         .writer => "Creative writing and content generation specialist",
@@ -490,14 +490,15 @@ fn describePersonaType(persona_type: types.PersonaType) []const u8 {
         .aviva => "Direct expert - concise, factual responses",
         .abi => "Router and content moderator",
         .ralph => "Iterative agent loop specialist",
+        .ava => "Locally-trained versatile assistant based on gpt-oss",
     };
 }
 
-/// Parse persona type from string.
-pub fn parsePersonaType(name: []const u8) ?types.PersonaType {
-    for (types.allPersonaTypes()) |persona_type| {
-        if (std.mem.eql(u8, name, @tagName(persona_type))) {
-            return persona_type;
+/// Parse profile type from string.
+pub fn parseProfileType(name: []const u8) ?types.ProfileType {
+    for (types.allProfileTypes()) |profile_type| {
+        if (std.mem.eql(u8, name, @tagName(profile_type))) {
+            return profile_type;
         }
     }
     return null;
@@ -518,11 +519,11 @@ pub const HttpStatus = struct {
 
 // Tests
 
-test "parse persona type" {
-    try std.testing.expectEqual(types.PersonaType.abbey, parsePersonaType("abbey").?);
-    try std.testing.expectEqual(types.PersonaType.aviva, parsePersonaType("aviva").?);
-    try std.testing.expectEqual(types.PersonaType.abi, parsePersonaType("abi").?);
-    try std.testing.expect(parsePersonaType("unknown") == null);
+test "parse profile type" {
+    try std.testing.expectEqual(types.ProfileType.abbey, parseProfileType("abbey").?);
+    try std.testing.expectEqual(types.ProfileType.aviva, parseProfileType("aviva").?);
+    try std.testing.expectEqual(types.ProfileType.abi, parseProfileType("abi").?);
+    try std.testing.expect(parseProfileType("unknown") == null);
 }
 
 test "chat handler initialization" {

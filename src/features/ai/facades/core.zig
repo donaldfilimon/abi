@@ -55,8 +55,8 @@ pub const registerDiscordTools = tools.registerDiscordTools;
 pub const OsTools = tools.OsTools;
 pub const registerOsTools = tools.registerOsTools;
 pub const PromptBuilder = prompts.PromptBuilder;
-pub const Persona = prompts.Persona;
-pub const PersonaType = prompts.PersonaType;
+pub const Profile = prompts.Profile;
+pub const ProfileType = prompts.ProfileType;
 pub const PromptFormat = prompts.PromptFormat;
 pub const GpuAgent = gpu_agent.GpuAgent;
 pub const GpuAwareRequest = gpu_agent.GpuAwareRequest;
@@ -192,6 +192,6 @@ test "ai_core createRegistry returns valid registry" {
 test "ai_core type re-exports are distinct types" {
     try std.testing.expect(@sizeOf(ModelInfo) > 0);
     try std.testing.expect(@TypeOf(MultiAgentCoordinator) != void);
-    try std.testing.expect(@TypeOf(Persona) != void);
-    try std.testing.expect(@TypeOf(PersonaType) != void);
+    try std.testing.expect(@TypeOf(Profile) != void);
+    try std.testing.expect(@TypeOf(ProfileType) != void);
 }

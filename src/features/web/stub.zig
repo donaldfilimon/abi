@@ -3,8 +3,8 @@
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-const persona_types = struct {
-    pub const PersonaType = enum { assistant, coder, writer, analyst, companion, docs, reviewer, minimal, abbey, aviva, abi, ralph };
+const profile_types = struct {
+    pub const ProfileType = enum { assistant, coder, writer, analyst, companion, docs, reviewer, minimal, abbey, aviva, abi, ralph, ava };
 };
 
 // --- Local Stubs Imports ---
@@ -24,7 +24,7 @@ pub const handlers = struct {
 };
 
 pub const routes = struct {
-    pub const personas = struct {
+    pub const profiles = struct {
         pub const Router = StubRouter;
         pub const Route = StubRoute;
         pub const RouteContext = StubRouteContext;
@@ -35,7 +35,7 @@ pub const ChatHandler = StubChatHandler;
 pub const ChatRequest = StubChatRequest;
 pub const ChatResponse = StubChatResponse;
 pub const ChatResult = StubChatResult;
-pub const PersonaRouter = StubRouter;
+pub const ProfileRouter = StubRouter;
 pub const Route = StubRoute;
 pub const RouteContext = StubRouteContext;
 
@@ -45,7 +45,7 @@ pub const StubChatRequest = struct {
     content: []const u8,
     user_id: ?[]const u8 = null,
     session_id: ?[]const u8 = null,
-    persona: ?[]const u8 = null,
+    profile: ?[]const u8 = null,
     context: ?[]const u8 = null,
     max_tokens: ?u32 = null,
     temperature: ?f32 = null,
@@ -57,7 +57,7 @@ pub const StubChatRequest = struct {
 
 pub const StubChatResponse = struct {
     content: []const u8,
-    persona: []const u8,
+    profile: []const u8,
     confidence: f32,
     latency_ms: u64,
     code_blocks: ?[]const StubCodeBlock = null,
@@ -83,10 +83,10 @@ pub const StubChatHandler = struct {
     pub fn handleAvivaChat(_: *StubChatHandler, _: []const u8) ![]const u8 {
         return error.FeatureDisabled;
     }
-    pub fn handleChatWithPersonaResult(_: *StubChatHandler, _: []const u8, _: ?persona_types.PersonaType) !StubChatResult {
+    pub fn handleChatWithProfileResult(_: *StubChatHandler, _: []const u8, _: ?profile_types.ProfileType) !StubChatResult {
         return error.FeatureDisabled;
     }
-    pub fn listPersonas(_: *StubChatHandler) ![]const u8 {
+    pub fn listProfiles(_: *StubChatHandler) ![]const u8 {
         return error.FeatureDisabled;
     }
     pub fn getMetrics(_: *StubChatHandler) ![]const u8 {

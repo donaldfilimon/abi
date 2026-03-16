@@ -14,8 +14,8 @@
 //! ```
 
 const std = @import("std");
-const os = @import("../../shared/os.zig");
 const abi = @import("abi");
+const os = abi.foundation.os;
 const ha = abi.ha;
 const profiles = @import("profiles.zig");
 const StressProfile = profiles.StressProfile;

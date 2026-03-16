@@ -17,7 +17,7 @@ abi/
 │   ├── core/                 # Always-on framework internals
 │   ├── features/             # Comptime-gated feature modules (19 directories)
 │   ├── services/             # Runtime services shared across features
-│   └── inference/            # Sampler, scheduler, KV cache (AI internals)
+│   └── inference/            # Engine, scheduler, sampler, KV cache (Top-level API)
 │
 ├── build/                    # Modular build system (Zig source files)
 ├── tools/                    # CLI, docs generator, validation scripts
@@ -43,12 +43,16 @@ src/
 │
 ├── core/                     # Always-on internals
 │   ├── config/               # Configuration loading and validation
-│   ├── feature_catalog.zig   # Source of truth for feature metadata
+│   ├── database/             # Core database engine (WDBX, HNSW, vector search)
+│   ├── framework/            # Framework abstractions
 │   ├── registry/             # Service registry and lifecycle
+│   ├── feature_catalog.zig   # Source of truth for feature metadata
+│   ├── errors.zig            # Shared error types
+│   ├── mod.zig               # Core module root
 │   └── stub_context.zig      # StubFeature / StubFeatureNoConfig helpers
 │
 ├── features/                 # Comptime-gated modules (one dir per feature)
-│   ├── ai/                   # Agents, profiles, training, reasoning, LLM
+│   ├── ai/                   # Agents, profiles, training, reasoning, LLM, embeddings
 │   ├── gpu/                  # Unified GPU compute (CUDA/Vulkan/Metal/WebGPU)
 │   ├── database/             # WDBX semantic store, HNSW, vector search
 │   ├── network/              # TCP/UDP, HTTP, WebSocket
@@ -68,16 +72,23 @@ src/
 │   ├── documents/            # Document processing
 │   └── benchmarks/           # In-framework benchmark support
 │
-├── services/                 # Shared runtime services
+├── services/                 # Runtime services shared across features
 │   ├── shared/               # Common utilities, signal handling, security
+│   ├── acp/                  # Agent Communication Protocol
 │   ├── connectors/           # External service connectors
+│   ├── ha/                   # High-availability clustering
 │   ├── lsp/                  # Language Server Protocol
 │   ├── mcp/                  # Model Context Protocol
+│   ├── platform/             # Platform abstraction layer
+│   ├── runtime/              # Runtime scheduling and lifecycle
+│   ├── tasks/                # Task execution engine
 │   └── tests/                # Service test root
 │
-└── inference/                # ML inference runtime
-    ├── sampler.zig
+└── inference/                # Canonical inference runtime (abi.inference)
+    ├── mod.zig
+    ├── engine.zig
     ├── scheduler.zig
+    ├── sampler.zig
     └── kv_cache.zig
 ```
 
@@ -110,7 +121,7 @@ The build system selects between `mod.zig` and `stub.zig` at comptime via
 
 ```
 build/
-├── options.zig               # 25 feature flag definitions
+├── options.zig               # 27 feature flag definitions
 ├── flags.zig                 # 54 flag combination validations
 ├── modules.zig               # Module creation and import wiring
 ├── module_catalog.zig        # Module registry for gendocs
@@ -156,13 +167,17 @@ tools/
 
 ```
 tests/
-└── (future: integration/, e2e/)
+├── integration_test.zig
+├── distributed_integration.zig
+├── hnsw_test.zig
+├── profiles_test.zig
+└── simd_test.zig
 ```
 
-Test entrypoints are rooted in `src/` for module path compliance. The build
-system references them directly via `b.path("src/services/tests/mod.zig")` and
-`b.path("src/database_fast_tests_root.zig")`. Former shim wrappers
-have been removed.
+These are legacy standalone test files. Primary test entrypoints are rooted in
+`src/` for module path compliance. The build system references them directly
+via `b.path("src/services/tests/mod.zig")` and similar `src/`-rooted paths.
+Former shim wrappers in `tests/zig/` have been removed.
 
 ## Documentation (`docs/`)
 

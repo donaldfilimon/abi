@@ -114,6 +114,7 @@ pub const Config = struct {
             .gateway = if (build_options.feat_gateway) GatewayConfig.defaults() else null,
             .pages = if (build_options.feat_pages) PagesConfig.defaults() else null,
             .benchmarks = if (build_options.feat_benchmarks) BenchmarksConfig.defaults() else null,
+            .lsp = if (build_options.feat_lsp) LspConfig.defaults() else null,
         };
     }
 
@@ -152,6 +153,8 @@ pub const Config = struct {
             .compute => build_options.feat_compute,
             .documents => build_options.feat_documents,
             .desktop => build_options.feat_desktop,
+            .lsp => self.lsp != null,
+            .mcp => build_options.feat_mcp,
         };
     }
 
@@ -207,6 +210,7 @@ pub const Builder = struct {
             .compute,
             .documents,
             .desktop,
+            .mcp,
             => struct {}, // Compile-time or nested features with no explicit config struct yet
             .database => DatabaseConfig,
             .network => NetworkConfig,
@@ -223,6 +227,7 @@ pub const Builder = struct {
             .gateway => GatewayConfig,
             .pages => PagesConfig,
             .benchmarks => BenchmarksConfig,
+            .lsp => LspConfig,
         };
     }
 
@@ -240,7 +245,7 @@ pub const Builder = struct {
             if (self.config.ai == null) {
                 self.config.ai = .{};
             }
-        } else if (feature == .compute or feature == .documents or feature == .desktop) {
+        } else if (feature == .compute or feature == .documents or feature == .desktop or feature == .mcp) {
             // Compile-time-only features do not have runtime config structs.
         } else {
             @field(self.config, @tagName(feature)) = typed_cfg;
@@ -262,7 +267,7 @@ pub const Builder = struct {
             if (self.config.ai == null) {
                 self.config.ai = .{};
             }
-        } else if (feature == .compute or feature == .documents or feature == .desktop) {
+        } else if (feature == .compute or feature == .documents or feature == .desktop or feature == .mcp) {
             // Compile-time-only features do not have runtime config structs.
         } else {
             @field(self.config, @tagName(feature)) = CfgType.defaults();
@@ -312,6 +317,7 @@ pub fn validate(cfg: Config) ConfigError!void {
         .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.feat_gateway },
         .{ .is_enabled_in_config = cfg.pages != null, .is_enabled_at_build = build_options.feat_pages },
         .{ .is_enabled_in_config = cfg.benchmarks != null, .is_enabled_at_build = build_options.feat_benchmarks },
+        .{ .is_enabled_in_config = cfg.lsp != null, .is_enabled_at_build = build_options.feat_lsp },
     };
     inline for (validations) |entry| {
         if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {

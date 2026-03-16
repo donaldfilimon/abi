@@ -1,7 +1,7 @@
-//! Aviva Persona - Direct Expert
+//! Aviva Profile - Direct Expert
 //!
 //! Aviva provides concise, factual, and technically rigorous responses.
-//! This persona minimizes hedging and emotional overhead in favor of
+//! This profile minimizes hedging and emotional overhead in favor of
 //! density and accuracy.
 //!
 //! Enhanced Features:
@@ -33,8 +33,8 @@ pub const CodeBlock = code_mod.CodeBlock;
 pub const FactChecker = facts_mod.FactChecker;
 pub const Claim = facts_mod.Claim;
 
-/// Aviva persona implementation with enhanced capabilities.
-pub const AvivaPersona = struct {
+/// Aviva profile implementation with enhanced capabilities.
+pub const AvivaProfile = struct {
     allocator: std.mem.Allocator,
     config: config.AvivaConfig,
     /// The underlying agent instance used for generation.
@@ -50,7 +50,7 @@ pub const AvivaPersona = struct {
 
     const Self = @This();
 
-    /// Initialize the Aviva persona with configuration.
+    /// Initialize the Aviva profile with configuration.
     pub fn init(allocator: std.mem.Allocator, cfg: config.AvivaConfig) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
@@ -114,7 +114,7 @@ pub const AvivaPersona = struct {
         return self;
     }
 
-    /// Shutdown the persona and free resources.
+    /// Shutdown the profile and free resources.
     pub fn deinit(self: *Self) void {
         self.knowledge_retriever.deinit();
         self.agent.deinit();
@@ -126,14 +126,14 @@ pub const AvivaPersona = struct {
         return "Aviva";
     }
 
-    pub fn getType(_: *const Self) types.PersonaType {
+    pub fn getType(_: *const Self) types.ProfileType {
         return .aviva;
     }
 
     /// Process a request using Aviva's direct and expert logic.
-    /// Note: returns anyerror to match PersonaInterface.VTable.process signature.
+    /// Note: returns anyerror to match ProfileInterface.VTable.process signature.
     /// Actual errors: TimerFailed, OutOfMemory, and errors from agent.process().
-    pub fn process(self: *Self, request: types.PersonaRequest) anyerror!types.PersonaResponse {
+    pub fn process(self: *Self, request: types.ProfileRequest) anyerror!types.ProfileResponse {
         var timer = time.Timer.start() catch {
             return error.TimerFailed;
         };
@@ -192,9 +192,9 @@ pub const AvivaPersona = struct {
         const elapsed_ms = timer.read() / std.time.ns_per_ms;
 
         // Build response with classification metadata
-        var response = types.PersonaResponse{
+        var response = types.ProfileResponse{
             .content = final_response,
-            .persona = .aviva,
+            .profile = .aviva,
             .confidence = @min(0.95, fact_result.overall_confidence),
             .generation_time_ms = elapsed_ms,
         };
@@ -260,8 +260,8 @@ pub const AvivaPersona = struct {
         return self.fact_checker.scoreStatement(statement);
     }
 
-    /// Create the interface wrapper for this persona.
-    pub fn interface(self: *Self) types.PersonaInterface {
+    /// Create the interface wrapper for this profile.
+    pub fn interface(self: *Self) types.ProfileInterface {
         return .{
             .ptr = self,
             .vtable = &.{
@@ -273,7 +273,7 @@ pub const AvivaPersona = struct {
     }
 };
 
-// --- Agent override helpers (formerly personas/agent_overrides.zig) ---
+// --- Agent override helpers (formerly profiles/agent_overrides.zig) ---
 
 pub const Overrides = struct {
     prev_temperature: f32,
@@ -281,7 +281,7 @@ pub const Overrides = struct {
     system_index: ?usize = null,
 };
 
-pub fn apply(allocator: std.mem.Allocator, agent: *agent_mod.Agent, request: types.PersonaRequest) !Overrides {
+pub fn apply(allocator: std.mem.Allocator, agent: *agent_mod.Agent, request: types.ProfileRequest) !Overrides {
     var ov = Overrides{
         .prev_temperature = agent.config.temperature,
         .prev_max_tokens = agent.config.max_tokens,

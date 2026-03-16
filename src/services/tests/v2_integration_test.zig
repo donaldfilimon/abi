@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const os = abi.foundation.os;
 
 // ============================================================================
 // SwissMap Integration Tests
@@ -269,6 +270,7 @@ test "Channel statistics" {
 }
 
 test "Channel multi-threaded MPMC" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const num_producers = 4;
     const num_consumers = 4;
     const items_per_producer = 100;
@@ -326,6 +328,7 @@ test "Channel multi-threaded MPMC" {
 // ============================================================================
 
 test "ThreadPool basic task dispatch" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const pool = try abi.runtime.ThreadPool.init(std.testing.allocator, .{ .thread_count = 2 });
     defer pool.deinit();
 

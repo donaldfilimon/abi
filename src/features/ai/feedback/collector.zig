@@ -1,10 +1,10 @@
 //! Feedback Collector
 //!
-//! Collects user feedback on persona interactions including:
+//! Collects user feedback on profile interactions including:
 //! - Star ratings (1-5)
 //! - Thumbs up/down
 //! - Text feedback with optional category tagging
-//! - Session and persona association
+//! - Session and profile association
 
 const std = @import("std");
 const time = @import("../../../services/shared/mod.zig").time;
@@ -38,8 +38,8 @@ pub const FeedbackCategory = enum {
     general,
 };
 
-/// Persona type reference (mirrors the persona system).
-pub const PersonaRef = enum {
+/// Profile type reference (mirrors the profile system).
+pub const ProfileRef = enum {
     abbey,
     aviva,
     abi,
@@ -57,8 +57,8 @@ pub const FeedbackEntry = struct {
     rating_type: RatingType,
     /// Feedback category.
     category: FeedbackCategory,
-    /// Associated persona.
-    persona: PersonaRef,
+    /// Associated profile.
+    profile: ProfileRef,
     /// Session identifier (fixed buffer).
     session_id: [64]u8,
     session_id_len: u8,
@@ -122,26 +122,26 @@ pub const FeedbackCollector = struct {
     pub fn submitStarRating(
         self: *Self,
         rating: u8,
-        persona: PersonaRef,
+        profile: ProfileRef,
         category: FeedbackCategory,
         session_id: []const u8,
         text: ?[]const u8,
     ) u64 {
         const clamped_rating = std.math.clamp(rating, 1, 5);
-        return self.addEntry(clamped_rating, .stars, persona, category, session_id, text);
+        return self.addEntry(clamped_rating, .stars, profile, category, session_id, text);
     }
 
     /// Submit a thumbs up/down (true = up, false = down).
     pub fn submitThumbsRating(
         self: *Self,
         thumbs_up: bool,
-        persona: PersonaRef,
+        profile: ProfileRef,
         category: FeedbackCategory,
         session_id: []const u8,
         text: ?[]const u8,
     ) u64 {
         const rating: u8 = if (thumbs_up) 5 else 1;
-        return self.addEntry(rating, .thumbs, persona, category, session_id, text);
+        return self.addEntry(rating, .thumbs, profile, category, session_id, text);
     }
 
     /// Get total number of feedback entries.
@@ -151,8 +151,8 @@ pub const FeedbackCollector = struct {
         return self.count;
     }
 
-    /// Get entries for a specific persona.
-    pub fn getByPersona(self: *Self, allocator: std.mem.Allocator, persona: PersonaRef) ![]const FeedbackEntry {
+    /// Get entries for a specific profile.
+    pub fn getByProfile(self: *Self, allocator: std.mem.Allocator, profile: ProfileRef) ![]const FeedbackEntry {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -163,15 +163,15 @@ pub const FeedbackCollector = struct {
         var i: usize = 0;
         while (i < self.count) : (i += 1) {
             const pos = (start + i) % self.entries.len;
-            if (self.entries[pos].persona == persona) {
+            if (self.entries[pos].profile == profile) {
                 try matches.append(allocator, self.entries[pos]);
             }
         }
         return matches.toOwnedSlice(allocator);
     }
 
-    /// Get the average rating for a persona (returns 0.0 if no entries).
-    pub fn averageRating(self: *Self, persona: PersonaRef) f32 {
+    /// Get the average rating for a profile (returns 0.0 if no entries).
+    pub fn averageRating(self: *Self, profile: ProfileRef) f32 {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -181,7 +181,7 @@ pub const FeedbackCollector = struct {
         var i: usize = 0;
         while (i < self.count) : (i += 1) {
             const pos = (start + i) % self.entries.len;
-            if (self.entries[pos].persona == persona) {
+            if (self.entries[pos].profile == profile) {
                 total += @floatFromInt(self.entries[pos].rating);
                 count += 1;
             }
@@ -193,7 +193,7 @@ pub const FeedbackCollector = struct {
         self: *Self,
         rating: u8,
         rating_type: RatingType,
-        persona: PersonaRef,
+        profile: ProfileRef,
         category: FeedbackCategory,
         session_id: []const u8,
         text: ?[]const u8,
@@ -209,7 +209,7 @@ pub const FeedbackCollector = struct {
             .rating = rating,
             .rating_type = rating_type,
             .category = category,
-            .persona = persona,
+            .profile = profile,
             .session_id = undefined,
             .session_id_len = 0,
             .text = undefined,
@@ -269,7 +269,7 @@ test "FeedbackCollector average rating" {
     try std.testing.expectApproxEqAbs(@as(f32, 4.0), aviva_avg, 0.01);
 }
 
-test "FeedbackCollector getByPersona" {
+test "FeedbackCollector getByProfile" {
     const allocator = std.testing.allocator;
     const collector = try FeedbackCollector.init(allocator, .{});
     defer collector.deinit(allocator);
@@ -278,7 +278,7 @@ test "FeedbackCollector getByPersona" {
     _ = collector.submitStarRating(3, .aviva, .quality, "s2", null);
     _ = collector.submitStarRating(4, .abbey, .quality, "s3", null);
 
-    const abbey_entries = try collector.getByPersona(allocator, .abbey);
+    const abbey_entries = try collector.getByProfile(allocator, .abbey);
     defer allocator.free(abbey_entries);
     try std.testing.expect(abbey_entries.len == 2);
 }
@@ -289,7 +289,7 @@ test "FeedbackEntry positive check" {
         .rating = 5,
         .rating_type = .stars,
         .category = .quality,
-        .persona = .abbey,
+        .profile = .abbey,
         .session_id = undefined,
         .session_id_len = 0,
         .text = undefined,

@@ -16,7 +16,7 @@ pub const AuditEventType = enum {
     consent_granted,
     /// User consent revoked.
     consent_revoked,
-    /// Personal data accessed.
+    /// Profilel data accessed.
     data_accessed,
     /// Data erasure requested.
     erasure_requested,
@@ -30,7 +30,7 @@ pub const AuditEventType = enum {
     phi_detected,
     /// Policy check performed.
     policy_check,
-    /// Persona routing decision made.
+    /// Profile routing decision made.
     routing_decision,
     /// Data export requested.
     data_export,

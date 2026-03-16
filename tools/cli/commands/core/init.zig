@@ -215,7 +215,7 @@ const main_zig_agent =
     \\    _ = init;
     \\    std.debug.print("ABI Agent Application\n", .{});
     \\    std.debug.print("Configure an AI provider (ABI_OPENAI_API_KEY or ABI_ANTHROPIC_API_KEY).\n", .{});
-    \\    std.debug.print("Then use: abi agent --persona coder\n", .{});
+    \\    std.debug.print("Then use: abi agent --profile coder\n", .{});
     \\}
     \\
 ;

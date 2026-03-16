@@ -2,7 +2,7 @@
 //!
 //! Provides persistence and retrieval for feedback data:
 //! - In-memory ring buffer (wraps FeedbackCollector)
-//! - Query by persona/session/time range
+//! - Query by profile/session/time range
 //! - Export to structured format
 
 const std = @import("std");
@@ -11,8 +11,8 @@ const cfg = @import("config.zig");
 
 /// Query filter for retrieving feedback.
 pub const FeedbackQuery = struct {
-    /// Filter by persona (null = all).
-    persona: ?collector_mod.PersonaRef = null,
+    /// Filter by profile (null = all).
+    profile: ?collector_mod.ProfileRef = null,
     /// Filter by category (null = all).
     category: ?collector_mod.FeedbackCategory = null,
     /// Filter by minimum rating.
@@ -59,24 +59,24 @@ pub const FeedbackStorage = struct {
     pub fn submitStars(
         self: *Self,
         rating: u8,
-        persona: collector_mod.PersonaRef,
+        profile: collector_mod.ProfileRef,
         category: collector_mod.FeedbackCategory,
         session_id: []const u8,
         text: ?[]const u8,
     ) u64 {
-        return self.collector.submitStarRating(rating, persona, category, session_id, text);
+        return self.collector.submitStarRating(rating, profile, category, session_id, text);
     }
 
     /// Submit a thumbs up/down.
     pub fn submitThumbs(
         self: *Self,
         thumbs_up: bool,
-        persona: collector_mod.PersonaRef,
+        profile: collector_mod.ProfileRef,
         category: collector_mod.FeedbackCategory,
         session_id: []const u8,
         text: ?[]const u8,
     ) u64 {
-        return self.collector.submitThumbsRating(thumbs_up, persona, category, session_id, text);
+        return self.collector.submitThumbsRating(thumbs_up, profile, category, session_id, text);
     }
 
     /// Query feedback matching the given filter.
@@ -94,8 +94,8 @@ pub const FeedbackStorage = struct {
             const entry = self.collector.entries[pos];
 
             // Apply filters
-            if (q.persona) |p| {
-                if (entry.persona != p) continue;
+            if (q.profile) |p| {
+                if (entry.profile != p) continue;
             }
             if (q.category) |c| {
                 if (entry.category != c) continue;
@@ -164,7 +164,7 @@ test "FeedbackStorage submit and query" {
     _ = storage.submitStars(4, .abbey, .helpfulness, "s3", null);
 
     // Query for abbey only
-    const abbey_results = try storage.query(.{ .persona = .abbey });
+    const abbey_results = try storage.query(.{ .profile = .abbey });
     defer allocator.free(abbey_results);
     try std.testing.expect(abbey_results.len == 2);
 

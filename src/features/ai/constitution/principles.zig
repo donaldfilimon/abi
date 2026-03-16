@@ -83,7 +83,7 @@ pub const HONESTY = Principle{
 
 pub const PRIVACY = Principle{
     .name = "privacy",
-    .description = "Protect personal information; comply with GDPR/CCPA; minimize data collection",
+    .description = "Protect profilel information; comply with GDPR/CCPA; minimize data collection",
     .severity = .critical,
     .priority = 0.9,
     .rules = &[_]ConstitutionalRule{

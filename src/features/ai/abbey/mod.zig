@@ -12,7 +12,7 @@
 //! honest opinions, emotional intelligence, and research commitment.
 
 const std = @import("std");
-const abi = @import("abi");
+const build_options = @import("build_options");
 
 // ============================================================================
 // Core Modules
@@ -20,7 +20,7 @@ const abi = @import("abi");
 
 pub const core = struct {
     pub const types = @import("types");
-    pub const config = abi.config;
+    pub const config = @import("../config.zig");
 };
 
 // ============================================================================
@@ -244,7 +244,7 @@ pub const CognitiveState = advanced.CognitiveState;
 
 pub const CustomAI = custom_framework.CustomAI;
 pub const CustomAIConfig = custom_framework.CustomAIConfig;
-pub const PersonaTemplate = custom_framework.PersonaTemplate;
+pub const ProfileTemplate = custom_framework.ProfileTemplate;
 pub const CustomAIBuilder = custom_framework.Builder;
 pub const CustomAIResponse = custom_framework.Response;
 pub const CustomAIStats = custom_framework.Stats;
@@ -254,7 +254,7 @@ pub const Stats = custom_framework.Stats;
 
 // Factory functions
 pub const createCustomAI = custom_framework.create;
-pub const createFromPersona = custom_framework.createFromPersona;
+pub const createFromProfile = custom_framework.createFromProfile;
 pub const createWithSeedPrompt = custom_framework.createWithSeedPrompt;
 pub const createResearcher = custom_framework.createResearcher;
 pub const createCoder = custom_framework.createCoder;
@@ -298,8 +298,8 @@ pub fn createAdvancedCognitionWithConfig(
 // Legacy Abbey Implementation (Kept for backwards compatibility)
 // ============================================================================
 
-const legacy_memory = abi.ai.memory;
-const tools = abi.ai.tools;
+const legacy_memory = if (build_options.feat_ai) @import("../memory/mod.zig") else @import("../memory/stub.zig");
+const tools = if (build_options.feat_ai) @import("../tools/mod.zig") else @import("../tools/stub.zig");
 
 /// Legacy Abbey - original implementation for backwards compatibility
 /// Use AbbeyEngine for new implementations

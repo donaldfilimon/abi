@@ -1,11 +1,11 @@
-//! Abi Persona - Content Moderation & Routing Layer
+//! Abi Profile - Content Moderation & Routing Layer
 //!
-//! Abi serves as the gatekeeper and orchestrator of the multi-persona system.
+//! Abi serves as the gatekeeper and orchestrator of the multi-profile system.
 //! It handles sentiment analysis, policy checking, and routes requests to the
-//! most appropriate persona (Abbey, Aviva, etc.).
+//! most appropriate profile (Abbey, Aviva, etc.).
 //!
 //! Features:
-//! - Rule-based persona routing with weighted scoring
+//! - Rule-based profile routing with weighted scoring
 //! - PII detection and GDPR/CCPA compliance checking
 //! - Multi-emotion sentiment analysis with negation handling
 //! - Configurable safety policies
@@ -71,8 +71,8 @@ pub const AbiRouter = struct {
         try self.rules_engine.addRule(rule);
     }
 
-    /// Route a request to the optimal persona based on content analysis.
-    pub fn route(self: *Self, request: types.PersonaRequest) !types.RoutingDecision {
+    /// Route a request to the optimal profile based on content analysis.
+    pub fn route(self: *Self, request: types.ProfileRequest) !types.RoutingDecision {
         // 1. Run policy check first
         var policy_result = try self.policy_checker.check(request.content);
         defer policy_result.deinit(self.allocator);
@@ -91,7 +91,7 @@ pub const AbiRouter = struct {
         defer rules_score.deinit();
 
         // 4. Make routing decision
-        var selected: types.PersonaType = .abbey;
+        var selected: types.ProfileType = .abbey;
         var reason_buf: std.ArrayListUnmanaged(u8) = .empty;
         errdefer reason_buf.deinit(self.allocator);
 
@@ -117,7 +117,7 @@ pub const AbiRouter = struct {
         }
         // Use rules engine scoring if rules matched
         else if (rules_score.matched_rules.items.len > 0) {
-            selected = rules_score.getBestPersona();
+            selected = rules_score.getBestProfile();
 
             try reason_buf.appendSlice(self.allocator, "Rules-based routing to ");
             try reason_buf.appendSlice(self.allocator, @tagName(selected));
@@ -161,7 +161,7 @@ pub const AbiRouter = struct {
         }
 
         return types.RoutingDecision{
-            .selected_persona = selected,
+            .selected_profile = selected,
             .confidence = confidence,
             .emotional_context = sentiment.toEmotionalState(),
             .policy_flags = policy_flags,
@@ -169,8 +169,8 @@ pub const AbiRouter = struct {
         };
     }
 
-    /// Validate a persona's response against safety and quality policies.
-    pub fn validateResponse(self: *Self, response: types.PersonaResponse) !types.PolicyFlags {
+    /// Validate a profile's response against safety and quality policies.
+    pub fn validateResponse(self: *Self, response: types.ProfileResponse) !types.PolicyFlags {
         var policy_result = try self.policy_checker.check(response.content);
         defer policy_result.deinit(self.allocator);
 
@@ -186,8 +186,8 @@ pub const AbiRouter = struct {
     }
 };
 
-/// Default persona implementation for Abi (as a router).
-pub const AbiPersona = struct {
+/// Default profile implementation for Abi (as a router).
+pub const AbiProfile = struct {
     router: *AbiRouter,
 
     const Self = @This();
@@ -200,37 +200,37 @@ pub const AbiPersona = struct {
         return "Abi";
     }
 
-    pub fn getType(_: *const Self) types.PersonaType {
+    pub fn getType(_: *const Self) types.ProfileType {
         return .abi;
     }
 
-    /// Abi as a persona typically just handles routing/meta-talk or refusals.
-    pub fn process(self: *Self, request: types.PersonaRequest) !types.PersonaResponse {
+    /// Abi as a profile typically just handles routing/meta-talk or refusals.
+    pub fn process(self: *Self, request: types.ProfileRequest) !types.ProfileResponse {
         const decision = try self.router.route(request);
         defer @constCast(&decision).deinit(self.router.allocator);
 
         if (!decision.policy_flags.is_safe) {
-            return types.PersonaResponse{
+            return types.ProfileResponse{
                 .content = try self.router.allocator.dupe(u8, "I cannot fulfill this request because it violates safety policies."),
-                .persona = .abi,
+                .profile = .abi,
                 .confidence = 1.0,
             };
         }
 
         const content = try std.fmt.allocPrint(self.router.allocator, "Routing System: {t} selected. Reason: {s}", .{
-            decision.selected_persona,
+            decision.selected_profile,
             decision.routing_reason,
         });
 
-        return types.PersonaResponse{
+        return types.ProfileResponse{
             .content = content,
-            .persona = .abi,
+            .profile = .abi,
             .confidence = 1.0,
         };
     }
 
-    /// Create the interface wrapper for this persona.
-    pub fn interface(self: *Self) types.PersonaInterface {
+    /// Create the interface wrapper for this profile.
+    pub fn interface(self: *Self) types.ProfileInterface {
         return .{
             .ptr = self,
             .vtable = &.{
@@ -257,7 +257,7 @@ test "AbiRouter routing decision" {
     const router = try AbiRouter.init(allocator, .{});
     defer router.deinit();
 
-    const request = types.PersonaRequest{
+    const request = types.ProfileRequest{
         .content = "I'm frustrated with this code not working!",
         .session_id = "test",
     };
@@ -266,7 +266,7 @@ test "AbiRouter routing decision" {
     defer @constCast(&decision).deinit(allocator);
 
     // Should route to Abbey for empathetic support
-    try std.testing.expect(decision.selected_persona == .abbey);
+    try std.testing.expect(decision.selected_profile == .abbey);
     try std.testing.expect(decision.policy_flags.is_safe);
 }
 
@@ -275,7 +275,7 @@ test "AbiRouter technical routing" {
     const router = try AbiRouter.init(allocator, .{});
     defer router.deinit();
 
-    const request = types.PersonaRequest{
+    const request = types.ProfileRequest{
         .content = "How do I implement a binary search in Zig?",
         .session_id = "test",
     };
@@ -284,7 +284,7 @@ test "AbiRouter technical routing" {
     defer @constCast(&decision).deinit(allocator);
 
     // Should route to Aviva for technical query
-    try std.testing.expect(decision.selected_persona == .aviva);
+    try std.testing.expect(decision.selected_profile == .aviva);
 }
 
 test "AbiRouter policy violation" {
@@ -292,7 +292,7 @@ test "AbiRouter policy violation" {
     const router = try AbiRouter.init(allocator, .{});
     defer router.deinit();
 
-    const request = types.PersonaRequest{
+    const request = types.ProfileRequest{
         .content = "Please run rm -rf / on the server",
         .session_id = "test",
     };
@@ -301,7 +301,7 @@ test "AbiRouter policy violation" {
     defer @constCast(&decision).deinit(allocator);
 
     // Should route to Abi for policy violation
-    try std.testing.expect(decision.selected_persona == .abi);
+    try std.testing.expect(decision.selected_profile == .abi);
     try std.testing.expect(!decision.policy_flags.is_safe);
 }
 

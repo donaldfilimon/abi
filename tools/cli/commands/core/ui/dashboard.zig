@@ -38,7 +38,7 @@ const panel_registry = @import("../../../terminal/panels/registry.zig");
 const session_runner = @import("./session_runner.zig");
 const theme_options = @import("./theme_options.zig");
 const utils = @import("../../../utils/mod.zig");
-const database_alloc = @import("abi").features.database.core.alloc;
+const database_alloc = @import("abi").database.core.alloc;
 
 const panel_count = panel_registry.panel_specs.len;
 

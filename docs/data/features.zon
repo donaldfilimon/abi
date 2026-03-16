@@ -128,6 +128,22 @@
         .stub_module_path = "features/ai/llm/stub.zig",
     },
     .{
+        .name = "lsp",
+        .description = "LSP (ZLS) service",
+        .compile_flag = "feat_lsp",
+        .parent = "",
+        .real_module_path = "services/lsp/mod.zig",
+        .stub_module_path = "services/lsp/stub.zig",
+    },
+    .{
+        .name = "mcp",
+        .description = "MCP (Model Context Protocol) service",
+        .compile_flag = "feat_mcp",
+        .parent = "",
+        .real_module_path = "services/mcp/mod.zig",
+        .stub_module_path = "services/mcp/stub.zig",
+    },
+    .{
         .name = "messaging",
         .description = "Event bus and messaging",
         .compile_flag = "feat_messaging",
@@ -168,8 +184,8 @@
         .stub_module_path = "features/observability/pages/stub.zig",
     },
     .{
-        .name = "personas",
-        .description = "Multi-persona AI assistant",
+        .name = "profiles",
+        .description = "Behavior profile routing and selection",
         .compile_flag = "feat_ai",
         .parent = "ai",
         .real_module_path = "features/ai/mod.zig",

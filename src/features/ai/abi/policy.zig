@@ -1,7 +1,7 @@
 //! Policy Checker Module for Abi Router
 //!
 //! Enforces content safety, privacy, and compliance rules for the assistant.
-//! Validates user inputs and persona responses against defined safety patterns.
+//! Validates user inputs and profile responses against defined safety patterns.
 //! Includes PII detection, GDPR/CCPA compliance, and configurable safety rules.
 
 const std = @import("std");
@@ -28,7 +28,7 @@ pub const PolicyResult = struct {
     }
 };
 
-/// Types of Personally Identifiable Information.
+/// Types of Profilelly Identifiable Information.
 pub const PiiType = enum {
     email,
     phone,

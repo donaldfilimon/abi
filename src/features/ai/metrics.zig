@@ -1,7 +1,7 @@
-//! Persona Metrics Module
+//! Profile Metrics Module
 //!
-//! Tracks performance, usage, and quality metrics for the Multi-Persona AI Assistant.
-//! Integrates with the core observability framework to provide persona-specific insights.
+//! Tracks performance, usage, and quality metrics for the Multi-Profile AI Assistant.
+//! Integrates with the core observability framework to provide profile-specific insights.
 //!
 //! Enhanced Features:
 //! - P50, P90, P99 latency percentile tracking
@@ -25,8 +25,8 @@ const alerts = @import("health.zig");
 // Shared metrics primitives (for standalone use)
 const core_metrics = @import("../../services/shared/mod.zig").utils.metric_types;
 
-/// Collection of metrics for a specific persona.
-pub const PersonaMetricSet = struct {
+/// Collection of metrics for a specific profile.
+pub const ProfileMetricSet = struct {
     requests_total: *obs.Counter,
     success_total: *obs.Counter,
     error_total: *obs.Counter,
@@ -136,13 +136,13 @@ pub const LatencyWindow = struct {
     }
 };
 
-/// High-level manager for all persona-related metrics.
-pub const PersonaMetrics = struct {
+/// High-level manager for all profile-related metrics.
+pub const ProfileMetrics = struct {
     allocator: std.mem.Allocator,
     collector: *obs.MetricsCollector,
-    persona_metrics: std.AutoHashMapUnmanaged(types.PersonaType, PersonaMetricSet),
-    /// Latency windows for percentile tracking per persona.
-    latency_windows: std.AutoHashMapUnmanaged(types.PersonaType, *LatencyWindow),
+    profile_metrics: std.AutoHashMapUnmanaged(types.ProfileType, ProfileMetricSet),
+    /// Latency windows for percentile tracking per profile.
+    latency_windows: std.AutoHashMapUnmanaged(types.ProfileType, *LatencyWindow),
     /// Alert manager for threshold monitoring.
     alert_manager: ?*alerts.AlertManager = null,
 
@@ -155,7 +155,7 @@ pub const PersonaMetrics = struct {
     /// Default window size for percentile calculation.
     const DEFAULT_WINDOW_SIZE: usize = 1000;
 
-    /// Initialize the persona metrics manager.
+    /// Initialize the profile metrics manager.
     pub fn init(allocator: std.mem.Allocator, collector: *obs.MetricsCollector) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
@@ -163,7 +163,7 @@ pub const PersonaMetrics = struct {
         self.* = .{
             .allocator = allocator,
             .collector = collector,
-            .persona_metrics = .{},
+            .profile_metrics = .{},
             .latency_windows = .{},
         };
 
@@ -186,34 +186,34 @@ pub const PersonaMetrics = struct {
             self.allocator.destroy(window.*);
         }
         self.latency_windows.deinit(self.allocator);
-        self.persona_metrics.deinit(self.allocator);
+        self.profile_metrics.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
-    /// Register metrics for a specific persona type.
-    pub fn registerPersona(self: *Self, persona_type: types.PersonaType) !void {
-        if (self.persona_metrics.contains(persona_type)) return;
+    /// Register metrics for a specific profile type.
+    pub fn registerProfile(self: *Self, profile_type: types.ProfileType) !void {
+        if (self.profile_metrics.contains(profile_type)) return;
 
-        const name = @tagName(persona_type);
+        const name = @tagName(profile_type);
 
         var buf: [128]u8 = undefined;
 
-        const req_name = try std.fmt.bufPrint(&buf, "persona_{s}_requests_total", .{name});
+        const req_name = try std.fmt.bufPrint(&buf, "profile_{s}_requests_total", .{name});
         const requests = try self.collector.registerCounter(req_name);
 
-        const success_name = try std.fmt.bufPrint(&buf, "persona_{s}_success_total", .{name});
+        const success_name = try std.fmt.bufPrint(&buf, "profile_{s}_success_total", .{name});
         const success = try self.collector.registerCounter(success_name);
 
-        const error_name = try std.fmt.bufPrint(&buf, "persona_{s}_error_total", .{name});
+        const error_name = try std.fmt.bufPrint(&buf, "profile_{s}_error_total", .{name});
         const errors = try self.collector.registerCounter(error_name);
 
-        const lat_name = try std.fmt.bufPrint(&buf, "persona_{s}_latency_ms", .{name});
+        const lat_name = try std.fmt.bufPrint(&buf, "profile_{s}_latency_ms", .{name});
         const latency = try self.collector.registerHistogram(lat_name, &LATENCY_BUCKETS);
 
-        const sat_name = try std.fmt.bufPrint(&buf, "persona_{s}_satisfaction_score", .{name});
+        const sat_name = try std.fmt.bufPrint(&buf, "profile_{s}_satisfaction_score", .{name});
         const satisfaction = try self.collector.registerHistogram(sat_name, &SATISFACTION_BUCKETS);
 
-        try self.persona_metrics.put(self.allocator, persona_type, .{
+        try self.profile_metrics.put(self.allocator, profile_type, .{
             .requests_total = requests,
             .success_total = success,
             .error_total = errors,
@@ -224,25 +224,25 @@ pub const PersonaMetrics = struct {
         // Create latency window for percentile tracking
         const window = try self.allocator.create(LatencyWindow);
         window.* = LatencyWindow.init(self.allocator, DEFAULT_WINDOW_SIZE);
-        try self.latency_windows.put(self.allocator, persona_type, window);
+        try self.latency_windows.put(self.allocator, profile_type, window);
     }
 
-    /// Record a request for a persona.
-    pub fn recordRequest(self: *Self, persona_type: types.PersonaType) void {
-        if (self.persona_metrics.getPtr(persona_type)) |m| {
+    /// Record a request for a profile.
+    pub fn recordRequest(self: *Self, profile_type: types.ProfileType) void {
+        if (self.profile_metrics.getPtr(profile_type)) |m| {
             m.requests_total.inc(1);
         }
     }
 
     /// Record a successful response with latency.
-    pub fn recordSuccess(self: *Self, persona_type: types.PersonaType, latency_ms: u64) void {
-        if (self.persona_metrics.getPtr(persona_type)) |m| {
+    pub fn recordSuccess(self: *Self, profile_type: types.ProfileType, latency_ms: u64) void {
+        if (self.profile_metrics.getPtr(profile_type)) |m| {
             m.success_total.inc(1);
             m.latency_ms.record(latency_ms);
         }
 
         // Record to latency window for percentile tracking
-        if (self.latency_windows.getPtr(persona_type)) |window| {
+        if (self.latency_windows.getPtr(profile_type)) |window| {
             window.*.record(latency_ms) catch |err| {
                 std.log.debug("Failed to record latency to window: {t}", .{err});
             };
@@ -250,48 +250,48 @@ pub const PersonaMetrics = struct {
 
         // Notify alert manager of success
         if (self.alert_manager) |alert_mgr| {
-            alert_mgr.recordResult(persona_type, true) catch |err| {
+            alert_mgr.recordResult(profile_type, true) catch |err| {
                 std.log.debug("Failed to record success to alert manager: {t}", .{err});
             };
         }
     }
 
-    /// Record an error for a persona.
-    pub fn recordError(self: *Self, persona_type: types.PersonaType) void {
-        if (self.persona_metrics.getPtr(persona_type)) |m| {
+    /// Record an error for a profile.
+    pub fn recordError(self: *Self, profile_type: types.ProfileType) void {
+        if (self.profile_metrics.getPtr(profile_type)) |m| {
             m.error_total.inc(1);
         }
 
         // Notify alert manager of failure
         if (self.alert_manager) |alert_mgr| {
-            alert_mgr.recordResult(persona_type, false) catch |err| {
+            alert_mgr.recordResult(profile_type, false) catch |err| {
                 std.log.debug("Failed to record error to alert manager: {t}", .{err});
             };
         }
     }
 
     /// Record a user satisfaction score (0.0 to 1.0).
-    pub fn recordSatisfaction(self: *Self, persona_type: types.PersonaType, score: f32) void {
-        if (self.persona_metrics.getPtr(persona_type)) |m| {
+    pub fn recordSatisfaction(self: *Self, profile_type: types.ProfileType, score: f32) void {
+        if (self.profile_metrics.getPtr(profile_type)) |m| {
             const scaled: u64 = @intFromFloat(std.math.clamp(score * 100.0, 0.0, 100.0));
             m.satisfaction_score.record(scaled);
         }
     }
 
-    /// Get usage statistics for a persona.
-    pub fn getStats(self: *Self, persona_type: types.PersonaType) ?PersonaStats {
-        const m = self.persona_metrics.get(persona_type) orelse return null;
+    /// Get usage statistics for a profile.
+    pub fn getStats(self: *Self, profile_type: types.ProfileType) ?ProfileStats {
+        const m = self.profile_metrics.get(profile_type) orelse return null;
 
         const total = m.requests_total.get();
         const success = m.success_total.get();
 
         // Get latency percentiles
         var latency_percentiles: ?LatencyPercentiles = null;
-        if (self.latency_windows.getPtr(persona_type)) |window| {
+        if (self.latency_windows.getPtr(profile_type)) |window| {
             latency_percentiles = window.*.getPercentiles();
         }
 
-        return PersonaStats{
+        return ProfileStats{
             .total_requests = total,
             .success_rate = if (total > 0) @as(f32, @floatFromInt(success)) / @as(f32, @floatFromInt(total)) else 1.0,
             .error_count = m.error_total.get(),
@@ -299,17 +299,17 @@ pub const PersonaMetrics = struct {
         };
     }
 
-    /// Get latency percentiles for a specific persona.
-    pub fn getLatencyPercentiles(self: *Self, persona_type: types.PersonaType) ?LatencyPercentiles {
-        if (self.latency_windows.getPtr(persona_type)) |window| {
+    /// Get latency percentiles for a specific profile.
+    pub fn getLatencyPercentiles(self: *Self, profile_type: types.ProfileType) ?LatencyPercentiles {
+        if (self.latency_windows.getPtr(profile_type)) |window| {
             return window.*.getPercentiles();
         }
         return null;
     }
 
     /// Create a metric snapshot for alert evaluation.
-    pub fn createSnapshot(self: *Self, persona_type: types.PersonaType) ?alerts.MetricSnapshot {
-        const m = self.persona_metrics.get(persona_type) orelse return null;
+    pub fn createSnapshot(self: *Self, profile_type: types.ProfileType) ?alerts.MetricSnapshot {
+        const m = self.profile_metrics.get(profile_type) orelse return null;
 
         const total = m.requests_total.get();
         const success = m.success_total.get();
@@ -318,14 +318,14 @@ pub const PersonaMetrics = struct {
         var latency_p50: f64 = 0.0;
         var latency_p99: f64 = 0.0;
 
-        if (self.latency_windows.getPtr(persona_type)) |window| {
+        if (self.latency_windows.getPtr(profile_type)) |window| {
             const percentiles = window.*.getPercentiles();
             latency_p50 = percentiles.p50;
             latency_p99 = percentiles.p99;
         }
 
         return alerts.MetricSnapshot{
-            .persona = persona_type,
+            .profile = profile_type,
             .total_requests = total,
             .success_rate = if (total > 0) @as(f64, @floatFromInt(success)) / @as(f64, @floatFromInt(total)) else 1.0,
             .error_rate = if (total > 0) @as(f64, @floatFromInt(errors)) / @as(f64, @floatFromInt(total)) else 0.0,
@@ -335,17 +335,17 @@ pub const PersonaMetrics = struct {
     }
 
     /// Check metrics against alert rules.
-    pub fn checkAlerts(self: *Self, persona_type: types.PersonaType) !void {
+    pub fn checkAlerts(self: *Self, profile_type: types.ProfileType) !void {
         if (self.alert_manager) |alert_mgr| {
-            if (self.createSnapshot(persona_type)) |snapshot| {
+            if (self.createSnapshot(profile_type)) |snapshot| {
                 try alert_mgr.checkMetrics(snapshot);
             }
         }
     }
 };
 
-/// Summary statistics for a persona.
-pub const PersonaStats = struct {
+/// Summary statistics for a profile.
+pub const ProfileStats = struct {
     total_requests: u64,
     success_rate: f32,
     error_count: u64,
@@ -353,7 +353,7 @@ pub const PersonaStats = struct {
     latency: ?LatencyPercentiles = null,
 
     /// Format as a human-readable string.
-    pub fn format(self: PersonaStats, allocator: std.mem.Allocator) ![]const u8 {
+    pub fn format(self: ProfileStats, allocator: std.mem.Allocator) ![]const u8 {
         var buf: std.Io.Writer.Allocating = .init(allocator);
         errdefer buf.deinit();
 

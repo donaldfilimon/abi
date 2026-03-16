@@ -24,14 +24,19 @@ API references. Understanding which is which prevents accidental overwrites.
 
 | Directory | Source | Regenerate |
 |-----------|--------|------------|
-| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin |
-| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin |
-| `data/` | Structured data exports | `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin |
+| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig, and use `./tools/scripts/run_build.sh gendocs` only if stock Zig is linker-blocked |
+| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig, and use `./tools/scripts/run_build.sh gendocs` only if stock Zig is linker-blocked |
+| `data/` | Structured data exports | `zig build gendocs`; on Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig, and use `./tools/scripts/run_build.sh gendocs` only if stock Zig is linker-blocked |
 
 Generated files are overwritten each time `gendocs` runs. Do not hand-edit them;
 instead, modify the source templates in `tools/gendocs/` or the catalog data.
 
 ## How to Regenerate
+
+On Darwin 25+ / macOS 26+, ABI's supported docs-validation path is a host-built
+or otherwise known-good Zig matching `.zigversion`. Use `run_build.sh` only as
+fallback evidence when stock prebuilt Zig is linker-blocked before `build.zig`
+runs.
 
 ```bash
 # Full regeneration
@@ -43,10 +48,10 @@ zig build gendocs -- --no-wasm --untracked-md
 # Check-only mode (verify determinism, no writes)
 zig build gendocs -- --check --no-wasm --untracked-md
 
-# On Darwin 25+ / 26+ (relinks with Apple ld, then runs gendocs)
+# On Darwin 25+ / 26+ fallback path (relinks with Apple ld, then runs gendocs)
 ./tools/scripts/run_build.sh gendocs
 
-# Darwin check-only mode
+# Darwin fallback check-only mode
 ./tools/scripts/run_build.sh check-docs --summary all
 ```
 

@@ -1,7 +1,7 @@
 //! Routing Rules Engine for Abi Router
 //!
-//! Provides a declarative rule-based system for persona routing decisions.
-//! Rules can boost or penalize specific personas based on request characteristics.
+//! Provides a declarative rule-based system for profile routing decisions.
+//! Rules can boost or penalize specific profiles based on request characteristics.
 
 const std = @import("std");
 const types = @import("../types.zig");
@@ -64,7 +64,7 @@ pub const RuleCondition = struct {
     }
 };
 
-/// A routing rule that affects persona selection.
+/// A routing rule that affects profile selection.
 pub const RoutingRule = struct {
     /// Human-readable name for the rule.
     name: []const u8,
@@ -72,18 +72,18 @@ pub const RoutingRule = struct {
     condition: RuleCondition,
     /// Priority (higher = evaluated first, applied last).
     priority: u8 = 5,
-    /// Score adjustments for each persona (positive = boost, negative = penalize).
-    persona_adjustments: PersonaAdjustments = .{},
+    /// Score adjustments for each profile (positive = boost, negative = penalize).
+    profile_adjustments: ProfileAdjustments = .{},
     /// Whether this rule is enabled.
     enabled: bool = true,
 };
 
-/// Score adjustments per persona.
-pub const PersonaAdjustments = struct {
+/// Score adjustments per profile.
+pub const ProfileAdjustments = struct {
     abbey_boost: f32 = 0.0,
     aviva_boost: f32 = 0.0,
     abi_boost: f32 = 0.0,
-    // Block routing to specific personas
+    // Block routing to specific profiles
     block_abbey: bool = false,
     block_aviva: bool = false,
 };
@@ -91,11 +91,11 @@ pub const PersonaAdjustments = struct {
 /// Result of evaluating all routing rules.
 pub const RoutingRulesScore = struct {
     allocator: std.mem.Allocator,
-    /// Cumulative boost for Abbey persona.
+    /// Cumulative boost for Abbey profile.
     abbey_boost: f32 = 0.0,
-    /// Cumulative boost for Aviva persona.
+    /// Cumulative boost for Aviva profile.
     aviva_boost: f32 = 0.0,
-    /// Cumulative boost for Abi persona.
+    /// Cumulative boost for Abi profile.
     abi_boost: f32 = 0.0,
     /// Whether content requires moderation (route to Abi).
     requires_moderation: bool = false,
@@ -113,8 +113,8 @@ pub const RoutingRulesScore = struct {
         self.matched_rules.deinit(self.allocator);
     }
 
-    /// Get the persona with the highest boost.
-    pub fn getBestPersona(self: RoutingRulesScore) types.PersonaType {
+    /// Get the profile with the highest boost.
+    pub fn getBestProfile(self: RoutingRulesScore) types.ProfileType {
         if (self.requires_moderation) return .abi;
 
         const max_boost = @max(@max(self.abbey_boost, self.aviva_boost), self.abi_boost);
@@ -157,7 +157,7 @@ pub const RulesEngine = struct {
                 .threshold = 0.7,
             },
             .priority = 8,
-            .persona_adjustments = .{
+            .profile_adjustments = .{
                 .abbey_boost = 0.3,
             },
         });
@@ -169,7 +169,7 @@ pub const RulesEngine = struct {
                 .condition_type = .is_technical,
             },
             .priority = 6,
-            .persona_adjustments = .{
+            .profile_adjustments = .{
                 .aviva_boost = 0.25,
             },
         });
@@ -181,7 +181,7 @@ pub const RulesEngine = struct {
                 .condition_type = .requires_empathy,
             },
             .priority = 7,
-            .persona_adjustments = .{
+            .profile_adjustments = .{
                 .abbey_boost = 0.35,
                 .aviva_boost = -0.1,
             },
@@ -195,7 +195,7 @@ pub const RulesEngine = struct {
                 .string_value = "code",
             },
             .priority = 5,
-            .persona_adjustments = .{
+            .profile_adjustments = .{
                 .aviva_boost = 0.2,
             },
         });
@@ -208,7 +208,7 @@ pub const RulesEngine = struct {
                 .string_value = "implement",
             },
             .priority = 5,
-            .persona_adjustments = .{
+            .profile_adjustments = .{
                 .aviva_boost = 0.2,
             },
         });
@@ -221,7 +221,7 @@ pub const RulesEngine = struct {
                 .emotion = .frustrated,
             },
             .priority = 8,
-            .persona_adjustments = .{
+            .profile_adjustments = .{
                 .abbey_boost = 0.4,
             },
         });
@@ -234,7 +234,7 @@ pub const RulesEngine = struct {
                 .emotion = .confused,
             },
             .priority = 6,
-            .persona_adjustments = .{
+            .profile_adjustments = .{
                 .abbey_boost = 0.2,
             },
         });
@@ -274,9 +274,9 @@ pub const RulesEngine = struct {
             if (!rule.enabled) continue;
 
             if (rule.condition.evaluate(sentiment, content)) {
-                score.abbey_boost += rule.persona_adjustments.abbey_boost;
-                score.aviva_boost += rule.persona_adjustments.aviva_boost;
-                score.abi_boost += rule.persona_adjustments.abi_boost;
+                score.abbey_boost += rule.profile_adjustments.abbey_boost;
+                score.aviva_boost += rule.profile_adjustments.aviva_boost;
+                score.abi_boost += rule.profile_adjustments.abi_boost;
 
                 score.matched_rules.append(score.allocator, rule.name) catch |err| {
                     std.log.debug("Failed to track matched rule '{s}': {t}", .{ rule.name, err });
@@ -328,7 +328,7 @@ test "RuleCondition evaluation" {
     try std.testing.expect(emotion_condition.evaluate(sentiment, "test"));
 }
 
-test "RoutingRulesScore getBestPersona" {
+test "RoutingRulesScore getBestProfile" {
     const allocator = std.testing.allocator;
 
     var score = RoutingRulesScore.init(allocator);
@@ -337,11 +337,11 @@ test "RoutingRulesScore getBestPersona" {
     score.abbey_boost = 0.5;
     score.aviva_boost = 0.2;
 
-    try std.testing.expect(score.getBestPersona() == .abbey);
+    try std.testing.expect(score.getBestProfile() == .abbey);
 
     score.aviva_boost = 0.8;
-    try std.testing.expect(score.getBestPersona() == .aviva);
+    try std.testing.expect(score.getBestProfile() == .aviva);
 
     score.requires_moderation = true;
-    try std.testing.expect(score.getBestPersona() == .abi);
+    try std.testing.expect(score.getBestProfile() == .abi);
 }

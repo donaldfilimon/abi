@@ -42,7 +42,7 @@
     },
     .{
         .name = "chat-tui",
-        .description = "Launch the interactive multi-persona TUI chat interface",
+        .description = "Launch the interactive multi-profile TUI chat interface",
         .aliases = .{"ctui"},
         .subcommands = .{},
     },

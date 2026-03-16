@@ -38,6 +38,11 @@ pub const Feature = enum {
     benchmarks,
     reasoning,
     constitution,
+    compute,
+    documents,
+    desktop,
+    lsp,
+    mcp,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -69,6 +74,11 @@ pub const Feature = enum {
             .benchmarks => "Performance benchmarking",
             .reasoning => "AI reasoning (Abbey, eval, RAG)",
             .constitution => "AI safety principles and guardrails",
+            .compute => "Distributed compute mesh",
+            .documents => "Native document parsing (HTML, PDF)",
+            .desktop => "Native desktop OS extensions",
+            .lsp => "LSP (ZLS) service",
+            .mcp => "MCP (Model Context Protocol) service",
         };
     }
 };

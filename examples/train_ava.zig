@@ -243,10 +243,10 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("1. Test Ava:\n", .{});
     std.debug.print("   zig build run -- llm chat {s}\n", .{config.output_path});
     std.debug.print("\n2. Use with agent:\n", .{});
-    std.debug.print("   zig build run -- agent --persona ava --model {s}\n", .{config.output_path});
+    std.debug.print("   zig build run -- agent --profile ava --model {s}\n", .{config.output_path});
     std.debug.print("\n3. Integrate in code:\n", .{});
     std.debug.print("   const model = try abi.ai.llm.Model.load(allocator, \"{s}\");\n", .{config.output_path});
-    std.debug.print("   const persona = abi.ai.prompts.getPersona(.ava);\n", .{});
+    std.debug.print("   const profile = abi.ai.prompts.getProfile(.ava);\n", .{});
 }
 
 fn showTrainingDemo(config: AvaTrainingConfig) void {

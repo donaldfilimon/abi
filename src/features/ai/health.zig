@@ -1,6 +1,6 @@
-//! Persona Health Checker Module
+//! Profile Health Checker Module
 //!
-//! Monitors the health of persona instances and provides health scores
+//! Monitors the health of profile instances and provides health scores
 //! to the load balancer for intelligent routing decisions.
 //!
 //! Features:
@@ -16,7 +16,7 @@ const loadbalancer = @import("loadbalancer.zig");
 const time = @import("../../services/shared/mod.zig").time;
 const sync = @import("../../services/shared/mod.zig").sync;
 
-/// Health status of a persona.
+/// Health status of a profile.
 pub const HealthStatus = enum {
     healthy,
     degraded,
@@ -42,7 +42,7 @@ pub const HealthStatus = enum {
 
 /// Detailed health check result.
 pub const HealthCheckResult = struct {
-    persona: types.PersonaType,
+    profile: types.ProfileType,
     status: HealthStatus,
     score: f32,
     /// Latency component (0.0 - 1.0).
@@ -90,18 +90,18 @@ pub const HealthCheckerConfig = struct {
     enable_logging: bool = false,
 };
 
-/// Health checker for personas.
+/// Health checker for profiles.
 pub const HealthChecker = struct {
     allocator: std.mem.Allocator,
     config: HealthCheckerConfig,
     /// Reference to metrics manager.
-    metrics: ?*metrics_mod.PersonaMetrics = null,
+    metrics: ?*metrics_mod.ProfileMetrics = null,
     /// Reference to load balancer.
-    load_balancer: ?*loadbalancer.PersonaLoadBalancer = null,
-    /// Health history per persona.
-    history: std.AutoHashMapUnmanaged(types.PersonaType, std.ArrayListUnmanaged(HealthHistoryEntry)),
+    load_balancer: ?*loadbalancer.ProfileLoadBalancer = null,
+    /// Health history per profile.
+    history: std.AutoHashMapUnmanaged(types.ProfileType, std.ArrayListUnmanaged(HealthHistoryEntry)),
     /// Last check results.
-    last_results: std.AutoHashMapUnmanaged(types.PersonaType, HealthCheckResult),
+    last_results: std.AutoHashMapUnmanaged(types.ProfileType, HealthCheckResult),
     /// Custom health check functions.
     custom_checks: std.ArrayListUnmanaged(CustomHealthCheck),
     mutex: sync.Mutex,
@@ -109,7 +109,7 @@ pub const HealthChecker = struct {
     const Self = @This();
 
     /// Custom health check function type.
-    pub const CustomHealthCheckFn = *const fn (types.PersonaType) f32;
+    pub const CustomHealthCheckFn = *const fn (types.ProfileType) f32;
 
     const CustomHealthCheck = struct {
         name: []const u8,
@@ -140,8 +140,8 @@ pub const HealthChecker = struct {
     pub fn initWithDependencies(
         allocator: std.mem.Allocator,
         config: HealthCheckerConfig,
-        metrics_ref: *metrics_mod.PersonaMetrics,
-        lb_ref: *loadbalancer.PersonaLoadBalancer,
+        metrics_ref: *metrics_mod.ProfileMetrics,
+        lb_ref: *loadbalancer.ProfileLoadBalancer,
     ) Self {
         var checker = initWithConfig(allocator, config);
         checker.metrics = metrics_ref;
@@ -163,13 +163,13 @@ pub const HealthChecker = struct {
         self.custom_checks.deinit(self.allocator);
     }
 
-    /// Register a persona for health checking.
-    pub fn registerPersona(self: *Self, persona_type: types.PersonaType) !void {
+    /// Register a profile for health checking.
+    pub fn registerProfile(self: *Self, profile_type: types.ProfileType) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        if (!self.history.contains(persona_type)) {
-            try self.history.put(self.allocator, persona_type, .{});
+        if (!self.history.contains(profile_type)) {
+            try self.history.put(self.allocator, profile_type, .{});
         }
     }
 
@@ -185,8 +185,8 @@ pub const HealthChecker = struct {
         });
     }
 
-    /// Perform health check for a specific persona.
-    pub fn checkPersona(self: *Self, persona_type: types.PersonaType) !HealthCheckResult {
+    /// Perform health check for a specific profile.
+    pub fn checkProfile(self: *Self, profile_type: types.ProfileType) !HealthCheckResult {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -200,7 +200,7 @@ pub const HealthChecker = struct {
 
         // Get latency and error rate from metrics
         if (self.metrics) |metrics_ref| {
-            if (metrics_ref.getStats(persona_type)) |stats| {
+            if (metrics_ref.getStats(profile_type)) |stats| {
                 // Latency score
                 if (stats.latency) |lat| {
                     latency_score = self.calculateLatencyScore(lat.p99);
@@ -214,7 +214,7 @@ pub const HealthChecker = struct {
 
         // Get availability from load balancer
         if (self.load_balancer) |lb_ref| {
-            if (lb_ref.getNodeStats(persona_type)) |node| {
+            if (lb_ref.getNodeStats(profile_type)) |node| {
                 availability_score = switch (node.status) {
                     .healthy => 1.0,
                     .degraded => 0.7,
@@ -229,7 +229,7 @@ pub const HealthChecker = struct {
             var total_weight: f32 = 0;
             var weighted_sum: f32 = 0;
             for (self.custom_checks.items) |check| {
-                const check_result = check.check_fn(persona_type);
+                const check_result = check.check_fn(profile_type);
                 weighted_sum += check_result * check.weight;
                 total_weight += check.weight;
             }
@@ -249,7 +249,7 @@ pub const HealthChecker = struct {
         const status = HealthStatus.fromScore(score);
 
         const result = HealthCheckResult{
-            .persona = persona_type,
+            .profile = profile_type,
             .status = status,
             .score = score,
             .latency_score = latency_score,
@@ -260,10 +260,10 @@ pub const HealthChecker = struct {
         };
 
         // Store result
-        try self.last_results.put(self.allocator, persona_type, result);
+        try self.last_results.put(self.allocator, profile_type, result);
 
         // Add to history
-        if (self.history.getPtr(persona_type)) |history_list| {
+        if (self.history.getPtr(profile_type)) |history_list| {
             if (history_list.items.len >= self.config.history_size) {
                 _ = history_list.orderedRemove(0);
             }
@@ -276,50 +276,50 @@ pub const HealthChecker = struct {
 
         // Update load balancer
         if (self.load_balancer) |lb_ref| {
-            lb_ref.updateHealthScore(persona_type, score);
+            lb_ref.updateHealthScore(profile_type, score);
         }
 
         return result;
     }
 
-    /// Check all registered personas.
+    /// Check all registered profiles.
     pub fn checkAll(self: *Self) ![]HealthCheckResult {
         var results: std.ArrayListUnmanaged(HealthCheckResult) = .empty;
         errdefer results.deinit(self.allocator);
 
-        // Get list of personas
+        // Get list of profiles
         self.mutex.lock();
-        var persona_list: std.ArrayListUnmanaged(types.PersonaType) = .empty;
-        defer persona_list.deinit(self.allocator);
+        var profile_list: std.ArrayListUnmanaged(types.ProfileType) = .empty;
+        defer profile_list.deinit(self.allocator);
 
         var it = self.history.keyIterator();
         while (it.next()) |key| {
-            try persona_list.append(self.allocator, key.*);
+            try profile_list.append(self.allocator, key.*);
         }
         self.mutex.unlock();
 
-        // Check each persona
-        for (persona_list.items) |persona| {
-            const result = try self.checkPersona(persona);
+        // Check each profile
+        for (profile_list.items) |profile| {
+            const result = try self.checkProfile(profile);
             try results.append(self.allocator, result);
         }
 
         return results.toOwnedSlice(self.allocator);
     }
 
-    /// Get last health check result for a persona.
-    pub fn getLastResult(self: *Self, persona_type: types.PersonaType) ?HealthCheckResult {
+    /// Get last health check result for a profile.
+    pub fn getLastResult(self: *Self, profile_type: types.ProfileType) ?HealthCheckResult {
         self.mutex.lock();
         defer self.mutex.unlock();
-        return self.last_results.get(persona_type);
+        return self.last_results.get(profile_type);
     }
 
-    /// Get health trend for a persona (average score over recent history).
-    pub fn getHealthTrend(self: *Self, persona_type: types.PersonaType) ?f32 {
+    /// Get health trend for a profile (average score over recent history).
+    pub fn getHealthTrend(self: *Self, profile_type: types.ProfileType) ?f32 {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        if (self.history.getPtr(persona_type)) |history_list| {
+        if (self.history.getPtr(profile_type)) |history_list| {
             if (history_list.items.len == 0) return null;
 
             var sum: f32 = 0;
@@ -331,7 +331,7 @@ pub const HealthChecker = struct {
         return null;
     }
 
-    /// Get aggregate health status across all personas.
+    /// Get aggregate health status across all profiles.
     pub fn getAggregateHealth(self: *Self) AggregateHealth {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -340,7 +340,7 @@ pub const HealthChecker = struct {
 
         var it = self.last_results.valueIterator();
         while (it.next()) |check_result| {
-            result.total_personas += 1;
+            result.total_profiles += 1;
             result.total_score += check_result.score;
 
             switch (check_result.status) {
@@ -351,8 +351,8 @@ pub const HealthChecker = struct {
             }
         }
 
-        if (result.total_personas > 0) {
-            result.average_score = result.total_score / @as(f32, @floatFromInt(result.total_personas));
+        if (result.total_profiles > 0) {
+            result.average_score = result.total_score / @as(f32, @floatFromInt(result.total_profiles));
         }
 
         return result;
@@ -418,9 +418,9 @@ pub const HealthChecker = struct {
     }
 };
 
-/// Aggregate health across all personas.
+/// Aggregate health across all profiles.
 pub const AggregateHealth = struct {
-    total_personas: u32 = 0,
+    total_profiles: u32 = 0,
     healthy_count: u32 = 0,
     degraded_count: u32 = 0,
     unhealthy_count: u32 = 0,
@@ -433,8 +433,8 @@ pub const AggregateHealth = struct {
     }
 
     pub fn getOverallStatus(self: AggregateHealth) HealthStatus {
-        if (self.total_personas == 0) return .unknown;
-        if (self.unhealthy_count > self.total_personas / 2) return .unhealthy;
+        if (self.total_profiles == 0) return .unknown;
+        if (self.unhealthy_count > self.total_profiles / 2) return .unhealthy;
         if (self.degraded_count + self.unhealthy_count > self.healthy_count) return .degraded;
         return .healthy;
     }
@@ -458,15 +458,15 @@ test "health checker initialization" {
     var checker = HealthChecker.init(std.testing.allocator);
     defer checker.deinit();
 
-    try checker.registerPersona(.abbey);
-    try checker.registerPersona(.aviva);
+    try checker.registerProfile(.abbey);
+    try checker.registerProfile(.aviva);
 
     try std.testing.expectEqual(@as(usize, 2), checker.history.count());
 }
 
 test "aggregate health" {
     var health = AggregateHealth{
-        .total_personas = 3,
+        .total_profiles = 3,
         .healthy_count = 2,
         .degraded_count = 1,
         .unhealthy_count = 0,
@@ -478,7 +478,7 @@ test "aggregate health" {
 
 test "aggregate health degraded" {
     var health = AggregateHealth{
-        .total_personas = 3,
+        .total_profiles = 3,
         .healthy_count = 1,
         .degraded_count = 2,
         .unhealthy_count = 0,

@@ -362,7 +362,7 @@ test "e2e: agent with database tool" {
 // E2E Tests: Agent State and Configuration
 // ============================================================================
 
-test "e2e: agent persona configuration" {
+test "e2e: agent profile configuration" {
     try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
@@ -372,7 +372,7 @@ test "e2e: agent persona configuration" {
     });
     defer ctx.deinit();
 
-    // Create agents with different personas
+    // Create agents with different profiles
     var helpful_agent = try abi.ai.createAgent(allocator, "helpful-assistant");
     defer helpful_agent.deinit();
 

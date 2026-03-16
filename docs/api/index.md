@@ -20,6 +20,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [registry](registry.md) | Core Framework | Feature Registry System | `always-on` |
 | [benchmarks](benchmarks.md) | Compute & Runtime | Benchmarks Module | `feat_benchmarks` |
 | [gpu](gpu.md) | Compute & Runtime | GPU Module - Hardware Acceleration API | `feat_gpu` |
+| [inference](inference.md) | Compute & Runtime | Top-level inference primitives. | `always-on` |
 | [runtime](runtime.md) | Compute & Runtime | Runtime Module - Always-on Core Infrastructure | `always-on` |
 | [ai](ai.md) | AI & Machine Learning | AI feature facade. | `feat_ai` |
 | [cache](cache.md) | Data & Storage | Cache Module | `feat_cache` |
@@ -30,7 +31,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [cloud](cloud.md) | Infrastructure | Cloud Functions Module | `feat_cloud` |
 | [gateway](gateway.md) | Infrastructure | Gateway Module | `feat_gateway` |
 | [ha](ha.md) | Infrastructure | High Availability Module | `always-on` |
-| [mcp](mcp.md) | Infrastructure | MCP (Model Context Protocol) Service | `always-on` |
+| [mcp](mcp.md) | Infrastructure | MCP (Model Context Protocol) Service module switcher. | `always-on` |
 | [messaging](messaging.md) | Infrastructure | Messaging Module | `feat_messaging` |
 | [mobile](mobile.md) | Infrastructure | Mobile Module | `feat_mobile` |
 | [network](network.md) | Infrastructure | Network Module | `feat_network` |
@@ -44,7 +45,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [desktop](desktop.md) | Utilities | Desktop Integration | `feat_desktop` |
 | [documents](documents.md) | Utilities | Native Documents Parser Module | `feat_documents` |
 | [foundation](foundation.md) | Utilities | Shared Utilities Module | `always-on` |
-| [lsp](lsp.md) | Utilities | LSP (ZLS) service module. | `always-on` |
+| [lsp](lsp.md) | Utilities | LSP (ZLS) Service module switcher. | `always-on` |
 | [platform](platform.md) | Utilities | Platform Detection and Abstraction | `always-on` |
 | [tasks](tasks.md) | Utilities | Task Management Module | `always-on` |
 
@@ -305,6 +306,14 @@ These may change without notice:
 
 **Source:** [`src/features/gpu/mod.zig`](../../src/features/gpu/mod.zig) | **Flag:** `-Dfeat_gpu`
 
+### [inference](inference.md)
+
+Top-level inference primitives.
+
+This module is the canonical public home for ABI inference runtime types.
+
+**Source:** [`src/inference/mod.zig`](../../src/inference/mod.zig)
+
 ### [runtime](runtime.md)
 
 Runtime Module - Always-on Core Infrastructure
@@ -543,20 +552,7 @@ try manager.start();
 
 ### [mcp](mcp.md)
 
-MCP (Model Context Protocol) Service
-
-Provides a JSON-RPC 2.0 server over stdio for exposing ABI framework
-tools to MCP-compatible AI clients (Claude Desktop, Cursor, etc.).
-
-## Usage
-```bash
-abi mcp serve                          # Start MCP server (stdio)
-echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' | abi mcp serve
-```
-
-## Exposed Tools
-- `db_*` — Database tools
-- `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
+MCP (Model Context Protocol) Service module switcher.
 
 **Source:** [`src/services/mcp/mod.zig`](../../src/services/mcp/mod.zig)
 
@@ -652,7 +648,7 @@ Architecture:
 Web Module - HTTP Client and Web Utilities
 
 This module provides HTTP client functionality, weather API integration,
-and persona API handlers for the ABI framework. It wraps Zig's standard
+and profile API handlers for the ABI framework. It wraps Zig's standard
 library HTTP client with convenient utilities for common web operations.
 
 ## Features
@@ -666,7 +662,7 @@ library HTTP client with convenient utilities for common web operations.
 - Coordinate-based weather forecasts
 - Location validation and URL building
 
-- **Persona API**: HTTP handlers and routes for AI persona system
+- **Profile API**: HTTP handlers and routes for AI profile system
 - Chat request/response handlers
 - REST API routes with OpenAPI documentation
 - Health check and metrics endpoints
@@ -923,7 +919,7 @@ internal mutex protection for concurrent access.
 
 ### [lsp](lsp.md)
 
-LSP (ZLS) service module.
+LSP (ZLS) Service module switcher.
 
 **Source:** [`src/services/lsp/mod.zig`](../../src/services/lsp/mod.zig)
 
@@ -987,4 +983,4 @@ try manager.complete(id);
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const framework = @import("../../system/framework.zig");
 const core = @import("../../core/mod.zig");
-const ops = abi.features.ai.llm.ops;
+const ops = abi.ai.llm.ops;
 
 pub fn runKernelBenchmarks(allocator: std.mem.Allocator, config: core.config.AIBenchConfig) !void {
     var runner = framework.BenchmarkRunner.init(allocator);

@@ -35,7 +35,7 @@ pub const ComplianceConfig = struct {
     }
 };
 
-/// Settings for PII (Personally Identifiable Information) detection.
+/// Settings for PII (Profilelly Identifiable Information) detection.
 pub const PiiDetectionConfig = struct {
     /// Detect email addresses.
     detect_email: bool = true,

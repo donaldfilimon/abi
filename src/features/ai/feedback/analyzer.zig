@@ -1,7 +1,7 @@
 //! Feedback Analyzer
 //!
 //! Analyzes collected feedback to derive actionable insights:
-//! - Aggregate statistics per persona
+//! - Aggregate statistics per profile
 //! - Satisfaction scoring
 //! - Trend detection (improving/declining)
 //! - Category-level breakdown
@@ -18,9 +18,9 @@ pub const Trend = enum {
     insufficient_data,
 };
 
-/// Aggregate statistics for a persona.
-pub const PersonaStats = struct {
-    persona: collector_mod.PersonaRef,
+/// Aggregate statistics for a profile.
+pub const ProfileStats = struct {
+    profile: collector_mod.ProfileRef,
     total_entries: usize,
     average_rating: f32,
     positive_ratio: f32,
@@ -37,12 +37,12 @@ pub const CategoryStat = struct {
 
 /// Overall system satisfaction report.
 pub const SatisfactionReport = struct {
-    /// Overall average rating across all personas.
+    /// Overall average rating across all profiles.
     overall_average: f32,
     /// Total feedback entries analyzed.
     total_entries: usize,
-    /// Per-persona statistics.
-    persona_stats: [5]?PersonaStats,
+    /// Per-profile statistics.
+    profile_stats: [5]?ProfileStats,
     /// System-wide satisfaction trend.
     overall_trend: Trend,
     /// Timestamp when this report was generated.
@@ -59,8 +59,8 @@ pub const FeedbackAnalyzer = struct {
         return .{ .min_threshold = min_analysis_threshold };
     }
 
-    /// Analyze feedback entries and produce a persona stats report.
-    pub fn analyzePersona(self: *const Self, entries: []const collector_mod.FeedbackEntry, persona: collector_mod.PersonaRef) PersonaStats {
+    /// Analyze feedback entries and produce a profile stats report.
+    pub fn analyzeProfile(self: *const Self, entries: []const collector_mod.FeedbackEntry, profile: collector_mod.ProfileRef) ProfileStats {
         var total: f32 = 0;
         var count: usize = 0;
         var positive: usize = 0;
@@ -70,7 +70,7 @@ pub const FeedbackAnalyzer = struct {
         var cat_totals: [8]f32 = .{0} ** 8;
 
         for (entries) |entry| {
-            if (entry.persona == persona) {
+            if (entry.profile == profile) {
                 total += @floatFromInt(entry.rating);
                 count += 1;
                 if (entry.isPositive()) positive += 1;
@@ -85,7 +85,7 @@ pub const FeedbackAnalyzer = struct {
         const pos_ratio = if (count > 0) @as(f32, @floatFromInt(positive)) / @as(f32, @floatFromInt(count)) else 0.0;
 
         // Compute trend from recent vs older entries
-        const trend = self.computeTrend(entries, persona);
+        const trend = self.computeTrend(entries, profile);
 
         // Build category breakdown
         var cats: [8]CategoryStat = undefined;
@@ -99,7 +99,7 @@ pub const FeedbackAnalyzer = struct {
         }
 
         return .{
-            .persona = persona,
+            .profile = profile,
             .total_entries = count,
             .average_rating = avg,
             .positive_ratio = pos_ratio,
@@ -108,17 +108,17 @@ pub const FeedbackAnalyzer = struct {
         };
     }
 
-    /// Generate a full satisfaction report across all personas.
+    /// Generate a full satisfaction report across all profiles.
     pub fn generateReport(self: *const Self, entries: []const collector_mod.FeedbackEntry) SatisfactionReport {
-        const personas = [_]collector_mod.PersonaRef{ .abbey, .aviva, .abi, .ralph, .other };
-        var persona_stats: [5]?PersonaStats = .{null} ** 5;
+        const profiles = [_]collector_mod.ProfileRef{ .abbey, .aviva, .abi, .ralph, .other };
+        var profile_stats: [5]?ProfileStats = .{null} ** 5;
         var overall_total: f32 = 0;
         var overall_count: usize = 0;
 
-        for (personas, 0..) |persona, i| {
-            const stats = self.analyzePersona(entries, persona);
+        for (profiles, 0..) |profile, i| {
+            const stats = self.analyzeProfile(entries, profile);
             if (stats.total_entries > 0) {
-                persona_stats[i] = stats;
+                profile_stats[i] = stats;
                 overall_total += stats.average_rating * @as(f32, @floatFromInt(stats.total_entries));
                 overall_count += stats.total_entries;
             }
@@ -127,17 +127,17 @@ pub const FeedbackAnalyzer = struct {
         return .{
             .overall_average = if (overall_count > 0) overall_total / @as(f32, @floatFromInt(overall_count)) else 0.0,
             .total_entries = overall_count,
-            .persona_stats = persona_stats,
+            .profile_stats = profile_stats,
             .overall_trend = if (overall_count < self.min_threshold) .insufficient_data else .stable,
             .generated_at = time.unixSeconds(),
         };
     }
 
-    fn computeTrend(self: *const Self, entries: []const collector_mod.FeedbackEntry, persona: collector_mod.PersonaRef) Trend {
+    fn computeTrend(self: *const Self, entries: []const collector_mod.FeedbackEntry, profile: collector_mod.ProfileRef) Trend {
         // Split relevant entries into halves and compare averages
         var relevant_count: usize = 0;
         for (entries) |e| {
-            if (e.persona == persona) relevant_count += 1;
+            if (e.profile == profile) relevant_count += 1;
         }
 
         if (relevant_count < self.min_threshold) return .insufficient_data;
@@ -150,7 +150,7 @@ pub const FeedbackAnalyzer = struct {
         var seen: usize = 0;
 
         for (entries) |e| {
-            if (e.persona == persona) {
+            if (e.profile == profile) {
                 if (seen < midpoint) {
                     first_half_total += @floatFromInt(e.rating);
                     first_half_count += 1;
@@ -178,7 +178,7 @@ pub const FeedbackAnalyzer = struct {
 // Tests
 // ============================================================================
 
-test "FeedbackAnalyzer persona stats" {
+test "FeedbackAnalyzer profile stats" {
     const analyzer = FeedbackAnalyzer.init(2);
 
     var entries: [4]collector_mod.FeedbackEntry = undefined;
@@ -188,7 +188,7 @@ test "FeedbackAnalyzer persona stats" {
             .rating = if (i < 2) 5 else 3,
             .rating_type = .stars,
             .category = .quality,
-            .persona = .abbey,
+            .profile = .abbey,
             .session_id = undefined,
             .session_id_len = 0,
             .text = undefined,
@@ -197,7 +197,7 @@ test "FeedbackAnalyzer persona stats" {
         };
     }
 
-    const stats = analyzer.analyzePersona(&entries, .abbey);
+    const stats = analyzer.analyzeProfile(&entries, .abbey);
     try std.testing.expect(stats.total_entries == 4);
     try std.testing.expectApproxEqAbs(@as(f32, 4.0), stats.average_rating, 0.01);
 }
@@ -211,7 +211,7 @@ test "FeedbackAnalyzer report" {
         .rating = 5,
         .rating_type = .stars,
         .category = .helpfulness,
-        .persona = .abbey,
+        .profile = .abbey,
         .session_id = undefined,
         .session_id_len = 0,
         .text = undefined,
@@ -223,7 +223,7 @@ test "FeedbackAnalyzer report" {
         .rating = 4,
         .rating_type = .stars,
         .category = .accuracy,
-        .persona = .aviva,
+        .profile = .aviva,
         .session_id = undefined,
         .session_id_len = 0,
         .text = undefined,

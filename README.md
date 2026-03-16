@@ -16,6 +16,7 @@ entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 - `abi.App` / `abi.AppBuilder` for framework setup and feature wiring
 - `abi.database` for the semantic store and vector search surface
 - `abi.ai` for agents, profiles, training, reasoning, and LLM support
+- `abi.inference` for engine, scheduler, sampler, and paged KV cache primitives
 - `abi.gpu` / `abi.Gpu` / `abi.GpuBackend` for unified compute backends
 - `abi.runtime`, `abi.platform`, `abi.connectors`, `abi.mcp`, `abi.acp`, `abi.tasks` for services
 - `abi.foundation` for shared utilities (SIMD, logging, security, time)
@@ -31,6 +32,7 @@ entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 | Full release gate | `zig build verify-all` |
 | Docs generator | `zig build gendocs` |
 | CLI registry refresh | `zig build refresh-cli-registry` |
+| Darwin 26.4 full-validation toolchain | Host-built or otherwise known-good Zig matching `.zigversion` |
 
 ## Quick start
 
@@ -41,14 +43,11 @@ zig build
 zig build run -- --help
 ```
 
-If you are on macOS 26+ and stock Zig cannot link the build runner, start with
-the repo-supported fallback paths instead:
-
-```bash
-./tools/scripts/run_build.sh test --summary all
-zig fmt --check build.zig build src tools examples
-zig test src/services/tests/mod.zig -fno-emit-bin
-```
+On macOS 26.4 / Darwin 25.x, stock prebuilt Zig on this host is linker-blocked
+before `build.zig` runs. ABI's supported full-validation path is a host-built
+or otherwise known-good Zig matching `.zigversion`. If you are temporarily on a
+blocked stock toolchain, use `./tools/scripts/run_build.sh` only as fallback
+evidence while replacing the toolchain.
 
 ## Library examples
 
@@ -167,15 +166,15 @@ organized by domain.
 | `abi.App` / `abi.AppBuilder` | Framework lifecycle and feature orchestration |
 | `abi.database` | Semantic store, search, backup, restore, diagnostics |
 | `abi.ai` | Agents, profiles, LLM, training, reasoning |
+| `abi.inference` | Engine, scheduler, sampler, and paged KV cache primitives |
 | `abi.gpu` | GPU feature namespace |
 | `abi.Gpu` / `abi.GpuBackend` | Direct unified GPU runtime access |
 | `abi.foundation` / `abi.runtime` | Shared foundations, time/sync/SIMD, and always-on runtime primitives |
-| `abi.connectors` / `abi.ha` / `abi.tasks` / `abi.lsp` / `abi.mcp` / `abi.acp` / `abi.inference` | Service and integration surfaces |
+| `abi.connectors` / `abi.ha` / `abi.tasks` / `abi.lsp` / `abi.mcp` / `abi.acp` | Service and integration surfaces |
 
 ### Notes on migration surfaces
 
 - `abi.ai.profiles` is the canonical behavior-profile namespace.
-- `abi.ai.personas` remains as a compatibility alias during the phase 4 transition.
 - The public named `wdbx` package surface has been removed; use `abi.database`.
 - `src/root.zig` is the canonical package root for the `abi` module. `src/abi.zig` is a legacy internal file (not imported by any code).
 
@@ -225,7 +224,7 @@ zig build verify-all
 zig build fix
 zig build lint
 ./tools/scripts/fmt_repo.sh --check
-zig fmt --check build.zig build src tools examples
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 ```
 
 Do not run `zig fmt .` at the repo root. The repo vendors upstream Zig fixtures
@@ -243,8 +242,10 @@ zig build check-cli-registry
 
 Generated docs live under `docs/api/` and `docs/plans/`. Structural edits should
 go through `tools/gendocs/`, not direct manual edits to generated pages.
-On Darwin 25+ / 26+, `gendocs` is compile-check only locally; regenerate from a
-non-Darwin environment when generated outputs must be updated.
+On macOS 26.4, full local `zig build gendocs` / `zig build check-docs` support
+requires a host-built or otherwise known-good Zig. If stock prebuilt Zig is
+linker-blocked, use `./tools/scripts/run_build.sh typecheck --summary all` as
+fallback evidence while obtaining a working toolchain.
 
 ## Feature flags
 

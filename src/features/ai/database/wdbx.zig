@@ -4,11 +4,14 @@
 //! Provides conversion helpers for token binaries and JSONL/text ingestion.
 
 const std = @import("std");
-const abi = @import("abi");
 const build_options = @import("build_options");
 const tokenizer_mod = @import("../llm/tokenizer/mod.zig");
 
-const wdbx_engine = abi.database.neural;
+const database = if (build_options.feat_database)
+    @import("../../database/mod.zig")
+else
+    @import("../../database/stub.zig");
+const wdbx_engine = database.neural;
 
 pub const DatasetError = error{
     DatabaseDisabled,

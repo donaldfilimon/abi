@@ -35,7 +35,7 @@ test "database insert and vector search round-trip" {
     try std.testing.expect(db.verifyChain());
 }
 
-test "persona routing pipeline" {
+test "profile routing pipeline" {
     const allocator = std.testing.allocator;
     var moderator = root.AbiModerator.init(allocator);
     defer moderator.deinit();

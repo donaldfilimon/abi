@@ -1,8 +1,8 @@
-//! Abbey Persona - Empathetic Polymath
+//! Abbey Profile - Empathetic Polymath
 //!
 //! Abbey combines emotional intelligence with deep technical expertise.
 //! This module wraps the core Abbey implementation to conform to the
-//! Multi-Persona Assistant interface.
+//! Multi-Profile Assistant interface.
 //!
 //! Enhanced Features:
 //! - Emotion processing and detection
@@ -15,7 +15,7 @@ const time = @import("../../../services/shared/mod.zig").time;
 const types = @import("types");
 const config = @import("../config.zig");
 const core_types = @import("types");
-const abbey_core = @import("../abbey/persona.zig");
+const abbey_core = @import("mod.zig");
 
 // Import enhanced modules
 pub const emotion_mod = @import("emotion.zig");
@@ -32,8 +32,8 @@ pub const ReasoningEngine = reasoning_mod.ReasoningEngine;
 pub const ReasoningChain = reasoning_mod.ReasoningChain;
 pub const ReasoningStep = reasoning_mod.ReasoningStep;
 
-/// Abbey persona implementation with enhanced emotion processing.
-pub const AbbeyPersona = struct {
+/// Abbey profile implementation with enhanced emotion processing.
+pub const AbbeyProfile = struct {
     allocator: std.mem.Allocator,
     config: config.AbbeyConfig,
     /// The underlying Abbey engine instance.
@@ -49,12 +49,12 @@ pub const AbbeyPersona = struct {
 
     const Self = @This();
 
-    /// Initialize the Abbey persona with configuration.
+    /// Initialize the Abbey profile with configuration.
     pub fn init(allocator: std.mem.Allocator, cfg: config.AbbeyConfig) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
-        // Convert persona config to legacy config for the engine
+        // Convert profile config to legacy config for the engine
         // In a full implementation, the engine would be refactored to use the new config.
         const engine_cfg = abbey_core.Abbey.LegacyConfig{
             .name = "Abbey",
@@ -102,7 +102,7 @@ pub const AbbeyPersona = struct {
         return self;
     }
 
-    /// Shutdown the persona and free resources.
+    /// Shutdown the profile and free resources.
     pub fn deinit(self: *Self) void {
         self.emotion_processor.deinit();
         self.engine.deinit();
@@ -114,14 +114,14 @@ pub const AbbeyPersona = struct {
         return "Abbey";
     }
 
-    pub fn getType(_: *const Self) types.PersonaType {
+    pub fn getType(_: *const Self) types.ProfileType {
         return .abbey;
     }
 
     /// Process a request using Abbey's empathetic and technical logic.
-    /// Note: returns anyerror to match PersonaInterface.VTable.process signature.
+    /// Note: returns anyerror to match ProfileInterface.VTable.process signature.
     /// Actual errors: TimerFailed, OutOfMemory, and errors from engine.process().
-    pub fn process(self: *Self, request: types.PersonaRequest) anyerror!types.PersonaResponse {
+    pub fn process(self: *Self, request: types.ProfileRequest) anyerror!types.ProfileResponse {
         var timer = time.Timer.start() catch {
             return error.TimerFailed;
         };
@@ -189,9 +189,9 @@ pub const AbbeyPersona = struct {
         const elapsed_ms = timer.read() / std.time.ns_per_ms;
 
         // Build response
-        var response = types.PersonaResponse{
+        var response = types.ProfileResponse{
             .content = try content_builder.toOwnedSlice(self.allocator),
-            .persona = .abbey,
+            .profile = .abbey,
             .confidence = legacy_resp.confidence.score,
             .emotional_tone = emotional_response.primary_emotion,
             .generation_time_ms = elapsed_ms,
@@ -212,15 +212,17 @@ pub const AbbeyPersona = struct {
                     }
                     response.reasoning_chain = chain;
                 }
-            } else if (legacy_resp.reasoning_summary.len > 0) {
-                // Fall back to legacy reasoning
-                var chain = try self.allocator.alloc(types.ReasoningStep, 1);
-                chain[0] = .{
-                    .title = try self.allocator.dupe(u8, "Analysis"),
-                    .explanation = try self.allocator.dupe(u8, legacy_resp.reasoning_summary),
-                    .confidence = legacy_resp.confidence.score,
-                };
-                response.reasoning_chain = chain;
+            } else if (legacy_resp.reasoning_summary) |summary| {
+                if (summary.len > 0) {
+                    // Fall back to legacy reasoning
+                    var chain = try self.allocator.alloc(types.ReasoningStep, 1);
+                    chain[0] = .{
+                        .title = try self.allocator.dupe(u8, "Analysis"),
+                        .explanation = try self.allocator.dupe(u8, summary),
+                        .confidence = legacy_resp.confidence.score,
+                    };
+                    response.reasoning_chain = chain;
+                }
             }
         }
 
@@ -230,9 +232,9 @@ pub const AbbeyPersona = struct {
     /// Process with explicit emotional context override.
     pub fn processWithEmotion(
         self: *Self,
-        request: types.PersonaRequest,
+        request: types.ProfileRequest,
         emotion_override: EmotionalResponse,
-    ) !types.PersonaResponse {
+    ) !types.ProfileResponse {
         // Override current emotional state
         self.current_emotional_state.update(
             emotion_override.primary_emotion,
@@ -261,8 +263,8 @@ pub const AbbeyPersona = struct {
         );
     }
 
-    /// Create the interface wrapper for this persona.
-    pub fn interface(self: *Self) types.PersonaInterface {
+    /// Create the interface wrapper for this profile.
+    pub fn interface(self: *Self) types.ProfileInterface {
         return .{
             .ptr = self,
             .vtable = &.{
@@ -276,7 +278,7 @@ pub const AbbeyPersona = struct {
 
 // Tests
 
-test "abbey persona initialization" {
+test "abbey profile initialization" {
     const cfg = config.AbbeyConfig{
         .emotion_adaptation = true,
         .include_reasoning = true,
@@ -286,7 +288,7 @@ test "abbey persona initialization" {
     // Note: This test would need mocked dependencies in practice
     // Just verify types compile correctly
     _ = cfg;
-    _ = AbbeyPersona;
+    _ = AbbeyProfile;
 }
 
 test "emotion module re-exports" {

@@ -23,7 +23,7 @@ test {
     if (build_options.feat_explore) {
         _ = abi.ai.explore;
     }
-    // Persona integration tests
+    // Profile integration tests
     if (build_options.feat_ai) {
         _ = abi.ai.profiles;
     }
@@ -73,7 +73,7 @@ test {
         _ = @import("e2e_llm_test.zig");
     }
     _ = @import("e2e_database_test.zig");
-    _ = @import("e2e_personas_test.zig");
+    _ = @import("e2e_profiles_test.zig");
     _ = @import("error_handling_test.zig");
     // KernelRing fast‑path test
     _ = @import("kernel_ring_test.zig");
@@ -209,7 +209,7 @@ pub const llm_reference_vectors = if (build_options.feat_llm) @import("llm_refer
 // End-to-end integration tests (issue #397)
 pub const e2e_llm_test = if (build_options.feat_ai) @import("e2e_llm_test.zig") else struct {};
 pub const e2e_database_test = @import("e2e_database_test.zig");
-pub const e2e_personas_test = @import("e2e_personas_test.zig");
+pub const e2e_profiles_test = @import("e2e_profiles_test.zig");
 pub const error_handling_test = @import("error_handling_test.zig");
 
 // Cross-module integration tests

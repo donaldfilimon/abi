@@ -191,7 +191,7 @@ fn buildAutoContent(
             \\- Canonical policy: [AGENTS.md](../../AGENTS.md)
             \\- Task plan interface: `tasks/todo.md`
             \\- Lessons interface: `tasks/lessons.md`
-            \\- Zig validation: `zig build full-check` (or `zig fmt --check` on Darwin)
+            \\- Zig validation: `zig build full-check` on supported hosts; on Darwin 25+ / macOS 26+, use a host-built or otherwise known-good Zig, and record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` only as fallback evidence if stock Zig is linker-blocked
             \\
             \\Use the workflow contract checks during iteration and close-out:
             \\

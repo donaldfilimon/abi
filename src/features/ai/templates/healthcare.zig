@@ -1,12 +1,12 @@
-//! Healthcare Industry Persona Templates
+//! Healthcare Industry Profile Templates
 //!
-//! Pre-configured persona settings for healthcare environments:
+//! Pre-configured profile settings for healthcare environments:
 //! - Medical Assistant (Abbey): Patient inquiries, appointment scheduling
 //! - Research Support (Aviva): Data analysis, literature reviews
 //! - HIPAA Compliance (Abi): PHI monitoring, regulatory adherence
 
 const std = @import("std");
-const persona_config = @import("../config.zig");
+const profile_config = @import("../config.zig");
 
 /// Healthcare-specific routing rules for the Abi router.
 pub const HealthcareRoutingContext = struct {
@@ -16,7 +16,7 @@ pub const HealthcareRoutingContext = struct {
     research_keywords: []const []const u8 = &default_research_keywords,
     /// Whether to enforce HIPAA-strict routing.
     hipaa_strict: bool = true,
-    /// Require de-identification before research persona access.
+    /// Require de-identification before research profile access.
     require_de_identification: bool = true,
 };
 
@@ -33,10 +33,10 @@ const default_research_keywords = [_][]const u8{
     "randomized", "placebo",    "peer-reviewed",     "publication",
 };
 
-/// Create a healthcare-tuned MultiPersonaConfig.
-pub fn healthcareConfig() persona_config.MultiPersonaConfig {
+/// Create a healthcare-tuned MultiProfileConfig.
+pub fn healthcareConfig() profile_config.MultiProfileConfig {
     return .{
-        .default_persona = .abbey,
+        .default_profile = .abbey,
         .enable_dynamic_routing = true,
         .routing_confidence_threshold = 0.5,
         .abbey = .{
@@ -127,7 +127,7 @@ fn indexOfCaseInsensitive(haystack: []const u8, needle: []const u8) ?usize {
 
 test "healthcareConfig creates valid config" {
     const cfg = healthcareConfig();
-    try std.testing.expect(cfg.default_persona == .abbey);
+    try std.testing.expect(cfg.default_profile == .abbey);
     try std.testing.expect(cfg.abbey.empathy_level >= 0.9);
     try std.testing.expect(cfg.abi.content_filter_level == .strict);
 }

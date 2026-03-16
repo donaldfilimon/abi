@@ -1,36 +1,40 @@
-//! Persona Embedding Index
+//! Profile Embedding Index
 //!
-//! Manages semantic search for AI personas using WDBX and vector embeddings.
-//! Allows mapping user intent to the most appropriate persona based on
+//! Manages semantic search for AI profiles using WDBX and vector embeddings.
+//! Allows mapping user intent to the most appropriate profile based on
 //! characteristic embeddings.
 //!
 //! Features:
 //! - HNSW-based approximate nearest neighbor search
-//! - Persona characteristic embedding storage
+//! - Profile characteristic embedding storage
 //! - Conversation history embedding for adaptive learning
-//! - Domain-aware persona matching
+//! - Domain-aware profile matching
 
 const std = @import("std");
-const types = @import("types");
-const embeddings = @import("../../embeddings");
-const database = @import("../../../database");
+const build_options = @import("build_options");
+const types = @import("../types.zig");
+const embeddings = @import("mod.zig");
+const database = if (build_options.feat_database)
+    @import("../../database/mod.zig")
+else
+    @import("../../database/stub.zig");
 const seed_data = @import("seed_data.zig");
 const time = @import("../../../services/shared/mod.zig").time;
-const simd = @import("../../../../services/shared/simd/mod.zig");
+const simd = @import("../../../services/shared/simd/mod.zig");
 
-/// Result of a persona matching operation.
-pub const PersonaMatch = struct {
-    /// The matched persona type.
-    persona: types.PersonaType,
+/// Result of a profile matching operation.
+pub const ProfileMatch = struct {
+    /// The matched profile type.
+    profile: types.ProfileType,
     /// Similarity score (usually cosine similarity, 0.0 to 1.0).
     similarity: f32,
-    /// Optional metadata associated with the persona embedding.
+    /// Optional metadata associated with the profile embedding.
     metadata: ?[]const u8 = null,
     /// Whether this match was boosted by domain preference.
     domain_boosted: bool = false,
 };
 
-/// Configuration for the persona embedding index.
+/// Configuration for the profile embedding index.
 pub const IndexConfig = struct {
     /// HNSW M parameter (number of neighbors to connect).
     hnsw_m: u16 = 16,
@@ -45,7 +49,7 @@ pub const IndexConfig = struct {
 };
 
 /// Namespace IDs for different embedding collections in WDBX.
-const NAMESPACE_PERSONAS: u32 = 1;
+const NAMESPACE_PROFILES: u32 = 1;
 const NAMESPACE_CONVERSATIONS: u32 = 2;
 const NAMESPACE_FEEDBACK: u32 = 3;
 
@@ -53,25 +57,25 @@ const NAMESPACE_SHIFT: u6 = 60;
 const NAMESPACE_MASK: u64 = 0xF000_0000_0000_0000;
 const ID_MASK: u64 = 0x0FFF_FFFF_FFFF_FFFF;
 
-/// Semantic index for persona selection and behavioral learning.
-pub const PersonaEmbeddingIndex = struct {
+/// Semantic index for profile selection and behavioral learning.
+pub const ProfileEmbeddingIndex = struct {
     allocator: std.mem.Allocator,
     /// Database context for vector storage (WDBX).
     db: *database.Context,
     /// Embedding context for vector generation.
     embeddings_ctx: *embeddings.Context,
-    /// Cache of persona vectors for fast similarity checks.
-    persona_vectors: std.AutoHashMapUnmanaged(types.PersonaType, []const f32),
+    /// Cache of profile vectors for fast similarity checks.
+    profile_vectors: std.AutoHashMapUnmanaged(types.ProfileType, []const f32),
     /// Configuration.
     config: IndexConfig,
-    /// Whether the index has been seeded with persona characteristics.
+    /// Whether the index has been seeded with profile characteristics.
     is_seeded: bool = false,
     /// Statistics tracking.
     stats: IndexStats = .{},
 
     const Self = @This();
 
-    /// Statistics for the persona index.
+    /// Statistics for the profile index.
     pub const IndexStats = struct {
         queries_total: u64 = 0,
         cache_hits: u64 = 0,
@@ -79,7 +83,7 @@ pub const PersonaEmbeddingIndex = struct {
         conversations_stored: u64 = 0,
     };
 
-    /// Initialize the persona embedding index.
+    /// Initialize the profile embedding index.
     pub fn init(allocator: std.mem.Allocator, db: *database.Context, emb: *embeddings.Context) !*Self {
         return initWithConfig(allocator, db, emb, .{});
     }
@@ -98,13 +102,13 @@ pub const PersonaEmbeddingIndex = struct {
             .allocator = allocator,
             .db = db,
             .embeddings_ctx = emb,
-            .persona_vectors = .{},
+            .profile_vectors = .empty,
             .config = config,
         };
 
         // Auto-seed if configured
         if (config.auto_seed) {
-            try self.seedPersonaCharacteristics();
+            try self.seedProfileCharacteristics();
         }
 
         return self;
@@ -112,35 +116,35 @@ pub const PersonaEmbeddingIndex = struct {
 
     /// Shutdown the index and free resources.
     pub fn deinit(self: *Self) void {
-        var it = self.persona_vectors.valueIterator();
+        var it = self.profile_vectors.valueIterator();
         while (it.next()) |vec| {
             self.allocator.free(vec.*);
         }
-        self.persona_vectors.deinit(self.allocator);
+        self.profile_vectors.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
-    /// Seed the index with persona characteristic embeddings.
-    pub fn seedPersonaCharacteristics(self: *Self) !void {
+    /// Seed the index with profile characteristic embeddings.
+    pub fn seedProfileCharacteristics(self: *Self) !void {
         if (self.is_seeded) return;
 
-        // Seed each persona
-        inline for (std.meta.fields(types.PersonaType)) |field| {
-            const persona: types.PersonaType = @enumFromInt(field.value);
+        // Seed each profile
+        inline for (std.meta.fields(types.ProfileType)) |field| {
+            const profile: types.ProfileType = @enumFromInt(field.value);
 
-            const combined_text = try seed_data.getCombinedCharacteristics(self.allocator, persona);
+            const combined_text = try seed_data.getCombinedCharacteristics(self.allocator, profile);
             defer self.allocator.free(combined_text);
 
-            try self.storePersonaEmbedding(persona, combined_text);
+            try self.storeProfileEmbedding(profile, combined_text);
         }
 
         self.is_seeded = true;
     }
 
-    /// Store a persona's characteristic embedding in the index.
-    pub fn storePersonaEmbedding(
+    /// Store a profile's characteristic embedding in the index.
+    pub fn storeProfileEmbedding(
         self: *Self,
-        persona: types.PersonaType,
+        profile: types.ProfileType,
         characteristics: []const u8,
     ) !void {
         // Generate embedding for characteristics text
@@ -151,32 +155,32 @@ pub const PersonaEmbeddingIndex = struct {
         errdefer self.allocator.free(vector_owned);
 
         // Remove old vector if exists
-        if (self.persona_vectors.fetchRemove(persona)) |old| {
+        if (self.profile_vectors.fetchRemove(profile)) |old| {
             self.allocator.free(old.value);
         }
 
-        try self.persona_vectors.put(self.allocator, persona, vector_owned);
+        try self.profile_vectors.put(self.allocator, profile, vector_owned);
 
         // Store in persistent WDBX database with namespace
-        const id = makePersonaId(persona);
-        try self.db.insertVector(id, vector, @tagName(persona));
+        const id = makeProfileId(profile);
+        try self.db.insertVector(id, vector, @tagName(profile));
 
         self.stats.embeddings_stored += 1;
     }
 
-    /// Find the best matching personas for a given query string.
-    pub fn findBestPersona(
+    /// Find the best matching profiles for a given query string.
+    pub fn findBestProfile(
         self: *Self,
         allocator: std.mem.Allocator,
         query: []const u8,
         top_k: usize,
-    ) ![]PersonaMatch {
+    ) ![]ProfileMatch {
         self.stats.queries_total += 1;
 
         const query_vector = try self.embeddings_ctx.embed(query);
 
         // First try fast in-memory search if we have cached vectors
-        if (self.persona_vectors.count() > 0) {
+        if (self.profile_vectors.count() > 0) {
             return self.searchCachedVectors(allocator, query_vector, query, top_k);
         }
 
@@ -185,16 +189,16 @@ pub const PersonaEmbeddingIndex = struct {
         const search_results = try self.db.searchVectors(query_vector, search_k);
         defer allocator.free(search_results);
 
-        var matches: std.ArrayListUnmanaged(PersonaMatch) = .empty;
+        var matches: std.ArrayListUnmanaged(ProfileMatch) = .empty;
         defer matches.deinit(allocator);
 
         for (search_results) |res| {
-            if (namespaceFromId(res.id) != NAMESPACE_PERSONAS) continue;
-            const persona = personaFromId(res.id);
+            if (namespaceFromId(res.id) != NAMESPACE_PROFILES) continue;
+            const profile = profileFromId(res.id);
             try matches.append(allocator, .{
-                .persona = persona,
+                .profile = profile,
                 .similarity = res.score,
-                .metadata = @tagName(persona),
+                .metadata = @tagName(profile),
             });
             if (matches.items.len >= top_k) break;
         }
@@ -202,24 +206,24 @@ pub const PersonaEmbeddingIndex = struct {
         return matches.toOwnedSlice(allocator);
     }
 
-    /// Search using cached persona vectors (faster for small number of personas).
+    /// Search using cached profile vectors (faster for small number of profiles).
     fn searchCachedVectors(
         self: *Self,
         allocator: std.mem.Allocator,
         query_vector: []const f32,
         query_text: []const u8,
         top_k: usize,
-    ) ![]PersonaMatch {
+    ) ![]ProfileMatch {
         self.stats.cache_hits += 1;
 
-        // Calculate similarities for all cached personas
-        var scored: std.ArrayListUnmanaged(struct { persona: types.PersonaType, score: f32 }) = .empty;
+        // Calculate similarities for all cached profiles
+        var scored: std.ArrayListUnmanaged(struct { profile: types.ProfileType, score: f32 }) = .empty;
         defer scored.deinit(allocator);
 
-        var it = self.persona_vectors.iterator();
+        var it = self.profile_vectors.iterator();
         while (it.next()) |entry| {
             const similarity = cosineSimilarity(query_vector, entry.value_ptr.*);
-            try scored.append(allocator, .{ .persona = entry.key_ptr.*, .score = similarity });
+            try scored.append(allocator, .{ .profile = entry.key_ptr.*, .score = similarity });
         }
 
         // Sort by score descending
@@ -231,7 +235,7 @@ pub const PersonaEmbeddingIndex = struct {
 
         // Take top_k results
         const result_count = @min(top_k, scored.items.len);
-        var matches = try allocator.alloc(PersonaMatch, result_count);
+        var matches = try allocator.alloc(ProfileMatch, result_count);
         errdefer allocator.free(matches);
 
         for (scored.items[0..result_count], 0..) |item, i| {
@@ -239,7 +243,7 @@ pub const PersonaEmbeddingIndex = struct {
             var score = item.score;
             var domain_boosted = false;
 
-            const chars = seed_data.getCharacteristics(item.persona);
+            const chars = seed_data.getCharacteristics(item.profile);
             for (chars.keywords) |keyword| {
                 if (std.mem.indexOf(u8, query_text, keyword) != null) {
                     score = @min(score * 1.1, 1.0); // 10% boost, capped at 1.0
@@ -249,7 +253,7 @@ pub const PersonaEmbeddingIndex = struct {
             }
 
             matches[i] = .{
-                .persona = item.persona,
+                .profile = item.profile,
                 .similarity = score,
                 .domain_boosted = domain_boosted,
             };
@@ -263,7 +267,7 @@ pub const PersonaEmbeddingIndex = struct {
         self: *Self,
         conversation_id: u64,
         content: []const u8,
-        persona_used: types.PersonaType,
+        profile_used: types.ProfileType,
         success_score: f32,
     ) !void {
         const vector = try self.embeddings_ctx.embed(content);
@@ -273,7 +277,7 @@ pub const PersonaEmbeddingIndex = struct {
         defer metadata_buf.deinit(self.allocator);
 
         try std.json.stringify(.{
-            .persona = @tagName(persona_used),
+            .profile = @tagName(profile_used),
             .score = success_score,
             .timestamp = time.unixSeconds(),
         }, .{}, metadata_buf.writer(self.allocator));
@@ -289,8 +293,8 @@ pub const PersonaEmbeddingIndex = struct {
         self: *Self,
         feedback_id: u64,
         original_query: []const u8,
-        correct_persona: types.PersonaType,
-        was_routed_to: types.PersonaType,
+        correct_profile: types.ProfileType,
+        was_routed_to: types.ProfileType,
     ) !void {
         const vector = try self.embeddings_ctx.embed(original_query);
 
@@ -298,7 +302,7 @@ pub const PersonaEmbeddingIndex = struct {
         defer metadata_buf.deinit(self.allocator);
 
         try std.json.stringify(.{
-            .correct = @tagName(correct_persona),
+            .correct = @tagName(correct_profile),
             .was_routed = @tagName(was_routed_to),
             .timestamp = time.unixSeconds(),
         }, .{}, metadata_buf.writer(self.allocator));
@@ -312,14 +316,14 @@ pub const PersonaEmbeddingIndex = struct {
         return self.stats;
     }
 
-    /// Get the number of cached persona vectors.
+    /// Get the number of cached profile vectors.
     pub fn getCachedCount(self: *const Self) usize {
-        return self.persona_vectors.count();
+        return self.profile_vectors.count();
     }
 
-    /// Check if a specific persona has been seeded.
-    pub fn hasPersona(self: *const Self, persona: types.PersonaType) bool {
-        return self.persona_vectors.contains(persona);
+    /// Check if a specific profile has been seeded.
+    pub fn hasProfile(self: *const Self, profile: types.ProfileType) bool {
+        return self.profile_vectors.contains(profile);
     }
 };
 
@@ -337,19 +341,19 @@ fn stripNamespace(id: u64) u64 {
     return id & ID_MASK;
 }
 
-/// Create a unique ID for a persona within the WDBX namespace.
-fn makePersonaId(persona: types.PersonaType) u64 {
-    return makeNamespacedId(NAMESPACE_PERSONAS, @intFromEnum(persona));
+/// Create a unique ID for a profile within the WDBX namespace.
+fn makeProfileId(profile: types.ProfileType) u64 {
+    return makeNamespacedId(NAMESPACE_PROFILES, @intFromEnum(profile));
 }
 
-/// Convert a WDBX ID back to a PersonaType.
-fn personaFromId(id: u64) types.PersonaType {
-    if (namespaceFromId(id) != NAMESPACE_PERSONAS) {
+/// Convert a WDBX ID back to a ProfileType.
+fn profileFromId(id: u64) types.ProfileType {
+    if (namespaceFromId(id) != NAMESPACE_PROFILES) {
         return .assistant;
     }
-    const persona_id: u32 = @intCast(stripNamespace(id));
-    if (persona_id < std.meta.fields(types.PersonaType).len) {
-        return @enumFromInt(persona_id);
+    const profile_id: u32 = @intCast(stripNamespace(id));
+    if (profile_id < std.meta.fields(types.ProfileType).len) {
+        return @enumFromInt(profile_id);
     }
     return .assistant;
 }
@@ -373,13 +377,13 @@ test "cosineSimilarity" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), cosineSimilarity(&a, &c), 0.001);
 }
 
-test "makePersonaId and personaFromId roundtrip" {
-    const personas = [_]types.PersonaType{ .abi, .abbey, .aviva };
+test "makeProfileId and profileFromId roundtrip" {
+    const profiles = [_]types.ProfileType{ .abi, .abbey, .aviva };
 
-    for (personas) |persona| {
-        const id = makePersonaId(persona);
-        const recovered = personaFromId(id);
-        try std.testing.expect(persona == recovered);
+    for (profiles) |profile| {
+        const id = makeProfileId(profile);
+        const recovered = profileFromId(id);
+        try std.testing.expect(profile == recovered);
     }
 }
 

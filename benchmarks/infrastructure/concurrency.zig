@@ -13,7 +13,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const sync = abi.services.shared.sync;
+const sync = abi.foundation.sync;
 const framework = @import("../system/framework.zig");
 
 /// Concurrency benchmark configuration

@@ -11,7 +11,7 @@ pub const Feature = config_module.Feature;
 
 /// Registration mode determines how features are discovered and managed.
 pub const RegistrationMode = enum {
-    /// Features resolved at compile time only. Zero runtime overhead.
+    /// Features resolved at compile time only. Zero overhead.
     /// Enabled features are statically known and cannot be toggled.
     comptime_only,
 
@@ -22,6 +22,48 @@ pub const RegistrationMode = enum {
     /// Features can be dynamically loaded from shared libraries at runtime.
     /// Requires platform support (dlopen/LoadLibrary). Most flexible but highest overhead.
     dynamic,
+};
+
+/// Plugin API structure expected from dynamic shared libraries.
+pub const PluginApi = struct {
+    /// Semantic version of the plugin API.
+    pub const Version = struct {
+        major: u32,
+        minor: u32,
+        patch: u32,
+
+        pub fn format(
+            self: Version,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
+            _ = fmt;
+            _ = options;
+            try writer.print("{d}.{d}.{d}", .{ self.major, self.minor, self.patch });
+        }
+    };
+
+    /// Metadata provided by the plugin.
+    pub const Metadata = struct {
+        name: []const u8,
+        description: []const u8,
+        version: Version,
+        author: []const u8,
+    };
+
+    /// Function pointers for plugin lifecycle.
+    pub const Interface = struct {
+        /// Initialize the plugin.
+        init: *const fn (std.mem.Allocator) anyerror!*anyopaque,
+        /// Deinitialize the plugin.
+        deinit: *const fn (*anyopaque) void,
+        /// Get plugin metadata.
+        getMetadata: *const fn () Metadata,
+    };
+
+    /// Current supported plugin API version.
+    pub const current_version = Version{ .major = 1, .minor = 0, .patch = 0 };
 };
 
 /// Feature registration entry with lifecycle management.
@@ -35,9 +77,10 @@ pub const FeatureRegistration = struct {
     init_fn: ?*const fn (std.mem.Allocator, *const anyopaque) anyerror!*anyopaque = null,
     deinit_fn: ?*const fn (*anyopaque) void = null,
 
-    // For dynamic mode (future)
-    library_handle: ?*anyopaque = null,
+    // For dynamic mode
+    dyn_lib: ?std.DynLib = null,
     library_path: ?[]const u8 = null,
+    plugin_interface: ?PluginApi.Interface = null,
 
     // Runtime state
     enabled: bool = false,
@@ -57,6 +100,8 @@ pub const Error = error{
     LibraryLoadFailed,
     SymbolNotFound,
     InvalidMode,
+    InvalidPluginApi,
+    PluginIncompatible,
 } || std.mem.Allocator.Error;
 
 // ============================================================================

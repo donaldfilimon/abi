@@ -1,14 +1,14 @@
-//! Industry Persona Templates Module
+//! Industry Profile Templates Module
 //!
-//! Provides pre-configured persona settings for specific industries:
+//! Provides pre-configured profile settings for specific industries:
 //! - Healthcare: HIPAA-compliant, patient-focused configurations
 //! - Finance: BSA/AML-aware, fraud detection configurations
 //! - Legal: Privilege-aware, citation-focused configurations
 //!
-//! Each template produces a `MultiPersonaConfig` tuned for its industry.
+//! Each template produces a `MultiProfileConfig` tuned for its industry.
 
 const std = @import("std");
-const persona_config = @import("../config.zig");
+const profile_config = @import("../config.zig");
 
 pub const healthcare = @import("healthcare.zig");
 pub const finance = @import("finance.zig");
@@ -30,12 +30,12 @@ pub const Industry = enum {
     custom,
 };
 
-/// An industry template encapsulating a complete persona configuration.
+/// An industry template encapsulating a complete profile configuration.
 pub const IndustryTemplate = struct {
     industry: Industry,
     name: []const u8,
     description: []const u8,
-    config: persona_config.MultiPersonaConfig,
+    config: profile_config.MultiProfileConfig,
 
     /// List all available industry templates.
     pub fn listAll() [3]IndustryTemplate {
@@ -71,8 +71,8 @@ pub const IndustryTemplate = struct {
     }
 };
 
-/// Apply an industry template, returning the configured MultiPersonaConfig.
-pub fn applyTemplate(industry: Industry) ?persona_config.MultiPersonaConfig {
+/// Apply an industry template, returning the configured MultiProfileConfig.
+pub fn applyTemplate(industry: Industry) ?profile_config.MultiProfileConfig {
     const template = IndustryTemplate.getTemplate(industry) orelse return null;
     return template.config;
 }

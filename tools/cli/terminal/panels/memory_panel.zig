@@ -15,12 +15,12 @@ const themes = @import("../themes.zig");
 const events = @import("../events.zig");
 const Panel = @import("../panel.zig");
 
-const tracking = @import("abi").services.shared.utils.memory.tracking;
+const tracking = @import("abi").foundation.utils.memory.tracking;
 pub const TrackingStats = tracking.TrackingStats;
 pub const TrackingAllocator = tracking.TrackingAllocator;
 
 /// Database core allocator stats (optional; connect via connectDatabaseTracker).
-const database_alloc = @import("abi").features.database.core.alloc;
+const database_alloc = @import("abi").database.core.alloc;
 
 /// Fixed-size ring buffer for sparkline history.
 fn RingBuffer(comptime capacity: usize) type {

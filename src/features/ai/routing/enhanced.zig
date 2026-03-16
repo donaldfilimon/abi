@@ -1,25 +1,25 @@
-//! Enhanced Persona Routing Framework
+//! Enhanced Profile Routing Framework
 //!
-//! Implements the multi-persona routing and blending algorithms described in
-//! the Abbey-Aviva-Abi research document. Works with existing persona system
+//! Implements the multi-profile routing and blending algorithms described in
+//! the Abbey-Aviva-Abi research document. Works with existing profile system
 //! while adding WDBX memory integration and mathematical blending.
 //!
 //! Key features:
 //! - Intent classification with machine learning (future extension)
 //! - Risk scoring for policy compliance
-//! - Dynamic persona blending (Abbey+Aviva mixing)
+//! - Dynamic profile blending (Abbey+Aviva mixing)
 //! - WDBX block chaining for session continuity
 //! - Hysteresis to prevent oscillation
 //!
 //! Mathematical models:
 //! - Routing probability: P(p | I, C) = softmax(score_p + h_p)
-//! - Persona blending: R_final = α·R_Abbey + (1-α)·R_Aviva
+//! - Profile blending: R_final = α·R_Abbey + (1-α)·R_Aviva
 //! - Little's Law optimization: λ = N_concurrent / L_latency
 
 const std = @import("std");
 const time = @import("../../../services/shared/mod.zig").time;
-const personas = @import("../mod.zig");
-const types = personas.types;
+const profiles = @import("../mod.zig");
+const types = profiles.types;
 const block_chain = @import("../../../core/database/block_chain.zig");
 const embeddings = @import("../embeddings/mod.zig");
 
@@ -57,14 +57,14 @@ pub const EnhancedRoutingDecision = struct {
     }
 };
 
-/// Persona scores for mathematical selection
-pub const PersonaScores = struct {
+/// Profile scores for mathematical selection
+pub const ProfileScores = struct {
     abbey_score: f32 = 0.0,
     aviva_score: f32 = 0.0,
     abi_score: f32 = 0.0,
 
     /// Calculate normalized probabilities via softmax
-    pub fn getProbabilities(self: PersonaScores) struct { p_abbey: f32, p_aviva: f32, p_abi: f32 } {
+    pub fn getProbabilities(self: ProfileScores) struct { p_abbey: f32, p_aviva: f32, p_abi: f32 } {
         // Apply softmax: exp(score) / sum(exp(scores))
         const exp_abbey = std.math.exp(self.abbey_score);
         const exp_aviva = std.math.exp(self.aviva_score);
@@ -78,20 +78,20 @@ pub const PersonaScores = struct {
         };
     }
 
-    /// Get best persona with threshold for blending
-    pub fn getBestPersona(self: PersonaScores, threshold: f32) struct { persona: types.PersonaType, should_blend: bool } {
+    /// Get best profile with threshold for blending
+    pub fn getBestProfile(self: ProfileScores, threshold: f32) struct { profile: types.ProfileType, should_blend: bool } {
         const probs = self.getProbabilities();
 
         // Check if dominance exceeds threshold
         if (probs.p_abbey > threshold and probs.p_abbey > probs.p_aviva and probs.p_abbey > probs.p_abi) {
-            return .{ .persona = .abbey, .should_blend = false };
+            return .{ .profile = .abbey, .should_blend = false };
         } else if (probs.p_aviva > threshold and probs.p_aviva > probs.p_abbey and probs.p_aviva > probs.p_abi) {
-            return .{ .persona = .aviva, .should_blend = false };
+            return .{ .profile = .aviva, .should_blend = false };
         } else if (probs.p_abi > threshold) {
-            return .{ .persona = .abi, .should_blend = false };
+            return .{ .profile = .abi, .should_blend = false };
         } else {
             // No clear winner - blend Abbey and Aviva
-            return .{ .persona = if (probs.p_abbey > probs.p_aviva) .abbey else .aviva, .should_blend = true };
+            return .{ .profile = if (probs.p_abbey > probs.p_aviva) .abbey else .aviva, .should_blend = true };
         }
     }
 };
@@ -160,8 +160,8 @@ pub const EnhancedRouter = struct {
     allocator: std.mem.Allocator,
     block_chain: ?*block_chain.BlockChain,
     intent_classifier: IntentClassifier,
-    previous_persona: ?types.PersonaType = null,
-    hysteresis_weight: f32 = 0.2, // Bias toward previous persona
+    previous_profile: ?types.ProfileType = null,
+    hysteresis_weight: f32 = 0.2, // Bias toward previous profile
     parent_block_id: ?u64 = null, // Current parent for chain continuity
 
     const Self = @This();
@@ -191,9 +191,9 @@ pub const EnhancedRouter = struct {
         }
     }
 
-    /// Calculate persona scores based on intent and sentiment
-    pub fn calculateScores(self: *Self, request: types.PersonaRequest, sentiment: personas.abi.SentimentResult) PersonaScores {
-        var scores = PersonaScores{};
+    /// Calculate profile scores based on intent and sentiment
+    pub fn calculateScores(self: *Self, request: types.ProfileRequest, sentiment: profiles.abi.SentimentResult) ProfileScores {
+        var scores = ProfileScores{};
 
         // Base score from sentiment analyzer
         if (sentiment.requires_empathy) {
@@ -227,8 +227,8 @@ pub const EnhancedRouter = struct {
             else => {},
         }
 
-        // Apply hysteresis: bias toward previous persona
-        if (self.previous_persona) |prev| {
+        // Apply hysteresis: bias toward previous profile
+        if (self.previous_profile) |prev| {
             switch (prev) {
                 .abbey => scores.abbey_score += self.hysteresis_weight,
                 .aviva => scores.aviva_score += self.hysteresis_weight,
@@ -246,12 +246,12 @@ pub const EnhancedRouter = struct {
     }
 
     /// Route with enhanced algorithm and WDBX integration
-    pub fn routeEnhanced(self: *Self, request: types.PersonaRequest, sentiment: personas.abi.SentimentResult) !EnhancedRoutingDecision {
+    pub fn routeEnhanced(self: *Self, request: types.ProfileRequest, sentiment: profiles.abi.SentimentResult) !EnhancedRoutingDecision {
         // Calculate mathematical scores
         const scores = self.calculateScores(request, sentiment);
 
-        // Get best persona decision
-        const best = scores.getBestPersona(0.7); // 70% dominance threshold
+        // Get best profile decision
+        const best = scores.getBestProfile(0.7); // 70% dominance threshold
 
         // Create base routing decision using existing Abi logic
         // (In practice, would integrate with existing AbiRouter)
@@ -259,7 +259,7 @@ pub const EnhancedRouter = struct {
         defer self.allocator.free(base_reason);
 
         const base_decision = types.RoutingDecision{
-            .selected_persona = best.persona,
+            .selected_profile = best.profile,
             .confidence = @min(scores.getProbabilities().p_abbey +
                 scores.getProbabilities().p_aviva +
                 scores.getProbabilities().p_abi, 1.0),
@@ -285,14 +285,14 @@ pub const EnhancedRouter = struct {
         }
 
         // Store for hysteresis
-        self.previous_persona = best.persona;
+        self.previous_profile = best.profile;
 
         // Return decision with block ID and parent relationship
         return try EnhancedRoutingDecision.create(self.allocator, base_decision, blend_coeff, null, block_id);
     }
 
     /// Store routing decision in WDBX block chain
-    fn createBlockChainEntry(self: *Self, chain: *block_chain.BlockChain, request: types.PersonaRequest, decision: types.RoutingDecision, blend_coeff: f32) !u64 {
+    fn createBlockChainEntry(self: *Self, chain: *block_chain.BlockChain, request: types.ProfileRequest, decision: types.RoutingDecision, blend_coeff: f32) !u64 {
         // Generate embedding of request content
         // Create embeddings model temporarily
         const emb_model = embeddings.EmbeddingModel.init(self.allocator, .{ .dimension = 384 });
@@ -302,17 +302,17 @@ pub const EnhancedRouter = struct {
             self.allocator.free(query_embedding);
         }
 
-        // Create persona tag
-        const persona_tag = block_chain.PersonaTag{
-            .primary_persona = switch (decision.selected_persona) {
+        // Create profile tag
+        const profile_tag = block_chain.ProfileTag{
+            .primary_profile = switch (decision.selected_profile) {
                 .abbey => .abbey,
                 .aviva => .aviva,
                 .abi => .abi,
                 else => .blended,
             },
             .blend_coefficient = blend_coeff,
-            .secondary_persona = if (blend_coeff > 0.0 and blend_coeff < 1.0) blk: {
-                const secondary = if (decision.selected_persona == .abbey) .aviva else .abbey;
+            .secondary_profile = if (blend_coeff > 0.0 and blend_coeff < 1.0) blk: {
+                const secondary = if (decision.selected_profile == .abbey) .aviva else .abbey;
                 break :blk switch (secondary) {
                     .abbey => .abbey,
                     .aviva => .aviva,
@@ -324,9 +324,9 @@ pub const EnhancedRouter = struct {
 
         // Create routing weights
         const routing_weights = block_chain.RoutingWeights{
-            .abbey_weight = if (decision.selected_persona == .abbey) 1.0 - blend_coeff else blend_coeff,
-            .aviva_weight = if (decision.selected_persona == .aviva) 1.0 - blend_coeff else blend_coeff,
-            .abi_weight = if (decision.selected_persona == .abi) 1.0 else 0.0,
+            .abbey_weight = if (decision.selected_profile == .abbey) 1.0 - blend_coeff else blend_coeff,
+            .aviva_weight = if (decision.selected_profile == .aviva) 1.0 - blend_coeff else blend_coeff,
+            .abi_weight = if (decision.selected_profile == .abi) 1.0 else 0.0,
         };
 
         // Determine intent from classifier
@@ -335,7 +335,7 @@ pub const EnhancedRouter = struct {
         // Create block configuration
         const config = block_chain.BlockConfig{
             .query_embedding = query_embedding,
-            .persona_tag = persona_tag,
+            .profile_tag = profile_tag,
             .routing_weights = routing_weights,
             .intent = switch (intent) {
                 .empathy_seeking => .empathy_seeking,
@@ -357,8 +357,8 @@ pub const EnhancedRouter = struct {
 };
 
 // Tests
-test "PersonaScores softmax calculation" {
-    const scores = PersonaScores{
+test "ProfileScores softmax calculation" {
+    const scores = ProfileScores{
         .abbey_score = 1.0,
         .aviva_score = 0.5,
         .abi_score = 0.1,
@@ -375,26 +375,26 @@ test "PersonaScores softmax calculation" {
     try std.testing.expect(probs.p_abbey > probs.p_abi);
 }
 
-test "PersonaScores threshold decisions" {
+test "ProfileScores threshold decisions" {
     // Clear Abbey dominance
-    const clear_abbey = PersonaScores{
+    const clear_abbey = ProfileScores{
         .abbey_score = 2.0,
         .aviva_score = 0.1,
         .abi_score = 0.1,
     };
 
-    const clear_result = clear_abbey.getBestPersona(0.7);
-    try std.testing.expect(clear_result.persona == .abbey);
+    const clear_result = clear_abbey.getBestProfile(0.7);
+    try std.testing.expect(clear_result.profile == .abbey);
     try std.testing.expect(!clear_result.should_blend);
 
     // Close race -> should blend
-    const close_race = PersonaScores{
+    const close_race = ProfileScores{
         .abbey_score = 0.6,
         .aviva_score = 0.5,
         .abi_score = 0.1,
     };
 
-    const close_result = close_race.getBestPersona(0.7);
+    const close_result = close_race.getBestProfile(0.7);
     try std.testing.expect(close_result.should_blend);
 }
 
@@ -405,7 +405,7 @@ test "EnhancedRouter initialization" {
     defer router.deinit();
 
     try std.testing.expect(router.block_chain == null);
-    try std.testing.expect(router.previous_persona == null);
+    try std.testing.expect(router.previous_profile == null);
 }
 
 test "IntentClassifier basic classification" {

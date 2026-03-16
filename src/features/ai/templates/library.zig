@@ -113,7 +113,7 @@ pub fn getBuiltinTemplate(template: BuiltinTemplates) TemplateInfo {
             .name = "conversation",
             .description = "Multi-turn conversation continuation",
             .source = conversation_template,
-            .variables = &[_][]const u8{ "persona", "history", "user_input" },
+            .variables = &[_][]const u8{ "profile", "history", "user_input" },
         },
     };
 }
@@ -260,7 +260,7 @@ const classification_template =
 ;
 
 const conversation_template =
-    \\{{persona|You are a helpful assistant engaged in a conversation.}}
+    \\{{profile|You are a helpful assistant engaged in a conversation.}}
     \\
     \\Conversation history:
     \\{{history}}

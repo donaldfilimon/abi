@@ -1,14 +1,14 @@
 //! Coordination stub surface when AI features are disabled.
 
 const std = @import("std");
-const legacy_personas = @import("../profiles/stub.zig");
+const legacy_profiles = @import("../profiles/stub.zig");
 const legacy_types = @import("../types.zig");
 const legacy_config = @import("../config.zig");
 const profiles = @import("../profiles/stub.zig");
 const semantic_store = @import("../../database/stub.zig").semantic_store;
 
-pub const InteractionRequest = legacy_types.PersonaRequest;
-pub const InteractionResponse = legacy_types.PersonaResponse;
+pub const InteractionRequest = legacy_types.ProfileRequest;
+pub const InteractionResponse = legacy_types.ProfileResponse;
 /// Stub coordination context.
 pub const CoordinationContext = struct {
     allocator: std.mem.Allocator,
@@ -33,13 +33,13 @@ pub const InteractionCoordinator = struct {
     }
 };
 
-pub const CoordinationConfig = legacy_config.MultiPersonaConfig;
+pub const CoordinationConfig = legacy_config.MultiProfileConfig;
 pub const LegacyRoutingDecision = legacy_types.RoutingDecision;
 pub const PolicyFlags = legacy_types.PolicyFlags;
 
 pub const ProfileSelection = struct {
     selected_profile: profiles.BehaviorProfile = .governance,
-    legacy_persona: profiles.LegacyPersonaType = .abi,
+    legacy_profile: profiles.LegacyProfileType = .abi,
     confidence: f32 = 0.0,
     policy_flags: PolicyFlags = .{},
     reasoning: []const u8 = "",

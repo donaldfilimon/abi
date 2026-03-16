@@ -97,7 +97,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         }
 
         try term.flush();
-        @import("abi").services.shared.time.sleepMs(50);
+        @import("abi").foundation.time.sleepMs(50);
     }
 }
 

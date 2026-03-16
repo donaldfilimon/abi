@@ -132,14 +132,14 @@ pub const discord_bot = struct {
 pub const custom_framework = struct {
     pub const CustomAI = struct {};
     pub const CustomAIConfig = struct {};
-    pub const PersonaTemplate = struct {};
+    pub const ProfileTemplate = struct {};
     pub const Builder = struct {};
     pub const Response = struct {};
     pub const Stats = struct {};
     pub fn create(_: std.mem.Allocator, _: anytype) !@This().CustomAI {
         return error.FeatureDisabled;
     }
-    pub fn createFromPersona(_: std.mem.Allocator, _: anytype) !@This().CustomAI {
+    pub fn createFromProfile(_: std.mem.Allocator, _: anytype) !@This().CustomAI {
         return error.FeatureDisabled;
     }
     pub fn createWithSeedPrompt(_: std.mem.Allocator, _: anytype) !@This().CustomAI {
@@ -316,12 +316,12 @@ pub const CognitiveState = advanced.CognitiveState;
 
 pub const CustomAI = custom_framework.CustomAI;
 pub const CustomAIConfig = custom_framework.CustomAIConfig;
-pub const PersonaTemplate = custom_framework.PersonaTemplate;
+pub const ProfileTemplate = custom_framework.ProfileTemplate;
 pub const CustomAIBuilder = custom_framework.Builder;
 pub const CustomAIResponse = custom_framework.Response;
 pub const CustomAIStats = custom_framework.Stats;
 pub const createCustomAI = custom_framework.create;
-pub const createFromPersona = custom_framework.createFromPersona;
+pub const createFromProfile = custom_framework.createFromProfile;
 pub const createWithSeedPrompt = custom_framework.createWithSeedPrompt;
 pub const createResearcher = custom_framework.createResearcher;
 pub const createCoder = custom_framework.createCoder;

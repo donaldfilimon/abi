@@ -1,12 +1,12 @@
-//! Legal Industry Persona Templates
+//! Legal Industry Profile Templates
 //!
-//! Pre-configured persona settings for legal services:
+//! Pre-configured profile settings for legal services:
 //! - Client Interaction (Abbey): Client communication, case updates
 //! - Legal Research (Aviva): Case law analysis, precedent search
 //! - Compliance (Abi): Privilege detection, confidentiality enforcement
 
 const std = @import("std");
-const persona_config = @import("../config.zig");
+const profile_config = @import("../config.zig");
 
 /// Legal-specific routing context.
 pub const LegalRoutingContext = struct {
@@ -33,10 +33,10 @@ const default_privilege_keywords = [_][]const u8{
     "sealed",       "in camera",    "protective order",
 };
 
-/// Create a legal-tuned MultiPersonaConfig.
-pub fn legalConfig() persona_config.MultiPersonaConfig {
+/// Create a legal-tuned MultiProfileConfig.
+pub fn legalConfig() profile_config.MultiProfileConfig {
     return .{
-        .default_persona = .abbey,
+        .default_profile = .abbey,
         .enable_dynamic_routing = true,
         .routing_confidence_threshold = 0.5,
         .abbey = .{
@@ -114,7 +114,7 @@ fn indexOfCaseInsensitive(haystack: []const u8, needle: []const u8) ?usize {
 
 test "legalConfig creates valid config" {
     const cfg = legalConfig();
-    try std.testing.expect(cfg.default_persona == .abbey);
+    try std.testing.expect(cfg.default_profile == .abbey);
     try std.testing.expect(cfg.aviva.cite_sources);
     try std.testing.expect(cfg.abbey.technical_depth >= 0.8);
 }

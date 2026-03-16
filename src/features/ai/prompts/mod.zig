@@ -7,40 +7,45 @@ const std = @import("std");
 pub const types = @import("types");
 pub const builder = @import("builder.zig");
 pub const ralph = @import("ralph.zig");
-pub const personas = @import("personas.zig");
+pub const profiles = @import("profiles.zig");
 
 // Re-export main types
-pub const PersonaType = types.PersonaType;
-pub const Persona = personas.Persona;
+pub const ProfileType = types.ProfileType;
+pub const Profile = profiles.Profile;
 pub const PromptBuilder = builder.PromptBuilder;
 pub const Message = builder.Message;
 pub const Role = builder.Role;
 pub const PromptFormat = builder.PromptFormat;
 
-/// Get a persona definition by type.
-/// Maps from the canonical PersonaType to the prompts-internal PersonaType
+/// Get a profile definition by type.
+/// Maps from the canonical ProfileType to the prompts-internal ProfileType
 /// and returns the corresponding prompt definition.
-pub fn getPersona(persona_type: PersonaType) Persona {
+pub fn getProfile(profile_type: ProfileType) Profile {
     const prompts_type = std.meta.stringToEnum(
-        personas.PersonaType,
-        @tagName(persona_type),
-    ) orelse return personas.getPersona(.assistant);
-    return personas.getPersona(prompts_type);
+        profiles.ProfileType,
+        @tagName(profile_type),
+    ) orelse return profiles.getProfile(.assistant);
+    return profiles.getProfile(prompts_type);
 }
 
-/// List all available personas
-pub fn listPersonas() []const PersonaType {
-    return &[_]PersonaType{ .assistant, .coder, .writer, .analyst };
+/// List all available profiles
+pub fn listProfiles() []const ProfileType {
+    return &[_]ProfileType{ .assistant, .coder, .writer, .analyst };
 }
 
-/// Create a prompt builder with default assistant persona
+/// Create a prompt builder with default assistant profile
 pub fn createBuilder(allocator: std.mem.Allocator) PromptBuilder {
     return PromptBuilder.init(allocator, .assistant);
 }
 
-/// Create a prompt builder with a specific persona
-pub fn createBuilderWithPersona(allocator: std.mem.Allocator, persona_type: PersonaType) PromptBuilder {
-    return PromptBuilder.init(allocator, persona_type);
+/// Create a prompt builder with a specific profile
+pub fn createBuilderWithProfile(allocator: std.mem.Allocator, profile_type: ProfileType) PromptBuilder {
+    return PromptBuilder.init(allocator, profile_type);
+}
+
+/// Create a prompt builder with a custom profile definition
+pub fn createBuilderWithCustomProfile(allocator: std.mem.Allocator, profile: Profile) PromptBuilder {
+    return PromptBuilder.initCustom(allocator, profile);
 }
 
 test "prompt module basics" {

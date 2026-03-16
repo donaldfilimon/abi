@@ -101,7 +101,7 @@ Key directories:
 - `src/core/database/trace/`
 - `src/core/database/graph/`
 - `src/core/database/vector/`
-- `src/core/database/persona/`
+- `src/core/database/profile/`
 
 These modules are where the "memory fabric" idea becomes concrete. They allow
 the subsystem to reason about more than raw nearest-neighbor search by layering

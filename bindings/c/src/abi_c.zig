@@ -197,7 +197,7 @@ const SimdCaps = extern struct {
 
 /// Query CPU SIMD capabilities.
 export fn abi_simd_get_caps(out_caps: *SimdCaps) void {
-    const caps = abi.services.simd.getSimdCapabilities();
+    const caps = abi.foundation.simd.getSimdCapabilities();
     // Map from internal capabilities to C struct
     const has_simd = caps.has_simd;
     const is_x86 = caps.arch == .x86_64;
@@ -220,7 +220,7 @@ export fn abi_simd_get_caps(out_caps: *SimdCaps) void {
 
 /// Check if any SIMD instruction set is available.
 export fn abi_simd_available() bool {
-    return abi.services.simd.hasSimdSupport();
+    return abi.foundation.simd.hasSimdSupport();
 }
 
 /// Vector element-wise addition: result[i] = a[i] + b[i]
@@ -233,22 +233,22 @@ export fn abi_simd_vector_add(
     const a_slice = a[0..len];
     const b_slice = b[0..len];
     const result_slice = result[0..len];
-    abi.services.simd.vectorAdd(a_slice, b_slice, result_slice);
+    abi.foundation.simd.vectorAdd(a_slice, b_slice, result_slice);
 }
 
 /// Vector dot product: sum(a[i] * b[i])
 export fn abi_simd_vector_dot(a: [*]const f32, b: [*]const f32, len: usize) f32 {
-    return abi.services.simd.vectorDot(a[0..len], b[0..len]);
+    return abi.foundation.simd.vectorDot(a[0..len], b[0..len]);
 }
 
 /// Vector L2 norm: sqrt(sum(v[i]^2))
 export fn abi_simd_vector_l2_norm(v: [*]const f32, len: usize) f32 {
-    return abi.services.simd.vectorL2Norm(v[0..len]);
+    return abi.foundation.simd.vectorL2Norm(v[0..len]);
 }
 
 /// Cosine similarity between two vectors.
 export fn abi_simd_cosine_similarity(a: [*]const f32, b: [*]const f32, len: usize) f32 {
-    return abi.services.simd.cosineSimilarity(a[0..len], b[0..len]);
+    return abi.foundation.simd.cosineSimilarity(a[0..len], b[0..len]);
 }
 
 // ============================================================================
@@ -288,7 +288,7 @@ export fn abi_database_create(
     // Initialize database using the format-preserving vector database API so
     // the C surface keeps honoring custom dimensions.
     db.* = .{
-        .handle = abi.features.database.formats.VectorDatabase.init(c_allocator, name, cfg.dimension),
+        .handle = abi.database.formats.VectorDatabase.init(c_allocator, name, cfg.dimension),
         .allocator = c_allocator,
     };
 
@@ -300,7 +300,9 @@ export fn abi_database_create(
 export fn abi_database_close(db: ?*DatabaseHandle) void {
     if (db) |d| {
         const wrapper: *DatabaseWrapper = @ptrCast(@alignCast(d));
-        wrapper.handle.deinit();
+        if (comptime build_options.feat_database) {
+            wrapper.handle.deinit();
+        }
         wrapper.allocator.destroy(wrapper);
     }
 }
@@ -417,7 +419,7 @@ export fn abi_gpu_init(config: ?*const GpuConfig, out_gpu: *?*GpuHandle) c_int {
     const cfg = config orelse &GpuConfig{};
 
     // Map backend enum (0=auto/vulkan, 1=cuda, 2=vulkan, 3=metal, 4=webgpu)
-    const backend: ?abi.features.gpu.Backend = switch (cfg.backend) {
+    const backend: ?abi.gpu.Backend = switch (cfg.backend) {
         1 => .cuda,
         2 => .vulkan,
         3 => .metal,
@@ -432,7 +434,7 @@ export fn abi_gpu_init(config: ?*const GpuConfig, out_gpu: *?*GpuHandle) c_int {
     errdefer c_allocator.destroy(gpu);
 
     gpu.* = .{
-        .handle = abi.features.gpu.Gpu.init(c_allocator, .{
+        .handle = abi.gpu.Gpu.init(c_allocator, .{
             .preferred_backend = backend,
             .enable_profiling = cfg.enable_profiling,
         }) catch |err| {
@@ -463,7 +465,7 @@ export fn abi_gpu_is_available() bool {
         return false;
     }
     // Check available backends
-    const backends = abi.features.gpu.factory.listAvailableBackends(c_allocator) catch return false;
+    const backends = abi.gpu.factory.listAvailableBackends(c_allocator) catch return false;
     defer c_allocator.free(backends);
     return backends.len > 0;
 }
@@ -483,7 +485,7 @@ export fn abi_gpu_backend_name(gpu: ?*GpuHandle) [*:0]const u8 {
     return "none";
 }
 
-fn backendName(backend: abi.features.gpu.Backend) [*:0]const u8 {
+fn backendName(backend: abi.gpu.Backend) [*:0]const u8 {
     return switch (backend) {
         .cuda => "cuda",
         .vulkan => "vulkan",
@@ -500,7 +502,7 @@ fn backendName(backend: abi.features.gpu.Backend) [*:0]const u8 {
 }
 
 test "gpu backend name mapping is exhaustive" {
-    inline for (std.meta.tags(abi.features.gpu.Backend)) |backend| {
+    inline for (std.meta.tags(abi.gpu.Backend)) |backend| {
         const name = backendName(backend);
         try std.testing.expect(name[0] != 0);
     }
@@ -583,7 +585,7 @@ export fn abi_agent_create(
     const cfg = config orelse &AgentConfig{};
 
     // Map C backend enum to Zig backend type
-    const backend: abi.features.ai.agent.AgentBackend = switch (cfg.backend) {
+    const backend: abi.ai.agent.AgentBackend = switch (cfg.backend) {
         ABI_AGENT_BACKEND_OPENAI => .openai,
         ABI_AGENT_BACKEND_OLLAMA => .ollama,
         ABI_AGENT_BACKEND_HUGGINGFACE => .huggingface,
@@ -606,13 +608,13 @@ export fn abi_agent_create(
     errdefer c_allocator.destroy(wrapper);
 
     // Create the agent
-    const agent_ptr = c_allocator.create(abi.features.ai.agents.Agent) catch {
+    const agent_ptr = c_allocator.create(abi.ai.agents.Agent) catch {
         c_allocator.destroy(wrapper);
         return ABI_ERROR_OUT_OF_MEMORY;
     };
     errdefer c_allocator.destroy(agent_ptr);
 
-    agent_ptr.* = abi.features.ai.agents.Agent.init(c_allocator, .{
+    agent_ptr.* = abi.ai.agents.Agent.init(c_allocator, .{
         .name = name_slice,
         .backend = backend,
         .model = model_slice,
@@ -852,19 +854,19 @@ const SearchResult = extern struct {
 
 /// Database wrapper for opaque handle
 const DatabaseWrapper = struct {
-    handle: if (build_options.feat_database) abi.features.database.formats.VectorDatabase else void,
+    handle: if (build_options.feat_database) abi.database.formats.VectorDatabase else void,
     allocator: std.mem.Allocator,
 };
 
 /// GPU wrapper for opaque handle
 const GpuWrapper = struct {
-    handle: if (build_options.feat_gpu) abi.features.gpu.Gpu else void,
+    handle: if (build_options.feat_gpu) abi.gpu.Gpu else void,
     allocator: std.mem.Allocator,
 };
 
 /// Agent wrapper for opaque handle
 const AgentWrapper = struct {
-    handle: if (build_options.feat_ai) *abi.features.ai.agents.Agent else void,
+    handle: if (build_options.feat_ai) *abi.ai.agents.Agent else void,
     allocator: std.mem.Allocator,
     /// Store the last response for C string lifetime management
     last_response: ?[]u8 = null,
