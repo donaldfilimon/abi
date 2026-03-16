@@ -6,11 +6,13 @@ pub const simulated = @import("simulated.zig");
 pub const BackendFactory = backend_factory.BackendFactory;
 pub const BackendInstance = backend_factory.BackendInstance;
 pub const FactoryError = backend_factory.FactoryError;
+pub const BackendSelectionError = backend_factory.BackendSelectionError;
 pub const BackendFeature = backend_factory.BackendFeature;
 pub const SelectionOptions = backend_factory.SelectionOptions;
 
 pub const createBackend = backend_factory.createBackend;
 pub const createBestBackend = backend_factory.createBestBackend;
+pub const createBestBackendWithOptions = backend_factory.createBestBackendWithOptions;
 pub const destroyBackend = backend_factory.destroyBackend;
 pub const createVTableBackend = backend_factory.createVTableBackend;
 pub const createBestVTableBackend = backend_factory.createBestVTableBackend;

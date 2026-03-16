@@ -10,6 +10,7 @@ pub const Error = error{ FeatureDisabled, NoDeviceAvailable, InitializationFaile
 pub const GpuError = Error;
 pub const MemoryError = error{ OutOfMemory, InvalidPointer, BufferTooSmall, HostAccessDisabled, DeviceMemoryMissing, SizeMismatch, InvalidOffset, TransferFailed };
 pub const KernelError = error{ CompilationFailed, InvalidKernel, InvalidArgument, LaunchFailed, BackendUnsupported };
+pub const BackendSelectionError = error{ RequestedBackendUnavailable, NoBackendsAvailable, OutOfMemory };
 
 // ── Local Stubs Imports ────────────────────────────────────────────────────
 

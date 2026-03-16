@@ -61,6 +61,17 @@ pub const FactoryError = error{
     NoBackendsAvailable,
 };
 
+/// Errors specific to strict backend selection.
+pub const BackendSelectionError = error{
+    /// The explicitly requested backend is unavailable and strict mode
+    /// prevents fallback to alternatives.
+    RequestedBackendUnavailable,
+    /// No backends are available on this system.
+    NoBackendsAvailable,
+    /// Memory allocation failed during backend selection.
+    OutOfMemory,
+};
+
 /// Backend instance with its interface and metadata.
 pub const BackendInstance = struct {
     /// The backend interface for kernel operations.
@@ -201,9 +212,56 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
 
 /// Create the best available backend based on hardware detection.
 pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInstance {
+    return createBestBackendWithOptions(allocator, .{});
+}
+
+/// Create the best available backend, optionally in strict mode.
+///
+/// When `options.strict` is true and `options.preferred` is set, the factory
+/// returns `BackendSelectionError.RequestedBackendUnavailable` instead of
+/// falling back to alternative backends.
+pub fn createBestBackendWithOptions(
+    allocator: std.mem.Allocator,
+    options: SelectionOptions,
+) (FactoryError || BackendSelectionError)!*BackendInstance {
+    // Strict path: only honour the preferred backend, no fallback.
+    if (options.strict) {
+        if (options.preferred) |preferred| {
+            if (!isBackendAvailable(preferred)) {
+                return BackendSelectionError.RequestedBackendUnavailable;
+            }
+            if (!meetsFeatureRequirements(preferred, options.required_features)) {
+                return BackendSelectionError.RequestedBackendUnavailable;
+            }
+            return createBackend(allocator, preferred);
+        }
+        // strict without a preferred backend: no fallback, try the priority
+        // list but fail loudly if nothing is available.
+        const priorities = priorityList();
+        for (priorities.slice()) |backend_type| {
+            if (isBackendAvailable(backend_type) and
+                meetsFeatureRequirements(backend_type, options.required_features))
+            {
+                return createBackend(allocator, backend_type) catch continue;
+            }
+        }
+        return BackendSelectionError.NoBackendsAvailable;
+    }
+
+    // Non-strict path: legacy fallback behaviour.
+    if (options.preferred) |preferred| {
+        if (isBackendAvailable(preferred) and
+            meetsFeatureRequirements(preferred, options.required_features))
+        {
+            return createBackend(allocator, preferred) catch {};
+        }
+    }
+
     const priorities = priorityList();
     for (priorities.slice()) |backend_type| {
-        if (isBackendAvailable(backend_type)) {
+        if (isBackendAvailable(backend_type) and
+            meetsFeatureRequirements(backend_type, options.required_features))
+        {
             return createBackend(allocator, backend_type) catch continue;
         }
     }
@@ -251,22 +309,38 @@ pub const SelectionOptions = struct {
     fallback_chain: []const Backend = &.{ .vulkan, .metal, .stdgpu },
     required_features: []const BackendFeature = &.{},
     fallback_to_cpu: bool = true,
+    /// When true, return `BackendSelectionError.RequestedBackendUnavailable`
+    /// instead of falling back to alternatives when the preferred backend
+    /// is unavailable. Default: false (keep legacy fallback behaviour).
+    strict: bool = false,
 };
 
 /// Select the best backend with fallback chain.
+///
+/// When `options.strict` is true, returns `BackendSelectionError.RequestedBackendUnavailable`
+/// if the preferred backend is unavailable instead of falling back to alternatives.
 pub fn selectBestBackendWithFallback(
     allocator: std.mem.Allocator,
     options: SelectionOptions,
-) !?Backend {
+) (BackendSelectionError)!?Backend {
     _ = allocator; // May be needed for future enhancements
 
     // Try preferred first
     if (options.preferred) |preferred| {
-        if (isBackendAvailable(preferred)) {
-            if (meetsFeatureRequirements(preferred, options.required_features)) {
-                return preferred;
-            }
+        if (isBackendAvailable(preferred) and
+            meetsFeatureRequirements(preferred, options.required_features))
+        {
+            return preferred;
         }
+        // Strict mode: fail immediately if preferred is unavailable
+        if (options.strict) {
+            return BackendSelectionError.RequestedBackendUnavailable;
+        }
+    }
+
+    // Strict mode without a preferred backend: no fallback allowed
+    if (options.strict) {
+        return BackendSelectionError.NoBackendsAvailable;
     }
 
     // Try fallback chain
@@ -288,10 +362,26 @@ pub fn selectBestBackendWithFallback(
 }
 
 /// Select backend with specific feature requirements.
+///
+/// When `options.strict` is true, returns `BackendSelectionError.RequestedBackendUnavailable`
+/// if the preferred backend is unavailable or lacks the required features.
 pub fn selectBackendWithFeatures(
     allocator: std.mem.Allocator,
     options: SelectionOptions,
-) !?Backend {
+) (BackendSelectionError || error{OutOfMemory})!?Backend {
+    // Strict path: check preferred immediately, no fallback
+    if (options.strict) {
+        if (options.preferred) |preferred| {
+            if (isBackendAvailable(preferred) and
+                meetsFeatureRequirements(preferred, options.required_features))
+            {
+                return preferred;
+            }
+            return BackendSelectionError.RequestedBackendUnavailable;
+        }
+        return BackendSelectionError.NoBackendsAvailable;
+    }
+
     const available = try detectAvailableBackends(allocator);
     defer allocator.free(available);
 
@@ -693,6 +783,52 @@ test "simulated and webgl2 do not advertise atomics/shared memory" {
     try std.testing.expect(!backendSupportsFeature(.simulated, .shared_memory));
     try std.testing.expect(!backendSupportsFeature(.webgl2, .atomics));
     try std.testing.expect(!backendSupportsFeature(.webgl2, .shared_memory));
+}
+
+test "strict mode rejects unavailable preferred backend" {
+    // CUDA is almost certainly unavailable in CI / test environments.
+    // Strict mode should return RequestedBackendUnavailable rather than
+    // falling back to stdgpu/simulated.
+    const result = selectBestBackendWithFallback(std.testing.allocator, .{
+        .preferred = .cuda,
+        .strict = true,
+    });
+    if (result) |_| {
+        // If CUDA happens to be available, the test is vacuously correct.
+    } else |err| {
+        try std.testing.expectEqual(
+            BackendSelectionError.RequestedBackendUnavailable,
+            err,
+        );
+    }
+}
+
+test "strict mode without preferred returns NoBackendsAvailable when empty" {
+    // With strict = true and no preferred backend, selection should fail
+    // with NoBackendsAvailable (since no discovery occurs).
+    const result = selectBackendWithFeatures(std.testing.allocator, .{
+        .strict = true,
+    });
+    if (result) |_| {
+        // Should not reach here with strict + no preferred
+    } else |err| {
+        try std.testing.expectEqual(
+            BackendSelectionError.NoBackendsAvailable,
+            err,
+        );
+    }
+}
+
+test "non-strict mode falls back when preferred unavailable" {
+    // Default (strict=false) should fall back to an available backend.
+    const result = try selectBestBackendWithFallback(std.testing.allocator, .{
+        .preferred = .cuda,
+        .strict = false,
+    });
+    // Should get some backend (stdgpu/simulated) or null — not an error.
+    if (result) |backend| {
+        try std.testing.expect(isBackendAvailable(backend));
+    }
 }
 
 test {

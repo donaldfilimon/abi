@@ -246,6 +246,34 @@ pub const AdvancedMemoryPool = struct {
 
     /// Deinitialize the pool and free all resources.
     pub fn deinit(self: *AdvancedMemoryPool) void {
+        // Lifecycle safety: warn about active allocations remaining at pool
+        // destruction. This catches resource leaks in mixed-backend graphs
+        // where Metal + CPU fallback share a pool.
+        {
+            var active_count: usize = 0;
+            var active_bytes: usize = 0;
+            for (self.size_classes) |bucket| {
+                for (bucket.metadata.items) |meta| {
+                    if (meta.used) {
+                        active_count += 1;
+                        active_bytes += meta.size;
+                    }
+                }
+            }
+            // Overflow allocations are always considered active
+            active_count += self.overflow_allocations.items.len;
+            for (self.overflow_allocations.items) |buf| {
+                active_bytes += buf.size;
+            }
+            if (active_count > 0) {
+                std.log.warn(
+                    "AdvancedMemoryPool.deinit: {d} active allocation(s) ({d} bytes) " ++
+                        "still held — potential resource leak in mixed-backend graph",
+                    .{ active_count, active_bytes },
+                );
+            }
+        }
+
         for (&self.size_classes) |*bucket| {
             bucket.deinit();
         }
