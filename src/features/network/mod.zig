@@ -169,6 +169,7 @@ pub const AppendEntriesRequest = raft.AppendEntriesRequest;
 pub const AppendEntriesResponse = raft.AppendEntriesResponse;
 pub const PeerState = raft.PeerState;
 pub const createRaftCluster = raft.createCluster;
+pub const FaultInjector = raft.FaultInjector;
 
 // Raft persistence exports
 pub const RaftPersistence = raft.RaftPersistence;

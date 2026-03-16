@@ -160,6 +160,7 @@ pub const AppendEntriesRequest = raft_mod.AppendEntriesRequest;
 pub const AppendEntriesResponse = raft_mod.AppendEntriesResponse;
 pub const PeerState = raft_mod.PeerState;
 pub const createRaftCluster = raft_mod.createCluster;
+pub const FaultInjector = raft_mod.FaultInjector;
 pub const RaftPersistence = raft_mod.RaftPersistence;
 pub const PersistentState = raft_mod.PersistentState;
 pub const RaftSnapshotManager = raft_mod.RaftSnapshotManager;

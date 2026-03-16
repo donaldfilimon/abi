@@ -22,17 +22,35 @@ pub const RaftNode = struct {
         return false;
     }
 
+    pub fn handleRequestVote(_: *@This(), _: RequestVoteRequest) !RequestVoteResponse {
+        return error.NetworkDisabled;
+    }
+
+    pub fn handlePreVoteResponse(_: *@This(), _: RequestVoteResponse) !void {
+        return error.NetworkDisabled;
+    }
+
+    pub fn buildPreVoteRequest(_: *const @This()) RequestVoteRequest {
+        return .{};
+    }
+
+    pub fn buildRequestVoteRequest(_: *const @This()) RequestVoteRequest {
+        return .{};
+    }
+
     pub const ApplyCallback = *const fn (entry: LogEntry, user_data: ?*anyopaque) void;
 };
 
 pub const RaftState = enum {
     follower,
+    pre_candidate,
     candidate,
     leader,
 
     pub fn toString(self: RaftState) []const u8 {
         return switch (self) {
             .follower => "follower",
+            .pre_candidate => "pre_candidate",
             .candidate => "candidate",
             .leader => "leader",
         };
@@ -81,6 +99,13 @@ pub const LogEntry = struct {
     term: u64 = 0,
     index: u64 = 0,
     data: []const u8 = "",
+    entry_type: EntryType = .command,
+
+    pub const EntryType = enum {
+        command,
+        config_change,
+        no_op,
+    };
 };
 
 pub const RequestVoteRequest = struct {
@@ -88,11 +113,13 @@ pub const RequestVoteRequest = struct {
     candidate_id: []const u8 = "",
     last_log_index: u64 = 0,
     last_log_term: u64 = 0,
+    is_pre_vote: bool = false,
 };
 
 pub const RequestVoteResponse = struct {
     term: u64 = 0,
     vote_granted: bool = false,
+    voter_id: []const u8 = "",
 };
 
 pub const AppendEntriesRequest = struct {
@@ -120,9 +147,26 @@ pub const PeerState = struct {
     pre_vote_granted: bool = false,
 };
 
-pub fn createCluster(_: std.mem.Allocator, _: []const []const u8) !void {
+pub fn createCluster(_: std.mem.Allocator, _: []const []const u8, _: RaftConfig) !void {
     return error.NetworkDisabled;
 }
+
+/// Fault injection stub (no-op when network is disabled).
+pub const FaultInjector = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) FaultInjector {
+        return .{ .allocator = allocator };
+    }
+    pub fn deinit(_: *FaultInjector) void {}
+    pub fn simulatePartition(_: *FaultInjector, _: []const u8, _: []const u8) !void {
+        return error.NetworkDisabled;
+    }
+    pub fn simulateHeal(_: *FaultInjector, _: []const u8, _: []const u8) void {}
+    pub fn isBlocked(_: *const FaultInjector, _: []const u8, _: []const u8) bool {
+        return false;
+    }
+};
 
 // Persistence
 pub const RaftPersistence = struct {
