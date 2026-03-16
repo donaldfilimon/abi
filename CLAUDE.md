@@ -1,3 +1,10 @@
+---
+title: CLAUDE.md — ABI
+purpose: Specific instructions and references for Claude AI agent
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # CLAUDE.md — ABI
 
 Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2905+5d71e3051` (`.zigversion`).

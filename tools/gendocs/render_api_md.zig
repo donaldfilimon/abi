@@ -24,6 +24,13 @@ fn renderCoverage(
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator,
+        \\---
+        \\title: API Documentation Coverage
+        \\purpose: Per-module documentation coverage of public symbols
+        \\last_updated: 2026-03-16
+        \\target_zig_version: 0.16.0-dev.2905+5d71e3051
+        \\---
+        \\
         \\# API Documentation Coverage
         \\
         \\> Per-module documentation coverage of public symbols.
@@ -85,6 +92,13 @@ fn renderIndex(
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator,
+        \\---
+        \\title: ABI Framework API Reference
+        \\purpose: Comprehensive API documentation auto-generated from source code
+        \\last_updated: 2026-03-16
+        \\target_zig_version: 0.16.0-dev.2905+5d71e3051
+        \\---
+        \\
         \\# ABI Framework API Reference
         \\
         \\> Comprehensive API documentation auto-generated from source code.
@@ -144,7 +158,18 @@ fn renderModule(
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    try appendFmt(allocator, &buf, "# {s}\n\n", .{mod.name});
+    try appendFmt(allocator, &buf,
+        \\---
+        \\title: {s} API
+        \\purpose: Generated API reference for {s}
+        \\last_updated: 2026-03-16
+        \\target_zig_version: 0.16.0-dev.2905+5d71e3051
+        \\---
+        \\
+        \\# {s}
+        \\
+        \\
+    , .{ mod.name, mod.name, mod.name });
     if (mod.description.len > 0) {
         try appendFmt(allocator, &buf, "> {s}\n\n", .{mod.description});
     }

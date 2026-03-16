@@ -319,10 +319,11 @@ const ParallelGraph = struct {
 // ============================================================================
 
 /// Task for work-stealing scheduler.
-/// Must be extern struct because it is stored in std.atomic.Value (via ChaseLevDeque).
-const InsertTask = extern struct {
+/// Must be bit-packable into u64 for std.atomic.Value compatibility (via ChaseLevDeque).
+const InsertTask = packed struct(u64) {
     node_id: u32,
     priority: u8, // Higher layer = higher priority
+    padding: u24 = 0,
 };
 
 // ============================================================================

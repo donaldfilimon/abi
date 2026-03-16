@@ -60,9 +60,23 @@ pub const HnswIndex = struct {
     /// Allocator used for construction
     allocator: std.mem.Allocator,
 
+    // Compatibility fields for persistence and legacy engine
+    node_levels: std.ArrayListUnmanaged(u32) = .empty,
+    neighbors: std.ArrayListUnmanaged([]u32) = .empty,
+
     pub const NodeLayers = struct {
         layers: []index_mod.NeighborList,
     };
+
+    pub fn init(allocator: std.mem.Allocator, cfg: anytype, metric: anytype) !HnswIndex {
+        _ = metric;
+        const m = if (@hasField(@TypeOf(cfg), "hnsw")) cfg.hnsw.m else 16;
+        const ef = if (@hasField(@TypeOf(cfg), "hnsw")) cfg.hnsw.ef_construction else 100;
+        return initEmpty(allocator, .{
+            .m = @intCast(m),
+            .ef_construction = @intCast(ef),
+        });
+    }
 
     /// Configuration for HNSW index construction.
     pub const Config = struct {

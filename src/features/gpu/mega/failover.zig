@@ -53,9 +53,9 @@ pub const FailoverManager = struct {
             .allocator = allocator,
             .policy = policy,
             .health = .empty,
-            .priority_order = .{},
+            .priority_order = .empty,
             .current_primary = null,
-            .events = .{},
+            .events = .empty,
             .stats = .{},
             .mutex = .{},
         };

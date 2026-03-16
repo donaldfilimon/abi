@@ -301,7 +301,7 @@ fn createPosix(path: []const u8, size: usize) MmapError!MappedFile {
     }, 0o644) catch return error.AccessDenied;
     errdefer std.posix.close(fd);
 
-    std.posix.ftruncate(fd, @intCast(size)) catch return error.MmapFailed;
+    std.posix.system.ftruncate(fd, @intCast(size)) catch return error.MmapFailed;
 
     const ptr = std.posix.mmap(
         null,

@@ -195,9 +195,9 @@ pub const Coordinator = struct {
 
         self.* = .{
             .allocator = allocator,
-            .backends = .{},
+            .backends = .empty,
             .device_groups = .empty,
-            .scheduling_history = .{},
+            .scheduling_history = .empty,
             .stats = .{},
             .next_decision_id = 1,
             .mutex = .{},

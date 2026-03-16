@@ -30,7 +30,7 @@ pub fn install() void {
 
     const handler: std.posix.Sigaction = .{
         .handler = .{ .handler = handleSignal },
-        .mask = std.posix.empty_sigset,
+        .mask = std.posix.sigemptyset(),
         .flags = .{},
     };
 
@@ -42,7 +42,7 @@ pub fn install() void {
     };
 }
 
-fn handleSignal(sig: c_int) callconv(.c) void {
+fn handleSignal(sig: std.posix.SIG) callconv(.c) void {
     _ = sig;
     shutdown_requested.store(true, .release);
 }

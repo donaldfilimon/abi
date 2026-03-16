@@ -280,7 +280,7 @@ pub const HybridCoordinator = struct {
             .fpga_available = detectFpgaAvailable(),
             .gpu_memory_available_mb = if (detectGpuAvailable()) 8192 else 0,
             .fpga_memory_available_mb = if (detectFpgaAvailable()) 4096 else 0,
-            .routing_history = .{},
+            .routing_history = .empty,
             .stats = .{},
             .mutex = .{},
         };

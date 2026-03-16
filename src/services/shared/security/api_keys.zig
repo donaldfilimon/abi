@@ -110,9 +110,7 @@ pub const ApiKeyManager = struct {
     }
 
     pub fn deinit(self: *ApiKeyManager) void {
-        var it = self.keys.values();
-        while (it.next()) |api_key_ptr| {
-            const api_key = api_key_ptr.*;
+        for (self.keys.values()) |api_key| {
             // ApiKey.deinit frees .id which is also the map key
             api_key.deinit(self.allocator);
             self.allocator.destroy(api_key);
@@ -166,9 +164,7 @@ pub const ApiKeyManager = struct {
     }
 
     pub fn validateKey(self: *ApiKeyManager, key_plain: []const u8) !?*ApiKey {
-        var it = self.keys.values();
-        while (it.next()) |key_ptr| {
-            const key = key_ptr.*;
+        for (self.keys.values()) |key| {
             // Hash the provided key with this key's salt
             const computed_hash = self.hashKeyWithSalt(key_plain, &key.salt) catch continue;
             defer self.allocator.free(computed_hash);
@@ -214,9 +210,7 @@ pub const ApiKeyManager = struct {
 
     pub fn getKeysForUser(self: *ApiKeyManager, user_id: []const u8) ![]*ApiKey {
         var result = std.ArrayListUnmanaged(*ApiKey).empty;
-        var it = self.keys.values();
-        while (it.next()) |key_ptr| {
-            const key = key_ptr.*;
+        for (self.keys.values()) |key| {
             if (std.mem.eql(u8, key.user_id, user_id)) {
                 try result.append(self.allocator, key);
             }

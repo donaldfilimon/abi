@@ -180,7 +180,7 @@ pub const ReplayBuffer = struct {
     pub fn init(allocator: std.mem.Allocator, capacity: usize) ReplayBuffer {
         return .{
             .allocator = allocator,
-            .buffer = .{},
+            .buffer = .empty,
             .capacity = capacity,
         };
     }
@@ -245,7 +245,7 @@ pub const LearningScheduler = struct {
             .q_table = QTable.init(),
             .replay_buffer = ReplayBuffer.init(allocator, 10000),
             .coord = coord,
-            .episode_rewards = .{},
+            .episode_rewards = .empty,
             .current_episode_reward = 0,
         };
         return self;

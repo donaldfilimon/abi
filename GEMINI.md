@@ -1,3 +1,10 @@
+---
+title: Gemini Guide
+purpose: Specific instructions for the Gemini CLI
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # Gemini Guide
 
 Gemini is a secondary migration and cross-check CLI in this repository. It is

@@ -50,6 +50,20 @@ pub const MetalGpuFamily = gpu_family.MetalGpuFamily;
 pub const MetalFeatureSet = gpu_family.MetalFeatureSet;
 pub const MetalLevel = capabilities.MetalLevel;
 
+// Accelerate framework (vDSP / vBLAS on macOS)
+pub const accelerate = @import("metal/accelerate.zig");
+
+// macOS Accelerator pipeline (unified Accelerate + MPS + CoreML)
+pub const macos_accelerator = @import("metal/macos_accelerator.zig");
+pub const MacOSAccelerator = macos_accelerator.MacOSAccelerator;
+pub const AcceleratorBackend = macos_accelerator.AcceleratorBackend;
+pub const AcceleratorConfig = macos_accelerator.AcceleratorConfig;
+
+/// Check if the unified macOS accelerator is available (Accelerate + MPS + CoreML).
+pub fn hasAccelerator() bool {
+    return accelerate.is_available;
+}
+
 // Re-export device info type
 pub const DeviceInfo = metal_types.DeviceInfo;
 

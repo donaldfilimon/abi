@@ -143,7 +143,7 @@ pub const GpuMemoryPool = struct {
     pub fn init(allocator: std.mem.Allocator, max_size: usize) GpuMemoryPool {
         return .{
             .buffers = std.ArrayListUnmanaged(*GpuBuffer).empty,
-            .buffer_lookup = std.AutoHashMapUnmanaged(usize, usize){},
+            .buffer_lookup = .empty,
             .allocator = allocator,
             .total_size = 0,
             .max_size = max_size,

@@ -129,12 +129,13 @@ pub fn save(engine: *Engine, path: []const u8) !void {
     try writer.writeInt(u32, @intCast(@max(0, engine.hnsw_index.max_layer)), .little);
 
     for (0..count) |i| {
-        const node_level = engine.hnsw_index.node_levels.items[i];
+        const node = engine.hnsw_index.nodes[i];
+        const node_level = @as(u32, @intCast(@max(0, @as(i32, @intCast(node.layers.len)) - 1)));
         try writer.writeInt(u32, node_level, .little);
 
-        const layers = engine.hnsw_index.neighbors.items[i];
+        const layers = node.layers;
         for (0..node_level + 1) |l| {
-            const nbrs = if (l < layers.len) layers[l] else &[_]u32{};
+            const nbrs = if (l < layers.len) layers[l].nodes else &[_]u32{};
             try writer.writeInt(u32, @intCast(nbrs.len), .little);
             for (nbrs) |n| {
                 try writer.writeInt(u32, n, .little);

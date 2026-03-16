@@ -147,9 +147,9 @@ pub const signal = @import("signal.zig");
 /// Usage: `log.info("message {}", .{value});`
 pub const log = logging.log;
 
-/// Scoped logger type for structured logging with context.
-/// Create with `Logger.init(allocator, .{ .scope = "my_component" })`.
-pub const Logger = logging.Logger;
+/// Scoped timer for profiling blocks of code.
+/// Create with `ScopedTimer.start("label")` and call `.stop()` when done.
+pub const ScopedTimer = logging.ScopedTimer;
 
 // ============================================================================
 // SIMD Re-exports for Convenience
