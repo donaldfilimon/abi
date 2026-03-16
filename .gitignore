@@ -280,6 +280,7 @@ zig-bootstrap-emergency/
 !/benchmarks/STRUCTURE.md
 !/examples/README.md
 !/tasks/todo.md
+!/tasks/cleanup.md
 !/tasks/lessons.md
 
 # ── .cel toolchain fork (build outputs only) ────────────────────────
