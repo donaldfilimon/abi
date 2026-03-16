@@ -6,7 +6,7 @@ const sync = @import("../../services/shared/mod.zig").sync;
 const types = @import("types.zig");
 const agent_mod = @import("agents/mod.zig");
 const prompt_personas = @import("prompts/mod.zig");
-const overrides = @import("aviva_logic/mod.zig");
+const overrides = @import("aviva/mod.zig");
 
 pub const GenericPersonaError = error{
     UnsupportedPersonaType,

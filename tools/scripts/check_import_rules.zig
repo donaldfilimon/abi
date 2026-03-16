@@ -1,6 +1,10 @@
 const std = @import("std");
 const util = @import("util");
 
+/// Scans `src/features/` for `@import("abi")` which creates circular
+/// dependencies inside the `abi` module.  Files under `src/services/tests/`
+/// are excluded because they are wired as separate test modules with an
+/// explicit `addImport("abi", abi_module)`, making the named import legal.
 pub fn main(_: std.process.Init) !void {
     var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();

@@ -14,4 +14,4 @@ fi
 
 ZIG="${ZIG_REAL:-${ZIG:-zig}}"
 
-exec "$ZIG" fmt "$@" build.zig build/ src/ tools/ examples/
+exec "$ZIG" fmt "$@" build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/

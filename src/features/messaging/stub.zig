@@ -8,6 +8,7 @@ const types = @import("types.zig");
 
 pub const MessagingConfig = types.MessagingConfig;
 pub const MessagingError = types.MessagingError;
+pub const Error = MessagingError;
 pub const DeliveryResult = types.DeliveryResult;
 pub const Message = types.Message;
 pub const Channel = types.Channel;

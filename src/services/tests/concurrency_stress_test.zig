@@ -14,8 +14,9 @@
 //! - Data corruption
 
 const std = @import("std");
+const os = @import("../shared/os.zig");
 const abi = @import("abi");
-const runtime = abi.services.runtime;
+const runtime = abi.runtime;
 const helpers = @import("helpers.zig");
 
 // Re-export sleep from helpers for convenience

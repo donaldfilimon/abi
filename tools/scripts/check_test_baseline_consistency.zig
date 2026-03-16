@@ -83,7 +83,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // ── WDBX fast test root ─────────────────────────────────────────────
-    const wdbx_fast_root = "src/core/database_fast_tests_root.zig";
+    const wdbx_fast_root = "src/database_fast_tests_root.zig";
     if (util.fileExists(io, wdbx_fast_root)) {
         // If it exists, make sure the WDBX engine file exists too
         const wdbx_engine = "src/core/database/wdbx.zig";

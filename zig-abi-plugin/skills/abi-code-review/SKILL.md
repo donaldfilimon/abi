@@ -9,7 +9,7 @@ Use this skill to review ABI changes with the repo's actual workflow, Zig pin, a
 
 ## Quick Start
 
-1. Confirm the checkout looks like ABI by checking for `AGENTS.md`, `CLAUDE.md`, `.zigversion`, `build.zig`, and `src/abi.zig`.
+1. Confirm the checkout looks like ABI by checking for `AGENTS.md`, `CLAUDE.md`, `.zigversion`, `build.zig`, and `src/root.zig`.
 2. Read `tasks/lessons.md` and `tasks/todo.md` before reviewing the diff.
 3. Run `python3 <skill-dir>/scripts/review_prep.py --repo <abi-repo> --base <ref>` to collect merge-base diff metadata, subsystem tags, and recommended checks.
 4. Review the diff against the merge base and report only actionable bugs or regressions.
@@ -73,7 +73,7 @@ Use this map to choose validation expectations from the changed paths.
 | `tools/cli/terminal/` or TUI panels | Dashboard behavior, async loop, non-blocking input, renderer coupling | `zig build tui-tests` |
 | `tools/gendocs/`, `docs/`, `README.md`, `CLAUDE.md` | Docs generation coupling, stale registry/module data | `zig build check-docs` |
 | `src/features/*/mod.zig`, `src/features/*/stub.zig`, `build/options.zig`, `build/flags.zig`, `src/core/feature_catalog.zig` | Feature-gate parity, public surface drift, disabled-build compatibility | `zig build validate-flags` |
-| `src/wdbx/` or `src/features/database/` | WDBX engine behavior, database correctness, replication, graph logic | `zig build wdbx-fast-tests` |
+| `src/core/database/` or `src/features/database/` | WDBX engine behavior, database correctness, replication, graph logic | `zig build wdbx-fast-tests` |
 | `build.zig`, `build/`, `.zigversion`, `build.zig.zon`, `.cel/`, `tools/scripts/` | Zig 0.16 build API usage, pin consistency, Darwin/CEL workflow integrity | `zig build full-check`, `zig build verify-all` on a host where the toolchain links |
 | Any non-trivial code change | End-to-end ABI correctness | `zig build full-check`, `zig build verify-all` on a host where the toolchain links |
 
@@ -109,8 +109,8 @@ The `review_prep.py` script tags changed files into these ordered categories for
 5. `docs` -- `tools/gendocs/`, `docs/`, `README.md`, `CLAUDE.md`, `AGENTS.md`
 6. `features` -- `src/features/`
 7. `feature-flag-surface` -- `src/features/*/mod.zig`, `src/features/*/stub.zig`, `build/options.zig`, `build/flags.zig`, `src/core/feature_catalog.zig`
-8. `wdbx` -- `src/wdbx/`
+8. `wdbx` -- `src/core/database/`
 9. `database` -- `src/features/database/`
-10. `network-dist` -- `src/wdbx/dist/`, `src/features/network/`
+10. `network-dist` -- `src/core/database/dist/`, `src/features/network/`
 11. `training` -- `src/features/ai/training/`, any path containing "training"
 12. `tasks-planning` -- `tasks/`

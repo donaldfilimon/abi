@@ -105,10 +105,6 @@ const gateway_mod = fi.gateway_mod;
 const pages_mod = fi.pages_mod;
 const benchmarks_mod = fi.benchmarks_mod;
 const mobile_mod = fi.mobile_mod;
-const ai_core_mod = fi.ai_core_mod;
-const ai_inference_mod = fi.ai_inference_mod;
-const ai_training_mod = fi.ai_training_mod;
-const ai_reasoning_mod = fi.ai_reasoning_mod;
 const ha_mod = @import("../services/ha/mod.zig");
 const runtime_mod = @import("../services/runtime/mod.zig");
 
@@ -198,14 +194,6 @@ pub const Framework = struct {
     benchmarks: ?*benchmarks_mod.Context = null,
     /// Mobile context, or null if mobile is not enabled.
     mobile: ?*mobile_mod.Context = null,
-    /// AI Core context (agents, tools, prompts), or null if not enabled.
-    ai_core: ?*ai_core_mod.Context = null,
-    /// AI Inference context (LLM, embeddings, vision), or null if not enabled.
-    ai_inference: ?*ai_inference_mod.Context = null,
-    /// AI Training context (pipelines, federated), or null if not enabled.
-    ai_training: ?*ai_training_mod.Context = null,
-    /// AI Reasoning context (Abbey, RAG, eval), or null if not enabled.
-    ai_reasoning: ?*ai_reasoning_mod.Context = null,
     /// High availability manager, or null if not initialized.
     ha: ?ha_mod.HaManager = null,
     /// Runtime context (always available).

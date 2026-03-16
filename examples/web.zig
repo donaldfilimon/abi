@@ -20,7 +20,7 @@ pub fn main(_: std.process.Init) !void {
         .build();
     defer framework.deinit();
 
-    if (!abi.features.web.isEnabled()) {
+    if (!abi.web.isEnabled()) {
         std.debug.print("Web feature is disabled. Enable with -Denable-web=true\n", .{});
         return;
     }
@@ -29,7 +29,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Chat request/response types
     std.debug.print("--- Chat Handler Types ---\n", .{});
-    const request = abi.features.web.ChatRequest{
+    const request = abi.web.ChatRequest{
         .content = "Hello from the ABI web module!",
     };
     std.debug.print("  Content: {s}\n", .{request.content});

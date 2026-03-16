@@ -31,6 +31,7 @@ pub const CircuitBreakerConfig = gateway_types.CircuitBreakerConfig;
 pub const CircuitBreakerState = gateway_types.CircuitBreakerState;
 
 pub const GatewayError = gateway_types.GatewayError;
+pub const Error = GatewayError;
 pub const HttpMethod = gateway_types.HttpMethod;
 pub const Route = gateway_types.Route;
 pub const MiddlewareType = middleware.MiddlewareType;

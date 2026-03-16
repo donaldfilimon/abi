@@ -83,6 +83,16 @@
         },
     },
     .{
+        .name = "create-subagent",
+        .description = "Create a Cursor subagent file (project or user scope) with name, description, and optional prompt body",
+        .aliases = .{"subagent"},
+        .subcommands = .{
+            "help",
+            "project",
+            "user",
+        },
+    },
+    .{
         .name = "db",
         .description = "Database operations (add, query, stats, optimize, backup, restore)",
         .aliases = .{"ls"},
@@ -114,9 +124,9 @@
     },
     .{
         .name = "doctor",
-        .description = "Check environment, dependencies, and configuration",
+        .description = "Inspect the active Zig toolchain and ABI environment",
         .aliases = .{},
-        .subcommands = .{"help"},
+        .subcommands = .{},
     },
     .{
         .name = "editor",

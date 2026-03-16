@@ -4,6 +4,7 @@
 //! This module works around the absence of std.Thread.Mutex in earlier 0.16 dev builds.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 /// Mutex is a synchronization primitive which enforces atomic access to a
 /// shared region of code known as the "critical section".
@@ -31,7 +32,11 @@ pub const Mutex = struct {
             for (0..spin) |_| std.atomic.spinLoopHint();
             if (!self.locked.swap(true, .acquire)) return;
             spin = @min(spin *| 2, 32);
-            if (spin >= 32) std.Thread.yield() catch {};
+            if (spin >= 32) {
+                if (comptime builtin.os.tag != .freestanding) {
+                    std.Thread.yield() catch {};
+                }
+            }
         }
     }
 
@@ -95,7 +100,11 @@ pub const RwLock = struct {
                 }
             }
             spin = @min(spin *| 2, 32);
-            if (spin >= 32) std.Thread.yield() catch {};
+            if (spin >= 32) {
+                if (comptime builtin.os.tag != .freestanding) {
+                    std.Thread.yield() catch {};
+                }
+            }
         }
     }
 
@@ -112,7 +121,11 @@ pub const RwLock = struct {
             for (0..spin) |_| std.atomic.spinLoopHint();
             if (self.state.cmpxchgWeak(0, -1, .acquire, .monotonic) == null) return;
             spin = @min(spin *| 2, 32);
-            if (spin >= 32) std.Thread.yield() catch {};
+            if (spin >= 32) {
+                if (comptime builtin.os.tag != .freestanding) {
+                    std.Thread.yield() catch {};
+                }
+            }
         }
     }
 
@@ -189,7 +202,11 @@ pub const Wake = struct {
             if (elapsed >= timeout_ns) return .timed_out;
             for (0..spin) |_| std.atomic.spinLoopHint();
             spin = @min(spin *| 2, 32);
-            if (spin >= 32) std.Thread.yield() catch {};
+            if (spin >= 32) {
+                if (comptime builtin.os.tag != .freestanding) {
+                    std.Thread.yield() catch {};
+                }
+            }
         }
         self.signaled.store(false, .release);
         return .signaled;

@@ -10,6 +10,7 @@
 //! - OCSP stapling support
 
 const std = @import("std");
+const os = @import("../os.zig");
 const crypto = std.crypto;
 const time = @import("../time.zig");
 const sync = @import("../sync.zig");
@@ -263,7 +264,7 @@ pub const CertificateManager = struct {
     pub fn loadFromFile(self: *CertificateManager, path: []const u8) !CertificateInfo {
         // Initialize I/O backend (Zig 0.16)
         var io_backend = std.Io.Threaded.init(self.allocator, .{
-            .environ = std.process.Environ.empty,
+            .environ = if (comptime !os.no_os) std.process.Environ.empty else .{},
         });
         defer io_backend.deinit();
         const io = io_backend.io();

@@ -1,0 +1,94 @@
+---
+title: network API
+purpose: Generated API reference for network
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
+# network
+
+> Network Module
+
+Distributed compute network with node discovery, Raft consensus,
+and distributed task coordination.
+
+## Features
+- Node registry and discovery
+- Raft consensus for leader election
+- Task scheduling and load balancing
+- Connection pooling and retry logic
+- Circuit breakers for fault tolerance
+- Rate limiting
+
+## Usage
+
+```zig
+const network = @import("network");
+
+// Initialize the network module
+try network.init(allocator);
+defer network.deinit();
+
+// Get the node registry
+const registry = try network.defaultRegistry();
+try registry.register("node-a", "127.0.0.1:9000");
+```
+
+**Source:** [`src/features/network/mod.zig`](../../src/features/network/mod.zig)
+
+**Build flag:** `-Dfeat_network=true`
+
+---
+
+## API
+
+### <a id="pub-const-context"></a>`pub const Context`
+
+<sup>**const**</sup> | [source](../../src/features/network/mod.zig#L353)
+
+Network context for Framework integration.
+
+### <a id="pub-fn-connect-self-context-void"></a>`pub fn connect(self: *Context) !void`
+
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L382)
+
+Connect to the network.
+
+### <a id="pub-fn-disconnect-self-context-void"></a>`pub fn disconnect(self: *Context) void`
+
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L390)
+
+Disconnect from the network.
+
+### <a id="pub-fn-getstate-self-context-state"></a>`pub fn getState(self: *Context) State`
+
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L395)
+
+Get current state.
+
+### <a id="pub-fn-discoverpeers-self-context-nodeinfo"></a>`pub fn discoverPeers(self: *Context) ![]NodeInfo`
+
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L400)
+
+Discover peers.
+
+### <a id="pub-fn-sendtask-self-context-node-id-const-u8-task-anytype-void"></a>`pub fn sendTask(self: *Context, node_id: []const u8, task: anytype) !void`
+
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L408)
+
+Send a task to a remote node.
+
+
+
+---
+
+*Generated automatically by `zig build gendocs`*
+
+
+## Workflow Contract
+- Canonical repo workflow: [AGENTS.md](../../AGENTS.md)
+- Active execution tracker: [tasks/todo.md](../../tasks/todo.md)
+- Correction log: [tasks/lessons.md](../../tasks/lessons.md)
+
+## Zig Validation
+Use `zig build full-check` on supported hosts. On Darwin 25+ / 26+, use `zig fmt --check ...` plus `./tools/scripts/run_build.sh <step>`. For docs generation, use `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin.

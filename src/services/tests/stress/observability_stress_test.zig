@@ -15,7 +15,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const obs = abi.features.observability;
+const obs = abi.observability;
 const profiles = @import("profiles.zig");
 const StressProfile = profiles.StressProfile;
 const LatencyHistogram = profiles.LatencyHistogram;

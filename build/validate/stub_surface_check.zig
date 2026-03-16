@@ -34,7 +34,52 @@ comptime {
 }
 
 // ============================================================================
-// Services (always available)
+// Canonical top-level API (abi.<domain>)
+// ============================================================================
+
+comptime {
+    // Core
+    _ = abi.config;
+    _ = abi.errors;
+    _ = abi.registry;
+    _ = abi.framework;
+
+    // Services (non-feature-gated)
+    _ = abi.foundation;
+    _ = abi.runtime;
+    _ = abi.platform;
+    _ = abi.connectors;
+    _ = abi.tasks;
+    _ = abi.mcp;
+    _ = abi.lsp;
+    _ = abi.acp;
+    _ = abi.ha;
+
+    // Features (comptime-gated)
+    _ = abi.gpu;
+    _ = abi.ai;
+    _ = abi.database;
+    _ = abi.network;
+    _ = abi.observability;
+    _ = abi.web;
+    _ = abi.pages;
+    _ = abi.analytics;
+    _ = abi.cloud;
+    _ = abi.auth;
+    _ = abi.messaging;
+    _ = abi.cache;
+    _ = abi.storage;
+    _ = abi.search;
+    _ = abi.mobile;
+    _ = abi.gateway;
+    _ = abi.benchmarks;
+    _ = abi.compute;
+    _ = abi.documents;
+    _ = abi.desktop;
+}
+
+// ============================================================================
+// Compat bridges (abi.services.*, abi.features.*)
 // ============================================================================
 
 comptime {
@@ -180,6 +225,7 @@ comptime {
 comptime {
     _ = abi.features.analytics.Engine;
     _ = abi.features.analytics.Event;
+    _ = abi.features.analytics.Error;
     _ = abi.features.analytics.AnalyticsConfig;
     _ = abi.features.analytics.Context;
     _ = abi.features.analytics.Funnel;
@@ -210,6 +256,7 @@ comptime {
 
 comptime {
     _ = abi.features.auth.AuthError;
+    _ = abi.features.auth.Error;
     _ = abi.features.auth.AuthConfig;
     _ = abi.features.auth.Token;
     _ = abi.features.auth.Session;
@@ -225,6 +272,7 @@ comptime {
 
 comptime {
     _ = abi.features.messaging.MessagingError;
+    _ = abi.features.messaging.Error;
     _ = abi.features.messaging.MessagingConfig;
     _ = abi.features.messaging.Message;
     _ = abi.features.messaging.Channel;
@@ -240,6 +288,7 @@ comptime {
 
 comptime {
     _ = abi.features.cache.CacheError;
+    _ = abi.features.cache.Error;
     _ = abi.features.cache.CacheConfig;
     _ = abi.features.cache.CacheEntry;
     _ = abi.features.cache.CacheStats;
@@ -254,6 +303,7 @@ comptime {
 
 comptime {
     _ = abi.features.storage.StorageError;
+    _ = abi.features.storage.Error;
     _ = abi.features.storage.StorageConfig;
     _ = abi.features.storage.StorageObject;
     _ = abi.features.storage.ObjectMetadata;
@@ -269,6 +319,7 @@ comptime {
 
 comptime {
     _ = abi.features.search.SearchError;
+    _ = abi.features.search.Error;
     _ = abi.features.search.SearchConfig;
     _ = abi.features.search.SearchResult;
     _ = abi.features.search.SearchIndex;
@@ -284,6 +335,7 @@ comptime {
 
 comptime {
     _ = abi.features.mobile.MobileError;
+    _ = abi.features.mobile.Error;
     _ = abi.features.mobile.MobileConfig;
     _ = abi.features.mobile.SensorType;
     _ = abi.features.mobile.SensorData;
@@ -302,6 +354,7 @@ comptime {
 
 comptime {
     _ = abi.features.gateway.GatewayError;
+    _ = abi.features.gateway.Error;
     _ = abi.features.gateway.GatewayConfig;
     _ = abi.features.gateway.Route;
     _ = abi.features.gateway.MatchResult;
@@ -333,6 +386,7 @@ comptime {
 
 comptime {
     _ = abi.features.benchmarks.BenchmarksError;
+    _ = abi.features.benchmarks.Error;
     _ = abi.features.benchmarks.Config;
     _ = abi.features.benchmarks.BenchmarkFn;
     _ = abi.features.benchmarks.BenchmarkState;
@@ -340,6 +394,7 @@ comptime {
     _ = abi.features.benchmarks.BenchmarkSuite;
     _ = abi.features.benchmarks.Context;
     _ = abi.features.benchmarks.isEnabled;
+    _ = abi.features.benchmarks.isInitialized;
 }
 
 // ============================================================================
@@ -348,6 +403,11 @@ comptime {
 
 comptime {
     _ = abi.features.compute.mesh;
+    _ = abi.features.compute.ComputeError;
+    _ = abi.features.compute.Error;
+    _ = abi.features.compute.Context;
+    _ = abi.features.compute.isEnabled;
+    _ = abi.features.compute.isInitialized;
 }
 
 // ============================================================================
@@ -357,6 +417,11 @@ comptime {
 comptime {
     _ = abi.features.documents.html;
     _ = abi.features.documents.pdf;
+    _ = abi.features.documents.DocumentsError;
+    _ = abi.features.documents.Error;
+    _ = abi.features.documents.Context;
+    _ = abi.features.documents.isEnabled;
+    _ = abi.features.documents.isInitialized;
 }
 
 // ============================================================================
@@ -365,4 +430,9 @@ comptime {
 
 comptime {
     _ = abi.features.desktop.macos_menu;
+    _ = abi.features.desktop.DesktopError;
+    _ = abi.features.desktop.Error;
+    _ = abi.features.desktop.Context;
+    _ = abi.features.desktop.isEnabled;
+    _ = abi.features.desktop.isInitialized;
 }

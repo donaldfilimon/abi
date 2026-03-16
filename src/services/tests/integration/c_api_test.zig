@@ -21,7 +21,7 @@ const testing = std.testing;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const gpu_detect = abi.features.gpu.backends.detect;
+const gpu_detect = abi.gpu.backends.detect;
 
 // ============================================================================
 // C API Status Codes (matching bindings/c/exports.zig)
@@ -48,8 +48,8 @@ test "c_api: framework init and shutdown lifecycle" {
     // The C API's abi_init() calls abi.App.init() internally
     if (build_options.feat_database) {
         // Initialize database module
-        if (abi.features.database.init(allocator)) {
-            defer abi.features.database.deinit();
+        if (abi.database.init(allocator)) {
+            defer abi.database.deinit();
             // If we get here, init succeeded
             try testing.expect(true);
         } else |_| {
@@ -205,7 +205,7 @@ test "c_api: simd operations are memory safe" {
     for (&b, 0..) |*v, i| v.* = @floatFromInt(64 - i);
 
     // Perform operations
-    abi.services.simd.vectorAdd(&a, &b, &result);
+    abi.foundation.simd.vectorAdd(&a, &b, &result);
 
     // All results should be 64.0
     for (result) |v| {
@@ -225,8 +225,8 @@ test "c_api: c and zig apis are consistent" {
     try testing.expectEqualStrings("0.4.0", zig_version);
 
     // SIMD consistency
-    const zig_simd = abi.services.simd.hasSimdSupport();
-    const zig_caps = abi.services.simd.getSimdCapabilities();
+    const zig_simd = abi.foundation.simd.hasSimdSupport();
+    const zig_caps = abi.foundation.simd.getSimdCapabilities();
     try testing.expect(zig_simd == zig_caps.has_simd);
 
     // GPU consistency
@@ -246,7 +246,7 @@ test "c_api: empty vector operations" {
     var non_empty = [_]f32{ 1.0, 2.0, 3.0 };
 
     // Empty vector similarity should return 0
-    const result = abi.services.simd.cosineSimilarity(&empty, &non_empty);
+    const result = abi.foundation.simd.cosineSimilarity(&empty, &non_empty);
     try testing.expectApproxEqAbs(@as(f32, 0.0), result, 1e-6);
 }
 
@@ -256,11 +256,11 @@ test "c_api: zero vector operations" {
     var other_vec = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
 
     // Cosine similarity with zero vector should return 0 (not NaN/Inf)
-    const result = abi.services.simd.cosineSimilarity(&zero_vec, &other_vec);
+    const result = abi.foundation.simd.cosineSimilarity(&zero_vec, &other_vec);
     try testing.expectApproxEqAbs(@as(f32, 0.0), result, 1e-6);
 
     // L2 norm of zero vector should be 0
-    const norm = abi.services.simd.vectorL2Norm(&zero_vec);
+    const norm = abi.foundation.simd.vectorL2Norm(&zero_vec);
     try testing.expectApproxEqAbs(@as(f32, 0.0), norm, 1e-6);
 }
 
@@ -281,7 +281,7 @@ test "c_api: large vector operations" {
     for (b, 0..) |*v, i| v.* = @floatFromInt(size - i);
 
     // Vector add
-    abi.services.simd.vectorAdd(a, b, result);
+    abi.foundation.simd.vectorAdd(a, b, result);
 
     // All should be size
     for (result) |v| {

@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) void {
     modules.wireAbiImports(abi_module, build_opts);
 
     // ── CLI executable ──────────────────────────────────────────────────
-    const exe = b.addExecutable(.{
+    const exe_obj: ?*std.Build.Step.Compile = if (is_blocked_darwin) b.addObject(.{
         .name = "abi",
         .root_module = b.createModule(.{
             .root_source_file = b.path("tools/cli/main.zig"),
@@ -71,28 +71,98 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .link_libc = true,
         }),
-    });
-    exe.root_module.addImport("abi", abi_module);
-    exe.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
-    targets.applyPerformanceTweaks(exe, optimize);
-    link.applyAllPlatformLinks(exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
-    if (is_blocked_darwin) {
-        exe.use_llvm = true;
-        // Compile-only: don't install or run (linker is broken)
-        b.step("run", "Run the ABI CLI (unavailable on blocked Darwin)").dependOn(&exe.step);
-        b.step("editor", "Run the inline CLI TUI editor (unavailable on blocked Darwin)").dependOn(&exe.step);
-    } else {
-        b.installArtifact(exe);
+    }) else null;
+    if (exe_obj) |obj| {
+        obj.root_module.addImport("abi", abi_module);
+        obj.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
+        targets.applyPerformanceTweaks(obj, optimize);
+        link.applyAllPlatformLinks(obj.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+        obj.use_llvm = true;
+    }
 
-        const run_cli = b.addRunArtifact(exe);
-        if (b.args) |args| run_cli.addArgs(args);
-        b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
+    const exe: ?*std.Build.Step.Compile = if (!is_blocked_darwin) b.addExecutable(.{
+        .name = "abi",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/cli/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    }) else null;
+    if (exe) |e| {
+        e.root_module.addImport("abi", abi_module);
+        e.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
+        targets.applyPerformanceTweaks(e, optimize);
+        link.applyAllPlatformLinks(e.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+    }
 
-        const run_editor = b.addRunArtifact(exe);
-        run_editor.addArg("ui");
-        run_editor.addArg("editor");
-        if (b.args) |args| run_editor.addArgs(args);
-        b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
+    const run_cli = if (is_blocked_darwin) blk: {
+        const rt_path = link.findCompilerRt(b);
+        const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
+        relink.addArg("-platform_version");
+        relink.addArg("macos");
+        relink.addArg("15.0");
+        relink.addArg("15.0");
+
+        const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+        relink.addArg("-syslibroot");
+        relink.addArg(sdk_path);
+
+        relink.addArg("-e");
+        relink.addArg("_main");
+        relink.addArg("-o");
+        const bin = relink.addOutputFileArg("abi_linked");
+        relink.addArtifactArg(exe_obj.?);
+        relink.addArg("-lSystem");
+        if (rt_path) |path| relink.addArg(path);
+
+        const run = std.Build.Step.Run.create(b, "run abi linked");
+        run.addFileArg(bin);
+        run.step.dependOn(&relink.step);
+        break :blk run;
+    } else b.addRunArtifact(exe.?);
+
+    if (b.args) |args| run_cli.addArgs(args);
+    b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
+
+    const run_editor = if (is_blocked_darwin) blk: {
+        const rt_path = link.findCompilerRt(b);
+        const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
+        relink.addArg("-platform_version");
+        relink.addArg("macos");
+        relink.addArg("15.0");
+        relink.addArg("15.0");
+
+        const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+        relink.addArg("-syslibroot");
+        relink.addArg(sdk_path);
+
+        relink.addArg("-e");
+        relink.addArg("_main");
+        relink.addArg("-o");
+        const bin = relink.addOutputFileArg("abi_editor_linked");
+        relink.addArtifactArg(exe_obj.?);
+        relink.addArg("-lSystem");
+        if (rt_path) |path| relink.addArg(path);
+
+        const run = std.Build.Step.Run.create(b, "run abi editor linked");
+        run.addFileArg(bin);
+        run.addArg("ui");
+        run.addArg("editor");
+        run.step.dependOn(&relink.step);
+        break :blk run;
+    } else blk: {
+        const run = b.addRunArtifact(exe.?);
+        run.addArg("ui");
+        run.addArg("editor");
+        break :blk run;
+    };
+
+    if (b.args) |args| run_editor.addArgs(args);
+    b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
+
+    if (!is_blocked_darwin) {
+        b.installArtifact(exe.?);
     }
 
     // ── Examples (table-driven) ─────────────────────────────────────────
@@ -100,7 +170,8 @@ pub fn build(b: *std.Build) void {
     targets.buildTargets(b, &targets.example_targets, abi_module, build_opts, target, optimize, examples_step, false);
 
     // ── CLI smoke tests ─────────────────────────────────────────────────
-    const cli_tests_step = cli_tests.addCliTests(b, exe, abi_module, target, optimize);
+    const cli_test_exe: *std.Build.Step.Compile = if (is_blocked_darwin) exe_obj.? else exe.?;
+    const cli_tests_step = cli_tests.addCliTests(b, cli_test_exe, abi_module, target, optimize);
 
     // ── TUI / CLI unit tests ───────────────────────────────────────────
     var tui_tests_step: ?*std.Build.Step = null;
@@ -495,33 +566,89 @@ pub fn build(b: *std.Build) void {
             full_check_step.dependOn(gendocs_source_tests_step.?);
         }
 
-        const gendocs = b.addExecutable(.{
+        const gendocs_obj: ?*std.Build.Step.Compile = if (is_blocked_darwin) b.addObject(.{
             .name = "gendocs",
             .root_module = gendocs_module,
-        });
-        if (is_blocked_darwin) {
-            gendocs.use_llvm = true;
+        }) else null;
+        if (gendocs_obj) |obj| {
+            link.applyAllPlatformLinks(obj.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+            obj.use_llvm = true;
         }
-        if (is_blocked_darwin) {
-            // On blocked Darwin, gendocs/check-docs become compile-only
-            b.step("gendocs", "Generate docs (compile-only on blocked Darwin)").dependOn(&gendocs.step);
-            const docs_check = b.step("check-docs", "Validate docs (compile-only on blocked Darwin)");
-            docs_check.dependOn(&gendocs.step);
-            check_docs_step = docs_check;
-            full_check_step.dependOn(docs_check);
-        } else {
-            const run_gendocs = b.addRunArtifact(gendocs);
-            if (b.args) |args| run_gendocs.addArgs(args);
-            b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
 
-            const run_check_docs = b.addRunArtifact(gendocs);
-            run_check_docs.addArg("--check");
-            run_check_docs.addArg("--untracked-md");
-            const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
-            docs_check.dependOn(&run_check_docs.step);
-            check_docs_step = docs_check;
-            full_check_step.dependOn(docs_check);
+        const gendocs_exe = if (!is_blocked_darwin) b.addExecutable(.{
+            .name = "gendocs",
+            .root_module = gendocs_module,
+        }) else null;
+        if (gendocs_exe) |g_exe| {
+            link.applyAllPlatformLinks(g_exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
         }
+
+        const run_gendocs = if (is_blocked_darwin) blk: {
+            const rt_path = link.findCompilerRt(b);
+            const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
+            relink.addArg("-platform_version");
+            relink.addArg("macos");
+            relink.addArg("15.0");
+            relink.addArg("15.0");
+
+            const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+            relink.addArg("-syslibroot");
+            relink.addArg(sdk_path);
+
+            relink.addArg("-e");
+            relink.addArg("_main");
+            relink.addArg("-o");
+            const bin = relink.addOutputFileArg("gendocs_linked");
+            relink.addArtifactArg(gendocs_obj.?);
+            relink.addArg("-lSystem");
+            if (rt_path) |path| relink.addArg(path);
+
+            const run = std.Build.Step.Run.create(b, "run gendocs linked");
+            run.addFileArg(bin);
+            run.step.dependOn(&relink.step);
+            break :blk run;
+        } else b.addRunArtifact(gendocs_exe.?);
+
+        if (b.args) |args| run_gendocs.addArgs(args);
+        b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
+
+        const run_check_docs = if (is_blocked_darwin) blk: {
+            const rt_path = link.findCompilerRt(b);
+            const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
+            relink.addArg("-platform_version");
+            relink.addArg("macos");
+            relink.addArg("15.0");
+            relink.addArg("15.0");
+
+            const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+            relink.addArg("-syslibroot");
+            relink.addArg(sdk_path);
+
+            relink.addArg("-e");
+            relink.addArg("_main");
+            relink.addArg("-o");
+            const bin = relink.addOutputFileArg("gendocs_check_linked");
+            relink.addArtifactArg(gendocs_obj.?);
+            relink.addArg("-lSystem");
+            if (rt_path) |path| relink.addArg(path);
+
+            const run = std.Build.Step.Run.create(b, "run gendocs check linked");
+            run.addFileArg(bin);
+            run.addArg("--check");
+            run.addArg("--untracked-md");
+            run.step.dependOn(&relink.step);
+            break :blk run;
+        } else blk: {
+            const run = b.addRunArtifact(gendocs_exe.?);
+            run.addArg("--check");
+            run.addArg("--untracked-md");
+            break :blk run;
+        };
+
+        const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
+        docs_check.dependOn(&run_check_docs.step);
+        check_docs_step = docs_check;
+        full_check_step.dependOn(docs_check);
     }
 
     // ── Profile build ───────────────────────────────────────────────────
@@ -621,8 +748,12 @@ pub fn build(b: *std.Build) void {
             .abi = ct.abi,
         });
         var cross_opts = options;
-        // Disable features that cannot compile for non-native targets
-        cross_opts.feat_mobile = false;
+        // Enable mobile features when targeting mobile platforms
+        if (ct.os == .ios or ct.abi == .android) {
+            cross_opts.feat_mobile = true;
+        } else {
+            cross_opts.feat_mobile = false;
+        }
         if (ct.os == .wasi or ct.os == .freestanding or ct.os == .emscripten) {
             cross_opts.feat_database = false;
             cross_opts.feat_network = false;
@@ -650,61 +781,43 @@ pub fn build(b: *std.Build) void {
         cross_check_step.dependOn(&cross_lib.step);
     }
 
-    // ── V3 Refactored Modules ─────────────────────────────────────────
-    // New flat module structure: root.zig → core/database/, personas/, inference/, api_server/
+    // ── Additional Build Targets ──────────────────────────────────────
+    // Static library and server executable from the canonical abi module.
 
-    // Helper: create a v3 root module with package runtime imports wired in.
-    const v3_root_mod = b.createModule(.{
+    // Static Zig library from the abi module root.
+    const static_root_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(v3_root_mod, build_opts);
+    modules.wireAbiImports(static_root_mod, build_opts);
 
-    // V3 Static library
-    const v3_lib = b.addLibrary(.{
-        .name = "abi-v3",
-        .root_module = v3_root_mod,
+    const static_lib = b.addLibrary(.{
+        .name = "abi-static",
+        .root_module = static_root_mod,
         .linkage = .static,
     });
-    b.step("v3-lib", "Build v3 static library").dependOn(&b.addInstallArtifact(v3_lib, .{}).step);
+    b.step("static-lib", "Build static Zig library").dependOn(&b.addInstallArtifact(static_lib, .{}).step);
 
-    // V3 Server executable
-    const v3_server_mod = b.createModule(.{
+    // Server executable
+    const server_mod = b.createModule(.{
         .root_source_file = b.path("tools/server/main.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    v3_server_mod.addImport("abi", abi_module);
+    server_mod.addImport("abi", abi_module);
 
-    const v3_server = b.addExecutable(.{
+    const server_exe = b.addExecutable(.{
         .name = "abi-server",
-        .root_module = v3_server_mod,
+        .root_module = server_mod,
     });
     if (is_blocked_darwin) {
-        v3_server.use_llvm = true;
+        server_exe.use_llvm = true;
     }
-    b.step("v3-server", "Build v3 server executable").dependOn(
-        if (is_blocked_darwin) &v3_server.step else &b.addInstallArtifact(v3_server, .{}).step,
+    b.step("server", "Build server executable").dependOn(
+        if (is_blocked_darwin) &server_exe.step else &b.addInstallArtifact(server_exe, .{}).step,
     );
-
-    // V3 Tests
-    const v3_test_mod = b.createModule(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    modules.wireAbiImports(v3_test_mod, build_opts);
-
-    const v3_tests = b.addTest(.{
-        .root_module = v3_test_mod,
-    });
-    if (is_blocked_darwin) {
-        v3_tests.use_llvm = true;
-    }
-    const v3_test_step = b.step("v3-test", "Run v3 module tests");
-    v3_test_step.dependOn(if (is_blocked_darwin) &v3_tests.step else &b.addRunArtifact(v3_tests).step);
 
     // ── Verify-all ──────────────────────────────────────────────────────
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
@@ -767,7 +880,7 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
         const native_ver = builtin.os.version_range.semver;
         if (native_ver.min.major >= 26) {
             const clamped: std.Target.Query.OsVersion = .{
-                .semver = .{ .major = 14, .minor = 0, .patch = 0 },
+                .semver = .{ .major = 15, .minor = 0, .patch = 0 },
             };
             if (query.os_version_min == null) query.os_version_min = clamped;
             if (query.os_version_max == null) query.os_version_max = clamped;
@@ -775,6 +888,26 @@ fn resolveNativeTarget(b: *std.Build) std.Build.ResolvedTarget {
     }
 
     return b.resolveTargetQuery(query);
+}
+
+fn findCompilerRt(b: *std.Build) ?[]const u8 {
+    const home = b.graph.environ_map.get("HOME") orelse return null;
+    const global_cache = std.fs.path.join(b.allocator, &.{ home, ".cache", "zig", "o" }) catch return null;
+    defer b.allocator.free(global_cache);
+
+    const io = b.graph.io;
+    var dir = std.Io.Dir.openDirAbsolute(io, global_cache, .{ .iterate = true }) catch return null;
+    defer dir.close(io);
+
+    var walker = dir.walk(b.allocator) catch return null;
+    defer walker.deinit();
+
+    while (walker.next(io) catch null) |entry| {
+        if (std.mem.eql(u8, entry.basename, "libcompiler_rt.a")) {
+            return std.fs.path.join(b.allocator, &.{ global_cache, entry.path }) catch return null;
+        }
+    }
+    return null;
 }
 
 /// Get just the compile step from a script runner (for blocked Darwin where
@@ -836,15 +969,4 @@ fn addHostScriptStep(
     const run = b.addRunArtifact(exe);
     for (args) |arg| run.addArg(arg);
     return &run.step;
-}
-
-fn addValidationScriptStep(
-    b: *std.Build,
-    name: []const u8,
-    source: []const u8,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    args: []const []const u8,
-) *std.Build.Step {
-    return addHostScriptStep(b, name, source, target, optimize, args, &.{});
 }

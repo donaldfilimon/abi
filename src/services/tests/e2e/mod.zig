@@ -44,8 +44,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const time = abi.services.shared.time;
-const sync = abi.services.shared.sync;
+const time = abi.foundation.time;
+const sync = abi.foundation.sync;
 
 // Sub-modules
 pub const vector_search = @import("vector_search_e2e.zig");

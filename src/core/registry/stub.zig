@@ -24,7 +24,7 @@ pub const Feature = enum {
     network,
     observability,
     web,
-    personas,
+    profiles,
     cloud,
     analytics,
     auth,
@@ -55,7 +55,7 @@ pub const Feature = enum {
             .network => "Distributed compute network",
             .observability => "Metrics, tracing, profiling",
             .web => "Web/HTTP utilities",
-            .personas => "Multi-persona AI assistant",
+            .profiles => "Behavior profile routing and selection",
             .cloud => "Cloud provider integration",
             .analytics => "Analytics event tracking",
             .auth => "Authentication and security",
@@ -110,7 +110,7 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
 /// Get parent feature for sub-features.
 pub fn getParentFeature(feature: Feature) ?Feature {
     return switch (feature) {
-        .llm, .embeddings, .agents, .training, .personas, .reasoning, .constitution => .ai,
+        .llm, .embeddings, .agents, .training, .profiles, .reasoning, .constitution => .ai,
         else => null,
     };
 }

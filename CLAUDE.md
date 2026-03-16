@@ -17,7 +17,7 @@ zig build feature-tests --summary all # feature coverage
 zig build full-check                  # pre-commit gate
 zig build validate-flags              # flag combo check
 zig build refresh-cli-registry        # after CLI changes
-zig fmt --check build.zig build/ src/ tools/  # format check (always works)
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  # format check (always works)
 ```
 
 **Darwin 25+**: `zig build` fails with linker errors. Use `./tools/scripts/run_build.sh <args>` instead. Never `use_lld = true` on macOS. Format checks (`zig fmt`) work without linking.
@@ -27,7 +27,6 @@ zig fmt --check build.zig build/ src/ tools/  # format check (always works)
 - `src/features/<name>/` — 19 comptime-gated modules, each with `mod.zig` + `stub.zig` + `types.zig`
 - `src/services/` — Connectors, LSP, MCP, runtime, security
 - `src/core/` — Config, feature catalog, registry, `stub_context.zig`
-- `src/inference/` — Sampler, scheduler, KV cache
 - `build/` — Build system (options, flags, modules, test discovery, `module_catalog.zig`)
 - `bindings/` — C and WASM language bindings
 - `tools/cli/` — CLI commands; registry in `tools/cli/registry/`
@@ -59,7 +58,7 @@ zig fmt --check build.zig build/ src/ tools/  # format check (always works)
 ## Feature Flags
 
 All enabled by default. Disable: `-Dfeat-<name>=false`. GPU backend: `-Dgpu-backend=metal`.
-25 flags in `build/options.zig`, 42 combos validated in `build/flags.zig`.
+25 flags in `build/options.zig`, 54 combos validated in `build/flags.zig`.
 
 ## Env Vars
 

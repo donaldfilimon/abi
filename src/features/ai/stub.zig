@@ -10,7 +10,6 @@ pub const types = @import("types.zig");
 pub const config = @import("config.zig");
 pub const registry = @import("registry.zig");
 pub const profiles = @import("profiles/stub.zig");
-pub const personas = profiles;
 
 pub const core = @import("core/stub.zig");
 pub const agents = @import("agents/stub.zig");

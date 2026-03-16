@@ -19,13 +19,13 @@ Based on the scope argument:
 
 ### `format` (or `fmt`)
 ```bash
-zig fmt --check build.zig build/ src/ tools/
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 ```
 Report any files with format violations.
 
 ### `imports`
 Search for import rule violations:
-- Grep `src/features/` for `@import("abi")` — features must use relative imports or named modules
+- Grep `src/features/` for `@import("abi")` — features must use relative imports, never `@import("abi")` (circular dependency)
 - Report violations with file paths and line numbers
 
 ### `modules`
@@ -35,7 +35,8 @@ Search for these patterns:
 - Grep `src/` broadly for relative imports to any named module root:
   - Any `../` chain ending in a build.zig-registered module root
 - Grep for `@import("shared_services")` or `@import("core")` — these named modules no longer exist
-- Named modules in build.zig: `abi` (root: `src/root.zig`), `build_options`, `foundation` (root: `src/services/shared/mod.zig`), `cli` (root: `tools/cli/mod.zig`)
+- Named modules in build.zig: `abi` (root: `src/root.zig`), `build_options`, `cli` (root: `tools/cli/mod.zig`)
+- Note: `foundation` is NOT a named module — it is a namespace within `abi` at `src/services/shared/mod.zig`
 
 ### `registry`
 Check if CLI registry is current. Read `tools/cli/generated/` and compare against command files in `tools/cli/commands/`.

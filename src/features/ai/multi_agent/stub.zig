@@ -1,7 +1,7 @@
 //! Multi-Agent stub — disabled at compile time.
 //!
 //! Mirrors all public types and functions from mod.zig so that code
-//! using `abi.features.ai.multi_agent.*` compiles regardless of the feature flag.
+//! using `abi.ai.multi_agent.*` compiles regardless of the feature flag.
 //! Every mutating function returns `error.AgentDisabled` or a sensible
 //! zero/empty default.
 

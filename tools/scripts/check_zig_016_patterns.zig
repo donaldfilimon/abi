@@ -272,7 +272,7 @@ pub fn main(_: std.process.Init) !void {
         allocator,
         io,
         "^[[:space:]]*[^/].*abi\\.(ai_core|inference|training|reasoning)\\b",
-        "removed v0.4.0 facade alias; use abi.features.ai.core, abi.features.ai.llm, abi.features.ai.training, abi.features.ai.orchestration",
+        "removed v0.4.0 facade alias; use abi.ai.core, abi.ai.llm, abi.ai.training, abi.ai.orchestration",
         &errors,
     );
 

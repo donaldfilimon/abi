@@ -62,49 +62,36 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn runServeSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    var used_compat_flag = false;
     while (parser.hasMore()) {
         if (parser.wantsHelp()) {
             printHelp(allocator);
             return;
-        }
-        if (parser.consumeFlag(&[_][]const u8{"--zls"})) {
-            used_compat_flag = true;
-            continue;
         }
         const arg = parser.next().?;
         utils.output.printError("Unexpected argument for 'serve': {s}", .{arg});
-        utils.output.printInfo("Usage: abi mcp serve [--zls]", .{});
+        utils.output.printInfo("Usage: abi mcp serve", .{});
         return;
     }
-    try runServe(allocator, used_compat_flag);
+    try runServe(allocator);
 }
 
 fn runToolsSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    var used_compat_flag = false;
     while (parser.hasMore()) {
         if (parser.wantsHelp()) {
             printHelp(allocator);
             return;
         }
-        if (parser.consumeFlag(&[_][]const u8{"--zls"})) {
-            used_compat_flag = true;
-            continue;
-        }
         const arg = parser.next().?;
         utils.output.printError("Unexpected argument for 'tools': {s}", .{arg});
-        utils.output.printInfo("Usage: abi mcp tools [--zls]", .{});
+        utils.output.printInfo("Usage: abi mcp tools", .{});
         return;
     }
-    try runTools(allocator, used_compat_flag);
+    try runTools(allocator);
 }
 
-fn runServe(allocator: std.mem.Allocator, used_compat_flag: bool) !void {
+fn runServe(allocator: std.mem.Allocator) !void {
     // Write startup message to stderr (stdout is reserved for JSON-RPC)
     std.log.info("ABI MCP Server v{s} starting (database + ZLS)", .{abi.version()});
-    if (used_compat_flag) {
-        std.log.warn("`abi mcp serve --zls` is deprecated; the default server already includes ZLS tools.", .{});
-    }
 
     var server = try mcp.createCombinedServer(allocator, abi.version());
     defer server.deinit();
@@ -117,11 +104,7 @@ fn runServe(allocator: std.mem.Allocator, used_compat_flag: bool) !void {
     try server.run(io_backend.io());
 }
 
-fn runTools(allocator: std.mem.Allocator, used_compat_flag: bool) !void {
-    if (used_compat_flag) {
-        utils.output.printWarning("`abi mcp tools --zls` is deprecated; the default listing already includes ZLS tools.", .{});
-    }
-
+fn runTools(allocator: std.mem.Allocator) !void {
     var server = try mcp.createCombinedServer(allocator, abi.version());
     defer server.deinit();
 
@@ -154,7 +137,6 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .newline()
         .section("Options")
         .option(utils.help.common_options.help)
-        .option(.{ .long = "--zls", .description = "Deprecated compatibility alias; default server already includes ZLS tools" })
         .newline()
         .section("MCP Tools Exposed")
         .text("  db_*         Database tools\n")
@@ -162,8 +144,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .newline()
         .section("Examples")
         .example("abi mcp serve", "Start the combined MCP server")
-        .example("abi mcp tools", "List database and ZLS tools")
-        .example("abi mcp serve --zls", "Deprecated alias for the combined MCP server");
+        .example("abi mcp tools", "List database and ZLS tools");
 
     builder.print();
 }

@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/src/abi\\.zig$'; then echo 'WARNING: src/abi.zig changed — update examples/ and verify public API surface. Run: zig build test --summary all'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/src/root\\.zig$'; then echo 'WARNING: src/root.zig changed — update examples/ and verify public API surface. Run: zig build test --summary all'; fi"
           }
         ]
       },

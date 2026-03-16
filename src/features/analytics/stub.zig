@@ -9,6 +9,7 @@ const types = @import("types.zig");
 pub const Event = types.Event;
 pub const AnalyticsConfig = types.AnalyticsConfig;
 pub const AnalyticsError = types.AnalyticsError;
+pub const Error = AnalyticsError;
 
 // --- Engine ---
 

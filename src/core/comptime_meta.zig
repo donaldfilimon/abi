@@ -130,7 +130,7 @@ pub fn validateTopLevel(cfg: config_mod.Config) config_mod.ConfigError!void {
 // ============================================================================
 
 test "descriptor count matches expected" {
-    // 17 top-level + 4 AI facades = 21
+    // 17 top-level + 4 AI sub-modules = 21
     try std.testing.expectEqual(@as(usize, 21), descriptor_count);
 }
 

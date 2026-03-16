@@ -31,11 +31,11 @@
 - Feature-test per-entry modules violate Zig 0.16 single-file ownership when entries share files through import graphs. Fix: use the `abi` module directly as the test root (`addTest(.{ .root_module = abi_module })`). The `feature_test_manifest` in `module_catalog.zig` is preserved as documentation.
 - `@import("abi")` cannot be used within files that ARE part of the `abi` module — this creates a circular "no module named 'abi' available within module 'abi'" error. It only works from external modules (CLI, tests with separate roots) or lazy-evaluated code paths.
 
-## `foundation` Named Module Pattern
-- **What**: `src/services/shared/mod.zig` is the root of the `foundation` named module, created by `build/modules.zig:createFoundationModule`. It provides shared service types (allocators, logging, config) to all compilation targets.
-- **Why**: Zig 0.16 dev.2905+ enforces single-module file ownership — a `.zig` file can only belong to one named module. Files in `src/services/shared/` cannot be imported via relative paths from the `abi` module because they belong to `foundation`. Instead, the `abi` module imports them via `@import("foundation")`.
-- **Wiring**: `wireAbiImports(b, module, build_opts, target, optimize)` adds both `build_options` and `foundation` as named imports to any module that needs them. Every compilation target (main `abi`, CLI, tests, database, WASM, mobile) calls this helper to get both imports wired consistently.
-- **Rule**: Never add files under `src/services/shared/` to another module's file list. They belong exclusively to `foundation`. Other modules access them through the named import.
+## `foundation` Namespace (Not a Separate Module)
+- **What**: `src/services/shared/mod.zig` provides shared service types (allocators, logging, config). Exposed as `abi.foundation` via `pub const foundation = @import("services/shared/mod.zig")` in `src/root.zig`.
+- **Architecture**: All files under `src/services/shared/` belong to the single `abi` module. There is no separate `foundation` named module — files are accessed via relative imports within the `abi` module graph.
+- **Wiring**: `wireAbiImports(module, build_opts)` adds only `build_options` as a named import. The `foundation` namespace is wired through the normal `abi` module import graph, not as a named import.
+- **Rule**: Files within the `abi` module should use relative paths to reach `src/services/shared/` (e.g., `@import("../../services/shared/mod.zig")`). External modules (CLI, tests with separate roots) access it through `@import("abi").foundation`.
 
 ## Bulk Operations Safety
 - Never bulk find-replace without excluding string literal interiors. After any bulk text operation, run `zig fmt --check` immediately. Corruption cascades across multiple waves — don't commit until parse errors reach 0.
@@ -49,3 +49,9 @@
 - Keep supported Zig resolution to pinned Zig on PATH or ZVM. Don't add repo-local toolchain surfaces unless intended to be permanent.
 - Resolve generated registry artifacts explicitly; keep deterministic parser paths for generated ZON.
 - External hooks/linters may rewrite source files destructively (reordering imports before doc comments, changing `@import("abi")` to relative internal paths). Use `git checkout HEAD -- <file>` to restore, or atomic `sed -i '' + git add` for edits that must survive hooks.
+
+## Cross-Feature Import Safety
+- Feature modules must not directly import other feature modules' `mod.zig` — this bypasses the compile-time feature gate. Use `build_options` conditional imports: `const obs = if (build_options.feat_profiling) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");`
+- `@import("abi")` cannot be used within files that are part of the `abi` module. Use relative imports instead: `@import("../types.zig")`, `@import("../../database/mod.zig")`.
+- After adding new build flags, update `tools/cli/tests/build_options_stub.zig` to include them. The stub must match all `feat_*` fields in `build/options.zig`.
+- The format-check surface must cover all source directories: `build.zig build/ src/ tools/ tests/ bindings/ lang/`. Keep `AGENTS.md`, `CLAUDE.md`, and `tools/scripts/fmt_repo.sh` in sync.

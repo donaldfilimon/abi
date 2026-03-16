@@ -82,6 +82,12 @@ pub const cross_check_targets = [_]CrossTarget{
     // ── Mobile ──────────────────────────────────────────────────────────
     .{ .name = "ios-aarch64", .arch = .aarch64, .os = .ios },
     .{ .name = "android-aarch64", .arch = .aarch64, .os = .linux, .abi = .android },
+    .{ .name = "android-arm", .arch = .arm, .os = .linux, .abi = .android },
+
+    // ── Embedded / Bare Metal ───────────────────────────────────────────
+    .{ .name = "riscv32-freestanding", .arch = .riscv32, .os = .freestanding },
+    .{ .name = "thumb-freestanding", .arch = .thumb, .os = .freestanding },
+    .{ .name = "aarch64-freestanding", .arch = .aarch64, .os = .freestanding },
 
     // ── WASM / Freestanding ─────────────────────────────────────────────
     .{ .name = "wasm32-freestanding", .arch = .wasm32, .os = .freestanding },
@@ -109,7 +115,17 @@ pub fn buildTargets(
     for (table) |t| {
         if (!pathExists(b, t.source_path)) continue;
         const exe_optimize = t.optimize orelse optimize;
-        const exe = b.addExecutable(.{
+        const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
+
+        const exe = if (is_blocked_darwin) b.addObject(.{
+            .name = t.name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(t.source_path),
+                .target = target,
+                .optimize = exe_optimize,
+                .link_libc = true,
+            }),
+        }) else b.addExecutable(.{
             .name = t.name,
             .root_module = b.createModule(.{
                 .root_source_file = b.path(t.source_path),
@@ -118,31 +134,49 @@ pub fn buildTargets(
                 .link_libc = true,
             }),
         });
-        const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
+
         if (is_blocked_darwin) {
             exe.use_llvm = true;
-            // LLD has zero Mach-O support; Apple /usr/bin/ld used via run_build.sh
         }
         exe.root_module.addImport("abi", abi_module);
         exe.root_module.addImport("build_options", build_opts);
         applyPerformanceTweaks(exe, exe_optimize);
         const step = b.step(t.step_name, t.description);
-        if (is_blocked_darwin) {
-            const typecheck = b.addObject(.{ .name = t.name, .root_module = exe.root_module });
-            typecheck.use_llvm = true;
 
-            step.dependOn(&typecheck.step);
-            if (aggregate) |agg| {
-                agg.dependOn(&typecheck.step);
-            }
-            continue;
-        }
+        const run = if (is_blocked_darwin) blk: {
+            const link_mod = @import("link.zig");
+            const rt_path = link_mod.findCompilerRt(b);
+            const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
+            relink.addArg("-platform_version");
+            relink.addArg("macos");
+            relink.addArg("15.0");
+            relink.addArg("15.0");
 
-        b.installArtifact(exe);
+            const sdk_path = link_mod.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+            relink.addArg("-syslibroot");
+            relink.addArg(sdk_path);
 
-        const run = b.addRunArtifact(exe);
+            relink.addArg("-e");
+            relink.addArg("_main");
+            relink.addArg("-o");
+            const bin = relink.addOutputFileArg(b.fmt("{s}_linked", .{t.name}));
+            relink.addArtifactArg(exe);
+            relink.addArg("-lSystem");
+            if (rt_path) |path| relink.addArg(path);
+
+            const r = std.Build.Step.Run.create(b, b.fmt("run {s} linked", .{t.name}));
+            r.addFileArg(bin);
+            r.step.dependOn(&relink.step);
+            break :blk r;
+        } else b.addRunArtifact(exe);
+
         if (b.args) |args| run.addArgs(args);
         step.dependOn(&run.step);
+
+        if (!is_blocked_darwin) {
+            b.installArtifact(exe);
+        }
+
         if (aggregate) |agg| {
             if (aggregate_runs) {
                 agg.dependOn(&run.step);

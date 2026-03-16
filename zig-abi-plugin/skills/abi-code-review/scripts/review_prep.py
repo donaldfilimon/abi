@@ -22,7 +22,7 @@ ABI_MARKERS = (
     "CLAUDE.md",
     ".zigversion",
     "build.zig",
-    "src/abi.zig",
+    "src/root.zig",
 )
 
 CATEGORY_ORDER = (
@@ -110,7 +110,9 @@ def collect_diff_stats(repo_root: Path, merge_base: str) -> dict[str, int]:
 def categorize_paths(paths: list[str]) -> list[str]:
     categories: set[str] = set()
     for path in paths:
-        if path in {"build.zig", "build.zig.zon", ".zigversion"} or path.startswith("build/"):
+        if path in {"build.zig", "build.zig.zon", ".zigversion"} or path.startswith(
+            "build/"
+        ):
             categories.add("build-system")
         if (
             path in {"build.zig.zon", ".zigversion"}
@@ -120,7 +122,9 @@ def categorize_paths(paths: list[str]) -> list[str]:
             categories.add("toolchain")
         if path.startswith("tools/cli/"):
             categories.add("cli")
-        if path.startswith("tools/cli/terminal/") or path.endswith("tui_tests_root.zig"):
+        if path.startswith("tools/cli/terminal/") or path.endswith(
+            "tui_tests_root.zig"
+        ):
             categories.add("tui")
         if (
             path.startswith("tools/gendocs/")
@@ -132,11 +136,13 @@ def categorize_paths(paths: list[str]) -> list[str]:
             categories.add("features")
         if path.startswith("tasks/"):
             categories.add("tasks-planning")
-        if path.startswith("src/wdbx/"):
+        if path.startswith("src/core/database/"):
             categories.add("wdbx")
         if path.startswith("src/features/database/"):
             categories.add("database")
-        if path.startswith("src/wdbx/dist/") or path.startswith("src/features/network/"):
+        if path.startswith("src/core/database/dist/") or path.startswith(
+            "src/features/network/"
+        ):
             categories.add("network-dist")
         if path.startswith("src/features/ai/training/") or "training" in path:
             categories.add("training")
@@ -149,7 +155,11 @@ def categorize_paths(paths: list[str]) -> list[str]:
             and feature_parts[-1] in {"mod.zig", "stub.zig"}
         ):
             categories.add("feature-flag-surface")
-        if path in {"build/options.zig", "build/flags.zig", "src/core/feature_catalog.zig"}:
+        if path in {
+            "build/options.zig",
+            "build/flags.zig",
+            "src/core/feature_catalog.zig",
+        }:
             categories.add("feature-flag-surface")
 
     return [category for category in CATEGORY_ORDER if category in categories]
@@ -175,9 +185,13 @@ def recommend_commands(paths: list[str]) -> list[dict[str, str]]:
     )
 
     if any(
-        path.startswith("tools/cli/") or path == "docs/data/commands.zon" for path in paths
+        path.startswith("tools/cli/") or path == "docs/data/commands.zon"
+        for path in paths
     ):
-        add("zig build cli-tests", "CLI files changed; cover command parsing and help/output behavior.")
+        add(
+            "zig build cli-tests",
+            "CLI files changed; cover command parsing and help/output behavior.",
+        )
         add(
             "zig build refresh-cli-registry",
             "CLI metadata or command files changed; refresh the generated registry snapshot.",
@@ -187,14 +201,35 @@ def recommend_commands(paths: list[str]) -> list[dict[str, str]]:
             "CLI metadata or command files changed; verify the registry snapshot stayed in sync.",
         )
 
-    if any(path.startswith("tools/cli/terminal/") or path.endswith("tui_tests_root.zig") for path in paths):
-        add("zig build tui-tests", "TUI files changed; cover panels, dashboard logic, and terminal behavior.")
+    if any(
+        path.startswith("tools/cli/terminal/") or path.endswith("tui_tests_root.zig")
+        for path in paths
+    ):
+        add(
+            "zig build tui-tests",
+            "TUI files changed; cover panels, dashboard logic, and terminal behavior.",
+        )
 
-    if any(path.startswith("tools/gendocs/") or path.startswith("docs/") or path in {"README.md", "CLAUDE.md"} for path in paths):
-        add("zig build check-docs", "Docs or docs-generation files changed; catch drift in generated references.")
+    if any(
+        path.startswith("tools/gendocs/")
+        or path.startswith("docs/")
+        or path in {"README.md", "CLAUDE.md"}
+        for path in paths
+    ):
+        add(
+            "zig build check-docs",
+            "Docs or docs-generation files changed; catch drift in generated references.",
+        )
 
-    if any(path.startswith("src/wdbx/") or path.startswith("src/features/database/") for path in paths):
-        add("zig build wdbx-fast-tests", "WDBX or database paths changed; run the focused database gate.")
+    if any(
+        path.startswith("src/core/database/")
+        or path.startswith("src/features/database/")
+        for path in paths
+    ):
+        add(
+            "zig build wdbx-fast-tests",
+            "WDBX or database paths changed; run the focused database gate.",
+        )
 
     if any(
         path in {"build/options.zig", "build/flags.zig", "src/core/feature_catalog.zig"}
@@ -312,8 +347,14 @@ def render_text(payload: dict[str, object]) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=".", help="Path to the ABI repository. Defaults to the current directory.")
-    parser.add_argument("--base", default="main", help="Base ref to compare against. Defaults to main.")
+    parser.add_argument(
+        "--repo",
+        default=".",
+        help="Path to the ABI repository. Defaults to the current directory.",
+    )
+    parser.add_argument(
+        "--base", default="main", help="Base ref to compare against. Defaults to main."
+    )
     parser.add_argument(
         "--format",
         choices=("text", "json"),

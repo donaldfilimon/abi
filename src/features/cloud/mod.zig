@@ -19,7 +19,7 @@
 //! ```zig
 //! const std = @import("std");
 //! const abi = @import("abi");
-//! const cloud = abi.features.cloud;
+//! const cloud = abi.cloud;
 //!
 //! /// Your function handler - same code works on all providers
 //! fn handler(event: *cloud.CloudEvent, allocator: std.mem.Allocator) !cloud.CloudResponse {
@@ -258,7 +258,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return build_options.feat_web;
+    return build_options.feat_cloud;
 }
 
 pub fn isInitialized() bool {

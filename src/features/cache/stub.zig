@@ -9,6 +9,7 @@ const types = @import("types.zig");
 pub const CacheConfig = types.CacheConfig;
 pub const EvictionPolicy = types.EvictionPolicy;
 pub const CacheError = types.CacheError;
+pub const Error = CacheError;
 pub const CacheEntry = types.CacheEntry;
 pub const CacheStats = types.CacheStats;
 

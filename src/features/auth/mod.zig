@@ -4,21 +4,21 @@
 //! Re-exports the full security infrastructure from `services/shared/security/`.
 //!
 //! When the `auth` feature is enabled, all security sub-modules are available:
-//! - `abi.features.auth.jwt` — JSON Web Tokens (HMAC-SHA256/384/512)
-//! - `abi.features.auth.api_keys` — API key management with secure hashing
-//! - `abi.features.auth.rbac` — Role-based access control
-//! - `abi.features.auth.session` — Session management
-//! - `abi.features.auth.password` — Secure password hashing (Argon2id, PBKDF2, scrypt)
-//! - `abi.features.auth.cors` — Cross-Origin Resource Sharing
-//! - `abi.features.auth.rate_limit` — Token bucket, sliding window, leaky bucket
-//! - `abi.features.auth.encryption` — AES-256-GCM, ChaCha20-Poly1305
-//! - `abi.features.auth.tls` / `abi.features.auth.mtls` — Transport security
-//! - `abi.features.auth.certificates` — X.509 certificate management
-//! - `abi.features.auth.secrets` — Encrypted credential storage
-//! - `abi.features.auth.audit` — Tamper-evident security event logging
-//! - `abi.features.auth.validation` — Input sanitization
-//! - `abi.features.auth.ip_filter` — IP allow/deny lists
-//! - `abi.features.auth.headers` — Security headers middleware
+//! - `abi.auth.jwt` — JSON Web Tokens (HMAC-SHA256/384/512)
+//! - `abi.auth.api_keys` — API key management with secure hashing
+//! - `abi.auth.rbac` — Role-based access control
+//! - `abi.auth.session` — Session management
+//! - `abi.auth.password` — Secure password hashing (Argon2id, PBKDF2, scrypt)
+//! - `abi.auth.cors` — Cross-Origin Resource Sharing
+//! - `abi.auth.rate_limit` — Token bucket, sliding window, leaky bucket
+//! - `abi.auth.encryption` — AES-256-GCM, ChaCha20-Poly1305
+//! - `abi.auth.tls` / `abi.auth.mtls` — Transport security
+//! - `abi.auth.certificates` — X.509 certificate management
+//! - `abi.auth.secrets` — Encrypted credential storage
+//! - `abi.auth.audit` — Tamper-evident security event logging
+//! - `abi.auth.validation` — Input sanitization
+//! - `abi.auth.ip_filter` — IP allow/deny lists
+//! - `abi.auth.headers` — Security headers middleware
 
 const std = @import("std");
 const core_config = @import("../../core/config/platform.zig");
@@ -53,6 +53,7 @@ pub const validation = @import("../../services/shared/mod.zig").security.validat
 
 const auth_types = @import("types.zig");
 pub const AuthError = auth_types.AuthError;
+pub const Error = AuthError;
 pub const Token = auth_types.Token;
 pub const Session = auth_types.Session;
 pub const Permission = auth_types.Permission;

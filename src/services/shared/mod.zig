@@ -18,7 +18,10 @@
 //! Import the shared module and access components directly:
 //!
 //! ```zig
-//! const shared = @import("shared");
+//! // From external modules (CLI, tests):
+//! const shared = @import("abi").foundation;
+//! // From within the abi module:
+//! // const shared = @import("../../services/shared/mod.zig");
 //!
 //! // Logging
 //! shared.log.info("Application started", .{});
@@ -60,6 +63,10 @@ const std = @import("std");
 /// Error definitions and handling utilities for the ABI framework.
 /// Provides standardized error types and conversion functions.
 pub const errors = @import("errors.zig");
+
+/// Foundational type definitions used across multiple domains.
+/// Standardizes confidence, emotional context, and identity primitives.
+pub const types = @import("types.zig");
 
 /// Logging infrastructure with configurable log levels and output destinations.
 /// Supports structured logging with context and scoped loggers.

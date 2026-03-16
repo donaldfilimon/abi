@@ -1,8 +1,8 @@
 //! AI feature facade.
 //!
-//! This top-level module presents the stable `abi.features.ai` surface expected by
-//! framework code, tests, and in-tree callers. It delegates to narrower AI
-//! submodules and keeps the stub-facing contract aligned with `stub.zig`.
+//! This top-level module presents the canonical `abi.ai` surface for framework
+//! code, tests, and external callers. Compatibility aliases delegate here while
+//! the stub-facing contract stays aligned with `stub.zig`.
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -17,7 +17,6 @@ pub const types = @import("types.zig");
 pub const config = @import("config.zig");
 pub const registry = @import("registry.zig");
 pub const profiles = if (build_options.feat_ai) @import("profiles/mod.zig") else @import("profiles/stub.zig");
-pub const personas = profiles;
 
 pub const core = if (build_options.feat_ai) @import("core/mod.zig") else @import("core/stub.zig");
 pub const agents = if (build_options.feat_ai) @import("agents/mod.zig") else @import("agents/stub.zig");

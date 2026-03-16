@@ -98,7 +98,7 @@ const shared = @import("../../../../services/shared/simd/mod.zig");  // fine, sa
 const shared = @import("abi").services.shared;
 ```
 
-**Named modules in build system**: `abi`, `build_options`, `foundation`, and `cli` exist. Use `@import("build_options")` for feature flags, `@import("abi")` from external modules (CLI, tests), and `@import("foundation")` for shared services (SIMD, time, sync, security). The `foundation` module is created by `createFoundationModule()` in `build/modules.zig` and rooted at `src/services/shared/mod.zig`. `wireAbiImports(b, abi_module, build_opts, target, optimize)` wires both `build_options` and `foundation` onto the abi module.
+**Named modules in build system**: `abi`, `build_options`, and `cli` exist. Use `@import("build_options")` for feature flags and `@import("abi")` from external modules (CLI, tests). There is no separate `foundation` named module — shared services live at `src/services/shared/mod.zig` as part of the single `abi` module, accessible via `@import("abi").foundation` (external) or relative imports (internal). `wireAbiImports(module, build_opts)` wires only `build_options`.
 
 ### Format Specifiers
 Zig's `std.fmt` does NOT support `{t}`. Common valid specifiers:

@@ -36,13 +36,11 @@ pub fn verifyOutputs(
         try validateOutputPolicy(file.path, file.content);
         try expected_map.put(allocator, file.path, {});
 
-        if (!shouldEnforceDrift(file.path, options)) {
-            continue;
-        }
-
         const current = cwd.readFileAlloc(io, file.path, allocator, .limited(16 * 1024 * 1024)) catch |err| {
             if (err == error.FileNotFound) {
-                try missing.append(allocator, try allocator.dupe(u8, file.path));
+                if (!shouldAllowMissingOutput(file.path, options)) {
+                    try missing.append(allocator, try allocator.dupe(u8, file.path));
+                }
                 continue;
             }
             return err;
@@ -58,9 +56,6 @@ pub fn verifyOutputs(
     try collectExtraFiles(allocator, io, cwd, "docs/_docs", &expected_map, true, &extra);
     try collectExtraFiles(allocator, io, cwd, "docs/plans", &expected_map, true, &extra);
     try collectExtraFiles(allocator, io, cwd, "docs", &expected_map, false, &extra);
-    if (options.untracked_markdown) {
-        filterGeneratedMarkdownExtras(allocator, &extra);
-    }
 
     // Cross-file link validation (warnings only, not blocking)
     try validateInternalLinks(allocator, expected);
@@ -87,9 +82,8 @@ pub fn verifyOutputs(
     return CheckError.DriftDetected;
 }
 
-fn shouldEnforceDrift(path: []const u8, options: VerifyOptions) bool {
-    if (!options.untracked_markdown) return true;
-    return !isGeneratedMarkdownPath(path);
+fn shouldAllowMissingOutput(path: []const u8, options: VerifyOptions) bool {
+    return options.untracked_markdown and isGeneratedMarkdownPath(path);
 }
 
 fn isGeneratedMarkdownPath(path: []const u8) bool {
@@ -97,20 +91,6 @@ fn isGeneratedMarkdownPath(path: []const u8) bool {
     return std.mem.startsWith(u8, path, "docs/api/") or
         std.mem.startsWith(u8, path, "docs/_docs/") or
         std.mem.startsWith(u8, path, "docs/plans/");
-}
-
-fn filterGeneratedMarkdownExtras(
-    allocator: std.mem.Allocator,
-    extras: *std.ArrayListUnmanaged([]const u8),
-) void {
-    var i: usize = 0;
-    while (i < extras.items.len) {
-        if (isGeneratedMarkdownPath(extras.items[i])) {
-            allocator.free(extras.orderedRemove(i));
-        } else {
-            i += 1;
-        }
-    }
 }
 
 fn validateOutputPolicy(path: []const u8, content: []const u8) !void {
@@ -327,12 +307,22 @@ fn resolvePath(allocator: std.mem.Allocator, base: []const u8, rel: []const u8) 
 }
 
 fn shouldTrackExtraFile(path: []const u8) bool {
+    const basename = std.fs.path.basename(path);
+    if (std.mem.eql(u8, basename, ".DS_Store")) return false;
     if (std.mem.endsWith(u8, path, "/docs_engine.wasm")) return false;
     if (std.mem.endsWith(u8, path, "/docs_engine.component.wasm")) return false;
     if (std.mem.endsWith(u8, path, "/docs_engine.wit")) return false;
-    if (std.mem.eql(u8, path, "docs/README.md")) return false;
-    if (std.mem.eql(u8, path, "docs/ABI_PROJECT_MEMORY.md")) return false;
+    if (isMaintainedDocsFile(path)) return false;
     return true;
+}
+
+fn isMaintainedDocsFile(path: []const u8) bool {
+    return std.mem.eql(u8, path, "docs/README.md") or
+        std.mem.eql(u8, path, "docs/STRUCTURE.md") or
+        std.mem.eql(u8, path, "docs/PATTERNS.md") or
+        std.mem.eql(u8, path, "docs/ABI_PROJECT_MEMORY.md") or
+        std.mem.eql(u8, path, "docs/ABI_WDBX_ARCHITECTURE.md") or
+        std.mem.eql(u8, path, "docs/ZIG_MACOS_LINKER_RESEARCH.md");
 }
 
 fn shouldSkipDir(path: []const u8) bool {
@@ -361,8 +351,13 @@ pub fn writeOutputs(
 
 test "shouldTrackExtraFile ignores wasm artifacts" {
     try std.testing.expect(!shouldTrackExtraFile("docs/data/docs_engine.wasm"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/.DS_Store"));
     try std.testing.expect(!shouldTrackExtraFile("docs/README.md"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/STRUCTURE.md"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/PATTERNS.md"));
     try std.testing.expect(!shouldTrackExtraFile("docs/ABI_PROJECT_MEMORY.md"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/ABI_WDBX_ARCHITECTURE.md"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/ZIG_MACOS_LINKER_RESEARCH.md"));
     try std.testing.expect(shouldTrackExtraFile("docs/plans/index.md"));
 }
 
@@ -373,29 +368,9 @@ test "generated markdown classifier and drift mode" {
     try std.testing.expect(!isGeneratedMarkdownPath("docs/data/features.zon"));
     try std.testing.expect(!isGeneratedMarkdownPath("README.md"));
 
-    try std.testing.expect(!shouldEnforceDrift("docs/api/index.md", .{ .untracked_markdown = true }));
-    try std.testing.expect(shouldEnforceDrift("docs/data/features.zon", .{ .untracked_markdown = true }));
-    try std.testing.expect(shouldEnforceDrift("docs/api/index.md", .{}));
-}
-
-test "filterGeneratedMarkdownExtras removes only generated markdown paths" {
-    const allocator = std.testing.allocator;
-    var extras = std.ArrayListUnmanaged([]const u8).empty;
-    defer {
-        for (extras.items) |item| allocator.free(item);
-        extras.deinit(allocator);
-    }
-
-    try extras.append(allocator, try allocator.dupe(u8, "docs/api/index.md"));
-    try extras.append(allocator, try allocator.dupe(u8, "docs/_docs/architecture.md"));
-    try extras.append(allocator, try allocator.dupe(u8, "docs/data/features.zon"));
-    try extras.append(allocator, try allocator.dupe(u8, "docs/index.html"));
-
-    filterGeneratedMarkdownExtras(allocator, &extras);
-
-    try std.testing.expectEqual(@as(usize, 2), extras.items.len);
-    try std.testing.expectEqualStrings("docs/data/features.zon", extras.items[0]);
-    try std.testing.expectEqualStrings("docs/index.html", extras.items[1]);
+    try std.testing.expect(shouldAllowMissingOutput("docs/api/index.md", .{ .untracked_markdown = true }));
+    try std.testing.expect(!shouldAllowMissingOutput("docs/data/features.zon", .{ .untracked_markdown = true }));
+    try std.testing.expect(!shouldAllowMissingOutput("docs/api/index.md", .{}));
 }
 
 test "hasLeftoverPlaceholder detects unreplaced template vars" {

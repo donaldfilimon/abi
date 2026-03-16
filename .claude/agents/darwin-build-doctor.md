@@ -116,7 +116,7 @@ This works because `zig fmt` does not link anything.
 If the command still cannot link, drop to compile-only validation locally:
 
 ```bash
-zig test tests/zig/mod.zig -fno-emit-bin
+zig test src/services/tests/mod.zig -fno-emit-bin
 ```
 
 If the task still needs binaries or runtime execution, route it to Linux CI or another host with a working Zig linker.

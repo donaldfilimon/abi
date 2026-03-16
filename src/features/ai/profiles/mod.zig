@@ -10,9 +10,9 @@ const obs = @import("../../observability/mod.zig");
 // Relative imports to flattened feature root
 const types = @import("../types.zig");
 const registry = @import("../registry.zig");
-const abi_logic = @import("../abi_logic/mod.zig");
-const abbey_logic = @import("../abbey_logic/mod.zig");
-const aviva_logic = @import("../aviva_logic/mod.zig");
+const abi = @import("../abi/mod.zig");
+const abbey = @import("../abbey/persona.zig");
+const aviva = @import("../aviva/mod.zig");
 const generic = @import("../generic.zig");
 const health = @import("../health.zig");
 const loadbalancer = @import("../loadbalancer.zig");
@@ -98,7 +98,7 @@ pub fn ProfileSystem(comptime Config: type) type {
     return struct {
         allocator: std.mem.Allocator,
         ctx: *Context(Config),
-        router: *abi_logic.AbiRouter,
+        router: *abi.AbiRouter,
 
         const Self = @This();
 
@@ -109,7 +109,7 @@ pub fn ProfileSystem(comptime Config: type) type {
             const ctx = try Context(Config).init(allocator, cfg);
             errdefer ctx.deinit();
 
-            const router = try abi_logic.AbiRouter.init(allocator, cfg.abi);
+            const router = try abi.AbiRouter.init(allocator, cfg.abi);
             errdefer router.deinit();
 
             self.* = .{

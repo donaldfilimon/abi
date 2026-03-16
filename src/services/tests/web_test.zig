@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const web = @import("abi").features.web;
+const web = @import("abi").web;
 
 // =============================================================================
 // Module Initialization Tests

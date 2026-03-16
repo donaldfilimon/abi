@@ -1,13 +1,13 @@
 //! Shared comptime-gated feature module imports for framework lifecycle code.
 //!
-//! This module centralizes the 21 comptime-gated feature imports used by
+//! This module centralizes the 17 comptime-gated feature imports used by
 //! framework.zig, context_init.zig, and shutdown.zig to eliminate duplication.
 //! When adding a new feature, update ONLY this file and the three consumers
 //! will automatically pick up the change.
 
 const build_options = @import("build_options");
 
-// ── Feature modules (17 standard + 4 AI facades) ──────────────────────
+// ── Feature modules (17 standard) ─────────────────────────────────────
 pub const gpu_mod = if (build_options.feat_gpu) @import("../../features/gpu/mod.zig") else @import("../../features/gpu/stub.zig");
 pub const ai_mod = if (build_options.feat_ai) @import("../../features/ai/mod.zig") else @import("../../features/ai/stub.zig");
 pub const database_mod = if (build_options.feat_database) @import("../../features/database/mod.zig") else @import("../../features/database/stub.zig");
@@ -25,9 +25,3 @@ pub const gateway_mod = if (build_options.feat_gateway) @import("../../features/
 pub const pages_mod = if (build_options.feat_pages) @import("../../features/observability/pages/mod.zig") else @import("../../features/observability/pages/stub.zig");
 pub const benchmarks_mod = if (build_options.feat_benchmarks) @import("../../features/benchmarks/mod.zig") else @import("../../features/benchmarks/stub.zig");
 pub const mobile_mod = if (build_options.feat_mobile) @import("../../features/mobile/mod.zig") else @import("../../features/mobile/stub.zig");
-
-// ── AI facade modules ─────────────────────────────────────────────────
-pub const ai_core_mod = if (build_options.feat_ai) @import("../../features/ai/facades/core.zig") else @import("../../features/ai/facades/core_stub.zig");
-pub const ai_inference_mod = if (build_options.feat_llm) @import("../../features/ai/facades/inference.zig") else @import("../../features/ai/facades/inference_stub.zig");
-pub const ai_training_mod = if (build_options.feat_training) @import("../../features/ai/facades/training.zig") else @import("../../features/ai/facades/training_stub.zig");
-pub const ai_reasoning_mod = if (build_options.feat_reasoning) @import("../../features/ai/facades/reasoning.zig") else @import("../../features/ai/facades/reasoning_stub.zig");

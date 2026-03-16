@@ -8,15 +8,16 @@ const core_config = @import("../../core/config/gateway.zig");
 const stub_context = @import("../../core/stub_context.zig");
 const gateway_types = @import("types.zig");
 
-// Config re-exports (from core config)
-pub const GatewayConfig = core_config.GatewayConfig;
-pub const RateLimitConfig = core_config.RateLimitConfig;
-pub const RateLimitAlgorithm = core_config.RateLimitAlgorithm;
-pub const CircuitBreakerConfig = core_config.CircuitBreakerConfig;
-pub const CircuitBreakerState = core_config.CircuitBreakerState;
+// Config re-exports (from shared types.zig — same source as mod.zig)
+pub const GatewayConfig = gateway_types.GatewayConfig;
+pub const RateLimitConfig = gateway_types.RateLimitConfig;
+pub const RateLimitAlgorithm = gateway_types.RateLimitAlgorithm;
+pub const CircuitBreakerConfig = gateway_types.CircuitBreakerConfig;
+pub const CircuitBreakerState = gateway_types.CircuitBreakerState;
 
 // Type re-exports (shared with mod.zig via types.zig)
 pub const GatewayError = gateway_types.GatewayError;
+pub const Error = GatewayError;
 pub const HttpMethod = gateway_types.HttpMethod;
 pub const Route = gateway_types.Route;
 pub const MiddlewareType = gateway_types.MiddlewareType;

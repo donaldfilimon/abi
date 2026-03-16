@@ -29,10 +29,6 @@ const gateway_mod = fi.gateway_mod;
 const pages_mod = fi.pages_mod;
 const benchmarks_mod = fi.benchmarks_mod;
 const mobile_mod = fi.mobile_mod;
-const ai_core_mod = fi.ai_core_mod;
-const ai_inference_mod = fi.ai_inference_mod;
-const ai_training_mod = fi.ai_training_mod;
-const ai_reasoning_mod = fi.ai_reasoning_mod;
 const ha_mod = @import("../../services/ha/mod.zig");
 const runtime_mod = @import("../../services/runtime/mod.zig");
 
@@ -204,48 +200,6 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
         fw.mobile = try mobile_mod.Context.init(allocator, mobile_cfg);
         if (comptime build_options.feat_mobile) {
             try fw.registry.registerComptime(.mobile);
-        }
-    }
-
-    if (cfg.ai) |ai_cfg| {
-        // AI sub-modules fail non-fatally: the main `ai` module is available but
-        // specialized sub-features (core, inference, training, reasoning) may be null.
-        // Users can check via abi.features.ai.isLlmEnabled() or `abi system-info`.
-        if (comptime build_options.feat_ai) {
-            fw.ai_core = ai_core_mod.Context.init(
-                allocator,
-                ai_cfg,
-            ) catch |err| blk: {
-                std.log.warn("ai.core sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
-                break :blk null;
-            };
-        }
-        if (comptime build_options.feat_llm) {
-            fw.ai_inference = ai_inference_mod.Context.init(
-                allocator,
-                ai_cfg,
-            ) catch |err| blk: {
-                std.log.warn("ai.inference sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
-                break :blk null;
-            };
-        }
-        if (comptime build_options.feat_training) {
-            fw.ai_training = ai_training_mod.Context.init(
-                allocator,
-                ai_cfg,
-            ) catch |err| blk: {
-                std.log.warn("ai.training sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
-                break :blk null;
-            };
-        }
-        if (comptime build_options.feat_reasoning) {
-            fw.ai_reasoning = ai_reasoning_mod.Context.init(
-                allocator,
-                ai_cfg,
-            ) catch |err| blk: {
-                std.log.warn("ai.reasoning sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
-                break :blk null;
-            };
         }
     }
 

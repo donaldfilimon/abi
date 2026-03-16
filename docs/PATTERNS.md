@@ -36,13 +36,17 @@ const config = @import("../../core/config/mod");
 
 ## The mod/stub Contract
 
-Every feature module (`src/features/<name>/`) has three files:
+Every feature module (`src/features/<name>/`) follows a strict contract:
 
 | File | Role |
 |------|------|
 | `mod.zig` | Real implementation (feature enabled) |
 | `stub.zig` | API-compatible no-ops (feature disabled) |
-| `types.zig` | Shared types imported by both mod and stub |
+| `types.zig` | Shared types imported by both mod and stub (when needed) |
+
+`types.zig` is required when the module has shared public types that both
+`mod.zig` and `stub.zig` must share. Thin modules without shared type
+contracts may omit it.
 
 ### Rules
 
@@ -83,7 +87,7 @@ if (feat_gpu) {
 ```
 
 25 feature flags exist, all enabled by default. Disable with
-`-Dfeat-<name>=false`. The 42 validated flag combinations live in
+`-Dfeat-<name>=false`. The 54 validated flag combinations live in
 `build/flags.zig`.
 
 ## Zig 0.16 API Patterns
@@ -180,7 +184,7 @@ if (is_blocked_darwin) {
 
 Format checks always work regardless of platform:
 ```bash
-zig fmt --check build.zig build/ src/ tools/
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 ```
 
 ## Error Handling
@@ -220,4 +224,4 @@ pub fn init(alloc: Allocator) InitError!Self {
 
 - Always use `zig fmt` — never manual alignment
 - Never run `zig fmt .` from the repo root (walks vendored fixtures)
-- Target specific paths: `zig fmt --check build.zig build/ src/ tools/`
+- Target specific paths: `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`

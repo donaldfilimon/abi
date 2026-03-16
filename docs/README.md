@@ -24,9 +24,9 @@ API references. Understanding which is which prevents accidental overwrites.
 
 | Directory | Source | Regenerate |
 |-----------|--------|------------|
-| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs` |
-| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs` |
-| `data/` | Structured data exports | `zig build gendocs` |
+| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin |
+| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin |
+| `data/` | Structured data exports | `zig build gendocs` or `./tools/scripts/run_build.sh gendocs` on Darwin |
 
 Generated files are overwritten each time `gendocs` runs. Do not hand-edit them;
 instead, modify the source templates in `tools/gendocs/` or the catalog data.
@@ -43,8 +43,11 @@ zig build gendocs -- --no-wasm --untracked-md
 # Check-only mode (verify determinism, no writes)
 zig build gendocs -- --check --no-wasm --untracked-md
 
-# On Darwin 25+ (compile-only — gendocs cannot run)
+# On Darwin 25+ / 26+ (relinks with Apple ld, then runs gendocs)
 ./tools/scripts/run_build.sh gendocs
+
+# Darwin check-only mode
+./tools/scripts/run_build.sh check-docs --summary all
 ```
 
 ## Markdown Allowlist Policy

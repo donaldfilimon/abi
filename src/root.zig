@@ -1,12 +1,9 @@
 //! Public ABI package root.
 //!
 //! Canonical API: `abi.<domain>` (e.g. `abi.gpu`, `abi.ai`, `abi.connectors`).
-//! Compat bridges `abi.features.*` and `abi.services.*` re-export the same
-//! modules for callers that have not yet migrated.
 
 const std = @import("std");
 const build_options = @import("build_options");
-const internal = @import("internal/mod.zig");
 
 // ── Core ─────────────────────────────────────────────────────────────────
 
@@ -20,27 +17,28 @@ pub const FrameworkError = errors.FrameworkError;
 pub const registry = @import("core/registry/mod.zig");
 pub const Registry = registry.Registry;
 
-pub const framework = internal.app;
+pub const framework = @import("core/framework.zig");
 
 // ── Services (non-feature-gated) ─────────────────────────────────────────
 
-pub const foundation = internal.foundation;
-pub const runtime = internal.runtime;
-pub const platform = internal.platform;
-pub const connectors = internal.integrations;
-pub const tasks = internal.tooling;
+pub const foundation = @import("services/shared/mod.zig");
+pub const runtime = @import("services/runtime/mod.zig");
+pub const platform = @import("services/platform/mod.zig");
+pub const connectors = @import("services/connectors/mod.zig");
+pub const tasks = @import("services/tasks/mod.zig");
 pub const mcp = @import("services/mcp/mod.zig");
 pub const lsp = @import("services/lsp/mod.zig");
 pub const acp = @import("services/acp/mod.zig");
 pub const ha = @import("services/ha/mod.zig");
+pub const inference = @import("inference/mod.zig");
 
 // ── Features (comptime-gated mod/stub) ───────────────────────────────────
 
 pub const gpu = if (build_options.feat_gpu) @import("features/gpu/mod.zig") else @import("features/gpu/stub.zig");
-pub const ai = if (build_options.feat_ai) internal.ai.mod else internal.ai.stub;
-pub const database = if (build_options.feat_database) internal.data.mod else internal.data.stub;
-pub const network = if (build_options.feat_network) internal.network.mod else internal.network.stub;
-pub const observability = if (build_options.feat_profiling) internal.observe.mod else internal.observe.stub;
+pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @import("features/ai/stub.zig");
+pub const database = if (build_options.feat_database) @import("features/database/mod.zig") else @import("features/database/stub.zig");
+pub const network = if (build_options.feat_network) @import("features/network/mod.zig") else @import("features/network/stub.zig");
+pub const observability = if (build_options.feat_profiling) @import("features/observability/mod.zig") else @import("features/observability/stub.zig");
 pub const web = if (build_options.feat_web) @import("features/web/mod.zig") else @import("features/web/stub.zig");
 pub const pages = if (build_options.feat_pages) @import("features/observability/pages/mod.zig") else @import("features/observability/pages/stub.zig");
 pub const analytics = if (build_options.feat_analytics) @import("features/analytics/mod.zig") else @import("features/analytics/stub.zig");
@@ -99,49 +97,6 @@ pub fn version() []const u8 {
 }
 
 pub const feature_catalog = meta.features;
-
-// ── Compat bridges (`abi.services.*`, `abi.features.*`) ──────────────────
-// These re-export the canonical top-level declarations so that existing
-// callers using `abi.services.X` or `abi.features.X` continue to work.
-
-const root = @This();
-
-pub const services = struct {
-    pub const foundation = root.foundation;
-    pub const shared = root.foundation;
-    pub const runtime = root.runtime;
-    pub const platform = root.platform;
-    pub const connectors = root.connectors;
-    pub const tasks = root.tasks;
-    pub const lsp = root.lsp;
-    pub const mcp = root.mcp;
-    pub const acp = root.acp;
-    pub const ha = root.ha;
-    pub const simd = root.foundation.simd;
-};
-
-pub const features = struct {
-    pub const gpu = root.gpu;
-    pub const ai = root.ai;
-    pub const database = root.database;
-    pub const network = root.network;
-    pub const observability = root.observability;
-    pub const web = root.web;
-    pub const analytics = root.analytics;
-    pub const cloud = root.cloud;
-    pub const auth = root.auth;
-    pub const messaging = root.messaging;
-    pub const cache = root.cache;
-    pub const storage = root.storage;
-    pub const mobile = root.mobile;
-    pub const gateway = root.gateway;
-    pub const search = root.search;
-    pub const pages = root.pages;
-    pub const benchmarks = root.benchmarks;
-    pub const compute = root.compute;
-    pub const documents = root.documents;
-    pub const desktop = root.desktop;
-};
 
 test {
     std.testing.refAllDecls(@This());

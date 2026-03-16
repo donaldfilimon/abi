@@ -56,12 +56,6 @@ pub fn deinitFeatures(self: anytype) void {
         self.ha = null;
     }
 
-    // Split AI modules.
-    deinitOptionalContext(ai_reasoning_mod.Context, &self.ai_reasoning);
-    deinitOptionalContext(ai_training_mod.Context, &self.ai_training);
-    deinitOptionalContext(ai_inference_mod.Context, &self.ai_inference);
-    deinitOptionalContext(ai_core_mod.Context, &self.ai_core);
-
     // Standard feature modules (reverse order of initFeatureContexts).
     deinitOptionalContext(mobile_mod.Context, &self.mobile);
     deinitOptionalContext(benchmarks_mod.Context, &self.benchmarks);

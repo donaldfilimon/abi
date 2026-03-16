@@ -18,6 +18,7 @@ const types = @import("types.zig");
 pub const StorageConfig = types.StorageConfig;
 pub const StorageBackend = types.StorageBackend;
 pub const StorageError = types.StorageError;
+pub const Error = StorageError;
 pub const StorageObject = types.StorageObject;
 pub const ObjectMetadata = types.ObjectMetadata;
 pub const StorageStats = types.StorageStats;

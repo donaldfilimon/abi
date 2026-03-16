@@ -6,7 +6,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
-const gpu_detect = abi.features.gpu.backends.detect;
+const gpu_detect = abi.gpu.backends.detect;
 
 /// Test matrix configuration
 pub const TestMatrix = struct {
@@ -114,7 +114,7 @@ test "matrix: framework all features" {
 // ============================================================================
 
 test "matrix: simd vector ops" {
-    const simd = abi.services.simd;
+    const simd = abi.foundation.simd;
 
     // Test vector operations
     var a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
@@ -132,7 +132,7 @@ test "matrix: simd vector ops" {
 }
 
 test "matrix: simd matrix multiply" {
-    const simd = abi.services.simd;
+    const simd = abi.foundation.simd;
 
     // 2x2 matrix multiply
     var mat_a = [_]f32{ 1, 2, 3, 4 };
@@ -156,7 +156,7 @@ test "matrix: runtime engine basic" {
     var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var engine = try abi.services.runtime.createEngine(gpa.allocator(), .{});
+    var engine = try abi.runtime.createEngine(gpa.allocator(), .{});
     defer engine.deinit();
 
     // Engine initialized successfully - no isRunning method, just verify init works
@@ -173,7 +173,7 @@ test "matrix: gpu backend detection" {
     var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    try abi.features.gpu.ensureInitialized(gpa.allocator());
+    try abi.gpu.ensureInitialized(gpa.allocator());
 
     const backends = try gpu_detect.availableBackends(gpa.allocator());
     defer gpa.allocator().free(backends);
@@ -190,7 +190,7 @@ test "matrix: ai module exports" {
     if (!build_options.feat_ai) return error.SkipZigTest;
 
     // Verify AI module exports are accessible
-    _ = abi.features.ai;
+    _ = abi.ai;
     try std.testing.expect(true);
 }
 
@@ -202,7 +202,7 @@ test "matrix: database module exports" {
     if (!build_options.feat_database) return error.SkipZigTest;
 
     // Verify database module exports
-    _ = abi.features.database;
+    _ = abi.database;
     try std.testing.expect(true);
 }
 
@@ -214,7 +214,7 @@ test "matrix: network module exports" {
     if (!build_options.feat_network) return error.SkipZigTest;
 
     // Verify network module exports
-    _ = abi.features.network;
+    _ = abi.network;
     try std.testing.expect(true);
 }
 
@@ -223,7 +223,7 @@ test "matrix: network module exports" {
 // ============================================================================
 
 test "matrix: simd capabilities struct" {
-    const caps = abi.services.simd.getSimdCapabilities();
+    const caps = abi.foundation.simd.getSimdCapabilities();
 
     // Verify capabilities structure
     try std.testing.expect(caps.vector_size >= 1);
@@ -245,7 +245,7 @@ test "matrix: feature isolation" {
     try std.testing.expect(framework.isRunning());
 
     // SIMD should still work regardless of feature flags
-    const has_simd = abi.services.simd.hasSimdSupport();
+    const has_simd = abi.foundation.simd.hasSimdSupport();
     _ = has_simd; // Just verify it compiles and runs
 }
 

@@ -13,16 +13,16 @@ abi/
 │
 ├── src/                      # All framework source — single "abi" module
 │   ├── root.zig              # Public package entrypoint (@import("abi"))
-│   ├── abi.zig               # Internal composition layer
+│   ├── abi.zig               # Legacy tombstone (not imported by any code)
 │   ├── core/                 # Always-on framework internals
-│   ├── features/             # Comptime-gated feature modules (19 modules)
+│   ├── features/             # Comptime-gated feature modules (19 directories)
 │   ├── services/             # Runtime services shared across features
-│   └── inference/            # Sampler, scheduler, KV cache
+│   └── inference/            # Sampler, scheduler, KV cache (AI internals)
 │
 ├── build/                    # Modular build system (Zig source files)
 ├── tools/                    # CLI, docs generator, validation scripts
-├── tests/                    # Integration and focused test roots
-├── examples/                 # 36 standalone example programs
+├── tests/                    # Legacy standalone tests (build uses src/-rooted test entrypoints)
+├── examples/                 # Standalone example programs
 ├── benchmarks/               # Performance benchmark suites
 ├── bindings/                 # C and WASM language bindings
 ├── docs/                     # Maintained + generated documentation
@@ -39,7 +39,7 @@ abi/
 ```
 src/
 ├── root.zig                  # Public API surface — what @import("abi") exposes
-├── abi.zig                   # Internal wiring layer — composes features + services
+├── abi.zig                   # Legacy tombstone — not imported by any code
 │
 ├── core/                     # Always-on internals
 │   ├── config/               # Configuration loading and validation
@@ -89,8 +89,12 @@ Every feature module under `src/features/<name>/` follows a strict contract:
 src/features/<name>/
 ├── mod.zig          # Real implementation (used when feature is enabled)
 ├── stub.zig         # API-compatible no-ops (used when feature is disabled)
-└── types.zig        # Shared types imported by both mod and stub
+└── types.zig        # Shared types imported by both mod and stub (when needed)
 ```
+
+`types.zig` is required when the module has public types that both `mod.zig`
+and `stub.zig` must share. Thin modules without shared type contracts may omit
+it. When in doubt, add `types.zig` to prevent mod/stub type drift.
 
 - **`mod.zig`** — full implementation, imported when `-Dfeat-<name>=true` (default)
 - **`stub.zig`** — returns `error.FeatureDisabled` or zero-values; must match `mod.zig`
@@ -107,7 +111,7 @@ The build system selects between `mod.zig` and `stub.zig` at comptime via
 ```
 build/
 ├── options.zig               # 25 feature flag definitions
-├── flags.zig                 # 42 flag combination validations
+├── flags.zig                 # 54 flag combination validations
 ├── modules.zig               # Module creation and import wiring
 ├── module_catalog.zig        # Module registry for gendocs
 ├── targets.zig               # Example/target tables, cross-compilation matrix
@@ -152,16 +156,13 @@ tools/
 
 ```
 tests/
-├── zig/                      # Zig test roots
-│   ├── mod.zig               # Test module root
-│   ├── database_fast_tests_root.zig
-│   └── database_wdbx_tests_root.zig
-│
 └── (future: integration/, e2e/)
 ```
 
-Test roots in `tests/zig/` are thin wrappers that re-export test declarations
-from `src/`. The build system references them via `b.path("tests/zig/...")`.
+Test entrypoints are rooted in `src/` for module path compliance. The build
+system references them directly via `b.path("src/services/tests/mod.zig")` and
+`b.path("src/database_fast_tests_root.zig")`. Former shim wrappers
+have been removed.
 
 ## Documentation (`docs/`)
 

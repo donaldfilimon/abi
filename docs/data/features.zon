@@ -4,8 +4,8 @@
         .description = "AI agent runtime",
         .compile_flag = "feat_ai",
         .parent = "ai",
-        .real_module_path = "features/ai/facades/core.zig",
-        .stub_module_path = "features/ai/facades/core_stub.zig",
+        .real_module_path = "features/ai/agents/mod.zig",
+        .stub_module_path = "features/ai/agents/stub.zig",
     },
     .{
         .name = "ai",
@@ -124,8 +124,8 @@
         .description = "Local LLM inference",
         .compile_flag = "feat_llm",
         .parent = "ai",
-        .real_module_path = "features/ai/facades/inference.zig",
-        .stub_module_path = "features/ai/facades/inference_stub.zig",
+        .real_module_path = "features/ai/llm/mod.zig",
+        .stub_module_path = "features/ai/llm/stub.zig",
     },
     .{
         .name = "messaging",
@@ -180,8 +180,8 @@
         .description = "AI reasoning (Abbey, eval, RAG)",
         .compile_flag = "feat_reasoning",
         .parent = "ai",
-        .real_module_path = "features/ai/facades/reasoning.zig",
-        .stub_module_path = "features/ai/facades/reasoning_stub.zig",
+        .real_module_path = "features/ai/reasoning/mod.zig",
+        .stub_module_path = "features/ai/reasoning/stub.zig",
     },
     .{
         .name = "search",
@@ -204,8 +204,8 @@
         .description = "Model training pipelines",
         .compile_flag = "feat_training",
         .parent = "ai",
-        .real_module_path = "features/ai/facades/training.zig",
-        .stub_module_path = "features/ai/facades/training_stub.zig",
+        .real_module_path = "features/ai/training/mod.zig",
+        .stub_module_path = "features/ai/training/stub.zig",
     },
     .{
         .name = "web",

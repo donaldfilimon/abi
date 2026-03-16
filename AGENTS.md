@@ -34,7 +34,7 @@ Every `src/features/<name>/` follows the **mod/stub/types** pattern:
 
 - `mod.zig` — real implementation (feature enabled)
 - `stub.zig` — API-compatible no-ops (feature disabled)
-- `types.zig` — shared types imported by both
+- `types.zig` — shared types imported by both (required when mod/stub share public types)
 
 When changing `mod.zig` public signatures, update `stub.zig` immediately.
 Sub-module stubs are not required.
@@ -59,7 +59,7 @@ Run the strongest gate your environment supports:
 
 | Gate | Command | When |
 |------|---------|------|
-| Format check | `zig fmt --check build.zig build/ src/ tools/` | Every change (always works) |
+| Format check | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | Every change (always works) |
 | Full check | `zig build full-check` | Before completing (non-Darwin) |
 | Darwin fallback | `./tools/scripts/run_build.sh typecheck --summary all` | Darwin 25+ |
 | Full release | `zig build verify-all` | Release prep |

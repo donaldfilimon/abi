@@ -17,6 +17,7 @@ const types = @import("types.zig");
 
 pub const SearchConfig = types.SearchConfig;
 pub const SearchError = types.SearchError;
+pub const Error = SearchError;
 pub const SearchResult = types.SearchResult;
 pub const SearchIndex = types.SearchIndex;
 pub const SearchStats = types.SearchStats;

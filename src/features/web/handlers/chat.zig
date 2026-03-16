@@ -24,7 +24,9 @@ fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std
     try std.json.Stringify.value(value, options, &out.writer);
     return out.toOwnedSlice();
 }
-const personas = @import("../../ai/mod.zig").personas;
+const build_options = @import("build_options");
+const ai_mod = if (build_options.feat_ai) @import("../../ai/mod.zig") else @import("../../ai/stub.zig");
+const personas = ai_mod.personas;
 const types = @import("../../ai/types.zig");
 
 /// Chat request from client.

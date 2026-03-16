@@ -68,7 +68,7 @@
 //! ## Standalone Usage
 //!
 //! ```zig
-//! const gpu = abi.features.gpu;
+//! const gpu = abi.gpu;
 //!
 //! var g = try gpu.Gpu.init(allocator, .{
 //!     .preferred_backend = .vulkan,

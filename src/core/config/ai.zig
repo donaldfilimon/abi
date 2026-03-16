@@ -11,7 +11,7 @@ const build_options = @import("build_options");
 // for type compatibility. This is NOT circular: features/ai/config.zig only depends on
 // features/ai/types.zig, not on core/config.
 const personas_config = @import("../../features/ai/config.zig");
-pub const PersonasConfig = personas_config.MultiPersonaConfig;
+pub const ProfilesConfig = personas_config.MultiPersonaConfig;
 
 /// AI configuration with independent sub-features.
 pub const AiConfig = struct {
@@ -27,8 +27,8 @@ pub const AiConfig = struct {
     /// Training pipeline settings.
     training: ?TrainingConfig = null,
 
-    /// Multi-persona assistant settings.
-    personas: ?PersonasConfig = null,
+    /// Behavior profile selection and routing settings.
+    profiles: ?ProfilesConfig = null,
 
     /// Reasoning engine settings.
     reasoning: ?ReasoningConfig = null,
@@ -52,7 +52,7 @@ pub const AiConfig = struct {
             .agents = AgentsConfig.defaults(),
             .training = null, // Training not enabled by default
             .reasoning = ReasoningConfig.defaults(),
-            .personas = if (build_options.feat_ai) .{} else null,
+            .profiles = if (build_options.feat_ai) .{} else null,
             .auto_discover = true, // Enable auto-discovery by default
         };
     }
@@ -206,7 +206,7 @@ pub const TrainingConfig = struct {
     }
 };
 
-// PersonasConfig is re-exported from features/ai/config.zig above.
+// ProfilesConfig is re-exported from features/ai/config.zig above.
 // See the layering exception comment at the top of this file.
 
 test {

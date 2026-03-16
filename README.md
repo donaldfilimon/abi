@@ -14,10 +14,11 @@ entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 ## What ABI includes
 
 - `abi.App` / `abi.AppBuilder` for framework setup and feature wiring
-- `abi.features.database` for the semantic store and vector search surface
-- `abi.features.ai` for agents, profiles, training, reasoning, and LLM support
-- `abi.Gpu` / `abi.GpuBackend` for unified compute backends
-- `abi.services.*` for platform, connectors, MCP, ACP, tasks, and shared runtime services
+- `abi.database` for the semantic store and vector search surface
+- `abi.ai` for agents, profiles, training, reasoning, and LLM support
+- `abi.gpu` / `abi.Gpu` / `abi.GpuBackend` for unified compute backends
+- `abi.runtime`, `abi.platform`, `abi.connectors`, `abi.mcp`, `abi.acp`, `abi.tasks` for services
+- `abi.foundation` for shared utilities (SIMD, logging, security, time)
 - `abi` CLI for operational workflows, diagnostics, docs generation, and local tooling
 
 ## Current baseline
@@ -80,7 +81,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const store = abi.features.database.semantic_store;
+    const store = abi.database.semantic_store;
 
     var handle = try store.openStore(allocator, "vectors-db");
     defer store.closeStore(&handle);
@@ -108,7 +109,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var agent = try abi.features.ai.agents.Agent.init(allocator, .{
+    var agent = try abi.ai.agents.Agent.init(allocator, .{
         .name = "assistant",
         .backend = .echo,
         .enable_history = true,
@@ -164,18 +165,18 @@ under feature and service namespaces.
 | Surface | Purpose |
 |---------|---------|
 | `abi.App` / `abi.AppBuilder` | Framework lifecycle and feature orchestration |
-| `abi.features.database` | Semantic store, search, backup, restore, diagnostics |
-| `abi.features.ai` | Agents, profiles, LLM, training, reasoning |
-| `abi.features.gpu` | GPU feature namespace |
+| `abi.database` | Semantic store, search, backup, restore, diagnostics |
+| `abi.ai` | Agents, profiles, LLM, training, reasoning |
+| `abi.gpu` | GPU feature namespace |
 | `abi.Gpu` / `abi.GpuBackend` | Direct unified GPU runtime access |
 | `abi.services.*` | Shared runtime services and integration surfaces |
 
 ### Notes on migration surfaces
 
-- `abi.features.ai.profiles` is the canonical behavior-profile namespace.
-- `abi.features.ai.personas` remains as a compatibility alias during the phase 4 transition.
-- The public named `wdbx` package surface has been removed; use `abi.features.database`.
-- `src/abi.zig` is the internal composition layer. External consumers should target `@import("abi")`, which resolves to `src/root.zig`.
+- `abi.ai.profiles` is the canonical behavior-profile namespace.
+- `abi.ai.personas` remains as a compatibility alias during the phase 4 transition.
+- The public named `wdbx` package surface has been removed; use `abi.database`.
+- `src/root.zig` is the canonical package root for the `abi` module. `src/abi.zig` is a legacy internal file (not imported by any code).
 
 ## Project structure
 
@@ -241,6 +242,8 @@ zig build check-cli-registry
 
 Generated docs live under `docs/api/` and `docs/plans/`. Structural edits should
 go through `tools/gendocs/`, not direct manual edits to generated pages.
+On Darwin 25+ / 26+, `gendocs` is compile-check only locally; regenerate from a
+non-Darwin environment when generated outputs must be updated.
 
 ## Feature flags
 
