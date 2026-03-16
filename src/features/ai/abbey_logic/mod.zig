@@ -11,7 +11,7 @@
 //! - Tone adaptation based on user emotional state
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 const types = @import("types");
 const config = @import("../config.zig");
 const core_types = @import("types");

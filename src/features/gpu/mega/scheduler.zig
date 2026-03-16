@@ -37,8 +37,8 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const coordinator = @import("coordinator.zig");
 
 /// Experience for replay buffer - stores a single state transition.

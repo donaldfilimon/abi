@@ -11,7 +11,7 @@
 
 const std = @import("std");
 const classifier = @import("classifier.zig");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 
 /// A retrieved knowledge fragment.
 pub const KnowledgeFragment = struct {

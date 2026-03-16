@@ -3,7 +3,7 @@
 const std = @import("std");
 const database = @import("../database.zig");
 const storage = @import("../storage.zig");
-const fs = @import("shared_services").utils.fs;
+const fs = @import("../../../services/shared/mod.zig").utils.fs;
 
 pub const StoreHandle = struct {
     db: database.Database,

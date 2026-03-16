@@ -4,8 +4,8 @@
 //! including performance benchmarks, stress tests, and correctness verification.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const gpu = @import("../mod.zig");
 const unified = @import("../unified.zig");
 const device_mod = @import("../device.zig");

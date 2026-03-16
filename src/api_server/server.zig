@@ -8,7 +8,7 @@ const Allocator = std.mem.Allocator;
 const metrics_mod = @import("metrics.zig");
 const auth_mod = @import("auth.zig");
 const handlers_mod = @import("handlers.zig");
-const time_mod = @import("shared_services").time;
+const time_mod = @import("../services/shared/mod.zig").time;
 
 fn monotonicNowNs() i128 {
     const instant = time_mod.Instant.now() catch return 0;

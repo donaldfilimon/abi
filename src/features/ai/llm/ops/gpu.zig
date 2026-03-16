@@ -9,7 +9,7 @@
 //! is disabled.
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../../../services/shared/mod.zig").time;
 const build_options = @import("build_options");
 const matmul = @import("matmul.zig");
 const attention = @import("attention.zig");

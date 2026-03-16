@@ -13,8 +13,8 @@ const std = @import("std");
 const types = @import("types.zig");
 const metrics_mod = @import("metrics.zig");
 const loadbalancer = @import("loadbalancer.zig");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 /// Health status of a persona.
 pub const HealthStatus = enum {

@@ -15,7 +15,7 @@ const std = @import("std");
 const chat = @import("../handlers/chat.zig");
 const types = @import("../../ai/types.zig");
 const health = @import("../../ai/health.zig");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 
 /// HTTP method.
 pub const Method = enum {

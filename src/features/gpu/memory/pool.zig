@@ -8,9 +8,9 @@
 //! - Memory pressure handling with automatic eviction
 
 const std = @import("std");
-const platform_time = @import("shared_services").utils;
+const platform_time = @import("../../../services/shared/mod.zig").utils;
 const time = platform_time;
-const sync = @import("shared_services").sync;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const memory = @import("base.zig");
 
 /// Memory allocation size classes in bytes.

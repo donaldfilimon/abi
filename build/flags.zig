@@ -153,15 +153,13 @@ pub fn addFlagValidation(
     inline for (validation_matrix) |combo| {
         const opts = comboToBuildOptions(combo);
         const build_opts_mod = modules.createBuildOptionsModule(b, opts);
-        const shared_services_mod = modules.createSharedServicesModule(b, build_opts_mod, target, optimize);
-        const core_mod = modules.createCoreModule(b, target, optimize, build_opts_mod);
 
         const abi_mod = b.createModule(.{
             .root_source_file = b.path("src/root.zig"),
             .target = target,
             .optimize = optimize,
         });
-        modules.wireAbiImports(abi_mod, build_opts_mod, shared_services_mod, core_mod);
+        modules.wireAbiImports(abi_mod, build_opts_mod);
 
         const check = b.addLibrary(.{
             .name = "validate-" ++ combo.name,

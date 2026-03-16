@@ -9,7 +9,7 @@ const device_mod = @import("device.zig");
 const stream_mod = @import("stream.zig");
 const sync_event_mod = @import("sync_event.zig");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../services/shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 pub const Backend = backend_mod.Backend;

@@ -17,7 +17,7 @@
 //! - Little's Law optimization: λ = N_concurrent / L_latency
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 const personas = @import("../mod.zig");
 const types = personas.types;
 const block_chain = @import("../../../core/database/block_chain.zig");

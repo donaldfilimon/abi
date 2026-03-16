@@ -11,7 +11,7 @@
 
 const std = @import("std");
 const core_types = @import("types");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 
 /// Result of sentiment and intent analysis.
 pub const SentimentResult = struct {

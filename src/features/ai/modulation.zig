@@ -10,7 +10,7 @@
 //! routing decision, adjusting scores based on learned user preferences.
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../services/shared/mod.zig").time;
 const types = @import("types.zig");
 
 /// Configuration for the adaptive modulation system.

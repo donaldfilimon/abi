@@ -12,8 +12,8 @@
 //! - RwLock for concurrent route lookups
 
 const std = @import("std");
-const sync = @import("shared_services").sync;
-const time_mod = @import("shared_services").time;
+const sync = @import("../../services/shared/mod.zig").sync;
+const time_mod = @import("../../services/shared/mod.zig").time;
 const gateway_types = @import("types.zig");
 const routing = @import("routing.zig");
 const rate_limit_mod = @import("rate_limit.zig");

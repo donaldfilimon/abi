@@ -35,7 +35,7 @@ pub const Context = struct {
     config: config_module.AiConfig,
     llm_ctx: ?*llm.Context = null,
     embeddings_ctx: ?*embeddings.Context = null,
-    personas_ctx: ?*personas.Context = null,
+    personas_ctx: ?*personas.Context(config_module.ai_config.PersonasConfig) = null,
 
     pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) !*Context {
         return error.LlmDisabled;
@@ -49,7 +49,7 @@ pub const Context = struct {
         return switch (feature) {
             .llm => llm.Context,
             .embeddings => embeddings.Context,
-            .personas => personas.Context,
+            .personas => personas.Context(config_module.ai_config.PersonasConfig),
         };
     }
 

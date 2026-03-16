@@ -1,5 +1,5 @@
 const std = @import("std");
-const radix = @import("shared_services").utils.radix_tree;
+const radix = @import("../../services/shared/mod.zig").utils.radix_tree;
 
 pub const RouteTree = radix.RadixTree(u32);
 pub const RadixNode = RouteTree.Node;

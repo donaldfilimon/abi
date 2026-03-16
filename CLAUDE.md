@@ -25,7 +25,7 @@ zig fmt --check build.zig build/ src/ tools/  # format check (always works)
 
 **mod/stub contract**: `stub.zig` must match `mod.zig` public signatures. Sub-module stubs not needed.
 
-**Imports**: Use `@import("abi")` for framework API, relative imports within a feature. Never cross-directory relative imports.
+**Imports**: Use `@import("abi")` for framework API, relative imports within a feature. All `src/` files belong to the single `abi` module (no `shared_services` or `core` named modules). Explicit `.zig` extensions required on all path imports.
 
 ## Conventions
 
@@ -43,6 +43,8 @@ zig fmt --check build.zig build/ src/ tools/  # format check (always works)
 - `root_module` field not `root_source_file`
 - `valueIterator()` not `.values()` on hash maps
 - `@enumFromInt(x)` not `intToEnum`
+- Explicit `.zig` extensions required on all `@import("path/to/file")` paths
+- Single-module file ownership: every file belongs to exactly one named module
 
 ## Feature Flags
 

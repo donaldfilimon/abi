@@ -7,7 +7,7 @@
 //! since these primitives are shared across multiple feature modules.
 
 const std = @import("std");
-const metric_types = @import("shared_services").utils.metric_types;
+const metric_types = @import("../../../services/shared/mod.zig").utils.metric_types;
 
 // Re-export all types from the shared implementation
 pub const Counter = metric_types.Counter;

@@ -14,8 +14,8 @@
 //! Uses Zig 0.16 std.Io patterns for cross-platform networking.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const builtin = @import("builtin");
 const Raft = @import("raft.zig");
 const tcp = @import("transport.zig");

@@ -52,8 +52,8 @@
 //! 2. After 16 spins: Yield to OS scheduler
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../shared/mod.zig").time;
+const sync = @import("../../shared/mod.zig").sync;
 
 /// Backoff strategy for spin-wait loops in the engine.
 pub const Backoff = struct {

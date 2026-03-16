@@ -17,22 +17,22 @@ pub const AuthConfig = core_config.AuthConfig;
 // regardless of whether auth is enabled or disabled at build time. The feature
 // gate only affects the Context lifecycle and high-level auth functions.
 
-pub const api_keys = @import("shared_services").security.api_keys;
-pub const audit = @import("shared_services").security.audit;
-pub const certificates = @import("shared_services").security.certificates;
-pub const cors = @import("shared_services").security.cors;
-pub const encryption = @import("shared_services").security.encryption;
-pub const headers = @import("shared_services").security.headers;
-pub const ip_filter = @import("shared_services").security.ip_filter;
-pub const jwt = @import("shared_services").security.jwt;
-pub const mtls = @import("shared_services").security.mtls;
-pub const password = @import("shared_services").security.password;
-pub const rate_limit = @import("shared_services").security.rate_limit;
-pub const rbac = @import("shared_services").security.rbac;
-pub const secrets = @import("shared_services").security.secrets;
-pub const session = @import("shared_services").security.session;
-pub const tls = @import("shared_services").security.tls;
-pub const validation = @import("shared_services").security.validation;
+pub const api_keys = @import("../../services/shared/mod.zig").security.api_keys;
+pub const audit = @import("../../services/shared/mod.zig").security.audit;
+pub const certificates = @import("../../services/shared/mod.zig").security.certificates;
+pub const cors = @import("../../services/shared/mod.zig").security.cors;
+pub const encryption = @import("../../services/shared/mod.zig").security.encryption;
+pub const headers = @import("../../services/shared/mod.zig").security.headers;
+pub const ip_filter = @import("../../services/shared/mod.zig").security.ip_filter;
+pub const jwt = @import("../../services/shared/mod.zig").security.jwt;
+pub const mtls = @import("../../services/shared/mod.zig").security.mtls;
+pub const password = @import("../../services/shared/mod.zig").security.password;
+pub const rate_limit = @import("../../services/shared/mod.zig").security.rate_limit;
+pub const rbac = @import("../../services/shared/mod.zig").security.rbac;
+pub const secrets = @import("../../services/shared/mod.zig").security.secrets;
+pub const session = @import("../../services/shared/mod.zig").security.session;
+pub const tls = @import("../../services/shared/mod.zig").security.tls;
+pub const validation = @import("../../services/shared/mod.zig").security.validation;
 
 // ============================================================================
 // Auth-level Types

@@ -27,7 +27,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
-const simd = @import("shared_services").simd;
+const simd = @import("../../../services/shared/mod.zig").simd;
 
 // Backend system
 pub const backend = @import("backend.zig");

@@ -11,8 +11,8 @@
 
 const std = @import("std");
 const core_config = @import("../../../core/config/content.zig");
-const sync = @import("shared_services").sync;
-const radix = @import("shared_services").utils.radix_tree;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const radix = @import("../../../services/shared/mod.zig").utils.radix_tree;
 
 /// Shared radix tree instantiated for page indices.
 const PageTree = radix.RadixTree(u32);

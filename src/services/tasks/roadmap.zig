@@ -5,7 +5,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 const persistence = @import("persistence.zig");
-const time_utils = @import("shared_services").utils;
+const time_utils = @import("../shared/mod.zig").utils;
 
 pub const catalog = @import("roadmap_catalog.zig");
 

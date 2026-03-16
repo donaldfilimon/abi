@@ -7,8 +7,8 @@ const std = @import("std");
 const backend = @import("../backend.zig");
 const connectors = @import("../../../../services/connectors/mod.zig");
 const openai_connector = @import("../../../../services/connectors/openai.zig");
-const json_utils = @import("shared_services").utils.json;
-const async_http = @import("shared_services").utils.async_http;
+const json_utils = @import("../../../../services/shared/mod.zig").utils.json;
+const async_http = @import("../../../../services/shared/mod.zig").utils.async_http;
 
 /// OpenAI embedding model configurations.
 pub const Model = struct {

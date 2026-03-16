@@ -12,8 +12,8 @@
 //! - Thread-safe event buffer with configurable flush
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const build_options = @import("build_options");
 
 const Mutex = sync.Mutex;

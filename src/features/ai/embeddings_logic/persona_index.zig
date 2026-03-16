@@ -15,7 +15,7 @@ const types = @import("types");
 const embeddings = @import("../../embeddings");
 const database = @import("../../../database");
 const seed_data = @import("seed_data.zig");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 const simd = @import("../../../../services/shared/simd/mod.zig");
 
 /// Result of a persona matching operation.

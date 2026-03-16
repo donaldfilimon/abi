@@ -31,7 +31,7 @@
 const std = @import("std");
 const math = std.math;
 const vit = @import("vit.zig");
-const simd = @import("shared_services").simd;
+const simd = @import("../../../services/shared/mod.zig").simd;
 
 // ============================================================================
 // Configuration

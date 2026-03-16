@@ -26,7 +26,7 @@
 const std = @import("std");
 const chunker = @import("chunker.zig");
 const Chunk = chunker.Chunk;
-const simd = @import("shared_services").simd;
+const simd = @import("../../../services/shared/mod.zig").simd;
 const embeddings = @import("../embeddings/mod.zig");
 
 /// Common AI processing errors

@@ -13,7 +13,7 @@ const Category = types.Category;
 const AddOptions = types.AddOptions;
 const ManagerError = types.ManagerError;
 
-const time_utils = @import("shared_services").utils;
+const time_utils = @import("../shared/mod.zig").utils;
 
 /// Add a new task
 pub fn add(

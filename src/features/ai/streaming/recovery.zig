@@ -26,7 +26,7 @@
 //! ```
 
 const std = @import("std");
-const platform_time = @import("shared_services").time;
+const platform_time = @import("../../../services/shared/mod.zig").time;
 const circuit_breaker = @import("circuit_breaker.zig");
 const retry_config = @import("retry_config.zig");
 const session_cache = @import("session_cache.zig");

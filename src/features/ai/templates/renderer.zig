@@ -6,8 +6,8 @@
 const std = @import("std");
 const parser = @import("parser.zig");
 const Token = parser.Token;
-const string_utils = @import("shared_services").utils;
-const json_utils = @import("shared_services").utils.json;
+const string_utils = @import("../../../services/shared/mod.zig").utils;
+const json_utils = @import("../../../services/shared/mod.zig").utils.json;
 
 pub const RenderError = error{
     MissingVariable,

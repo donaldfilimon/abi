@@ -105,8 +105,8 @@
 //! - Lifecycle management internals (gpu_lifecycle, cuda_backend_init_lock)
 //! - Backend-specific initialization functions (initCudaComponents, etc.)
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const backend = @import("backend.zig");
 const kernels = @import("runtime_kernels.zig");
 const memory = @import("memory/base.zig");
@@ -247,7 +247,7 @@ comptime {
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils
-const lifecycle = @import("shared_services").utils;
+const lifecycle = @import("../../services/shared/mod.zig").utils;
 const SimpleModuleLifecycle = lifecycle.SimpleModuleLifecycle;
 const LifecycleError = lifecycle.LifecycleError;
 

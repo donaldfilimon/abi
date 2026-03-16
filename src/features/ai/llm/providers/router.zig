@@ -172,7 +172,7 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
             result.deinit();
 
             std.log.info("Spawned llama-server. Waiting for it to become ready...", .{});
-            const time_mod = @import("shared_services").time;
+            const time_mod = @import("../../../../services/shared/mod.zig").time;
             time_mod.sleepNs(3 * std.time.ns_per_s);
             text = try client.generate(cfg.prompt, cfg.max_tokens);
         } else {

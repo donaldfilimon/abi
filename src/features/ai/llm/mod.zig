@@ -22,7 +22,7 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 const connectors = @import("../../../services/connectors/mod.zig");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");

@@ -33,12 +33,12 @@
 //! good load balancing even with variable insertion costs.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const builtin = @import("builtin");
 const hnsw = @import("hnsw.zig");
 const index_mod = @import("index.zig");
-const simd = @import("shared_services").simd;
+const simd = @import("../../services/shared/mod.zig").simd;
 const ChaseLevDeque = @import("../../services/runtime/concurrency/chase_lev.zig").ChaseLevDeque;
 const WorkStealingScheduler = @import("../../services/runtime/concurrency/chase_lev.zig").WorkStealingScheduler;
 

@@ -203,7 +203,7 @@ fn executeWebMine(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolR
     // 3. Queue unvisited domains and decrement max_depth.
     // 4. Send the concatenated payload chunks to WDBX matrix embeddings.
 
-    const os = @import("shared_services").os;
+    const os = @import("../../../services/shared/mod.zig").os;
     // We execute the actual deep research agent asynchronously so the tool immediately frees the executor thread.
     const spider_cmd = try std.fmt.allocPrint(ctx.allocator, "nohup abi agent --all-tools -m 'Recursive web fetch starting from {s} up to depth {d}' > /tmp/abi_spider.log 2>&1 &", .{ target_domain, max_depth });
     defer ctx.allocator.free(spider_cmd);

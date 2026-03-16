@@ -23,9 +23,9 @@
 //! ```
 
 const std = @import("std");
-const platform_time = @import("shared_services").time;
+const platform_time = @import("../shared/mod.zig").time;
 
-const sync = @import("shared_services").sync;
+const sync = @import("../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 pub const replication = @import("replication.zig");

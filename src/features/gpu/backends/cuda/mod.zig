@@ -12,8 +12,8 @@
 //! - nvrtc.zig: Runtime compilation support
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../../services/shared/mod.zig").time;
+const sync = @import("../../../../services/shared/mod.zig").sync;
 const build_options = @import("build_options");
 const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");

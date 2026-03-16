@@ -5,7 +5,7 @@
 //! custom kernel compilation/launch, stream creation, and synchronization.
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../services/shared/mod.zig").time;
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 const stream_mod = @import("stream.zig");
@@ -252,7 +252,7 @@ pub const ReduceResult = struct { value: f32, stats: ExecutionResult };
 pub const BufferContext = struct {
     allocator: std.mem.Allocator,
     buffers: *std.ArrayListUnmanaged(*Buffer),
-    buffer_mutex: *@import("shared_services").sync.Mutex,
+    buffer_mutex: *@import("../../services/shared/mod.zig").sync.Mutex,
     active_device: ?*const Device,
     memory_mode: buffer_mod.MemoryMode,
     stats: *GpuStats,

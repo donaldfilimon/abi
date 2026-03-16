@@ -4,8 +4,8 @@
 //! stub implementations. For actual GPU compute in web environments, use WebGPU.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 

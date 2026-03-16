@@ -15,7 +15,7 @@
 //! - Auto-ban after 10 consecutive violations (1 hour ban)
 
 const std = @import("std");
-const rate_limit = @import("shared_services").security.rate_limit;
+const rate_limit = @import("../../../services/shared/mod.zig").security.rate_limit;
 
 /// Helper to serialize a value to JSON using Zig 0.16 API
 fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std.json.Stringify.Options) ![]u8 {
@@ -345,23 +345,16 @@ pub const ChatHandler = struct {
         const metrics_manager = if (self.orchestrator) |orch| orch.getMetrics() else null;
 
         for (persona_types) |pt| {
-            var total: u64 = 0;
-            var success_rate: f32 = 1.0;
-            var error_count: u64 = 0;
-            var latency_p50: ?f64 = null;
-            var latency_p99: ?f64 = null;
+            const total: u64 = 0;
+            const success_rate: f32 = 1.0;
+            const error_count: u64 = 0;
+            const latency_p50: ?f64 = null;
+            const latency_p99: ?f64 = null;
 
-            if (metrics_manager) |m| {
-                if (m.getStats(pt)) |stats| {
-                    total = stats.total_requests;
-                    success_rate = stats.success_rate;
-                    error_count = stats.error_count;
-                    if (stats.latency) |lat| {
-                        latency_p50 = lat.p50;
-                        latency_p99 = lat.p99;
-                    }
-                }
-            }
+            // metrics_manager is an opaque pointer; stats retrieval
+            // requires a concrete type and is unavailable when the
+            // multi-persona system exposes only *anyopaque.
+            _ = metrics_manager;
 
             total_requests += total;
             total_successes += @as(f64, @floatFromInt(total)) * @as(f64, success_rate);

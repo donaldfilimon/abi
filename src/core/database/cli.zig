@@ -471,7 +471,7 @@ fn seedDatabase(handle: *semantic_store.DatabaseHandle) !void {
     }
 }
 
-const fs = @import("shared_services").utils.fs;
+const fs = @import("../../services/shared/mod.zig").utils.fs;
 
 /// Parse CLI arguments for the add command. Returns parsed options or null on validation error.
 /// Exposed for testing purposes.

@@ -35,28 +35,13 @@ pub fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build
     return opts.createModule();
 }
 
-pub fn createSharedServicesModule(
-    b: *std.Build,
-    build_opts: *std.Build.Module,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-) *std.Build.Module {
-    const shared_services = b.createModule(.{
-        .root_source_file = b.path("src/services/shared/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    shared_services.addImport("build_options", build_opts);
-    return shared_services;
-}
-
+/// Wire the `abi` module with its build-time dependencies.
+/// In dev.2905+, all src/ files belong to the single `abi` module.
 pub fn wireAbiImports(
     abi_module: *std.Build.Module,
     build_opts: *std.Build.Module,
-    shared_services: *std.Build.Module,
 ) void {
     abi_module.addImport("build_options", build_opts);
-    abi_module.addImport("shared_services", shared_services);
 }
 
 /// Create the `cli` module that the CLI executable imports.
@@ -85,12 +70,11 @@ pub fn createAbiModule(
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Module {
     const build_opts = createBuildOptionsModule(b, options);
-    const shared_services = createSharedServicesModule(b, build_opts, target, optimize);
     const abi = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    wireAbiImports(abi, build_opts, shared_services);
+    wireAbiImports(abi, build_opts);
     return abi;
 }

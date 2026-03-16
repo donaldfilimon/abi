@@ -4,8 +4,8 @@
 //! based on semantic similarity to the current query.
 
 const std = @import("std");
-const time = @import("shared_services").utils;
-const simd = @import("shared_services").simd;
+const time = @import("../../../services/shared/mod.zig").utils;
+const simd = @import("../../../services/shared/mod.zig").simd;
 const mod = @import("mod.zig");
 const semantic_store = @import("../../database/mod.zig").semantic_store;
 const Message = mod.Message;

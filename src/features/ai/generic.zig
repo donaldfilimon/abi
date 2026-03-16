@@ -1,8 +1,8 @@
 //! Generic persona wrapper for prompt-defined personas.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const types = @import("types.zig");
 const agent_mod = @import("agents/mod.zig");
 const prompt_personas = @import("prompts/mod.zig");

@@ -24,7 +24,7 @@
 //! Thread-safe via per-shard mutex locking. Safe for multi-producer multi-consumer.
 const std = @import("std");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 pub fn LockFreeQueue(comptime T: type, comptime capacity: usize) type {

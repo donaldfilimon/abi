@@ -37,6 +37,7 @@ pub const feature_count = feature_catalog.feature_count;
 pub const GpuConfig = gpu_config.GpuConfig;
 pub const RecoveryConfig = gpu_config.GpuConfig.RecoveryConfig;
 pub const AiConfig = ai_config.AiConfig;
+pub const PersonasConfig = ai_config.PersonasConfig;
 pub const LlmConfig = ai_config.LlmConfig;
 pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
 pub const AgentsConfig = ai_config.AgentsConfig;

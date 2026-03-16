@@ -17,7 +17,7 @@ pub const filter = @import("filter.zig");
 pub const neural = @import("neural.zig");
 
 /// Additional public modules still used by in-tree callers.
-pub const cli = @import("cli");
+pub const cli = @import("cli.zig");
 pub const batch = @import("batch.zig");
 pub const formats = @import("formats/vector_db.zig");
 pub const hnsw = @import("hnsw.zig");
@@ -29,6 +29,7 @@ pub const parallel_search = @import("parallel_search.zig");
 
 pub const StoreHandle = semantic_store.StoreHandle;
 pub const DatabaseHandle = semantic_store.DatabaseHandle;
+pub const DatabaseConfig = config_module.DatabaseConfig;
 pub const SearchResult = semantic_store.SearchResult;
 pub const VectorView = semantic_store.VectorView;
 pub const Stats = semantic_store.Stats;

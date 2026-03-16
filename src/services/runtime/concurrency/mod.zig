@@ -27,7 +27,7 @@ pub const chase_lev = @import("chase_lev.zig");
 pub const mpmc = @import("mpmc_queue.zig");
 pub const channel_mod = @import("channel.zig");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 // Lock-free structures

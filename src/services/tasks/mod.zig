@@ -16,7 +16,7 @@
 //! ```
 
 const std = @import("std");
-const app_paths = @import("shared_services").utils.fs;
+const app_paths = @import("../shared/mod.zig").utils.fs;
 
 // Re-export types
 pub const types = @import("types.zig");

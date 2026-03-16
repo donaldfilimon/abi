@@ -13,8 +13,8 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/platform.zig");
-const sync = @import("shared_services").sync;
-const time_mod = @import("shared_services").time;
+const sync = @import("../../services/shared/mod.zig").sync;
+const time_mod = @import("../../services/shared/mod.zig").time;
 
 pub const MessagingConfig = core_config.MessagingConfig;
 

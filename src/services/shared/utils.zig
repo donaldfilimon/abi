@@ -284,6 +284,10 @@ pub const config = @import("utils/config.zig");
 // Foundational utility modules
 /// Foundational primitives: Math, String, Time, Atomic, Platform, RingBuffer.
 pub const primitives = @import("utils/primitives.zig");
+/// Re-export Math from primitives for convenience.
+pub const Math = primitives.Math;
+/// Radix tree data structure for prefix-based routing.
+pub const radix_tree = @import("utils/radix_tree.zig");
 /// Structured error handling with categories, severity, and accumulation.
 pub const structured_error = @import("utils/structured_error.zig");
 /// SwissMap: high-performance open-addressing hash map with H2 control bytes.

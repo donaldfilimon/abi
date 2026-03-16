@@ -1,8 +1,9 @@
 //! WDBX public surface built on top of the in-memory database and storage helpers.
 const std = @import("std");
-const database = @import("database.zig");
-const storage = @import("storage.zig"); // Unified storage with v1 fallback
-const shared = @import("shared_services");
+const core_db = @import("mod.zig");
+const database = core_db.database;
+const storage = core_db.storage; // Unified storage with v1 fallback
+const shared = @import("../../services/shared/mod.zig");
 const fs = shared.utils.fs;
 
 pub const DatabaseHandle = struct {
@@ -14,7 +15,7 @@ pub const VectorView = database.VectorView;
 pub const Stats = database.Stats;
 pub const DatabaseConfig = database.DatabaseConfig;
 pub const BatchItem = database.Database.BatchItem;
-pub const semantic_store = database.semantic_store;
+pub const semantic_store = core_db.semantic_store;
 
 pub fn createDatabase(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
     return .{ .db = try database.Database.init(allocator, name) };
@@ -23,7 +24,7 @@ pub fn createDatabase(allocator: std.mem.Allocator, name: []const u8) !DatabaseH
 pub fn createDatabaseWithConfig(
     allocator: std.mem.Allocator,
     name: []const u8,
-    config: database.DatabaseConfig,
+    config: DatabaseConfig,
 ) !DatabaseHandle {
     return .{ .db = try database.Database.initWithConfig(allocator, name, config) };
 }

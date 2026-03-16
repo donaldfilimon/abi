@@ -148,14 +148,14 @@ pub const ChaosContext = struct {
     pub fn init(allocator: std.mem.Allocator, seed: u64) Self {
         return .{
             .allocator = allocator,
-            .faults = .{},
+            .faults = .empty,
             .active = false,
             .rng = std.Random.DefaultPrng.init(seed),
             .stats = .{},
             .mutex = .{},
             .operation_count = 0,
             .event_callback = null,
-            .faults_per_config = .{},
+            .faults_per_config = .empty,
         };
     }
 
@@ -463,7 +463,7 @@ pub const NetworkPartitionSimulator = struct {
     pub fn init(allocator: std.mem.Allocator, chaos: *ChaosContext) Self {
         return .{
             .chaos = chaos,
-            .partitions = .{},
+            .partitions = .empty,
             .allocator = allocator,
             .mutex = .{},
         };
@@ -564,7 +564,7 @@ pub const MessageDelaySimulator = struct {
     pub fn init(allocator: std.mem.Allocator, chaos: *ChaosContext) Self {
         return .{
             .chaos = chaos,
-            .delayed = .{},
+            .delayed = .empty,
             .allocator = allocator,
             .mutex = .{},
             .next_id = 0,

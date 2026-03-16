@@ -3,8 +3,8 @@
 //! This module provides minimal exports for API compatibility.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../shared/mod.zig").time;
+const sync = @import("../../shared/mod.zig").sync;
 
 /// Result of a benchmark run.
 pub const BenchmarkResult = struct {

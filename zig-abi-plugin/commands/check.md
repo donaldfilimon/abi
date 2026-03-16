@@ -32,11 +32,10 @@ Search for import rule violations:
 Check for cross-module import violations. Named modules registered in `build.zig` must not be imported via relative paths from other modules — a Zig file can only belong to ONE module.
 
 Search for these patterns:
-- Grep `src/features/` for `@import("` containing `wdbx/wdbx.zig` — should be `@import("wdbx")`
 - Grep `src/` broadly for relative imports to any named module root:
-  - `../../wdbx/wdbx.zig` → `@import("wdbx")`
   - Any `../` chain ending in a build.zig-registered module root
-- Named modules in build.zig: `wdbx` (root: `src/wdbx/wdbx.zig`), `build_options`, `abi` (root: `src/abi.zig`)
+- Grep for `@import("shared_services")` or `@import("core")` — these named modules no longer exist
+- Named modules in build.zig: `abi` (root: `src/root.zig`), `build_options`, `foundation` (root: `src/services/shared/mod.zig`), `cli` (root: `tools/cli/mod.zig`)
 
 ### `registry`
 Check if CLI registry is current. Read `tools/cli/generated/` and compare against command files in `tools/cli/commands/`.

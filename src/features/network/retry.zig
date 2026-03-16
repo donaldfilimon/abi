@@ -4,7 +4,7 @@
 //! exponential backoff, jitter, and retry condition filtering.
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../services/shared/mod.zig").time;
 
 /// Comprehensive error set for retry operations
 pub const RetryableError = error{

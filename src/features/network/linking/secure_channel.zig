@@ -4,9 +4,9 @@
 //! Supports multiple encryption backends and protocols.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const shared_utils = @import("shared_services").utils;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const shared_utils = @import("../../../services/shared/mod.zig").utils;
 
 /// Encryption type for the channel.
 pub const EncryptionType = enum {

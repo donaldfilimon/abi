@@ -30,9 +30,9 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const retry = @import("shared_services").utils.retry;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const retry = @import("../../../services/shared/mod.zig").utils.retry;
 const agents = @import("agents");
 const build_options = @import("build_options");
 

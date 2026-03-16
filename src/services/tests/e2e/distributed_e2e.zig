@@ -64,7 +64,7 @@ const MockCluster = struct {
 
     pub fn init(allocator: std.mem.Allocator) MockCluster {
         return .{
-            .nodes = .{},
+            .nodes = .empty,
             .allocator = allocator,
             .leader_index = null,
         };

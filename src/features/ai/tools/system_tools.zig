@@ -9,7 +9,7 @@
 const std = @import("std");
 const json = std.json;
 const tool = @import("tool.zig");
-const os = @import("shared_services").os;
+const os = @import("../../../services/shared/mod.zig").os;
 
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
@@ -218,7 +218,7 @@ fn executeCiWatcher(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
 
     std.log.info("[CI Watcher] Spawning autonomous CI observer...", .{});
 
-    const os_mod = @import("shared_services").os;
+    const os_mod = @import("../../../services/shared/mod.zig").os;
     // Background watcher: sleep 2, run build, if fail append to lessons.md
     const watcher_script =
         \\nohup sh -c '

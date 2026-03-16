@@ -10,8 +10,8 @@
 //! - Dynamic rebalancing with minimal data movement
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const parent = @import("./mod.zig");
 const ShardKey = parent.ShardKey;
 const ShardId = parent.ShardId;

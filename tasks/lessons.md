@@ -3,7 +3,7 @@
 ## Zig 0.16 API Changes
 - `GeneralPurposeAllocator` → `DebugAllocator`. No `std.time.timestamp()` → use `unixSeconds()`. No `File.writeAll` → use `writeStreamingAll(io, data)`. No `makeDirAbsolute*` → use `createDirPath(.cwd(), io, path)`. No `usingnamespace` → pass parent context as parameters to submodule init functions.
 - `LazyPath`: use `.cwd_relative`/`.src_path`, not `.path`. `addTest`/`addExecutable`: use `root_module`, not `root_source_file`. ZON parsing: use arena-backed `fromSliceAlloc`, deinit arena at scope end.
-- **dev.2905+**: Slash-path `@import("dir/subdir")` and `@import("../sibling")` banned inside build-system modules. Must wire sub-modules via `addImport()` in build.zig and use named imports.
+- **dev.2905+**: All `@import("path")` must have explicit `.zig` extensions. Single-module file ownership enforced — every `.zig` file belongs to exactly one named module. Cross-module relative-path imports are illegal. Solution: consolidate all `src/` into single `abi` module. The old `core` named module was removed entirely (files live in `src/core/` as part of `abi`). The old `shared_services` module was replaced by `foundation` (see below).
 - `valueIterator()`/`keyIterator()` not `.values()`. `@enumFromInt(x)` not `intToEnum`. Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
 
 ## Darwin 25+ Linker Workaround
@@ -22,6 +22,12 @@
 ## Build System Patterns
 - Files in `build/test_discovery.zig` must compile standalone with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this — inline small deps or use build-system modules.
 - Use `std.fmt.comptimePrint` to parameterize build steps that differ only by a flag string. One shared module graph for manifest-driven tests, not per-entry modules.
+
+## `foundation` Named Module Pattern
+- **What**: `src/services/shared/mod.zig` is the root of the `foundation` named module, created by `build/modules.zig:createFoundationModule`. It provides shared service types (allocators, logging, config) to all compilation targets.
+- **Why**: Zig 0.16 dev.2905+ enforces single-module file ownership — a `.zig` file can only belong to one named module. Files in `src/services/shared/` cannot be imported via relative paths from the `abi` module because they belong to `foundation`. Instead, the `abi` module imports them via `@import("foundation")`.
+- **Wiring**: `wireAbiImports(b, module, build_opts, target, optimize)` adds both `build_options` and `foundation` as named imports to any module that needs them. Every compilation target (main `abi`, CLI, tests, database, WASM, mobile) calls this helper to get both imports wired consistently.
+- **Rule**: Never add files under `src/services/shared/` to another module's file list. They belong exclusively to `foundation`. Other modules access them through the named import.
 
 ## Bulk Operations Safety
 - Never bulk find-replace without excluding string literal interiors. After any bulk text operation, run `zig fmt --check` immediately. Corruption cascades across multiple waves — don't commit until parse errors reach 0.

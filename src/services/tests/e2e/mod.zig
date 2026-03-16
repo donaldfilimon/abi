@@ -392,7 +392,7 @@ pub const E2EMetrics = struct {
 /// Timer for measuring workflow durations.
 pub const WorkflowTimer = struct {
     start_time: ?time.Timer = null,
-    checkpoints: std.ArrayListUnmanaged(Checkpoint) = .{},
+    checkpoints: std.ArrayListUnmanaged(Checkpoint) = .empty,
     allocator: std.mem.Allocator,
 
     pub const Checkpoint = struct {

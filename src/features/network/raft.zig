@@ -15,8 +15,8 @@
 //!   try node.tick(); // Process timeouts and state transitions
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 // Re-export persistence and snapshot types for backward compatibility
 const raft_persistence = @import("raft_persistence.zig");
@@ -259,7 +259,7 @@ pub const RaftNode = struct {
             .config = config,
             .current_term = 0,
             .voted_for = null,
-            .log = .{},
+            .log = .empty,
             .commit_index = 0,
             .last_applied = 0,
             .state = .follower,

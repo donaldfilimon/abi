@@ -95,7 +95,7 @@ const builtin = @import("builtin");
 const numa = @import("numa.zig");
 const concurrency = @import("../concurrency/mod.zig");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 // Zig 0.16 compatibility: Simple Condition (busy-wait implementation)

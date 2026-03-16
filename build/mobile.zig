@@ -21,8 +21,6 @@ pub fn addMobileBuild(
         .abi = .android,
     });
     const android_build_opts = modules.createBuildOptionsModule(b, options);
-    const android_shared_services = modules.createSharedServicesModule(b, android_build_opts, android_target, optimize);
-    const android_core_module = modules.createCoreModule(b, android_target, optimize, android_build_opts);
     const abi_android = b.addLibrary(.{
         .name = "abi-android",
         .root_module = b.createModule(.{
@@ -32,7 +30,7 @@ pub fn addMobileBuild(
         }),
         .linkage = .static,
     });
-    modules.wireAbiImports(abi_android.root_module, android_build_opts, android_shared_services, android_core_module);
+    modules.wireAbiImports(abi_android.root_module, android_build_opts);
     mobile_step.dependOn(&b.addInstallArtifact(abi_android, .{
         .dest_dir = .{ .override = .{ .custom = "mobile/android" } },
     }).step);
@@ -43,8 +41,6 @@ pub fn addMobileBuild(
         .os_tag = .ios,
     });
     const ios_build_opts = modules.createBuildOptionsModule(b, options);
-    const ios_shared_services = modules.createSharedServicesModule(b, ios_build_opts, ios_target, optimize);
-    const ios_core_module = modules.createCoreModule(b, ios_target, optimize, ios_build_opts);
     const abi_ios = b.addLibrary(.{
         .name = "abi-ios",
         .root_module = b.createModule(.{
@@ -54,7 +50,7 @@ pub fn addMobileBuild(
         }),
         .linkage = .static,
     });
-    modules.wireAbiImports(abi_ios.root_module, ios_build_opts, ios_shared_services, ios_core_module);
+    modules.wireAbiImports(abi_ios.root_module, ios_build_opts);
     mobile_step.dependOn(&b.addInstallArtifact(abi_ios, .{
         .dest_dir = .{ .override = .{ .custom = "mobile/ios" } },
     }).step);

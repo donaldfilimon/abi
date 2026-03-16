@@ -13,8 +13,8 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/platform.zig");
-const sync = @import("shared_services").sync;
-const time = @import("shared_services").time;
+const sync = @import("../../services/shared/mod.zig").sync;
+const time = @import("../../services/shared/mod.zig").time;
 
 pub const CacheConfig = core_config.CacheConfig;
 pub const EvictionPolicy = core_config.EvictionPolicy;

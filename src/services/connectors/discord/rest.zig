@@ -11,8 +11,8 @@
 const std = @import("std");
 const types = @import("types.zig");
 const shared = @import("../shared.zig");
-const async_http = @import("shared_services").utils.async_http;
-const json_utils = @import("shared_services").utils.json;
+const async_http = @import("../../shared/mod.zig").utils.async_http;
+const json_utils = @import("../../shared/mod.zig").utils.json;
 const parsers = @import("rest_parsers.zig");
 const encoders = @import("rest_encoders.zig");
 

@@ -14,7 +14,7 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 const collector_mod = @import("collector.zig");
 const feedback_mod = @import("mod.zig");
 const self_learning_mod = @import("self_learning");

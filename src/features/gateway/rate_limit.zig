@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-const shared_rl = @import("shared_services").resilience.rate_limiter;
+const shared_rl = @import("../../services/shared/mod.zig").resilience.rate_limiter;
 
 pub const RateLimitConfig = types.RateLimitConfig;
 pub const RateLimitAlgorithm = types.RateLimitAlgorithm;

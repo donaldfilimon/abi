@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const unified = @import("unified.zig");
-const simd = @import("shared_services").simd;
+const simd = @import("../../../services/shared/mod.zig").simd;
 
 pub const VectorDbError = error{
     InvalidDimension,

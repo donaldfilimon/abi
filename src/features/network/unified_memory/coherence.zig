@@ -5,9 +5,9 @@
 //! cluster sizes and topologies.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const shared_utils = @import("shared_services").utils;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const shared_utils = @import("../../../services/shared/mod.zig").utils;
 const memory_region = @import("memory_region.zig");
 
 const RegionId = memory_region.RegionId;

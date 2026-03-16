@@ -13,7 +13,7 @@ const std = @import("std");
 const index = @import("persona_index.zig");
 const learning = @import("learning.zig");
 const seed = @import("seed_data.zig");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 
 // Re-export core types from persona_index
 pub const PersonaEmbeddingIndex = index.PersonaEmbeddingIndex;

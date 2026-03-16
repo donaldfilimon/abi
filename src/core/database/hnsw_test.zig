@@ -2,7 +2,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const hnsw = @import("hnsw.zig");
 const index_mod = @import("index.zig");
-const simd = @import("shared_services").simd;
+const simd = @import("../../services/shared/mod.zig").simd;
 
 const HnswIndex = hnsw.HnswIndex;
 const SearchState = hnsw.SearchState;

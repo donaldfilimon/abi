@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const simd = @import("shared_services").simd;
+const simd = @import("../../services/shared/mod.zig").simd;
 const index_mod = @import("index.zig");
 const gpu_accel = @import("gpu_accel.zig");
 

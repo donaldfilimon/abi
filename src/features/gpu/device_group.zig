@@ -8,7 +8,7 @@ const build_options = @import("build_options");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../services/shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Device identifier.
@@ -107,8 +107,8 @@ pub const DeviceGroup = struct {
         var group = DeviceGroup{
             .allocator = allocator,
             .config = config,
-            .devices = .{},
-            .active_devices = .{},
+            .devices = .empty,
+            .active_devices = .empty,
             .round_robin_counter = std.atomic.Value(u64).init(0),
             .mutex = .{},
         };

@@ -6,8 +6,8 @@
 
 const std = @import("std");
 const context_engine = @import("mod.zig");
-const sync = @import("shared_services").sync;
-const abi_time = @import("shared_services").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const abi_time = @import("../../../services/shared/mod.zig").time;
 
 /// Asynchronous Text-To-Speech engine.
 /// Offloads blocking TTS playback to a detached thread queue.

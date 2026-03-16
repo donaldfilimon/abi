@@ -1,7 +1,7 @@
 //! Profiles Stub — disabled at compile time.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("../types.zig");
 const registry = @import("../registry.zig");
 
 pub const BehaviorProfile = enum { collaborative, direct, governance, iterative };
@@ -42,3 +42,41 @@ pub fn ProfileSystem(comptime Config: type) type {
         }
     };
 }
+
+pub const MultiPersonaSystem = struct {
+    pub const MetricsManager = struct {
+        pub const LatencyStats = struct {
+            p50: f64 = 0,
+            p99: f64 = 0,
+        };
+
+        pub const PersonaStats = struct {
+            total_requests: u64 = 0,
+            success_rate: f32 = 1.0,
+            error_count: u64 = 0,
+            latency: ?LatencyStats = null,
+        };
+
+        pub fn getStats(_: *MetricsManager, _: LegacyPersonaType) ?PersonaStats {
+            return null;
+        }
+    };
+
+    pub const MultiPersonaContext = struct {
+        pub fn getPersona(_: *MultiPersonaContext, _: LegacyPersonaType) ?types.PersonaInterface {
+            return null;
+        }
+    };
+
+    allocator: std.mem.Allocator,
+    ctx: MultiPersonaContext = .{},
+    _metrics: ?*MetricsManager = null,
+
+    pub fn process(_: *MultiPersonaSystem, _: types.PersonaRequest) !types.PersonaResponse {
+        return error.AiDisabled;
+    }
+
+    pub fn getMetrics(self: *MultiPersonaSystem) ?*MetricsManager {
+        return self._metrics;
+    }
+};

@@ -49,8 +49,6 @@ pub fn build(b: *std.Build) void {
     // ── Core modules ────────────────────────────────────────────────────
     const build_opts = modules.createBuildOptionsModule(b, options);
 
-    const shared_services_module = modules.createSharedServicesModule(b, build_opts, target, optimize);
-
     const util_module = b.addModule("util", .{
         .root_source_file = b.path("tools/scripts/util.zig"),
         .target = target,
@@ -62,7 +60,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(abi_module, build_opts, shared_services_module);
+    modules.wireAbiImports(abi_module, build_opts);
 
     // ── CLI executable ──────────────────────────────────────────────────
     const exe = b.addExecutable(.{
@@ -115,7 +113,6 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     cli_root_mod.addImport("abi", abi_module);
-    cli_root_mod.addImport("shared_services", shared_services_module);
 
     const cli_test_mod = b.createModule(.{
         .root_source_file = b.path("build/cli_tui_tests_root.zig"),
@@ -170,7 +167,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Lint / format ───────────────────────────────────────────────────
-    const fmt_paths = &.{ "build.zig", "build", "src", "tools", "examples" };
+    const fmt_paths = &.{ "build.zig", "build", "src", "tools", "examples", "tests", "bindings", "lang" };
     const lint_fmt = b.addFmt(.{ .paths = fmt_paths, .check = true });
     b.step("lint", "Check code formatting").dependOn(&lint_fmt.step);
     const fix_fmt = b.addFmt(.{ .paths = fmt_paths, .check = false });
@@ -198,15 +195,14 @@ pub fn build(b: *std.Build) void {
         typecheck_step = b.step("typecheck", "Compile tests without running");
         typecheck_step.?.dependOn(&tests.step);
 
-        if (targets.pathExists(b, "src/core/database/wdbx.zig")) {
+        if (targets.pathExists(b, "src/database_wdbx_tests_root.zig")) {
             const database_neural_mod = b.createModule(.{
-                .root_source_file = b.path("src/core/database/wdbx.zig"),
+                .root_source_file = b.path("src/database_wdbx_tests_root.zig"),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = true,
             });
             database_neural_mod.addImport("build_options", build_opts);
-            database_neural_mod.addImport("shared_services", shared_services_module);
             const neural_wdbx_tests = b.addTest(.{
                 .root_module = database_neural_mod,
             });
@@ -216,15 +212,14 @@ pub fn build(b: *std.Build) void {
             typecheck_step.?.dependOn(&neural_wdbx_tests.step);
         }
 
-        if (targets.pathExists(b, "src/core/database_fast_tests_root.zig")) {
+        if (targets.pathExists(b, "src/database_fast_tests_root.zig")) {
             const database_fast_tests_mod = b.createModule(.{
-                .root_source_file = b.path("src/core/database_fast_tests_root.zig"),
+                .root_source_file = b.path("src/database_fast_tests_root.zig"),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = true,
             });
             database_fast_tests_mod.addImport("build_options", build_opts);
-            database_fast_tests_mod.addImport("shared_services", shared_services_module);
 
             const database_fast_tests = b.addTest(.{
                 .root_module = database_fast_tests_mod,
@@ -449,6 +444,12 @@ pub fn build(b: *std.Build) void {
 
     // ── Documentation ───────────────────────────────────────────────────
     if (targets.pathExists(b, "tools/gendocs/main.zig")) {
+        const module_catalog_mod = b.createModule(.{
+            .root_source_file = b.path("build/module_catalog.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
         const gendocs_module = b.createModule(.{
             .root_source_file = b.path("tools/gendocs/main.zig"),
             .target = target,
@@ -457,6 +458,7 @@ pub fn build(b: *std.Build) void {
         });
         gendocs_module.addImport("abi", abi_module);
         gendocs_module.addImport("cli_root", cli_root_mod);
+        gendocs_module.addImport("module_catalog", module_catalog_mod);
 
         if (targets.pathExists(b, "build/gendocs_tests_root.zig")) {
             const gendocs_source_cli_module = b.createModule(.{
@@ -553,8 +555,8 @@ pub fn build(b: *std.Build) void {
     _ = mobile.addMobileBuild(b, options, optimize);
 
     // ── C Library ────────────────────────────────────────────────────────
-    const c_bindings_src = "src/bindings/c/src/abi_c.zig";
-    const c_bindings_header = "src/bindings/c/include/abi.h";
+    const c_bindings_src = "bindings/c/src/abi_c.zig";
+    const c_bindings_header = "bindings/c/include/abi.h";
     if (targets.pathExists(b, c_bindings_src) and targets.pathExists(b, c_bindings_header)) {
         const lib = b.addLibrary(.{
             .name = "abi",
@@ -634,13 +636,12 @@ pub fn build(b: *std.Build) void {
             cross_opts.gpu_backends = &.{.stdgpu};
         }
         const cross_build_opts = modules.createBuildOptionsModule(b, cross_opts);
-        const cross_shared_services = modules.createSharedServicesModule(b, cross_build_opts, cross_target, optimize);
         const cross_abi_mod = b.createModule(.{
             .root_source_file = b.path("src/root.zig"),
             .target = cross_target,
             .optimize = optimize,
         });
-        modules.wireAbiImports(cross_abi_mod, cross_build_opts, cross_shared_services);
+        modules.wireAbiImports(cross_abi_mod, cross_build_opts);
         const cross_lib = b.addLibrary(.{
             .name = "cross-" ++ ct.name,
             .root_module = cross_abi_mod,
@@ -658,7 +659,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(v3_root_mod, build_opts, shared_services_module);
+    modules.wireAbiImports(v3_root_mod, build_opts);
 
     // V3 Static library
     const v3_lib = b.addLibrary(.{
@@ -694,7 +695,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    modules.wireAbiImports(v3_test_mod, build_opts, shared_services_module);
+    modules.wireAbiImports(v3_test_mod, build_opts);
 
     const v3_tests = b.addTest(.{
         .root_module = v3_test_mod,

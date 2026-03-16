@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
-const stub_common = @import("shared_services").stub_common;
+const stub_common = @import("../../services/shared/mod.zig").stub_common;
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 

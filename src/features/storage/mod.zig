@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/platform.zig");
-const sync = @import("shared_services").sync;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 pub const StorageConfig = core_config.StorageConfig;
 pub const StorageBackend = core_config.StorageBackend;

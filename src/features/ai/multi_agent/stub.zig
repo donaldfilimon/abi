@@ -6,8 +6,8 @@
 //! zero/empty default.
 
 const std = @import("std");
-const retry = @import("shared_services").utils.retry;
-const sync = @import("shared_services").sync;
+const retry = @import("../../../services/shared/mod.zig").utils.retry;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const agents = @import("../agents/stub.zig");
 const workflow_mod = @import("workflow.zig");
 const blackboard_mod = @import("blackboard.zig");

@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const messaging = @import("messaging.zig");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 
 // ============================================================================
 // Types
