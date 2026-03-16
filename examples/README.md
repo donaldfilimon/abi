@@ -78,6 +78,13 @@ All examples are compiled as part of `zig build verify-all`.
 | `observability.zig` | Metrics, tracing, and structured logging | `feat-observability` |
 | `analytics.zig` | Event tracking and analytics pipelines | `feat-analytics` |
 
+### Bare Metal / Embedded
+
+| Example | Description | Feature Flags |
+|---------|-------------|---------------|
+| `bare_metal_riscv32.zig` | RISC-V 32 deployment: fixed-buffer allocator, tensor/matrix/SIMD ops | (always on) |
+| `bare_metal_thumb.zig` | ARM Thumb deployment: stack-only, zero-heap vector operations | (always on) |
+
 ### Integration & Configuration
 
 | Example | Description | Feature Flags |

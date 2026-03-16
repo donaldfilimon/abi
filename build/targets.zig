@@ -42,6 +42,8 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-gpu-training", .step_name = "run-gpu-training", .description = "Run GPU + training integration example", .source_path = "examples/gpu_training.zig" },
     .{ .name = "example-distributed-db", .step_name = "run-distributed-db", .description = "Run distributed database integration example", .source_path = "examples/distributed_db.zig" },
     .{ .name = "example-web-observability", .step_name = "run-web-observability", .description = "Run web + observability integration example", .source_path = "examples/web_observability.zig" },
+    .{ .name = "example-bare-metal-riscv32", .step_name = "run-bare-metal-riscv32", .description = "Run RISC-V 32 bare metal example", .source_path = "examples/bare_metal_riscv32.zig" },
+    .{ .name = "example-bare-metal-thumb", .step_name = "run-bare-metal-thumb", .description = "Run ARM Thumb bare metal example", .source_path = "examples/bare_metal_thumb.zig" },
     .{ .name = "benchmarks", .step_name = "benchmarks", .description = "Run comprehensive benchmark suite", .source_path = "benchmarks/main.zig" },
 };
 
