@@ -71,49 +71,49 @@ pub fn initMinimal(comptime Framework: type, allocator: std.mem.Allocator) Frame
     return init(Framework, allocator, config_module.Config.minimal());
 }
 
-fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
-    if (cfg.gpu) |gpu_cfg| {
-        fw.gpu = try gpu_mod.Context.init(allocator, gpu_cfg);
-        if (comptime build_options.feat_gpu) {
-            try fw.registry.registerComptime(.gpu);
+/// Comptime descriptor for a standard feature: config field → framework field → build flag.
+/// Used by initStandardFeatures to eliminate per-feature boilerplate.
+const FeatureSpec = struct {
+    cfg_field: []const u8,
+    fw_field: []const u8,
+    feat_flag: []const u8,
+    registry_id: config_module.Feature,
+};
+
+/// Standard features that follow the pattern:
+///   if (cfg.X) |c| { fw.X = try X_mod.Context.init(alloc, c); register(.X); }
+const standard_features = [_]FeatureSpec{
+    .{ .cfg_field = "gpu", .fw_field = "gpu", .feat_flag = "feat_gpu", .registry_id = .gpu },
+    .{ .cfg_field = "ai", .fw_field = "ai", .feat_flag = "feat_ai", .registry_id = .ai },
+    .{ .cfg_field = "database", .fw_field = "database", .feat_flag = "feat_database", .registry_id = .database },
+    .{ .cfg_field = "network", .fw_field = "network", .feat_flag = "feat_network", .registry_id = .network },
+    .{ .cfg_field = "observability", .fw_field = "observability", .feat_flag = "feat_profiling", .registry_id = .observability },
+    .{ .cfg_field = "web", .fw_field = "web", .feat_flag = "feat_web", .registry_id = .web },
+    .{ .cfg_field = "auth", .fw_field = "auth", .feat_flag = "feat_auth", .registry_id = .auth },
+    .{ .cfg_field = "messaging", .fw_field = "messaging", .feat_flag = "feat_messaging", .registry_id = .messaging },
+    .{ .cfg_field = "cache", .fw_field = "cache", .feat_flag = "feat_cache", .registry_id = .cache },
+    .{ .cfg_field = "storage", .fw_field = "storage", .feat_flag = "feat_storage", .registry_id = .storage },
+    .{ .cfg_field = "search", .fw_field = "search", .feat_flag = "feat_search", .registry_id = .search },
+    .{ .cfg_field = "gateway", .fw_field = "gateway", .feat_flag = "feat_gateway", .registry_id = .gateway },
+    .{ .cfg_field = "pages", .fw_field = "pages", .feat_flag = "feat_pages", .registry_id = .pages },
+    .{ .cfg_field = "benchmarks", .fw_field = "benchmarks", .feat_flag = "feat_benchmarks", .registry_id = .benchmarks },
+    .{ .cfg_field = "mobile", .fw_field = "mobile", .feat_flag = "feat_mobile", .registry_id = .mobile },
+};
+
+/// Initialize all standard features using the comptime feature spec table.
+fn initStandardFeatures(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
+    inline for (standard_features) |spec| {
+        if (@field(cfg, spec.cfg_field)) |feature_cfg| {
+            @field(fw, spec.fw_field) = try @field(fi, spec.fw_field ++ "_mod").Context.init(allocator, feature_cfg);
+            if (comptime @field(build_options, spec.feat_flag)) {
+                try fw.registry.registerComptime(spec.registry_id);
+            }
         }
     }
+}
 
-    if (cfg.ai) |ai_cfg| {
-        fw.ai = try ai_mod.Context.init(allocator, ai_cfg);
-        if (comptime build_options.feat_ai) {
-            try fw.registry.registerComptime(.ai);
-        }
-    }
-
-    if (cfg.database) |db_cfg| {
-        fw.database = try database_mod.Context.init(allocator, db_cfg);
-        if (comptime build_options.feat_database) {
-            try fw.registry.registerComptime(.database);
-        }
-    }
-
-    if (cfg.network) |net_cfg| {
-        fw.network = try network_mod.Context.init(allocator, net_cfg);
-        if (comptime build_options.feat_network) {
-            try fw.registry.registerComptime(.network);
-        }
-    }
-
-    if (cfg.observability) |obs_cfg| {
-        fw.observability = try observability_mod.Context.init(allocator, obs_cfg);
-        if (comptime build_options.feat_profiling) {
-            try fw.registry.registerComptime(.observability);
-        }
-    }
-
-    if (cfg.web) |web_cfg| {
-        fw.web = try web_mod.Context.init(allocator, web_cfg);
-        if (comptime build_options.feat_web) {
-            try fw.registry.registerComptime(.web);
-        }
-    }
-
+/// Initialize features requiring config conversion (cloud, analytics).
+fn initConvertedFeatures(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
     if (cfg.cloud) |core_cloud| {
         const runtime_cloud = cloud_mod.CloudConfig{
             .memory_mb = core_cloud.memory_mb,
@@ -139,6 +139,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
             try fw.registry.registerComptime(.analytics);
         }
     }
+}
 
     if (cfg.auth) |auth_cfg| {
         fw.auth = try auth_mod.Context.init(allocator, auth_cfg);

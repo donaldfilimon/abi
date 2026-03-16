@@ -129,7 +129,9 @@ pub const Client = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.shutdown() catch {};
+        self.shutdown() catch |err| {
+            std.log.debug("LSP shutdown failed (non-fatal): {t}", .{err});
+        };
         if (self.child.id != null) {
             self.child.kill(self.io);
         }
@@ -401,7 +403,9 @@ pub const Client = struct {
     fn shutdown(self: *Self) !void {
         const resp = self.requestRaw("shutdown", null) catch return;
         defer self.allocator.free(resp.json);
-        self.notifyRaw("exit", null) catch {};
+        self.notifyRaw("exit", null) catch |err| {
+            std.log.debug("LSP exit notification failed: {t}", .{err});
+        };
     }
 };
 

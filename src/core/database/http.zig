@@ -261,84 +261,97 @@ fn handleVectors(
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
-    const method = request.head.method;
+    return switch (request.head.method) {
+        .GET => handleVectorsGet(allocator, handle, request, query),
+        .POST, .PUT => handleVectorsUpsert(allocator, handle, request, query),
+        .DELETE => handleVectorsDelete(handle, request, query),
+        else => respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed),
+    };
+}
 
-    if (method == .GET) {
-        if (getQueryParam(query, "id")) |id_text| {
-            const id = std.fmt.parseInt(u64, id_text, 10) catch {
-                return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
-            };
-            const view = semantic_store.getVector(handle, id) orelse
-                return respondJson(request, "{\"error\":\"not found\"}", .not_found);
-            const body = try buildVectorJson(allocator, view);
-            defer allocator.free(body);
-            return respondJson(request, body, .ok);
-        }
-
-        const limit = parseQueryInt(query, "limit", usize, 25);
-        const views = try semantic_store.listVectors(handle, allocator, limit);
-        defer allocator.free(views);
-        const body = try buildVectorListJson(allocator, views);
+fn handleVectorsGet(
+    allocator: std.mem.Allocator,
+    handle: *semantic_store.DatabaseHandle,
+    request: *std.http.Server.Request,
+    query: []const u8,
+) !void {
+    if (getQueryParam(query, "id")) |id_text| {
+        const id = std.fmt.parseInt(u64, id_text, 10) catch {
+            return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
+        };
+        const view = semantic_store.getVector(handle, id) orelse
+            return respondJson(request, "{\"error\":\"not found\"}", .not_found);
+        const body = try buildVectorJson(allocator, view);
         defer allocator.free(body);
         return respondJson(request, body, .ok);
     }
 
-    if (method == .POST or method == .PUT) {
-        const id_text = getQueryParam(query, "id") orelse
-            return respondJson(request, "{\"error\":\"missing id\"}", .bad_request);
-        const id = std.fmt.parseInt(u64, id_text, 10) catch {
-            return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
-        };
-        const body = readRequestBody(allocator, request) catch |err| switch (err) {
-            HttpError.RequestTooLarge => {
-                return respondJson(
-                    request,
-                    "{\"error\":\"payload too large\"}",
-                    .payload_too_large,
-                );
-            },
-            HttpError.ReadFailed => {
-                return respondJson(request, "{\"error\":\"invalid request body\"}", .bad_request);
+    const limit = parseQueryInt(query, "limit", usize, 25);
+    const views = try semantic_store.listVectors(handle, allocator, limit);
+    defer allocator.free(views);
+    const body = try buildVectorListJson(allocator, views);
+    defer allocator.free(body);
+    return respondJson(request, body, .ok);
+}
+
+fn handleVectorsUpsert(
+    allocator: std.mem.Allocator,
+    handle: *semantic_store.DatabaseHandle,
+    request: *std.http.Server.Request,
+    query: []const u8,
+) !void {
+    const id_text = getQueryParam(query, "id") orelse
+        return respondJson(request, "{\"error\":\"missing id\"}", .bad_request);
+    const id = std.fmt.parseInt(u64, id_text, 10) catch {
+        return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
+    };
+    const body = readRequestBody(allocator, request) catch |err| switch (err) {
+        HttpError.RequestTooLarge => {
+            return respondJson(request, "{\"error\":\"payload too large\"}", .payload_too_large);
+        },
+        HttpError.ReadFailed => {
+            return respondJson(request, "{\"error\":\"invalid request body\"}", .bad_request);
+        },
+        else => return err,
+    };
+    defer allocator.free(body);
+    const vector = db_helpers.parseVector(allocator, body) catch {
+        return respondJson(request, "{\"error\":\"invalid vector\"}", .bad_request);
+    };
+    defer allocator.free(vector);
+
+    if (request.head.method == .POST) {
+        const meta = getQueryParam(query, "meta");
+        semantic_store.insertVector(handle, id, vector, meta) catch |err| switch (err) {
+            error.DuplicateId => {
+                return respondJson(request, "{\"error\":\"duplicate id\"}", .conflict);
             },
             else => return err,
         };
-        defer allocator.free(body);
-        const vector = db_helpers.parseVector(allocator, body) catch {
-            return respondJson(request, "{\"error\":\"invalid vector\"}", .bad_request);
-        };
-        defer allocator.free(vector);
-
-        if (method == .POST) {
-            const meta = getQueryParam(query, "meta");
-            semantic_store.insertVector(handle, id, vector, meta) catch |err| switch (err) {
-                error.DuplicateId => {
-                    return respondJson(request, "{\"error\":\"duplicate id\"}", .conflict);
-                },
-                else => return err,
-            };
-            return respondJson(request, "{\"status\":\"inserted\"}", .created);
-        }
-
-        const updated = try semantic_store.updateVector(handle, id, vector);
-        if (!updated) {
-            return respondJson(request, "{\"error\":\"not found\"}", .not_found);
-        }
-        return respondJson(request, "{\"status\":\"updated\"}", .ok);
+        return respondJson(request, "{\"status\":\"inserted\"}", .created);
     }
 
-    if (method == .DELETE) {
-        const id_text = getQueryParam(query, "id") orelse
-            return respondJson(request, "{\"error\":\"missing id\"}", .bad_request);
-        const id = std.fmt.parseInt(u64, id_text, 10) catch {
-            return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
-        };
-        if (!semantic_store.deleteVector(handle, id)) {
-            return respondJson(request, "{\"error\":\"not found\"}", .not_found);
-        }
-        return respondJson(request, "{\"status\":\"deleted\"}", .ok);
+    const updated = try semantic_store.updateVector(handle, id, vector);
+    if (!updated) {
+        return respondJson(request, "{\"error\":\"not found\"}", .not_found);
     }
+    return respondJson(request, "{\"status\":\"updated\"}", .ok);
+}
 
-    return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+fn handleVectorsDelete(
+    handle: *semantic_store.DatabaseHandle,
+    request: *std.http.Server.Request,
+    query: []const u8,
+) !void {
+    const id_text = getQueryParam(query, "id") orelse
+        return respondJson(request, "{\"error\":\"missing id\"}", .bad_request);
+    const id = std.fmt.parseInt(u64, id_text, 10) catch {
+        return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
+    };
+    if (!semantic_store.deleteVector(handle, id)) {
+        return respondJson(request, "{\"error\":\"not found\"}", .not_found);
+    }
+    return respondJson(request, "{\"status\":\"deleted\"}", .ok);
 }
 
 fn handleSearch(

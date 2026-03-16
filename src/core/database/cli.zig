@@ -97,101 +97,91 @@ fn wantsHelp(args: []const [:0]const u8) bool {
     return args.len == 0;
 }
 
+/// Parsed CLI arguments shared by add/query commands.
+const CommonArgs = struct {
+    id: ?u64 = null,
+    vector_text: ?[]const u8 = null,
+    embed_text: ?[]const u8 = null,
+    meta: ?[]const u8 = null,
+    path: ?[]const u8 = null,
+    top_k: usize = 10,
+};
+
+/// Parse flags common to add and query commands.
+fn parseCommonArgs(args: []const [:0]const u8) CommonArgs {
+    var result = CommonArgs{};
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        i += 1;
+        const value = if (i < args.len) std.mem.sliceTo(args[i], 0) else continue;
+
+        if (std.mem.eql(u8, arg, "--id")) {
+            result.id = std.fmt.parseInt(u64, value, 10) catch null;
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--vector")) {
+            result.vector_text = value;
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--embed")) {
+            result.embed_text = value;
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--meta")) {
+            result.meta = value;
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--db") or std.mem.eql(u8, arg, "--path")) {
+            result.path = value;
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--top-k")) {
+            result.top_k = std.fmt.parseInt(usize, value, 10) catch result.top_k;
+            i += 1;
+        }
+    }
+    return result;
+}
+
+/// Resolve a vector from either --vector CSV or --embed text input.
+/// Returns null if neither is valid or if AI is disabled for embedding.
+fn resolveVector(allocator: std.mem.Allocator, parsed: CommonArgs) !?[]f32 {
+    const has_vector = parsed.vector_text != null;
+    const has_embed = parsed.embed_text != null;
+    if (has_vector == has_embed) {
+        std.debug.print("Specify exactly one of --vector or --embed\n", .{});
+        return null;
+    }
+
+    if (parsed.vector_text) |vector_input| {
+        return try db_helpers.parseVector(allocator, vector_input);
+    } else if (parsed.embed_text) |text| {
+        if (!build_options.feat_ai) {
+            std.debug.print("Embedding requires -Dfeat-ai=true\n", .{});
+            return null;
+        }
+        var model = try transformer.TransformerModel.init(allocator, .{});
+        defer model.deinit();
+        return try model.embed(allocator, text);
+    }
+    return null;
+}
+
 fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (wantsHelp(args)) {
         printHelp();
         return;
     }
-    var id: ?u64 = null;
-    var vector_text: ?[]const u8 = null;
-    var meta: ?[]const u8 = null;
-    var embed_text: ?[]const u8 = null;
-    var path: ?[]const u8 = null;
+    const parsed = parseCommonArgs(args);
 
-    var i: usize = 0;
-    while (i < args.len) {
-        const arg = std.mem.sliceTo(args[i], 0);
-        i += 1;
-
-        if (std.mem.eql(u8, arg, "--id")) {
-            if (i < args.len) {
-                id = std.fmt.parseInt(u64, std.mem.sliceTo(args[i], 0), 10) catch null;
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--vector")) {
-            if (i < args.len) {
-                vector_text = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--meta")) {
-            if (i < args.len) {
-                meta = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--embed")) {
-            if (i < args.len) {
-                embed_text = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--db")) {
-            if (i < args.len) {
-                path = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--path")) {
-            if (i < args.len) {
-                path = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-    }
-
-    const id_value = id orelse {
+    const id_value = parsed.id orelse {
         std.debug.print("Missing --id\n", .{});
         return;
     };
-    const has_vector = vector_text != null;
-    const has_embed = embed_text != null;
-    if (has_vector == has_embed) {
-        std.debug.print("Specify exactly one of --vector or --embed\n", .{});
-        return;
-    }
 
-    var vector: []f32 = &.{};
-    defer if (vector.len > 0) allocator.free(vector);
+    const vector = try resolveVector(allocator, parsed) orelse return;
+    defer allocator.free(vector);
 
-    if (vector_text) |vector_input| {
-        vector = try db_helpers.parseVector(allocator, vector_input);
-    } else if (embed_text) |text| {
-        if (!build_options.feat_ai) {
-            std.debug.print("Embedding requires -Dfeat-ai=true\n", .{});
-            return;
-        }
-        var model = try transformer.TransformerModel.init(allocator, .{});
-        defer model.deinit();
-        vector = try model.embed(allocator, text);
-    }
-
-    var ctx = try DbContext.init(allocator, path);
+    var ctx = try DbContext.init(allocator, parsed.path);
     defer ctx.deinit();
 
-    try semantic_store.insertVector(&ctx.handle, id_value, vector, meta);
+    try semantic_store.insertVector(&ctx.handle, id_value, vector, parsed.meta);
     try ctx.persist();
     std.debug.print("Inserted vector {d} (dim {d}).\n", .{ id_value, vector.len });
 }
@@ -201,86 +191,18 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         printHelp();
         return;
     }
-    var vector_text: ?[]const u8 = null;
-    var embed_text: ?[]const u8 = null;
-    var top_k: usize = 10;
-    var path: ?[]const u8 = null;
+    const parsed = parseCommonArgs(args);
 
-    var i: usize = 0;
-    while (i < args.len) {
-        const arg = std.mem.sliceTo(args[i], 0);
-        i += 1;
+    const query = try resolveVector(allocator, parsed) orelse return;
+    defer allocator.free(query);
 
-        if (std.mem.eql(u8, arg, "--vector")) {
-            if (i < args.len) {
-                vector_text = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--top-k")) {
-            if (i < args.len) {
-                top_k = std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10) catch top_k;
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--embed")) {
-            if (i < args.len) {
-                embed_text = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--db")) {
-            if (i < args.len) {
-                path = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--path")) {
-            if (i < args.len) {
-                path = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-    }
-
-    const has_vector = vector_text != null;
-    const has_embed = embed_text != null;
-    if (has_vector == has_embed) {
-        std.debug.print("Specify exactly one of --vector or --embed\n", .{});
-        return;
-    }
-
-    var query: []f32 = &.{};
-    defer if (query.len > 0) allocator.free(query);
-
-    if (vector_text) |vector_input| {
-        query = try db_helpers.parseVector(allocator, vector_input);
-    } else if (embed_text) |text| {
-        if (!build_options.feat_ai) {
-            std.debug.print("Embedding requires -Dfeat-ai=true\n", .{});
-            return;
-        }
-        var model = try transformer.TransformerModel.init(allocator, .{});
-        defer model.deinit();
-        query = try model.embed(allocator, text);
-    }
-
-    var ctx = try DbContext.init(allocator, path);
+    var ctx = try DbContext.init(allocator, parsed.path);
     defer ctx.deinit();
     if (ctx.path == null) {
         try seedDatabase(&ctx.handle);
     }
 
-    const results = try semantic_store.searchVectors(&ctx.handle, allocator, query, top_k);
+    const results = try semantic_store.searchVectors(&ctx.handle, allocator, query, parsed.top_k);
     defer allocator.free(results);
 
     if (results.len == 0) {

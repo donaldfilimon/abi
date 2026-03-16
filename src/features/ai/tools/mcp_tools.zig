@@ -39,7 +39,9 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
     if (pid > 0) {
         pid_mutex.lock();
         defer pid_mutex.unlock();
-        server_pids.put(ctx.allocator, pid, "mcp") catch {};
+        server_pids.put(ctx.allocator, pid, "mcp") catch |err| {
+            std.log.warn("Failed to track MCP server PID {d}: {t}", .{ pid, err });
+        };
     }
 
     const output = std.fmt.allocPrint(ctx.allocator, "MCP server started for {s} (PID: {d})", .{ target, pid }) catch
@@ -84,7 +86,9 @@ fn executeServeAcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
     if (pid > 0) {
         pid_mutex.lock();
         defer pid_mutex.unlock();
-        server_pids.put(ctx.allocator, pid, "acp") catch {};
+        server_pids.put(ctx.allocator, pid, "acp") catch |err| {
+            std.log.warn("Failed to track ACP server PID {d}: {t}", .{ pid, err });
+        };
     }
 
     const output = std.fmt.allocPrint(ctx.allocator, "ACP server started on port {d} (PID: {d})", .{ port, pid }) catch
