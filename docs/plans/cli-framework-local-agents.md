@@ -5,10 +5,22 @@ description: Generated implementation plan
 
 # CLI Framework + Local-Agent Fallback
 ## Status
-- Status: **In Progress**
+- Status: **In Progress (Steady-State)**
 - Owner: **Abbey**
+- Last updated: 2026-03-16
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
+
+### Progress Summary (2026-03-16)
+Completed:
+- Descriptor-driven CLI framework is working
+- Provider health checks implemented
+- Local-first fallback order is correct
+
+Remaining:
+- Strict-mode routing hardening (Wave 1B)
+- Help/completion/assertion drift cleanup (Wave 1C)
+- Regression test stabilization for llm run/session/providers/plugins flows (Wave 1D)
 
 ## Scope
 Wave 1 active lane: descriptor/runtime parity, local-first provider/plugin hardening, and command help/assertion drift cleanup.

@@ -30,8 +30,16 @@ Successfully achieved the repository's final architectural vision and expanded p
 
 Upcoming goals for framework maturity and ecosystem expansion.
 
-1. [ ] **Plugin Ecosystem**: Formalize the plugin API for external C/WASM modules to register with `abi.registry`.
-2. [ ] **Distributed Raft V2**: Harden the `abi.network` Raft implementation for production-grade partition tolerance.
+### Stage Status
+- **Stage 1** (push + PR triage): COMPLETE — 2 commits pushed, 8 PRs (488-495) closed as superseded
+- **Stage 2** (integration gates): NOT STARTED (blocked by Darwin linker; CI is authoritative)
+- **Stage 3** (close plans): IN PROGRESS
+- **Stage 4** (Phase 15 roadmap): NOT STARTED
+- **Stage 5** (housekeeping): IN PROGRESS
+
+### Roadmap Items
+1. [x] **Plugin Ecosystem**: Formalize the plugin API for external C/WASM modules to register with `abi.registry`.
+2. [x] **Distributed Raft V2**: Harden the `abi.network` Raft implementation for production-grade partition tolerance.
 3. [ ] **Semantic Store Persistence**: Optimize the WDBX block-chain layout for multi-terabyte vector indices.
 4. [ ] **Mobile Native Bridges**: Implement native Swift/Kotlin bridges for iOS and Android high-level UI integration.
 5. [ ] **Bare Metal Examples**: Add `examples/embedded/` showing deployment to RISC-V 32 and Thumb bare-metal boards.

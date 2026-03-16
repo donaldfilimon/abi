@@ -55,3 +55,7 @@
 - `@import("abi")` cannot be used within files that are part of the `abi` module. Use relative imports instead: `@import("../types.zig")`, `@import("../../database/mod.zig")`.
 - After adding new build flags, update `tools/cli/tests/build_options_stub.zig` to include them. The stub must match all `feat_*` fields in `build/options.zig`.
 - The format-check surface must cover all source directories: `build.zig build/ src/ tools/ tests/ bindings/ lang/`. Keep `AGENTS.md`, `CLAUDE.md`, and `tools/scripts/fmt_repo.sh` in sync.
+
+## Parallel Agent & PR Workflow
+- Parallel agent dispatch (worktree agents) for multi-stream doc/code fixes works well but creates stale PRs when a large restructuring commit lands afterward. Triage PRs immediately after pushing restructuring changes.
+- Code review by subagents catches import violations in new files that format checks miss. Always run both zig fmt and typecheck as complementary gates.
