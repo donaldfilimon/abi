@@ -1,5 +1,5 @@
 const std = @import("std");
-const database = @import("database/mod.zig");
+const database = @import("core/database/mod.zig");
 
 test {
     std.testing.refAllDecls(database);
