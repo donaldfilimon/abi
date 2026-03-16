@@ -44,3 +44,11 @@ Upcoming goals for framework maturity and ecosystem expansion.
 4. [ ] **Mobile Native Bridges**: Implement native Swift/Kotlin bridges for iOS and Android high-level UI integration.
 5. [ ] **Bare Metal Examples**: Add `examples/embedded/` showing deployment to RISC-V 32 and Thumb bare-metal boards.
 6. [x] **Import-Rule Guardrail Hardening**: Restored bare `build_options` named imports, normalized targeted AI shorthand imports to explicit relative `.zig` paths, and strengthened `check-imports` to distinguish named-module imports from file imports. Evidence: `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`, `./tools/scripts/run_build.sh check-imports --summary all`, `./tools/scripts/run_build.sh typecheck --summary all`.
+
+47. [ ] **Zig 0.16 Syntax Perfection**: Refactor codebase to achieve syntax perfection per Zig 0.16-dev requirements, including .zig extensions in imports, correct error handling, API updates, and feature module contract completion.
+    - Completed: Added .zig extensions to imports in:
+        src/core/database/distributed/cluster.zig
+        src/core/database/distributed/mod.zig
+        src/features/gpu/backends/tests/performance_refactor_test.zig
+        src/features/gpu/tests/performance_benchmark_test.zig
+    - Pending: Fix src/services/tests/ai_quantization_test.zig module path issues
