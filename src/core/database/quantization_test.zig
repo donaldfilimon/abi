@@ -32,7 +32,7 @@ test "scalar quantizer 8-bit basic" {
 
     // Encode and decode
     var encoded: [4]u8 = undefined;
-    const bytes_written = try sq.encode(&vectors[0], &encoded);
+    const bytes_written = try sq.encode(vectors[0], &encoded);
     try testing.expectEqual(@as(usize, 4), bytes_written);
 
     var decoded: [4]f32 = undefined;
@@ -62,7 +62,7 @@ test "scalar quantizer 4-bit compression" {
     try testing.expectEqual(@as(f32, 8.0), stats.compression_ratio);
 
     var encoded: [4]u8 = undefined;
-    _ = try sq.encode(&vectors[0], &encoded);
+    _ = try sq.encode(vectors[0], &encoded);
 
     var decoded: [8]f32 = undefined;
     try sq.decode(&encoded, &decoded);
@@ -101,7 +101,7 @@ test "product quantizer basic" {
 
     // Encode and decode
     var encoded: [2]u8 = undefined;
-    _ = try pq.encode(&vectors[0], &encoded);
+    _ = try pq.encode(vectors[0], &encoded);
 
     var decoded: [8]f32 = undefined;
     try pq.decode(&encoded, &decoded);
@@ -136,7 +136,7 @@ test "product quantizer distance table" {
     defer allocator.free(dist_table);
 
     var encoded: [2]u8 = undefined;
-    _ = try pq.encode(&vectors[0], &encoded);
+    _ = try pq.encode(vectors[0], &encoded);
 
     const dist = pq.asymmetricDistanceWithTable(dist_table, &encoded);
     try testing.expect(dist >= 0.0); // Distance should be non-negative

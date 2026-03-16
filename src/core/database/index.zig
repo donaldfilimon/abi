@@ -369,7 +369,7 @@ pub const HnswIndex = struct {
 
         var candidates = std.ArrayListUnmanaged(u32).empty;
         defer candidates.deinit(allocator);
-        var seen = std.AutoHashMapUnmanaged(u32, void){};
+        var seen = std.AutoHashMapUnmanaged(u32, void).empty;
         defer seen.deinit(allocator);
 
         try addCandidate(allocator, &candidates, &seen, entry);

@@ -136,7 +136,7 @@ pub const Database = struct {
 
     pub fn initWithConfig(allocator: std.mem.Allocator, name: []const u8, config: DatabaseConfig) !Database {
         var records = std.ArrayListUnmanaged(VectorRecord).empty;
-        var id_index = std.AutoHashMapUnmanaged(u64, usize){};
+        var id_index = std.AutoHashMapUnmanaged(u64, usize).empty;
         var cached_norms = std.ArrayListUnmanaged(f32).empty;
 
         if (config.initial_capacity > 0) {
@@ -487,7 +487,7 @@ pub const Database = struct {
             self.cached_norms.shrinkAndFree(self.allocator, self.cached_norms.items.len);
         }
 
-        var compact_index = std.AutoHashMapUnmanaged(u64, usize){};
+        var compact_index = std.AutoHashMapUnmanaged(u64, usize).empty;
         if (compact_index.ensureTotalCapacity(self.allocator, @intCast(self.records.items.len))) {
             for (self.records.items, 0..) |record, idx| {
                 compact_index.putAssumeCapacity(record.id, idx);
@@ -673,7 +673,7 @@ pub const Database = struct {
         try records.ensureTotalCapacity(allocator, parsed.value.len);
 
         // Build O(1) lookup index during load
-        var id_index = std.AutoHashMapUnmanaged(u64, usize){};
+        var id_index = std.AutoHashMapUnmanaged(u64, usize).empty;
         try id_index.ensureTotalCapacity(allocator, @intCast(parsed.value.len));
 
         // Build norm cache during load

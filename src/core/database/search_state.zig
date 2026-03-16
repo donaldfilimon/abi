@@ -22,10 +22,10 @@ pub const SearchState = struct {
 
     pub fn init() SearchState {
         return .{
-            .candidates = .{},
-            .visited = .{},
-            .queue = .{},
-            .results_buffer = .{},
+            .candidates = .empty,
+            .visited = .empty,
+            .queue = .empty,
+            .results_buffer = .empty,
         };
     }
 

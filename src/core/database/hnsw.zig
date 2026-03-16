@@ -293,10 +293,10 @@ pub const HnswIndex = struct {
 
         // Build candidate list using ef_construction expansion
         // (temporaries use arena allocator — bulk freed by caller)
-        var candidates = std.AutoHashMapUnmanaged(u32, f32){};
+        var candidates = std.AutoHashMapUnmanaged(u32, f32).empty;
         defer candidates.deinit(temp_allocator);
 
-        var visited = std.AutoHashMapUnmanaged(u32, void){};
+        var visited = std.AutoHashMapUnmanaged(u32, void).empty;
         defer visited.deinit(temp_allocator);
 
         // Start with entry point (use cached distance)
@@ -354,7 +354,7 @@ pub const HnswIndex = struct {
                 }
             }
 
-            var neighbor_links = std.AutoHashMapUnmanaged(u32, f32){};
+            var neighbor_links = std.AutoHashMapUnmanaged(u32, f32).empty;
             defer neighbor_links.deinit(temp_allocator);
 
             const existing_neighbors = self.nodes[neighbor].layers[layer].nodes;

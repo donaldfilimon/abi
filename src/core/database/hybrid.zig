@@ -115,7 +115,7 @@ pub const HybridSearchEngine = struct {
         text_results: []const TextResult,
         top_k: usize,
     ) ![]HybridResult {
-        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum){};
+        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum).empty;
         defer scores.deinit(self.allocator);
 
         const k = self.config.rrf_k;
@@ -154,7 +154,7 @@ pub const HybridSearchEngine = struct {
         text_results: []const TextResult,
         top_k: usize,
     ) ![]HybridResult {
-        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum){};
+        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum).empty;
         defer scores.deinit(self.allocator);
 
         // Normalize and add vector scores
@@ -208,7 +208,7 @@ pub const HybridSearchEngine = struct {
         const adjusted_v_weight = if (total_mean > 0) v_mean / total_mean else 0.5;
         const adjusted_t_weight = if (total_mean > 0) t_mean / total_mean else 0.5;
 
-        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum){};
+        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum).empty;
         defer scores.deinit(self.allocator);
 
         for (vector_results, 0..) |result, rank| {
@@ -241,7 +241,7 @@ pub const HybridSearchEngine = struct {
         text_results: []const TextResult,
         top_k: usize,
     ) ![]HybridResult {
-        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum){};
+        var scores = std.AutoHashMapUnmanaged(u64, RrfAccum).empty;
         defer scores.deinit(self.allocator);
 
         for (vector_results, 0..) |result, rank| {
@@ -275,7 +275,7 @@ pub const HybridSearchEngine = struct {
         top_k: usize,
     ) ![]HybridResult {
         // Build set of text-matching doc IDs
-        var text_docs = std.AutoHashMapUnmanaged(u64, TextResult){};
+        var text_docs = std.AutoHashMapUnmanaged(u64, TextResult).empty;
         defer text_docs.deinit(self.allocator);
 
         for (text_results) |result| {

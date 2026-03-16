@@ -101,7 +101,7 @@ pub fn runRequesterPath(
 
 test "runRequesterPath: not_found" {
     const allocator = std.testing.allocator;
-    var sink = std.ArrayListUnmanaged(u8){};
+    var sink = std.ArrayListUnmanaged(u8).empty;
     defer sink.deinit(allocator);
 
     var buf: [128]u8 = undefined;
@@ -118,11 +118,11 @@ test "runRequesterPath: not_found" {
 
 test "runRequesterPath: ok with one chunk" {
     const allocator = std.testing.allocator;
-    var sink = std.ArrayListUnmanaged(u8){};
+    var sink = std.ArrayListUnmanaged(u8).empty;
     defer sink.deinit(allocator);
 
     const payload_data = [_]u8{ 0xde, 0xad, 0xbe, 0xef };
-    var stream = std.ArrayListUnmanaged(u8){};
+    var stream = std.ArrayListUnmanaged(u8).empty;
     defer stream.deinit(allocator);
     var tmp: [256]u8 = undefined;
     const resp = rpc.BlockSyncResponse{ .status = .ok, .total_byte_len = 4 };

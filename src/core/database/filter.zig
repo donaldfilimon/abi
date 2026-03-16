@@ -459,7 +459,7 @@ pub const MetadataStore = struct {
     /// Add metadata for a document.
     pub fn put(self: *MetadataStore, doc_id: u64, metadata: std.StringHashMapUnmanaged(MetadataValue)) !void {
         // Remove old metadata if exists
-        if (self.documents.get(doc_id)) |*old| {
+        if (self.documents.getPtr(doc_id)) |old| {
             var iter = old.iterator();
             while (iter.next()) |entry| {
                 if (self.field_index.getPtr(entry.key_ptr.*)) |doc_set| {
@@ -665,7 +665,7 @@ pub const FilterStats = struct {
 };
 
 test "filter operator eq" {
-    var metadata = std.StringHashMapUnmanaged(MetadataValue){};
+    var metadata = std.StringHashMapUnmanaged(MetadataValue).empty;
     defer metadata.deinit(std.testing.allocator);
 
     try metadata.put(std.testing.allocator, "name", .{ .string = "test" });
@@ -687,7 +687,7 @@ test "filter operator eq" {
 }
 
 test "filter operator comparison" {
-    var metadata = std.StringHashMapUnmanaged(MetadataValue){};
+    var metadata = std.StringHashMapUnmanaged(MetadataValue).empty;
     defer metadata.deinit(std.testing.allocator);
 
     try metadata.put(std.testing.allocator, "age", .{ .integer = 25 });
@@ -708,7 +708,7 @@ test "filter operator comparison" {
 }
 
 test "filter logical and" {
-    var metadata = std.StringHashMapUnmanaged(MetadataValue){};
+    var metadata = std.StringHashMapUnmanaged(MetadataValue).empty;
     defer metadata.deinit(std.testing.allocator);
 
     try metadata.put(std.testing.allocator, "type", .{ .string = "document" });
@@ -745,7 +745,7 @@ test "filter builder" {
 
     const expr = try builder.buildAnd();
 
-    var metadata = std.StringHashMapUnmanaged(MetadataValue){};
+    var metadata = std.StringHashMapUnmanaged(MetadataValue).empty;
     defer metadata.deinit(allocator);
 
     try metadata.put(allocator, "status", .{ .string = "active" });
@@ -759,11 +759,11 @@ test "metadata store" {
     var store = MetadataStore.init(allocator);
     defer store.deinit();
 
-    var meta1 = std.StringHashMapUnmanaged(MetadataValue){};
+    var meta1 = std.StringHashMapUnmanaged(MetadataValue).empty;
     try meta1.put(allocator, "category", .{ .string = "tech" });
     try store.put(1, meta1);
 
-    var meta2 = std.StringHashMapUnmanaged(MetadataValue){};
+    var meta2 = std.StringHashMapUnmanaged(MetadataValue).empty;
     try meta2.put(allocator, "category", .{ .string = "science" });
     try store.put(2, meta2);
 

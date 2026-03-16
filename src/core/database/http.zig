@@ -708,7 +708,7 @@ test "parseQueryInt returns default on invalid" {
 
 test "buildStatsJson formats correctly" {
     const allocator = std.testing.allocator;
-    const stats = semantic_store.Stats{ .count = 100, .dimension = 384 };
+    const stats = semantic_store.Stats{ .count = 100, .dimension = 384, .memory_bytes = 0, .norm_cache_enabled = false };
 
     const json = try buildStatsJson(allocator, stats);
     defer allocator.free(json);

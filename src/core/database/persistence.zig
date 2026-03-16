@@ -85,7 +85,7 @@ const MemReader = struct {
 
 /// Save the entire engine state to a file.
 pub fn save(engine: *Engine, path: []const u8) !void {
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(engine.allocator);
     const writer = MemWriter{ .allocator = engine.allocator, .buf = &buf };
 

@@ -158,7 +158,7 @@ pub const BatchProcessor = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .pending_records = .{},
+            .pending_records = .empty,
             .pending_size = 0,
             .progress_callback = null,
             .stats = .{},
@@ -682,7 +682,7 @@ pub const BatchOperationBuilder = struct {
     pub fn init(allocator: std.mem.Allocator) BatchOperationBuilder {
         return .{
             .allocator = allocator,
-            .records = .{},
+            .records = .empty,
             .config = .{},
         };
     }

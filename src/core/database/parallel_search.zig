@@ -211,13 +211,22 @@ pub const ParallelBeamState = struct {
         return true;
     }
 
+    const CandidateItem = struct {
+        node: usize,
+        dist: f32,
+
+        fn lessThan(_: void, a: CandidateItem, b: CandidateItem) bool {
+            return a.dist < b.dist;
+        }
+    };
+
     /// Get top-k results.
     pub fn getTopK(self: *ParallelBeamState, k: usize, out: []SearchResult) usize {
         self.mutex.lock();
         defer self.mutex.unlock();
 
         // Collect all candidates
-        var items = self.allocator.alloc(struct { node: usize, dist: f32 }, self.candidates.count()) catch return 0;
+        var items = self.allocator.alloc(CandidateItem, self.candidates.count()) catch return 0;
         defer self.allocator.free(items);
 
         var it = self.candidates.iterator();
@@ -228,16 +237,7 @@ pub const ParallelBeamState = struct {
         }
 
         // Sort by distance
-        std.mem.sort(
-            struct { node: usize, dist: f32 },
-            items[0..i],
-            {},
-            struct {
-                fn lessThan(_: void, a: struct { node: usize, dist: f32 }, b: struct { node: usize, dist: f32 }) bool {
-                    return a.dist < b.dist;
-                }
-            }.lessThan,
-        );
+        std.mem.sort(CandidateItem, items[0..i], {}, CandidateItem.lessThan);
 
         // Copy top-k
         const count = @min(k, i);

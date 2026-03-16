@@ -318,7 +318,8 @@ const ParallelGraph = struct {
 // ============================================================================
 
 /// Task for work-stealing scheduler.
-const InsertTask = struct {
+/// Must be extern struct because it is stored in std.atomic.Value (via ChaseLevDeque).
+const InsertTask = extern struct {
     node_id: u32,
     priority: u8, // Higher layer = higher priority
 };

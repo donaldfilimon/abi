@@ -131,9 +131,15 @@ pub const MappedFile = struct {
     }
 
     fn openPosix(path: []const u8, read_only: bool) MmapError!MappedFile {
-        // POSIX implementation
+        // POSIX implementation — convert path to null-terminated for openatZ
+        var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
+        if (path.len >= path_buf.len) return error.InvalidFile;
+        @memcpy(path_buf[0..path.len], path);
+        path_buf[path.len] = 0;
+        const path_z: [:0]const u8 = path_buf[0..path.len :0];
+
         const flags: std.posix.O = if (read_only) .{ .ACCMODE = .RDONLY } else .{ .ACCMODE = .RDWR };
-        const fd = std.posix.open(path, flags, 0) catch return error.FileNotFound;
+        const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, flags, 0) catch return error.FileNotFound;
         errdefer std.posix.close(fd);
 
         const stat = std.posix.fstat(fd) catch return error.InvalidFile;
@@ -281,7 +287,14 @@ fn createWindows(path: []const u8, size: usize) MmapError!MappedFile {
 }
 
 fn createPosix(path: []const u8, size: usize) MmapError!MappedFile {
-    const fd = std.posix.open(path, .{
+    // Convert path to null-terminated for openatZ
+    var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
+    if (path.len >= path_buf.len) return error.InvalidFile;
+    @memcpy(path_buf[0..path.len], path);
+    path_buf[path.len] = 0;
+    const path_z: [:0]const u8 = path_buf[0..path.len :0];
+
+    const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, .{
         .ACCMODE = .RDWR,
         .CREAT = true,
         .TRUNC = true,

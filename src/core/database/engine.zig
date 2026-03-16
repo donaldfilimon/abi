@@ -7,7 +7,7 @@ const std = @import("std");
 const config = @import("config.zig");
 const metrics = @import("distance.zig").Distance;
 const Cache = @import("cache.zig").Cache;
-const HNSW = @import("hnsw.zig").HNSW;
+const HNSW = @import("hnsw.zig").HnswIndex;
 const AIClient = @import("ai_client.zig").AIClient;
 const sync_compat = @import("sync_compat.zig");
 

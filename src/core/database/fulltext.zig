@@ -125,7 +125,7 @@ pub const InvertedIndex = struct {
         }
 
         // Count term frequencies
-        var term_freqs = std.StringHashMapUnmanaged(u32){};
+        var term_freqs = std.StringHashMapUnmanaged(u32).empty;
         defer term_freqs.deinit(self.allocator);
 
         for (tokens.items) |token| {
@@ -221,7 +221,7 @@ pub const InvertedIndex = struct {
         }
 
         // Collect candidate documents, their scores, and matched terms
-        var scores = std.AutoHashMapUnmanaged(u64, ScoreAccum){};
+        var scores = std.AutoHashMapUnmanaged(u64, ScoreAccum).empty;
         defer {
             var iter = scores.iterator();
             while (iter.next()) |entry| {
