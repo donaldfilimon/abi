@@ -1,5 +1,6 @@
-const legacy = @import("../../src/core/database_fast_tests_root.zig");
+const std = @import("std");
+const abi = @import("abi");
 
 test {
-    _ = legacy;
+    std.testing.refAllDecls(abi.database);
 }

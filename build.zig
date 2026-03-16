@@ -195,14 +195,24 @@ pub fn build(b: *std.Build) void {
         typecheck_step = b.step("typecheck", "Compile tests without running");
         typecheck_step.?.dependOn(&tests.step);
 
-        if (targets.pathExists(b, "src/database_wdbx_tests_root.zig")) {
+        if (targets.pathExists(b, "tests/zig/database_wdbx_tests_root.zig")) {
             const database_neural_mod = b.createModule(.{
-                .root_source_file = b.path("src/database_wdbx_tests_root.zig"),
+                .root_source_file = b.path("tests/zig/database_wdbx_tests_root.zig"),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = true,
             });
             database_neural_mod.addImport("build_options", build_opts);
+            database_neural_mod.addImport("abi", abi_module);
+            database_neural_mod.addImport("wdbx", b.createModule(.{
+                .root_source_file = b.path("src/core/database/wdbx.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+                .imports = &.{
+                    .{ .name = "build_options", .module = build_opts },
+                },
+            }));
             const neural_wdbx_tests = b.addTest(.{
                 .root_module = database_neural_mod,
             });
@@ -212,14 +222,15 @@ pub fn build(b: *std.Build) void {
             typecheck_step.?.dependOn(&neural_wdbx_tests.step);
         }
 
-        if (targets.pathExists(b, "src/database_fast_tests_root.zig")) {
+        if (targets.pathExists(b, "tests/zig/database_fast_tests_root.zig")) {
             const database_fast_tests_mod = b.createModule(.{
-                .root_source_file = b.path("src/database_fast_tests_root.zig"),
+                .root_source_file = b.path("tests/zig/database_fast_tests_root.zig"),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = true,
             });
             database_fast_tests_mod.addImport("build_options", build_opts);
+            database_fast_tests_mod.addImport("abi", abi_module);
 
             const database_fast_tests = b.addTest(.{
                 .root_module = database_fast_tests_mod,
