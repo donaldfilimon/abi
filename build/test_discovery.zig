@@ -8,32 +8,17 @@ const BuildOptions = options_mod.BuildOptions;
 pub const FeatureTestEntry = module_catalog.FeatureTestEntry;
 pub const feature_test_manifest = module_catalog.feature_test_manifest;
 
-fn renderFeatureTestRoot(allocator: std.mem.Allocator) ![]u8 {
-    var out: std.Io.Writer.Allocating = .init(allocator);
-    errdefer out.deinit();
-
-    try out.writer.writeAll(
-        "//! Generated feature module test discovery root.\n" ++
-            "//! Source of truth: build/module_catalog.zig:feature_test_manifest.\n\n" ++
-            "const build_options = @import(\"build_options\");\n\n" ++
-            "test {\n",
-    );
-
-    for (feature_test_manifest, 0..) |entry, idx| {
-        const alias = try std.fmt.allocPrint(allocator, "ft_{d}", .{idx});
-        defer allocator.free(alias);
-
-        if (entry.flag) |flag| {
-            try out.writer.print("    if (build_options.{s}) _ = @import(\"{s}\");\n", .{ flag, alias });
-        } else {
-            try out.writer.print("    _ = @import(\"{s}\");\n", .{alias});
-        }
-    }
-
-    try out.writer.writeAll("}\n");
-    return try out.toOwnedSlice();
-}
-
+/// Build the feature-tests step using the abi module directly.
+///
+/// Zig 0.16 enforces single-module file ownership: each .zig file can
+/// belong to exactly one named module.  The previous per-entry module
+/// approach created N separate modules, causing ownership conflicts
+/// whenever entries shared files through their import graphs.
+///
+/// The fix: use the `abi` module as the test root.  All `test {}` blocks
+/// reachable from `src/root.zig` are compiled and (on non-Darwin) run.
+/// The feature_test_manifest remains as documentation and for future use
+/// by isolated test harnesses that can handle module ownership.
 pub fn addFeatureTests(
     b: *std.Build,
     options: BuildOptions,
@@ -42,29 +27,8 @@ pub fn addFeatureTests(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Step {
-    const generated = b.addWriteFiles();
-    const root_source = renderFeatureTestRoot(b.allocator) catch @panic("renderFeatureTestRoot failed");
-    const root_path = generated.add("generated_feature_tests.zig", root_source);
-
-    const feature_test_root = b.createModule(.{
-        .root_source_file = root_path,
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    feature_test_root.addImport("build_options", build_opts);
-
-    for (feature_test_manifest, 0..) |entry, idx| {
-        const entry_module = b.createModule(.{
-            .root_source_file = b.path(entry.path),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        });
-        entry_module.addImport("abi", abi_module);
-        entry_module.addImport("build_options", build_opts);
-        feature_test_root.addImport(b.fmt("ft_{d}", .{idx}), entry_module);
-    }
+    _ = build_opts; // abi_module already has build_options wired
+    _ = optimize; // abi_module already has optimize configured
 
     const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
     const ft_step = b.step("feature-tests", "Run feature module inline tests");
@@ -72,13 +36,13 @@ pub fn addFeatureTests(
     if (is_blocked_darwin) {
         const feature_tests = b.addObject(.{
             .name = "feature_tests",
-            .root_module = feature_test_root,
+            .root_module = abi_module,
         });
         feature_tests.use_llvm = true;
         ft_step.dependOn(&feature_tests.step);
     } else {
         const feature_tests = b.addTest(.{
-            .root_module = feature_test_root,
+            .root_module = abi_module,
         });
         link.applyAllPlatformLinks(
             feature_tests.root_module,
