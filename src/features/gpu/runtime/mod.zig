@@ -1,3 +1,7 @@
+//! GPU runtime execution layer for managing compute contexts and buffers.
+//! Provides runtime context lifecycle, buffer allocation, built-in and
+//! custom operations, and health/metrics collection.
+
 const std = @import("std");
 
 pub const context = @import("context.zig");

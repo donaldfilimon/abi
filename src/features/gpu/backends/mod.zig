@@ -1,3 +1,7 @@
+//! GPU backend registry aggregating all supported compute backends.
+//! Re-exports backend-specific modules (CUDA, Vulkan, Metal, WebGPU,
+//! OpenGL, DirectML) plus shared metadata, detection, and pool management.
+
 pub const registry = @import("registry.zig");
 pub const pool = @import("pool.zig");
 

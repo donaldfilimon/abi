@@ -212,7 +212,13 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
 
 /// Create the best available backend based on hardware detection.
 pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInstance {
-    return createBestBackendWithOptions(allocator, .{});
+    const priorities = priorityList();
+    for (priorities.slice()) |backend_type| {
+        if (isBackendAvailable(backend_type)) {
+            return createBackend(allocator, backend_type) catch continue;
+        }
+    }
+    return FactoryError.NoBackendsAvailable;
 }
 
 /// Create the best available backend, optionally in strict mode.
@@ -253,7 +259,9 @@ pub fn createBestBackendWithOptions(
         if (isBackendAvailable(preferred) and
             meetsFeatureRequirements(preferred, options.required_features))
         {
-            return createBackend(allocator, preferred) catch {};
+            if (createBackend(allocator, preferred)) |backend| {
+                return backend;
+            } else |_| {}
         }
     }
 

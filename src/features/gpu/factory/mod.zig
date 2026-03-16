@@ -1,3 +1,7 @@
+//! Backend factory for creating, selecting, and destroying GPU backends.
+//! Wraps `BackendFactory` with convenience functions for best-backend
+//! selection, feature-based filtering, and fallback strategies.
+
 const std = @import("std");
 
 const backend_factory = @import("../backend_factory.zig");

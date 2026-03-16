@@ -473,9 +473,8 @@ pub const CertificateStore = struct {
         }
         self.trusted_certs.deinit(self.allocator);
 
-        var revoked_it = self.revoked_serials.keys();
-        while (revoked_it.next()) |key| {
-            self.allocator.free(key.*);
+        for (self.revoked_serials.keys()) |key| {
+            self.allocator.free(key);
         }
         self.revoked_serials.deinit(self.allocator);
 

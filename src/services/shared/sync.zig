@@ -34,6 +34,7 @@ pub const Mutex = struct {
             spin = @min(spin *| 2, 32);
             if (spin >= 32) {
                 if (comptime builtin.os.tag != .freestanding) {
+                    // yield is a performance hint; failure is non-critical
                     std.Thread.yield() catch {};
                 }
             }
@@ -102,6 +103,7 @@ pub const RwLock = struct {
             spin = @min(spin *| 2, 32);
             if (spin >= 32) {
                 if (comptime builtin.os.tag != .freestanding) {
+                    // yield is a performance hint; failure is non-critical
                     std.Thread.yield() catch {};
                 }
             }
@@ -123,6 +125,7 @@ pub const RwLock = struct {
             spin = @min(spin *| 2, 32);
             if (spin >= 32) {
                 if (comptime builtin.os.tag != .freestanding) {
+                    // yield is a performance hint; failure is non-critical
                     std.Thread.yield() catch {};
                 }
             }
@@ -204,6 +207,7 @@ pub const Wake = struct {
             spin = @min(spin *| 2, 32);
             if (spin >= 32) {
                 if (comptime builtin.os.tag != .freestanding) {
+                    // yield is a performance hint; failure is non-critical
                     std.Thread.yield() catch {};
                 }
             }

@@ -1,10 +1,6 @@
-// ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║  LLM Orchestrator — Multi-Backend Inference & Skill Synchronization        ║
-// ║  Zig 0.16                                                                   ║
-// ║                                                                            ║
-// ║  Unified abstraction over: Claude CLI, Codex CLI, Open Code, Ollama, MLX   ║
-// ║  with cross-frontend plugin/skill sync backed by WDBX vector storage.      ║
-// ╚══════════════════════════════════════════════════════════════════════════════╝
+//! Multi-backend LLM orchestrator with skill synchronization.
+//! Provides a unified inference abstraction over Claude, Codex, Ollama, MLX,
+//! and Open Code backends with cross-frontend plugin/skill sync via WDBX.
 
 const std = @import("std");
 

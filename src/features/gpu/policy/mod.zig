@@ -1,3 +1,7 @@
+//! Platform-aware backend selection policy and optimization hints.
+//! Classifies platforms, determines default backend ordering, and
+//! provides per-platform optimization hints via `PlatformClass`.
+
 const std = @import("std");
 
 pub const catalog = @import("catalog.zig");

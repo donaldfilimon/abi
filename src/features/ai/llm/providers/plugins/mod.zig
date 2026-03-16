@@ -1,3 +1,7 @@
+//! LLM provider plugin system for extending inference with custom backends.
+//! Supports plugin manifests, dynamic loading, and both HTTP and native
+//! ABI v1 plugin interfaces for text generation.
+
 const std = @import("std");
 
 pub const manifest = @import("manifest.zig");

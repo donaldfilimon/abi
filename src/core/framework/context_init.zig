@@ -141,68 +141,42 @@ fn initConvertedFeatures(comptime Framework: type, allocator: std.mem.Allocator,
     }
 }
 
-    if (cfg.auth) |auth_cfg| {
-        fw.auth = try auth_mod.Context.init(allocator, auth_cfg);
-        if (comptime build_options.feat_auth) {
-            try fw.registry.registerComptime(.auth);
-        }
-    }
+/// AI sub-module spec for non-fatal initialization.
+const AiSubSpec = struct {
+    fw_field: []const u8,
+    feat_flag: []const u8,
+    label: []const u8,
+};
 
-    if (cfg.messaging) |msg_cfg| {
-        fw.messaging = try messaging_mod.Context.init(allocator, msg_cfg);
-        if (comptime build_options.feat_messaging) {
-            try fw.registry.registerComptime(.messaging);
-        }
-    }
+const ai_sub_specs = [_]AiSubSpec{
+    .{ .fw_field = "ai_core", .feat_flag = "feat_ai", .label = "ai.core" },
+    .{ .fw_field = "ai_inference", .feat_flag = "feat_llm", .label = "ai.inference" },
+    .{ .fw_field = "ai_training", .feat_flag = "feat_training", .label = "ai.training" },
+    .{ .fw_field = "ai_reasoning", .feat_flag = "feat_reasoning", .label = "ai.reasoning" },
+};
 
-    if (cfg.cache) |cache_cfg| {
-        fw.cache = try cache_mod.Context.init(allocator, cache_cfg);
-        if (comptime build_options.feat_cache) {
-            try fw.registry.registerComptime(.cache);
+/// Initialize AI sub-modules non-fatally (main AI module stays available even
+/// if sub-features fail). Users check via `abi system-info`.
+fn initAiSubModules(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) void {
+    if (cfg.ai) |ai_cfg| {
+        inline for (ai_sub_specs) |spec| {
+            if (comptime @field(build_options, spec.feat_flag)) {
+                @field(fw, spec.fw_field) = @field(fi, spec.fw_field ++ "_mod").Context.init(
+                    allocator,
+                    ai_cfg,
+                ) catch |err| blk: {
+                    std.log.warn(spec.label ++ " sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
+                    break :blk null;
+                };
+            }
         }
     }
+}
 
-    if (cfg.storage) |storage_cfg| {
-        fw.storage = try storage_mod.Context.init(allocator, storage_cfg);
-        if (comptime build_options.feat_storage) {
-            try fw.registry.registerComptime(.storage);
-        }
-    }
-
-    if (cfg.search) |search_cfg| {
-        fw.search = try search_mod.Context.init(allocator, search_cfg);
-        if (comptime build_options.feat_search) {
-            try fw.registry.registerComptime(.search);
-        }
-    }
-
-    if (cfg.gateway) |gateway_cfg| {
-        fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
-        if (comptime build_options.feat_gateway) {
-            try fw.registry.registerComptime(.gateway);
-        }
-    }
-
-    if (cfg.pages) |pages_cfg| {
-        fw.pages = try pages_mod.Context.init(allocator, pages_cfg);
-        if (comptime build_options.feat_pages) {
-            try fw.registry.registerComptime(.pages);
-        }
-    }
-
-    if (cfg.benchmarks) |benchmarks_cfg| {
-        fw.benchmarks = try benchmarks_mod.Context.init(allocator, benchmarks_cfg);
-        if (comptime build_options.feat_benchmarks) {
-            try fw.registry.registerComptime(.benchmarks);
-        }
-    }
-
-    if (cfg.mobile) |mobile_cfg| {
-        fw.mobile = try mobile_mod.Context.init(allocator, mobile_cfg);
-        if (comptime build_options.feat_mobile) {
-            try fw.registry.registerComptime(.mobile);
-        }
-    }
+fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
+    try initStandardFeatures(Framework, allocator, cfg, fw);
+    try initConvertedFeatures(Framework, allocator, cfg, fw);
+    initAiSubModules(Framework, allocator, cfg, fw);
 
     // Always initialize HA manager using default provider when available.
     fw.ha = ha_mod.HaManager.init(allocator, .{});

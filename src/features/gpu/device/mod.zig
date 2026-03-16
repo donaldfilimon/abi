@@ -1,3 +1,7 @@
+//! GPU device abstraction layer for enumeration, selection, and management.
+//! Provides `Device`, `DeviceManager`, and selection criteria types for
+//! querying capabilities, vendor info, and platform-specific probing.
+
 const std = @import("std");
 
 pub const types = @import("types.zig");
