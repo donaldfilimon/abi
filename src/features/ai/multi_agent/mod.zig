@@ -33,7 +33,10 @@ const std = @import("std");
 const time = @import("../../../services/shared/mod.zig").time;
 const sync = @import("../../../services/shared/mod.zig").sync;
 const retry = @import("../../../services/shared/mod.zig").utils.retry;
-const agents = @import("agents");
+const agents = if (build_options.feat_ai)
+    @import("../agents/mod.zig")
+else
+    @import("../agents/stub.zig");
 const build_options = @import("build_options");
 
 pub const aggregation = @import("aggregation.zig");

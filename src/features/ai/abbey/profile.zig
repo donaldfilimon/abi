@@ -12,9 +12,9 @@
 
 const std = @import("std");
 const time = @import("../../../services/shared/mod.zig").time;
-const types = @import("types");
+const types = @import("../types.zig");
 const config = @import("../config.zig");
-const core_types = @import("types");
+const core_types = types;
 const abbey_core = @import("mod.zig");
 
 // Import enhanced modules

@@ -19,7 +19,7 @@ const build_options = @import("build_options");
 // ============================================================================
 
 pub const core = struct {
-    pub const types = @import("types");
+    pub const types = @import("../types.zig");
     pub const config = @import("../config.zig");
 };
 

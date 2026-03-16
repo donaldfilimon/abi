@@ -15,14 +15,18 @@
 
 const std = @import("std");
 const time = @import("../../../services/shared/mod.zig").time;
+const build_options = @import("build_options");
 const collector_mod = @import("collector.zig");
 const feedback_mod = @import("mod.zig");
-const self_learning_mod = @import("self_learning");
+const training_mod = if (build_options.feat_training)
+    @import("../training/mod.zig")
+else
+    @import("../training/stub.zig");
 
 const ProfileRef = collector_mod.ProfileRef;
 const Trend = @import("analyzer.zig").Trend;
 const FeedbackSystem = feedback_mod.FeedbackSystem;
-const SelfLearningSystem = self_learning_mod.SelfLearningSystem;
+const SelfLearningSystem = training_mod.SelfLearningSystem;
 
 /// All ProfileRef variants for iteration.
 const all_profiles = [_]ProfileRef{ .abbey, .aviva, .abi, .ralph, .other };

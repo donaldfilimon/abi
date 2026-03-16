@@ -11,7 +11,7 @@
 //! - Trend analysis for routing optimization
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("../types.zig");
 
 /// Result of a single interaction with a profile.
 pub const InteractionResult = struct {

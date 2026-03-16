@@ -9,7 +9,7 @@
 //! - Communication adaptation
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("../../types.zig");
 const emotions = @import("../emotions.zig");
 
 // ============================================================================

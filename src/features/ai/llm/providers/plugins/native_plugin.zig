@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types");
+const types = @import("../types.zig");
 const errors = @import("../errors.zig");
 const manifest = @import("manifest.zig");
 const abi_v1 = @import("native_abi_v1.zig");

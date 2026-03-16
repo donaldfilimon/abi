@@ -14,7 +14,7 @@
 const std = @import("std");
 const time = @import("../../../services/shared/mod.zig").time;
 const emotion = @import("emotion.zig");
-const core_types = @import("types");
+const core_types = @import("../types.zig");
 
 /// A single step in the reasoning chain.
 pub const ReasoningStep = struct {

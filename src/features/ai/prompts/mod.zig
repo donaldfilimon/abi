@@ -4,7 +4,7 @@
 //! All prompts are exportable for inspection and debugging via --show-prompt flag.
 
 const std = @import("std");
-pub const types = @import("types");
+pub const types = @import("../types.zig");
 pub const builder = @import("builder.zig");
 pub const ralph = @import("ralph.zig");
 pub const profiles = @import("profiles.zig");

@@ -7,7 +7,7 @@
 //! - Relationship memory
 
 const std = @import("std");
-const core_types = @import("types");
+const core_types = @import("../types.zig");
 const platform_time = @import("../../../services/shared/mod.zig").time;
 
 // Re-export the canonical EmotionType from core types

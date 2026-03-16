@@ -27,9 +27,16 @@ const roles = @import("roles.zig");
 const supervisor_mod = @import("supervisor.zig");
 const messaging = @import("messaging.zig");
 const protocol = @import("protocol.zig");
-const agents_mod = @import("agents");
+const build_options = @import("build_options");
+const agents_mod = if (build_options.feat_ai)
+    @import("../agents/mod.zig")
+else
+    @import("../agents/stub.zig");
 const time = @import("../../../services/shared/mod.zig").time;
-const training = @import("training");
+const training = if (build_options.feat_training)
+    @import("../training/mod.zig")
+else
+    @import("../training/stub.zig");
 const SelfLearningSystem = training.SelfLearningSystem;
 const FeedbackType = training.FeedbackType;
 const ExperienceType = training.ExperienceType;

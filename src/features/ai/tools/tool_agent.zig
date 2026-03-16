@@ -17,7 +17,11 @@
 
 const std = @import("std");
 const json = std.json;
-const agent_mod = @import("agents");
+const build_options = @import("build_options");
+const agent_mod = if (build_options.feat_ai)
+    @import("../agents/mod.zig")
+else
+    @import("../agents/stub.zig");
 const tools_mod = @import("mod.zig");
 
 const Agent = agent_mod.Agent;

@@ -43,3 +43,4 @@ Upcoming goals for framework maturity and ecosystem expansion.
 3. [ ] **Semantic Store Persistence**: Optimize the WDBX block-chain layout for multi-terabyte vector indices.
 4. [ ] **Mobile Native Bridges**: Implement native Swift/Kotlin bridges for iOS and Android high-level UI integration.
 5. [ ] **Bare Metal Examples**: Add `examples/embedded/` showing deployment to RISC-V 32 and Thumb bare-metal boards.
+6. [x] **Import-Rule Guardrail Hardening**: Restored bare `build_options` named imports, normalized targeted AI shorthand imports to explicit relative `.zig` paths, and strengthened `check-imports` to distinguish named-module imports from file imports. Evidence: `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`, `./tools/scripts/run_build.sh check-imports --summary all`, `./tools/scripts/run_build.sh typecheck --summary all`.

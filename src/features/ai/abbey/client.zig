@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const time = @import("../../../services/shared/mod.zig").time;
-const types = @import("types");
+const types = @import("../types.zig");
 const config = @import("../core/config.zig");
 const build_options = @import("build_options");
 const shared_utils = @import("../../../services/shared/mod.zig").utils;

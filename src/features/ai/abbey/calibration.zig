@@ -7,7 +7,7 @@
 //! - Hallucination risk detection
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("../types.zig");
 
 // ============================================================================
 // Calibration Types

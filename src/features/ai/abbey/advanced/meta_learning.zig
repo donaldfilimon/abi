@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const neural = @import("../neural/mod.zig");
-const types = @import("types");
+const types = @import("../../types.zig");
 
 // ============================================================================
 // Meta-Learning Types

@@ -11,7 +11,7 @@
 
 const std = @import("std");
 const engine = @import("engine.zig");
-const core_types = @import("types");
+const core_types = @import("../types.zig");
 const core_config = @import("../core/config.zig");
 const net_utils = @import("../../../services/shared/mod.zig").utils.net;
 

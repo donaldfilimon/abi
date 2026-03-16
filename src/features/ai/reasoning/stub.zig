@@ -1,7 +1,7 @@
 //! Reasoning Stub Module
 
 const std = @import("std");
-const core_types = @import("types");
+const core_types = @import("../types.zig");
 const ai_config = @import("../../../core/config/ai.zig");
 
 pub const ConfidenceLevel = core_types.ConfidenceLevel;

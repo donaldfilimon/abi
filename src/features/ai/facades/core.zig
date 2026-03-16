@@ -16,13 +16,16 @@ const config_module = @import("../../../core/config/mod.zig");
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
-pub const agent = @import("agents");
-pub const agents = if (build_options.feat_ai)
-    @import("agents")
+pub const agent = if (build_options.feat_ai)
+    @import("../agents/mod.zig")
 else
     @import("../agents/stub.zig");
+pub const agents = agent;
 pub const tools = @import("../tools/mod.zig");
-pub const prompts = @import("prompts");
+pub const prompts = if (build_options.feat_ai)
+    @import("../prompts/mod.zig")
+else
+    @import("../prompts/stub.zig");
 pub const memory = @import("../memory/mod.zig");
 pub const multi_agent = if (build_options.feat_ai)
     @import("../multi_agent/mod.zig")

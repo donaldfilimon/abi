@@ -329,7 +329,7 @@ pub fn build(b: *std.Build) void {
     const validate_flags_step = flags.addFlagValidation(b, target, optimize);
 
     // ── Import rule check ───────────────────────────────────────────────
-    const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
+    const import_check_step = b.step("check-imports", "Verify feature import rules and named-vs-file import hygiene");
     import_check_step.dependOn(addHostScriptStep(
         b,
         "abi-check-import-rules",

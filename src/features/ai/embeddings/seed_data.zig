@@ -5,7 +5,7 @@
 //! and serve as baseline behavioral profiles.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("../types.zig");
 
 /// Characteristic text descriptions used for embedding generation.
 /// Each profile has multiple characteristic strings that capture its core traits.

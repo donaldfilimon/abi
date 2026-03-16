@@ -6,7 +6,7 @@
 const std = @import("std");
 const tensor = @import("tensor.zig");
 const layer = @import("layer.zig");
-const types = @import("types");
+const types = @import("../../types.zig");
 
 const F32Tensor = tensor.F32Tensor;
 const LinearLayer = layer.LinearLayer;

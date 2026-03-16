@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const emotion = @import("emotion.zig");
-const core_types = @import("types");
+const core_types = @import("../types.zig");
 
 /// Empathy template for specific emotions.
 pub const EmpathyTemplate = struct {

@@ -11,7 +11,7 @@
 
 const std = @import("std");
 const string_utils = @import("../../../services/shared/mod.zig").utils;
-const core_types = @import("types");
+const core_types = @import("../types.zig");
 
 /// Emotion types detected in user input.
 pub const EmotionType = core_types.EmotionType;

@@ -194,7 +194,7 @@ pub const EmbeddingsModule = struct {
 };
 
 /// Import types for public API
-const types = @import("types");
+const types = @import("../types.zig");
 
 /// Combined statistics for the module.
 pub const ModuleStats = struct {
