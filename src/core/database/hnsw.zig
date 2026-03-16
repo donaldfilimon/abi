@@ -62,7 +62,8 @@ pub const HnswIndex = struct {
 
     // Compatibility fields for persistence and legacy engine
     node_levels: std.ArrayListUnmanaged(u32) = .empty,
-    neighbors: std.ArrayListUnmanaged([]u32) = .empty,
+    neighbors: std.ArrayListUnmanaged([][]u32) = .empty,
+    vectors: std.ArrayListUnmanaged([]f32) = .empty,
 
     pub const NodeLayers = struct {
         layers: []index_mod.NeighborList,
@@ -229,7 +230,7 @@ pub const HnswIndex = struct {
         defer arena.deinit();
 
         for (records, 0..) |_, i| {
-            try self.insert(allocator, arena.allocator(), records, @intCast(i), random, m_l);
+            try self.insertAt(allocator, arena.allocator(), records, @intCast(i), random, m_l);
             // Reset arena for next insertion — frees all temporaries in bulk
             _ = arena.reset(.retain_capacity);
         }
@@ -244,7 +245,13 @@ pub const HnswIndex = struct {
     /// 2. Greedy descent from max_layer to target_layer + 1
     /// 3. Layer-by-layer neighbor connection from target_layer to 0
     /// 4. Update entry point if new node is at a higher layer
-    fn insert(
+    pub fn insert(self: *HnswIndex, vector: []const f32) !void {
+        const cloned = try self.allocator.dupe(f32, vector);
+        try self.vectors.append(self.allocator, cloned);
+        // Note: Graph is not updated in this compatibility shim.
+    }
+
+    fn insertAt(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
         temp_allocator: std.mem.Allocator,
@@ -756,6 +763,17 @@ pub const HnswIndex = struct {
             allocator.free(node.layers);
         }
         allocator.free(self.nodes);
+
+        // Free compatibility fields (populated by insert() shim and persistence load)
+        for (self.vectors.items) |v| allocator.free(v);
+        self.vectors.deinit(allocator);
+        self.node_levels.deinit(allocator);
+        for (self.neighbors.items) |layers| {
+            for (layers) |nbrs| allocator.free(nbrs);
+            allocator.free(layers);
+        }
+        self.neighbors.deinit(allocator);
+
         self.* = undefined;
     }
 

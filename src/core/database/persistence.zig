@@ -189,7 +189,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Engine {
     errdefer cache.deinit();
 
     var hnsw = try HNSW.init(allocator, cfg, metric);
-    errdefer hnsw.deinit();
+    errdefer hnsw.deinit(allocator);
 
     var engine = Engine{
         .allocator = allocator,
@@ -255,7 +255,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Engine {
     // Read HNSW graph state.
     const ep_val = try reader.readInt(u32, .little);
     engine.hnsw_index.entry_point = if (ep_val == 0xFFFFFFFF) null else ep_val;
-    engine.hnsw_index.max_level = try reader.readInt(u32, .little);
+    engine.hnsw_index.max_layer = @intCast(try reader.readInt(u32, .little));
 
     for (0..count) |_| {
         const node_level = try reader.readInt(u32, .little);
