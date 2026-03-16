@@ -170,19 +170,27 @@ under feature and service namespaces.
 - The public named `wdbx` package surface has been removed; use `abi.features.database`.
 - `src/abi.zig` is the internal composition layer. External consumers should target `@import("abi")`, which resolves to `src/root.zig`.
 
-## Repository layout
+## Project structure
 
-| Path | Purpose |
-|------|---------|
-| `src/root.zig` | Public package root |
-| `src/abi.zig` | Internal composition layer |
-| `src/features/` | Comptime-gated feature modules with `mod.zig` / `stub.zig` parity |
-| `src/core/` | Always-on framework internals |
-| `src/services/` | Runtime services shared across features and tools |
-| `tools/cli/` | ABI CLI implementation |
-| `tools/gendocs/` | Documentation generator and templates |
-| `docs/` | Maintained docs plus generated API/plan output |
-| `build/` | Modular Zig build graph and validation steps |
+```
+abi/
+├── src/               # Source code (single 'abi' module)
+│   ├── root.zig       # Public entrypoint (@import("abi"))
+│   ├── features/      # 22 comptime-gated feature modules
+│   ├── core/          # Framework internals, config, database
+│   ├── services/      # Runtime services, connectors, tests
+│   ├── inference/     # AI inference engine
+│   └── api_server/    # REST API server
+├── build/             # Build system (options, flags, modules, tests)
+├── tools/             # CLI, gendocs, scripts
+├── tests/             # Test wrappers and integration tests
+├── bindings/          # C and WASM language bindings
+├── examples/          # 36 runnable example programs
+├── benchmarks/        # Performance benchmark suite
+├── docs/              # Generated API docs and guides
+├── lang/              # Language support (CEL reserved)
+└── zig-abi-plugin/    # Claude Code plugin (skills, agents)
+```
 
 ## Build, test, and validation
 
@@ -250,9 +258,20 @@ For blocked Darwin hosts, use `run_build.sh`, compile-only checks, or Linux CI f
 
 ## Documentation map
 
-- [docs/README.md](docs/README.md) - docs tree layout and generation workflow
-- [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md) - Darwin linker failure notes
-- [docs/ABI_WDBX_ARCHITECTURE.md](docs/ABI_WDBX_ARCHITECTURE.md) - semantic-store architecture notes
+| Document | Purpose |
+|----------|---------|
+| `CLAUDE.md` | AI agent conventions and architecture |
+| `AGENTS.md` | Contributor workflow contract |
+| `docs/STRUCTURE.md` | Detailed directory tree reference |
+| `docs/PATTERNS.md` | Zig 0.16 codebase patterns |
+| `docs/api/` | Auto-generated API reference |
+| `docs/README.md` | Docs tree layout and generation workflow |
+| `docs/ZIG_MACOS_LINKER_RESEARCH.md` | Darwin linker failure notes |
+| `docs/ABI_WDBX_ARCHITECTURE.md` | Semantic-store architecture notes |
+| `tasks/todo.md` | Active development queue |
+| `tasks/lessons.md` | Zig 0.16 migration lessons |
+| `benchmarks/README.md` | Benchmark suite guide |
+| `examples/README.md` | Example programs index |
 
 ## Contributing
 
