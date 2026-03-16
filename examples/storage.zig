@@ -9,7 +9,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -20,7 +20,7 @@ pub fn main(_: std.process.Init) !void {
         .build();
     defer framework.deinit();
 
-    if (!abi.features.storage.isEnabled()) {
+    if (!abi.storage.isEnabled()) {
         std.debug.print("Storage feature is disabled. Enable with -Denable-storage=true\n", .{});
         return;
     }
@@ -28,21 +28,21 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI Object Storage Example ===\n\n", .{});
 
     // Store objects
-    abi.features.storage.putObject(allocator, "images/logo.png", "PNG binary data here") catch |err| {
+    abi.storage.putObject(allocator, "images/logo.png", "PNG binary data here") catch |err| {
         std.debug.print("Failed to store object: {t}\n", .{err});
         return;
     };
     std.debug.print("Stored: images/logo.png\n", .{});
 
     // Store with metadata
-    abi.features.storage.putObjectWithMetadata(
+    abi.storage.putObjectWithMetadata(
         allocator,
         "docs/readme.md",
         "# README\nProject documentation",
         .{
             .content_type = "text/markdown",
             .custom = blk: {
-                var entries: [4]abi.features.storage.ObjectMetadata.MetadataEntry = [_]abi.features.storage.ObjectMetadata.MetadataEntry{.{}} ** 4;
+                var entries: [4]abi.storage.ObjectMetadata.MetadataEntry = [_]abi.storage.ObjectMetadata.MetadataEntry{.{}} ** 4;
                 entries[0] = .{ .key = "author", .value = "abi-framework" };
                 break :blk entries;
             },
@@ -55,7 +55,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("Stored: docs/readme.md (with metadata)\n", .{});
 
     // Retrieve
-    const data = abi.features.storage.getObject(allocator, "docs/readme.md") catch |err| {
+    const data = abi.storage.getObject(allocator, "docs/readme.md") catch |err| {
         std.debug.print("Failed to retrieve: {t}\n", .{err});
         return;
     };
@@ -63,11 +63,11 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("\nRetrieved docs/readme.md ({} bytes)\n", .{data.len});
 
     // Check existence
-    const exists = abi.features.storage.objectExists("images/logo.png") catch false;
+    const exists = abi.storage.objectExists("images/logo.png") catch false;
     std.debug.print("images/logo.png exists: {}\n", .{exists});
 
     // List objects with prefix
-    const objects = abi.features.storage.listObjects(allocator, "docs/") catch |err| {
+    const objects = abi.storage.listObjects(allocator, "docs/") catch |err| {
         std.debug.print("List failed: {t}\n", .{err});
         return;
     };
@@ -79,7 +79,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // Stats
-    const s = abi.features.storage.stats();
+    const s = abi.storage.stats();
     std.debug.print("\nStorage stats: {} objects, {} bytes total\n", .{
         s.total_objects, s.total_bytes,
     });

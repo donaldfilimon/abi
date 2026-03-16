@@ -31,10 +31,10 @@
 //! - FloatGauge and Histogram use mutex protection
 //! - SlidingWindow uses mutex protection
 
-pub const primitives = @import("primitives");
-pub const prometheus = @import("prometheus");
-pub const sliding_window = @import("sliding_window");
-pub const collector = @import("collector");
+pub const primitives = @import("primitives.zig");
+pub const prometheus = @import("prometheus.zig");
+pub const sliding_window = @import("sliding_window.zig");
+pub const collector = @import("collector.zig");
 const std = @import("std");
 
 // Re-export core types (lightweight, no name field)

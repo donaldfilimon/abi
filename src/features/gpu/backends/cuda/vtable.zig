@@ -5,10 +5,10 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../../interface");
-const loader = @import("loader");
-const nvrtc = @import("nvrtc");
-const device_query = @import("device_query");
+const interface = @import("../../interface.zig");
+const loader = @import("loader.zig");
+const nvrtc = @import("nvrtc.zig");
+const device_query = @import("device_query.zig");
 
 pub const CudaBackend = struct {
     allocator: std.mem.Allocator,

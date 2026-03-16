@@ -5,12 +5,12 @@
 //! these would connect to the security managers in services/shared/security/.
 
 const std = @import("std");
-const terminal = @import("../terminal");
-const layout = @import("../layout");
-const themes = @import("../themes");
-const events = @import("../events");
-const render_utils = @import("../render_utils");
-const Panel = @import("../panel");
+const terminal = @import("../terminal.zig");
+const layout = @import("../layout.zig");
+const themes = @import("../themes.zig");
+const events = @import("../events.zig");
+const render_utils = @import("../render_utils.zig");
+const Panel = @import("../panel.zig");
 
 pub const SecurityPanel = struct {
     allocator: std.mem.Allocator,

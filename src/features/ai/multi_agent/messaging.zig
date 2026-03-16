@@ -77,7 +77,7 @@ pub const EventBus = struct {
     pub fn init(allocator: std.mem.Allocator) EventBus {
         return .{
             .allocator = allocator,
-            .subscribers = .{},
+            .subscribers = .empty,
         };
     }
 
@@ -199,8 +199,8 @@ pub const AgentMessage = struct {
 /// Thread-safe via mutex — suitable for parallel execution.
 pub const AgentMailbox = struct {
     allocator: std.mem.Allocator,
-    inbox: std.ArrayListUnmanaged(AgentMessage) = .{},
-    owned_contents: std.ArrayListUnmanaged([]u8) = .{},
+    inbox: std.ArrayListUnmanaged(AgentMessage) = .empty,
+    owned_contents: std.ArrayListUnmanaged([]u8) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) AgentMailbox {
         return .{ .allocator = allocator };

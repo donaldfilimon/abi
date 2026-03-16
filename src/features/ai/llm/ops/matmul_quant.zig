@@ -4,7 +4,7 @@
 //! Q4_0 and Q8_0 quantized weights.
 
 const std = @import("std");
-const tensor_quantized = @import("../tensor/quantized");
+const tensor_quantized = @import("../tensor/quantized.zig");
 const Q4_0Block = tensor_quantized.Q4_0Block;
 const Q8_0Block = tensor_quantized.Q8_0Block;
 

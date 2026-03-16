@@ -9,9 +9,9 @@
 //! All conversions preserve tensor data integrity and metadata where possible.
 
 const std = @import("std");
-const unified = @import("unified");
-const compression = @import("compression");
-const gguf_converter = @import("gguf_converter");
+const unified = @import("unified.zig");
+const compression = @import("compression.zig");
+const gguf_converter = @import("gguf_converter.zig");
 
 pub const TargetFormat = enum {
     gguf,

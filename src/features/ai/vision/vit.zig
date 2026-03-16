@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const vit = @import("vit");
+//! const vit = @import("vit.zig");
 //!
 //! // Create ViT-Base/16 config
 //! const config = vit.ViTConfig.base(224, 16);

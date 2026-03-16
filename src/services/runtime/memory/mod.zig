@@ -16,7 +16,7 @@ const std = @import("std");
 // ============================================================================
 
 pub const StableAllocator = struct {
-    gpa: std.heap.GeneralPurposeAllocator(.{}) = .{},
+    gpa: std.heap.DebugAllocator(.{}) = .{},
 
     pub fn allocator(self: *StableAllocator) std.mem.Allocator {
         return self.gpa.allocator();

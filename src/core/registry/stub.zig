@@ -24,7 +24,7 @@ pub const Feature = enum {
     network,
     observability,
     web,
-    personas,
+    profiles,
     cloud,
     analytics,
     auth,
@@ -38,6 +38,11 @@ pub const Feature = enum {
     benchmarks,
     reasoning,
     constitution,
+    compute,
+    documents,
+    desktop,
+    lsp,
+    mcp,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -55,7 +60,7 @@ pub const Feature = enum {
             .network => "Distributed compute network",
             .observability => "Metrics, tracing, profiling",
             .web => "Web/HTTP utilities",
-            .personas => "Multi-persona AI assistant",
+            .profiles => "Behavior profile routing and selection",
             .cloud => "Cloud provider integration",
             .analytics => "Analytics event tracking",
             .auth => "Authentication and security",
@@ -69,6 +74,11 @@ pub const Feature = enum {
             .benchmarks => "Performance benchmarking",
             .reasoning => "AI reasoning (Abbey, eval, RAG)",
             .constitution => "AI safety principles and guardrails",
+            .compute => "Distributed compute mesh",
+            .documents => "Native document parsing (HTML, PDF)",
+            .desktop => "Native desktop OS extensions",
+            .lsp => "LSP (ZLS) service",
+            .mcp => "MCP (Model Context Protocol) service",
         };
     }
 };
@@ -110,7 +120,7 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
 /// Get parent feature for sub-features.
 pub fn getParentFeature(feature: Feature) ?Feature {
     return switch (feature) {
-        .llm, .embeddings, .agents, .training, .personas, .reasoning, .constitution => .ai,
+        .llm, .embeddings, .agents, .training, .profiles, .reasoning, .constitution => .ai,
         else => null,
     };
 }

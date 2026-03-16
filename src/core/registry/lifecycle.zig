@@ -3,7 +3,7 @@
 //! Initialization, deinitialization, and enable/disable operations for features.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 const Feature = types.Feature;
 const RegistrationMode = types.RegistrationMode;
@@ -36,8 +36,20 @@ pub fn initFeature(
         },
 
         .dynamic => {
-            // Dynamic loading not yet implemented
-            return Error.DynamicLoadingNotSupported;
+            if (!reg.enabled) return Error.FeatureDisabled;
+
+            const library_path = reg.library_path orelse return Error.InitializationFailed;
+
+            // Open the library if not already open
+            if (reg.dyn_lib == null) {
+                reg.dyn_lib = std.DynLib.open(library_path) catch return Error.LibraryLoadFailed;
+            }
+
+            const interface = reg.plugin_interface orelse return Error.InitializationFailed;
+
+            // Initialize the plugin via its interface
+            reg.context_ptr = interface.init(allocator) catch return Error.InitializationFailed;
+            reg.initialized = true;
         },
     }
 }
@@ -67,7 +79,19 @@ pub fn deinitFeature(
         },
 
         .dynamic => {
-            return Error.DynamicLoadingNotSupported;
+            const interface = reg.plugin_interface orelse return;
+            if (reg.context_ptr) |ptr| {
+                interface.deinit(ptr);
+            }
+            reg.context_ptr = null;
+
+            // Close the library handle if it was opened during init
+            if (reg.dyn_lib) |*lib| {
+                lib.close();
+                reg.dyn_lib = null;
+            }
+
+            reg.initialized = false;
         },
     }
 }

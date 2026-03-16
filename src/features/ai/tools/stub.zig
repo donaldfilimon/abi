@@ -156,7 +156,7 @@ pub fn registerAllAgentTools(_: *ToolRegistry) !void {
 // ToolAgent types (merged from stubs/tool_agent.zig)
 // ---------------------------------------------------------------------------
 
-const agent_stub = @import("../agents/stub");
+const agent_stub = @import("../agents/stub.zig");
 
 pub const ToolAgentConfig = struct {
     agent: agent_stub.AgentConfig = .{ .name = "tool-agent" },
@@ -189,7 +189,7 @@ pub const ToolAugmentedAgent = struct {
     tool_registry: tool.OuterToolRegistry = undefined,
     config: ToolAgentConfig = .{},
     confirmation_callback: ?ConfirmationFn = null,
-    tool_call_log: std.ArrayListUnmanaged(ToolCallRecord) = .{},
+    tool_call_log: std.ArrayListUnmanaged(ToolCallRecord) = .empty,
     tool_descriptions: ?[]u8 = null,
 
     const Self = @This();

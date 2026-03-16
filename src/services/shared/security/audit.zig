@@ -10,9 +10,9 @@
 //! - Compliance-ready audit trails
 
 const std = @import("std");
-const time = @import("../time");
-const sync = @import("../sync");
-const csprng = @import("csprng");
+const time = @import("../time.zig");
+const sync = @import("../sync.zig");
+const csprng = @import("csprng.zig");
 
 /// Severity level for security events
 pub const Severity = enum(u8) {

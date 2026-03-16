@@ -2,7 +2,7 @@
 //!
 //! Comptime configuration for WGSL code generation targeting WebGPU.
 
-const mod = @import("mod");
+const mod = @import("mod.zig");
 const std = @import("std");
 
 /// WGSL type names.

@@ -9,13 +9,16 @@
 //! - Provider abstraction (env, file, vault)
 
 const std = @import("std");
-const time = @import("../time");
-const sync = @import("../sync");
+const os = @import("../os.zig");
+const sync = @import("../sync.zig");
+const time = @import("../time.zig");
 const crypto = std.crypto;
-const csprng = @import("csprng");
+const csprng = @import("csprng.zig");
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
-    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    return std.Io.Threaded.init(allocator, .{
+        .environ = if (comptime !os.no_os) std.process.Environ.empty else .{},
+    });
 }
 
 /// Secret provider types
@@ -571,7 +574,7 @@ pub const SecretsManager = struct {
         defer self.allocator.free(url);
 
         // Perform HTTP GET to HashiCorp Vault using AsyncHttpClient
-        const async_http = @import("../utils/http/async_http");
+        const async_http = @import("../utils/http/async_http.zig");
 
         var client = async_http.AsyncHttpClient.init(self.allocator) catch |err| {
             std.log.err("Failed to initialize HTTP client for Vault: {}", .{err});
@@ -733,7 +736,7 @@ pub const SecretsManager = struct {
         });
 
         // Perform HTTP POST to HashiCorp Vault KV v2
-        const async_http = @import("../utils/http/async_http");
+        const async_http = @import("../utils/http/async_http.zig");
 
         var client = async_http.AsyncHttpClient.init(self.allocator) catch |err| {
             std.log.err("Failed to initialize HTTP client for Vault write: {}", .{err});
@@ -838,7 +841,7 @@ pub const SecretsManager = struct {
         }
 
         // Perform HTTP DELETE to HashiCorp Vault KV v2
-        const async_http = @import("../utils/http/async_http");
+        const async_http = @import("../utils/http/async_http.zig");
 
         const url = std.fmt.allocPrint(self.allocator, "{s}/v1/secret/data/{s}", .{
             vault_url,

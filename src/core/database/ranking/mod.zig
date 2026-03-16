@@ -1,8 +1,8 @@
 //! Turns candidate sets into useful memory.
 
 const std = @import("std");
-const core = @import("../core");
-const block = @import("../block");
+const core = @import("../core/mod.zig");
+const block = @import("../block/mod.zig");
 
 pub const WeightProfile = struct {
     semantic_similarity: f32 = 1.0,
@@ -10,7 +10,7 @@ pub const WeightProfile = struct {
     trust_score: f32 = 1.0,
     user_pinning: f32 = 1.0,
     project_locality: f32 = 1.0,
-    persona_preference: f32 = 1.0,
+    profile_preference: f32 = 1.0,
     contradiction_penalty: f32 = 1.0,
     past_usefulness: f32 = 1.0,
 };

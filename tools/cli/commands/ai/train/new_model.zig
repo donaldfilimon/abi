@@ -5,10 +5,10 @@
 //! external quantization via llama-quantize.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
-const common = @import("common");
+const common = @import("common.zig");
 
 const cli_io = common.cli_io;
 const gguf_writer = common.gguf_writer;
@@ -83,7 +83,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
 
     // Check if LLM feature is enabled
-    if (!abi.features.ai.llm.isEnabled()) {
+    if (!abi.ai.llm.isEnabled()) {
         utils.output.printError("LLM feature is not enabled. Build with -Dfeat-llm=true", .{});
         return;
     }
@@ -323,7 +323,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
 
     // Create model config
-    const model_config = abi.features.ai.training.trainable_model.TrainableModelConfig{
+    const model_config = abi.ai.training.trainable_model.TrainableModelConfig{
         .hidden_dim = hidden_dim,
         .num_layers = num_layers,
         .num_heads = num_heads,
@@ -370,7 +370,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Create model from scratch
     utils.output.println("Initializing model with random weights...", .{});
-    var model = abi.features.ai.training.TrainableModel.init(allocator, model_config) catch |err| {
+    var model = abi.ai.training.TrainableModel.init(allocator, model_config) catch |err| {
         utils.output.printError("initializing model: {t}", .{err});
         return;
     };
@@ -415,7 +415,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
                 train_tokens = trimmed;
             }
         } else if (dataset_format == .tokenbin) {
-            train_tokens = abi.features.ai.database.readTokenBinFile(allocator, path) catch |err| {
+            train_tokens = abi.ai.database.readTokenBinFile(allocator, path) catch |err| {
                 utils.output.printError("reading tokenbin: {t}", .{err});
                 return;
             };
@@ -455,7 +455,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
     common.clampTokens(train_tokens, vocab_size);
 
     // Create LLM training config
-    var llm_config = abi.features.ai.training.LlmTrainingConfig{
+    var llm_config = abi.ai.training.LlmTrainingConfig{
         .epochs = epochs,
         .batch_size = batch_size,
         .max_seq_len = max_seq_len,
@@ -482,12 +482,12 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
     llm_config.export_name = export_name;
 
     utils.output.println("Starting training from scratch...", .{});
-    var timer = abi.services.shared.time.Timer.start() catch {
+    var timer = abi.foundation.time.Timer.start() catch {
         utils.output.printError("Failed to start timer", .{});
         return;
     };
 
-    const report = abi.features.ai.training.llm_trainer.trainLlm(allocator, &model, llm_config, train_tokens) catch |err| {
+    const report = abi.ai.training.llm_trainer.trainLlm(allocator, &model, llm_config, train_tokens) catch |err| {
         utils.output.printError("Training failed: {t}", .{err});
         return;
     };

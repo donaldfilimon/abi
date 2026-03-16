@@ -4,8 +4,8 @@
 //! replacing polling-based dirty state checks with wait/signal semantics.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 /// Event-based synchronization primitive for GPU operations.
 /// Replaces polling-based dirty state checks with wait/signal semantics.

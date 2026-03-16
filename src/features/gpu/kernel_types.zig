@@ -1,6 +1,6 @@
 //! GPU kernel types and configuration primitives.
 const std = @import("std");
-const backend = @import("backend");
+const backend = @import("backend.zig");
 
 pub const KernelError = error{
     CompilationFailed,

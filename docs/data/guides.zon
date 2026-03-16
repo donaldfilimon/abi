@@ -221,7 +221,14 @@
         .title = "C API Bindings",
         .section = "Reference",
         .permalink = "/c-bindings/",
-        .description = "C-compatible ABI API exports and integration notes",
+        .description = "C-compatible ABI API exports and integration notes (bindings/c/)",
+    },
+    .{
+        .slug = "feature-catalog",
+        .title = "Feature Catalog",
+        .section = "Reference",
+        .permalink = "/feature-catalog/",
+        .description = "All 19 comptime-gated features with flags, paths, and parent relationships",
     },
     .{
         .slug = "troubleshooting",

@@ -10,16 +10,16 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const events = @import("events");
-const widgets = @import("widgets");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const events = @import("events.zig");
+const widgets = @import("widgets.zig");
 const box = widgets.box;
-const RingBuffer = @import("ring_buffer").RingBuffer;
-const cli_io = @import("../utils/io_backend");
-const unicode = @import("unicode");
-const render_utils = @import("render_utils");
-const layout = @import("layout");
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
+const cli_io = @import("../utils/io_backend.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 /// Model Management Panel for viewing and managing AI models
 pub const ModelManagementPanel = struct {
@@ -162,7 +162,7 @@ pub const ModelManagementPanel = struct {
     /// Update panel data (poll for changes)
     pub fn update(self: *Self) !void {
         // Get current timestamp
-        const now = abi.services.shared.utils.unixMs();
+        const now = abi.foundation.utils.unixMs();
 
         // Check if enough time has passed for refresh
         if (now - self.last_refresh < @as(i64, @intCast(self.refresh_interval_ms))) {
@@ -171,7 +171,7 @@ pub const ModelManagementPanel = struct {
         self.last_refresh = now;
 
         // Poll model manager for cached models
-        var manager = try abi.features.ai.models.Manager.init(self.allocator, .{ .auto_scan = false });
+        var manager = try abi.ai.models.Manager.init(self.allocator, .{ .auto_scan = false });
         defer manager.deinit();
 
         var io_backend = cli_io.initIoBackend(self.allocator);
@@ -498,22 +498,22 @@ pub const ModelManagementPanel = struct {
         }{
             .{
                 .name = "Ollama",
-                .available = abi.services.connectors.ollama.isAvailable(),
+                .available = abi.connectors.ollama.isAvailable(),
                 .host = "ABI_OLLAMA_HOST",
             },
             .{
                 .name = "LM Studio",
-                .available = abi.services.connectors.lm_studio.isAvailable(),
+                .available = abi.connectors.lm_studio.isAvailable(),
                 .host = "ABI_LM_STUDIO_HOST",
             },
             .{
                 .name = "vLLM",
-                .available = abi.services.connectors.vllm.isAvailable(),
+                .available = abi.connectors.vllm.isAvailable(),
                 .host = "ABI_VLLM_HOST",
             },
             .{
                 .name = "MLX",
-                .available = abi.services.connectors.mlx.isAvailable(),
+                .available = abi.connectors.mlx.isAvailable(),
                 .host = "ABI_MLX_HOST",
             },
         };

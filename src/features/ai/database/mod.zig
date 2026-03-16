@@ -4,9 +4,9 @@
 const std = @import("std");
 
 pub const dataset = @import("wdbx.zig");
-pub const convert = @import("convert");
-pub const export_mod = @import("export");
-pub const brain_export = @import("brain_export");
+pub const convert = @import("convert.zig");
+pub const export_mod = @import("export.zig");
+pub const brain_export = @import("brain_export.zig");
 
 // Re-exports
 pub const WdbxTokenDataset = dataset.WdbxTokenDataset;

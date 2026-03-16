@@ -15,8 +15,9 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const obs = abi.features.observability;
-const profiles = @import("profiles");
+const os = abi.foundation.os;
+const obs = abi.observability;
+const profiles = @import("profiles.zig");
 const StressProfile = profiles.StressProfile;
 const LatencyHistogram = profiles.LatencyHistogram;
 const Timer = profiles.Timer;
@@ -66,6 +67,7 @@ test "observability stress: counter high throughput" {
 }
 
 test "observability stress: counter concurrent increments" {
+    if (comptime os.no_os) return error.SkipZigTest;
     if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const profile = getTestProfile();
@@ -123,6 +125,7 @@ test "observability stress: counter overflow handling" {
 // ============================================================================
 
 test "observability stress: gauge concurrent updates" {
+    if (comptime os.no_os) return error.SkipZigTest;
     if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const profile = getTestProfile();
@@ -305,6 +308,7 @@ test "observability stress: metrics collector concurrent registration" {
 }
 
 test "observability stress: metrics collector heavy usage" {
+    if (comptime os.no_os) return error.SkipZigTest;
     if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
@@ -398,6 +402,7 @@ test "observability stress: span creation high throughput" {
 }
 
 test "observability stress: tracer concurrent spans" {
+    if (comptime os.no_os) return error.SkipZigTest;
     if (!build_options.feat_profiling) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;

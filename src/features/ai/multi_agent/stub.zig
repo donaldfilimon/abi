@@ -1,27 +1,27 @@
 //! Multi-Agent stub — disabled at compile time.
 //!
 //! Mirrors all public types and functions from mod.zig so that code
-//! using `abi.features.ai.multi_agent.*` compiles regardless of the feature flag.
+//! using `abi.ai.multi_agent.*` compiles regardless of the feature flag.
 //! Every mutating function returns `error.AgentDisabled` or a sensible
 //! zero/empty default.
 
 const std = @import("std");
-const retry = @import("shared_services").utils.retry;
-const sync = @import("shared_services").sync;
-const agents = @import("../agents/stub");
-const workflow_mod = @import("workflow");
-const blackboard_mod = @import("blackboard");
-const roles_mod = @import("roles");
-const supervisor_mod = @import("supervisor");
-const protocol_mod = @import("protocol");
+const retry = @import("../../../services/shared/utils/retry.zig");
+const sync = @import("../../../services/shared/mod.zig").sync;
+const agents = @import("../agents/stub.zig");
+const workflow_mod = @import("workflow.zig");
+const blackboard_mod = @import("blackboard.zig");
+const roles_mod = @import("roles.zig");
+const supervisor_mod = @import("supervisor.zig");
+const protocol_mod = @import("protocol.zig");
 
-pub const aggregation = @import("aggregation");
-pub const messaging = @import("messaging");
-pub const roles = @import("roles");
-pub const blackboard = @import("blackboard");
-pub const workflow = @import("workflow");
-pub const supervisor = @import("supervisor");
-pub const protocol = @import("protocol");
+pub const aggregation = @import("aggregation.zig");
+pub const messaging = @import("messaging.zig");
+pub const roles = @import("roles.zig");
+pub const blackboard = @import("blackboard.zig");
+pub const workflow = @import("workflow.zig");
+pub const supervisor = @import("supervisor.zig");
+pub const protocol = @import("protocol.zig");
 
 // ---------------------------------------------------------------------------
 // Runner stub (inline — cannot import runner.zig because it depends on the
@@ -38,7 +38,7 @@ const StubWorkflowRunner = struct {
     allocator: std.mem.Allocator,
     config: RunnerConfig,
     blackboard: blackboard_mod.Blackboard,
-    persona_registry: roles_mod.PersonaRegistry,
+    profile_registry: roles_mod.ProfileRegistry,
     supervisor: supervisor_mod.Supervisor,
     event_bus: messaging.EventBus,
     conversation_manager: protocol_mod.ConversationManager,
@@ -77,7 +77,7 @@ const StubWorkflowRunner = struct {
         step_id: []const u8,
         output: ?[]const u8,
         status: workflow_mod.StepStatus,
-        assigned_persona: ?[]const u8,
+        assigned_profile: ?[]const u8,
         attempts: u32,
         duration_ms: u64,
     };
@@ -104,7 +104,7 @@ const StubWorkflowRunner = struct {
             .allocator = allocator,
             .config = config,
             .blackboard = blackboard_mod.Blackboard.init(allocator, config.max_history),
-            .persona_registry = roles_mod.PersonaRegistry.init(allocator),
+            .profile_registry = roles_mod.ProfileRegistry.init(allocator),
             .supervisor = supervisor_mod.Supervisor.init(allocator, .{
                 .restart_strategy = config.restart_strategy,
                 .max_retries = config.max_retries,
@@ -120,7 +120,7 @@ const StubWorkflowRunner = struct {
         self.conversation_manager.deinit();
         self.event_bus.deinit();
         self.supervisor.deinit();
-        self.persona_registry.deinit();
+        self.profile_registry.deinit();
         self.blackboard.deinit();
     }
 

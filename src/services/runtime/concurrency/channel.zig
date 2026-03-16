@@ -11,7 +11,7 @@
 //! ═══════════════════════════════════════════════════════════════════════════
 
 const std = @import("std");
-const Math = @import("shared_services").utils.Math;
+const Math = @import("../../shared/mod.zig").utils.Math;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

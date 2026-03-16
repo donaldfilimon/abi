@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const mm = @import("multimodal");
+//! const mm = @import("multimodal.zig");
 //!
 //! // Create CLIP-style model
 //! var clip = try mm.CLIPModel.init(allocator, .{
@@ -30,8 +30,8 @@
 
 const std = @import("std");
 const math = std.math;
-const vit = @import("vit");
-const simd = @import("shared_services").simd;
+const vit = @import("vit.zig");
+const simd = @import("../../../services/shared/mod.zig").simd;
 
 // ============================================================================
 // Configuration

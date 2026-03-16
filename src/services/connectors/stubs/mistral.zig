@@ -1,5 +1,5 @@
 const std = @import("std");
-const shared = @import("../shared");
+const shared = @import("../shared.zig");
 
 pub const MistralError = error{
     MissingApiKey,

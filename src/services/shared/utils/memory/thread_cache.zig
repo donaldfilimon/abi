@@ -17,8 +17,8 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../mod.zig").time;
+const sync = @import("../../mod.zig").sync;
 
 /// Configuration for thread cache.
 pub const ThreadCacheConfig = struct {

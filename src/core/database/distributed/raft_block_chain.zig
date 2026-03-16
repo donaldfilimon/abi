@@ -10,7 +10,7 @@
 //! - Followers apply committed blocks to their local chains
 
 const std = @import("std");
-const parent = @import(".");
+const parent = @import("./mod.zig");
 const time = parent.time;
 const network = parent.network;
 const block_chain = parent.block_chain;
@@ -340,9 +340,9 @@ pub const DistributedBlockChain = struct {
         try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @intCast(embedding_bytes.len))));
         try buffer.appendSlice(self.allocator, embedding_bytes);
 
-        // Write persona tag
-        try buffer.append(self.allocator, @intFromEnum(config.persona_tag.primary_persona));
-        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @bitCast(config.persona_tag.blend_coefficient))));
+        // Write profile tag
+        try buffer.append(self.allocator, @intFromEnum(config.profile_tag.primary_profile));
+        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @bitCast(config.profile_tag.blend_coefficient))));
 
         // Write intent
         try buffer.append(self.allocator, @intFromEnum(config.intent));
@@ -379,15 +379,15 @@ pub const DistributedBlockChain = struct {
         // Note: This is simplified - would need proper deserialization
         @memset(embedding, 0.1);
 
-        // Read persona tag
+        // Read profile tag
         if (pos + 6 > data.len) return error.UnexpectedEndOfData;
-        const persona_raw = data[pos];
+        const profile_raw = data[pos];
         pos += 1;
         const blend_raw = std.mem.readInt(u32, data[pos..][0..4], .little);
         pos += 4;
 
-        const persona_tag = block_chain.PersonaTag{
-            .primary_persona = @enumFromInt(persona_raw),
+        const profile_tag = block_chain.ProfileTag{
+            .primary_profile = @enumFromInt(profile_raw),
             .blend_coefficient = @bitCast(blend_raw),
         };
 
@@ -397,7 +397,7 @@ pub const DistributedBlockChain = struct {
 
         return block_chain.BlockConfig{
             .query_embedding = embedding,
-            .persona_tag = persona_tag,
+            .profile_tag = profile_tag,
             .intent = @enumFromInt(intent_raw),
             .routing_weights = .{}, // Would need to serialize/deserialize
             .previous_hash = .{0} ** 32, // Would need from context
@@ -455,7 +455,7 @@ test "DistributedBlockChain local operations" {
     // Add block locally (no cluster)
     const config = block_chain.BlockConfig{
         .query_embedding = query_embedding,
-        .persona_tag = .{ .primary_persona = .abbey },
+        .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
     };
@@ -493,7 +493,7 @@ test "DistributedBlockChain chain management" {
 
     const config = block_chain.BlockConfig{
         .query_embedding = query_embedding,
-        .persona_tag = .{ .primary_persona = .aviva },
+        .profile_tag = .{ .primary_profile = .aviva },
         .routing_weights = .{ .abbey_weight = 0.3, .aviva_weight = 0.7 },
         .intent = .technical_problem,
     };
@@ -531,7 +531,7 @@ test "DistributedBlockChain single-node addBlock auto-commits" {
 
     const config = block_chain.BlockConfig{
         .query_embedding = embedding,
-        .persona_tag = .{ .primary_persona = .abbey },
+        .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 1.0 },
         .intent = .empathy_seeking,
     };
@@ -557,7 +557,7 @@ test "DistributedBlockChain getBlock returns locally added block" {
 
     const config = block_chain.BlockConfig{
         .query_embedding = embedding,
-        .persona_tag = .{ .primary_persona = .aviva },
+        .profile_tag = .{ .primary_profile = .aviva },
         .routing_weights = .{ .aviva_weight = 1.0 },
         .intent = .technical_problem,
     };

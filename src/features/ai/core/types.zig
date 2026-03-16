@@ -4,8 +4,8 @@
 //! These types form the backbone of Abbey's unique architecture.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const builtin = @import("builtin");
 
 // ============================================================================
@@ -486,7 +486,7 @@ pub const Topic = struct {
         database,
         devops,
         general,
-        personal,
+        profilel,
         creative,
     };
 

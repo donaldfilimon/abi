@@ -1,6 +1,6 @@
 const std = @import("std");
-const gguf_writer = @import("../../llm/io/gguf_writer");
-const checkpoint = @import("../checkpoint");
+const gguf_writer = @import("../../llm/io/gguf_writer.zig");
+const checkpoint = @import("../checkpoint.zig");
 
 pub const GgufExportConfig = struct {
     name: []const u8 = "abi-llama",
@@ -195,7 +195,7 @@ pub fn exportToGguf(
     try gguf_writer.exportToGguf(allocator, path, export_config, export_weights);
 }
 
-const trainable_checkpoint = @import("../trainable_checkpoint");
+const trainable_checkpoint = @import("../trainable_checkpoint.zig");
 
 test {
     std.testing.refAllDecls(@This());

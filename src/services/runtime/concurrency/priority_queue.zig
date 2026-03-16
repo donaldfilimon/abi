@@ -107,8 +107,8 @@
 //! consider using per-worker queues with work-stealing instead.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../shared/mod.zig").time;
+const sync = @import("../../shared/mod.zig").sync;
 
 /// Task priority levels.
 pub const Priority = enum(u8) {
@@ -216,7 +216,7 @@ pub fn PriorityQueue(comptime T: type) type {
             return .{
                 .allocator = allocator,
                 .config = config,
-                .items = .{},
+                .items = .empty,
                 .mutex = .{},
                 .sequence_counter = std.atomic.Value(u64).init(0),
                 .tick_counter = std.atomic.Value(u64).init(0),
@@ -508,7 +508,7 @@ pub fn DeadlineQueue(comptime T: type) type {
         pub fn init(allocator: std.mem.Allocator) Self {
             return .{
                 .allocator = allocator,
-                .items = .{},
+                .items = .empty,
                 .mutex = .{},
                 .sequence = 0,
             };

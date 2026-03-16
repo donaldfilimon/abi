@@ -14,15 +14,15 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const terminal = @import("terminal");
-const events = @import("events");
-const themes = @import("themes");
-const widgets = @import("widgets");
-const metrics = @import("training_metrics");
-const cli_io = @import("../utils/io_backend");
-const unicode = @import("unicode");
-const render_utils = @import("render_utils");
-const layout = @import("layout");
+const terminal = @import("terminal.zig");
+const events = @import("events.zig");
+const themes = @import("themes.zig");
+const widgets = @import("widgets.zig");
+const metrics = @import("training_metrics.zig");
+const cli_io = @import("../utils/io_backend.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 // ===============================================================================
 // Types
@@ -633,7 +633,7 @@ pub const TrainingPanel = struct {
 
         var needs_render = true;
         while (self.running) {
-            const now_ms = abi.services.shared.utils.unixMs();
+            const now_ms = abi.foundation.utils.unixMs();
             if (shouldRefreshAt(now_ms, self.last_refresh, self.config.refresh_ms)) {
                 // Pull latest metrics incrementally.
                 _ = self.pollMetrics() catch |err| {
@@ -660,7 +660,7 @@ pub const TrainingPanel = struct {
 
             // Poll input until next refresh deadline so rendering is truly live.
             const timeout_ms = pollTimeoutMs(
-                abi.services.shared.utils.unixMs(),
+                abi.foundation.utils.unixMs(),
                 self.last_refresh,
                 self.config.refresh_ms,
             );

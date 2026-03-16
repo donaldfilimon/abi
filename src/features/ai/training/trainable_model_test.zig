@@ -1,7 +1,7 @@
 //! Tests for trainable model components.
 
 const std = @import("std");
-const trainable_model = @import("trainable_model");
+const trainable_model = @import("trainable_model.zig");
 const TrainableModelConfig = trainable_model.TrainableModelConfig;
 const TrainableModel = trainable_model.TrainableModel;
 const TrainableWeights = trainable_model.TrainableWeights;

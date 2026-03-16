@@ -8,9 +8,9 @@
 const std = @import("std");
 
 // Extracted submodules
-pub const device_group_mod = @import("device_group");
-pub const gpu_cluster_mod = @import("gpu_cluster");
-pub const gradient_sync_mod = @import("gradient_sync");
+pub const device_group_mod = @import("device_group.zig");
+pub const gpu_cluster_mod = @import("gpu_cluster.zig");
+pub const gradient_sync_mod = @import("gradient_sync.zig");
 
 // Re-export device_group types
 pub const DeviceId = device_group_mod.DeviceId;
@@ -43,8 +43,8 @@ pub const GradientBucketManager = gradient_sync_mod.GradientBucketManager;
 
 // Test discovery for extracted submodules
 test {
-    _ = @import("device_group");
-    _ = @import("gpu_cluster");
-    _ = @import("gradient_sync");
-    _ = @import("multi_device_test");
+    _ = @import("device_group.zig");
+    _ = @import("gpu_cluster.zig");
+    _ = @import("gradient_sync.zig");
+    _ = @import("multi_device_test.zig");
 }

@@ -1,7 +1,7 @@
 const std = @import("std");
-const ops = @import("../../llm/ops");
+const ops = @import("../../llm/ops/mod.zig");
 const backward_ops = ops.backward;
-const training_bridge = @import("../../../gpu/training_bridge");
+const training_bridge = @import("../../../gpu/training_bridge.zig");
 
 /// Execute a forward pass through the model and write logits.
 pub fn run(

@@ -6,12 +6,12 @@
 //! `Terminal.write()`.
 
 const std = @import("std");
-const panel_mod = @import("../panel");
-const terminal = @import("../terminal");
-const layout = @import("../layout");
-const themes = @import("../themes");
-const events = @import("../events");
-const training_panel = @import("../training_panel");
+const panel_mod = @import("../panel.zig");
+const terminal = @import("../terminal.zig");
+const layout = @import("../layout.zig");
+const themes = @import("../themes.zig");
+const events = @import("../events.zig");
+const training_panel = @import("../training_panel.zig");
 
 /// Writer adapter: exposes a `.print()` method that formats into a stack
 /// buffer and delegates to `Terminal.write()`.

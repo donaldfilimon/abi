@@ -8,7 +8,7 @@
 //! high-speed paths (Thunderbolt/shared memory on macOS).
 
 const std = @import("std");
-const shard_manager = @import("shard_manager");
+const shard_manager = @import("shard_manager.zig");
 const heartbeat_mod = @import("../../network/heartbeat");
 
 // ============================================================================

@@ -4,7 +4,7 @@
 //! No network I/O; callers pass in-memory buffers. Use for tests and as the core of a future TCP transport.
 
 const std = @import("std");
-const rpc = @import("rpc");
+const rpc = @import("rpc.zig");
 
 /// Optional trace callback for sync steps (e.g. "request shard=0", "response status=ok", "chunk 0 len=256").
 pub const TraceFn = *const fn (msg: []const u8) void;
@@ -101,7 +101,7 @@ pub fn runRequesterPath(
 
 test "runRequesterPath: not_found" {
     const allocator = std.testing.allocator;
-    var sink = std.ArrayListUnmanaged(u8){};
+    var sink = std.ArrayListUnmanaged(u8).empty;
     defer sink.deinit(allocator);
 
     var buf: [128]u8 = undefined;
@@ -118,11 +118,11 @@ test "runRequesterPath: not_found" {
 
 test "runRequesterPath: ok with one chunk" {
     const allocator = std.testing.allocator;
-    var sink = std.ArrayListUnmanaged(u8){};
+    var sink = std.ArrayListUnmanaged(u8).empty;
     defer sink.deinit(allocator);
 
     const payload_data = [_]u8{ 0xde, 0xad, 0xbe, 0xef };
-    var stream = std.ArrayListUnmanaged(u8){};
+    var stream = std.ArrayListUnmanaged(u8).empty;
     defer stream.deinit(allocator);
     var tmp: [256]u8 = undefined;
     const resp = rpc.BlockSyncResponse{ .status = .ok, .total_byte_len = 4 };

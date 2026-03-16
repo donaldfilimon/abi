@@ -8,7 +8,7 @@ fn isAllowedCommandUiImport(file: []const u8) bool {
 }
 
 pub fn main(_: std.process.Init) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 

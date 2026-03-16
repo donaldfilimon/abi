@@ -4,11 +4,11 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 // Re-export from agent module (now at src/features/ai/agent.zig)
-const features_agent = @import("agent");
-const features_tools = @import("../tools");
+const features_agent = @import("agent.zig");
+const features_tools = @import("../tools/mod.zig");
 
 pub const Agent = features_agent.Agent;
 pub const AgentConfig = features_agent.AgentConfig;

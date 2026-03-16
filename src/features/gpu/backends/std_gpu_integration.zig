@@ -32,11 +32,11 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const std_gpu_kernels = @import("../std_gpu_kernels");
+const std_gpu_kernels = @import("../std_gpu_kernels.zig");
 
 // Import dispatch types for BuiltinKernel enum and Buffer
-const dsl_kernel = @import("../dsl/kernel");
-const unified_buffer = @import("../unified_buffer");
+const dsl_kernel = @import("../dsl/kernel.zig");
+const unified_buffer = @import("../unified_buffer.zig");
 
 // Inline GPU target detection (same as std_gpu.zig)
 const is_gpu_target = builtin.cpu.arch.isSpirV();

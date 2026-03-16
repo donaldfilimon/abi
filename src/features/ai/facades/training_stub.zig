@@ -1,14 +1,14 @@
 //! AI Training Stub Module — disabled when AI training is off.
 
 const std = @import("std");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 pub const Error = error{ TrainingDisabled, InvalidConfig };
 
 // Sub-module stubs
-pub const training = @import("../training/stub");
-pub const federated = @import("../federated/stub");
-pub const database = @import("../database/stub");
+pub const training = @import("../training/stub.zig");
+pub const federated = @import("../federated/stub.zig");
+pub const database = @import("../database/stub.zig");
 
 // Re-exports
 pub const TrainingConfig = training.TrainingConfig;

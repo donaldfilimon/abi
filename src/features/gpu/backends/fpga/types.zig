@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const fpga_types = @import("types");
+//! const fpga_types = @import("types.zig");
 //!
 //! // Describe an FPGA device
 //! var caps = fpga_types.DeviceCapabilities{

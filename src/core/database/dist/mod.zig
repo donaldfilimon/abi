@@ -6,9 +6,9 @@
 const std = @import("std");
 
 /// Binary RPC codec for node-to-node messages (heartbeat, block sync).
-pub const rpc = @import("rpc");
+pub const rpc = @import("rpc.zig");
 /// In-process block sync path (request/response/chunk stream); see runRequesterPath.
-pub const replication = @import("replication");
+pub const replication = @import("replication.zig");
 
 /// Health state derived from last_seen vs configured timeouts.
 pub const HealthState = enum {
@@ -135,7 +135,7 @@ pub const Coordinator = struct {
     /// Remove shard assignments for a node (e.g. when node becomes failed).
     /// Call this from your trace_state_change callback when new == .failed, or after tick(); then optionally reassign shards to healthy nodes via assignShard.
     pub fn unassignShardsForNode(self: *Coordinator, allocator: std.mem.Allocator, node_id: u32) !void {
-        var to_remove = std.ArrayListUnmanaged(u32){};
+        var to_remove = std.ArrayListUnmanaged(u32).empty;
         defer to_remove.deinit(allocator);
         var it = self.shard_map.iterator();
         while (it.next()) |entry| {
@@ -319,7 +319,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-pub const transport = @import("transport");
+pub const transport = @import("transport.zig");
 
 test {
     _ = transport;

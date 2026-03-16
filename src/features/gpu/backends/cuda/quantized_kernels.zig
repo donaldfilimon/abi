@@ -10,8 +10,8 @@
 //! compared to float32 operations.
 
 const std = @import("std");
-const loader = @import("loader");
-const nvrtc = @import("nvrtc");
+const loader = @import("loader.zig");
+const nvrtc = @import("nvrtc.zig");
 
 pub const QuantKernelError = error{
     CudaNotAvailable,

@@ -20,14 +20,14 @@
 const std = @import("std");
 
 // Local imports (implementation files)
-pub const lockfree = @import("lockfree");
-pub const priority_queue = @import("priority_queue");
-pub const epoch = @import("epoch");
-pub const chase_lev = @import("chase_lev");
-pub const mpmc = @import("mpmc_queue");
-pub const channel_mod = @import("channel");
+pub const lockfree = @import("lockfree.zig");
+pub const priority_queue = @import("priority_queue.zig");
+pub const epoch = @import("epoch.zig");
+pub const chase_lev = @import("chase_lev.zig");
+pub const mpmc = @import("mpmc_queue.zig");
+pub const channel_mod = @import("channel.zig");
 
-const sync = @import("shared_services").sync;
+const sync = @import("../../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 // Lock-free structures

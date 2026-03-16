@@ -19,7 +19,7 @@
 //! ```zig
 //! const std = @import("std");
 //! const abi = @import("abi");
-//! const cloud = abi.features.cloud;
+//! const cloud = abi.cloud;
 //!
 //! /// Your function handler - same code works on all providers
 //! fn handler(event: *cloud.CloudEvent, allocator: std.mem.Allocator) !cloud.CloudResponse {
@@ -57,7 +57,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 // Re-export types
-pub const types = @import("types");
+pub const types = @import("types.zig");
 pub const CloudEvent = types.CloudEvent;
 pub const CloudResponse = types.CloudResponse;
 pub const CloudProvider = types.CloudProvider;
@@ -68,9 +68,9 @@ pub const HttpMethod = types.HttpMethod;
 pub const InvocationMetadata = types.InvocationMetadata;
 
 // Re-export provider-specific adapters
-pub const aws_lambda = @import("aws_lambda");
-pub const gcp_functions = @import("gcp_functions");
-pub const azure_functions = @import("azure_functions");
+pub const aws_lambda = @import("aws_lambda.zig");
+pub const gcp_functions = @import("gcp_functions.zig");
+pub const azure_functions = @import("azure_functions.zig");
 
 /// Cloud module errors.
 pub const Error = error{
@@ -258,7 +258,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return build_options.feat_web;
+    return build_options.feat_cloud;
 }
 
 pub fn isInitialized() bool {

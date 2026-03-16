@@ -1,9 +1,9 @@
 //! Trainable weights container.
 
 const std = @import("std");
-const config_mod = @import("config");
-const layer = @import("layer");
-const utils = @import("utils");
+const config_mod = @import("config.zig");
+const layer = @import("layer.zig");
+const utils = @import("utils.zig");
 
 /// Trainable weights for the full model.
 pub const TrainableWeights = struct {

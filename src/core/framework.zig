@@ -73,12 +73,12 @@
 //! - `failed`: If initialization fails
 
 const std = @import("std");
-const config_module = @import("config");
-const registry_mod = @import("registry");
-const framework_state = @import("framework/state");
-const framework_builder = @import("framework/builder");
-const lifecycle = @import("framework/lifecycle");
-const feature_catalog = @import("feature_catalog");
+const config_module = @import("config/mod.zig");
+const registry_mod = @import("registry/mod.zig");
+const framework_state = @import("framework/state.zig");
+const framework_builder = @import("framework/builder.zig");
+const lifecycle = @import("framework/lifecycle.zig");
+const feature_catalog = @import("feature_catalog.zig");
 
 pub const Config = config_module.Config;
 pub const Feature = config_module.Feature;
@@ -87,7 +87,7 @@ pub const Registry = registry_mod.Registry;
 pub const RegistryError = registry_mod.types.Error;
 
 // Shared comptime-gated feature imports (DRY: single source of truth).
-const fi = @import("framework/feature_imports");
+const fi = @import("framework/feature_imports.zig");
 const gpu_mod = fi.gpu_mod;
 const ai_mod = fi.ai_mod;
 const database_mod = fi.database_mod;
@@ -105,12 +105,8 @@ const gateway_mod = fi.gateway_mod;
 const pages_mod = fi.pages_mod;
 const benchmarks_mod = fi.benchmarks_mod;
 const mobile_mod = fi.mobile_mod;
-const ai_core_mod = fi.ai_core_mod;
-const ai_inference_mod = fi.ai_inference_mod;
-const ai_training_mod = fi.ai_training_mod;
-const ai_reasoning_mod = fi.ai_reasoning_mod;
-const ha_mod = @import("../services/ha");
-const runtime_mod = @import("../services/runtime");
+const ha_mod = @import("../services/ha/mod.zig");
+const runtime_mod = @import("../services/runtime/mod.zig");
 
 /// Framework orchestration handle.
 ///
@@ -198,14 +194,6 @@ pub const Framework = struct {
     benchmarks: ?*benchmarks_mod.Context = null,
     /// Mobile context, or null if mobile is not enabled.
     mobile: ?*mobile_mod.Context = null,
-    /// AI Core context (agents, tools, prompts), or null if not enabled.
-    ai_core: ?*ai_core_mod.Context = null,
-    /// AI Inference context (LLM, embeddings, vision), or null if not enabled.
-    ai_inference: ?*ai_inference_mod.Context = null,
-    /// AI Training context (pipelines, federated), or null if not enabled.
-    ai_training: ?*ai_training_mod.Context = null,
-    /// AI Reasoning context (Abbey, RAG, eval), or null if not enabled.
-    ai_reasoning: ?*ai_reasoning_mod.Context = null,
     /// High availability manager, or null if not initialized.
     ha: ?ha_mod.HaManager = null,
     /// Runtime context (always available).
@@ -216,7 +204,7 @@ pub const Framework = struct {
 
     /// Composable framework error set.
     /// See `core/errors.zig` for the full hierarchy.
-    pub const Error = @import("errors").FrameworkError;
+    pub const Error = @import("errors.zig").FrameworkError;
 
     /// Initialize the framework with the given configuration.
     ///

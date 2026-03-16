@@ -1,8 +1,8 @@
 //! Vector index implementations for the database module.
 const std = @import("std");
 
-const simd = @import("shared_services").simd;
-const binary = @import("shared_services").utils;
+const simd = @import("../../services/shared/mod.zig").simd;
+const binary = @import("../../services/shared/mod.zig").utils;
 
 const index_magic = "ABIX";
 const index_version: u16 = 1;
@@ -369,7 +369,7 @@ pub const HnswIndex = struct {
 
         var candidates = std.ArrayListUnmanaged(u32).empty;
         defer candidates.deinit(allocator);
-        var seen = std.AutoHashMapUnmanaged(u32, void){};
+        var seen = std.AutoHashMapUnmanaged(u32, void).empty;
         defer seen.deinit(allocator);
 
         try addCandidate(allocator, &candidates, &seen, entry);

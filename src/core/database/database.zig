@@ -7,19 +7,19 @@
 //! - Cache-aligned storage: 64-byte alignment for hot data
 
 const std = @import("std");
-const shared = @import("shared_services");
+const shared = @import("../../services/shared/mod.zig");
 const simd = shared.simd;
 const sync = shared.sync;
 const Mutex = sync.Mutex;
 
 // Re-exports from extracted modules
-const database_storage = @import("database_storage");
+const database_storage = @import("database_storage.zig");
 pub const CACHE_LINE_SIZE = database_storage.CACHE_LINE_SIZE;
 pub const HotVectorData = database_storage.HotVectorData;
 pub const ColdVectorData = database_storage.ColdVectorData;
 pub const VectorPool = database_storage.VectorPool;
 
-const database_diagnostics = @import("database_diagnostics");
+const database_diagnostics = @import("database_diagnostics.zig");
 pub const MemoryStats = database_diagnostics.MemoryStats;
 pub const PerformanceStats = database_diagnostics.PerformanceStats;
 pub const ConfigStatus = database_diagnostics.ConfigStatus;
@@ -136,7 +136,7 @@ pub const Database = struct {
 
     pub fn initWithConfig(allocator: std.mem.Allocator, name: []const u8, config: DatabaseConfig) !Database {
         var records = std.ArrayListUnmanaged(VectorRecord).empty;
-        var id_index = std.AutoHashMapUnmanaged(u64, usize){};
+        var id_index = std.AutoHashMapUnmanaged(u64, usize).empty;
         var cached_norms = std.ArrayListUnmanaged(f32).empty;
 
         if (config.initial_capacity > 0) {
@@ -487,7 +487,7 @@ pub const Database = struct {
             self.cached_norms.shrinkAndFree(self.allocator, self.cached_norms.items.len);
         }
 
-        var compact_index = std.AutoHashMapUnmanaged(u64, usize){};
+        var compact_index = std.AutoHashMapUnmanaged(u64, usize).empty;
         if (compact_index.ensureTotalCapacity(self.allocator, @intCast(self.records.items.len))) {
             for (self.records.items, 0..) |record, idx| {
                 compact_index.putAssumeCapacity(record.id, idx);
@@ -673,7 +673,7 @@ pub const Database = struct {
         try records.ensureTotalCapacity(allocator, parsed.value.len);
 
         // Build O(1) lookup index during load
-        var id_index = std.AutoHashMapUnmanaged(u64, usize){};
+        var id_index = std.AutoHashMapUnmanaged(u64, usize).empty;
         try id_index.ensureTotalCapacity(allocator, @intCast(parsed.value.len));
 
         // Build norm cache during load
@@ -763,7 +763,7 @@ pub inline fn computeCosineSimilarityFast(a: []const f32, a_norm: f32, b: []cons
 }
 
 test {
-    _ = @import("database_storage");
-    _ = @import("database_diagnostics");
-    _ = @import("database_test");
+    _ = @import("database_storage.zig");
+    _ = @import("database_diagnostics.zig");
+    _ = @import("database_test.zig");
 }

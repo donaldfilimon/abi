@@ -9,11 +9,11 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 
-const discord = abi.services.connectors.discord;
+const discord = abi.connectors.discord;
 
 /// Check that the Discord bot token is configured.
 /// Returns true if token is present, false (with error message) if not.
@@ -84,7 +84,7 @@ const discord_subcommands = [_][]const u8{
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
     // Check if web feature is enabled (Discord requires web/HTTP support)
-    if (!abi.features.web.isEnabled()) {
+    if (!abi.web.isEnabled()) {
         utils.output.printError("Web feature is disabled.", .{});
         utils.output.printInfo("Rebuild with: zig build -Dfeat-web=true", .{});
         return;
@@ -108,7 +108,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 /// Print a short discord summary for system-info.
 pub fn printSummary(allocator: std.mem.Allocator) void {
-    const config = abi.services.connectors.tryLoadDiscord(allocator) catch {
+    const config = abi.connectors.tryLoadDiscord(allocator) catch {
         utils.output.println("  Discord: error loading config", .{});
         return;
     };
@@ -151,7 +151,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
 }
 
 fn printStatus(allocator: std.mem.Allocator) !void {
-    const config = abi.services.connectors.tryLoadDiscord(allocator) catch |err| {
+    const config = abi.connectors.tryLoadDiscord(allocator) catch |err| {
         utils.output.printError("Failed to load Discord configuration: {t}", .{err});
         return;
     };

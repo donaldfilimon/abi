@@ -3,48 +3,22 @@
 //! API-compatible no-op implementations when cache is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
-const stub_context = @import("../../core/stub_context");
+const stub_context = @import("../../core/stub_context.zig");
+const types = @import("types.zig");
 
-pub const CacheConfig = core_config.CacheConfig;
-pub const EvictionPolicy = core_config.EvictionPolicy;
+pub const CacheConfig = types.CacheConfig;
+pub const EvictionPolicy = types.EvictionPolicy;
+pub const CacheError = types.CacheError;
+pub const Error = CacheError;
+pub const CacheEntry = types.CacheEntry;
+pub const CacheStats = types.CacheStats;
 
-pub const CacheError = error{
-    FeatureDisabled,
-    CacheFull,
-    KeyNotFound,
-    InvalidTTL,
-    OutOfMemory,
-};
-
-pub const CacheEntry = struct {
-    key: []const u8 = "",
-    value: []const u8 = "",
-    ttl_ms: u64 = 0,
-    created_at: u64 = 0,
-};
-
-pub const CacheStats = struct {
-    hits: u64 = 0,
-    misses: u64 = 0,
-    entries: u32 = 0,
-    memory_used: u64 = 0,
-    evictions: u64 = 0,
-    expired: u64 = 0,
-};
-
-pub const Context = stub_context.StubContext(CacheConfig);
-
-pub fn init(_: std.mem.Allocator, _: CacheConfig) CacheError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+const feature = stub_context.StubFeature(CacheConfig, CacheError);
+pub const Context = feature.Context;
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn get(_: []const u8) CacheError!?[]const u8 {
     return error.FeatureDisabled;

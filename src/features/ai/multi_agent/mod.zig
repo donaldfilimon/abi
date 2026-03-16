@@ -30,20 +30,20 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const retry = @import("shared_services").utils.retry;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const retry = @import("../../../services/shared/mod.zig").utils.retry;
 const agents = @import("agents");
 const build_options = @import("build_options");
 
-pub const aggregation = @import("aggregation");
-pub const messaging = @import("messaging");
-pub const roles = @import("roles");
-pub const blackboard = @import("blackboard");
-pub const workflow = @import("workflow");
-pub const supervisor = @import("supervisor");
-pub const protocol = @import("protocol");
-pub const runner = @import("runner");
+pub const aggregation = @import("aggregation.zig");
+pub const messaging = @import("messaging.zig");
+pub const roles = @import("roles.zig");
+pub const blackboard = @import("blackboard.zig");
+pub const workflow = @import("workflow.zig");
+pub const supervisor = @import("supervisor.zig");
+pub const protocol = @import("protocol.zig");
+pub const runner = @import("runner.zig");
 
 pub const WorkflowRunner = runner.WorkflowRunner;
 

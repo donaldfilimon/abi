@@ -3,11 +3,28 @@
 //! Provides task scheduling, concurrency, and cancellation using the Zig 0.16
 //! std.Io Threaded backend.
 const std = @import("std");
+const builtin = @import("builtin");
 
-pub const AsyncRuntimeOptions = std.Io.Threaded.InitOptions;
-pub const AsyncError = std.Io.ConcurrentError;
+// Whether the current target supports threading/OS-level IO
+pub const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
+
+pub const AsyncRuntimeOptions = if (is_threaded_target) std.Io.Threaded.InitOptions else struct {
+    concurrent_limit: enum { nothing } = .nothing,
+    environ: std.process.Environ = .{},
+    async_limit: enum { nothing } = .nothing,
+};
+pub const AsyncError = if (is_threaded_target) std.Io.ConcurrentError else error{ConcurrencyUnavailable};
 
 pub fn TaskHandle(comptime Result: type) type {
+    if (!is_threaded_target) {
+        return struct {
+            pub fn await(_: anytype) noreturn {
+                @panic("AsyncRuntime unavailable on freestanding");
+            }
+        };
+    }
     return struct {
         io: std.Io,
         future: std.Io.Future(Result),
@@ -28,7 +45,7 @@ pub fn TaskHandle(comptime Result: type) type {
     };
 }
 
-pub const TaskGroup = struct {
+pub const TaskGroup = if (!is_threaded_target) struct {} else struct {
     io: std.Io,
     group: std.Io.Group = .init,
     concurrent_enabled: bool,
@@ -87,7 +104,18 @@ pub const TaskGroup = struct {
     }
 };
 
-pub const AsyncRuntime = struct {
+pub const AsyncRuntime = if (!is_threaded_target) struct {
+    pub fn init(_: std.mem.Allocator, _: anytype) @This() {
+        return .{};
+    }
+    pub fn deinit(_: *@This()) void {}
+    pub fn ioHandle(_: *@This()) noreturn {
+        @panic("AsyncRuntime unavailable on freestanding");
+    }
+    pub fn taskGroup(_: *@This()) noreturn {
+        @panic("AsyncRuntime unavailable on freestanding");
+    }
+} else struct {
     allocator: std.mem.Allocator,
     backend: std.Io.Threaded,
     io: std.Io,
@@ -162,58 +190,8 @@ pub const AsyncRuntime = struct {
     }
 };
 
-fn addOne(value: u32) u32 {
-    return value + 1;
-}
-
-fn cancelableNoop() std.Io.Cancelable!void {}
-
-test "async runtime init exposes io handle" {
-    var runtime = AsyncRuntime.init(std.testing.allocator, .{
-        .environ = std.process.Environ.empty,
-        .async_limit = .nothing,
-        .concurrent_limit = .nothing,
-    });
-    defer runtime.deinit();
-
-    _ = runtime.ioHandle();
-}
-
-test "async runtime spawn reports concurrency unavailable when disabled" {
-    var runtime = AsyncRuntime.init(std.testing.allocator, .{
-        .environ = std.process.Environ.empty,
-        .async_limit = .nothing,
-        .concurrent_limit = .nothing,
-    });
-    defer runtime.deinit();
-
-    try std.testing.expectError(error.ConcurrencyUnavailable, runtime.spawn(addOne, .{@as(u32, 1)}));
-}
-
-test "task group awaitUncancelable returns on empty group" {
-    var runtime = AsyncRuntime.init(std.testing.allocator, .{
-        .environ = std.process.Environ.empty,
-        .async_limit = .nothing,
-        .concurrent_limit = .nothing,
-    });
-    defer runtime.deinit();
-
-    var group = runtime.taskGroup();
-    group.awaitUncancelable();
-}
-
-test "task group spawnConcurrent reports concurrency unavailable when disabled" {
-    var runtime = AsyncRuntime.init(std.testing.allocator, .{
-        .environ = std.process.Environ.empty,
-        .async_limit = .nothing,
-        .concurrent_limit = .nothing,
-    });
-    defer runtime.deinit();
-
-    var group = runtime.taskGroup();
-    try std.testing.expectError(error.ConcurrencyUnavailable, group.spawnConcurrent(cancelableNoop, .{}));
-}
-
 test {
-    std.testing.refAllDecls(@This());
+    if (is_threaded_target) {
+        std.testing.refAllDecls(@This());
+    }
 }

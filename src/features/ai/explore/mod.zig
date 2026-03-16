@@ -14,16 +14,16 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
-pub const config = @import("config");
-pub const results = @import("results");
-pub const fs = @import("fs");
-pub const search = @import("search");
-pub const agent = @import("agent");
-pub const query = @import("query");
-pub const ast = @import("ast");
-pub const parallel = @import("parallel");
-pub const callgraph = @import("callgraph");
-pub const dependency = @import("dependency");
+pub const config = @import("config.zig");
+pub const results = @import("results.zig");
+pub const fs = @import("fs.zig");
+pub const search = @import("search.zig");
+pub const agent = @import("agent.zig");
+pub const query = @import("query.zig");
+pub const ast = @import("ast.zig");
+pub const parallel = @import("parallel.zig");
+pub const callgraph = @import("callgraph.zig");
+pub const dependency = @import("dependency.zig");
 
 pub const ExploreConfig = config.ExploreConfig;
 pub const ExploreLevel = config.ExploreLevel;

@@ -1,6 +1,6 @@
 //! Web Example
 //!
-//! Demonstrates the web module: HTTP client, persona routing,
+//! Demonstrates the web module: HTTP client, profile routing,
 //! chat handling, and JSON utilities.
 //!
 //! Run with: `zig build run-web`
@@ -9,7 +9,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -20,7 +20,7 @@ pub fn main(_: std.process.Init) !void {
         .build();
     defer framework.deinit();
 
-    if (!abi.features.web.isEnabled()) {
+    if (!abi.web.isEnabled()) {
         std.debug.print("Web feature is disabled. Enable with -Denable-web=true\n", .{});
         return;
     }
@@ -29,17 +29,17 @@ pub fn main(_: std.process.Init) !void {
 
     // Chat request/response types
     std.debug.print("--- Chat Handler Types ---\n", .{});
-    const request = abi.features.web.ChatRequest{
+    const request = abi.web.ChatRequest{
         .content = "Hello from the ABI web module!",
     };
     std.debug.print("  Content: {s}\n", .{request.content});
     std.debug.print("  Session: {s}\n", .{request.session_id orelse "(none)"});
-    std.debug.print("  Persona: {s}\n", .{request.persona orelse "(auto-route)"});
+    std.debug.print("  Profile: {s}\n", .{request.profile orelse "(auto-route)"});
 
-    // Persona routing
-    std.debug.print("\n--- Persona Router ---\n", .{});
-    std.debug.print("  PersonaRouter and Route types available\n", .{});
-    std.debug.print("  Routes map URL paths to AI persona handlers\n", .{});
+    // Profile routing
+    std.debug.print("\n--- Profile Router ---\n", .{});
+    std.debug.print("  ProfileRouter and Route types available\n", .{});
+    std.debug.print("  Routes map URL paths to AI profile handlers\n", .{});
 
     // HTTP Client type
     std.debug.print("\n--- HTTP Client ---\n", .{});

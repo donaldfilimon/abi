@@ -1,3 +1,10 @@
+---
+title: connectors API
+purpose: Generated API reference for connectors
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # connectors
 
 > Connector configuration loaders and auth helpers.
@@ -69,7 +76,7 @@ Returns true after `init()` has been called.
 
 ### <a id="pub-fn-getenvowned-allocator-std-mem-allocator-name-const-u8-u8"></a>`pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8`
 
-<sup>**fn**</sup> | [source](../../src/services/connectors/mod.zig#L85)
+<sup>**fn**</sup> | [source](../../src/services/connectors/mod.zig#L89)
 
 Read environment variable by name; returns owned slice or null if unset. Caller must free.
 
@@ -86,4 +93,4 @@ Read environment variable by name; returns owned slice or null if unset. Caller 
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

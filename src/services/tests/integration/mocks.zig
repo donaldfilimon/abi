@@ -33,7 +33,7 @@ pub const MockGpu = struct {
     pub fn init(allocator: std.mem.Allocator) MockGpu {
         return .{
             .allocator = allocator,
-            .device_buffers = .{},
+            .device_buffers = .empty,
             .operation_count = 0,
             .is_available = true,
         };
@@ -302,7 +302,7 @@ pub const MockReplicationManager = struct {
     pub fn init(allocator: std.mem.Allocator) MockReplicationManager {
         return .{
             .allocator = allocator,
-            .replicas = .{},
+            .replicas = .empty,
             .is_primary = true,
             .replication_lag_ns = 0,
         };
@@ -366,7 +366,7 @@ pub const MockDatabase = struct {
     pub fn init(allocator: std.mem.Allocator, dimension: u32) MockDatabase {
         return .{
             .allocator = allocator,
-            .vectors = .{},
+            .vectors = .empty,
             .dimension = dimension,
         };
     }

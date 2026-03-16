@@ -3,13 +3,13 @@
 const std = @import("std");
 
 // Sub-module stubs
-pub const personas = struct {
-    pub const Persona = OuterPersona;
-    pub const PersonaType = OuterPersonaType;
-    pub const getPersona = outerGetPersona;
-    pub const listPersonas = outerListPersonas;
+pub const profiles = struct {
+    pub const Profile = OuterProfile;
+    pub const ProfileType = OuterProfileType;
+    pub const getProfile = outerGetProfile;
+    pub const listProfiles = outerListProfiles;
 
-    const OuterPersona = struct {
+    const OuterProfile = struct {
         name: []const u8 = "disabled",
         description: []const u8 = "",
         system_prompt: []const u8 = "",
@@ -17,12 +17,26 @@ pub const personas = struct {
         include_examples: bool = false,
     };
 
-    const OuterPersonaType = enum { assistant, coder, writer, analyst, companion, docs, reviewer, minimal, abbey, ralph, aviva, abi, ava };
+    const OuterProfileType = enum {
+        assistant,
+        coder,
+        writer,
+        analyst,
+        companion,
+        docs,
+        reviewer,
+        minimal,
+        abbey,
+        ralph,
+        aviva,
+        abi,
+        ava,
+    };
 
-    fn outerGetPersona(_: OuterPersonaType) OuterPersona {
+    fn outerGetProfile(_: OuterProfileType) OuterProfile {
         return .{};
     }
-    fn outerListPersonas() []const OuterPersonaType {
+    fn outerListProfiles() []const OuterProfileType {
         return &.{};
     }
 };
@@ -35,15 +49,15 @@ pub const builder = struct {
 
     const OuterRole = enum { system, user, assistant, tool };
     const OuterMessage = struct { role: OuterRole = .user, content: []const u8 = "" };
-    const OuterPromptFormat = enum { text, chatml, alpaca, llama, vicuna };
+    const OuterPromptFormat = enum { text, json, chatml, llama, raw };
 
     const OuterPromptBuilder = struct {
         allocator: std.mem.Allocator,
 
-        pub fn init(allocator: std.mem.Allocator, _: personas.OuterPersonaType) OuterPromptBuilder {
+        pub fn init(allocator: std.mem.Allocator, _: profiles.OuterProfileType) OuterPromptBuilder {
             return .{ .allocator = allocator };
         }
-        pub fn initCustom(allocator: std.mem.Allocator, _: personas.OuterPersona) OuterPromptBuilder {
+        pub fn initCustom(allocator: std.mem.Allocator, _: profiles.OuterProfile) OuterPromptBuilder {
             return .{ .allocator = allocator };
         }
         pub fn deinit(_: *OuterPromptBuilder) void {}
@@ -64,28 +78,33 @@ pub const builder = struct {
 
 pub const ralph = struct {};
 
+// Stub for the named "types" module that mod.zig imports
+pub const types = struct {
+    pub const ProfileType = profiles.OuterProfileType;
+};
+
 // Re-export main types
-pub const Persona = personas.OuterPersona;
-pub const PersonaType = personas.OuterPersonaType;
+pub const Profile = profiles.OuterProfile;
+pub const ProfileType = profiles.OuterProfileType;
 pub const PromptBuilder = builder.OuterPromptBuilder;
 pub const Message = builder.OuterMessage;
 pub const Role = builder.OuterRole;
 pub const PromptFormat = builder.OuterPromptFormat;
 
-pub fn getPersona(_: PersonaType) Persona {
+pub fn getProfile(_: ProfileType) Profile {
     return .{};
 }
-pub fn listPersonas() []const PersonaType {
+pub fn listProfiles() []const ProfileType {
     return &.{};
 }
 pub fn createBuilder(allocator: std.mem.Allocator) PromptBuilder {
     return PromptBuilder.init(allocator, .assistant);
 }
-pub fn createBuilderWithPersona(allocator: std.mem.Allocator, persona_type: PersonaType) PromptBuilder {
-    return PromptBuilder.init(allocator, persona_type);
+pub fn createBuilderWithProfile(allocator: std.mem.Allocator, profile_type: ProfileType) PromptBuilder {
+    return PromptBuilder.init(allocator, profile_type);
 }
-pub fn createBuilderWithCustomPersona(allocator: std.mem.Allocator, persona: Persona) PromptBuilder {
-    return PromptBuilder.initCustom(allocator, persona);
+pub fn createBuilderWithCustomProfile(allocator: std.mem.Allocator, _: Profile) PromptBuilder {
+    return PromptBuilder.initCustom(allocator, .{});
 }
 
 test {

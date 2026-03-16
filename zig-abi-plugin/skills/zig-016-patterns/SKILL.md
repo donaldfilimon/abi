@@ -78,14 +78,27 @@ Takes `*const [N]u8` / `*[N]u8`. Use `std.builtin.Endian.little` / `.big`.
 ### usingnamespace
 REMOVED in 0.16. Pass parent context as parameters to submodule init functions instead.
 
-### Named Module Imports
-When a file is registered as a named module root in `build.zig` (e.g., `wdbx`), NEVER import it via relative path from other modules. Use the named import:
+### Module System (dev.2905+)
+
+**Explicit extensions required** — `@import("path/to/file")` must end in `.zig`:
 ```zig
-// WRONG — cross-directory relative import causes "file exists in modules 'wdbx' and 'abi'" error
-const wdbx = @import("../../wdbx/wdbx.zig");
-// CORRECT — uses the named module
-const wdbx = @import("wdbx");
+// WRONG (dev.1503 style)
+const config = @import("core/config");
+// CORRECT (dev.2905+)
+const config = @import("core/config/mod.zig");
 ```
+
+**Single-module file ownership** — every `.zig` file belongs to exactly one named module. All `src/` files belong to the single `abi` module. No `shared_services` or `core` named modules exist.
+```zig
+// WRONG — cross-module relative path
+const shared = @import("../../../../services/shared/simd/mod.zig");  // if shared_services is a named module
+// CORRECT — relative path within same module (all src/ is one module)
+const shared = @import("../../../../services/shared/simd/mod.zig");  // fine, same abi module
+// ALSO CORRECT — use abi's exported namespace from tools/cli/ (separate module)
+const shared = @import("abi").foundation;
+```
+
+**Named modules in build system**: `abi`, `build_options`, and `cli` exist. Use `@import("build_options")` for feature flags and `@import("abi")` from external modules (CLI, tests). There is no separate `foundation` named module — shared services live at `src/services/shared/mod.zig` as part of the single `abi` module, accessible via `@import("abi").foundation` (external) or relative imports (internal). `wireAbiImports(module, build_opts)` wires only `build_options`.
 
 ### Format Specifiers
 Zig's `std.fmt` does NOT support `{t}`. Common valid specifiers:
@@ -102,9 +115,11 @@ Zig's `std.fmt` does NOT support `{t}`. Common valid specifiers:
 ### Darwin 26+ Linker
 Direct `zig build` fails with undefined symbols (`__availability_version_check`, `_arc4random_buf`). The build runner itself can't link — no `build.zig` workaround helps.
 
-**Workarounds** (in order of preference):
-1. `./tools/scripts/run_build.sh <step>` — relinks build runner with Apple ld
-2. `zig fmt --check build.zig build/ src/ tools/` — direct format check (no linking)
+**Supported path**: use a host-built or otherwise known-good Zig matching `.zigversion` for `zig build full-check` / `zig build check-docs`.
+
+**Fallback evidence**:
+1. `./tools/scripts/run_build.sh typecheck --summary all` — temporary fallback when stock prebuilt Zig is linker-blocked
+2. `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` — direct format check (no linking)
 3. `zig test <file> -fno-emit-bin` — compile-only check (no binary output, no linking)
 4. Linux CI or another host with a working Zig linker for binary-emitting gates
 

@@ -36,19 +36,19 @@
 const std = @import("std");
 
 // Core submodules
-pub const quantized_kernels = @import("quantized_kernels");
-pub const accelerate = @import("accelerate");
-pub const unified_memory = @import("unified_memory");
+pub const quantized_kernels = @import("quantized_kernels.zig");
+pub const accelerate = @import("accelerate.zig");
+pub const unified_memory = @import("unified_memory.zig");
 
 // Metal 3+ feature submodules
-pub const gpu_family = @import("gpu_family");
-pub const mps = @import("mps");
-pub const coreml = @import("coreml");
-pub const mesh_shaders = @import("mesh_shaders");
-pub const ray_tracing = @import("ray_tracing");
+pub const gpu_family = @import("gpu_family.zig");
+pub const mps = @import("mps.zig");
+pub const coreml = @import("coreml.zig");
+pub const mesh_shaders = @import("mesh_shaders.zig");
+pub const ray_tracing = @import("ray_tracing.zig");
 
 // Unified acceleration pipeline
-pub const macos_accelerator = @import("macos_accelerator");
+pub const macos_accelerator = @import("macos_accelerator.zig");
 
 /// Re-export key types for convenience
 pub const QuantizedKernelModule = quantized_kernels.QuantizedKernelModule;

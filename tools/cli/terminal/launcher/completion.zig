@@ -4,7 +4,7 @@
 //! and completion scoring. These do not depend on TuiState.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 const MenuItem = types.MenuItem;
 const HistoryEntry = types.HistoryEntry;

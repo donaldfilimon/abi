@@ -22,12 +22,12 @@
 //! ```
 
 const std = @import("std");
-const backend_mod = @import("backend");
-const recovery = @import("recovery");
-const platform_time = @import("shared_services").utils;
+const backend_mod = @import("backend.zig");
+const recovery = @import("recovery.zig");
+const platform_time = @import("../../services/shared/mod.zig").utils;
 const time = platform_time;
-const sync = @import("shared_services").sync;
-const failover_types = @import("failover_types");
+const sync = @import("../../services/shared/mod.zig").sync;
+const failover_types = @import("failover_types.zig");
 
 pub const Backend = backend_mod.Backend;
 

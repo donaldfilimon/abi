@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const Io = std.Io;
-const collector_mod = @import("metrics/collector");
+const collector_mod = @import("metrics/collector.zig");
 
 // ============================================================================
 // Alerting System (from alerting.zig)
@@ -183,7 +183,7 @@ pub const AlertManager = struct {
             .config = config,
             .rules = .{},
             .alerts = .{},
-            .handlers = .{},
+            .handlers = .empty,
             .rule_state = .{},
             .stats = .{
                 .total_rules = 0,
@@ -505,7 +505,7 @@ pub const PrometheusExporter = struct {
     /// Sets the `running` flag so that `generateMetrics()` can be called,
     /// but does NOT bind a network port or spawn an HTTP server thread.
     /// To expose metrics over HTTP, mount
-    /// `abi.features.web.middleware.observability.MetricsMiddleware.formatPrometheus()`
+    /// `abi.web.middleware.observability.MetricsMiddleware.formatPrometheus()`
     /// in your web server's router, or call `generateMetrics()` directly
     /// and serve the output from an existing HTTP handler.
     pub fn start(self: *PrometheusExporter) !void {

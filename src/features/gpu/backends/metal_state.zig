@@ -4,7 +4,7 @@
 //! metal_device.zig, metal_buffers.zig, metal_compute.zig, and the orchestrator metal.zig.
 
 const std = @import("std");
-const metal_types = @import("metal_types");
+const metal_types = @import("metal_types.zig");
 
 // Re-export types used by consumers
 pub const SEL = metal_types.SEL;
@@ -64,8 +64,8 @@ pub var device_max_buffer_length: u64 = 0;
 // Cached GPU feature set
 // ============================================================================
 
-const gpu_family = @import("metal/gpu_family");
-const capabilities = @import("metal/capabilities");
+const gpu_family = @import("metal/gpu_family.zig");
+const capabilities = @import("metal/capabilities.zig");
 pub const MetalGpuFamily = gpu_family.MetalGpuFamily;
 pub const MetalFeatureSet = gpu_family.MetalFeatureSet;
 pub const MetalLevel = capabilities.MetalLevel;

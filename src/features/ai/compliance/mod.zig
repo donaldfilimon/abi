@@ -1,7 +1,7 @@
 //! Compliance Module — Unified regulatory compliance for ABI.
 //!
 //! Orchestrates GDPR, HIPAA, and CCPA compliance checks with audit trail
-//! logging. Integrates with the persona system to validate responses and
+//! logging. Integrates with the profile system to validate responses and
 //! interactions against applicable regulations.
 //!
 //! Integration points:
@@ -10,11 +10,11 @@
 //! - Audit: `getAuditTrail()` → query compliance event history
 
 const std = @import("std");
-pub const config = @import("config");
-pub const gdpr = @import("gdpr");
-pub const hipaa = @import("hipaa");
-pub const ccpa = @import("ccpa");
-pub const audit = @import("audit");
+pub const config = @import("config.zig");
+pub const gdpr = @import("gdpr.zig");
+pub const hipaa = @import("hipaa.zig");
+pub const ccpa = @import("ccpa.zig");
+pub const audit = @import("audit.zig");
 
 // Re-export core types
 pub const ComplianceConfig = config.ComplianceConfig;
@@ -32,7 +32,7 @@ pub const AccessLevel = hipaa.AccessLevel;
 pub const CcpaChecker = ccpa.CcpaChecker;
 pub const CcpaCheckResult = ccpa.CcpaCheckResult;
 pub const ConsumerRight = ccpa.ConsumerRight;
-pub const PersonalInfoCategory = ccpa.PersonalInfoCategory;
+pub const ProfilelInfoCategory = ccpa.ProfilelInfoCategory;
 pub const AuditTrail = audit.AuditTrail;
 pub const AuditEvent = audit.AuditEvent;
 pub const AuditEventType = audit.AuditEventType;
@@ -140,7 +140,7 @@ pub const ComplianceEngine = struct {
                 overall_compliant = false;
                 total_violations += result.violations.len;
                 if (self.audit_trail) |trail| {
-                    _ = trail.record(.pii_detected, .warning, subject_id, "CCPA: Personal info detected", .ccpa);
+                    _ = trail.record(.pii_detected, .warning, subject_id, "CCPA: Profilel info detected", .ccpa);
                 }
             }
             ccpa_result = result;

@@ -1,5 +1,5 @@
 const std = @import("std");
-const parallel_mod = @import("parallel");
+const parallel_mod = @import("parallel.zig");
 
 pub const cli = struct {
     pub fn run(_: std.mem.Allocator, _: []const [:0]const u8) !void {
@@ -309,7 +309,7 @@ pub const block_chain = struct {
     pub const ConversationBlock = struct {};
     pub const BlockChainConfig = struct {};
     pub const BlockChainError = error{ DatabaseDisabled, InvalidBlock, ChainCorrupted };
-    pub const PersonaTag = enum { assistant, user, system };
+    pub const ProfileTag = enum { assistant, user, system };
     pub const RoutingWeights = struct {};
     pub const IntentCategory = enum { query, command, conversation };
     pub const PolicyFlags = struct {};

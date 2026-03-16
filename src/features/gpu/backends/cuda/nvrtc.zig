@@ -305,7 +305,7 @@ fn loadNvrtcFunctions() bool {
 // High-Level Compilation API
 // ============================================================================
 
-const loader = @import("loader");
+const loader = @import("loader.zig");
 
 /// Result of compiling a kernel, containing module and function handles.
 pub const KernelResult = struct {

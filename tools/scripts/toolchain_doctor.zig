@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const util = @import("util.zig");
 
 pub fn main(_: std.process.Init) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 
@@ -55,6 +55,16 @@ pub fn main(_: std.process.Init) !void {
             "  hint: ABI's known-good override on this host is DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer\n",
             .{},
         );
+        if (builtin.os.version_range.semver.min.major >= 26) {
+            std.debug.print(
+                "  support note: ABI expects a host-built or otherwise known-good Zig for full local zig build validation on macOS 26+.\n",
+                .{},
+            );
+            std.debug.print(
+                "  stock prebuilt Zig may be linker-blocked before build.zig runs; run_build.sh typecheck is fallback evidence only.\n",
+                .{},
+            );
+        }
         std.debug.print("\n", .{});
     }
 
@@ -88,6 +98,20 @@ pub fn main(_: std.process.Init) !void {
 
     if (issues == 0) {
         std.debug.print("OK: local Zig toolchain is deterministic and matches repository pin.\n", .{});
+        if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
+            std.debug.print(
+                "NOTE: version match alone does not guarantee full local validation on macOS 26+.\n",
+                .{},
+            );
+            std.debug.print(
+                "      ABI supports local `zig build full-check` / `zig build check-docs` only with a host-built or otherwise known-good Zig.\n",
+                .{},
+            );
+            std.debug.print(
+                "      If stock prebuilt Zig is linker-blocked, use `./tools/scripts/run_build.sh typecheck --summary all` only as fallback evidence while replacing it.\n",
+                .{},
+            );
+        }
         return;
     }
 
@@ -95,10 +119,11 @@ pub fn main(_: std.process.Init) !void {
 
     if (builtin.os.tag == .macos and builtin.os.version_range.semver.min.major >= 26) {
         std.debug.print("  macOS 26+ note:\n", .{});
-        std.debug.print("  1) Use ./tools/scripts/run_build.sh <step> for build-system commands\n", .{});
-        std.debug.print("  2) Use zig fmt --check build.zig build src tools examples for no-link validation\n", .{});
-        std.debug.print("  3) Use zig test <path> -fno-emit-bin for compile-only probes\n", .{});
-        std.debug.print("  4) Use Linux CI or another host for binary-emitting gates that still fail locally\n\n", .{});
+        std.debug.print("  1) Prefer a host-built or otherwise known-good Zig matching .zigversion\n", .{});
+        std.debug.print("  2) Verify zig build full-check and zig build check-docs with that toolchain\n", .{});
+        std.debug.print("  3) If stock prebuilt Zig is linker-blocked, use ./tools/scripts/run_build.sh typecheck --summary all as fallback evidence only\n", .{});
+        std.debug.print("  4) Use zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/ for no-link validation\n", .{});
+        std.debug.print("  5) Use zig test <path> -fno-emit-bin for compile-only probes\n\n", .{});
     }
 
     if (try util.commandExists(allocator, io, "zvm")) {

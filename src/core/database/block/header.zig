@@ -1,7 +1,7 @@
 //! Versioned block headers.
 
 const std = @import("std");
-const core = @import("../core");
+const core = @import("../core/mod.zig");
 
 pub const BlockHeader = struct {
     id: core.ids.BlockId,

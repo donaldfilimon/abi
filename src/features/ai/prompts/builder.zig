@@ -4,7 +4,7 @@
 //! for debugging and inspection via --show-prompt flags.
 
 const std = @import("std");
-const personas = @import("personas");
+const profiles = @import("profiles.zig");
 
 /// Message role in conversation
 pub const Role = enum {
@@ -57,26 +57,26 @@ pub const PromptFormat = enum {
 /// Prompt builder with history and export support
 pub const PromptBuilder = struct {
     allocator: std.mem.Allocator,
-    persona: personas.Persona,
+    profile: profiles.Profile,
     messages: std.ArrayListUnmanaged(Message),
     include_system: bool = true,
 
     const Self = @This();
 
-    /// Initialize with a persona type
-    pub fn init(allocator: std.mem.Allocator, persona_type: personas.PersonaType) Self {
+    /// Initialize with a profile type
+    pub fn init(allocator: std.mem.Allocator, profile_type: profiles.ProfileType) Self {
         return .{
             .allocator = allocator,
-            .persona = personas.getPersona(persona_type),
+            .profile = profiles.getProfile(profile_type),
             .messages = .{},
         };
     }
 
-    /// Initialize with a custom persona
-    pub fn initCustom(allocator: std.mem.Allocator, persona: personas.Persona) Self {
+    /// Initialize with a custom profile
+    pub fn initCustom(allocator: std.mem.Allocator, profile: profiles.Profile) Self {
         return .{
             .allocator = allocator,
-            .persona = persona,
+            .profile = profile,
             .messages = .{},
         };
     }
@@ -90,7 +90,7 @@ pub const PromptBuilder = struct {
         self.messages.deinit(self.allocator);
     }
 
-    /// Add a system message (overrides persona system prompt)
+    /// Add a system message (overrides profile system prompt)
     pub fn addSystemMessage(self: *Self, content: []const u8) !void {
         try self.messages.append(self.allocator, .{
             .role = .system,
@@ -155,7 +155,7 @@ pub const PromptBuilder = struct {
         });
     }
 
-    /// Clear all messages (keeps persona)
+    /// Clear all messages (keeps profile)
     pub fn clear(self: *Self) void {
         for (self.messages.items) |msg| {
             if (msg.owned) {
@@ -183,19 +183,19 @@ pub const PromptBuilder = struct {
 
         // Header
         try result.appendSlice(self.allocator, "=== PROMPT EXPORT ===\n");
-        try result.appendSlice(self.allocator, "Persona: ");
-        try result.appendSlice(self.allocator, self.persona.name);
+        try result.appendSlice(self.allocator, "Profile: ");
+        try result.appendSlice(self.allocator, self.profile.name);
         try result.appendSlice(self.allocator, "\n");
         try result.appendSlice(self.allocator, "Temperature: ");
         var temp_buf: [8]u8 = undefined;
-        const temp_str = std.fmt.bufPrint(&temp_buf, "{d:.1}", .{self.persona.suggested_temperature}) catch "?";
+        const temp_str = std.fmt.bufPrint(&temp_buf, "{d:.1}", .{self.profile.suggested_temperature}) catch "?";
         try result.appendSlice(self.allocator, temp_str);
         try result.appendSlice(self.allocator, "\n\n");
 
         // System prompt
         if (self.include_system) {
             try result.appendSlice(self.allocator, "--- SYSTEM ---\n");
-            try result.appendSlice(self.allocator, self.persona.system_prompt);
+            try result.appendSlice(self.allocator, self.profile.system_prompt);
             try result.appendSlice(self.allocator, "\n\n");
         }
 
@@ -228,7 +228,7 @@ pub const PromptBuilder = struct {
         if (self.include_system) {
             try all.append(self.allocator, .{
                 .role = .system,
-                .content = self.persona.system_prompt,
+                .content = self.profile.system_prompt,
                 .owned = false,
             });
         }
@@ -252,7 +252,7 @@ pub const PromptBuilder = struct {
         // System prompt
         if (self.include_system) {
             try result.appendSlice(self.allocator, "System: ");
-            try result.appendSlice(self.allocator, self.persona.system_prompt);
+            try result.appendSlice(self.allocator, self.profile.system_prompt);
             try result.appendSlice(self.allocator, "\n\n");
         }
 
@@ -279,7 +279,7 @@ pub const PromptBuilder = struct {
 
         // System prompt
         if (self.include_system) {
-            try self.appendJsonMessage(&result, .system, self.persona.system_prompt);
+            try self.appendJsonMessage(&result, .system, self.profile.system_prompt);
             first = false;
         }
 
@@ -322,7 +322,7 @@ pub const PromptBuilder = struct {
         // System
         if (self.include_system) {
             try result.appendSlice(self.allocator, "<|system|>\n");
-            try result.appendSlice(self.allocator, self.persona.system_prompt);
+            try result.appendSlice(self.allocator, self.profile.system_prompt);
             try result.appendSlice(self.allocator, "\n<|end|>\n");
         }
 
@@ -348,7 +348,7 @@ pub const PromptBuilder = struct {
         // Llama2/Mistral format
         if (self.include_system) {
             try result.appendSlice(self.allocator, "[INST] <<SYS>>\n");
-            try result.appendSlice(self.allocator, self.persona.system_prompt);
+            try result.appendSlice(self.allocator, self.profile.system_prompt);
             try result.appendSlice(self.allocator, "\n<</SYS>>\n\n");
         } else {
             try result.appendSlice(self.allocator, "[INST] ");
@@ -421,7 +421,7 @@ test "prompt builder export" {
     defer allocator.free(exported);
 
     try std.testing.expect(std.mem.indexOf(u8, exported, "=== PROMPT EXPORT ===") != null);
-    try std.testing.expect(std.mem.indexOf(u8, exported, "Persona: coder") != null);
+    try std.testing.expect(std.mem.indexOf(u8, exported, "Profile: coder") != null);
 }
 
 test {

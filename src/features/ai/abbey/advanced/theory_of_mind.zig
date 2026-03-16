@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const types = @import("types");
-const emotions = @import("../emotions");
+const emotions = @import("../emotions.zig");
 
 // ============================================================================
 // Mental Model Types

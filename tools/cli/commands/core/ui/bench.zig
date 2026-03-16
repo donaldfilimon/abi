@@ -3,8 +3,8 @@
 //! Interactive TUI dashboard for viewing benchmark suite status and throughput.
 
 const std = @import("std");
-const command = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
 const utils = @import("../../../utils/mod.zig");
 const dsl = @import("../../../terminal/dsl/mod.zig");
@@ -34,7 +34,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 fn validateArgs(remaining_args: []const [:0]const u8) !void {
     if (remaining_args.len == 0) return;
     utils.output.printError("Unknown argument for ui bench: {s}", .{remaining_args[0]});
-    @import("./theme_options").printThemeHint();
+    @import("./theme_options.zig").printThemeHint();
     return error.InvalidArgument;
 }
 

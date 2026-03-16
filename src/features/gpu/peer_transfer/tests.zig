@@ -6,9 +6,9 @@
 const std = @import("std");
 const testing = std.testing;
 
-const mod = @import("mod");
-const host_staged = @import("host_staged");
-const multi_device = @import("../multi_device");
+const mod = @import("mod.zig");
+const host_staged = @import("host_staged.zig");
+const multi_device = @import("../multi_device.zig");
 
 const PeerTransferManager = mod.PeerTransferManager;
 const TransferCapability = mod.TransferCapability;

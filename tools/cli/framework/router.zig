@@ -1,8 +1,8 @@
 const std = @import("std");
-const context_mod = @import("context");
-const types = @import("types");
-const completion = @import("completion");
-const errors = @import("errors");
+const context_mod = @import("context.zig");
+const types = @import("types.zig");
+const completion = @import("completion.zig");
+const errors = @import("errors.zig");
 const utils = @import("../utils/mod.zig");
 
 const max_forward_depth: usize = 8;
@@ -69,7 +69,7 @@ fn runDescriptor(
 test "runDescriptor: unknown child emits suggestion (smoke)" {
     // This test verifies that the suggestion path does not panic.
     // Output goes to stderr and is not captured, but must not crash.
-    const context_mod2 = @import("context");
+    const context_mod2 = @import("context.zig");
     _ = context_mod2;
     // suggestCommand is already tested in utils/args.zig. Here we only do a
     // compile-time smoke check that the import chain resolves.

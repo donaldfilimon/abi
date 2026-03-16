@@ -10,8 +10,8 @@
 //! without crashes, memory corruption, or undefined behavior.
 
 const std = @import("std");
-const property = @import("mod");
-const generators = @import("generators");
+const property = @import("mod.zig");
+const generators = @import("generators.zig");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
@@ -21,7 +21,7 @@ const Generator = property.Generator;
 const assert = property.assert;
 
 // Import GGUF types through abi module
-const llm_io = abi.features.ai.llm.io;
+const llm_io = abi.ai.llm.io;
 const gguf = llm_io.gguf;
 const mmap = llm_io.mmap;
 

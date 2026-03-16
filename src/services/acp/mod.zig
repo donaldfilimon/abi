@@ -11,7 +11,7 @@
 //! ```
 
 const std = @import("std");
-const net_utils = @import("shared_services").utils.net;
+const net_utils = @import("../shared/mod.zig").utils.net;
 
 /// ACP Agent Card — describes this agent's capabilities
 pub const AgentCard = struct {

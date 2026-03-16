@@ -56,13 +56,13 @@ const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
 
-// Memory tracking for peak usage (via abi.services.shared.utils.memory)
-pub const TrackingAllocator = abi.services.shared.utils.memory.TrackingAllocator;
-pub const TrackingConfig = abi.services.shared.utils.memory.tracking.TrackingConfig;
-pub const TrackingStats = abi.services.shared.utils.memory.tracking.TrackingStats;
+// Memory tracking for peak usage (via abi.foundation.utils.memory)
+pub const TrackingAllocator = abi.foundation.utils.memory.TrackingAllocator;
+pub const TrackingConfig = abi.foundation.utils.memory.tracking.TrackingConfig;
+pub const TrackingStats = abi.foundation.utils.memory.tracking.TrackingStats;
 
 // Core infrastructure
-pub const profiles = @import("profiles");
+pub const profiles = @import("profiles.zig");
 
 // Re-export key types
 pub const StressProfile = profiles.StressProfile;
@@ -82,17 +82,17 @@ test {
     _ = profiles;
 
     // HA stress tests
-    _ = @import("ha_stress_test");
+    _ = @import("ha_stress_test.zig");
 
     // Observability stress tests (when profiling enabled)
     if (build_options.feat_profiling) {
-        _ = @import("observability_stress_test");
+        _ = @import("observability_stress_test.zig");
     }
 
     // Database stress tests (when database enabled)
     if (build_options.feat_database) {
-        _ = @import("database_stress_test");
-        _ = @import("hnsw_parallel_test");
+        _ = @import("database_stress_test.zig");
+        _ = @import("hnsw_parallel_test.zig");
     }
 }
 

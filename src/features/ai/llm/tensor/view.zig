@@ -4,7 +4,7 @@
 //! efficient operations on sub-tensors.
 
 const std = @import("std");
-const tensor_mod = @import("tensor");
+const tensor_mod = @import("tensor.zig");
 const Tensor = tensor_mod.Tensor;
 const Shape = tensor_mod.Shape;
 const DType = tensor_mod.DType;

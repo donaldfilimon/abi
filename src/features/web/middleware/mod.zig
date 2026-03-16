@@ -25,12 +25,12 @@
 
 const std = @import("std");
 
-pub const types = @import("types");
-pub const logging = @import("logging");
-pub const cors = @import("cors");
-pub const auth = @import("auth");
-pub const error_handler = @import("error_handler");
-pub const observability = @import("observability");
+pub const types = @import("types.zig");
+pub const logging = @import("logging.zig");
+pub const cors = @import("cors.zig");
+pub const auth = @import("auth.zig");
+pub const error_handler = @import("error_handler.zig");
+pub const observability = @import("observability.zig");
 
 // Re-export main types
 pub const MiddlewareContext = types.MiddlewareContext;

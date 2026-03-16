@@ -4,11 +4,11 @@
 //! This is the main entry point for kernel compilation.
 
 const std = @import("std");
-const kernel_mod = @import("kernel");
-const backend_mod = @import("codegen/backend");
-const generic = @import("codegen/generic");
-const gpu_backend = @import("../backend");
-const kernel_types = @import("../kernel_types");
+const kernel_mod = @import("kernel.zig");
+const backend_mod = @import("codegen/backend.zig");
+const generic = @import("codegen/generic.zig");
+const gpu_backend = @import("../backend.zig");
+const kernel_types = @import("../kernel_types.zig");
 
 pub const CompileError = backend_mod.CodegenError || error{
     UnsupportedBackend,

@@ -4,9 +4,9 @@
 //! operations on literal values into their results.
 
 const std = @import("std");
-const expr = @import("expr");
-const stmt = @import("stmt");
-const kernel = @import("kernel");
+const expr = @import("expr.zig");
+const stmt = @import("stmt.zig");
+const kernel = @import("kernel.zig");
 
 /// Run constant folding on kernel IR.
 /// Increments `constants_folded` for each folded expression.

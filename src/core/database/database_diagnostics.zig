@@ -5,8 +5,8 @@
 //! status, and health metrics.
 
 const std = @import("std");
-const database_mod = @import("database");
-const database_storage = @import("database_storage");
+const database_mod = @import("database.zig");
+const database_storage = @import("database_storage.zig");
 const Database = database_mod.Database;
 const VectorPool = database_storage.VectorPool;
 

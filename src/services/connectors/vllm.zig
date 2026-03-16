@@ -21,10 +21,10 @@
 //! ```
 
 const std = @import("std");
-const connectors = @import("mod");
-const shared = @import("shared");
-const async_http = @import("shared_services").utils.async_http;
-const json_utils = @import("shared_services").utils.json;
+const connectors = @import("mod.zig");
+const shared = @import("shared.zig");
+const async_http = @import("../shared/mod.zig").utils.async_http;
+const json_utils = @import("../shared/mod.zig").utils.json;
 
 /// Errors that can occur when interacting with vLLM.
 pub const VLLMError = error{

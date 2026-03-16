@@ -5,10 +5,21 @@ description: Generated implementation plan
 
 # TUI Modular Extraction v2
 ## Status
-- Status: **In Progress**
+- Status: **In Progress (Steady-State)**
 - Owner: **Abbey**
+- Last updated: 2026-03-16
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
+
+### Progress Summary (2026-03-16)
+Completed:
+- Layout engine extraction onto shared primitives
+- Launcher extraction complete
+- Dashboard extraction complete
+
+Remaining:
+- Regression test coverage expansion (Wave 2C)
+- Input routing and focus-state correctness gaps (Wave 2B)
 
 ## Scope
 Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests.
@@ -53,4 +64,4 @@ Roadmap guide: [../roadmap/](../roadmap/)
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

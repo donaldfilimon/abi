@@ -1,6 +1,6 @@
 const std = @import("std");
-const core_config = @import("../../core/config/gateway");
-const radix = @import("shared_services").utils.radix_tree;
+const core_config = @import("../../core/config/gateway.zig");
+const radix = @import("../../services/shared/mod.zig").utils.radix_tree;
 
 const RouteTree = radix.RadixTree(u32);
 
@@ -9,6 +9,18 @@ pub const RateLimitConfig = core_config.RateLimitConfig;
 pub const RateLimitAlgorithm = core_config.RateLimitAlgorithm;
 pub const CircuitBreakerConfig = core_config.CircuitBreakerConfig;
 pub const CircuitBreakerState = core_config.CircuitBreakerState;
+
+pub const GatewayError = error{
+    FeatureDisabled,
+    RouteNotFound,
+    RateLimitExceeded,
+    CircuitOpen,
+    UpstreamTimeout,
+    InvalidRoute,
+    TooManyRoutes,
+    MiddlewareError,
+    OutOfMemory,
+};
 
 pub const HttpMethod = enum { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS };
 

@@ -126,10 +126,13 @@ testingllm.ckpt/
 
 # ── Root-level build artifacts (one-off test binaries) ────────────────
 /test_page_size
+/test_arraylist
+/test_nolld
 /cast_test
 /runner
 /unused_test
 /synthetic.bin
+/swiftly.pkg
 
 # ── Binary executables and object files ───────────────────────────────
 *.a
@@ -262,17 +265,22 @@ zig-bootstrap-emergency/
 !/AGENTS.md
 !/README.md
 !/CLAUDE.md
-!/CONTRIBUTING.md
 !/GEMINI.md
 !/SECURITY.md
 !/CODE_OF_CONDUCT.md
 !/.zig-bootstrap/README.md
 !/docs/README.md
+!/docs/STRUCTURE.md
+!/docs/PATTERNS.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
 !/docs/plans/*.md
 !/docs/api/*.md
+!/benchmarks/README.md
+!/benchmarks/STRUCTURE.md
+!/examples/README.md
 !/tasks/todo.md
+!/tasks/cleanup.md
 !/tasks/lessons.md
 
 # ── .cel toolchain fork (build outputs only) ────────────────────────

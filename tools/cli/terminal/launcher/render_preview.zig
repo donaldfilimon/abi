@@ -1,8 +1,8 @@
 //! Command preview renderer for command launcher TUI.
 
 const tui = @import("../mod.zig");
-const state_mod = @import("state");
-const style_adapter = @import("style_adapter");
+const state_mod = @import("state.zig");
+const style_adapter = @import("style_adapter.zig");
 
 const TuiState = state_mod.TuiState;
 const unicode = tui.unicode;

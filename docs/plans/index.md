@@ -5,23 +5,22 @@ description: Generated active execution plans
 
 # Plans
 ## Summary
-Active generated plans: **7**. This index is generated from the canonical roadmap catalog and kept in sync with task import metadata.
+Active generated plans: **6**. This index is generated from the canonical roadmap catalog and kept in sync with task import metadata. Last updated: 2026-03-16.
 
 ## Active Plans
 | Plan | Status | Owner | Scope |
 | --- | --- | --- | --- |
-| [CLI Framework + Local-Agent Fallback](./cli-framework-local-agents.md) | In Progress | Abbey | Wave 1 active lane: descriptor/runtime parity, local-first provider/plugin hardening, and command help/assertion drift cleanup. |
-| [Docs + Assistant Canonical Sync](./docs-roadmap-sync-v2.md) | In Progress | Abbey | Canonical docs wave: align AGENTS.md, zig-master, tasks/todo.md, root status docs, and generated outputs around one workflow and Zig validation contract. |
-| [Feature Modules Restructure v1](./feature-modules-restructure-v1.md) | In Progress | Abbey | Wave 5 active lane: remove legacy facades, finalize module boundaries, and consolidate shared primitives. |
-| [GPU Redesign v3](./gpu-redesign-v3.md) | In Progress | Abbey | Wave 3 active lane: enforce strict backend policy, pool lifecycle safety, and cross-target policy verification. |
-| [TUI Modular Extraction v2](./tui-modular-v2.md) | In Progress | Abbey | Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests. |
-| [WDBX and Abbey Architecture](./wdbx-architecture-v1.md) | In Progress | Abbey | Implement the WDBX semantic memory fabric and Abbey cognition layers in Zig 0.16. |
-| [Integration Gates v1](./integration-gates-v1.md) | Blocked | Abbey | Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green. |
+| [Feature Modules Restructure v1](./feature-modules-restructure-v1.md) | Complete | Abbey | 18-phase restructuring finished: persona to profile rename, bridge retirement, import compliance, zero mod/stub drift. |
+| [Docs + Assistant Canonical Sync](./docs-roadmap-sync-v2.md) | Substantially Complete | Abbey | AGENTS.md, CLAUDE.md, tasks/todo.md, tasks/lessons.md all canonical. Remaining: CLAUDE.md/GEMINI.md wrapper consolidation. |
+| [CLI Framework + Local-Agent Fallback](./cli-framework-local-agents.md) | In Progress (Steady-State) | Abbey | Descriptor-driven CLI working, provider health checks done. Remaining: strict-mode routing, help drift cleanup. |
+| [GPU Redesign v3](./gpu-redesign-v3.md) | In Progress (Steady-State) | Abbey | Backend policy module complete, factory pattern with fallback. Remaining: strict fail-fast, pool lifecycle, cross-target tests. |
+| [TUI Modular Extraction v2](./tui-modular-v2.md) | In Progress (Steady-State) | Abbey | Layout engine, launcher, dashboard extracted. Remaining: regression test coverage expansion. |
+| [Integration Gates v1](./integration-gates-v1.md) | Blocked | Abbey | Blocked pending: matrix manifest, PTY timeout policy hardening, preflight diagnostics. |
 
 
 ## Roadmap Horizons
 
-- Now: **8** item(s)
+- Now: **7** item(s)
 - Next: **2** item(s)
 - Later: **3** item(s)
 
@@ -39,4 +38,4 @@ Roadmap guide: [../roadmap/](../roadmap/)
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

@@ -9,7 +9,7 @@
 //! - Anti-entropy synchronization with version vector exchange
 
 const std = @import("std");
-const parent = @import(".");
+const parent = @import("./mod.zig");
 const VersionVector = parent.VersionVector;
 const SyncState = parent.SyncState;
 const BlockConflict = parent.BlockConflict;

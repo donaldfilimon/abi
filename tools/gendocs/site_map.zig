@@ -1,4 +1,4 @@
-const model = @import("model");
+const model = @import("model.zig");
 
 pub const guides = [_]model.GuideSpec{
     .{ .slug = "installation", .title = "Installation", .description = "System requirements, toolchain setup, and building ABI from source", .section = "Start", .order = 1, .permalink = "/installation/", .template_path = "tools/gendocs/templates/docs/installation.md.tpl" },
@@ -9,8 +9,8 @@ pub const guides = [_]model.GuideSpec{
     .{ .slug = "framework", .title = "Framework Lifecycle", .description = "Deep dive into Framework initialization, state machine, builder pattern, and feature registry", .section = "Core", .order = 12, .permalink = "/framework/", .template_path = "tools/gendocs/templates/docs/framework.md.tpl" },
     .{ .slug = "cli", .title = "CLI", .description = "30 commands + 8 aliases for AI, GPU, database, and system management", .section = "Core", .order = 13, .permalink = "/cli/", .template_path = "tools/gendocs/templates/docs/cli.md.tpl" },
 
-    .{ .slug = "ai-overview", .title = "AI Overview", .description = "Architecture overview of ABI AI modules", .section = "AI", .order = 20, .permalink = "/ai-overview/", .template_path = "tools/gendocs/templates/docs/ai-overview.md.tpl", .feature_tags = &.{ "ai", "agents", "personas", "llm", "embeddings", "training", "reasoning" } },
-    .{ .slug = "ai-core", .title = "AI Core", .description = "Agents, tools, prompts, profiles, coordination, memory, and model discovery", .section = "AI", .order = 21, .permalink = "/ai-core/", .template_path = "tools/gendocs/templates/docs/ai-core.md.tpl", .feature_tags = &.{ "agents", "personas" } },
+    .{ .slug = "ai-overview", .title = "AI Overview", .description = "Architecture overview of ABI AI modules", .section = "AI", .order = 20, .permalink = "/ai-overview/", .template_path = "tools/gendocs/templates/docs/ai-overview.md.tpl", .feature_tags = &.{ "ai", "agents", "profiles", "llm", "embeddings", "training", "reasoning" } },
+    .{ .slug = "ai-core", .title = "AI Core", .description = "Agents, tools, prompts, profiles, coordination, memory, and model discovery", .section = "AI", .order = 21, .permalink = "/ai-core/", .template_path = "tools/gendocs/templates/docs/ai-core.md.tpl", .feature_tags = &.{ "agents", "profiles" } },
     .{ .slug = "ai-inference", .title = "Inference", .description = "LLM inference, embeddings, vision, streaming, and transformer architecture", .section = "AI", .order = 22, .permalink = "/ai-inference/", .template_path = "tools/gendocs/templates/docs/ai-inference.md.tpl", .feature_tags = &.{ "llm", "embeddings" } },
     .{ .slug = "ai-training", .title = "Training", .description = "Training pipelines, federated learning, and multimodal training", .section = "AI", .order = 23, .permalink = "/ai-training/", .template_path = "tools/gendocs/templates/docs/ai-training.md.tpl", .feature_tags = &.{"training"} },
     .{ .slug = "ai-reasoning", .title = "Reasoning", .description = "Reasoning flows, RAG, evaluation, templates, and orchestration", .section = "AI", .order = 24, .permalink = "/ai-reasoning/", .template_path = "tools/gendocs/templates/docs/ai-reasoning.md.tpl", .feature_tags = &.{"reasoning"} },
@@ -39,7 +39,8 @@ pub const guides = [_]model.GuideSpec{
 
     .{ .slug = "api", .title = "API Overview", .description = "Public API surface, import patterns, and HTTP endpoints", .section = "Reference", .order = 70, .permalink = "/api-overview/", .template_path = "tools/gendocs/templates/docs/api.md.tpl" },
     .{ .slug = "examples", .title = "Examples", .description = "Runnable examples across major modules", .section = "Reference", .order = 71, .permalink = "/examples/", .template_path = "tools/gendocs/templates/docs/examples.md.tpl" },
-    .{ .slug = "c-bindings", .title = "C API Bindings", .description = "C-compatible ABI API exports and integration notes", .section = "Reference", .order = 72, .permalink = "/c-bindings/", .template_path = "tools/gendocs/templates/docs/c-bindings.md.tpl" },
+    .{ .slug = "c-bindings", .title = "C API Bindings", .description = "C-compatible ABI API exports and integration notes (bindings/c/)", .section = "Reference", .order = 72, .permalink = "/c-bindings/", .template_path = "tools/gendocs/templates/docs/c-bindings.md.tpl" },
+    .{ .slug = "feature-catalog", .title = "Feature Catalog", .description = "All 19 comptime-gated features with flags, paths, and parent relationships", .section = "Reference", .order = 76, .permalink = "/feature-catalog/", .template_path = "tools/gendocs/templates/docs/feature-catalog.md.tpl" },
     .{ .slug = "troubleshooting", .title = "Troubleshooting", .description = "Common errors and recovery guidance", .section = "Reference", .order = 73, .permalink = "/troubleshooting/", .template_path = "tools/gendocs/templates/docs/troubleshooting.md.tpl" },
     .{ .slug = "contributing", .title = "Contributing", .description = "Development workflow and contribution guidelines", .section = "Reference", .order = 74, .permalink = "/contributing/", .template_path = "tools/gendocs/templates/docs/contributing.md.tpl" },
     .{ .slug = "roadmap", .title = "Roadmap", .description = "Canonical now/next/later execution roadmap", .section = "Reference", .order = 75, .permalink = "/roadmap/", .template_path = "tools/gendocs/templates/docs/roadmap.md.tpl" },

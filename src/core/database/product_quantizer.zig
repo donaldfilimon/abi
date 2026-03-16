@@ -7,7 +7,7 @@
 //! Typical config: M=8, K=256 -> 8 bytes per vector (vs 3072 bytes for 768-dim f32)
 
 const std = @import("std");
-const quantization = @import("quantization");
+const quantization = @import("quantization.zig");
 const QuantizationError = quantization.QuantizationError;
 const computeL2DistanceSimd = quantization.computeL2DistanceSimd;
 const packBits = quantization.packBits;

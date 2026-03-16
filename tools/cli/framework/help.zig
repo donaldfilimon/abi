@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 const utils = @import("../utils/mod.zig");
 
 const help_utils = utils.help;
@@ -31,7 +31,7 @@ const global_flags = [_]Option{
 const features_text =
     \\Features: gpu, ai, llm, embeddings, agents, training, reasoning, database, network,
     \\          observability, web, cloud, analytics, auth, messaging, cache, storage,
-    \\          search, mobile, gateway, pages, benchmarks, personas, constitution
+    \\          search, mobile, gateway, pages, benchmarks, profiles, constitution
 ;
 
 /// Print the top-level help screen using the unified HelpBuilder.
@@ -92,7 +92,7 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
 }
 
 const HelpTestStubs = struct {
-    fn handler(_: *const @import("context").CommandContext, _: []const [:0]const u8) anyerror!void {}
+    fn handler(_: *const @import("context.zig").CommandContext, _: []const [:0]const u8) anyerror!void {}
 };
 
 test "printTopLevel: hidden descriptors are not rendered (smoke)" {

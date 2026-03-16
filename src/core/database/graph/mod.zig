@@ -12,7 +12,7 @@ pub const EdgeKind = enum {
     supports,
     authored_by,
     belongs_to_project,
-    relevant_to_persona,
+    relevant_to_profile,
     references_artifact,
     follows_conversation_turn,
     supersedes,

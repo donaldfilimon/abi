@@ -17,9 +17,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const multi_device = @import("../multi_device");
-const stream_mod = @import("../stream");
-const cuda_loader = @import("../backends/cuda/loader");
+const multi_device = @import("../multi_device.zig");
+const stream_mod = @import("../stream.zig");
+const cuda_loader = @import("../backends/cuda/loader.zig");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const ReduceOp = multi_device.ReduceOp;

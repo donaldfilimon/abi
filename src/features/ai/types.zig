@@ -1,11 +1,11 @@
-//! Core types for the Multi-Persona AI Assistant system.
-//! Standardizes requests, responses, and routing metadata across all personas.
+//! Core types for the Multi-Profile AI Assistant system.
+//! Standardizes requests, responses, and routing metadata across all profiles.
 
 const std = @import("std");
-const core_types = @import("types");
+const core_types = @import("core/types.zig");
 
-/// Available persona types in the system.
-pub const PersonaType = enum {
+/// Available profile types in the system.
+pub const ProfileType = enum {
     /// General-purpose helpful assistant.
     assistant,
     /// Code-focused programming specialist.
@@ -30,19 +30,21 @@ pub const PersonaType = enum {
     abi,
     /// Iterative agent loop specialist.
     ralph,
+    /// Locally-trained assistant based on gpt-oss.
+    ava,
 };
 
-/// Standardized request structure for all personas.
-pub const PersonaRequest = struct {
+/// Standardized request structure for all profiles.
+pub const ProfileRequest = struct {
     /// The user input text.
     content: []const u8,
     /// Optional session identifier.
     session_id: ?[]const u8 = null,
     /// Optional user identifier.
     user_id: ?[]const u8 = null,
-    /// Optional forced persona selection (bypasses routing).
-    preferred_persona: ?PersonaType = null,
-    /// Optional system instruction/context for the persona.
+    /// Optional forced profile selection (bypasses routing).
+    preferred_profile: ?ProfileType = null,
+    /// Optional system instruction/context for the profile.
     system_instruction: ?[]const u8 = null,
     /// Optional maximum tokens for the response.
     max_tokens: ?u32 = null,
@@ -51,9 +53,9 @@ pub const PersonaRequest = struct {
     /// Current emotional context of the conversation.
     emotional_context: core_types.EmotionalState = .{},
     /// Additional metadata for the request.
-    metadata: std.StringHashMapUnmanaged([]const u8) = .{},
+    metadata: std.StringHashMapUnmanaged([]const u8) = .empty,
 
-    pub fn deinit(self: *PersonaRequest, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ProfileRequest, allocator: std.mem.Allocator) void {
         var it = self.metadata.iterator();
         while (it.next()) |entry| {
             allocator.free(entry.key_ptr.*);
@@ -63,27 +65,27 @@ pub const PersonaRequest = struct {
     }
 };
 
-/// Ordered list of all persona types for enumeration and UI.
-pub const ALL_PERSONA_TYPES = blk: {
-    const fields = std.meta.fields(PersonaType);
-    var values: [fields.len]PersonaType = undefined;
+/// Ordered list of all profile types for enumeration and UI.
+pub const ALL_PROFILE_TYPES = blk: {
+    const fields = std.meta.fields(ProfileType);
+    var values: [fields.len]ProfileType = undefined;
     for (fields, 0..) |field, i| {
         values[i] = @enumFromInt(field.value);
     }
     break :blk values;
 };
 
-/// Returns a slice of all known persona types.
-pub fn allPersonaTypes() []const PersonaType {
-    return &ALL_PERSONA_TYPES;
+/// Returns a slice of all known profile types.
+pub fn allProfileTypes() []const ProfileType {
+    return &ALL_PROFILE_TYPES;
 }
 
-/// Standardized response structure from any persona.
-pub const PersonaResponse = struct {
+/// Standardized response structure from any profile.
+pub const ProfileResponse = struct {
     /// Generated response text.
     content: []const u8,
-    /// The persona that generated this response.
-    persona: PersonaType,
+    /// The profile that generated this response.
+    profile: ProfileType,
     /// Confidence score for the response (0.0 - 1.0).
     confidence: f32,
     /// Suggested emotional tone for the response.
@@ -97,7 +99,7 @@ pub const PersonaResponse = struct {
     /// Time taken to generate the response in milliseconds.
     generation_time_ms: u64 = 0,
 
-    pub fn deinit(self: *PersonaResponse, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ProfileResponse, allocator: std.mem.Allocator) void {
         allocator.free(self.content);
         if (self.reasoning_chain) |chain| {
             for (chain) |step| step.deinit(allocator);
@@ -116,8 +118,8 @@ pub const PersonaResponse = struct {
 
 /// Decision metadata from the Abi router.
 pub const RoutingDecision = struct {
-    /// The persona selected for the request.
-    selected_persona: PersonaType,
+    /// The profile selected for the request.
+    selected_profile: ProfileType,
     /// Confidence in this routing choice (0.0 - 1.0).
     confidence: f32,
     /// Detected emotional state from input.
@@ -147,7 +149,7 @@ pub const PolicyFlags = struct {
     }
 };
 
-/// A single step in a persona's reasoning process.
+/// A single step in a profile's reasoning process.
 pub const ReasoningStep = struct {
     title: []const u8,
     explanation: []const u8,
@@ -186,26 +188,26 @@ pub const Source = struct {
     }
 };
 
-/// Common interface that all personas must implement.
-pub const PersonaInterface = struct {
+/// Common interface that all profiles must implement.
+pub const ProfileInterface = struct {
     ptr: *anyopaque,
     vtable: *const VTable,
 
     pub const VTable = struct {
-        process: *const fn (ctx: *anyopaque, request: PersonaRequest) anyerror!PersonaResponse,
+        process: *const fn (ctx: *anyopaque, request: ProfileRequest) anyerror!ProfileResponse,
         getName: *const fn (ctx: *anyopaque) []const u8,
-        getType: *const fn (ctx: *anyopaque) PersonaType,
+        getType: *const fn (ctx: *anyopaque) ProfileType,
     };
 
-    pub fn process(self: PersonaInterface, request: PersonaRequest) !PersonaResponse {
+    pub fn process(self: ProfileInterface, request: ProfileRequest) !ProfileResponse {
         return self.vtable.process(self.ptr, request);
     }
 
-    pub fn getName(self: PersonaInterface) []const u8 {
+    pub fn getName(self: ProfileInterface) []const u8 {
         return self.vtable.getName(self.ptr);
     }
 
-    pub fn getType(self: PersonaInterface) PersonaType {
+    pub fn getType(self: ProfileInterface) ProfileType {
         return self.vtable.getType(self.ptr);
     }
 };

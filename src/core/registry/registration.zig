@@ -3,11 +3,12 @@
 //! Registration APIs for different feature modes: comptime, runtime toggle, and dynamic.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 const Feature = types.Feature;
 const RegistrationMode = types.RegistrationMode;
 const FeatureRegistration = types.FeatureRegistration;
+const PluginApi = types.PluginApi;
 const Error = types.Error;
 const isFeatureCompiledIn = types.isFeatureCompiledIn;
 
@@ -82,7 +83,7 @@ pub fn registerRuntimeToggle(
     });
 }
 
-/// Register a feature for dynamic loading from a shared library (future).
+/// Register a feature for dynamic loading from a shared library.
 pub fn registerDynamic(
     allocator: std.mem.Allocator,
     registrations: *std.AutoHashMapUnmanaged(Feature, FeatureRegistration),
@@ -97,10 +98,25 @@ pub fn registerDynamic(
     const path_copy = try allocator.dupe(u8, library_path);
     errdefer allocator.free(path_copy);
 
+    // Open library to validate it exists and has the required interface
+    var lib = std.DynLib.open(library_path) catch return Error.LibraryLoadFailed;
+    defer lib.close();
+
+    // Look for ABI plugin entry point
+    const get_interface = lib.lookup(*const fn () PluginApi.Interface, "abi_plugin_interface") orelse return Error.InvalidPluginApi;
+    const interface = get_interface();
+
+    // Validate version compatibility
+    const metadata = interface.getMetadata();
+    if (metadata.version.major != PluginApi.current_version.major) {
+        return Error.PluginIncompatible;
+    }
+
     try registrations.put(allocator, feature, .{
         .feature = feature,
         .mode = .dynamic,
         .library_path = path_copy,
+        .plugin_interface = interface,
         .enabled = false,
         .initialized = false,
     });

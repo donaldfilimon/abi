@@ -5,10 +5,10 @@
 
 const std = @import("std");
 
-pub const mmap = @import("mmap");
-pub const gguf = @import("gguf");
-pub const gguf_writer = @import("gguf_writer");
-pub const tensor_loader = @import("tensor_loader");
+pub const mmap = @import("mmap.zig");
+pub const gguf = @import("gguf.zig");
+pub const gguf_writer = @import("gguf_writer.zig");
+pub const tensor_loader = @import("tensor_loader.zig");
 
 // Re-exports for reading
 pub const MappedFile = mmap.MappedFile;

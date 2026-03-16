@@ -29,11 +29,11 @@
 //! ```
 
 const std = @import("std");
-const Engine = @import("engine").Engine;
-const Metadata = @import("engine").Metadata;
-const config = @import("config");
-const Cache = @import("cache").Cache;
-const HNSW = @import("hnsw").HNSW;
+const Engine = @import("engine.zig").Engine;
+const Metadata = @import("engine.zig").Metadata;
+const config = @import("config.zig");
+const Cache = @import("cache.zig").Cache;
+const HNSW = @import("hnsw.zig").HnswIndex;
 
 const MAGIC = [4]u8{ 'W', 'D', 'B', 'X' };
 const VERSION: u32 = 1;
@@ -85,7 +85,7 @@ const MemReader = struct {
 
 /// Save the entire engine state to a file.
 pub fn save(engine: *Engine, path: []const u8) !void {
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(engine.allocator);
     const writer = MemWriter{ .allocator = engine.allocator, .buf = &buf };
 
@@ -126,15 +126,16 @@ pub fn save(engine: *Engine, path: []const u8) !void {
     // HNSW graph state.
     const ep: u32 = engine.hnsw_index.entry_point orelse 0xFFFFFFFF;
     try writer.writeInt(u32, ep, .little);
-    try writer.writeInt(u32, engine.hnsw_index.max_level, .little);
+    try writer.writeInt(u32, @intCast(@max(0, engine.hnsw_index.max_layer)), .little);
 
     for (0..count) |i| {
-        const node_level = engine.hnsw_index.node_levels.items[i];
+        const node = engine.hnsw_index.nodes[i];
+        const node_level = @as(u32, @intCast(@max(0, @as(i32, @intCast(node.layers.len)) - 1)));
         try writer.writeInt(u32, node_level, .little);
 
-        const layers = engine.hnsw_index.neighbors.items[i];
+        const layers = node.layers;
         for (0..node_level + 1) |l| {
-            const nbrs = if (l < layers.len) layers[l] else &[_]u32{};
+            const nbrs = if (l < layers.len) layers[l].nodes else &[_]u32{};
             try writer.writeInt(u32, @intCast(nbrs.len), .little);
             for (nbrs) |n| {
                 try writer.writeInt(u32, n, .little);
@@ -188,7 +189,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Engine {
     errdefer cache.deinit();
 
     var hnsw = try HNSW.init(allocator, cfg, metric);
-    errdefer hnsw.deinit();
+    errdefer hnsw.deinit(allocator);
 
     var engine = Engine{
         .allocator = allocator,
@@ -233,7 +234,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Engine {
         const score_bits = try reader.readInt(u32, .little);
         const score: f32 = @bitCast(score_bits);
 
-        const EngineVector = @import("engine").EngineVector;
+        const EngineVector = @import("engine.zig").EngineVector;
         try engine.vectors_array.append(allocator, EngineVector{
             .id = id_buf,
             .vec = vec,
@@ -254,7 +255,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Engine {
     // Read HNSW graph state.
     const ep_val = try reader.readInt(u32, .little);
     engine.hnsw_index.entry_point = if (ep_val == 0xFFFFFFFF) null else ep_val;
-    engine.hnsw_index.max_level = try reader.readInt(u32, .little);
+    engine.hnsw_index.max_layer = @intCast(try reader.readInt(u32, .little));
 
     for (0..count) |_| {
         const node_level = try reader.readInt(u32, .little);

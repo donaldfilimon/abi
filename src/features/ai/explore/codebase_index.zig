@@ -8,7 +8,7 @@
 //! works, find definitions, and trace dependencies.
 
 const std = @import("std");
-const app_paths = @import("shared_services").app_paths;
+const app_paths = @import("../../../services/shared/mod.zig").app_paths;
 
 // ============================================================================
 // Types

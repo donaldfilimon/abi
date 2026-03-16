@@ -26,12 +26,12 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const app_paths = abi.services.shared.app_paths;
-const AgentBackend = abi.features.ai.agent.AgentBackend;
+const app_paths = abi.foundation.app_paths;
+const AgentBackend = abi.ai.agent.AgentBackend;
 
 pub const meta: command_mod.Meta = .{
     .name = "os-agent",
@@ -89,12 +89,12 @@ const SessionState = struct {
     allocator: std.mem.Allocator,
     session_id: []const u8,
     session_name: []const u8,
-    messages: std.ArrayListUnmanaged(abi.features.ai.memory.Message) = .empty,
+    messages: std.ArrayListUnmanaged(abi.ai.memory.Message) = .empty,
     created_at: i64,
     modified: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) !SessionState {
-        const now = abi.services.shared.utils.unixSeconds();
+        const now = abi.foundation.utils.unixSeconds();
         return .{
             .allocator = allocator,
             .session_id = try makeSessionId(allocator, name),
@@ -110,14 +110,14 @@ const SessionState = struct {
         self.allocator.free(self.session_name);
     }
 
-    pub fn addMessage(self: *SessionState, role: abi.features.ai.memory.MessageRole, content: []const u8) !void {
+    pub fn addMessage(self: *SessionState, role: abi.ai.memory.MessageRole, content: []const u8) !void {
         const content_copy = try self.allocator.dupe(u8, content);
         errdefer self.allocator.free(content_copy);
 
         try self.messages.append(self.allocator, .{
             .role = role,
             .content = content_copy,
-            .timestamp = abi.services.shared.utils.unixSeconds(),
+            .timestamp = abi.foundation.utils.unixSeconds(),
         });
         self.modified = true;
     }
@@ -134,7 +134,7 @@ const SessionState = struct {
         const sessions_dir = try resolveAndEnsureSessionsDir(self.allocator);
         defer self.allocator.free(sessions_dir);
 
-        var store = abi.features.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        var store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
         if (!store.sessionExists(self.session_id)) return;
 
         var loaded = try store.loadSession(self.session_id);
@@ -157,9 +157,9 @@ const SessionState = struct {
         const sessions_dir = try resolveAndEnsureSessionsDir(self.allocator);
         defer self.allocator.free(sessions_dir);
 
-        var store = abi.features.ai.memory.SessionStore.init(self.allocator, sessions_dir);
-        const now = abi.services.shared.utils.unixSeconds();
-        const session_data = abi.features.ai.memory.SessionData{
+        var store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        const now = abi.foundation.utils.unixSeconds();
+        const session_data = abi.ai.memory.SessionData{
             .id = self.session_id,
             .name = self.session_name,
             .created_at = self.created_at,
@@ -223,7 +223,7 @@ fn makeSessionId(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
 
 fn buildSessionAwareInput(
     allocator: std.mem.Allocator,
-    history: []const abi.features.ai.memory.Message,
+    history: []const abi.ai.memory.Message,
     user_input: []const u8,
 ) ![]u8 {
     if (history.len == 0) return allocator.dupe(u8, user_input);
@@ -272,7 +272,7 @@ fn responseNeedsRecovery(response: []const u8) bool {
 }
 
 fn recoverUserFacingResponse(
-    tool_agent: *abi.features.ai.tool_agent.ToolAugmentedAgent,
+    tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
     user_input: []const u8,
     previous_response: []const u8,
     allocator: std.mem.Allocator,
@@ -365,7 +365,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         os_agent_system_prompt;
 
     // Create tool-augmented agent with all tools
-    var tool_agent = try abi.features.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
+    var tool_agent = try abi.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
         .agent = .{
             .name = "os-agent",
             .backend = backend,
@@ -387,7 +387,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Initialize self-improver for metrics
-    var improver = abi.features.ai.self_improve.SelfImprover.init(allocator);
+    var improver = abi.ai.self_improve.SelfImprover.init(allocator);
     defer improver.deinit();
 
     // Initialize and load persisted session state.
@@ -446,8 +446,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn runInteractive(
     allocator: std.mem.Allocator,
-    tool_agent: *abi.features.ai.tool_agent.ToolAugmentedAgent,
-    improver: *abi.features.ai.self_improve.SelfImprover,
+    tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
+    improver: *abi.ai.self_improve.SelfImprover,
     session: *SessionState,
     model_name: []const u8,
     system_prompt: []const u8,
@@ -562,8 +562,8 @@ fn runInteractive(
 
 fn handleSlashCommand(
     input: []const u8,
-    tool_agent: *abi.features.ai.tool_agent.ToolAugmentedAgent,
-    improver: *abi.features.ai.self_improve.SelfImprover,
+    tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
+    improver: *abi.ai.self_improve.SelfImprover,
     session: *SessionState,
     model_name: []const u8,
     system_prompt: []const u8,
@@ -725,7 +725,7 @@ fn printInteractiveHelp() void {
 }
 
 fn printHelp() void {
-    const help_mod = @import("../../utils/help");
+    const help_mod = @import("../../utils/help.zig");
     var builder = help_mod.HelpBuilder.init(std.heap.page_allocator);
     defer builder.deinit();
     _ = builder

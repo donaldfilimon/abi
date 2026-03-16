@@ -8,7 +8,7 @@
 //! - Few-shot learning optimization
 
 const std = @import("std");
-const neural = @import("../neural");
+const neural = @import("../neural/mod.zig");
 const types = @import("types");
 
 // ============================================================================

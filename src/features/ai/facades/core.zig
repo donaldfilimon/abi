@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
@@ -20,22 +20,22 @@ pub const agent = @import("agents");
 pub const agents = if (build_options.feat_ai)
     @import("agents")
 else
-    @import("../agents/stub");
-pub const tools = @import("../tools");
+    @import("../agents/stub.zig");
+pub const tools = @import("../tools/mod.zig");
 pub const prompts = @import("prompts");
-pub const memory = @import("../memory");
+pub const memory = @import("../memory/mod.zig");
 pub const multi_agent = if (build_options.feat_ai)
-    @import("../multi_agent")
+    @import("../multi_agent/mod.zig")
 else
-    @import("../multi_agent/stub");
-pub const core = @import("core");
-pub const gpu_agent = @import("../agents/gpu_agent");
-pub const discovery = @import("../explore/discovery");
+    @import("../multi_agent/stub.zig");
+pub const core = @import("../../../core/mod.zig");
+pub const gpu_agent = @import("../agents/gpu_agent.zig");
+pub const discovery = @import("../explore/discovery.zig");
 pub const models = if (build_options.feat_ai)
-    @import("../models")
+    @import("../models/mod.zig")
 else
-    @import("../models/stub");
-pub const model_registry = @import("../models/registry");
+    @import("../models/stub.zig");
+pub const model_registry = @import("../models/registry.zig");
 
 // ============================================================================
 // Convenience type re-exports
@@ -55,8 +55,8 @@ pub const registerDiscordTools = tools.registerDiscordTools;
 pub const OsTools = tools.OsTools;
 pub const registerOsTools = tools.registerOsTools;
 pub const PromptBuilder = prompts.PromptBuilder;
-pub const Persona = prompts.Persona;
-pub const PersonaType = prompts.PersonaType;
+pub const Profile = prompts.Profile;
+pub const ProfileType = prompts.ProfileType;
 pub const PromptFormat = prompts.PromptFormat;
 pub const GpuAgent = gpu_agent.GpuAgent;
 pub const GpuAwareRequest = gpu_agent.GpuAwareRequest;
@@ -192,6 +192,6 @@ test "ai_core createRegistry returns valid registry" {
 test "ai_core type re-exports are distinct types" {
     try std.testing.expect(@sizeOf(ModelInfo) > 0);
     try std.testing.expect(@TypeOf(MultiAgentCoordinator) != void);
-    try std.testing.expect(@TypeOf(Persona) != void);
-    try std.testing.expect(@TypeOf(PersonaType) != void);
+    try std.testing.expect(@TypeOf(Profile) != void);
+    try std.testing.expect(@TypeOf(ProfileType) != void);
 }

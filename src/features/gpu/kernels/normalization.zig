@@ -9,7 +9,7 @@
 //! - fused_add_norm: Fused residual add + LayerNorm
 
 const std = @import("std");
-const dsl = @import("../dsl");
+const dsl = @import("../dsl/mod.zig");
 
 pub const KernelIR = dsl.KernelIR;
 pub const KernelBuilder = dsl.KernelBuilder;

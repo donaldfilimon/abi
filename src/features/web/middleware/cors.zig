@@ -3,8 +3,8 @@
 //! Handles Cross-Origin Resource Sharing headers and preflight requests.
 
 const std = @import("std");
-const types = @import("types");
-const server = @import("../server");
+const types = @import("types.zig");
+const server = @import("../server/mod.zig");
 const MiddlewareContext = types.MiddlewareContext;
 
 /// CORS configuration.

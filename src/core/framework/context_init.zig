@@ -5,20 +5,32 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../config");
-const registry_mod = @import("../registry");
-const state_machine = @import("state_machine");
-const shutdown = @import("shutdown");
+const config_module = @import("../config/mod.zig");
+const registry_mod = @import("../registry/mod.zig");
+const state_machine = @import("state_machine.zig");
+const shutdown = @import("shutdown.zig");
 
 // Shared comptime-gated feature imports (DRY: single source of truth).
-// Standard and AI sub-module imports are accessed via `fi` in the comptime
-// table loops (initStandardFeatures, initAiSubModules). Only modules with
-// custom init logic need explicit aliases here.
-const fi = @import("feature_imports");
+const fi = @import("feature_imports.zig");
+const gpu_mod = fi.gpu_mod;
+const ai_mod = fi.ai_mod;
+const database_mod = fi.database_mod;
+const network_mod = fi.network_mod;
+const observability_mod = fi.observability_mod;
+const web_mod = fi.web_mod;
 const cloud_mod = fi.cloud_mod;
 const analytics_mod = fi.analytics_mod;
-const ha_mod = @import("../../services/ha");
-const runtime_mod = @import("../../services/runtime");
+const auth_mod = fi.auth_mod;
+const messaging_mod = fi.messaging_mod;
+const cache_mod = fi.cache_mod;
+const storage_mod = fi.storage_mod;
+const search_mod = fi.search_mod;
+const gateway_mod = fi.gateway_mod;
+const pages_mod = fi.pages_mod;
+const benchmarks_mod = fi.benchmarks_mod;
+const mobile_mod = fi.mobile_mod;
+const ha_mod = @import("../../services/ha/mod.zig");
+const runtime_mod = @import("../../services/runtime/mod.zig");
 
 /// Initialize a framework with the provided configuration.
 pub fn init(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config) Framework.Error!Framework {
@@ -129,42 +141,68 @@ fn initConvertedFeatures(comptime Framework: type, allocator: std.mem.Allocator,
     }
 }
 
-/// AI sub-module spec for non-fatal initialization.
-const AiSubSpec = struct {
-    fw_field: []const u8,
-    feat_flag: []const u8,
-    label: []const u8,
-};
-
-const ai_sub_specs = [_]AiSubSpec{
-    .{ .fw_field = "ai_core", .feat_flag = "feat_ai", .label = "ai.core" },
-    .{ .fw_field = "ai_inference", .feat_flag = "feat_llm", .label = "ai.inference" },
-    .{ .fw_field = "ai_training", .feat_flag = "feat_training", .label = "ai.training" },
-    .{ .fw_field = "ai_reasoning", .feat_flag = "feat_reasoning", .label = "ai.reasoning" },
-};
-
-/// Initialize AI sub-modules non-fatally (main AI module stays available even
-/// if sub-features fail). Users check via `abi system-info`.
-fn initAiSubModules(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) void {
-    if (cfg.ai) |ai_cfg| {
-        inline for (ai_sub_specs) |spec| {
-            if (comptime @field(build_options, spec.feat_flag)) {
-                @field(fw, spec.fw_field) = @field(fi, spec.fw_field ++ "_mod").Context.init(
-                    allocator,
-                    ai_cfg,
-                ) catch |err| blk: {
-                    std.log.warn(spec.label ++ " sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
-                    break :blk null;
-                };
-            }
+    if (cfg.auth) |auth_cfg| {
+        fw.auth = try auth_mod.Context.init(allocator, auth_cfg);
+        if (comptime build_options.feat_auth) {
+            try fw.registry.registerComptime(.auth);
         }
     }
-}
 
-fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
-    try initStandardFeatures(Framework, allocator, cfg, fw);
-    try initConvertedFeatures(Framework, allocator, cfg, fw);
-    initAiSubModules(Framework, allocator, cfg, fw);
+    if (cfg.messaging) |msg_cfg| {
+        fw.messaging = try messaging_mod.Context.init(allocator, msg_cfg);
+        if (comptime build_options.feat_messaging) {
+            try fw.registry.registerComptime(.messaging);
+        }
+    }
+
+    if (cfg.cache) |cache_cfg| {
+        fw.cache = try cache_mod.Context.init(allocator, cache_cfg);
+        if (comptime build_options.feat_cache) {
+            try fw.registry.registerComptime(.cache);
+        }
+    }
+
+    if (cfg.storage) |storage_cfg| {
+        fw.storage = try storage_mod.Context.init(allocator, storage_cfg);
+        if (comptime build_options.feat_storage) {
+            try fw.registry.registerComptime(.storage);
+        }
+    }
+
+    if (cfg.search) |search_cfg| {
+        fw.search = try search_mod.Context.init(allocator, search_cfg);
+        if (comptime build_options.feat_search) {
+            try fw.registry.registerComptime(.search);
+        }
+    }
+
+    if (cfg.gateway) |gateway_cfg| {
+        fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
+        if (comptime build_options.feat_gateway) {
+            try fw.registry.registerComptime(.gateway);
+        }
+    }
+
+    if (cfg.pages) |pages_cfg| {
+        fw.pages = try pages_mod.Context.init(allocator, pages_cfg);
+        if (comptime build_options.feat_pages) {
+            try fw.registry.registerComptime(.pages);
+        }
+    }
+
+    if (cfg.benchmarks) |benchmarks_cfg| {
+        fw.benchmarks = try benchmarks_mod.Context.init(allocator, benchmarks_cfg);
+        if (comptime build_options.feat_benchmarks) {
+            try fw.registry.registerComptime(.benchmarks);
+        }
+    }
+
+    if (cfg.mobile) |mobile_cfg| {
+        fw.mobile = try mobile_mod.Context.init(allocator, mobile_cfg);
+        if (comptime build_options.feat_mobile) {
+            try fw.registry.registerComptime(.mobile);
+        }
+    }
 
     // Always initialize HA manager using default provider when available.
     fw.ha = ha_mod.HaManager.init(allocator, .{});

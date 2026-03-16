@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ZIG_VERSION: "0.16.0-dev.1503+738d2be9d"
+  ZIG_VERSION: "0.16.0-dev.2905+5d71e3051"
 
 jobs:
   shell-lint:
@@ -30,7 +30,7 @@ jobs:
       - uses: mlugg/setup-zig@v1
         with:
           version: ${{ env.ZIG_VERSION }}
-      - run: zig fmt --check build.zig build/ src/ tools/
+      - run: zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 
   test:
     name: Test Suite
@@ -83,3 +83,5 @@ jobs:
           version: ${{ env.ZIG_VERSION }}
       - name: Build all examples
         run: zig build examples
+      - name: Cross-platform compilation check
+        run: zig build cross-check

@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const crypto = std.crypto;
-const csprng = @import("csprng");
+const csprng = @import("csprng.zig");
 
 /// Password hashing algorithm selection
 pub const Algorithm = enum {

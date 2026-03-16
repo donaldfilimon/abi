@@ -1,3 +1,10 @@
+---
+title: Security Policy
+purpose: Vulnerability reporting and security guidelines
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # Security Policy
 
 If you find a security issue in ABI, avoid filing a public bug with exploit details first.

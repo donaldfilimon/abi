@@ -20,12 +20,12 @@ pub const domains = struct {
 
 // Infrastructure benchmarks (concurrency, crypto, memory, etc.)
 pub const infrastructure = struct {
-    pub const concurrency = @import("infrastructure/concurrency");
-    pub const crypto = @import("infrastructure/crypto");
-    pub const memory = @import("infrastructure/memory");
-    pub const simd = @import("infrastructure/simd");
+    pub const concurrency = @import("infrastructure/concurrency.zig");
+    pub const crypto = @import("infrastructure/crypto.zig");
+    pub const memory = @import("infrastructure/memory.zig");
+    pub const simd = @import("infrastructure/simd.zig");
     pub const network = @import("infrastructure/network/mod.zig");
-    pub const v2_modules = @import("infrastructure/v2_modules");
+    pub const v2_modules = @import("infrastructure/v2_modules.zig");
 
     // Utility functions
     pub const runner = struct {
@@ -107,14 +107,13 @@ pub const BenchmarkSuite = struct {
         comptime bench_fn: fn (std.mem.Allocator) anyerror!void,
         args: anytype,
     ) !void {
-        _ = args; // Allocator passed via runWithAllocator
-        _ = self.runner.runWithAllocator(.{
+        _ = self.runner.run(.{
             .name = name,
             .category = "suite",
             .warmup_iterations = 3,
             .min_iterations = 5,
             .min_time_ns = 50_000_000, // 50ms
-        }, bench_fn, .{}) catch |err| {
+        }, bench_fn, args) catch |err| {
             std.debug.print("  {s}: FAILED ({t})\n", .{ name, err });
             return;
         };

@@ -4,9 +4,9 @@
 //! consistency, fast cosine similarity, and diagnostics.
 
 const std = @import("std");
-const shared = @import("shared_services");
+const shared = @import("../../services/shared/mod.zig");
 const simd = shared.simd;
-const database_mod = @import("database");
+const database_mod = @import("database.zig");
 const Database = database_mod.Database;
 const computeCosineSimilarityFast = database_mod.computeCosineSimilarityFast;
 

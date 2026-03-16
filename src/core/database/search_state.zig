@@ -2,7 +2,7 @@
 //! Eliminates per-query allocations by reusing search states across queries.
 
 const std = @import("std");
-const index_mod = @import("index");
+const index_mod = @import("index.zig");
 
 // ============================================================================
 // Search State Pool - Eliminates per-query allocations
@@ -22,10 +22,10 @@ pub const SearchState = struct {
 
     pub fn init() SearchState {
         return .{
-            .candidates = .{},
-            .visited = .{},
-            .queue = .{},
-            .results_buffer = .{},
+            .candidates = .empty,
+            .visited = .empty,
+            .queue = .empty,
+            .results_buffer = .empty,
         };
     }
 

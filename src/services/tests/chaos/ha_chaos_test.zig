@@ -15,11 +15,11 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const time = abi.services.shared.time;
-const sync = abi.services.shared.sync;
-const ha = abi.services.ha;
-const chaos = @import("mod");
-const helpers = @import("../helpers");
+const time = abi.foundation.time;
+const sync = abi.foundation.sync;
+const ha = abi.ha;
+const chaos = @import("mod.zig");
+const helpers = @import("../helpers.zig");
 
 // Re-export sleep from helpers for convenience
 const sleepMs = helpers.sleepMs;

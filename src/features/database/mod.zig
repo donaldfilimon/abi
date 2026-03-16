@@ -11,15 +11,15 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 // ── Core database module (all real logic lives here) ───────────────────────
-const core_db = @import("../../core/database/mod");
-const core_config = @import("../../core/config/database");
+const core_db = @import("../../core/database/mod.zig");
+const core_config = @import("../../core/config/database.zig");
 
 // ── Sub-module re-exports (parity with stub.zig) ───────────────────────────
 pub const engine = core_db.engine;
 pub const hnsw = core_db.hnsw;
-pub const distance = @import("../../core/database/distance");
-pub const simd = @import("../../core/database/simd");
-pub const quantize = @import("../../core/database/quantize");
+pub const distance = @import("../../core/database/distance.zig");
+pub const simd = @import("../../core/database/simd.zig");
+pub const quantize = @import("../../core/database/quantize.zig");
 pub const batch = core_db.batch;
 pub const fulltext = core_db.fulltext;
 pub const core = core_db.core;

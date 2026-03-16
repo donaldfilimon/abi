@@ -5,8 +5,8 @@
 
 const std = @import("std");
 const testing = std.testing;
-const raft = @import("raft");
-const raft_persistence = @import("raft_persistence");
+const raft = @import("raft.zig");
+const raft_persistence = @import("raft_persistence.zig");
 
 const RaftNode = raft.RaftNode;
 const RaftState = raft.RaftState;

@@ -33,19 +33,19 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const utils = @import("shared_services").utils;
-const sync = @import("shared_services").sync;
+const utils = @import("../../../services/shared/mod.zig").utils;
+const sync = @import("../../../services/shared/mod.zig").sync;
 
 const Mutex = sync.Mutex;
 
 // Provider router for real inference dispatch
-const provider_router = @import("../llm/providers/router");
-const provider_types = @import("../llm/providers/types");
+const provider_router = @import("../llm/providers/router.zig");
+const provider_types = @import("../llm/providers/types.zig");
 
 // Sub-modules
-pub const router = @import("router");
-pub const ensemble = @import("ensemble");
-pub const fallback = @import("fallback");
+pub const router = @import("router.zig");
+pub const ensemble = @import("ensemble.zig");
+pub const fallback = @import("fallback.zig");
 
 // Re-exports
 pub const Router = router.Router;

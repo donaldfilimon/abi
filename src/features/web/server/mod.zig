@@ -20,10 +20,10 @@
 
 const std = @import("std");
 
-pub const types = @import("types");
-pub const http_server = @import("http_server");
-pub const request_parser = @import("request_parser");
-pub const response_builder = @import("response_builder");
+pub const types = @import("types.zig");
+pub const http_server = @import("http_server.zig");
+pub const request_parser = @import("request_parser.zig");
+pub const response_builder = @import("response_builder.zig");
 
 // Re-export main types for convenience
 pub const ServerConfig = types.ServerConfig;

@@ -8,8 +8,8 @@
 //! Topology: Input(8) → Hidden1(16) → Hidden2(24) → Output(16) = 64 nodes
 
 const std = @import("std");
-const terminal_mod = @import("terminal");
-const themes = @import("themes");
+const terminal_mod = @import("terminal.zig");
+const themes = @import("themes.zig");
 
 const Terminal = terminal_mod.Terminal;
 const Theme = themes.Theme;

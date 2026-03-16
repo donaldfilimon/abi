@@ -1,6 +1,6 @@
 const std = @import("std");
-const shared = @import("../shared");
-const contract = @import("contract");
+const shared = @import("../shared.zig");
+const contract = @import("contract.zig");
 
 pub const GeminiError = error{
     MissingApiKey,

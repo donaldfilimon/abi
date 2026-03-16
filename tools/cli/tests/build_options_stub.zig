@@ -28,6 +28,9 @@ pub const feat_mobile = false;
 pub const feat_gateway = true;
 pub const feat_pages = true;
 pub const feat_benchmarks = true;
+pub const feat_compute = true;
+pub const feat_documents = true;
+pub const feat_desktop = true;
 
 pub const gpu_cuda = false;
 pub const gpu_vulkan = false;

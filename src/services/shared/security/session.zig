@@ -10,9 +10,9 @@
 //! - Activity tracking
 
 const std = @import("std");
-const time = @import("../time");
-const sync = @import("../sync");
-const csprng = @import("csprng");
+const time = @import("../time.zig");
+const sync = @import("../sync.zig");
+const csprng = @import("csprng.zig");
 const crypto = std.crypto;
 
 /// Session configuration

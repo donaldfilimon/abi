@@ -3,8 +3,8 @@
 //! Uses opaque file handle compatible with Zig 0.16 std.Io.
 
 const std = @import("std");
-const core = @import("../core");
-const block = @import("block");
+const core = @import("../core/mod.zig");
+const block = @import("block.zig");
 
 pub const SegmentLog = struct {
     allocator: std.mem.Allocator,

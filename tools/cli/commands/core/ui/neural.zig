@@ -1,8 +1,8 @@
 //! Dynamic 3D neural network visualization for terminal UI.
 
 const std = @import("std");
-const command = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 
@@ -10,7 +10,7 @@ pub const meta: command.Meta = .{
     .name = "neural",
     .description = "Dynamic 3D neural network visualization for terminal UI",
 };
-const shared_time = abi.services.shared.time;
+const shared_time = abi.foundation.time;
 
 const Config = struct {
     frames: u32 = 240,

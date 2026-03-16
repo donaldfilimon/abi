@@ -8,7 +8,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const e2e = @import("mod");
+const e2e = @import("mod.zig");
 
 // ============================================================================
 // Helper Types

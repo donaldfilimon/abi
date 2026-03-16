@@ -1,6 +1,6 @@
 const std = @import("std");
-const factory = @import("../backend_factory");
-const Backend = @import("../backend").Backend;
+const factory = @import("../backend_factory.zig");
+const Backend = @import("../backend.zig").Backend;
 
 test "detect all available backends" {
     const allocator = std.testing.allocator;

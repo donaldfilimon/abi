@@ -1,106 +1,61 @@
 # Lessons Learned
 
-## 2026-03-06 - Aggressive-5 reprioritization must be canonical-first
-- Root cause: Plan state drift appears when tasks/docs are edited before canonical roadmap catalog values are updated.
-- Prevention rule: In one wave, update `roadmap_catalog.zig`, regenerate roadmap/plans data and markdown artifacts, then update `tasks/todo.md` and `tasks/lessons.md` before running close-out gates.
+## Zig 0.16 API Changes
+- `GeneralPurposeAllocator` → `DebugAllocator`. No `std.time.timestamp()` → use `unixSeconds()`. No `File.writeAll` → use `writeStreamingAll(io, data)`. No `makeDirAbsolute*` → use `createDirPath(.cwd(), io, path)`. No `usingnamespace` → pass parent context as parameters to submodule init functions.
+- `LazyPath`: use `.cwd_relative`/`.src_path`, not `.path`. `addTest`/`addExecutable`: use `root_module`, not `root_source_file`. ZON parsing: use arena-backed `fromSliceAlloc`, deinit arena at scope end.
+- **dev.2905+**: All `@import("path")` must have explicit `.zig` extensions. Single-module file ownership enforced — every `.zig` file belongs to exactly one named module. Cross-module relative-path imports are illegal. Solution: consolidate all `src/` into single `abi` module. The old `core` named module was removed entirely (files live in `src/core/` as part of `abi`). The old `shared_services` module was replaced by `foundation` (see below).
+- `valueIterator()`/`keyIterator()` not `.values()`. `@enumFromInt(x)` not `intToEnum`. Use `std.posix.poll` on STDIN instead of `std.time.sleep` in event loops.
 
-## 2026-03-06 - Pin + planning sync must move together
-- Root cause: Zig pin and planning artifacts can drift when version updates are applied without the full contract set.
-- Prevention rule: When repinning Zig, update `.zigversion`, `build.zig.zon`, `tools/scripts/baseline.zig`, `README.md`, and planning/generated artifacts in one wave.
+## Darwin 25+ Linker Workaround
+- `zig build` fails with undefined symbols (`_malloc_size`, `_nanosleep`, etc.) because the **build runner** links first, before `build.zig` runs. No `build.zig` knob can fix this.
+- Use `./tools/scripts/run_build.sh`, `zig fmt --check`, or `zig test -fno-emit-bin` locally. CI (Linux) is authoritative.
+- LLD has zero Mach-O support — never `use_lld = true` on macOS targets.
 
-## 2026-03-01 - Zig 0.16 ZON parsing ownership
-- Root cause: `std.zon.parse.fromSliceAlloc` allocations were treated like wrapper-owned values instead of direct struct-owned slices.
-- Prevention rule: Use arena-backed parsing for complex ZON inputs and deinit the arena at scope end.
+## Version Pin Discipline
+- When repinning Zig: update `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, CI config atomically. Validate version/commit pairs against `ziglang.org/builds` artifact metadata, not GitHub master HEAD.
+- Update `roadmap_catalog.zig` and regenerate artifacts before updating `tasks/` files to prevent plan state drift.
 
-## 2026-03-01 - Registry/docs extraction coupling
-- Root cause: Tooling assumed direct imports and regex-based ZON rewrites after metadata moved to generated registry snapshots.
-- Prevention rule: Resolve generated registry artifacts explicitly and keep deterministic parser paths for generated ZON.
+## mod/stub Sync
+- `stub.zig` must match `mod.zig` public signatures. After any feature migration, verify parity — code compiles with `feat_X=true` but fails with `feat_X=false` if stubs diverge.
+- Validation matrix no-X entries must enable ALL other features. When adding a flag, add it to all existing no-X entries. Verify: 2 baseline + N solo + N no-X.
+- Shared types go in `types.zig` — both `mod.zig` and `stub.zig` import from it. Use `StubFeature`/`StubFeatureNoConfig` from `core/stub_context.zig` for common stub boilerplate (-118 lines across 7 stubs).
+- `ArrayListUnmanaged` and `AutoHashMapUnmanaged` must use `.empty` not `.{}` for initialization in Zig 0.16. The `.{}` literal triggers "missing struct field: items" errors.
+- CLI tools accessing `abi.features.ai.<submodule>` will fail at compile time if the sub-module isn't re-exported from the AI stub. When adding new AI sub-modules accessed by CLI, add to both `mod.zig` AND `stub.zig`. Inline stubs need all methods the caller invokes — each returning `error.AiDisabled` or a safe default.
+- Feature-gated sub-modules must not directly import other feature modules via relative paths (bypasses the gate). Use `build_options` conditional imports to match the caller's type path.
 
-## 2026-03-01 - Tool boundary discipline
-- Root cause: Patch flow was attempted through generic shell execution instead of dedicated patch tooling.
-- Prevention rule: Use dedicated patch/edit tools for file mutations and reserve shell for non-mutating inspection or command execution.
+## Build System Patterns
+- Files in `build/test_discovery.zig` must compile standalone with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this — inline small deps or use build-system modules.
+- Use `std.fmt.comptimePrint` to parameterize build steps that differ only by a flag string. One shared module graph for manifest-driven tests, not per-entry modules.
+- Tool-side Zig modules under `tools/` cannot reach into `../../build/*.zig` with relative imports. Pass shared build metadata as a named module import from `build.zig` instead.
+- In `src/root.zig`, keep private module/type aliases distinct from public compatibility re-exports. Reusing the same identifier inside nested namespace structs creates ambiguous references under Zig master.
+- Feature-test per-entry modules violate Zig 0.16 single-file ownership when entries share files through import graphs. Fix: use the `abi` module directly as the test root (`addTest(.{ .root_module = abi_module })`). The `feature_test_manifest` in `module_catalog.zig` is preserved as documentation.
+- `@import("abi")` cannot be used within files that ARE part of the `abi` module — this creates a circular "no module named 'abi' available within module 'abi'" error. It only works from external modules (CLI, tests with separate roots) or lazy-evaluated code paths.
 
-## 2026-03-06 - Workflow contract must be applied before implementation
-- Root cause: Mandatory workflow rules were applied only after implementation work had already started, which created avoidable drift in consensus, task tracking, and review discipline.
-- Prevention rule: For any non-trivial ABI task, review `tasks/lessons.md`, run the required multi-CLI consensus with a real prompt packet, and refresh `tasks/todo.md` before making repo-tracked edits.
+## `foundation` Namespace (Not a Separate Module)
+- **What**: `src/services/shared/mod.zig` provides shared service types (allocators, logging, config). Exposed as `abi.foundation` via `pub const foundation = @import("services/shared/mod.zig")` in `src/root.zig`.
+- **Architecture**: All files under `src/services/shared/` belong to the single `abi` module. There is no separate `foundation` named module — files are accessed via relative imports within the `abi` module graph.
+- **Wiring**: `wireAbiImports(module, build_opts)` adds only `build_options` as a named import. The `foundation` namespace is wired through the normal `abi` module import graph, not as a named import.
+- **Rule**: Files within the `abi` module should use relative paths to reach `src/services/shared/` (e.g., `@import("../../services/shared/mod.zig")`). External modules (CLI, tests with separate roots) access it through `@import("abi").foundation`.
 
-## 2026-03-06 - Zig 0.16 API Breakages in Build System
-- **Root cause**: Attempting to use older Zig 0.15/0.14 patterns in `build.zig` (e.g., `addOptions(options)`, `addTest(.{ .root_source_file = ... })`, `.path` in `LazyPath`).
-- **Prevention rule**: 
-  - For `addOptions`: Use manual field iteration or `createModule()` from an options step.
-  - For `addTest` / `addExecutable`: Use the `root_module` field instead of top-level `root_source_file`.
-  - For `LazyPath`: Use `.cwd_relative` or `.src_path` instead of the removed `.path` field for absolute or relative paths.
-  - For Environment: Prefer `b.env_map.get()` (if initialized) or `std.process.getEnvVarOwned()` but verify the latest signature (e.g., `Init.Minimal` required for `main`).
-  - For Darwin SDK: Force `b.sysroot` globally when building on macOS 26+ to bypass toolchain-internal linker failures.
+## Bulk Operations Safety
+- Never bulk find-replace without excluding string literal interiors. After any bulk text operation, run `zig fmt --check` immediately. Corruption cascades across multiple waves — don't commit until parse errors reach 0.
 
-## 2026-03-06 - Blocked Darwin validation needs a non-link fallback
-- **Root cause**: Pre-built Zig toolchains can fail to link any binary (even the build runner) on futuristic Darwin environments (macOS 26+).
-- **Prevention rule**: When the build runner cannot link, fall back to `run_build.sh`, `zig fmt --check`, compile-only `zig test -fno-emit-bin`, and Linux CI instead of inventing repo-local toolchain bridges.
+## Shell Script Patterns
+- Guard `set -euo pipefail` with `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then ... fi` so strict mode only applies when executed directly.
+- Extract shared utility functions to a `lib.sh` to prevent drift. Trap SIGINT/SIGTERM in long-running scripts to clean up partial state.
 
-## 2026-03-06 - Build runner links first; build.zig workarounds cannot fix it
-- **Root cause**: When `zig build` fails with undefined symbols (e.g. `__availability_version_check`, `_arc4random_buf`) the first binary being linked is the **build runner** (the program that runs `build.zig`). That link happens before `build.zig` runs, so `use_llvm` / `use_lld` and other options set in `build.zig` do not apply to it.
-- **Prevention rule**: If the failure is in the build runner, document it as an environment blocker and switch to wrapper-based, compile-only, or Linux CI validation. `build.zig` knobs alone cannot repair the build runner link.
+## Tool & Workflow Discipline
+- Use dedicated edit tools for file mutations, reserve shell for inspection. Review `tasks/lessons.md` and refresh `tasks/todo.md` before making repo-tracked edits.
+- Keep supported Zig resolution to pinned Zig on PATH or ZVM. Don't add repo-local toolchain surfaces unless intended to be permanent.
+- Resolve generated registry artifacts explicitly; keep deterministic parser paths for generated ZON.
+- External hooks/linters may rewrite source files destructively (reordering imports before doc comments, changing `@import("abi")` to relative internal paths). Use `git checkout HEAD -- <file>` to restore, or atomic `sed -i '' + git add` for edits that must survive hooks.
 
-## 2026-03-06 - Async Event Loop Polling in Zig 0.16
-- **Root cause**: Busy-wait loops using `std.time.sleep` in TUI event handlers consume unnecessary CPU and degrade responsiveness compared to blocking I/O waits.
-- **Prevention rule**: Use `std.posix.poll` (or equivalent platform-native non-blocking I/O multiplexing) on `std.posix.STDIN_FILENO` instead of `std.time.sleep` when waiting for input in asynchronous event loops.
+## Cross-Feature Import Safety
+- Feature modules must not directly import other feature modules' `mod.zig` — this bypasses the compile-time feature gate. Use `build_options` conditional imports: `const obs = if (build_options.feat_profiling) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");`
+- `@import("abi")` cannot be used within files that are part of the `abi` module. Use relative imports instead: `@import("../types.zig")`, `@import("../../database/mod.zig")`.
+- After adding new build flags, update `tools/cli/tests/build_options_stub.zig` to include them. The stub must match all `feat_*` fields in `build/options.zig`.
+- The format-check surface must cover all source directories: `build.zig build/ src/ tools/ tests/ bindings/ lang/`. Keep `AGENTS.md`, `CLAUDE.md`, and `tools/scripts/fmt_repo.sh` in sync.
 
-## 2026-03-09 - Test manifest files must compile standalone
-- **Root cause**: `src/services/lsp/client.zig` used cross-directory `@import("../../core/config/mod.zig")` and `@import("../shared/utils/zig_toolchain.zig")` which fail in standalone `zig test -fno-emit-bin` because the import paths go above the module root.
-- **Prevention rule**: Files listed in `build/test_discovery.zig` must be self-contained. For small dependencies, inline the needed types/functions with a comment pointing to the canonical source. For larger dependencies, use build-system-provided modules via `addImport`. The Zig 0.16 `std.Io.Dir` API has no `makeDirAbsolute*` — use `createDirPath(.cwd(), io, path)` for recursive directory creation, `deleteTree(.cwd(), io, path)` for cleanup, and `file.writeStreamingAll(io, data)` instead of the removed `File.writeAll`.
-
-## 2026-03-08 - Repo-local toolchain bridges create long-term coupling
-- **Root cause**: Temporary repo-local toolchain workarounds sprawled across build wiring, shell helpers, docs, and diagnostics until they became part of the public workflow by accident.
-- **Prevention rule**: Keep supported Zig resolution limited to the pinned Zig on PATH or ZVM plus documented wrapper/compile-only fallbacks. Do not add repo-local toolchain surfaces unless they are intended to remain public and permanent.
-
-## 2026-03-09 - Zig nightly pins must come from artifact metadata, not GitHub master
-- **Root cause**: Treating the current `ziglang/zig` `master` commit as interchangeable with the pinned nightly version drifted local tooling to a source snapshot that did not match ABI's expected Zig 0.16-dev API level.
-- **Prevention rule**: When repinning Zig nightlies, validate the version/commit pair against the actual `ziglang.org/builds` artifact metadata first. Only then update `.zigversion`, `build.zig.zon`, `tools/scripts/baseline.zig`, and docs together.
-
-## 2026-03-09 - Zig 0.16 removed usingnamespace; file splits need parameter-passing
-- **Root cause**: Splitting large Zig files (e.g. GPU unified.zig, metal.zig) into submodules fails if submodules try to `@import` parent types circularly. Zig 0.16 removed `usingnamespace`.
-- **Prevention rule**: When splitting large files into submodules, pass parent context as parameters to submodule init functions rather than circular imports. Keep the parent file as the orchestrator.
-
-## 2026-03-09 - macOS linker prevents full verification on Darwin 25+
-- **Root cause**: `zig build lint` and other build steps fail with undefined symbol errors (`_malloc_size`, `_nanosleep`, etc.) on macOS 25+ due to upstream Zig linker incompatibility.
-- **Prevention rule**: On affected macOS versions, use `zig fmt --check`, `run_build.sh`, and compile-only validation locally. Don't block commits on `zig build lint` if the failure is the known linker issue.
-
-## 2026-03-09 - lib.sh DRY pattern for shell scripts
-- **Root cause**: Multiple shell scripts duplicated the same functions for Zig detection, platform checks, and logging.
-- **Prevention rule**: When multiple shell scripts share utility functions, extract them to a shared helper and `source` it. This reduces drift between scripts and keeps behavior consistent.
-
-## 2026-03-09 - Sourcing bug with set -euo pipefail
-- **Root cause**: `set -euo pipefail` at the top of a script breaks when the script is `source`'d into an interactive shell, because the strict error/unset settings leak into the caller's environment.
-- **Prevention rule**: Guard strict mode with `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then set -euo pipefail; fi` so it only applies when the script is executed directly, not sourced.
-
-## 2026-03-09 - SIGINT trap handler for long-running build scripts
-- **Root cause**: Long-running build scripts can leave partial state (incomplete build dirs, half-written binaries) when interrupted with Ctrl-C.
-- **Prevention rule**: Trap SIGINT/SIGTERM in long-running build scripts to clean up partial state before exiting.
-
-## 2026-03-09 - Comptime string formatting to reduce build step boilerplate
-- **Root cause**: Build steps that differed only by a flag string had duplicated logic for constructing step names and descriptions.
-- **Prevention rule**: Use Zig's `std.fmt.comptimePrint` to parameterize build step creation when steps differ only by a flag or name string.
-
-## 2026-03-10 - Vendored bootstrap fixtures must stay out of repo-root fmt runs
-- Root cause: `zig-bootstrap-emergency/zig/test/cases/compile_errors/` vendors upstream Zig compile-error fixtures, so `zig fmt .` at repo root walks intentionally invalid sources and reports false-positive formatter failures.
-- Prevention rule: Use the repo-safe format surface (`zig fmt build.zig build src tools examples` or `zig build lint` / `zig build fix`) and never use `zig fmt .` from the ABI repo root.
-
-## 2026-03-10 - Manifest-driven feature tests must share one module graph
-- Root cause: Creating one synthetic Zig module per `feature_test_manifest` entry caused duplicate file ownership when feature files imported each other, and the per-entry path materialization could degrade into malformed cache paths like `sfeatures/...`.
-- Prevention rule: Generate one ignored feature-test root under `src/` and import manifest entries through that shared module graph instead of creating a separate module for each manifest entry.
-
-## 2026-03-10 - Bulk find-and-replace can corrupt string literals across files
-- Root cause: A bulk operation that stripped the word "zig" from file content also removed it from inside string literals (`@import("...zig")`, `"zig"` comparisons, `"which -a zig"` commands). The displaced `")` characters appeared as stray suffixes on nearby expression lines.
-- Prevention rule: Never run bulk find-and-replace on source code without excluding string literal interiors. After any bulk text operation, run `zig fmt --check` immediately to catch truncated string literals (they show as "invalid byte: '\n'" errors). Always verify with format check before committing.
-
-## 2026-03-10 - Corruption patterns cascade: one bulk operation creates multiple fix waves
-- Root cause: The initial "zig" stripping corruption was fixed in 33 files, but 33 more files had the same pattern in different directories (services/, tools/, gpu/). A third wave found 22 more in doc comments and file path strings.
-- Prevention rule: After fixing bulk corruption, run `zig fmt --check build.zig build/ src/ tools/` immediately and count remaining parse errors — they indicate more files with the same pattern. Don't commit until parse errors reach 0. Search for all corruption patterns systematically (not just the first directory).
-
-## 2026-03-10 - Mod/stub parity must be checked after migration
-- Root cause: After migrating database from features/ to core/, the features/database/mod.zig facade only re-exported 7 sub-modules while stub.zig provided the full 58-item API. Code using `database.open()` would compile with feat_database=true but fail with feat_database=false.
-- Prevention rule: After any feature module migration, run a mod↔stub parity check to ensure both export identical public API surfaces. The stub-sync-validator agent in zig-abi-plugin can automate this.
-
-## 2026-03-10 - Validation matrix no-X entries must enable ALL other features
-- Root cause: 19 of 20 `no-X` entries in `build/flags.zig` validation_matrix were missing `.feat_mobile = true`, meaning they silently tested with mobile disabled — hiding potential mobile interaction bugs.
-- Prevention rule: When adding a new feature flag, add it to ALL existing no-X entries (except no-<self>), not just the solo and no-self entries. Verify total count matches formula: 2 baseline + N solo + N no-X.
+## Parallel Agent & PR Workflow
+- Parallel agent dispatch (worktree agents) for multi-stream doc/code fixes works well but creates stale PRs when a large restructuring commit lands afterward. Triage PRs immediately after pushing restructuring changes.
+- Code review by subagents catches import violations in new files that format checks miss. Always run both zig fmt and typecheck as complementary gates.

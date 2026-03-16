@@ -1,21 +1,21 @@
 //! UI command family (CLI/TUI v2).
 
 const std = @import("std");
-const command_mod = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command_mod = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const utils = @import("../../../utils/mod.zig");
-const gpu_cmd = @import("./gpu");
-const train_cmd = @import("./train");
-const neural = @import("./neural");
-const model_cmd = @import("./model");
-const streaming_cmd = @import("./streaming");
-const db_cmd = @import("./db");
-const network_cmd = @import("./network");
-const bench_cmd = @import("./bench");
-const brain_cmd = @import("./brain");
-const dashboard_cmd = @import("./dashboard");
-const editor_cmd = @import("./editor");
-const chat_cmd = @import("./chat");
+const gpu_cmd = @import("./gpu.zig");
+const train_cmd = @import("./train.zig");
+const neural = @import("./neural.zig");
+const model_cmd = @import("./model.zig");
+const streaming_cmd = @import("./streaming.zig");
+const db_cmd = @import("./db.zig");
+const network_cmd = @import("./network.zig");
+const bench_cmd = @import("./bench.zig");
+const brain_cmd = @import("./brain.zig");
+const dashboard_cmd = @import("./dashboard.zig");
+const editor_cmd = @import("./editor.zig");
+const chat_cmd = @import("./chat.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "ui",
@@ -33,7 +33,7 @@ pub const meta: command_mod.Meta = .{
         .{ .name = "network", .description = "Open network status dashboard", .handler = network_cmd.run },
         .{ .name = "bench", .description = "Open benchmark results dashboard", .handler = bench_cmd.run },
         .{ .name = "brain", .description = "Open brain visualization dashboard", .handler = brain_cmd.run },
-        .{ .name = "chat", .description = "Open multi-persona chat dashboard", .handler = chat_cmd.run },
+        .{ .name = "chat", .description = "Open multi-profile chat dashboard", .handler = chat_cmd.run },
         .{ .name = "editor", .description = "Open an inline terminal text editor", .handler = editor_cmd.run },
         .{ .name = "dashboard", .description = "Open the shared tabbed shell (alias)", .handler = dashboard_cmd.run },
     },
@@ -91,7 +91,7 @@ pub fn printHelp() void {
         \\  network              Open network status dashboard
         \\  bench                Open benchmark results dashboard
         \\  brain                Open brain visualization dashboard
-        \\  chat                 Open multi-persona chat dashboard
+        \\  chat                 Open multi-profile chat dashboard
         \\  dashboard            Open the shared tabbed shell
         \\  editor [file]        Open the inline terminal editor
         \\  help                 Show this help

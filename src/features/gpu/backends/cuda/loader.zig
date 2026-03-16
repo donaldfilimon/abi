@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const shared = @import("../shared");
+const shared = @import("../shared.zig");
 
 pub const CuResult = enum(i32) {
     success = 0,

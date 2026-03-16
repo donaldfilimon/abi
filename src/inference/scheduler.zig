@@ -1,4 +1,4 @@
-//! Priority Request Scheduler
+//! Priority request scheduler.
 //!
 //! Heap-based priority queue that orders inference requests by priority
 //! (higher first) with FIFO tie-breaking via timestamps.
@@ -13,8 +13,8 @@ pub const Request = struct {
     temperature: f32 = 0.7,
     top_p: f32 = 0.9,
     top_k: u32 = 40,
-    persona: []const u8 = "abi",
-    priority: u8 = 128, // 0 = lowest, 255 = highest
+    profile: []const u8 = "abi",
+    priority: u8 = 128,
     created_at: i64 = 0,
     stream: bool = false,
 };
@@ -23,7 +23,6 @@ pub const Scheduler = struct {
     const Self = @This();
 
     allocator: Allocator,
-    /// Min-heap ordered by (higher priority first, then earlier timestamp).
     queue: std.ArrayListUnmanaged(Request),
     max_size: u32,
 
@@ -39,16 +38,13 @@ pub const Scheduler = struct {
         self.queue.deinit(self.allocator);
     }
 
-    /// Submit a request. Returns false if queue is full.
     pub fn submit(self: *Self, request: Request) !bool {
         if (self.queue.items.len >= self.max_size) return false;
         try self.queue.append(self.allocator, request);
-        // Bubble up (simple insertion sort for now; fine for typical queue sizes).
         self.bubbleUp(self.queue.items.len - 1);
         return true;
     }
 
-    /// Get the next batch of up to max_batch highest-priority requests.
     pub fn getBatch(self: *Self, max_batch: u32) ![]Request {
         const count = @min(max_batch, @as(u32, @intCast(self.queue.items.len)));
         if (count == 0) return &.{};
@@ -64,11 +60,9 @@ pub const Scheduler = struct {
         return self.queue.items.len;
     }
 
-    // ── Heap operations ──────────────────────────────────────────────
-
     fn higherPriority(a: Request, b: Request) bool {
         if (a.priority != b.priority) return a.priority > b.priority;
-        return a.created_at < b.created_at; // FIFO for same priority
+        return a.created_at < b.created_at;
     }
 
     fn bubbleUp(self: *Self, idx: usize) void {
@@ -112,10 +106,6 @@ pub const Scheduler = struct {
     }
 };
 
-// ============================================================================
-// Tests
-// ============================================================================
-
 test "scheduler priority ordering" {
     const allocator = std.testing.allocator;
     var sched = Scheduler.init(allocator, 100);
@@ -130,7 +120,7 @@ test "scheduler priority ordering" {
     const batch = try sched.getBatch(3);
     defer allocator.free(batch);
 
-    try std.testing.expectEqual(@as(u64, 2), batch[0].id); // highest priority first
+    try std.testing.expectEqual(@as(u64, 2), batch[0].id);
     try std.testing.expectEqual(@as(u64, 3), batch[1].id);
     try std.testing.expectEqual(@as(u64, 1), batch[2].id);
 }
@@ -143,7 +133,7 @@ test "scheduler full queue" {
     _ = try sched.submit(.{ .id = 1, .prompt = "a", .priority = 1 });
     _ = try sched.submit(.{ .id = 2, .prompt = "b", .priority = 2 });
     const ok = try sched.submit(.{ .id = 3, .prompt = "c", .priority = 3 });
-    try std.testing.expect(!ok); // Queue full
+    try std.testing.expect(!ok);
 }
 
 test "scheduler FIFO for same priority" {
@@ -156,5 +146,5 @@ test "scheduler FIFO for same priority" {
 
     const batch = try sched.getBatch(2);
     defer allocator.free(batch);
-    try std.testing.expectEqual(@as(u64, 1), batch[0].id); // Earlier timestamp first
+    try std.testing.expectEqual(@as(u64, 1), batch[0].id);
 }

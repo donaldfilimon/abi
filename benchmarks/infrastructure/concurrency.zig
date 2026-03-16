@@ -13,8 +13,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const sync = abi.services.shared.sync;
-const framework = @import("../system/framework");
+const sync = abi.foundation.sync;
+const framework = @import("../system/framework.zig");
 
 /// Concurrency benchmark configuration
 pub const ConcurrencyBenchConfig = struct {

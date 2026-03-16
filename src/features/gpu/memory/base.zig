@@ -2,8 +2,8 @@
 //!
 //! Provides buffer allocation, simulated device transfers, and pool helpers.
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 
 pub const MemoryError = error{
     BufferTooSmall,
@@ -143,7 +143,7 @@ pub const GpuMemoryPool = struct {
     pub fn init(allocator: std.mem.Allocator, max_size: usize) GpuMemoryPool {
         return .{
             .buffers = std.ArrayListUnmanaged(*GpuBuffer).empty,
-            .buffer_lookup = std.AutoHashMapUnmanaged(usize, usize){},
+            .buffer_lookup = .empty,
             .allocator = allocator,
             .total_size = 0,
             .max_size = max_size,

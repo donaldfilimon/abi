@@ -4,7 +4,7 @@
 //! reducing boilerplate in CLI command implementations.
 
 const std = @import("std");
-const output = @import("output");
+const output = @import("output.zig");
 
 /// Check if text matches any of the provided options.
 pub fn matchesAny(text: []const u8, options: []const []const u8) bool {
@@ -53,7 +53,7 @@ pub fn suggestCommand(input: []const u8, commands: []const []const u8) ?[]const 
     }
 
     // 4. Fuzzy match via Levenshtein edit distance (max distance 3)
-    const help_utils = @import("help");
+    const help_utils = @import("help.zig");
     var best: ?[]const u8 = null;
     var best_dist: usize = 4; // threshold: only suggest if distance <= 3
     for (commands) |cmd| {
@@ -81,7 +81,7 @@ pub fn containsHelpArgs(args: []const [:0]const u8) bool {
 }
 
 /// Parse a node status string to enum value.
-pub fn parseNodeStatus(text: []const u8) ?@import("abi").features.network.NodeStatus {
+pub fn parseNodeStatus(text: []const u8) ?@import("abi").network.NodeStatus {
     if (std.ascii.eqlIgnoreCase(text, "healthy")) return .healthy;
     if (std.ascii.eqlIgnoreCase(text, "degraded")) return .degraded;
     if (std.ascii.eqlIgnoreCase(text, "offline")) return .offline;

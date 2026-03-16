@@ -11,7 +11,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
-const platform = abi.services.platform.detection;
+const platform = abi.platform.detection;
 
 /// Statistical summary of benchmark results
 pub const Statistics = struct {
@@ -130,7 +130,7 @@ pub const BenchCollector = struct {
     pub fn init(allocator: std.mem.Allocator) BenchCollector {
         return .{
             .allocator = allocator,
-            .results = .{},
+            .results = .empty,
             .system_info = SystemInfo.detect(allocator),
         };
     }
@@ -274,7 +274,7 @@ pub const BenchmarkRunner = struct {
     pub fn init(allocator: std.mem.Allocator) BenchmarkRunner {
         return .{
             .allocator = allocator,
-            .results = .{},
+            .results = .empty,
         };
     }
 
@@ -312,7 +312,7 @@ pub const BenchmarkRunner = struct {
         var iterations: u64 = 0;
 
         while (total_time < config.min_time_ns and iterations < config.max_iterations) {
-            var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
+            var timer = abi.foundation.time.Timer.start() catch return error.TimerFailed;
             const result = @call(.auto, bench_fn, args);
             const elapsed = timer.read();
             std.mem.doNotOptimizeAway(&result);
@@ -324,7 +324,7 @@ pub const BenchmarkRunner = struct {
 
         // Ensure minimum iterations
         while (iterations < config.min_iterations) {
-            var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
+            var timer = abi.foundation.time.Timer.start() catch return error.TimerFailed;
             const result = @call(.auto, bench_fn, args);
             const elapsed = timer.read();
             std.mem.doNotOptimizeAway(&result);
@@ -349,7 +349,7 @@ pub const BenchmarkRunner = struct {
             .stats = stats,
             .memory_allocated = mem_allocated,
             .memory_freed = mem_freed,
-            .timestamp = abi.services.shared.time.unixSeconds(),
+            .timestamp = abi.foundation.time.unixSeconds(),
         };
 
         try self.results.append(self.allocator, result);

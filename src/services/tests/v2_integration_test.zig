@@ -1,17 +1,18 @@
 //! v2 Module Integration Tests
 //!
-//! Exercises v2 modules through their public `abi.services.shared.*` and `abi.services.runtime.*`
+//! Exercises v2 modules through their public `abi.foundation.*` and `abi.runtime.*`
 //! paths to verify wiring, API stability, and cross-module interop.
 
 const std = @import("std");
 const abi = @import("abi");
+const os = abi.foundation.os;
 
 // ============================================================================
 // SwissMap Integration Tests
 // ============================================================================
 
 test "SwissMap u32 key lifecycle" {
-    const SwissMap = abi.services.shared.utils.swiss_map.SwissMap;
+    const SwissMap = abi.foundation.utils.swiss_map.SwissMap;
     var map = SwissMap(u32, []const u8).init(std.testing.allocator);
     defer map.deinit();
 
@@ -38,7 +39,7 @@ test "SwissMap u32 key lifecycle" {
 }
 
 test "SwissMap u64 key with capacity" {
-    const SwissMap = abi.services.shared.utils.swiss_map.SwissMap;
+    const SwissMap = abi.foundation.utils.swiss_map.SwissMap;
     var map = try SwissMap(u64, u64).initCapacity(std.testing.allocator, 64);
     defer map.deinit();
 
@@ -57,7 +58,7 @@ test "SwissMap u64 key with capacity" {
 }
 
 test "SwissMap iteration" {
-    const SwissMap = abi.services.shared.utils.swiss_map.SwissMap;
+    const SwissMap = abi.foundation.utils.swiss_map.SwissMap;
     var map = SwissMap(u32, u32).init(std.testing.allocator);
     defer map.deinit();
 
@@ -77,7 +78,7 @@ test "SwissMap iteration" {
 }
 
 test "SwissMap string keys (StringMap)" {
-    const SwissMap = abi.services.shared.utils.swiss_map.SwissMap;
+    const SwissMap = abi.foundation.utils.swiss_map.SwissMap;
     var map = SwissMap([]const u8, []const u8).init(std.testing.allocator);
     defer map.deinit();
 
@@ -105,7 +106,7 @@ test "SwissMap string keys (StringMap)" {
 }
 
 test "SwissMap string keys with rehash" {
-    const SwissMap = abi.services.shared.utils.swiss_map.SwissMap;
+    const SwissMap = abi.foundation.utils.swiss_map.SwissMap;
     var map = SwissMap([]const u8, u32).init(std.testing.allocator);
     defer map.deinit();
 
@@ -130,7 +131,7 @@ test "SwissMap string keys with rehash" {
 // ============================================================================
 
 test "ArenaPool alloc and reset" {
-    var arena = try abi.services.shared.utils.memory.ArenaPool.init(
+    var arena = try abi.foundation.utils.memory.ArenaPool.init(
         std.testing.allocator,
         .{ .size = 4096 },
     );
@@ -159,7 +160,7 @@ test "ArenaPool alloc and reset" {
 }
 
 test "ArenaPool exhaustion returns null" {
-    var arena = try abi.services.shared.utils.memory.ArenaPool.init(
+    var arena = try abi.foundation.utils.memory.ArenaPool.init(
         std.testing.allocator,
         .{ .size = 256 },
     );
@@ -180,7 +181,7 @@ test "ArenaPool exhaustion returns null" {
 
 test "FallbackAllocator uses primary first" {
     // Use a tracking allocator around testing_allocator as primary
-    var tracking = abi.services.shared.utils.memory.TrackingAllocator2.init(std.testing.allocator);
+    var tracking = abi.foundation.utils.memory.TrackingAllocator2.init(std.testing.allocator);
     const alloc = tracking.allocator();
 
     const slice = try alloc.alloc(u8, 64);
@@ -203,7 +204,7 @@ test "FallbackAllocator ownership detection via rawResize probe" {
 // ============================================================================
 
 test "Channel single-threaded send/recv" {
-    const Ch = abi.services.runtime.Channel(u32);
+    const Ch = abi.runtime.Channel(u32);
     var ch = try Ch.init(std.testing.allocator, 8);
     defer ch.deinit();
 
@@ -222,7 +223,7 @@ test "Channel single-threaded send/recv" {
 }
 
 test "Channel backpressure when full" {
-    const Ch = abi.services.runtime.Channel(u32);
+    const Ch = abi.runtime.Channel(u32);
     var ch = try Ch.init(std.testing.allocator, 2);
     defer ch.deinit();
 
@@ -239,7 +240,7 @@ test "Channel backpressure when full" {
 }
 
 test "Channel close semantics" {
-    const Ch = abi.services.runtime.Channel(u32);
+    const Ch = abi.runtime.Channel(u32);
     var ch = try Ch.init(std.testing.allocator, 8);
     defer ch.deinit();
 
@@ -255,7 +256,7 @@ test "Channel close semantics" {
 }
 
 test "Channel statistics" {
-    const Ch = abi.services.runtime.Channel(u32);
+    const Ch = abi.runtime.Channel(u32);
     var ch = try Ch.init(std.testing.allocator, 4);
     defer ch.deinit();
 
@@ -269,12 +270,13 @@ test "Channel statistics" {
 }
 
 test "Channel multi-threaded MPMC" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const num_producers = 4;
     const num_consumers = 4;
     const items_per_producer = 100;
     const total_items = num_producers * items_per_producer;
 
-    const Ch = abi.services.runtime.Channel(u32);
+    const Ch = abi.runtime.Channel(u32);
     var ch = try Ch.init(std.testing.allocator, 64);
     defer ch.deinit();
 
@@ -326,7 +328,8 @@ test "Channel multi-threaded MPMC" {
 // ============================================================================
 
 test "ThreadPool basic task dispatch" {
-    const pool = try abi.services.runtime.ThreadPool.init(std.testing.allocator, .{ .thread_count = 2 });
+    if (comptime os.no_os) return error.SkipZigTest;
+    const pool = try abi.runtime.ThreadPool.init(std.testing.allocator, .{ .thread_count = 2 });
     defer pool.deinit();
 
     var counter = std.atomic.Value(u64).init(0);
@@ -351,7 +354,7 @@ test "ThreadPool basic task dispatch" {
 // ============================================================================
 
 test "DagPipeline linear chain" {
-    const Pipeline = abi.services.runtime.DagPipeline;
+    const Pipeline = abi.runtime.DagPipeline;
     var pipe = Pipeline.init();
 
     // Build A -> B -> C (all stages need a Category)
@@ -372,7 +375,7 @@ test "DagPipeline linear chain" {
 }
 
 test "DagPipeline diamond dependency" {
-    const Pipeline = abi.services.runtime.DagPipeline;
+    const Pipeline = abi.runtime.DagPipeline;
     var pipe = Pipeline.init();
 
     // Build diamond: A -> B, A -> C, B -> D, C -> D
@@ -396,7 +399,7 @@ test "DagPipeline diamond dependency" {
 }
 
 test "DagPipeline execute with bound functions" {
-    const Pipeline = abi.services.runtime.DagPipeline;
+    const Pipeline = abi.runtime.DagPipeline;
     var pipe = Pipeline.init();
 
     const a = try pipe.addStage("produce", .input);

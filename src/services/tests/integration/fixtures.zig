@@ -26,8 +26,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
-const time = abi.services.shared.time;
-const sync = abi.services.shared.sync;
+const time = abi.foundation.time;
+const sync = abi.foundation.sync;
 const build_options = @import("build_options");
 
 /// Hardware detection mode

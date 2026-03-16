@@ -1,20 +1,13 @@
+---
+title: mcp API
+purpose: Generated API reference for mcp
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # mcp
 
-> MCP (Model Context Protocol) Service
-
-Provides a JSON-RPC 2.0 server over stdio for exposing ABI framework
-tools to MCP-compatible AI clients (Claude Desktop, Cursor, etc.). The default
-server now combines WDBX database tools and ZLS tools in one process.
-
-## Usage
-```bash
-abi mcp serve                          # Start MCP server (stdio)
-echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' | abi mcp serve
-```
-
-## Exposed Tools
-- `db_*` — WDBX database tools
-- `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
+> MCP (Model Context Protocol) Service module switcher.
 
 **Source:** [`src/services/mcp/mod.zig`](../../src/services/mcp/mod.zig)
 
@@ -24,11 +17,7 @@ echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' | abi mcp serv
 
 ## API
 
-### <a id="pub-fn-createcombinedserver-allocator-std-mem-allocator-version-const-u8-server"></a>`pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !Server`
-
-<sup>**fn**</sup> | [source](../../src/services/mcp/mod.zig#L30)
-
-Create the default MCP server with both WDBX and ZLS tools registered.
+No documented public symbols were discovered.
 
 
 
@@ -43,4 +32,4 @@ Create the default MCP server with both WDBX and ZLS tools registered.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the pinned Zig on PATH for ABI validation. When Darwin blocks binary-emitting steps, use compile-only checks locally and Linux CI for full gates.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

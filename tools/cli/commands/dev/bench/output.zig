@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 /// Intermediate benchmark result from benchmarkOp / benchmarkAllocOp.
 pub const BenchmarkResult = struct {
@@ -39,7 +39,7 @@ pub fn benchmarkOp(
     var total_ns: u64 = 0;
     var i: u64 = 0;
     while (i < iterations) : (i += 1) {
-        const iter_timer = abi.services.shared.time.Timer.start() catch return BenchmarkResult{
+        const iter_timer = abi.foundation.time.Timer.start() catch return BenchmarkResult{
             .ops_per_sec = 0,
             .mean_ns = 0,
             .p99_ns = 0,
@@ -86,7 +86,7 @@ pub fn benchmarkAllocOp(allocator: std.mem.Allocator, size: usize) !BenchmarkRes
     var total_ns: u64 = 0;
     var i: u64 = 0;
     while (i < iterations) : (i += 1) {
-        const iter_timer = abi.services.shared.time.Timer.start() catch return BenchmarkResult{
+        const iter_timer = abi.foundation.time.Timer.start() catch return BenchmarkResult{
             .ops_per_sec = 0,
             .mean_ns = 0,
             .p99_ns = 0,

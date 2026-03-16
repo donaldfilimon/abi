@@ -3,7 +3,7 @@
 //! Filtering, sorting, and statistics for task lists.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 const Task = types.Task;
 const Filter = types.Filter;

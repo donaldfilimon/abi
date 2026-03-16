@@ -4,7 +4,7 @@
 //! Runs workflow DAGs by:
 //!   1. Validating the workflow graph
 //!   2. Computing topological layers
-//!   3. Assigning personas to steps via capability matching
+//!   3. Assigning profiles to steps via capability matching
 //!   4. Executing steps layer-by-layer with blackboard I/O
 //!   5. Handling failures via the supervisor pattern
 //!   6. Publishing lifecycle events
@@ -21,14 +21,14 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const workflow_mod = @import("workflow");
-const blackboard_mod = @import("blackboard");
-const roles = @import("roles");
-const supervisor_mod = @import("supervisor");
-const messaging = @import("messaging");
-const protocol = @import("protocol");
+const workflow_mod = @import("workflow.zig");
+const blackboard_mod = @import("blackboard.zig");
+const roles = @import("roles.zig");
+const supervisor_mod = @import("supervisor.zig");
+const messaging = @import("messaging.zig");
+const protocol = @import("protocol.zig");
 const agents_mod = @import("agents");
-const time = @import("shared_services").time;
+const time = @import("../../../services/shared/mod.zig").time;
 const training = @import("training");
 const SelfLearningSystem = training.SelfLearningSystem;
 const FeedbackType = training.FeedbackType;
@@ -42,7 +42,7 @@ pub const WorkflowRunner = struct {
     allocator: Allocator,
     config: RunnerConfig,
     blackboard: blackboard_mod.Blackboard,
-    persona_registry: roles.PersonaRegistry,
+    profile_registry: roles.ProfileRegistry,
     supervisor: supervisor_mod.Supervisor,
     event_bus: messaging.EventBus,
     conversation_manager: protocol.ConversationManager,
@@ -83,7 +83,7 @@ pub const WorkflowRunner = struct {
         step_id: []const u8,
         output: ?[]const u8,
         status: workflow_mod.StepStatus,
-        assigned_persona: ?[]const u8,
+        assigned_profile: ?[]const u8,
         attempts: u32,
         duration_ms: u64,
     };
@@ -110,7 +110,7 @@ pub const WorkflowRunner = struct {
             .allocator = allocator,
             .config = config,
             .blackboard = blackboard_mod.Blackboard.init(allocator, config.max_history),
-            .persona_registry = roles.PersonaRegistry.init(allocator),
+            .profile_registry = roles.ProfileRegistry.init(allocator),
             .supervisor = supervisor_mod.Supervisor.init(allocator, .{
                 .restart_strategy = config.restart_strategy,
                 .max_retries = config.max_retries,
@@ -126,7 +126,7 @@ pub const WorkflowRunner = struct {
         self.conversation_manager.deinit();
         self.event_bus.deinit();
         self.supervisor.deinit();
-        self.persona_registry.deinit();
+        self.profile_registry.deinit();
         self.blackboard.deinit();
     }
 
@@ -165,9 +165,9 @@ pub const WorkflowRunner = struct {
             return RunError.OutOfMemory;
         defer tracker.deinit();
 
-        // 5. Load persona presets
-        self.persona_registry.loadPresets() catch |err| {
-            std.log.warn("Failed to load persona presets: {t}", .{err});
+        // 5. Load profile presets
+        self.profile_registry.loadPresets() catch |err| {
+            std.log.warn("Failed to load profile presets: {t}", .{err});
         };
 
         // 6. Publish task_started
@@ -208,9 +208,9 @@ pub const WorkflowRunner = struct {
                     .task_id = task_id,
                 });
 
-                // Assign persona
-                const persona = self.assignPersona(&step);
-                const persona_name: []const u8 = if (persona) |p| p.id else "default";
+                // Assign profile
+                const profile = self.assignProfile(&step);
+                const profile_name: []const u8 = if (profile) |p| p.id else "default";
 
                 // Gather inputs from blackboard
                 const inputs = self.gatherInputs(&step) catch "";
@@ -224,8 +224,8 @@ pub const WorkflowRunner = struct {
                     if (prompt_owned) self.allocator.free(prompt);
                 }
 
-                // Select agent: try persona name first, then first available
-                const agent = self.selectAgent(persona_name);
+                // Select agent: try profile name first, then first available
+                const agent = self.selectAgent(profile_name);
 
                 var step_timer = time.Timer.start() catch null;
                 var attempts: u32 = 0;
@@ -285,7 +285,7 @@ pub const WorkflowRunner = struct {
                 if (step_status == .completed) {
                     // Store output in blackboard
                     if (step_output) |output| {
-                        self.blackboard.put(step.output_key, output, persona_name) catch |err| {
+                        self.blackboard.put(step.output_key, output, profile_name) catch |err| {
                             std.log.warn("Failed to update blackboard: {t}", .{err});
                         };
                     }
@@ -296,7 +296,7 @@ pub const WorkflowRunner = struct {
                         .output = step_output orelse "",
                         .error_message = "",
                         .duration_ns = duration_ms * std.time.ns_per_ms,
-                        .assigned_persona = persona_name,
+                        .assigned_profile = profile_name,
                     };
                     tracker.markCompleted(step_id, step_result_entry) catch |err| {
                         std.log.warn("Failed to mark step completed: {t}", .{err});
@@ -312,7 +312,7 @@ pub const WorkflowRunner = struct {
                         .step_id = step_id,
                         .output = output_copy,
                         .status = .completed,
-                        .assigned_persona = persona_name,
+                        .assigned_profile = profile_name,
                         .attempts = attempts,
                         .duration_ms = duration_ms,
                     }) catch |err| {
@@ -330,7 +330,7 @@ pub const WorkflowRunner = struct {
                     });
 
                     // Reset supervisor for this agent on success
-                    self.supervisor.resetAgent(persona_name);
+                    self.supervisor.resetAgent(profile_name);
                 } else {
                     const step_result_entry = workflow_mod.StepResult{
                         .step_id = step_id,
@@ -338,7 +338,7 @@ pub const WorkflowRunner = struct {
                         .output = "",
                         .error_message = "step execution failed",
                         .duration_ns = duration_ms * std.time.ns_per_ms,
-                        .assigned_persona = persona_name,
+                        .assigned_profile = profile_name,
                     };
                     tracker.markFailed(step_id, step_result_entry) catch |err| {
                         std.log.warn("Failed to mark step failed: {t}", .{err});
@@ -349,7 +349,7 @@ pub const WorkflowRunner = struct {
                         .step_id = step_id,
                         .output = null,
                         .status = .failed,
-                        .assigned_persona = persona_name,
+                        .assigned_profile = profile_name,
                         .attempts = attempts,
                         .duration_ms = duration_ms,
                     }) catch |err| {
@@ -435,14 +435,14 @@ pub const WorkflowRunner = struct {
 
     // -- Internal methods --
 
-    fn assignPersona(self: *WorkflowRunner, step: *const workflow_mod.Step) ?roles.Persona {
-        // 1. If step has an explicit persona assignment, use it
-        if (step.assigned_persona.len > 0) {
-            return self.persona_registry.get(step.assigned_persona);
+    fn assignProfile(self: *WorkflowRunner, step: *const workflow_mod.Step) ?roles.Profile {
+        // 1. If step has an explicit profile assignment, use it
+        if (step.assigned_profile.len > 0) {
+            return self.profile_registry.get(step.assigned_profile);
         }
         // 2. If step has required capabilities, find the best match
         if (step.required_capabilities.len > 0) {
-            return self.persona_registry.findBestMatch(step.required_capabilities);
+            return self.profile_registry.findBestMatch(step.required_capabilities);
         }
         // 3. No constraint — use default
         return null;
@@ -494,9 +494,9 @@ pub const WorkflowRunner = struct {
         return result.toOwnedSlice(self.allocator);
     }
 
-    fn selectAgent(self: *WorkflowRunner, persona_name: []const u8) ?*agents_mod.Agent {
-        // Try to find agent by persona name
-        if (self.agent_map.get(persona_name)) |ag| return ag;
+    fn selectAgent(self: *WorkflowRunner, profile_name: []const u8) ?*agents_mod.Agent {
+        // Try to find agent by profile name
+        if (self.agent_map.get(profile_name)) |ag| return ag;
 
         // Fallback: return first available agent
         var iter = self.agent_map.iterator();
@@ -736,14 +736,14 @@ test "runner - multi-step DAG execution" {
     try std.testing.expect(result.final_output != null);
 }
 
-test "runner - persona auto-assignment" {
+test "runner - profile auto-assignment" {
     const allocator = std.testing.allocator;
     var runner = WorkflowRunner.init(allocator, .{});
     defer runner.deinit();
 
-    try runner.persona_registry.loadPresets();
+    try runner.profile_registry.loadPresets();
 
-    // Step with code review capabilities should match code-reviewer persona
+    // Step with code review capabilities should match code-reviewer profile
     const step_with_caps = workflow_mod.Step{
         .id = "review",
         .description = "Review code",
@@ -754,11 +754,11 @@ test "runner - persona auto-assignment" {
         .prompt_template = "Review this",
     };
 
-    const persona = runner.assignPersona(&step_with_caps);
-    try std.testing.expect(persona != null);
-    try std.testing.expectEqualStrings("code-reviewer", persona.?.id);
+    const profile = runner.assignProfile(&step_with_caps);
+    try std.testing.expect(profile != null);
+    try std.testing.expectEqualStrings("code-reviewer", profile.?.id);
 
-    // Step with explicit persona assignment
+    // Step with explicit profile assignment
     const step_explicit = workflow_mod.Step{
         .id = "impl",
         .description = "Implement",
@@ -767,12 +767,12 @@ test "runner - persona auto-assignment" {
         .input_keys = &.{},
         .output_key = "impl:output",
         .prompt_template = "Implement this",
-        .assigned_persona = "architect",
+        .assigned_profile = "architect",
     };
 
-    const persona2 = runner.assignPersona(&step_explicit);
-    try std.testing.expect(persona2 != null);
-    try std.testing.expectEqualStrings("architect", persona2.?.id);
+    const profile2 = runner.assignProfile(&step_explicit);
+    try std.testing.expect(profile2 != null);
+    try std.testing.expectEqualStrings("architect", profile2.?.id);
 
     // Step with no capabilities — returns null
     const step_none = workflow_mod.Step{
@@ -785,8 +785,8 @@ test "runner - persona auto-assignment" {
         .prompt_template = "Do something",
     };
 
-    const persona3 = runner.assignPersona(&step_none);
-    try std.testing.expect(persona3 == null);
+    const profile3 = runner.assignProfile(&step_none);
+    try std.testing.expect(profile3 == null);
 }
 
 test "runner - failure handling with retry" {

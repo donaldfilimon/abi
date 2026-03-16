@@ -15,12 +15,12 @@
 //! - `pool`: Connection pool simulation
 
 const std = @import("std");
-const framework = @import("../../system/framework");
+const framework = @import("../../system/framework.zig");
 
-pub const http = @import("http");
-pub const url = @import("url");
-pub const websocket = @import("websocket");
-pub const pool = @import("pool");
+pub const http = @import("http.zig");
+pub const url = @import("url.zig");
+pub const websocket = @import("websocket.zig");
+pub const pool = @import("pool.zig");
 
 /// Network benchmark configuration
 pub const NetworkBenchConfig = struct {

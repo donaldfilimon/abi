@@ -63,6 +63,8 @@ pub const Engine = struct {
     pub fn search(_: *Engine, _: []const u8, _: SearchOptions) ![]SearchResult {
         return error.DatabaseDisabled;
     }
+
+    pub fn dreamStatePrune(_: *Engine, _: f32) void {}
 };
 
 pub fn save(_: *Engine, _: []const u8) !void {

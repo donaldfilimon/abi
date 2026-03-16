@@ -8,7 +8,7 @@ const std = @import("std");
 
 const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
 
-const vector_ops = @import("vector_ops");
+const vector_ops = @import("vector_ops.zig");
 
 // ============================================================================
 // Distance Calculations (SIMD-accelerated)

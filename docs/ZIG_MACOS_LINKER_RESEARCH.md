@@ -1,7 +1,15 @@
+---
+title: Zig on macOS 26+: ABI Linker Notes
+purpose: Research and workarounds for Darwin linker failures
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # Zig on macOS 26+: ABI Linker Notes
 
 This document captures the Darwin linker failure mode that affects ABI when a
-stock prebuilt Zig cannot link the build runner on newer macOS releases.
+stock prebuilt Zig cannot link the build runner on newer macOS releases, and
+defines ABI's supported policy for full local validation.
 
 ## The important part
 
@@ -10,7 +18,8 @@ that executes `build.zig`. That means:
 
 - the failure happens before your `build.zig` logic runs
 - toggling `use_llvm` or other build settings inside `build.zig` cannot fix that first failure
-- the practical fixes are wrapper-based validation, compile-only checks, or a Zig toolchain built on the current machine
+- the supported fix for full local validation is a host-built or otherwise known-good Zig toolchain on the current machine
+- wrapper-based validation and compile-only checks are fallback evidence paths while the host toolchain is being replaced
 
 ## Typical symptoms
 
@@ -51,22 +60,35 @@ These are common wrong turns:
 ABI guidance is explicit here: never recommend `use_lld = true` for macOS
 targets.
 
-## Supported ABI workarounds
+## Supported ABI paths
 
-### 1. Use the build-runner wrapper
+### 1. Preferred: use a host-built or otherwise known-good Zig
 
-For build-system steps that need `zig build` semantics:
+This is ABI's supported full-validation path on macOS 26.4. The goal is a Zig
+toolchain that can run the normal gates directly:
 
 ```bash
-./tools/scripts/run_build.sh test --summary all
-./tools/scripts/run_build.sh feature-tests --summary all
+zig build full-check
+zig build check-docs
+zig build gendocs -- --check --no-wasm --untracked-md
+```
+
+If these commands succeed locally, no wrapper path is needed.
+
+### 2. Fallback evidence: use the build-runner wrapper
+
+If the active stock toolchain is still linker-blocked, use the wrapper only as
+temporary fallback evidence:
+
+```bash
+./tools/scripts/run_build.sh typecheck --summary all
 ./tools/scripts/run_build.sh full-check
 ```
 
-This is the fastest way to keep using the stock toolchain when the failure is
-limited to the initial build-runner link.
+This keeps work moving, but it is not ABI's supported end state for full local
+validation on macOS 26.4.
 
-### 2. Use direct no-link validation
+### 3. Use direct no-link validation
 
 For formatting:
 
@@ -85,15 +107,15 @@ zig test src/features/database/mod.zig -fno-emit-bin
 These do not replace full runtime validation, but they are useful when the
 environment is linker-blocked.
 
-### 3. Use wrapper and compile-only validation
+### 4. Use wrapper and compile-only validation together
 
 ABI no longer carries a repo-local workaround toolchain. On blocked Darwin hosts,
-use the wrapper for build-system behavior and use compile-only checks when the
-host linker still cannot emit binaries.
+use the wrapper for interim typecheck evidence and use compile-only checks when
+the host linker still cannot emit binaries.
 
 ```bash
-./tools/scripts/run_build.sh test --summary all
-zig fmt --check build.zig build src tools examples
+./tools/scripts/run_build.sh typecheck --summary all
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 zig test src/services/tests/mod.zig -fno-emit-bin
 ```
 
@@ -101,10 +123,11 @@ zig test src/services/tests/mod.zig -fno-emit-bin
 
 Use this sequence when working locally on macOS 26+:
 
-1. Need formatting only: run `zig fmt --check build.zig build src tools examples`
-2. Need `zig build` behavior: run `./tools/scripts/run_build.sh <step>`
-3. Need targeted syntax/type validation: use `zig test <path> -fno-emit-bin`
-4. Need binary-emitting validation: use Linux CI or another host with a working Zig linker
+1. Need full local validation: install or switch to a host-built / otherwise known-good Zig matching `.zigversion`
+2. Need formatting only: run `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
+3. Temporarily blocked on stock Zig: run `./tools/scripts/run_build.sh typecheck --summary all`
+4. Need targeted syntax/type validation: use `zig test <path> -fno-emit-bin`
+5. Need binary-emitting validation before a working local toolchain exists: use Linux CI or another working host
 
 ## How to classify a failure
 
@@ -123,8 +146,9 @@ Treat it as a normal code issue when:
 
 ## Repo implications
 
-- `zig build lint` may be environment-blocked on affected Darwin hosts
-- `zig build full-check` remains the canonical gate, but blocked hosts must record alternate evidence
+- `zig build lint`, `zig build full-check`, and `zig build check-docs` may be blocked on affected stock Darwin toolchains
+- `zig build full-check` remains the canonical gate, and ABI expects a host-built or otherwise known-good Zig for full local validation on macOS 26.4
+- blocked hosts should record alternate evidence explicitly, including `./tools/scripts/run_build.sh typecheck --summary all`
 - docs and task notes should record exactly which command failed and which fallback was used
 
 ## Related files

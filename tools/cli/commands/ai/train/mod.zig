@@ -15,19 +15,19 @@
 //! - train help                    - Show help message
 
 const std = @import("std");
-const command_mod = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command_mod = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const utils = @import("../../../utils/mod.zig");
 
-const run_train = @import("run_train");
-const new_model = @import("new_model");
-const llm_train = @import("llm_train");
-const vision = @import("vision");
-const auto = @import("auto");
-const self_train = @import("self");
-const monitor = @import("monitor");
-const info = @import("info");
-const data = @import("data");
+const run_train = @import("run_train.zig");
+const new_model = @import("new_model.zig");
+const llm_train = @import("llm_train.zig");
+const vision = @import("vision.zig");
+const auto = @import("auto.zig");
+const self_train = @import("self.zig");
+const monitor = @import("monitor.zig");
+const info = @import("info.zig");
+const data = @import("data.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "train",

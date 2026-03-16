@@ -4,8 +4,8 @@
 //! dequantization from Q4_0, Q8_0, and other quantized formats.
 
 const std = @import("std");
-const gguf = @import("gguf");
-const mmap = @import("mmap");
+const gguf = @import("gguf.zig");
+const mmap = @import("mmap.zig");
 
 pub const TensorLoader = struct {
     allocator: std.mem.Allocator,

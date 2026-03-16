@@ -9,9 +9,10 @@
 const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");
+const os = abi.foundation.os;
 
 // Import observability types from the module
-const observability = abi.features.observability;
+const observability = abi.observability;
 const Counter = observability.Counter;
 const Gauge = observability.Gauge;
 const FloatGauge = observability.FloatGauge;
@@ -71,6 +72,7 @@ test "observability: counter large value handling" {
 }
 
 test "observability: counter thread-safe concurrent increments" {
+    if (comptime os.no_os) return error.SkipZigTest;
     var counter = Counter{ .name = "test_counter" };
 
     const num_threads = 8;
@@ -158,6 +160,7 @@ test "observability: gauge add operation" {
 }
 
 test "observability: gauge concurrent updates" {
+    if (comptime os.no_os) return error.SkipZigTest;
     var gauge = Gauge{ .name = "test_gauge" };
     gauge.set(1000);
 
@@ -238,6 +241,7 @@ test "observability: float gauge precision" {
 }
 
 test "observability: float gauge concurrent updates" {
+    if (comptime os.no_os) return error.SkipZigTest;
     var gauge = FloatGauge{ .name = "test_float_gauge" };
 
     const num_threads = 4;
@@ -335,8 +339,8 @@ test "observability: histogram overflow bucket" {
 // ============================================================================
 
 test {
-    _ = @import("observability_metrics_test");
-    _ = @import("observability_tracing_test");
-    _ = @import("observability_alerting_test");
-    _ = @import("observability_edge_test");
+    _ = @import("observability_metrics_test.zig");
+    _ = @import("observability_tracing_test.zig");
+    _ = @import("observability_alerting_test.zig");
+    _ = @import("observability_edge_test.zig");
 }

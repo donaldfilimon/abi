@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const mod = @import("mod");
+const mod = @import("mod.zig");
 const utils = @import("../../../utils/mod.zig");
 
 /// Run micro-benchmark for specific operation
@@ -51,7 +51,7 @@ pub fn runMicroBenchmark(allocator: std.mem.Allocator, args: []const [:0]const u
     }
 
     // Benchmark
-    const timer = abi.services.shared.time.Timer.start() catch {
+    const timer = abi.foundation.time.Timer.start() catch {
         utils.output.printError("Timer not available.", .{});
         return;
     };

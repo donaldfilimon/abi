@@ -1,11 +1,11 @@
 //! LLM info subcommand - Show model information.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 pub fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -24,7 +24,7 @@ pub fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     utils.output.println("Loading model: {s}", .{model_path});
 
     // Try to open as GGUF
-    var gguf_file = abi.features.ai.llm.io.GgufFile.open(allocator, model_path) catch |err| {
+    var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, model_path) catch |err| {
         utils.output.printError("Failed to open model file: {t}", .{err});
         if (err == error.FileTooLarge) {
             printModelFileSizeHint(allocator, model_path);
@@ -40,7 +40,7 @@ pub fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     utils.output.println("", .{});
 
     // Estimate memory requirements
-    const config = abi.features.ai.llm.model.LlamaConfig.fromGguf(&gguf_file);
+    const config = abi.ai.llm.model.LlamaConfig.fromGguf(&gguf_file);
     const mem_estimate = config.estimateMemory();
     const param_estimate = config.estimateParameters();
 
@@ -70,10 +70,10 @@ pub fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
 }
 
 pub fn printUnsupportedLayoutSummary(allocator: std.mem.Allocator, model_path: []const u8) void {
-    var gguf_file = abi.features.ai.llm.io.GgufFile.open(allocator, model_path) catch return;
+    var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, model_path) catch return;
     defer gguf_file.deinit();
 
-    const config = abi.features.ai.llm.model.LlamaConfig.fromGguf(&gguf_file);
+    const config = abi.ai.llm.model.LlamaConfig.fromGguf(&gguf_file);
     utils.output.printKeyValueFmt("Detected architecture", "{s}", .{config.arch});
     utils.output.println("Detected dims: hidden={d}, q={d}, kv={d}, v={d}", .{
         config.dim,

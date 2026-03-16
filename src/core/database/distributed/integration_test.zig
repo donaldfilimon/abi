@@ -7,10 +7,10 @@
 //! 4. Raft consensus coordination
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const BlockChain = @import("../block_chain");
-const Distributed = @import(".");
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const BlockChain = @import("../block_chain.zig");
+const Distributed = @import("./mod.zig");
 
 test "WDBX distributed workflow integration" {
     const allocator = std.testing.allocator;

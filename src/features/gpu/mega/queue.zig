@@ -4,9 +4,9 @@
 //! deadline support, and retry policies.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const coordinator = @import("coordinator");
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const coordinator = @import("coordinator.zig");
 
 /// Workload priority levels.
 pub const Priority = enum(u8) {
@@ -118,7 +118,7 @@ pub const WorkloadQueue = struct {
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .queues = [_]std.ArrayListUnmanaged(QueuedWorkload){.{}} ** 5,
+            .queues = [_]std.ArrayListUnmanaged(QueuedWorkload){.empty} ** 5,
             .stats = .{},
             .next_id = 1,
             .mutex = .{},

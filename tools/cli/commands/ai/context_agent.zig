@@ -14,22 +14,22 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 
 // Leveraging internal framework exports for legendary performance
-const os_control = abi.features.ai.os_control;
-const context_engine = abi.features.ai.context_engine;
-const jumpstart = abi.features.ai.jumpstart;
-const deep_research = abi.features.ai.deep_research;
-const compute_mesh = abi.features.compute.mesh;
-const documents = abi.features.documents;
-const dynamic_api = abi.features.ai.dynamic_api;
-const runtime_bridge = abi.features.ai.runtime_bridge;
-const wdbx = abi.features.database.neural;
-const telemetry = abi.features.ai.context_engine.telemetry;
-const vision = abi.features.ai.context_engine.vision;
+const os_control = abi.ai.os_control;
+const context_engine = abi.ai.context_engine;
+const jumpstart = abi.ai.jumpstart;
+const deep_research = abi.ai.deep_research;
+const compute_mesh = abi.compute.mesh;
+const documents = abi.documents;
+const dynamic_api = abi.ai.dynamic_api;
+const runtime_bridge = abi.ai.runtime_bridge;
+const wdbx = abi.database.neural;
+const telemetry = abi.ai.context_engine.telemetry;
+const vision = abi.ai.context_engine.vision;
 
 pub const meta: command_mod.Meta = .{
     .name = "context-agent",
@@ -189,7 +189,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         utils.output.printWarning("Engaging Autonomous Biological Loop. Press Ctrl+C to interrupt.", .{});
 
         // Biological loop (non-blocking)
-        var last_active_time = abi.services.shared.time.unixMs();
+        var last_active_time = abi.foundation.time.unixMs();
 
         while (true) {
             var active_this_tick = false;
@@ -198,7 +198,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             const hw_state = sensor.poll() catch continue;
             if (sensor.isHostStressed()) {
                 utils.output.printWarning("[ABI] Host stressed (CPU: {d}%, Memory: {d}MB). Lowering cognitive frequency.", .{ hw_state.cpu_usage_pct, hw_state.available_memory_mb });
-                abi.services.shared.time.sleepNs(2 * std.time.ns_per_s); // Throttle
+                abi.foundation.time.sleepNs(2 * std.time.ns_per_s); // Throttle
                 continue;
             }
 
@@ -222,10 +222,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             }
 
             if (active_this_tick) {
-                last_active_time = abi.services.shared.time.unixMs();
+                last_active_time = abi.foundation.time.unixMs();
             } else {
                 // If idle for > 15 minutes, enter Dream State
-                const idle_time_ms = abi.services.shared.time.unixMs() - last_active_time;
+                const idle_time_ms = abi.foundation.time.unixMs() - last_active_time;
                 if (idle_time_ms > 15 * 60 * 1000) {
                     utils.output.printWarning("[Triad] Entering Subconscious Dream State.", .{});
 
@@ -233,16 +233,16 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                     brain.dreamStatePrune(0.1);
 
                     // Spawn asynchronous web mining for self-improvement
-                    const os = abi.services.shared.os;
+                    const os = abi.foundation.os;
                     _ = os.exec(allocator, "nohup abi agent --all-tools -m 'web_mine target_domain=en.wikipedia.org' > abi_dream.log 2>&1 &") catch {};
 
                     // Reset timer so it doesn't spam
-                    last_active_time = abi.services.shared.time.unixMs();
+                    last_active_time = abi.foundation.time.unixMs();
                 }
             }
 
             // In a real async loop we'd use select/poll, for now we sleep slightly
-            abi.services.shared.time.sleepNs(100 * std.time.ns_per_ms); // 100ms biological heartbeat
+            abi.foundation.time.sleepNs(100 * std.time.ns_per_ms); // 100ms biological heartbeat
         }
     }
 

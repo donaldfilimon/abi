@@ -1,6 +1,6 @@
 const std = @import("std");
-const metal = @import("metal");
-const caps = @import("metal/capabilities");
+const metal = @import("metal.zig");
+const caps = @import("metal/capabilities.zig");
 const MetalError = metal.MetalError;
 const DeviceInfo = metal.DeviceInfo;
 

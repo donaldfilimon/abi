@@ -4,7 +4,7 @@
 //! Supports online learning with gradient tracking.
 
 const std = @import("std");
-const tensor = @import("tensor");
+const tensor = @import("tensor.zig");
 const types = @import("types");
 
 const F32Tensor = tensor.F32Tensor;

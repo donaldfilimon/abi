@@ -3,59 +3,23 @@
 //! API-compatible no-op implementations when storage is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
-const stub_context = @import("../../core/stub_context");
+const stub_context = @import("../../core/stub_context.zig");
+const types = @import("types.zig");
 
-pub const StorageConfig = core_config.StorageConfig;
-pub const StorageBackend = core_config.StorageBackend;
+pub const StorageConfig = types.StorageConfig;
+pub const StorageBackend = types.StorageBackend;
+pub const StorageError = types.StorageError;
+pub const Error = StorageError;
+pub const StorageObject = types.StorageObject;
+pub const ObjectMetadata = types.ObjectMetadata;
+pub const StorageStats = types.StorageStats;
 
-pub const StorageError = error{
-    FeatureDisabled,
-    ObjectNotFound,
-    BucketNotFound,
-    PermissionDenied,
-    StorageFull,
-    OutOfMemory,
-    InvalidKey,
-    BackendNotAvailable,
-};
-
-pub const StorageObject = struct {
-    key: []const u8 = "",
-    size: u64 = 0,
-    content_type: []const u8 = "application/octet-stream",
-    last_modified: u64 = 0,
-};
-
-pub const ObjectMetadata = struct {
-    content_type: []const u8 = "application/octet-stream",
-    custom: [4]MetadataEntry = [_]MetadataEntry{.{}} ** 4,
-    custom_count: u8 = 0,
-
-    pub const MetadataEntry = struct {
-        key: []const u8 = "",
-        value: []const u8 = "",
-    };
-};
-
-pub const StorageStats = struct {
-    total_objects: u64 = 0,
-    total_bytes: u64 = 0,
-    backend: StorageBackend = .memory,
-};
-
-pub const Context = stub_context.StubContext(StorageConfig);
-
-pub fn init(_: std.mem.Allocator, _: StorageConfig) StorageError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+const feature = stub_context.StubFeature(StorageConfig, StorageError);
+pub const Context = feature.Context;
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn putObject(_: std.mem.Allocator, _: []const u8, _: []const u8) StorageError!void {
     return error.FeatureDisabled;

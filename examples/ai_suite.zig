@@ -45,9 +45,9 @@ fn runCore(allocator: std.mem.Allocator) !void {
     var framework = try builder.withDefault(.ai).build();
     defer framework.deinit();
 
-    var registry = abi.features.ai.tools.ToolRegistry.init(allocator);
+    var registry = abi.ai.tools.ToolRegistry.init(allocator);
     defer registry.deinit();
-    try abi.features.ai.tools.registerDiscordTools(&registry);
+    try abi.ai.tools.registerDiscordTools(&registry);
 
     std.debug.print("AI Core active. Tools registered.\n", .{});
 }
@@ -57,7 +57,7 @@ fn runInference(allocator: std.mem.Allocator) !void {
     var framework = try builder.with(.llm, abi.config.LlmConfig{}).build();
     defer framework.deinit();
 
-    const cfg = abi.features.ai.llm.InferenceConfig{ .max_new_tokens = 512 };
+    const cfg = abi.ai.llm.InferenceConfig{ .max_new_tokens = 512 };
     std.debug.print("Inference engine ready. Max tokens: {d}\n", .{cfg.max_new_tokens});
 }
 
@@ -74,7 +74,7 @@ fn runTraining(allocator: std.mem.Allocator) !void {
     var framework = try builder.with(.ai, abi.config.AiConfig{ .training = .{} }).build();
     defer framework.deinit();
 
-    const config = abi.features.ai.training.TrainingConfig{ .optimizer = .adamw };
+    const config = abi.ai.training.TrainingConfig{ .optimizer = .adamw };
     std.debug.print("Training pipeline ready. Optimizer: {s}\n", .{@tagName(config.optimizer)});
 }
 
@@ -84,7 +84,7 @@ fn runMultiModal(allocator: std.mem.Allocator) !void {
     defer framework.deinit();
 
     std.debug.print("Initializing Multi-Modal Agent...\n", .{});
-    var agent = try abi.features.ai.agent.Agent.init(allocator, .{
+    var agent = try abi.ai.agent.Agent.init(allocator, .{
         .name = "multimodal-agent",
     });
     defer agent.deinit();

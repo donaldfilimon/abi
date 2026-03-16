@@ -1,8 +1,8 @@
 //! Semantic-store stub surface when database features are disabled.
 
 const std = @import("std");
-const types = @import("../stubs/types");
-const misc = @import("../stubs/misc");
+const types = @import("../stubs/types.zig");
+const misc = @import("../stubs/misc.zig");
 
 pub const StoreHandle = types.DatabaseHandle;
 pub const DatabaseHandle = StoreHandle;
