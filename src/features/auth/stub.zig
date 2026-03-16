@@ -48,22 +48,17 @@ pub const Permission = auth_types.Permission;
 // Feature Context (stub)
 // ============================================================================
 
-pub const Context = stub_context.StubContext(AuthConfig);
+const feature = stub_context.StubFeature(AuthConfig, AuthError);
+pub const Context = feature.Context;
 
 // ============================================================================
 // Module-level API (stub — returns FeatureDisabled)
 // ============================================================================
 
-pub fn init(_: std.mem.Allocator, _: AuthConfig) AuthError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn createToken(
     _: std.mem.Allocator,

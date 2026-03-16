@@ -13,18 +13,12 @@ pub const StorageObject = types.StorageObject;
 pub const ObjectMetadata = types.ObjectMetadata;
 pub const StorageStats = types.StorageStats;
 
-pub const Context = stub_context.StubContext(StorageConfig);
-
-pub fn init(_: std.mem.Allocator, _: StorageConfig) StorageError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+const feature = stub_context.StubFeature(StorageConfig, StorageError);
+pub const Context = feature.Context;
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn putObject(_: std.mem.Allocator, _: []const u8, _: []const u8) StorageError!void {
     return error.FeatureDisabled;

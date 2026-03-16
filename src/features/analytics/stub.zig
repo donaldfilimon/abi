@@ -1,6 +1,7 @@
 //! Analytics stub — disabled at compile time.
 
 const std = @import("std");
+const stub_context = @import("../../core/stub_context.zig");
 const types = @import("types.zig");
 
 // --- Shared Types (from types.zig) ---
@@ -79,19 +80,11 @@ pub const Context = struct {
 
 // --- Module Lifecycle ---
 
-var initialized: bool = false;
-pub fn init(_: std.mem.Allocator) !void {
-    return AnalyticsError.FeatureDisabled;
-}
-pub fn deinit() void {
-    initialized = false;
-}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return initialized;
-}
+const lifecycle = stub_context.StubFeatureNoConfig(AnalyticsError);
+pub const init = lifecycle.init;
+pub const deinit = lifecycle.deinit;
+pub const isEnabled = lifecycle.isEnabled;
+pub const isInitialized = lifecycle.isInitialized;
 
 // --- Experiment ---
 

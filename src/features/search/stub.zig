@@ -12,18 +12,12 @@ pub const SearchResult = types.SearchResult;
 pub const SearchIndex = types.SearchIndex;
 pub const SearchStats = types.SearchStats;
 
-pub const Context = stub_context.StubContext(SearchConfig);
-
-pub fn init(_: std.mem.Allocator, _: SearchConfig) SearchError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+const feature = stub_context.StubFeature(SearchConfig, SearchError);
+pub const Context = feature.Context;
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn createIndex(_: std.mem.Allocator, _: []const u8) SearchError!SearchIndex {
     return error.FeatureDisabled;

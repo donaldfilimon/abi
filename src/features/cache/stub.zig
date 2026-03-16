@@ -12,18 +12,12 @@ pub const CacheError = types.CacheError;
 pub const CacheEntry = types.CacheEntry;
 pub const CacheStats = types.CacheStats;
 
-pub const Context = stub_context.StubContext(CacheConfig);
-
-pub fn init(_: std.mem.Allocator, _: CacheConfig) CacheError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+const feature = stub_context.StubFeature(CacheConfig, CacheError);
+pub const Context = feature.Context;
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn get(_: []const u8) CacheError!?[]const u8 {
     return error.FeatureDisabled;

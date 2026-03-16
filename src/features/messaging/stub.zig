@@ -16,18 +16,12 @@ pub const TopicInfo = types.TopicInfo;
 pub const DeadLetter = types.DeadLetter;
 pub const SubscriberCallback = types.SubscriberCallback;
 
-pub const Context = stub_context.StubContextWithConfig(MessagingConfig);
-
-pub fn init(_: std.mem.Allocator, _: MessagingConfig) MessagingError!void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return false;
-}
+const feature = stub_context.StubFeature(MessagingConfig, MessagingError);
+pub const Context = feature.Context;
+pub const init = feature.init;
+pub const deinit = feature.deinit;
+pub const isEnabled = feature.isEnabled;
+pub const isInitialized = feature.isInitialized;
 
 pub fn publish(_: std.mem.Allocator, _: []const u8, _: []const u8) MessagingError!void {
     return error.FeatureDisabled;
