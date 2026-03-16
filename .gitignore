@@ -269,6 +269,7 @@ zig-bootstrap-emergency/
 !/docs/README.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
+!/docs/STRUCTURE.md
 !/docs/plans/*.md
 !/docs/api/*.md
 !/tasks/todo.md
