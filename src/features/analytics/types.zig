@@ -78,3 +78,28 @@ pub const FunnelStep = struct {
     name: []const u8,
     count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
 };
+
+// ============================================================================
+// Experiment
+// ============================================================================
+
+/// Simple A/B experiment assignment.
+pub const Experiment = struct {
+    name: []const u8,
+    variants: []const []const u8,
+    assignments: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+
+    /// Assign a user to a variant based on a hash of their ID.
+    pub fn assign(self: *Experiment, user_id: []const u8) []const u8 {
+        if (self.variants.len == 0) return "control";
+        _ = self.assignments.fetchAdd(1, .monotonic);
+        const hash = std.hash.Fnv1a_64.hash(user_id);
+        const idx = hash % self.variants.len;
+        return self.variants[idx];
+    }
+
+    /// Get total assignments.
+    pub fn totalAssignments(self: *const Experiment) u64 {
+        return self.assignments.load(.monotonic);
+    }
+};

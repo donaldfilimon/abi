@@ -48,36 +48,14 @@ pub const tls = @import("../../services/shared/mod.zig").security.tls;
 pub const validation = @import("../../services/shared/mod.zig").security.validation;
 
 // ============================================================================
-// Auth-level Types
+// Auth-level Types (from types.zig)
 // ============================================================================
 
-pub const AuthError = error{
-    FeatureDisabled,
-    InvalidCredentials,
-    TokenExpired,
-    Unauthorized,
-    OutOfMemory,
-};
-
-pub const Token = struct {
-    raw: []const u8 = "",
-    claims: Claims = .{},
-
-    pub const Claims = struct {
-        sub: []const u8 = "",
-        exp: u64 = 0,
-        iat: u64 = 0,
-    };
-};
-
-pub const Session = struct {
-    id: []const u8 = "",
-    user_id: []const u8 = "",
-    created_at: u64 = 0,
-    expires_at: u64 = 0,
-};
-
-pub const Permission = enum { read, write, admin };
+const auth_types = @import("types.zig");
+pub const AuthError = auth_types.AuthError;
+pub const Token = auth_types.Token;
+pub const Session = auth_types.Session;
+pub const Permission = auth_types.Permission;
 
 // ============================================================================
 // Feature Context

@@ -17,13 +17,15 @@ zig fmt --check build.zig build/ src/ tools/  # format check (always works)
 
 ## Architecture
 
-- `src/features/<name>/` — 19 comptime-gated modules, each with `mod.zig` + `stub.zig`
+- `src/features/<name>/` — 19 comptime-gated modules, each with `mod.zig` + `stub.zig` + `types.zig`
 - `src/services/` — Connectors, LSP, MCP, runtime, security
-- `src/core/` — Config, feature catalog, registry
-- `build/` — Build system (options, flags, modules, test discovery)
+- `src/core/` — Config, feature catalog, registry, `stub_context.zig`
+- `src/inference/` — Sampler, scheduler, KV cache
+- `build/` — Build system (options, flags, modules, test discovery, `module_catalog.zig`)
+- `bindings/` — C and WASM language bindings
 - `tools/cli/` — CLI commands; registry in `tools/cli/registry/`
 
-**mod/stub contract**: `stub.zig` must match `mod.zig` public signatures. Sub-module stubs not needed.
+**mod/stub contract**: `stub.zig` must match `mod.zig` public signatures. Shared types go in `types.zig` — both mod and stub import from it. Use `StubFeature`/`StubFeatureNoConfig` from `core/stub_context.zig` for common stub boilerplate. Sub-module stubs not needed.
 
 **Imports**: Use `@import("abi")` for framework API, relative imports within a feature. All `src/` files belong to the single `abi` module (no `shared_services` or `core` named modules). Explicit `.zig` extensions required on all path imports.
 
@@ -43,6 +45,7 @@ zig fmt --check build.zig build/ src/ tools/  # format check (always works)
 - `root_module` field not `root_source_file`
 - `valueIterator()` not `.values()` on hash maps
 - `@enumFromInt(x)` not `intToEnum`
+- `ArrayListUnmanaged` init: `.empty` not `.{}`
 - Explicit `.zig` extensions required on all `@import("path/to/file")` paths
 - Single-module file ownership: every file belongs to exactly one named module
 

@@ -1,35 +1,20 @@
 //! Analytics stub — disabled at compile time.
 
 const std = @import("std");
+const types = @import("types.zig");
 
-// --- Event Types ---
+// --- Shared Types (from types.zig) ---
 
-pub const Event = struct {
-    name: []const u8,
-    timestamp_ms: u64,
-    session_id: ?[]const u8 = null,
-    properties: []const Property = &.{},
-    pub const Property = struct { key: []const u8, value: Value };
-    pub const Value = union(enum) { string: []const u8, int: i64, float: f64, boolean: bool };
-};
-
-pub const AnalyticsConfig = struct {
-    buffer_capacity: u32 = 1024,
-    enable_timestamps: bool = true,
-    app_id: []const u8 = "abi-app",
-    flush_interval_ms: u64 = 0,
-};
+pub const Event = types.Event;
+pub const AnalyticsConfig = types.AnalyticsConfig;
+pub const AnalyticsError = types.AnalyticsError;
 
 // --- Engine ---
-
-pub const AnalyticsError = error{ BufferFull, InvalidEvent, FlushFailed, FeatureDisabled, OutOfMemory };
 
 pub const Engine = struct {
     allocator: std.mem.Allocator,
     config: AnalyticsConfig,
-    events: std.ArrayListUnmanaged(StoredEvent) = .empty,
-
-    const StoredEvent = struct { name: []const u8, timestamp_ms: u64, session_id: ?[]const u8 };
+    events: std.ArrayListUnmanaged(types.StoredEvent) = .empty,
 
     pub fn init(allocator: std.mem.Allocator, config: AnalyticsConfig) Engine {
         return .{ .allocator = allocator, .config = config };
@@ -56,7 +41,7 @@ pub const Engine = struct {
     pub fn getStats(_: *Engine) Stats {
         return .{};
     }
-    pub const Stats = struct { buffered_events: usize = 0, total_events: u64 = 0, total_sessions: u64 = 0 };
+    pub const Stats = types.Stats;
 };
 
 // --- Funnel ---
@@ -65,7 +50,7 @@ pub const Funnel = struct {
     name: []const u8,
     steps: std.ArrayListUnmanaged(Step) = .empty,
     allocator: std.mem.Allocator,
-    pub const Step = struct { name: []const u8, count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0) };
+    pub const Step = types.FunnelStep;
     pub fn init(allocator: std.mem.Allocator, name: []const u8) Funnel {
         return .{ .name = name, .allocator = allocator };
     }
