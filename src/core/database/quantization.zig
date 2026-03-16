@@ -661,8 +661,9 @@ pub fn packBits(output: []u8, bit_offset: usize, value: u16, bits: u8) void {
     if (bit_pos + bits <= 8) {
         // Fits in one byte
         const mask = (@as(u8, 1) << @as(u3, @intCast(bits))) - 1;
-        output[byte_offset] &= ~(mask << (8 - bit_pos - bits));
-        output[byte_offset] |= @as(u8, @truncate(value)) << (8 - bit_pos - bits);
+        const shift: u3 = @intCast(8 - bit_pos - bits);
+        output[byte_offset] &= ~(mask << shift);
+        output[byte_offset] |= @as(u8, @truncate(value)) << shift;
     } else {
         // Spans two bytes
         const first_bits = 8 - bit_pos;

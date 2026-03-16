@@ -308,6 +308,7 @@ const ParallelGraph = struct {
             .state_pool = null,
             .distance_cache = null,
             .gpu_accelerator = null,
+            .norms = &.{},
             .allocator = allocator,
         };
     }

@@ -248,7 +248,7 @@ pub const FilterBuilder = struct {
     pub fn init(allocator: std.mem.Allocator) FilterBuilder {
         return .{
             .allocator = allocator,
-            .conditions = .{},
+            .conditions = .empty,
         };
     }
 
@@ -435,8 +435,8 @@ pub const MetadataStore = struct {
     pub fn init(allocator: std.mem.Allocator) MetadataStore {
         return .{
             .allocator = allocator,
-            .documents = .{},
-            .field_index = .{},
+            .documents = .empty,
+            .field_index = .empty,
         };
     }
 
@@ -478,7 +478,7 @@ pub const MetadataStore = struct {
             const field_entry = try self.field_index.getOrPut(self.allocator, entry.key_ptr.*);
             if (!field_entry.found_existing) {
                 field_entry.key_ptr.* = try self.allocator.dupe(u8, entry.key_ptr.*);
-                field_entry.value_ptr.* = .{};
+                field_entry.value_ptr.* = .empty;
             }
             try field_entry.value_ptr.put(self.allocator, doc_id, {});
         }

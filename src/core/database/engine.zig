@@ -67,8 +67,10 @@ pub const Engine = struct {
         const cache = try Cache.init(allocator, cfg.cache.capacity, cfg.cache.segments);
         errdefer cache.deinit();
 
-        const idx = try HNSW.init(allocator, cfg, cfg.metric);
-        errdefer idx.deinit();
+        const idx = HNSW.initEmpty(allocator, .{
+            .m = cfg.hnsw.m,
+            .ef_construction = cfg.hnsw.ef_construction,
+        });
 
         return .{
             .allocator = allocator,

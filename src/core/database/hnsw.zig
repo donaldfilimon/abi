@@ -78,6 +78,24 @@ pub const HnswIndex = struct {
         gpu_batch_threshold: usize = 256,
     };
 
+    /// Create an empty HNSW index for lazy population.
+    pub fn initEmpty(allocator: std.mem.Allocator, cfg: Config) HnswIndex {
+        return .{
+            .m = cfg.m,
+            .m_max = cfg.m,
+            .m_max0 = cfg.m * 2,
+            .ef_construction = cfg.ef_construction,
+            .entry_point = null,
+            .max_layer = -1,
+            .nodes = &.{},
+            .state_pool = null,
+            .distance_cache = null,
+            .gpu_accelerator = null,
+            .norms = &.{},
+            .allocator = allocator,
+        };
+    }
+
     /// Build a new HNSW index from a set of records.
     /// @param allocator Memory allocator for graph structures
     /// @param records Source vector records

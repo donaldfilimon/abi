@@ -33,7 +33,7 @@ const Engine = @import("engine.zig").Engine;
 const Metadata = @import("engine.zig").Metadata;
 const config = @import("config.zig");
 const Cache = @import("cache.zig").Cache;
-const HNSW = @import("hnsw.zig").HNSW;
+const HNSW = @import("hnsw.zig").HnswIndex;
 
 const MAGIC = [4]u8{ 'W', 'D', 'B', 'X' };
 const VERSION: u32 = 1;
@@ -126,7 +126,7 @@ pub fn save(engine: *Engine, path: []const u8) !void {
     // HNSW graph state.
     const ep: u32 = engine.hnsw_index.entry_point orelse 0xFFFFFFFF;
     try writer.writeInt(u32, ep, .little);
-    try writer.writeInt(u32, engine.hnsw_index.max_level, .little);
+    try writer.writeInt(u32, @intCast(@max(0, engine.hnsw_index.max_layer)), .little);
 
     for (0..count) |i| {
         const node_level = engine.hnsw_index.node_levels.items[i];

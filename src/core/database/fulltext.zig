@@ -93,8 +93,8 @@ pub const InvertedIndex = struct {
             .allocator = allocator,
             .bm25_config = bm25_config,
             .tokenizer_config = tokenizer_config,
-            .postings = .{},
-            .documents = .{},
+            .postings = .empty,
+            .documents = .empty,
             .total_docs = 0,
             .avg_doc_length = 0,
             .total_field_lengths = 0,
@@ -148,8 +148,8 @@ pub const InvertedIndex = struct {
                 const owned_term = try self.allocator.dupe(u8, term);
                 posting_entry.key_ptr.* = owned_term;
                 posting_entry.value_ptr.* = .{
-                    .doc_ids = .{},
-                    .frequencies = .{},
+                    .doc_ids = .empty,
+                    .frequencies = .empty,
                 };
             }
 
