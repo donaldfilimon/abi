@@ -304,7 +304,7 @@ pub const KnowledgeBase = struct {
         domain: ?classifier.Domain,
         limit: usize,
     ) ![]KnowledgeFragment {
-        var results: std.ArrayListUnmanaged(KnowledgeFragment) = .{};
+        var results: std.ArrayListUnmanaged(KnowledgeFragment) = .empty;
         errdefer results.deinit(allocator);
 
         // In production, this would use vector similarity search via WDBX
@@ -336,7 +336,7 @@ pub const KnowledgeBase = struct {
         domain: classifier.Domain,
         limit: usize,
     ) ![]KnowledgeFragment {
-        var results: std.ArrayListUnmanaged(KnowledgeFragment) = .{};
+        var results: std.ArrayListUnmanaged(KnowledgeFragment) = .empty;
         errdefer results.deinit(allocator);
 
         for (self.fragments.items) |frag| {
@@ -381,7 +381,7 @@ pub fn formatKnowledgeForResponse(
     fragments: []const KnowledgeFragment,
     include_sources: bool,
 ) ![]const u8 {
-    var result: std.ArrayListUnmanaged(u8) = .{};
+    var result: std.ArrayListUnmanaged(u8) = .empty;
     errdefer result.deinit(allocator);
 
     for (fragments, 0..) |frag, i| {

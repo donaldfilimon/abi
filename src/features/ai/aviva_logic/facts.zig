@@ -411,7 +411,7 @@ pub fn applyQualifications(
 ) ![]const u8 {
     if (qualifications.len == 0) return try allocator.dupe(u8, content);
 
-    var result: std.ArrayListUnmanaged(u8) = .{};
+    var result: std.ArrayListUnmanaged(u8) = .empty;
     errdefer result.deinit(allocator);
 
     try result.appendSlice(allocator, content);

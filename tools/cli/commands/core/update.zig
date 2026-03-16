@@ -21,44 +21,29 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     utils.output.printHeader("ABI Auto-Update");
     utils.output.printInfo("Fetching latest updates from git...", .{});
 
-    // 1. Git pull
-    const pull_cmd = try std.fmt.allocPrint(allocator, "git pull origin main", .{});
-    defer allocator.free(pull_cmd);
-
-    var pull_result = os.exec(allocator, pull_cmd) catch |err| {
-        utils.output.printError("Failed to pull from git: {t}", .{err});
+    // 1. Git pull — check exit code for failures
+    const git_code = os.exec(allocator, "git pull origin main") catch |err| {
+        utils.output.printError("Failed to spawn git pull: {}", .{err});
         return err;
     };
-    defer pull_result.deinit();
 
-    if (pull_result.exit_code != 0) {
-        utils.output.printError("Git pull failed:\n{s}", .{pull_result.stderr});
-        return error.UpdateFailed;
-    }
-
-    const pull_out = std.mem.trim(u8, pull_result.stdout, " \r\n");
-    if (std.mem.eql(u8, pull_out, "Already up to date.")) {
-        utils.output.printSuccess("ABI Framework is already up to date.", .{});
-        return;
+    if (git_code != 0) {
+        utils.output.printError("git pull failed with exit code {d}", .{git_code});
+        return error.GitPullFailed;
     }
 
     utils.output.printSuccess("Successfully pulled latest changes.", .{});
 
-    // 2. Rebuild
+    // 2. Rebuild — check exit code for failures
     utils.output.printInfo("Recompiling ABI framework with Zig 0.16...", .{});
 
-    // Using zig build
-    const build_cmd = try std.fmt.allocPrint(allocator, "zig build install", .{});
-    defer allocator.free(build_cmd);
-
-    var build_result = os.exec(allocator, build_cmd) catch |err| {
-        utils.output.printError("Failed to invoke zig build: {t}", .{err});
+    const build_code = os.exec(allocator, "zig build install") catch |err| {
+        utils.output.printError("Failed to spawn zig build: {}", .{err});
         return err;
     };
-    defer build_result.deinit();
 
-    if (build_result.exit_code != 0) {
-        utils.output.printError("Compilation failed:\n{s}", .{build_result.stderr});
+    if (build_code != 0) {
+        utils.output.printError("zig build install failed with exit code {d}", .{build_code});
         return error.BuildFailed;
     }
 

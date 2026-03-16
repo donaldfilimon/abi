@@ -358,7 +358,7 @@ pub fn getAllPersonas() [12]PersonaCharacteristics {
 pub fn getCombinedCharacteristics(allocator: std.mem.Allocator, persona: types.PersonaType) ![]const u8 {
     const chars = getCharacteristics(persona);
 
-    var result: std.ArrayListUnmanaged(u8) = .{};
+    var result: std.ArrayListUnmanaged(u8) = .empty;
     errdefer result.deinit(allocator);
 
     // Add name and description

@@ -96,7 +96,7 @@ pub const PersonaRegistry = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var list: std.ArrayListUnmanaged(types.PersonaType) = .{};
+        var list: std.ArrayListUnmanaged(types.PersonaType) = .empty;
         errdefer list.deinit(allocator);
 
         var it = self.personas.keyIterator();

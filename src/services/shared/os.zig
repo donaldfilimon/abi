@@ -94,14 +94,29 @@ pub fn getCpuCount() u32 {
     return @intCast(@max(1, count));
 }
 
-/// Simplified exec for internal tools
-pub fn exec(allocator: std.mem.Allocator, command: []const u8) !void {
-    if (comptime is_wasm) return;
+/// Simplified exec for internal tools.
+/// Returns the exit code of the spawned process (0 = success).
+/// Non-`.exited` terminations (signal, stop, unknown) return exit code 1.
+pub fn exec(allocator: std.mem.Allocator, command: []const u8) !u8 {
+    if (comptime is_wasm) return 0;
     const shell = if (comptime builtin.os.tag == .windows) "cmd.exe" else "/bin/sh";
     const flag = if (comptime builtin.os.tag == .windows) "/c" else "-c";
 
-    var child = std.process.Child.init(&[_][]const u8{ shell, flag, command }, allocator);
-    _ = try child.spawnAndWait();
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var child = try std.process.spawn(io, .{
+        .argv = &[_][]const u8{ shell, flag, command },
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    });
+    const term = try child.wait(io);
+    return switch (term) {
+        .exited => |code| code,
+        else => 1,
+    };
 }
 
 test "temp path detection" {

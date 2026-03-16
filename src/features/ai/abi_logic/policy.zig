@@ -130,13 +130,13 @@ pub const PolicyChecker = struct {
 
     /// Check content against all registered safety rules.
     pub fn check(self: *const Self, content: []const u8) !PolicyResult {
-        var violations: std.ArrayListUnmanaged([]const u8) = .{};
+        var violations: std.ArrayListUnmanaged([]const u8) = .empty;
         errdefer {
             for (violations.items) |v| self.allocator.free(v);
             violations.deinit(self.allocator);
         }
 
-        var detected_pii: std.ArrayListUnmanaged(PiiType) = .{};
+        var detected_pii: std.ArrayListUnmanaged(PiiType) = .empty;
         errdefer detected_pii.deinit(self.allocator);
 
         var is_allowed = true;

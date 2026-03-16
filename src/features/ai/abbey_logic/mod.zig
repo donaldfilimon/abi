@@ -170,7 +170,7 @@ pub const AbbeyPersona = struct {
         const legacy_resp = try self.engine.process(input);
 
         // Step 5: Build the enhanced response
-        var content_builder: std.ArrayListUnmanaged(u8) = .{};
+        var content_builder: std.ArrayListUnmanaged(u8) = .empty;
         errdefer content_builder.deinit(self.allocator);
 
         // Add empathy prefix if configured and applicable

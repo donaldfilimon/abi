@@ -275,7 +275,7 @@ pub const SentimentAnalyzer = struct {
 
         // Detect emotions with scoring
         var emotion_scores = EmotionScores{};
-        var secondary: std.ArrayListUnmanaged(core_types.EmotionType) = .{};
+        var secondary: std.ArrayListUnmanaged(core_types.EmotionType) = .empty;
         errdefer secondary.deinit(self.allocator);
 
         // Calculate emotion scores

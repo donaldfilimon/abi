@@ -92,7 +92,7 @@ pub const AbiRouter = struct {
 
         // 4. Make routing decision
         var selected: types.PersonaType = .abbey;
-        var reason_buf: std.ArrayListUnmanaged(u8) = .{};
+        var reason_buf: std.ArrayListUnmanaged(u8) = .empty;
         errdefer reason_buf.deinit(self.allocator);
 
         // Policy violations override all other routing

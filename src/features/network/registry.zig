@@ -24,7 +24,7 @@ pub const NodeRegistry = struct {
     allocator: std.mem.Allocator,
     nodes: std.ArrayListUnmanaged(NodeInfo) = .empty,
     /// O(1) lookup index: node id string -> array index
-    id_index: std.StringHashMapUnmanaged(usize) = .{},
+    id_index: std.StringHashMapUnmanaged(usize) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) NodeRegistry {
         return .{ .allocator = allocator };

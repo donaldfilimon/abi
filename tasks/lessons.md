@@ -18,6 +18,10 @@
 ## mod/stub Sync
 - `stub.zig` must match `mod.zig` public signatures. After any feature migration, verify parity — code compiles with `feat_X=true` but fails with `feat_X=false` if stubs diverge.
 - Validation matrix no-X entries must enable ALL other features. When adding a flag, add it to all existing no-X entries. Verify: 2 baseline + N solo + N no-X.
+- Shared types go in `types.zig` — both `mod.zig` and `stub.zig` import from it. Use `StubFeature`/`StubFeatureNoConfig` from `core/stub_context.zig` for common stub boilerplate (-118 lines across 7 stubs).
+- `ArrayListUnmanaged` and `AutoHashMapUnmanaged` must use `.empty` not `.{}` for initialization in Zig 0.16. The `.{}` literal triggers "missing struct field: items" errors.
+- CLI tools accessing `abi.features.ai.<submodule>` will fail at compile time if the sub-module isn't re-exported from the AI stub. When adding new AI sub-modules accessed by CLI, add to both `mod.zig` AND `stub.zig`. Inline stubs need all methods the caller invokes — each returning `error.AiDisabled` or a safe default.
+- Feature-gated sub-modules must not directly import other feature modules via relative paths (bypasses the gate). Use `build_options` conditional imports to match the caller's type path.
 
 ## Build System Patterns
 - Files in `build/test_discovery.zig` must compile standalone with `zig test <file> -fno-emit-bin`. Cross-directory `@import("../../")` breaks this — inline small deps or use build-system modules.

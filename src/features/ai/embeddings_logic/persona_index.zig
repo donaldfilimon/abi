@@ -185,7 +185,7 @@ pub const PersonaEmbeddingIndex = struct {
         const search_results = try self.db.searchVectors(query_vector, search_k);
         defer allocator.free(search_results);
 
-        var matches: std.ArrayListUnmanaged(PersonaMatch) = .{};
+        var matches: std.ArrayListUnmanaged(PersonaMatch) = .empty;
         defer matches.deinit(allocator);
 
         for (search_results) |res| {
@@ -213,7 +213,7 @@ pub const PersonaEmbeddingIndex = struct {
         self.stats.cache_hits += 1;
 
         // Calculate similarities for all cached personas
-        var scored: std.ArrayListUnmanaged(struct { persona: types.PersonaType, score: f32 }) = .{};
+        var scored: std.ArrayListUnmanaged(struct { persona: types.PersonaType, score: f32 }) = .empty;
         defer scored.deinit(allocator);
 
         var it = self.persona_vectors.iterator();
@@ -269,7 +269,7 @@ pub const PersonaEmbeddingIndex = struct {
         const vector = try self.embeddings_ctx.embed(content);
 
         // Build metadata JSON
-        var metadata_buf: std.ArrayListUnmanaged(u8) = .{};
+        var metadata_buf: std.ArrayListUnmanaged(u8) = .empty;
         defer metadata_buf.deinit(self.allocator);
 
         try std.json.stringify(.{
@@ -294,7 +294,7 @@ pub const PersonaEmbeddingIndex = struct {
     ) !void {
         const vector = try self.embeddings_ctx.embed(original_query);
 
-        var metadata_buf: std.ArrayListUnmanaged(u8) = .{};
+        var metadata_buf: std.ArrayListUnmanaged(u8) = .empty;
         defer metadata_buf.deinit(self.allocator);
 
         try std.json.stringify(.{

@@ -16,7 +16,7 @@
 //! ```
 
 const std = @import("std");
-const app_paths = @import("../shared/mod.zig").utils.fs;
+const app_paths = @import("../shared/app_paths.zig");
 
 // Re-export types
 pub const types = @import("types.zig");
@@ -73,10 +73,10 @@ pub const Manager = struct {
             .allocator = allocator,
             .config = resolved_config,
             .owns_resolved_storage_paths = owns_resolved_storage_paths,
-            .tasks = .{},
+            .tasks = .empty,
             .next_id = 1,
             .dirty = false,
-            .strings = .{},
+            .strings = .empty,
         };
 
         // Try to load existing tasks

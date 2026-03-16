@@ -335,7 +335,7 @@ pub const Message = struct {
 pub const Agent = struct {
     allocator: std.mem.Allocator,
     config: AgentConfig,
-    history: std.ArrayListUnmanaged(Message) = .{},
+    history: std.ArrayListUnmanaged(Message) = .empty,
     total_tokens_used: u64 = 0,
     cognition: ?*advanced_cognition.AdvancedCognition = null,
     backend_metrics: [8]BackendMetrics = [_]BackendMetrics{.{}} ** 8,

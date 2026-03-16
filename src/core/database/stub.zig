@@ -22,7 +22,7 @@ const types = @import("stubs/types.zig");
 const parallel = @import("stubs/parallel.zig");
 const misc = @import("stubs/misc.zig");
 pub const semantic_store = @import("semantic_store/stub.zig");
-pub const core = @import("../mod.zig");
+pub const core = @import("core/mod.zig");
 
 // --- Core Types Re-exports ---
 

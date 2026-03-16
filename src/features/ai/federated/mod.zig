@@ -9,7 +9,7 @@ pub const NodeInfo = struct {
 
 pub const Registry = struct {
     allocator: std.mem.Allocator,
-    nodes: std.ArrayListUnmanaged(NodeInfo) = .{},
+    nodes: std.ArrayListUnmanaged(NodeInfo) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) Registry {
         return .{ .allocator = allocator };

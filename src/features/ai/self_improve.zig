@@ -98,8 +98,8 @@ pub const SelfImprover = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .improvements = .{},
-            .metrics_history = .{},
+            .improvements = .empty,
+            .metrics_history = .empty,
             .positive_feedback = 0,
             .negative_feedback = 0,
             .total_interactions = 0,

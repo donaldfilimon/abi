@@ -120,7 +120,7 @@ pub const CodeGenerator = struct {
         language: classifier.Language,
         options: GenerationOptions,
     ) ![]const u8 {
-        var result: std.ArrayListUnmanaged(u8) = .{};
+        var result: std.ArrayListUnmanaged(u8) = .empty;
         errdefer result.deinit(self.allocator);
 
         // Process line by line
@@ -184,7 +184,7 @@ pub const CodeGenerator = struct {
     ) !CodeBlock {
         const opts = options orelse self.config.default_options;
 
-        var code: std.ArrayListUnmanaged(u8) = .{};
+        var code: std.ArrayListUnmanaged(u8) = .empty;
         errdefer code.deinit(self.allocator);
 
         const indent = opts.indent_style.getString();
@@ -347,7 +347,7 @@ pub const CodeGenerator = struct {
         input_code: []const u8,
         language: classifier.Language,
     ) ![]const u8 {
-        var result: std.ArrayListUnmanaged(u8) = .{};
+        var result: std.ArrayListUnmanaged(u8) = .empty;
         errdefer result.deinit(self.allocator);
 
         try result.appendSlice(self.allocator, "```");
@@ -440,7 +440,7 @@ pub fn extractCodeBlocks(
     allocator: std.mem.Allocator,
     content: []const u8,
 ) ![]CodeBlock {
-    var blocks: std.ArrayListUnmanaged(CodeBlock) = .{};
+    var blocks: std.ArrayListUnmanaged(CodeBlock) = .empty;
     errdefer blocks.deinit(allocator);
 
     var i: usize = 0;

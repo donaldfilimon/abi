@@ -269,7 +269,7 @@ pub const RelationshipMemory = struct {
     positive_interactions: usize = 0,
     negative_interactions: usize = 0,
     total_turns: usize = 0,
-    emotion_history: std.ArrayListUnmanaged(EmotionRecord) = .{},
+    emotion_history: std.ArrayListUnmanaged(EmotionRecord) = .empty,
     communication_preferences: CommunicationPreferences = .{},
 
     const Self = @This();

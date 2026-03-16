@@ -64,8 +64,8 @@ pub const Suite = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator,
-    benchmarks: std.ArrayListUnmanaged(NamedBench) = .{},
-    results: std.ArrayListUnmanaged(Result) = .{},
+    benchmarks: std.ArrayListUnmanaged(NamedBench) = .empty,
+    results: std.ArrayListUnmanaged(Result) = .empty,
     config: Config,
 
     pub fn init(allocator: std.mem.Allocator, config: Config) Self {

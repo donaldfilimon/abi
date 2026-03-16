@@ -185,7 +185,7 @@ pub const EmpathyInjector = struct {
         const include_empathy = emotional_response.empathy_level >= self.config.min_acknowledgment_threshold;
 
         // Build prefix
-        var prefix_builder: std.ArrayListUnmanaged(u8) = .{};
+        var prefix_builder: std.ArrayListUnmanaged(u8) = .empty;
         errdefer prefix_builder.deinit(self.allocator);
 
         if (include_empathy) {
@@ -217,7 +217,7 @@ pub const EmpathyInjector = struct {
         }
 
         // Build suffix
-        var suffix_builder: std.ArrayListUnmanaged(u8) = .{};
+        var suffix_builder: std.ArrayListUnmanaged(u8) = .empty;
         errdefer suffix_builder.deinit(self.allocator);
 
         if (include_empathy and self.config.include_encouragement) {
@@ -291,7 +291,7 @@ pub const EmpathyInjector = struct {
         template: []const u8,
         context: AcknowledgmentContext,
     ) ![]const u8 {
-        var result: std.ArrayListUnmanaged(u8) = .{};
+        var result: std.ArrayListUnmanaged(u8) = .empty;
         errdefer result.deinit(self.allocator);
 
         var i: usize = 0;

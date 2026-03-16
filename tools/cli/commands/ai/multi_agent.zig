@@ -448,7 +448,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     var overall_timer = abi.services.shared.time.Timer.start() catch null;
 
     // Collect step results for final display
-    var step_outputs: std.StringHashMapUnmanaged([]const u8) = .{};
+    var step_outputs: std.StringHashMapUnmanaged([]const u8) = .empty;
     defer {
         var out_iter = step_outputs.iterator();
         while (out_iter.next()) |entry| {

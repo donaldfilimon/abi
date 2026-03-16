@@ -51,7 +51,7 @@ pub const PersonaRequest = struct {
     /// Current emotional context of the conversation.
     emotional_context: core_types.EmotionalState = .{},
     /// Additional metadata for the request.
-    metadata: std.StringHashMapUnmanaged([]const u8) = .{},
+    metadata: std.StringHashMapUnmanaged([]const u8) = .empty,
 
     pub fn deinit(self: *PersonaRequest, allocator: std.mem.Allocator) void {
         var it = self.metadata.iterator();

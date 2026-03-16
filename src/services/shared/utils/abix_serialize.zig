@@ -35,7 +35,7 @@ pub const HEADER_SIZE = 10; // magic(4) + version(2) + payload_len(4)
 /// alongside the unmanaged list so callers do not need to pass it on
 /// every write call.
 pub const Writer = struct {
-    buffer: std.ArrayListUnmanaged(u8) = .{},
+    buffer: std.ArrayListUnmanaged(u8) = .empty,
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Writer {

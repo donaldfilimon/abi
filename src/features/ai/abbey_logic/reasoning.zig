@@ -282,7 +282,7 @@ pub const ReasoningEngine = struct {
 
     /// Create a reasoning step for emotional consideration.
     fn createEmotionalStep(self: *Self, emo: emotion.EmotionalResponse, step_num: usize) !ReasoningStep {
-        var explanation_buf: std.ArrayListUnmanaged(u8) = .{};
+        var explanation_buf: std.ArrayListUnmanaged(u8) = .empty;
         defer explanation_buf.deinit(self.allocator);
 
         try explanation_buf.appendSlice(self.allocator, "User appears to be feeling ");

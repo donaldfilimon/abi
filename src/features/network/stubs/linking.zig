@@ -277,7 +277,7 @@ pub const Link = struct {
     config: LinkConfig = .{},
     stats: LinkStats = .{},
     allocator: std.mem.Allocator = undefined,
-    send_queue: std.ArrayListUnmanaged(QueuedMessage) = .{},
+    send_queue: std.ArrayListUnmanaged(QueuedMessage) = .empty,
     mutex: @import("../../../services/shared/mod.zig").sync.Mutex = .{},
 
     pub const QueuedMessage = struct {
@@ -321,8 +321,8 @@ pub const LinkError = error{
 
 pub const LinkManager = struct {
     allocator: std.mem.Allocator = undefined,
-    links: std.AutoHashMapUnmanaged(u64, *Link) = .{},
-    links_by_address: std.StringHashMapUnmanaged(*Link) = .{},
+    links: std.AutoHashMapUnmanaged(u64, *Link) = .empty,
+    links_by_address: std.StringHashMapUnmanaged(*Link) = .empty,
     default_config: LinkConfig = .{},
     stats: ManagerStats = .{},
     next_link_id: u64 = 1,

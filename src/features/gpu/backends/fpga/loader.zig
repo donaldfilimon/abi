@@ -61,7 +61,7 @@ pub const BitstreamHandle = struct {
     device_index: u32,
     platform: Platform,
     uuid: [16]u8 = undefined,
-    kernel_names: std.ArrayListUnmanaged([]const u8) = .{},
+    kernel_names: std.ArrayListUnmanaged([]const u8) = .empty,
     is_loaded: bool = false,
 
     pub fn deinit(self: *BitstreamHandle) void {

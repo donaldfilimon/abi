@@ -189,7 +189,7 @@ pub const ToolAugmentedAgent = struct {
     tool_registry: tool.OuterToolRegistry = undefined,
     config: ToolAgentConfig = .{},
     confirmation_callback: ?ConfirmationFn = null,
-    tool_call_log: std.ArrayListUnmanaged(ToolCallRecord) = .{},
+    tool_call_log: std.ArrayListUnmanaged(ToolCallRecord) = .empty,
     tool_descriptions: ?[]u8 = null,
 
     const Self = @This();

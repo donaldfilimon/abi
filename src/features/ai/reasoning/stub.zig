@@ -45,7 +45,7 @@ pub const ReasoningStep = struct {
 pub const ReasoningChain = struct {
     allocator: std.mem.Allocator,
     query: []const u8,
-    steps: std.ArrayListUnmanaged(ReasoningStep) = .{},
+    steps: std.ArrayListUnmanaged(ReasoningStep) = .empty,
     finalized: bool = false,
     overall_confidence: ?Confidence = null,
 

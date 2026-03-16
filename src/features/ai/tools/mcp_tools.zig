@@ -9,7 +9,7 @@ const os = @import("../../../services/shared/mod.zig").os;
 const sync = @import("../../../services/shared/mod.zig").sync;
 
 // Registry for tracking spawned background server PIDs
-var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .{};
+var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .empty;
 var pid_mutex: sync.Mutex = .{};
 
 fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolResult {

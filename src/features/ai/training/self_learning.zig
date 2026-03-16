@@ -373,7 +373,7 @@ pub const DocumentTrainer = struct {
 
     /// Parse document structure
     pub fn parseDocument(self: *const Self, content: []const u8, doc_type: DocumentType) ![]DocumentElement {
-        var elements: std.ArrayListUnmanaged(DocumentElement) = .{};
+        var elements: std.ArrayListUnmanaged(DocumentElement) = .empty;
         errdefer elements.deinit(self.allocator);
 
         // Simplified parsing - production would use proper parsers

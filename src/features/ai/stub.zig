@@ -35,6 +35,74 @@ pub const database = @import("database/stub.zig");
 pub const vision = @import("vision/stub.zig");
 pub const multi_agent = @import("multi_agent/stub.zig");
 pub const coordination = @import("coordination/stub.zig");
+pub const models = @import("models/stub.zig");
+pub const transformer = @import("transformer/stub.zig");
+pub const federated = @import("federated/stub.zig");
+pub const tool_agent = tools;
+pub const discovery = explore;
+pub const jumpstart = @import("context_engine/jumpstart.zig");
+pub const context_engine = @import("context_engine/mod.zig");
+pub const self_improve = @import("self_improve.zig");
+pub const deep_research = struct {
+    pub const DeepResearcher = struct {
+        allocator: std.mem.Allocator,
+        pub fn init(allocator: std.mem.Allocator, _: anytype) DeepResearcher {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *DeepResearcher) void {}
+        pub fn autonomousSearch(_: *DeepResearcher, _: []const u8) error{AiDisabled}![]const u8 {
+            return error.AiDisabled;
+        }
+    };
+};
+pub const dynamic_api = struct {
+    pub const ApiSchemaType = enum { openapi_v3, graphql, rest_generic, cli_man_page };
+    pub const DynamicApiLearner = struct {
+        allocator: std.mem.Allocator,
+        pub fn init(allocator: std.mem.Allocator) DynamicApiLearner {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *DynamicApiLearner) void {}
+        pub fn learnNewSystem(_: *DynamicApiLearner, _: ApiSchemaType, _: []const u8) error{AiDisabled}![]const u8 {
+            return error.AiDisabled;
+        }
+    };
+};
+pub const runtime_bridge = struct {
+    pub const RuntimeEnvironment = enum { python3, node, deno };
+    pub const RuntimeResult = struct {
+        stdout: []const u8 = "",
+        stderr: []const u8 = "",
+        exit_code: u8 = 1,
+        pub fn deinit(_: *RuntimeResult, _: std.mem.Allocator) void {}
+    };
+    pub const RuntimeBridge = struct {
+        allocator: std.mem.Allocator,
+        pub fn init(allocator: std.mem.Allocator, _: anytype) RuntimeBridge {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *RuntimeBridge) void {}
+        pub fn executeScript(_: *RuntimeBridge, _: RuntimeEnvironment, _: []const u8) error{AiDisabled}!RuntimeResult {
+            return error.AiDisabled;
+        }
+    };
+};
+pub const os_control = struct {
+    pub const PermissionLevel = enum { full_control, ask_before_action, read_only };
+    pub const OSControlManager = struct {
+        allocator: std.mem.Allocator,
+        pub fn init(allocator: std.mem.Allocator, _: PermissionLevel) OSControlManager {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *OSControlManager) void {}
+        pub fn captureScreen(_: *OSControlManager) error{AiDisabled}![]const u8 {
+            return error.AiDisabled;
+        }
+        pub fn typeKeys(_: *OSControlManager, _: []const u8) error{AiDisabled}!void {
+            return error.AiDisabled;
+        }
+    };
+};
 
 pub const Context = core_facade.Context;
 pub const createRegistry = core_facade.createRegistry;

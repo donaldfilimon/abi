@@ -284,12 +284,12 @@ pub const HealthChecker = struct {
 
     /// Check all registered personas.
     pub fn checkAll(self: *Self) ![]HealthCheckResult {
-        var results: std.ArrayListUnmanaged(HealthCheckResult) = .{};
+        var results: std.ArrayListUnmanaged(HealthCheckResult) = .empty;
         errdefer results.deinit(self.allocator);
 
         // Get list of personas
         self.mutex.lock();
-        var persona_list: std.ArrayListUnmanaged(types.PersonaType) = .{};
+        var persona_list: std.ArrayListUnmanaged(types.PersonaType) = .empty;
         defer persona_list.deinit(self.allocator);
 
         var it = self.history.keyIterator();
