@@ -9,7 +9,7 @@ pub const meta: command.Meta = .{
     .description = "Manage LLM provider plugins",
 };
 
-const plugins = abi.features.ai.llm.providers.plugins;
+const plugins = abi.ai.llm.providers.plugins;
 
 pub fn runPlugins(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;

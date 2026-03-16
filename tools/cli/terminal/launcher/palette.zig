@@ -181,7 +181,7 @@ pub const CommandPalette = struct {
 
         try self.history.insert(self.allocator, 0, .{
             .command_id = command_id,
-            .timestamp = abi.services.shared.utils.unixMs(),
+            .timestamp = abi.foundation.utils.unixMs(),
         });
         while (self.history.items.len > 10) {
             _ = self.history.pop();

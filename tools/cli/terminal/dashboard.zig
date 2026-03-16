@@ -89,12 +89,12 @@ pub fn Dashboard(comptime PanelType: type) type {
 
         pub fn showNotification(self: *Self, msg: []const u8) void {
             self.notification = msg;
-            self.notification_time = abi.services.shared.utils.unixMs();
+            self.notification_time = abi.foundation.utils.unixMs();
         }
 
         fn clearExpiredNotification(self: *Self) void {
             if (self.notification_time > 0) {
-                const elapsed = abi.services.shared.utils.unixMs() - self.notification_time;
+                const elapsed = abi.foundation.utils.unixMs() - self.notification_time;
                 if (elapsed > 3000) {
                     self.notification = null;
                     self.notification_time = 0;
@@ -201,12 +201,12 @@ pub fn Dashboard(comptime PanelType: type) type {
 
                             if (std.mem.eql(u8, action, "Update ABI")) {
                                 self.showNotification("Updating ABI in background...");
-                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi update > /tmp/abi-update.log 2>&1 &") catch |err| {
+                                _ = abi.foundation.os.exec(self.allocator, "nohup abi update > /tmp/abi-update.log 2>&1 &") catch |err| {
                                     std.log.warn("Failed to launch background update: {}", .{err});
                                 };
                             } else if (std.mem.eql(u8, action, "Editor")) {
                                 self.showNotification("Starting editor...");
-                                _ = abi.services.shared.os.exec(self.allocator, "nohup abi edit > /tmp/abi-edit.log 2>&1 &") catch |err| {
+                                _ = abi.foundation.os.exec(self.allocator, "nohup abi edit > /tmp/abi-edit.log 2>&1 &") catch |err| {
                                     std.log.warn("Failed to launch background editor: {}", .{err});
                                 };
                             } else if (std.mem.eql(u8, action, "Quit")) {

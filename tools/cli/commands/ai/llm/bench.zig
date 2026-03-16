@@ -5,7 +5,7 @@ const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const mod = @import("mod.zig");
-const semantic_store = abi.features.database.semantic_store;
+const semantic_store = abi.database.semantic_store;
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ pub const RuntimeSampleSummary = struct {
 };
 
 pub const RuntimeBenchResult = struct {
-    backend: abi.features.ai.llm.EngineBackend,
+    backend: abi.ai.llm.EngineBackend,
     runs: []RuntimeBenchSample,
     summary: RuntimeSampleSummary,
 
@@ -745,11 +745,11 @@ pub fn runComputeBenchmark(allocator: std.mem.Allocator, prompt_tokens: u32, gen
     }
 
     // Warmup
-    abi.features.ai.llm.ops.matrixMultiply(a, b, c, m, k, n);
+    abi.ai.llm.ops.matrixMultiply(a, b, c, m, k, n);
 
     // Benchmark
     const iterations: u32 = 5;
-    var timer = abi.services.shared.time.Timer.start() catch {
+    var timer = abi.foundation.time.Timer.start() catch {
         return BenchResult{
             .m = m,
             .k = k,
@@ -762,7 +762,7 @@ pub fn runComputeBenchmark(allocator: std.mem.Allocator, prompt_tokens: u32, gen
     };
 
     for (0..iterations) |_| {
-        abi.features.ai.llm.ops.matrixMultiply(a, b, c, m, k, n);
+        abi.ai.llm.ops.matrixMultiply(a, b, c, m, k, n);
     }
 
     const elapsed_ns = timer.read();
@@ -804,7 +804,7 @@ pub fn runLocalRuntimeBenchmark(
     const samples = try allocator.alloc(RuntimeBenchSample, run_count);
     errdefer allocator.free(samples);
 
-    var engine = abi.features.ai.llm.Engine.init(allocator, .{
+    var engine = abi.ai.llm.Engine.init(allocator, .{
         .max_new_tokens = gen_tokens,
         .allow_ollama_fallback = false,
     });
@@ -814,7 +814,7 @@ pub fn runLocalRuntimeBenchmark(
     if (engine.getBackend() != .local_gguf) return error.UnsupportedArchitecture;
 
     for (samples) |*sample| {
-        var timer = try abi.services.shared.time.Timer.start();
+        var timer = try abi.foundation.time.Timer.start();
         const output = try engine.generate(allocator, prompt);
         defer allocator.free(output);
         const elapsed_ms = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
@@ -856,7 +856,7 @@ pub fn runOllamaRuntimeBenchmark(
     const samples = try allocator.alloc(RuntimeBenchSample, run_count);
     errdefer allocator.free(samples);
 
-    var client = try abi.services.connectors.ollama.createClient(allocator);
+    var client = try abi.connectors.ollama.createClient(allocator);
     defer client.deinit();
 
     if (model_override) |model_name| {
@@ -873,7 +873,7 @@ pub fn runOllamaRuntimeBenchmark(
     errdefer allocator.free(model_name_copy);
 
     for (samples) |*sample| {
-        var timer = try abi.services.shared.time.Timer.start();
+        var timer = try abi.foundation.time.Timer.start();
         var res = try client.generate(.{
             .model = client.config.model,
             .prompt = prompt,
@@ -944,7 +944,7 @@ pub fn runMlxRuntimeBenchmark(
     const samples = try allocator.alloc(RuntimeBenchSample, run_count);
     errdefer allocator.free(samples);
 
-    var client = try abi.services.connectors.mlx.createClient(allocator);
+    var client = try abi.connectors.mlx.createClient(allocator);
     defer client.deinit();
 
     if (model_override) |model_name| {
@@ -961,7 +961,7 @@ pub fn runMlxRuntimeBenchmark(
     errdefer allocator.free(model_name_copy);
 
     for (samples) |*sample| {
-        var timer = try abi.services.shared.time.Timer.start();
+        var timer = try abi.foundation.time.Timer.start();
 
         // MLX uses OpenAI-compatible chat completions; use generate() for simplicity
         const response_text = try client.generate(prompt, gen_tokens);
@@ -1009,7 +1009,7 @@ pub fn runVllmRuntimeBenchmark(
     const samples = try allocator.alloc(RuntimeBenchSample, run_count);
     errdefer allocator.free(samples);
 
-    var client = try abi.services.connectors.vllm.createClient(allocator);
+    var client = try abi.connectors.vllm.createClient(allocator);
     defer client.deinit();
 
     if (model_override) |model_name| {
@@ -1026,7 +1026,7 @@ pub fn runVllmRuntimeBenchmark(
     errdefer allocator.free(model_name_copy);
 
     for (samples) |*sample| {
-        var timer = try abi.services.shared.time.Timer.start();
+        var timer = try abi.foundation.time.Timer.start();
 
         var res = try client.chatCompletion(.{
             .model = client.config.model,
@@ -1085,7 +1085,7 @@ pub fn runLmStudioRuntimeBenchmark(
     const samples = try allocator.alloc(RuntimeBenchSample, run_count);
     errdefer allocator.free(samples);
 
-    var client = try abi.services.connectors.lm_studio.createClient(allocator);
+    var client = try abi.connectors.lm_studio.createClient(allocator);
     defer client.deinit();
 
     if (model_override) |model_name| {
@@ -1102,7 +1102,7 @@ pub fn runLmStudioRuntimeBenchmark(
     errdefer allocator.free(model_name_copy);
 
     for (samples) |*sample| {
-        var timer = try abi.services.shared.time.Timer.start();
+        var timer = try abi.foundation.time.Timer.start();
 
         var res = try client.chatCompletion(.{
             .model = client.config.model,
@@ -1314,7 +1314,7 @@ pub fn appendBenchRecordToWdbx(
 
     semantic_store.restore(&handle, output_path) catch {};
 
-    const now_ms = abi.services.shared.time.unixMs();
+    const now_ms = abi.foundation.time.unixMs();
     const stats = semantic_store.getStats(&handle);
     const record_id: u64 = stats.count + 1;
 

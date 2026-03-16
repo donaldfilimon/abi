@@ -633,7 +633,7 @@ pub const TrainingPanel = struct {
 
         var needs_render = true;
         while (self.running) {
-            const now_ms = abi.services.shared.utils.unixMs();
+            const now_ms = abi.foundation.utils.unixMs();
             if (shouldRefreshAt(now_ms, self.last_refresh, self.config.refresh_ms)) {
                 // Pull latest metrics incrementally.
                 _ = self.pollMetrics() catch |err| {
@@ -660,7 +660,7 @@ pub const TrainingPanel = struct {
 
             // Poll input until next refresh deadline so rendering is truly live.
             const timeout_ms = pollTimeoutMs(
-                abi.services.shared.utils.unixMs(),
+                abi.foundation.utils.unixMs(),
                 self.last_refresh,
                 self.config.refresh_ms,
             );

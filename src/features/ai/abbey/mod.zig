@@ -12,6 +12,7 @@
 //! honest opinions, emotional intelligence, and research commitment.
 
 const std = @import("std");
+const abi = @import("abi");
 
 // ============================================================================
 // Core Modules
@@ -19,7 +20,7 @@ const std = @import("std");
 
 pub const core = struct {
     pub const types = @import("types");
-    pub const config = @import("../core/config.zig");
+    pub const config = abi.config;
 };
 
 // ============================================================================
@@ -297,8 +298,8 @@ pub fn createAdvancedCognitionWithConfig(
 // Legacy Abbey Implementation (Kept for backwards compatibility)
 // ============================================================================
 
-const legacy_memory = @import("../memory/mod.zig");
-const tools = @import("../tools/mod.zig");
+const legacy_memory = abi.ai.memory;
+const tools = abi.ai.tools;
 
 /// Legacy Abbey - original implementation for backwards compatibility
 /// Use AbbeyEngine for new implementations

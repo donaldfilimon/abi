@@ -299,6 +299,9 @@ pub const profiler = @import("utils/profiler.zig");
 /// Statistical benchmark suite with Chauvenet outlier filtering.
 pub const benchmark = @import("utils/benchmark.zig");
 
+/// Zig toolchain resolution and validation.
+pub const zig_toolchain = @import("utils/zig_toolchain.zig");
+
 /// HTTP retry logic with backoff strategies.
 /// Configurable retry policies for web requests.
 pub const http_retry = @import("utils/retry.zig");

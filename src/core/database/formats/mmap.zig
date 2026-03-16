@@ -140,21 +140,21 @@ pub const MappedFile = struct {
 
         const flags: std.posix.O = if (read_only) .{ .ACCMODE = .RDONLY } else .{ .ACCMODE = .RDWR };
         const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, flags, 0) catch return error.FileNotFound;
-        errdefer std.posix.close(fd);
+        errdefer _ = std.posix.system.close(fd);
 
         const stat = std.posix.fstat(fd) catch return error.InvalidFile;
         const size: usize = @intCast(stat.size);
 
         if (size == 0) {
-            std.posix.close(fd);
+            _ = std.posix.system.close(fd);
             return error.InvalidFile;
         }
 
-        const prot: u32 = if (read_only) std.posix.PROT.READ else std.posix.PROT.READ | std.posix.PROT.WRITE;
+        const prot: std.posix.system.vm_prot_t = if (read_only) .{ .READ = true } else .{ .READ = true, .WRITE = true };
 
         const ptr = std.posix.mmap(null, size, prot, .{ .TYPE = .SHARED }, fd, 0) catch return error.MmapFailed;
 
-        std.posix.close(fd);
+        _ = std.posix.system.close(fd);
 
         return .{
             .data = ptr,
@@ -299,20 +299,20 @@ fn createPosix(path: []const u8, size: usize) MmapError!MappedFile {
         .CREAT = true,
         .TRUNC = true,
     }, 0o644) catch return error.AccessDenied;
-    errdefer std.posix.close(fd);
+    errdefer _ = std.posix.system.close(fd);
 
-    std.posix.system.ftruncate(fd, @intCast(size)) catch return error.MmapFailed;
+    if (std.posix.system.ftruncate(fd, @intCast(size)) != 0) return error.MmapFailed;
 
     const ptr = std.posix.mmap(
         null,
         size,
-        std.posix.PROT.READ | std.posix.PROT.WRITE,
+        .{ .READ = true, .WRITE = true },
         .{ .TYPE = .SHARED },
         fd,
         0,
     ) catch return error.MmapFailed;
 
-    std.posix.close(fd);
+    _ = std.posix.system.close(fd);
 
     return .{
         .data = ptr,

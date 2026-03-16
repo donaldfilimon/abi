@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const internal = @import("internal/mod.zig");
 
 // ── Core ─────────────────────────────────────────────────────────────────
 
@@ -19,15 +20,15 @@ pub const FrameworkError = errors.FrameworkError;
 pub const registry = @import("core/registry/mod.zig");
 pub const Registry = registry.Registry;
 
-pub const framework = @import("core/framework.zig");
+pub const framework = internal.app;
 
 // ── Services (non-feature-gated) ─────────────────────────────────────────
 
-pub const foundation = @import("services/shared/mod.zig");
-pub const runtime = @import("services/runtime/mod.zig");
-pub const platform = @import("services/platform/mod.zig");
-pub const connectors = @import("services/connectors/mod.zig");
-pub const tasks = @import("services/tasks/mod.zig");
+pub const foundation = internal.foundation;
+pub const runtime = internal.runtime;
+pub const platform = internal.platform;
+pub const connectors = internal.integrations;
+pub const tasks = internal.tooling;
 pub const mcp = @import("services/mcp/mod.zig");
 pub const lsp = @import("services/lsp/mod.zig");
 pub const acp = @import("services/acp/mod.zig");
@@ -36,10 +37,10 @@ pub const ha = @import("services/ha/mod.zig");
 // ── Features (comptime-gated mod/stub) ───────────────────────────────────
 
 pub const gpu = if (build_options.feat_gpu) @import("features/gpu/mod.zig") else @import("features/gpu/stub.zig");
-pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @import("features/ai/stub.zig");
-pub const database = if (build_options.feat_database) @import("features/database/mod.zig") else @import("features/database/stub.zig");
-pub const network = if (build_options.feat_network) @import("features/network/mod.zig") else @import("features/network/stub.zig");
-pub const observability = if (build_options.feat_profiling) @import("features/observability/mod.zig") else @import("features/observability/stub.zig");
+pub const ai = if (build_options.feat_ai) internal.ai.mod else internal.ai.stub;
+pub const database = if (build_options.feat_database) internal.data.mod else internal.data.stub;
+pub const network = if (build_options.feat_network) internal.network.mod else internal.network.stub;
+pub const observability = if (build_options.feat_profiling) internal.observe.mod else internal.observe.stub;
 pub const web = if (build_options.feat_web) @import("features/web/mod.zig") else @import("features/web/stub.zig");
 pub const pages = if (build_options.feat_pages) @import("features/observability/pages/mod.zig") else @import("features/observability/pages/stub.zig");
 pub const analytics = if (build_options.feat_analytics) @import("features/analytics/mod.zig") else @import("features/analytics/stub.zig");

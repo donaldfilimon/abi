@@ -9,7 +9,7 @@ const command_mod = @import("../../command.zig");
 const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const app_paths = abi.services.shared.app_paths;
+const app_paths = abi.foundation.app_paths;
 
 const PluginInfo = struct {
     name: []const u8,

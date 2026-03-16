@@ -10,7 +10,7 @@ pub const meta: command.Meta = .{
     .name = "neural",
     .description = "Dynamic 3D neural network visualization for terminal UI",
 };
-const shared_time = abi.services.shared.time;
+const shared_time = abi.foundation.time;
 
 const Config = struct {
     frames: u32 = 240,
