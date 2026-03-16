@@ -125,6 +125,9 @@ testingllm.ckpt/
 *.spv
 
 # ── Root-level build artifacts (one-off test binaries) ────────────────
+/test_arraylist
+/test_nolld
+/swiftly.pkg
 /test_page_size
 /cast_test
 /runner
@@ -271,6 +274,11 @@ zig-bootstrap-emergency/
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
 !/docs/plans/*.md
 !/docs/api/*.md
+!/docs/STRUCTURE.md
+!/docs/PATTERNS.md
+!/benchmarks/README.md
+!/benchmarks/STRUCTURE.md
+!/examples/README.md
 !/tasks/todo.md
 !/tasks/lessons.md
 
