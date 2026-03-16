@@ -10,7 +10,7 @@
 //! - Code block construction
 
 const std = @import("std");
-const classifier = @import("classifier");
+const classifier = @import("classifier.zig");
 
 /// Generated code block.
 pub const CodeBlock = struct {

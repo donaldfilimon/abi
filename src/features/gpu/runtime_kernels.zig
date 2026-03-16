@@ -4,9 +4,9 @@
 //! for CUDA, Vulkan, Metal, WebGPU, and OpenGL-family backends.
 
 const std = @import("std");
-const backend = @import("backend");
+const backend = @import("backend.zig");
 const build_options = @import("build_options");
-const types = @import("kernel_types");
+const types = @import("kernel_types.zig");
 
 pub const KernelError = types.KernelError;
 pub const KernelSource = types.KernelSource;
@@ -27,7 +27,7 @@ const BackendOps = struct {
 fn backendOps(which_backend: backend.Backend) ?BackendOps {
     return switch (which_backend) {
         .cuda => if (comptime build_options.gpu_cuda) blk: {
-            const cuda_module = @import("backends/cuda");
+            const cuda_module = @import("backends/cuda/mod.zig");
             break :blk .{
                 .compile = cuda_module.compileKernel,
                 .launch = cuda_module.launchKernel,
@@ -35,7 +35,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
             };
         } else null,
         .vulkan => if (comptime build_options.gpu_vulkan) blk: {
-            const vulkan_module = @import("backends/vulkan");
+            const vulkan_module = @import("backends/vulkan.zig");
             break :blk .{
                 .compile = vulkan_module.compileKernel,
                 .launch = vulkan_module.launchKernel,
@@ -43,7 +43,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
             };
         } else null,
         .stdgpu => if (comptime @hasDecl(build_options, "gpu_stdgpu") and build_options.gpu_stdgpu) blk: {
-            const stdgpu_module = @import("backends/stdgpu");
+            const stdgpu_module = @import("backends/stdgpu.zig");
             break :blk .{
                 .compile = stdgpu_module.compileKernel,
                 .launch = stdgpu_module.launchKernel,
@@ -51,7 +51,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
             };
         } else null,
         .metal => if (comptime build_options.gpu_metal) blk: {
-            const metal_module = @import("backends/metal");
+            const metal_module = @import("backends/metal.zig");
             break :blk .{
                 .compile = metal_module.compileKernel,
                 .launch = metal_module.launchKernel,
@@ -59,7 +59,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
             };
         } else null,
         .webgpu => if (comptime build_options.gpu_webgpu) blk: {
-            const webgpu_module = @import("backends/webgpu");
+            const webgpu_module = @import("backends/webgpu.zig");
             break :blk .{
                 .compile = webgpu_module.compileKernel,
                 .launch = webgpu_module.launchKernel,
@@ -67,7 +67,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
             };
         } else null,
         .opengl => if (comptime build_options.gpu_opengl) blk: {
-            const opengl_module = @import("backends/opengl");
+            const opengl_module = @import("backends/opengl.zig");
             break :blk .{
                 .compile = opengl_module.compileKernel,
                 .launch = opengl_module.launchKernel,
@@ -75,7 +75,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
             };
         } else null,
         .opengles => if (comptime build_options.gpu_opengles) blk: {
-            const opengles_module = @import("backends/opengles");
+            const opengles_module = @import("backends/opengles.zig");
             break :blk .{
                 .compile = opengles_module.compileKernel,
                 .launch = opengles_module.launchKernel,
@@ -83,7 +83,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
             };
         } else null,
         .webgl2 => if (comptime build_options.gpu_webgl2) blk: {
-            const webgl2_module = @import("backends/webgl2");
+            const webgl2_module = @import("backends/webgl2.zig");
             break :blk .{
                 .compile = webgl2_module.compileKernel,
                 .launch = webgl2_module.launchKernel,

@@ -6,8 +6,8 @@
 //! ## Example
 //!
 //! ```zig
-//! const retriever = @import("retriever");
-//! const embeddings = @import("../embeddings");
+//! const retriever = @import("retriever.zig");
+//! const embeddings = @import("../embeddings/mod.zig");
 //!
 //! // Create embeddings context with OpenAI backend
 //! var embed_ctx = try embeddings.Context.init(allocator, .{});
@@ -24,10 +24,10 @@
 //! ```
 
 const std = @import("std");
-const chunker = @import("chunker");
+const chunker = @import("chunker.zig");
 const Chunk = chunker.Chunk;
 const simd = @import("shared_services").simd;
-const embeddings = @import("../embeddings");
+const embeddings = @import("../embeddings/mod.zig");
 
 /// Common AI processing errors
 pub const AIError = std.mem.Allocator.Error || error{

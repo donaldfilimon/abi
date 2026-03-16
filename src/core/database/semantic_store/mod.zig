@@ -1,8 +1,8 @@
 //! Canonical semantic-store surface for weighted memory, retrieval, and lineage.
 
 const std = @import("std");
-const database = @import("../database");
-const storage = @import("../storage");
+const database = @import("../database.zig");
+const storage = @import("../storage.zig");
 const fs = @import("shared_services").utils.fs;
 
 pub const StoreHandle = struct {

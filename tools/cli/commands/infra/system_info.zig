@@ -5,11 +5,11 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
-const gpu = @import("gpu");
-const network = @import("network");
+const gpu = @import("gpu.zig");
+const network = @import("network.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "system-info",

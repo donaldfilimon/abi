@@ -8,11 +8,11 @@ pub const commands = @import("commands/mod.zig");
 const framework = @import("framework/mod.zig");
 const utils = @import("utils/mod.zig");
 const cli_io = utils.io_backend;
-const spec = @import("spec");
+const spec = @import("spec.zig");
 
 /// Main entry point with args from Zig 0.16 process init.
 pub fn main(init: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -138,7 +138,7 @@ fn printUnknownCommand(command: []const u8) void {
 }
 
 test {
-    _ = @import("commands/core/ui/dashboard");
+    _ = @import("commands/core/ui/dashboard.zig");
     _ = @import("terminal/mod.zig");
 }
 

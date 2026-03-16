@@ -1,4 +1,4 @@
-const types = @import("../framework/types");
+const types = @import("../framework/types.zig");
 
 pub const CommandOverride = struct {
     name: []const u8,

@@ -4,8 +4,8 @@
 //! Supports asynchronous kernel launches and memory transfers.
 
 const std = @import("std");
-const backend_mod = @import("backend");
-const device_mod = @import("device");
+const backend_mod = @import("backend.zig");
+const device_mod = @import("device.zig");
 // Import utilities from the shared directory (relative to this file)
 const time_utils = @import("shared_services").utils;
 

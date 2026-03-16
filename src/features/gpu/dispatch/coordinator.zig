@@ -36,17 +36,17 @@ const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
 const build_options = @import("build_options");
-const backend_mod = @import("../backend");
-const device_mod = @import("../device");
-const interface = @import("../interface");
-const backend_shared = @import("../backends/shared");
-const dsl = @import("../dsl");
-const unified_buffer = @import("../unified_buffer");
-const kernel_types = @import("../kernel_types");
-const builtin_kernels = @import("../builtin_kernels");
-const kernel_ring_mod = @import("../kernel_ring");
-const policy = @import("../policy");
-const std_gpu_integration = @import("../backends/std_gpu_integration");
+const backend_mod = @import("../backend.zig");
+const device_mod = @import("../device.zig");
+const interface = @import("../interface.zig");
+const backend_shared = @import("../backends/shared.zig");
+const dsl = @import("../dsl/mod.zig");
+const unified_buffer = @import("../unified_buffer.zig");
+const kernel_types = @import("../kernel_types.zig");
+const builtin_kernels = @import("../builtin_kernels.zig");
+const kernel_ring_mod = @import("../kernel_ring.zig");
+const policy = @import("../policy/mod.zig");
+const std_gpu_integration = @import("../backends/std_gpu_integration.zig");
 const StdGpuKernelRegistry = std_gpu_integration.StdGpuKernelRegistry;
 
 const Mutex = sync.Mutex;
@@ -58,8 +58,8 @@ fn initCublasOptional(comptime Ctx: type) ?Ctx {
 }
 
 // Re-export extracted submodules for build discovery
-pub const dispatch_types = @import("types");
-pub const batched_dispatch = @import("batch");
+pub const dispatch_types = @import("types.zig");
+pub const batched_dispatch = @import("batch.zig");
 
 // Re-export types from dispatch_types for backward compatibility
 pub const DispatchError = dispatch_types.DispatchError;
@@ -75,7 +75,7 @@ pub const BatchedDispatcher = batched_dispatch.BatchedDispatcher;
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
 const cublas = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("../backends/cuda/cublas")
+    @import("../backends/cuda/cublas.zig")
 else
     struct {
         pub const CublasContext = void;
@@ -1109,9 +1109,9 @@ fn executeCpuRmsNorm(
 
 // Test discovery for extracted submodules
 test {
-    _ = @import("types");
-    _ = @import("batch");
-    _ = @import("../dispatcher_test");
+    _ = @import("types.zig");
+    _ = @import("batch.zig");
+    _ = @import("../dispatcher_test.zig");
 }
 
 test {

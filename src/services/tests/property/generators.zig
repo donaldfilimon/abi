@@ -9,7 +9,7 @@
 //! All generators are designed for composition and shrinking support.
 
 const std = @import("std");
-const property = @import("mod");
+const property = @import("mod.zig");
 const Generator = property.Generator;
 
 // ============================================================================

@@ -1,6 +1,6 @@
 const std = @import("std");
-const types = @import("types");
-const model_profiles = @import("model_profiles");
+const types = @import("types.zig");
+const model_profiles = @import("model_profiles.zig");
 
 pub const all_providers = [_]types.ProviderId{
     .local_gguf,

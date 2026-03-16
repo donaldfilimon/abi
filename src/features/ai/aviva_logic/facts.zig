@@ -10,8 +10,8 @@
 //! - Qualification suggestions
 
 const std = @import("std");
-const classifier = @import("classifier");
-const knowledge = @import("knowledge");
+const classifier = @import("classifier.zig");
+const knowledge = @import("knowledge.zig");
 
 /// A factual claim extracted from content.
 pub const Claim = struct {

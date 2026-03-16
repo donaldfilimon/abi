@@ -5,9 +5,9 @@
 //! embedding tables, and optionally LoRA adapter weights alongside the model.
 
 const std = @import("std");
-const training = @import("../training");
-const export_mod = @import("export");
-const database = @import("../../database");
+const training = @import("../training/mod.zig");
+const export_mod = @import("export.zig");
+const database = @import("../../database/mod.zig");
 const semantic_store = database.semantic_store;
 
 /// Configuration for dual brain export.

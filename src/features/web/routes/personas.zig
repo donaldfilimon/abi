@@ -12,9 +12,9 @@
 //! - GET  /api/v1/personas/health   - Health check
 
 const std = @import("std");
-const chat = @import("../handlers/chat");
-const types = @import("../../ai/types");
-const health = @import("../../ai/health");
+const chat = @import("../handlers/chat.zig");
+const types = @import("../../ai/types.zig");
+const health = @import("../../ai/health.zig");
 const time = @import("shared_services").time;
 
 /// HTTP method.

@@ -8,34 +8,34 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
 pub const llm = if (build_options.feat_llm)
-    @import("../llm")
+    @import("../llm/mod.zig")
 else
-    @import("../llm/stub");
+    @import("../llm/stub.zig");
 
 pub const embeddings = if (build_options.feat_ai)
-    @import("../embeddings")
+    @import("../embeddings/mod.zig")
 else
-    @import("../embeddings/stub");
+    @import("../embeddings/stub.zig");
 
 pub const vision = if (build_options.feat_vision)
-    @import("../vision")
+    @import("../vision/mod.zig")
 else
-    @import("../vision/stub");
+    @import("../vision/stub.zig");
 
-pub const streaming = @import("../streaming");
-pub const transformer = @import("../transformer");
+pub const streaming = @import("../streaming/mod.zig");
+pub const transformer = @import("../transformer/mod.zig");
 
 pub const profiles = if (build_options.feat_ai)
-    @import("../profiles")
+    @import("../profiles/mod.zig")
 else
-    @import("../profiles/stub");
+    @import("../profiles/stub.zig");
 
 pub const personas = profiles;
 

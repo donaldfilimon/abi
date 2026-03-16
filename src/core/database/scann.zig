@@ -18,7 +18,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const simd = @import("shared_services").simd;
-const index_mod = @import("index");
+const index_mod = @import("index.zig");
 
 /// ScaNN configuration parameters
 pub const ScaNNConfig = struct {

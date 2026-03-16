@@ -6,9 +6,9 @@
 const std = @import("std");
 
 /// Binary RPC codec for node-to-node messages (heartbeat, block sync).
-pub const rpc = @import("rpc");
+pub const rpc = @import("rpc.zig");
 /// In-process block sync path (request/response/chunk stream); see runRequesterPath.
-pub const replication = @import("replication");
+pub const replication = @import("replication.zig");
 
 /// Health state derived from last_seen vs configured timeouts.
 pub const HealthState = enum {
@@ -319,7 +319,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-pub const transport = @import("transport");
+pub const transport = @import("transport.zig");
 
 test {
     _ = transport;

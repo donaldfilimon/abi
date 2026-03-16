@@ -22,7 +22,7 @@ const build_options = @import("build_options");
 // Testframework initialization with valid options.
 // Verifiessuccessful initialization path.
 test "framework: successful initialization" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     var framework = try abi.App.initDefault(gpa.allocator());
@@ -34,7 +34,7 @@ test "framework: successful initialization" {
 // Testmultiple framework init/deinit cycles.
 // Verifiesno resource leaks across cycles.
 test "framework: multiple init cycles" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const check = gpa.deinit();
         // No leak should be detected
@@ -52,7 +52,7 @@ test "framework: multiple init cycles" {
 // Testframework with feature build options.
 // Verifiesframework respects build-time feature flags.
 test "framework: feature flag consistency" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     var framework = try abi.App.initDefault(gpa.allocator());
@@ -156,7 +156,7 @@ test "database errors: dimension mismatch recovery" {
 test "database errors: cleanup on failure" {
     if (!build_options.feat_database) return error.SkipZigTest;
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const check = gpa.deinit();
         if (check == .leak) @panic("Memory leak on database error path");
@@ -254,7 +254,7 @@ test "llm errors: tokenizer errors" {
 // Test allocator stress with error conditions.
 // Verifies no leaks under allocation pressure.
 test "memory: allocator stress" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const check = gpa.deinit();
         if (check == .leak) @panic("Memory leak under stress");
@@ -271,7 +271,7 @@ test "memory: allocator stress" {
 // Test framework allocator is properly tracked.
 // Verifies framework doesn't leak on normal usage.
 test "memory: framework lifecycle" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const check = gpa.deinit();
         if (check == .leak) @panic("Memory leak in framework lifecycle");
@@ -286,7 +286,7 @@ test "memory: framework lifecycle" {
 test "memory: database operations" {
     if (!build_options.feat_database) return error.SkipZigTest;
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const check = gpa.deinit();
         if (check == .leak) @panic("Memory leak in database operations");

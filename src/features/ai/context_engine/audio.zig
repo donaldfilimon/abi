@@ -5,7 +5,7 @@
 //! data into discrete `AudioChunk` structures for the Context Engine.
 
 const std = @import("std");
-const context_engine = @import("mod");
+const context_engine = @import("mod.zig");
 const sync = @import("shared_services").sync;
 const abi_time = @import("shared_services").time;
 

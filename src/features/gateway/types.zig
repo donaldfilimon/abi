@@ -1,5 +1,5 @@
 const std = @import("std");
-const core_config = @import("../../core/config/gateway");
+const core_config = @import("../../core/config/gateway.zig");
 const radix = @import("shared_services").utils.radix_tree;
 
 const RouteTree = radix.RadixTree(u32);

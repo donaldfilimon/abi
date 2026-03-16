@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const learning_types = @import("learning_types");
+const learning_types = @import("learning_types.zig");
 
 pub const LearningExperience = learning_types.LearningExperience;
 

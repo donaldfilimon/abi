@@ -169,7 +169,7 @@ fn runVector(io: std.Io, allocator: std.mem.Allocator, abi_bin_path: []const u8,
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

@@ -1,12 +1,12 @@
 const std = @import("std");
-const llm = @import("..");
-const connectors = @import("../../../../services/connectors");
-const types = @import("types");
-const errors = @import("errors");
-const registry = @import("registry");
-const model_profiles = @import("model_profiles");
-const health = @import("health");
-const plugins_mod = @import("plugins");
+const llm = @import("../mod.zig");
+const connectors = @import("../../../../services/connectors/mod.zig");
+const types = @import("types.zig");
+const errors = @import("errors.zig");
+const registry = @import("registry.zig");
+const model_profiles = @import("model_profiles.zig");
+const health = @import("health.zig");
+const plugins_mod = @import("plugins/mod.zig");
 
 pub fn generate(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.GenerateResult {
     if (cfg.model.len == 0) return errors.ProviderError.ModelRequired;
@@ -161,7 +161,7 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
         if (err == error.ConnectionRefused) {
             std.log.info("llama-server not running. Attempting to spawn locally...", .{});
 
-            const os = @import("../../../../services/shared/os");
+            const os = @import("../../../../services/shared/os.zig");
             const cmd = try std.fmt.allocPrint(allocator, "nohup llama-server -m {s} --port 8080 > /tmp/llama-server.log 2>&1 &", .{cfg.model});
             defer allocator.free(cmd);
 

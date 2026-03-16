@@ -2,8 +2,8 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const sampler_mod = @import("sampler");
-const tokenizer = @import("../tokenizer");
+const sampler_mod = @import("sampler.zig");
+const tokenizer = @import("../tokenizer/mod.zig");
 
 /// Error set for model forward pass operations.
 pub const ForwardError = error{

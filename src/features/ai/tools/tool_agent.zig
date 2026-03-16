@@ -18,7 +18,7 @@
 const std = @import("std");
 const json = std.json;
 const agent_mod = @import("agents");
-const tools_mod = @import("mod");
+const tools_mod = @import("mod.zig");
 
 const Agent = agent_mod.Agent;
 const AgentConfig = agent_mod.AgentConfig;

@@ -9,10 +9,10 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const vulkan_caps = @import("vulkan/capabilities");
+const vulkan_caps = @import("vulkan/capabilities.zig");
 
 // Re-export extracted type definitions for build discovery
-pub const vulkan_types = @import("vulkan_types");
+pub const vulkan_types = @import("vulkan_types.zig");
 
 // ============================================================================
 // Errors
@@ -504,7 +504,7 @@ fn findMemoryType(type_filter: u32, properties: VkMemoryPropertyFlags) VulkanErr
 // VTable Implementation
 // ============================================================================
 
-const interface = @import("../interface");
+const interface = @import("../interface.zig");
 
 pub const VulkanBackend = struct {
     allocator: std.mem.Allocator,
@@ -1109,7 +1109,7 @@ pub const CommandPool = struct {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../device").Device;
+const Device = @import("../device.zig").Device;
 
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
     if (!tryLoadVulkanLibrary()) {
@@ -1167,7 +1167,7 @@ pub const createVulkanVTable = vulkan_vtable.createVulkanVTable;
 // ============================================================================
 
 test {
-    _ = @import("vulkan_types");
-    _ = @import("vulkan/capabilities");
-    _ = @import("vulkan_test");
+    _ = @import("vulkan_types.zig");
+    _ = @import("vulkan/capabilities.zig");
+    _ = @import("vulkan_test.zig");
 }

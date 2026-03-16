@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const utils = @import("../../../utils/mod.zig");
-const common = @import("common");
+const common = @import("common.zig");
 
 const cli_io = common.cli_io;
 

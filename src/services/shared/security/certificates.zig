@@ -11,9 +11,9 @@
 
 const std = @import("std");
 const crypto = std.crypto;
-const time = @import("../time");
-const sync = @import("../sync");
-const csprng = @import("csprng");
+const time = @import("../time.zig");
+const sync = @import("../sync.zig");
+const csprng = @import("csprng.zig");
 
 /// Certificate type
 pub const CertificateType = enum {

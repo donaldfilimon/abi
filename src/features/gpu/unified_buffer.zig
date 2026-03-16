@@ -4,10 +4,10 @@
 //! Tracks dirty state for efficient host-device synchronization.
 
 const std = @import("std");
-const backend_mod = @import("backend");
-const device_mod = @import("device");
-const stream_mod = @import("stream");
-const sync_event_mod = @import("sync_event");
+const backend_mod = @import("backend.zig");
+const device_mod = @import("device.zig");
+const stream_mod = @import("stream.zig");
+const sync_event_mod = @import("sync_event.zig");
 
 const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;

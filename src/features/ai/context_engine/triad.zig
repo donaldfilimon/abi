@@ -5,7 +5,7 @@
 //! and feeds their analysis to ABI (Moderator) to synthesize the final action.
 
 const std = @import("std");
-const neural_database = @import("../../database").neural;
+const neural_database = @import("../../database/mod.zig").neural;
 
 pub const TriadEngine = struct {
     allocator: std.mem.Allocator,

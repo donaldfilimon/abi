@@ -9,7 +9,7 @@
 //! - Counterfactual reasoning
 
 const std = @import("std");
-const reasoning = @import("../reasoning");
+const reasoning = @import("../reasoning.zig");
 
 // ============================================================================
 // Compositional Types

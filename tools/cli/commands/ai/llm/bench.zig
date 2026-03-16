@@ -1,10 +1,10 @@
 //! LLM bench subcommand - Benchmark model performance.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
-const mod = @import("mod");
+const mod = @import("mod.zig");
 const semantic_store = abi.features.database.semantic_store;
 
 // ── Types ──────────────────────────────────────────────────────────────

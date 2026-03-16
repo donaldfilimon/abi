@@ -18,19 +18,19 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const mod = @import("mod");
-const sse = @import("sse");
-const websocket = @import("websocket");
-const backends = @import("backends");
-const formats = @import("formats");
+const mod = @import("mod.zig");
+const sse = @import("sse.zig");
+const websocket = @import("websocket.zig");
+const backends = @import("backends/mod.zig");
+const formats = @import("formats/mod.zig");
 const shared_utils = @import("shared_services").utils;
-const observability = @import("../../observability");
+const observability = @import("../../observability/mod.zig");
 const net_utils = shared_utils.net;
 const json_utils = shared_utils.json;
-const recovery = @import("recovery");
+const recovery = @import("recovery.zig");
 const RecoveryConfig = recovery.RecoveryConfig;
 const RecoveryEvent = recovery.RecoveryEvent;
-const request_types = @import("request_types");
+const request_types = @import("request_types.zig");
 
 pub const AbiStreamRequest = request_types.AbiStreamRequest;
 const parseAbiStreamRequest = request_types.parseAbiStreamRequest;
@@ -1269,8 +1269,8 @@ fn timingSafeEqual(a: []const u8, b: []const u8) bool {
 }
 
 test {
-    _ = @import("request_types");
-    _ = @import("server_test");
+    _ = @import("request_types.zig");
+    _ = @import("server_test.zig");
 }
 
 test {

@@ -11,12 +11,12 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const simd = @import("shared_services").simd;
-const index_mod = @import("index");
-const gpu_accel = @import("gpu_accel");
+const index_mod = @import("index.zig");
+const gpu_accel = @import("gpu_accel.zig");
 
 // Re-export extracted sub-modules
-pub const search_state = @import("search_state");
-pub const distance_cache = @import("distance_cache");
+pub const search_state = @import("search_state.zig");
+pub const distance_cache = @import("distance_cache.zig");
 
 pub const SearchState = search_state.SearchState;
 pub const SearchStatePool = search_state.SearchStatePool;
@@ -1292,7 +1292,7 @@ test "getLayerCount returns expected value" {
 // Test discovery: pull in extracted test file and sub-modules
 comptime {
     if (@import("builtin").is_test) {
-        _ = @import("hnsw_test");
+        _ = @import("hnsw_test.zig");
         _ = search_state;
         _ = distance_cache;
     }

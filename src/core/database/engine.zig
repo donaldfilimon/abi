@@ -4,12 +4,12 @@
 //! embedded dynamic AI client HTTP inferences, and search query executions.
 
 const std = @import("std");
-const config = @import("config");
-const metrics = @import("distance").Distance;
-const Cache = @import("cache").Cache;
-const HNSW = @import("hnsw").HNSW;
-const AIClient = @import("ai_client").AIClient;
-const sync_compat = @import("sync_compat");
+const config = @import("config.zig");
+const metrics = @import("distance.zig").Distance;
+const Cache = @import("cache.zig").Cache;
+const HNSW = @import("hnsw.zig").HNSW;
+const AIClient = @import("ai_client.zig").AIClient;
+const sync_compat = @import("sync_compat.zig");
 
 pub const Metadata = struct {
     text: []const u8,

@@ -3,8 +3,8 @@
 //! API-compatible no-op implementations when gateway is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/gateway");
-const stub_context = @import("../../core/stub_context");
+const core_config = @import("../../core/config/gateway.zig");
+const stub_context = @import("../../core/stub_context.zig");
 
 pub const GatewayConfig = core_config.GatewayConfig;
 pub const RateLimitConfig = core_config.RateLimitConfig;

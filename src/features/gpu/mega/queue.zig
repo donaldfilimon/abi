@@ -6,7 +6,7 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const coordinator = @import("coordinator");
+const coordinator = @import("coordinator.zig");
 
 /// Workload priority levels.
 pub const Priority = enum(u8) {

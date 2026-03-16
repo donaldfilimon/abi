@@ -1,5 +1,5 @@
 const std = @import("std");
-const tool = @import("tool");
+const tool = @import("tool.zig");
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
 const Context = tool.Context;

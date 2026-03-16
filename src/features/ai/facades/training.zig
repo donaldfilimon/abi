@@ -8,23 +8,23 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
 pub const training = if (build_options.feat_training)
-    @import("../training")
+    @import("../training/mod.zig")
 else
-    @import("../training/stub");
+    @import("../training/stub.zig");
 
-pub const federated = @import("../federated");
+pub const federated = @import("../federated/mod.zig");
 
 pub const database = if (build_options.feat_training)
-    @import("../database")
+    @import("../database/mod.zig")
 else
-    @import("../database/stub");
+    @import("../database/stub.zig");
 
 // ============================================================================
 // Convenience type re-exports

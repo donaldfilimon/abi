@@ -4,7 +4,7 @@
 //! matching for improved retrieval quality.
 
 const std = @import("std");
-const fulltext = @import("fulltext");
+const fulltext = @import("fulltext.zig");
 
 /// Safely convert rank (usize) to u32 with saturation to prevent overflow.
 fn safeRank(rank: usize) u32 {

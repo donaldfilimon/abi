@@ -1,7 +1,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const hnsw = @import("hnsw");
-const index_mod = @import("index");
+const hnsw = @import("hnsw.zig");
+const index_mod = @import("index.zig");
 const simd = @import("shared_services").simd;
 
 const HnswIndex = hnsw.HnswIndex;

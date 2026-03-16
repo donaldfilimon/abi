@@ -94,23 +94,23 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-pub const sse = @import("sse");
-pub const backpressure = @import("backpressure");
-pub const buffer = @import("buffer");
-pub const generator = @import("generator");
+pub const sse = @import("sse.zig");
+pub const backpressure = @import("backpressure.zig");
+pub const buffer = @import("buffer.zig");
+pub const generator = @import("generator.zig");
 
 // Streaming inference server
-pub const server = @import("server");
-pub const websocket = @import("websocket");
-pub const backends = @import("backends");
-pub const formats = @import("formats");
+pub const server = @import("server.zig");
+pub const websocket = @import("websocket.zig");
+pub const backends = @import("backends/mod.zig");
+pub const formats = @import("formats/mod.zig");
 
 // Error recovery and resilience
-pub const recovery = @import("recovery");
-pub const circuit_breaker = @import("circuit_breaker");
-pub const retry_config = @import("retry_config");
-pub const session_cache = @import("session_cache");
-pub const streaming_metrics = @import("metrics");
+pub const recovery = @import("recovery.zig");
+pub const circuit_breaker = @import("circuit_breaker.zig");
+pub const retry_config = @import("retry_config.zig");
+pub const session_cache = @import("session_cache.zig");
+pub const streaming_metrics = @import("metrics.zig");
 
 // Server types
 
@@ -620,8 +620,8 @@ test {
     _ = retry_config;
     _ = session_cache;
     _ = streaming_metrics;
-    _ = @import("request_types");
-    _ = @import("server_test");
+    _ = @import("request_types.zig");
+    _ = @import("server_test.zig");
 }
 
 test {

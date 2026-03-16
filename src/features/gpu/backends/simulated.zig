@@ -4,7 +4,7 @@
 //! for testing and fallback scenarios when no GPU is available.
 
 const std = @import("std");
-const types = @import("../kernel_types");
+const types = @import("../kernel_types.zig");
 
 pub const SimulatedError = error{
     UnsupportedKernel,

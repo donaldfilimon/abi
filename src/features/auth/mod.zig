@@ -21,7 +21,7 @@
 //! - `abi.features.auth.headers` — Security headers middleware
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
+const core_config = @import("../../core/config/platform.zig");
 
 pub const AuthConfig = core_config.AuthConfig;
 
@@ -304,7 +304,7 @@ pub fn checkPermission(user_id: []const u8, permission: Permission) AuthError!bo
 // Test discovery — standalone test file avoids pulling in security sub-modules
 // that have pre-existing Zig 0.16 compile issues
 test {
-    _ = @import("auth_test");
+    _ = @import("auth_test.zig");
 }
 
 test {

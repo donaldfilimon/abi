@@ -39,7 +39,7 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const coordinator = @import("coordinator");
+const coordinator = @import("coordinator.zig");
 
 /// Experience for replay buffer - stores a single state transition.
 pub const Experience = struct {

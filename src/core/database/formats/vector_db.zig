@@ -4,7 +4,7 @@
 //! and the WDBX vector database for fast similarity search.
 
 const std = @import("std");
-const unified = @import("unified");
+const unified = @import("unified.zig");
 const simd = @import("shared_services").simd;
 
 pub const VectorDbError = error{

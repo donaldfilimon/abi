@@ -56,7 +56,7 @@ const build_options = @import("build_options");
 
 // GPU integration (conditional)
 const gpu_available = build_options.feat_gpu;
-const gpu_mod = if (gpu_available) @import("../../gpu") else struct {
+const gpu_mod = if (gpu_available) @import("../../gpu/mod.zig") else struct {
     pub const mega = struct {
         pub const Coordinator = void;
         pub const LearningScheduler = void;

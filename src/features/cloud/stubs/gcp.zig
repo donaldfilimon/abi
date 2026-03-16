@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 pub const GcpConfig = struct {
     port: u16 = 8080,

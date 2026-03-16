@@ -16,7 +16,7 @@ const build_options = @import("build_options");
 // ============================================================================
 
 test "framework init/shutdown ordering" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -32,7 +32,7 @@ test "framework init/shutdown ordering" {
 }
 
 test "framework reinitialize after shutdown" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -50,7 +50,7 @@ test "framework reinitialize after shutdown" {
 }
 
 test "framework with features enabled" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

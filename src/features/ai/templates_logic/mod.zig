@@ -8,11 +8,11 @@
 //! Each template produces a `MultiPersonaConfig` tuned for its industry.
 
 const std = @import("std");
-const persona_config = @import("../config");
+const persona_config = @import("../config.zig");
 
-pub const healthcare = @import("healthcare");
-pub const finance = @import("finance");
-pub const legal = @import("legal");
+pub const healthcare = @import("healthcare.zig");
+pub const finance = @import("finance.zig");
+pub const legal = @import("legal.zig");
 
 // Re-export key types
 pub const HealthcareRoutingContext = healthcare.HealthcareRoutingContext;

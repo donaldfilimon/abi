@@ -8,7 +8,7 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const backends = @import("../backends");
+const backends = @import("../backends/mod.zig");
 
 /// Chat message role
 pub const Role = enum {

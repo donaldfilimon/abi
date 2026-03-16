@@ -10,8 +10,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const framework = @import("../../system/framework");
-const mod = @import("mod");
+const framework = @import("../../system/framework.zig");
+const mod = @import("mod.zig");
 
 const GpuBenchConfig = mod.GpuBenchConfig;
 

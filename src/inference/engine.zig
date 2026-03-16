@@ -6,9 +6,9 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const kv_cache_mod = @import("kv_cache");
-const scheduler_mod = @import("scheduler");
-const sampler_mod = @import("sampler");
+const kv_cache_mod = @import("kv_cache.zig");
+const scheduler_mod = @import("scheduler.zig");
+const sampler_mod = @import("sampler.zig");
 
 pub const Config = struct {
     vocab_size: u32 = 128256,

@@ -5,27 +5,27 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../core/config");
+const config_module = @import("../../core/config/mod.zig");
 
-pub const core = @import("core");
-pub const database = @import("database");
-pub const storage = @import("storage");
-pub const semantic_store = @import("semantic_store");
-pub const fulltext = @import("fulltext");
-pub const hybrid = @import("hybrid");
-pub const filter = @import("filter");
-pub const neural = @import("neural");
+pub const core = @import("../mod.zig");
+pub const database = @import("database.zig");
+pub const storage = @import("storage.zig");
+pub const semantic_store = @import("semantic_store/mod.zig");
+pub const fulltext = @import("fulltext.zig");
+pub const hybrid = @import("hybrid.zig");
+pub const filter = @import("filter.zig");
+pub const neural = @import("neural.zig");
 
 /// Additional public modules still used by in-tree callers.
 pub const cli = @import("cli");
-pub const batch = @import("batch");
-pub const formats = @import("formats/vector_db");
-pub const hnsw = @import("hnsw");
-pub const index = @import("index");
-pub const clustering = @import("clustering");
-pub const quantization = @import("quantization");
-pub const parallel_hnsw = @import("parallel_hnsw");
-pub const parallel_search = @import("parallel_search");
+pub const batch = @import("batch.zig");
+pub const formats = @import("formats/vector_db.zig");
+pub const hnsw = @import("hnsw.zig");
+pub const index = @import("index.zig");
+pub const clustering = @import("clustering.zig");
+pub const quantization = @import("quantization.zig");
+pub const parallel_hnsw = @import("parallel_hnsw.zig");
+pub const parallel_search = @import("parallel_search.zig");
 
 pub const StoreHandle = semantic_store.StoreHandle;
 pub const DatabaseHandle = semantic_store.DatabaseHandle;
@@ -37,7 +37,7 @@ pub const DatabaseError = database.DatabaseError;
 pub const DiagnosticsInfo = database.DiagnosticsInfo;
 pub const KMeans = clustering.KMeans;
 pub const ScalarQuantizer = quantization.ScalarQuantizer;
-pub const ProductQuantizer = @import("product_quantizer").ProductQuantizer;
+pub const ProductQuantizer = @import("product_quantizer.zig").ProductQuantizer;
 
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,

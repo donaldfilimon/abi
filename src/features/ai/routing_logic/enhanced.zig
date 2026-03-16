@@ -18,10 +18,10 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const personas = @import("..");
+const personas = @import("../mod.zig");
 const types = personas.types;
-const block_chain = @import("../../../core/database/block_chain");
-const embeddings = @import("../embeddings");
+const block_chain = @import("../../../core/database/block_chain.zig");
+const embeddings = @import("../embeddings/mod.zig");
 
 /// Enhanced routing result with mathematical blending and WDBX integration
 pub const EnhancedRoutingDecision = struct {

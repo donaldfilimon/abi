@@ -6,9 +6,9 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const types = @import("../kernel_types");
-const shared = @import("shared");
-const fallback = @import("fallback");
+const types = @import("../kernel_types.zig");
+const shared = @import("shared.zig");
+const fallback = @import("fallback.zig");
 
 pub const OpenGlesError = error{
     InitializationFailed,
@@ -768,7 +768,7 @@ pub fn getVersion() struct { major: i32, minor: i32 } {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../device").Device;
+const Device = @import("../device.zig").Device;
 
 /// Check if OpenGL ES compute is available on this system.
 pub fn isAvailable() bool {

@@ -36,7 +36,7 @@ const ArgsError = error{
 };
 
 pub fn main(init: std.process.Init.Minimal) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const status = gpa.deinit();
         if (status == .leak) {

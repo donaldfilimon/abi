@@ -11,7 +11,7 @@ const abi = @import("abi");
 const build_options = @import("build_options");
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

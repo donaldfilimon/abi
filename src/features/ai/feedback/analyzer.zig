@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const collector_mod = @import("collector");
+const collector_mod = @import("collector.zig");
 
 /// Satisfaction trend direction.
 pub const Trend = enum {

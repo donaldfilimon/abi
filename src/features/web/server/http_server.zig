@@ -7,7 +7,7 @@ const std = @import("std");
 const Io = std.Io;
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const types = @import("types");
+const types = @import("types.zig");
 
 const ServerConfig = types.ServerConfig;
 const ServerState = types.ServerState;

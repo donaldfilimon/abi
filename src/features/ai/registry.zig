@@ -2,8 +2,8 @@
 //! Manages registration, discovery, and lifecycle of all AI personas.
 
 const std = @import("std");
-const types = @import("types");
-const config = @import("config");
+const types = @import("types.zig");
+const config = @import("config.zig");
 
 const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;

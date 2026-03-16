@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const db_helpers = @import("db_helpers");
-const semantic_store = @import("semantic_store");
+const db_helpers = @import("db_helpers.zig");
+const semantic_store = @import("semantic_store/mod.zig");
 const json_utils = @import("shared_services").utils.json;
 const net_utils = @import("shared_services").utils.net;
 

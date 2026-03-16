@@ -11,16 +11,16 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const events = @import("events");
-const widgets = @import("widgets");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const events = @import("events.zig");
+const widgets = @import("widgets.zig");
 const box = widgets.box;
-const unicode = @import("unicode");
-const render_utils = @import("render_utils");
-const layout = @import("layout");
-const RingBuffer = @import("ring_buffer").RingBuffer;
-const PercentileTracker = @import("percentile_tracker").PercentileTracker;
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
+const PercentileTracker = @import("percentile_tracker.zig").PercentileTracker;
 
 /// Streaming Inference Dashboard for monitoring real-time LLM inference
 pub const StreamingDashboard = struct {

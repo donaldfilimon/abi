@@ -7,7 +7,7 @@
 //! - Reflection: Constitutional alignment scoring for Abbey
 
 const std = @import("std");
-const principles = @import("principles");
+const principles = @import("principles.zig");
 
 const Principle = principles.Principle;
 const Severity = principles.Severity;
@@ -48,7 +48,7 @@ pub const Violation = struct {
 /// Generate the constitutional system preamble for LLM prompts.
 /// This is prepended to system messages for all personas.
 pub fn getSystemPreamble() []const u8 {
-    return 
+    return
     \\You operate under ABI's constitutional principles:
     \\1. SAFETY: Never generate harmful, dangerous, or illegal content.
     \\2. HONESTY: Be truthful; disclose uncertainty; never fabricate.

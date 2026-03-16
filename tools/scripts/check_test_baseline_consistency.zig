@@ -1,5 +1,5 @@
 const std = @import("std");
-const baseline = @import("baseline");
+const baseline = @import("baseline.zig");
 const util = @import("util");
 
 /// Verify test baseline consistency:
@@ -8,7 +8,7 @@ const util = @import("util");
 /// - The main test root src/services/tests/mod.zig exists.
 /// - The WDBX fast test root exists if referenced.
 pub fn main(_: std.process.Init) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 

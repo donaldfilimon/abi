@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const reward_policy = @import("reward_policy");
+const reward_policy = @import("reward_policy.zig");
 
 pub const PolicyNetwork = reward_policy.PolicyNetwork;
 

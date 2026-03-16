@@ -6,8 +6,8 @@
 const std = @import("std");
 const platform_time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const cancellation_mod = @import("cancellation");
-const future_mod = @import("future");
+const cancellation_mod = @import("cancellation.zig");
+const future_mod = @import("future.zig");
 
 const cancellation = cancellation_mod;
 const future = future_mod;

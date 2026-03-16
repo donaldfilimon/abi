@@ -4,11 +4,11 @@
 //! Supports POSIX, Windows, and WASM environments.
 
 const std = @import("std");
-const cli_io = @import("../utils/io_backend");
+const cli_io = @import("../utils/io_backend.zig");
 const builtin = @import("builtin");
 const posix = std.posix;
 const windows = std.os.windows;
-const events = @import("events");
+const events = @import("events.zig");
 
 pub const Event = events.Event;
 

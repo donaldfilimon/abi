@@ -10,7 +10,7 @@
 const std = @import("std");
 const time = @import("shared_services").utils;
 const app_paths = @import("shared_services").app_paths;
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;

@@ -6,8 +6,8 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const types = @import("../kernel_types");
-const shared = @import("shared");
+const types = @import("../kernel_types.zig");
+const shared = @import("shared.zig");
 
 pub const WebGl2Error = error{
     NotSupported,

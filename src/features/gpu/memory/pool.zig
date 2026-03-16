@@ -11,7 +11,7 @@ const std = @import("std");
 const platform_time = @import("shared_services").utils;
 const time = platform_time;
 const sync = @import("shared_services").sync;
-const memory = @import("base");
+const memory = @import("base.zig");
 
 /// Memory allocation size classes in bytes.
 const SIZE_CLASSES = [_]usize{

@@ -1,5 +1,5 @@
 const std = @import("std");
-const vllm = @import("vllm");
+const vllm = @import("vllm.zig");
 
 pub const OllamaPassthroughError = vllm.VLLMError;
 pub const Config = vllm.Config;

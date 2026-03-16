@@ -14,7 +14,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const linking = @import("linking");
+//! const linking = @import("linking.zig");
 //!
 //! var manager = try linking.LinkManager.init(allocator, config);
 //! defer manager.deinit();

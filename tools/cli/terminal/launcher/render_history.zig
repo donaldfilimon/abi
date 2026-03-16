@@ -1,10 +1,10 @@
 //! History panel renderer for command launcher TUI.
 
 const tui = @import("../mod.zig");
-const types = @import("types");
-const state_mod = @import("state");
-const menu_mod = @import("menu");
-const style_adapter = @import("style_adapter");
+const types = @import("types.zig");
+const state_mod = @import("state.zig");
+const menu_mod = @import("menu.zig");
+const style_adapter = @import("style_adapter.zig");
 
 const TuiState = state_mod.TuiState;
 const box = types.box;

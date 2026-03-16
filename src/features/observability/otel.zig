@@ -2,7 +2,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const time = @import("shared_services").utils;
-const observability = @import("../observability");
+const observability = @import("../observability/mod.zig");
 
 pub const OtelConfig = struct {
     enabled: bool = true,

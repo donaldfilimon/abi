@@ -183,7 +183,7 @@ fn benchmarkMatrixMultiply(allocator: std.mem.Allocator, size: usize) !void {
 
 pub fn main(init: std.process.Init) !void {
     _ = init;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

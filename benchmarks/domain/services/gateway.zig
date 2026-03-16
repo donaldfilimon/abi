@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../../system/framework");
+const framework = @import("../../system/framework.zig");
 
 pub const GatewayBenchConfig = struct {
     route_counts: []const usize = &.{ 50, 200, 1000 },

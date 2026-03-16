@@ -3,8 +3,8 @@
 //! API-compatible no-op implementations when cache is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
-const stub_context = @import("../../core/stub_context");
+const core_config = @import("../../core/config/platform.zig");
+const stub_context = @import("../../core/stub_context.zig");
 
 pub const CacheConfig = core_config.CacheConfig;
 pub const EvictionPolicy = core_config.EvictionPolicy;

@@ -6,7 +6,7 @@
 //! - HIPAA Compliance (Abi): PHI monitoring, regulatory adherence
 
 const std = @import("std");
-const persona_config = @import("../config");
+const persona_config = @import("../config.zig");
 
 /// Healthcare-specific routing rules for the Abi router.
 pub const HealthcareRoutingContext = struct {

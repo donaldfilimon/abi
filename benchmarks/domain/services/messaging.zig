@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const framework = @import("../../system/framework");
+const framework = @import("../../system/framework.zig");
 
 pub const MessagingBenchConfig = struct {
     message_counts: []const usize = &.{ 100, 1000, 10_000 },

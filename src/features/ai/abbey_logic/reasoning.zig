@@ -13,7 +13,7 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const emotion = @import("emotion");
+const emotion = @import("emotion.zig");
 const core_types = @import("types");
 
 /// A single step in the reasoning chain.

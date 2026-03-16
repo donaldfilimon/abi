@@ -26,8 +26,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const app_paths = abi.services.shared.app_paths;
@@ -725,7 +725,7 @@ fn printInteractiveHelp() void {
 }
 
 fn printHelp() void {
-    const help_mod = @import("../../utils/help");
+    const help_mod = @import("../../utils/help.zig");
     var builder = help_mod.HelpBuilder.init(std.heap.page_allocator);
     defer builder.deinit();
     _ = builder

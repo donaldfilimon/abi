@@ -6,8 +6,8 @@
 //! - Key rotation and expiration support
 //! - Secure memory wiping for sensitive data
 const std = @import("std");
-const time = @import("../time");
-const csprng = @import("csprng");
+const time = @import("../time.zig");
+const csprng = @import("csprng.zig");
 
 /// Constant-time comparison for variable-length slices (timing-attack resistant).
 fn constantTimeEqlSlice(a: []const u8, b: []const u8) bool {

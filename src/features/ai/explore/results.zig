@@ -1,6 +1,6 @@
 const std = @import("std");
 const json = std.json;
-const ExploreLevel = @import("config").ExploreLevel;
+const ExploreLevel = @import("config.zig").ExploreLevel;
 
 pub const MatchType = enum {
     file_name,

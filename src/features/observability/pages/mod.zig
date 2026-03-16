@@ -10,7 +10,7 @@
 //! - RwLock for concurrent page lookups
 
 const std = @import("std");
-const core_config = @import("../../../core/config/content");
+const core_config = @import("../../../core/config/content.zig");
 const sync = @import("shared_services").sync;
 const radix = @import("shared_services").utils.radix_tree;
 

@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const json = std.json;
-const tool = @import("tool");
+const tool = @import("tool.zig");
 const os = @import("shared_services").os;
 
 const Tool = tool.Tool;

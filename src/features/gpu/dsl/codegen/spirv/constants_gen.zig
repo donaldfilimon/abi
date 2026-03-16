@@ -3,7 +3,7 @@
 //! Methods for generating SPIR-V constants with caching.
 
 const std = @import("std");
-const constants = @import("constants");
+const constants = @import("constants.zig");
 
 pub const OpCode = constants.OpCode;
 

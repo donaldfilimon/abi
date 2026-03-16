@@ -1,17 +1,17 @@
 //! AI Inference Stub Module — disabled when AI inference is off.
 
 const std = @import("std");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 pub const Error = error{ LlmDisabled, EmbeddingsDisabled, InferenceFailed, InvalidConfig };
 
 // Sub-module stubs
-pub const llm = @import("../llm/stub");
-pub const embeddings = @import("../embeddings/stub");
-pub const vision = @import("../vision/stub");
-pub const streaming = @import("../streaming/stub");
-pub const transformer = @import("../transformer/stub");
-pub const personas = @import("../profiles/stub");
+pub const llm = @import("../llm/stub.zig");
+pub const embeddings = @import("../embeddings/stub.zig");
+pub const vision = @import("../vision/stub.zig");
+pub const streaming = @import("../streaming/stub.zig");
+pub const transformer = @import("../transformer/stub.zig");
+pub const personas = @import("../profiles/stub.zig");
 
 // Re-exports
 pub const LlmEngine = llm.Engine;

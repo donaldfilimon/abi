@@ -1,4 +1,4 @@
-const model = @import("model");
+const model = @import("model.zig");
 
 pub const guides = [_]model.GuideSpec{
     .{ .slug = "installation", .title = "Installation", .description = "System requirements, toolchain setup, and building ABI from source", .section = "Start", .order = 1, .permalink = "/installation/", .template_path = "tools/gendocs/templates/docs/installation.md.tpl" },

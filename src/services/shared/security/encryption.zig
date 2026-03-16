@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const crypto = std.crypto;
-const csprng = @import("csprng");
+const csprng = @import("csprng.zig");
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
     return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });

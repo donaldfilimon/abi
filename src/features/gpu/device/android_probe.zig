@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const backend_mod = @import("../backend");
+const backend_mod = @import("../backend.zig");
 
 pub const ProbeScore = struct {
     backend: backend_mod.Backend,

@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const core_config = @import("../../core/config/benchmarks");
+const core_config = @import("../../core/config/benchmarks.zig");
 
 pub const Config = core_config.BenchmarksConfig;
 pub const BenchmarksError = error{

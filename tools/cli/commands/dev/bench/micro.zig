@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const mod = @import("mod");
+const mod = @import("mod.zig");
 const utils = @import("../../../utils/mod.zig");
 
 /// Run micro-benchmark for specific operation

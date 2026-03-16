@@ -3,8 +3,8 @@
 //! CRUD operations and status management for tasks.
 
 const std = @import("std");
-const types = @import("types");
-const persistence = @import("persistence");
+const types = @import("types.zig");
+const persistence = @import("persistence.zig");
 
 const Task = types.Task;
 const Status = types.Status;

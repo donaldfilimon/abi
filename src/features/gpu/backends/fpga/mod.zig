@@ -10,21 +10,21 @@
 
 const std = @import("std");
 
-pub const vtable = @import("vtable");
-pub const kernels = @import("kernels");
+pub const vtable = @import("vtable.zig");
+pub const kernels = @import("kernels.zig");
 
 // Phase 1 kernels
-pub const distance_kernels = @import("kernels/distance_kernels");
+pub const distance_kernels = @import("kernels/distance_kernels.zig");
 
 // Phase 2 kernels (LLM inference acceleration)
-pub const matmul_kernels = @import("kernels/matmul_kernels");
-pub const attention_kernels = @import("kernels/attention_kernels");
-pub const kv_cache_kernels = @import("kernels/kv_cache_kernels");
+pub const matmul_kernels = @import("kernels/matmul_kernels.zig");
+pub const attention_kernels = @import("kernels/attention_kernels.zig");
+pub const kv_cache_kernels = @import("kernels/kv_cache_kernels.zig");
 
 // Memory management
-pub const memory = @import("memory");
-pub const loader = @import("loader");
-pub const types = @import("types");
+pub const memory = @import("memory.zig");
+pub const loader = @import("loader.zig");
+pub const types = @import("types.zig");
 
 var initialized = false;
 

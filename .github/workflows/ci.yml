@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ZIG_VERSION: "0.16.0-dev.1503+738d2be9d"
+  ZIG_VERSION: "0.16.0-dev.2905+5d71e3051"
 
 jobs:
   shell-lint:

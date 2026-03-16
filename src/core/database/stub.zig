@@ -1,7 +1,7 @@
 //! Database stub — disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../core/config");
+const config_module = @import("../../core/config/mod.zig");
 
 // --- Error Types ---
 
@@ -18,11 +18,11 @@ pub const DatabaseError = error{
 
 // --- Local Stubs Imports ---
 
-const types = @import("stubs/types");
-const parallel = @import("stubs/parallel");
-const misc = @import("stubs/misc");
-pub const semantic_store = @import("semantic_store/stub");
-pub const core = @import("core");
+const types = @import("stubs/types.zig");
+const parallel = @import("stubs/parallel.zig");
+const misc = @import("stubs/misc.zig");
+pub const semantic_store = @import("semantic_store/stub.zig");
+pub const core = @import("../mod.zig");
 
 // --- Core Types Re-exports ---
 
@@ -73,7 +73,7 @@ pub const Context = struct {
 
 // --- Sub-module Namespace Re-exports ---
 
-pub const neural = @import("stubs/neural");
+pub const neural = @import("stubs/neural.zig");
 pub const cli = misc.cli;
 
 pub const ParallelSearchConfig = parallel.ParallelSearchConfig;

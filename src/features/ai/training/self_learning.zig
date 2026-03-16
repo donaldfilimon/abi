@@ -39,27 +39,27 @@ const std = @import("std");
 const time = @import("shared_services").time;
 
 // Re-exports from extracted modules
-const learning_types_mod = @import("learning_types");
+const learning_types_mod = @import("learning_types.zig");
 pub const SelfLearningConfig = learning_types_mod.SelfLearningConfig;
 pub const ExperienceType = learning_types_mod.ExperienceType;
 pub const FeedbackType = learning_types_mod.FeedbackType;
 pub const DataKind = learning_types_mod.DataKind;
 pub const LearningExperience = learning_types_mod.LearningExperience;
 
-const experience_buffer_mod = @import("experience_buffer");
+const experience_buffer_mod = @import("experience_buffer.zig");
 pub const ExperienceBuffer = experience_buffer_mod.ExperienceBuffer;
 pub const SampledBatch = experience_buffer_mod.SampledBatch;
 
-const reward_policy_mod = @import("reward_policy");
+const reward_policy_mod = @import("reward_policy.zig");
 pub const RewardModel = reward_policy_mod.RewardModel;
 pub const PolicyNetwork = reward_policy_mod.PolicyNetwork;
 
-const dpo_optimizer_mod = @import("dpo_optimizer");
+const dpo_optimizer_mod = @import("dpo_optimizer.zig");
 pub const DPOOptimizer = dpo_optimizer_mod.DPOOptimizer;
 
 // Test imports
 test {
-    _ = @import("self_learning_test");
+    _ = @import("self_learning_test.zig");
 }
 
 /// Get current timestamp for Zig 0.16 compatibility (no std.time.timestamp()).

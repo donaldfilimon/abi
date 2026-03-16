@@ -6,10 +6,10 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const gpu = @import("..");
-const unified = @import("../unified");
-const device_mod = @import("../device");
-const profiling = @import("../profiling");
+const gpu = @import("../mod.zig");
+const unified = @import("../unified.zig");
+const device_mod = @import("../device.zig");
+const profiling = @import("../profiling.zig");
 
 /// Test configuration for comprehensive testing
 pub const TestConfig = struct {

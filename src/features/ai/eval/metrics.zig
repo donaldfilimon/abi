@@ -4,7 +4,7 @@
 //! and other evaluation metrics.
 
 const std = @import("std");
-const tokenizer = @import("tokenizer");
+const tokenizer = @import("tokenizer.zig");
 
 /// Token-level metrics comparing hypothesis to reference.
 pub const TokenMetrics = struct {

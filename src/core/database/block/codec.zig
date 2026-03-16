@@ -3,7 +3,7 @@
 //! Uses direct memory writes instead of stream APIs for Zig 0.16 compatibility.
 
 const std = @import("std");
-const block = @import("block");
+const block = @import("block.zig");
 
 pub fn encodeBlock(allocator: std.mem.Allocator, b: block.StoredBlock) ![]u8 {
     const header_size = 32 + 4 + 4 + 32 + 8 + 4 + 2 + 1; // [32]u8, u32, u32, [32]u8, u64, u32, u16, u8

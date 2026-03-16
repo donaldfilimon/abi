@@ -7,7 +7,7 @@ const std = @import("std");
 const platform_time = @import("shared_services").utils;
 const time = platform_time;
 const sync = @import("shared_services").sync;
-const backend = @import("backend");
+const backend = @import("backend.zig");
 
 /// Recovery strategy for device failures.
 pub const RecoveryStrategy = enum {

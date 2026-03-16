@@ -5,7 +5,7 @@
 //! through the Vulkan API.
 
 const std = @import("std");
-const compute = @import("compute");
+const compute = @import("compute.zig");
 
 /// Vulkan backend kernel handle.
 pub const VulkanKernel = struct {

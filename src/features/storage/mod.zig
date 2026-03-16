@@ -11,7 +11,7 @@
 //! Security: path traversal validation on all keys.
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
+const core_config = @import("../../core/config/platform.zig");
 const sync = @import("shared_services").sync;
 
 pub const StorageConfig = core_config.StorageConfig;

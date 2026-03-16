@@ -12,7 +12,7 @@
 //! - **Capability matching**: Steps declare what capabilities the assigned agent needs
 
 const std = @import("std");
-const roles = @import("roles");
+const roles = @import("roles.zig");
 
 // ============================================================================
 // Types

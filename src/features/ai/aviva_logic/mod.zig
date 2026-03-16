@@ -13,13 +13,13 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const types = @import("types");
-const config = @import("../config");
+const config = @import("../config.zig");
 const agent_mod = @import("agents");
 
-pub const classifier_mod = @import("classifier");
-pub const knowledge_mod = @import("knowledge");
-pub const code_mod = @import("code");
-pub const facts_mod = @import("facts");
+pub const classifier_mod = @import("classifier.zig");
+pub const knowledge_mod = @import("knowledge.zig");
+pub const code_mod = @import("code.zig");
+pub const facts_mod = @import("facts.zig");
 
 pub const QueryClassifier = classifier_mod.QueryClassifier;
 pub const QueryType = classifier_mod.QueryType;

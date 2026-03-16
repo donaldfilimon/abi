@@ -5,9 +5,9 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const metrics_mod = @import("metrics");
-const auth_mod = @import("auth");
-const handlers_mod = @import("handlers");
+const metrics_mod = @import("metrics.zig");
+const auth_mod = @import("auth.zig");
+const handlers_mod = @import("handlers.zig");
 const time_mod = @import("shared_services").time;
 
 fn monotonicNowNs() i128 {

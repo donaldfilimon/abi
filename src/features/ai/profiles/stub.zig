@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const types = @import("types");
-const registry = @import("../registry");
+const registry = @import("../registry.zig");
 
 pub const BehaviorProfile = enum { collaborative, direct, governance, iterative };
 pub const LegacyPersonaType = types.PersonaType;

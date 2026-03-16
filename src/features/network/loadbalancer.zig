@@ -4,7 +4,7 @@
 //! weighted routing, least connections, and health-based routing.
 
 const std = @import("std");
-const registry = @import("registry");
+const registry = @import("registry.zig");
 const platform_time = @import("shared_services").utils;
 const time = platform_time;
 const sync = @import("shared_services").sync;

@@ -1,8 +1,8 @@
 //! Public BlockStore API.
 
 const std = @import("std");
-const block = @import("block");
-const core = @import("../core");
+const block = @import("block.zig");
+const core = @import("../core/mod.zig");
 
 pub const BlockStore = struct {
     allocator: std.mem.Allocator,

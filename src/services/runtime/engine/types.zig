@@ -147,7 +147,7 @@ pub const EngineConfig = struct {
     worker_count: ?usize = null,
     numa_enabled: bool = false,
     cpu_affinity_enabled: bool = false,
-    numa_topology: ?*@import("numa").CpuTopology = null,
+    numa_topology: ?*@import("numa.zig").CpuTopology = null,
 };
 
 pub const ResultKind = enum {

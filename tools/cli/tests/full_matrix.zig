@@ -1,5 +1,5 @@
 const std = @import("std");
-const cli_catalog = @import("catalog");
+const cli_catalog = @import("catalog.zig");
 
 const CommandSubcommands = struct {
     command: []const u8,
@@ -675,7 +675,7 @@ fn buildMatrix(allocator: std.mem.Allocator) !Matrix {
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 

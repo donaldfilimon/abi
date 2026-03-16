@@ -9,12 +9,12 @@ const build_options = @import("build_options");
 const shared_utils = @import("shared_services").utils;
 const http = shared_utils.async_http;
 const retry = shared_utils.http_retry;
-const connectors = @import("../../../services/connectors");
+const connectors = @import("../../../services/connectors/mod.zig");
 const time = shared_utils;
 const platform_time = @import("shared_services").time;
-const provider_router_mod = @import("../llm/providers/router");
-const provider_types = @import("../llm/providers/types");
-const advanced_cognition = @import("../abbey/advanced");
+const provider_router_mod = @import("../llm/providers/router.zig");
+const provider_types = @import("../llm/providers/types.zig");
+const advanced_cognition = @import("../abbey/advanced.zig");
 
 // ============================================================================
 // Constants

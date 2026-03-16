@@ -3,11 +3,11 @@
 //! Roadmap items and import functionality for project tracking.
 
 const std = @import("std");
-const types = @import("types");
-const persistence = @import("persistence");
+const types = @import("types.zig");
+const persistence = @import("persistence.zig");
 const time_utils = @import("shared_services").utils;
 
-pub const catalog = @import("roadmap_catalog");
+pub const catalog = @import("roadmap_catalog.zig");
 
 pub const RoadmapItem = struct {
     title: []const u8,

@@ -1,10 +1,10 @@
 //! ralph init — Create workspace: ralph.yml, .ralph/, PROMPT.md
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const cfg = @import("config");
+const cfg = @import("config.zig");
 
 const TODO_FILE = "tasks/todo.md";
 const LESSONS_FILE = "tasks/lessons.md";

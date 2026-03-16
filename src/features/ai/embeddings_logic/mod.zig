@@ -10,9 +10,9 @@
 //! - Domain and user-specific weight management
 
 const std = @import("std");
-const index = @import("persona_index");
-const learning = @import("learning");
-const seed = @import("seed_data");
+const index = @import("persona_index.zig");
+const learning = @import("learning.zig");
+const seed = @import("seed_data.zig");
 const time = @import("shared_services").time;
 
 // Re-export core types from persona_index

@@ -12,8 +12,8 @@ const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
 
-const fixtures = @import("fixtures");
-const mocks = @import("mocks");
+const fixtures = @import("fixtures.zig");
+const mocks = @import("mocks.zig");
 
 // ============================================================================
 // Replication Integration Tests

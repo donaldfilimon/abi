@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const cfg = @import("config");
+const cfg = @import("config.zig");
 
 /// Rating type for feedback.
 pub const RatingType = enum {

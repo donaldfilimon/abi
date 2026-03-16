@@ -10,16 +10,16 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const events = @import("events");
-const widgets = @import("widgets");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const events = @import("events.zig");
+const widgets = @import("widgets.zig");
 const box = widgets.box;
-const RingBuffer = @import("ring_buffer").RingBuffer;
-const cli_io = @import("../utils/io_backend");
-const unicode = @import("unicode");
-const render_utils = @import("render_utils");
-const layout = @import("layout");
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
+const cli_io = @import("../utils/io_backend.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 /// Model Management Panel for viewing and managing AI models
 pub const ModelManagementPanel = struct {

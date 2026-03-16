@@ -5,17 +5,17 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const obs = @import("../../observability");
+const obs = @import("../../observability/mod.zig");
 
 // Relative imports to flattened feature root
 const types = @import("types");
-const registry = @import("../registry");
-const abi_logic = @import("../abi_logic");
-const abbey_logic = @import("../abbey_logic");
+const registry = @import("../registry.zig");
+const abi_logic = @import("../abi_logic/mod.zig");
+const abbey_logic = @import("../abbey_logic/mod.zig");
 const aviva_logic = @import("aviva_logic");
-const generic = @import("../generic");
-const health = @import("../health");
-const loadbalancer = @import("../loadbalancer");
+const generic = @import("../generic.zig");
+const health = @import("../health.zig");
+const loadbalancer = @import("../loadbalancer.zig");
 
 pub const BehaviorProfile = enum {
     collaborative,

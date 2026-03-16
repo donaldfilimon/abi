@@ -228,7 +228,7 @@ test "GPU dispatcher: concurrent execution performance" {
 }
 
 test "GPU dispatcher: memory allocation tracking" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const tracking_allocator = gpa.allocator();
 

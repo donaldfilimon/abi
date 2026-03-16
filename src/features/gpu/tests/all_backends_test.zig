@@ -1,7 +1,7 @@
 const std = @import("std");
-const device_mod = @import("../device");
-const backend_factory = @import("../backend_factory");
-const backend_mod = @import("../backend");
+const device_mod = @import("../device.zig");
+const backend_factory = @import("../backend_factory.zig");
+const backend_mod = @import("../backend.zig");
 const Backend = backend_mod.Backend;
 
 test "all backends device enumeration" {

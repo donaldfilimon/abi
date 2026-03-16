@@ -4,9 +4,9 @@
 //! Used by the unified dashboard shell and individual panels.
 
 const std = @import("std");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const render_utils = @import("render_utils");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const render_utils = @import("render_utils.zig");
 
 pub const HelpOverlay = struct {
     title: []const u8,

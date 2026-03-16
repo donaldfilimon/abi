@@ -4,10 +4,10 @@
 //! Zig, Rust, and TypeScript/JavaScript codebases.
 
 const std = @import("std");
-const AstParser = @import("ast").AstParser;
-const AstNode = @import("ast").AstNode;
-const ParsedFile = @import("ast").ParsedFile;
-const fs = @import("fs");
+const AstParser = @import("ast.zig").AstParser;
+const AstNode = @import("ast.zig").AstNode;
+const ParsedFile = @import("ast.zig").ParsedFile;
+const fs = @import("fs.zig");
 
 /// Represents a function in the call graph
 pub const Function = struct {

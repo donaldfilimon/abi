@@ -11,7 +11,7 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const types = @import("types");
+const types = @import("types.zig");
 
 /// Configuration for the adaptive modulation system.
 pub const ModulationConfig = struct {

@@ -4,7 +4,7 @@
 //! gpu devices, llm generate). Use runSubcommand after handling top-level help.
 
 const std = @import("std");
-const args = @import("args");
+const args = @import("args.zig");
 
 /// A single subcommand: name/aliases and handler.
 pub const Command = struct {

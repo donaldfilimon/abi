@@ -3,7 +3,7 @@
 //! Writes metrics in Prometheus exposition format.
 
 const std = @import("std");
-const primitives = @import("primitives");
+const primitives = @import("primitives.zig");
 
 pub const MetricWriter = struct {
     output: std.ArrayListUnmanaged(u8),

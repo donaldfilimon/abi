@@ -17,7 +17,7 @@ const std = @import("std");
 const simd = @import("shared_services").simd;
 
 // Re-export ProductQuantizer for backward compatibility
-const product_quantizer = @import("product_quantizer");
+const product_quantizer = @import("product_quantizer.zig");
 pub const ProductQuantizer = product_quantizer.ProductQuantizer;
 
 // ============================================================================
@@ -692,6 +692,6 @@ pub fn unpackBits(input: []const u8, bit_offset: usize, bits: u8) u16 {
 }
 
 test {
-    _ = @import("product_quantizer");
-    _ = @import("quantization_test");
+    _ = @import("product_quantizer.zig");
+    _ = @import("quantization_test.zig");
 }

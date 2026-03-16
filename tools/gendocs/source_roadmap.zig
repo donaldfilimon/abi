@@ -1,9 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
-const model = @import("model");
+const model = @import("model.zig");
 const catalog = if (builtin.is_test)
-    @import("source_roadmap_test_catalog")
+    @import("source_roadmap_test_catalog.zig")
 else
     abi.services.tasks.roadmap_catalog;
 

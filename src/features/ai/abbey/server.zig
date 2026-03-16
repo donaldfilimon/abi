@@ -10,9 +10,9 @@
 //! - GET /emotional-state - Get current emotional state
 
 const std = @import("std");
-const engine = @import("engine");
+const engine = @import("engine.zig");
 const core_types = @import("types");
-const core_config = @import("../core/config");
+const core_config = @import("../core/config.zig");
 const net_utils = @import("shared_services").utils.net;
 
 // ============================================================================
@@ -451,7 +451,7 @@ fn buildStatsJson(allocator: std.mem.Allocator, stats: engine.EngineStats) ![]u8
     return json.toOwnedSlice(allocator);
 }
 
-fn buildEmotionalStateJson(allocator: std.mem.Allocator, emotional: @import("emotions").EmotionalState) ![]u8 {
+fn buildEmotionalStateJson(allocator: std.mem.Allocator, emotional: @import("emotions.zig").EmotionalState) ![]u8 {
     var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 

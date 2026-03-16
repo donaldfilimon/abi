@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const types = @import("types");
-const sentiment_mod = @import("sentiment");
+const sentiment_mod = @import("sentiment.zig");
 
 /// Condition type for rule matching.
 pub const ConditionType = enum {

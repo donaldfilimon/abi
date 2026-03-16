@@ -5,8 +5,8 @@
 
 const std = @import("std");
 const testing = std.testing;
-const quantization = @import("quantization");
-const product_quantizer = @import("product_quantizer");
+const quantization = @import("quantization.zig");
+const product_quantizer = @import("product_quantizer.zig");
 
 const ScalarQuantizer = quantization.ScalarQuantizer;
 const ProductQuantizer = product_quantizer.ProductQuantizer;

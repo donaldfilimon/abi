@@ -92,8 +92,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const numa = @import("numa");
-const concurrency = @import("../concurrency");
+const numa = @import("numa.zig");
+const concurrency = @import("../concurrency/mod.zig");
 
 const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;
@@ -129,7 +129,7 @@ const is_threaded_target = builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm64;
 
 // Import types from submodule
-pub const engine_types = @import("types");
+pub const engine_types = @import("types.zig");
 
 // Re-export types
 pub const Backoff = engine_types.Backoff;

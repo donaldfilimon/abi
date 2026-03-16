@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
@@ -20,22 +20,22 @@ pub const agent = @import("agents");
 pub const agents = if (build_options.feat_ai)
     @import("agents")
 else
-    @import("../agents/stub");
-pub const tools = @import("../tools");
+    @import("../agents/stub.zig");
+pub const tools = @import("../tools/mod.zig");
 pub const prompts = @import("prompts");
-pub const memory = @import("../memory");
+pub const memory = @import("../memory/mod.zig");
 pub const multi_agent = if (build_options.feat_ai)
-    @import("../multi_agent")
+    @import("../multi_agent/mod.zig")
 else
-    @import("../multi_agent/stub");
-pub const core = @import("core");
-pub const gpu_agent = @import("../agents/gpu_agent");
-pub const discovery = @import("../explore/discovery");
+    @import("../multi_agent/stub.zig");
+pub const core = @import("../../../core/mod.zig");
+pub const gpu_agent = @import("../agents/gpu_agent.zig");
+pub const discovery = @import("../explore/discovery.zig");
 pub const models = if (build_options.feat_ai)
-    @import("../models")
+    @import("../models/mod.zig")
 else
-    @import("../models/stub");
-pub const model_registry = @import("../models/registry");
+    @import("../models/stub.zig");
+pub const model_registry = @import("../models/registry.zig");
 
 // ============================================================================
 // Convenience type re-exports

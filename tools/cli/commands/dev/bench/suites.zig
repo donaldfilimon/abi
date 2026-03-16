@@ -6,9 +6,9 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const mod = @import("mod");
-const output = @import("output");
-const training_comparison = @import("training_comparison");
+const mod = @import("mod.zig");
+const output = @import("output.zig");
+const training_comparison = @import("training_comparison.zig");
 const utils = @import("../../../utils/mod.zig");
 
 /// Run the selected benchmark suite

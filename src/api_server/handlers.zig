@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const metrics_mod = @import("metrics");
+const metrics_mod = @import("metrics.zig");
 
 /// HTTP response to send back.
 pub const Response = struct {

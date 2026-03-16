@@ -13,13 +13,13 @@ const sync = shared.sync;
 const Mutex = sync.Mutex;
 
 // Re-exports from extracted modules
-const database_storage = @import("database_storage");
+const database_storage = @import("database_storage.zig");
 pub const CACHE_LINE_SIZE = database_storage.CACHE_LINE_SIZE;
 pub const HotVectorData = database_storage.HotVectorData;
 pub const ColdVectorData = database_storage.ColdVectorData;
 pub const VectorPool = database_storage.VectorPool;
 
-const database_diagnostics = @import("database_diagnostics");
+const database_diagnostics = @import("database_diagnostics.zig");
 pub const MemoryStats = database_diagnostics.MemoryStats;
 pub const PerformanceStats = database_diagnostics.PerformanceStats;
 pub const ConfigStatus = database_diagnostics.ConfigStatus;
@@ -763,7 +763,7 @@ pub inline fn computeCosineSimilarityFast(a: []const f32, a_norm: f32, b: []cons
 }
 
 test {
-    _ = @import("database_storage");
-    _ = @import("database_diagnostics");
-    _ = @import("database_test");
+    _ = @import("database_storage.zig");
+    _ = @import("database_diagnostics.zig");
+    _ = @import("database_test.zig");
 }

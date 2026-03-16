@@ -14,8 +14,8 @@ const abi = @import("abi");
 const time = abi.services.shared.time;
 const sync = abi.services.shared.sync;
 
-const fixtures = @import("fixtures");
-const mocks = @import("mocks");
+const fixtures = @import("fixtures.zig");
+const mocks = @import("mocks.zig");
 
 // ============================================================================
 // All-Modules Smoke Test

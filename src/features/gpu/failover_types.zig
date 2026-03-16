@@ -5,7 +5,7 @@
 //! Both modules import from here to avoid type duplication.
 
 const std = @import("std");
-const backend_mod = @import("backend");
+const backend_mod = @import("backend.zig");
 
 /// Circuit breaker state.
 pub const CircuitState = enum {

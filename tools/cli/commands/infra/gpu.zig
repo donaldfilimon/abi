@@ -2,8 +2,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const gpu_detect = abi.features.gpu.backends.detect;
 const gpu_listing = abi.features.gpu.backends.listing;

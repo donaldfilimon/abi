@@ -12,11 +12,11 @@
 
 const std = @import("std");
 const types = @import("types");
-const config = @import("../config");
+const config = @import("../config.zig");
 const core_types = @import("types");
-const sentiment_mod = @import("sentiment");
-const policy_mod = @import("policy");
-const rules_mod = @import("rules");
+const sentiment_mod = @import("sentiment.zig");
+const policy_mod = @import("policy.zig");
+const rules_mod = @import("rules.zig");
 
 // Re-export sub-modules for convenient access
 pub const SentimentAnalyzer = sentiment_mod.SentimentAnalyzer;

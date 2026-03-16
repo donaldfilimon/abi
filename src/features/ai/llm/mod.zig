@@ -23,21 +23,21 @@
 
 const std = @import("std");
 const time = @import("shared_services").time;
-const connectors = @import("../../../services/connectors");
+const connectors = @import("../../../services/connectors/mod.zig");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
-pub const io = @import("io");
-pub const tensor = @import("tensor");
-pub const tokenizer = @import("tokenizer");
-pub const ops = @import("ops");
-pub const cache = @import("cache");
-pub const model = @import("model");
-pub const generation = @import("generation");
-pub const parallel = @import("parallel");
-pub const providers = @import("providers");
-pub const wdbx_fusion = @import("wdbx_fusion");
-pub const unified_orchestrator = @import("unified_orchestrator");
+pub const io = @import("io/mod.zig");
+pub const tensor = @import("tensor/mod.zig");
+pub const tokenizer = @import("tokenizer/mod.zig");
+pub const ops = @import("ops/mod.zig");
+pub const cache = @import("cache/mod.zig");
+pub const model = @import("model/mod.zig");
+pub const generation = @import("generation/mod.zig");
+pub const parallel = @import("parallel.zig");
+pub const providers = @import("providers/mod.zig");
+pub const wdbx_fusion = @import("wdbx_fusion.zig");
+pub const unified_orchestrator = @import("unified_orchestrator/mod.zig");
 
 pub const MappedFile = io.MappedFile;
 pub const GgufFile = io.GgufFile;

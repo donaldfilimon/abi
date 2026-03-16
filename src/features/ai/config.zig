@@ -2,7 +2,7 @@
 //! Defines settings for the routing layer and individual persona behaviors.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 /// Global configuration for the Multi-Persona system.
 pub const MultiPersonaConfig = struct {

@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 /// Intermediate benchmark result from benchmarkOp / benchmarkAllocOp.
 pub const BenchmarkResult = struct {

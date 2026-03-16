@@ -12,7 +12,7 @@
 //! - Cache owns all keys/values (copies on put, caller borrows on get)
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform");
+const core_config = @import("../../core/config/platform.zig");
 const sync = @import("shared_services").sync;
 const time = @import("shared_services").time;
 

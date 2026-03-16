@@ -10,7 +10,7 @@
 //! - Caching for frequently accessed knowledge
 
 const std = @import("std");
-const classifier = @import("classifier");
+const classifier = @import("classifier.zig");
 const time = @import("shared_services").time;
 
 /// A retrieved knowledge fragment.

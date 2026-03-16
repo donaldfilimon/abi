@@ -4,8 +4,8 @@
 
 const std = @import("std");
 const sync = @import("shared_services").sync;
-const buffer_mod = @import("unified_buffer");
-const device_mod = @import("device");
+const buffer_mod = @import("unified_buffer.zig");
+const device_mod = @import("device.zig");
 
 pub const Buffer = buffer_mod.Buffer;
 pub const BufferOptions = buffer_mod.BufferOptions;

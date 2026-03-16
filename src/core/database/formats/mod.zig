@@ -85,14 +85,14 @@
 const std = @import("std");
 
 // Core modules
-pub const unified = @import("unified");
-pub const compression = @import("compression");
-pub const converters = @import("converters");
-pub const streaming = @import("streaming");
-pub const mmap = @import("mmap");
-pub const vector_db = @import("vector_db");
-pub const gguf_converter = @import("gguf_converter");
-pub const zon = @import("zon");
+pub const unified = @import("unified.zig");
+pub const compression = @import("compression.zig");
+pub const converters = @import("converters.zig");
+pub const streaming = @import("streaming.zig");
+pub const mmap = @import("mmap.zig");
+pub const vector_db = @import("vector_db.zig");
+pub const gguf_converter = @import("gguf_converter.zig");
+pub const zon = @import("zon.zig");
 
 // Unified format types
 pub const UnifiedFormat = unified.UnifiedFormat;

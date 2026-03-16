@@ -29,11 +29,11 @@
 //! ```
 
 const std = @import("std");
-const Engine = @import("engine").Engine;
-const Metadata = @import("engine").Metadata;
-const config = @import("config");
-const Cache = @import("cache").Cache;
-const HNSW = @import("hnsw").HNSW;
+const Engine = @import("engine.zig").Engine;
+const Metadata = @import("engine.zig").Metadata;
+const config = @import("config.zig");
+const Cache = @import("cache.zig").Cache;
+const HNSW = @import("hnsw.zig").HNSW;
 
 const MAGIC = [4]u8{ 'W', 'D', 'B', 'X' };
 const VERSION: u32 = 1;
@@ -233,7 +233,7 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Engine {
         const score_bits = try reader.readInt(u32, .little);
         const score: f32 = @bitCast(score_bits);
 
-        const EngineVector = @import("engine").EngineVector;
+        const EngineVector = @import("engine.zig").EngineVector;
         try engine.vectors_array.append(allocator, EngineVector{
             .id = id_buf,
             .vec = vec,

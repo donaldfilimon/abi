@@ -6,7 +6,7 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const backend_mod = @import("../backend");
+const backend_mod = @import("../backend.zig");
 const core_metrics = @import("shared_services").utils.metric_types;
 
 // Re-export shared types for API compatibility

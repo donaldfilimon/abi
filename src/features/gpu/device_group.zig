@@ -5,8 +5,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const backend_mod = @import("backend");
-const device_mod = @import("device");
+const backend_mod = @import("backend.zig");
+const device_mod = @import("device.zig");
 
 const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;

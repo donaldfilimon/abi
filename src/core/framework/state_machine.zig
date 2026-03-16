@@ -1,4 +1,4 @@
-const State = @import("state").State;
+const State = @import("state.zig").State;
 
 /// Set the framework state in one place to keep transition points local.
 pub inline fn set(next: *State, value: State) void {

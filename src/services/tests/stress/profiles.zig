@@ -7,7 +7,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const profiles = @import("profiles");
+//! const profiles = @import("profiles.zig");
 //!
 //! // Use predefined profile
 //! const profile = profiles.StressProfile.medium;

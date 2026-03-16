@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const e2e = @import("mod");
+const e2e = @import("mod.zig");
 
 // ============================================================================
 // Helper Functions

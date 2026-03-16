@@ -1,10 +1,10 @@
 //! Framework shutdown helpers for split lifecycle modules.
 
 const std = @import("std");
-const state_machine = @import("state_machine");
+const state_machine = @import("state_machine.zig");
 
 // Shared comptime-gated feature imports (DRY: single source of truth).
-const fi = @import("feature_imports");
+const fi = @import("feature_imports.zig");
 const gpu_mod = fi.gpu_mod;
 const ai_mod = fi.ai_mod;
 const database_mod = fi.database_mod;
@@ -28,7 +28,7 @@ const ai_training_mod = fi.ai_training_mod;
 const ai_reasoning_mod = fi.ai_reasoning_mod;
 
 /// Composable error type for registry operations from framework shutdown helpers.
-const registry_types = @import("../registry/types");
+const registry_types = @import("../registry/types.zig");
 pub const RegistryError = registry_types.Error;
 
 /// Release feature contexts and mark the framework stopped.

@@ -13,9 +13,9 @@
 const std = @import("std");
 const abi = @import("abi");
 const core = @import("../../core/mod.zig");
-const framework = @import("../../system/framework");
-const hnsw = @import("hnsw");
-const operations = @import("operations");
+const framework = @import("../../system/framework.zig");
+const hnsw = @import("hnsw.zig");
+const operations = @import("operations.zig");
 
 /// ANN-Benchmarks compatible result format
 pub const AnnBenchmarkResult = struct {

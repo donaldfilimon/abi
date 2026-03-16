@@ -712,9 +712,9 @@ pub const ChaosTestResult = struct {
 // Sub-module exports
 // ============================================================================
 
-pub const ha_chaos_test = @import("ha_chaos_test");
-pub const database_chaos_test = @import("database_chaos_test");
-pub const network_chaos_test = @import("network_chaos_test");
+pub const ha_chaos_test = @import("ha_chaos_test.zig");
+pub const database_chaos_test = @import("database_chaos_test.zig");
+pub const network_chaos_test = @import("network_chaos_test.zig");
 
 // ============================================================================
 // Tests

@@ -10,7 +10,7 @@
 //! 4. Tensor data (aligned to GGUF_DEFAULT_ALIGNMENT)
 
 const std = @import("std");
-const mmap = @import("mmap");
+const mmap = @import("mmap.zig");
 
 pub const GgufError = error{
     InvalidMagic,

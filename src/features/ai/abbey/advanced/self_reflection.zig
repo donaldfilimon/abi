@@ -11,7 +11,7 @@
 
 const std = @import("std");
 const types = @import("types");
-const reasoning = @import("../reasoning");
+const reasoning = @import("../reasoning.zig");
 
 // ============================================================================
 // Self-Reflection Types

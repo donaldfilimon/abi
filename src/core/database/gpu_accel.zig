@@ -24,7 +24,7 @@ const build_options = @import("build_options");
 const simd = @import("shared_services").simd;
 
 // Conditionally import GPU module
-const gpu = if (build_options.feat_gpu) @import("../../features/gpu") else struct {
+const gpu = if (build_options.feat_gpu) @import("../../features/gpu/mod.zig") else struct {
     pub const Gpu = void;
     pub const GpuConfig = struct {
         preferred_backend: ?void = null,

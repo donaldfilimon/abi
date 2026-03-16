@@ -10,7 +10,7 @@ const build_options = @import("build_options");
 // NOTE: Intentional layering exception — core/config imports from features/ai
 // for type compatibility. This is NOT circular: features/ai/config.zig only depends on
 // features/ai/types.zig, not on core/config.
-const personas_config = @import("../../features/ai/config");
+const personas_config = @import("../../features/ai/config.zig");
 pub const PersonasConfig = personas_config.MultiPersonaConfig;
 
 /// AI configuration with independent sub-features.

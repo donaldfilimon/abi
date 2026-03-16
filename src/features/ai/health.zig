@@ -10,9 +10,9 @@
 //! - Integration with metrics and alerting
 
 const std = @import("std");
-const types = @import("types");
-const metrics_mod = @import("metrics");
-const loadbalancer = @import("loadbalancer");
+const types = @import("types.zig");
+const metrics_mod = @import("metrics.zig");
+const loadbalancer = @import("loadbalancer.zig");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
 

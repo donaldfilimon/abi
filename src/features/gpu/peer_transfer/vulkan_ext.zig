@@ -13,7 +13,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const vulkan = @import("../backends/vulkan");
+const vulkan = @import("../backends/vulkan.zig");
 const vulkan_types = vulkan;
 
 // Re-export Vulkan types for convenience

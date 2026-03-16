@@ -6,10 +6,10 @@
 const std = @import("std");
 const abi = @import("abi");
 const tui = @import("../mod.zig");
-const types = @import("types");
-const completion = @import("completion");
-const menu = @import("menu");
-const tui_layout = @import("layout");
+const types = @import("types.zig");
+const completion = @import("completion.zig");
+const menu = @import("menu.zig");
+const tui_layout = @import("layout.zig");
 
 const MenuItem = types.MenuItem;
 const CompletionState = types.CompletionState;

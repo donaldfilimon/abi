@@ -5,9 +5,9 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../interface");
-const webgpu = @import("webgpu");
-const types = @import("../kernel_types");
+const interface = @import("../interface.zig");
+const webgpu = @import("webgpu.zig");
+const types = @import("../kernel_types.zig");
 
 /// WebGPU VTable Backend
 ///

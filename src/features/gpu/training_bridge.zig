@@ -8,8 +8,8 @@
 //! (forward/backward passes) and the GPU acceleration layer.
 
 const std = @import("std");
-const ai_ops = @import("ai_ops");
-const coordinator_ai_ops = @import("coordinator_ai_ops");
+const ai_ops = @import("ai_ops.zig");
+const coordinator_ai_ops = @import("coordinator_ai_ops.zig");
 const time = @import("shared_services").time;
 
 const AiOps = ai_ops.AiOps;

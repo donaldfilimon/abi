@@ -4,8 +4,8 @@
 //! kernel IR to backend-specific source code.
 
 const std = @import("std");
-const kernel = @import("../kernel");
-const gpu_backend = @import("../../backend");
+const kernel = @import("../kernel.zig");
+const gpu_backend = @import("../../backend.zig");
 
 /// Errors that can occur during code generation.
 pub const CodegenError = error{

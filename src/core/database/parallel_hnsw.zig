@@ -36,11 +36,11 @@ const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
 const builtin = @import("builtin");
-const hnsw = @import("hnsw");
-const index_mod = @import("index");
+const hnsw = @import("hnsw.zig");
+const index_mod = @import("index.zig");
 const simd = @import("shared_services").simd;
-const ChaseLevDeque = @import("../../services/runtime/concurrency/chase_lev").ChaseLevDeque;
-const WorkStealingScheduler = @import("../../services/runtime/concurrency/chase_lev").WorkStealingScheduler;
+const ChaseLevDeque = @import("../../services/runtime/concurrency/chase_lev.zig").ChaseLevDeque;
+const WorkStealingScheduler = @import("../../services/runtime/concurrency/chase_lev.zig").WorkStealingScheduler;
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and

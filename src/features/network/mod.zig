@@ -29,28 +29,28 @@ const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
 const build_options = @import("build_options");
-const config_module = @import("../../core/config");
+const config_module = @import("../../core/config/mod.zig");
 
 // Internal module imports
-const registry = @import("registry");
-const protocol = @import("protocol");
-const scheduler = @import("scheduler");
-const ha = @import("ha");
-const discovery = @import("discovery");
-const loadbalancer = @import("loadbalancer");
-pub const retry = @import("retry");
-pub const rate_limiter = @import("rate_limiter");
-pub const connection_pool = @import("connection_pool");
-pub const raft = @import("raft");
-pub const transport = @import("transport");
-pub const raft_transport = @import("raft_transport");
-pub const circuit_breaker = @import("circuit_breaker");
-pub const heartbeat = @import("heartbeat");
-pub const rpc_protocol = @import("rpc_protocol");
+const registry = @import("registry.zig");
+const protocol = @import("protocol.zig");
+const scheduler = @import("scheduler.zig");
+const ha = @import("ha.zig");
+const discovery = @import("discovery.zig");
+const loadbalancer = @import("loadbalancer.zig");
+pub const retry = @import("retry.zig");
+pub const rate_limiter = @import("rate_limiter.zig");
+pub const connection_pool = @import("connection_pool.zig");
+pub const raft = @import("raft.zig");
+pub const transport = @import("transport.zig");
+pub const raft_transport = @import("raft_transport.zig");
+pub const circuit_breaker = @import("circuit_breaker.zig");
+pub const heartbeat = @import("heartbeat.zig");
+pub const rpc_protocol = @import("rpc_protocol.zig");
 
 // Unified Memory and Linking modules
-pub const unified_memory = @import("unified_memory");
-pub const linking = @import("linking");
+pub const unified_memory = @import("unified_memory/mod.zig");
+pub const linking = @import("linking.zig");
 
 // ============================================================================
 // Node Registry exports
@@ -224,7 +224,7 @@ pub const AggregateStats = circuit_breaker.AggregateStats;
 // ============================================================================
 // Failover Manager exports
 // ============================================================================
-pub const failover = @import("failover");
+pub const failover = @import("failover.zig");
 pub const FailoverManager = failover.FailoverManager;
 pub const FailoverConfig = failover.FailoverConfig;
 pub const FailoverState = failover.FailoverState;

@@ -44,7 +44,7 @@ fn collectScores(value: std.json.Value, sum: *f64, count: *usize) void {
 }
 
 pub fn main(_: std.process.Init) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 

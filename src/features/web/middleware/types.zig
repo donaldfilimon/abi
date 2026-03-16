@@ -4,7 +4,7 @@
 //! can inspect/modify requests and responses, or short-circuit processing.
 
 const std = @import("std");
-const server = @import("../server");
+const server = @import("../server/mod.zig");
 const time = @import("shared_services").time;
 const user_id_key = "user_id";
 

@@ -10,7 +10,7 @@ const abi = @import("abi");
 const primitives = abi.services.shared.utils.primitives;
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

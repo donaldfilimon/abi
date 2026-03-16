@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const stub_root = @This();
-const semantic_store = @import("../../database/stub").semantic_store;
+const semantic_store = @import("../../database/stub.zig").semantic_store;
 
 pub const persistence = struct {
     pub const SessionStore = stub_root.SessionStore;

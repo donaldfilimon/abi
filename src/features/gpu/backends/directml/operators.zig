@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const loader = @import("loader");
+const loader = @import("loader.zig");
 
 /// DirectML matrix multiplication operator (GEMM).
 pub const DmlMatMul = struct {

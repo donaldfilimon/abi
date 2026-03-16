@@ -11,7 +11,7 @@
 //! - Response prefix and suffix injection
 
 const std = @import("std");
-const emotion = @import("emotion");
+const emotion = @import("emotion.zig");
 const core_types = @import("types");
 
 /// Empathy template for specific emotions.

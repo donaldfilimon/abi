@@ -377,7 +377,7 @@ fn printJson(allocator: std.mem.Allocator, report: Report) !void {
 }
 
 pub fn main(init: std.process.Init) !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 

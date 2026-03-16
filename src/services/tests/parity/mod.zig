@@ -25,7 +25,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
-const parity_specs = @import("specs");
+const parity_specs = @import("specs/mod.zig");
 const feature_catalog = abi.feature_catalog;
 
 /// Verifies that a module has all expected public declarations.

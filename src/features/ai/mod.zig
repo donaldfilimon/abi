@@ -6,18 +6,18 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 // Public types and sub-features
-pub const types = @import("types");
-pub const config = @import("config");
-pub const registry = @import("registry");
-pub const profiles = @import("profiles");
+pub const types = @import("types.zig");
+pub const config = @import("config.zig");
+pub const registry = @import("registry.zig");
+pub const profiles = @import("profiles/mod.zig");
 
 // Sub-feature modules (conditional implementation vs stub)
-pub const core = if (build_options.feat_ai) @import("types") else @import("core/stub");
-pub const agents = if (build_options.feat_ai) @import("agents") else @import("agents/stub");
-pub const llm = if (build_options.feat_ai) @import("llm") else @import("llm/stub");
-pub const training = if (build_options.feat_ai) @import("training") else @import("training/stub");
-pub const reasoning = if (build_options.feat_ai) @import("reasoning") else @import("reasoning/stub");
-pub const explore = if (build_options.feat_ai) @import("explore") else @import("explore/stub");
+pub const core = if (build_options.feat_ai) @import("types.zig") else @import("core/stub.zig");
+pub const agents = if (build_options.feat_ai) @import("agents/mod.zig") else @import("agents/stub.zig");
+pub const llm = if (build_options.feat_ai) @import("llm/mod.zig") else @import("llm/stub.zig");
+pub const training = if (build_options.feat_ai) @import("training/mod.zig") else @import("training/stub.zig");
+pub const reasoning = if (build_options.feat_ai) @import("reasoning/mod.zig") else @import("reasoning/stub.zig");
+pub const explore = if (build_options.feat_ai) @import("explore/mod.zig") else @import("explore/stub.zig");
 
 // Compatibility layer for Phase 4 transition
 pub const personas = profiles;

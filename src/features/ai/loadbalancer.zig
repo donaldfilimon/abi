@@ -11,8 +11,8 @@
 //! - Latency-based weight adjustment
 
 const std = @import("std");
-const types = @import("types");
-const config = @import("config");
+const types = @import("types.zig");
+const config = @import("config.zig");
 const cb = @import("shared_services").resilience.circuit_breaker;
 const time = @import("shared_services").time;
 

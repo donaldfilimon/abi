@@ -20,9 +20,9 @@ pub const sleepMs = time.sleepMs;
 pub const sleepNs = time.sleepNs;
 
 /// Test allocator with leak detection.
-/// Wraps GeneralPurposeAllocator with automatic leak checking on deinit.
+/// Wraps DebugAllocator with automatic leak checking on deinit.
 pub const TestAllocator = struct {
-    gpa: std.heap.GeneralPurposeAllocator(.{
+    gpa: std.heap.DebugAllocator(.{
         .stack_trace_frames = 10,
     }),
 

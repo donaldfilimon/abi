@@ -743,11 +743,11 @@ pub const BatchOperationBuilder = struct {
 };
 
 // Re-export importer types for backward compatibility
-const batch_importer = @import("batch_importer");
+const batch_importer = @import("batch_importer.zig");
 pub const ImportFormat = batch_importer.ImportFormat;
 pub const BatchImporter = batch_importer.BatchImporter;
 
 test {
-    _ = @import("batch_importer");
-    _ = @import("batch_test");
+    _ = @import("batch_importer.zig");
+    _ = @import("batch_test.zig");
 }

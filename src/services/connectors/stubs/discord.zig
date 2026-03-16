@@ -1,7 +1,7 @@
 //! Discord connector stub — returns ConnectorsDisabled for all operations.
 
 const std = @import("std");
-const shared = @import("../shared");
+const shared = @import("../shared.zig");
 
 pub const DiscordError = error{
     MissingToken,

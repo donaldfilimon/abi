@@ -1,5 +1,5 @@
 const std = @import("std");
-const manifest = @import("manifest");
+const manifest = @import("manifest.zig");
 
 pub fn loadManifest(allocator: std.mem.Allocator) !manifest.Manifest {
     return manifest.loadDefault(allocator);
@@ -29,7 +29,7 @@ pub fn findEnabledByKind(
 }
 
 pub fn hasAnyEnabled(kind: manifest.PluginKind) bool {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

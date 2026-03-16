@@ -90,7 +90,7 @@ pub const TestMatrix = struct {
 // ============================================================================
 
 test "matrix: framework minimal config" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     var framework = try abi.App.initDefault(gpa.allocator());
@@ -100,7 +100,7 @@ test "matrix: framework minimal config" {
 }
 
 test "matrix: framework all features" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     var framework = try abi.App.initDefault(gpa.allocator());
@@ -153,7 +153,7 @@ test "matrix: simd matrix multiply" {
 // ============================================================================
 
 test "matrix: runtime engine basic" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     var engine = try abi.services.runtime.createEngine(gpa.allocator(), .{});
@@ -170,7 +170,7 @@ test "matrix: runtime engine basic" {
 test "matrix: gpu backend detection" {
     if (!build_options.feat_gpu) return error.SkipZigTest;
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     try abi.features.gpu.ensureInitialized(gpa.allocator());
@@ -235,7 +235,7 @@ test "matrix: simd capabilities struct" {
 
 test "matrix: feature isolation" {
     // Test that disabled features don't affect enabled ones
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     // Initialize with only monitoring
@@ -254,7 +254,7 @@ test "matrix: feature isolation" {
 // ============================================================================
 
 test "matrix: allocator stress" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     // Allocate and free multiple times
@@ -267,7 +267,7 @@ test "matrix: allocator stress" {
 }
 
 test "matrix: framework reinit" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
 
     // Initialize, deinit, and reinitialize

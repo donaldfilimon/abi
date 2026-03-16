@@ -4,7 +4,7 @@
 //! No network I/O; callers pass in-memory buffers. Use for tests and as the core of a future TCP transport.
 
 const std = @import("std");
-const rpc = @import("rpc");
+const rpc = @import("rpc.zig");
 
 /// Optional trace callback for sync steps (e.g. "request shard=0", "response status=ok", "chunk 0 len=256").
 pub const TraceFn = *const fn (msg: []const u8) void;

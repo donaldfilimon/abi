@@ -2,7 +2,7 @@
 //! Standardizes requests, responses, and routing metadata across all personas.
 
 const std = @import("std");
-const core_types = @import("types");
+const core_types = @import("types.zig");
 
 /// Available persona types in the system.
 pub const PersonaType = enum {

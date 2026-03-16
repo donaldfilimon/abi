@@ -4,8 +4,8 @@
 //! Cohere uses a different API format from OpenAI-style APIs.
 
 const std = @import("std");
-const connectors = @import("mod");
-const shared = @import("shared");
+const connectors = @import("mod.zig");
+const shared = @import("shared.zig");
 const async_http = @import("shared_services").utils.async_http;
 const json_utils = @import("shared_services").utils.json;
 

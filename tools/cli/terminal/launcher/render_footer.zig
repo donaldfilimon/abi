@@ -2,10 +2,10 @@
 
 const std = @import("std");
 const tui = @import("../mod.zig");
-const types = @import("types");
-const state_mod = @import("state");
-const tui_layout = @import("layout");
-const style_adapter = @import("style_adapter");
+const types = @import("types.zig");
+const state_mod = @import("state.zig");
+const tui_layout = @import("layout.zig");
+const style_adapter = @import("style_adapter.zig");
 
 const TuiState = state_mod.TuiState;
 const box = types.box;

@@ -1,9 +1,9 @@
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const run_cmd = @import("run");
+const run_cmd = @import("run.zig");
 
 const ChatMessage = abi.features.ai.llm.providers.ChatMessage;
 const ProviderId = abi.features.ai.llm.providers.ProviderId;

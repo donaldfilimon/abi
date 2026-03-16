@@ -44,7 +44,7 @@
 //! simultaneously allocate, access, and free resources without blocking.
 
 const std = @import("std");
-const memory = @import("base");
+const memory = @import("base.zig");
 const time = @import("shared_services").time;
 
 /// Cache line size for alignment (x86/ARM64)

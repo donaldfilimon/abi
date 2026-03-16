@@ -1,5 +1,5 @@
 const std = @import("std");
-const tool = @import("tool");
+const tool = @import("tool.zig");
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
 const Context = tool.Context;
@@ -20,7 +20,7 @@ fn executeWebSearch(ctx: *Context, args: json.Value) tool.ToolExecutionError!Too
 
     // In a full implementation, this hits an API (DuckDuckGo, Brave, etc.)
     // For now we simulate the native HTTP wrapper setup
-    const web_client_mod = @import("../../web/client");
+    const web_client_mod = @import("../../web/client.zig");
     var client = web_client_mod.HttpClient.init(ctx.allocator) catch {
         return ToolResult.fromError(ctx.allocator, "Failed to init HTTP client");
     };
@@ -90,7 +90,7 @@ fn executeWebFetch(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         else => return ToolResult.fromError(ctx.allocator, "Expected string url"),
     } else return ToolResult.fromError(ctx.allocator, "Missing url");
 
-    const web_client_mod = @import("../../web/client");
+    const web_client_mod = @import("../../web/client.zig");
     var client = web_client_mod.HttpClient.init(ctx.allocator) catch {
         return ToolResult.fromError(ctx.allocator, "Failed to init HTTP client");
     };
@@ -139,7 +139,7 @@ pub const DeepResearcher = struct {
     pub fn autonomousSearch(self: *DeepResearcher, query: []const u8) ![]const u8 {
         std.log.info("Executing deep autonomous search for: {s}", .{query});
 
-        const web_client_mod = @import("../../web/client");
+        const web_client_mod = @import("../../web/client.zig");
         var client = web_client_mod.HttpClient.init(self.allocator) catch {
             return error.HttpClientInitFailed;
         };

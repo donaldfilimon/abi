@@ -1,6 +1,6 @@
 //! Circuit breaker for gateway — thin wrapper around shared resilience module.
 
-const types = @import("types");
+const types = @import("types.zig");
 const resilience = @import("shared_services").resilience.circuit_breaker;
 const std = @import("std");
 

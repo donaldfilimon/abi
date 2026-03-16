@@ -21,9 +21,9 @@ const Io = std.Io;
 const platform_time = @import("shared_services").utils;
 const time = platform_time;
 const sync = @import("shared_services").sync;
-const connection_pool = @import("connection_pool");
-const circuit_breaker = @import("circuit_breaker");
-const retry = @import("retry");
+const connection_pool = @import("connection_pool.zig");
+const circuit_breaker = @import("circuit_breaker.zig");
+const retry = @import("retry.zig");
 
 /// Network address wrapper for low-level posix socket operations.
 /// Replaces the removed `std.net.Address` in Zig 0.16 by wrapping

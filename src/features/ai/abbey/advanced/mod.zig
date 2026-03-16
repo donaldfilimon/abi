@@ -12,10 +12,10 @@ const std = @import("std");
 // Sub-modules
 // ============================================================================
 
-pub const meta_learning = @import("meta_learning");
-pub const theory_of_mind = @import("theory_of_mind");
-pub const compositional_reasoning = @import("compositional_reasoning");
-pub const self_reflection = @import("self_reflection");
+pub const meta_learning = @import("meta_learning.zig");
+pub const theory_of_mind = @import("theory_of_mind.zig");
+pub const compositional_reasoning = @import("compositional_reasoning.zig");
+pub const self_reflection = @import("self_reflection.zig");
 
 // ============================================================================
 // Type Re-exports (Meta-Learning)

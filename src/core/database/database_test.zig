@@ -6,7 +6,7 @@
 const std = @import("std");
 const shared = @import("shared_services");
 const simd = shared.simd;
-const database_mod = @import("database");
+const database_mod = @import("database.zig");
 const Database = database_mod.Database;
 const computeCosineSimilarityFast = database_mod.computeCosineSimilarityFast;
 

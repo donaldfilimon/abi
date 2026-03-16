@@ -5,8 +5,8 @@
 //! for JWT and API key operations where possible.
 
 const std = @import("std");
-const types = @import("types");
-const server = @import("../server");
+const types = @import("types.zig");
+const server = @import("../server/mod.zig");
 const MiddlewareContext = types.MiddlewareContext;
 
 // Shared security modules — used for delegation where applicable.

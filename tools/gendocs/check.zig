@@ -1,5 +1,5 @@
 const std = @import("std");
-const model = @import("model");
+const model = @import("model.zig");
 
 pub const CheckError = error{DriftDetected};
 pub const VerifyOptions = struct {

@@ -13,14 +13,14 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const types = @import("types");
-const config = @import("../config");
+const config = @import("../config.zig");
 const core_types = @import("types");
-const abbey_core = @import("../abbey_logic");
+const abbey_core = @import("../abbey_logic/mod.zig");
 
 // Import enhanced modules
-pub const emotion_mod = @import("emotion");
-pub const empathy_mod = @import("empathy");
-pub const reasoning_mod = @import("reasoning");
+pub const emotion_mod = @import("emotion.zig");
+pub const empathy_mod = @import("empathy.zig");
+pub const reasoning_mod = @import("reasoning.zig");
 
 // Re-export key types
 pub const EmotionProcessor = emotion_mod.EmotionProcessor;

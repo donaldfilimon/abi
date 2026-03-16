@@ -6,9 +6,9 @@
 const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const types = @import("../kernel_types");
-const shared = @import("shared");
-const fallback = @import("fallback");
+const types = @import("../kernel_types.zig");
+const shared = @import("shared.zig");
+const fallback = @import("fallback.zig");
 
 pub const OpenGlError = error{
     InitializationFailed,
@@ -671,9 +671,9 @@ pub fn getVersion() struct { major: i32, minor: i32 } {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../device").Device;
-const DeviceType = @import("../device").DeviceType;
-const Backend = @import("../backend").Backend;
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
+const Backend = @import("../backend.zig").Backend;
 
 /// Enumerate all OpenGL devices available on the system
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {

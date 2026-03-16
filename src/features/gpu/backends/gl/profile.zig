@@ -1,5 +1,5 @@
-const backend_mod = @import("../../backend");
-const common = @import("common");
+const backend_mod = @import("../../backend.zig");
+const common = @import("common.zig");
 const std = @import("std");
 
 pub const Profile = enum {

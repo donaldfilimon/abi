@@ -1,6 +1,6 @@
 const std = @import("std");
-const model = @import("model");
-const site_map = @import("site_map");
+const model = @import("model.zig");
+const site_map = @import("site_map.zig");
 
 const generated_footer = model.generated_footer;
 

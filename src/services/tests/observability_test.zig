@@ -335,8 +335,8 @@ test "observability: histogram overflow bucket" {
 // ============================================================================
 
 test {
-    _ = @import("observability_metrics_test");
-    _ = @import("observability_tracing_test");
-    _ = @import("observability_alerting_test");
-    _ = @import("observability_edge_test");
+    _ = @import("observability_metrics_test.zig");
+    _ = @import("observability_tracing_test.zig");
+    _ = @import("observability_alerting_test.zig");
+    _ = @import("observability_edge_test.zig");
 }

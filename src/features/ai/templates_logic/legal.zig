@@ -6,7 +6,7 @@
 //! - Compliance (Abi): Privilege detection, confidentiality enforcement
 
 const std = @import("std");
-const persona_config = @import("../config");
+const persona_config = @import("../config.zig");
 
 /// Legal-specific routing context.
 pub const LegalRoutingContext = struct {

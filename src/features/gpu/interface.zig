@@ -230,7 +230,7 @@ pub const LaunchConfig = struct {
 };
 
 /// Backend type identifier — canonical definition in backend.zig
-pub const BackendType = @import("backend").Backend;
+pub const BackendType = @import("backend.zig").Backend;
 
 /// GPU Backend interface (VTable pattern)
 pub const Backend = struct {

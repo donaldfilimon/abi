@@ -11,13 +11,13 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../core/config");
+const config_module = @import("../../core/config/mod.zig");
 
 // ============================================================================
 // Metrics (from metrics/ subdirectory)
 // ============================================================================
 
-const collector_mod = @import("metrics/collector");
+const collector_mod = @import("metrics/collector.zig");
 
 pub const Counter = collector_mod.Counter;
 pub const Gauge = collector_mod.Gauge;
@@ -37,7 +37,7 @@ pub const recordError = collector_mod.recordError;
 // Tracing
 // ============================================================================
 
-pub const tracing = @import("tracing");
+pub const tracing = @import("tracing.zig");
 pub const Tracer = tracing.Tracer;
 pub const Span = tracing.Span;
 pub const TraceId = tracing.TraceId;
@@ -60,8 +60,8 @@ pub const SamplerType = tracing.TraceSampler.SamplerType;
 // Monitoring (Consolidated Alerting, Prometheus, StatsD)
 // ============================================================================
 
-pub const monitoring = @import("monitoring");
-pub const otel = @import("otel");
+pub const monitoring = @import("monitoring.zig");
+pub const otel = @import("otel.zig");
 
 // Consolidated re-exports: all monitoring backends share one implementation.
 // Use `monitoring` for new code; alerting/prometheus/statsd kept for backward compat.
@@ -325,9 +325,9 @@ pub const Context = struct {
 // System Information & Core Metrics
 // ============================================================================
 
-pub const system_info = @import("system_info");
+pub const system_info = @import("system_info/mod.zig");
 pub const SystemInfo = system_info.SystemInfo;
-pub const core_metrics = @import("metrics");
+pub const core_metrics = @import("metrics/mod.zig");
 
 test {
     _ = tracing;

@@ -24,8 +24,8 @@ fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std
     try std.json.Stringify.value(value, options, &out.writer);
     return out.toOwnedSlice();
 }
-const personas = @import("../../ai").personas;
-const types = @import("../../ai/types");
+const personas = @import("../../ai/mod.zig").personas;
+const types = @import("../../ai/types.zig");
 
 /// Chat request from client.
 pub const ChatRequest = struct {

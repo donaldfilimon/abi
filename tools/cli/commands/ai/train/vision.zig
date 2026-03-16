@@ -4,7 +4,7 @@
 //! training Vision Transformer (ViT) and CLIP multimodal models.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 

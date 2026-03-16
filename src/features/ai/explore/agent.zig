@@ -1,20 +1,20 @@
 const std = @import("std");
 const platform_time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
-const ExploreConfig = @import("config").ExploreConfig;
-const ExploreLevel = @import("config").ExploreLevel;
-const ExploreResult = @import("results").ExploreResult;
-const Match = @import("results").Match;
-const MatchType = @import("results").MatchType;
-const ExploreError = @import("results").ExploreError;
-const ExplorationStats = @import("results").ExplorationStats;
-const FileVisitor = @import("fs").FileVisitor;
-const FileStats = @import("fs").FileStats;
-const SearchPattern = @import("search").SearchPattern;
-const PatternCompiler = @import("search").PatternCompiler;
-const PatternType = @import("search").PatternType;
-const QueryUnderstanding = @import("query").QueryUnderstanding;
-const ParsedQuery = @import("query").ParsedQuery;
+const ExploreConfig = @import("config.zig").ExploreConfig;
+const ExploreLevel = @import("config.zig").ExploreLevel;
+const ExploreResult = @import("results.zig").ExploreResult;
+const Match = @import("results.zig").Match;
+const MatchType = @import("results.zig").MatchType;
+const ExploreError = @import("results.zig").ExploreError;
+const ExplorationStats = @import("results.zig").ExplorationStats;
+const FileVisitor = @import("fs.zig").FileVisitor;
+const FileStats = @import("fs.zig").FileStats;
+const SearchPattern = @import("search.zig").SearchPattern;
+const PatternCompiler = @import("search.zig").PatternCompiler;
+const PatternType = @import("search.zig").PatternType;
+const QueryUnderstanding = @import("query.zig").QueryUnderstanding;
+const ParsedQuery = @import("query.zig").ParsedQuery;
 
 pub const ExploreAgent = struct {
     allocator: std.mem.Allocator,

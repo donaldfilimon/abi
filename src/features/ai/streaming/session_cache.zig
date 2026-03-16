@@ -20,7 +20,7 @@
 //! ```
 
 const std = @import("std");
-const backends = @import("backends");
+const backends = @import("backends/mod.zig");
 const platform_time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
 const Mutex = sync.Mutex;

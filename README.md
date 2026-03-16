@@ -17,7 +17,7 @@ entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 
 | Item | Value |
 |------|-------|
-| Zig pin | `0.16.0-dev.1503+738d2be9d` |
+| Zig pin | `0.16.0-dev.2905+5d71e3051` |
 | Package root | `src/root.zig` |
 | Main validation gate | `zig build full-check` |
 | Full release gate | `zig build verify-all` |
@@ -51,7 +51,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -69,7 +69,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -97,7 +97,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -251,8 +251,6 @@ For blocked Darwin hosts, use `run_build.sh`, compile-only checks, or Linux CI f
 ## Documentation map
 
 - [docs/README.md](docs/README.md) - docs tree layout and generation workflow
-- [docs/FAQ-agents.md](docs/FAQ-agents.md) - repo workflow FAQ for agents and contributors
-- [docs/guides/cursor_rules.md](docs/guides/cursor_rules.md) - Cursor-specific ABI rules
 - [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md) - Darwin linker failure notes
 - [docs/ABI_WDBX_ARCHITECTURE.md](docs/ABI_WDBX_ARCHITECTURE.md) - semantic-store architecture notes
 
@@ -260,9 +258,9 @@ For blocked Darwin hosts, use `run_build.sh`, compile-only checks, or Linux CI f
 
 Before non-trivial changes:
 
-1. Read `AGENTS.md`, `CONTRIBUTING.md`, `CLAUDE.md`, `tasks/todo.md`, and `tasks/lessons.md`.
+1. Read `AGENTS.md`, `CLAUDE.md`, `tasks/todo.md`, and `tasks/lessons.md`.
 2. Plan multi-file work in `tasks/todo.md`.
 3. Keep feature-module `mod.zig` and `stub.zig` public surfaces aligned.
 4. Run the strongest validation this environment supports and record blockers precisely.
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
+Start with [AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md).

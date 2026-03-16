@@ -34,9 +34,9 @@ const build_options = @import("build_options");
 const shared_utils = @import("shared_services").utils;
 
 // Sub-module imports
-pub const memory_region = @import("memory_region");
-pub const coherence = @import("coherence");
-pub const remote_ptr = @import("remote_ptr");
+pub const memory_region = @import("memory_region.zig");
+pub const coherence = @import("coherence.zig");
+pub const remote_ptr = @import("remote_ptr.zig");
 
 // Re-exports
 pub const MemoryRegion = memory_region.MemoryRegion;

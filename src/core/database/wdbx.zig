@@ -1,7 +1,7 @@
 //! WDBX public surface built on top of the in-memory database and storage helpers.
 const std = @import("std");
-const database = @import("database");
-const storage = @import("storage"); // Unified storage with v1 fallback
+const database = @import("database.zig");
+const storage = @import("storage.zig"); // Unified storage with v1 fallback
 const shared = @import("shared_services");
 const fs = shared.utils.fs;
 

@@ -6,7 +6,7 @@
 //! - Regulatory Compliance (Abi): BSA/AML monitoring, financial regulations
 
 const std = @import("std");
-const persona_config = @import("../config");
+const persona_config = @import("../config.zig");
 
 /// Finance-specific routing context.
 pub const FinanceRoutingContext = struct {

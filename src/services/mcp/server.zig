@@ -6,7 +6,7 @@
 //! Designed for use with Claude Desktop, Cursor, and other MCP-compatible clients.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 /// Tool handler function signature
 pub const ToolHandler = *const fn (

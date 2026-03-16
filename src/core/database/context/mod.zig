@@ -1,7 +1,7 @@
 //! Produces compact packets for the inference engine.
 
 const std = @import("std");
-const core = @import("../core");
+const core = @import("../core/mod.zig");
 
 pub const ContextPacket = struct {
     user_prompt: []const u8,

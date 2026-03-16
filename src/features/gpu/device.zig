@@ -21,10 +21,10 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const backend_mod = @import("backend");
+const backend_mod = @import("backend.zig");
 const build_options = @import("build_options");
-const policy = @import("policy");
-const android_probe = @import("device/android_probe");
+const policy = @import("policy/mod.zig");
+const android_probe = @import("device/android_probe.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const DeviceCapability = backend_mod.DeviceCapability;
@@ -782,7 +782,7 @@ fn meetsRequirements(dev: Device, criteria: DeviceSelectionCriteria) bool {
 // ============================================================================
 
 fn enumerateCudaDevices(allocator: std.mem.Allocator) ![]Device {
-    const cuda = @import("backends/cuda");
+    const cuda = @import("backends/cuda/mod.zig");
     return cuda.enumerateDevices(allocator) catch |err| {
         std.log.warn("Failed to enumerate CUDA devices: {t}", .{err});
         return &[_]Device{};
@@ -790,7 +790,7 @@ fn enumerateCudaDevices(allocator: std.mem.Allocator) ![]Device {
 }
 
 fn enumerateVulkanDevices(allocator: std.mem.Allocator) ![]Device {
-    const vulkan = @import("backends/vulkan");
+    const vulkan = @import("backends/vulkan.zig");
     return vulkan.enumerateDevices(allocator) catch |err| {
         std.log.warn("Failed to enumerate Vulkan devices: {t}", .{err});
         return &[_]Device{};
@@ -798,7 +798,7 @@ fn enumerateVulkanDevices(allocator: std.mem.Allocator) ![]Device {
 }
 
 fn enumerateMetalDevices(allocator: std.mem.Allocator) ![]Device {
-    const metal = @import("backends/metal");
+    const metal = @import("backends/metal.zig");
     return metal.enumerateDevices(allocator) catch |err| {
         std.log.warn("Failed to enumerate Metal devices: {t}", .{err});
         return &[_]Device{};
@@ -806,7 +806,7 @@ fn enumerateMetalDevices(allocator: std.mem.Allocator) ![]Device {
 }
 
 fn enumerateWebGPUDevices(allocator: std.mem.Allocator) ![]Device {
-    const webgpu = @import("backends/webgpu");
+    const webgpu = @import("backends/webgpu.zig");
     return webgpu.enumerateDevices(allocator) catch |err| {
         std.log.warn("Failed to enumerate WebGPU devices: {t}", .{err});
         return &[_]Device{};
@@ -814,7 +814,7 @@ fn enumerateWebGPUDevices(allocator: std.mem.Allocator) ![]Device {
 }
 
 fn enumerateOpenGLDevices(allocator: std.mem.Allocator) ![]Device {
-    const opengl = @import("backends/opengl");
+    const opengl = @import("backends/opengl.zig");
     return opengl.enumerateDevices(allocator) catch |err| {
         std.log.warn("Failed to enumerate OpenGL devices: {t}", .{err});
         return &[_]Device{};
@@ -822,7 +822,7 @@ fn enumerateOpenGLDevices(allocator: std.mem.Allocator) ![]Device {
 }
 
 fn enumerateOpenGlesDevices(allocator: std.mem.Allocator) ![]Device {
-    const opengles = @import("backends/opengles");
+    const opengles = @import("backends/opengles.zig");
     return opengles.enumerateDevices(allocator) catch |err| {
         std.log.warn("Failed to enumerate OpenGL ES devices: {t}", .{err});
         return &[_]Device{};

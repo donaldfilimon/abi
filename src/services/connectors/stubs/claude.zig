@@ -1,5 +1,5 @@
 const std = @import("std");
-const anthropic = @import("anthropic");
+const anthropic = @import("anthropic.zig");
 
 pub const ClaudeError = anthropic.AnthropicError;
 pub const Config = anthropic.Config;

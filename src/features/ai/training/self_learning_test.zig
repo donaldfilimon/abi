@@ -1,5 +1,5 @@
 const std = @import("std");
-const self_learning = @import("self_learning");
+const self_learning = @import("self_learning.zig");
 
 const ExperienceBuffer = self_learning.ExperienceBuffer;
 const LearningExperience = self_learning.LearningExperience;

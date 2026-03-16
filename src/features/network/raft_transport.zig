@@ -17,8 +17,8 @@ const std = @import("std");
 const time = @import("shared_services").time;
 const sync = @import("shared_services").sync;
 const builtin = @import("builtin");
-const Raft = @import("raft");
-const tcp = @import("transport");
+const Raft = @import("raft.zig");
+const tcp = @import("transport.zig");
 
 /// TcpTransport type from the transport module (used internally and by callers
 /// that need to create one to pass into `connectTcp`).
