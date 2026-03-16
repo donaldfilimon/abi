@@ -43,7 +43,7 @@ The following structural changes have landed on `main`:
 
 - [x] `zig fmt --check build.zig build/ src/ tools/ tests/ bindings/ lang/`
 - [x] `./tools/scripts/run_build.sh typecheck --summary all` (passes; fixed AI stubs importing `abi` within `abi` module; Abbey no longer imports `abi`)
-- [~] `./tools/scripts/run_build.sh feature-tests --summary all` (still blocked by Zig 0.16 module ownership in feature-test harness; current failure: duplicate module ownership for `src/features/ai/llm/mod.zig`)
+- [x] `./tools/scripts/run_build.sh feature-tests --summary all` (Resolved by using shared abi module in test_discovery.zig (commit d1e8c129))
 - [x] `./tools/scripts/run_build.sh validate-flags`
 - [x] `./tools/scripts/run_build.sh database-fast-tests` (all errors cleared)
 - [x] `./tools/scripts/run_build.sh cli-tests`
@@ -61,6 +61,8 @@ Validation evidence:
 - `2026-03-16`: Established `src/internal/` family wrappers for all core domains. Updated `src/root.zig` to use these wrappers.
 - `2026-03-16`: `./tools/scripts/run_build.sh typecheck --summary all` still passes with the new `src/internal/` layout.
 - `2026-03-16`: Redesigned all Markdown files with YAML frontmatter and unified headers. Updated `tools/gendocs` templates.
+- 2026-03-16: feature-tests passing after rewriting test_discovery.zig to use abi module directly (eliminates per-entry module ownership conflicts).
+- 2026-03-16: API surface redesign landed (fdfc9db3): src/internal/ wrappers, 57 CLI files migrated, Zig 0.16 platform fixes.
 
 ### Notes
 
