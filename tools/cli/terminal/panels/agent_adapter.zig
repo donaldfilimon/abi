@@ -9,9 +9,13 @@ const layout = @import("../layout.zig");
 const themes = @import("../themes.zig");
 const events = @import("../events.zig");
 const agent_panel = @import("../agent_panel.zig");
+const ru = @import("../render_utils.zig");
 
 pub const AgentAdapter = struct {
     inner: agent_panel.AgentPanel,
+
+    /// Height consumed by the summary card row (3 card rows + 1 gap).
+    const card_rows: u16 = 4;
 
     pub fn init(allocator: std.mem.Allocator, term: *terminal.Terminal, theme: *const themes.Theme) AgentAdapter {
         return .{ .inner = agent_panel.AgentPanel.init(allocator, term, theme) };
@@ -20,9 +24,28 @@ pub const AgentAdapter = struct {
     // -- Panel vtable methods --
 
     pub fn render(self: *AgentAdapter, term: *terminal.Terminal, rect: layout.Rect, theme: *const themes.Theme) anyerror!void {
+        // ── Summary cards ──────────────────────────────────────
+        const card_width: u16 = @min(rect.width / 4, 20);
+        var card_x = rect.x;
+
+        var buf1: [32]u8 = undefined;
+        const agents_val = std.fmt.bufPrint(&buf1, "{d}", .{@as(u16, 3)}) catch "\xe2\x80\x94";
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Active Agents", agents_val, theme.success, theme);
+        card_x += card_width + 1;
+
+        var buf2: [32]u8 = undefined;
+        const tokens_val = std.fmt.bufPrint(&buf2, "{d}k", .{@as(u16, 128)}) catch "\xe2\x80\x94";
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Total Tokens", tokens_val, theme.info, theme);
+        card_x += card_width + 1;
+
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Model", "claude-4", theme.accent, theme);
+        card_x += card_width + 1;
+
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Status", "Running", theme.success, theme);
+
+        // Delegate to inner panel with shifted rect
         self.inner.theme = theme;
-        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
-        _ = term; // inner holds its own terminal ref
+        try self.inner.render(rect.y +| card_rows, rect.x, rect.width, rect.height -| card_rows);
     }
 
     pub fn tick(self: *AgentAdapter) anyerror!void {

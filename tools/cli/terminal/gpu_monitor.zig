@@ -4,6 +4,7 @@
 //! for the TUI interface. Displays device information with sparkline visualizations.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const terminal = @import("terminal.zig");
 const themes = @import("themes.zig");
 const widgets = @import("widgets.zig");
@@ -284,6 +285,10 @@ pub const GpuMonitor = struct {
     pub fn render(self: *GpuMonitor, start_row: u16, start_col: u16, width: u16, height: u16) !void {
         var current_row = start_row;
 
+        // ── Summary cards ──────────────────────────────────────────
+        const card_rows = try self.renderSummaryCards(current_row, start_col, width);
+        current_row += card_rows;
+
         // Render header
         try self.renderHeader(current_row, start_col, width);
         current_row += 2;
@@ -301,9 +306,155 @@ pub const GpuMonitor = struct {
             current_row += rows_used + 1;
         }
 
+        // ── Thermal & ANE section ──────────────────────────────────
+        if (current_row < start_row + height - 6) {
+            const thermal_rows = try self.renderThermalSection(current_row, start_col, width);
+            current_row += thermal_rows;
+        }
+
         // Render scheduler stats at the bottom
         if (current_row < start_row + height - 2) {
             try self.renderSchedulerStats(current_row, start_col, width);
+        }
+    }
+
+    /// Draw four summary cards across the top: Utilization, Memory, Temperature, Backend.
+    fn renderSummaryCards(self: *GpuMonitor, row: u16, col: u16, width: u16) !u16 {
+        if (width < 24) return 0; // too narrow for cards
+
+        const card_width: u16 = @min(width / 4, 20);
+
+        // Aggregate values from tracked devices (use first device or defaults)
+        var util_val: u8 = 0;
+        var mem_pct: u8 = 0;
+        var temp_val: u8 = 0;
+        var backend_name: []const u8 = "None";
+
+        if (self.devices.items.len > 0) {
+            const dev = self.devices.items[0];
+            util_val = dev.utilization;
+            mem_pct = dev.memoryUsagePercent();
+            temp_val = dev.temperature;
+            backend_name = dev.backend_type.name();
+        }
+
+        var card_x = col;
+
+        // Card 1: Utilization
+        var buf1: [32]u8 = undefined;
+        const util_str = std.fmt.bufPrint(&buf1, "{d}%", .{util_val}) catch "\xe2\x80\x94";
+        try render_utils.drawSummaryCard(self.term, card_x, row, card_width, "Utilization", util_str, self.theme.success, self.theme);
+        card_x += card_width + 1;
+
+        // Card 2: Memory
+        var buf2: [32]u8 = undefined;
+        const mem_str = std.fmt.bufPrint(&buf2, "{d}%", .{mem_pct}) catch "\xe2\x80\x94";
+        try render_utils.drawSummaryCard(self.term, card_x, row, card_width, "Memory", mem_str, self.theme.info, self.theme);
+        card_x += card_width + 1;
+
+        // Card 3: Temperature
+        var buf3: [32]u8 = undefined;
+        const temp_color = if (temp_val >= 80) self.theme.@"error" else if (temp_val >= 70) self.theme.warning else self.theme.success;
+        const temp_str = if (temp_val > 0)
+            std.fmt.bufPrint(&buf3, "{d}\xc2\xb0C", .{temp_val}) catch "\xe2\x80\x94"
+        else
+            "N/A";
+        try render_utils.drawSummaryCard(self.term, card_x, row, card_width, "Temperature", temp_str, temp_color, self.theme);
+        card_x += card_width + 1;
+
+        // Card 4: Backend
+        try render_utils.drawSummaryCard(self.term, card_x, row, card_width, "Backend", backend_name, self.theme.accent, self.theme);
+
+        return 4; // 3 card rows + 1 gap
+    }
+
+    /// Render thermal (SMC) data and ANE/CoreML availability.
+    fn renderThermalSection(self: *GpuMonitor, row: u16, col: u16, width: u16) !u16 {
+        if (width < 4) return 0;
+
+        var current_row = row;
+        const inner: usize = @as(usize, width) -| 2;
+
+        // Separator
+        try self.setCursorPosition(current_row, col);
+        try self.term.write(self.theme.border);
+        try self.term.write(widgets.box.lsep);
+        try render_utils.writeRepeat(self.term, widgets.box.h, inner);
+        try self.term.write(widgets.box.rsep);
+        try self.term.write(self.theme.reset);
+        current_row += 1;
+
+        // Thermal title
+        try self.setCursorPosition(current_row, col);
+        try self.term.write(self.theme.border);
+        try self.term.write(widgets.box.v);
+        try self.term.write(self.theme.reset);
+        try self.term.write(" ");
+        try self.term.write(self.theme.bold);
+        try self.term.write(self.theme.warning);
+        try self.term.write("Thermal / ANE");
+        try self.term.write(self.theme.reset);
+        const title_pad = inner -| 14;
+        try render_utils.writeRepeat(self.term, " ", title_pad);
+        try self.term.write(self.theme.border);
+        try self.term.write(widgets.box.v);
+        try self.term.write(self.theme.reset);
+        current_row += 1;
+
+        // SMC data (platform-guarded)
+        if (comptime builtin.os.tag == .macos) {
+            try self.renderSmcData(current_row, col, width);
+        } else {
+            try self.renderInfoRow(current_row, col, inner, "   SMC: not available (non-macOS)", self.theme.text_muted);
+        }
+        current_row += 1;
+
+        // ANE / CoreML line
+        const ane_available = comptime builtin.os.tag == .macos;
+        const ane_msg = if (ane_available)
+            "   Neural Engine: available (CoreML)"
+        else
+            "   Neural Engine: unavailable";
+        const ane_color = if (ane_available) self.theme.success else self.theme.text_muted;
+        try self.renderInfoRow(current_row, col, inner, ane_msg, ane_color);
+        current_row += 1;
+
+        return current_row - row;
+    }
+
+    /// Render a single bordered info row: │ <colored message padded> │
+    fn renderInfoRow(self: *GpuMonitor, row: u16, col: u16, inner: usize, msg: []const u8, color: []const u8) !void {
+        try self.setCursorPosition(row, col);
+        try self.term.write(self.theme.border);
+        try self.term.write(widgets.box.v);
+        try self.term.write(self.theme.reset);
+        try self.term.write(color);
+        try self.term.write(msg);
+        try self.term.write(self.theme.reset);
+        const pad = inner -| unicode.displayWidth(msg);
+        try render_utils.writeRepeat(self.term, " ", pad);
+        try self.term.write(self.theme.border);
+        try self.term.write(widgets.box.v);
+        try self.term.write(self.theme.reset);
+    }
+
+    /// Render SMC thermal data (macOS only, called inside comptime guard).
+    fn renderSmcData(self: *GpuMonitor, row: u16, col: u16, width: u16) !void {
+        const inner: usize = @as(usize, width) -| 2;
+        const smc = @import("abi").platform.smc;
+        const reading = smc.read() catch null;
+
+        if (reading) |r| {
+            var buf: [80]u8 = undefined;
+            const smc_str = std.fmt.bufPrint(&buf, "   Fan: {d} RPM | CPU: {d:.0}\xc2\xb0C | GPU: {d:.0}\xc2\xb0C | Headroom: {d:.0}\xc2\xb0C", .{
+                if (r.fan_count > 0) (r.fan_rpm[0] orelse 0) else @as(u16, 0),
+                r.cpu_temp_c,
+                r.gpu_temp_c,
+                r.thermal_headroom_c,
+            }) catch "   SMC: read error";
+            try self.renderInfoRow(row, col, inner, smc_str, self.theme.text_dim);
+        } else {
+            try self.renderInfoRow(row, col, inner, "   SMC: sensor read failed", self.theme.text_muted);
         }
     }
 
