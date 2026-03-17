@@ -33,6 +33,9 @@ pub fn addFeatureTests(
     const ft_step = b.step("feature-tests", "Run feature module inline tests");
 
     if (is_blocked_darwin) {
+        // addTest tries to link internally; Zig's Mach-O linker fails on
+        // Darwin 25+.  Use addObject for compile-only verification until
+        // upstream Zig fixes Mach-O support.
         const feature_tests = b.addObject(.{
             .name = "feature_tests",
             .root_module = abi_module,

@@ -339,6 +339,49 @@ fn commandSucceeds(io: std.Io, argv: []const []const u8) bool {
     };
 }
 
+/// On Darwin 25+ (macOS 26+), Zig's built-in Mach-O linker cannot resolve
+/// system symbols.  This helper takes a compiled artifact (from addObject
+/// with use_llvm=true) and produces a Run step that relinks via Apple's
+/// /usr/bin/ld and executes the result.
+///
+/// The caller must set `artifact.use_llvm = true` before calling.
+/// Returns a *Run step; the caller can append extra args or depend on .step.
+///
+/// Pass a pre-computed `compiler_rt` path to avoid repeated filesystem walks
+/// across multiple call sites, or `null` to probe on each call.
+pub fn darwinRelink(
+    b: *std.Build,
+    artifact: *std.Build.Step.Compile,
+    output_name: []const u8,
+    compiler_rt: ?[]const u8,
+) *std.Build.Step.Run {
+    const rt_path = compiler_rt orelse findCompilerRt(b);
+    const sdk_path = detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+
+    const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
+    relink.addArg("-platform_version");
+    relink.addArg("macos");
+    // Deployment target 15.0: the last macOS version Zig's linker supports.
+    // This is intentionally the clamped deployment target (matching
+    // resolveNativeTarget), NOT the live host version from sw_vers.
+    relink.addArg("15.0");
+    relink.addArg("15.0");
+    relink.addArg("-syslibroot");
+    relink.addArg(sdk_path);
+    relink.addArg("-e");
+    relink.addArg("_main");
+    relink.addArg("-o");
+    const bin = relink.addOutputFileArg(output_name);
+    relink.addArtifactArg(artifact);
+    relink.addArg("-lSystem");
+    if (rt_path) |path| relink.addArg(path);
+
+    const run = std.Build.Step.Run.create(b, b.fmt("run {s}", .{output_name}));
+    run.addFileArg(bin);
+    run.step.dependOn(&relink.step);
+    return run;
+}
+
 /// Find libcompiler_rt.a path by walking the Zig global cache.
 pub fn findCompilerRt(b: *std.Build) ?[]const u8 {
     const home = b.graph.environ_map.get("HOME") orelse return null;

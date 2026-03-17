@@ -12,6 +12,7 @@ const terminal_mod = @import("terminal.zig");
 const themes_mod = @import("themes.zig");
 const async_loop_mod = @import("async_loop.zig");
 const keybindings = @import("keybindings.zig");
+const render_utils = @import("render_utils.zig");
 const help_overlay_mod = @import("help_overlay.zig");
 
 /// Create a generic dashboard wrapper around any panel type.
@@ -27,6 +28,29 @@ pub fn Dashboard(comptime PanelType: type) type {
 
         pub const MenuType = enum { file, view, tools, window };
 
+        const ToolbarButton = struct {
+            icon: []const u8,
+            label: []const u8,
+            action: keybindings.KeyAction,
+            separator_after: bool = false,
+        };
+
+        const toolbar_buttons = [_]ToolbarButton{
+            .{ .icon = "\u{25b6}", .label = "Run", .action = .pause },
+            .{ .icon = "\u{23f9}", .label = "Stop", .action = .pause },
+            .{ .icon = "\u{27f3}", .label = "Refresh", .action = .refresh, .separator_after = true },
+            .{ .icon = "/", .label = "Find", .action = .find, .separator_after = true },
+            .{ .icon = "\u{2699}", .label = "Settings", .action = .settings_toggle },
+            .{ .icon = "\u{25d1}", .label = "Theme", .action = .theme_next, .separator_after = true },
+            .{ .icon = "?", .label = "Help", .action = .help_toggle },
+        };
+
+        const max_toolbar_zones = toolbar_buttons.len;
+
+        toolbar_zones: [max_toolbar_zones]render_utils.ButtonHitZone =
+            [_]render_utils.ButtonHitZone{.{ .start_col = 0, .end_col = 0 }} ** max_toolbar_zones,
+        toolbar_zone_count: u8 = 0,
+
         allocator: std.mem.Allocator,
         terminal: *terminal_mod.Terminal,
         theme_manager: themes_mod.ThemeManager,
@@ -34,6 +58,7 @@ pub fn Dashboard(comptime PanelType: type) type {
         term_size: terminal_mod.TerminalSize,
         paused: bool,
         show_help: bool,
+        density: render_utils.ViewDensity = .normal,
         active_menu: ?MenuType,
         background_tasks: u32,
         frame_count: u64,
@@ -222,20 +247,38 @@ pub fn Dashboard(comptime PanelType: type) type {
                 }
             }
 
-            // Toolbar clicks (row=1)
+            // Toolbar clicks (row=1) — use rendered hit zones
             if (mouse.row == 1) {
-                // Rough hit zones based on: " [▶ Run]  [⏹ Stop]  [⟳ Refresh]  [⚙ Settings] "
-                if (mouse.col > 0 and mouse.col < 9) {
-                    self.paused = false;
-                    self.showNotification("Resumed loop");
-                } else if (mouse.col >= 10 and mouse.col < 19) {
-                    self.paused = true;
-                    self.showNotification("Paused loop");
-                } else if (mouse.col >= 20 and mouse.col < 32) {
-                    self.clearExpiredNotification();
-                    self.showNotification("Refreshed");
-                } else if (mouse.col >= 33 and mouse.col < 47) {
-                    self.showNotification("Settings dialog");
+                for (0..self.toolbar_zone_count) |i| {
+                    const zone = self.toolbar_zones[i];
+                    if (mouse.col >= zone.start_col and mouse.col < zone.end_col) {
+                        const btn = toolbar_buttons[i];
+                        switch (btn.action) {
+                            .pause => {
+                                if (i == 0) {
+                                    self.paused = false;
+                                    self.showNotification("Resumed");
+                                } else {
+                                    self.paused = true;
+                                    self.showNotification("Paused");
+                                }
+                            },
+                            .refresh => {
+                                self.clearExpiredNotification();
+                                self.showNotification("Refreshed");
+                            },
+                            .theme_next => {
+                                self.theme_manager.nextTheme();
+                                self.updateTheme();
+                                self.showNotification("Theme changed");
+                            },
+                            .help_toggle => self.show_help = true,
+                            .settings_toggle => self.showNotification("Settings (coming soon)"),
+                            .find => self.showNotification("Find (press / in panel)"),
+                            else => {},
+                        }
+                        break;
+                    }
                 }
                 return false;
             }
@@ -290,6 +333,21 @@ pub fn Dashboard(comptime PanelType: type) type {
                     self.showNotification("Theme changed");
                 },
                 .help_toggle => self.show_help = true,
+                .refresh => self.showNotification("Refreshed"),
+                .settings_toggle => self.showNotification("Settings (coming soon)"),
+                .find => {
+                    if (self.extra_key_handler) |handler| return handler(self, key);
+                },
+                .density_toggle => {
+                    self.density = self.density.next();
+                    self.showNotification(self.density.label());
+                },
+                .primary_action, .tab_jump => {
+                    // Delegate to panel-specific key handler
+                    if (self.extra_key_handler) |handler| {
+                        return handler(self, key);
+                    }
+                },
                 .focus_next, .focus_prev => {
                     // Delegate panel focus cycling to the host via extra_key_handler.
                     // In single-panel mode this is a no-op; multi-panel hosts
@@ -338,11 +396,27 @@ pub fn Dashboard(comptime PanelType: type) type {
             try term.write(th.reset);
             try term.write("  File  View  Tools  Window  Help ");
 
-            // Toolbar
+            // Toolbar — render functional buttons with hit zones
             try term.moveTo(1, 0);
-            try term.write(th.text_dim);
-            try term.write(" [▶ Run]  [⏹ Stop]  [⟳ Refresh]  [⚙ Settings] ");
-            try term.write(th.reset);
+            try term.write(" ");
+            var col: u16 = 1;
+            var zone_idx: u8 = 0;
+            for (toolbar_buttons) |btn| {
+                const start = col;
+                const btn_width = try render_utils.drawButton(term, btn.icon, btn.label, th, false);
+                col += btn_width;
+                if (zone_idx < max_toolbar_zones) {
+                    self.toolbar_zones[zone_idx] = .{ .start_col = start, .end_col = col };
+                    zone_idx += 1;
+                }
+                if (btn.separator_after) {
+                    col += try render_utils.drawToolbarSeparator(term, th);
+                } else {
+                    try term.write(" ");
+                    col += 1;
+                }
+            }
+            self.toolbar_zone_count = zone_idx;
 
             // Panel content area — u16 widens to usize implicitly
             try self.panel.render(3, 0, width, height -| 5);

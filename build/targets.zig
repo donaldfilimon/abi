@@ -1,4 +1,5 @@
 const std = @import("std");
+const link = @import("link.zig");
 
 /// Descriptor for a build target (example, tool, etc.).
 pub const BuildTarget = struct {
@@ -145,32 +146,10 @@ pub fn buildTargets(
         applyPerformanceTweaks(exe, exe_optimize);
         const step = b.step(t.step_name, t.description);
 
-        const run = if (is_blocked_darwin) blk: {
-            const link_mod = @import("link.zig");
-            const rt_path = link_mod.findCompilerRt(b);
-            const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
-            relink.addArg("-platform_version");
-            relink.addArg("macos");
-            relink.addArg("15.0");
-            relink.addArg("15.0");
-
-            const sdk_path = link_mod.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
-            relink.addArg("-syslibroot");
-            relink.addArg(sdk_path);
-
-            relink.addArg("-e");
-            relink.addArg("_main");
-            relink.addArg("-o");
-            const bin = relink.addOutputFileArg(b.fmt("{s}_linked", .{t.name}));
-            relink.addArtifactArg(exe);
-            relink.addArg("-lSystem");
-            if (rt_path) |path| relink.addArg(path);
-
-            const r = std.Build.Step.Run.create(b, b.fmt("run {s} linked", .{t.name}));
-            r.addFileArg(bin);
-            r.step.dependOn(&relink.step);
-            break :blk r;
-        } else b.addRunArtifact(exe);
+        const run = if (is_blocked_darwin)
+            link.darwinRelink(b, exe, b.fmt("{s}_linked", .{t.name}), null)
+        else
+            b.addRunArtifact(exe);
 
         if (b.args) |args| run.addArgs(args);
         step.dependOn(&run.step);

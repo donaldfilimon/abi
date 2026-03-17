@@ -25,6 +25,9 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const can_link_metal = link.canLinkMetalFrameworks(b.graph.io, target.result.os.tag);
 
+    // Pre-compute compiler_rt path once for all Darwin relink sites.
+    const darwin_rt: ?[]const u8 = if (is_blocked_darwin) link.findCompilerRt(b) else null;
+
     // ── Build options ───────────────────────────────────────────────────
     const backend_arg = b.option([]const u8, "gpu-backend", gpu.backend_option_help);
 
@@ -103,60 +106,18 @@ pub fn build(b: *std.Build) void {
         link.applyAllPlatformLinks(e.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     }
 
-    const run_cli = if (is_blocked_darwin) blk: {
-        const rt_path = link.findCompilerRt(b);
-        const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
-        relink.addArg("-platform_version");
-        relink.addArg("macos");
-        relink.addArg("15.0");
-        relink.addArg("15.0");
-
-        const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
-        relink.addArg("-syslibroot");
-        relink.addArg(sdk_path);
-
-        relink.addArg("-e");
-        relink.addArg("_main");
-        relink.addArg("-o");
-        const bin = relink.addOutputFileArg("abi_linked");
-        relink.addArtifactArg(exe_obj.?);
-        relink.addArg("-lSystem");
-        if (rt_path) |path| relink.addArg(path);
-
-        const run = std.Build.Step.Run.create(b, "run abi linked");
-        run.addFileArg(bin);
-        run.step.dependOn(&relink.step);
-        break :blk run;
-    } else b.addRunArtifact(exe.?);
+    const run_cli = if (is_blocked_darwin)
+        link.darwinRelink(b, exe_obj.?, "abi_linked", darwin_rt)
+    else
+        b.addRunArtifact(exe.?);
 
     if (b.args) |args| run_cli.addArgs(args);
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
     const run_editor = if (is_blocked_darwin) blk: {
-        const rt_path = link.findCompilerRt(b);
-        const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
-        relink.addArg("-platform_version");
-        relink.addArg("macos");
-        relink.addArg("15.0");
-        relink.addArg("15.0");
-
-        const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
-        relink.addArg("-syslibroot");
-        relink.addArg(sdk_path);
-
-        relink.addArg("-e");
-        relink.addArg("_main");
-        relink.addArg("-o");
-        const bin = relink.addOutputFileArg("abi_editor_linked");
-        relink.addArtifactArg(exe_obj.?);
-        relink.addArg("-lSystem");
-        if (rt_path) |path| relink.addArg(path);
-
-        const run = std.Build.Step.Run.create(b, "run abi editor linked");
-        run.addFileArg(bin);
+        const run = link.darwinRelink(b, exe_obj.?, "abi_editor_linked", darwin_rt);
         run.addArg("ui");
         run.addArg("editor");
-        run.step.dependOn(&relink.step);
         break :blk run;
     } else blk: {
         const run = b.addRunArtifact(exe.?);
@@ -322,7 +283,8 @@ pub fn build(b: *std.Build) void {
 
         test_step = b.step("test", "Run unit tests");
         if (is_blocked_darwin) {
-            // On blocked Darwin, "test" becomes typecheck-only (no linking/running)
+            // addTest tries to link internally; Zig's Mach-O linker fails on
+            // Darwin 25+.  Compile-only until upstream Zig fixes Mach-O support.
             test_step.?.dependOn(&tests.step);
         } else {
             const run_tests = b.addRunArtifact(tests);
@@ -347,6 +309,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     // ── Consistency checks ──────────────────────────────────────────────
@@ -362,10 +325,11 @@ pub fn build(b: *std.Build) void {
             .{ .name = "util", .module = util_module },
             .{ .name = "toolchain_support", .module = toolchain_support_module },
         },
+        darwin_rt,
     ));
 
     const preflight_step = b.step("preflight", "Run integration-test preflight environment diagnostics");
-    preflight_step.dependOn(addHostScriptStep(b, "abi-preflight", "tests/integration/preflight.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
+    preflight_step.dependOn(addHostScriptStep(b, "abi-preflight", "tests/integration/preflight.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}, darwin_rt));
 
     const check_zig_version_step = b.step("check-zig-version", "Verify Zig version consistency");
     check_zig_version_step.dependOn(addHostScriptStep(
@@ -379,6 +343,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "util", .module = util_module },
             .{ .name = "toolchain_support", .module = toolchain_support_module },
         },
+        darwin_rt,
     ));
 
     const check_test_baseline_step = b.step("check-test-baseline", "Verify test baseline consistency");
@@ -390,6 +355,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     const check_zig_016_patterns_step = b.step("check-zig-016-patterns", "Verify Zig 0.16 conformance patterns");
@@ -401,6 +367,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     const check_feature_catalog_step = b.step("check-feature-catalog", "Verify feature catalog consistency");
@@ -412,6 +379,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     var check_gpu_policy_step: ?*std.Build.Step = null;
@@ -448,7 +416,7 @@ pub fn build(b: *std.Build) void {
     }
 
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
-    ralph_gate_step.dependOn(addHostScriptStep(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}));
+    ralph_gate_step.dependOn(addHostScriptStep(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize, &.{}, &.{.{ .name = "util", .module = util_module }}, darwin_rt));
 
     const workflow_contract_step = b.step("check-workflow-orchestration", "Advisory workflow-orchestration contract checks");
     workflow_contract_step.dependOn(addHostScriptStep(
@@ -459,6 +427,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     const workflow_contract_strict_step = b.step("check-workflow-orchestration-strict", "Strict workflow-orchestration contract checks");
@@ -470,6 +439,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{"--strict"},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     // ── CLI DSL registry/codegen ───────────────────────────────────────
@@ -482,6 +452,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{ "--output", ".zig-cache/abi/generated/cli_registry.zig" },
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
@@ -493,6 +464,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{"--snapshot"},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
@@ -504,6 +476,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{ "--check", "--snapshot" },
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     const check_cli_dsl_consistency_step = b.step("check-cli-dsl-consistency", "Verify CLI/TUI DSL organization contracts");
@@ -515,6 +488,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         &.{},
         &.{.{ .name = "util", .module = util_module }},
+        darwin_rt,
     ));
 
     // ── Full check ──────────────────────────────────────────────────────
@@ -609,60 +583,18 @@ pub fn build(b: *std.Build) void {
             link.applyAllPlatformLinks(g_exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
         }
 
-        const run_gendocs = if (is_blocked_darwin) blk: {
-            const rt_path = link.findCompilerRt(b);
-            const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
-            relink.addArg("-platform_version");
-            relink.addArg("macos");
-            relink.addArg("15.0");
-            relink.addArg("15.0");
-
-            const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
-            relink.addArg("-syslibroot");
-            relink.addArg(sdk_path);
-
-            relink.addArg("-e");
-            relink.addArg("_main");
-            relink.addArg("-o");
-            const bin = relink.addOutputFileArg("gendocs_linked");
-            relink.addArtifactArg(gendocs_obj.?);
-            relink.addArg("-lSystem");
-            if (rt_path) |path| relink.addArg(path);
-
-            const run = std.Build.Step.Run.create(b, "run gendocs linked");
-            run.addFileArg(bin);
-            run.step.dependOn(&relink.step);
-            break :blk run;
-        } else b.addRunArtifact(gendocs_exe.?);
+        const run_gendocs = if (is_blocked_darwin)
+            link.darwinRelink(b, gendocs_obj.?, "gendocs_linked", darwin_rt)
+        else
+            b.addRunArtifact(gendocs_exe.?);
 
         if (b.args) |args| run_gendocs.addArgs(args);
         b.step("gendocs", "Generate docs/api, docs/_docs, docs/plans, and docs/api-app").dependOn(&run_gendocs.step);
 
         const run_check_docs = if (is_blocked_darwin) blk: {
-            const rt_path = link.findCompilerRt(b);
-            const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
-            relink.addArg("-platform_version");
-            relink.addArg("macos");
-            relink.addArg("15.0");
-            relink.addArg("15.0");
-
-            const sdk_path = link.detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
-            relink.addArg("-syslibroot");
-            relink.addArg(sdk_path);
-
-            relink.addArg("-e");
-            relink.addArg("_main");
-            relink.addArg("-o");
-            const bin = relink.addOutputFileArg("gendocs_check_linked");
-            relink.addArtifactArg(gendocs_obj.?);
-            relink.addArg("-lSystem");
-            if (rt_path) |path| relink.addArg(path);
-
-            const run = std.Build.Step.Run.create(b, "run gendocs check linked");
-            run.addFileArg(bin);
+            const run = link.darwinRelink(b, gendocs_obj.?, "gendocs_check_linked", darwin_rt);
             run.addArg("--check");
             run.addArg("--untracked-md");
-            run.step.dependOn(&relink.step);
             break :blk run;
         } else blk: {
             const run = b.addRunArtifact(gendocs_exe.?);
@@ -939,48 +871,6 @@ fn usesKnownGoodHostZig(b: *std.Build) bool {
     return std.mem.eql(u8, zig_exe, canonical_host_zig);
 }
 
-fn findCompilerRt(b: *std.Build) ?[]const u8 {
-    const home = b.graph.environ_map.get("HOME") orelse return null;
-    const global_cache = std.fs.path.join(b.allocator, &.{ home, ".cache", "zig", "o" }) catch return null;
-    defer b.allocator.free(global_cache);
-
-    const io = b.graph.io;
-    var dir = std.Io.Dir.openDirAbsolute(io, global_cache, .{ .iterate = true }) catch return null;
-    defer dir.close(io);
-
-    var walker = dir.walk(b.allocator) catch return null;
-    defer walker.deinit();
-
-    while (walker.next(io) catch null) |entry| {
-        if (std.mem.eql(u8, entry.basename, "libcompiler_rt.a")) {
-            return std.fs.path.join(b.allocator, &.{ global_cache, entry.path }) catch return null;
-        }
-    }
-    return null;
-}
-
-/// Get just the compile step from a script runner (for blocked Darwin where
-/// the host cannot execute standalone Zig validation binaries reliably).
-fn addScriptCompileOnly(
-    b: *std.Build,
-    name: []const u8,
-    source: []const u8,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-) *std.Build.Step {
-    const obj = b.addObject(.{
-        .name = name,
-        .root_module = b.createModule(.{
-            .root_source_file = b.path(source),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-    });
-    obj.use_llvm = true;
-    return &obj.step;
-}
-
 fn addHostScriptStep(
     b: *std.Build,
     name: []const u8,
@@ -989,32 +879,25 @@ fn addHostScriptStep(
     optimize: std.builtin.OptimizeMode,
     args: []const []const u8,
     deps: []const struct { name: []const u8, module: *std.Build.Module },
+    compiler_rt: ?[]const u8,
 ) *std.Build.Step {
+    const mod = b.createModule(.{
+        .root_source_file = b.path(source),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    for (deps) |dep| mod.addImport(dep.name, dep.module);
+
     if (useDarwinDegradedMode(b)) {
-        const obj = b.addObject(.{
-            .name = name,
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(source),
-                .target = target,
-                .optimize = optimize,
-                .link_libc = true,
-            }),
-        });
-        for (deps) |dep| obj.root_module.addImport(dep.name, dep.module);
+        const obj = b.addObject(.{ .name = name, .root_module = mod });
         obj.use_llvm = true;
-        return &obj.step;
+        const run = link.darwinRelink(b, obj, b.fmt("{s}_linked", .{name}), compiler_rt);
+        for (args) |arg| run.addArg(arg);
+        return &run.step;
     }
 
-    const exe = b.addExecutable(.{
-        .name = name,
-        .root_module = b.createModule(.{
-            .root_source_file = b.path(source),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-    });
-    for (deps) |dep| exe.root_module.addImport(dep.name, dep.module);
+    const exe = b.addExecutable(.{ .name = name, .root_module = mod });
     const run = b.addRunArtifact(exe);
     for (args) |arg| run.addArg(arg);
     return &run.step;

@@ -55,6 +55,12 @@ pub const Theme = struct {
     tab_inactive: []const u8 = "\x1b[2m", // Dim for inactive tabs
     tab_separator: []const u8 = "\x1b[38;5;240m", // Dark gray separator
 
+    // Toolbar button styles
+    toolbar_bg: []const u8 = "\x1b[48;5;236m", // Toolbar background
+    toolbar_button: []const u8 = "\x1b[38;5;252m", // Button text
+    toolbar_button_active: []const u8 = "\x1b[1;7m", // Active/pressed button
+    toolbar_separator: []const u8 = "\x1b[38;5;240m", // Button separator
+
     // Status dot colors
     status_active: []const u8 = "\x1b[32m", // Green for active tab dot
     status_idle: []const u8 = "\x1b[38;5;240m", // Gray for idle tab dot

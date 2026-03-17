@@ -261,6 +261,72 @@ pub fn fillRow(
 /// Height consumed by a summary card row (3 card rows + 1 gap).
 pub const summary_card_rows: u16 = 4;
 
+// ── Toolbar Primitives ─────────────────────────────────────────
+
+/// A toolbar button's rendered position for mouse hit-testing.
+pub const ButtonHitZone = struct {
+    start_col: u16,
+    end_col: u16, // exclusive
+};
+
+/// Draw a toolbar button like `[▶ Run]` at the current cursor position.
+/// Returns the number of display columns consumed.
+pub fn drawButton(
+    term: *Terminal,
+    icon: []const u8,
+    label: []const u8,
+    theme: *const Theme,
+    highlighted: bool,
+) !u16 {
+    if (highlighted) {
+        try term.write(theme.selection_bg);
+        try term.write(theme.selection_fg);
+    } else {
+        try term.write(theme.text_dim);
+    }
+    try term.write("[");
+    try term.write(icon);
+    try term.write(" ");
+    try term.write(label);
+    try term.write("]");
+    try term.write(theme.reset);
+    const icon_width = unicode.displayWidth(icon);
+    const label_width = unicode.displayWidth(label);
+    return @intCast(1 + icon_width + 1 + label_width + 1);
+}
+
+/// Draw a vertical toolbar separator "│" with dim styling.
+/// Returns the number of display columns consumed.
+pub fn drawToolbarSeparator(term: *Terminal, theme: *const Theme) !u16 {
+    try term.write(theme.text_dim);
+    try term.write(" \u{2502} ");
+    try term.write(theme.reset);
+    return 3;
+}
+
+/// View density controls layout compactness.
+pub const ViewDensity = enum {
+    normal, // Full borders, spacing, detail rows
+    dense, // Reduced spacing, summary + key rows only
+    compact, // Summary cards only, no detail rows
+
+    pub fn next(self: ViewDensity) ViewDensity {
+        return switch (self) {
+            .normal => .dense,
+            .dense => .compact,
+            .compact => .normal,
+        };
+    }
+
+    pub fn label(self: ViewDensity) []const u8 {
+        return switch (self) {
+            .normal => "Normal",
+            .dense => "Dense",
+            .compact => "Compact",
+        };
+    }
+};
+
 // ── Summary Card Primitive ──────────────────────────────────────
 
 /// Draw a compact summary card (3 rows):
