@@ -5,22 +5,10 @@ description: Generated implementation plan
 
 # Docs + Assistant Canonical Sync
 ## Status
-- Status: **Substantially Complete**
+- Status: **In Progress**
 - Owner: **Abbey**
-- Last updated: 2026-03-16
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
-
-### Completion Summary (2026-03-16)
-Core deliverables achieved:
-- AGENTS.md is canonical workflow contract (92 lines)
-- CLAUDE.md is canonical architecture reference
-- tasks/todo.md is the single active execution tracker
-- tasks/lessons.md has 58 correction items
-- Docs v3 pipeline baseline established (RM-005 Done)
-
-Remaining:
-- CLAUDE.md/GEMINI.md wrapper pattern consolidation around AGENTS.md
 
 ## Scope
 Canonical docs wave: align AGENTS.md, zig-master, tasks/todo.md, root status docs, and generated outputs around one workflow and Zig validation contract.

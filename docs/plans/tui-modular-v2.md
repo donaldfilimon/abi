@@ -5,21 +5,10 @@ description: Generated implementation plan
 
 # TUI Modular Extraction v2
 ## Status
-- Status: **In Progress (Steady-State)**
+- Status: **In Progress**
 - Owner: **Abbey**
-- Last updated: 2026-03-16
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
-
-### Progress Summary (2026-03-16)
-Completed:
-- Layout engine extraction onto shared primitives
-- Launcher extraction complete
-- Dashboard extraction complete
-
-Remaining:
-- Regression test coverage expansion (Wave 2C)
-- Input routing and focus-state correctness gaps (Wave 2B)
 
 ## Scope
 Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests.

@@ -322,7 +322,9 @@ fn isMaintainedDocsFile(path: []const u8) bool {
         std.mem.eql(u8, path, "docs/PATTERNS.md") or
         std.mem.eql(u8, path, "docs/ABI_PROJECT_MEMORY.md") or
         std.mem.eql(u8, path, "docs/ABI_WDBX_ARCHITECTURE.md") or
-        std.mem.eql(u8, path, "docs/ZIG_MACOS_LINKER_RESEARCH.md");
+        std.mem.eql(u8, path, "docs/ZIG_MACOS_LINKER_RESEARCH.md") or
+        std.mem.eql(u8, path, "docs/guides/integration-environment.md") or
+        std.mem.eql(u8, path, "docs/guides/cursor_rules.md");
 }
 
 fn shouldSkipDir(path: []const u8) bool {
@@ -358,6 +360,8 @@ test "shouldTrackExtraFile ignores wasm artifacts" {
     try std.testing.expect(!shouldTrackExtraFile("docs/ABI_PROJECT_MEMORY.md"));
     try std.testing.expect(!shouldTrackExtraFile("docs/ABI_WDBX_ARCHITECTURE.md"));
     try std.testing.expect(!shouldTrackExtraFile("docs/ZIG_MACOS_LINKER_RESEARCH.md"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/guides/integration-environment.md"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/guides/cursor_rules.md"));
     try std.testing.expect(shouldTrackExtraFile("docs/plans/index.md"));
 }
 
