@@ -46,6 +46,8 @@ pub const Auth = struct {
         std.c.arc4random_buf(&raw_bytes, raw_bytes.len);
 
         var key_hex: [64]u8 = undefined;
+        // bufPrint into a 64-byte buffer for 32-byte hex encoding always fits
+        // (32 bytes * 2 hex chars/byte = 64 chars exactly), so this cannot fail.
         _ = std.fmt.bufPrint(&key_hex, "{}", .{std.fmt.fmtSliceHexLower(&raw_bytes)}) catch unreachable;
 
         // Hash the key for storage.

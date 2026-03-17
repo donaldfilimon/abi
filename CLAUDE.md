@@ -63,6 +63,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - **Cross-feature imports**: never import another feature's `mod.zig` directly (bypasses the gate). Use `build_options` conditional: `const obs = if (build_options.feat_profiling) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");`
 - **Explicit `.zig` extensions** required on all path imports (Zig 0.16)
 - **Single-module file ownership**: every `.zig` file belongs to exactly one named module
+- **Test roots**: `src/services/tests/mod.zig` is a separate test root with named imports from `build.zig`. Its child files should keep `@import("abi")` — switching them to relative `src/root.zig` imports creates duplicate module ownership during `zig build test`
 
 ## Conventions
 
@@ -70,6 +71,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - `lower_snake_case` functions/files, `PascalCase` types/error sets
 - Conventional commits (`fix:`, `feat:`, `docs:`, `chore:`), atomic scope
 - Explicit error sets, propagate with `try`
+- Bulk find-replace must exclude string literal interiors; run `zig fmt --check` immediately after any bulk text operation
 
 See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 
@@ -89,7 +91,7 @@ See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 ## Feature Flags
 
 All enabled by default. Disable: `-Dfeat-<name>=false`. GPU backend: `-Dgpu-backend=metal`.
-27 flags in `build/options.zig`, 54 combos validated in `build/flags.zig`.
+27 flags in `build/options.zig`, 56 combos validated in `build/flags.zig`.
 Catalog source of truth: `src/core/feature_catalog.zig`.
 
 ## Env Vars
@@ -106,7 +108,7 @@ Catalog source of truth: `src/core/feature_catalog.zig`.
 2. Plan multi-file changes in `tasks/todo.md`
 3. Run strongest available verification gate before completing (see AGENTS.md for gate table)
 4. Update `stub.zig` when changing `mod.zig` signatures
-5. Update `tasks/lessons.md` after corrections
+5. Update `tasks/lessons.md` after corrections (entries are grouped by topic heading; new entries should include root cause and prevention rule)
 6. Version pin changes: update `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, CI config atomically
 
 ## Plugin System
@@ -115,7 +117,7 @@ External modules register at runtime via `abi.registry.plugin.PluginRegistry`. P
 
 ## Raft Consensus
 
-`src/features/network/raft.zig` implements Raft with pre-vote protocol (prevents disruptive elections from partitioned nodes) and partition tolerance (leader steps down on quorum loss). Fault injection via `FaultInjector` for testing. Gated by `feat-networking`.
+`src/features/network/raft.zig` implements Raft with pre-vote protocol (prevents disruptive elections from partitioned nodes) and partition tolerance (leader steps down on quorum loss). Fault injection via `FaultInjector` for testing. Gated by `feat-network`.
 
 ## References
 

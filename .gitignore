@@ -209,13 +209,9 @@ desktop.ini
 nul
 
 # ── Misc generated / workspace ────────────────────────────────────────
-.nx/installation
-.nx/cache
-.nx/workspace-data
 tmpclaude-*-cwd
 tmpclaude-*
 /abi/
-/hello
 examples/c_test
 .discord
 *.cell.out
@@ -223,9 +219,6 @@ examples/c_test
 # ── Trash (cleanup staging) ─────────────────────────────────────────
 TRASH/
 TRASH-FILES.md
-
-# ── Emergency bootstrap toolchain (large, do not track) ────────────
-zig-bootstrap-emergency/
 
 # ── Legacy local probes/binaries (cleanup guard) ────────────────────
 /dummy.txt
@@ -266,13 +259,16 @@ zig-bootstrap-emergency/
 # Ignore all markdown except explicitly allowlisted files.
 # NOTE: new docs under docs/ must be added to this allowlist.
 *.md
+
+# Root-level project docs
 !/AGENTS.md
 !/README.md
 !/CLAUDE.md
 !/GEMINI.md
 !/SECURITY.md
 !/CODE_OF_CONDUCT.md
-!/.zig-bootstrap/README.md
+
+# Documentation tree
 !/docs/README.md
 !/docs/STRUCTURE.md
 !/docs/PATTERNS.md
@@ -281,12 +277,15 @@ zig-bootstrap-emergency/
 !/docs/plans/*.md
 !/docs/api/*.md
 !/docs/guides/*.md
+
+# Subsystem docs
 !/benchmarks/README.md
 !/benchmarks/STRUCTURE.md
 !/examples/README.md
 !/lang/README.md
+
+# Task tracking
 !/tasks/todo.md
-!/tasks/cleanup.md
 !/tasks/lessons.md
 
 # ── .cel toolchain fork (build outputs only) ────────────────────────
@@ -310,8 +309,6 @@ bin_wrap/
 /main.c
 /test_link.c
 /test_lld.zig
-/build_cli.sh
-/build_modules.sh
 /patch_cmake.sh
 /patch_zig_main.sh
 /hi.cel

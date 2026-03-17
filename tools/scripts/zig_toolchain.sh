@@ -1,12 +1,32 @@
 #!/usr/bin/env bash
+#
+# zig_toolchain.sh -- shared Zig toolchain resolution library.
+# Sourced by other scripts (fmt_repo.sh, bootstrap_host_zig.sh, etc.) to
+# locate and validate the pinned Zig compiler for this repository.
+#
+
+# Strict mode only when executed directly (not sourced).
+# See tasks/lessons.md "Shell Script Patterns".
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  set -euo pipefail
+fi
+
+# Internal helper: emit a debug message to stderr when ABI_DEBUG is set.
+_abi_toolchain_debug() {
+  if [[ -n "${ABI_DEBUG:-}" ]]; then
+    printf '[zig_toolchain] %s\n' "$*" >&2
+  fi
+}
 
 ABI_TOOLCHAIN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 ABI_TOOLCHAIN_REPO_ROOT="$(git -C "$ABI_TOOLCHAIN_LIB_DIR" rev-parse --show-toplevel 2>/dev/null || printf '%s\n' "$ABI_TOOLCHAIN_LIB_DIR")"
 
+# Print the repository root directory.
 abi_toolchain_repo_root() {
   printf '%s\n' "$ABI_TOOLCHAIN_REPO_ROOT"
 }
 
+# Return the expected Zig version from .zigversion (cached after first call).
 abi_toolchain_expected_version() {
   if [[ -n "${ABI_TOOLCHAIN_EXPECTED_VERSION:-}" ]]; then
     printf '%s\n' "$ABI_TOOLCHAIN_EXPECTED_VERSION"
@@ -30,6 +50,7 @@ abi_toolchain_expected_version() {
   printf '%s\n' "$ABI_TOOLCHAIN_EXPECTED_VERSION"
 }
 
+# Extract the git commit suffix from a Zig dev version string (e.g. "...+5d71e3051").
 abi_toolchain_commit_from_version() {
   local version="${1:?expected Zig version}"
   if [[ "$version" != *+* ]]; then
@@ -39,6 +60,7 @@ abi_toolchain_commit_from_version() {
   printf '%s\n' "${version##*+}"
 }
 
+# Return the host-Zig cache root directory (default: ~/.cache/abi-host-zig).
 abi_toolchain_cache_root() {
   if [[ -n "${ABI_HOST_ZIG_CACHE_DIR:-}" ]]; then
     printf '%s\n' "$ABI_HOST_ZIG_CACHE_DIR"
@@ -51,6 +73,7 @@ abi_toolchain_cache_root() {
   printf '%s/.cache/abi-host-zig\n' "$HOME"
 }
 
+# Return the Zig source checkout directory (default: ~/zig).
 abi_toolchain_source_dir() {
   if [[ -n "${ABI_ZIG_SOURCE_DIR:-}" ]]; then
     printf '%s\n' "$ABI_ZIG_SOURCE_DIR"
@@ -63,6 +86,7 @@ abi_toolchain_source_dir() {
   printf '%s/zig\n' "$HOME"
 }
 
+# Return the canonical path for a cached host-built Zig binary.
 abi_toolchain_canonical_host_zig() {
   local version="${1:-}"
   if [[ -z "$version" ]]; then
@@ -71,6 +95,7 @@ abi_toolchain_canonical_host_zig() {
   printf '%s/%s/bin/zig\n' "$(abi_toolchain_cache_root)" "$version"
 }
 
+# Portable realpath: resolve a path to its canonical absolute form.
 abi_toolchain_realpath() {
   local target="${1:?expected path}"
   if command -v realpath >/dev/null 2>&1; then
@@ -86,6 +111,7 @@ abi_toolchain_realpath() {
   printf '%s/%s\n' "$dir" "$base"
 }
 
+# Resolve a Zig candidate (path or bare name) to an executable binary path.
 abi_toolchain_resolve_candidate() {
   local candidate="${1:?expected Zig candidate}"
   local resolved
@@ -99,11 +125,13 @@ abi_toolchain_resolve_candidate() {
   abi_toolchain_realpath "$resolved" 2>/dev/null || printf '%s\n' "$resolved"
 }
 
+# Query a Zig binary for its version string.
 abi_toolchain_binary_version() {
   local zig_bin="${1:?expected Zig binary}"
   "$zig_bin" version 2>/dev/null | tr -d '\r'
 }
 
+# Emit key=value inspection data for the current Zig toolchain state.
 abi_toolchain_emit_inspection() {
   local expected_version cache_root cache_path
   expected_version="$(abi_toolchain_expected_version)" || return 1
@@ -129,6 +157,7 @@ abi_toolchain_emit_inspection() {
   local selected_env_name=""
 
   if [[ -n "${ABI_HOST_ZIG:-}" ]]; then
+    _abi_toolchain_debug "trying ABI_HOST_ZIG=$ABI_HOST_ZIG"
     selected_source="abi_host_zig"
     selected_env_name="ABI_HOST_ZIG"
     selected_path="$ABI_HOST_ZIG"
@@ -137,14 +166,18 @@ abi_toolchain_emit_inspection() {
       if [[ "$selected_version" == "$expected_version" ]]; then
         selected_status="ok"
         selected_matches_expected=1
+        _abi_toolchain_debug "ABI_HOST_ZIG matched expected version"
       else
         selected_status="abi_host_zig_mismatch"
+        _abi_toolchain_debug "ABI_HOST_ZIG version mismatch: got $selected_version, want $expected_version"
       fi
     else
       selected_path="$ABI_HOST_ZIG"
       selected_status="abi_host_zig_missing"
+      _abi_toolchain_debug "ABI_HOST_ZIG binary not executable"
     fi
   elif [[ -n "${ZIG_REAL:-}" ]]; then
+    _abi_toolchain_debug "trying ZIG_REAL=$ZIG_REAL"
     selected_source="zig_real"
     selected_env_name="ZIG_REAL"
     selected_path="$ZIG_REAL"
@@ -153,12 +186,17 @@ abi_toolchain_emit_inspection() {
       selected_status="ok"
       if [[ "$selected_version" == "$expected_version" ]]; then
         selected_matches_expected=1
+        _abi_toolchain_debug "ZIG_REAL matched expected version"
+      else
+        _abi_toolchain_debug "ZIG_REAL resolved but version differs: got $selected_version, want $expected_version"
       fi
     else
       selected_path="$ZIG_REAL"
       selected_status="zig_real_missing"
+      _abi_toolchain_debug "ZIG_REAL binary not executable"
     fi
   elif [[ -n "${ZIG:-}" ]]; then
+    _abi_toolchain_debug "trying ZIG=$ZIG"
     selected_source="zig_env"
     selected_env_name="ZIG"
     selected_path="$ZIG"
@@ -167,29 +205,40 @@ abi_toolchain_emit_inspection() {
       selected_status="ok"
       if [[ "$selected_version" == "$expected_version" ]]; then
         selected_matches_expected=1
+        _abi_toolchain_debug "ZIG env matched expected version"
+      else
+        _abi_toolchain_debug "ZIG env resolved but version differs: got $selected_version, want $expected_version"
       fi
     else
       selected_path="$ZIG"
       selected_status="zig_missing"
+      _abi_toolchain_debug "ZIG env binary not executable"
     fi
   elif [[ "$cache_exists" == "1" ]]; then
+    _abi_toolchain_debug "trying cached host-built Zig at $cache_path"
     selected_source="cache"
     selected_path="$cache_path"
     selected_version="$cache_version"
     if [[ "$cache_matches_expected" == "1" ]]; then
       selected_status="ok"
       selected_matches_expected=1
+      _abi_toolchain_debug "cached Zig matched expected version"
     else
       selected_status="cache_stale"
+      _abi_toolchain_debug "cached Zig is stale: got $cache_version, want $expected_version"
     fi
   else
+    _abi_toolchain_debug "trying PATH lookup for 'zig'"
     if selected_path="$(abi_toolchain_resolve_candidate zig 2>/dev/null)"; then
       selected_source="path"
       selected_version="$(abi_toolchain_binary_version "$selected_path" || true)"
       selected_status="ok"
+      _abi_toolchain_debug "found zig on PATH at $selected_path (version: $selected_version)"
       if [[ "$selected_version" == "$expected_version" ]]; then
         selected_matches_expected=1
       fi
+    else
+      _abi_toolchain_debug "no zig found on PATH"
     fi
   fi
 
@@ -207,6 +256,7 @@ abi_toolchain_emit_inspection() {
   printf 'selected_matches_expected=%s\n' "$selected_matches_expected"
 }
 
+# Resolve the active Zig compiler, walking the fallback chain and printing its path.
 abi_toolchain_resolve_active_zig() {
   local line key value
   local expected_version="" cache_path="" cache_exists="" cache_matches_expected=""
@@ -227,6 +277,8 @@ abi_toolchain_resolve_active_zig() {
       selected_matches_expected) selected_matches_expected="$value" ;;
     esac
   done < <(abi_toolchain_emit_inspection)
+
+  _abi_toolchain_debug "resolve result: status=$selected_status source=$selected_source path=$selected_path version=$selected_version"
 
   case "$selected_status" in
     ok)
