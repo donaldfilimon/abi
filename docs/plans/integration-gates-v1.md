@@ -7,17 +7,8 @@ description: Generated implementation plan
 ## Status
 - Status: **Blocked**
 - Owner: **Abbey**
-- Last updated: 2026-03-16
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
-
-### Block Summary (2026-03-16)
-Intentionally blocked pending resolution of:
-- Matrix manifest completion (Unblock criterion A)
-- PTY timeout policy hardening (Unblock criterion A)
-- Preflight blocked-report diagnostics (Unblock criterion B)
-
-Interim cli-tests/tui-tests/launcher smoke checks remain the active gate policy.
 
 ## Scope
 Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green.

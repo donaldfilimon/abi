@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2905+5d71e3051` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`.
+Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2905+5d71e3051` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`. Note: `src/abi.zig` is a legacy internal file — not the package root.
 
 ## Commands
 
@@ -64,6 +64,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - **Explicit `.zig` extensions** required on all path imports (Zig 0.16)
 - **Single-module file ownership**: every `.zig` file belongs to exactly one named module
 - **Test roots**: `src/services/tests/mod.zig` is a separate test root with named imports from `build.zig`. Its child files should keep `@import("abi")` — switching them to relative `src/root.zig` imports creates duplicate module ownership during `zig build test`
+- **Build options stub**: when adding new `feat_*` flags to `build/options.zig`, also update `tools/cli/tests/build_options_stub.zig` to match
 
 ## Conventions
 
@@ -118,6 +119,17 @@ External modules register at runtime via `abi.registry.plugin.PluginRegistry`. P
 ## Raft Consensus
 
 `src/features/network/raft.zig` implements Raft with pre-vote protocol (prevents disruptive elections from partitioned nodes) and partition tolerance (leader steps down on quorum loss). Fault injection via `FaultInjector` for testing. Gated by `feat-network`.
+
+## Benchmarks
+
+```bash
+zig build benchmarks                       # Run all suites
+zig build benchmarks -- --suite=simd       # Run specific suite
+zig build benchmarks -- --quick            # Fast CI-friendly run
+zig build bench-competitive                # Industry comparisons
+```
+
+Suites cover SIMD, memory, concurrency, database, network, crypto, AI, and GPU workloads. See `benchmarks/README.md` for details.
 
 ## References
 

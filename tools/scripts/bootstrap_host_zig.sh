@@ -4,6 +4,116 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 source "$SCRIPT_DIR/zig_toolchain.sh"
 
+# Create a wrapper script that intercepts zig invocations and handles Darwin linker failures
+create_darwin_zig_wrapper() {
+    local real_zig="$1"
+    local wrapper_path="$2"
+    local sysroot="${3:-${SDKROOT:-$(xcrun --show-sdk-path 2>/dev/null || echo /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk)}}"
+    local macos_ver="${4:-$(sw_vers -productVersion 2>/dev/null || echo 26.0)}"
+
+    cat > "$wrapper_path" << 'WRAPPER_EOF'
+#!/bin/bash
+set -euo pipefail
+
+REAL_ZIG="__REAL_ZIG__"
+SYSROOT="__SYSROOT__"
+MACOS_VER="__MACOS_VER__"
+
+find_compiler_rt() {
+    local from_stderr
+    from_stderr="$(grep -oE '/[^ )]*libcompiler_rt\.a' "$STDERR_FILE" 2>/dev/null | head -1 || true)"
+    if [[ -n "$from_stderr" && -f "$from_stderr" ]]; then
+        echo "$from_stderr"
+    fi
+}
+
+find_object_file() {
+    local pattern="$1"
+    local from_stderr
+    from_stderr="$(grep -oE '\.zig-cache/o/[a-f0-9]+/'"$pattern" "$STDERR_FILE" 2>/dev/null | head -1 || true)"
+    if [[ -n "$from_stderr" && -f "$from_stderr" ]]; then echo "$from_stderr"; return; fi
+    find .zig-cache/o -name "$pattern" -newer "$STDERR_FILE" 2>/dev/null | head -1 || true
+}
+
+relink_with_apple_ld() {
+    local obj="$1" output="$2"
+    local compiler_rt; compiler_rt="$(find_compiler_rt)"
+
+    local rt_args=()
+    if [[ -n "$compiler_rt" ]]; then
+        rt_args=("$compiler_rt")
+    fi
+
+    echo "[darwin-wrapper] Relinking $(basename "$output") with Apple ld..." >&2
+    /usr/bin/ld -dynamic \
+        -platform_version macos "$MACOS_VER" "$MACOS_VER" \
+        -syslibroot "$SYSROOT" \
+        -e _main \
+        -o "$output" \
+        "$obj" \
+        -lSystem \
+        "${rt_args[@]}" || {
+        echo "[darwin-wrapper] Apple ld also failed" >&2
+        return 1
+    }
+}
+
+STDERR_FILE="$(mktemp)"
+trap 'rm -f "$STDERR_FILE"' EXIT
+
+if "$REAL_ZIG" "$@" 2>"$STDERR_FILE"; then
+    exit 0
+else
+    ZIG_EXIT=$?
+fi
+
+# Check if this is a linker failure we can fix
+if ! grep -qE '(undefined.*_arc4random_buf|undefined.*__availability_version|using LLD to link|MachO|lld-link)' "$STDERR_FILE" 2>/dev/null; then
+    cat "$STDERR_FILE" >&2
+    exit $ZIG_EXIT
+fi
+
+# Handle zig build (build runner)
+if [[ "${1:-}" == "build" ]]; then
+    BUILD_O="$(find_object_file 'build_zcu.o')"
+    if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
+        BUILD_DIR="$(dirname "$BUILD_O")"
+        BUILD_BIN="$BUILD_DIR/build"
+        relink_with_apple_ld "$BUILD_O" "$BUILD_BIN" || exit 1
+
+        ZIG_LIB_DIR="$("$REAL_ZIG" env 2>/dev/null | grep '\.lib_dir' | sed 's/.*= *"\(.*\)".*/\1/' || true)"
+        if [[ -z "$ZIG_LIB_DIR" ]]; then
+            ZIG_LIB_DIR="$(dirname "$(dirname "$REAL_ZIG")")/lib"
+        fi
+
+        shift
+        exec "$BUILD_BIN" "$REAL_ZIG" "$ZIG_LIB_DIR" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" "$@"
+    fi
+fi
+
+# Handle zig build-exe / test / etc - try to find and relink the output
+OUTPUT_O="$(find_object_file '*.o')"
+if [[ -n "$OUTPUT_O" && -f "$OUTPUT_O" ]]; then
+    # Guess output name from zig command or use basename of .o
+    OUTPUT_BIN="${OUTPUT_O%.o}"
+    if [[ -z "$OUTPUT_BIN" || "$OUTPUT_BIN" == "$OUTPUT_O" ]]; then
+        OUTPUT_BIN="$(dirname "$OUTPUT_O")/output"
+    fi
+    if relink_with_apple_ld "$OUTPUT_O" "$OUTPUT_BIN" 2>/dev/null; then
+        echo "[darwin-wrapper] Successfully relinked $OUTPUT_BIN" >&2
+        exit 0
+    fi
+fi
+
+cat "$STDERR_FILE" >&2
+exit $ZIG_EXIT
+WRAPPER_EOF
+
+    chmod +x "$wrapper_path"
+    sed -i.bak "s|__REAL_ZIG__|$real_zig|g; s|__SYSROOT__|$sysroot|g; s|__MACOS_VER__|$macos_ver|g" "$wrapper_path"
+    rm -f "$wrapper_path.bak"
+}
+
 find_compiler_rt() {
   local stderr_file="$1"
   local from_stderr
@@ -210,6 +320,18 @@ if [[ ! -x "$zig2_bin" ]]; then
   exit 1
 fi
 
+# On Darwin 26+, use a wrapper to handle linker issues during stage3 build
+zig_cmd="$zig2_bin"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  macos_major="${MACOS_VER%%.*}"
+  if [[ "$macos_major" -ge 26 ]]; then
+    wrapper_path="$cache_root/zig2_wrapper_$expected_version"
+    echo "[bootstrap_host_zig] Creating Darwin wrapper for stage3 build..." >&2
+    create_darwin_zig_wrapper "$zig2_bin" "$wrapper_path" "$SYSROOT" "$MACOS_VER"
+    zig_cmd="$wrapper_path"
+  fi
+fi
+
 stage3_args=(
   --prefix "$install_dir"
   --zig-lib-dir "$worktree_dir/lib"
@@ -228,16 +350,117 @@ for prefix in "${prefix_entries[@]}"; do
   stage3_args+=(--search-prefix "$prefix")
 done
 
-if ! run_zig_build_with_relinked_runner "$zig2_bin" "$worktree_dir" "${stage3_args[@]}"; then
-  echo "[bootstrap_host_zig] ERROR: failed to produce the pinned host-built Zig for $expected_version." >&2
-  echo "[bootstrap_host_zig] The helper got through bootstrap setup but the final Zig self-build is still blocked on this Darwin host." >&2
-  echo "[bootstrap_host_zig] Fallback evidence remains: ./tools/scripts/run_build.sh typecheck --summary all" >&2
-  exit 1
+if ! run_zig_build_with_relinked_runner "$zig_cmd" "$worktree_dir" "${stage3_args[@]}"; then
+  echo "[bootstrap_host_zig] Build failed, attempting manual link fallback..." >&2
+
+  # On Darwin 26+, try to manually link the zig executable
+  if [[ "$(uname -s)" == "Darwin" && "${MACOS_VER%%.*}" -ge 26 ]]; then
+    echo "[bootstrap_host_zig] Searching for zig build artifacts..." >&2
+
+    # Look in multiple locations for the zig executable output
+    local zig_exe_path=""
+    local search_paths=(
+      "$worktree_dir/zig-out/bin/zig"
+      "$worktree_dir/.zig-cache/o/"*/zig
+      "$worktree_dir/.zig-cache/o/"*/bin/zig
+      "$cache_root/$expected_version/bin/zig"
+    )
+
+    for candidate in "${search_paths[@]}"; do
+      if [[ -f "$candidate" && -x "$candidate" ]]; then
+        zig_exe_path="$candidate"
+        echo "[bootstrap_host_zig] Found existing zig binary: $zig_exe_path" >&2
+        break
+      fi
+    done
+
+    # If no binary found, look for object files to link
+    if [[ -z "$zig_exe_path" ]]; then
+      local obj_dirs=()
+      while IFS= read -r dir; do
+        obj_dirs+=("$dir")
+      done < <(find "$worktree_dir/.zig-cache/o" -name "*.o" -newer "$worktree_dir/build.zig" -exec dirname {} \; 2>/dev/null | sort -u)
+
+      for obj_dir in "${obj_dirs[@]}"; do
+        local main_o=""
+        # Look for main entry point objects
+        for pattern in zig.o main.o build.o; do
+          if [[ -f "$obj_dir/$pattern" ]]; then
+            main_o="$obj_dir/$pattern"
+            break
+          fi
+        done
+
+        if [[ -n "$main_o" ]]; then
+          echo "[bootstrap_host_zig] Found object directory: $obj_dir (main: $(basename "$main_o"))" >&2
+
+          # Collect all object files in this directory
+          local all_objects=()
+          while IFS= read -r obj; do
+            all_objects+=("$obj")
+          done < <(find "$obj_dir" -maxdepth 1 -name "*.o" -type f 2>/dev/null)
+
+          if [[ ${#all_objects[@]} -gt 0 ]]; then
+            echo "[bootstrap_host_zig] Collected ${#all_objects[@]} object files" >&2
+
+            # Find compiler_rt
+            local comp_rt=""
+            for rt_path in "$worktree_dir"/.zig-cache/o/*/libcompiler_rt.a "$build_dir"/libcompiler_rt.a; do
+              if [[ -f "$rt_path" ]]; then
+                comp_rt="$rt_path"
+                echo "[bootstrap_host_zig] Using compiler_rt: $comp_rt" >&2
+                break
+              fi
+            done
+
+            local rt_args=()
+            [[ -n "$comp_rt" ]] && rt_args=("$comp_rt")
+
+            mkdir -p "$install_dir/bin"
+
+            echo "[bootstrap_host_zig] Linking zig executable with Apple ld..." >&2
+            if /usr/bin/ld -dynamic \
+                -platform_version macos "$MACOS_VER" "$MACOS_VER" \
+                -syslibroot "$SYSROOT" \
+                -e _main \
+                -o "$install_dir/bin/zig" \
+                "${all_objects[@]}" \
+                -lSystem \
+                "${rt_args[@]}" 2>/dev/null; then
+
+              echo "[bootstrap_host_zig] Manual link succeeded!" >&2
+              chmod +x "$install_dir/bin/zig"
+              zig_exe_path="$install_dir/bin/zig"
+              break
+            else
+              echo "[bootstrap_host_zig] Link failed for $obj_dir, trying next..." >&2
+            fi
+          fi
+        fi
+      done
+    fi
+
+    # If we found or created a binary, copy it to install location
+    if [[ -n "$zig_exe_path" && -f "$zig_exe_path" && "$zig_exe_path" != "$install_dir/bin/zig" ]]; then
+      mkdir -p "$install_dir/bin"
+      cp "$zig_exe_path" "$install_dir/bin/zig"
+      chmod +x "$install_dir/bin/zig"
+      echo "[bootstrap_host_zig] Copied zig binary to install location" >&2
+    fi
+
+    if [[ ! -f "$install_dir/bin/zig" ]]; then
+      echo "[bootstrap_host_zig] Could not produce zig binary through manual linking." >&2
+    fi
+  fi
 fi
+
+# Verify the zig binary was produced
 
 zig_bin="$install_dir/bin/zig"
 if [[ ! -x "$zig_bin" ]]; then
   echo "ERROR: bootstrap completed without producing '$zig_bin'." >&2
+  echo "[bootstrap_host_zig] The helper got through bootstrap setup but the final Zig self-build is still blocked on this Darwin host." >&2
+  echo "[bootstrap_host_zig] Fallback evidence remains: ./tools/scripts/run_build.sh typecheck --summary all" >&2
   exit 1
 fi
 
