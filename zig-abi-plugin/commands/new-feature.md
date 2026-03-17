@@ -13,14 +13,32 @@ allowed-tools:
 
 # Scaffold New ABI Feature
 
-Create a complete feature module following all 8 required steps.
+Create a complete feature module following all 9 required steps.
 
 ## Instructions
 
 Given the feature name argument (kebab-case), perform all steps:
 
-### Step 1: Create mod.zig
-Create `src/features/<name>/mod.zig` with a basic module structure:
+### Step 1: Create types.zig
+Create `src/features/<name>/types.zig` with shared type definitions used by both mod and stub. Per the mod/stub contract, shared types go in `types.zig` so both files stay in sync automatically:
+```zig
+//! Shared types for the <name> feature.
+//!
+//! Both mod.zig and stub.zig import from this file so that
+//! public type signatures stay in sync automatically.
+
+const std = @import("std");
+
+/// Configuration for the <name> feature.
+pub const Config = struct {
+    // TODO: add feature-specific configuration fields
+};
+
+// TODO: add shared error sets, enums, and structs used in public API signatures
+```
+
+### Step 2: Create mod.zig
+Create `src/features/<name>/mod.zig` importing shared types from types.zig:
 ```zig
 //! <Name> Feature Module
 //!
@@ -28,10 +46,9 @@ Create `src/features/<name>/mod.zig` with a basic module structure:
 
 const std = @import("std");
 const build_options = @import("build_options");
+const types = @import("types.zig");
 
-pub const Config = struct {
-    // Feature configuration
-};
+pub const Config = types.Config;
 
 pub fn init(config: Config) !void {
     _ = config;
@@ -47,14 +64,15 @@ test {
 }
 ```
 
-### Step 2: Create matching stub.zig
-Create `src/features/<name>/stub.zig` mirroring every `pub fn`:
+### Step 3: Create matching stub.zig
+Create `src/features/<name>/stub.zig` mirroring every `pub fn` and importing shared types:
 ```zig
 //! <Name> stub — disabled at compile time.
 
 const std = @import("std");
+const types = @import("types.zig");
 
-pub const Config = struct {};
+pub const Config = types.Config;
 
 pub fn init(config: Config) !void {
     _ = config;
@@ -68,10 +86,10 @@ test {
 }
 ```
 
-### Step 3: Add flag to build/options.zig
+### Step 4: Add flag to build/options.zig
 Add `feat_<name>: bool = true,` to the `BuildOptions` struct (alphabetical order within the feat_* block). The comptime validation at the bottom of options.zig ensures BuildOptions stays in sync with feature_catalog.zig — a missing flag will be a compile error.
 
-### Step 4: Register in feature_catalog.zig
+### Step 5: Register in feature_catalog.zig
 Add the feature to the `Feature` enum in `src/core/feature_catalog.zig`, and add a metadata entry to the `all` array with:
 - `.feature` — enum value
 - `.description` — one-line purpose
@@ -81,20 +99,20 @@ Add the feature to the `Feature` enum in `src/core/feature_catalog.zig`, and add
 - `.real_module_path` — `"features/<name>/mod.zig"`
 - `.stub_module_path` — `"features/<name>/stub.zig"`
 
-### Step 5: Add to test_discovery.zig
+### Step 6: Add to test_discovery.zig
 Add a test entry to `build/test_discovery.zig` manifest:
 ```zig
 .{ .flag = "feat_<name>", .path = "features/<name>/mod.zig" },
 ```
 
-### Step 6: Add to flags.zig
+### Step 7: Add to flags.zig
 Two changes in `build/flags.zig`:
 1. Add `feat_<name>: bool = true,` field to the `FlagCombo` struct
 2. Add validation rows to `validation_matrix`:
    - `<name>-only` row (only this feature enabled, rest false)
    - `no-<name>` row (this feature false, rest true)
 
-### Step 7: Wire up in root.zig
+### Step 8: Wire up in root.zig
 Add comptime feature selection in `src/root.zig`:
 ```zig
 pub const <name> = if (build_options.feat_<name>)
@@ -103,7 +121,7 @@ else
     @import("features/<name>/stub.zig");
 ```
 
-### Step 8: Verify
+### Step 9: Verify
 Run `zig fmt --check` on all modified files, then report:
 - Files created/modified
 - Which validation steps still need to run (validate-flags, full-check)

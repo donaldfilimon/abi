@@ -92,7 +92,7 @@ See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 ## Feature Flags
 
 All enabled by default. Disable: `-Dfeat-<name>=false`. GPU backend: `-Dgpu-backend=metal`.
-27 flags in `build/options.zig`, 54 combos validated in `build/flags.zig`.
+27 flags in `build/options.zig`, 56 combos validated in `build/flags.zig`.
 Catalog source of truth: `src/core/feature_catalog.zig`.
 
 ## Env Vars
@@ -109,7 +109,7 @@ Catalog source of truth: `src/core/feature_catalog.zig`.
 2. Plan multi-file changes in `tasks/todo.md`
 3. Run strongest available verification gate before completing (see AGENTS.md for gate table)
 4. Update `stub.zig` when changing `mod.zig` signatures
-5. Update `tasks/lessons.md` after corrections
+5. Update `tasks/lessons.md` after corrections (entries are grouped by topic heading; new entries should include root cause and prevention rule)
 6. Version pin changes: update `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, CI config atomically
 
 ## Plugin System
@@ -118,7 +118,7 @@ External modules register at runtime via `abi.registry.plugin.PluginRegistry`. P
 
 ## Raft Consensus
 
-`src/features/network/raft.zig` implements Raft with pre-vote protocol (prevents disruptive elections from partitioned nodes) and partition tolerance (leader steps down on quorum loss). Fault injection via `FaultInjector` for testing. Gated by `feat-networking`.
+`src/features/network/raft.zig` implements Raft with pre-vote protocol (prevents disruptive elections from partitioned nodes) and partition tolerance (leader steps down on quorum loss). Fault injection via `FaultInjector` for testing. Gated by `feat-network`.
 
 ## Benchmarks
 

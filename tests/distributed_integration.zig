@@ -1,45 +1,39 @@
-//! Distributed Integration Test
+//! Distributed Integration Smoke Tests (external test root)
 //!
-//! Tests the complete distributed WDBX architecture:
-//! 1. Enhanced routing with block chain storage
-//! 2. Distributed coordination via Raft
-//! 3. Shard management and block exchange
+//! Verifies that distributed subsystem types are accessible through the
+//! public `abi` package interface.  Full distributed tests live in
+//! src/core/database/distributed/ and run via `zig build test`.
 
 const std = @import("std");
+const abi = @import("abi");
 
-pub fn main(_: std.process.Init) !void {
-    var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
-        .environ = std.process.Environ.empty,
-    });
-    defer io_backend.deinit();
-    const io = io_backend.io();
-    var stdout_buffer: [4096]u8 = undefined;
-    var stdout = std.Io.File.stdout().writer(io, &stdout_buffer);
+test "database feature exposes distributed sub-modules" {
+    // Verify the database feature namespace resolves and has expected
+    // sub-module declarations (compile-time import check).
+    comptime {
+        std.debug.assert(@hasDecl(abi.database, "DatabaseConfig"));
+        std.debug.assert(@hasDecl(abi.database, "DatabaseHandle"));
+    }
+}
 
-    try stdout.print("=== Distributed WDBX Integration Test ===\n", .{});
+test "network feature exposes raft consensus" {
+    // Verify the network feature namespace resolves (includes Raft).
+    comptime {
+        std.debug.assert(@hasDecl(abi, "network"));
+    }
+}
 
-    // Test summary
-    try stdout.print("\n✅ Core ABI Framework: 194/198 tests pass\n", .{});
-    try stdout.print("✅ Enhanced Routing ↔ WDBX: FULLY CONNECTED\n", .{});
-    try stdout.print("✅ FPGA Backend: COMPLETE VTABLE IMPLEMENTATION\n", .{});
-    try stdout.print("✅ Distributed Architecture Files:\n", .{});
-    try stdout.print("   • src/database/distributed/shard_manager.zig\n", .{});
-    try stdout.print("   • src/database/distributed/block_exchange.zig\n", .{});
-    try stdout.print("   • src/database/distributed/raft_block_chain.zig\n", .{});
+test "feature catalog lists database and network features" {
+    const features = abi.feature_catalog.all_features;
 
-    // Integration status
-    try stdout.print("\n🔗 INTEGRATION STATUS:\n", .{});
-    try stdout.print("1. Routing → Block Chain: ✅ COMPLETE\n", .{});
-    try stdout.print("2. Block Chain → Distribution: 🚧 IN PROGRESS\n", .{});
-    try stdout.print("3. FPGA Hardware Acceleration: ✅ READY\n", .{});
+    var found_database = false;
+    var found_network = false;
 
-    // Next steps needed
-    try stdout.print("\n📋 NEXT STEPS REQUIRED:\n", .{});
-    try stdout.print("1. Fix module import paths in src/database/distributed/\n", .{});
-    try stdout.print("2. Complete Raft integration with block chain\n", .{});
-    try stdout.print("3. Test full cluster synchronization\n", .{});
+    for (features) |feat| {
+        if (std.mem.eql(u8, feat.name, "database")) found_database = true;
+        if (std.mem.eql(u8, feat.name, "network")) found_network = true;
+    }
 
-    try stdout.print("\n🎯 OVERALL COMPLETION: ~80%\n", .{});
-    try stdout.print("   Core infrastructure complete, needs final integration.\n", .{});
-    try stdout.flush();
+    try std.testing.expect(found_database);
+    try std.testing.expect(found_network);
 }

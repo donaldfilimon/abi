@@ -338,6 +338,8 @@ test "Persistence round-trip save and load" {
     defer {
         var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         const io = io_backend.io();
+        // Deletion failure is benign: this is test cleanup of a temp file.
+        // The OS will reclaim /tmp on reboot regardless.
         std.Io.Dir.cwd().deleteFile(io, path) catch {};
         io_backend.deinit();
     }
@@ -374,6 +376,8 @@ test "Persistence invalid magic" {
     try file.writeStreamingAll(io, "NOPE\x01\x00\x00\x00");
     file.close(io);
 
+    // Deletion failure is benign: this is test cleanup of a temp file.
+    // The OS will reclaim /tmp on reboot regardless.
     defer std.Io.Dir.cwd().deleteFile(io, path) catch {};
 
     try std.testing.expectError(PersistenceError.InvalidMagic, load(allocator, path));

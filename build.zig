@@ -492,23 +492,33 @@ pub fn build(b: *std.Build) void {
         darwin_rt,
     ));
 
+    // ── Shared check dependency lists ──────────────────────────────────
+    // Non-optional deterministic checks shared by full-check, gate-hardening, and verify-all.
+    const core_checks = [_]*std.Build.Step{
+        cli_tests_step,
+        validate_flags_step,
+        import_check_step,
+        check_zig_version_step,
+        check_test_baseline_step,
+        check_zig_016_patterns_step,
+        check_feature_catalog_step,
+        check_cli_registry_step,
+        check_cli_dsl_consistency_step,
+        workflow_contract_strict_step,
+    };
+    // Optional checks shared by full-check, gate-hardening, and verify-all.
+    const optional_checks = [_]?*std.Build.Step{
+        typecheck_step,
+        test_step,
+        check_gpu_policy_step,
+        tui_tests_step,
+    };
+
     // ── Full check ──────────────────────────────────────────────────────
     const full_check_step = b.step("full-check", "Run the local confidence gate across deterministic leaf checks");
     full_check_step.dependOn(&lint_fmt.step);
-    if (typecheck_step) |step| full_check_step.dependOn(step);
-    if (test_step) |ts| full_check_step.dependOn(ts);
-    full_check_step.dependOn(cli_tests_step);
-    full_check_step.dependOn(validate_flags_step);
-    full_check_step.dependOn(import_check_step);
-    full_check_step.dependOn(check_zig_version_step);
-    full_check_step.dependOn(check_test_baseline_step);
-    full_check_step.dependOn(check_zig_016_patterns_step);
-    full_check_step.dependOn(check_feature_catalog_step);
-    if (check_gpu_policy_step) |step| full_check_step.dependOn(step);
-    full_check_step.dependOn(check_cli_registry_step);
-    full_check_step.dependOn(check_cli_dsl_consistency_step);
-    full_check_step.dependOn(workflow_contract_strict_step);
-    if (tui_tests_step) |step| full_check_step.dependOn(step);
+    for (&core_checks) |s| full_check_step.dependOn(s);
+    for (&optional_checks) |opt| if (opt) |s| full_check_step.dependOn(s);
     if (launcher_tests_step) |step| full_check_step.dependOn(step);
     if (wdbx_fast_tests_step) |step| full_check_step.dependOn(step);
 
@@ -780,41 +790,18 @@ pub fn build(b: *std.Build) void {
         if (is_blocked_darwin) &server_exe.step else &b.addInstallArtifact(server_exe, .{}).step,
     );
 
-    // ── Verify-all ──────────────────────────────────────────────────────
+    // ── Gate hardening ────────────────────────────────────────────────
     const gate_hardening_step = b.step("gate-hardening", "Run deterministic gate hardening checks");
     gate_hardening_step.dependOn(toolchain_doctor_step);
-    if (typecheck_step) |step| gate_hardening_step.dependOn(step);
-    if (test_step) |step| gate_hardening_step.dependOn(step);
-    gate_hardening_step.dependOn(cli_tests_step);
-    if (tui_tests_step) |step| gate_hardening_step.dependOn(step);
-    gate_hardening_step.dependOn(validate_flags_step);
-    gate_hardening_step.dependOn(import_check_step);
-    gate_hardening_step.dependOn(check_zig_version_step);
-    gate_hardening_step.dependOn(check_test_baseline_step);
-    gate_hardening_step.dependOn(check_zig_016_patterns_step);
-    gate_hardening_step.dependOn(check_feature_catalog_step);
-    if (check_gpu_policy_step) |step| gate_hardening_step.dependOn(step);
-    gate_hardening_step.dependOn(check_cli_dsl_consistency_step);
-    gate_hardening_step.dependOn(check_cli_registry_step);
+    for (&core_checks) |s| gate_hardening_step.dependOn(s);
+    for (&optional_checks) |opt| if (opt) |s| gate_hardening_step.dependOn(s);
     if (check_docs_step) |step| gate_hardening_step.dependOn(step);
-    gate_hardening_step.dependOn(workflow_contract_strict_step);
 
+    // ── Verify-all ──────────────────────────────────────────────────────
     const verify_all_step = b.step("verify-all", "Run the superset validation gate across all deterministic leaf checks");
     verify_all_step.dependOn(&lint_fmt.step);
-    if (typecheck_step) |step| verify_all_step.dependOn(step);
-    if (test_step) |step| verify_all_step.dependOn(step);
-    verify_all_step.dependOn(cli_tests_step);
-    if (tui_tests_step) |step| verify_all_step.dependOn(step);
-    verify_all_step.dependOn(validate_flags_step);
-    verify_all_step.dependOn(import_check_step);
-    verify_all_step.dependOn(check_zig_version_step);
-    verify_all_step.dependOn(check_test_baseline_step);
-    verify_all_step.dependOn(check_zig_016_patterns_step);
-    verify_all_step.dependOn(check_feature_catalog_step);
-    if (check_gpu_policy_step) |step| verify_all_step.dependOn(step);
-    verify_all_step.dependOn(check_cli_registry_step);
-    verify_all_step.dependOn(check_cli_dsl_consistency_step);
-    verify_all_step.dependOn(workflow_contract_strict_step);
+    for (&core_checks) |s| verify_all_step.dependOn(s);
+    for (&optional_checks) |opt| if (opt) |s| verify_all_step.dependOn(s);
     if (wdbx_fast_tests_step) |step| verify_all_step.dependOn(step);
     verify_all_step.dependOn(feature_tests_step);
     verify_all_step.dependOn(examples_step);
