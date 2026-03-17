@@ -1,6 +1,6 @@
 ---
 name: abi-architecture
-description: Use when working with ABI module structure, feature gating, import rules, build system wiring, or asking about how the codebase is organized. Triggers on questions about mod.zig/stub.zig, feature flags, build/modules.zig, named modules, or cross-module imports.
+description: Use when working with ABI module structure, feature gating, import rules, build system wiring, or asking about how the codebase is organized. Triggers on questions about mod.zig/stub.zig, feature flags, build/modules.zig, build/module_catalog.zig, named modules, or cross-module imports.
 ---
 
 # ABI Architecture & Module Guidelines
@@ -65,7 +65,7 @@ bindings/                          # Language bindings (moved from src/bindings/
 ## Feature Flag Conventions
 
 - Prefix: `feat_<name>` (NOT `enable_<name>`), all default to `true`
-- 25 flags in `build/options.zig`, 54 combos validated in `build/flags.zig`
+- 27 flags in `build/options.zig`, 56 combos validated in `build/flags.zig`
 - Flags exported via `build_options` module
 - Disable: `zig build -Dfeat-gpu=false`
 
@@ -92,8 +92,9 @@ Every comptime-gated feature has paired files:
 ## Build System
 
 - `build/modules.zig` — Module creation (`wireAbiImports(module, build_opts)` wires `build_options`; no separate foundation module)
-- `build/options.zig` — Feature flag definitions
-- `build/flags.zig` — Validation matrix (54 flag combos)
+- `build/module_catalog.zig` — Feature module registration and catalog metadata
+- `build/options.zig` — Feature flag definitions (27 `feat_*` flags)
+- `build/flags.zig` — Validation matrix (56 flag combos)
 - `build/test_discovery.zig` — Feature test manifest (81+ entries)
 
 ## Performance & SIMD
