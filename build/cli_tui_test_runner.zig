@@ -24,14 +24,10 @@ pub fn main(_: std.process.Init) anyerror!void {
     for (test_fn_list) |test_fn| {
         std.debug.print("{s}... ", .{test_fn.name});
 
-        var timer = std.time.Timer.start() catch {
-            std.debug.print("FAIL (timer unavailable)\n", .{});
-            failed += 1;
-            continue;
-        };
+        const start_ts = getMonotonicNs();
 
         if (test_fn.func()) |_| {
-            const elapsed_ns = timer.read();
+            const elapsed_ns = getMonotonicNs() - start_ts;
             if (elapsed_ns > active_timeout_ns) {
                 const elapsed_s = elapsed_ns / std.time.ns_per_s;
                 const limit_s = active_timeout_ns / std.time.ns_per_s;
@@ -45,7 +41,7 @@ pub fn main(_: std.process.Init) anyerror!void {
                 passed += 1;
             }
         } else |err| {
-            const elapsed_ns = timer.read();
+            const elapsed_ns = getMonotonicNs() - start_ts;
             if (elapsed_ns > active_timeout_ns) {
                 const elapsed_s = elapsed_ns / std.time.ns_per_s;
                 const limit_s = active_timeout_ns / std.time.ns_per_s;
@@ -71,4 +67,15 @@ pub fn main(_: std.process.Init) anyerror!void {
     );
 
     if (failed != 0 or timed_out != 0) std.process.exit(1);
+}
+
+/// Monotonic nanosecond timestamp via POSIX clock_gettime.
+/// Returns 0 on failure (timing degrades gracefully).
+fn getMonotonicNs() u64 {
+    if (comptime builtin.os.tag == .windows) return 0;
+    var ts: std.posix.timespec = undefined;
+    if (std.posix.errno(std.posix.system.clock_gettime(.MONOTONIC, &ts)) != .SUCCESS) return 0;
+    const sec: u64 = @intCast(if (ts.sec < 0) 0 else ts.sec);
+    const nsec: u64 = @intCast(if (ts.nsec < 0) 0 else ts.nsec);
+    return sec * std.time.ns_per_s + nsec;
 }

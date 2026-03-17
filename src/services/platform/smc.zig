@@ -66,7 +66,7 @@ const SmcKeyData = extern struct {
     bytes: [32]u8 = .{0} ** 32,
 };
 
-const SmcKeyInfoData = packed struct {
+const SmcKeyInfoData = extern struct {
     data_size: u32 = 0,
     data_type: u32 = 0,
     data_attributes: u8 = 0,

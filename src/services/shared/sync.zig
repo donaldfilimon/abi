@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const time_mod = @import("time.zig");
 
 /// Mutex is a synchronization primitive which enforces atomic access to a
 /// shared region of code known as the "critical section".
@@ -174,7 +175,7 @@ pub const Condition = struct {
         defer mutex.lock();
 
         // Spin-wait with yield for the specified duration
-        var timer = std.time.Timer.start() catch return error.Timeout;
+        var timer = time_mod.Timer.start() catch return error.Timeout;
         while (timer.read() < timeout_ns) {
             std.atomic.spinLoopHint();
         }

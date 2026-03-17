@@ -189,6 +189,7 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
         });
         launcher_tests_mod.addImport("abi", abi_module);
+        launcher_tests_mod.addImport("toolchain_support", toolchain_support_module);
 
         const launcher_tests = b.addTest(.{
             .root_module = launcher_tests_mod,
