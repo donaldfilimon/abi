@@ -61,11 +61,11 @@ pub const RemoteNode = struct {
 // ---------------------------------------------------------------------------
 // Simulated-warning guard (log once, not every call)
 // ---------------------------------------------------------------------------
-var warned_no_transport: bool = false;
+var warned_no_transport: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
 
 fn warnNoTransportOnce() void {
-    if (!warned_no_transport) {
-        warned_no_transport = true;
+    if (!warned_no_transport.load(.acquire)) {
+        warned_no_transport.store(true, .release);
         std.log.warn("[gpu-network] No TcpTransport connected – AllReduce is simulated locally.", .{});
     }
 }
