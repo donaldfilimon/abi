@@ -1,12 +1,16 @@
 //! ABI Framework WASM Bindings
 //!
-//! Exports a subset of the ABI framework for use in WebAssembly environments.
-//! OS-dependent features (network, gpu, database, storage, cloud, web,
+//! Provides a wasm32-freestanding interface to a subset of the ABI framework.
+//! A JavaScript (or other WASM-capable) host loads the compiled `.wasm` module,
+//! calls `alloc` / `dealloc` to pass data across the linear-memory boundary,
+//! and invokes the exported `cache_*`, `analytics_*`, and `search_*` functions.
+//!
+//! OS-dependent features (network, GPU, database, storage, cloud, web,
 //! profiling) are disabled at compile time via build flags.
 //!
 //! ## Design
 //!
-//! wasm32-freestanding lacks POSIX, libc, and 64-bit atomics — so the
+//! wasm32-freestanding lacks POSIX, libc, and 64-bit atomics, so the
 //! upstream feature modules (cache, analytics, search, auth) cannot be
 //! used directly. Instead, this file provides lightweight WASM-native
 //! implementations that mirror the framework APIs and are safe for the
@@ -22,6 +26,25 @@
 //! since OS allocators are unavailable on `wasm32-freestanding`.
 //! The host controls the WASM linear memory; `alloc` / `dealloc` expose
 //! a simple allocator interface for passing data across the boundary.
+//!
+//! ## Usage (JavaScript host)
+//!
+//! ```js
+//! const { instance } = await WebAssembly.instantiateStreaming(fetch("abi.wasm"));
+//! const { alloc, dealloc, cache_init, cache_put, cache_get } = instance.exports;
+//! cache_init();
+//! // ... encode key/value into WASM memory via alloc(), call cache_put(), etc.
+//! ```
+//!
+//! ## Limitations
+//!
+//! - All memory comes from a single 1 MB `FixedBufferAllocator`; there is no
+//!   virtual memory, mmap, or growable heap.
+//! - No threading or async I/O; all calls are synchronous and single-threaded.
+//! - Collection sizes are capped (256 cache entries, 64 search documents,
+//!   256 analytics events) to keep memory bounded.
+//! - On unrecoverable errors the module traps; call `abi_wasm_last_error` from
+//!   the host to retrieve a diagnostic message before the trap fires.
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -30,7 +53,15 @@ const builtin = @import("builtin");
 // WASM Allocator
 // ============================================================================
 
-/// 1 MB scratch space — sized for typical WASM workloads.
+/// Fixed 1 MB scratch space backing all WASM-side allocations.
+///
+/// 1 MB is sufficient for typical request/response workloads (a handful of
+/// cache entries, search documents, and analytics events).  If your use-case
+/// requires larger payloads — e.g. indexing many documents or caching big
+/// blobs — increase this constant and recompile.  The value is compiled into
+/// the WASM linear memory, so larger buffers increase the initial memory
+/// footprint of the module.  Call `alloc_reset` between independent
+/// request/response cycles to reclaim the entire buffer without growing it.
 var wasm_buffer: [1024 * 1024]u8 = undefined;
 var fba: std.heap.FixedBufferAllocator = std.heap.FixedBufferAllocator.init(&wasm_buffer);
 
@@ -86,6 +117,12 @@ export fn version(out_ptr: [*]u8, out_max: usize) usize {
 // collision-heavy workloads and deletions.
 // ============================================================================
 
+/// Maximum number of live key-value pairs in the WASM cache.
+///
+/// 256 keeps the hash-map metadata well within the 1 MB scratch buffer while
+/// covering most browser-side caching scenarios.  `cache_put` returns -1 when
+/// this limit is reached.  To raise the cap, increase this constant and — if
+/// the average entry size is large — also increase `wasm_buffer`.
 const CACHE_MAX_ENTRIES = 256;
 
 var cache_entries: std.StringHashMapUnmanaged([]u8) = .empty;
@@ -376,11 +413,35 @@ export fn search_doc_count() u32 {
 }
 
 // ============================================================================
+// Error reporting
+// ============================================================================
+
+/// Module-level buffer that stores the most recent panic/error message so
+/// the JS host can retrieve it (via `abi_wasm_last_error`) before the trap.
+var last_error_buf: [256]u8 = [_]u8{0} ** 256;
+var last_error_len: usize = 0;
+
+/// Copy the last error message into `out_ptr[0..out_max]`.
+/// The host should call this after catching a trap to obtain diagnostic
+/// context.  Returns the number of bytes written, or 0 if no error has
+/// been recorded.
+export fn abi_wasm_last_error(out_ptr: [*]u8, out_max: usize) usize {
+    if (last_error_len == 0) return 0;
+    const len = @min(last_error_len, out_max);
+    @memcpy(out_ptr[0..len], last_error_buf[0..len]);
+    return len;
+}
+
+// ============================================================================
 // Panic handler (required for freestanding)
 // ============================================================================
 
 pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    _ = msg;
+    // Persist a truncated copy of the panic message so the host can read it
+    // via `abi_wasm_last_error` after catching the trap.
+    const len = @min(msg.len, last_error_buf.len);
+    @memcpy(last_error_buf[0..len], msg[0..len]);
+    last_error_len = len;
     @trap();
 }
 
