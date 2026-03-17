@@ -64,8 +64,8 @@ pub const RemoteNode = struct {
 var warned_no_transport: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
 
 fn warnNoTransportOnce() void {
-    if (!warned_no_transport.load(.acquire)) {
-        warned_no_transport.store(true, .release);
+    // Use cmpxchg to avoid TOCTOU race between load and store.
+    if (warned_no_transport.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
         std.log.warn("[gpu-network] No TcpTransport connected – AllReduce is simulated locally.", .{});
     }
 }
