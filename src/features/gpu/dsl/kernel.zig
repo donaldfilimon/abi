@@ -4,9 +4,9 @@
 //! types, expressions, and statements into a compilable kernel.
 
 const std = @import("std");
-const types = @import("types");
-const expr = @import("expr");
-const stmt = @import("stmt");
+const types = @import("types.zig");
+const expr = @import("expr.zig");
+const stmt = @import("stmt.zig");
 
 const ExprSet = std.AutoHashMapUnmanaged(*const expr.Expr, void);
 const StmtSet = std.AutoHashMapUnmanaged(*const stmt.Stmt, void);

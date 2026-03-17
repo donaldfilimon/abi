@@ -18,9 +18,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const multi_device = @import("../multi_device");
-const peer_transfer_mod = @import("mod");
-const stream_mod = @import("../stream");
+const multi_device = @import("../multi_device.zig");
+const peer_transfer_mod = @import("mod.zig");
+const stream_mod = @import("../stream.zig");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const ReduceOp = multi_device.ReduceOp;

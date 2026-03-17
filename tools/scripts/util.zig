@@ -63,8 +63,10 @@ fn readAllAlloc(io: std.Io, file: std.Io.File, allocator: std.mem.Allocator, lim
 
     var buffer: [4096]u8 = undefined;
     while (true) {
-        const amt = try file.readStreaming(io, &.{&buffer});
-        if (amt == 0) break;
+        const amt = file.readStreaming(io, &.{&buffer}) catch |err| switch (err) {
+            error.EndOfStream => break,
+            else => return err,
+        };
         try list.appendSlice(allocator, buffer[0..amt]);
         if (list.items.len > limit) return error.StreamTooLong;
     }

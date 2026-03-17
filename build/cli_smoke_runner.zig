@@ -34,8 +34,12 @@ const safe_function_vectors = [_]FixedVector{
     .{ .id = "task.stats", .args = &.{ "task", "stats" } },
     .{ .id = "config.show", .args = &.{ "config", "show" } },
     .{ .id = "config.path", .args = &.{ "config", "path" } },
+    .{ .id = "llm.run.help", .args = &.{ "llm", "run", "--help" } },
+    .{ .id = "llm.session.help", .args = &.{ "llm", "session", "--help" } },
     .{ .id = "llm.providers", .args = &.{ "llm", "providers" } },
+    .{ .id = "llm.providers.help", .args = &.{ "llm", "providers", "--help" } },
     .{ .id = "llm.plugins.list", .args = &.{ "llm", "plugins", "list" } },
+    .{ .id = "llm.plugins.help", .args = &.{ "llm", "plugins", "--help" } },
     .{ .id = "model.list", .args = &.{ "model", "list" } },
     .{ .id = "model.path", .args = &.{ "model", "path" } },
     .{ .id = "profile.show", .args = &.{ "profile", "show" } },
@@ -169,7 +173,7 @@ fn runVector(io: std.Io, allocator: std.mem.Allocator, abi_bin_path: []const u8,
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

@@ -8,7 +8,7 @@ pub fn forFeature(comptime feature: feature_catalog.Feature) []const []const u8 
 
 pub fn forParitySpec(comptime spec: feature_catalog.ParitySpec) []const []const u8 {
     return switch (spec) {
-        .gpu => @import("gpu").required[0..],
+        .gpu => @import("gpu.zig").required[0..],
         .ai => ai[0..],
         .database => database[0..],
         .network => network[0..],
@@ -28,6 +28,8 @@ pub fn forParitySpec(comptime spec: feature_catalog.ParitySpec) []const []const 
         .compute => compute[0..],
         .documents => documents[0..],
         .desktop => desktop[0..],
+        .lsp => lsp[0..],
+        .mcp => mcp[0..],
     };
 }
 
@@ -99,7 +101,7 @@ pub const web = [_][]const u8{
     "ChatRequest",
     "ChatResponse",
     "ChatResult",
-    "PersonaRouter",
+    "ProfileRouter",
     "Route",
     "RouteContext",
     "handlers",
@@ -381,4 +383,31 @@ pub const documents = [_][]const u8{
 
 pub const desktop = [_][]const u8{
     "macos_menu",
+};
+
+pub const lsp = [_][]const u8{
+    "Context",
+    "Config",
+    "Client",
+    "Response",
+    "types",
+    "jsonrpc",
+    "resolveWorkspaceRoot",
+    "resolvePath",
+    "pathToUri",
+    "EnvConfig",
+    "loadConfigFromEnv",
+    "isEnabled",
+};
+
+pub const mcp = [_][]const u8{
+    "Context",
+    "types",
+    "Server",
+    "RegisteredTool",
+    "zls_bridge",
+    "createZlsServer",
+    "createCombinedServer",
+    "createDatabaseServer",
+    "isEnabled",
 };

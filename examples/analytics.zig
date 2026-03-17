@@ -9,7 +9,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -20,7 +20,7 @@ pub fn main(_: std.process.Init) !void {
         .build();
     defer framework.deinit();
 
-    if (!abi.features.analytics.isEnabled()) {
+    if (!abi.analytics.isEnabled()) {
         std.debug.print("Analytics feature is disabled. Enable with -Denable-analytics=true\n", .{});
         return;
     }
@@ -28,7 +28,7 @@ pub fn main(_: std.process.Init) !void {
     std.debug.print("=== ABI Analytics Example ===\n\n", .{});
 
     // Initialize analytics engine
-    var engine = abi.features.analytics.Engine.init(allocator, .{
+    var engine = abi.analytics.Engine.init(allocator, .{
         .buffer_capacity = 100,
         .flush_interval_ms = 5000,
     });

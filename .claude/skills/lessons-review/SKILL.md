@@ -1,6 +1,6 @@
 ---
 name: lessons-review
-description: Review tasks/lessons.md for recurring pitfalls before starting work on Zig codebase changes
+description: This skill should be used when starting any work session involving the ABI Zig codebase, before editing source files, modifying build configuration, or running build/test commands. Automatically reviews tasks/lessons.md for recurring pitfalls to prevent repeat mistakes.
 user-invocable: false
 ---
 
@@ -24,32 +24,20 @@ Read `tasks/lessons.md` in the repository root. If the file does not exist or is
 
 ### Step 2: Summarize recent relevant lessons
 
-Identify the 3-5 most recent lessons that are relevant to the current task. Present a brief summary (one line per lesson) so the context is available without re-reading the full file each time.
+Identify the 3-5 most recent lessons relevant to the current task. Present a brief summary (one line per lesson) so the context is available without re-reading the full file each time.
 
 ### Step 3: Highlight critical categories
 
 Pay special attention to and always surface lessons in these categories, regardless of recency:
 
-**Zig 0.16 API changes:**
-- `std.time.timestamp()` was removed; use `time.unixSeconds()`.
-- `usingnamespace` was removed; pass parent context as parameters to submodules.
-- `File.writeAll` was removed; use `file.writeStreamingAll(io, data)`.
-- No `makeDirAbsolute*`; use `createDirPath(.cwd(), io, path)`.
-- `addOptions`, `addTest`, `LazyPath` signatures changed from 0.15.
-- ZON parsing requires arena-backed allocation with proper deinit.
+- **Zig 0.16 API changes** — any lessons about deprecated or renamed APIs
+- **Darwin linker issues (macOS 25+/26+)** — linker workarounds and build runner limitations
+- **Build system patterns** — test manifest rules, module ownership, format check surfaces
+- **mod/stub sync** — parity requirements, stub boilerplate, CLI sub-module re-exports
+- **Import rules** — relative vs `@import("abi")`, cross-feature gating, explicit `.zig` extensions
+- **foundation namespace** — not a separate module, relative path access within `src/`
 
-**Darwin linker issues (macOS 25+/26+):**
-- LLD has zero Mach-O support; never set `use_lld = true`.
-- `zig build lint` fails on Darwin 25+ with undefined symbols; use `zig fmt --check` directly.
-- Build runner links before `build.zig` runs, so build.zig workarounds cannot fix build runner link failures.
-- Use `./tools/scripts/run_build.sh` to relink with Apple `/usr/bin/ld`.
-
-**Build system patterns:**
-- Files in the test manifest must compile standalone (no cross-directory relative imports above module root).
-- Feature modules require both `mod.zig` and `stub.zig` with matching public signatures.
-- Never run `zig fmt .` from repo root (vendored fixtures cause false positives); use the repo-safe format surface.
-- Manifest-driven feature tests must share one module graph, not one module per entry.
-- Version pin changes must update all sources atomically: `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, `.cel/config.sh`.
+Note: The actual lessons content lives in `tasks/lessons.md` and evolves over time. Always read the file rather than relying on cached knowledge.
 
 ### Step 4: Emit preemptive warnings
 
@@ -57,12 +45,12 @@ Before the task begins, warn about any pitfall from the lessons file that direct
 
 ```
 Pitfall warning: [short description of the trap]
-From lesson: [date and title from lessons.md]
+From lesson: [category and topic from lessons.md]
 Prevention: [the prevention rule from the lesson]
 ```
 
-Only emit warnings for lessons that are concretely relevant to the current task. Do not repeat the entire lessons file.
+Only emit warnings for lessons concretely relevant to the current task. Do not repeat the entire lessons file.
 
 ## Output Format
 
-Keep the review brief. A typical output is 5-10 lines: a short list of relevant lessons and any applicable warnings. Do not block or delay the user's task -- this review is informational context, not a gate.
+Keep the review brief. A typical output is 5-10 lines: a short list of relevant lessons and any applicable warnings. Do not block or delay the task — this review is informational context, not a gate.

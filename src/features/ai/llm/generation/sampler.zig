@@ -8,7 +8,7 @@
 //! - Repetition penalty
 
 const std = @import("std");
-const activations = @import("../ops/activations");
+const activations = @import("../ops/activations.zig");
 
 /// Sampler configuration.
 pub const SamplerConfig = struct {

@@ -9,8 +9,8 @@
 //! Uses NVRTC for runtime PTX compilation with kernel caching.
 
 const std = @import("std");
-const loader = @import("loader");
-const nvrtc = @import("nvrtc");
+const loader = @import("loader.zig");
+const nvrtc = @import("nvrtc.zig");
 
 pub const LlmKernelError = error{
     CudaNotAvailable,

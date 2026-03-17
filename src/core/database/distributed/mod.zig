@@ -7,19 +7,23 @@
 //! - Conflict resolution with MVCC and version vectors
 
 const std = @import("std");
-const db_parent = @import("..");
+const build_options = @import("build_options");
+const db_parent = @import("../mod.zig");
 
 // Dependencies from parent modules (re-exported for child modules)
 pub const time = db_parent.time; // Re-exported by database parent
-pub const network = @import("../../network");
+pub const network = if (build_options.feat_network)
+    @import("../../../features/network/mod.zig")
+else
+    @import("../../../features/network/stub.zig");
 pub const block_chain = db_parent.block_chain;
 
 // Internal module imports
-const shard_manager = @import("./shard_manager");
-const block_exchange = @import("./block_exchange");
-const raft_block_chain = @import("./raft_block_chain");
-pub const wal = @import("./wal");
-pub const cluster = @import("./cluster");
+const shard_manager = @import("./shard_manager.zig");
+const block_exchange = @import("./block_exchange.zig");
+const raft_block_chain = @import("./raft_block_chain.zig");
+pub const wal = @import("./wal.zig");
+pub const cluster = @import("./cluster.zig");
 
 // Module exports
 pub const ShardManager = shard_manager.ShardManager;

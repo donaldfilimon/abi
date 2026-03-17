@@ -7,7 +7,7 @@
 //! - Context-aware retrieval
 
 const std = @import("std");
-const platform_time = @import("shared_services").time;
+const platform_time = @import("../../../services/shared/mod.zig").time;
 
 // Platform-aware time function (works on WASM)
 fn getTimestamp() i64 {

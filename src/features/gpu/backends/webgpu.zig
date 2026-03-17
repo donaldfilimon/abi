@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const types = @import("../kernel_types");
+const types = @import("../kernel_types.zig");
 
 pub const WebGpuError = error{
     InitializationFailed,
@@ -566,9 +566,9 @@ fn loadWebGpuFunctions() bool {
 // Device Enumeration (Task 4.1)
 // ============================================================================
 
-const Device = @import("../device").Device;
-const DeviceType = @import("../device").DeviceType;
-const Backend = @import("../backend").Backend;
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
+const Backend = @import("../backend.zig").Backend;
 
 /// Enumerate all WebGPU devices available on the system
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {

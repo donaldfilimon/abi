@@ -4,16 +4,16 @@
 //! to dedicated renderer modules.
 
 const tui = @import("../mod.zig");
-const state_mod = @import("state");
-const tui_layout = @import("layout");
+const state_mod = @import("state.zig");
+const tui_layout = @import("layout.zig");
 
-const title_renderer = @import("render_title");
-const notification_renderer = @import("render_notification");
-const search_renderer = @import("render_search");
-const history_renderer = @import("render_history");
-const menu_renderer = @import("render_menu");
-const footer_renderer = @import("render_footer");
-const preview_renderer = @import("render_preview");
+const title_renderer = @import("render_title.zig");
+const notification_renderer = @import("render_notification.zig");
+const search_renderer = @import("render_search.zig");
+const history_renderer = @import("render_history.zig");
+const menu_renderer = @import("render_menu.zig");
+const footer_renderer = @import("render_footer.zig");
+const preview_renderer = @import("render_preview.zig");
 
 const TuiState = state_mod.TuiState;
 
@@ -50,13 +50,13 @@ pub fn renderFrame(state: *TuiState) !void {
 }
 
 test {
-    _ = @import("render_title");
-    _ = @import("render_notification");
-    _ = @import("render_search");
-    _ = @import("render_history");
-    _ = @import("render_menu");
-    _ = @import("render_footer");
-    _ = @import("render_preview");
+    _ = @import("render_title.zig");
+    _ = @import("render_notification.zig");
+    _ = @import("render_search.zig");
+    _ = @import("render_history.zig");
+    _ = @import("render_menu.zig");
+    _ = @import("render_footer.zig");
+    _ = @import("render_preview.zig");
 }
 
 const std = @import("std");

@@ -5,9 +5,13 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const tokenizer_mod = @import("../llm/tokenizer");
+const tokenizer_mod = @import("../llm/tokenizer/mod.zig");
 
-const wdbx_engine = @import("../../database").neural;
+const database = if (build_options.feat_database)
+    @import("../../database/mod.zig")
+else
+    @import("../../database/stub.zig");
+const wdbx_engine = database.neural;
 
 pub const DatasetError = error{
     DatabaseDisabled,

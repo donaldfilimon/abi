@@ -1,23 +1,23 @@
 //! Tensor + Matrix + SIMD Example
 //!
 //! Demonstrates a small end-to-end numeric path using shared modules:
-//! - Matrix multiply via `abi.services.shared.matrix.Mat32`
-//! - Tensor transforms via `abi.services.shared.tensor.Tensor32`
-//! - SIMD vector ops via `abi.services.simd.vectorAdd` / `abi.services.simd.vectorDot`
-//! - timing/clamp helpers via `abi.services.shared.utils.primitives`
+//! - Matrix multiply via `abi.foundation.matrix.Mat32`
+//! - Tensor transforms via `abi.foundation.tensor.Tensor32`
+//! - SIMD vector ops via `abi.foundation.simd.vectorAdd` / `abi.foundation.simd.vectorDot`
+//! - timing/clamp helpers via `abi.foundation.utils.primitives`
 //!
 //! Run with: `zig build run-tensor-ops`
 
 const std = @import("std");
 const abi = @import("abi");
 
-const Mat32 = abi.services.shared.matrix.Mat32;
-const Tensor32 = abi.services.shared.tensor.Tensor32;
-const Shape = abi.services.shared.tensor.Shape;
-const primitives = abi.services.shared.utils.primitives;
+const Mat32 = abi.foundation.matrix.Mat32;
+const Tensor32 = abi.foundation.tensor.Tensor32;
+const Shape = abi.foundation.tensor.Shape;
+const primitives = abi.foundation.utils.primitives;
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -105,8 +105,8 @@ pub fn main(_: std.process.Init) !void {
     // 3) SIMD pass on flattened tensors
     // ---------------------------------------------------------------------
     var simd_add: [4]f32 = undefined;
-    abi.services.simd.vectorAdd(input.flat(), bias.flat(), simd_add[0..]);
-    const alignment_dot = abi.services.simd.vectorDot(relu_out.flat(), softmax_out.flat());
+    abi.foundation.simd.vectorAdd(input.flat(), bias.flat(), simd_add[0..]);
+    const alignment_dot = abi.foundation.simd.vectorDot(relu_out.flat(), softmax_out.flat());
     const clamped_dot = primitives.Math.clamp(f32, alignment_dot, 0.0, 1_000_000.0);
 
     std.debug.print("SIMD add(flat input+bias): [{d:.2}, {d:.2}, {d:.2}, {d:.2}]\n", .{

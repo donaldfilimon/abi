@@ -9,7 +9,7 @@
 // Changes from v2.0:
 //   - std.time.nanoTimestamp() replaced with std.time.Timer (Zig 0.16)
 //   - std.ArrayList replaced with std.ArrayListUnmanaged (Zig 0.16 convention)
-//   - Removed @import("utils"), @import("memory"), @import("simd") deps
+//   - Removed @import("utils"), @import("memory/mod.zig"), @import("simd") deps
 //   - Removed built-in benchmark functions (depend on external modules)
 //   - Removed emojis from report output (project convention)
 // ============================================================================
@@ -64,8 +64,8 @@ pub const Suite = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator,
-    benchmarks: std.ArrayListUnmanaged(NamedBench) = .{},
-    results: std.ArrayListUnmanaged(Result) = .{},
+    benchmarks: std.ArrayListUnmanaged(NamedBench) = .empty,
+    results: std.ArrayListUnmanaged(Result) = .empty,
     config: Config,
 
     pub fn init(allocator: std.mem.Allocator, config: Config) Self {

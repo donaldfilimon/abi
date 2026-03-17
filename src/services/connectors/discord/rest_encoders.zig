@@ -3,8 +3,8 @@
 //! Standalone encoding functions for Discord API request bodies.
 
 const std = @import("std");
-const types = @import("types");
-const json_utils = @import("shared_services").utils.json;
+const types = @import("types.zig");
+const json_utils = @import("../../shared/mod.zig").utils.json;
 
 const Embed = types.Embed;
 const ApplicationCommandOption = types.ApplicationCommandOption;

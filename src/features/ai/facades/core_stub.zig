@@ -1,22 +1,22 @@
 //! AI Core Stub Module — disabled when AI core is off.
 
 const std = @import("std");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 pub const Error = error{ AiDisabled, AgentsDisabled, ModelNotFound, InvalidConfig };
 
 // Sub-module stubs
-pub const core = @import("../core/stub");
-pub const agents = @import("../agents/stub");
-pub const tools = @import("../tools/stub");
-pub const prompts = @import("../prompts/stub");
-pub const memory = @import("../memory/stub");
-pub const multi_agent = @import("../multi_agent/stub");
-pub const models = @import("../models/stub");
-pub const agent = @import("../agents/stub");
-pub const model_registry = @import("../models/stub");
-pub const gpu_agent = @import("../agents/stub");
-pub const discovery = @import("../explore/stub");
+pub const core = @import("../core/stub.zig");
+pub const agents = @import("../agents/stub.zig");
+pub const tools = @import("../tools/stub.zig");
+pub const prompts = @import("../prompts/stub.zig");
+pub const memory = @import("../memory/stub.zig");
+pub const multi_agent = @import("../multi_agent/stub.zig");
+pub const models = @import("../models/stub.zig");
+pub const agent = @import("../agents/stub.zig");
+pub const model_registry = @import("../models/stub.zig");
+pub const gpu_agent = @import("../agents/stub.zig");
+pub const discovery = @import("../explore/stub.zig");
 
 // Re-exports
 pub const Agent = agent.Agent;
@@ -33,8 +33,8 @@ pub const registerDiscordTools = tools.registerDiscordTools;
 pub const OsTools = tools.OsTools;
 pub const registerOsTools = tools.registerOsTools;
 pub const PromptBuilder = prompts.PromptBuilder;
-pub const Persona = prompts.Persona;
-pub const PersonaType = prompts.PersonaType;
+pub const Profile = prompts.Profile;
+pub const ProfileType = prompts.ProfileType;
 pub const PromptFormat = prompts.PromptFormat;
 pub const GpuAgent = gpu_agent.GpuAgent;
 pub const GpuAwareRequest = gpu_agent.GpuAwareRequest;

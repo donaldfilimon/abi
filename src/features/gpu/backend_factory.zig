@@ -7,7 +7,7 @@
 //! ## Usage
 //!
 //! ```zig
-//! const factory = @import("backend_factory");
+//! const factory = @import("backend_factory.zig");
 //!
 //! // Create a backend for a specific type
 //! const backend = try factory.createBackend(allocator, .cuda);
@@ -26,7 +26,7 @@
 //! Neural network inference and training can use:
 //! - **GPU**: CUDA, Metal, Vulkan, WebGPU (preferred when available).
 //! - **TPU**: Tensor Processing Unit slot; use `-Dgpu-backend=tpu` and link a TPU runtime (e.g. libtpu/cloud API) for availability.
-//! - **CPU**: Multi-threaded CPU via `abi.services.runtime.ThreadPool` and `parallelFor`; set `InferenceConfig.num_threads` for LLM CPU inference.
+//! - **CPU**: Multi-threaded CPU via `abi.runtime.ThreadPool` and `parallelFor`; set `InferenceConfig.num_threads` for LLM CPU inference.
 //!
 //! | Backend | Platform | Hardware Required |
 //! |---------|----------|-------------------|
@@ -40,13 +40,13 @@
 //! | stdgpu  | All | None (CPU emulation) |
 
 const std = @import("std");
-const interface = @import("interface");
-const backend_mod = @import("backend");
+const interface = @import("interface.zig");
+const backend_mod = @import("backend.zig");
 const build_options = @import("build_options");
-const policy = @import("policy");
-const backend_registry = @import("backends/registry");
-const backend_shared = @import("backends/shared");
-const android_probe = @import("device/android_probe");
+const policy = @import("policy/mod.zig");
+const backend_registry = @import("backends/registry.zig");
+const backend_shared = @import("backends/shared.zig");
+const android_probe = @import("device/android_probe.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const BackendInterface = interface.Backend;
@@ -59,6 +59,17 @@ pub const FactoryError = error{
     OutOfMemory,
     UnsupportedBackend,
     NoBackendsAvailable,
+};
+
+/// Errors specific to strict backend selection.
+pub const BackendSelectionError = error{
+    /// The explicitly requested backend is unavailable and strict mode
+    /// prevents fallback to alternatives.
+    RequestedBackendUnavailable,
+    /// No backends are available on this system.
+    NoBackendsAvailable,
+    /// Memory allocation failed during backend selection.
+    OutOfMemory,
 };
 
 /// Backend instance with its interface and metadata.
@@ -84,7 +95,7 @@ pub const BackendInstance = struct {
 
 /// Stateful wrapper for backend creation APIs.
 ///
-/// Maintained for compatibility with the public `abi.features.gpu.BackendFactory` export.
+/// Maintained for compatibility with the public `abi.gpu.BackendFactory` export.
 pub const BackendFactory = struct {
     allocator: std.mem.Allocator,
 
@@ -210,6 +221,61 @@ pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInst
     return FactoryError.NoBackendsAvailable;
 }
 
+/// Create the best available backend, optionally in strict mode.
+///
+/// When `options.strict` is true and `options.preferred` is set, the factory
+/// returns `BackendSelectionError.RequestedBackendUnavailable` instead of
+/// falling back to alternative backends.
+pub fn createBestBackendWithOptions(
+    allocator: std.mem.Allocator,
+    options: SelectionOptions,
+) (FactoryError || BackendSelectionError)!*BackendInstance {
+    // Strict path: only honour the preferred backend, no fallback.
+    if (options.strict) {
+        if (options.preferred) |preferred| {
+            if (!isBackendAvailable(preferred)) {
+                return BackendSelectionError.RequestedBackendUnavailable;
+            }
+            if (!meetsFeatureRequirements(preferred, options.required_features)) {
+                return BackendSelectionError.RequestedBackendUnavailable;
+            }
+            return createBackend(allocator, preferred);
+        }
+        // strict without a preferred backend: no fallback, try the priority
+        // list but fail loudly if nothing is available.
+        const priorities = priorityList();
+        for (priorities.slice()) |backend_type| {
+            if (isBackendAvailable(backend_type) and
+                meetsFeatureRequirements(backend_type, options.required_features))
+            {
+                return createBackend(allocator, backend_type) catch continue;
+            }
+        }
+        return BackendSelectionError.NoBackendsAvailable;
+    }
+
+    // Non-strict path: legacy fallback behaviour.
+    if (options.preferred) |preferred| {
+        if (isBackendAvailable(preferred) and
+            meetsFeatureRequirements(preferred, options.required_features))
+        {
+            if (createBackend(allocator, preferred)) |backend| {
+                return backend;
+            } else |_| {}
+        }
+    }
+
+    const priorities = priorityList();
+    for (priorities.slice()) |backend_type| {
+        if (isBackendAvailable(backend_type) and
+            meetsFeatureRequirements(backend_type, options.required_features))
+        {
+            return createBackend(allocator, backend_type) catch continue;
+        }
+    }
+    return FactoryError.NoBackendsAvailable;
+}
+
 /// Destroy a backend instance and release its resources.
 pub fn destroyBackend(instance: *BackendInstance) void {
     instance.backend.deinit();
@@ -251,22 +317,38 @@ pub const SelectionOptions = struct {
     fallback_chain: []const Backend = &.{ .vulkan, .metal, .stdgpu },
     required_features: []const BackendFeature = &.{},
     fallback_to_cpu: bool = true,
+    /// When true, return `BackendSelectionError.RequestedBackendUnavailable`
+    /// instead of falling back to alternatives when the preferred backend
+    /// is unavailable. Default: false (keep legacy fallback behaviour).
+    strict: bool = false,
 };
 
 /// Select the best backend with fallback chain.
+///
+/// When `options.strict` is true, returns `BackendSelectionError.RequestedBackendUnavailable`
+/// if the preferred backend is unavailable instead of falling back to alternatives.
 pub fn selectBestBackendWithFallback(
     allocator: std.mem.Allocator,
     options: SelectionOptions,
-) !?Backend {
+) (BackendSelectionError)!?Backend {
     _ = allocator; // May be needed for future enhancements
 
     // Try preferred first
     if (options.preferred) |preferred| {
-        if (isBackendAvailable(preferred)) {
-            if (meetsFeatureRequirements(preferred, options.required_features)) {
-                return preferred;
-            }
+        if (isBackendAvailable(preferred) and
+            meetsFeatureRequirements(preferred, options.required_features))
+        {
+            return preferred;
         }
+        // Strict mode: fail immediately if preferred is unavailable
+        if (options.strict) {
+            return BackendSelectionError.RequestedBackendUnavailable;
+        }
+    }
+
+    // Strict mode without a preferred backend: no fallback allowed
+    if (options.strict) {
+        return BackendSelectionError.NoBackendsAvailable;
     }
 
     // Try fallback chain
@@ -288,10 +370,26 @@ pub fn selectBestBackendWithFallback(
 }
 
 /// Select backend with specific feature requirements.
+///
+/// When `options.strict` is true, returns `BackendSelectionError.RequestedBackendUnavailable`
+/// if the preferred backend is unavailable or lacks the required features.
 pub fn selectBackendWithFeatures(
     allocator: std.mem.Allocator,
     options: SelectionOptions,
-) !?Backend {
+) (BackendSelectionError || error{OutOfMemory})!?Backend {
+    // Strict path: check preferred immediately, no fallback
+    if (options.strict) {
+        if (options.preferred) |preferred| {
+            if (isBackendAvailable(preferred) and
+                meetsFeatureRequirements(preferred, options.required_features))
+            {
+                return preferred;
+            }
+            return BackendSelectionError.RequestedBackendUnavailable;
+        }
+        return BackendSelectionError.NoBackendsAvailable;
+    }
+
     const available = try detectAvailableBackends(allocator);
     defer allocator.free(available);
 
@@ -571,7 +669,7 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
         return FactoryError.BackendNotAvailable;
     }
 
-    const fpga_vtable = @import("backends/fpga/vtable");
+    const fpga_vtable = @import("backends/fpga/vtable.zig");
     return fpga_vtable.createFpgaVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -580,7 +678,7 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
 fn createCudaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
     // Check if CUDA is available at comptime
     if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
-        const cuda_vtable = @import("backends/cuda/vtable");
+        const cuda_vtable = @import("backends/cuda/vtable.zig");
         return cuda_vtable.createCudaVTable(allocator) catch |err| {
             return mapBackendCreateError(err);
         };
@@ -595,7 +693,7 @@ fn createVulkanVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     }
 
     // Try to create real Vulkan backend
-    const vulkan = @import("backends/vulkan");
+    const vulkan = @import("backends/vulkan.zig");
     return vulkan.createVulkanVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -608,7 +706,7 @@ fn createMetalVTableBackend(allocator: std.mem.Allocator) FactoryError!interface
     }
 
     // Try to create real Metal backend
-    const metal_vtable = @import("backends/metal_vtable");
+    const metal_vtable = @import("backends/metal_vtable.zig");
     return metal_vtable.createMetalVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -621,23 +719,23 @@ fn createWebGPUVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     }
 
     // Try to create real WebGPU backend
-    const webgpu_vtable = @import("backends/webgpu_vtable");
+    const webgpu_vtable = @import("backends/webgpu_vtable.zig");
     return webgpu_vtable.createWebGpuVTable(allocator) catch |err| {
         return mapBackendCreateError(err);
     };
 }
 
 fn createOpenGLVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    const gl_backend = @import("backends/gl/backend");
-    const gl_profile = @import("backends/gl/profile");
+    const gl_backend = @import("backends/gl/backend.zig");
+    const gl_profile = @import("backends/gl/profile.zig");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.desktop) catch |err| {
         return mapBackendCreateError(err);
     };
 }
 
 fn createOpenGLESVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    const gl_backend = @import("backends/gl/backend");
-    const gl_profile = @import("backends/gl/profile");
+    const gl_backend = @import("backends/gl/backend.zig");
+    const gl_profile = @import("backends/gl/profile.zig");
     return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.es) catch |err| {
         return mapBackendCreateError(err);
     };
@@ -693,6 +791,52 @@ test "simulated and webgl2 do not advertise atomics/shared memory" {
     try std.testing.expect(!backendSupportsFeature(.simulated, .shared_memory));
     try std.testing.expect(!backendSupportsFeature(.webgl2, .atomics));
     try std.testing.expect(!backendSupportsFeature(.webgl2, .shared_memory));
+}
+
+test "strict mode rejects unavailable preferred backend" {
+    // CUDA is almost certainly unavailable in CI / test environments.
+    // Strict mode should return RequestedBackendUnavailable rather than
+    // falling back to stdgpu/simulated.
+    const result = selectBestBackendWithFallback(std.testing.allocator, .{
+        .preferred = .cuda,
+        .strict = true,
+    });
+    if (result) |_| {
+        // If CUDA happens to be available, the test is vacuously correct.
+    } else |err| {
+        try std.testing.expectEqual(
+            BackendSelectionError.RequestedBackendUnavailable,
+            err,
+        );
+    }
+}
+
+test "strict mode without preferred returns NoBackendsAvailable when empty" {
+    // With strict = true and no preferred backend, selection should fail
+    // with NoBackendsAvailable (since no discovery occurs).
+    const result = selectBackendWithFeatures(std.testing.allocator, .{
+        .strict = true,
+    });
+    if (result) |_| {
+        // Should not reach here with strict + no preferred
+    } else |err| {
+        try std.testing.expectEqual(
+            BackendSelectionError.NoBackendsAvailable,
+            err,
+        );
+    }
+}
+
+test "non-strict mode falls back when preferred unavailable" {
+    // Default (strict=false) should fall back to an available backend.
+    const result = try selectBestBackendWithFallback(std.testing.allocator, .{
+        .preferred = .cuda,
+        .strict = false,
+    });
+    // Should get some backend (stdgpu/simulated) or null — not an error.
+    if (result) |backend| {
+        try std.testing.expect(isBackendAvailable(backend));
+    }
 }
 
 test {

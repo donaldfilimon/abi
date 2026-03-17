@@ -1,9 +1,13 @@
+//! Multi-GPU device management and distributed compute primitives.
+//! Provides device grouping, cluster orchestration, peer transfers, and
+//! parallelism strategies (tensor/model partitioning, gradient bucketing).
+
 const std = @import("std");
 
-const multi_device = @import("../multi_device");
+const multi_device = @import("../multi_device.zig");
 
-pub const cluster = @import("../gpu_cluster");
-pub const group = @import("../device_group");
+pub const cluster = @import("../gpu_cluster.zig");
+pub const group = @import("../device_group.zig");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const DeviceType = multi_device.DeviceType;

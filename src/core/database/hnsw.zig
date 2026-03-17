@@ -10,13 +10,13 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const simd = @import("shared_services").simd;
-const index_mod = @import("index");
-const gpu_accel = @import("gpu_accel");
+const simd = @import("../../services/shared/mod.zig").simd;
+const index_mod = @import("index.zig");
+const gpu_accel = @import("gpu_accel.zig");
 
 // Re-export extracted sub-modules
-pub const search_state = @import("search_state");
-pub const distance_cache = @import("distance_cache");
+pub const search_state = @import("search_state.zig");
+pub const distance_cache = @import("distance_cache.zig");
 
 pub const SearchState = search_state.SearchState;
 pub const SearchStatePool = search_state.SearchStatePool;
@@ -60,9 +60,24 @@ pub const HnswIndex = struct {
     /// Allocator used for construction
     allocator: std.mem.Allocator,
 
+    // Compatibility fields for persistence and legacy engine
+    node_levels: std.ArrayListUnmanaged(u32) = .empty,
+    neighbors: std.ArrayListUnmanaged([][]u32) = .empty,
+    vectors: std.ArrayListUnmanaged([]f32) = .empty,
+
     pub const NodeLayers = struct {
         layers: []index_mod.NeighborList,
     };
+
+    pub fn init(allocator: std.mem.Allocator, cfg: anytype, metric: anytype) !HnswIndex {
+        _ = metric;
+        const m = if (@hasField(@TypeOf(cfg), "hnsw")) cfg.hnsw.m else 16;
+        const ef = if (@hasField(@TypeOf(cfg), "hnsw")) cfg.hnsw.ef_construction else 100;
+        return initEmpty(allocator, .{
+            .m = @intCast(m),
+            .ef_construction = @intCast(ef),
+        });
+    }
 
     /// Configuration for HNSW index construction.
     pub const Config = struct {
@@ -77,6 +92,24 @@ pub const HnswIndex = struct {
         /// Minimum batch size to trigger GPU acceleration
         gpu_batch_threshold: usize = 256,
     };
+
+    /// Create an empty HNSW index for lazy population.
+    pub fn initEmpty(allocator: std.mem.Allocator, cfg: Config) HnswIndex {
+        return .{
+            .m = cfg.m,
+            .m_max = cfg.m,
+            .m_max0 = cfg.m * 2,
+            .ef_construction = cfg.ef_construction,
+            .entry_point = null,
+            .max_layer = -1,
+            .nodes = &.{},
+            .state_pool = null,
+            .distance_cache = null,
+            .gpu_accelerator = null,
+            .norms = &.{},
+            .allocator = allocator,
+        };
+    }
 
     /// Build a new HNSW index from a set of records.
     /// @param allocator Memory allocator for graph structures
@@ -197,7 +230,7 @@ pub const HnswIndex = struct {
         defer arena.deinit();
 
         for (records, 0..) |_, i| {
-            try self.insert(allocator, arena.allocator(), records, @intCast(i), random, m_l);
+            try self.insertAt(allocator, arena.allocator(), records, @intCast(i), random, m_l);
             // Reset arena for next insertion — frees all temporaries in bulk
             _ = arena.reset(.retain_capacity);
         }
@@ -212,7 +245,13 @@ pub const HnswIndex = struct {
     /// 2. Greedy descent from max_layer to target_layer + 1
     /// 3. Layer-by-layer neighbor connection from target_layer to 0
     /// 4. Update entry point if new node is at a higher layer
-    fn insert(
+    pub fn insert(self: *HnswIndex, vector: []const f32) !void {
+        const cloned = try self.allocator.dupe(f32, vector);
+        try self.vectors.append(self.allocator, cloned);
+        // Note: Graph is not updated in this compatibility shim.
+    }
+
+    fn insertAt(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
         temp_allocator: std.mem.Allocator,
@@ -293,10 +332,10 @@ pub const HnswIndex = struct {
 
         // Build candidate list using ef_construction expansion
         // (temporaries use arena allocator — bulk freed by caller)
-        var candidates = std.AutoHashMapUnmanaged(u32, f32){};
+        var candidates = std.AutoHashMapUnmanaged(u32, f32).empty;
         defer candidates.deinit(temp_allocator);
 
-        var visited = std.AutoHashMapUnmanaged(u32, void){};
+        var visited = std.AutoHashMapUnmanaged(u32, void).empty;
         defer visited.deinit(temp_allocator);
 
         // Start with entry point (use cached distance)
@@ -354,7 +393,7 @@ pub const HnswIndex = struct {
                 }
             }
 
-            var neighbor_links = std.AutoHashMapUnmanaged(u32, f32){};
+            var neighbor_links = std.AutoHashMapUnmanaged(u32, f32).empty;
             defer neighbor_links.deinit(temp_allocator);
 
             const existing_neighbors = self.nodes[neighbor].layers[layer].nodes;
@@ -724,6 +763,17 @@ pub const HnswIndex = struct {
             allocator.free(node.layers);
         }
         allocator.free(self.nodes);
+
+        // Free compatibility fields (populated by insert() shim and persistence load)
+        for (self.vectors.items) |v| allocator.free(v);
+        self.vectors.deinit(allocator);
+        self.node_levels.deinit(allocator);
+        for (self.neighbors.items) |layers| {
+            for (layers) |nbrs| allocator.free(nbrs);
+            allocator.free(layers);
+        }
+        self.neighbors.deinit(allocator);
+
         self.* = undefined;
     }
 
@@ -1292,7 +1342,7 @@ test "getLayerCount returns expected value" {
 // Test discovery: pull in extracted test file and sub-modules
 comptime {
     if (@import("builtin").is_test) {
-        _ = @import("hnsw_test");
+        _ = @import("hnsw_test.zig");
         _ = search_state;
         _ = distance_cache;
     }

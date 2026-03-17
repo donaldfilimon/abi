@@ -4,8 +4,8 @@
 //! with configurable batching strategies and progress reporting.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 /// Batch operation configuration.
 pub const BatchConfig = struct {
@@ -158,7 +158,7 @@ pub const BatchProcessor = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .pending_records = .{},
+            .pending_records = .empty,
             .pending_size = 0,
             .progress_callback = null,
             .stats = .{},
@@ -682,7 +682,7 @@ pub const BatchOperationBuilder = struct {
     pub fn init(allocator: std.mem.Allocator) BatchOperationBuilder {
         return .{
             .allocator = allocator,
-            .records = .{},
+            .records = .empty,
             .config = .{},
         };
     }
@@ -743,11 +743,11 @@ pub const BatchOperationBuilder = struct {
 };
 
 // Re-export importer types for backward compatibility
-const batch_importer = @import("batch_importer");
+const batch_importer = @import("batch_importer.zig");
 pub const ImportFormat = batch_importer.ImportFormat;
 pub const BatchImporter = batch_importer.BatchImporter;
 
 test {
-    _ = @import("batch_importer");
-    _ = @import("batch_test");
+    _ = @import("batch_importer.zig");
+    _ = @import("batch_test.zig");
 }

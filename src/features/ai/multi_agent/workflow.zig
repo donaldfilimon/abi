@@ -12,7 +12,7 @@
 //! - **Capability matching**: Steps declare what capabilities the assigned agent needs
 
 const std = @import("std");
-const roles = @import("roles");
+const roles = @import("roles.zig");
 
 // ============================================================================
 // Types
@@ -58,8 +58,8 @@ pub const Step = struct {
     is_critical: bool = true,
     /// Maximum execution time in milliseconds (0 = no limit).
     timeout_ms: u64 = 0,
-    /// Assigned persona ID (empty = auto-assign based on capabilities).
-    assigned_persona: []const u8 = "",
+    /// Assigned profile ID (empty = auto-assign based on capabilities).
+    assigned_profile: []const u8 = "",
 };
 
 /// Result of executing a single workflow step.
@@ -69,7 +69,7 @@ pub const StepResult = struct {
     output: []const u8,
     error_message: []const u8,
     duration_ns: u64,
-    assigned_persona: []const u8,
+    assigned_profile: []const u8,
 };
 
 /// Overall workflow status.
@@ -687,7 +687,7 @@ test "execution tracker step progression" {
         .output = "findings",
         .error_message = "",
         .duration_ns = 1000,
-        .assigned_persona = "researcher",
+        .assigned_profile = "researcher",
     });
 
     // Now "analyze" should be ready
@@ -706,7 +706,7 @@ test "execution tracker failure propagation" {
         .output = "",
         .error_message = "timeout",
         .duration_ns = 5000,
-        .assigned_persona = "researcher",
+        .assigned_profile = "researcher",
     });
 
     // Dependents should be skipped

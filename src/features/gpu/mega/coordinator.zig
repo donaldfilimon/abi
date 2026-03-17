@@ -32,12 +32,12 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 const build_options = @import("build_options");
-const multi_device = @import("../multi_device");
-const backend_mod = @import("../backend");
-const interface = @import("../interface");
+const multi_device = @import("../multi_device.zig");
+const backend_mod = @import("../backend.zig");
+const interface = @import("../interface.zig");
 
 /// Backend instance with metadata for cross-backend coordination.
 pub const BackendInstance = struct {
@@ -195,9 +195,9 @@ pub const Coordinator = struct {
 
         self.* = .{
             .allocator = allocator,
-            .backends = .{},
+            .backends = .empty,
             .device_groups = .empty,
-            .scheduling_history = .{},
+            .scheduling_history = .empty,
             .stats = .{},
             .next_decision_id = 1,
             .mutex = .{},

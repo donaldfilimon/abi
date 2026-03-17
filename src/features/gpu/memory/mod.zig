@@ -8,9 +8,9 @@
 //! - `lockfree`: Lock-free resource pool with generational handles
 const std = @import("std");
 
-pub const base = @import("base");
-pub const pool = @import("pool");
-pub const lockfree = @import("lockfree");
+pub const base = @import("base.zig");
+pub const pool = @import("pool.zig");
+pub const lockfree = @import("lockfree.zig");
 
 // Re-export core types from base
 pub const MemoryError = base.MemoryError;

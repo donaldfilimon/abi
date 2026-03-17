@@ -1,6 +1,6 @@
 const std = @import("std");
-const command = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 
@@ -9,7 +9,7 @@ pub const meta: command.Meta = .{
     .description = "Manage LLM provider plugins",
 };
 
-const plugins = abi.features.ai.llm.providers.plugins;
+const plugins = abi.ai.llm.providers.plugins;
 
 pub fn runPlugins(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;

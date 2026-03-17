@@ -3,11 +3,11 @@
 //! Unifies repetitive wiring across `abi ui <subcommand>` dashboard commands.
 
 const std = @import("std");
-const context_mod = @import("../../framework/context");
+const context_mod = @import("../../framework/context.zig");
 const tui = @import("../mod.zig");
 const utils = @import("../../utils/mod.zig");
-const session_runner = @import("../../commands/core/ui/session_runner");
-const theme_options = @import("../../commands/core/ui/theme_options");
+const session_runner = @import("../../commands/core/ui/session_runner.zig");
+const theme_options = @import("../../commands/core/ui/theme_options.zig");
 
 pub fn RunOptions(comptime PanelType: type) type {
     return struct {

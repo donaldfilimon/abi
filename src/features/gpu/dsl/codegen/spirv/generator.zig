@@ -10,18 +10,18 @@
 //! - codegen.zig — statement/expression code generation (legacy mixin, not used here)
 
 const std = @import("std");
-const constants = @import("constants");
-const types_gen = @import("types_gen");
-const constants_gen = @import("constants_gen");
-const type_codegen = @import("type_codegen");
-const const_codegen = @import("const_codegen");
-const instruction_emit = @import("instruction_emit");
+const constants = @import("constants.zig");
+const types_gen = @import("types_gen.zig");
+const constants_gen = @import("constants_gen.zig");
+const type_codegen = @import("type_codegen.zig");
+const const_codegen = @import("const_codegen.zig");
+const instruction_emit = @import("instruction_emit.zig");
 
-const dsl_types = @import("../../types");
-const dsl_expr = @import("../../expr");
-const dsl_stmt = @import("../../stmt");
-const kernel = @import("../../kernel");
-const backend = @import("../backend");
+const dsl_types = @import("../../types.zig");
+const dsl_expr = @import("../../expr.zig");
+const dsl_stmt = @import("../../stmt.zig");
+const kernel = @import("../../kernel.zig");
+const backend = @import("../backend.zig");
 
 pub const SPIRV_MAGIC = constants.SPIRV_MAGIC;
 pub const SPIRV_VERSION = constants.SPIRV_VERSION;
@@ -87,22 +87,22 @@ pub const SpirvGenerator = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .words = .{},
+            .words = .empty,
             .next_id = 1,
-            .type_ids = .{},
-            .const_ids = .{},
-            .var_ids = .{},
-            .type_section = .{},
-            .const_section = .{},
-            .annotation_section = .{},
-            .debug_section = .{},
-            .entry_section = .{},
-            .function_section = .{},
+            .type_ids = .empty,
+            .const_ids = .empty,
+            .var_ids = .empty,
+            .type_section = .empty,
+            .const_section = .empty,
+            .annotation_section = .empty,
+            .debug_section = .empty,
+            .entry_section = .empty,
+            .function_section = .empty,
             .glsl_ext_id = 0,
             .loop_merge_label = null,
             .loop_continue_label = null,
-            .ptr_type_map = .{},
-            .buffer_elem_type_map = .{},
+            .ptr_type_map = .empty,
+            .buffer_elem_type_map = .empty,
         };
     }
 

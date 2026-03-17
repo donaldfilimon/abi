@@ -24,7 +24,7 @@ pub const Feature = enum {
     network,
     observability,
     web,
-    personas,
+    profiles,
     cloud,
     analytics,
     auth,
@@ -38,6 +38,11 @@ pub const Feature = enum {
     benchmarks,
     reasoning,
     constitution,
+    compute,
+    documents,
+    desktop,
+    lsp,
+    mcp,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -55,7 +60,7 @@ pub const Feature = enum {
             .network => "Distributed compute network",
             .observability => "Metrics, tracing, profiling",
             .web => "Web/HTTP utilities",
-            .personas => "Multi-persona AI assistant",
+            .profiles => "Behavior profile routing and selection",
             .cloud => "Cloud provider integration",
             .analytics => "Analytics event tracking",
             .auth => "Authentication and security",
@@ -69,6 +74,11 @@ pub const Feature = enum {
             .benchmarks => "Performance benchmarking",
             .reasoning => "AI reasoning (Abbey, eval, RAG)",
             .constitution => "AI safety principles and guardrails",
+            .compute => "Distributed compute mesh",
+            .documents => "Native document parsing (HTML, PDF)",
+            .desktop => "Native desktop OS extensions",
+            .lsp => "LSP (ZLS) service",
+            .mcp => "MCP (Model Context Protocol) service",
         };
     }
 };
@@ -110,7 +120,7 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
 /// Get parent feature for sub-features.
 pub fn getParentFeature(feature: Feature) ?Feature {
     return switch (feature) {
-        .llm, .embeddings, .agents, .training, .personas, .reasoning, .constitution => .ai,
+        .llm, .embeddings, .agents, .training, .profiles, .reasoning, .constitution => .ai,
         else => null,
     };
 }
@@ -331,6 +341,106 @@ pub const registration = struct {
         _ = library_path;
         return error.FeatureDisabled;
     }
+};
+
+/// Stub plugin module.
+pub const plugin = struct {
+    pub const PluginCapability = enum {
+        ai_provider,
+        connector,
+        storage_backend,
+        gpu_backend,
+        inference_engine,
+        vector_index,
+        auth_provider,
+        cache_backend,
+        custom,
+
+        pub fn name(self: PluginCapability) []const u8 {
+            return @tagName(self);
+        }
+    };
+
+    pub const PluginState = enum {
+        registered,
+        loading,
+        active,
+        unloading,
+        failed,
+    };
+
+    pub const PluginDescriptor = struct {
+        name: []const u8,
+        version: struct { major: u32, minor: u32, patch: u32 },
+        author: []const u8,
+        description: []const u8,
+        capabilities: []const PluginCapability,
+        abi_version: struct { major: u32, minor: u32, patch: u32 },
+    };
+
+    pub const PluginCallbacks = struct {
+        on_load: ?*const fn () anyerror!void = null,
+        on_unload: ?*const fn () void = null,
+    };
+
+    pub const PluginEntry = struct {
+        descriptor: PluginDescriptor,
+        state: PluginState,
+        callbacks: PluginCallbacks,
+    };
+
+    pub const PluginError = error{
+        PluginAlreadyRegistered,
+        PluginNotFound,
+        PluginLoadFailed,
+        OutOfMemory,
+    };
+
+    pub const PluginRegistry = struct {
+        pub fn init() PluginRegistry {
+            return .{};
+        }
+
+        pub fn deinit(self: *PluginRegistry, allocator: std.mem.Allocator) void {
+            _ = self;
+            _ = allocator;
+        }
+
+        pub fn register(self: *PluginRegistry, allocator: std.mem.Allocator, descriptor: PluginDescriptor, callbacks: PluginCallbacks) PluginError!void {
+            _ = self;
+            _ = allocator;
+            _ = descriptor;
+            _ = callbacks;
+        }
+
+        pub fn unregister(self: *PluginRegistry, allocator: std.mem.Allocator, plugin_name: []const u8) PluginError!void {
+            _ = self;
+            _ = allocator;
+            _ = plugin_name;
+        }
+
+        pub fn get(self: *PluginRegistry, plugin_name: []const u8) ?*PluginEntry {
+            _ = self;
+            _ = plugin_name;
+            return null;
+        }
+
+        pub fn list(self: *const PluginRegistry, allocator: std.mem.Allocator) PluginError![]const PluginDescriptor {
+            _ = self;
+            return allocator.alloc(PluginDescriptor, 0) catch return PluginError.OutOfMemory;
+        }
+
+        pub fn countByCapability(self: *const PluginRegistry, capability: PluginCapability) usize {
+            _ = self;
+            _ = capability;
+            return 0;
+        }
+
+        pub fn count(self: *const PluginRegistry) usize {
+            _ = self;
+            return 0;
+        }
+    };
 };
 
 /// Stub lifecycle module.

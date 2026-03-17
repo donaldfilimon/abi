@@ -5,10 +5,22 @@ description: Generated implementation plan
 
 # GPU Redesign v3
 ## Status
-- Status: **In Progress**
+- Status: **In Progress (Steady-State)**
 - Owner: **Abbey**
+- Last updated: 2026-03-16
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
+
+### Progress Summary (2026-03-16)
+Completed:
+- Backend policy module complete
+- Cross-platform ordering hardcoded
+- Factory pattern with fallback implemented
+
+Remaining:
+- Strict request fail-fast enforcement (Wave 3A)
+- Pool lifecycle safety under mixed-backend execution (Wave 3B)
+- Cross-target determinism tests (Wave 3C)
 
 ## Scope
 Wave 3 active lane: enforce strict backend policy, pool lifecycle safety, and cross-target policy verification.
@@ -55,4 +67,4 @@ Roadmap guide: [../roadmap/](../roadmap/)
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

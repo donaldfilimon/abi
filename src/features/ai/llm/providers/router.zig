@@ -1,12 +1,12 @@
 const std = @import("std");
-const llm = @import("..");
-const connectors = @import("../../../../services/connectors");
-const types = @import("types");
-const errors = @import("errors");
-const registry = @import("registry");
-const model_profiles = @import("model_profiles");
-const health = @import("health");
-const plugins_mod = @import("plugins");
+const llm = @import("../mod.zig");
+const connectors = @import("../../../../services/connectors/mod.zig");
+const types = @import("types.zig");
+const errors = @import("errors.zig");
+const registry = @import("registry.zig");
+const model_profiles = @import("model_profiles.zig");
+const health = @import("health.zig");
+const plugins_mod = @import("plugins/mod.zig");
 
 pub fn generate(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.GenerateResult {
     if (cfg.model.len == 0) return errors.ProviderError.ModelRequired;
@@ -20,16 +20,29 @@ pub fn generate(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.
     for (chain) |provider| {
         if (!health.isAvailable(allocator, provider, cfg.plugin_id)) {
             last_err = errors.ProviderError.NotAvailable;
-            if (cfg.strict_backend and cfg.backend != null and provider == cfg.backend.?) {
-                return last_err;
+            if (cfg.strict_backend) {
+                // In strict mode, fail immediately when the pinned backend
+                // (or the only candidate) is unavailable.
+                if (cfg.backend != null and provider == cfg.backend.?) {
+                    std.log.warn("strict-backend: {s} is unavailable, refusing fallback", .{provider.label()});
+                    return errors.ProviderError.StrictBackendUnavailable;
+                }
+                // Even without a pinned backend, strict mode prevents
+                // silently skipping unavailable providers.
+                if (cfg.backend == null) {
+                    continue;
+                }
             }
             continue;
         }
 
         const result = generateWithProvider(allocator, cfg, provider) catch |err| {
             last_err = err;
-            if (cfg.strict_backend and cfg.backend != null and provider == cfg.backend.?) {
-                return err;
+            if (cfg.strict_backend) {
+                if (cfg.backend != null and provider == cfg.backend.?) {
+                    std.log.warn("strict-backend: {s} generation failed, refusing fallback", .{provider.label()});
+                    return err;
+                }
             }
             continue;
         };
@@ -37,7 +50,10 @@ pub fn generate(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.
         return result;
     }
 
-    if (cfg.strict_backend and cfg.backend != null) return last_err;
+    if (cfg.strict_backend and cfg.backend != null) {
+        std.log.warn("strict-backend: all providers exhausted without fallback", .{});
+        return last_err;
+    }
     return errors.ProviderError.NoProviderAvailable;
 }
 
@@ -161,7 +177,7 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
         if (err == error.ConnectionRefused) {
             std.log.info("llama-server not running. Attempting to spawn locally...", .{});
 
-            const os = @import("../../../../services/shared/os");
+            const os = @import("../../../../services/shared/os.zig");
             const cmd = try std.fmt.allocPrint(allocator, "nohup llama-server -m {s} --port 8080 > /tmp/llama-server.log 2>&1 &", .{cfg.model});
             defer allocator.free(cmd);
 
@@ -172,7 +188,7 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
             result.deinit();
 
             std.log.info("Spawned llama-server. Waiting for it to become ready...", .{});
-            const time_mod = @import("shared_services").time;
+            const time_mod = @import("../../../../services/shared/mod.zig").time;
             time_mod.sleepNs(3 * std.time.ns_per_s);
             text = try client.generate(cfg.prompt, cfg.max_tokens);
         } else {

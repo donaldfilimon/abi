@@ -8,8 +8,8 @@
 
 const std = @import("std");
 const json = std.json;
-const tool = @import("tool");
-const os = @import("shared_services").os;
+const tool = @import("tool.zig");
+const os = @import("../../../services/shared/mod.zig").os;
 
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
@@ -308,7 +308,7 @@ fn executeSearchCodebase(ctx: *Context, args: json.Value) ToolExecutionError!Too
     } else return ToolResult.fromError(ctx.allocator, "Missing pattern");
 
     // Native implementation mapping over CodebaseIndexer capabilities without external process spawning
-    const context_mod = @import("../context_engine/codebase_indexer");
+    const context_mod = @import("../context_engine/codebase_indexer.zig");
     var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, ctx.io);
     defer indexer.deinit();
 
@@ -340,7 +340,7 @@ fn executeAnalyzeFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         else => return ToolResult.fromError(ctx.allocator, "Expected string file_path"),
     } else return ToolResult.fromError(ctx.allocator, "Missing file_path");
 
-    const context_mod = @import("../context_engine/codebase_indexer");
+    const context_mod = @import("../context_engine/codebase_indexer.zig");
     var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, ctx.io);
     defer indexer.deinit();
 

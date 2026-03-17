@@ -1,7 +1,7 @@
 const std = @import("std");
-const command = @import("../../../command");
-const context_mod = @import("../../../framework/context");
-const train_monitor = @import("../../ai/train/monitor");
+const command = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
+const train_monitor = @import("../../ai/train/monitor.zig");
 
 pub const meta: command.Meta = .{
     .name = "train",

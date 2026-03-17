@@ -4,7 +4,7 @@
 //! Domain inference + deduplication prevent unbounded growth.
 
 const std = @import("std");
-const cfg = @import("config");
+const cfg = @import("config.zig");
 
 fn nowEpochSeconds() i64 {
     var ts: std.c.timespec = undefined;

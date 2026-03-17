@@ -4,9 +4,9 @@
 //! environment variables.
 
 const std = @import("std");
-const connectors = @import("mod");
-const shared = @import("shared");
-const openai = @import("openai");
+const connectors = @import("mod.zig");
+const shared = @import("shared.zig");
+const openai = @import("openai.zig");
 
 pub const OpenCodeError = openai.OpenAIError;
 pub const Config = openai.Config;

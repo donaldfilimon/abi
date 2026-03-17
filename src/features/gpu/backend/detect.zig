@@ -1,4 +1,4 @@
-const backend = @import("../backend");
+const backend = @import("../backend.zig");
 const std = @import("std");
 
 pub const moduleEnabled = backend.moduleEnabled;

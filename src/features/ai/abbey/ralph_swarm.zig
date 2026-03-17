@@ -15,8 +15,8 @@
 //!   pool.waitIdle();
 
 const std = @import("std");
-const ralph_multi = @import("ralph_multi");
-const engine_mod = @import("engine");
+const ralph_multi = @import("ralph_multi.zig");
+const engine_mod = @import("engine.zig");
 
 /// Context for one parallel Ralph worker. Use with ThreadPool.schedule(parallelRalphWorker, .{ ctx, index }).
 /// Allocator must be thread-safe (e.g. std.heap.page_allocator or std.heap.ThreadSafeAllocator).
@@ -30,7 +30,7 @@ pub const ParallelRalphContext = struct {
     post_result_to_bus: bool = true,
 };
 
-/// Worker to run one Ralph loop. Schedule from CLI/app: pool.schedule(abi.features.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &ctx, index }).
+/// Worker to run one Ralph loop. Schedule from CLI/app: pool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &ctx, index }).
 /// Fits ThreadPool.Task capture: *ParallelRalphContext + u32.
 pub fn parallelRalphWorker(ctx: *ParallelRalphContext, index: u32) void {
     if (index >= ctx.goals.len) return;

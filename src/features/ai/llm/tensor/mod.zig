@@ -8,9 +8,9 @@
 
 const std = @import("std");
 
-pub const tensor = @import("tensor");
-pub const quantized = @import("quantized");
-pub const view = @import("view");
+pub const tensor = @import("tensor.zig");
+pub const quantized = @import("quantized.zig");
+pub const view = @import("view.zig");
 
 // Re-exports
 pub const Tensor = tensor.Tensor;

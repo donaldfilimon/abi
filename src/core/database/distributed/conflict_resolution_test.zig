@@ -9,7 +9,7 @@
 //! - Anti-entropy synchronization
 
 const std = @import("std");
-const parent = @import(".");
+const parent = @import("./mod.zig");
 const BlockConflict = parent.BlockConflict;
 const VersionVector = parent.VersionVector;
 const VersionComparison = parent.VersionComparison;
@@ -336,8 +336,8 @@ test "conflict resolution integration with WDBX blocks" {
     block2.commit_timestamp = 1100; // Different timestamp
 
     // Set different metadata to make them truly conflicting
-    block1.metadata.persona_tag = "abbey";
-    block2.metadata.persona_tag = "aviva";
+    block1.metadata.profile_tag = "abbey";
+    block2.metadata.profile_tag = "aviva";
 
     // Create version vectors
     var v1 = try VersionVector.init(allocator, "node-1");

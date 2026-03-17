@@ -10,17 +10,17 @@ const std = @import("std");
 
 /// Consumer rights under CCPA.
 pub const ConsumerRight = enum {
-    /// Right to know what personal information is collected.
+    /// Right to know what profilel information is collected.
     right_to_know,
-    /// Right to delete personal information.
+    /// Right to delete profilel information.
     right_to_delete,
-    /// Right to opt-out of the sale of personal information.
+    /// Right to opt-out of the sale of profilel information.
     right_to_opt_out,
     /// Right to non-discrimination for exercising rights.
     right_to_non_discrimination,
-    /// Right to correct inaccurate personal information.
+    /// Right to correct inaccurate profilel information.
     right_to_correct,
-    /// Right to limit use of sensitive personal information.
+    /// Right to limit use of sensitive profilel information.
     right_to_limit,
 };
 
@@ -56,8 +56,8 @@ pub const ConsumerRequest = struct {
     }
 };
 
-/// Categories of personal information under CCPA.
-pub const PersonalInfoCategory = enum {
+/// Categories of profilel information under CCPA.
+pub const ProfilelInfoCategory = enum {
     identifiers,
     commercial_info,
     biometric,
@@ -72,14 +72,14 @@ pub const PersonalInfoCategory = enum {
 /// Result of a CCPA compliance check.
 pub const CcpaCheckResult = struct {
     is_compliant: bool,
-    personal_info_detected: []const PersonalInfoCategory,
+    profilel_info_detected: []const ProfilelInfoCategory,
     opt_out_honored: bool,
     disclosure_adequate: bool,
     violations: []const []const u8,
     allocator: std.mem.Allocator,
 
     pub fn deinit(self: *CcpaCheckResult) void {
-        self.allocator.free(self.personal_info_detected);
+        self.allocator.free(self.profilel_info_detected);
         for (self.violations) |v| self.allocator.free(v);
         self.allocator.free(self.violations);
     }
@@ -89,7 +89,7 @@ pub const CcpaCheckResult = struct {
 pub const CcpaChecker = struct {
     const Self = @This();
 
-    /// Indicators that suggest personal information categories.
+    /// Indicators that suggest profilel information categories.
     const identifier_keywords = [_][]const u8{
         "name",     "address",         "email", "phone", "driver's license",
         "passport", "social security",
@@ -109,7 +109,7 @@ pub const CcpaChecker = struct {
 
     /// Run a CCPA compliance check on the given content.
     pub fn check(_: *const Self, allocator: std.mem.Allocator, content: []const u8) !CcpaCheckResult {
-        var categories = std.ArrayListUnmanaged(PersonalInfoCategory).empty;
+        var categories = std.ArrayListUnmanaged(ProfilelInfoCategory).empty;
         errdefer categories.deinit(allocator);
         var violation_list = std.ArrayListUnmanaged([]const u8).empty;
         errdefer {
@@ -149,7 +149,7 @@ pub const CcpaChecker = struct {
 
         const has_pi = categories.items.len > 0;
         if (has_pi) {
-            try violation_list.append(allocator, try allocator.dupe(u8, "Personal information categories detected; CCPA disclosure required"));
+            try violation_list.append(allocator, try allocator.dupe(u8, "Profilel information categories detected; CCPA disclosure required"));
         }
 
         const cats_slice = try categories.toOwnedSlice(allocator);
@@ -157,7 +157,7 @@ pub const CcpaChecker = struct {
 
         return .{
             .is_compliant = !has_pi,
-            .personal_info_detected = cats_slice,
+            .profilel_info_detected = cats_slice,
             .opt_out_honored = true, // Caller should verify via OptOutStatus
             .disclosure_adequate = true, // Defaults to true
             .violations = violations_slice,
@@ -165,7 +165,7 @@ pub const CcpaChecker = struct {
         };
     }
 
-    fn appendUnique(list: *std.ArrayListUnmanaged(PersonalInfoCategory), cat: PersonalInfoCategory, allocator: std.mem.Allocator) !void {
+    fn appendUnique(list: *std.ArrayListUnmanaged(ProfilelInfoCategory), cat: ProfilelInfoCategory, allocator: std.mem.Allocator) !void {
         for (list.items) |existing| {
             if (existing == cat) return;
         }
@@ -183,7 +183,7 @@ test "CcpaChecker detects identifiers" {
     defer result.deinit();
 
     try std.testing.expect(!result.is_compliant);
-    try std.testing.expect(result.personal_info_detected.len >= 1);
+    try std.testing.expect(result.profilel_info_detected.len >= 1);
 }
 
 test "CcpaChecker detects commercial info" {
@@ -193,7 +193,7 @@ test "CcpaChecker detects commercial info" {
 
     try std.testing.expect(!result.is_compliant);
     var found = false;
-    for (result.personal_info_detected) |cat| {
+    for (result.profilel_info_detected) |cat| {
         if (cat == .commercial_info) found = true;
     }
     try std.testing.expect(found);

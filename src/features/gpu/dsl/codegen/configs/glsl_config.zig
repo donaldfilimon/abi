@@ -3,7 +3,7 @@
 //! Comptime configuration for GLSL code generation targeting Vulkan,
 //! OpenGL, and OpenGL ES.
 
-const mod = @import("mod");
+const mod = @import("mod.zig");
 const std = @import("std");
 
 /// GLSL target variants.

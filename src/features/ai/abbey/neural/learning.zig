@@ -4,9 +4,9 @@
 //! Implements various online learning algorithms and experience replay.
 
 const std = @import("std");
-const tensor = @import("tensor");
-const layer_mod = @import("layer");
-const types = @import("types");
+const tensor = @import("tensor.zig");
+const layer_mod = @import("layer.zig");
+const types = @import("../../types.zig");
 
 const F32Tensor = tensor.F32Tensor;
 

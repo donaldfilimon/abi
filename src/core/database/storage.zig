@@ -27,7 +27,7 @@
 //! ```
 
 const std = @import("std");
-const database = @import("database");
+const database = @import("database.zig");
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
     return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });

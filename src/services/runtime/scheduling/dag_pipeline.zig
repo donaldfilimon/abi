@@ -14,7 +14,7 @@
 // ============================================================================
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../../shared/mod.zig").time;
 
 // ─── Stage Status ────────────────────────────────────────────────────────────
 
@@ -53,7 +53,7 @@ pub const Category = enum(u8) {
     preprocess,
     compute,
     routing,
-    persona,
+    profile,
     postprocess,
     output,
     moderation,
@@ -326,8 +326,8 @@ pub fn createInferencePipeline() !Pipeline {
     const embed = try p.addStage("embed", .compute);
     const attend = try p.addStage("attend", .compute);
     const abi_route = try p.addStage("abi_route", .routing);
-    const abbey_decode = try p.addStage("abbey_decode", .persona);
-    const aviva_decode = try p.addStage("aviva_decode", .persona);
+    const abbey_decode = try p.addStage("abbey_decode", .profile);
+    const aviva_decode = try p.addStage("aviva_decode", .profile);
     const merge = try p.addStage("merge", .postprocess);
     const moderate = try p.addStage("moderate", .moderation);
     const output = try p.addStage("output", .output);

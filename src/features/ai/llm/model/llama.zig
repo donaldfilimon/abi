@@ -3,14 +3,14 @@
 //! Provides the full LLaMA model including loading, forward pass, and generation.
 
 const std = @import("std");
-const config_mod = @import("config");
-const weights_mod = @import("weights");
-const layer_mod = @import("layer");
-const cache_mod = @import("../cache");
-const ops = @import("../ops");
-const tok_mod = @import("../tokenizer");
-const generation = @import("../generation");
-const gguf = @import("../io/gguf");
+const config_mod = @import("config.zig");
+const weights_mod = @import("weights.zig");
+const layer_mod = @import("layer.zig");
+const cache_mod = @import("../cache/mod.zig");
+const ops = @import("../ops/mod.zig");
+const tok_mod = @import("../tokenizer/mod.zig");
+const generation = @import("../generation/mod.zig");
+const gguf = @import("../io/gguf.zig");
 
 /// Full LLaMA model.
 pub const LlamaModel = struct {

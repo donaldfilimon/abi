@@ -7,8 +7,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const types = @import("../kernel_types");
-const interface = @import("../interface");
+const types = @import("../kernel_types.zig");
+const interface = @import("../interface.zig");
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and

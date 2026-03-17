@@ -10,8 +10,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const framework = @import("../../system/framework");
-const mod = @import("mod");
+const framework = @import("../../system/framework.zig");
+const mod = @import("mod.zig");
 
 const GpuBenchConfig = mod.GpuBenchConfig;
 
@@ -241,7 +241,7 @@ fn gpuVsCpuComparison(
         if (build_options.feat_gpu) {
             const abi = @import("abi");
 
-            var gpu_ctx = abi.features.gpu.Gpu.init(allocator, .{}) catch {
+            var gpu_ctx = abi.gpu.Gpu.init(allocator, .{}) catch {
                 std.debug.print("  matmul_gpu_{d}x{d}: GPU init failed\n", .{ size, size });
                 continue;
             };
@@ -285,7 +285,7 @@ fn gpuVsCpuComparison(
             var iterations: u32 = 0;
 
             while (total_ns < config.min_time_ns and iterations < config.benchmark_iterations) : (iterations += 1) {
-                var timer = abi.services.shared.time.Timer.start() catch continue;
+                var timer = abi.foundation.time.Timer.start() catch continue;
                 _ = gpu_ctx.matrixMultiply(buf_a, buf_b, buf_c, .{
                     .m = size,
                     .n = size,

@@ -284,6 +284,10 @@ pub const config = @import("utils/config.zig");
 // Foundational utility modules
 /// Foundational primitives: Math, String, Time, Atomic, Platform, RingBuffer.
 pub const primitives = @import("utils/primitives.zig");
+/// Re-export Math from primitives for convenience.
+pub const Math = primitives.Math;
+/// Radix tree data structure for prefix-based routing.
+pub const radix_tree = @import("utils/radix_tree.zig");
 /// Structured error handling with categories, severity, and accumulation.
 pub const structured_error = @import("utils/structured_error.zig");
 /// SwissMap: high-performance open-addressing hash map with H2 control bytes.
@@ -295,6 +299,9 @@ pub const profiler = @import("utils/profiler.zig");
 /// Statistical benchmark suite with Chauvenet outlier filtering.
 pub const benchmark = @import("utils/benchmark.zig");
 
+/// Zig toolchain resolution and validation.
+pub const zig_toolchain = @import("utils/zig_toolchain.zig");
+
 /// HTTP retry logic with backoff strategies.
 /// Configurable retry policies for web requests.
 pub const http_retry = @import("utils/retry.zig");
@@ -303,7 +310,7 @@ pub const http_retry = @import("utils/retry.zig");
 pub const metric_types = @import("utils/metric_types.zig");
 
 // Note: Top-level shared modules (logging, os, platform, plugins, simd, time)
-// are exported via shared/mod.zig. Access them as abi.services.shared.<module>.
+// are exported via shared/mod.zig. Access them as abi.foundation.<module>.
 
 // ============================================================================
 // Tests

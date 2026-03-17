@@ -6,11 +6,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
-const shared_time = abi.services.shared.time;
-const terminal_mod = @import("terminal");
+const shared_time = abi.foundation.time;
+const terminal_mod = @import("terminal.zig");
 const Terminal = terminal_mod.Terminal;
-const events = @import("events");
-const RingBuffer = @import("ring_buffer").RingBuffer;
+const events = @import("events.zig");
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 
 /// Event types for the async loop
 pub const AsyncEvent = union(enum) {

@@ -1,7 +1,7 @@
 //! Time-range or ordered retrieval and direct lookup.
 
 const std = @import("std");
-const core = @import("../core");
+const core = @import("../core/mod.zig");
 
 pub const BTreeIndex = struct {
     allocator: std.mem.Allocator,

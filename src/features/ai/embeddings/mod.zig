@@ -26,12 +26,12 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
-const simd = @import("shared_services").simd;
+const config_module = @import("../../../core/config/mod.zig");
+const simd = @import("../../../services/shared/mod.zig").simd;
 
 // Backend system
-pub const backend = @import("backend");
-pub const backends = @import("backends");
+pub const backend = @import("backend.zig");
+pub const backends = @import("backends/mod.zig");
 
 pub const EmbeddingBackend = backend.EmbeddingBackend;
 pub const BackendError = backend.BackendError;

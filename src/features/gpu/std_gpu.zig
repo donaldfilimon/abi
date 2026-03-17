@@ -25,7 +25,7 @@
 //! ## Example: Compute Kernel (GPU target only)
 //!
 //! ```zig
-//! const std_gpu = @import("std_gpu");
+//! const std_gpu = @import("std_gpu.zig");
 //!
 //! // Define a compute kernel with explicit workgroup size
 //! fn vectorAdd(
@@ -44,7 +44,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const dsl_types = @import("dsl/types");
+const dsl_types = @import("dsl/types.zig");
 
 // ============================================================================
 // Target Detection

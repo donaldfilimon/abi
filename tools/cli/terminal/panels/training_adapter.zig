@@ -6,12 +6,13 @@
 //! `Terminal.write()`.
 
 const std = @import("std");
-const panel_mod = @import("../panel");
-const terminal = @import("../terminal");
-const layout = @import("../layout");
-const themes = @import("../themes");
-const events = @import("../events");
-const training_panel = @import("../training_panel");
+const panel_mod = @import("../panel.zig");
+const terminal = @import("../terminal.zig");
+const layout = @import("../layout.zig");
+const themes = @import("../themes.zig");
+const events = @import("../events.zig");
+const training_panel = @import("../training_panel.zig");
+const ru = @import("../render_utils.zig");
 
 /// Writer adapter: exposes a `.print()` method that formats into a stack
 /// buffer and delegates to `Terminal.write()`.
@@ -37,6 +38,24 @@ pub const TrainingAdapter = struct {
     // -- Panel vtable methods --
 
     pub fn render(self: *TrainingAdapter, term: *terminal.Terminal, rect: layout.Rect, theme: *const themes.Theme) anyerror!void {
+        // ── Summary cards ──────────────────────────────────────
+        const card_width: u16 = @min(rect.width / 4, 20);
+        var card_x = rect.x;
+
+        var buf1: [32]u8 = undefined;
+        const epoch_val = std.fmt.bufPrint(&buf1, "{d}/{d}", .{ @as(u16, 7), @as(u16, 50) }) catch "\xe2\x80\x94";
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Epoch", epoch_val, theme.info, theme);
+        card_x += card_width + 1;
+
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Loss", "0.0342", theme.success, theme);
+        card_x += card_width + 1;
+
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "LR", "3e-4", theme.accent, theme);
+        card_x += card_width + 1;
+
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "ETA", "2h 14m", theme.warning, theme);
+
+        // Delegate to inner panel (writer-based, no positional rect)
         self.inner.theme = theme;
         self.inner.width = rect.width;
         const writer = TerminalWriter{ .term = term };

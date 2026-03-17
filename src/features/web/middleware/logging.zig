@@ -3,8 +3,8 @@
 //! Logs HTTP requests in configurable formats (common, combined, JSON).
 
 const std = @import("std");
-const types = @import("types");
-const time = @import("shared_services").time;
+const types = @import("types.zig");
+const time = @import("../../../services/shared/mod.zig").time;
 const MiddlewareContext = types.MiddlewareContext;
 const logging_key = "_logging";
 const access_log_key = "_access_log";
@@ -160,7 +160,7 @@ pub fn finalizeAccessLog(ctx: *const MiddlewareContext) void {
 
 test "minimal logger sets marker" {
     const allocator = std.testing.allocator;
-    const server = @import("../server");
+    const server = @import("../server/mod.zig");
 
     var request = server.ParsedRequest{
         .method = .GET,

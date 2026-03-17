@@ -29,24 +29,24 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const backend_mod = @import("backend");
-const device_mod = @import("device");
-const stream_mod = @import("stream");
-const buffer_mod = @import("unified_buffer");
-const dsl = @import("dsl");
-const multi_device = @import("multi_device");
-const metrics_mod = @import("metrics");
-const dispatcher_mod = @import("dispatch/coordinator");
-const adaptive_tiling_mod = @import("adaptive_tiling");
-const policy_mod = @import("policy");
-const interface_mod = @import("interface");
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
+const backend_mod = @import("backend.zig");
+const device_mod = @import("device.zig");
+const stream_mod = @import("stream.zig");
+const buffer_mod = @import("unified_buffer.zig");
+const dsl = @import("dsl/mod.zig");
+const multi_device = @import("multi_device.zig");
+const metrics_mod = @import("metrics.zig");
+const dispatcher_mod = @import("dispatch/coordinator.zig");
+const adaptive_tiling_mod = @import("adaptive_tiling.zig");
+const policy_mod = @import("policy/mod.zig");
+const interface_mod = @import("interface.zig");
 
 // Submodule imports
-const dev_mgr = @import("device_manager");
-const buf_pool = @import("buffer_pool");
-const stream_orch = @import("stream_orchestrator");
+const dev_mgr = @import("device_manager.zig");
+const buf_pool = @import("buffer_pool.zig");
+const stream_orch = @import("stream_orchestrator.zig");
 
 const Mutex = sync.Mutex;
 

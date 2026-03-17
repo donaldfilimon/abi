@@ -1,7 +1,7 @@
 const std = @import("std");
-const connectors = @import("../../../../services/connectors");
-const types = @import("types");
-const plugins = @import("plugins");
+const connectors = @import("../../../../services/connectors/mod.zig");
+const types = @import("types.zig");
+const plugins = @import("plugins/mod.zig");
 
 pub fn isAvailable(
     allocator: std.mem.Allocator,

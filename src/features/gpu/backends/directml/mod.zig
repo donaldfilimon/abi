@@ -10,8 +10,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const loader = @import("loader");
-pub const operators = @import("operators");
+pub const loader = @import("loader.zig");
+pub const operators = @import("operators.zig");
 
 pub fn isAvailable() bool {
     if (builtin.os.tag != .windows) return false;

@@ -14,8 +14,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_mod = @import("config");
-const feature_catalog = @import("feature_catalog");
+const config_mod = @import("config/mod.zig");
+const feature_catalog = @import("feature_catalog.zig");
 
 pub const Feature = feature_catalog.Feature;
 
@@ -130,7 +130,7 @@ pub fn validateTopLevel(cfg: config_mod.Config) config_mod.ConfigError!void {
 // ============================================================================
 
 test "descriptor count matches expected" {
-    // 17 top-level + 4 AI facades = 21
+    // 17 top-level + 4 AI sub-modules = 21
     try std.testing.expectEqual(@as(usize, 21), descriptor_count);
 }
 

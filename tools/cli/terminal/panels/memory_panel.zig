@@ -9,18 +9,18 @@
 //! When no tracker is connected, shows a placeholder message.
 
 const std = @import("std");
-const terminal = @import("../terminal");
-const layout = @import("../layout");
-const themes = @import("../themes");
-const events = @import("../events");
-const Panel = @import("../panel");
+const terminal = @import("../terminal.zig");
+const layout = @import("../layout.zig");
+const themes = @import("../themes.zig");
+const events = @import("../events.zig");
+const Panel = @import("../panel.zig");
 
-const tracking = @import("abi").services.shared.utils.memory.tracking;
+const tracking = @import("abi").foundation.utils.memory.tracking;
 pub const TrackingStats = tracking.TrackingStats;
 pub const TrackingAllocator = tracking.TrackingAllocator;
 
 /// Database core allocator stats (optional; connect via connectDatabaseTracker).
-const database_alloc = @import("abi").features.database.core.alloc;
+const database_alloc = @import("abi").database.core.alloc;
 
 /// Fixed-size ring buffer for sparkline history.
 fn RingBuffer(comptime capacity: usize) type {

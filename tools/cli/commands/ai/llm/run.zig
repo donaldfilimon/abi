@@ -1,10 +1,10 @@
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 
-const ProviderId = abi.features.ai.llm.providers.ProviderId;
-const provider_parser = abi.features.ai.llm.providers.parser;
+const ProviderId = abi.ai.llm.providers.ProviderId;
+const provider_parser = abi.ai.llm.providers.parser;
 
 const RunOptions = struct {
     model: ?[]const u8 = null,
@@ -44,7 +44,7 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         return;
     }
 
-    var result = abi.features.ai.llm.providers.generate(allocator, .{
+    var result = abi.ai.llm.providers.generate(allocator, .{
         .model = parsed.model.?,
         .prompt = parsed.prompt.?,
         .backend = parsed.backend,
@@ -123,7 +123,7 @@ pub fn parseRunArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !R
             continue;
         }
 
-        if (std.mem.eql(u8, arg, "--strict-backend")) {
+        if (std.mem.eql(u8, arg, "--strict-backend") or std.mem.eql(u8, arg, "--strict")) {
             options.strict_backend = true;
             continue;
         }
@@ -228,7 +228,7 @@ fn appendUnique(
     try list.append(allocator, provider);
 }
 
-fn printResultJson(allocator: std.mem.Allocator, result: *const abi.features.ai.llm.providers.GenerateResult) !void {
+fn printResultJson(allocator: std.mem.Allocator, result: *const abi.ai.llm.providers.GenerateResult) !void {
     var out = std.ArrayListUnmanaged(u8).empty;
     defer out.deinit(allocator);
 
@@ -269,7 +269,7 @@ pub fn printRunHelp() void {
             "  -p, --prompt <text>     Prompt text\\n" ++
             "  --backend <id>          Pin backend (local_gguf, llama_cpp, mlx, ollama, ollama_passthrough, lm_studio, vllm, anthropic, openai, codex, opencode, claude, gemini, plugin_http, plugin_native)\\n" ++
             "  --fallback <csv>        Comma-separated fallback backend chain\\n" ++
-            "  --strict-backend        Disable fallback when backend is unavailable\\n" ++
+            "  --strict-backend, --strict  Fail immediately if backend is unavailable (no fallback)\\n" ++
             "  --plugin <id>           Pin plugin id for plugin_http/plugin_native\\n" ++
             "  -n, --max-tokens <n>    Max tokens (default: 256)\\n" ++
             "  -t, --temperature <f>   Temperature (default: 0.7)\\n" ++

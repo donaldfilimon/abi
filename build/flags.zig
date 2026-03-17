@@ -4,13 +4,16 @@ const modules = @import("modules.zig");
 const feature_catalog = @import("../src/core/feature_catalog.zig");
 const BuildOptions = options_mod.BuildOptions;
 
-/// Compact flag combination for validation.  Sub-feature flags (explore, llm,
-/// vision, training, reasoning) inherit from feat_ai when converted via
-/// `comboToBuildOptions`.
+/// Compact flag combination for validation. When `feat_ai=true` and no AI
+/// sub-features are explicitly selected, `comboToBuildOptions` treats that as
+/// "all AI sub-features enabled". Otherwise sub-feature booleans are respected
+/// exactly so `llm-only`/`no-llm` style combos stay meaningful.
 pub const FlagCombo = struct {
     name: []const u8,
     feat_ai: bool = false,
+    feat_explore: bool = false,
     feat_llm: bool = false,
+    feat_vision: bool = false,
     feat_training: bool = false,
     feat_reasoning: bool = false,
     feat_gpu: bool = false,
@@ -32,6 +35,16 @@ pub const FlagCombo = struct {
     feat_compute: bool = false,
     feat_documents: bool = false,
     feat_desktop: bool = false,
+    feat_lsp: bool = false,
+    feat_mcp: bool = false,
+
+    pub fn hasExplicitAiSubfeatureSelection(self: FlagCombo) bool {
+        return self.feat_explore or
+            self.feat_llm or
+            self.feat_vision or
+            self.feat_training or
+            self.feat_reasoning;
+    }
 };
 
 // Validate FlagCombo against the feature catalog using shared helpers.
@@ -53,7 +66,7 @@ comptime {
 /// each feature solo, and each feature disabled with the rest enabled.
 pub const validation_matrix = [_]FlagCombo{
     // All enabled / all disabled
-    .{ .name = "all-enabled", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
+    .{ .name = "all-enabled", .feat_ai = true, .feat_explore = true, .feat_llm = true, .feat_vision = true, .feat_training = true, .feat_reasoning = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
     .{ .name = "all-disabled" },
     // Solo tests — one feature at a time
     .{ .name = "ai-only", .feat_ai = true },
@@ -76,46 +89,62 @@ pub const validation_matrix = [_]FlagCombo{
     .{ .name = "compute-only", .feat_compute = true },
     .{ .name = "documents-only", .feat_documents = true },
     .{ .name = "desktop-only", .feat_desktop = true },
+    .{ .name = "lsp-only", .feat_lsp = true },
+    .{ .name = "mcp-only", .feat_mcp = true },
+    // AI subfeature solo tests — subfeature with parent AI enabled
+    .{ .name = "llm-only", .feat_ai = true, .feat_llm = true },
+    .{ .name = "training-only", .feat_ai = true, .feat_training = true },
+    .{ .name = "reasoning-only", .feat_ai = true, .feat_reasoning = true },
+    .{ .name = "explore-only", .feat_ai = true, .feat_explore = true },
+    .{ .name = "vision-only", .feat_ai = true, .feat_vision = true },
+    // AI subfeature no-X tests — parent AI enabled, one subfeature off
+    .{ .name = "no-llm", .feat_ai = true, .feat_explore = true, .feat_vision = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true, .feat_training = true, .feat_reasoning = true },
+    .{ .name = "no-training", .feat_ai = true, .feat_llm = true, .feat_explore = true, .feat_vision = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true, .feat_reasoning = true },
+    .{ .name = "no-reasoning", .feat_ai = true, .feat_llm = true, .feat_training = true, .feat_explore = true, .feat_vision = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-explore", .feat_ai = true, .feat_llm = true, .feat_training = true, .feat_reasoning = true, .feat_vision = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-vision", .feat_ai = true, .feat_llm = true, .feat_training = true, .feat_reasoning = true, .feat_explore = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
     // No-X tests — everything except one
-    .{ .name = "no-ai", .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-gpu", .feat_ai = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-web", .feat_ai = true, .feat_gpu = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-database", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-network", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-profiling", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-analytics", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-cloud", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-auth", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-messaging", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-cache", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-storage", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-search", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-mobile", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-gateway", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-pages", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-benchmarks", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-compute", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_documents = true, .feat_desktop = true },
-    .{ .name = "no-documents", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_desktop = true },
-    .{ .name = "no-desktop", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true },
+    .{ .name = "no-ai", .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-gpu", .feat_ai = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-web", .feat_ai = true, .feat_gpu = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-database", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-network", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-profiling", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-analytics", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-cloud", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-auth", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-messaging", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-cache", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-storage", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-search", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-mobile", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-gateway", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-pages", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-benchmarks", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-compute", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-documents", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_desktop = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-desktop", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_lsp = true, .feat_mcp = true },
+    .{ .name = "no-lsp", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_mcp = true },
+    .{ .name = "no-mcp", .feat_ai = true, .feat_gpu = true, .feat_web = true, .feat_database = true, .feat_network = true, .feat_profiling = true, .feat_analytics = true, .feat_cloud = true, .feat_auth = true, .feat_messaging = true, .feat_cache = true, .feat_storage = true, .feat_search = true, .feat_mobile = true, .feat_gateway = true, .feat_pages = true, .feat_benchmarks = true, .feat_compute = true, .feat_documents = true, .feat_desktop = true, .feat_lsp = true },
 };
 
-/// Convert a compact `FlagCombo` into a full `BuildOptions`.  Sub-feature
-/// flags inherit from `feat_ai` when not explicitly set.
+/// Convert a compact `FlagCombo` into a full `BuildOptions`.
 pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
+    const inherit_ai_subfeatures = combo.feat_ai and !combo.hasExplicitAiSubfeatureSelection();
     const canonical: options_mod.CanonicalFlags = .{
         .feat_ai = combo.feat_ai,
         .feat_gpu = combo.feat_gpu,
-        .feat_explore = combo.feat_ai,
-        .feat_llm = combo.feat_ai or combo.feat_llm,
-        .feat_vision = combo.feat_ai,
+        .feat_explore = if (inherit_ai_subfeatures) true else combo.feat_explore,
+        .feat_llm = if (inherit_ai_subfeatures) true else combo.feat_llm,
+        .feat_vision = if (inherit_ai_subfeatures) true else combo.feat_vision,
         .feat_web = combo.feat_web,
         .feat_database = combo.feat_database,
         .feat_network = combo.feat_network,
         .feat_profiling = combo.feat_profiling,
         .feat_analytics = combo.feat_analytics,
         .feat_cloud = combo.feat_cloud,
-        .feat_training = combo.feat_ai or combo.feat_training,
-        .feat_reasoning = combo.feat_ai or combo.feat_reasoning,
+        .feat_training = if (inherit_ai_subfeatures) true else combo.feat_training,
+        .feat_reasoning = if (inherit_ai_subfeatures) true else combo.feat_reasoning,
         .feat_auth = combo.feat_auth,
         .feat_messaging = combo.feat_messaging,
         .feat_cache = combo.feat_cache,
@@ -128,6 +157,8 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .feat_compute = combo.feat_compute,
         .feat_documents = combo.feat_documents,
         .feat_desktop = combo.feat_desktop,
+        .feat_lsp = combo.feat_lsp,
+        .feat_mcp = combo.feat_mcp,
     };
 
     return options_mod.canonicalToBuildOptions(
@@ -153,15 +184,13 @@ pub fn addFlagValidation(
     inline for (validation_matrix) |combo| {
         const opts = comboToBuildOptions(combo);
         const build_opts_mod = modules.createBuildOptionsModule(b, opts);
-        const shared_services_mod = modules.createSharedServicesModule(b, build_opts_mod, target, optimize);
-        const core_mod = modules.createCoreModule(b, target, optimize, build_opts_mod);
 
         const abi_mod = b.createModule(.{
             .root_source_file = b.path("src/root.zig"),
             .target = target,
             .optimize = optimize,
         });
-        modules.wireAbiImports(abi_mod, build_opts_mod, shared_services_mod, core_mod);
+        modules.wireAbiImports(abi_mod, build_opts_mod);
 
         const check = b.addLibrary(.{
             .name = "validate-" ++ combo.name,

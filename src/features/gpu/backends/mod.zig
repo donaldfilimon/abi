@@ -1,21 +1,25 @@
-pub const registry = @import("registry");
-pub const pool = @import("pool");
+//! GPU backend registry aggregating all supported compute backends.
+//! Re-exports backend-specific modules (CUDA, Vulkan, Metal, WebGPU,
+//! OpenGL, DirectML) plus shared metadata, detection, and pool management.
+
+pub const registry = @import("registry.zig");
+pub const pool = @import("pool.zig");
 
 // Canonical backend metadata/detection/listing surface.
-pub const types = @import("../backend/types");
-pub const meta = @import("../backend/meta");
-pub const detect = @import("../backend/detect");
-pub const libs = @import("../backend/libs");
-pub const listing = @import("../backend/listing");
+pub const types = @import("../backend/types.zig");
+pub const meta = @import("../backend/meta.zig");
+pub const detect = @import("../backend/detect.zig");
+pub const libs = @import("../backend/libs.zig");
+pub const listing = @import("../backend/listing.zig");
 
-pub const cuda = @import("cuda");
-pub const vulkan = @import("vulkan");
-pub const vulkan_compute = @import("vulkan/compute");
-pub const vulkan_vtable = @import("vulkan/vtable");
-pub const metal = @import("metal");
-pub const webgpu = @import("webgpu");
-pub const opengl = @import("opengl");
-pub const opengles = @import("opengles");
-pub const gl = @import("gl");
-pub const directml = @import("directml");
+pub const cuda = @import("cuda/mod.zig");
+pub const vulkan = @import("vulkan.zig");
+pub const vulkan_compute = @import("vulkan/compute.zig");
+pub const vulkan_vtable = @import("vulkan/vtable.zig");
+pub const metal = @import("metal.zig");
+pub const webgpu = @import("webgpu.zig");
+pub const opengl = @import("opengl.zig");
+pub const opengles = @import("opengles.zig");
+pub const gl = @import("gl/mod.zig");
+pub const directml = @import("directml/mod.zig");
 const std = @import("std");

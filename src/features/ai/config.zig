@@ -1,27 +1,27 @@
-//! Configuration schema for the Multi-Persona AI Assistant system.
-//! Defines settings for the routing layer and individual persona behaviors.
+//! Configuration schema for the Multi-Profile AI Assistant system.
+//! Defines settings for the routing layer and individual profile behaviors.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
-/// Global configuration for the Multi-Persona system.
-pub const MultiPersonaConfig = struct {
-    /// The fallback persona used when routing fails or is disabled.
-    default_persona: types.PersonaType = .abbey,
-    /// Whether to use the Abi router for dynamic persona selection.
+/// Global configuration for the Multi-Profile system.
+pub const MultiProfileConfig = struct {
+    /// The fallback profile used when routing fails or is disabled.
+    default_profile: types.ProfileType = .abbey,
+    /// Whether to use the Abi router for dynamic profile selection.
     enable_dynamic_routing: bool = true,
     /// Minimum confidence threshold for routing decisions (0.0 - 1.0).
     routing_confidence_threshold: f32 = 0.6,
 
     /// Configuration for the Abi moderation and routing layer.
     abi: AbiConfig = .{},
-    /// Configuration for the Abbey empathetic polymath persona.
+    /// Configuration for the Abbey empathetic polymath profile.
     abbey: AbbeyConfig = .{},
-    /// Configuration for the Aviva direct expert persona.
+    /// Configuration for the Aviva direct expert profile.
     aviva: AvivaConfig = .{},
-    /// Configuration for persona load balancing and resilience.
+    /// Configuration for profile load balancing and resilience.
     load_balancing: LoadBalancingConfig = .{},
-    /// Configuration for the persona registry and lifecycle.
+    /// Configuration for the profile registry and lifecycle.
     registry: RegistryConfig = .{},
 };
 
@@ -45,7 +45,7 @@ pub const AbiConfig = struct {
     };
 };
 
-/// Settings for the Abbey persona.
+/// Settings for the Abbey profile.
 pub const AbbeyConfig = struct {
     /// Target empathy level (0.0 - 1.0).
     empathy_level: f32 = 0.8,
@@ -59,7 +59,7 @@ pub const AbbeyConfig = struct {
     emotion_adaptation: bool = true,
 };
 
-/// Settings for the Aviva persona.
+/// Settings for the Aviva profile.
 pub const AvivaConfig = struct {
     /// Level of directness and brevity (0.0 - 1.0).
     directness_level: f32 = 0.9,
@@ -77,7 +77,7 @@ pub const AvivaConfig = struct {
     skip_preamble: bool = false,
 };
 
-/// Settings for persona scaling and resilience.
+/// Settings for profile scaling and resilience.
 pub const LoadBalancingConfig = struct {
     /// Strategy used for selecting between multiple instances.
     strategy: LoadBalancerStrategy = .health_weighted,
@@ -87,7 +87,7 @@ pub const LoadBalancingConfig = struct {
     circuit_breaker_threshold: u32 = 5,
     /// How long to wait before attempting recovery (ms).
     circuit_breaker_timeout_ms: u64 = 30000,
-    /// Maximum concurrent requests per persona (0 = unlimited).
+    /// Maximum concurrent requests per profile (0 = unlimited).
     max_concurrent_requests: u32 = 0,
 
     pub const LoadBalancerStrategy = enum {
@@ -97,13 +97,13 @@ pub const LoadBalancingConfig = struct {
     };
 };
 
-/// Settings for the persona registry and service discovery.
+/// Settings for the profile registry and service discovery.
 pub const RegistryConfig = struct {
-    /// Maximum concurrent requests per persona.
+    /// Maximum concurrent requests per profile.
     max_concurrent_requests: u32 = 100,
     /// Request timeout in milliseconds.
     timeout_ms: u64 = 30000,
-    /// Default priority for registered personas.
+    /// Default priority for registered profiles.
     default_priority: u8 = 5,
 };
 

@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const backend_shared = @import("backends/shared");
+const backend_shared = @import("backends/shared.zig");
 
 // =============================================================================
 // Error Types
@@ -777,7 +777,7 @@ pub const memory = if (build_options.feat_gpu and build_options.gpu_fpga)
         }
     }
 else if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("backends/cuda/memory")
+    @import("backends/cuda/memory.zig")
 else
     struct {
         pub fn init(_: std.mem.Allocator) !void {
@@ -810,7 +810,7 @@ else
 /// LLM kernel operations re-exports.
 /// Provides LlmKernelModule with softmax, rmsnorm, silu, gelu, scale, etc.
 pub const llm_kernels = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("backends/cuda/llm_kernels")
+    @import("backends/cuda/llm_kernels.zig")
 else
     struct {
         pub fn isAvailable() bool {
@@ -857,7 +857,7 @@ else
 /// cuBLAS operations re-exports.
 /// Provides CublasContext with sgemm, sgemmStridedBatched, and matmulRowMajor.
 pub const cublas = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("backends/cuda/cublas")
+    @import("backends/cuda/cublas.zig")
 else
     struct {
         pub fn isAvailable() bool {
@@ -931,7 +931,7 @@ else
 
 /// GPU backend summary for availability detection.
 pub const backend = if (build_options.feat_gpu)
-    @import("backend")
+    @import("backend.zig")
 else
     struct {
         pub fn summary() Summary {

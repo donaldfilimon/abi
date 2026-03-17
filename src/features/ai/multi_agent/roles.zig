@@ -1,4 +1,4 @@
-//! Agent Roles and Personas
+//! Agent Roles and Profiles
 //!
 //! Provides identity, specialization, and behavioral constraints for agents
 //! in multi-agent workflows. Each agent can be assigned a role that defines
@@ -119,19 +119,19 @@ pub const BehaviorConstraints = struct {
 };
 
 // ============================================================================
-// Persona
+// Profile
 // ============================================================================
 
-/// A persona defines the complete identity of an agent within a multi-agent team.
+/// A profile defines the complete identity of an agent within a multi-agent team.
 /// It combines a role, behavioral constraints, and a system prompt template.
-pub const Persona = struct {
-    /// Unique identifier for this persona.
+pub const Profile = struct {
+    /// Unique identifier for this profile.
     id: []const u8,
     /// Human-readable name.
     name: []const u8,
     /// Primary domain of expertise.
     domain: Domain,
-    /// Capabilities this persona provides.
+    /// Capabilities this profile provides.
     capabilities: []const Capability,
     /// Interaction style.
     style: InteractionStyle,
@@ -139,19 +139,19 @@ pub const Persona = struct {
     constraints: BehaviorConstraints,
     /// System prompt that shapes the agent's behavior.
     system_prompt: []const u8,
-    /// Optional description of what this persona does.
+    /// Optional description of what this profile does.
     description: []const u8 = "",
 
-    /// Check if this persona has a specific capability.
-    pub fn hasCapability(self: Persona, cap: Capability) bool {
+    /// Check if this profile has a specific capability.
+    pub fn hasCapability(self: Profile, cap: Capability) bool {
         for (self.capabilities) |c| {
             if (c == cap) return true;
         }
         return false;
     }
 
-    /// Count how many of the required capabilities this persona satisfies.
-    pub fn matchScore(self: Persona, required: []const Capability) u32 {
+    /// Count how many of the required capabilities this profile satisfies.
+    pub fn matchScore(self: Profile, required: []const Capability) u32 {
         var score: u32 = 0;
         for (required) |req| {
             if (self.hasCapability(req)) score += 1;
@@ -159,19 +159,19 @@ pub const Persona = struct {
         return score;
     }
 
-    /// Check if this persona satisfies all required capabilities.
-    pub fn satisfiesAll(self: Persona, required: []const Capability) bool {
+    /// Check if this profile satisfies all required capabilities.
+    pub fn satisfiesAll(self: Profile, required: []const Capability) bool {
         return self.matchScore(required) == @as(u32, @intCast(required.len));
     }
 };
 
 // ============================================================================
-// Preset Personas
+// Preset Profiles
 // ============================================================================
 
-/// Built-in persona presets for common agent roles.
+/// Built-in profile presets for common agent roles.
 pub const presets = struct {
-    pub const code_reviewer = Persona{
+    pub const code_reviewer = Profile{
         .id = "code-reviewer",
         .name = "Code Reviewer",
         .domain = .coding,
@@ -188,7 +188,7 @@ pub const presets = struct {
         .description = "Reviews code for correctness, security, and quality",
     };
 
-    pub const architect = Persona{
+    pub const architect = Profile{
         .id = "architect",
         .name = "Software Architect",
         .domain = .planning,
@@ -205,7 +205,7 @@ pub const presets = struct {
         .description = "Designs system architecture and creates implementation plans",
     };
 
-    pub const implementer = Persona{
+    pub const implementer = Profile{
         .id = "implementer",
         .name = "Code Implementer",
         .domain = .coding,
@@ -221,7 +221,7 @@ pub const presets = struct {
         .description = "Implements features and writes code",
     };
 
-    pub const researcher = Persona{
+    pub const researcher = Profile{
         .id = "researcher",
         .name = "Research Analyst",
         .domain = .research,
@@ -237,7 +237,7 @@ pub const presets = struct {
         .description = "Researches topics and synthesizes findings",
     };
 
-    pub const critic = Persona{
+    pub const critic = Profile{
         .id = "critic",
         .name = "Quality Critic",
         .domain = .testing,
@@ -253,7 +253,7 @@ pub const presets = struct {
         .description = "Evaluates and critiques outputs for quality",
     };
 
-    pub const writer = Persona{
+    pub const writer = Profile{
         .id = "writer",
         .name = "Technical Writer",
         .domain = .documentation,
@@ -268,8 +268,8 @@ pub const presets = struct {
         .description = "Writes documentation and technical content",
     };
 
-    /// All preset personas for iteration.
-    pub const all = [_]Persona{
+    /// All preset profiles for iteration.
+    pub const all = [_]Profile{
         code_reviewer,
         architect,
         implementer,
@@ -280,50 +280,50 @@ pub const presets = struct {
 };
 
 // ============================================================================
-// PersonaRegistry
+// ProfileRegistry
 // ============================================================================
 
-/// Registry that maps agent IDs to personas and enables capability-based lookup.
-pub const PersonaRegistry = struct {
+/// Registry that maps agent IDs to profiles and enables capability-based lookup.
+pub const ProfileRegistry = struct {
     allocator: std.mem.Allocator,
-    /// Map from persona ID to persona.
-    personas: std.StringHashMapUnmanaged(Persona),
+    /// Map from profile ID to profile.
+    profiles: std.StringHashMapUnmanaged(Profile),
 
-    pub fn init(allocator: std.mem.Allocator) PersonaRegistry {
+    pub fn init(allocator: std.mem.Allocator) ProfileRegistry {
         return .{
             .allocator = allocator,
-            .personas = .{},
+            .profiles = .{},
         };
     }
 
-    pub fn deinit(self: *PersonaRegistry) void {
-        self.personas.deinit(self.allocator);
+    pub fn deinit(self: *ProfileRegistry) void {
+        self.profiles.deinit(self.allocator);
     }
 
-    /// Register a persona. Overwrites if ID already exists.
-    pub fn register(self: *PersonaRegistry, persona: Persona) !void {
-        try self.personas.put(self.allocator, persona.id, persona);
+    /// Register a profile. Overwrites if ID already exists.
+    pub fn register(self: *ProfileRegistry, profile: Profile) !void {
+        try self.profiles.put(self.allocator, profile.id, profile);
     }
 
-    /// Load all preset personas into the registry.
-    pub fn loadPresets(self: *PersonaRegistry) !void {
+    /// Load all preset profiles into the registry.
+    pub fn loadPresets(self: *ProfileRegistry) !void {
         for (presets.all) |p| {
             try self.register(p);
         }
     }
 
-    /// Look up a persona by ID.
-    pub fn get(self: *const PersonaRegistry, id: []const u8) ?Persona {
-        return self.personas.get(id);
+    /// Look up a profile by ID.
+    pub fn get(self: *const ProfileRegistry, id: []const u8) ?Profile {
+        return self.profiles.get(id);
     }
 
-    /// Find the best persona for a set of required capabilities.
-    /// Returns the persona with the highest match score, or null if none match.
-    pub fn findBestMatch(self: *const PersonaRegistry, required: []const Capability) ?Persona {
-        var best: ?Persona = null;
+    /// Find the best profile for a set of required capabilities.
+    /// Returns the profile with the highest match score, or null if none match.
+    pub fn findBestMatch(self: *const ProfileRegistry, required: []const Capability) ?Profile {
+        var best: ?Profile = null;
         var best_score: u32 = 0;
 
-        var iter = self.personas.iterator();
+        var iter = self.profiles.iterator();
         while (iter.next()) |entry| {
             const score = entry.value_ptr.matchScore(required);
             if (score > best_score) {
@@ -335,16 +335,16 @@ pub const PersonaRegistry = struct {
         return best;
     }
 
-    /// Find all personas that have a specific capability.
+    /// Find all profiles that have a specific capability.
     pub fn findByCapability(
-        self: *const PersonaRegistry,
+        self: *const ProfileRegistry,
         allocator: std.mem.Allocator,
         cap: Capability,
-    ) ![]const Persona {
-        var results: std.ArrayListUnmanaged(Persona) = .empty;
+    ) ![]const Profile {
+        var results: std.ArrayListUnmanaged(Profile) = .empty;
         errdefer results.deinit(allocator);
 
-        var iter = self.personas.iterator();
+        var iter = self.profiles.iterator();
         while (iter.next()) |entry| {
             if (entry.value_ptr.hasCapability(cap)) {
                 try results.append(allocator, entry.value_ptr.*);
@@ -354,16 +354,16 @@ pub const PersonaRegistry = struct {
         return results.toOwnedSlice(allocator);
     }
 
-    /// Find all personas in a specific domain.
+    /// Find all profiles in a specific domain.
     pub fn findByDomain(
-        self: *const PersonaRegistry,
+        self: *const ProfileRegistry,
         allocator: std.mem.Allocator,
         domain: Domain,
-    ) ![]const Persona {
-        var results: std.ArrayListUnmanaged(Persona) = .empty;
+    ) ![]const Profile {
+        var results: std.ArrayListUnmanaged(Profile) = .empty;
         errdefer results.deinit(allocator);
 
-        var iter = self.personas.iterator();
+        var iter = self.profiles.iterator();
         while (iter.next()) |entry| {
             if (entry.value_ptr.domain == domain) {
                 try results.append(allocator, entry.value_ptr.*);
@@ -373,9 +373,9 @@ pub const PersonaRegistry = struct {
         return results.toOwnedSlice(allocator);
     }
 
-    /// Number of registered personas.
-    pub fn count(self: *const PersonaRegistry) usize {
-        return self.personas.count();
+    /// Number of registered profiles.
+    pub fn count(self: *const ProfileRegistry) usize {
+        return self.profiles.count();
     }
 };
 
@@ -383,14 +383,14 @@ pub const PersonaRegistry = struct {
 // Tests
 // ============================================================================
 
-test "persona capability matching" {
+test "profile capability matching" {
     const p = presets.code_reviewer;
     try std.testing.expect(p.hasCapability(.code_review));
     try std.testing.expect(p.hasCapability(.critique));
     try std.testing.expect(!p.hasCapability(.code_generation));
 }
 
-test "persona match score" {
+test "profile match score" {
     const p = presets.implementer;
     const required = [_]Capability{ .code_generation, .refactoring, .test_writing };
     try std.testing.expectEqual(@as(u32, 3), p.matchScore(&required));
@@ -401,8 +401,8 @@ test "persona match score" {
     try std.testing.expect(!p.satisfiesAll(&partial));
 }
 
-test "persona registry basics" {
-    var reg = PersonaRegistry.init(std.testing.allocator);
+test "profile registry basics" {
+    var reg = ProfileRegistry.init(std.testing.allocator);
     defer reg.deinit();
 
     try reg.loadPresets();
@@ -413,8 +413,8 @@ test "persona registry basics" {
     try std.testing.expectEqualStrings("Code Reviewer", reviewer.?.name);
 }
 
-test "persona registry find best match" {
-    var reg = PersonaRegistry.init(std.testing.allocator);
+test "profile registry find best match" {
+    var reg = ProfileRegistry.init(std.testing.allocator);
     defer reg.deinit();
 
     try reg.loadPresets();
@@ -425,8 +425,8 @@ test "persona registry find best match" {
     try std.testing.expectEqualStrings("code-reviewer", best.?.id);
 }
 
-test "persona registry find by capability" {
-    var reg = PersonaRegistry.init(std.testing.allocator);
+test "profile registry find by capability" {
+    var reg = ProfileRegistry.init(std.testing.allocator);
     defer reg.deinit();
 
     try reg.loadPresets();
@@ -438,8 +438,8 @@ test "persona registry find by capability" {
     try std.testing.expectEqual(@as(usize, 3), results.len);
 }
 
-test "persona registry find by domain" {
-    var reg = PersonaRegistry.init(std.testing.allocator);
+test "profile registry find by domain" {
+    var reg = ProfileRegistry.init(std.testing.allocator);
     defer reg.deinit();
 
     try reg.loadPresets();
@@ -451,7 +451,7 @@ test "persona registry find by domain" {
     try std.testing.expectEqual(@as(usize, 2), coders.len);
 }
 
-test "preset persona constraints" {
+test "preset profile constraints" {
     const reviewer = presets.code_reviewer;
     try std.testing.expect(reviewer.constraints.can_veto);
     try std.testing.expect(!reviewer.constraints.can_delegate);

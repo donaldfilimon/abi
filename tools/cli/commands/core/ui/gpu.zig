@@ -1,9 +1,9 @@
 //! GPU dashboard command redirected to the shared dashboard runtime.
 
 const std = @import("std");
-const command = @import("../../../command");
-const context_mod = @import("../../../framework/context");
-const dashboard_cmd = @import("./dashboard");
+const command = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
+const dashboard_cmd = @import("./dashboard.zig");
 
 pub const meta: command.Meta = .{
     .name = "gpu",

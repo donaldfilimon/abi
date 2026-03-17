@@ -44,8 +44,8 @@
 //! simultaneously allocate, access, and free resources without blocking.
 
 const std = @import("std");
-const memory = @import("base");
-const time = @import("shared_services").time;
+const memory = @import("base.zig");
+const time = @import("../../../services/shared/mod.zig").time;
 
 /// Cache line size for alignment (x86/ARM64)
 pub const CACHE_LINE_SIZE: usize = 64;
@@ -315,6 +315,20 @@ pub const LockFreeResourcePool = struct {
     }
 
     pub fn deinit(self: *LockFreeResourcePool) void {
+        // Lifecycle safety: warn about active allocations remaining at pool
+        // destruction. This catches resource leaks in mixed-backend graphs
+        // where Metal + CPU fallback share a pool.
+        {
+            const active = self.stats.active_allocations.load(.acquire);
+            if (active > 0) {
+                std.log.warn(
+                    "LockFreeResourcePool.deinit: {d} active allocation(s) " ++
+                        "still held — potential resource leak in mixed-backend graph",
+                    .{active},
+                );
+            }
+        }
+
         // Free all allocated GPU buffers
         for (self.buffers) |maybe_buffer| {
             if (maybe_buffer) |buffer| {

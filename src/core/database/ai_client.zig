@@ -182,7 +182,7 @@ pub const AIClient = struct {
     // ─── JSON request building ─────────────────────────────────────────
 
     fn buildRequestBody(self: *AIClient, texts: []const []const u8) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(self.allocator);
 
         try buf.appendSlice(self.allocator, "{\"model\":\"");
@@ -266,7 +266,7 @@ pub const AIClient = struct {
     fn parseFloatArray(allocator: std.mem.Allocator, json: []const u8) ![]f32 {
         if (json.len == 0 or json[0] != '[') return error.InvalidCharacter;
 
-        var values = std.ArrayListUnmanaged(f32){};
+        var values = std.ArrayListUnmanaged(f32).empty;
         errdefer values.deinit(allocator);
 
         var i: usize = 1; // Skip '['

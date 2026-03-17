@@ -1,11 +1,11 @@
 //! LLM chat subcommand - Interactive chat mode.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 pub fn runChat(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -62,7 +62,7 @@ pub fn runChat(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     utils.output.println("Loading model: {s}...", .{model_path.?});
 
     // Create inference engine
-    var engine = abi.features.ai.llm.Engine.init(allocator, .{
+    var engine = abi.ai.llm.Engine.init(allocator, .{
         .max_new_tokens = 512,
         .temperature = 0.7,
         .top_p = 0.9,

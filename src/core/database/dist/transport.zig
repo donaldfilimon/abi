@@ -4,7 +4,7 @@
 //! avoids full Raft semantics but allows current sync logic to cross socket boundaries.
 
 const std = @import("std");
-const rpc = @import("rpc");
+const rpc = @import("rpc.zig");
 
 pub const ConnectionError = error{
     ConnectionClosed,

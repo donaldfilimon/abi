@@ -3,14 +3,14 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
-const providers = abi.features.ai.llm.providers;
-const cfg = @import("config");
-const workspace = @import("workspace");
-const git_ops = @import("git_ops");
-const verification = @import("verification");
-const artifacts = @import("artifacts");
-const skills_store = @import("skills_store");
-const workflow_contract = @import("workflow_contract");
+const providers = abi.ai.llm.providers;
+const cfg = @import("config.zig");
+const workspace = @import("workspace.zig");
+const git_ops = @import("git_ops.zig");
+const verification = @import("verification.zig");
+const artifacts = @import("artifacts.zig");
+const skills_store = @import("skills_store.zig");
+const workflow_contract = @import("workflow_contract.zig");
 
 pub const ImproveOptions = struct {
     task: []const u8,
@@ -65,7 +65,7 @@ pub fn runImprove(
         git_ops.ensureRunBranch(allocator, io, options.worktree, branch);
     }
 
-    var tool_agent = try abi.features.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
+    var tool_agent = try abi.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
         .agent = .{
             .name = "ralph-autonomous",
             .backend = .provider_router,

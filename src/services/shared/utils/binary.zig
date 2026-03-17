@@ -12,7 +12,7 @@ pub const SerializationWriter = struct {
     pub fn init(allocator: std.mem.Allocator) SerializationWriter {
         return .{
             .allocator = allocator,
-            .buffer = .{},
+            .buffer = .empty,
         };
     }
 

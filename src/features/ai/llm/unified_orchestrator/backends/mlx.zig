@@ -1,8 +1,8 @@
 //! MLX backend stub.
 
 const std = @import("std");
-const types = @import("../protocol/types");
-const BackendInterface = @import("backend").BackendInterface;
+const types = @import("../protocol/types.zig");
+const BackendInterface = @import("backend.zig").BackendInterface;
 
 fn run(
     allocator: std.mem.Allocator,

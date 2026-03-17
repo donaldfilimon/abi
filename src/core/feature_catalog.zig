@@ -17,7 +17,7 @@ pub const Feature = enum {
     network,
     observability,
     web,
-    personas,
+    profiles,
     cloud,
     analytics,
     auth,
@@ -34,6 +34,8 @@ pub const Feature = enum {
     compute,
     documents,
     desktop,
+    lsp,
+    mcp,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -78,6 +80,8 @@ pub const ParitySpec = enum {
     compute,
     documents,
     desktop,
+    lsp,
+    mcp,
 };
 
 pub const Metadata = struct {
@@ -113,8 +117,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_llm",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/facades/inference.zig",
-        .stub_module_path = "features/ai/facades/inference_stub.zig",
+        .real_module_path = "features/ai/llm/mod.zig",
+        .stub_module_path = "features/ai/llm/stub.zig",
     },
     .{
         .feature = .embeddings,
@@ -131,8 +135,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/facades/core.zig",
-        .stub_module_path = "features/ai/facades/core_stub.zig",
+        .real_module_path = "features/ai/agents/mod.zig",
+        .stub_module_path = "features/ai/agents/stub.zig",
     },
     .{
         .feature = .training,
@@ -140,8 +144,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_training",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/facades/training.zig",
-        .stub_module_path = "features/ai/facades/training_stub.zig",
+        .real_module_path = "features/ai/training/mod.zig",
+        .stub_module_path = "features/ai/training/stub.zig",
     },
     .{
         .feature = .database,
@@ -176,8 +180,8 @@ pub const all = [_]Metadata{
         .stub_module_path = "features/web/stub.zig",
     },
     .{
-        .feature = .personas,
-        .description = "Multi-persona AI assistant",
+        .feature = .profiles,
+        .description = "Behavior profile routing and selection",
         .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
@@ -278,8 +282,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_reasoning",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/facades/reasoning.zig",
-        .stub_module_path = "features/ai/facades/reasoning_stub.zig",
+        .real_module_path = "features/ai/reasoning/mod.zig",
+        .stub_module_path = "features/ai/reasoning/stub.zig",
     },
     .{
         .feature = .constitution,
@@ -313,6 +317,22 @@ pub const all = [_]Metadata{
         .parity_spec = .desktop,
         .real_module_path = "features/desktop/mod.zig",
         .stub_module_path = "features/desktop/stub.zig",
+    },
+    .{
+        .feature = .lsp,
+        .description = "LSP (ZLS) service",
+        .compile_flag_field = "feat_lsp",
+        .parity_spec = .lsp,
+        .real_module_path = "services/lsp/mod.zig",
+        .stub_module_path = "services/lsp/stub.zig",
+    },
+    .{
+        .feature = .mcp,
+        .description = "MCP (Model Context Protocol) service",
+        .compile_flag_field = "feat_mcp",
+        .parity_spec = .mcp,
+        .real_module_path = "services/mcp/mod.zig",
+        .stub_module_path = "services/mcp/stub.zig",
     },
 };
 
@@ -398,7 +418,7 @@ test "ai subfeatures point to ai parent" {
     try std.testing.expectEqual(Feature.ai, parent(.embeddings).?);
     try std.testing.expectEqual(Feature.ai, parent(.agents).?);
     try std.testing.expectEqual(Feature.ai, parent(.training).?);
-    try std.testing.expectEqual(Feature.ai, parent(.personas).?);
+    try std.testing.expectEqual(Feature.ai, parent(.profiles).?);
     try std.testing.expectEqual(Feature.ai, parent(.reasoning).?);
     try std.testing.expectEqual(Feature.ai, parent(.constitution).?);
 }

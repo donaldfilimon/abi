@@ -44,16 +44,16 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
-const time = abi.services.shared.time;
-const sync = abi.services.shared.sync;
+const time = abi.foundation.time;
+const sync = abi.foundation.sync;
 
 // Sub-modules
-pub const vector_search = @import("vector_search_e2e");
-pub const ai_agent = if (build_options.feat_ai) @import("ai_agent_e2e") else struct {};
-pub const distributed = @import("distributed_e2e");
-pub const gpu_pipeline = @import("gpu_pipeline_e2e");
-pub const cli = @import("cli_e2e");
-pub const llm_training = if (build_options.feat_ai) @import("llm_training_e2e") else struct {};
+pub const vector_search = @import("vector_search_e2e.zig");
+pub const ai_agent = if (build_options.feat_ai) @import("ai_agent_e2e.zig") else struct {};
+pub const distributed = @import("distributed_e2e.zig");
+pub const gpu_pipeline = @import("gpu_pipeline_e2e.zig");
+pub const cli = @import("cli_e2e.zig");
+pub const llm_training = if (build_options.feat_ai) @import("llm_training_e2e.zig") else struct {};
 
 // NOTE: test {} required for Zig 0.16 test discovery (not comptime)
 test {
@@ -392,7 +392,7 @@ pub const E2EMetrics = struct {
 /// Timer for measuring workflow durations.
 pub const WorkflowTimer = struct {
     start_time: ?time.Timer = null,
-    checkpoints: std.ArrayListUnmanaged(Checkpoint) = .{},
+    checkpoints: std.ArrayListUnmanaged(Checkpoint) = .empty,
     allocator: std.mem.Allocator,
 
     pub const Checkpoint = struct {

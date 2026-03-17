@@ -4,8 +4,8 @@
 //! across feature modules (network, streaming, gateway).
 const std = @import("std");
 
-pub const circuit_breaker = @import("circuit_breaker");
-pub const rate_limiter = @import("rate_limiter");
+pub const circuit_breaker = @import("circuit_breaker.zig");
+pub const rate_limiter = @import("rate_limiter.zig");
 
 pub const CircuitBreaker = circuit_breaker.CircuitBreaker;
 pub const CircuitState = circuit_breaker.CircuitState;

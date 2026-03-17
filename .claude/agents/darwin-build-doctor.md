@@ -89,9 +89,21 @@ Based on the classification:
 
 #### For Category A (Known Linker Issue):
 
-There are three workarounds, in order of preference:
+There are four workarounds, in order of preference:
 
-**Workaround 1 (preferred): `run_build.sh`**
+**Workaround 1 (preferred): switch to a host-built or otherwise known-good Zig**
+ABI's supported full-validation path on macOS 25+ / 26+ is a Zig toolchain that
+can execute the normal gates directly:
+
+```bash
+zig build full-check
+zig build check-docs
+```
+
+If the user's PATH toolchain is a stock prebuilt Zig that is linker-blocked,
+recommend replacing it before treating local validation as complete.
+
+**Workaround 2: `run_build.sh` fallback**
 This script does a two-pass build: lets `zig build` fail, finds the `build_zcu.o` artifact, relinks it with Apple's `/usr/bin/ld`, then executes the build runner directly.
 
 ```bash
@@ -103,7 +115,7 @@ Example: if the user wanted `zig build test --summary all`, run:
 ./tools/scripts/run_build.sh test --summary all
 ```
 
-**Workaround 2 (format checks only): Direct zig fmt**
+**Workaround 3 (format checks only): Direct zig fmt**
 If the user only needs format/lint checking, skip the build system entirely:
 
 ```bash
@@ -112,7 +124,7 @@ zig fmt --check build.zig build/ src/ tools/
 
 This works because `zig fmt` does not link anything.
 
-**Workaround 3 (compile-only validation)**
+**Workaround 4 (compile-only validation)**
 If the command still cannot link, drop to compile-only validation locally:
 
 ```bash
@@ -146,9 +158,10 @@ If `run_build.sh` also fails, check whether it printed "Not a linker failure" (m
 
 When you detect a Category A failure, do NOT just report it and stop. Automatically retry with the appropriate workaround:
 
-1. If the user's command was `zig build <args>`, retry with `./tools/scripts/run_build.sh <args>`
-2. If the user's command was `zig build lint` or `zig build fix`, also offer `zig fmt --check build.zig build/ src/ tools/` as a faster alternative
-3. Report both the original failure (briefly) and the workaround result
+1. If the user needs a completion-grade validation result, first state that ABI expects a host-built or otherwise known-good Zig on macOS 25+ / 26+
+2. If the user's command was `zig build <args>` and the local toolchain is blocked, retry with `./tools/scripts/run_build.sh <args>` as fallback evidence
+3. If the user's command was `zig build lint` or `zig build fix`, also offer `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` as a faster alternative
+4. Report both the original failure (briefly) and the workaround result
 
 ## Reference Documentation
 

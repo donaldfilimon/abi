@@ -1,18 +1,18 @@
 //! Chat Dashboard Command
 //!
-//! Interactive TUI chat panel with multi-persona support.
+//! Interactive TUI chat panel with multi-profile support.
 
 const std = @import("std");
-const command = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const tui = @import("../../../terminal/mod.zig");
 const utils = @import("../../../utils/mod.zig");
 const dsl = @import("../../../terminal/dsl/mod.zig");
-const chat_panel = @import("../../../terminal/panels/chat_panel");
+const chat_panel = @import("../../../terminal/panels/chat_panel.zig");
 
 pub const meta: command.Meta = .{
     .name = "chat",
-    .description = "Interactive TUI chat panel with multi-persona support",
+    .description = "Interactive TUI chat panel with multi-profile support",
 };
 
 const PanelType = ChatDashPanel;
@@ -95,7 +95,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         .refresh_rate_ms = 100,
         .min_width = 50,
         .min_height = 16,
-        .help_keys = " [q]uit  [Tab]persona  [Enter]send  [p]ause  [t]heme  [?]help",
+        .help_keys = " [q]uit  [Tab]profile  [Enter]send  [p]ause  [t]heme  [?]help",
         .print_help = printHelp,
         .init_panel = initPanel,
         .extra_key_handler = handleChatKeys,
@@ -106,7 +106,7 @@ fn printHelp() void {
     const help =
         \\Usage: abi ui chat [options]
         \\
-        \\Interactive multi-persona chat dashboard.
+        \\Interactive multi-profile chat dashboard.
         \\
         \\Options:
         \\  --theme <name>     Set initial theme
@@ -115,7 +115,7 @@ fn printHelp() void {
         \\
         \\Keys:
         \\  q / Esc            Quit
-        \\  Tab                Switch persona
+        \\  Tab                Switch profile
         \\  Enter              Send message
         \\  t / T              Cycle themes
         \\  p                  Pause/resume

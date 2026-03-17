@@ -8,23 +8,23 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const feature_catalog = @import("../feature_catalog");
+const feature_catalog = @import("../feature_catalog.zig");
 
 // Domain-specific config imports
-pub const gpu_config = @import("gpu");
-pub const ai_config = @import("ai");
-pub const database_config = @import("database");
-pub const network_config = @import("network");
-pub const observability_config = @import("observability");
-pub const web_config = @import("web");
-pub const cloud_config = @import("cloud");
-pub const platform_config = @import("platform");
-pub const content_config = @import("content");
-pub const gateway_config = @import("gateway");
-pub const benchmarks_config = @import("benchmarks");
-pub const plugin_config = @import("plugin");
-pub const lsp_config = @import("lsp");
-pub const loader = @import("loader");
+pub const gpu_config = @import("gpu.zig");
+pub const ai_config = @import("ai.zig");
+pub const database_config = @import("database.zig");
+pub const network_config = @import("network.zig");
+pub const observability_config = @import("observability.zig");
+pub const web_config = @import("web.zig");
+pub const cloud_config = @import("cloud.zig");
+pub const platform_config = @import("platform.zig");
+pub const content_config = @import("content.zig");
+pub const gateway_config = @import("gateway.zig");
+pub const benchmarks_config = @import("benchmarks.zig");
+pub const plugin_config = @import("plugin.zig");
+pub const lsp_config = @import("lsp.zig");
+pub const loader = @import("loader.zig");
 
 // Re-export loader types
 pub const ConfigLoader = loader.ConfigLoader;
@@ -37,6 +37,7 @@ pub const feature_count = feature_catalog.feature_count;
 pub const GpuConfig = gpu_config.GpuConfig;
 pub const RecoveryConfig = gpu_config.GpuConfig.RecoveryConfig;
 pub const AiConfig = ai_config.AiConfig;
+pub const ProfilesConfig = ai_config.ProfilesConfig;
 pub const LlmConfig = ai_config.LlmConfig;
 pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
 pub const AgentsConfig = ai_config.AgentsConfig;
@@ -113,6 +114,7 @@ pub const Config = struct {
             .gateway = if (build_options.feat_gateway) GatewayConfig.defaults() else null,
             .pages = if (build_options.feat_pages) PagesConfig.defaults() else null,
             .benchmarks = if (build_options.feat_benchmarks) BenchmarksConfig.defaults() else null,
+            .lsp = if (build_options.feat_lsp) LspConfig.defaults() else null,
         };
     }
 
@@ -134,7 +136,7 @@ pub const Config = struct {
             .network => self.network != null,
             .observability => self.observability != null,
             .web => self.web != null,
-            .personas => if (self.ai) |ai| ai.personas != null else false,
+            .profiles => if (self.ai) |ai| ai.profiles != null else false,
             .cloud => self.cloud != null,
             .analytics => self.analytics != null,
             .auth => self.auth != null,
@@ -151,6 +153,8 @@ pub const Config = struct {
             .compute => build_options.feat_compute,
             .documents => build_options.feat_documents,
             .desktop => build_options.feat_desktop,
+            .lsp => self.lsp != null,
+            .mcp => build_options.feat_mcp,
         };
     }
 
@@ -200,12 +204,13 @@ pub const Builder = struct {
             .embeddings => EmbeddingsConfig,
             .agents => AgentsConfig,
             .training => TrainingConfig,
-            .personas,
+            .profiles,
             .reasoning,
             .constitution,
             .compute,
             .documents,
             .desktop,
+            .mcp,
             => struct {}, // Compile-time or nested features with no explicit config struct yet
             .database => DatabaseConfig,
             .network => NetworkConfig,
@@ -222,6 +227,7 @@ pub const Builder = struct {
             .gateway => GatewayConfig,
             .pages => PagesConfig,
             .benchmarks => BenchmarksConfig,
+            .lsp => LspConfig,
         };
     }
 
@@ -235,11 +241,11 @@ pub const Builder = struct {
                 self.config.ai = .{};
             }
             @field(self.config.ai.?, @tagName(feature)) = typed_cfg;
-        } else if (feature == .personas or feature == .reasoning or feature == .constitution) {
+        } else if (feature == .profiles or feature == .reasoning or feature == .constitution) {
             if (self.config.ai == null) {
                 self.config.ai = .{};
             }
-        } else if (feature == .compute or feature == .documents or feature == .desktop) {
+        } else if (feature == .compute or feature == .documents or feature == .desktop or feature == .mcp) {
             // Compile-time-only features do not have runtime config structs.
         } else {
             @field(self.config, @tagName(feature)) = typed_cfg;
@@ -256,12 +262,12 @@ pub const Builder = struct {
                 self.config.ai = .{};
             }
             self.config.ai.?.llm = LlmConfig.defaults();
-        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .personas or feature == .reasoning or feature == .constitution) {
+        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .profiles or feature == .reasoning or feature == .constitution) {
             // These don't have distinct config structs at the moment, handled through AiConfig
             if (self.config.ai == null) {
                 self.config.ai = .{};
             }
-        } else if (feature == .compute or feature == .documents or feature == .desktop) {
+        } else if (feature == .compute or feature == .documents or feature == .desktop or feature == .mcp) {
             // Compile-time-only features do not have runtime config structs.
         } else {
             @field(self.config, @tagName(feature)) = CfgType.defaults();
@@ -311,6 +317,7 @@ pub fn validate(cfg: Config) ConfigError!void {
         .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.feat_gateway },
         .{ .is_enabled_in_config = cfg.pages != null, .is_enabled_at_build = build_options.feat_pages },
         .{ .is_enabled_in_config = cfg.benchmarks != null, .is_enabled_at_build = build_options.feat_benchmarks },
+        .{ .is_enabled_in_config = cfg.lsp != null, .is_enabled_at_build = build_options.feat_lsp },
     };
     inline for (validations) |entry| {
         if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {

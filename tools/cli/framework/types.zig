@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const context_mod = @import("context");
+const context_mod = @import("context.zig");
 
 pub const CommandKind = enum {
     /// Action command that can execute directly.

@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 // Prometheus (stubs)
 pub const PrometheusExporter = struct {};

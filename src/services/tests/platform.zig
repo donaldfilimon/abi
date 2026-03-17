@@ -6,8 +6,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.services.shared.time;
-const sync = abi.services.shared.sync;
+const time = abi.foundation.time;
+const sync = abi.foundation.sync;
 const builtin = @import("builtin");
 
 const WindowsKernel32 = if (builtin.os.tag == .windows)

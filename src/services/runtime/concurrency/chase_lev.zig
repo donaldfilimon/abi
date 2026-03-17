@@ -49,7 +49,7 @@
 //! ```
 
 const std = @import("std");
-const platform_time = @import("shared_services").time;
+const platform_time = @import("../../shared/mod.zig").time;
 
 /// Minimum capacity (must be power of 2)
 const MIN_CAPACITY: usize = 16;

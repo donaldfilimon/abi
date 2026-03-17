@@ -4,7 +4,7 @@
 //! Stores facts, concepts, and learned associations.
 
 const std = @import("std");
-const types = @import("types");
+const types = @import("../../types.zig");
 const simd = @import("../../../../services/shared/simd/mod.zig");
 
 // ============================================================================

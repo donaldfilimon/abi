@@ -28,10 +28,11 @@
 //! - Monitor for TLS vulnerabilities and update accordingly
 
 const std = @import("std");
+const os = @import("../os.zig");
 const time = @import("../time.zig");
 const crypto = std.crypto;
 const csprng = @import("csprng.zig");
-const net = std.net;
+const net = if (!os.no_os) std.net else struct {};
 
 pub const TlsConfig = struct {
     enabled: bool = true,
@@ -472,9 +473,8 @@ pub const CertificateStore = struct {
         }
         self.trusted_certs.deinit(self.allocator);
 
-        var revoked_it = self.revoked_serials.keys();
-        while (revoked_it.next()) |key| {
-            self.allocator.free(key.*);
+        for (self.revoked_serials.keys()) |key| {
+            self.allocator.free(key);
         }
         self.revoked_serials.deinit(self.allocator);
 

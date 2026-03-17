@@ -9,7 +9,7 @@
 //! - Counterfactual reasoning
 
 const std = @import("std");
-const reasoning = @import("../reasoning");
+const reasoning = @import("../reasoning.zig");
 
 // ============================================================================
 // Compositional Types
@@ -250,9 +250,9 @@ pub const ProblemDecomposer = struct {
     }
 
     const QueryAnalysis = struct {
-        components: std.ArrayListUnmanaged([]const u8) = .{},
-        connectors: std.ArrayListUnmanaged([]const u8) = .{},
-        modifiers: std.ArrayListUnmanaged([]const u8) = .{},
+        components: std.ArrayListUnmanaged([]const u8) = .empty,
+        connectors: std.ArrayListUnmanaged([]const u8) = .empty,
+        modifiers: std.ArrayListUnmanaged([]const u8) = .empty,
         question_type: ?[]const u8 = null,
         has_conjunction: bool = false,
         has_disjunction: bool = false,

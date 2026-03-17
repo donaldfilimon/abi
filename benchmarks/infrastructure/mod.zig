@@ -11,12 +11,12 @@ const std = @import("std");
 
 // Infrastructure benchmark suites
 pub const suites = struct {
-    pub const concurrency = @import("concurrency");
-    pub const crypto = @import("crypto");
-    pub const memory = @import("memory");
-    pub const simd = @import("simd");
+    pub const concurrency = @import("concurrency.zig");
+    pub const crypto = @import("crypto.zig");
+    pub const memory = @import("memory.zig");
+    pub const simd = @import("simd.zig");
     pub const network = @import("network/mod.zig");
-    pub const v2_modules = @import("v2_modules");
+    pub const v2_modules = @import("v2_modules.zig");
 };
 
 pub fn runAll(allocator: std.mem.Allocator) !void {

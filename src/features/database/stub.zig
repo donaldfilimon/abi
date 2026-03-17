@@ -1,7 +1,7 @@
 //! Database feature stub facade mirroring `mod.zig`.
 
 const std = @import("std");
-const core_db = @import("../../core/database/stub");
+const core_db = @import("../../core/database/stub.zig");
 
 pub const engine = core_db.engine;
 pub const hnsw = core_db.hnsw;

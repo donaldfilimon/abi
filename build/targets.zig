@@ -1,4 +1,5 @@
 const std = @import("std");
+const link = @import("link.zig");
 
 /// Descriptor for a build target (example, tool, etc.).
 pub const BuildTarget = struct {
@@ -42,6 +43,8 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-gpu-training", .step_name = "run-gpu-training", .description = "Run GPU + training integration example", .source_path = "examples/gpu_training.zig" },
     .{ .name = "example-distributed-db", .step_name = "run-distributed-db", .description = "Run distributed database integration example", .source_path = "examples/distributed_db.zig" },
     .{ .name = "example-web-observability", .step_name = "run-web-observability", .description = "Run web + observability integration example", .source_path = "examples/web_observability.zig" },
+    .{ .name = "example-bare-metal-riscv32", .step_name = "run-bare-metal-riscv32", .description = "Run RISC-V 32 bare metal example", .source_path = "examples/bare_metal_riscv32.zig" },
+    .{ .name = "example-bare-metal-thumb", .step_name = "run-bare-metal-thumb", .description = "Run ARM Thumb bare metal example", .source_path = "examples/bare_metal_thumb.zig" },
     .{ .name = "benchmarks", .step_name = "benchmarks", .description = "Run comprehensive benchmark suite", .source_path = "benchmarks/main.zig" },
 };
 
@@ -82,6 +85,12 @@ pub const cross_check_targets = [_]CrossTarget{
     // ── Mobile ──────────────────────────────────────────────────────────
     .{ .name = "ios-aarch64", .arch = .aarch64, .os = .ios },
     .{ .name = "android-aarch64", .arch = .aarch64, .os = .linux, .abi = .android },
+    .{ .name = "android-arm", .arch = .arm, .os = .linux, .abi = .android },
+
+    // ── Embedded / Bare Metal ───────────────────────────────────────────
+    .{ .name = "riscv32-freestanding", .arch = .riscv32, .os = .freestanding },
+    .{ .name = "thumb-freestanding", .arch = .thumb, .os = .freestanding },
+    .{ .name = "aarch64-freestanding", .arch = .aarch64, .os = .freestanding },
 
     // ── WASM / Freestanding ─────────────────────────────────────────────
     .{ .name = "wasm32-freestanding", .arch = .wasm32, .os = .freestanding },
@@ -103,13 +112,23 @@ pub fn buildTargets(
     build_opts: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    is_blocked_darwin: bool,
     aggregate: ?*std.Build.Step,
     aggregate_runs: bool,
 ) void {
     for (table) |t| {
         if (!pathExists(b, t.source_path)) continue;
         const exe_optimize = t.optimize orelse optimize;
-        const exe = b.addExecutable(.{
+
+        const exe = if (is_blocked_darwin) b.addObject(.{
+            .name = t.name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(t.source_path),
+                .target = target,
+                .optimize = exe_optimize,
+                .link_libc = true,
+            }),
+        }) else b.addExecutable(.{
             .name = t.name,
             .root_module = b.createModule(.{
                 .root_source_file = b.path(t.source_path),
@@ -118,31 +137,27 @@ pub fn buildTargets(
                 .link_libc = true,
             }),
         });
-        const is_blocked_darwin = @import("builtin").os.tag == .macos and @import("builtin").os.version_range.semver.min.major >= 26;
+
         if (is_blocked_darwin) {
             exe.use_llvm = true;
-            // LLD has zero Mach-O support; Apple /usr/bin/ld used via run_build.sh
         }
         exe.root_module.addImport("abi", abi_module);
         exe.root_module.addImport("build_options", build_opts);
         applyPerformanceTweaks(exe, exe_optimize);
         const step = b.step(t.step_name, t.description);
-        if (is_blocked_darwin) {
-            const typecheck = b.addObject(.{ .name = t.name, .root_module = exe.root_module });
-            typecheck.use_llvm = true;
 
-            step.dependOn(&typecheck.step);
-            if (aggregate) |agg| {
-                agg.dependOn(&typecheck.step);
-            }
-            continue;
-        }
+        const run = if (is_blocked_darwin)
+            link.darwinRelink(b, exe, b.fmt("{s}_linked", .{t.name}), null)
+        else
+            b.addRunArtifact(exe);
 
-        b.installArtifact(exe);
-
-        const run = b.addRunArtifact(exe);
         if (b.args) |args| run.addArgs(args);
         step.dependOn(&run.step);
+
+        if (!is_blocked_darwin) {
+            b.installArtifact(exe);
+        }
+
         if (aggregate) |agg| {
             if (aggregate_runs) {
                 agg.dependOn(&run.step);

@@ -5,17 +5,17 @@
 //! All functions take a pointer to SpirvGenerator as the first argument.
 
 const std = @import("std");
-const constants = @import("constants");
-const constants_gen = @import("constants_gen");
+const constants = @import("constants.zig");
+const constants_gen = @import("constants_gen.zig");
 
 pub const OpCode = constants.OpCode;
 pub const ConstKey = constants_gen.ConstKey;
 
 /// The generator type — imported lazily to avoid circular deps.
-const SpirvGenerator = @import("generator").SpirvGenerator;
+const SpirvGenerator = @import("generator.zig").SpirvGenerator;
 
-const instruction_emit = @import("instruction_emit");
-const type_codegen = @import("type_codegen");
+const instruction_emit = @import("instruction_emit.zig");
+const type_codegen = @import("type_codegen.zig");
 
 pub fn getConstantTrue(self: *SpirvGenerator) !u32 {
     const bool_type = try type_codegen.getBoolType(self);

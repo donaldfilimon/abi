@@ -5,20 +5,32 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../config");
-const registry_mod = @import("../registry");
-const state_machine = @import("state_machine");
-const shutdown = @import("shutdown");
+const config_module = @import("../config/mod.zig");
+const registry_mod = @import("../registry/mod.zig");
+const state_machine = @import("state_machine.zig");
+const shutdown = @import("shutdown.zig");
 
 // Shared comptime-gated feature imports (DRY: single source of truth).
-// Standard and AI sub-module imports are accessed via `fi` in the comptime
-// table loops (initStandardFeatures, initAiSubModules). Only modules with
-// custom init logic need explicit aliases here.
-const fi = @import("feature_imports");
+const fi = @import("feature_imports.zig");
+const gpu_mod = fi.gpu_mod;
+const ai_mod = fi.ai_mod;
+const database_mod = fi.database_mod;
+const network_mod = fi.network_mod;
+const observability_mod = fi.observability_mod;
+const web_mod = fi.web_mod;
 const cloud_mod = fi.cloud_mod;
 const analytics_mod = fi.analytics_mod;
-const ha_mod = @import("../../services/ha");
-const runtime_mod = @import("../../services/runtime");
+const auth_mod = fi.auth_mod;
+const messaging_mod = fi.messaging_mod;
+const cache_mod = fi.cache_mod;
+const storage_mod = fi.storage_mod;
+const search_mod = fi.search_mod;
+const gateway_mod = fi.gateway_mod;
+const pages_mod = fi.pages_mod;
+const benchmarks_mod = fi.benchmarks_mod;
+const mobile_mod = fi.mobile_mod;
+const ha_mod = @import("../../services/ha/mod.zig");
+const runtime_mod = @import("../../services/runtime/mod.zig");
 
 /// Initialize a framework with the provided configuration.
 pub fn init(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config) Framework.Error!Framework {

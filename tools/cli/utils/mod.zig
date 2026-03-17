@@ -1,12 +1,12 @@
 //! CLI utility modules for shared functionality.
 
-pub const args = @import("args");
-pub const output = @import("output");
-pub const help = @import("help");
-pub const global_flags = @import("global_flags");
-pub const io_backend = @import("io_backend");
-pub const process = @import("process");
-pub const subcommand = @import("subcommand");
+pub const args = @import("args.zig");
+pub const output = @import("output.zig");
+pub const help = @import("help.zig");
+pub const global_flags = @import("global_flags.zig");
+pub const io_backend = @import("io_backend.zig");
+pub const process = @import("process.zig");
+pub const subcommand = @import("subcommand.zig");
 
 const std = @import("std");
 test {

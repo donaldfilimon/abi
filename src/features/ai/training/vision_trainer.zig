@@ -7,8 +7,8 @@
 //! - Checkpoint save/load functionality
 
 const std = @import("std");
-const vit = @import("../vision/vit");
-const mixed_precision = @import("mixed_precision");
+const vit = @import("../vision/vit.zig");
+const mixed_precision = @import("mixed_precision.zig");
 
 /// Error types for vision training.
 pub const VisionTrainingError = error{

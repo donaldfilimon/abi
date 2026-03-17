@@ -4,8 +4,8 @@
 //! Designed to be faster than GGUF while supporting more data types.
 
 const std = @import("std");
-const mod = @import("mod");
-const compression = @import("compression");
+const mod = @import("mod.zig");
+const compression = @import("compression.zig");
 
 pub const UnifiedError = error{
     InvalidMagic,

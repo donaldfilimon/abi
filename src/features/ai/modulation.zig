@@ -1,8 +1,8 @@
-//! Adaptive Persona Modulation
+//! Adaptive Profile Modulation
 //!
-//! Implements ML-hybrid persona routing refinement:
+//! Implements ML-hybrid profile routing refinement:
 //! - Exponential moving average (EMA) preference tracking per user
-//! - Weighted interaction history for persona selection bias
+//! - Weighted interaction history for profile selection bias
 //! - Confidence calibration across routing decisions
 //! - Feedback-aware scoring adjustments
 //!
@@ -10,8 +10,8 @@
 //! routing decision, adjusting scores based on learned user preferences.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const types = @import("types");
+const time = @import("../../services/shared/mod.zig").time;
+const types = @import("types.zig");
 
 /// Configuration for the adaptive modulation system.
 pub const ModulationConfig = struct {
@@ -27,11 +27,11 @@ pub const ModulationConfig = struct {
     enable_calibration: bool = true,
 };
 
-/// Per-persona preference score with EMA tracking.
-pub const PersonaPreference = struct {
-    /// EMA score for this persona (0.0 - 1.0).
+/// Per-profile preference score with EMA tracking.
+pub const ProfilePreference = struct {
+    /// EMA score for this profile (0.0 - 1.0).
     score: f32,
-    /// Total interactions routed to this persona.
+    /// Total interactions routed to this profile.
     interaction_count: u32,
     /// Total positive outcomes (user satisfaction).
     positive_count: u32,
@@ -39,15 +39,15 @@ pub const PersonaPreference = struct {
     last_interaction: i64,
 };
 
-/// A user's preference profile across all personas.
+/// A user's preference profile across all profiles.
 pub const UserProfile = struct {
-    abbey: PersonaPreference,
-    aviva: PersonaPreference,
-    abi: PersonaPreference,
+    abbey: ProfilePreference,
+    aviva: ProfilePreference,
+    abi: ProfilePreference,
     total_interactions: u32,
 
-    pub fn getPreference(self: *const UserProfile, persona: types.PersonaType) PersonaPreference {
-        return switch (persona) {
+    pub fn getPreference(self: *const UserProfile, profile: types.ProfileType) ProfilePreference {
+        return switch (profile) {
             .abbey => self.abbey,
             .aviva => self.aviva,
             .abi => self.abi,
@@ -55,8 +55,8 @@ pub const UserProfile = struct {
         };
     }
 
-    pub fn setPreference(self: *UserProfile, persona: types.PersonaType, pref: PersonaPreference) void {
-        switch (persona) {
+    pub fn setPreference(self: *UserProfile, profile: types.ProfileType, pref: ProfilePreference) void {
+        switch (profile) {
             .abbey => self.abbey = pref,
             .aviva => self.aviva = pref,
             .abi => self.abi = pref,
@@ -79,7 +79,7 @@ pub const ModulationResult = struct {
     modulation_active: bool,
 };
 
-/// Adaptive Persona Modulator.
+/// Adaptive Profile Modulator.
 pub const AdaptiveModulator = struct {
     allocator: std.mem.Allocator,
     config: ModulationConfig,
@@ -118,7 +118,7 @@ pub const AdaptiveModulator = struct {
     pub fn modulate(
         self: *Self,
         session_id: []const u8,
-        persona: types.PersonaType,
+        profile: types.ProfileType,
         original_score: f32,
     ) ModulationResult {
         self.mutex.lock();
@@ -145,7 +145,7 @@ pub const AdaptiveModulator = struct {
             };
         }
 
-        const pref = profile.getPreference(persona);
+        const pref = profile.getPreference(profile);
 
         // Compute preference bias
         const preference_bias = (pref.score - 0.5) * self.config.preference_weight;
@@ -175,7 +175,7 @@ pub const AdaptiveModulator = struct {
     pub fn recordInteraction(
         self: *Self,
         session_id: []const u8,
-        persona: types.PersonaType,
+        profile: types.ProfileType,
         was_positive: bool,
     ) !void {
         self.mutex.lock();
@@ -197,14 +197,14 @@ pub const AdaptiveModulator = struct {
             };
         }
 
-        // Update the specific persona's EMA score
-        var pref = profile.getPreference(persona);
+        // Update the specific profile's EMA score
+        var pref = profile.getPreference(profile);
         const outcome: f32 = if (was_positive) 1.0 else 0.0;
         pref.score = self.config.ema_alpha * outcome + (1.0 - self.config.ema_alpha) * pref.score;
         pref.interaction_count += 1;
         if (was_positive) pref.positive_count += 1;
         pref.last_interaction = now;
-        profile.setPreference(persona, pref);
+        profile.setPreference(profile, pref);
         profile.total_interactions += 1;
 
         // Update calibration stats
@@ -235,7 +235,7 @@ pub const AdaptiveModulator = struct {
             @as(f32, @floatFromInt(self.calibration_total));
     }
 
-    fn defaultPreference() PersonaPreference {
+    fn defaultPreference() ProfilePreference {
         return .{
             .score = 0.5,
             .interaction_count = 0,

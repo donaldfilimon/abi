@@ -8,12 +8,12 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const framework = @import("../../system/framework");
+const framework = @import("../../system/framework.zig");
 
 // GPU benchmark suites
 pub const kernels = @import("kernels/mod.zig");
-pub const backends = @import("backends");
-pub const gpu_vs_cpu = @import("gpu_vs_cpu");
+pub const backends = @import("backends.zig");
+pub const gpu_vs_cpu = @import("gpu_vs_cpu.zig");
 
 /// GPU benchmark configuration presets
 pub const GpuBenchmarkMode = enum {
@@ -103,7 +103,7 @@ pub fn hasHardwareGpu(allocator: std.mem.Allocator) bool {
     if (!build_options.feat_gpu) return false;
 
     const abi = @import("abi");
-    var gpu_ctx = abi.features.gpu.Gpu.init(allocator, .{}) catch return false;
+    var gpu_ctx = abi.gpu.Gpu.init(allocator, .{}) catch return false;
     defer gpu_ctx.deinit();
 
     if (!gpu_ctx.isAvailable()) return false;

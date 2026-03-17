@@ -15,16 +15,16 @@
 //!   try node.tick(); // Process timeouts and state transitions
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 
 // Re-export persistence and snapshot types for backward compatibility
-const raft_persistence = @import("raft_persistence");
+const raft_persistence = @import("raft_persistence.zig");
 pub const PersistentState = raft_persistence.PersistentState;
 pub const PersistentLogEntry = raft_persistence.PersistentLogEntry;
 pub const RaftPersistence = raft_persistence.RaftPersistence;
 
-const raft_snapshot = @import("raft_snapshot");
+const raft_snapshot = @import("raft_snapshot.zig");
 pub const SnapshotMetadata = raft_snapshot.SnapshotMetadata;
 pub const RaftSnapshotManager = raft_snapshot.RaftSnapshotManager;
 pub const SnapshotConfig = raft_snapshot.SnapshotConfig;
@@ -42,12 +42,14 @@ pub fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
 /// Raft node state.
 pub const RaftState = enum {
     follower,
+    pre_candidate,
     candidate,
     leader,
 
     pub fn toString(self: RaftState) []const u8 {
         return switch (self) {
             .follower => "follower",
+            .pre_candidate => "pre_candidate",
             .candidate => "candidate",
             .leader => "leader",
         };
@@ -259,7 +261,7 @@ pub const RaftNode = struct {
             .config = config,
             .current_term = 0,
             .voted_for = null,
-            .log = .{},
+            .log = .empty,
             .commit_index = 0,
             .last_applied = 0,
             .state = .follower,
@@ -386,27 +388,63 @@ pub const RaftNode = struct {
         self.time_since_last_heartbeat_ms += elapsed_ms;
 
         switch (self.state) {
-            .follower, .candidate => {
+            .follower => {
+                if (self.time_since_last_heartbeat_ms >= self.election_timeout_ms) {
+                    if (self.config.enable_pre_vote) {
+                        try self.startPreVote();
+                    } else {
+                        try self.startElection();
+                    }
+                }
+            },
+            .pre_candidate => {
+                // Pre-vote timed out without quorum — retry pre-vote
+                if (self.time_since_last_heartbeat_ms >= self.election_timeout_ms) {
+                    try self.startPreVote();
+                }
+            },
+            .candidate => {
                 if (self.time_since_last_heartbeat_ms >= self.election_timeout_ms) {
                     try self.startElection();
                 }
             },
             .leader => {
+                // Age peer contact timers
+                var peer_iter = self.peers.valueIterator();
+                while (peer_iter.next()) |peer| {
+                    peer.last_contact_ms += elapsed_ms;
+                }
+
                 if (self.time_since_last_heartbeat_ms >= self.config.heartbeat_interval_ms) {
                     try self.sendHeartbeats();
                     self.time_since_last_heartbeat_ms = 0;
                 }
+
+                // Check if we still have quorum contact
+                self.checkQuorumLiveness();
             },
         }
     }
 
-    /// Handle RequestVote RPC.
+    /// Handle RequestVote RPC (including pre-vote requests).
     pub fn handleRequestVote(self: *RaftNode, request: RequestVoteRequest) !RequestVoteResponse {
         var response = RequestVoteResponse{
             .term = self.current_term,
             .vote_granted = false,
             .voter_id = self.node_id,
         };
+
+        // Pre-vote handling: respond without changing own state.
+        // Grant pre-vote if candidate's proposed term >= our term and log is up-to-date.
+        if (request.is_pre_vote) {
+            const log_ok = self.isLogUpToDate(request.last_log_index, request.last_log_term);
+            if (request.term >= self.current_term and log_ok) {
+                response.vote_granted = true;
+            }
+            return response;
+        }
+
+        // Standard vote handling below.
 
         // If request term < current term, reject
         if (request.term < self.current_term) {
@@ -573,6 +611,9 @@ pub const RaftNode = struct {
 
         const peer = self.peers.getPtr(response.follower_id) orelse return;
 
+        // Reset contact timer — we heard from this peer
+        peer.last_contact_ms = 0;
+
         if (response.success) {
             // Update next_index and match_index
             peer.match_index = response.match_index;
@@ -634,6 +675,43 @@ pub const RaftNode = struct {
         };
     }
 
+    /// Build a pre-vote request. Uses proposed term (current_term + 1)
+    /// without actually incrementing the term.
+    pub fn buildPreVoteRequest(self: *const RaftNode) RequestVoteRequest {
+        return RequestVoteRequest{
+            .term = self.current_term + 1,
+            .candidate_id = self.node_id,
+            .last_log_index = self.getLastLogIndex(),
+            .last_log_term = self.getLastLogTerm(),
+            .is_pre_vote = true,
+        };
+    }
+
+    /// Handle a pre-vote response. If quorum of pre-votes is reached,
+    /// proceed to a real election.
+    pub fn handlePreVoteResponse(self: *RaftNode, response: RequestVoteResponse) !void {
+        if (self.state != .pre_candidate) {
+            return; // Ignore if not in pre-candidate state
+        }
+
+        if (response.term > self.current_term) {
+            try self.stepDown(response.term);
+            return;
+        }
+
+        if (response.vote_granted) {
+            // Record pre-vote
+            if (self.peers.getPtr(response.voter_id)) |peer| {
+                peer.pre_vote_granted = true;
+            }
+
+            // Check for pre-vote quorum
+            if (self.hasPreVoteQuorum()) {
+                try self.startElection();
+            }
+        }
+    }
+
     /// Apply committed entries to state machine.
     pub fn applyCommitted(self: *RaftNode, callback: ApplyCallback, user_data: ?*anyopaque) void {
         while (self.last_applied < self.commit_index) {
@@ -659,6 +737,27 @@ pub const RaftNode = struct {
     }
 
     // Private methods
+
+    /// Start pre-vote phase: enter pre_candidate without incrementing term.
+    /// Pre-vote prevents term inflation from partitioned nodes that cannot
+    /// win an election but keep incrementing their term on every timeout.
+    fn startPreVote(self: *RaftNode) !void {
+        self.state = .pre_candidate;
+
+        // Reset pre-vote grants from peers
+        var iter = self.peers.valueIterator();
+        while (iter.next()) |peer| {
+            peer.pre_vote_granted = false;
+        }
+
+        // Reset election timeout
+        self.resetElectionTimeout();
+
+        // Single node cluster: skip pre-vote, go straight to election
+        if (self.peers.count() == 0) {
+            try self.startElection();
+        }
+    }
 
     fn startElection(self: *RaftNode) !void {
         self.current_term += 1;
@@ -785,6 +884,43 @@ pub const RaftNode = struct {
         return votes > total_nodes / 2;
     }
 
+    fn countPreVotes(self: *const RaftNode) usize {
+        var votes: usize = 1; // Self pre-vote
+        var iter = self.peers.valueIterator();
+        while (iter.next()) |peer| {
+            if (peer.pre_vote_granted) votes += 1;
+        }
+        return votes;
+    }
+
+    fn hasPreVoteQuorum(self: *const RaftNode) bool {
+        const votes = self.countPreVotes();
+        const total_nodes = self.peers.count() + 1;
+        return votes > total_nodes / 2;
+    }
+
+    /// Check if the leader still has contact with a quorum of peers.
+    /// If not, step down to prevent split-brain.
+    fn checkQuorumLiveness(self: *RaftNode) void {
+        if (self.state != .leader) return;
+
+        const total_nodes = self.peers.count() + 1;
+        // Need > total_nodes / 2 nodes reachable (including self)
+        var reachable: usize = 1; // Self is always reachable
+        var iter = self.peers.valueIterator();
+        while (iter.next()) |peer| {
+            if (peer.last_contact_ms < self.election_timeout_ms) {
+                reachable += 1;
+            }
+        }
+
+        if (reachable <= total_nodes / 2) {
+            // Lost quorum contact — step down to follower at same term
+            self.state = .follower;
+            self.resetElectionTimeout();
+        }
+    }
+
     fn advanceCommitIndex(self: *RaftNode) void {
         // Find the highest N such that a majority of matchIndex[i] >= N
         // and log[N].term == currentTerm
@@ -849,10 +985,67 @@ pub fn createCluster(allocator: std.mem.Allocator, node_ids: []const []const u8,
     return nodes;
 }
 
+/// Fault injection helper for testing network partitions.
+/// Tracks blocked communication routes between node pairs.
+pub const FaultInjector = struct {
+    /// Blocked routes stored as "src_id->dst_id" keys.
+    blocked_routes: std.StringHashMapUnmanaged(void),
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) FaultInjector {
+        return FaultInjector{
+            .blocked_routes = .{},
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *FaultInjector) void {
+        var iter = self.blocked_routes.keyIterator();
+        while (iter.next()) |key| {
+            self.allocator.free(key.*);
+        }
+        self.blocked_routes.deinit(self.allocator);
+    }
+
+    /// Block communication in both directions between two nodes.
+    pub fn simulatePartition(self: *FaultInjector, node_a: []const u8, node_b: []const u8) !void {
+        try self.blockRoute(node_a, node_b);
+        try self.blockRoute(node_b, node_a);
+    }
+
+    /// Restore communication in both directions between two nodes.
+    pub fn simulateHeal(self: *FaultInjector, node_a: []const u8, node_b: []const u8) void {
+        self.unblockRoute(node_a, node_b);
+        self.unblockRoute(node_b, node_a);
+    }
+
+    /// Check if communication from src to dst is blocked.
+    pub fn isBlocked(self: *const FaultInjector, src: []const u8, dst: []const u8) bool {
+        // Build route key on stack for lookup
+        var buf: [512]u8 = undefined;
+        const key = std.fmt.bufPrint(&buf, "{s}->{s}", .{ src, dst }) catch return false;
+        return self.blocked_routes.contains(key);
+    }
+
+    fn blockRoute(self: *FaultInjector, src: []const u8, dst: []const u8) !void {
+        const key = try std.fmt.allocPrint(self.allocator, "{s}->{s}", .{ src, dst });
+        errdefer self.allocator.free(key);
+        try self.blocked_routes.put(self.allocator, key, {});
+    }
+
+    fn unblockRoute(self: *FaultInjector, src: []const u8, dst: []const u8) void {
+        var buf: [512]u8 = undefined;
+        const key = std.fmt.bufPrint(&buf, "{s}->{s}", .{ src, dst }) catch return;
+        if (self.blocked_routes.fetchRemove(key)) |kv| {
+            self.allocator.free(kv.key);
+        }
+    }
+};
+
 test {
-    _ = @import("raft_persistence");
-    _ = @import("raft_snapshot");
-    _ = @import("raft_test");
+    _ = @import("raft_persistence.zig");
+    _ = @import("raft_snapshot.zig");
+    _ = @import("raft_test.zig");
 }
 
 test {

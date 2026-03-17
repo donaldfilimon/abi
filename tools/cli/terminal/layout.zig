@@ -444,6 +444,134 @@ test "distribute overflow shrinks proportionally" {
     try std.testing.expectEqual(@as(u16, 20), result[1]);
 }
 
+test "nested splits produce correct final dimensions" {
+    // Split 80x24 horizontally at row 12, then split each half vertically at col 40.
+    const root = Rect.fromTerminalSize(80, 24);
+    const h = root.splitHorizontal(12);
+
+    // Top half: 80x12 at (0,0)
+    try std.testing.expectEqual(@as(u16, 0), h.top.x);
+    try std.testing.expectEqual(@as(u16, 0), h.top.y);
+    try std.testing.expectEqual(@as(u16, 80), h.top.width);
+    try std.testing.expectEqual(@as(u16, 12), h.top.height);
+
+    // Bottom half: 80x12 at (0,12)
+    try std.testing.expectEqual(@as(u16, 0), h.bottom.x);
+    try std.testing.expectEqual(@as(u16, 12), h.bottom.y);
+    try std.testing.expectEqual(@as(u16, 80), h.bottom.width);
+    try std.testing.expectEqual(@as(u16, 12), h.bottom.height);
+
+    // Split top half vertically at col 40
+    const tl = h.top.splitVertical(40);
+    try std.testing.expectEqual(@as(u16, 0), tl.left.x);
+    try std.testing.expectEqual(@as(u16, 0), tl.left.y);
+    try std.testing.expectEqual(@as(u16, 40), tl.left.width);
+    try std.testing.expectEqual(@as(u16, 12), tl.left.height);
+
+    try std.testing.expectEqual(@as(u16, 40), tl.right.x);
+    try std.testing.expectEqual(@as(u16, 0), tl.right.y);
+    try std.testing.expectEqual(@as(u16, 40), tl.right.width);
+    try std.testing.expectEqual(@as(u16, 12), tl.right.height);
+
+    // Split bottom half vertically at col 40
+    const bl = h.bottom.splitVertical(40);
+    try std.testing.expectEqual(@as(u16, 0), bl.left.x);
+    try std.testing.expectEqual(@as(u16, 12), bl.left.y);
+    try std.testing.expectEqual(@as(u16, 40), bl.left.width);
+    try std.testing.expectEqual(@as(u16, 12), bl.left.height);
+
+    try std.testing.expectEqual(@as(u16, 40), bl.right.x);
+    try std.testing.expectEqual(@as(u16, 12), bl.right.y);
+    try std.testing.expectEqual(@as(u16, 40), bl.right.width);
+    try std.testing.expectEqual(@as(u16, 12), bl.right.height);
+}
+
+test "zero-width Rect splits gracefully" {
+    const r = Rect{ .x = 5, .y = 3, .width = 0, .height = 20 };
+    try std.testing.expect(r.isEmpty());
+
+    // splitHorizontal on zero-width rect
+    const h = r.splitHorizontal(10);
+    try std.testing.expectEqual(@as(u16, 0), h.top.width);
+    try std.testing.expectEqual(@as(u16, 0), h.bottom.width);
+    try std.testing.expect(h.top.isEmpty());
+    try std.testing.expect(h.bottom.isEmpty());
+
+    // splitVertical on zero-width rect
+    const v = r.splitVertical(5);
+    try std.testing.expectEqual(@as(u16, 0), v.left.width);
+    try std.testing.expectEqual(@as(u16, 0), v.right.width);
+    try std.testing.expect(v.left.isEmpty());
+    try std.testing.expect(v.right.isEmpty());
+}
+
+test "zero-height Rect splits gracefully" {
+    const r = Rect{ .x = 2, .y = 7, .width = 40, .height = 0 };
+    try std.testing.expect(r.isEmpty());
+
+    // splitHorizontal on zero-height rect
+    const h = r.splitHorizontal(5);
+    try std.testing.expectEqual(@as(u16, 0), h.top.height);
+    try std.testing.expectEqual(@as(u16, 0), h.bottom.height);
+    try std.testing.expect(h.top.isEmpty());
+    try std.testing.expect(h.bottom.isEmpty());
+
+    // splitVertical on zero-height rect
+    const v = r.splitVertical(20);
+    try std.testing.expectEqual(@as(u16, 0), v.left.height);
+    try std.testing.expectEqual(@as(u16, 0), v.right.height);
+    try std.testing.expect(v.left.isEmpty());
+    try std.testing.expect(v.right.isEmpty());
+}
+
+test "splitHorizontal preserves width" {
+    const r = Rect{ .x = 10, .y = 5, .width = 60, .height = 30 };
+    const splits = [_]u16{ 0, 1, 15, 29, 30, 100 };
+    for (splits) |at| {
+        const s = r.splitHorizontal(at);
+        try std.testing.expectEqual(r.width, s.top.width);
+        try std.testing.expectEqual(r.width, s.bottom.width);
+    }
+}
+
+test "splitVertical preserves height" {
+    const r = Rect{ .x = 10, .y = 5, .width = 60, .height = 30 };
+    const splits = [_]u16{ 0, 1, 30, 59, 60, 200 };
+    for (splits) |at| {
+        const s = r.splitVertical(at);
+        try std.testing.expectEqual(r.height, s.left.height);
+        try std.testing.expectEqual(r.height, s.right.height);
+    }
+}
+
+test "non-origin Rect splits with correct offsets" {
+    const r = Rect{ .x = 10, .y = 5, .width = 60, .height = 20 };
+
+    // Horizontal split at row 8
+    const h = r.splitHorizontal(8);
+    try std.testing.expectEqual(@as(u16, 10), h.top.x);
+    try std.testing.expectEqual(@as(u16, 5), h.top.y);
+    try std.testing.expectEqual(@as(u16, 60), h.top.width);
+    try std.testing.expectEqual(@as(u16, 8), h.top.height);
+
+    try std.testing.expectEqual(@as(u16, 10), h.bottom.x);
+    try std.testing.expectEqual(@as(u16, 13), h.bottom.y); // 5 + 8
+    try std.testing.expectEqual(@as(u16, 60), h.bottom.width);
+    try std.testing.expectEqual(@as(u16, 12), h.bottom.height); // 20 - 8
+
+    // Vertical split at col 25
+    const v = r.splitVertical(25);
+    try std.testing.expectEqual(@as(u16, 10), v.left.x);
+    try std.testing.expectEqual(@as(u16, 5), v.left.y);
+    try std.testing.expectEqual(@as(u16, 25), v.left.width);
+    try std.testing.expectEqual(@as(u16, 20), v.left.height);
+
+    try std.testing.expectEqual(@as(u16, 35), v.right.x); // 10 + 25
+    try std.testing.expectEqual(@as(u16, 5), v.right.y);
+    try std.testing.expectEqual(@as(u16, 35), v.right.width); // 60 - 25
+    try std.testing.expectEqual(@as(u16, 20), v.right.height);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

@@ -3,7 +3,7 @@
 const std = @import("std");
 const framework = @import("../../framework/mod.zig");
 const commands = @import("../../commands/mod.zig");
-const types = @import("types");
+const types = @import("types.zig");
 
 const MenuItem = types.MenuItem;
 const CommandRef = types.CommandRef;
@@ -48,7 +48,7 @@ const catalog_items = [_]MenuItem{
         .action = .{ .command = commandRef("agent", "agent", empty_args) },
         .category = .ai,
         .shortcut = 1,
-        .usage = "abi agent [--message \"...\"] [--persona <name>]",
+        .usage = "abi agent [--message \"...\"] [--profile <name>]",
         .examples = &[_][]const u8{ "abi agent", "abi agent --message \"Hello\"" },
         .related = &[_][]const u8{ "llm", "train" },
     },

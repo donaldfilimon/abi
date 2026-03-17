@@ -1,5 +1,5 @@
 const std = @import("std");
-const types = @import("types");
+const types = @import("types.zig");
 
 pub const wdbx = struct {
     pub const DatabaseHandle = types.DatabaseHandle;

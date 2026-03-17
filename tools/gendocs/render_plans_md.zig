@@ -1,5 +1,5 @@
 const std = @import("std");
-const model = @import("model");
+const model = @import("model.zig");
 
 const generated_footer = model.generated_footer;
 

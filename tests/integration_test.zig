@@ -1,7 +1,7 @@
 //! Integration Tests — End-to-end verification of the ABI framework
 
 const std = @import("std");
-const root = @import("../src/root");
+const root = @import("../src/root.zig");
 
 test "database insert and vector search round-trip" {
     const allocator = std.testing.allocator;
@@ -35,7 +35,7 @@ test "database insert and vector search round-trip" {
     try std.testing.expect(db.verifyChain());
 }
 
-test "persona routing pipeline" {
+test "profile routing pipeline" {
     const allocator = std.testing.allocator;
     var moderator = root.AbiModerator.init(allocator);
     defer moderator.deinit();

@@ -1,5 +1,5 @@
 const std = @import("std");
-const backend_mod = @import("backend");
+const backend_mod = @import("backend.zig");
 
 pub const LaunchConfig = struct {};
 pub const ExecutionResult = struct {

@@ -4,9 +4,9 @@
 //! Active tab is highlighted using theme.tab_active; others use theme.tab_inactive.
 
 const std = @import("std");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const render_utils = @import("render_utils");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const render_utils = @import("render_utils.zig");
 
 pub const TabBar = struct {
     labels: []const []const u8,
@@ -30,8 +30,22 @@ pub const TabBar = struct {
         self.active = if (self.active == 0) self.labels.len - 1 else self.active - 1;
     }
 
+    /// Category group boundaries. Tabs at these indices start a new group,
+    /// rendered with a double-pipe separator instead of the regular pipe.
+    /// Groups: AI Tools (0-4), Data (5-7), Infra (8-10), System (11-14).
+    const group_starts = [_]usize{ 0, 5, 8, 11 };
+
+    /// Returns true if the tab at `idx` is the first tab in a category group.
+    fn isGroupStart(idx: usize) bool {
+        for (group_starts) |g| {
+            if (g == idx) return true;
+        }
+        return false;
+    }
+
     /// Render the tab bar at the given terminal row.
     /// Uses the full width, drawing tabs left-aligned with separators.
+    /// Groups are separated by double-pipe ║ and each tab has a status dot.
     pub fn render(self: *const TabBar, term: *terminal.Terminal, theme: *const themes.Theme, row: u16, width: u16) !void {
         try term.moveTo(row, 0);
 
@@ -40,28 +54,31 @@ pub const TabBar = struct {
         var used: usize = 1;
 
         for (self.labels, 0..) |label, i| {
-            // Separator between tabs
+            const is_active = (i == self.active);
+
+            // Separator between tabs: ║ between groups, │ within
             if (i > 0) {
+                const sep = if (isGroupStart(i)) " \u{2551} " else " \u{2502} ";
                 try term.write(theme.tab_separator);
-                try term.write(" | ");
+                try term.write(sep);
                 try term.write(theme.reset);
                 used += 3;
             }
 
+            // Status dot (green = active, gray = idle)
+            const dot_color = if (is_active) theme.status_active else theme.status_idle;
+            try term.write(dot_color);
+            try term.write("\u{25cf}");
+            try term.write(theme.reset);
+            used += 1;
+
             // Tab label
-            if (i == self.active) {
-                try term.write(theme.tab_active);
-                try term.write(" ");
-                try term.write(label);
-                try term.write(" ");
-                try term.write(theme.reset);
-            } else {
-                try term.write(theme.tab_inactive);
-                try term.write(" ");
-                try term.write(label);
-                try term.write(" ");
-                try term.write(theme.reset);
-            }
+            const tab_style = if (is_active) theme.tab_active else theme.tab_inactive;
+            try term.write(tab_style);
+            try term.write(" ");
+            try term.write(label);
+            try term.write(" ");
+            try term.write(theme.reset);
             used += label.len + 2;
         }
 

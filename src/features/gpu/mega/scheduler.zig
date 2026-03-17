@@ -37,9 +37,9 @@
 //! ```
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const coordinator = @import("coordinator");
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const coordinator = @import("coordinator.zig");
 
 /// Experience for replay buffer - stores a single state transition.
 pub const Experience = struct {
@@ -180,7 +180,7 @@ pub const ReplayBuffer = struct {
     pub fn init(allocator: std.mem.Allocator, capacity: usize) ReplayBuffer {
         return .{
             .allocator = allocator,
-            .buffer = .{},
+            .buffer = .empty,
             .capacity = capacity,
         };
     }
@@ -245,7 +245,7 @@ pub const LearningScheduler = struct {
             .q_table = QTable.init(),
             .replay_buffer = ReplayBuffer.init(allocator, 10000),
             .coord = coord,
-            .episode_rewards = .{},
+            .episode_rewards = .empty,
             .current_episode_reward = 0,
         };
         return self;

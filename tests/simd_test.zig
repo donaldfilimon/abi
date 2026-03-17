@@ -1,7 +1,7 @@
 //! SIMD Distance Function Tests
 
 const std = @import("std");
-const simd = @import("../src/core/database/simd");
+const simd = @import("../src/core/database/simd.zig");
 
 test "simd width is reasonable" {
     try std.testing.expect(simd.simd_width >= 4);

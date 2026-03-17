@@ -16,7 +16,7 @@ const build_options = @import("build_options");
 // ============================================================================
 
 test "framework init/shutdown ordering" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -32,7 +32,7 @@ test "framework init/shutdown ordering" {
 }
 
 test "framework reinitialize after shutdown" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -50,7 +50,7 @@ test "framework reinitialize after shutdown" {
 }
 
 test "framework with features enabled" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -71,7 +71,7 @@ test "framework with features enabled" {
 
 test "metrics collection" {
     // Create counter metric
-    var counter = abi.features.observability.Counter{ .name = "test_ops_total" };
+    var counter = abi.observability.Counter{ .name = "test_ops_total" };
 
     // Simulate module activity
     counter.inc(1);
@@ -81,7 +81,7 @@ test "metrics collection" {
 }
 
 test "gauge metrics" {
-    var gauge = abi.features.observability.Gauge{ .name = "test_active_connections" };
+    var gauge = abi.observability.Gauge{ .name = "test_active_connections" };
 
     gauge.set(10);
     gauge.inc();
@@ -95,14 +95,14 @@ test "gauge metrics" {
 // ============================================================================
 
 test "runtime context initialization" {
-    var ctx = try abi.services.runtime.Context.init(std.testing.allocator);
+    var ctx = try abi.runtime.Context.init(std.testing.allocator);
     defer ctx.deinit();
 
     try std.testing.expect(ctx.initialized);
 }
 
 test "runtime engine lazy creation" {
-    var ctx = try abi.services.runtime.Context.init(std.testing.allocator);
+    var ctx = try abi.runtime.Context.init(std.testing.allocator);
     defer ctx.deinit();
 
     try std.testing.expect(ctx.engine_ptr == null);
@@ -117,7 +117,7 @@ test "runtime engine lazy creation" {
 // ============================================================================
 
 test "chase-lev deque basic operations" {
-    var deque = try abi.services.runtime.ChaseLevDeque(u64).init(std.testing.allocator);
+    var deque = try abi.runtime.ChaseLevDeque(u64).init(std.testing.allocator);
     defer deque.deinit();
 
     // Push items
@@ -133,7 +133,7 @@ test "chase-lev deque basic operations" {
 }
 
 test "mpmc queue basic operations" {
-    var queue = try abi.services.runtime.MpmcQueue(u64).init(std.testing.allocator, 64);
+    var queue = try abi.runtime.MpmcQueue(u64).init(std.testing.allocator, 64);
     defer queue.deinit();
 
     // Push items
@@ -149,7 +149,7 @@ test "mpmc queue basic operations" {
 }
 
 test "result cache basic operations" {
-    var cache = try abi.services.runtime.ResultCache(u64, u64).init(std.testing.allocator, .{
+    var cache = try abi.runtime.ResultCache(u64, u64).init(std.testing.allocator, .{
         .max_entries = 100,
         .shard_count = 4,
     });

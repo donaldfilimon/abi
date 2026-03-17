@@ -4,10 +4,10 @@
 //! protection, exponential backoff, and health monitoring.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const backend_mod = @import("../backend");
-const failover_types = @import("../failover_types");
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const backend_mod = @import("../backend.zig");
+const failover_types = @import("../failover_types.zig");
 
 // Re-export shared types so existing consumers (mega/mod.zig) continue to work.
 pub const CircuitState = failover_types.CircuitState;
@@ -53,9 +53,9 @@ pub const FailoverManager = struct {
             .allocator = allocator,
             .policy = policy,
             .health = .empty,
-            .priority_order = .{},
+            .priority_order = .empty,
             .current_primary = null,
-            .events = .{},
+            .events = .empty,
             .stats = .{},
             .mutex = .{},
         };

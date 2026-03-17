@@ -5,12 +5,12 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const terminal = @import("terminal");
-const themes = @import("themes");
-const widgets = @import("widgets");
-const unicode = @import("unicode");
-const render_utils = @import("render_utils");
-const layout = @import("layout");
+const terminal = @import("terminal.zig");
+const themes = @import("themes.zig");
+const widgets = @import("widgets.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 // ===============================================================================
 // Types
@@ -199,7 +199,7 @@ pub const AgentPanel = struct {
             const workloads = [_][]const u8{ "MatMul", "Attention", "FFN", "Embed" };
 
             try self.recordDecision(.{
-                .timestamp = abi.services.shared.utils.unixMs(),
+                .timestamp = abi.foundation.utils.unixMs(),
                 .workload_type = workloads[self.update_counter % 4],
                 .selected_backend = backends[(self.update_counter / 5) % 4],
                 .actual_time_ms = 50 + (self.update_counter % 100),

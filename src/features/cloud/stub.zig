@@ -4,10 +4,10 @@ const std = @import("std");
 
 // --- Local Stubs Imports ---
 
-pub const types = @import("stubs/types");
-pub const aws = @import("stubs/aws");
-pub const gcp = @import("stubs/gcp");
-pub const azure = @import("stubs/azure");
+pub const types = @import("stubs/types.zig");
+pub const aws = @import("stubs/aws.zig");
+pub const gcp = @import("stubs/gcp.zig");
+pub const azure = @import("stubs/azure.zig");
 
 // --- Re-exports ---
 

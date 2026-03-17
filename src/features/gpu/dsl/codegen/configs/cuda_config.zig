@@ -2,7 +2,7 @@
 //!
 //! Comptime configuration for CUDA C code generation targeting NVIDIA GPUs.
 
-const mod = @import("mod");
+const mod = @import("mod.zig");
 const std = @import("std");
 
 /// CUDA type names.

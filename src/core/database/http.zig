@@ -1,9 +1,9 @@
 const std = @import("std");
 
-const db_helpers = @import("db_helpers");
-const semantic_store = @import("semantic_store");
-const json_utils = @import("shared_services").utils.json;
-const net_utils = @import("shared_services").utils.net;
+const db_helpers = @import("db_helpers.zig");
+const semantic_store = @import("semantic_store/mod.zig");
+const json_utils = @import("../../services/shared/mod.zig").utils.json;
+const net_utils = @import("../../services/shared/mod.zig").utils.net;
 
 pub const HttpError = std.mem.Allocator.Error || error{
     InvalidAddress,
@@ -721,7 +721,7 @@ test "parseQueryInt returns default on invalid" {
 
 test "buildStatsJson formats correctly" {
     const allocator = std.testing.allocator;
-    const stats = semantic_store.Stats{ .count = 100, .dimension = 384 };
+    const stats = semantic_store.Stats{ .count = 100, .dimension = 384, .memory_bytes = 0, .norm_cache_enabled = false };
 
     const json = try buildStatsJson(allocator, stats);
     defer allocator.free(json);

@@ -14,22 +14,10 @@
 
 set -euo pipefail
 
-# Find the real zig binary (skip ourselves if on PATH)
-SELF="$(realpath "${BASH_SOURCE[0]}" 2>/dev/null || readlink -f "${BASH_SOURCE[0]}")"
-find_real_zig() {
-    # Prefer ZIG_REAL if explicitly set
-    if [[ -n "${ZIG_REAL:-}" ]]; then echo "$ZIG_REAL"; return; fi
-    # Walk PATH, skip our own directory
-    local self_dir; self_dir="$(dirname "$SELF")"
-    local IFS=:
-    for dir in $PATH; do
-        [[ "$dir" == "$self_dir" ]] && continue
-        [[ -x "$dir/zig" ]] && { echo "$dir/zig"; return; }
-    done
-    echo "zig"  # fallback
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+source "$SCRIPT_DIR/zig_toolchain.sh"
 
-ZIG="$(find_real_zig)"
+ZIG="$(abi_toolchain_resolve_active_zig)"
 SYSROOT="${SDKROOT:-$(xcrun --show-sdk-path 2>/dev/null || echo /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk)}"
 MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo 26.0)"
 MACOS_MAJOR="${MACOS_VER%%.*}"

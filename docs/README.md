@@ -1,69 +1,102 @@
-# ABI Docs
+---
+title: docs/
+purpose: Documentation guide — what's maintained, what's generated, and how to add pages
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
 
-`docs/` contains both hand-maintained documentation and generated artifacts.
-The important distinction is whether a file should be edited directly or changed
-through the docs generator.
+# Documentation Guide
 
-## Maintained docs
+This directory contains both hand-maintained documentation and auto-generated
+API references. Understanding which is which prevents accidental overwrites.
 
-These files are edited directly:
+## Maintained Docs (edit directly)
 
-| Path | Purpose |
+| File | Purpose |
 |------|---------|
-| `docs/README.md` | Docs tree map and generation workflow |
-| `docs/FAQ-agents.md` | Repo workflow FAQ for contributors and code agents |
-| `docs/guides/cursor_rules.md` | Cursor-specific repo rules |
-| `docs/ZIG_MACOS_LINKER_RESEARCH.md` | Darwin linker failure analysis and supported workarounds |
-| `docs/ABI_WDBX_ARCHITECTURE.md` | Semantic-store architecture notes and terminology |
+| `README.md` | This file — documentation guide |
+| `STRUCTURE.md` | Full directory tree with annotations |
+| `PATTERNS.md` | Zig 0.16 codebase patterns and conventions |
+| `ABI_WDBX_ARCHITECTURE.md` | WDBX vector database design |
+| `ZIG_MACOS_LINKER_RESEARCH.md` | Darwin linker bypass research |
 
-## Generated docs
+## Generated Docs (do not hand-edit)
 
-These directories are generator-owned:
+| Directory | Source | Regenerate |
+|-----------|--------|------------|
+| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
+| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
+| `data/` | Structured data exports | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
 
-| Path | Generated from |
-|------|----------------|
-| `docs/api/` | `zig build gendocs` |
-| `docs/plans/` | `zig build gendocs` |
-| `docs/_docs/` | `zig build gendocs` |
-| `docs/api-app/` | `zig build gendocs` unless `--no-wasm` is used |
+Generated files are overwritten each time `gendocs` runs. Do not hand-edit them;
+instead, modify the source templates in `tools/gendocs/` or the catalog data.
 
-Do not hand-edit generated Markdown unless you are intentionally patching a
-generated artifact and capturing that as a temporary exception. Canonical fixes
-belong in `tools/gendocs/`.
+## How to Regenerate
 
-## Workflow
-
-### Generate docs
+On Darwin 25+ / macOS 26+, ABI's supported docs-validation path is the pinned
+host-built Zig from `./tools/scripts/bootstrap_host_zig.sh`, then prepending
+`$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`. Use
+`run_build.sh` only as fallback evidence when stock prebuilt Zig is
+linker-blocked before `build.zig` runs.
 
 ```bash
+# Full regeneration
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
 zig build gendocs
-```
 
-### Check docs without writing
+# With options (skip WASM, check untracked markdown)
+zig build gendocs -- --no-wasm --untracked-md
 
-```bash
+# Check-only mode (verify determinism, no writes)
 zig build gendocs -- --check --no-wasm --untracked-md
-zig build check-docs
+
+# On Darwin 25+ / 26+ fallback path (relinks with Apple ld, then runs gendocs)
+./tools/scripts/run_build.sh gendocs
+
+# Darwin fallback check-only mode
+./tools/scripts/run_build.sh check-docs --summary all
 ```
 
-### CLI wrapper
+## Markdown Allowlist Policy
 
-```bash
-abi gendocs
-abi gendocs --check
-abi gendocs --check --no-wasm --untracked-md
+The `.gitignore` ignores `*.md` globally, then explicitly allows specific paths.
+This prevents accidental tracking of generated or scratch markdown.
+
+**To add a new maintained doc:**
+
+1. Create the file under `docs/`
+2. Add `!/docs/<filename>.md` to `.gitignore` in the markdown allowlist section
+3. Verify with `git status` that the file appears as untracked (not ignored)
+
+Without step 2, git silently ignores the file.
+
+## Directory Layout
+
+```
+docs/
+├── README.md                 # This file
+├── STRUCTURE.md              # Full project directory tree
+├── PATTERNS.md               # Zig 0.16 patterns reference
+├── ABI_WDBX_ARCHITECTURE.md  # WDBX architecture design
+├── ZIG_MACOS_LINKER_RESEARCH.md  # Darwin linker notes
+│
+├── api/                      # Generated API reference pages
+│   ├── index.md
+│   ├── features.md
+│   ├── services.md
+│   └── ...
+│
+├── plans/                    # Generated roadmap docs
+│   └── ...
+│
+└── data/                     # Structured exports (JSON, etc.)
 ```
 
-## When to edit what
+## Related
 
-- Change `README.md`, guides, or policy docs directly when the workflow or public usage changes.
-- Change `tools/gendocs/` templates or renderers when generated docs are stale or structurally wrong.
-- Refresh the CLI registry with `zig build refresh-cli-registry` after CLI command changes.
-- Keep docs and validation instructions aligned with the pinned Zig version in `.zigversion`.
-
-## Related references
-
-- [`README.md`](../README.md)
-- [`AGENTS.md`](../AGENTS.md)
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md)
-- [`CLAUDE.md`](../CLAUDE.md)
+- [CLAUDE.md](../CLAUDE.md) — Build commands and conventions
+- [AGENTS.md](../AGENTS.md) — Contributor workflow contract
+- [STRUCTURE.md](STRUCTURE.md) — Full project directory tree
+- [PATTERNS.md](PATTERNS.md) — Zig 0.16 codebase patterns

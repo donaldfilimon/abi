@@ -4,18 +4,22 @@
 //! selection, and coordination of AI behavior profiles.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const obs = @import("../../observability");
+const build_options = @import("build_options");
+const time = @import("../../../services/shared/mod.zig").time;
+const obs = if (build_options.feat_profiling)
+    @import("../../observability/mod.zig")
+else
+    @import("../../observability/stub.zig");
 
 // Relative imports to flattened feature root
-const types = @import("types");
-const registry = @import("../registry");
-const abi_logic = @import("../abi_logic");
-const abbey_logic = @import("../abbey_logic");
-const aviva_logic = @import("aviva_logic");
-const generic = @import("../generic");
-const health = @import("../health");
-const loadbalancer = @import("../loadbalancer");
+const types = @import("../types.zig");
+const registry = @import("../registry.zig");
+const abi = @import("../abi/mod.zig");
+const abbey = @import("../abbey/profile.zig");
+const aviva = @import("../aviva/mod.zig");
+const generic = @import("../generic.zig");
+const health = @import("../health.zig");
+const loadbalancer = @import("../loadbalancer.zig");
 
 pub const BehaviorProfile = enum {
     collaborative,
@@ -33,19 +37,19 @@ pub const BehaviorProfile = enum {
     }
 };
 
-pub const LegacyPersonaType = types.PersonaType;
-pub const ProfileRegistry = registry.PersonaRegistry;
+pub const LegacyProfileType = types.ProfileType;
+pub const ProfileRegistry = registry.ProfileRegistry;
 
-pub fn fromLegacyPersona(persona: LegacyPersonaType) BehaviorProfile {
-    return switch (persona) {
+pub fn fromLegacyProfile(profile: LegacyProfileType) BehaviorProfile {
+    return switch (profile) {
         .assistant, .companion, .docs, .abbey => .collaborative,
-        .coder, .analyst, .reviewer, .minimal, .aviva => .direct,
+        .coder, .analyst, .reviewer, .minimal, .aviva, .ava => .direct,
         .abi => .governance,
         .writer, .ralph => .iterative,
     };
 }
 
-pub fn defaultLegacyPersona(profile: BehaviorProfile) LegacyPersonaType {
+pub fn defaultLegacyProfile(profile: BehaviorProfile) LegacyProfileType {
     return switch (profile) {
         .collaborative => .abbey,
         .direct => .aviva,
@@ -83,12 +87,12 @@ pub fn Context(comptime Config: type) type {
             self.allocator.destroy(self);
         }
 
-        pub fn registerPersona(self: *Self, persona_type: LegacyPersonaType, persona: types.PersonaInterface) !void {
-            try self.registry.registerPersona(persona_type, persona);
+        pub fn registerProfile(self: *Self, profile_type: LegacyProfileType, profile: types.ProfileInterface) !void {
+            try self.registry.registerProfile(profile_type, profile);
         }
 
-        pub fn getPersona(self: *Self, persona_type: LegacyPersonaType) ?types.PersonaInterface {
-            return self.registry.getPersona(persona_type);
+        pub fn getProfile(self: *Self, profile_type: LegacyProfileType) ?types.ProfileInterface {
+            return self.registry.getProfile(profile_type);
         }
     };
 }
@@ -98,7 +102,7 @@ pub fn ProfileSystem(comptime Config: type) type {
     return struct {
         allocator: std.mem.Allocator,
         ctx: *Context(Config),
-        router: *abi_logic.AbiRouter,
+        router: *abi.AbiRouter,
 
         const Self = @This();
 
@@ -109,7 +113,7 @@ pub fn ProfileSystem(comptime Config: type) type {
             const ctx = try Context(Config).init(allocator, cfg);
             errdefer ctx.deinit();
 
-            const router = try abi_logic.AbiRouter.init(allocator, cfg.abi);
+            const router = try abi.AbiRouter.init(allocator, cfg.abi);
             errdefer router.deinit();
 
             self.* = .{
@@ -127,7 +131,7 @@ pub fn ProfileSystem(comptime Config: type) type {
             self.allocator.destroy(self);
         }
 
-        pub fn process(self: *Self, request: types.PersonaRequest) !types.PersonaResponse {
+        pub fn process(self: *Self, request: types.ProfileRequest) !types.ProfileResponse {
             _ = self;
             _ = request;
             return error.NotImplemented; // Stubbed for close-out wave
@@ -135,9 +139,57 @@ pub fn ProfileSystem(comptime Config: type) type {
     };
 }
 
-test "behavior profiles normalize branded personas" {
-    try std.testing.expectEqual(BehaviorProfile.collaborative, fromLegacyPersona(.abbey));
-    try std.testing.expectEqual(BehaviorProfile.direct, fromLegacyPersona(.aviva));
-    try std.testing.expectEqual(BehaviorProfile.governance, fromLegacyPersona(.abi));
-    try std.testing.expectEqual(BehaviorProfile.iterative, fromLegacyPersona(.ralph));
+/// Concrete orchestrator facade used by web handlers.
+///
+/// Wraps the generic `ProfileSystem` behind a non-generic interface so that
+/// HTTP handlers can hold a `?*MultiProfileSystem` pointer without knowing
+/// the concrete config type at compile time.
+pub const MultiProfileSystem = struct {
+    allocator: std.mem.Allocator,
+    ctx: MultiProfileContext,
+    _metrics: ?*MetricsManager = null,
+
+    pub const MultiProfileContext = struct {
+        registry: ProfileRegistry,
+
+        pub fn getProfile(self: *MultiProfileContext, profile_type: LegacyProfileType) ?types.ProfileInterface {
+            return self.registry.getProfile(profile_type);
+        }
+    };
+
+    /// Stub metrics manager for web handler compatibility.
+    pub const MetricsManager = struct {
+        pub const ProfileStats = struct {
+            total_requests: u64 = 0,
+            success_rate: f32 = 1.0,
+            error_count: u64 = 0,
+            latency: ?LatencyStats = null,
+        };
+
+        pub const LatencyStats = struct {
+            p50: f64 = 0,
+            p99: f64 = 0,
+        };
+
+        pub fn getStats(_: *MetricsManager, _: LegacyProfileType) ?ProfileStats {
+            return null;
+        }
+    };
+
+    pub fn process(self: *MultiProfileSystem, request: types.ProfileRequest) !types.ProfileResponse {
+        _ = self;
+        _ = request;
+        return error.NotImplemented;
+    }
+
+    pub fn getMetrics(self: *MultiProfileSystem) ?*MetricsManager {
+        return self._metrics;
+    }
+};
+
+test "behavior profiles normalize branded profiles" {
+    try std.testing.expectEqual(BehaviorProfile.collaborative, fromLegacyProfile(.abbey));
+    try std.testing.expectEqual(BehaviorProfile.direct, fromLegacyProfile(.aviva));
+    try std.testing.expectEqual(BehaviorProfile.governance, fromLegacyProfile(.abi));
+    try std.testing.expectEqual(BehaviorProfile.iterative, fromLegacyProfile(.ralph));
 }

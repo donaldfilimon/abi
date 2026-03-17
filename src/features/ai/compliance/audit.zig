@@ -7,8 +7,8 @@
 //! - Export capabilities
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const config = @import("config");
+const time = @import("../../../services/shared/mod.zig").time;
+const config = @import("config.zig");
 
 /// Types of audit events.
 pub const AuditEventType = enum {
@@ -16,7 +16,7 @@ pub const AuditEventType = enum {
     consent_granted,
     /// User consent revoked.
     consent_revoked,
-    /// Personal data accessed.
+    /// Profilel data accessed.
     data_accessed,
     /// Data erasure requested.
     erasure_requested,
@@ -30,7 +30,7 @@ pub const AuditEventType = enum {
     phi_detected,
     /// Policy check performed.
     policy_check,
-    /// Persona routing decision made.
+    /// Profile routing decision made.
     routing_decision,
     /// Data export requested.
     data_export,

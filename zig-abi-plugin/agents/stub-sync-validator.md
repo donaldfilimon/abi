@@ -44,10 +44,9 @@ For each feature directory in `src/features/*/`:
 
 For each `.zig` file under `src/features/`:
 
-1. Search for direct relative paths to `src/core/database/wdbx.zig` or legacy `src/wdbx/`
-2. These are MODULE CONFLICTS — the wdbx module is registered as a named module in build.zig
-3. The correct import is `@import("wdbx")` (named module), not a relative path
-4. Also check for `@import("abi")` violations (features must use relative imports or named modules, never `@import("abi")`)
+1. Search for `@import("abi")` — features must use relative imports, never `@import("abi")` (circular dependency within the `abi` module)
+2. Search for cross-feature imports that bypass `build_options` gates — any `@import("../../<other_feature>/mod.zig")` must be behind `if (build_options.feat_<name>)` conditional
+3. There is no `wdbx` named module — all `src/` files belong to the single `abi` module
 
 ## Report Format
 
@@ -71,4 +70,4 @@ End with a summary: "X/Y features in sync. Z mismatches found. W import violatio
 - Stub functions should return appropriate defaults (error.FeatureDisabled, null, 0, void)
 - The stub does NOT need to match private functions, only `pub fn` and `pub const`
 - Nested pub types in `pub const` structs should also be checked
-- Named modules registered in build.zig: `wdbx`, `build_options`, `abi`
+- Named modules registered in build.zig: `abi` (root: `src/root.zig`), `build_options`, `cli` (root: `tools/cli/mod.zig`)

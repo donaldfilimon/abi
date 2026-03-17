@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const unified = @import("unified");
+const unified = @import("unified.zig");
 
 pub const MmapError = error{
     FileNotFound,
@@ -131,24 +131,30 @@ pub const MappedFile = struct {
     }
 
     fn openPosix(path: []const u8, read_only: bool) MmapError!MappedFile {
-        // POSIX implementation
+        // POSIX implementation — convert path to null-terminated for openatZ
+        var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
+        if (path.len >= path_buf.len) return error.InvalidFile;
+        @memcpy(path_buf[0..path.len], path);
+        path_buf[path.len] = 0;
+        const path_z: [:0]const u8 = path_buf[0..path.len :0];
+
         const flags: std.posix.O = if (read_only) .{ .ACCMODE = .RDONLY } else .{ .ACCMODE = .RDWR };
-        const fd = std.posix.open(path, flags, 0) catch return error.FileNotFound;
-        errdefer std.posix.close(fd);
+        const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, flags, 0) catch return error.FileNotFound;
+        errdefer _ = std.posix.system.close(fd);
 
         const stat = std.posix.fstat(fd) catch return error.InvalidFile;
         const size: usize = @intCast(stat.size);
 
         if (size == 0) {
-            std.posix.close(fd);
+            _ = std.posix.system.close(fd);
             return error.InvalidFile;
         }
 
-        const prot: u32 = if (read_only) std.posix.PROT.READ else std.posix.PROT.READ | std.posix.PROT.WRITE;
+        const prot: std.posix.system.vm_prot_t = if (read_only) .{ .READ = true } else .{ .READ = true, .WRITE = true };
 
         const ptr = std.posix.mmap(null, size, prot, .{ .TYPE = .SHARED }, fd, 0) catch return error.MmapFailed;
 
-        std.posix.close(fd);
+        _ = std.posix.system.close(fd);
 
         return .{
             .data = ptr,
@@ -281,25 +287,32 @@ fn createWindows(path: []const u8, size: usize) MmapError!MappedFile {
 }
 
 fn createPosix(path: []const u8, size: usize) MmapError!MappedFile {
-    const fd = std.posix.open(path, .{
+    // Convert path to null-terminated for openatZ
+    var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
+    if (path.len >= path_buf.len) return error.InvalidFile;
+    @memcpy(path_buf[0..path.len], path);
+    path_buf[path.len] = 0;
+    const path_z: [:0]const u8 = path_buf[0..path.len :0];
+
+    const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, .{
         .ACCMODE = .RDWR,
         .CREAT = true,
         .TRUNC = true,
     }, 0o644) catch return error.AccessDenied;
-    errdefer std.posix.close(fd);
+    errdefer _ = std.posix.system.close(fd);
 
-    std.posix.ftruncate(fd, @intCast(size)) catch return error.MmapFailed;
+    if (std.posix.system.ftruncate(fd, @intCast(size)) != 0) return error.MmapFailed;
 
     const ptr = std.posix.mmap(
         null,
         size,
-        std.posix.PROT.READ | std.posix.PROT.WRITE,
+        .{ .READ = true, .WRITE = true },
         .{ .TYPE = .SHARED },
         fd,
         0,
     ) catch return error.MmapFailed;
 
-    std.posix.close(fd);
+    _ = std.posix.system.close(fd);
 
     return .{
         .data = ptr,

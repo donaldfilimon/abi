@@ -1,6 +1,38 @@
+---
+title: registry API
+purpose: Generated API reference for registry
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # registry
 
-> Plugin registry for feature management.
+> Feature Registry System
+
+Provides a unified interface for feature registration and lifecycle management
+supporting three registration modes:
+
+- **Comptime-only**: Zero overhead, features resolved at compile time
+- **Runtime-toggle**: Compiled in but can be enabled/disabled at runtime
+- **Dynamic**: Features loaded from shared libraries at runtime (future)
+
+## Usage
+
+```zig
+const registry = @import("registry");
+
+var reg = registry.Registry.init(allocator);
+defer reg.deinit();
+
+// Register features
+try reg.registerComptime(.gpu);
+try reg.registerRuntimeToggle(.ai, ai_mod.Context, &ai_config);
+
+// Query features
+if (reg.isEnabled(.gpu)) {
+// Use GPU...
+}
+```
 
 **Source:** [`src/core/registry/mod.zig`](../../src/core/registry/mod.zig)
 
@@ -136,4 +168,4 @@ Get count of registered features.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

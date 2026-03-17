@@ -9,43 +9,43 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
 // ============================================================================
 
-pub const abbey = @import("../abbey");
+pub const abbey = @import("../abbey/mod.zig");
 
 pub const rag = if (build_options.feat_reasoning)
-    @import("../rag")
+    @import("../rag/mod.zig")
 else
-    @import("../rag/stub");
+    @import("../rag/stub.zig");
 
 pub const eval = if (build_options.feat_reasoning)
-    @import("../eval")
+    @import("../eval/mod.zig")
 else
-    @import("../eval/stub");
+    @import("../eval/stub.zig");
 
 pub const templates = if (build_options.feat_reasoning)
-    @import("../templates")
+    @import("../templates/mod.zig")
 else
-    @import("../templates/stub");
+    @import("../templates/stub.zig");
 
 pub const explore = if (build_options.feat_explore)
-    @import("../explore")
+    @import("../explore/mod.zig")
 else
-    @import("../explore/stub");
+    @import("../explore/stub.zig");
 
 pub const orchestration = if (build_options.feat_reasoning)
-    @import("../orchestration")
+    @import("../orchestration/mod.zig")
 else
-    @import("../orchestration/stub");
+    @import("../orchestration/stub.zig");
 
 pub const documents = if (build_options.feat_reasoning)
-    @import("../documents")
+    @import("../documents/mod.zig")
 else
-    @import("../documents/stub");
+    @import("../documents/stub.zig");
 
 // ============================================================================
 // Convenience type re-exports

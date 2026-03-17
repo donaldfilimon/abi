@@ -5,15 +5,15 @@
 //! custom kernel compilation/launch, stream creation, and synchronization.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const backend_mod = @import("backend");
-const device_mod = @import("device");
-const stream_mod = @import("stream");
-const buffer_mod = @import("unified_buffer");
-const dsl = @import("dsl");
-const metrics_mod = @import("metrics");
-const dispatcher_mod = @import("dispatch/coordinator");
-const adaptive_tiling_mod = @import("adaptive_tiling");
+const time = @import("../../services/shared/mod.zig").time;
+const backend_mod = @import("backend.zig");
+const device_mod = @import("device.zig");
+const stream_mod = @import("stream.zig");
+const buffer_mod = @import("unified_buffer.zig");
+const dsl = @import("dsl/mod.zig");
+const metrics_mod = @import("metrics.zig");
+const dispatcher_mod = @import("dispatch/coordinator.zig");
+const adaptive_tiling_mod = @import("adaptive_tiling.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
@@ -79,7 +79,7 @@ pub const GpuConfig = struct {
     max_memory_bytes: usize = 0,
     enable_profiling: bool = false,
     multi_gpu: bool = false,
-    load_balance_strategy: @import("device_manager").LoadBalanceStrategy = .memory_aware,
+    load_balance_strategy: @import("device_manager.zig").LoadBalanceStrategy = .memory_aware,
 };
 
 // ============================================================================
@@ -252,7 +252,7 @@ pub const ReduceResult = struct { value: f32, stats: ExecutionResult };
 pub const BufferContext = struct {
     allocator: std.mem.Allocator,
     buffers: *std.ArrayListUnmanaged(*Buffer),
-    buffer_mutex: *@import("shared_services").sync.Mutex,
+    buffer_mutex: *@import("../../services/shared/mod.zig").sync.Mutex,
     active_device: ?*const Device,
     memory_mode: buffer_mod.MemoryMode,
     stats: *GpuStats,
@@ -276,7 +276,7 @@ pub fn reduceSum(
     if (dispatcher.*) |*disp| {
         const kernel = disp.getBuiltinKernel(.reduce_sum) catch null;
         if (kernel) |k| {
-            const buffer_pool = @import("buffer_pool");
+            const buffer_pool = @import("buffer_pool.zig");
             const result_buf = buffer_pool.createBuffer(
                 buf_ctx.allocator,
                 buf_ctx.buffers,
@@ -357,7 +357,7 @@ pub fn dotProduct(
     if (dispatcher.*) |*disp| {
         const kernel = disp.getBuiltinKernel(.dot_product) catch null;
         if (kernel) |k| {
-            const buffer_pool = @import("buffer_pool");
+            const buffer_pool = @import("buffer_pool.zig");
             const result_buf = buffer_pool.createBuffer(
                 buf_ctx.allocator,
                 buf_ctx.buffers,

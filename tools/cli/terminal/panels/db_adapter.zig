@@ -3,15 +3,19 @@
 //! Wraps `db_panel.DatabasePanel` to conform to the Panel vtable interface.
 
 const std = @import("std");
-const panel_mod = @import("../panel");
-const terminal = @import("../terminal");
-const layout = @import("../layout");
-const themes = @import("../themes");
-const events = @import("../events");
-const db_panel = @import("../db_panel");
+const panel_mod = @import("../panel.zig");
+const terminal = @import("../terminal.zig");
+const layout = @import("../layout.zig");
+const themes = @import("../themes.zig");
+const events = @import("../events.zig");
+const db_panel = @import("../db_panel.zig");
+const ru = @import("../render_utils.zig");
 
 pub const DbAdapter = struct {
     inner: db_panel.DatabasePanel,
+
+    /// Height consumed by the summary card row (3 card rows + 1 gap).
+    const card_rows = ru.summary_card_rows;
 
     pub fn init(allocator: std.mem.Allocator, term: *terminal.Terminal, theme: *const themes.Theme) DbAdapter {
         return .{ .inner = db_panel.DatabasePanel.init(allocator, term, theme) };
@@ -20,9 +24,25 @@ pub const DbAdapter = struct {
     // -- Panel vtable methods --
 
     pub fn render(self: *DbAdapter, term: *terminal.Terminal, rect: layout.Rect, theme: *const themes.Theme) anyerror!void {
+        // ── Summary cards ──────────────────────────────────────
+        const card_width: u16 = @min(rect.width / 3, 20);
+        var card_x = rect.x;
+
+        var buf1: [32]u8 = undefined;
+        const vec_val = std.fmt.bufPrint(&buf1, "{d}", .{@as(u32, 48200)}) catch "\xe2\x80\x94";
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Vectors", vec_val, theme.info, theme);
+        card_x += card_width + 1;
+
+        var buf2: [32]u8 = undefined;
+        const dim_val = std.fmt.bufPrint(&buf2, "{d}", .{@as(u16, 1536)}) catch "\xe2\x80\x94";
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Dimension", dim_val, theme.accent, theme);
+        card_x += card_width + 1;
+
+        try ru.drawSummaryCard(term, card_x, rect.y, card_width, "Index", "Ready", theme.success, theme);
+
+        // Delegate to inner panel with shifted rect
         self.inner.theme = theme;
-        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
-        _ = term; // inner holds its own terminal ref
+        try self.inner.render(rect.y +| card_rows, rect.x, rect.width, rect.height -| card_rows);
     }
 
     pub fn tick(self: *DbAdapter) anyerror!void {

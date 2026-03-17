@@ -17,8 +17,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const metal = @import("../metal");
-const types = @import("../../kernel_types");
+const metal = @import("../metal.zig");
+const types = @import("../../kernel_types.zig");
 
 pub const QuantKernelError = error{
     MetalNotAvailable,

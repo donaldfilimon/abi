@@ -17,14 +17,14 @@
 //! - Polyhedral compilation: https://ieeexplore.ieee.org/document/9563011/
 
 const std = @import("std");
-const types = @import("types");
-const expr = @import("expr");
-const stmt = @import("stmt");
-const kernel = @import("kernel");
+const types = @import("types.zig");
+const expr = @import("expr.zig");
+const stmt = @import("stmt.zig");
+const kernel = @import("kernel.zig");
 
 // Pass implementations (split for maintainability)
-const folding = @import("optimizer_folding");
-const analysis = @import("optimizer_analysis");
+const folding = @import("optimizer_folding.zig");
+const analysis = @import("optimizer_analysis.zig");
 
 /// Optimization pass types.
 pub const OptimizationPass = enum {

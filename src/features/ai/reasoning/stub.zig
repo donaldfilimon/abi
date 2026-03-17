@@ -1,8 +1,8 @@
 //! Reasoning Stub Module
 
 const std = @import("std");
-const core_types = @import("types");
-const ai_config = @import("../../../core/config/ai");
+const core_types = @import("../types.zig");
+const ai_config = @import("../../../core/config/ai.zig");
 
 pub const ConfidenceLevel = core_types.ConfidenceLevel;
 pub const Confidence = core_types.Confidence;
@@ -45,7 +45,7 @@ pub const ReasoningStep = struct {
 pub const ReasoningChain = struct {
     allocator: std.mem.Allocator,
     query: []const u8,
-    steps: std.ArrayListUnmanaged(ReasoningStep) = .{},
+    steps: std.ArrayListUnmanaged(ReasoningStep) = .empty,
     finalized: bool = false,
     overall_confidence: ?Confidence = null,
 

@@ -12,74 +12,34 @@
 //! - Thread-safe event buffer with configurable flush
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const build_options = @import("build_options");
+const types = @import("types.zig");
 
 const Mutex = sync.Mutex;
 
 // ============================================================================
-// Event Types
+// Shared Types (from types.zig)
 // ============================================================================
 
-/// A single analytics event.
-pub const Event = struct {
-    name: []const u8,
-    timestamp_ms: u64,
-    session_id: ?[]const u8 = null,
-    properties: []const Property = &.{},
-
-    pub const Property = struct {
-        key: []const u8,
-        value: Value,
-    };
-
-    pub const Value = union(enum) {
-        string: []const u8,
-        int: i64,
-        float: f64,
-        boolean: bool,
-    };
-};
-
-/// Configuration for the analytics engine.
-pub const AnalyticsConfig = struct {
-    /// Maximum events buffered before auto-flush.
-    buffer_capacity: u32 = 1024,
-    /// Whether to include timestamps on events.
-    enable_timestamps: bool = true,
-    /// Application or service identifier.
-    app_id: []const u8 = "abi-app",
-    /// Flush interval hint in milliseconds (0 = manual flush only).
-    flush_interval_ms: u64 = 0,
-};
+pub const Event = types.Event;
+pub const AnalyticsConfig = types.AnalyticsConfig;
+pub const AnalyticsError = types.AnalyticsError;
+pub const Error = AnalyticsError;
 
 // ============================================================================
 // Analytics Engine
 // ============================================================================
 
-pub const AnalyticsError = error{
-    BufferFull,
-    InvalidEvent,
-    FlushFailed,
-    AnalyticsDisabled,
-    OutOfMemory,
-};
-
 /// Core analytics engine. Buffers events and provides batch retrieval.
 pub const Engine = struct {
     allocator: std.mem.Allocator,
     config: AnalyticsConfig,
-    events: std.ArrayListUnmanaged(StoredEvent) = .empty,
+    events: std.ArrayListUnmanaged(types.StoredEvent) = .empty,
     session_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
     event_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
     mutex: Mutex = .{},
-
-    const StoredEvent = struct {
-        name: []const u8,
-        timestamp_ms: u64,
-        session_id: ?[]const u8,
-    };
 
     pub fn init(allocator: std.mem.Allocator, config: AnalyticsConfig) Engine {
         return .{
@@ -155,11 +115,7 @@ pub const Engine = struct {
         };
     }
 
-    pub const Stats = struct {
-        buffered_events: usize,
-        total_events: u64,
-        total_sessions: u64,
-    };
+    pub const Stats = types.Stats;
 };
 
 // ============================================================================
@@ -172,10 +128,7 @@ pub const Funnel = struct {
     steps: std.ArrayListUnmanaged(Step) = .empty,
     allocator: std.mem.Allocator,
 
-    pub const Step = struct {
-        name: []const u8,
-        count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    };
+    pub const Step = types.FunnelStep;
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) Funnel {
         return .{ .name = name, .allocator = allocator };
@@ -212,26 +165,7 @@ pub const Funnel = struct {
 // Experiment Tracking
 // ============================================================================
 
-/// Simple A/B experiment assignment.
-pub const Experiment = struct {
-    name: []const u8,
-    variants: []const []const u8,
-    assignments: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-
-    /// Assign a user to a variant based on a hash of their ID.
-    pub fn assign(self: *Experiment, user_id: []const u8) []const u8 {
-        if (self.variants.len == 0) return "control";
-        _ = self.assignments.fetchAdd(1, .monotonic);
-        const hash = std.hash.Fnv1a_64.hash(user_id);
-        const idx = hash % self.variants.len;
-        return self.variants[idx];
-    }
-
-    /// Get total assignments.
-    pub fn totalAssignments(self: *const Experiment) u64 {
-        return self.assignments.load(.monotonic);
-    }
-};
+pub const Experiment = types.Experiment;
 
 // ============================================================================
 // Module Lifecycle

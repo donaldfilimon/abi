@@ -1,7 +1,7 @@
 //! LLM Stub Module — disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../../core/config");
+const config_module = @import("../../../core/config/mod.zig");
 
 pub const LlmError = error{
     FeatureDisabled,
@@ -64,7 +64,7 @@ pub const MappedFile = struct {};
 pub const Tensor = struct {};
 pub const Q4_0Block = struct {};
 pub const Q8_0Block = struct {};
-pub const unified_orchestrator = @import("unified_orchestrator/stub");
+pub const unified_orchestrator = @import("unified_orchestrator/stub.zig");
 
 pub const BpeTokenizer = struct {
     pub fn init(_: std.mem.Allocator) BpeTokenizer {
@@ -426,7 +426,7 @@ pub const io = struct {
         pub const GgufFile = stub_root.GgufFile;
     };
     pub const gguf_writer = struct {
-        pub const TokenizerConfig = @import("io/gguf_writer").TokenizerConfig;
+        pub const TokenizerConfig = @import("io/gguf_writer.zig").TokenizerConfig;
     };
 };
 
@@ -593,6 +593,7 @@ pub const providers = struct {
         PromptRequired,
         NotAvailable,
         NoProviderAvailable,
+        StrictBackendUnavailable,
         PluginNotFound,
         PluginDisabled,
         InvalidPlugin,

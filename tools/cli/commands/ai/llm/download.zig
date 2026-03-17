@@ -1,11 +1,11 @@
 //! LLM download subcommand - Download a GGUF model from a URL.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const mod = @import("mod");
+const mod = @import("mod.zig");
 
 pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -72,7 +72,7 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
     const io = io_backend.io();
 
     // Initialize downloader
-    var downloader = abi.features.ai.models.Downloader.init(allocator);
+    var downloader = abi.ai.models.Downloader.init(allocator);
     defer downloader.deinit();
 
     const ProgressState = struct {
@@ -80,7 +80,7 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
     };
 
     const progress_callback = struct {
-        fn callback(progress: abi.features.ai.models.DownloadProgress) void {
+        fn callback(progress: abi.ai.models.DownloadProgress) void {
             if (progress.percent == ProgressState.last_percent) return;
             ProgressState.last_percent = progress.percent;
 

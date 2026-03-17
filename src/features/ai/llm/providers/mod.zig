@@ -1,15 +1,19 @@
+//! LLM provider registry and unified inference routing layer.
+//! Aggregates provider errors, model profiles, health checks, and a
+//! router that dispatches `generate()` calls across registered backends.
+
 const std = @import("std");
 
-pub const errors = @import("errors");
-pub const types = @import("types");
-pub const request = @import("request");
-pub const response = @import("response");
-pub const registry = @import("registry");
-pub const model_profiles = @import("model_profiles");
-pub const parser = @import("parser");
-pub const health = @import("health");
-pub const router = @import("router");
-pub const plugins = @import("plugins");
+pub const errors = @import("errors.zig");
+pub const types = @import("types.zig");
+pub const request = @import("request.zig");
+pub const response = @import("response.zig");
+pub const registry = @import("registry.zig");
+pub const model_profiles = @import("model_profiles.zig");
+pub const parser = @import("parser.zig");
+pub const health = @import("health.zig");
+pub const router = @import("router.zig");
+pub const plugins = @import("plugins/mod.zig");
 
 pub const ProviderError = errors.ProviderError;
 pub const ProviderId = types.ProviderId;

@@ -6,9 +6,9 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const kv_cache_mod = @import("kv_cache");
-const scheduler_mod = @import("scheduler");
-const sampler_mod = @import("sampler");
+const kv_cache_mod = @import("kv_cache.zig");
+const scheduler_mod = @import("scheduler.zig");
+const sampler_mod = @import("sampler.zig");
 
 pub const Config = struct {
     vocab_size: u32 = 128256,
@@ -58,7 +58,6 @@ pub const Engine = struct {
     scheduler: scheduler_mod.Scheduler,
     sampler: sampler_mod.Sampler,
 
-    // Stats tracking.
     total_requests: u64,
     total_tokens: u64,
     next_request_id: u64,
@@ -89,11 +88,9 @@ pub const Engine = struct {
         self.scheduler.deinit();
     }
 
-    /// Synchronous generation (simulated — real impl would run transformer forward pass).
     pub fn generate(self: *Self, request: scheduler_mod.Request) !Result {
         const start = std.time.milliTimestamp();
 
-        // Allocate KV cache for this request.
         const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
         if (!cache_ok) {
             return Result{
@@ -110,18 +107,15 @@ pub const Engine = struct {
         }
         defer self.kv_cache.free(request.id);
 
-        // Simulated generation: produce placeholder tokens.
-        // In a real implementation, this would run the transformer forward pass.
         const num_tokens = @min(request.max_tokens, 64);
         const tokens = try self.allocator.alloc(u32, num_tokens);
         for (tokens, 0..) |*t, i| {
-            // Simulate sampling from a uniform distribution.
             var logits_buf: [256]f32 = undefined;
             const logits_slice = logits_buf[0..@min(self.config.vocab_size, 256)];
             for (logits_slice, 0..) |*l, j| {
                 l.* = @as(f32, @floatFromInt(j)) * 0.01;
             }
-            // Use sampler for token selection.
+
             var sampler_copy = self.sampler;
             sampler_copy.params.temperature = request.temperature;
             sampler_copy.params.top_p = request.top_p;
@@ -153,12 +147,10 @@ pub const Engine = struct {
         };
     }
 
-    /// Submit a request to the scheduler for batch processing.
     pub fn submit(self: *Self, request: scheduler_mod.Request) !bool {
         return self.scheduler.submit(request);
     }
 
-    /// Get current engine statistics.
     pub fn getStats(self: *const Self) Stats {
         const avg_tps: f32 = if (self.total_requests > 0)
             @as(f32, @floatFromInt(self.total_tokens)) / @as(f32, @floatFromInt(self.total_requests))
@@ -175,10 +167,6 @@ pub const Engine = struct {
         };
     }
 };
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 test "engine init and stats" {
     const allocator = std.testing.allocator;

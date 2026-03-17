@@ -1,3 +1,10 @@
+---
+title: ha API
+purpose: Generated API reference for ha
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # ha
 
 > High Availability Module
@@ -11,7 +18,7 @@ Provides comprehensive high-availability features for production deployments:
 ## Quick Start
 
 ```zig
-const ha = @import("ha/mod.zig");
+const ha = @import("ha");
 
 var manager = ha.HaManager.init(allocator, .{
 .replication_factor = 3,
@@ -117,4 +124,4 @@ High Availability status summary
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use the `$zig-master` Codex skill for ABI Zig validation, docs generation, and build-wiring changes.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.

@@ -1,26 +1,22 @@
-// ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║  LLM Orchestrator — Multi-Backend Inference & Skill Synchronization        ║
-// ║  Zig 0.16                                                                   ║
-// ║                                                                            ║
-// ║  Unified abstraction over: Claude CLI, Codex CLI, Open Code, Ollama, MLX   ║
-// ║  with cross-frontend plugin/skill sync backed by WDBX vector storage.      ║
-// ╚══════════════════════════════════════════════════════════════════════════════╝
+//! Multi-backend LLM orchestrator with skill synchronization.
+//! Provides a unified inference abstraction over Claude, Codex, Ollama, MLX,
+//! and Open Code backends with cross-frontend plugin/skill sync via WDBX.
 
 const std = @import("std");
 
-pub const types = @import("protocol/types");
-pub const backend = @import("backends/backend");
-pub const claude = @import("backends/claude");
-pub const codex = @import("backends/codex");
-pub const ollama = @import("backends/ollama");
-pub const mlx = @import("backends/mlx");
-pub const opencode = @import("backends/opencode");
-pub const skill_registry = @import("skills/registry");
-pub const sync_manager = @import("sync/manager");
-pub const orchestrator = @import("orchestrator");
-pub const http = @import("utils/http");
-pub const json_util = @import("utils/json");
-pub const process_util = @import("utils/process");
+pub const types = @import("protocol/types.zig");
+pub const backend = @import("backends/backend.zig");
+pub const claude = @import("backends/claude.zig");
+pub const codex = @import("backends/codex.zig");
+pub const ollama = @import("backends/ollama.zig");
+pub const mlx = @import("backends/mlx.zig");
+pub const opencode = @import("backends/opencode.zig");
+pub const skill_registry = @import("skills/registry.zig");
+pub const sync_manager = @import("sync/manager.zig");
+pub const orchestrator = @import("orchestrator.zig");
+pub const http = @import("utils/http.zig");
+pub const json_util = @import("utils/json.zig");
+pub const process_util = @import("utils/process.zig");
 
 // ── Re-exports for convenience ───────────────────────────────────────────────
 

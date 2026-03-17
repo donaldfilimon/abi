@@ -1,4 +1,4 @@
-//! Paged KV-Cache
+//! Paged KV-cache.
 //!
 //! Block-based memory management for key-value caches used in transformer
 //! inference. Allocates fixed-size pages and maps sequence IDs to page lists,
@@ -9,7 +9,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Config = struct {
     num_pages: u32 = 10000,
-    page_size: u32 = 16, // Tokens per page
+    page_size: u32 = 16,
     num_layers: u32 = 32,
     num_heads: u32 = 32,
     head_dim: u32 = 128,
@@ -32,7 +32,7 @@ pub const PagedKVCache = struct {
     total_pages: u32,
 
     pub fn init(allocator: Allocator, config: Config) !Self {
-        const page_data_size = config.page_size * config.num_heads * config.head_dim * 2; // K + V
+        const page_data_size = config.page_size * config.num_heads * config.head_dim * 2;
         const pages = try allocator.alloc(Page, config.num_pages);
 
         var free_pages = std.ArrayListUnmanaged(u32).empty;
@@ -69,7 +69,6 @@ pub const PagedKVCache = struct {
         self.seq_pages.deinit(self.allocator);
     }
 
-    /// Allocate pages for a sequence. Returns false if not enough pages.
     pub fn allocate(self: *Self, seq_id: u64, num_tokens: u32) !bool {
         const pages_needed = (num_tokens + self.config.page_size - 1) / self.config.page_size;
         if (self.free_pages.items.len < pages_needed) return false;
@@ -89,7 +88,6 @@ pub const PagedKVCache = struct {
         return true;
     }
 
-    /// Free all pages belonging to a sequence.
     pub fn free(self: *Self, seq_id: u64) void {
         if (self.seq_pages.fetchRemove(seq_id)) |kv| {
             var page_list = kv.value;
@@ -104,22 +102,16 @@ pub const PagedKVCache = struct {
         }
     }
 
-    /// Returns utilization as a fraction [0, 1].
     pub fn getUtilization(self: *const Self) f32 {
         const used: f32 = @floatFromInt(self.total_pages - @as(u32, @intCast(self.free_pages.items.len)));
         const total: f32 = @floatFromInt(self.total_pages);
         return used / total;
     }
 
-    /// Number of sequences currently cached.
     pub fn activeSequences(self: *const Self) usize {
         return self.seq_pages.count();
     }
 };
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 test "kv cache allocate and free" {
     const allocator = std.testing.allocator;
@@ -135,13 +127,11 @@ test "kv cache allocate and free" {
 
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), cache.getUtilization(), 1e-5);
 
-    // Allocate for sequence 1.
-    const ok = try cache.allocate(1, 32); // needs 2 pages
+    const ok = try cache.allocate(1, 32);
     try std.testing.expect(ok);
     try std.testing.expect(cache.getUtilization() > 0.0);
     try std.testing.expectEqual(@as(usize, 1), cache.activeSequences());
 
-    // Free sequence 1.
     cache.free(1);
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), cache.getUtilization(), 1e-5);
     try std.testing.expectEqual(@as(usize, 0), cache.activeSequences());
@@ -159,9 +149,9 @@ test "kv cache out of memory" {
     });
     defer cache.deinit();
 
-    const ok1 = try cache.allocate(1, 32); // 2 pages — exactly fits
+    const ok1 = try cache.allocate(1, 32);
     try std.testing.expect(ok1);
 
-    const ok2 = try cache.allocate(2, 16); // 1 page — no room
+    const ok2 = try cache.allocate(2, 16);
     try std.testing.expect(!ok2);
 }

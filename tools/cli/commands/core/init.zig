@@ -4,8 +4,8 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 
@@ -215,7 +215,7 @@ const main_zig_agent =
     \\    _ = init;
     \\    std.debug.print("ABI Agent Application\n", .{});
     \\    std.debug.print("Configure an AI provider (ABI_OPENAI_API_KEY or ABI_ANTHROPIC_API_KEY).\n", .{});
-    \\    std.debug.print("Then use: abi agent --persona coder\n", .{});
+    \\    std.debug.print("Then use: abi agent --profile coder\n", .{});
     \\}
     \\
 ;

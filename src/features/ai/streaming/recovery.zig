@@ -26,12 +26,12 @@
 //! ```
 
 const std = @import("std");
-const platform_time = @import("shared_services").time;
-const circuit_breaker = @import("circuit_breaker");
-const retry_config = @import("retry_config");
-const session_cache = @import("session_cache");
-const metrics = @import("metrics");
-const backends = @import("backends");
+const platform_time = @import("../../../services/shared/mod.zig").time;
+const circuit_breaker = @import("circuit_breaker.zig");
+const retry_config = @import("retry_config.zig");
+const session_cache = @import("session_cache.zig");
+const metrics = @import("metrics.zig");
+const backends = @import("backends/mod.zig");
 
 pub const CircuitBreaker = circuit_breaker.CircuitBreaker;
 pub const CircuitBreakerConfig = circuit_breaker.CircuitBreakerConfig;

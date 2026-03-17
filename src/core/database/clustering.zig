@@ -8,7 +8,7 @@
 //!
 //! ## Usage
 //! ```zig
-//! const clustering = @import("clustering");
+//! const clustering = @import("clustering.zig");
 //!
 //! // Cluster vectors
 //! var kmeans = try clustering.KMeans.init(allocator, 10, 128); // 10 clusters, 128 dimensions
@@ -25,8 +25,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const simd = @import("shared_services").simd;
-const gpu_accel = @import("gpu_accel");
+const simd = @import("../../services/shared/mod.zig").simd;
+const gpu_accel = @import("gpu_accel.zig");
 
 pub const ClusteringError = error{
     InvalidK,

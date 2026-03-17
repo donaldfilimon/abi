@@ -1,12 +1,12 @@
 //! ralph improve — autonomous self-improvement loop with guardrails.
 
 const std = @import("std");
-const context_mod = @import("../../../framework/context");
+const context_mod = @import("../../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../../utils/mod.zig");
 const cli_io = utils.io_backend;
-const cfg = @import("config");
-const runtime = @import("runtime");
+const cfg = @import("config.zig");
+const runtime = @import("runtime.zig");
 
 pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -48,9 +48,9 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     var plugin = loaded_cfg.llm_plugin;
     var worktree: []const u8 = ".";
     var require_clean_tree = loaded_cfg.require_clean_tree;
-    var backend: ?abi.features.ai.llm.providers.ProviderId = abi.features.ai.llm.providers.ProviderId.fromString(loaded_cfg.llm_backend);
+    var backend: ?abi.ai.llm.providers.ProviderId = abi.ai.llm.providers.ProviderId.fromString(loaded_cfg.llm_backend);
 
-    var fallback_buf = std.ArrayListUnmanaged(abi.features.ai.llm.providers.ProviderId).empty;
+    var fallback_buf = std.ArrayListUnmanaged(abi.ai.llm.providers.ProviderId).empty;
     defer fallback_buf.deinit(allocator);
     if (loaded_cfg.llm_fallback.len > 0) {
         try appendProvidersCsv(allocator, &fallback_buf, loaded_cfg.llm_fallback);
@@ -78,7 +78,7 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             i += 1;
             if (i < args.len) {
                 const raw = std.mem.sliceTo(args[i], 0);
-                backend = abi.features.ai.llm.providers.ProviderId.fromString(raw) orelse {
+                backend = abi.ai.llm.providers.ProviderId.fromString(raw) orelse {
                     utils.output.printError("Unknown provider backend: {s}", .{raw});
                     return;
                 };
@@ -153,14 +153,14 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 
 fn appendProvidersCsv(
     allocator: std.mem.Allocator,
-    out: *std.ArrayListUnmanaged(abi.features.ai.llm.providers.ProviderId),
+    out: *std.ArrayListUnmanaged(abi.ai.llm.providers.ProviderId),
     csv: []const u8,
 ) !void {
     var split = std.mem.splitScalar(u8, csv, ',');
     while (split.next()) |raw_part| {
         const part = std.mem.trim(u8, raw_part, " \t\r\n");
         if (part.len == 0) continue;
-        const provider = abi.features.ai.llm.providers.ProviderId.fromString(part) orelse continue;
+        const provider = abi.ai.llm.providers.ProviderId.fromString(part) orelse continue;
         var already = false;
         for (out.items) |existing| {
             if (existing == provider) {

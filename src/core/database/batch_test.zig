@@ -5,8 +5,8 @@
 
 const std = @import("std");
 const testing = std.testing;
-const batch = @import("batch");
-const batch_importer = @import("batch_importer");
+const batch = @import("batch.zig");
+const batch_importer = @import("batch_importer.zig");
 
 const BatchProcessor = batch.BatchProcessor;
 const BatchWriter = batch.BatchWriter;

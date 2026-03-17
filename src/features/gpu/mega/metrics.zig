@@ -4,10 +4,10 @@
 //! export. Uses shared observability primitives from the centralized metrics module.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
-const backend_mod = @import("../backend");
-const core_metrics = @import("shared_services").utils.metric_types;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
+const backend_mod = @import("../backend.zig");
+const core_metrics = @import("../../../services/shared/mod.zig").utils.metric_types;
 
 // Re-export shared types for API compatibility
 pub const Counter = core_metrics.Counter;

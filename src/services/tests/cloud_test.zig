@@ -8,8 +8,9 @@
 //! - Provider detection and auto-routing
 
 const std = @import("std");
+const abi = @import("abi");
 const build_options = @import("build_options");
-const cloud = @import("abi").features.cloud;
+const cloud = abi.cloud;
 
 // =============================================================================
 // CloudEvent Tests
@@ -358,11 +359,10 @@ test "gcp cloud functions event structure" {
 // =============================================================================
 
 test "invocation metadata initialization" {
-    const abi = @import("abi");
     var metadata = cloud.InvocationMetadata{
         .request_id = "req-123",
         .provider = .aws_lambda,
-        .start_time = abi.services.shared.utils.unixSeconds(),
+        .start_time = abi.foundation.utils.unixSeconds(),
         .cold_start = true,
     };
 

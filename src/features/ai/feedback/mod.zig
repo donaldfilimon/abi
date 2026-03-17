@@ -1,19 +1,19 @@
 //! Feedback Module — User feedback collection and analysis for ABI.
 //!
 //! Provides mechanisms for collecting, storing, and analyzing user feedback
-//! on persona interactions. Supports star ratings, thumbs up/down, text
-//! feedback with category tagging, and per-persona satisfaction tracking.
+//! on profile interactions. Supports star ratings, thumbs up/down, text
+//! feedback with category tagging, and per-profile satisfaction tracking.
 //!
 //! Integration points:
 //! - Post-interaction: `submit()` → record user feedback
-//! - Dashboard: `generateReport()` → persona performance summary
-//! - Tuning: `analyzePersona()` → per-persona insights for model refinement
+//! - Dashboard: `generateReport()` → profile performance summary
+//! - Tuning: `analyzeProfile()` → per-profile insights for model refinement
 
 const std = @import("std");
-pub const config_mod = @import("config");
-pub const collector = @import("collector");
-pub const analyzer = @import("analyzer");
-pub const storage = @import("storage");
+pub const config_mod = @import("config.zig");
+pub const collector = @import("collector.zig");
+pub const analyzer = @import("analyzer.zig");
+pub const storage = @import("storage.zig");
 
 // Re-export core types
 pub const FeedbackConfig = config_mod.FeedbackConfig;
@@ -21,9 +21,9 @@ pub const FeedbackCollector = collector.FeedbackCollector;
 pub const FeedbackEntry = collector.FeedbackEntry;
 pub const FeedbackCategory = collector.FeedbackCategory;
 pub const RatingType = collector.RatingType;
-pub const PersonaRef = collector.PersonaRef;
+pub const ProfileRef = collector.ProfileRef;
 pub const FeedbackAnalyzer = analyzer.FeedbackAnalyzer;
-pub const PersonaStats = analyzer.PersonaStats;
+pub const ProfileStats = analyzer.ProfileStats;
 pub const SatisfactionReport = analyzer.SatisfactionReport;
 pub const Trend = analyzer.Trend;
 pub const FeedbackStorage = storage.FeedbackStorage;
@@ -61,24 +61,24 @@ pub const FeedbackSystem = struct {
     pub fn submitStars(
         self: *Self,
         rating: u8,
-        persona: PersonaRef,
+        profile: ProfileRef,
         category: FeedbackCategory,
         session_id: []const u8,
         text: ?[]const u8,
     ) u64 {
-        return self.store.submitStars(rating, persona, category, session_id, text);
+        return self.store.submitStars(rating, profile, category, session_id, text);
     }
 
     /// Submit a thumbs up/down rating.
     pub fn submitThumbs(
         self: *Self,
         thumbs_up: bool,
-        persona: PersonaRef,
+        profile: ProfileRef,
         category: FeedbackCategory,
         session_id: []const u8,
         text: ?[]const u8,
     ) u64 {
-        return self.store.submitThumbs(thumbs_up, persona, category, session_id, text);
+        return self.store.submitThumbs(thumbs_up, profile, category, session_id, text);
     }
 
     /// Query stored feedback.
@@ -86,7 +86,7 @@ pub const FeedbackSystem = struct {
         return self.store.query(q);
     }
 
-    /// Get a satisfaction report across all personas.
+    /// Get a satisfaction report across all profiles.
     pub fn generateReport(self: *Self) !SatisfactionReport {
         // Get all entries via a broad query
         const entries = try self.store.query(.{ .limit = self.cfg.max_entries });
@@ -94,11 +94,11 @@ pub const FeedbackSystem = struct {
         return self.analyzer_engine.generateReport(entries);
     }
 
-    /// Get statistics for a specific persona.
-    pub fn analyzePersona(self: *Self, persona: PersonaRef) !PersonaStats {
-        const entries = try self.store.query(.{ .persona = persona, .limit = self.cfg.max_entries });
+    /// Get statistics for a specific profile.
+    pub fn analyzeProfile(self: *Self, profile: ProfileRef) !ProfileStats {
+        const entries = try self.store.query(.{ .profile = profile, .limit = self.cfg.max_entries });
         defer self.allocator.free(entries);
-        return self.analyzer_engine.analyzePersona(entries, persona);
+        return self.analyzer_engine.analyzeProfile(entries, profile);
     }
 
     /// Get overall entry count.
@@ -131,7 +131,7 @@ test "FeedbackSystem end-to-end" {
     try std.testing.expect(report.total_entries == 3);
     try std.testing.expect(report.overall_average > 0.0);
 
-    const abbey_stats = try system.analyzePersona(.abbey);
+    const abbey_stats = try system.analyzeProfile(.abbey);
     try std.testing.expect(abbey_stats.total_entries == 2);
 }
 

@@ -1,3 +1,10 @@
+---
+title: ABI Framework
+purpose: Main project entry point and documentation map
+last_updated: 2026-03-16
+target_zig_version: 0.16.0-dev.2905+5d71e3051
+---
+
 # ABI Framework
 
 ABI is a Zig 0.16 framework for AI services, semantic storage, GPU acceleration,
@@ -7,22 +14,25 @@ entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 ## What ABI includes
 
 - `abi.App` / `abi.AppBuilder` for framework setup and feature wiring
-- `abi.features.database` for the semantic store and vector search surface
-- `abi.features.ai` for agents, profiles, training, reasoning, and LLM support
-- `abi.Gpu` / `abi.GpuBackend` for unified compute backends
-- `abi.services.*` for platform, connectors, MCP, ACP, tasks, and shared runtime services
+- `abi.database` for the semantic store and vector search surface
+- `abi.ai` for agents, profiles, training, reasoning, and LLM support
+- `abi.inference` for engine, scheduler, sampler, and paged KV cache primitives
+- `abi.gpu` / `abi.Gpu` / `abi.GpuBackend` for unified compute backends
+- `abi.runtime`, `abi.platform`, `abi.connectors`, `abi.mcp`, `abi.acp`, `abi.tasks` for services
+- `abi.foundation` for shared utilities (SIMD, logging, security, time)
 - `abi` CLI for operational workflows, diagnostics, docs generation, and local tooling
 
 ## Current baseline
 
 | Item | Value |
 |------|-------|
-| Zig pin | `0.16.0-dev.1503+738d2be9d` |
+| Zig pin | `0.16.0-dev.2905+5d71e3051` |
 | Package root | `src/root.zig` |
 | Main validation gate | `zig build full-check` |
 | Full release gate | `zig build verify-all` |
 | Docs generator | `zig build gendocs` |
 | CLI registry refresh | `zig build refresh-cli-registry` |
+| Darwin 26.4 full-validation toolchain | Canonical cached host-built Zig from `./tools/scripts/bootstrap_host_zig.sh` |
 
 ## Quick start
 
@@ -33,14 +43,23 @@ zig build
 zig build run -- --help
 ```
 
-If you are on macOS 26+ and stock Zig cannot link the build runner, start with
-the repo-supported fallback paths instead:
+On macOS 26.4 / Darwin 25.x, stock prebuilt Zig on this host is linker-blocked
+before `build.zig` runs. ABI's supported full-validation path is the pinned
+host-built Zig produced by `./tools/scripts/bootstrap_host_zig.sh`, then
+prepended to `PATH` before running direct `zig build` gates:
 
 ```bash
-./tools/scripts/run_build.sh test --summary all
-zig fmt --check build.zig build src tools examples
-zig test src/services/tests/mod.zig -fno-emit-bin
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
+zig build toolchain-doctor
+zig build full-check
+zig build check-docs
 ```
+
+If you are temporarily on a blocked stock toolchain, use
+`./tools/scripts/run_build.sh` only as fallback evidence while replacing the
+toolchain.
 
 ## Library examples
 
@@ -50,8 +69,9 @@ zig test src/services/tests/mod.zig -fno-emit-bin
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+pub fn main(init: std.process.Init) !void {
+    _ = init;
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -68,12 +88,13 @@ pub fn main() !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+pub fn main(init: std.process.Init) !void {
+    _ = init;
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const store = abi.features.database.semantic_store;
+    const store = abi.database.semantic_store;
 
     var handle = try store.openStore(allocator, "vectors-db");
     defer store.closeStore(&handle);
@@ -96,12 +117,13 @@ pub fn main() !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+pub fn main(init: std.process.Init) !void {
+    _ = init;
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var agent = try abi.features.ai.agents.Agent.init(allocator, .{
+    var agent = try abi.ai.agents.Agent.init(allocator, .{
         .name = "assistant",
         .backend = .echo,
         .enable_history = true,
@@ -151,38 +173,53 @@ zig build check-cli-registry
 
 ## Public surface map
 
-ABI's public package surface is intentionally small at the top level and broad
-under feature and service namespaces.
+ABI's public package surface is intentionally small at the top level and
+organized by domain.
 
 | Surface | Purpose |
 |---------|---------|
 | `abi.App` / `abi.AppBuilder` | Framework lifecycle and feature orchestration |
-| `abi.features.database` | Semantic store, search, backup, restore, diagnostics |
-| `abi.features.ai` | Agents, profiles, LLM, training, reasoning |
-| `abi.features.gpu` | GPU feature namespace |
+| `abi.database` | Semantic store, search, backup, restore, diagnostics |
+| `abi.ai` | Agents, profiles, LLM, training, reasoning |
+| `abi.inference` | Engine, scheduler, sampler, and paged KV cache primitives |
+| `abi.gpu` | GPU feature namespace |
 | `abi.Gpu` / `abi.GpuBackend` | Direct unified GPU runtime access |
-| `abi.services.*` | Shared runtime services and integration surfaces |
+| `abi.foundation` / `abi.runtime` | Shared foundations, time/sync/SIMD, and always-on runtime primitives |
+| `abi.connectors` / `abi.ha` / `abi.tasks` / `abi.lsp` / `abi.mcp` / `abi.acp` | Service and integration surfaces |
 
 ### Notes on migration surfaces
 
-- `abi.features.ai.profiles` is the canonical behavior-profile namespace.
-- `abi.features.ai.personas` remains as a compatibility alias during the phase 4 transition.
-- The public named `wdbx` package surface has been removed; use `abi.features.database`.
-- `src/abi.zig` is the internal composition layer. External consumers should target `@import("abi")`, which resolves to `src/root.zig`.
+- `abi.ai.profiles` is the canonical behavior-profile namespace.
+- The public named `wdbx` package surface has been removed; use `abi.database`.
+- `src/root.zig` is the canonical package root for the `abi` module. `src/abi.zig` is a legacy internal file (not imported by any code).
 
-## Repository layout
+## Project structure
 
-| Path | Purpose |
-|------|---------|
-| `src/root.zig` | Public package root |
-| `src/abi.zig` | Internal composition layer |
-| `src/features/` | Comptime-gated feature modules with `mod.zig` / `stub.zig` parity |
-| `src/core/` | Always-on framework internals |
-| `src/services/` | Runtime services shared across features and tools |
-| `tools/cli/` | ABI CLI implementation |
-| `tools/gendocs/` | Documentation generator and templates |
-| `docs/` | Maintained docs plus generated API/plan output |
-| `build/` | Modular Zig build graph and validation steps |
+```
+abi/
+├── src/                  # Framework source (single "abi" module)
+│   ├── root.zig          # Public package entrypoint (@import("abi"))
+│   ├── abi.zig           # Internal composition layer
+│   ├── core/             # Always-on framework internals
+│   ├── features/         # 19 comptime-gated modules (mod/stub/types pattern)
+│   ├── services/         # Runtime services, connectors, security
+│   └── inference/        # ML inference: sampler, scheduler, KV cache
+├── build/                # Modular build system (options, flags, modules)
+├── build.zig             # Build root — all steps and gates
+├── tools/                # CLI, gendocs, validation scripts
+│   ├── cli/              # ABI CLI implementation
+│   ├── gendocs/          # Documentation generator
+│   └── scripts/          # Build helpers and consistency checks
+├── tests/                # Integration test roots
+├── examples/             # 36 standalone example programs
+├── benchmarks/           # Performance benchmark suites
+├── bindings/             # C and WASM language bindings
+└── docs/                 # Maintained + generated documentation
+```
+
+Each feature module under `src/features/<name>/` follows the **mod/stub contract**:
+`mod.zig` (real implementation), `stub.zig` (API-compatible no-ops), and `types.zig`
+(shared types). See [docs/PATTERNS.md](docs/PATTERNS.md) for details.
 
 ## Build, test, and validation
 
@@ -202,7 +239,7 @@ zig build verify-all
 zig build fix
 zig build lint
 ./tools/scripts/fmt_repo.sh --check
-zig fmt --check build.zig build src tools examples
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 ```
 
 Do not run `zig fmt .` at the repo root. The repo vendors upstream Zig fixtures
@@ -220,6 +257,11 @@ zig build check-cli-registry
 
 Generated docs live under `docs/api/` and `docs/plans/`. Structural edits should
 go through `tools/gendocs/`, not direct manual edits to generated pages.
+On macOS 26.4, full local `zig build gendocs` / `zig build check-docs` support
+requires the pinned host-built Zig from `./tools/scripts/bootstrap_host_zig.sh`
+to be first on `PATH`. If stock prebuilt Zig is linker-blocked, use
+`./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence
+while obtaining the bootstrapped compiler.
 
 ## Feature flags
 
@@ -245,24 +287,67 @@ pin atomically with:
 - `README.md`
 - related CI / toolchain docs
 
+This bootstrap wave does **not** repin ABI. `.zigversion`, `build.zig.zon`,
+`tools/scripts/baseline.zig`, and CI remain pinned and unchanged.
+
+On macOS 26.4, the supported local path is:
+
+```bash
+./tools/scripts/bootstrap_host_zig.sh
+export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
+hash -r
+zig build toolchain-doctor
+zig build check-zig-version
+zig build full-check
+zig build check-docs
+zig build gendocs -- --check --no-wasm --untracked-md
+```
+
 For macOS linker issues, see [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md).
 For blocked Darwin hosts, use `run_build.sh`, compile-only checks, or Linux CI for binary-emitting gates.
 
+## Benchmarks
+
+The `benchmarks/` directory contains comprehensive performance suites covering
+SIMD, memory, concurrency, database, network, crypto, AI, and GPU workloads.
+
+```bash
+zig build benchmarks                       # Run all suites
+zig build benchmarks -- --suite=simd       # Run specific suite
+zig build benchmarks -- --quick            # Fast CI-friendly run
+zig build bench-competitive                # Industry comparisons
+```
+
+See [benchmarks/README.md](benchmarks/README.md) for suite details and
+[benchmarks/STRUCTURE.md](benchmarks/STRUCTURE.md) for directory layout.
+
 ## Documentation map
 
-- [docs/README.md](docs/README.md) - docs tree layout and generation workflow
-- [docs/FAQ-agents.md](docs/FAQ-agents.md) - repo workflow FAQ for agents and contributors
-- [docs/guides/cursor_rules.md](docs/guides/cursor_rules.md) - Cursor-specific ABI rules
-- [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md) - Darwin linker failure notes
-- [docs/ABI_WDBX_ARCHITECTURE.md](docs/ABI_WDBX_ARCHITECTURE.md) - semantic-store architecture notes
+### Workflow & Guidelines
+- [AGENTS.md](AGENTS.md) — Contributor workflow contract (start here)
+- [CLAUDE.md](CLAUDE.md) — Claude AI agent instructions
+- [GEMINI.md](GEMINI.md) — Gemini CLI instructions
+- [SECURITY.md](SECURITY.md) — Vulnerability reporting
+
+### Technical Documentation
+- [docs/README.md](docs/README.md) — Documentation guide (maintained vs generated)
+- [docs/STRUCTURE.md](docs/STRUCTURE.md) — Full directory tree reference
+- [docs/PATTERNS.md](docs/PATTERNS.md) — Zig 0.16 codebase patterns
+- [docs/ABI_WDBX_ARCHITECTURE.md](docs/ABI_WDBX_ARCHITECTURE.md) — WDBX architecture
+- [docs/ZIG_MACOS_LINKER_RESEARCH.md](docs/ZIG_MACOS_LINKER_RESEARCH.md) — Darwin linker notes
+
+### Examples & Benchmarks
+- [examples/README.md](examples/README.md) — Categorized example index
+- [benchmarks/README.md](benchmarks/README.md) — Benchmark suite guide
+- [benchmarks/STRUCTURE.md](benchmarks/STRUCTURE.md) — Benchmark directory layout
 
 ## Contributing
 
 Before non-trivial changes:
 
-1. Read `AGENTS.md`, `CONTRIBUTING.md`, `CLAUDE.md`, `tasks/todo.md`, and `tasks/lessons.md`.
+1. Read `AGENTS.md`, `CLAUDE.md`, `tasks/todo.md`, and `tasks/lessons.md`.
 2. Plan multi-file work in `tasks/todo.md`.
 3. Keep feature-module `mod.zig` and `stub.zig` public surfaces aligned.
 4. Run the strongest validation this environment supports and record blockers precisely.
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
+Start with [AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md).

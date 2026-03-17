@@ -11,7 +11,7 @@ const abi = @import("abi");
 const build_options = @import("build_options");
 
 pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -33,7 +33,7 @@ pub fn main(_: std.process.Init) !void {
 fn demoMetrics(allocator: std.mem.Allocator) !void {
     std.debug.print("--- Metrics Demo ---\n", .{});
 
-    const obs = abi.features.observability;
+    const obs = abi.observability;
 
     // Create a metrics collector
     var collector = obs.MetricsCollector.init(allocator);

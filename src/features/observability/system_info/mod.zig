@@ -5,10 +5,10 @@
 //! other framework components to query basic system metrics.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../services/shared/mod.zig").sync;
 // Shared utilities for wall‑clock ms timestamps
-const utils = @import("shared_services").utils;
+const utils = @import("../../../services/shared/mod.zig").utils;
 
 /// SystemInfo offers static helpers for runtime data.
 pub const SystemInfo = struct {

@@ -7,11 +7,11 @@
 //! - Incremental synchronization with version vectors
 
 const std = @import("std");
-const parent = @import(".");
+const parent = @import("./mod.zig");
 const time = parent.time;
 const network = parent.network;
 const block_chain = parent.block_chain;
-const shard_manager = @import("./shard_manager");
+const shard_manager = @import("./shard_manager.zig");
 
 pub const BlockExchangeError = error{
     SyncInProgress,

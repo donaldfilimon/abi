@@ -4,12 +4,12 @@
 //! embedded dynamic AI client HTTP inferences, and search query executions.
 
 const std = @import("std");
-const config = @import("config");
-const metrics = @import("distance").Distance;
-const Cache = @import("cache").Cache;
-const HNSW = @import("hnsw").HNSW;
-const AIClient = @import("ai_client").AIClient;
-const sync_compat = @import("sync_compat");
+const config = @import("config.zig");
+const metrics = @import("distance.zig").Distance;
+const Cache = @import("cache.zig").Cache;
+const HNSW = @import("hnsw.zig").HnswIndex;
+const AIClient = @import("ai_client.zig").AIClient;
+const sync_compat = @import("sync_compat.zig");
 
 pub const Metadata = struct {
     text: []const u8,
@@ -67,8 +67,10 @@ pub const Engine = struct {
         const cache = try Cache.init(allocator, cfg.cache.capacity, cfg.cache.segments);
         errdefer cache.deinit();
 
-        const idx = try HNSW.init(allocator, cfg, cfg.metric);
-        errdefer idx.deinit();
+        const idx = HNSW.initEmpty(allocator, .{
+            .m = cfg.hnsw.m,
+            .ef_construction = cfg.hnsw.ef_construction,
+        });
 
         return .{
             .allocator = allocator,
@@ -80,7 +82,7 @@ pub const Engine = struct {
 
     pub fn deinit(self: *Engine) void {
         self.cache.deinit();
-        self.hnsw_index.deinit();
+        self.hnsw_index.deinit(self.allocator);
         if (self.ai_client) |*c| c.deinit();
 
         for (self.vectors_array.items) |item| {
@@ -252,7 +254,7 @@ pub const Engine = struct {
         self.allocator.free(existing.vec);
         self.deinitOwnedMetadata(existing.metadata);
 
-        if (existing_idx < self.hnsw_index.vectors.items.len) {
+        if (existing_idx < self.hnsw_index.nodes.len) {
             self.allocator.free(self.hnsw_index.vectors.items[existing_idx]);
             self.hnsw_index.vectors.items[existing_idx] = cloned_hnsw_vec;
         } else {
@@ -326,13 +328,21 @@ pub const Engine = struct {
         // HW boundary execution.
         // This natively returns absolute index numeric layout mappings matched natively against
         // flat slice offsets stored implicitly.
-        const matched_ids = try self.hnsw_index.search(query_vector, options.k * 2, options.ef);
-        defer self.allocator.free(matched_ids);
+        // Convert current vectors to record views for HNSW search
+        var records = try self.allocator.alloc(@import("index.zig").VectorRecordView, self.vectors_array.items.len);
+        defer self.allocator.free(records);
+        for (self.vectors_array.items, 0..) |v, i| {
+            records[i] = .{ .id = @intCast(i), .vector = v.vec };
+        }
+
+        const matched_results = try self.hnsw_index.search(self.allocator, records, query_vector, options.k * 2);
+        defer self.allocator.free(matched_results);
 
         var final_results: std.ArrayListUnmanaged(SearchResult) = .empty;
         errdefer final_results.deinit(self.allocator);
 
-        for (matched_ids) |idx| {
+        for (matched_results) |res| {
+            const idx = res.id;
             if (idx >= self.vectors_array.items.len) continue;
 
             const item = self.vectors_array.items[idx];

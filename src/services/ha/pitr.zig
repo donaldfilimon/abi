@@ -7,9 +7,9 @@
 //! - Efficient recovery with minimal data loss
 
 const std = @import("std");
-const time = @import("shared_services").time;
+const time = @import("../shared/mod.zig").time;
 
-const sync = @import("shared_services").sync;
+const sync = @import("../shared/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// PITR configuration
@@ -100,8 +100,8 @@ pub const PitrManager = struct {
             .config = config,
             .current_sequence = 0,
             .last_checkpoint_time = 0,
-            .pending_operations = .{},
-            .recovery_points = .{},
+            .pending_operations = .empty,
+            .recovery_points = .empty,
             .mutex = .{},
         };
     }

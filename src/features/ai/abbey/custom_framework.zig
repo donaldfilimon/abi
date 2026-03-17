@@ -1,14 +1,14 @@
 //! Customizable AI Framework
 //!
 //! A renameable, customizable AI framework built on Abbey's architecture.
-//! Allows creating custom AI assistants with unique personalities, names,
+//! Allows creating custom AI assistants with unique profilelities, names,
 //! and seed prompts while leveraging Abbey's advanced cognitive capabilities.
 //!
 //! ## Features
 //! - Custom naming (not tied to "Abbey")
 //! - Seed prompts for personality definition
 //! - System prompt customization
-//! - Persona templates with temperature presets
+//! - Profile templates with temperature presets
 //! - Full access to Abbey's neural, memory, and reasoning systems
 //!
 //! ## Usage
@@ -26,20 +26,20 @@
 //! ```
 
 const std = @import("std");
-const engine = @import("engine");
-const config = @import("../core/config");
-const types = @import("types");
-const emotions = @import("emotions");
-const reasoning = @import("reasoning");
-const advanced = @import("advanced");
-const client = @import("client");
+const engine = @import("engine.zig");
+const config = @import("../core/config.zig");
+const types = @import("../types.zig");
+const emotions = @import("emotions.zig");
+const reasoning = @import("reasoning.zig");
+const advanced = @import("advanced.zig");
+const client = @import("client.zig");
 
 // ============================================================================
 // Seed Prompt Templates
 // ============================================================================
 
 /// Pre-defined personality templates with seed prompts
-pub const PersonaTemplate = enum {
+pub const ProfileTemplate = enum {
     /// Helpful general assistant
     assistant,
     /// Programming and code specialist
@@ -63,8 +63,8 @@ pub const PersonaTemplate = enum {
     /// Custom (user-defined)
     custom,
 
-    /// Get the default seed prompt for this persona
-    pub fn getSeedPrompt(self: PersonaTemplate, name: []const u8) []const u8 {
+    /// Get the default seed prompt for this profile
+    pub fn getSeedPrompt(self: ProfileTemplate, name: []const u8) []const u8 {
         return switch (self) {
             .assistant => getAssistantPrompt(name),
             .coder => getCoderPrompt(name),
@@ -80,8 +80,8 @@ pub const PersonaTemplate = enum {
         };
     }
 
-    /// Get recommended temperature for this persona
-    pub fn getTemperature(self: PersonaTemplate) f32 {
+    /// Get recommended temperature for this profile
+    pub fn getTemperature(self: ProfileTemplate) f32 {
         return switch (self) {
             .assistant => 0.7,
             .coder => 0.3,
@@ -98,7 +98,7 @@ pub const PersonaTemplate = enum {
     }
 
     /// Get recommended behavior settings
-    pub fn getBehavior(self: PersonaTemplate) BehaviorPreset {
+    pub fn getBehavior(self: ProfileTemplate) BehaviorPreset {
         return switch (self) {
             .assistant => .{ .opinionated = false, .research_first = true, .proactive = true },
             .coder => .{ .opinionated = false, .research_first = false, .proactive = false },
@@ -124,7 +124,7 @@ pub const BehaviorPreset = struct {
 // Seed prompt templates (can be overridden)
 fn getAssistantPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are a helpful, harmless, and honest AI assistant. Your goal is to provide
     \\accurate, useful information while being respectful and considerate. You should:
     \\- Answer questions thoroughly but concisely
@@ -137,7 +137,7 @@ fn getAssistantPrompt(name: []const u8) []const u8 {
 
 fn getCoderPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are an expert programming assistant. You specialize in writing clean,
     \\efficient, and well-documented code. Your responses should:
     \\- Provide working code examples when appropriate
@@ -151,7 +151,7 @@ fn getCoderPrompt(name: []const u8) []const u8 {
 
 fn getWriterPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are a creative writing assistant with a flair for storytelling. You help
     \\with all forms of creative writing including fiction, poetry, and creative
     \\non-fiction. Your approach:
@@ -165,7 +165,7 @@ fn getWriterPrompt(name: []const u8) []const u8 {
 
 fn getAnalystPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are a data analysis specialist with expertise in statistics, visualization,
     \\and data-driven decision making. You should:
     \\- Break down complex data problems systematically
@@ -179,7 +179,7 @@ fn getAnalystPrompt(name: []const u8) []const u8 {
 
 fn getResearcherPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are a research assistant dedicated to thorough, accurate information
     \\gathering and synthesis. Your methodology:
     \\- Always verify claims and cite sources when possible
@@ -193,7 +193,7 @@ fn getResearcherPrompt(name: []const u8) []const u8 {
 
 fn getCompanionPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are a friendly, empathetic conversational companion. You engage in
     \\meaningful dialogue while being supportive and understanding. You:
     \\- Listen actively and respond thoughtfully
@@ -207,7 +207,7 @@ fn getCompanionPrompt(name: []const u8) []const u8 {
 
 fn getDocsPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are a technical documentation specialist. You excel at creating clear,
     \\comprehensive documentation for software and technical systems. You:
     \\- Write in clear, precise technical language
@@ -221,7 +221,7 @@ fn getDocsPrompt(name: []const u8) []const u8 {
 
 fn getReviewerPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are a code review specialist focused on improving code quality. You provide
     \\constructive, actionable feedback on code. Your reviews:
     \\- Identify bugs, security issues, and edge cases
@@ -235,7 +235,7 @@ fn getReviewerPrompt(name: []const u8) []const u8 {
 
 fn getOpinionatedPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You are an opinionated, emotionally intelligent AI assistant. Unlike neutral
     \\assistants, you form and express opinions while remaining helpful. You:
     \\- Share your perspective clearly while acknowledging other viewpoints
@@ -249,7 +249,7 @@ fn getOpinionatedPrompt(name: []const u8) []const u8 {
 
 fn getMinimalPrompt(name: []const u8) []const u8 {
     _ = name;
-    return 
+    return
     \\You provide direct, concise responses without unnecessary elaboration.
     \\Focus on answering exactly what was asked.
     ;
@@ -276,8 +276,8 @@ pub const CustomAIConfig = struct {
     /// Additional system instructions (appended to seed prompt)
     system_instructions: []const u8 = "",
 
-    /// Persona template to use (provides defaults)
-    persona: PersonaTemplate = .assistant,
+    /// Profile template to use (provides defaults)
+    profile: ProfileTemplate = .assistant,
 
     /// Base temperature for generation
     temperature: f32 = 0.7,
@@ -354,7 +354,7 @@ pub const CustomAIConfig = struct {
         if (self.seed_prompt.len > 0) {
             return self.seed_prompt;
         }
-        return self.persona.getSeedPrompt(self.name);
+        return self.profile.getSeedPrompt(self.name);
     }
 };
 
@@ -610,7 +610,7 @@ pub const Builder = struct {
     /// Set the seed prompt (core personality definition)
     pub fn seedPrompt(self: *Builder, prompt: []const u8) *Builder {
         self.config.seed_prompt = prompt;
-        self.config.persona = .custom;
+        self.config.profile = .custom;
         return self;
     }
 
@@ -620,10 +620,10 @@ pub const Builder = struct {
         return self;
     }
 
-    /// Use a pre-defined persona template
-    pub fn persona(self: *Builder, p: PersonaTemplate) *Builder {
-        self.config.persona = p;
-        // Apply persona defaults
+    /// Use a pre-defined profile template
+    pub fn profile(self: *Builder, p: ProfileTemplate) *Builder {
+        self.config.profile = p;
+        // Apply profile defaults
         const behavior = p.getBehavior();
         self.config.temperature = p.getTemperature();
         self.config.opinionated = behavior.opinionated;
@@ -721,14 +721,14 @@ pub fn create(allocator: std.mem.Allocator, name: []const u8) !CustomAI {
     return CustomAI.init(allocator, cfg);
 }
 
-/// Create a custom AI from a persona template
-pub fn createFromPersona(
+/// Create a custom AI from a profile template
+pub fn createFromProfile(
     allocator: std.mem.Allocator,
     name: []const u8,
-    persona_template: PersonaTemplate,
+    profile_template: ProfileTemplate,
 ) !CustomAI {
     var builder_instance = CustomAI.builder(allocator);
-    _ = builder_instance.name(name).persona(persona_template);
+    _ = builder_instance.name(name).profile(profile_template);
     return builder_instance.build();
 }
 
@@ -749,27 +749,27 @@ pub fn createWithSeedPrompt(
 
 /// Create a research assistant
 pub fn createResearcher(allocator: std.mem.Allocator, name: []const u8) !CustomAI {
-    return createFromPersona(allocator, name, .researcher);
+    return createFromProfile(allocator, name, .researcher);
 }
 
 /// Create a coding assistant
 pub fn createCoder(allocator: std.mem.Allocator, name: []const u8) !CustomAI {
-    return createFromPersona(allocator, name, .coder);
+    return createFromProfile(allocator, name, .coder);
 }
 
 /// Create a creative writer
 pub fn createWriter(allocator: std.mem.Allocator, name: []const u8) !CustomAI {
-    return createFromPersona(allocator, name, .writer);
+    return createFromProfile(allocator, name, .writer);
 }
 
 /// Create a conversational companion
 pub fn createCompanion(allocator: std.mem.Allocator, name: []const u8) !CustomAI {
-    return createFromPersona(allocator, name, .companion);
+    return createFromProfile(allocator, name, .companion);
 }
 
 /// Create an opinionated assistant (Abbey-style)
 pub fn createOpinionated(allocator: std.mem.Allocator, name: []const u8) !CustomAI {
-    return createFromPersona(allocator, name, .opinionated);
+    return createFromProfile(allocator, name, .opinionated);
 }
 
 // ============================================================================
@@ -806,7 +806,7 @@ test "custom ai builder" {
     var assistant = try builder_instance
         .name("Sage")
         .tagline("Your wisdom companion")
-        .persona(.researcher)
+        .profile(.researcher)
         .temperature(0.5)
         .researchFirst(true)
         .build();
@@ -815,14 +815,14 @@ test "custom ai builder" {
     try std.testing.expectEqualStrings("Sage", assistant.getName());
 }
 
-test "persona template defaults" {
-    try std.testing.expectEqual(@as(f32, 0.3), PersonaTemplate.coder.getTemperature());
-    try std.testing.expectEqual(@as(f32, 0.9), PersonaTemplate.writer.getTemperature());
+test "profile template defaults" {
+    try std.testing.expectEqual(@as(f32, 0.3), ProfileTemplate.coder.getTemperature());
+    try std.testing.expectEqual(@as(f32, 0.9), ProfileTemplate.writer.getTemperature());
 
-    const coder_behavior = PersonaTemplate.coder.getBehavior();
+    const coder_behavior = ProfileTemplate.coder.getBehavior();
     try std.testing.expect(!coder_behavior.opinionated);
 
-    const opinionated_behavior = PersonaTemplate.opinionated.getBehavior();
+    const opinionated_behavior = ProfileTemplate.opinionated.getBehavior();
     try std.testing.expect(opinionated_behavior.opinionated);
 }
 

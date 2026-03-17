@@ -12,11 +12,11 @@
 //! - --output <file> - Write results to file
 
 const std = @import("std");
-const command_mod = @import("../../../command");
-const context_mod = @import("../../../framework/context");
+const command_mod = @import("../../../command.zig");
+const context_mod = @import("../../../framework/context.zig");
 const utils = @import("../../../utils/mod.zig");
-const suites = @import("suites");
-const micro = @import("micro");
+const suites = @import("suites.zig");
+const micro = @import("micro.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "bench",
@@ -182,7 +182,7 @@ pub fn printAvailableSuites() void {
 }
 
 pub fn printHelp() void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

@@ -1,12 +1,13 @@
 const std = @import("std");
 // Use the public GPU module to access the dispatcher and builtin kernels.
 const abi = @import("abi");
-const gpu = abi.features.gpu;
+const build_options = @import("build_options");
+const gpu = abi.gpu;
 const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;
 
 test "KernelRing fast-path reuse increments ring_hits" {
-    if (!@import("build_options").feat_gpu) return error.SkipZigTest;
+    if (!build_options.feat_gpu) return error.SkipZigTest;
 
     const device = dispatcher.Device{
         .id = 0,

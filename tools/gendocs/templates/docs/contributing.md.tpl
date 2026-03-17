@@ -9,4 +9,4 @@
 - Edit template source in `tools/gendocs/templates/docs/` for structural changes.
 - Edit generator logic in `tools/gendocs/` for data model or rendering changes.
 - Canonical workflow contract lives in `AGENTS.md` and the `tasks/` interfaces (`tasks/todo.md`, `tasks/lessons.md`).
-- Use the local `$zig-master` skill for Zig validation and docs/build wiring changes.
+- Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, use a host-built or otherwise known-good Zig; if stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing it.

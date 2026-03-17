@@ -39,8 +39,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
-const sync = abi.services.shared.sync;
-const time = abi.services.shared.time;
+const sync = abi.foundation.sync;
+const time = abi.foundation.time;
 
 /// Types of faults that can be injected
 pub const FaultType = enum {
@@ -148,14 +148,14 @@ pub const ChaosContext = struct {
     pub fn init(allocator: std.mem.Allocator, seed: u64) Self {
         return .{
             .allocator = allocator,
-            .faults = .{},
+            .faults = .empty,
             .active = false,
             .rng = std.Random.DefaultPrng.init(seed),
             .stats = .{},
             .mutex = .{},
             .operation_count = 0,
             .event_callback = null,
-            .faults_per_config = .{},
+            .faults_per_config = .empty,
         };
     }
 
@@ -463,7 +463,7 @@ pub const NetworkPartitionSimulator = struct {
     pub fn init(allocator: std.mem.Allocator, chaos: *ChaosContext) Self {
         return .{
             .chaos = chaos,
-            .partitions = .{},
+            .partitions = .empty,
             .allocator = allocator,
             .mutex = .{},
         };
@@ -564,7 +564,7 @@ pub const MessageDelaySimulator = struct {
     pub fn init(allocator: std.mem.Allocator, chaos: *ChaosContext) Self {
         return .{
             .chaos = chaos,
-            .delayed = .{},
+            .delayed = .empty,
             .allocator = allocator,
             .mutex = .{},
             .next_id = 0,
@@ -712,9 +712,9 @@ pub const ChaosTestResult = struct {
 // Sub-module exports
 // ============================================================================
 
-pub const ha_chaos_test = @import("ha_chaos_test");
-pub const database_chaos_test = @import("database_chaos_test");
-pub const network_chaos_test = @import("network_chaos_test");
+pub const ha_chaos_test = @import("ha_chaos_test.zig");
+pub const database_chaos_test = @import("database_chaos_test.zig");
+pub const network_chaos_test = @import("network_chaos_test.zig");
 
 // ============================================================================
 // Tests

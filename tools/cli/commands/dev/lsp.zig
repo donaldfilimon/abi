@@ -9,12 +9,12 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
-const cli_io = @import("../../utils/io_backend");
+const cli_io = @import("../../utils/io_backend.zig");
 
-const lsp = abi.services.lsp;
+const lsp = abi.lsp;
 const ArgParser = utils.args.ArgParser;
 const output = utils.output;
 const HelpBuilder = utils.help.HelpBuilder;

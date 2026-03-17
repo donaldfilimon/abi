@@ -6,10 +6,10 @@
 const std = @import("std");
 const abi = @import("abi");
 const tui = @import("../mod.zig");
-const types = @import("types");
-const completion = @import("completion");
-const menu = @import("menu");
-const tui_layout = @import("layout");
+const types = @import("types.zig");
+const completion = @import("completion.zig");
+const menu = @import("menu.zig");
+const tui_layout = @import("layout.zig");
 
 const MenuItem = types.MenuItem;
 const CompletionState = types.CompletionState;
@@ -98,7 +98,7 @@ pub const TuiState = struct {
         // Add to front
         try self.history.insert(self.allocator, 0, .{
             .command_id = command_id,
-            .timestamp = abi.services.shared.utils.unixMs(),
+            .timestamp = abi.foundation.utils.unixMs(),
         });
         // Keep only last 10
         while (self.history.items.len > 10) {
@@ -109,12 +109,12 @@ pub const TuiState = struct {
     pub fn showNotification(self: *TuiState, message: []const u8, level: tui.Toast.Level) void {
         self.notification = message;
         self.notification_level = level;
-        self.notification_time = abi.services.shared.utils.unixMs();
+        self.notification_time = abi.foundation.utils.unixMs();
     }
 
     pub fn clearExpiredNotification(self: *TuiState) void {
         if (self.notification != null) {
-            const elapsed = abi.services.shared.utils.unixMs() - self.notification_time;
+            const elapsed = abi.foundation.utils.unixMs() - self.notification_time;
             if (elapsed > 3000) { // 3 second display
                 self.notification = null;
             }

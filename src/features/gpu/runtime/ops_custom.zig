@@ -1,4 +1,4 @@
-const dsl = @import("../dsl");
+const dsl = @import("../dsl/mod.zig");
 const std = @import("std");
 
 pub const KernelBuilder = dsl.KernelBuilder;

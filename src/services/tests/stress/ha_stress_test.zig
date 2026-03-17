@@ -15,8 +15,9 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const ha = abi.services.ha;
-const profiles = @import("profiles");
+const os = abi.foundation.os;
+const ha = abi.ha;
+const profiles = @import("profiles.zig");
 const StressProfile = profiles.StressProfile;
 const LatencyHistogram = profiles.LatencyHistogram;
 const Timer = profiles.Timer;
@@ -36,6 +37,7 @@ fn getTestProfile() StressProfile {
 // ============================================================================
 
 test "ha stress: backup under concurrent write load" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -121,6 +123,7 @@ test "ha stress: backup under concurrent write load" {
 }
 
 test "ha stress: backup chain integrity with many backups" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -173,6 +176,7 @@ test "ha stress: backup chain integrity with many backups" {
 }
 
 test "ha stress: backup retention under pressure" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -205,6 +209,7 @@ test "ha stress: backup retention under pressure" {
 // ============================================================================
 
 test "ha stress: pitr rapid checkpoint creation" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -251,6 +256,7 @@ test "ha stress: pitr rapid checkpoint creation" {
 }
 
 test "ha stress: pitr concurrent operations and checkpoints" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -332,6 +338,7 @@ test "ha stress: pitr concurrent operations and checkpoints" {
 }
 
 test "ha stress: pitr recovery point search" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -381,6 +388,7 @@ test "ha stress: pitr recovery point search" {
 // ============================================================================
 
 test "ha stress: replication with many replicas" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -426,6 +434,7 @@ test "ha stress: replication with many replicas" {
 }
 
 test "ha stress: replication lag tracking under load" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -462,6 +471,7 @@ test "ha stress: replication lag tracking under load" {
 }
 
 test "ha stress: failover timing" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -500,6 +510,7 @@ test "ha stress: failover timing" {
 // ============================================================================
 
 test "ha stress: full ha manager lifecycle" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 
@@ -541,6 +552,7 @@ test "ha stress: full ha manager lifecycle" {
 }
 
 test "ha stress: ha manager with concurrent backups and pitr" {
+    if (comptime os.no_os) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     const profile = getTestProfile();
 

@@ -26,9 +26,9 @@
 //! const db_config = core.config.DatabaseBenchConfig.standard;
 //! ```
 
-pub const vectors = @import("vectors");
-pub const distance = @import("distance");
-pub const config = @import("config");
+pub const vectors = @import("vectors.zig");
+pub const distance = @import("distance.zig");
+pub const config = @import("config.zig");
 
 // Re-export common types for convenience
 pub const VectorDistribution = vectors.VectorDistribution;

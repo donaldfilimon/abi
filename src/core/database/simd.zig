@@ -13,34 +13,36 @@ const std = @import("std");
 const builtin = @import("builtin");
 const assert = std.debug.assert;
 
-/// SIMD capability detection (compile-time)
+/// SIMD capability detection (runtime)
 pub const Features = struct {
-    pub const has_avx512f = detectX86Feature(.avx512f);
-    pub const has_avx512dq = detectX86Feature(.avx512dq);
-    pub const has_avx2 = detectX86Feature(.avx2);
-    pub const has_fma = detectX86Feature(.fma);
-    pub const has_sse4_1 = detectX86Feature(.sse4_1);
-    pub const has_neon = detectAarch64Feature(.neon);
+    pub var has_avx512f = false;
+    pub var has_avx512dq = false;
+    pub var has_avx2 = false;
+    pub var has_fma = false;
+    pub var has_sse4_1 = false;
+    pub var has_neon = false;
 
-    pub const vector_width = blk: {
-        if (has_avx512f) break :blk 16;
-        if (has_avx2) break :blk 8;
-        if (has_sse4_1 or has_neon) break :blk 4;
-        break :blk 1;
-    };
+    pub var vector_width: usize = 1;
 
-    inline fn detectX86Feature(comptime feature: std.Target.x86.Feature) bool {
-        return comptime if (builtin.cpu.arch == .x86_64)
-            std.Target.x86.featureSetHas(builtin.cpu.features, feature)
-        else
-            false;
-    }
+    var initialized = false;
 
-    inline fn detectAarch64Feature(comptime feature: std.Target.aarch64.Feature) bool {
-        return comptime if (builtin.cpu.arch == .aarch64)
-            std.Target.aarch64.featureSetHas(builtin.cpu.features, feature)
-        else
-            false;
+    pub fn init() void {
+        if (initialized) return;
+
+        if (builtin.cpu.arch == .x86_64) {
+            const features = std.Target.x86.featureSetHas;
+            const cpu_features = builtin.cpu.features;
+            has_avx512f = features(cpu_features, .avx512f);
+            has_avx512dq = features(cpu_features, .avx512dq);
+            has_avx2 = features(cpu_features, .avx2);
+            has_fma = features(cpu_features, .fma);
+            has_sse4_1 = features(cpu_features, .sse4_1);
+        } else if (builtin.cpu.arch == .aarch64) {
+            has_neon = std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon);
+        }
+
+        vector_width = if (has_avx512f) @as(usize, 16) else if (has_avx2) @as(usize, 8) else if (has_sse4_1 or has_neon) @as(usize, 4) else 1;
+        initialized = true;
     }
 };
 
@@ -64,6 +66,7 @@ pub fn Vector(comptime T: type, comptime width: comptime_int) type {
 /// ```
 pub inline fn dotProduct(comptime T: type, a: []const T, b: []const T) T {
     assert(a.len == b.len);
+    Features.init();
 
     return if (Features.has_avx512f and T == f32)
         dotProductAVX512(a, b)

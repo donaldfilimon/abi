@@ -1,8 +1,8 @@
 const std = @import("std");
-const connectors = @import("../../../../../services/connectors");
-const types = @import("types");
-const errors = @import("../errors");
-const manifest = @import("manifest");
+const connectors = @import("../../../../../services/connectors/mod.zig");
+const types = @import("../types.zig");
+const errors = @import("../errors.zig");
+const manifest = @import("manifest.zig");
 
 pub fn generate(
     allocator: std.mem.Allocator,

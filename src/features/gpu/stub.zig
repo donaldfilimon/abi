@@ -1,8 +1,8 @@
 //! GPU Stub Module — API-compatible no-ops when GPU is disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../core/config");
-const stub_common = @import("shared_services").stub_common;
+const config_module = @import("../../core/config/mod.zig");
+const stub_common = @import("../../services/shared/mod.zig").stub_common;
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
@@ -10,32 +10,33 @@ pub const Error = error{ FeatureDisabled, NoDeviceAvailable, InitializationFaile
 pub const GpuError = Error;
 pub const MemoryError = error{ OutOfMemory, InvalidPointer, BufferTooSmall, HostAccessDisabled, DeviceMemoryMissing, SizeMismatch, InvalidOffset, TransferFailed };
 pub const KernelError = error{ CompilationFailed, InvalidKernel, InvalidArgument, LaunchFailed, BackendUnsupported };
+pub const BackendSelectionError = error{ RequestedBackendUnavailable, NoBackendsAvailable, OutOfMemory };
 
 // ── Local Stubs Imports ────────────────────────────────────────────────────
 
-const backend = @import("backend");
-const memory = @import("stubs/memory");
-const kernel = @import("stubs/kernel");
-const dsl_mod = @import("stubs/dsl");
-const execution = @import("stubs/execution");
-const recovery_mod = @import("stubs/recovery");
-const multi_gpu = @import("stubs/multi_gpu");
-const config = @import("stubs/config");
-const platform_mod = @import("stubs/platform");
-const backend_factory_mod = @import("stubs/backend_factory");
-const dispatcher_mod = @import("stubs/dispatcher");
-const diagnostics_mod = @import("stubs/diagnostics");
-const execution_coordinator_mod = @import("stubs/execution_coordinator");
-const std_gpu_mod = @import("stubs/std_gpu");
-const misc = @import("stubs/misc");
-const profiler = @import("stubs/profiler");
+const backend = @import("backend.zig");
+const memory = @import("stubs/memory.zig");
+const kernel = @import("stubs/kernel.zig");
+const dsl_mod = @import("stubs/dsl.zig");
+const execution = @import("stubs/execution.zig");
+const recovery_mod = @import("stubs/recovery.zig");
+const multi_gpu = @import("stubs/multi_gpu.zig");
+const config = @import("stubs/config.zig");
+const platform_mod = @import("stubs/platform.zig");
+const backend_factory_mod = @import("stubs/backend_factory.zig");
+const dispatcher_mod = @import("stubs/dispatcher.zig");
+const diagnostics_mod = @import("stubs/diagnostics.zig");
+const execution_coordinator_mod = @import("stubs/execution_coordinator.zig");
+const std_gpu_mod = @import("stubs/std_gpu.zig");
+const misc = @import("stubs/misc.zig");
+const profiler = @import("stubs/profiler.zig");
 
 // ── Essential Shared Types ─────────────────────────────────────────────────
 
-pub const Backend = @import("backend").Backend;
+pub const Backend = @import("backend.zig").Backend;
 
-pub const Device = @import("stubs/device").Device;
-pub const DeviceType = @import("stubs/device").DeviceType;
+pub const Device = @import("stubs/device.zig").Device;
+pub const DeviceType = @import("stubs/device.zig").DeviceType;
 
 pub const Buffer = memory.Buffer;
 pub const GpuBuffer = Buffer;
@@ -43,10 +44,10 @@ pub const UnifiedBuffer = memory.UnifiedBuffer;
 pub const BufferFlags = memory.BufferFlags;
 pub const BufferOptions = memory.BufferOptions;
 
-pub const Stream = @import("stubs/stream").Stream;
-pub const StreamOptions = @import("stubs/stream").StreamOptions;
-pub const Event = @import("stubs/stream").Event;
-pub const EventOptions = @import("stubs/stream").EventOptions;
+pub const Stream = @import("stubs/stream.zig").Stream;
+pub const StreamOptions = @import("stubs/stream.zig").StreamOptions;
+pub const Event = @import("stubs/stream.zig").Event;
+pub const EventOptions = @import("stubs/stream.zig").EventOptions;
 
 pub const LaunchConfig = execution.LaunchConfig;
 pub const ExecutionResult = execution.ExecutionResult;
@@ -71,8 +72,8 @@ pub const std_gpu = misc.std_gpu;
 pub const std_gpu_kernels = misc.std_gpu_kernels;
 pub const unified = misc.unified;
 pub const unified_buffer = misc.unified_buffer;
-pub const device = @import("stubs/device");
-pub const stream = @import("stubs/stream");
+pub const device = @import("stubs/device.zig");
+pub const stream = @import("stubs/stream.zig");
 pub const dsl = dsl_mod.dsl;
 pub const interface = misc.interface;
 pub const cuda_loader = misc.cuda_loader;
@@ -226,13 +227,13 @@ pub const gradient_compression = struct {
 // Namespaced GPU API surface (hard API cutover)
 pub const backends = struct {
     pub const types = struct {
-        pub const Backend = @import("backend").Backend;
-        pub const DetectionLevel = @import("backend").DetectionLevel;
-        pub const BackendAvailability = @import("backend").BackendAvailability;
-        pub const BackendInfo = @import("backend").BackendInfo;
-        pub const DeviceCapability = @import("backend").DeviceCapability;
-        pub const DeviceInfo = @import("backend").DeviceInfo;
-        pub const Summary = @import("backend").Summary;
+        pub const Backend = @import("backend.zig").Backend;
+        pub const DetectionLevel = @import("backend.zig").DetectionLevel;
+        pub const BackendAvailability = @import("backend.zig").BackendAvailability;
+        pub const BackendInfo = @import("backend.zig").BackendInfo;
+        pub const DeviceCapability = @import("backend.zig").DeviceCapability;
+        pub const DeviceInfo = @import("backend.zig").DeviceInfo;
+        pub const Summary = @import("backend.zig").Summary;
     };
 
     pub const detect = struct {

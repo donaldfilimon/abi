@@ -1,6 +1,6 @@
 const std = @import("std");
 const cli_root = @import("cli_root");
-const model = @import("model");
+const model = @import("model.zig");
 
 const commands_mod = cli_root.commands;
 const CommandDescriptor = std.meta.Elem(@TypeOf(commands_mod.descriptors));

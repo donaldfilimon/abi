@@ -1,5 +1,5 @@
 const std = @import("std");
-const openai = @import("openai");
+const openai = @import("openai.zig");
 
 pub const CodexError = openai.OpenAIError;
 pub const Config = openai.Config;

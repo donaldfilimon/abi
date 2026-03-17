@@ -144,8 +144,8 @@ pub const AllFeatureErrors = GpuFrameworkError ||
 /// Composes lifecycle errors, all feature errors, and infrastructure errors.
 pub const FrameworkError = LifecycleError ||
     AllFeatureErrors ||
-    @import("config").ConfigError ||
-    @import("registry").types.Error ||
+    @import("config/mod.zig").ConfigError ||
+    @import("registry/mod.zig").types.Error ||
     @import("std").mem.Allocator.Error;
 
 // ============================================================================

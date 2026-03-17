@@ -4,9 +4,9 @@
 //! synchronously or asynchronously, and synchronization primitives.
 
 const std = @import("std");
-const types = @import("../kernel_types");
-const s = @import("metal_state");
-const metal_types = @import("metal_types");
+const types = @import("../kernel_types.zig");
+const s = @import("metal_state.zig");
+const metal_types = @import("metal_types.zig");
 
 /// Safely cast an opaque pointer to a MetalKernel pointer with validation.
 fn safeCastToKernel(ptr: ?*anyopaque) ?*s.MetalKernel {

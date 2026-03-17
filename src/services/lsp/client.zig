@@ -1,8 +1,8 @@
 //! ZLS LSP client (JSON-RPC over stdio).
 
 const std = @import("std");
-const jsonrpc = @import("jsonrpc");
-const types = @import("types");
+const jsonrpc = @import("jsonrpc.zig");
+const types = @import("types.zig");
 
 // Inline LspConfig to avoid cross-directory import to ../../core/config/.
 // Canonical definition: src/core/config/lsp.zig — keep in sync.
@@ -250,7 +250,8 @@ pub const Client = struct {
                 self.allocator,
                 msg,
                 .{},
-            ) catch {
+            ) catch |err| {
+                std.log.debug("lsp: skipping malformed JSON-RPC message: {}", .{err});
                 continue;
             };
             defer parsed.deinit();
@@ -324,7 +325,8 @@ pub const Client = struct {
                 self.allocator,
                 msg,
                 .{},
-            ) catch {
+            ) catch |err| {
+                std.log.debug("lsp: skipping malformed notification message: {}", .{err});
                 continue;
             };
             defer parsed.deinit();
@@ -558,7 +560,9 @@ fn createTestAbiRepo(
     for (dirs) |sub| {
         const full = try std.fs.path.join(allocator, &.{ repo_root, sub });
         defer allocator.free(full);
-        std.Io.Dir.createDirPath(.cwd(), io, full) catch {};
+        std.Io.Dir.createDirPath(.cwd(), io, full) catch |err| {
+            std.log.warn("lsp: test repo directory creation failed: {}", .{err});
+        };
     }
 
     const files = [_]struct { sub: []const u8, data: []const u8 }{
@@ -584,7 +588,9 @@ fn testRepoRootPath(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
 }
 
 fn cleanupTestRepo(allocator: std.mem.Allocator, io: std.Io, repo_root: []const u8) void {
-    std.Io.Dir.deleteTree(.cwd(), io, repo_root) catch {};
+    std.Io.Dir.deleteTree(.cwd(), io, repo_root) catch |err| {
+        std.log.warn("lsp: test repo cleanup failed: {}", .{err});
+    };
     _ = allocator;
 }
 

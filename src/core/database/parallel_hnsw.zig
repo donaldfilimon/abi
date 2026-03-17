@@ -33,14 +33,14 @@
 //! good load balancing even with variable insertion costs.
 
 const std = @import("std");
-const time = @import("shared_services").time;
-const sync = @import("shared_services").sync;
+const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../services/shared/mod.zig").sync;
 const builtin = @import("builtin");
-const hnsw = @import("hnsw");
-const index_mod = @import("index");
-const simd = @import("shared_services").simd;
-const ChaseLevDeque = @import("../../services/runtime/concurrency/chase_lev").ChaseLevDeque;
-const WorkStealingScheduler = @import("../../services/runtime/concurrency/chase_lev").WorkStealingScheduler;
+const hnsw = @import("hnsw.zig");
+const index_mod = @import("index.zig");
+const simd = @import("../../services/shared/mod.zig").simd;
+const ChaseLevDeque = @import("../../services/runtime/concurrency/chase_lev.zig").ChaseLevDeque;
+const WorkStealingScheduler = @import("../../services/runtime/concurrency/chase_lev.zig").WorkStealingScheduler;
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and
@@ -308,6 +308,7 @@ const ParallelGraph = struct {
             .state_pool = null,
             .distance_cache = null,
             .gpu_accelerator = null,
+            .norms = &.{},
             .allocator = allocator,
         };
     }
@@ -318,9 +319,11 @@ const ParallelGraph = struct {
 // ============================================================================
 
 /// Task for work-stealing scheduler.
-const InsertTask = struct {
+/// Must be bit-packable into u64 for std.atomic.Value compatibility (via ChaseLevDeque).
+const InsertTask = packed struct(u64) {
     node_id: u32,
     priority: u8, // Higher layer = higher priority
+    padding: u24 = 0,
 };
 
 // ============================================================================

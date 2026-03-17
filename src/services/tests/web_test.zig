@@ -3,13 +3,13 @@
 //! Comprehensive tests for the web module including:
 //! - HTTP client functionality
 //! - Chat handlers and request/response types
-//! - Persona routes and router
+//! - Profile routes and router
 //! - Context management
 //! - OpenAPI spec generation
 
 const std = @import("std");
 const build_options = @import("build_options");
-const web = @import("abi").features.web;
+const web = @import("abi").web;
 
 // =============================================================================
 // Module Initialization Tests
@@ -136,7 +136,7 @@ test "chat request struct fields" {
         .content = "Hello, world!",
         .user_id = "user-123",
         .session_id = "session-456",
-        .persona = "abbey",
+        .profile = "abbey",
         .context = "Be helpful",
         .max_tokens = 100,
         .temperature = 0.7,
@@ -144,7 +144,7 @@ test "chat request struct fields" {
 
     try std.testing.expectEqualStrings("Hello, world!", request.content);
     try std.testing.expectEqualStrings("user-123", request.user_id.?);
-    try std.testing.expectEqualStrings("abbey", request.persona.?);
+    try std.testing.expectEqualStrings("abbey", request.profile.?);
     try std.testing.expectEqual(@as(u32, 100), request.max_tokens.?);
     try std.testing.expectEqual(@as(f32, 0.7), request.temperature.?);
 }
@@ -152,14 +152,14 @@ test "chat request struct fields" {
 test "chat response struct fields" {
     const response = web.ChatResponse{
         .content = "Hello! How can I help?",
-        .persona = "abbey",
+        .profile = "abbey",
         .confidence = 0.95,
         .latency_ms = 150,
         .request_id = "req-789",
     };
 
     try std.testing.expectEqualStrings("Hello! How can I help?", response.content);
-    try std.testing.expectEqualStrings("abbey", response.persona);
+    try std.testing.expectEqualStrings("abbey", response.profile);
     try std.testing.expectEqual(@as(f32, 0.95), response.confidence);
     try std.testing.expectEqual(@as(u64, 150), response.latency_ms);
 }
@@ -176,15 +176,15 @@ test "chat handler error format" {
     try std.testing.expect(std.mem.indexOf(u8, error_json, "req-001") != null);
 }
 
-test "chat handler list personas without orchestrator" {
+test "chat handler list profiles without orchestrator" {
     const allocator = std.testing.allocator;
 
     var handler = web.ChatHandler.init(allocator);
-    const personas_json = try handler.listPersonas();
-    defer allocator.free(personas_json);
+    const profiles_json = try handler.listProfiles();
+    defer allocator.free(profiles_json);
 
     // Should return valid JSON even without orchestrator
-    try std.testing.expect(std.mem.indexOf(u8, personas_json, "personas") != null);
+    try std.testing.expect(std.mem.indexOf(u8, profiles_json, "profiles") != null);
 }
 
 test "chat handler get metrics without orchestrator" {
@@ -200,35 +200,35 @@ test "chat handler get metrics without orchestrator" {
 }
 
 // =============================================================================
-// Persona Route Tests
+// Profile Route Tests
 // =============================================================================
 
-test "persona router initialization" {
+test "profile router initialization" {
     const allocator = std.testing.allocator;
 
     var handler = web.ChatHandler.init(allocator);
-    const router = web.PersonaRouter.init(allocator, &handler);
+    const router = web.ProfileRouter.init(allocator, &handler);
 
     try std.testing.expect(router.routes.len >= 5);
 }
 
-test "persona router route matching" {
+test "profile router route matching" {
     const allocator = std.testing.allocator;
 
     var handler = web.ChatHandler.init(allocator);
-    const router = web.PersonaRouter.init(allocator, &handler);
+    const router = web.ProfileRouter.init(allocator, &handler);
 
     // Should find chat route
     const chat_route = router.match("/api/v1/chat", .POST);
     try std.testing.expect(chat_route != null);
     try std.testing.expectEqualStrings("/api/v1/chat", chat_route.?.path);
 
-    // Should find personas route
-    const personas_route = router.match("/api/v1/personas", .GET);
-    try std.testing.expect(personas_route != null);
+    // Should find profiles route
+    const profiles_route = router.match("/api/v1/profiles", .GET);
+    try std.testing.expect(profiles_route != null);
 
     // Should find health route
-    const health_route = router.match("/api/v1/personas/health", .GET);
+    const health_route = router.match("/api/v1/profiles/health", .GET);
     try std.testing.expect(health_route != null);
 
     // Should not find non-existent route
@@ -236,11 +236,11 @@ test "persona router route matching" {
     try std.testing.expect(not_found == null);
 }
 
-test "persona router wrong method" {
+test "profile router wrong method" {
     const allocator = std.testing.allocator;
 
     var handler = web.ChatHandler.init(allocator);
-    const router = web.PersonaRouter.init(allocator, &handler);
+    const router = web.ProfileRouter.init(allocator, &handler);
 
     // Chat route is POST, should not match GET
     const not_found = router.match("/api/v1/chat", .GET);
@@ -320,7 +320,7 @@ test "all routes have descriptions" {
     const allocator = std.testing.allocator;
 
     var handler = web.ChatHandler.init(allocator);
-    const router = web.PersonaRouter.init(allocator, &handler);
+    const router = web.ProfileRouter.init(allocator, &handler);
 
     for (router.routes) |route| {
         try std.testing.expect(route.description.len > 0);
@@ -332,15 +332,15 @@ test "route definitions include required endpoints" {
     const allocator = std.testing.allocator;
 
     var handler = web.ChatHandler.init(allocator);
-    const router = web.PersonaRouter.init(allocator, &handler);
+    const router = web.ProfileRouter.init(allocator, &handler);
 
     const required_paths = [_][]const u8{
         "/api/v1/chat",
         "/api/v1/chat/abbey",
         "/api/v1/chat/aviva",
-        "/api/v1/personas",
-        "/api/v1/personas/metrics",
-        "/api/v1/personas/health",
+        "/api/v1/profiles",
+        "/api/v1/profiles/metrics",
+        "/api/v1/profiles/health",
     };
 
     for (required_paths) |required_path| {
@@ -358,7 +358,7 @@ test "route definitions include required endpoints" {
 test "openapi spec generation" {
     const allocator = std.testing.allocator;
 
-    const spec = try web.routes.personas.generateOpenApiSpec(allocator);
+    const spec = try web.routes.profiles.generateOpenApiSpec(allocator);
     defer allocator.free(spec);
 
     // Should be valid JSON structure
@@ -375,7 +375,7 @@ test "openapi spec generation" {
 // =============================================================================
 
 test "method enum values" {
-    const Method = web.routes.personas.Method;
+    const Method = web.routes.profiles.Method;
 
     try std.testing.expectEqual(Method.GET, Method.GET);
     try std.testing.expectEqual(Method.POST, Method.POST);
@@ -404,21 +404,21 @@ test "http status codes" {
 }
 
 // =============================================================================
-// Persona Type Parsing Tests
+// Profile Type Parsing Tests
 // =============================================================================
 
-test "parse persona type" {
-    const parsePersonaType = web.handlers.chat.parsePersonaType;
+test "parse profile type" {
+    const parseProfileType = web.handlers.chat.parseProfileType;
 
-    // Valid personas
-    try std.testing.expect(parsePersonaType("abbey") != null);
-    try std.testing.expect(parsePersonaType("aviva") != null);
-    try std.testing.expect(parsePersonaType("abi") != null);
+    // Valid profiles
+    try std.testing.expect(parseProfileType("abbey") != null);
+    try std.testing.expect(parseProfileType("aviva") != null);
+    try std.testing.expect(parseProfileType("abi") != null);
 
-    // Invalid personas
-    try std.testing.expect(parsePersonaType("unknown") == null);
-    try std.testing.expect(parsePersonaType("") == null);
-    try std.testing.expect(parsePersonaType("ABBEY") == null); // Case sensitive
+    // Invalid profiles
+    try std.testing.expect(parseProfileType("unknown") == null);
+    try std.testing.expect(parseProfileType("") == null);
+    try std.testing.expect(parseProfileType("ABBEY") == null); // Case sensitive
 }
 
 // =============================================================================
@@ -445,7 +445,7 @@ test "full router request handling for not found" {
     const allocator = std.testing.allocator;
 
     var handler = web.ChatHandler.init(allocator);
-    var router = web.PersonaRouter.init(allocator, &handler);
+    var router = web.ProfileRouter.init(allocator, &handler);
 
     const result = try router.handle("/api/v1/nonexistent", .GET, "");
     defer if (result.status == 500) allocator.free(result.body);
@@ -455,7 +455,7 @@ test "full router request handling for not found" {
 }
 
 test "route result struct" {
-    const result = web.routes.personas.RouteResult{
+    const result = web.routes.profiles.RouteResult{
         .status = 200,
         .body = "{\"ok\":true}",
         .content_type = "application/json",

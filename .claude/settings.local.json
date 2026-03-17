@@ -19,7 +19,7 @@
       "Bash(grep -c '\"\"type\"\":\"\"result\"\"')",
       "Bash(zig test src/services/lsp/mod.zig -fno-emit-bin)",
       "Bash(zig test src/services/mcp/zls_bridge.zig -fno-emit-bin)",
-      "mcp__github__create_pull_request"
+      "Bash(git checkout:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

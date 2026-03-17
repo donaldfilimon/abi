@@ -3,8 +3,8 @@
 //! A standalone TUI animation demonstrating native terminal rendering speeds.
 
 const std = @import("std");
-const command_mod = @import("../../command");
-const context_mod = @import("../../framework/context");
+const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const tui = @import("../../terminal/mod.zig");
 
@@ -97,7 +97,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         }
 
         try term.flush();
-        @import("abi").services.shared.time.sleepMs(50);
+        @import("abi").foundation.time.sleepMs(50);
     }
 }
 

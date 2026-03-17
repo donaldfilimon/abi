@@ -4,30 +4,30 @@
 //! Build with `-Dfeat-network=true` for the real implementation.
 
 const std = @import("std");
-const config_module = @import("../../core/config");
+const config_module = @import("../../core/config/mod.zig");
 
 // ============================================================================
 // Local Stubs Imports
 // ============================================================================
 
-const types = @import("stubs/types");
-const protocol_mod = @import("stubs/protocol");
-const scheduler_mod = @import("stubs/scheduler");
-const ha_mod = @import("stubs/ha");
-const discovery_mod = @import("stubs/discovery");
-const loadbalancer_mod = @import("stubs/loadbalancer");
-const retry_mod = @import("stubs/retry");
-const rate_limiter_mod = @import("stubs/rate_limiter");
-const connection_pool_mod = @import("stubs/connection_pool");
-const raft_mod = @import("stubs/raft");
-const transport_mod = @import("stubs/transport");
-const raft_transport_mod = @import("stubs/raft_transport");
-const circuit_breaker_mod = @import("stubs/circuit_breaker");
-const failover_mod = @import("stubs/failover");
-const heartbeat_mod = @import("stubs/heartbeat");
-const rpc_protocol_mod = @import("stubs/rpc_protocol");
-const unified_memory_mod = @import("stubs/unified_memory");
-const linking_mod = @import("stubs/linking");
+const types = @import("stubs/types.zig");
+const protocol_mod = @import("stubs/protocol.zig");
+const scheduler_mod = @import("stubs/scheduler.zig");
+const ha_mod = @import("stubs/ha.zig");
+const discovery_mod = @import("stubs/discovery.zig");
+const loadbalancer_mod = @import("stubs/loadbalancer.zig");
+const retry_mod = @import("stubs/retry.zig");
+const rate_limiter_mod = @import("stubs/rate_limiter.zig");
+const connection_pool_mod = @import("stubs/connection_pool.zig");
+const raft_mod = @import("stubs/raft.zig");
+const transport_mod = @import("stubs/transport.zig");
+const raft_transport_mod = @import("stubs/raft_transport.zig");
+const circuit_breaker_mod = @import("stubs/circuit_breaker.zig");
+const failover_mod = @import("stubs/failover.zig");
+const heartbeat_mod = @import("stubs/heartbeat.zig");
+const rpc_protocol_mod = @import("stubs/rpc_protocol.zig");
+const unified_memory_mod = @import("stubs/unified_memory.zig");
+const linking_mod = @import("stubs/linking.zig");
 
 // ============================================================================
 // Core Types Re-exports
@@ -160,6 +160,7 @@ pub const AppendEntriesRequest = raft_mod.AppendEntriesRequest;
 pub const AppendEntriesResponse = raft_mod.AppendEntriesResponse;
 pub const PeerState = raft_mod.PeerState;
 pub const createRaftCluster = raft_mod.createCluster;
+pub const FaultInjector = raft_mod.FaultInjector;
 pub const RaftPersistence = raft_mod.RaftPersistence;
 pub const PersistentState = raft_mod.PersistentState;
 pub const RaftSnapshotManager = raft_mod.RaftSnapshotManager;
