@@ -25,21 +25,36 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 
 **Running a single test**: `zig test src/path/to/file.zig -fno-emit-bin` for standalone files. For module-integrated tests, use `zig build test --summary all` with feature flags to narrow scope.
 
-**Darwin 25+ / macOS 26+**: stock prebuilt Zig can fail at the linker before `build.zig` runs. Bootstrap the pinned host-built Zig with `./tools/scripts/bootstrap_host_zig.sh`, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`, then run `zig build toolchain-doctor`, `zig build full-check`, and `zig build check-docs`. Fallback evidence remains `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all`. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
+**Darwin 25+ / macOS 26+**: stock prebuilt Zig's internal LLD linker fails before `build.zig` runs (undefined symbols: `_malloc_size`, `__availability_version_check`, etc.). Compilation succeeds — only linking is blocked. Primary workaround: `./tools/scripts/run_build.sh <step> --summary all` intercepts the linker failure, extracts the compiled `.o`, and relinks with Apple's `/usr/bin/ld`. This provides **full gate coverage** including `full-check`, `check-docs`, and all 56 flag combos. The bootstrap script (`bootstrap_host_zig.sh`) builds `zig1`/`zig2` but stage3 self-build currently fails on Darwin 26.4. If bootstrap succeeds, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH` for direct `zig build` support. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
 
 ## Architecture
 
 - `src/root.zig` — public package root; all `abi.<domain>` namespaces defined here
-- `src/features/<name>/` — 19 comptime-gated modules, each with `mod.zig` + `stub.zig` + `types.zig`
+- `src/features/<name>/` — 20 comptime-gated imports across 19 feature directories, each with `mod.zig` + `stub.zig` + `types.zig` (`pages` is a sub-feature of `observability`)
 - `src/services/` — Non-gated services: connectors, LSP, MCP, runtime, security, platform
 - `src/services/shared/` — Shared foundations exposed as `abi.foundation` (logging, security, time/SIMD)
 - `src/core/` — Config, feature catalog, registry (incl. plugin system), `stub_context.zig`
 - `src/inference/` — ML inference: engine, scheduler, sampler, paged KV cache
-- `build/` — Modular build system (options, flags, modules, test discovery, `module_catalog.zig`)
+- `build/` — Modular build system:
+  - `options.zig` — 27 `feat_*` flag definitions, Darwin feature forcing
+  - `flags.zig` — 56-combo validation matrix, `CanonicalFlags`
+  - `modules.zig` — Module creation, `wireAbiImports()`
+  - `module_catalog.zig` — Gendocs module registry (45+ entries)
+  - `link.zig` — Platform linking, Darwin `darwinRelink()` logic
+  - `test_discovery.zig` — Feature test manifest
 - `tools/cli/` — CLI commands and registry (`tools/cli/registry/`)
 - `tools/gendocs/` — Documentation generator (edits go here, not in generated `docs/api/`)
 - `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
 - `tests/integration/` — Integration test matrix manifest and preflight diagnostics
+
+### Public API surface
+
+Top-level namespaces exported by `src/root.zig`:
+
+- **Core:** `abi.config`, `abi.errors`, `abi.registry`, `abi.framework`
+- **Services (non-gated):** `abi.foundation`, `abi.runtime`, `abi.platform`, `abi.connectors`, `abi.tasks`, `abi.mcp`, `abi.lsp`, `abi.acp`, `abi.ha`, `abi.inference`
+- **Features (comptime-gated):** `abi.gpu`, `abi.ai`, `abi.database`, `abi.network`, `abi.observability`, `abi.web`, `abi.pages`, `abi.analytics`, `abi.cloud`, `abi.auth`, `abi.messaging`, `abi.cache`, `abi.storage`, `abi.search`, `abi.mobile`, `abi.gateway`, `abi.benchmarks`, `abi.compute`, `abi.documents`, `abi.desktop`
+- **Convenience:** `abi.App`, `abi.AppBuilder`, `abi.Gpu`, `abi.GpuBackend`, `abi.appBuilder()`, `abi.version()`, `abi.feature_catalog`
 
 ### Feature gating in root.zig
 
@@ -75,6 +90,16 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - Bulk find-replace must exclude string literal interiors; run `zig fmt --check` immediately after any bulk text operation
 
 See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
+
+## Testing Patterns
+
+- **Unit tests**: inline `test` blocks within source files, run via `zig build test --summary all`
+- **Feature tests**: `zig build feature-tests --summary all` exercises all 20 comptime-gated imports
+- **Integration tests**: `tests/integration/` with manifest and preflight diagnostics
+- **Full check**: `full-check` runs typecheck + test + check-docs + check-cli + validate-flags + check-feature-catalog
+- **Test helpers**: `src/services/tests/helpers.zig` provides `TestAllocator` (leak detection), platform-aware skip (`skipIfNoGpu`), vector utilities, temp dir management
+- **Test roots**: `src/services/tests/mod.zig` is a separate test root — its files use `@import("abi")`, not relative imports
+- **Darwin**: always use `./tools/scripts/run_build.sh <step> --summary all` instead of direct `zig build`
 
 ## Zig 0.16 API Changes
 

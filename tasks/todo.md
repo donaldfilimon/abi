@@ -12,7 +12,7 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 - Phase 15 roadmap items (semantic store, mobile bridges, embedded examples)
 - Darwin host-built Zig bootstrap completion
 - Verification gate maintenance and docs synchronization
-- Integration gate validation (Stage 2, blocked by Darwin linker — CI is authoritative)
+- Integration gate validation (Stage 2, COMPLETE via run_build.sh — CI remains authoritative)
 
 **Out of scope:**
 - Phases 1–14 (completed, archived below)
@@ -39,12 +39,12 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 - [x] **Import-Rule Guardrail Hardening**: Restored bare `build_options` named imports, normalized AI imports, strengthened `check-imports`.
 - [x] **Import Boundary and Skill Repair Wave**: Repaired Zig 0.16 import cleanup, aligned skills with module boundaries.
 - [x] **Pinned macOS Host-Zig Bootstrap Wave**: Added deterministic host-built Zig bootstrap/discovery path for Darwin.
-  - [ ] Runtime validation pending: `bootstrap_host_zig.sh` does not yet produce a working pinned compiler on Darwin/Xcode-beta.
+  - [ ] Runtime validation pending: `bootstrap_host_zig.sh` builds zig1/zig2 but stage3 self-build fails on Darwin 26.4 (Apple LLD incompatibility with Zig's self-hosted build). Workaround: `run_build.sh` successfully relinks build runners for full gate coverage.
 
 ### Stage Status
 
 - **Stage 1** (push + PR triage): COMPLETE — 2 commits pushed, 8 PRs (488-495) closed as superseded
-- **Stage 2** (integration gates): NOT STARTED (blocked by Darwin linker; CI is authoritative)
+- **Stage 2** (integration gates): COMPLETE via `run_build.sh full-check` on Darwin 26.4 (all 56 flag combos validated; CI remains authoritative)
 - **Stage 3** (close plans): IN PROGRESS
 - **Stage 4** (Phase 15 roadmap): NOT STARTED
 - **Stage 5** (housekeeping): IN PROGRESS
@@ -53,7 +53,7 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 
 ### Current State (2026-03-17)
 
-All source code compiles and passes verification. Remaining gate failures are structural (docs drift, workflow contract formatting in tasks/ files, missing `lang/` directory).
+All source code compiles and passes verification via `run_build.sh`. All 56 flag combinations validated. Darwin bootstrap binary (stage3) still pending upstream Zig fix. CLAUDE.md updated with API surface, Darwin workflow, build system breakdown, and testing patterns.
 
 ### Completed (Archived)
 
