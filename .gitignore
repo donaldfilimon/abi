@@ -128,11 +128,15 @@ testingllm.ckpt/
 /test_page_size
 /test_arraylist
 /test_nolld
+/test_std
 /cast_test
 /runner
 /unused_test
 /synthetic.bin
 /swiftly.pkg
+
+# ── Zig package cache (downloaded by build system) ───────────────────
+zig-pkg/
 
 # ── Binary executables and object files ───────────────────────────────
 *.a
