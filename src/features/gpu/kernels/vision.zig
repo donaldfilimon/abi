@@ -44,6 +44,7 @@ pub fn buildConv2dKernel(allocator: std.mem.Allocator) !*const KernelIR {
 
     // Use 16x16 tiles for output computation
     const TILE_SIZE: u32 = 16;
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(TILE_SIZE, TILE_SIZE, 1);
 
     // Buffer bindings
@@ -67,7 +68,7 @@ pub fn buildConv2dKernel(allocator: std.mem.Allocator) !*const KernelIR {
     const pad_h = try builder.addUniform("pad_h", Type.u32Type());
     const pad_w = try builder.addUniform("pad_w", Type.u32Type());
 
-    // Shared memory for tiled computation
+    // Shared memory for tiled computation (values unused; side-effect registers the allocation)
     _ = try builder.addSharedMemory("tile_input", Type.f32Type(), TILE_SIZE * TILE_SIZE);
     _ = try builder.addSharedMemory("tile_weights", Type.f32Type(), TILE_SIZE * TILE_SIZE);
 
@@ -233,6 +234,7 @@ pub fn buildMaxPool2dKernel(allocator: std.mem.Allocator) !*const KernelIR {
     var builder = KernelBuilder.init(allocator, "max_pool2d");
     errdefer builder.deinit();
 
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(16, 16, 1);
 
     // Buffer bindings
@@ -383,6 +385,7 @@ pub fn buildAvgPool2dKernel(allocator: std.mem.Allocator) !*const KernelIR {
     var builder = KernelBuilder.init(allocator, "avg_pool2d");
     errdefer builder.deinit();
 
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(16, 16, 1);
 
     // Buffer bindings
@@ -534,6 +537,7 @@ pub fn buildBatchNorm2dKernel(allocator: std.mem.Allocator) !*const KernelIR {
     var builder = KernelBuilder.init(allocator, "batch_norm2d");
     errdefer builder.deinit();
 
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(256, 1, 1);
 
     // Buffer bindings
@@ -609,6 +613,7 @@ pub fn buildIm2colKernel(allocator: std.mem.Allocator) !*const KernelIR {
     var builder = KernelBuilder.init(allocator, "im2col");
     errdefer builder.deinit();
 
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(256, 1, 1);
 
     // Buffer bindings
@@ -727,6 +732,7 @@ pub fn buildCol2imKernel(allocator: std.mem.Allocator) !*const KernelIR {
     var builder = KernelBuilder.init(allocator, "col2im");
     errdefer builder.deinit();
 
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(256, 1, 1);
 
     // Buffer bindings

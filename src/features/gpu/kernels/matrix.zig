@@ -37,6 +37,7 @@ pub fn buildMatrixMultiplyKernel(allocator: std.mem.Allocator, tile_config: ?Til
     const TILE_N: u32 = if (tile_config) |tc| tc.n else 16;
     // Note: For workgroup size, we use the smaller of M and N to keep threads reasonable
     const TILE_SIZE: u32 = @min(TILE_M, TILE_N);
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(TILE_SIZE, TILE_SIZE, 1);
 
     // Buffer bindings
@@ -47,7 +48,7 @@ pub fn buildMatrixMultiplyKernel(allocator: std.mem.Allocator, tile_config: ?Til
     const n = try builder.addUniform("n", Type.u32Type()); // B cols
     const k_dim = try builder.addUniform("k", Type.u32Type()); // A cols = B rows
 
-    // Shared memory for tiles
+    // Shared memory for tiles (values unused; side-effect registers the allocation)
     _ = try builder.addSharedMemory("tile_a", Type.f32Type(), TILE_SIZE * TILE_SIZE);
     _ = try builder.addSharedMemory("tile_b", Type.f32Type(), TILE_SIZE * TILE_SIZE);
 
@@ -186,6 +187,7 @@ pub fn buildMatrixTransposeKernel(allocator: std.mem.Allocator) !*const KernelIR
     var builder = KernelBuilder.init(allocator, "matrix_transpose");
     errdefer builder.deinit();
 
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(16, 16, 1);
 
     const a = try builder.addBuffer("a", Type.f32Type(), .read_only);

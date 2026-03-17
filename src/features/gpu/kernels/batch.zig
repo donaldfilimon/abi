@@ -22,6 +22,7 @@ pub fn buildBatchMatmulKernel(allocator: std.mem.Allocator) !*const KernelIR {
     errdefer builder.deinit();
 
     const TILE_SIZE: u32 = 16;
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(TILE_SIZE, TILE_SIZE, 1);
 
     const a = try builder.addBuffer("a", Type.f32Type(), .read_only);
@@ -110,6 +111,7 @@ pub fn buildBatchCosineSimilarityKernel(allocator: std.mem.Allocator) !*const Ke
     var builder = KernelBuilder.init(allocator, "batch_cosine_similarity");
     errdefer builder.deinit();
 
+    // Builder returns *Self for chaining; not used here.
     _ = builder.setWorkgroupSize(256, 1, 1);
 
     const query = try builder.addBuffer("query", Type.f32Type(), .read_only);
