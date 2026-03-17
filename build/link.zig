@@ -374,6 +374,14 @@ pub fn darwinRelink(
     const bin = relink.addOutputFileArg(output_name);
     relink.addArtifactArg(artifact);
     relink.addArg("-lSystem");
+    // Link macOS frameworks that the artifact may reference transitively.
+    // These are no-ops if unused and avoid "symbol not found" at relink time.
+    if (@import("builtin").os.tag == .macos) {
+        relink.addArg("-framework");
+        relink.addArg("IOKit");
+        relink.addArg("-framework");
+        relink.addArg("CoreFoundation");
+    }
     if (rt_path) |path| relink.addArg(path);
 
     const run = std.Build.Step.Run.create(b, b.fmt("run {s}", .{output_name}));

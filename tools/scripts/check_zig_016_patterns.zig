@@ -185,7 +185,7 @@ pub fn main(_: std.process.Init) !void {
     try scanForbidden(
         allocator,
         io,
-        "^[[:space:]]*[^/].*std\\.crypto\\.random",
+        "^[^/]*std\\.crypto\\.random",
         "legacy std.crypto.random; use std.c.arc4random_buf in Zig 0.16",
         &errors,
     );
@@ -310,10 +310,14 @@ pub fn main(_: std.process.Init) !void {
     );
 
     // Build system patterns (#2026-03-06)
+    // NOTE: The old pattern `\.path =` was too broad — it matched any struct field named
+    // .path (e.g. module catalog entries, HTTP request paths, database paths).
+    // The actual deprecated usage is LazyPath{ .path = ... } in build system code.
+    // We narrow to only match the LazyPath construction pattern.
     try scanForbidden(
         allocator,
         io,
-        "\\.path =",
+        "LazyPath\\{[[:space:]]*\\.path =",
         "legacy LazyPath.path field removed; use .cwd_relative or .src_path in Zig 0.16",
         &errors,
     );

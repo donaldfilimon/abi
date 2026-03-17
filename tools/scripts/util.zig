@@ -30,8 +30,14 @@ pub fn captureCommand(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8)
     const shell = if (builtin.os.tag == .windows) "cmd" else "sh";
     const shell_arg = if (builtin.os.tag == .windows) "/c" else "-c";
 
-    // Merge stderr to stdout via shell redirection
-    const merged_cmd = try std.fmt.allocPrint(allocator, "{s} 2>&1", .{cmd});
+    // On macOS, relinked binaries may inherit a sanitized PATH that lacks
+    // /opt/homebrew/bin and /usr/local/bin.  Prepend common tool locations
+    // so child processes can find rg, bash, etc.
+    const path_prefix = if (comptime builtin.os.tag == .macos)
+        "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; "
+    else
+        "";
+    const merged_cmd = try std.fmt.allocPrint(allocator, "{s}{s} 2>&1", .{ path_prefix, cmd });
     defer allocator.free(merged_cmd);
 
     const argv = [_][]const u8{ shell, shell_arg, merged_cmd };

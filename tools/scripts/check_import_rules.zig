@@ -1,10 +1,18 @@
 const std = @import("std");
 const util = @import("util");
 
-const allowed_bare_imports = [_][]const u8{
+/// Zig compiler built-in module names — always allowed bare, but their
+/// `.zig` suffixed variants are legitimate relative file imports (e.g.
+/// `@import("root.zig")` means the file `root.zig`, not the built-in).
+const builtin_bare_imports = [_][]const u8{
     "std",
     "builtin",
     "root",
+};
+
+/// Build-wired named modules declared in build.zig.  These must always
+/// stay bare; writing `@import("abi.zig")` is a mistake.
+const build_wired_imports = [_][]const u8{
     "abi",
     "build_options",
 };
@@ -55,7 +63,17 @@ fn parseImportTarget(content: []const u8) ?[]const u8 {
 }
 
 fn isAllowedBareImport(target: []const u8) bool {
-    inline for (allowed_bare_imports) |allowed| {
+    inline for (builtin_bare_imports) |allowed| {
+        if (std.mem.eql(u8, target, allowed)) return true;
+    }
+    inline for (build_wired_imports) |allowed| {
+        if (std.mem.eql(u8, target, allowed)) return true;
+    }
+    return false;
+}
+
+fn isBuildWiredImport(target: []const u8) bool {
+    inline for (build_wired_imports) |allowed| {
         if (std.mem.eql(u8, target, allowed)) return true;
     }
     return false;
@@ -108,7 +126,11 @@ fn scanNamedVsFileImports(allocator: std.mem.Allocator, io: std.Io) !usize {
         if (isAllowedBareImport(target)) continue;
 
         if (bareNamedModuleBase(target)) |base| {
-            if (isAllowedBareImport(base)) {
+            // Only flag .zig-suffixed variants of build-wired modules
+            // (e.g. @import("abi.zig") should be @import("abi")).
+            // Compiler built-ins like "root" are not flagged because
+            // @import("root.zig") is a valid relative file import.
+            if (isBuildWiredImport(base)) {
                 std.debug.print(
                     "VIOLATION: {s}:{s}: named module import must stay bare: @import(\"{s}\") not @import(\"{s}\")\n",
                     .{ parsed.file, parsed.lineno, base, target },

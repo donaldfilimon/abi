@@ -107,8 +107,10 @@ pub const InstanceId = struct {
 
     pub fn generate() InstanceId {
         var bytes: [16]u8 = undefined;
-        // Use crypto-random bytes for InstanceId
-        std.crypto.random.bytes(&bytes);
+        // Use project CSPRNG (Zig 0.16 removed std.crypto.random)
+        const csprng = @import("security/csprng.zig");
+        var rng = csprng.init();
+        rng.fill(&bytes);
         return .{ .bytes = bytes };
     }
 

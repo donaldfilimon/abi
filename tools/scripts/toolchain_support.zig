@@ -61,7 +61,10 @@ pub fn inspect(allocator: std.mem.Allocator, io: std.Io) !Inspection {
     const result = try captureCommand(allocator, io, "bash tools/scripts/inspect_toolchain.sh");
     defer allocator.free(result.output);
 
-    if (result.exit_code != 0) return error.ToolchainInspectionFailed;
+    if (result.exit_code != 0) {
+        std.debug.print("inspect_toolchain.sh failed (exit {d}):\n{s}\n", .{ result.exit_code, result.output });
+        return error.ToolchainInspectionFailed;
+    }
 
     var expected_version: ?[]u8 = null;
     errdefer if (expected_version) |value| allocator.free(value);
@@ -374,7 +377,18 @@ fn trimSpace(value: []const u8) []const u8 {
 fn captureCommand(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8) !CommandResult {
     const shell = if (builtin.os.tag == .windows) "cmd" else "sh";
     const shell_arg = if (builtin.os.tag == .windows) "/c" else "-c";
-    const merged_cmd = try std.fmt.allocPrint(allocator, "{s} 2>&1", .{cmd});
+
+    // On macOS, relinked binaries may inherit a sanitized environment that
+    // lacks /opt/homebrew/bin, /usr/local/bin on PATH and may even be missing
+    // HOME.  Restore common tool locations and HOME so child shell scripts
+    // (e.g. inspect_toolchain.sh) work correctly.
+    // Note: plain ~ does not expand when HOME is unset, but ~username does.
+    const env_fixup = if (comptime builtin.os.tag == .macos)
+        "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; " ++
+            "[ -z \"${HOME:-}\" ] && eval \"export HOME=~$(id -un)\"; "
+    else
+        "";
+    const merged_cmd = try std.fmt.allocPrint(allocator, "{s}{s} 2>&1", .{ env_fixup, cmd });
     defer allocator.free(merged_cmd);
 
     const argv = [_][]const u8{ shell, shell_arg, merged_cmd };

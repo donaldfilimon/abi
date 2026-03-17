@@ -2,7 +2,7 @@
 //!
 //! Provides disabled versions of fundamental types and configuration.
 const std = @import("std");
-
+const builtin = @import("builtin");
 // ============================================================================
 // Core Types
 // ============================================================================
