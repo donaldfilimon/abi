@@ -51,7 +51,7 @@ Run a build step with automatic Darwin workaround detection.
 | `verify-all` | full-check + examples + wasm + cross + docs (release gate) |
 | `lint` | Check formatting (alias for format check) |
 | `fix` | Auto-format |
-| `validate-flags` | Check 42 feature flag combos |
+| `validate-flags` | Check 56 feature flag combos |
 | `refresh-cli-registry` | Regenerate CLI registry snapshot |
 | `check-cli-registry` | Verify registry is current |
 | `check-docs` | Docs consistency check |

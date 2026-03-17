@@ -1,6 +1,26 @@
 {
-  "description": "ABI development guardrails: stub sync warnings, module import validation, and completion verification",
+  "description": "ABI development guardrails: stub sync warnings, module import validation, format safety, and completion verification",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check the command for this pattern:\nIf the command contains `zig fmt .` (formatting from the repo root), warn: 'Do NOT run `zig fmt .` from the repository root — it walks vendored fixtures with intentionally invalid code. Use `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` to target specific directories instead.'\nOnly warn if matched — otherwise output empty string."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check the edit for this pattern:\nIf the file path matches `src/features/*/` AND the edit introduces `@import(\"abi\")`, warn: 'Files inside src/features/ are part of the abi module. Using @import(\"abi\") from within the module causes a circular dependency error. Use relative imports (e.g., @import(\"../../services/shared/mod.zig\")) or @import(\"build_options\") instead.'\nOnly warn if matched — otherwise output empty string."
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -18,7 +38,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Before stopping, verify these ABI project standards:\n1. If any file in src/features/*/mod.zig was edited this session, was the matching stub.zig also updated? If not, remind the user.\n2. If any Zig files were edited, was `zig fmt --check` run on them? If not, suggest it.\n3. If any CLI commands in tools/cli/commands/ were added or modified, was `refresh-cli-registry` mentioned? If not, remind.\n4. If the task involved build.zig changes, were the is_blocked_darwin guards considered?\nReturn 'approve' if all checks pass or no Zig files were edited. Return 'block' with specific reminders if checks fail."
+            "prompt": "Before stopping, provide an advisory checklist of ABI project standards (do NOT block — this is informational only):\n1. If any file in src/features/*/mod.zig was edited this session, was the matching stub.zig also updated? If not, remind the user.\n2. If any Zig files were edited, was `zig fmt --check` run on them? If not, suggest it.\n3. If any CLI commands in tools/cli/commands/ were added or modified, was `refresh-cli-registry` mentioned? If not, remind.\n4. If the task involved build.zig changes, were the is_blocked_darwin guards considered?\nOutput reminders for any unaddressed items, or confirm all checks pass."
           }
         ]
       }

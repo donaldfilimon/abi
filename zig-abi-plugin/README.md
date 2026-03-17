@@ -24,6 +24,17 @@ claude --plugin-dir zig-abi-plugin
 |-------|---------|
 | `zig-016-patterns` | Writing Zig code, compilation errors, API questions |
 | `abi-architecture` | Feature modules, build system, comptime gating |
+| `abi-code-review` | Code review with ABI-specific heuristics |
+| `cel-language` | CEL expression syntax, evaluation, policy rules |
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/load-context.sh` | SessionStart hook: platform detection, Zig version, task reminders |
+| `scripts/check-flag-sync.sh` | Validate feature flag counts across build files |
+| `scripts/audit-darwin-targets.sh` | Audit darwinRelink() wiring on executables |
+| `skills/abi-code-review/scripts/review_prep.py` | Prepare ABI-specific review context from diffs |
 
 ### Agents
 
@@ -35,7 +46,11 @@ claude --plugin-dir zig-abi-plugin
 
 | Event | Action |
 |-------|--------|
+| `SessionStart` | Loads platform context, checks Zig version and pinned version match |
 | `PostToolUse` (Edit/Write) | Warns about stub.zig sync and module import violations |
+| `PreToolUse` (Bash) | Warns against `zig fmt .` from root (use specific dirs) |
+| `PreToolUse` (Edit) | Warns about `@import("abi")` inside `src/features/` |
+| `Stop` | Advisory checklist: stub sync, formatting, CLI registry |
 
 ## Quick Reference
 
@@ -52,7 +67,7 @@ claude --plugin-dir zig-abi-plugin
 
 ## Feature Flags
 
-The ABI Framework uses comptime feature gating. Key flags:
+The ABI Framework uses comptime feature gating with 27 `feat_*` flags and 56 validated combos. Key flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -65,7 +80,7 @@ All flags default to `true`. Disable with `-Dfeat-<name>=false`.
 
 ## Platform Notes
 
-On macOS 26+ (Darwin 26+), the stock Zig linker fails. The plugin auto-detects this and routes to:
+On macOS 25+ (Darwin 25+), the stock Zig linker fails. The plugin auto-detects this and routes to:
 1. `run_build.sh` wrapper
 2. Fallback validation (`zig fmt --check`, `zig test -fno-emit-bin`)
 3. Linux CI when a build step still needs binary emission
