@@ -21,8 +21,9 @@ fn executeWebSearch(ctx: *Context, args: json.Value) tool.ToolExecutionError!Too
     // In a full implementation, this hits an API (DuckDuckGo, Brave, etc.)
     // For now we simulate the native HTTP wrapper setup
     const web_client_mod = @import("../../web/client.zig");
-    var client = web_client_mod.HttpClient.init(ctx.allocator) catch {
-        return ToolResult.fromError(ctx.allocator, "Failed to init HTTP client");
+    var client = web_client_mod.HttpClient.init(ctx.allocator) catch |err| {
+        // Propagate the specific error name so callers can diagnose init failures.
+        return ToolResult.fromError(ctx.allocator, @errorName(err));
     };
     defer client.deinit();
 
@@ -91,13 +92,15 @@ fn executeWebFetch(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
     } else return ToolResult.fromError(ctx.allocator, "Missing url");
 
     const web_client_mod = @import("../../web/client.zig");
-    var client = web_client_mod.HttpClient.init(ctx.allocator) catch {
-        return ToolResult.fromError(ctx.allocator, "Failed to init HTTP client");
+    var client = web_client_mod.HttpClient.init(ctx.allocator) catch |err| {
+        // Propagate the specific error name so callers can diagnose init failures.
+        return ToolResult.fromError(ctx.allocator, @errorName(err));
     };
     defer client.deinit();
 
-    const response = client.get(url_str) catch {
-        return ToolResult.fromError(ctx.allocator, "Failed to fetch URL");
+    const response = client.get(url_str) catch |err| {
+        // Propagate the specific error name so callers can diagnose fetch failures.
+        return ToolResult.fromError(ctx.allocator, @errorName(err));
     };
     defer client.freeResponse(response);
 
