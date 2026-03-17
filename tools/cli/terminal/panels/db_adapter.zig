@@ -15,7 +15,7 @@ pub const DbAdapter = struct {
     inner: db_panel.DatabasePanel,
 
     /// Height consumed by the summary card row (3 card rows + 1 gap).
-    const card_rows: u16 = 4;
+    const card_rows = ru.summary_card_rows;
 
     pub fn init(allocator: std.mem.Allocator, term: *terminal.Terminal, theme: *const themes.Theme) DbAdapter {
         return .{ .inner = db_panel.DatabasePanel.init(allocator, term, theme) };

@@ -258,6 +258,67 @@ pub fn fillRow(
     try term.write(theme.reset);
 }
 
+/// Height consumed by a summary card row (3 card rows + 1 gap).
+pub const summary_card_rows: u16 = 4;
+
+// ── Summary Card Primitive ──────────────────────────────────────
+
+/// Draw a compact summary card (3 rows):
+///   ╭ title ────╮
+///   │ value     │
+///   ╰───────────╯
+/// Renders at absolute position (x, y) within the given width.
+pub fn drawSummaryCard(
+    term: *Terminal,
+    x: u16,
+    y: u16,
+    width: u16,
+    title: []const u8,
+    value: []const u8,
+    color: []const u8,
+    theme: *const Theme,
+) !void {
+    if (width < 6) return;
+    const inner: usize = @as(usize, width) - 2;
+
+    // Top: ╭ title ───╮
+    try moveTo(term, x, y);
+    try term.write(theme.border);
+    try term.write("\u{256d} ");
+    try term.write(theme.reset);
+    try term.write(color);
+    const title_w = try writeClipped(term, title, inner -| 2);
+    try term.write(theme.reset);
+    try term.write(theme.border);
+    if (inner > title_w + 2) {
+        try writeRepeat(term, "\u{2500}", inner - title_w - 2);
+    }
+    try term.write("\u{256e}");
+    try term.write(theme.reset);
+
+    // Middle: │ value │
+    try moveTo(term, x, y + 1);
+    try term.write(theme.border);
+    try term.write("\u{2502}");
+    try term.write(theme.reset);
+    try term.write(theme.bold);
+    try term.write(color);
+    try term.write(" ");
+    try writePadded(term, value, inner - 1);
+    try term.write(theme.reset);
+    try term.write(theme.border);
+    try term.write("\u{2502}");
+    try term.write(theme.reset);
+
+    // Bottom: ╰───╯
+    try moveTo(term, x, y + 2);
+    try term.write(theme.border);
+    try term.write("\u{2570}");
+    try writeRepeat(term, "\u{2500}", inner);
+    try term.write("\u{256f}");
+    try term.write(theme.reset);
+}
+
 // ── Tests ───────────────────────────────────────────────────────
 
 test "boxChars returns correct single style" {

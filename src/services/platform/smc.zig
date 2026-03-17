@@ -66,7 +66,7 @@ const SmcKeyData = extern struct {
     bytes: [32]u8 = .{0} ** 32,
 };
 
-const SmcKeyInfoData = extern struct {
+const SmcKeyInfoData = packed struct {
     data_size: u32 = 0,
     data_type: u32 = 0,
     data_attributes: u8 = 0,
@@ -89,18 +89,29 @@ extern "c" fn IOConnectCallStructMethod(
 // mach_task_self is a macro on macOS; use the underlying function.
 extern "c" fn mach_task_self_() mach_port_t;
 
-fn readDarwin() SmcError!SmcReading {
+// Cached IOKit connection — opened once, reused across calls.
+var cached_conn: io_connect_t = 0;
+var conn_initialized: bool = false;
+
+fn getConnection() SmcError!io_connect_t {
     if (comptime !is_darwin) return error.PlatformUnsupported;
+    if (conn_initialized) return cached_conn;
 
     const matching = IOServiceMatching("AppleSMC");
     const service = IOServiceGetMatchingService(mach_task_self_(), matching);
     if (service == 0) return error.SmcNotFound;
 
-    var conn: io_connect_t = 0;
-    if (IOServiceOpen(service, mach_task_self_(), 0, &conn) != 0) {
+    if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
         return error.SmcConnectFailed;
     }
-    defer _ = IOServiceClose(conn);
+    conn_initialized = true;
+    return cached_conn;
+}
+
+fn readDarwin() SmcError!SmcReading {
+    if (comptime !is_darwin) return error.PlatformUnsupported;
+
+    const conn = try getConnection();
 
     var result = SmcReading{
         .fan_rpm = .{ null, null, null, null },
