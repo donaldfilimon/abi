@@ -54,6 +54,11 @@ pub const Theme = struct {
     tab_active: []const u8 = "\x1b[1;7m", // Bold + inverse for active tab
     tab_inactive: []const u8 = "\x1b[2m", // Dim for inactive tabs
     tab_separator: []const u8 = "\x1b[38;5;240m", // Dark gray separator
+
+    // Status dot colors
+    status_active: []const u8 = "\x1b[32m", // Green for active tab dot
+    status_idle: []const u8 = "\x1b[38;5;240m", // Gray for idle tab dot
+    status_warning: []const u8 = "\x1b[33m", // Yellow for warning state
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
