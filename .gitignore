@@ -284,6 +284,7 @@ zig-bootstrap-emergency/
 !/benchmarks/README.md
 !/benchmarks/STRUCTURE.md
 !/examples/README.md
+!/lang/README.md
 !/tasks/todo.md
 !/tasks/cleanup.md
 !/tasks/lessons.md
