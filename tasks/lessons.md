@@ -104,5 +104,11 @@ Version pinning, parallel agents, and CI gate discipline.
 - RLE compression for block storage: use 0xFF marker byte with escape sequence `[0xFF, 0x01, 0xFF]` for literal 0xFF bytes. Simple, no external deps, good for zero-padded vector data.
 - POSIX file I/O (`std.posix.open/write/read/close/lseek`) works for block storage in Zig 0.16. The `std.Io.Threaded` API is more complex and better suited for full-featured applications, not low-level storage.
 
-Root cause: Partial version pin updates left inconsistent metadata, and large restructuring commits invalidated in-flight PRs from parallel agents. Zig 0.16 time APIs differ from older versions. Gendocs manages docs/ exclusively.
-Prevention rule: Treat all version pin files as an atomic set. Triage stale PRs after restructuring commits. Run both zig fmt and typecheck as complementary verification gates. Use POSIX clock_gettime for timing, not std.time.Instant. Keep non-generated docs outside docs/.
+- `std.io.fixedBufferStream` does not exist in Zig 0.16. Agents generating code with this API will cause `check-zig-016-patterns` to fail. Use manual buffer slicing instead.
+- `_ = param` after already referencing `param` triggers "pointless discard of function parameter" in Zig 0.16. If a function parameter is only sometimes used, use `_:` prefix in the signature instead.
+- `defer` vs `errdefer` for lists returned via `toOwnedSlice()`: `defer list.deinit()` causes use-after-free because it frees the list even on the success path where ownership transferred to the caller. Always use `errdefer` when the function returns owned memory.
+- `git add -A` can accidentally include build artifacts (e.g. `lang/swift/.build/`). Always prefer `git add <specific files>` and maintain `.gitignore` entries for build output directories.
+- Feature modules that are pure re-export facades (like `features/database/mod.zig`) only need `refAllDecls` tests — adding duplicate tests would mirror the core module's test suite.
+
+Root cause: Partial version pin updates left inconsistent metadata, and large restructuring commits invalidated in-flight PRs from parallel agents. Zig 0.16 time APIs differ from older versions. Gendocs manages docs/ exclusively. Agent-generated code sometimes uses removed Zig APIs.
+Prevention rule: Treat all version pin files as an atomic set. Triage stale PRs after restructuring commits. Run both zig fmt and typecheck as complementary verification gates. Use POSIX clock_gettime for timing, not std.time.Instant. Keep non-generated docs outside docs/. Always run check-zig-016-patterns after agent-generated code.
