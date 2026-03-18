@@ -1,7 +1,7 @@
 ---
 title: ABI Framework
 purpose: Main project entry point and documentation map
-last_updated: 2026-03-16
+last_updated: 2026-03-18
 target_zig_version: 0.16.0-dev.2905+5d71e3051
 ---
 
@@ -185,6 +185,8 @@ organized by domain.
 | `abi.gpu` | GPU feature namespace |
 | `abi.Gpu` / `abi.GpuBackend` | Direct unified GPU runtime access |
 | `abi.foundation` / `abi.runtime` | Shared foundations, time/sync/SIMD, and always-on runtime primitives |
+| `abi.search` | BM25 full-text search with inverted index persistence |
+| `abi.mobile` | iOS/Android sensor access, notifications, permissions |
 | `abi.connectors` / `abi.ha` / `abi.tasks` / `abi.lsp` / `abi.mcp` / `abi.acp` | Service and integration surfaces |
 
 ### Notes on migration surfaces
@@ -214,6 +216,7 @@ abi/
 ├── examples/             # 35 standalone example programs
 ├── benchmarks/           # Performance benchmark suites
 ├── bindings/             # C and WASM language bindings
+├── lang/                 # Swift Package and Kotlin/JNI bridges
 └── docs/                 # Maintained + generated documentation
 ```
 
