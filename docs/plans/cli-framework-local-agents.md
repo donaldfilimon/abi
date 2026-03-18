@@ -4,8 +4,11 @@ description: Generated implementation plan
 ---
 
 # CLI Framework + Local-Agent Fallback
+
+> **Status Update (2026-03-18):** Superseded by 18-phase restructuring. Most milestones completed in commit 04002b79.
+
 ## Status
-- Status: **In Progress**
+- Status: **Complete**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
@@ -26,18 +29,18 @@ Wave 1 active lane: descriptor/runtime parity, local-first provider/plugin harde
 
 
 ## Milestones
-- Wave 1A: close remaining descriptor/runtime parity gaps.
-- Wave 1B: harden providers/plugins health checks and strict-mode routing.
-- Wave 1C: remove stale help/completion/assertion drift across command families.
-- Wave 1D: stabilize regression tests for llm run/session/providers/plugins flows.
+- [x] Wave 1A: close remaining descriptor/runtime parity gaps.
+- [x] Wave 1B: harden providers/plugins health checks and strict-mode routing.
+- [x] Wave 1C: remove stale help/completion/assertion drift across command families.
+- [x] Wave 1D: stabilize regression tests for llm run/session/providers/plugins flows.
 
 
 ## Related Roadmap Items
 
 | ID | Item | Track | Horizon | Status | Gate |
 | -- | --- | --- | --- | --- | --- |
-| RM-003 | Finalize CLI descriptor framework cutover | CLI/TUI | Now | In Progress | zig build cli-tests ; zig build verify-all |
-| RM-008 | Harden local-agent provider plugins | AI | Now | In Progress | zig build feature-tests ; zig build cli-tests |
+| RM-003 | Finalize CLI descriptor framework cutover | CLI/TUI | Now | Complete | zig build cli-tests ; zig build verify-all |
+| RM-008 | Harden local-agent provider plugins | AI | Now | Complete | zig build feature-tests ; zig build cli-tests |
 
 Roadmap guide: [../roadmap/](../roadmap/)
 
