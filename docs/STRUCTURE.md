@@ -122,7 +122,7 @@ The build system selects between `mod.zig` and `stub.zig` at comptime via
 ```
 build/
 ├── options.zig               # 27 feature flag definitions
-├── flags.zig                 # 54 flag combination validations
+├── flags.zig                 # 56 flag combination validations
 ├── modules.zig               # Module creation and import wiring
 ├── module_catalog.zig        # Module registry for gendocs
 ├── targets.zig               # Example/target tables, cross-compilation matrix

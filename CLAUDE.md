@@ -41,7 +41,7 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
   - `options.zig` — 27 `feat_*` flag definitions, Darwin feature forcing
   - `flags.zig` — 56-combo validation matrix, `CanonicalFlags`
   - `modules.zig` — Module creation, `wireAbiImports()`
-  - `module_catalog.zig` — Gendocs module registry (45+ entries)
+  - `module_catalog.zig` — Gendocs module registry (34 entries)
   - `link.zig` — Platform linking, Darwin `darwinRelink()` logic
   - `test_discovery.zig` — Feature test manifest
 - `tools/cli/` — CLI commands and registry (`tools/cli/registry/`)
