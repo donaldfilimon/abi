@@ -13,25 +13,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
-# Find the real zig binary (skip this shim in PATH)
-find_real_zig() {
-    local self="$SCRIPT_DIR/zig"
-    while IFS=: read -r dir; do
-        local candidate="$dir/zig"
-        if [[ -x "$candidate" && "$candidate" != "$self" ]]; then
-            echo "$candidate"
-            return
-        fi
-    done <<< "$PATH"
-    # Fallback: check common locations
-    for loc in "$HOME/.zvm/master/zig" /usr/local/bin/zig /opt/homebrew/bin/zig; do
-        if [[ -x "$loc" ]]; then
-            echo "$loc"
-            return
-        fi
-    done
-    echo "zig"  # hope for the best
-}
+# Reuse the shared toolchain resolution (avoids duplicate zig-finding logic)
+source "$SCRIPT_DIR/zig_toolchain.sh"
 
 # On Darwin 26+, delegate to the wrapper
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -43,4 +26,4 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
 fi
 
 # Non-Darwin or Darwin < 26: pass through to real zig
-exec "$(find_real_zig)" "$@"
+exec "$(abi_toolchain_resolve_active_zig)" "$@"

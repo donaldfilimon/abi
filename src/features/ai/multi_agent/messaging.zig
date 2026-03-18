@@ -229,9 +229,12 @@ pub const AgentMailbox = struct {
     }
 
     /// Receive the oldest message (FIFO, O(1)). Returns null if empty.
+    /// Frees the content buffer for consumed messages immediately.
     pub fn receive(self: *AgentMailbox) ?AgentMessage {
         if (self.head >= self.inbox.items.len) return null;
         const msg = self.inbox.items[self.head];
+        // Free the owned content buffer to prevent unbounded memory growth
+        self.allocator.free(self.owned_contents.items[self.head]);
         self.head += 1;
         return msg;
     }

@@ -218,7 +218,7 @@ fn executeCiWatcher(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
 
     std.log.info("[CI Watcher] Spawning autonomous CI observer...", .{});
 
-    const os_mod = @import("../../../services/shared/mod.zig").os;
+    // Use file-scope `os` import (same module)
     // Background watcher: sleep 2, run build, if fail append to lessons.md
     const watcher_script =
         \\nohup sh -c '
@@ -233,7 +233,7 @@ fn executeCiWatcher(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
         \\' > /tmp/abi_watcher.log 2>&1 &
     ;
 
-    _ = os_mod.exec(ctx.allocator, watcher_script) catch |err| {
+    _ = os.exec(ctx.allocator, watcher_script) catch |err| {
         std.log.warn("Failed to spawn CI Watcher: {}", .{err});
     };
 

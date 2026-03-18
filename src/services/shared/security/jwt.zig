@@ -379,7 +379,7 @@ pub const JwtManager = struct {
             .raw = try self.allocator.dupe(u8, token_str),
             .header = header,
             .claims = claims,
-            .signature = signature,
+            .signature = try self.allocator.dupe(u8, signature_b64),
             .verified = true,
         };
     }
