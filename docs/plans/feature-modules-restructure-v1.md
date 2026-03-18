@@ -4,11 +4,8 @@ description: Generated implementation plan
 ---
 
 # Feature Modules Restructure v1
-
-> **Status Update (2026-03-18):** Superseded by 18-phase restructuring. All milestones completed in commit 04002b79.
-
 ## Status
-- Status: **Complete**
+- Status: **In Progress**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
@@ -28,16 +25,16 @@ Wave 5 active lane: remove legacy facades, finalize module boundaries, and conso
 
 
 ## Milestones
-- [x] Wave 5A: finish AI/service boundary cleanup and remove obsolete facade surfaces.
-- [x] Wave 5B: consolidate shared primitives into canonical modules.
-- [x] Wave 5C: update integration roots and tests to the final module topology.
+- Wave 5A: finish AI/service boundary cleanup and remove obsolete facade surfaces.
+- Wave 5B: consolidate shared primitives into canonical modules.
+- Wave 5C: update integration roots and tests to the final module topology.
 
 
 ## Related Roadmap Items
 
 | ID | Item | Track | Horizon | Status | Gate |
 | -- | --- | --- | --- | --- | --- |
-| RM-009 | Complete feature module hierarchy cleanup | Platform | Now | Complete | zig build validate-flags ; zig build full-check |
+| RM-009 | Complete feature module hierarchy cleanup | Platform | Now | In Progress | zig build validate-flags ; zig build full-check |
 | RM-012 | Expand cloud function adapters | Platform | Later | Planned | zig build full-check ; zig build verify-all |
 
 Roadmap guide: [../roadmap/](../roadmap/)

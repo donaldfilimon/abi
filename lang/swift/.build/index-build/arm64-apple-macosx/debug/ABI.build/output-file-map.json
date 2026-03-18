@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/primary.swiftdeps"
+  },
+  "/Users/donaldfilimon/abi/lang/swift/Sources/ABI/ABI.swift": {
+    "dependencies": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/ABI.d",
+    "object": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/ABI.swift.o",
+    "swiftmodule": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/ABI~partial.swiftmodule",
+    "swift-dependencies": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/ABI.swiftdeps",
+    "diagnostics": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/ABI.dia"
+  },
+  "/Users/donaldfilimon/abi/lang/swift/Sources/ABI/Mobile.swift": {
+    "dependencies": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/Mobile.d",
+    "object": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/Mobile.swift.o",
+    "swiftmodule": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/Mobile~partial.swiftmodule",
+    "swift-dependencies": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/Mobile.swiftdeps",
+    "diagnostics": "/Users/donaldfilimon/abi/lang/swift/.build/index-build/arm64-apple-macosx/debug/ABI.build/Mobile.dia"
+  }
+}

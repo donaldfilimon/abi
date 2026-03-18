@@ -1438,6 +1438,20 @@
                 .kind = "fn",
                 .line = 569,
             },
+            .{
+                .anchor = "pub-fn-saveindex-allocator-std-mem-allocator-name-const-u8-path-const-u8-searcherror-void",
+                .signature = "pub fn saveIndex(allocator: std.mem.Allocator, name: []const u8, path: []const u8) SearchError!void",
+                .doc = "Serialize a named inverted index to disk at the given path.\n\nFile format:\n```\n[4B] Magic \"SRCH\"\n[2B] Version (1)\n[4B] term_count\n[4B] doc_count\n[4B] total_doc_length (for BM25 avgdl, truncated to u32)\n--- Terms section ---\nper term:\n[2B] term_len\n[term_len bytes] term string\n[4B] posting_count\nper posting:\n[4B] doc_id_len  (length of doc_id string)\n[doc_id_len bytes] doc_id\n[4B] term_freq\n[4B] doc_len\n--- Documents section ---\nper document:\n[4B] doc_id_len\n[doc_id_len bytes] doc_id\n[4B] content_len\n[content_len bytes] content\n[4B] term_count\n```",
+                .kind = "fn",
+                .line = 691,
+            },
+            .{
+                .anchor = "pub-fn-loadindex-allocator-std-mem-allocator-name-const-u8-path-const-u8-searcherror-void",
+                .signature = "pub fn loadIndex(allocator: std.mem.Allocator, name: []const u8, path: []const u8) SearchError!void",
+                .doc = "Deserialize a named index from disk. Creates a new index with the\ngiven name (must not already exist) and populates it from the file.",
+                .kind = "fn",
+                .line = 745,
+            },
         },
     },
     .{

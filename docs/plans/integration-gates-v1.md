@@ -5,7 +5,7 @@ description: Generated implementation plan
 
 # Integration Gates v1
 ## Status
-- Status: **Complete**
+- Status: **Blocked**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
@@ -29,9 +29,9 @@ Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock
 
 
 ## Milestones
-- Unblock criterion A: **Complete** — matrix manifest with `safeVectors()` export, smoke runner timeout enforcement (5s quick / 30s CLI tiers).
-- Unblock criterion B: **Complete** — preflight enhanced with `--json` output mode, `run_build.sh` availability check, distinct exit codes (0=OK, 1=blocked, 2=degraded).
-- Unblock criterion C: **Complete** — environment contract documented in `docs/guides/integration-environment.md`.
+- Unblock criterion A: complete matrix manifest and PTY timeout policy hardening.
+- Unblock criterion B: deliver actionable preflight blocked-report diagnostics.
+- Unblock criterion C: document and validate required integration environment contract.
 - Policy guard: keep interim cli-tests/tui-tests/launcher smoke checks passing while blocked.
 
 

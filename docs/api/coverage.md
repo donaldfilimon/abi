@@ -23,7 +23,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [ai](ai.md) | 0 | 0 | 100% |
 | [cache](cache.md) | 12 | 12 | 100% |
 | [database](database.md) | 1 | 1 | 100% |
-| [search](search.md) | 8 | 8 | 100% |
+| [search](search.md) | 10 | 10 | 100% |
 | [storage](storage.md) | 9 | 9 | 100% |
 | [acp](acp.md) | 10 | 10 | 100% |
 | [cloud](cloud.md) | 19 | 19 | 100% |
@@ -47,7 +47,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 | [platform](platform.md) | 12 | 12 | 100% |
 | [tasks](tasks.md) | 30 | 30 | 100% |
 
-**Overall: 383/383 symbols documented (100%)**
+**Overall: 385/385 symbols documented (100%)**
 
 
 ---

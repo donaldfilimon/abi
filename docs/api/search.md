@@ -78,6 +78,45 @@ Results are sorted by relevance and include context snippets.
 
 Return aggregate statistics across all search indexes.
 
+### <a id="pub-fn-saveindex-allocator-std-mem-allocator-name-const-u8-path-const-u8-searcherror-void"></a>`pub fn saveIndex(allocator: std.mem.Allocator, name: []const u8, path: []const u8) SearchError!void`
+
+<sup>**fn**</sup> | [source](../../src/features/search/mod.zig#L691)
+
+Serialize a named inverted index to disk at the given path.
+
+File format:
+```
+[4B] Magic "SRCH"
+[2B] Version (1)
+[4B] term_count
+[4B] doc_count
+[4B] total_doc_length (for BM25 avgdl, truncated to u32)
+--- Terms section ---
+per term:
+[2B] term_len
+[term_len bytes] term string
+[4B] posting_count
+per posting:
+[4B] doc_id_len  (length of doc_id string)
+[doc_id_len bytes] doc_id
+[4B] term_freq
+[4B] doc_len
+--- Documents section ---
+per document:
+[4B] doc_id_len
+[doc_id_len bytes] doc_id
+[4B] content_len
+[content_len bytes] content
+[4B] term_count
+```
+
+### <a id="pub-fn-loadindex-allocator-std-mem-allocator-name-const-u8-path-const-u8-searcherror-void"></a>`pub fn loadIndex(allocator: std.mem.Allocator, name: []const u8, path: []const u8) SearchError!void`
+
+<sup>**fn**</sup> | [source](../../src/features/search/mod.zig#L745)
+
+Deserialize a named index from disk. Creates a new index with the
+given name (must not already exist) and populates it from the file.
+
 
 
 ---
