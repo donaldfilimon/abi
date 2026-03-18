@@ -180,6 +180,11 @@ test {
     if (build_options.feat_network) {
         _ = @import("network_raft_test.zig");
     }
+
+    // Mobile bindings validation tests (C export layer coverage)
+    if (@hasDecl(build_options, "feat_mobile") and build_options.feat_mobile) {
+        _ = @import("mobile_bindings_test.zig");
+    }
 }
 
 // Connector tests
@@ -269,6 +274,9 @@ pub const multi_agent_test = if (build_options.feat_ai) @import("multi_agent_tes
 pub const database_batch_test = if (build_options.feat_database) @import("database_batch_test.zig") else struct {};
 pub const gpu_dispatcher_test = if (build_options.feat_gpu) @import("gpu_dispatcher_test.zig") else struct {};
 pub const network_raft_test = if (build_options.feat_network) @import("network_raft_test.zig") else struct {};
+
+// Mobile bindings validation tests (C export layer coverage)
+pub const mobile_bindings_test = if (@hasDecl(build_options, "feat_mobile") and build_options.feat_mobile) @import("mobile_bindings_test.zig") else struct {};
 
 test "abi version returns build package version" {
     try std.testing.expectEqualStrings("0.4.0", abi.version());
