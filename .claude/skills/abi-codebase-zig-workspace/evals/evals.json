@@ -1,0 +1,20 @@
+{
+  "skill_name": "abi-codebase-zig",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to add a new feature called 'telemetry' to the ABI codebase. It should be gated like the other features. Where do I create files, what's the pattern for mod.zig/stub.zig/types.zig, and how do I wire it into root.zig and build_options?",
+      "expected_output": "Should reference: src/features/telemetry/ directory, mod.zig+stub.zig+types.zig pattern, StubFeature from core/stub_context.zig, the conditional import pattern in root.zig, adding feat_telemetry to build/options.zig, and updating build/flags.zig for combinations."
+    },
+    {
+      "id": 2,
+      "prompt": "I'm getting 'error: undefined symbol: _abort' and about 30 other undefined symbols when trying to build on my M4 Mac running macOS Tahoe. zig build test fails completely. How do I fix this?",
+      "expected_output": "Should identify this as the Darwin 25+ linker issue, recommend either bootstrap_host_zig.sh or explain darwinRelink, note that test binaries can't use darwinRelink, suggest zig fmt --check as always-works fallback, and mention clearing .zig-cache if stale."
+    },
+    {
+      "id": 3,
+      "prompt": "I changed a public function signature in src/features/ai/mod.zig — added a new parameter. Now zig build test fails with a type mismatch. What did I forget?",
+      "expected_output": "Should immediately identify the mod/stub contract: stub.zig must match mod.zig public signatures. Tell user to update src/features/ai/stub.zig with the same new parameter. Mention types.zig for shared types."
+    }
+  ]
+}
