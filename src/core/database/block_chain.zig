@@ -239,7 +239,7 @@ pub const BlockChain = struct {
     /// Traverse chain backward from current head
     pub fn traverseBackward(self: *const Self, max_blocks: usize) ![]const u64 {
         var result = std.ArrayListUnmanaged(u64).empty;
-        defer result.deinit(self.allocator);
+        errdefer result.deinit(self.allocator);
 
         var current = self.current_head;
         var count: usize = 0;

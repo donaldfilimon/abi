@@ -116,10 +116,10 @@ pub fn isServerError(status: u16) bool {
     return status >= 500 and status < 600;
 }
 
-/// Map HTTP status to connector error.
+/// Map HTTP status to connector error. Returns `RateLimitExceeded` for 429,
+/// `ApiRequestFailed` for all other error statuses (4xx/5xx and unexpected codes).
 pub fn mapHttpStatus(status: u16) ConnectorError {
     if (status == 429) return ConnectorError.RateLimitExceeded;
-    if (status >= 400) return ConnectorError.ApiRequestFailed;
     return ConnectorError.ApiRequestFailed;
 }
 
