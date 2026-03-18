@@ -72,117 +72,117 @@ See the deployment templates in `deploy/` for provider-specific configurations:
 
 ### <a id="pub-const-error"></a>`pub const Error`
 
-<sup>**const**</sup> | [source](../../src/features/cloud/mod.zig#L76)
+<sup>**const**</sup> | [source](../../src/features/cloud/mod.zig#L81)
 
 Cloud module errors.
 
 ### <a id="pub-const-context"></a>`pub const Context`
 
-<sup>**const**</sup> | [source](../../src/features/cloud/mod.zig#L83)
+<sup>**const**</sup> | [source](../../src/features/cloud/mod.zig#L88)
 
 Cloud module context for Framework integration.
 
 ### <a id="pub-fn-init-allocator-std-mem-allocator-cfg-cloudconfig-context"></a>`pub fn init(allocator: std.mem.Allocator, cfg: CloudConfig) !*Context`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L89)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L94)
 
 Initialize the cloud context.
 
 ### <a id="pub-fn-deinit-self-context-void"></a>`pub fn deinit(self: *Context) void`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L105)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L110)
 
 Deinitialize the cloud context.
 
 ### <a id="pub-fn-getprovider-self-const-context-cloudprovider"></a>`pub fn getProvider(self: *const Context) ?CloudProvider`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L110)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L115)
 
 Get the detected cloud provider.
 
 ### <a id="pub-fn-iscloudenvironment-self-const-context-bool"></a>`pub fn isCloudEnvironment(self: *const Context) bool`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L115)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L120)
 
 Check if running in a cloud function environment.
 
 ### <a id="pub-fn-wraphandler-self-context-comptime-handler-fn-cloudevent-std-mem-allocator-anyerror-cloudresponse-cloudhandler"></a>`pub fn wrapHandler( self: *Context, comptime handler: fn (*CloudEvent, std.mem.Allocator) anyerror!CloudResponse, ) CloudHandler`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L120)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L125)
 
 Create a handler wrapper that integrates with the ABI framework.
 
 ### <a id="pub-fn-detectprovider-cloudprovider"></a>`pub fn detectProvider() ?CloudProvider`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L135)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L140)
 
 Detect which cloud provider environment we're running in.
 This function requires an allocator to read environment variables in Zig 0.16.
 
 ### <a id="pub-fn-detectproviderwithallocator-allocator-std-mem-allocator-cloudprovider"></a>`pub fn detectProviderWithAllocator(allocator: std.mem.Allocator) ?CloudProvider`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L140)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L145)
 
 Detect which cloud provider environment we're running in (with explicit allocator).
 
 ### <a id="pub-fn-runhandler-allocator-std-mem-allocator-handler-cloudhandler-void"></a>`pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler) !void`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L173)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L178)
 
 Run a handler on the detected cloud provider.
 Automatically selects the appropriate runtime based on environment detection.
 
 ### <a id="pub-const-responsebuilder"></a>`pub const ResponseBuilder`
 
-<sup>**const**</sup> | [source](../../src/features/cloud/mod.zig#L188)
+<sup>**const**</sup> | [source](../../src/features/cloud/mod.zig#L193)
 
 Create a response helper for common response patterns.
 
 ### <a id="pub-fn-status-self-responsebuilder-code-u16-responsebuilder"></a>`pub fn status(self: *ResponseBuilder, code: u16) *ResponseBuilder`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L200)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L205)
 
 Set HTTP status code.
 
 ### <a id="pub-fn-header-self-responsebuilder-key-const-u8-value-const-u8-responsebuilder"></a>`pub fn header(self: *ResponseBuilder, key: []const u8, value: []const u8) *ResponseBuilder`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L206)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L211)
 
 Add a header.
 
 ### <a id="pub-fn-json-self-responsebuilder-responsebuilder"></a>`pub fn json(self: *ResponseBuilder) *ResponseBuilder`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L214)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L219)
 
 Set content type to JSON.
 
 ### <a id="pub-fn-text-self-responsebuilder-responsebuilder"></a>`pub fn text(self: *ResponseBuilder) *ResponseBuilder`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L219)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L224)
 
 Set content type to plain text.
 
 ### <a id="pub-fn-html-self-responsebuilder-responsebuilder"></a>`pub fn html(self: *ResponseBuilder) *ResponseBuilder`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L224)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L229)
 
 Set content type to HTML.
 
 ### <a id="pub-fn-body-self-responsebuilder-content-const-u8-responsebuilder"></a>`pub fn body(self: *ResponseBuilder, content: []const u8) *ResponseBuilder`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L229)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L234)
 
 Set the response body.
 
 ### <a id="pub-fn-cors-self-responsebuilder-origin-const-u8-responsebuilder"></a>`pub fn cors(self: *ResponseBuilder, origin: []const u8) *ResponseBuilder`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L235)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L240)
 
 Add CORS headers.
 
 ### <a id="pub-fn-build-self-responsebuilder-cloudresponse"></a>`pub fn build(self: *ResponseBuilder) CloudResponse`
 
-<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L243)
+<sup>**fn**</sup> | [source](../../src/features/cloud/mod.zig#L248)
 
 Build the final response.
 

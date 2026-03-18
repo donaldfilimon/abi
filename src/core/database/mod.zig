@@ -26,6 +26,7 @@ pub const clustering = @import("clustering.zig");
 pub const quantization = @import("quantization.zig");
 pub const parallel_hnsw = @import("parallel_hnsw.zig");
 pub const parallel_search = @import("parallel_search.zig");
+pub const engine = @import("engine.zig");
 
 pub const StoreHandle = semantic_store.StoreHandle;
 pub const DatabaseHandle = semantic_store.DatabaseHandle;

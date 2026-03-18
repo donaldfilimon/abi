@@ -1,5 +1,5 @@
 const std = @import("std");
-const link = @import("link.zig");
+const darwin = @import("darwin.zig");
 
 /// Descriptor for a build target (example, tool, etc.).
 pub const BuildTarget = struct {
@@ -112,7 +112,7 @@ pub fn buildTargets(
     build_opts: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    is_blocked_darwin: bool,
+    ctx: darwin.DarwinCtx,
     aggregate: ?*std.Build.Step,
     aggregate_runs: bool,
 ) void {
@@ -120,49 +120,31 @@ pub fn buildTargets(
         if (!pathExists(b, t.source_path)) continue;
         const exe_optimize = t.optimize orelse optimize;
 
-        const exe = if (is_blocked_darwin) b.addObject(.{
-            .name = t.name,
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(t.source_path),
-                .target = target,
-                .optimize = exe_optimize,
-                .link_libc = true,
-            }),
-        }) else b.addExecutable(.{
-            .name = t.name,
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(t.source_path),
-                .target = target,
-                .optimize = exe_optimize,
-                .link_libc = true,
-            }),
+        const mod = b.createModule(.{
+            .root_source_file = b.path(t.source_path),
+            .target = target,
+            .optimize = exe_optimize,
+            .link_libc = true,
         });
-
-        if (is_blocked_darwin) {
-            exe.use_llvm = true;
-        }
-        exe.root_module.addImport("abi", abi_module);
-        exe.root_module.addImport("build_options", build_opts);
-        applyPerformanceTweaks(exe, exe_optimize);
+        const artifact = darwin.addExeOrObject(b, t.name, mod, ctx);
+        artifact.compile.root_module.addImport("abi", abi_module);
+        artifact.compile.root_module.addImport("build_options", build_opts);
+        applyPerformanceTweaks(artifact.compile, exe_optimize);
         const step = b.step(t.step_name, t.description);
 
-        const run = if (is_blocked_darwin)
-            link.darwinRelink(b, exe, b.fmt("{s}_linked", .{t.name}), null)
-        else
-            b.addRunArtifact(exe);
-
+        const run = darwin.addRunStep(b, artifact, b.fmt("{s}_linked", .{t.name}), ctx);
         if (b.args) |args| run.addArgs(args);
         step.dependOn(&run.step);
 
-        if (!is_blocked_darwin) {
-            b.installArtifact(exe);
+        if (!artifact.is_object) {
+            b.installArtifact(artifact.compile);
         }
 
         if (aggregate) |agg| {
             if (aggregate_runs) {
                 agg.dependOn(&run.step);
             } else {
-                agg.dependOn(&exe.step);
+                agg.dependOn(&artifact.compile.step);
             }
         }
     }

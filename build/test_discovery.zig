@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin = @import("darwin.zig");
 const link = @import("link.zig");
 const module_catalog = @import("module_catalog.zig");
 const options_mod = @import("options.zig");
@@ -26,13 +27,13 @@ pub fn addFeatureTests(
     abi_module: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    is_blocked_darwin: bool,
+    ctx: darwin.DarwinCtx,
 ) *std.Build.Step {
     _ = build_opts; // abi_module already has build_options wired
     _ = optimize; // abi_module already has optimize configured
     const ft_step = b.step("feature-tests", "Run feature module inline tests");
 
-    if (is_blocked_darwin) {
+    if (ctx.is_blocked) {
         // addTest tries to link internally; Zig's Mach-O linker fails on
         // Darwin 25+.  Use addObject for compile-only verification until
         // upstream Zig fixes Mach-O support.
@@ -40,7 +41,7 @@ pub fn addFeatureTests(
             .name = "feature_tests",
             .root_module = abi_module,
         });
-        feature_tests.use_llvm = true;
+        darwin.enableLlvm(feature_tests, ctx);
         ft_step.dependOn(&feature_tests.step);
     } else {
         const feature_tests = b.addTest(.{
@@ -51,6 +52,7 @@ pub fn addFeatureTests(
             target.result.os.tag,
             options.gpu_metal(),
             options.gpu_backends,
+            ctx.is_blocked,
         );
         const run_feature_tests = b.addRunArtifact(feature_tests);
         run_feature_tests.skip_foreign_checks = true;

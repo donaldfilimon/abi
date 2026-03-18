@@ -90,7 +90,7 @@ pub const TemplateRegistry = struct {
     allocator: std.mem.Allocator,
     templates: std.StringHashMapUnmanaged(Template),
     pub fn init(allocator: std.mem.Allocator) TemplateRegistry {
-        return .{ .allocator = allocator, .templates = std.StringHashMapUnmanaged(Template){} };
+        return .{ .allocator = allocator, .templates = std.StringHashMapUnmanaged(Template).empty };
     }
     pub fn deinit(_: *TemplateRegistry) void {}
     pub fn register(_: *TemplateRegistry, _: []const u8, _: []const u8) !void {

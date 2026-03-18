@@ -354,7 +354,7 @@ pub const PagedKvCache = struct {
         return .{
             .allocator = allocator,
             .layer_pools = layer_pools,
-            .sequences = std.AutoHashMapUnmanaged(u32, SequenceKvState){},
+            .sequences = std.AutoHashMapUnmanaged(u32, SequenceKvState).empty,
             .config = config,
             .next_seq_id = 0,
         };

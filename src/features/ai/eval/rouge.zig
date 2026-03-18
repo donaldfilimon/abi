@@ -191,7 +191,7 @@ fn getNgrams(
     tokens: []const []const u8,
     n: usize,
 ) !std.StringHashMapUnmanaged(u32) {
-    var ngrams = std.StringHashMapUnmanaged(u32){};
+    var ngrams = std.StringHashMapUnmanaged(u32).empty;
     errdefer ngrams.deinit(allocator);
 
     if (tokens.len < n) return ngrams;

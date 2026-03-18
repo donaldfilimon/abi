@@ -73,8 +73,8 @@ pub const RagPipeline = struct {
             .chunker_inst = Chunker.init(allocator, config.chunking),
             .retriever_inst = Retriever.init(allocator, config.retrieval),
             .context_builder = ContextBuilder.init(allocator, config.context),
-            .documents = .{},
-            .chunks = .{},
+            .documents = .empty,
+            .chunks = .empty,
         };
     }
 
@@ -276,7 +276,7 @@ pub const RagPipeline = struct {
         self: *RagPipeline,
         results: []const RetrievalResult,
     ) ![][]const u8 {
-        var sources = std.StringHashMapUnmanaged(void){};
+        var sources = std.StringHashMapUnmanaged(void).empty;
         defer sources.deinit(self.allocator);
 
         for (results) |result| {

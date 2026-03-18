@@ -118,7 +118,7 @@ pub const TemplateRegistry = struct {
     pub fn init(allocator: std.mem.Allocator) TemplateRegistry {
         return .{
             .allocator = allocator,
-            .templates = std.StringHashMapUnmanaged(Template){},
+            .templates = std.StringHashMapUnmanaged(Template).empty,
         };
     }
 

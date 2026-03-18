@@ -234,7 +234,10 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
                     // Spawn asynchronous web mining for self-improvement
                     const os = abi.foundation.os;
-                    _ = os.exec(allocator, "nohup abi agent --all-tools -m 'web_mine target_domain=en.wikipedia.org' > abi_dream.log 2>&1 &") catch {};
+                    if (os.exec(allocator, "nohup abi agent --all-tools -m 'web_mine target_domain=en.wikipedia.org' > abi_dream.log 2>&1 &")) |r| {
+                        var res = r;
+                        res.deinit();
+                    } else |_| {}
 
                     // Reset timer so it doesn't spam
                     last_active_time = abi.foundation.time.unixMs();

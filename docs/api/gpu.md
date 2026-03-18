@@ -124,7 +124,7 @@ These may change without notice:
 
 ### <a id="pub-const-context"></a>`pub const Context`
 
-<sup>**const**</sup> | [source](../../src/features/gpu/mod.zig#L398)
+<sup>**const**</sup> | [source](../../src/features/gpu/mod.zig#L403)
 
 GPU Context for Framework integration.
 
@@ -153,7 +153,7 @@ defer ctx.destroyBuffer(&buffer);
 
 ### <a id="pub-fn-init-allocator-std-mem-allocator-cfg-config-module-gpuconfig-context"></a>`pub fn init(allocator: std.mem.Allocator, cfg: config_module.GpuConfig) !*Context`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L420)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L425)
 
 Initialize the GPU context with the given configuration.
 
@@ -174,43 +174,43 @@ A pointer to the initialized Context.
 
 ### <a id="pub-fn-getgpu-self-context-error-gpu"></a>`pub fn getGpu(self: *Context) Error!*Gpu`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L462)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L467)
 
 Get the underlying Gpu instance.
 
 ### <a id="pub-fn-createbuffer-self-context-comptime-t-type-count-usize-options-bufferoptions-unifiedbuffer"></a>`pub fn createBuffer(self: *Context, comptime T: type, count: usize, options: BufferOptions) !UnifiedBuffer`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L467)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L472)
 
 Create a buffer.
 
 ### <a id="pub-fn-createbufferfromslice-self-context-comptime-t-type-data-const-t-options-bufferoptions-unifiedbuffer"></a>`pub fn createBufferFromSlice(self: *Context, comptime T: type, data: []const T, options: BufferOptions) !UnifiedBuffer`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L472)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L477)
 
 Create a buffer from a slice.
 
 ### <a id="pub-fn-destroybuffer-self-context-buffer-unifiedbuffer-void"></a>`pub fn destroyBuffer(self: *Context, buffer: *UnifiedBuffer) void`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L477)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L482)
 
 Destroy a buffer.
 
 ### <a id="pub-fn-vectoradd-self-context-a-unifiedbuffer-b-unifiedbuffer-result-unifiedbuffer-executionresult"></a>`pub fn vectorAdd(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer) !ExecutionResult`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L482)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L487)
 
 Vector addition.
 
 ### <a id="pub-fn-matrixmultiply-self-context-a-unifiedbuffer-b-unifiedbuffer-result-unifiedbuffer-dims-unified-matrixdims-executionresult"></a>`pub fn matrixMultiply(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer, dims: unified.MatrixDims) !ExecutionResult`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L487)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L492)
 
 Matrix multiplication.
 
 ### <a id="pub-fn-gethealth-self-context-healthstatus"></a>`pub fn getHealth(self: *Context) !HealthStatus`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L492)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L497)
 
 Get GPU health status.
 

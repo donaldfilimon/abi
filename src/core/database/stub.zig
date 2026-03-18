@@ -16,6 +16,24 @@ pub const DatabaseError = error{
     FeatureDisabled,
 };
 
+// --- Engine stub ---
+pub const engine = struct {
+    pub const Error = DatabaseError;
+};
+
+// --- Sub-module stubs for feature facade ---
+pub const distance = struct {
+    pub const Error = DatabaseError;
+};
+pub const simd = struct {
+    pub const Error = DatabaseError;
+};
+pub const quantize = struct {
+    pub const Error = DatabaseError;
+};
+
+pub const DatabaseConfig = config_module.DatabaseConfig;
+
 // --- Local Stubs Imports ---
 
 const types = @import("stubs/types.zig");

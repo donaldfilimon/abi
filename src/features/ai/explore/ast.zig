@@ -390,7 +390,7 @@ pub const AstParser = struct {
             .line_number = line_number,
             .file_path = parsed.file_path,
             .children = std.ArrayListUnmanaged(AstNode).empty,
-            .metadata = std.StringHashMapUnmanaged([]const u8){},
+            .metadata = std.StringHashMapUnmanaged([]const u8).empty,
             .start_pos = start_pos,
             .end_pos = end_pos,
         };

@@ -211,7 +211,10 @@ fn executeWebMine(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolR
     const spider_cmd = try std.fmt.allocPrint(ctx.allocator, "nohup abi agent --all-tools -m 'Recursive web fetch starting from {s} up to depth {d}' > /tmp/abi_spider.log 2>&1 &", .{ target_domain, max_depth });
     defer ctx.allocator.free(spider_cmd);
 
-    _ = os.exec(ctx.allocator, spider_cmd) catch {};
+    if (os.exec(ctx.allocator, spider_cmd)) |spider_res_val| {
+        var spider_res = spider_res_val;
+        spider_res.deinit();
+    } else |_| {}
 
     const output = try std.fmt.allocPrint(ctx.allocator, "Initiated background deep recursive spider on: {s} (Depth: {d}). Spider process detached successfully.", .{ target_domain, max_depth });
 

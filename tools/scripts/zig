@@ -1,0 +1,46 @@
+#!/bin/bash
+# Transparent zig wrapper for Darwin 25+ (macOS 26+).
+#
+# On Darwin 25+, stock Zig's internal LLD linker cannot resolve system symbols.
+# This shim delegates to zig_darwin26_wrapper.sh which intercepts link failures
+# and relinks with Apple's /usr/bin/ld automatically.
+#
+# Usage:
+#   export PATH="$(pwd)/tools/scripts:$PATH"
+#   zig build run -- --help    # just works on Darwin 25+
+#
+# On non-Darwin or Darwin < 26, this passes through to the real zig binary.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+# Find the real zig binary (skip this shim in PATH)
+find_real_zig() {
+    local self="$SCRIPT_DIR/zig"
+    while IFS=: read -r dir; do
+        local candidate="$dir/zig"
+        if [[ -x "$candidate" && "$candidate" != "$self" ]]; then
+            echo "$candidate"
+            return
+        fi
+    done <<< "$PATH"
+    # Fallback: check common locations
+    for loc in "$HOME/.zvm/master/zig" /usr/local/bin/zig /opt/homebrew/bin/zig; do
+        if [[ -x "$loc" ]]; then
+            echo "$loc"
+            return
+        fi
+    done
+    echo "zig"  # hope for the best
+}
+
+# On Darwin 26+, delegate to the wrapper
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    macos_ver="$(sw_vers -productVersion 2>/dev/null || echo 0)"
+    macos_major="${macos_ver%%.*}"
+    if [[ "$macos_major" -ge 26 ]]; then
+        exec "$SCRIPT_DIR/zig_darwin26_wrapper.sh" "$@"
+    fi
+fi
+
+# Non-Darwin or Darwin < 26: pass through to real zig
+exec "$(find_real_zig)" "$@"

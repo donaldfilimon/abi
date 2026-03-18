@@ -56,10 +56,10 @@ pub const DependencyGraph = struct {
     pub fn init(allocator: std.mem.Allocator) DependencyGraph {
         return .{
             .allocator = allocator,
-            .dependencies = .{},
-            .dependents = .{},
-            .all_modules = .{},
-            .edges = .{},
+            .dependencies = .empty,
+            .dependents = .empty,
+            .all_modules = .empty,
+            .edges = .empty,
         };
     }
 
@@ -144,7 +144,7 @@ pub const DependencyGraph = struct {
             cycles.deinit(self.allocator);
         }
 
-        var visited = std.StringHashMapUnmanaged(void){};
+        var visited = std.StringHashMapUnmanaged(void).empty;
         defer visited.deinit(self.allocator);
 
         for (self.all_modules.items) |module| {
@@ -202,7 +202,7 @@ pub const DependencyGraph = struct {
         var result = std.ArrayListUnmanaged([]const u8).empty;
         errdefer result.deinit(self.allocator);
 
-        var visited = std.StringHashMapUnmanaged(void){};
+        var visited = std.StringHashMapUnmanaged(void).empty;
         defer visited.deinit(self.allocator);
 
         for (self.all_modules.items) |module| {

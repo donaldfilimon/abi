@@ -74,7 +74,7 @@ pub const FileVisitor = struct {
             .config = config,
             .files = std.ArrayListUnmanaged(FileStats).empty,
             .directories = std.ArrayListUnmanaged([]const u8).empty,
-            .visited_paths = std.StringHashMapUnmanaged(bool){},
+            .visited_paths = std.StringHashMapUnmanaged(bool).empty,
             .io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }),
         };
     }

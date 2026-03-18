@@ -179,8 +179,8 @@ pub const SessionManager = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .sessions = std.StringArrayHashMapUnmanaged(*Session){},
-            .user_sessions = std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged([]const u8)){},
+            .sessions = std.StringArrayHashMapUnmanaged(*Session).empty,
+            .user_sessions = std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged([]const u8)).empty,
             .mutex = .{},
             .stats = .{},
         };
@@ -242,7 +242,7 @@ pub const SessionManager = struct {
             .expires_at = now + self.config.lifetime,
             .ip_address = if (options.ip_address) |ip| try self.allocator.dupe(u8, ip) else null,
             .user_agent = if (options.user_agent) |ua| try self.allocator.dupe(u8, ua) else null,
-            .data = std.StringArrayHashMapUnmanaged([]const u8){},
+            .data = std.StringArrayHashMapUnmanaged([]const u8).empty,
             .auth_level = options.auth_level,
             .is_valid = true,
             .previous_id = null,

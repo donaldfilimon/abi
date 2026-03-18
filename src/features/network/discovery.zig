@@ -314,7 +314,7 @@ pub const ServiceDiscovery = struct {
                 .port = port.?,
                 .tags = &.{},
                 .status = status,
-                .metadata = std.StringArrayHashMapUnmanaged([]const u8){},
+                .metadata = std.StringArrayHashMapUnmanaged([]const u8).empty,
             };
 
             try self.cached_services.append(self.allocator, instance);
@@ -559,7 +559,7 @@ pub const ServiceDiscovery = struct {
             .port = port,
             .tags = &.{},
             .status = .passing,
-            .metadata = std.StringArrayHashMapUnmanaged([]const u8){},
+            .metadata = std.StringArrayHashMapUnmanaged([]const u8).empty,
         };
     }
 
@@ -580,7 +580,7 @@ pub const ServiceDiscovery = struct {
                         .degraded => .warning,
                         .offline => .critical,
                     },
-                    .metadata = std.StringArrayHashMapUnmanaged([]const u8){},
+                    .metadata = std.StringArrayHashMapUnmanaged([]const u8).empty,
                 };
                 try self.cached_services.append(self.allocator, instance);
             }

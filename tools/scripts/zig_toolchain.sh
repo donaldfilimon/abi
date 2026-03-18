@@ -8,8 +8,9 @@
 # Strict mode only when executed directly (not sourced).
 # See tasks/lessons.md "Shell Script Patterns".
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  set -euo pipefail
+  set -Eeuo pipefail
 fi
+unset CDPATH
 
 # Internal helper: emit a debug message to stderr when ABI_DEBUG is set.
 _abi_toolchain_debug() {

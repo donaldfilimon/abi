@@ -5,10 +5,33 @@ const BuildOptions = options_mod.BuildOptions;
 /// Build the `build_options` module that source code imports as
 /// `@import("build_options")`.  Feature flags are forwarded from the
 /// `BuildOptions` struct, and GPU backend booleans are derived from the
-/// selected backend list.
+/// selected backend list.  The package version is parsed from
+/// `build.zig.zon` at comptime — no hardcoded fallback.
 pub fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Module {
+    return createBuildOptionsModuleWithVersion(b, options, parsePackageVersion());
+}
+
+/// Parse the package version from build.zig.zon at comptime.
+/// Falls back to "0.0.0" if the version field is not found.
+pub fn parsePackageVersion() []const u8 {
+    const zon_bytes = @embedFile("../build.zig.zon");
+    const marker = ".version = \"";
+    const start_idx = std.mem.indexOf(u8, zon_bytes, marker) orelse return "0.0.0";
+    const version_start = start_idx + marker.len;
+    const end_idx = std.mem.indexOfScalarPos(u8, zon_bytes, version_start, '"') orelse return "0.0.0";
+    return zon_bytes[version_start..end_idx];
+}
+
+/// Build the `build_options` module with an explicit package version.
+/// Prefer this over `createBuildOptionsModule` when the caller has parsed
+/// the authoritative version from `build.zig.zon`.
+pub fn createBuildOptionsModuleWithVersion(
+    b: *std.Build,
+    options: BuildOptions,
+    package_version: []const u8,
+) *std.Build.Module {
     var opts = b.addOptions();
-    opts.addOption([]const u8, "package_version", "0.4.0");
+    opts.addOption([]const u8, "package_version", package_version);
 
     // Forward every feat_* bool field from BuildOptions automatically.
     inline for (std.meta.fields(BuildOptions)) |field| {

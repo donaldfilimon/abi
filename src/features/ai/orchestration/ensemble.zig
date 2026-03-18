@@ -123,7 +123,7 @@ pub const Ensemble = struct {
     /// Voting: Select the most common response.
     fn combineByVoting(self: *Ensemble, responses: []const ModelResponse) !EnsembleResult {
         // Count occurrences of each unique response
-        var counts = std.StringHashMapUnmanaged(usize){};
+        var counts = std.StringHashMapUnmanaged(usize).empty;
         defer counts.deinit(self.allocator);
 
         for (responses) |resp| {
@@ -278,7 +278,7 @@ pub const Ensemble = struct {
 
     /// Concatenation: Combine all unique responses.
     fn combineByConcatenation(self: *Ensemble, responses: []const ModelResponse) !EnsembleResult {
-        var seen = std.StringHashMapUnmanaged(void){};
+        var seen = std.StringHashMapUnmanaged(void).empty;
         defer seen.deinit(self.allocator);
 
         var combined = std.ArrayListUnmanaged(u8).empty;

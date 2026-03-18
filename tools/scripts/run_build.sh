@@ -15,7 +15,9 @@
 #   --verbose      Show full environment diagnostics on failure
 #   --self-test    Validate Darwin pipeline components without building
 
-set -euo pipefail
+set -Eeuo pipefail
+shopt -s inherit_errexit 2>/dev/null || true
+unset CDPATH
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 source "$SCRIPT_DIR/zig_toolchain.sh"
@@ -276,31 +278,36 @@ if [[ -n "$COMPILER_RT" ]]; then
     RT_ARGS=("$COMPILER_RT")
 fi
 
-log "Relinking build runner with Apple ld..."
-log "  obj: $BUILD_O"
-log "  sdk: $SYSROOT"
+# ── Step 4: Link with Apple's ld (with caching) ─────────────────────────
 
-# ── Step 4: Link with Apple's ld ─────────────────────────────────────────
+# Skip relink if cached binary exists and is newer than the .o file
+if [[ -x "$BUILD_BIN" && "$BUILD_BIN" -nt "$BUILD_O" ]]; then
+    log "Reusing cached build runner (binary newer than .o)"
+else
+    log "Relinking build runner with Apple ld..."
+    log "  obj: $BUILD_O"
+    log "  sdk: $SYSROOT"
 
-LINK_START="$(date +%s)"
+    LINK_START="$(date +%s)"
 
-/usr/bin/ld -dynamic \
-    -platform_version macos "$MACOS_VER" "$MACOS_VER" \
-    -syslibroot "$SYSROOT" \
-    -e _main \
-    -o "$BUILD_BIN" \
-    "$BUILD_O" \
-    -lSystem \
-    "${RT_ARGS[@]}" || {
-    log "ERROR: Apple ld also failed."
-    if [[ $VERBOSE -eq 1 ]]; then print_env; fi
-    exit 1
-}
+    /usr/bin/ld -dynamic \
+        -platform_version macos "$MACOS_VER" "$MACOS_VER" \
+        -syslibroot "$SYSROOT" \
+        -e _main \
+        -o "$BUILD_BIN" \
+        "$BUILD_O" \
+        -lSystem \
+        "${RT_ARGS[@]}" || {
+        log "ERROR: Apple ld also failed."
+        if [[ $VERBOSE -eq 1 ]]; then print_env; fi
+        exit 1
+    }
 
-LINK_END="$(date +%s)"
-LINK_SECS=$(( LINK_END - LINK_START ))
-if [[ $LINK_SECS -gt 0 ]]; then
-    log "Relinked in ${LINK_SECS}s"
+    LINK_END="$(date +%s)"
+    LINK_SECS=$(( LINK_END - LINK_START ))
+    if [[ $LINK_SECS -gt 0 ]]; then
+        log "Relinked in ${LINK_SECS}s"
+    fi
 fi
 
 # ── Step 5: Execute the build runner ─────────────────────────────────────

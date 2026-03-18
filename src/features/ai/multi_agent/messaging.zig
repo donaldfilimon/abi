@@ -94,7 +94,7 @@ pub const EventBus = struct {
     pub fn subscribe(self: *EventBus, event_type: EventType, callback: EventCallback) !void {
         const gop = try self.subscribers.getOrPut(self.allocator, event_type);
         if (!gop.found_existing) {
-            gop.value_ptr.* = .{};
+            gop.value_ptr.* = .empty;
         }
         try gop.value_ptr.append(self.allocator, callback);
     }
@@ -201,6 +201,7 @@ pub const AgentMailbox = struct {
     allocator: std.mem.Allocator,
     inbox: std.ArrayListUnmanaged(AgentMessage) = .empty,
     owned_contents: std.ArrayListUnmanaged([]u8) = .empty,
+    head: usize = 0,
 
     pub fn init(allocator: std.mem.Allocator) AgentMailbox {
         return .{ .allocator = allocator };
@@ -227,15 +228,17 @@ pub const AgentMailbox = struct {
         });
     }
 
-    /// Receive the oldest message (FIFO). Returns null if empty.
+    /// Receive the oldest message (FIFO, O(1)). Returns null if empty.
     pub fn receive(self: *AgentMailbox) ?AgentMessage {
-        if (self.inbox.items.len == 0) return null;
-        return self.inbox.orderedRemove(0);
+        if (self.head >= self.inbox.items.len) return null;
+        const msg = self.inbox.items[self.head];
+        self.head += 1;
+        return msg;
     }
 
     /// Number of pending messages.
     pub fn pendingCount(self: *const AgentMailbox) usize {
-        return self.inbox.items.len;
+        return self.inbox.items.len - self.head;
     }
 
     /// Clear all messages.
@@ -245,6 +248,7 @@ pub const AgentMailbox = struct {
             self.allocator.free(buf);
         }
         self.owned_contents.clearRetainingCapacity();
+        self.head = 0;
     }
 };
 

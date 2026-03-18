@@ -226,14 +226,20 @@ pub fn Dashboard(comptime PanelType: type) type {
 
                             if (std.mem.eql(u8, action, "Update ABI")) {
                                 self.showNotification("Updating ABI in background...");
-                                _ = abi.foundation.os.exec(self.allocator, "nohup abi update > /tmp/abi-update.log 2>&1 &") catch |err| {
+                                if (abi.foundation.os.exec(self.allocator, "nohup abi update > /tmp/abi-update.log 2>&1 &")) |r| {
+                                    var res = r;
+                                    res.deinit();
+                                } else |err| {
                                     std.log.warn("Failed to launch background update: {}", .{err});
-                                };
+                                }
                             } else if (std.mem.eql(u8, action, "Editor")) {
                                 self.showNotification("Starting editor...");
-                                _ = abi.foundation.os.exec(self.allocator, "nohup abi edit > /tmp/abi-edit.log 2>&1 &") catch |err| {
+                                if (abi.foundation.os.exec(self.allocator, "nohup abi edit > /tmp/abi-edit.log 2>&1 &")) |r| {
+                                    var res = r;
+                                    res.deinit();
+                                } else |err| {
                                     std.log.warn("Failed to launch background editor: {}", .{err});
-                                };
+                                }
                             } else if (std.mem.eql(u8, action, "Quit")) {
                                 return true; // triggers quit
                             } else {

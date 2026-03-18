@@ -1,7 +1,7 @@
 ---
 title: AGENTS.md — Workflow Contract
 purpose: Defines workflow contract for human and automated contributors
-last_updated: 2026-03-16
+last_updated: 2026-03-18
 target_zig_version: 0.16.0-dev.2905+5d71e3051
 ---
 
@@ -9,7 +9,7 @@ target_zig_version: 0.16.0-dev.2905+5d71e3051
 
 All contributors (human and automated) must follow this contract.
 
-For build commands, architecture details, and API patterns see [CLAUDE.md](CLAUDE.md).
+For build commands, architecture, import rules, API patterns, and troubleshooting see [CLAUDE.md](CLAUDE.md).
 For codebase patterns and conventions see [docs/PATTERNS.md](docs/PATTERNS.md).
 For directory layout see [docs/STRUCTURE.md](docs/STRUCTURE.md).
 
@@ -22,22 +22,21 @@ For directory layout see [docs/STRUCTURE.md](docs/STRUCTURE.md).
 
 ## Coding Style
 
+See [CLAUDE.md — Conventions](CLAUDE.md#conventions) for the full list. Key rules:
+
 - `zig fmt` only — never manual alignment, never `zig fmt .` from repo root
 - `lower_snake_case` for files/functions, `PascalCase` for types/error sets
-- Relative imports within feature modules, `@import("abi")` for framework API
+- Relative imports within `src/`, `@import("abi")` from external code (CLI, tests)
 - Explicit `.zig` extensions on all path imports (Zig 0.16 requirement)
 - Explicit error sets, propagate with `try`, never silently swallow
 
 ## Feature Module Contract
 
-Every `src/features/<name>/` follows the **mod/stub/types** pattern:
+See [CLAUDE.md — mod/stub contract](CLAUDE.md#modstub-contract) for details. Summary:
 
-- `mod.zig` — real implementation (feature enabled)
-- `stub.zig` — API-compatible no-ops (feature disabled)
-- `types.zig` — shared types imported by both (required when mod/stub share public types)
-
-When changing `mod.zig` public signatures, update `stub.zig` immediately.
-Sub-module stubs are not required.
+- Every `src/features/<name>/` has `mod.zig` + `stub.zig` + `types.zig`
+- When changing `mod.zig` public signatures, update `stub.zig` immediately
+- CLI-accessed sub-modules must be re-exported from both mod and stub
 
 ## Commits
 
@@ -57,25 +56,14 @@ Sub-module stubs are not required.
 
 ## Verification Gates
 
-Run the strongest gate your environment supports:
+Run the strongest gate your environment supports. See [CLAUDE.md — Workflow](CLAUDE.md#workflow) for the full gate table and Darwin 25+ details.
 
 | Gate | Command | When |
 |------|---------|------|
 | Format check | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | Every change (always works) |
-| Full check | `zig build full-check` | Before completing when the active Zig is the pinned canonical host-built compiler or another known-good build |
-| Darwin fallback evidence | `./tools/scripts/run_build.sh typecheck --summary all` | Only when stock Zig is linker-blocked on Darwin 25+ / macOS 26+ |
+| Full check | `zig build full-check` | Before completing (requires pinned host-built Zig or known-good toolchain) |
+| Darwin fallback | `./tools/scripts/run_build.sh typecheck --summary all` | When stock Zig is linker-blocked on Darwin 25+ |
 | Full release | `zig build verify-all` | Release prep |
-
-On Darwin 25+ / macOS 26+, stock prebuilt Zig may fail at the linker stage
-before `build.zig` runs. ABI's supported full-validation path is the pinned
-host-built Zig from `./tools/scripts/bootstrap_host_zig.sh`, then prepending
-`$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH` before running
-`zig build toolchain-doctor`, `zig build full-check`, and
-`zig build check-docs`. When the local host is still linker-blocked, record
-`zig fmt --check ...` and `./tools/scripts/run_build.sh typecheck --summary all`
-as fallback evidence, not as a replacement for `zig build full-check` /
-`zig build check-docs`.
-See [CLAUDE.md](CLAUDE.md) for details.
 
 ## Documentation Changes
 

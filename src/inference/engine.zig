@@ -109,19 +109,18 @@ pub const Engine = struct {
 
         const num_tokens = @min(request.max_tokens, 64);
         const tokens = try self.allocator.alloc(u32, num_tokens);
-        for (tokens, 0..) |*t, i| {
+        const vocab_n = @min(self.config.vocab_size, 256);
+        var local_sampler = self.sampler;
+        local_sampler.params.temperature = request.temperature;
+        local_sampler.params.top_p = request.top_p;
+        local_sampler.params.top_k = request.top_k;
+        for (tokens) |*t| {
             var logits_buf: [256]f32 = undefined;
-            const logits_slice = logits_buf[0..@min(self.config.vocab_size, 256)];
+            const logits_slice = logits_buf[0..vocab_n];
             for (logits_slice, 0..) |*l, j| {
                 l.* = @as(f32, @floatFromInt(j)) * 0.01;
             }
-
-            var sampler_copy = self.sampler;
-            sampler_copy.params.temperature = request.temperature;
-            sampler_copy.params.top_p = request.top_p;
-            sampler_copy.params.top_k = request.top_k;
-            t.* = sampler_copy.sample(logits_slice);
-            _ = i;
+            t.* = local_sampler.sample(logits_slice);
         }
 
         const end = std.time.milliTimestamp();

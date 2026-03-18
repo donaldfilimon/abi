@@ -395,7 +395,7 @@ pub const CoherenceProtocol = struct {
             .protocol_type = pt,
             .local_node_id = 0,
             .block_states = .{},
-            .directory = if (pt == .directory) std.AutoHashMapUnmanaged(BlockKey, *DirectoryEntry){} else null,
+            .directory = if (pt == .directory) std.AutoHashMapUnmanaged(BlockKey, *DirectoryEntry).empty else null,
             .pending_invalidations = .{},
             .pending_reads = .{},
             .stats = .{},

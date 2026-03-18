@@ -65,17 +65,20 @@ fn executeKillProcess(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         else => "terminate",
     } else "terminate";
 
-    const signal: os.Signal = if (std.mem.eql(u8, signal_name, "kill"))
-        .kill
+    const sig_flag: []const u8 = if (std.mem.eql(u8, signal_name, "kill"))
+        "-9"
     else if (std.mem.eql(u8, signal_name, "interrupt"))
-        .interrupt
+        "-2"
     else
-        .terminate;
+        "-15";
 
-    const pid: os.Pid = @intCast(pid_int);
-    os.kill(pid, signal) catch {
+    const kill_cmd = std.fmt.allocPrint(ctx.allocator, "kill {s} {d}", .{ sig_flag, pid_int }) catch return error.OutOfMemory;
+    defer ctx.allocator.free(kill_cmd);
+
+    var kill_result = os.exec(ctx.allocator, kill_cmd) catch {
         return ToolResult.fromError(ctx.allocator, "Failed to kill process");
     };
+    kill_result.deinit();
 
     const output = std.fmt.allocPrint(ctx.allocator, "Sent {s} signal to process {d}", .{
         signal_name,

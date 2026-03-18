@@ -23,7 +23,7 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 
 - `zig build full-check --summary all` passes (or `./tools/scripts/run_build.sh full-check --summary all` on Darwin 25+)
 - `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` clean
-- All 54 feature flag combinations validated
+- All 56 feature flag combinations validated
 - Test baseline consistent with `tools/scripts/baseline.zig`
 - Documentation generator deterministic (`check-docs` passes)
 
@@ -63,4 +63,4 @@ Historical phases of the master-branch structure redesign and normalization (com
 - **Phases 4-11**: Post-restructure cleanup, governance drift sweeps, deep contract hardening, and AI import hygiene.
 - **Phases 12 (Core), 13 & 15**: Gemini Wave logic consolidation, Darwin/macOS stability refinements, and documentation gate recovery.
 - **Phase 14**: Final cleanup and universal support — inference promotion, compat bridge removal, terminology alignment, AI consolidation, docs refresh, Darwin guidance, CI integration, freestanding audit, mobile refinement, runtime SIMD probing.
-- **Key Outcomes**: Single `abi` module, canonical `abi.<domain>` API, 54 validated flag combinations, and full 165-step validation success.
+- **Key Outcomes**: Single `abi` module, canonical `abi.<domain>` API, 56 validated flag combinations, and full 165-step validation success.

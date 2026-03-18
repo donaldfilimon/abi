@@ -10,11 +10,11 @@ const config_module = @import("../../core/config/mod.zig");
 // Local Stubs Imports
 // ============================================================================
 
-pub const types = @import("stubs/types.zig");
-pub const metrics = @import("stubs/metrics.zig");
+const types = @import("stubs/types.zig");
+const metrics_stubs = @import("stubs/metrics.zig");
 pub const tracing = @import("stubs/tracing.zig");
 pub const alerting = @import("stubs/alerting.zig");
-pub const exporters = @import("stubs/exporters.zig");
+const exporters = @import("stubs/exporters.zig");
 
 // ============================================================================
 // Re-exports
@@ -45,19 +45,19 @@ pub const AlertError = types.AlertError;
 pub const AlertCallback = types.AlertCallback;
 
 // Metrics
-pub const MetricsCollector = metrics.MetricsCollector;
-pub const Counter = metrics.Counter;
-pub const Gauge = metrics.Gauge;
-pub const FloatGauge = metrics.FloatGauge;
-pub const Histogram = metrics.Histogram;
-pub const DefaultMetrics = metrics.DefaultMetrics;
-pub const DefaultCollector = metrics.DefaultCollector;
-pub const CircuitBreakerMetrics = metrics.CircuitBreakerMetrics;
-pub const ErrorMetrics = metrics.ErrorMetrics;
-pub const createCollector = metrics.createCollector;
-pub const registerDefaultMetrics = metrics.registerDefaultMetrics;
-pub const recordRequest = metrics.recordRequest;
-pub const recordError = metrics.recordError;
+pub const MetricsCollector = metrics_stubs.MetricsCollector;
+pub const Counter = metrics_stubs.Counter;
+pub const Gauge = metrics_stubs.Gauge;
+pub const FloatGauge = metrics_stubs.FloatGauge;
+pub const Histogram = metrics_stubs.Histogram;
+pub const DefaultMetrics = metrics_stubs.DefaultMetrics;
+pub const DefaultCollector = metrics_stubs.DefaultCollector;
+pub const CircuitBreakerMetrics = metrics_stubs.CircuitBreakerMetrics;
+pub const ErrorMetrics = metrics_stubs.ErrorMetrics;
+pub const createCollector = metrics_stubs.createCollector;
+pub const registerDefaultMetrics = metrics_stubs.registerDefaultMetrics;
+pub const recordRequest = metrics_stubs.recordRequest;
+pub const recordError = metrics_stubs.recordError;
 
 // Tracing
 pub const Tracer = tracing.Tracer;
@@ -150,7 +150,7 @@ pub fn isInitialized() bool {
     return false;
 }
 pub fn init(_: std.mem.Allocator) Error!void {
-    return error.FeatureDisabled;
+    return error.ObservabilityDisabled;
 }
 pub fn deinit() void {}
 

@@ -159,7 +159,7 @@ pub const RateLimiter = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .buckets = std.StringArrayHashMapUnmanaged(Bucket){},
+            .buckets = std.StringArrayHashMapUnmanaged(Bucket).empty,
             .mutex = .{},
             .stats = .{},
         };
@@ -449,14 +449,15 @@ pub const RateLimiter = struct {
     fn slidingWindowCheck(self: *RateLimiter, bucket: *Bucket, limit: u32, now: i64) RateLimitStatus {
         const window_start = now - self.config.window_seconds;
 
-        // Remove old requests
-        var i: usize = 0;
-        while (i < bucket.requests.items.len) {
-            if (bucket.requests.items[i] < window_start) {
-                _ = bucket.requests.orderedRemove(i);
-            } else {
-                i += 1;
-            }
+        // Remove expired prefix (timestamps are monotonically sorted)
+        var first_valid: usize = 0;
+        while (first_valid < bucket.requests.items.len and
+            bucket.requests.items[first_valid] < window_start) : (first_valid += 1)
+        {}
+        if (first_valid > 0) {
+            const remaining = bucket.requests.items.len - first_valid;
+            std.mem.copyForwards(i64, bucket.requests.items[0..remaining], bucket.requests.items[first_valid..bucket.requests.items.len]);
+            bucket.requests.items.len = remaining;
         }
 
         const current: u32 = @intCast(bucket.requests.items.len);

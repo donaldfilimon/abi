@@ -124,11 +124,12 @@ The build system selects between `mod.zig` and `stub.zig` at comptime via
 build/
 ├── options.zig               # 27 feature flag definitions
 ├── flags.zig                 # 56 flag combination validations
-├── modules.zig               # Module creation and import wiring
+├── modules.zig               # Module creation, import wiring, version parsing
 ├── module_catalog.zig        # Module registry for gendocs
+├── darwin.zig                # Darwin 25+ degraded-mode abstraction (DarwinCtx)
 ├── targets.zig               # Example/target tables, cross-compilation matrix
 ├── test_discovery.zig        # Feature test manifest
-├── link.zig                  # Platform link flags (Metal, libc, etc.)
+├── link.zig                  # Platform linking, Darwin darwinRelink() logic
 ├── gpu.zig                   # GPU backend option parsing
 ├── gpu_policy.zig            # GPU policy validation
 ├── mobile.zig                # Mobile target support

@@ -37,10 +37,10 @@ pub const CallGraph = struct {
     pub fn init(allocator: std.mem.Allocator) CallGraph {
         return .{
             .allocator = allocator,
-            .calls = .{},
-            .called_by = .{},
-            .all_functions = .{},
-            .edges = .{},
+            .calls = .empty,
+            .called_by = .empty,
+            .all_functions = .empty,
+            .edges = .empty,
         };
     }
 
@@ -109,7 +109,7 @@ pub const CallGraph = struct {
 
     /// Check if there's a call path from function A to function B
     pub fn hasPathTo(self: *const CallGraph, from: []const u8, to: []const u8) bool {
-        var visited = std.StringHashMapUnmanaged(void){};
+        var visited = std.StringHashMapUnmanaged(void).empty;
         defer visited.deinit(self.allocator);
 
         return self.dfsPath(from, to, &visited);

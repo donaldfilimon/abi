@@ -51,7 +51,7 @@ pub fn computeTokenMetrics(
     defer allocator.free(ref_tokens);
 
     // Build set of reference tokens
-    var ref_set = std.StringHashMapUnmanaged(void){};
+    var ref_set = std.StringHashMapUnmanaged(void).empty;
     defer ref_set.deinit(allocator);
 
     for (ref_tokens) |token| {
@@ -62,7 +62,7 @@ pub fn computeTokenMetrics(
     var true_positives: usize = 0;
     var false_positives: usize = 0;
 
-    var seen_hyp = std.StringHashMapUnmanaged(void){};
+    var seen_hyp = std.StringHashMapUnmanaged(void).empty;
     defer seen_hyp.deinit(allocator);
 
     for (hyp_tokens) |token| {

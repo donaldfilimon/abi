@@ -264,6 +264,11 @@ pub const MemoryError = memory.MemoryError;
 pub const KernelError = interface.KernelError;
 pub const GpuError = memory.MemoryError || error{GpuDisabled};
 pub const Error = GpuError;
+pub const BackendSelectionError = error{ RequestedBackendUnavailable, NoBackendsAvailable, OutOfMemory };
+
+pub const MemoryInfo = unified.MemoryInfo;
+pub const GpuStats = unified.GpuStats;
+pub const MetricsSummary = unified.MetricsSummary;
 
 pub const Stream = kernels.Stream;
 

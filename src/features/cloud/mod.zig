@@ -72,6 +72,11 @@ pub const aws_lambda = @import("aws_lambda.zig");
 pub const gcp_functions = @import("gcp_functions.zig");
 pub const azure_functions = @import("azure_functions.zig");
 
+// Aliases matching stub.zig convention
+pub const aws = aws_lambda;
+pub const gcp = gcp_functions;
+pub const azure = azure_functions;
+
 /// Cloud module errors.
 pub const Error = error{
     CloudDisabled,

@@ -2,7 +2,8 @@
 # Use ZVM-managed Zig 0.16 master for this architecture (darwin/arm64, etc.).
 # Source this file: source tools/scripts/use_zvm_master.sh
 # Or run directly: ./tools/scripts/use_zvm_master.sh  (then zig is on PATH in this shell)
-set -e
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then set -Eeuo pipefail; fi
+unset CDPATH
 if command -v zvm &>/dev/null; then
   zvm use master &>/dev/null
   export PATH="$HOME/.zvm/bin:$PATH"

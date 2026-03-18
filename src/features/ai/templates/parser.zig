@@ -163,7 +163,7 @@ pub const Parser = struct {
             vars.deinit(self.allocator);
         }
 
-        var seen = std.StringHashMapUnmanaged(void){};
+        var seen = std.StringHashMapUnmanaged(void).empty;
         defer seen.deinit(self.allocator);
 
         for (tokens) |token| {

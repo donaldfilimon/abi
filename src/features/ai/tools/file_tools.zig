@@ -157,9 +157,12 @@ fn executeWriteFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
     if (std.fs.path.dirname(full_path)) |dir| {
         const mkdir_cmd = std.fmt.allocPrint(ctx.allocator, "mkdir -p \"{s}\"", .{dir}) catch return error.OutOfMemory;
         defer ctx.allocator.free(mkdir_cmd);
-        _ = os.exec(ctx.allocator, mkdir_cmd) catch |err| {
+        if (os.exec(ctx.allocator, mkdir_cmd)) |mkdir_res_val| {
+            var mkdir_res = mkdir_res_val;
+            mkdir_res.deinit();
+        } else |err| {
             std.log.warn("Failed to create directory '{s}': {t}", .{ dir, err });
-        };
+        }
     }
 
     // Escape content for shell and write using heredoc

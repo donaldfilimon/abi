@@ -19,7 +19,7 @@ pub const ModelInfo = struct {
 
 pub const ModelRegistry = struct {
     allocator: std.mem.Allocator,
-    models: std.ArrayListUnmanaged(ModelInfo) = .{},
+    models: std.ArrayListUnmanaged(ModelInfo) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) ModelRegistry {
         return .{ .allocator = allocator };

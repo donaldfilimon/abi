@@ -118,7 +118,7 @@ fn executeExpandEnv(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'input' must be a string"),
     };
 
-    const expanded = os.Env.expand(ctx.allocator, input) catch |err| {
+    const expanded = os.envExpand(ctx.allocator, input) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to expand: {t}", .{err}) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };

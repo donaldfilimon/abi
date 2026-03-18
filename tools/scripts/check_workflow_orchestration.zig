@@ -157,19 +157,6 @@ fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
     return false;
 }
 
-fn looksLikeDatePrefix(text: []const u8) bool {
-    if (text.len < 10) return false;
-    for (0..10) |idx| {
-        const ch = text[idx];
-        if (idx == 4 or idx == 7) {
-            if (ch != '-') return false;
-        } else if (!std.ascii.isDigit(ch)) {
-            return false;
-        }
-    }
-    return true;
-}
-
 fn checkConflictMarkers(
     allocator: std.mem.Allocator,
     report: *Report,
@@ -266,9 +253,9 @@ fn checkLessons(
             entry_has_root = false;
             entry_has_prevention = false;
 
-            if (!looksLikeDatePrefix(entry_heading)) {
-                try report.addViolation(allocator, "lessons heading should start with YYYY-MM-DD: {s}", .{entry_heading});
-            }
+            // Topic-based headings are the documented convention
+            // (CLAUDE.md: "entries are grouped by topic heading").
+            // Date-prefixed headings (YYYY-MM-DD) are also accepted.
 
             continue;
         }

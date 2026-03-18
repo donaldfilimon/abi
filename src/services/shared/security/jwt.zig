@@ -207,7 +207,7 @@ pub const JwtManager = struct {
             .allocator = allocator,
             .config = config,
             .secret_key = secret_key,
-            .blacklist = std.StringArrayHashMapUnmanaged(i64){},
+            .blacklist = std.StringArrayHashMapUnmanaged(i64).empty,
             .mutex = .{},
             .stats = .{},
         };
@@ -321,12 +321,9 @@ pub const JwtManager = struct {
         const signing_input = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ header_b64, payload_b64 });
         defer self.allocator.free(signing_input);
 
-        const signature = try self.base64UrlDecode(signature_b64);
-
-        const verified = try self.verifySignature(signing_input, signature, header.alg);
+        const verified = try self.verifySignature(signing_input, signature_b64, header.alg);
         if (!verified) {
             self.stats.tokens_rejected += 1;
-            self.allocator.free(signature);
             return error.InvalidSignature;
         }
 
@@ -343,7 +340,6 @@ pub const JwtManager = struct {
             }
             self.stats.tokens_rejected += 1;
             claims.deinit(self.allocator);
-            self.allocator.free(signature);
             return error.TokenExpired;
         }
 
@@ -353,7 +349,6 @@ pub const JwtManager = struct {
                 if (self.blacklist.contains(jti)) {
                     self.stats.tokens_rejected += 1;
                     claims.deinit(self.allocator);
-                    self.allocator.free(signature);
                     return error.TokenRevoked;
                 }
             }
@@ -364,19 +359,16 @@ pub const JwtManager = struct {
             if (std.mem.eql(u8, required, "sub") and claims.sub == null) {
                 self.stats.tokens_rejected += 1;
                 claims.deinit(self.allocator);
-                self.allocator.free(signature);
                 return error.MissingRequiredClaim;
             }
             if (std.mem.eql(u8, required, "exp") and claims.exp == null) {
                 self.stats.tokens_rejected += 1;
                 claims.deinit(self.allocator);
-                self.allocator.free(signature);
                 return error.MissingRequiredClaim;
             }
             if (std.mem.eql(u8, required, "iss") and claims.iss == null) {
                 self.stats.tokens_rejected += 1;
                 claims.deinit(self.allocator);
-                self.allocator.free(signature);
                 return error.MissingRequiredClaim;
             }
         }
@@ -407,7 +399,7 @@ pub const JwtManager = struct {
 
         // Copy custom claims
         if (old_token.claims.custom) |old_custom| {
-            new_claims.custom = std.StringArrayHashMapUnmanaged([]const u8){};
+            new_claims.custom = std.StringArrayHashMapUnmanaged([]const u8).empty;
             var it = old_custom.iterator();
             while (it.next()) |entry| {
                 try new_claims.custom.?.put(
@@ -498,26 +490,23 @@ pub const JwtManager = struct {
         return self.base64UrlEncode(&mac);
     }
 
-    fn verifySignature(self: *JwtManager, input: []const u8, signature: []const u8, alg: Algorithm) !bool {
+    /// Compare signature_b64 (base64url from token) against computed HMAC (also base64url).
+    /// Avoids decode-then-compare: compares encoded strings directly, saving 2 heap allocations.
+    fn verifySignature(self: *JwtManager, input: []const u8, signature_b64: []const u8, alg: Algorithm) !bool {
         if (alg == .none) {
-            return signature.len == 0;
+            return signature_b64.len == 0;
         }
 
-        const expected = switch (alg) {
+        const expected_b64 = switch (alg) {
             .hs256 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha256),
             .hs384 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha384),
             .hs512 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha512),
-            // RS256: RSA verification requires public key and RSA signature verification
-            // See sign() function for implementation requirements
             .rs256 => return error.RsaSigningNotSupported,
             .none => unreachable,
         };
-        defer self.allocator.free(expected);
+        defer self.allocator.free(expected_b64);
 
-        const expected_decoded = try self.base64UrlDecode(expected);
-        defer self.allocator.free(expected_decoded);
-
-        return constantTimeEqlSlice(signature, expected_decoded);
+        return constantTimeEqlSlice(signature_b64, expected_b64);
     }
 
     fn base64UrlEncode(self: *JwtManager, data: []const u8) ![]const u8 {
@@ -585,8 +574,8 @@ pub const JwtManager = struct {
     }
 
     fn extractStringClaim(self: *JwtManager, json: []const u8, claim: []const u8) !?[]const u8 {
-        const search = try std.fmt.allocPrint(self.allocator, "\"{s}\":\"", .{claim});
-        defer self.allocator.free(search);
+        var search_buf: [64]u8 = undefined;
+        const search = std.fmt.bufPrint(&search_buf, "\"{s}\":\"", .{claim}) catch return null;
 
         if (std.mem.indexOf(u8, json, search)) |idx| {
             const start = idx + search.len;
@@ -706,21 +695,17 @@ pub const JwtManager = struct {
 
     fn cleanupBlacklist(self: *JwtManager) !void {
         const now = time.unixSeconds();
-        var to_remove = std.ArrayListUnmanaged([]const u8).empty;
-        defer to_remove.deinit(self.allocator);
-
-        // Find expired entries
-        var it = self.blacklist.iterator();
-        while (it.next()) |entry| {
-            if (entry.value_ptr.* < now) {
-                try to_remove.append(self.allocator, entry.key_ptr.*);
-            }
-        }
-
-        // Remove expired entries
-        for (to_remove.items) |key| {
-            if (self.blacklist.fetchOrderedRemove(key)) |kv| {
-                self.allocator.free(kv.key);
+        // Single-pass reverse scan: swapRemove from back to front avoids
+        // shifting and doesn't need a temporary key list (zero allocations).
+        const keys = self.blacklist.keys();
+        const values = self.blacklist.values();
+        var i: usize = keys.len;
+        while (i > 0) {
+            i -= 1;
+            if (values[i] < now) {
+                const key = keys[i];
+                self.blacklist.swapRemoveAt(i);
+                self.allocator.free(key);
             }
         }
     }

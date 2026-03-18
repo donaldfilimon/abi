@@ -9,8 +9,8 @@ const profile_types = struct {
 
 // --- Local Stubs Imports ---
 
-pub const types = @import("stubs/types.zig");
-pub const client = @import("stubs/client.zig");
+const types = @import("stubs/types.zig");
+const client = @import("stubs/client.zig");
 
 // --- Handlers and Routes ---
 
@@ -41,7 +41,7 @@ pub const RouteContext = StubRouteContext;
 
 // --- Stub Type Definitions ---
 
-pub const StubChatRequest = struct {
+const StubChatRequest = struct {
     content: []const u8,
     user_id: ?[]const u8 = null,
     session_id: ?[]const u8 = null,
@@ -55,7 +55,7 @@ pub const StubChatRequest = struct {
     }
 };
 
-pub const StubChatResponse = struct {
+const StubChatResponse = struct {
     content: []const u8,
     profile: []const u8,
     confidence: f32,
@@ -65,11 +65,11 @@ pub const StubChatResponse = struct {
     request_id: ?[]const u8 = null,
 };
 
-pub const StubChatResult = struct { status: u16, body: []const u8 };
+const StubChatResult = struct { status: u16, body: []const u8 };
 const StubCodeBlock = struct { language: []const u8, code: []const u8 };
 const StubSource = struct { title: []const u8, url: ?[]const u8 = null, confidence: f32 };
 
-pub const StubChatHandler = struct {
+const StubChatHandler = struct {
     allocator: std.mem.Allocator,
     pub fn init(allocator: std.mem.Allocator) StubChatHandler {
         return .{ .allocator = allocator };
@@ -97,16 +97,16 @@ pub const StubChatHandler = struct {
     }
 };
 
-pub const Method = enum { GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD };
+const Method = enum { GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD };
 
-pub const StubRoute = struct {
+const StubRoute = struct {
     path: []const u8,
     method: Method,
     description: []const u8,
     requires_auth: bool = false,
 };
 
-pub const StubRouteContext = struct {
+const StubRouteContext = struct {
     allocator: std.mem.Allocator,
     body: []const u8 = "",
     response_status: u16 = 200,
@@ -124,7 +124,7 @@ pub const StubRouteContext = struct {
     }
 };
 
-pub const StubRouter = struct {
+const StubRouter = struct {
     allocator: std.mem.Allocator,
     pub fn init(allocator: std.mem.Allocator, _: *StubChatHandler) StubRouter {
         return .{ .allocator = allocator };

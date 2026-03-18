@@ -93,7 +93,7 @@ pub fn importAll(
 // ============================================================================
 
 test "importAll imports canonical non-done entries" {
-    var tasks_map = std.AutoHashMapUnmanaged(u64, types.Task){};
+    var tasks_map = std.AutoHashMapUnmanaged(u64, types.Task).empty;
     defer tasks_map.deinit(std.testing.allocator);
 
     var strings = std.ArrayListUnmanaged([]u8).empty;
@@ -115,7 +115,7 @@ test "importAll imports canonical non-done entries" {
 }
 
 test "importAll keeps dedupe-by-title behavior" {
-    var tasks_map = std.AutoHashMapUnmanaged(u64, types.Task){};
+    var tasks_map = std.AutoHashMapUnmanaged(u64, types.Task).empty;
     defer tasks_map.deinit(std.testing.allocator);
 
     var strings = std.ArrayListUnmanaged([]u8).empty;

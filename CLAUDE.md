@@ -15,6 +15,7 @@ zig build test --summary all          # primary tests
 zig build feature-tests --summary all # feature coverage
 zig build full-check                  # pre-commit gate
 zig build validate-flags              # flag combo check
+zig build check-stub-parity           # mod/stub declaration parity
 zig build toolchain-doctor            # inspect active Zig resolution
 zig build check-zig-version           # verify pin + docs consistency
 zig build preflight                   # integration environment diagnostics
@@ -42,6 +43,7 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
   - `flags.zig` — 56-combo validation matrix, `CanonicalFlags`
   - `modules.zig` — Module creation, `wireAbiImports()`
   - `module_catalog.zig` — Gendocs module registry (34 entries)
+  - `darwin.zig` — Darwin 25+ degraded-mode abstraction (`DarwinCtx`, `addExeOrObject`, `addRunStep`, `addHostScriptStep`)
   - `link.zig` — Platform linking, Darwin `darwinRelink()` logic
   - `test_discovery.zig` — Feature test manifest
 - `tools/cli/` — CLI commands and registry (`tools/cli/registry/`)
@@ -49,15 +51,15 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
 - `lang/` — Reserved for future high-level language bindings (Python, JS/TS); wraps `bindings/c/`
 - `tests/integration/` — Integration test matrix manifest and preflight diagnostics
-- `examples/` — 36 standalone programs demonstrating API usage across all feature domains
+- `examples/` — 35 standalone programs demonstrating API usage across all feature domains
 
 ### Public API surface
 
-Top-level namespaces exported by `src/root.zig`:
+Top-level namespaces exported by `src/root.zig` (see source for full list):
 
 - **Core:** `abi.config`, `abi.errors`, `abi.registry`, `abi.framework`
 - **Services (non-gated):** `abi.foundation`, `abi.runtime`, `abi.platform`, `abi.connectors`, `abi.tasks`, `abi.mcp`, `abi.lsp`, `abi.acp`, `abi.ha`, `abi.inference`
-- **Features (comptime-gated):** `abi.gpu`, `abi.ai`, `abi.database`, `abi.network`, `abi.observability`, `abi.web`, `abi.pages`, `abi.analytics`, `abi.cloud`, `abi.auth`, `abi.messaging`, `abi.cache`, `abi.storage`, `abi.search`, `abi.mobile`, `abi.gateway`, `abi.benchmarks`, `abi.compute`, `abi.documents`, `abi.desktop`
+- **Features (comptime-gated, 20 total):** `abi.gpu`, `abi.ai`, `abi.database`, `abi.network`, `abi.observability`, `abi.web`, `abi.pages`, `abi.analytics`, `abi.cloud`, `abi.auth`, `abi.messaging`, `abi.cache`, `abi.storage`, `abi.search`, `abi.mobile`, `abi.gateway`, `abi.benchmarks`, `abi.compute`, `abi.documents`, `abi.desktop`
 - **Convenience:** `abi.App`, `abi.AppBuilder`, `abi.Gpu`, `abi.GpuBackend`, `abi.appBuilder()`, `abi.version()`, `abi.feature_catalog`
 
 ### Feature gating in root.zig
@@ -69,7 +71,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 
 ### mod/stub contract
 
-`stub.zig` must match `mod.zig` public signatures exactly. Shared types go in `types.zig` — both mod and stub import from it. Use `StubFeature`/`StubFeatureNoConfig` from `core/stub_context.zig` for common stub boilerplate. Sub-module stubs not needed, but CLI-accessed sub-modules must be re-exported from both mod and stub.
+`stub.zig` must match `mod.zig` public signatures exactly. Shared types go in `types.zig` — both mod and stub import from it. Use `StubFeature`/`StubFeatureNoConfig` from `core/stub_context.zig` for common stub boilerplate. Sub-module stubs not needed, but CLI-accessed sub-modules must be re-exported from both mod and stub. Parity is enforced at compile time by `zig build check-stub-parity` (see `src/feature_parity_tests.zig`).
 
 ### foundation namespace
 
@@ -82,7 +84,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - **Cross-feature imports**: never import another feature's `mod.zig` directly (bypasses the gate). Use `build_options` conditional: `const obs = if (build_options.feat_profiling) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");`
 - **Explicit `.zig` extensions** required on all path imports (Zig 0.16)
 - **Single-module file ownership**: every `.zig` file belongs to exactly one named module
-- **Test roots**: `src/services/tests/mod.zig` is a separate test root with named imports from `build.zig`. Its child files should keep `@import("abi")` — switching them to relative `src/root.zig` imports creates duplicate module ownership during `zig build test`
+- **Test roots**: `src/services/tests/mod.zig` is a separate test root (see Testing Patterns for details). Its child files must use `@import("abi")`, not relative imports
 - **Build options stub**: when adding new `feat_*` flags to `build/options.zig`, also update `tools/cli/tests/build_options_stub.zig` to match
 
 ## Conventions
@@ -92,6 +94,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 - Conventional commits (`fix:`, `feat:`, `docs:`, `chore:`, `style:`, `refactor:`), atomic scope
 - Explicit error sets, propagate with `try`
 - Bulk find-replace must exclude string literal interiors; run `zig fmt --check` immediately after any bulk text operation
+- Shell scripts: guard `set -euo pipefail` with `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then ... fi` so strict mode only applies when executed directly (not when sourced). Extract shared functions to `lib.sh`, trap SIGINT/SIGTERM in long-running scripts
 
 See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 
@@ -102,8 +105,8 @@ See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 - **Integration tests**: `tests/integration/` with manifest and preflight diagnostics
 - **Full check**: `full-check` runs typecheck + test + check-docs + check-cli + validate-flags + check-feature-catalog
 - **Test helpers**: `src/services/tests/helpers.zig` provides `TestAllocator` (leak detection), platform-aware skip (`skipIfNoGpu`), vector utilities, temp dir management
-- **Test roots**: `src/services/tests/mod.zig` is a separate test root — its files use `@import("abi")`, not relative imports
-- **Darwin**: always use `./tools/scripts/run_build.sh <step> --summary all` instead of direct `zig build`
+- **Test roots**: `src/services/tests/mod.zig` is a separate test root with named imports injected by `build.zig`. Its child files must use `@import("abi")`, not relative imports — switching to relative `src/root.zig` imports creates duplicate module ownership (`abi` and `root`) during `zig build test`. Test discovery uses `test {}` blocks with force-references (`_ = abi.ai.llm.io;`) to include submodule tests in the runner
+- **Darwin**: always use `./tools/scripts/run_build.sh <step> --summary all` instead of direct `zig build` (see Commands section for details)
 
 ## Zig 0.16 API Changes
 
@@ -184,15 +187,22 @@ zig build bench-competitive                # Industry comparisons
 
 Suites cover SIMD, memory, concurrency, database, network, crypto, AI, and GPU workloads. See `benchmarks/README.md` for details.
 
-## Common Pitfalls
+## Common Pitfalls & Troubleshooting
 
-- **`.{}` vs `.empty`**: `ArrayListUnmanaged` and `AutoHashMapUnmanaged` must use `.empty` not `.{}` for initialization (triggers "missing struct field" errors)
-- **`@import("abi")` inside `src/`**: causes circular import error. Only use from external modules (CLI, tests with separate roots)
-- **Cross-feature imports**: see Import Rules above — never import another feature's `mod.zig` directly
-- **`zig fmt .` from root**: walks vendored fixtures with intentionally invalid code. Always specify paths explicitly
-- **CLI sub-modules**: if a CLI command accesses `abi.features.X.<submodule>`, that sub-module must be re-exported from both `mod.zig` AND `stub.zig`
-- **Hook interference**: external hooks may rewrite source files (reorder imports, change import paths). Use `git checkout HEAD -- <file>` to restore
-- **`.zig` extension on imports**: before adding `.zig` to a path, verify the target file actually exists at that path — a suffix-only rewrite against a nonexistent target hides the real fix
+| Symptom / Mistake | Prevention & Fix |
+|-------------------|-----------------|
+| Undefined symbols (`_malloc_size`, etc.) on macOS | Stock Zig LLD fails on Darwin 25+. Bootstrap host Zig via `./tools/scripts/bootstrap_host_zig.sh` or use `./tools/scripts/run_build.sh` |
+| "no module named 'abi' available within module 'abi'" | Never use `@import("abi")` inside `src/` — use relative imports. Only external code (CLI, tests) uses `@import("abi")` |
+| "missing struct field: items" on unmanaged collections | Use `.empty` not `.{}` for `ArrayListUnmanaged`/`AutoHashMapUnmanaged` (Zig 0.16 change) |
+| Stub compilation fails when feature disabled | `stub.zig` must match `mod.zig` signatures. Run `zig build test -Dfeat-<name>=false --summary all` to verify |
+| CLI command can't find sub-module | CLI-accessed sub-modules must be re-exported from both `mod.zig` AND `stub.zig` |
+| Cross-feature compile fails when feature disabled | Never import another feature's `mod.zig` directly — use conditional import with `build_options` |
+| Import "file not found" after adding `.zig` suffix | Verify target file exists first — the real fix may be a gated import or different path |
+| Hooks rewrite imports/ordering destructively | Restore with `git checkout HEAD -- <file>`. Use atomic `sed -i '' + git add` for edits that must survive hooks |
+| `zig fmt .` fails on vendored code | Always specify explicit paths: `zig fmt build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` |
+| Gendocs/registry out of sync | Update `src/core/feature_catalog.zig` first, then `zig build gendocs` + `zig build refresh-cli-registry` |
+| Cross-directory imports in `build/` or `tools/` fail | Files in `build/` must compile standalone. Tool-side modules can't reach `../../build/*.zig` — pass shared metadata as named module imports from `build.zig` |
+| Wrong Zig toolchain on Darwin 25+ | Keep to pinned Zig on PATH, `ABI_HOST_ZIG`, or `$HOME/.cache/abi-host-zig/<.zigversion>/bin/zig`. Prepend that bin dir to `PATH` before `zig build full-check` |
 
 ## References
 

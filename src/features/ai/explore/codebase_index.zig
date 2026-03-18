@@ -98,8 +98,8 @@ pub const CodebaseIndex = struct {
 
         return .{
             .allocator = allocator,
-            .indexed_files = .{},
-            .chunks = .{},
+            .indexed_files = .empty,
+            .chunks = .empty,
             .root_path = root_copy,
             .index_dir = index_dir,
         };
@@ -196,7 +196,7 @@ pub const CodebaseIndex = struct {
     pub fn query(self: *Self, question: []const u8) !CodebaseAnswer {
         var result = CodebaseAnswer{
             .allocator = self.allocator,
-            .snippets = .{},
+            .snippets = .empty,
             .summary = try self.allocator.dupe(u8, ""),
         };
         errdefer result.deinit();

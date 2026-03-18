@@ -428,7 +428,7 @@ pub const CustomAI = struct {
             .engine = abbey_engine,
             .advanced_cognition = adv_cognition,
             .full_system_prompt = try prompt_builder.toOwnedSlice(allocator),
-            .sessions = std.StringHashMapUnmanaged(SessionData){},
+            .sessions = std.StringHashMapUnmanaged(SessionData).empty,
         };
     }
 

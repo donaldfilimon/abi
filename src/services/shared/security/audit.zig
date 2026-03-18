@@ -657,7 +657,7 @@ pub const AuditLogger = struct {
     }
 
     fn dupeContext(self: *AuditLogger, ctx: std.StringArrayHashMapUnmanaged([]const u8)) !std.StringArrayHashMapUnmanaged([]const u8) {
-        var result = std.StringArrayHashMapUnmanaged([]const u8){};
+        var result = std.StringArrayHashMapUnmanaged([]const u8).empty;
         var it = ctx.iterator();
         while (it.next()) |entry| {
             try result.put(

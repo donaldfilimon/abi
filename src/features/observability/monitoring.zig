@@ -603,7 +603,7 @@ pub const StatsDClient = struct {
             .allocator = allocator,
             .config = config,
             .stream = null,
-            .buffer = .{},
+            .buffer = .empty,
             .connected = false,
         };
     }

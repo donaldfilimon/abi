@@ -119,7 +119,21 @@ fn computeBleuFromTokens(
             @constCast(&hyp_ngrams).deinit(allocator);
         }
 
-        // Count matches against references
+        // Precompute reference n-gram maps once per n-gram order (avoid O(H*R) recomputation)
+        var ref_ngram_maps: [16]std.StringHashMapUnmanaged(u32) = undefined;
+        const ref_count = @min(ref_tokens_list.len, 16);
+        for (0..ref_count) |ri| {
+            ref_ngram_maps[ri] = try getNgrams(allocator, ref_tokens_list[ri], ngram_size);
+        }
+        defer for (0..ref_count) |ri| {
+            var ref_iter = ref_ngram_maps[ri].iterator();
+            while (ref_iter.next()) |ref_entry| {
+                allocator.free(ref_entry.key_ptr.*);
+            }
+            @constCast(&ref_ngram_maps[ri]).deinit(allocator);
+        };
+
+        // Count matches against precomputed reference maps
         var iter = hyp_ngrams.iterator();
         while (iter.next()) |entry| {
             const hyp_count = entry.value_ptr.*;
@@ -127,18 +141,9 @@ fn computeBleuFromTokens(
 
             // Find max count in any reference
             var max_ref_count: u32 = 0;
-            for (ref_tokens_list) |ref_tokens| {
-                const ref_ngrams = try getNgrams(allocator, ref_tokens, ngram_size);
-                defer {
-                    var ref_iter = ref_ngrams.iterator();
-                    while (ref_iter.next()) |ref_entry| {
-                        allocator.free(ref_entry.key_ptr.*);
-                    }
-                    @constCast(&ref_ngrams).deinit(allocator);
-                }
-
-                if (ref_ngrams.get(entry.key_ptr.*)) |ref_count| {
-                    max_ref_count = @max(max_ref_count, ref_count);
+            for (0..ref_count) |ri| {
+                if (ref_ngram_maps[ri].get(entry.key_ptr.*)) |rc| {
+                    max_ref_count = @max(max_ref_count, rc);
                 }
             }
 
@@ -201,7 +206,7 @@ fn getNgrams(
     tokens: []const []const u8,
     n: usize,
 ) !std.StringHashMapUnmanaged(u32) {
-    var ngrams = std.StringHashMapUnmanaged(u32){};
+    var ngrams = std.StringHashMapUnmanaged(u32).empty;
     errdefer ngrams.deinit(allocator);
 
     if (tokens.len < n) return ngrams;

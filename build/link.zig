@@ -199,19 +199,19 @@ pub fn applyAndroidLinks(
 // =============================================================================
 
 /// Apply all platform-specific links for a module. Call this once per artifact.
+/// `is_blocked_darwin` should be the canonical DarwinCtx.is_blocked from
+/// darwin.zig — pass it from the caller rather than re-detecting locally.
 pub fn applyAllPlatformLinks(
     mod: *std.Build.Module,
     os_tag: std.Target.Os.Tag,
     gpu_metal: bool,
     gpu_backends: []const GpuBackend,
+    is_blocked_darwin: bool,
 ) void {
     applyFrameworkLinks(mod, os_tag, gpu_metal);
 
     // On macOS 26+ with version-clamped targets, Zig's framework auto-detection
     // breaks. Explicitly add SDK framework paths so linkFramework can resolve.
-    const is_macos_host = @import("builtin").os.tag == .macos;
-    const is_blocked_darwin = is_macos_host and @import("builtin").os.version_range.semver.min.major >= 26;
-
     if (os_tag == .macos and is_blocked_darwin) {
         addSdkFrameworkPaths(mod, mod.owner.graph.io);
     }

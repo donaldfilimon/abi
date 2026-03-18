@@ -1,11 +1,13 @@
 //! Reasoning Stub Module
 
 const std = @import("std");
-const core_types = @import("../types.zig");
+const core_types = @import("../core/types.zig");
 const ai_config = @import("../../../core/config/ai.zig");
 
+// Import canonical types from core (shared with mod/engine)
 pub const ConfidenceLevel = core_types.ConfidenceLevel;
 pub const Confidence = core_types.Confidence;
+
 pub const ReasoningConfig = ai_config.AiConfig.ReasoningConfig;
 
 pub const StepType = enum {
@@ -46,6 +48,7 @@ pub const ReasoningChain = struct {
     allocator: std.mem.Allocator,
     query: []const u8,
     steps: std.ArrayListUnmanaged(ReasoningStep) = .empty,
+    start_time_ns: i128 = 0,
     finalized: bool = false,
     overall_confidence: ?Confidence = null,
 
@@ -108,6 +111,12 @@ pub const ReasoningChain = struct {
         _ = self;
         return allocator.dupe(u8, "Reasoning is disabled");
     }
+};
+
+// Sub-module stub matching mod.zig's `pub const engine = @import("engine.zig")`
+pub const engine = struct {
+    pub const ConfidenceLevel = core_types.ConfidenceLevel;
+    pub const Confidence = core_types.Confidence;
 };
 
 pub const Context = struct {

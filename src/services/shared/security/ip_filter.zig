@@ -324,7 +324,7 @@ pub const IpFilter = struct {
             .blocked_ranges = std.ArrayListUnmanaged(BlockedRange).empty,
             .allowlist = std.ArrayListUnmanaged(IpAddress).empty,
             .allowed_ranges = std.ArrayListUnmanaged(CidrRange).empty,
-            .violations = std.AutoHashMapUnmanaged(u128, ViolationInfo){},
+            .violations = std.AutoHashMapUnmanaged(u128, ViolationInfo).empty,
             .stats = .{},
             .mutex = .{},
         };
