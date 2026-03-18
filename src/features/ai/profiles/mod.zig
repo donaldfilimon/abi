@@ -132,9 +132,39 @@ pub fn ProfileSystem(comptime Config: type) type {
         }
 
         pub fn process(self: *Self, request: types.ProfileRequest) !types.ProfileResponse {
-            _ = self;
-            _ = request;
-            return error.NotImplemented; // Stubbed for close-out wave
+            // 1. If the request explicitly specifies a profile, honour it.
+            //    Otherwise use the Abi router to choose one.
+            const target_profile: types.ProfileType = if (request.preferred_profile) |pref|
+                pref
+            else blk: {
+                var decision = try self.router.route(request);
+                defer @constCast(&decision).deinit(self.allocator);
+
+                // Safety violation — refuse immediately.
+                if (!decision.policy_flags.is_safe) {
+                    return types.ProfileResponse{
+                        .content = try self.allocator.dupe(u8, "Request blocked by safety policy."),
+                        .profile = .abi,
+                        .confidence = 1.0,
+                    };
+                }
+
+                break :blk decision.selected_profile;
+            };
+
+            // 2. Look up the profile implementation in the registry.
+            if (self.ctx.getProfile(target_profile)) |profile_impl| {
+                return profile_impl.process(request);
+            }
+
+            // 3. Fallback — no implementation registered for the chosen
+            //    profile.  Return a minimal acknowledgement so callers
+            //    always receive a valid response.
+            return types.ProfileResponse{
+                .content = try self.allocator.dupe(u8, "No profile handler registered for the selected profile."),
+                .profile = target_profile,
+                .confidence = 0.0,
+            };
         }
     };
 }
@@ -177,9 +207,27 @@ pub const MultiProfileSystem = struct {
     };
 
     pub fn process(self: *MultiProfileSystem, request: types.ProfileRequest) !types.ProfileResponse {
-        _ = self;
-        _ = request;
-        return error.NotImplemented;
+        // 1. Determine target profile: explicit preference > default (.abbey).
+        const target_profile: types.ProfileType = request.preferred_profile orelse .abbey;
+
+        // 2. Look up the profile implementation.
+        if (self.ctx.getProfile(target_profile)) |profile_impl| {
+            return profile_impl.process(request);
+        }
+
+        // 3. Fallback: try any registered profile.
+        if (self.ctx.registry.getAnyProfileType()) |fallback_type| {
+            if (self.ctx.getProfile(fallback_type)) |fallback_impl| {
+                return fallback_impl.process(request);
+            }
+        }
+
+        // 4. No profiles registered at all — return a minimal response.
+        return types.ProfileResponse{
+            .content = try self.allocator.dupe(u8, "No profile handler available."),
+            .profile = target_profile,
+            .confidence = 0.0,
+        };
     }
 
     pub fn getMetrics(self: *MultiProfileSystem) ?*MetricsManager {
