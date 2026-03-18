@@ -165,8 +165,11 @@ fn runVector(io: std.Io, allocator: std.mem.Allocator, abi_bin_path: []const u8,
     child_args[0] = abi_bin_path;
     @memcpy(child_args[1..], vector.args);
 
-    const start = std.time.Instant.now() catch null;
     const deadline_ns = vector.timeout.toNs();
+
+    // Record start time via POSIX clock_gettime (Zig 0.16 compatible)
+    var start_ts: std.c.timespec = undefined;
+    _ = std.c.clock_gettime(.MONOTONIC, &start_ts);
 
     var child = try std.process.spawn(io, .{
         .argv = child_args,
@@ -181,21 +184,18 @@ fn runVector(io: std.Io, allocator: std.mem.Allocator, abi_bin_path: []const u8,
     };
 
     // Check if we exceeded the timeout deadline (advisory reporting).
-    // The child has already exited at this point — `child.wait()` is blocking.
-    // We report the timeout as a failure so CI can flag slow vectors.
-    if (start) |s| {
-        const elapsed = std.time.Instant.now() catch null;
-        if (elapsed) |e| {
-            const elapsed_ns = e.since(s);
-            if (elapsed_ns > deadline_ns) {
-                std.debug.print("TIMEOUT [{s}] exceeded {d}s deadline (took {d}ms)\n", .{
-                    vector.id,
-                    deadline_ns / std.time.ns_per_s,
-                    elapsed_ns / std.time.ns_per_ms,
-                });
-                return false;
-            }
-        }
+    var end_ts: std.c.timespec = undefined;
+    _ = std.c.clock_gettime(.MONOTONIC, &end_ts);
+    const start_ns: u64 = @intCast(start_ts.sec * std.time.ns_per_s + start_ts.nsec);
+    const end_ns: u64 = @intCast(end_ts.sec * std.time.ns_per_s + end_ts.nsec);
+    const elapsed_ns = end_ns - start_ns;
+    if (elapsed_ns > deadline_ns) {
+        std.debug.print("TIMEOUT [{s}] exceeded {d}s deadline (took {d}ms)\n", .{
+            vector.id,
+            deadline_ns / std.time.ns_per_s,
+            elapsed_ns / std.time.ns_per_ms,
+        });
+        return false;
     }
 
     const succeeded = switch (term) {

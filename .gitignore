@@ -283,6 +283,7 @@ TRASH-FILES.md
 !/docs/plans/*.md
 !/docs/api/*.md
 !/docs/guides/*.md
+!/docs/superpowers/**/*.md
 
 # Subsystem docs
 !/benchmarks/README.md
