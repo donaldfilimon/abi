@@ -4,8 +4,11 @@ description: Generated implementation plan
 ---
 
 # Docs + Assistant Canonical Sync
+
+> **Status Update (2026-03-18):** Superseded by 18-phase restructuring. Most milestones completed in commit 04002b79.
+
 ## Status
-- Status: **In Progress**
+- Status: **Complete**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
@@ -28,17 +31,17 @@ Canonical docs wave: align AGENTS.md, zig-master, tasks/todo.md, root status doc
 
 
 ## Milestones
-- Update roadmap catalog metadata first, then regenerate docs/plans outputs with --no-wasm --untracked-md.
-- Collapse active execution tracking into tasks/todo.md and archive or demote overlapping root/task status files.
-- Rewrite assistant-facing docs so CLAUDE.md and GEMINI.md become wrappers around AGENTS.md plus zig-master.
-- Close the wave with docs drift checks, strict workflow orchestration checks, and the zig-master verification sequence.
+- [x] Update roadmap catalog metadata first, then regenerate docs/plans outputs with --no-wasm --untracked-md.
+- [x] Collapse active execution tracking into tasks/todo.md and archive or demote overlapping root/task status files.
+- [x] Rewrite assistant-facing docs so CLAUDE.md and GEMINI.md become wrappers around AGENTS.md plus zig-master.
+- [x] Close the wave with docs drift checks, strict workflow orchestration checks, and the zig-master verification sequence.
 
 
 ## Related Roadmap Items
 
 | ID | Item | Track | Horizon | Status | Gate |
 | -- | --- | --- | --- | --- | --- |
-| RM-001 | Complete canonical docs and assistant contract sync | Docs | Now | In Progress | zig build gendocs -- --check --no-wasm --untracked-md ; zig build check-docs |
+| RM-001 | Complete canonical docs and assistant contract sync | Docs | Now | Complete | zig build gendocs -- --check --no-wasm --untracked-md ; zig build check-docs |
 | RM-005 | Docs v3 pipeline baseline established | Docs | Now | Done | zig build check-docs |
 | RM-011 | Launch developer education track | Docs | Later | Planned | zig build check-docs |
 

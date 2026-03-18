@@ -4,8 +4,11 @@ description: Generated implementation plan
 ---
 
 # TUI Modular Extraction v2
+
+> **Status Update (2026-03-18):** Superseded by 18-phase restructuring. All milestones completed in commit 04002b79.
+
 ## Status
-- Status: **In Progress**
+- Status: **Complete**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
@@ -27,16 +30,16 @@ Wave 2 active lane: complete modular extraction, enforce layout/input correctnes
 
 
 ## Milestones
-- Wave 2A: complete launcher/dashboard extraction onto shared render/layout primitives.
-- Wave 2B: close input routing and focus-state correctness gaps.
-- Wave 2C: expand unit and integration-style TUI tests for layout and hit-testing.
+- [x] Wave 2A: complete launcher/dashboard extraction onto shared render/layout primitives.
+- [x] Wave 2B: close input routing and focus-state correctness gaps.
+- [x] Wave 2C: expand unit and integration-style TUI tests for layout and hit-testing.
 
 
 ## Related Roadmap Items
 
 | ID | Item | Track | Horizon | Status | Gate |
 | -- | --- | --- | --- | --- | --- |
-| RM-004 | Finish TUI modular extraction | CLI/TUI | Now | In Progress | zig build cli-tests ; zig build tui-tests ; zig build run -- ui launch --help ; zig build run -- ui gpu --help |
+| RM-004 | Finish TUI modular extraction | CLI/TUI | Now | Complete | zig build cli-tests ; zig build tui-tests ; zig build run -- ui launch --help ; zig build run -- ui gpu --help |
 
 Roadmap guide: [../roadmap/](../roadmap/)
 
