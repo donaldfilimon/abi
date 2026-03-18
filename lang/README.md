@@ -2,10 +2,102 @@
 
 High-level language bindings for the ABI framework.
 
-## Status
+## Available Bindings
 
-This directory is reserved for future bindings targeting languages such as
-Python, JavaScript/TypeScript, and others. Contributions are welcome.
+### Swift (`lang/swift/`)
+
+Swift Package Manager library targeting iOS 15+ and macOS 13+.
+
+**Supported platforms:** iOS, macOS (any platform with Swift 5.9+).
+
+**Setup:**
+
+Add the package as a local dependency in your `Package.swift`:
+
+```swift
+.package(path: "/path/to/abi/lang/swift")
+```
+
+Or reference it as a dependency in Xcode via *File > Add Package Dependencies*.
+
+**Usage:**
+
+```swift
+import ABI
+
+// Framework
+let framework = try ABI()
+print("Version: \(ABI.version)")
+
+// Mobile
+let mobile = try MobileContext()
+let accel = try mobile.readSensor(.accelerometer)
+print("Accel: \(accel.values)")
+
+let info = try mobile.getDeviceInfo()
+print("Device: \(info.deviceModel)")
+
+mobile.requestPermission(.camera)
+try mobile.sendNotification(title: "Hello", body: "World", priority: .high)
+```
+
+**Build requirements:** The `libabi` static/shared library must be built
+first (`zig build`) and available on the linker search path.
+
+---
+
+### Kotlin/JNI (`lang/kotlin/`)
+
+Android library module with JNI glue for the ABI C API.
+
+**Supported platforms:** Android (minSdk 26, NDK required).
+
+**Gradle setup:**
+
+Include the module in your Android project's `settings.gradle.kts`:
+
+```kotlin
+include(":abi")
+project(":abi").projectDir = File("/path/to/abi/lang/kotlin")
+```
+
+Then add the dependency:
+
+```kotlin
+dependencies {
+    implementation(project(":abi"))
+}
+```
+
+**Usage:**
+
+```kotlin
+import com.abi.*
+
+// Framework
+ABI.init()
+println("Version: ${ABI.version()}")
+
+// Mobile
+MobileContext().use { mobile ->
+    val accel = mobile.readSensor(SensorType.ACCELEROMETER)
+    println("Accel: ${accel.values.toList()}")
+
+    val info = mobile.getDeviceInfo()
+    println("Device: ${info.deviceModel}")
+
+    mobile.requestPermission(PermissionType.CAMERA)
+    mobile.sendNotification("Hello", "World", NotificationPriority.HIGH)
+}
+
+ABI.shutdown()
+```
+
+**Build requirements:** Android NDK, CMake 3.22+, and the pre-built `libabi`
+shared library placed in `zig-out/lib/` (or adjust the path in
+`build.gradle.kts`).
+
+---
 
 ## Existing Low-Level Bindings
 

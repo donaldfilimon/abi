@@ -916,6 +916,148 @@ static inline void abi_plugin_descriptor_init(abi_plugin_descriptor_t *desc) {
     desc->num_capabilities = 0;
 }
 
+/* ============================================================================
+ * Mobile
+ * ============================================================================ */
+
+/** Opaque mobile context handle. */
+typedef struct abi_mobile_context abi_mobile_context_t;
+
+/**
+ * Sensor data returned by abi_mobile_read_sensor.
+ */
+typedef struct {
+    uint64_t timestamp_ms;
+    float values[3];
+} abi_sensor_data_t;
+
+/**
+ * Device information returned by abi_mobile_get_device_info.
+ */
+typedef struct {
+    uint32_t screen_width;
+    uint32_t screen_height;
+    float battery_level;
+    bool is_charging;
+    const char *platform;
+    const char *os_version;
+    const char *device_model;
+} abi_device_info_t;
+
+/** Sensor type constants for abi_mobile_read_sensor. */
+#define ABI_SENSOR_ACCELEROMETER  0
+#define ABI_SENSOR_GYROSCOPE      1
+#define ABI_SENSOR_MAGNETOMETER   2
+#define ABI_SENSOR_GPS            3
+#define ABI_SENSOR_BAROMETER      4
+#define ABI_SENSOR_PROXIMITY      5
+#define ABI_SENSOR_LIGHT          6
+
+/** Permission type constants for abi_mobile_check/request_permission. */
+#define ABI_PERMISSION_CAMERA        0
+#define ABI_PERMISSION_MICROPHONE    1
+#define ABI_PERMISSION_LOCATION      2
+#define ABI_PERMISSION_NOTIFICATIONS 3
+#define ABI_PERMISSION_STORAGE       4
+#define ABI_PERMISSION_CONTACTS      5
+#define ABI_PERMISSION_BLUETOOTH     6
+
+/** Permission status constants. */
+#define ABI_PERM_GRANTED       0
+#define ABI_PERM_DENIED        1
+#define ABI_PERM_NOT_REQUESTED 2
+
+/** Notification priority constants. */
+#define ABI_NOTIFY_LOW      0
+#define ABI_NOTIFY_NORMAL   1
+#define ABI_NOTIFY_HIGH     2
+#define ABI_NOTIFY_CRITICAL 3
+
+/**
+ * Initialize a mobile context.
+ *
+ * Requires the mobile feature to be enabled at compile time.
+ *
+ * @param[out] ctx Pointer to receive the mobile context handle.
+ * @return ABI_OK on success, or an error code on failure.
+ *
+ * @see abi_mobile_destroy
+ */
+int abi_mobile_init(abi_mobile_context_t **ctx);
+
+/**
+ * Destroy a mobile context and release all resources.
+ *
+ * @param ctx Mobile context handle. May be NULL (no-op).
+ */
+void abi_mobile_destroy(abi_mobile_context_t *ctx);
+
+/**
+ * Read a sensor value.
+ *
+ * @param ctx Mobile context handle.
+ * @param sensor_type Sensor type (ABI_SENSOR_* constant).
+ * @param[out] out Pointer to receive sensor data.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_mobile_read_sensor(abi_mobile_context_t *ctx, int sensor_type,
+                           abi_sensor_data_t *out);
+
+/**
+ * Send a notification.
+ *
+ * @param ctx Mobile context handle.
+ * @param title Null-terminated notification title.
+ * @param body Null-terminated notification body.
+ * @param priority Notification priority (ABI_NOTIFY_* constant).
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_mobile_send_notification(abi_mobile_context_t *ctx, const char *title,
+                                 const char *body, int priority);
+
+/**
+ * Get device information.
+ *
+ * @param ctx Mobile context handle.
+ * @param[out] out Pointer to receive device info.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_mobile_get_device_info(abi_mobile_context_t *ctx,
+                               abi_device_info_t *out);
+
+/**
+ * Check the status of a permission.
+ *
+ * @param ctx Mobile context handle.
+ * @param permission Permission type (ABI_PERMISSION_* constant).
+ * @return ABI_PERM_* status constant, or ABI_PERM_NOT_REQUESTED on error.
+ */
+int abi_mobile_check_permission(abi_mobile_context_t *ctx, int permission);
+
+/**
+ * Request a permission.
+ *
+ * @param ctx Mobile context handle.
+ * @param permission Permission type (ABI_PERMISSION_* constant).
+ * @return ABI_PERM_* status constant after the request.
+ */
+int abi_mobile_request_permission(abi_mobile_context_t *ctx, int permission);
+
+/**
+ * Get the number of tracked notifications.
+ *
+ * @param ctx Mobile context handle.
+ * @return Notification count, or 0 if ctx is NULL.
+ */
+int abi_mobile_get_notification_count(abi_mobile_context_t *ctx);
+
+/**
+ * Clear all tracked notifications.
+ *
+ * @param ctx Mobile context handle. May be NULL (no-op).
+ */
+void abi_mobile_clear_notifications(abi_mobile_context_t *ctx);
+
 #ifdef __cplusplus
 }
 #endif

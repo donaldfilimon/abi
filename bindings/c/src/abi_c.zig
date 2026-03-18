@@ -959,6 +959,270 @@ export fn abi_agent_get_name(agent: ?*AgentHandle) [*:0]const u8 {
 }
 
 // ============================================================================
+// Mobile Operations
+// ============================================================================
+
+/// Opaque mobile context handle
+const MobileHandle = opaque {};
+
+/// Mobile context wrapper
+const MobileWrapper = struct {
+    context: if (build_options.feat_mobile) *abi.mobile.Context else void,
+    allocator: std.mem.Allocator,
+};
+
+/// Sensor data (C layout)
+const CSensorData = extern struct {
+    timestamp_ms: u64 = 0,
+    values: [3]f32 = .{ 0, 0, 0 },
+};
+
+/// Device info (C layout)
+const CDeviceInfo = extern struct {
+    screen_width: u32 = 0,
+    screen_height: u32 = 0,
+    battery_level: f32 = 0,
+    is_charging: bool = false,
+    platform: [*:0]const u8 = "unknown",
+    os_version: [*:0]const u8 = "unknown",
+    device_model: [*:0]const u8 = "unknown",
+};
+
+/// C-compatible permission status codes
+const ABI_PERM_GRANTED: c_int = 0;
+const ABI_PERM_DENIED: c_int = 1;
+const ABI_PERM_NOT_REQUESTED: c_int = 2;
+
+/// Map mobile errors to C error codes.
+fn mapMobileError(err: anyerror) c_int {
+    return switch (err) {
+        error.OutOfMemory => ABI_ERROR_OUT_OF_MEMORY,
+        error.FeatureDisabled => ABI_ERROR_FEATURE_DISABLED,
+        error.PlatformNotSupported => ABI_ERROR_INVALID_ARGUMENT,
+        error.SensorUnavailable => ABI_ERROR_INVALID_ARGUMENT,
+        error.NotificationFailed => ABI_ERROR_IO,
+        error.PermissionDenied => ABI_ERROR_INVALID_ARGUMENT,
+        else => ABI_ERROR_UNKNOWN,
+    };
+}
+
+/// Map C permission int to Zig Permission enum.
+fn mapCPermission(permission: c_int) ?abi.mobile.Permission {
+    return switch (permission) {
+        0 => .camera,
+        1 => .microphone,
+        2 => .location,
+        3 => .notifications,
+        4 => .storage,
+        5 => .contacts,
+        6 => .bluetooth,
+        else => null,
+    };
+}
+
+/// Map Zig PermissionStatus to C int.
+fn mapPermissionStatus(status: abi.mobile.PermissionStatus) c_int {
+    return switch (status) {
+        .granted => ABI_PERM_GRANTED,
+        .denied => ABI_PERM_DENIED,
+        .not_requested => ABI_PERM_NOT_REQUESTED,
+    };
+}
+
+/// Initialize a mobile context.
+export fn abi_mobile_init(out: *?*MobileHandle) c_int {
+    if (!build_options.feat_mobile) {
+        return ABI_ERROR_FEATURE_DISABLED;
+    }
+
+    out.* = null;
+
+    const wrapper = c_allocator.create(MobileWrapper) catch {
+        return ABI_ERROR_OUT_OF_MEMORY;
+    };
+    errdefer c_allocator.destroy(wrapper);
+
+    if (comptime build_options.feat_mobile) {
+        const ctx = abi.mobile.Context.init(c_allocator, .{}) catch |e| {
+            c_allocator.destroy(wrapper);
+            return mapMobileError(e);
+        };
+        wrapper.* = .{
+            .context = ctx,
+            .allocator = c_allocator,
+        };
+    }
+
+    out.* = @ptrCast(wrapper);
+    return ABI_OK;
+}
+
+/// Destroy a mobile context.
+export fn abi_mobile_destroy(ctx: ?*MobileHandle) void {
+    if (ctx) |c| {
+        const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+        if (comptime build_options.feat_mobile) {
+            wrapper.context.deinit();
+        }
+        wrapper.allocator.destroy(wrapper);
+    }
+}
+
+/// Read a sensor value.
+export fn abi_mobile_read_sensor(
+    ctx: ?*MobileHandle,
+    sensor_type: c_int,
+    out: *CSensorData,
+) c_int {
+    if (!build_options.feat_mobile) {
+        return ABI_ERROR_FEATURE_DISABLED;
+    }
+
+    const c = ctx orelse return ABI_ERROR_NOT_INITIALIZED;
+    const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+
+    const st: abi.mobile.SensorType = switch (sensor_type) {
+        0 => .accelerometer,
+        1 => .gyroscope,
+        2 => .magnetometer,
+        3 => .gps,
+        4 => .barometer,
+        5 => .proximity,
+        6 => .light,
+        else => return ABI_ERROR_INVALID_ARGUMENT,
+    };
+
+    const data = wrapper.context.readSensor(st) catch |e| {
+        return mapMobileError(e);
+    };
+
+    out.* = .{
+        .timestamp_ms = data.timestamp_ms,
+        .values = data.values,
+    };
+    return ABI_OK;
+}
+
+/// Send a notification.
+export fn abi_mobile_send_notification(
+    ctx: ?*MobileHandle,
+    title: [*:0]const u8,
+    body_text: [*:0]const u8,
+    priority: c_int,
+) c_int {
+    if (!build_options.feat_mobile) {
+        return ABI_ERROR_FEATURE_DISABLED;
+    }
+
+    const c = ctx orelse return ABI_ERROR_NOT_INITIALIZED;
+    const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+
+    const prio: abi.mobile.Notification.Priority = switch (priority) {
+        0 => .low,
+        1 => .normal,
+        2 => .high,
+        3 => .critical,
+        else => return ABI_ERROR_INVALID_ARGUMENT,
+    };
+
+    wrapper.context.sendNotification(
+        std.mem.sliceTo(title, 0),
+        std.mem.sliceTo(body_text, 0),
+        prio,
+    ) catch |e| {
+        return mapMobileError(e);
+    };
+
+    return ABI_OK;
+}
+
+/// Get device information.
+export fn abi_mobile_get_device_info(
+    ctx: ?*MobileHandle,
+    out: *CDeviceInfo,
+) c_int {
+    if (!build_options.feat_mobile) {
+        return ABI_ERROR_FEATURE_DISABLED;
+    }
+
+    const c = ctx orelse return ABI_ERROR_NOT_INITIALIZED;
+    const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+
+    const info = wrapper.context.getDeviceInfo();
+
+    out.* = .{
+        .screen_width = info.screen_width,
+        .screen_height = info.screen_height,
+        .battery_level = info.battery_level,
+        .is_charging = info.is_charging,
+        .platform = switch (info.platform) {
+            .ios => "ios",
+            .android => "android",
+            .auto => "auto",
+        },
+        .os_version = @ptrCast(info.os_version.ptr),
+        .device_model = @ptrCast(info.device_model.ptr),
+    };
+    return ABI_OK;
+}
+
+/// Check permission status.
+export fn abi_mobile_check_permission(
+    ctx: ?*MobileHandle,
+    permission: c_int,
+) c_int {
+    if (!build_options.feat_mobile) {
+        return ABI_PERM_NOT_REQUESTED;
+    }
+
+    const c = ctx orelse return ABI_PERM_NOT_REQUESTED;
+    const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+    const perm = mapCPermission(permission) orelse return ABI_PERM_NOT_REQUESTED;
+
+    return mapPermissionStatus(wrapper.context.checkPermission(perm));
+}
+
+/// Request a permission.
+export fn abi_mobile_request_permission(
+    ctx: ?*MobileHandle,
+    permission: c_int,
+) c_int {
+    if (!build_options.feat_mobile) {
+        return ABI_PERM_NOT_REQUESTED;
+    }
+
+    const c = ctx orelse return ABI_PERM_NOT_REQUESTED;
+    const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+    const perm = mapCPermission(permission) orelse return ABI_PERM_NOT_REQUESTED;
+
+    return mapPermissionStatus(wrapper.context.requestPermission(perm));
+}
+
+/// Get tracked notification count.
+export fn abi_mobile_get_notification_count(ctx: ?*MobileHandle) c_int {
+    if (!build_options.feat_mobile) {
+        return 0;
+    }
+
+    const c = ctx orelse return 0;
+    const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+
+    return @intCast(wrapper.context.getNotificationCount());
+}
+
+/// Clear all tracked notifications.
+export fn abi_mobile_clear_notifications(ctx: ?*MobileHandle) void {
+    if (!build_options.feat_mobile) {
+        return;
+    }
+
+    if (ctx) |c| {
+        const wrapper: *MobileWrapper = @ptrCast(@alignCast(c));
+        wrapper.context.clearNotifications();
+    }
+}
+
+// ============================================================================
 // Memory Management Exports
 // ============================================================================
 
