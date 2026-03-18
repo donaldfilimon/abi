@@ -5,6 +5,7 @@
 //! - **hnsw**: HNSW index construction and search
 //! - **operations**: Insert, query, update, delete operations
 //! - **ann_benchmarks**: ANN-Benchmarks compatible suite
+//! - **persistence**: SegmentLog append, WAL flush/recover, RLE compression
 //!
 //! ## Usage
 //!
@@ -25,6 +26,7 @@ const framework = @import("../../system/framework.zig");
 pub const hnsw = @import("hnsw.zig");
 pub const operations = @import("operations.zig");
 pub const ann_benchmarks = @import("ann_benchmarks.zig");
+pub const persistence = @import("persistence.zig");
 
 // Re-export common types
 pub const SearchResult = hnsw.SearchResult;
@@ -78,6 +80,9 @@ pub fn runAllBenchmarks(allocator: std.mem.Allocator, preset: ConfigPreset) !voi
         ann_benchmarks.printResults(ann_results);
     }
 
+    // Run persistence benchmarks
+    try persistence.runPersistenceBenchmarks(allocator, config);
+
     std.debug.print("\n================================================================================\n", .{});
     std.debug.print("                    DATABASE BENCHMARKS COMPLETE\n", .{});
     std.debug.print("================================================================================\n", .{});
@@ -87,10 +92,12 @@ pub fn runAllBenchmarks(allocator: std.mem.Allocator, preset: ConfigPreset) !voi
 pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, config: core.config.DatabaseBenchConfig) !void {
     try operations.runOperationsBenchmarks(allocator, config);
     try hnsw.runHnswBenchmarks(allocator, config);
+    try persistence.runPersistenceBenchmarks(allocator, config);
 }
 
 test {
     _ = hnsw;
     _ = operations;
     _ = ann_benchmarks;
+    _ = persistence;
 }
