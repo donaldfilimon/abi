@@ -35,14 +35,30 @@ pub const PagedKVCache = struct {
         const page_data_size = config.page_size * config.num_heads * config.head_dim * 2;
         const pages = try allocator.alloc(Page, config.num_pages);
 
+        // Pre-allocate free_pages to full capacity so appends during free() are
+        // guaranteed not to fail (issue #3: silent memory leak prevention).
         var free_pages = std.ArrayListUnmanaged(u32).empty;
+        try free_pages.ensureTotalCapacity(allocator, config.num_pages);
         errdefer free_pages.deinit(allocator);
+
+        // Track how many pages have been allocated so we can clean up on error
+        // (issue #2: missing errdefer for previously allocated page data).
+        var allocated_count: usize = 0;
+        errdefer {
+            for (pages[0..allocated_count]) |page| {
+                allocator.free(page.data);
+            }
+            allocator.free(pages);
+        }
+
         for (pages, 0..) |*page, i| {
             page.data = try allocator.alloc(f32, page_data_size);
+            allocated_count += 1;
             @memset(page.data, 0.0);
             page.used_tokens = 0;
             page.seq_id = null;
-            try free_pages.append(allocator, @intCast(i));
+            // Capacity is pre-allocated so this cannot fail.
+            free_pages.appendAssumeCapacity(@intCast(i));
         }
 
         return .{
@@ -57,6 +73,8 @@ pub const PagedKVCache = struct {
 
     pub fn deinit(self: *Self) void {
         for (self.pages) |page| {
+            // Secure wipe before freeing to prevent sensitive data leakage.
+            std.crypto.secureZero(f32, page.data);
             self.allocator.free(page.data);
         }
         self.allocator.free(self.pages);
@@ -79,7 +97,7 @@ pub const PagedKVCache = struct {
         }
 
         for (0..pages_needed) |_| {
-            const page_id = self.free_pages.pop();
+            const page_id = self.free_pages.popOrNull() orelse return error.OutOfPages;
             self.pages[page_id].seq_id = seq_id;
             self.pages[page_id].used_tokens = 0;
             try entry.value_ptr.append(self.allocator, page_id);
@@ -92,11 +110,13 @@ pub const PagedKVCache = struct {
         if (self.seq_pages.fetchRemove(seq_id)) |kv| {
             var page_list = kv.value;
             for (page_list.items) |page_id| {
+                // Secure wipe page data before returning to free list (issue #4).
+                std.crypto.secureZero(f32, self.pages[page_id].data);
                 self.pages[page_id].seq_id = null;
                 self.pages[page_id].used_tokens = 0;
-                self.free_pages.append(self.allocator, page_id) catch |err| {
-                    std.log.err("KV cache page {d} leaked — free list append failed: {t}", .{ page_id, err });
-                };
+                // Capacity was pre-allocated in init() to hold all pages, so
+                // this cannot fail (issue #3: silent memory leak prevention).
+                self.free_pages.appendAssumeCapacity(page_id);
             }
             page_list.deinit(self.allocator);
         }
