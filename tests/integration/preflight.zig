@@ -32,6 +32,7 @@ pub const PreflightReport = struct {
     gpu_backend: CheckResult,
     git: CheckResult,
     curl: CheckResult,
+    run_build_sh: CheckResult,
     env_openai: CheckResult,
     env_anthropic: CheckResult,
     env_ollama_host: CheckResult,
@@ -179,6 +180,19 @@ fn checkEnvVar(allocator: std.mem.Allocator, io: std.Io, name: []const u8) Check
     return .{ .name = name, .status = .missing, .detail = "UNSET" };
 }
 
+fn checkRunBuildSh(io: std.Io) CheckResult {
+    if (util.fileExists(io, "tools/scripts/run_build.sh")) {
+        if (is_blocked_darwin) {
+            return .{ .name = "run_build.sh", .status = .ok, .detail = "present (required for Darwin pipeline)" };
+        }
+        return .{ .name = "run_build.sh", .status = .ok, .detail = "present" };
+    }
+    if (is_blocked_darwin) {
+        return .{ .name = "run_build.sh", .status = .missing, .detail = "NOT FOUND — required on blocked Darwin for linking" };
+    }
+    return .{ .name = "run_build.sh", .status = .degraded, .detail = "not found (optional on this platform)" };
+}
+
 fn checkNetwork(allocator: std.mem.Allocator, io: std.Io) CheckResult {
     // Probe whether curl is available as a proxy for network tooling
     const has_curl = util.commandExists(allocator, io, "curl") catch false;
@@ -199,6 +213,7 @@ fn buildReport(allocator: std.mem.Allocator, io: std.Io) PreflightReport {
         .gpu_backend = checkGpuBackend(allocator, io),
         .git = checkTool(allocator, io, "git"),
         .curl = checkTool(allocator, io, "curl"),
+        .run_build_sh = checkRunBuildSh(io),
         .env_openai = checkEnvVar(allocator, io, "ABI_OPENAI_API_KEY"),
         .env_anthropic = checkEnvVar(allocator, io, "ABI_ANTHROPIC_API_KEY"),
         .env_ollama_host = checkEnvVar(allocator, io, "ABI_OLLAMA_HOST"),
@@ -247,6 +262,7 @@ fn printReport(report: PreflightReport) void {
     printSection("Tools", &.{
         report.git,
         report.curl,
+        report.run_build_sh,
     });
 
     printSection("Environment Variables", &.{
@@ -279,9 +295,38 @@ fn printReport(report: PreflightReport) void {
     }
 }
 
+// ── JSON Output ─────────────────────────────────────────────────────────
+
+fn printJsonReport(report: PreflightReport) void {
+    std.debug.print("{{", .{});
+    std.debug.print("\"overall\":\"{s}\",", .{report.overallStatus().label()});
+    std.debug.print("\"ok\":{d},\"missing\":{d},\"degraded\":{d},", .{
+        report.countByStatus(.ok),
+        report.countByStatus(.missing),
+        report.countByStatus(.degraded),
+    });
+    std.debug.print("\"checks\":[", .{});
+    var first = true;
+    inline for (@typeInfo(PreflightReport).@"struct".fields) |f| {
+        const result: CheckResult = @field(report, f.name);
+        if (!first) std.debug.print(",", .{});
+        first = false;
+        std.debug.print("{{\"name\":\"{s}\",\"status\":\"{s}\",\"detail\":\"{s}\"}}", .{
+            result.name,
+            result.status.label(),
+            result.detail,
+        });
+    }
+    std.debug.print("]}}\n", .{});
+}
+
 // ── Entrypoint ──────────────────────────────────────────────────────────
 
-pub fn main(_: std.process.Init) !void {
+/// Exit codes:
+///   0 = all checks OK
+///   1 = blocked (critical tool missing — e.g. zig binary or run_build.sh on Darwin)
+///   2 = degraded (some features unavailable but tests can run)
+pub fn main(init: std.process.Init) !void {
     var gpa_state = std.heap.DebugAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
@@ -290,13 +335,31 @@ pub fn main(_: std.process.Init) !void {
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const report = buildReport(allocator, io);
-    printReport(report);
+    // Parse arguments for --json flag.
+    var json_mode = false;
+    var args_iter = try std.process.Args.Iterator.initAllocator(init.args, allocator);
+    defer args_iter.deinit();
+    _ = args_iter.next(); // skip binary name
+    while (args_iter.next()) |arg| {
+        if (std.mem.eql(u8, arg, "--json")) {
+            json_mode = true;
+        }
+    }
 
-    // Exit non-zero only when zig itself is missing (hard blocker).
-    // Missing env vars or degraded platform are informational — they
-    // reduce coverage but do not prevent all integration tests.
-    if (report.zig_binary.status == .missing) {
-        std.process.exit(1);
+    const report = buildReport(allocator, io);
+
+    if (json_mode) {
+        printJsonReport(report);
+    } else {
+        printReport(report);
+    }
+
+    // Distinct exit codes based on overall status:
+    //   0 = OK, 1 = blocked (missing critical), 2 = degraded
+    const overall = report.overallStatus();
+    switch (overall) {
+        .missing => std.process.exit(1),
+        .degraded => std.process.exit(2),
+        .ok => {},
     }
 }
