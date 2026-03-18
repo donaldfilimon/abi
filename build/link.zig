@@ -3,6 +3,12 @@ const gpu_mod = @import("gpu.zig");
 
 const GpuBackend = gpu_mod.GpuBackend;
 
+/// Minimum macOS deployment target for Darwin relink operations.
+/// This is the last macOS version where Zig's built-in Mach-O linker works.
+/// Used by darwinRelink() for artifact linking; run_build.sh uses the live
+/// host version instead (since the build runner is a host tool, not a target artifact).
+const darwin_min_deploy_target = "15.0";
+
 // =============================================================================
 // macOS Framework Linking
 // =============================================================================
@@ -361,11 +367,12 @@ pub fn darwinRelink(
     const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
     relink.addArg("-platform_version");
     relink.addArg("macos");
-    // Deployment target 15.0: the last macOS version Zig's linker supports.
-    // This is intentionally the clamped deployment target (matching
-    // resolveNativeTarget), NOT the live host version from sw_vers.
-    relink.addArg("15.0");
-    relink.addArg("15.0");
+    // Clamped deployment target: last macOS version Zig's linker supports.
+    // Intentionally NOT the live host version from sw_vers — artifacts target
+    // the Zig-supported range for consistent behavior across host OS versions.
+    // run_build.sh uses the live host version for the build runner (a host tool).
+    relink.addArg(darwin_min_deploy_target);
+    relink.addArg(darwin_min_deploy_target);
     relink.addArg("-syslibroot");
     relink.addArg(sdk_path);
     relink.addArg("-e");
