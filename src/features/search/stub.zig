@@ -38,6 +38,12 @@ pub fn query(_: std.mem.Allocator, _: []const u8, _: []const u8) SearchError![]S
 pub fn stats() SearchStats {
     return .{};
 }
+pub fn saveIndex(_: std.mem.Allocator, _: []const u8, _: []const u8) SearchError!void {
+    return error.FeatureDisabled;
+}
+pub fn loadIndex(_: std.mem.Allocator, _: []const u8, _: []const u8) SearchError!void {
+    return error.FeatureDisabled;
+}
 
 test {
     std.testing.refAllDecls(@This());
