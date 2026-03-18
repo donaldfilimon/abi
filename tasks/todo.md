@@ -35,7 +35,7 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 - [x] **Distributed Raft V2**: Harden the `abi.network` Raft implementation for production-grade partition tolerance.
 - [ ] **Semantic Store Persistence**: Optimize the WDBX block-chain layout for multi-terabyte vector indices.
 - [ ] **Mobile Native Bridges**: Implement native Swift/Kotlin bridges for iOS and Android high-level UI integration.
-- [ ] **Bare Metal Examples**: Add `examples/embedded/` showing deployment to RISC-V 32 and Thumb bare-metal boards.
+- [x] **Bare Metal Examples**: Add `examples/embedded/` showing deployment to RISC-V 32 and Thumb bare-metal boards. Files already exist: `bare_metal_riscv32.zig`, `bare_metal_thumb.zig`, `mobile.zig`
 - [x] **Import-Rule Guardrail Hardening**: Restored bare `build_options` named imports, normalized AI imports, strengthened `check-imports`.
 - [x] **Import Boundary and Skill Repair Wave**: Repaired Zig 0.16 import cleanup, aligned skills with module boundaries.
 - [x] **Pinned macOS Host-Zig Bootstrap Wave**: Added deterministic host-built Zig bootstrap/discovery path for Darwin.
@@ -46,14 +46,14 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 - **Stage 1** (push + PR triage): COMPLETE — 2 commits pushed, 8 PRs (488-495) closed as superseded
 - **Stage 2** (integration gates): COMPLETE via `run_build.sh full-check` on Darwin 26.4 (all 56 flag combos validated; CI remains authoritative)
 - **Stage 3** (close plans): IN PROGRESS
-- **Stage 4** (Phase 15 roadmap): NOT STARTED
+- **Stage 4** (Phase 15 roadmap): IN PROGRESS
 - **Stage 5** (housekeeping): IN PROGRESS
 
 ## Review
 
-### Current State (2026-03-17)
+### Current State (2026-03-18)
 
-All source code compiles and passes verification via `run_build.sh`. All 56 flag combinations validated. Darwin bootstrap binary (stage3) still pending upstream Zig fix. CLAUDE.md updated with API surface, Darwin workflow, build system breakdown, and testing patterns.
+All source code compiles and passes verification via `run_build.sh`. All 56 flag combinations validated. Darwin bootstrap binary (stage3) still pending upstream Zig fix. CLAUDE.md updated with API surface, Darwin workflow, build system breakdown, and testing patterns. Phase 15 task reconciliation begun: bare metal examples marked complete, stage 4 now in progress.
 
 ### Completed (Archived)
 
