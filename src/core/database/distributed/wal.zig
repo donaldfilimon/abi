@@ -202,6 +202,66 @@ pub const WalWriter = struct {
         return self.header.last_sequence;
     }
 
+    /// Flush the in-memory WAL state to disk at `self.path`.
+    ///
+    /// Serializes the header, entries, and data buffer, then writes the
+    /// entire blob to the file using POSIX I/O.
+    pub fn flush(self: *WalWriter) !void {
+        const serialized = try self.serialize(self.allocator);
+        defer self.allocator.free(serialized);
+
+        const wal_path = self.path[0..self.path_len];
+
+        const fd = std.posix.open(
+            wal_path,
+            .{ .ACCMODE = .WRONLY, .CREAT = true, .TRUNC = true },
+            0o644,
+        ) catch return error.InvalidData;
+        defer std.posix.close(fd);
+
+        var written: usize = 0;
+        while (written < serialized.len) {
+            const n = std.posix.write(fd, serialized[written..]) catch return error.InvalidData;
+            if (n == 0) return error.InvalidData;
+            written += n;
+        }
+
+        self.dirty = false;
+    }
+
+    /// Recover WAL state from the file at `self.path`.
+    ///
+    /// Reads the entire file, then deserializes header + entries + data
+    /// into a fresh WalWriter that is returned to the caller.
+    pub fn recover(allocator: std.mem.Allocator, wal_path: []const u8) !WalWriter {
+        const fd = std.posix.open(
+            wal_path,
+            .{ .ACCMODE = .RDONLY },
+            0,
+        ) catch return error.InvalidData;
+        defer std.posix.close(fd);
+
+        // Determine file size via seek.
+        const end_off = std.posix.lseek(fd, 0, .END) catch return error.InvalidData;
+        const file_size: usize = @intCast(end_off);
+        if (file_size == 0) return error.InvalidData;
+        _ = std.posix.lseek(fd, 0, .SET) catch return error.InvalidData;
+
+        const buffer = try allocator.alloc(u8, file_size);
+        defer allocator.free(buffer);
+
+        var total: usize = 0;
+        while (total < file_size) {
+            const n = std.posix.read(fd, buffer[total..]) catch return error.InvalidData;
+            if (n == 0) return error.InvalidData;
+            total += n;
+        }
+
+        var writer = WalWriter.init(allocator, wal_path, 0);
+        try writer.deserialize(buffer);
+        return writer;
+    }
+
     /// Serialize the WAL to a byte buffer for disk persistence.
     pub fn serialize(self: *const WalWriter, allocator: std.mem.Allocator) ![]u8 {
         const header_size = @sizeOf(WalHeader);
@@ -512,6 +572,35 @@ test "ReplicationState lag calculation" {
     try std.testing.expectEqual(@as(u64, 7), state.getReplicationLag(2, 10));
     // Lag for unknown peer => full lag (current_seq - 0)
     try std.testing.expectEqual(@as(u64, 10), state.getReplicationLag(99, 10));
+}
+
+test "WalWriter flush and recover from file" {
+    const allocator = std.testing.allocator;
+    const tmp_path = "/tmp/abi_wal_flush_test.wal";
+
+    // Clean up any leftover file.
+    std.posix.unlink(tmp_path) catch {};
+
+    {
+        var wal = WalWriter.init(allocator, tmp_path, 7);
+        defer wal.deinit();
+
+        try wal.appendInsert(200, 2, &[_]f32{ 10.0, 20.0 });
+        try wal.appendDelete(200);
+        try wal.flush();
+    }
+
+    // Recover from disk.
+    var recovered = try WalWriter.recover(allocator, tmp_path);
+    defer recovered.deinit();
+
+    try std.testing.expectEqual(@as(u64, 7), recovered.header.node_id);
+    try std.testing.expectEqual(@as(u64, 2), recovered.entryCount());
+    try std.testing.expectEqual(@as(u64, 200), recovered.entries.items[0].vector_id);
+    try std.testing.expectEqual(WalEntryType.delete, recovered.entries.items[1].entry_type);
+
+    // Cleanup.
+    std.posix.unlink(tmp_path) catch {};
 }
 
 test {

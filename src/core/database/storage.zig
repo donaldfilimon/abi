@@ -737,6 +737,121 @@ fn writeVectorBlocks(
     try flushWriteBuffer(file, io, write_buffer, &buffer_pos, state);
 }
 
+// ============================================================================
+// HNSW Graph Persistence
+// ============================================================================
+
+/// Serialised HNSW graph data passed to the save path.
+pub const HnswGraphData = struct {
+    /// Entry point node ID.
+    entry_point: u32,
+    /// Maximum layer in the graph.
+    max_layer: u32,
+    /// Per-node neighbor lists.  Outer slice is indexed by node id,
+    /// inner slice contains neighbor node ids.
+    neighbors: []const []const u32,
+};
+
+/// Write a vector_index (0x03) block containing a serialised HNSW graph.
+///
+/// On-disk layout:
+///   [block type u8][reserved 3 bytes][entry_point u32 LE][max_layer u32 LE]
+///   [node_count u32 LE]
+///   for each node:
+///     [neighbor_count u32 LE][neighbor_id u32 LE ...]
+fn writeHnswBlock(
+    file: anytype,
+    io: anytype,
+    hnsw: HnswGraphData,
+    state: *SaveState,
+) !void {
+    // Block header: type + 3 reserved + entry_point + max_layer + node_count = 16 bytes
+    var blk_header: [16]u8 = .{0} ** 16;
+    blk_header[0] = @intFromEnum(BlockType.vector_index);
+    std.mem.writeInt(u32, blk_header[4..8], hnsw.entry_point, .little);
+    std.mem.writeInt(u32, blk_header[8..12], hnsw.max_layer, .little);
+    std.mem.writeInt(u32, blk_header[12..16], @intCast(hnsw.neighbors.len), .little);
+
+    try file.writeStreamingAll(io, &blk_header);
+    state.updateData(&blk_header);
+
+    // Write per-node neighbor lists.
+    for (hnsw.neighbors) |nbrs| {
+        var count_bytes: [4]u8 = undefined;
+        std.mem.writeInt(u32, &count_bytes, @intCast(nbrs.len), .little);
+        try file.writeStreamingAll(io, &count_bytes);
+        state.updateData(&count_bytes);
+
+        for (nbrs) |nid| {
+            var nid_bytes: [4]u8 = undefined;
+            std.mem.writeInt(u32, &nid_bytes, nid, .little);
+            try file.writeStreamingAll(io, &nid_bytes);
+            state.updateData(&nid_bytes);
+        }
+    }
+
+    state.num_blocks += 1;
+}
+
+/// Free an HnswGraphData that was returned by readHnswBlock.
+pub fn freeHnswGraphData(allocator: std.mem.Allocator, h: HnswGraphData) void {
+    for (h.neighbors) |nbrs| allocator.free(@constCast(nbrs));
+    allocator.free(@constCast(h.neighbors));
+}
+
+/// Read a vector_index block from raw file data.  Returns the graph or
+/// null if the cursor is not positioned at a vector_index block.
+fn readHnswBlock(
+    allocator: std.mem.Allocator,
+    data: []const u8,
+    cursor: *usize,
+    payload_end: usize,
+) !?HnswGraphData {
+    if (cursor.* + 16 > payload_end) return null;
+    if (data[cursor.*] != @intFromEnum(BlockType.vector_index)) return null;
+
+    cursor.* += 4; // skip type + reserved
+    const entry_point = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+    cursor.* += 4;
+    const max_layer = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+    cursor.* += 4;
+    const node_count = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+    cursor.* += 4;
+
+    const neighbors = try allocator.alloc([]u32, node_count);
+    // Track how many entries have been initialised so the errdefer
+    // only frees valid slices (avoids reading uninitialised memory).
+    var nodes_read: u32 = 0;
+    errdefer {
+        for (neighbors[0..nodes_read]) |nbrs| allocator.free(nbrs);
+        allocator.free(neighbors);
+    }
+
+    for (0..node_count) |i| {
+        if (cursor.* + 4 > payload_end) return error.TruncatedData;
+        const nbr_count = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+        cursor.* += 4;
+
+        const nbrs = try allocator.alloc(u32, nbr_count);
+        errdefer allocator.free(nbrs);
+
+        for (0..nbr_count) |j| {
+            if (cursor.* + 4 > payload_end) return error.TruncatedData;
+            nbrs[j] = std.mem.readInt(u32, data[cursor.*..][0..4], .little);
+            cursor.* += 4;
+        }
+        neighbors[i] = nbrs;
+        nodes_read += 1;
+    }
+
+    // Cast [][]u32 to []const []const u32 for the return struct.
+    return .{
+        .entry_point = entry_point,
+        .max_layer = max_layer,
+        .neighbors = neighbors,
+    };
+}
+
 fn writeFooterV2(file: anytype, io: anytype, header_checksum: u32, state: *const SaveState) !void {
     const footer = FileFooter{
         .header_checksum = header_checksum,
@@ -754,6 +869,27 @@ pub fn saveDatabaseV2(
     db: *database.Database,
     path: []const u8,
     config: StorageV2Config,
+) !void {
+    return saveDatabaseV2Impl(allocator, db, path, config, null);
+}
+
+/// Save database including an HNSW graph index block (vector_index 0x03).
+pub fn saveDatabaseWithIndex(
+    allocator: std.mem.Allocator,
+    db: *database.Database,
+    path: []const u8,
+    config: StorageV2Config,
+    hnsw: HnswGraphData,
+) !void {
+    return saveDatabaseV2Impl(allocator, db, path, config, hnsw);
+}
+
+fn saveDatabaseV2Impl(
+    allocator: std.mem.Allocator,
+    db: *database.Database,
+    path: []const u8,
+    config: StorageV2Config,
+    hnsw: ?HnswGraphData,
 ) !void {
     var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
@@ -778,7 +914,10 @@ pub fn saveDatabaseV2(
     // 4. Write vector data
     try writeVectorBlocks(allocator, &file, io, db, hdr.header, config, &state);
 
-    // 5. Write footer
+    // 5. Write HNSW index block (optional)
+    if (hnsw) |h| try writeHnswBlock(&file, io, h, &state);
+
+    // 6. Write footer
     try writeFooterV2(&file, io, hdr.header_checksum, &state);
 }
 
@@ -940,6 +1079,17 @@ pub fn loadDatabaseV2(
     // 6. Verify consumed payload matches declared size
     const consumed = cursor - vector_payload_start;
     if (@as(u64, @intCast(consumed)) != vector_data_size) return error.CorruptedData;
+
+    // 7. Skip optional trailing blocks (e.g. vector_index / HNSW graph).
+    //    The HNSW data is parsed but not stored on the Database struct itself;
+    //    callers that need it should use loadDatabaseWithIndex.
+    if (cursor < payload_end) {
+        if (data[cursor] == @intFromEnum(BlockType.vector_index)) {
+            const hnsw = try readHnswBlock(allocator, data, &cursor, payload_end);
+            if (hnsw) |h| freeHnswGraphData(allocator, h);
+        }
+    }
+
     if (cursor != payload_end) return error.CorruptedData;
 
     return db;
