@@ -4,16 +4,33 @@ const commands_mod = cli_root.commands;
 
 const CommandDescriptor = std.meta.Elem(@TypeOf(commands_mod.descriptors));
 
+/// Timeout tier matching `tests/integration/matrix_manifest.zig` TimeoutTier.
+/// Keep in sync with the matrix manifest definitions.
+const TimeoutTier = enum {
+    quick, // 5 seconds
+    cli, // 30 seconds
+
+    fn toNs(self: TimeoutTier) u64 {
+        return switch (self) {
+            .quick => 5 * std.time.ns_per_s,
+            .cli => 30 * std.time.ns_per_s,
+        };
+    }
+};
+
 const Vector = struct {
     id: []const u8,
     args: []const []const u8,
     expect_success: bool = true,
+    timeout: TimeoutTier = .quick,
 };
 
 const FixedVector = struct {
     id: []const u8,
     args: []const []const u8,
     expect_success: bool = true,
+    /// Timeout tier — mirrors matrix_manifest.zig TimeoutTier (excluding .tui).
+    timeout: TimeoutTier = .quick,
 };
 
 const skipped_help_commands = [_][]const u8{
@@ -21,6 +38,9 @@ const skipped_help_commands = [_][]const u8{
     "update",
 };
 
+/// Hardcoded safe vectors for non-interactive CLI smoke testing.
+/// Keep in sync with `tests/integration/matrix_manifest.zig` safeVectors().
+/// TUI vectors (requiring a PTY) are intentionally excluded.
 const safe_function_vectors = [_]FixedVector{
     .{ .id = "top.help", .args = &.{"help"} },
     .{ .id = "top.version", .args = &.{"version"} },
@@ -44,8 +64,8 @@ const safe_function_vectors = [_]FixedVector{
     .{ .id = "model.path", .args = &.{ "model", "path" } },
     .{ .id = "profile.show", .args = &.{ "profile", "show" } },
     .{ .id = "bench.list", .args = &.{ "bench", "list" } },
-    .{ .id = "bench.micro.hash", .args = &.{ "bench", "micro", "hash" } },
-    .{ .id = "bench.micro.noop", .args = &.{ "bench", "micro", "noop" } },
+    .{ .id = "bench.micro.hash", .args = &.{ "bench", "micro", "hash" }, .timeout = .cli },
+    .{ .id = "bench.micro.noop", .args = &.{ "bench", "micro", "noop" }, .timeout = .cli },
     .{ .id = "train.info", .args = &.{ "train", "info" } },
     .{ .id = "editor.help", .args = &.{ "editor", "--help" } },
     .{ .id = "ui.help", .args = &.{ "ui", "--help" } },
@@ -64,6 +84,7 @@ fn addVector(
     id: []const u8,
     args: []const []const u8,
     expect_success: bool,
+    timeout: TimeoutTier,
 ) !void {
     const id_copy = try allocator.dupe(u8, id);
     const args_copy = try allocator.alloc([]const u8, args.len);
@@ -72,12 +93,13 @@ fn addVector(
         .id = id_copy,
         .args = args_copy,
         .expect_success = expect_success,
+        .timeout = timeout,
     });
 }
 
 fn addFixedVectors(allocator: std.mem.Allocator, vectors: *std.ArrayListUnmanaged(Vector)) !void {
     for (safe_function_vectors) |vector| {
-        try addVector(allocator, vectors, vector.id, vector.args, vector.expect_success);
+        try addVector(allocator, vectors, vector.id, vector.args, vector.expect_success, vector.timeout);
     }
 }
 
@@ -143,6 +165,9 @@ fn runVector(io: std.Io, allocator: std.mem.Allocator, abi_bin_path: []const u8,
     child_args[0] = abi_bin_path;
     @memcpy(child_args[1..], vector.args);
 
+    const start = std.time.Instant.now() catch null;
+    const deadline_ns = vector.timeout.toNs();
+
     var child = try std.process.spawn(io, .{
         .argv = child_args,
         .stdin = .ignore,
@@ -154,6 +179,24 @@ fn runVector(io: std.Io, allocator: std.mem.Allocator, abi_bin_path: []const u8,
         std.debug.print("FAIL [{s}] spawn error: {t}\n", .{ vector.id, err });
         return false;
     };
+
+    // Check if we exceeded the timeout deadline (advisory reporting).
+    // The child has already exited at this point — `child.wait()` is blocking.
+    // We report the timeout as a failure so CI can flag slow vectors.
+    if (start) |s| {
+        const elapsed = std.time.Instant.now() catch null;
+        if (elapsed) |e| {
+            const elapsed_ns = e.since(s);
+            if (elapsed_ns > deadline_ns) {
+                std.debug.print("TIMEOUT [{s}] exceeded {d}s deadline (took {d}ms)\n", .{
+                    vector.id,
+                    deadline_ns / std.time.ns_per_s,
+                    elapsed_ns / std.time.ns_per_ms,
+                });
+                return false;
+            }
+        }
+    }
 
     const succeeded = switch (term) {
         .exited => |code| code == 0,

@@ -659,6 +659,34 @@ const profiling_vectors = [_]IntegrationVector{
     },
 };
 
+// ── Safe Vector Export ──────────────────────────────────────────────────
+
+/// Returns vectors safe for non-interactive (non-PTY) execution.
+/// Excludes vectors with `.tui` timeout tier, which require a terminal.
+pub fn safeVectors() [countSafe()]IntegrationVector {
+    comptime {
+        var result: [countSafe()]IntegrationVector = undefined;
+        var i: usize = 0;
+        for (all_vectors) |v| {
+            if (v.timeout != .tui) {
+                result[i] = v;
+                i += 1;
+            }
+        }
+        return result;
+    }
+}
+
+fn countSafe() usize {
+    comptime {
+        var count: usize = 0;
+        for (all_vectors) |v| {
+            if (v.timeout != .tui) count += 1;
+        }
+        return count;
+    }
+}
+
 // ── Matrix Query Helpers ────────────────────────────────────────────────
 
 /// Count how many vectors are applicable for a given flag combo.
@@ -763,4 +791,17 @@ test "timeout tiers have correct values" {
 test "totalMatrixCells is positive" {
     const cells = totalMatrixCells();
     try std.testing.expect(cells > 0);
+}
+
+test "safeVectors excludes TUI vectors" {
+    const safe = safeVectors();
+    try std.testing.expect(safe.len > 0);
+    try std.testing.expect(safe.len <= all_vectors.len);
+    for (safe) |v| {
+        try std.testing.expect(v.timeout != .tui);
+    }
+}
+
+test "countSafe matches safeVectors length" {
+    try std.testing.expectEqual(countSafe(), safeVectors().len);
 }
