@@ -9,6 +9,8 @@ Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0
 ## Commands
 
 ```bash
+zig build                             # build all targets
+zig build run -- --help               # run the CLI
 zig build test --summary all          # primary tests
 zig build feature-tests --summary all # feature coverage
 zig build full-check                  # pre-commit gate
@@ -69,7 +71,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 
 ### foundation namespace
 
-`abi.foundation` is **not** a separate named module. It's `src/services/shared/mod.zig` re-exported via `src/root.zig`. Files within the `abi` module reach it via relative paths (e.g., `@import("../../services/shared/mod.zig")`). External modules access it through `@import("abi").foundation`.
+`abi.foundation` is **not** a separate named module. It's `src/services/shared/mod.zig` re-exported via `src/root.zig`. Files within the `abi` module reach it via relative paths (e.g., `@import("../../services/shared/mod.zig")`). External modules access it through `@import("abi").foundation`. `wireAbiImports(module, build_opts)` adds only `build_options` as a named import — foundation is wired through the normal `abi` module import graph, not as a separate named module.
 
 ## Import Rules (Critical)
 
@@ -85,7 +87,7 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 
 - `zig fmt` only — never `zig fmt .` from root (walks vendored fixtures that intentionally contain invalid code)
 - `lower_snake_case` functions/files, `PascalCase` types/error sets
-- Conventional commits (`fix:`, `feat:`, `docs:`, `chore:`), atomic scope
+- Conventional commits (`fix:`, `feat:`, `docs:`, `chore:`, `style:`, `refactor:`), atomic scope
 - Explicit error sets, propagate with `try`
 - Bulk find-replace must exclude string literal interiors; run `zig fmt --check` immediately after any bulk text operation
 
@@ -132,10 +134,19 @@ Catalog source of truth: `src/core/feature_catalog.zig`.
 
 1. Review `tasks/lessons.md` at session start
 2. Plan multi-file changes in `tasks/todo.md`
-3. Run strongest available verification gate before completing (see AGENTS.md for gate table)
+3. Run strongest available verification gate before completing:
+
+| Gate | Command | When |
+|------|---------|------|
+| Format check | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | Every change (always works) |
+| Full check | `zig build full-check` | Before completing (requires pinned host-built Zig or known-good toolchain) |
+| Darwin fallback | `./tools/scripts/run_build.sh typecheck --summary all` | When stock Zig is linker-blocked on Darwin 25+ |
+| Full release | `zig build verify-all` | Release prep |
+
 4. Update `stub.zig` when changing `mod.zig` signatures
 5. Update `tasks/lessons.md` after corrections (entries are grouped by topic heading; new entries should include root cause and prevention rule)
-6. Version pin changes: update `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, CI config atomically
+6. Update `src/core/feature_catalog.zig` and regenerate artifacts before updating feature count references elsewhere
+7. Version pin changes: update `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, CI config atomically
 
 ## Plugin System
 
@@ -144,6 +155,21 @@ External modules register at runtime via `abi.registry.plugin.PluginRegistry`. P
 ## Raft Consensus
 
 `src/features/network/raft.zig` implements Raft with pre-vote protocol (prevents disruptive elections from partitioned nodes) and partition tolerance (leader steps down on quorum loss). Fault injection via `FaultInjector` for testing. Gated by `feat-network`.
+
+## CLI Quick Reference
+
+```bash
+abi --help                # top-level help
+abi system-info           # runtime / diagnostics
+abi doctor                # health check
+abi db stats              # database stats
+abi db query --embed "q" --top-k 5  # vector search
+abi agent                 # AI agent
+abi gpu summary           # GPU info
+abi gendocs --check       # docs consistency
+```
+
+CLI commands live in `tools/cli/commands/`. After adding/changing commands, run `zig build refresh-cli-registry`.
 
 ## Benchmarks
 
@@ -155,6 +181,16 @@ zig build bench-competitive                # Industry comparisons
 ```
 
 Suites cover SIMD, memory, concurrency, database, network, crypto, AI, and GPU workloads. See `benchmarks/README.md` for details.
+
+## Common Pitfalls
+
+- **`.{}` vs `.empty`**: `ArrayListUnmanaged` and `AutoHashMapUnmanaged` must use `.empty` not `.{}` for initialization (triggers "missing struct field" errors)
+- **`@import("abi")` inside `src/`**: causes circular import error. Only use from external modules (CLI, tests with separate roots)
+- **Cross-feature imports**: see Import Rules above — never import another feature's `mod.zig` directly
+- **`zig fmt .` from root**: walks vendored fixtures with intentionally invalid code. Always specify paths explicitly
+- **CLI sub-modules**: if a CLI command accesses `abi.features.X.<submodule>`, that sub-module must be re-exported from both `mod.zig` AND `stub.zig`
+- **Hook interference**: external hooks may rewrite source files (reorder imports, change import paths). Use `git checkout HEAD -- <file>` to restore
+- **`.zig` extension on imports**: before adding `.zig` to a path, verify the target file actually exists at that path — a suffix-only rewrite against a nonexistent target hides the real fix
 
 ## References
 

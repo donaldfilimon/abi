@@ -54,6 +54,7 @@ contracts may omit it.
 2. Shared types go in `types.zig` — both mod and stub import from it
 3. Sub-module stubs are not required (only the top-level `stub.zig`)
 4. When you change a public signature in `mod.zig`, update `stub.zig` immediately
+5. CLI-accessed sub-modules must be re-exported from both `mod.zig` and `stub.zig`
 
 ### StubFeature Helpers
 
@@ -88,7 +89,7 @@ if (feat_gpu) {
 
 27 feature flags exist (including AI subfeature flags `feat_explore`,
 `feat_llm`, `feat_vision`, `feat_training`, `feat_reasoning`), all enabled by
-default. Disable with `-Dfeat-<name>=false`. The 54 validated flag
+default. Disable with `-Dfeat-<name>=false`. The 56 validated flag
 combinations live in `build/flags.zig`.
 
 ## Zig 0.16 API Patterns
@@ -158,6 +159,15 @@ while (it.next()) |val| { ... }
 const e = @enumFromInt(x);
 
 // Not: @intToEnum(EnumType, x)
+```
+
+### Entry Point Signature
+
+```zig
+// 0.16 — main receives Init struct
+pub fn main(init: std.process.Init) !void { ... }
+
+// Not: pub fn main() !void
 ```
 
 ## Darwin 25+ Workarounds

@@ -1,11 +1,9 @@
 ---
 name: darwin-build-doctor
-description: Diagnoses and resolves Zig linker failures on macOS 25+ (Darwin Tahoe) for the ABI project
-tools:
-  - Bash
-  - Read
-  - Grep
-  - Glob
+description: "Diagnoses and resolves Zig linker failures on macOS 25+ (Darwin Tahoe) for the ABI project"
+tools: Bash, Read, Grep, Glob
+model: opus
+color: pink
 ---
 
 # Darwin Build Doctor

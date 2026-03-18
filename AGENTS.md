@@ -52,6 +52,8 @@ Sub-module stubs are not required.
 3. Validate before completing (see verification gates below)
 4. Verify mod/stub parity for any changed feature module
 5. Update `tasks/lessons.md` after fixing any mistake that could recur
+6. Update `src/core/feature_catalog.zig` and regenerate artifacts before updating feature count references elsewhere
+7. Version pin changes: update `.zigversion`, `build.zig.zon`, `baseline.zig`, `README.md`, CI config atomically
 
 ## Verification Gates
 
@@ -93,3 +95,4 @@ A task is complete only when:
 3. `tasks/todo.md` is updated with completion evidence
 4. No duplicative content introduced across governance docs
 5. Any new `.md` files are added to the `.gitignore` allowlist
+6. Feature catalog (`src/core/feature_catalog.zig`) is in sync with the actual feature set
