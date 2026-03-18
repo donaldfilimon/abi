@@ -25,6 +25,7 @@ abi/
 ├── examples/                 # Standalone example programs
 ├── benchmarks/               # Performance benchmark suites
 ├── bindings/                 # C and WASM language bindings
+├── lang/                     # Future high-level language bindings (Python, JS/TS); wraps bindings/c/
 ├── docs/                     # Maintained + generated documentation
 │
 ├── CLAUDE.md                 # AI agent instructions and conventions
@@ -205,5 +206,6 @@ are produced by `zig build gendocs` — do not hand-edit.
 | `bindings/` | WASM and other language bindings |
 | `benchmarks/` | Performance suites (see `benchmarks/README.md`) |
 | `examples/` | Standalone example programs (see `examples/README.md`) |
+| `lang/` | Future high-level language bindings (Python, JS/TS); wraps `bindings/c/` |
 | `tasks/` | Agent task tracking (`todo.md`, `lessons.md`) |
 | `.claude/` | Claude Code configuration and skills |

@@ -25,7 +25,7 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 ./tools/scripts/bootstrap_host_zig.sh # build pinned host Zig into the canonical cache
 ```
 
-**Running a single test**: `zig test src/path/to/file.zig -fno-emit-bin` for standalone files. For module-integrated tests, use `zig build test --summary all` with feature flags to narrow scope.
+**Running a single test**: `zig test src/path/to/file.zig -fno-emit-bin` for standalone files. For module-integrated tests, use `zig build test --summary all` with feature flags to narrow scope (e.g., `zig build test -Dfeat-ai=false -Dfeat-gpu=false --summary all` to skip AI and GPU tests).
 
 **Darwin 25+ / macOS 26+**: stock prebuilt Zig's internal LLD linker fails before `build.zig` runs (undefined symbols: `_malloc_size`, `__availability_version_check`, etc.). Compilation succeeds — only linking is blocked. Primary workaround: `./tools/scripts/run_build.sh <step> --summary all` intercepts the linker failure, extracts the compiled `.o`, and relinks with Apple's `/usr/bin/ld`. This provides **full gate coverage** including `full-check`, `check-docs`, and all 56 flag combos. The bootstrap script (`bootstrap_host_zig.sh`) builds `zig1`/`zig2` but stage3 self-build currently fails on Darwin 26.4. If bootstrap succeeds, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH` for direct `zig build` support. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
 
@@ -36,7 +36,7 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `src/services/` — Non-gated services: connectors, LSP, MCP, runtime, security, platform
 - `src/services/shared/` — Shared foundations exposed as `abi.foundation` (logging, security, time/SIMD)
 - `src/core/` — Config, feature catalog, registry (incl. plugin system), `stub_context.zig`
-- `src/inference/` — ML inference: engine, scheduler, sampler, paged KV cache
+- `src/inference/` — ML inference: engine, scheduler, sampler (pluggable top-p/top-k strategies), paged KV cache
 - `build/` — Modular build system:
   - `options.zig` — 27 `feat_*` flag definitions, Darwin feature forcing
   - `flags.zig` — 56-combo validation matrix, `CanonicalFlags`
@@ -47,7 +47,9 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `tools/cli/` — CLI commands and registry (`tools/cli/registry/`)
 - `tools/gendocs/` — Documentation generator (edits go here, not in generated `docs/api/`)
 - `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
+- `lang/` — Reserved for future high-level language bindings (Python, JS/TS); wraps `bindings/c/`
 - `tests/integration/` — Integration test matrix manifest and preflight diagnostics
+- `examples/` — 36 standalone programs demonstrating API usage across all feature domains
 
 ### Public API surface
 
