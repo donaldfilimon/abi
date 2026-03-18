@@ -97,5 +97,12 @@ Version pinning, parallel agents, and CI gate discipline.
 - Parallel agent dispatch (worktree agents) for multi-stream doc/code fixes works well but creates stale PRs when a large restructuring commit lands afterward. Triage PRs immediately after pushing restructuring changes.
 - Code review by subagents catches import violations in new files that format checks miss. Always run both `zig fmt` and typecheck as complementary gates.
 
-Root cause: Partial version pin updates left inconsistent metadata, and large restructuring commits invalidated in-flight PRs from parallel agents.
-Prevention rule: Treat all version pin files as an atomic set. Triage stale PRs after restructuring commits. Run both zig fmt and typecheck as complementary verification gates.
+- When cherry-picking from worktree branches, always close the superseded PRs immediately to prevent stale PR accumulation.
+- `std.time.Instant` does not exist in Zig 0.16. Use `std.c.clock_gettime(.MONOTONIC, &ts)` for wall-clock timing in build/ and tools/ code.
+- Files under `docs/` are managed by gendocs — placing non-generated `.md` files there triggers `check-docs` drift. Use `tasks/plans/` for implementation plans instead.
+- C bindings (`bindings/c/`) use `@import("abi")` (correct — outside src/). New feature exports follow the opaque handle pattern: `FooHandle = opaque {}`, `FooWrapper` struct, `export fn` with integer return codes.
+- RLE compression for block storage: use 0xFF marker byte with escape sequence `[0xFF, 0x01, 0xFF]` for literal 0xFF bytes. Simple, no external deps, good for zero-padded vector data.
+- POSIX file I/O (`std.posix.open/write/read/close/lseek`) works for block storage in Zig 0.16. The `std.Io.Threaded` API is more complex and better suited for full-featured applications, not low-level storage.
+
+Root cause: Partial version pin updates left inconsistent metadata, and large restructuring commits invalidated in-flight PRs from parallel agents. Zig 0.16 time APIs differ from older versions. Gendocs manages docs/ exclusively.
+Prevention rule: Treat all version pin files as an atomic set. Triage stale PRs after restructuring commits. Run both zig fmt and typecheck as complementary verification gates. Use POSIX clock_gettime for timing, not std.time.Instant. Keep non-generated docs outside docs/.
