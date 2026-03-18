@@ -12,6 +12,7 @@ pub const SearchError = error{
     OutOfMemory,
     IndexAlreadyExists,
     DocumentNotFound,
+    IoError,
 };
 
 /// A single search hit with BM25 relevance score and context snippet.
