@@ -53,13 +53,26 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 
 ### Current State (2026-03-18)
 
-**Phase 15 COMPLETE** (2026-03-18). All roadmap items delivered in 7 commits (`e19ee037..ea5e75e2`):
+**Phase 15 COMPLETE + Post-Phase improvements** (2026-03-18). Delivered in 17+ commits:
+
+Phase 15 deliverables (`e19ee037..ea5e75e2`):
 - Semantic store persistence: real disk I/O for SegmentLog, WAL, RLE compression, compaction, HNSW graph block
 - Mobile native bridges: 9 `abi_mobile_*` C exports, Swift Package, Kotlin/JNI bridge (1,087 new lines)
 - Integration gates unblocked: matrix manifest export, timeout enforcement, enhanced preflight
-- 5 execution plans closed, 4 PRs (#512-515) created and merged
+- 5 execution plans closed, PRs #512-515 created and merged
 - 20/20 feature parity, efficiency fixes (JWT, rate limiter, inference), security fixes (shell injection)
-- All 56 flag combinations validated. Darwin bootstrap stage3 still pending upstream Zig fix.
+
+Post-Phase 15 improvements (PRs #516-521):
+- [x] Persistence benchmarks: SegmentLog, WAL, compression throughput suites (#519)
+- [x] Mobile binding validation: 17 tests covering lifecycle, sensors, permissions, notifications (#516)
+- [x] DiskANN mmap persistence: sector-aligned save + zero-copy mmap load (#517)
+- [x] BM25 search index persistence: save/load with SRCH binary format (#520)
+- [x] Real LZ4 block compression: replaced RLE placeholder with standard LZ4 block format (#518)
+- [x] Inference safety: KV cache panic fix, memory leak fix, secure wipe (#521)
+- [x] API docs: 30 doc comments on root.zig public exports
+- [x] Use-after-free fix in block_chain traverseBackward (defer→errdefer)
+
+Gate: 227/227. All 56 flag combinations validated. Darwin stage3 pending upstream Zig fix.
 
 ### Completed (Archived)
 

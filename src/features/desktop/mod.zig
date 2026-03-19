@@ -38,3 +38,14 @@ pub fn isInitialized() bool {
 test {
     std.testing.refAllDecls(@This());
 }
+
+test "Context init and deinit" {
+    var ctx = Context.init(std.testing.allocator);
+    try std.testing.expect(ctx.initialized);
+    ctx.deinit();
+    try std.testing.expect(!ctx.initialized);
+}
+
+test "isEnabled returns true" {
+    try std.testing.expect(isEnabled());
+}
