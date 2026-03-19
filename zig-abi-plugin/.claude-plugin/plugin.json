@@ -1,11 +1,11 @@
 {
   "name": "zig-abi",
-  "version": "0.5.0",
-  "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, CEL language support, code review heuristics, cross-module import validation, and real-time verification for the ABI Zig codebase.",
+  "version": "0.6.0",
+  "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, WDBX vector database MCP integration, CEL language support, code review heuristics, cross-module import validation, and real-time verification for the ABI Zig codebase.",
   "author": {
     "name": "Donald Filimon"
   },
-  "keywords": ["zig", "abi", "cel", "build", "validation", "feature-gating", "code-review"],
+  "keywords": ["zig", "abi", "cel", "wdbx", "mcp", "vector-database", "build", "validation", "feature-gating", "code-review"],
   "license": "MIT",
   "homepage": "https://github.com/donaldfilimon/abi",
   "commands": [
@@ -17,10 +17,12 @@
     "skills/abi-architecture/SKILL.md",
     "skills/abi-code-review/SKILL.md",
     "skills/cel-language/SKILL.md",
+    "skills/wdbx-mcp/SKILL.md",
     "skills/zig-016-patterns/SKILL.md"
   ],
   "agents": [
-    "agents/stub-sync-validator.md"
+    "agents/stub-sync-validator.md",
+    "agents/wdbx-mcp.md"
   ],
   "hooks": [
     "hooks/hooks.json"
