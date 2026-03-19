@@ -139,12 +139,10 @@ pub const WeatherClient = weather.WeatherClient;
 pub const WeatherConfig = weather.WeatherConfig;
 pub const http = @import("../../services/shared/mod.zig").utils.http;
 
+pub const types = @import("types.zig");
+
 /// Errors specific to the web module.
-pub const WebError = error{
-    /// The web feature is disabled in the build configuration.
-    /// Enable with `-Dfeat-web=true`.
-    WebDisabled,
-};
+pub const WebError = types.WebError;
 
 /// Web Context for Framework integration.
 ///

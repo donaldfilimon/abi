@@ -4,17 +4,12 @@
 //! and tensor sharing protocols.
 
 pub const mesh = @import("mesh.zig");
+pub const types = @import("types.zig");
 
 const std = @import("std");
 
-pub const ComputeError = error{
-    MeshUnavailable,
-    NodeUnreachable,
-    TaskFailed,
-    OutOfMemory,
-};
-
-pub const Error = ComputeError;
+pub const ComputeError = types.ComputeError;
+pub const Error = types.Error;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,

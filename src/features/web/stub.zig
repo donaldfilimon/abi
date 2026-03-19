@@ -7,9 +7,12 @@ const profile_types = struct {
     pub const ProfileType = enum { assistant, coder, writer, analyst, companion, docs, reviewer, minimal, abbey, aviva, abi, ralph, ava };
 };
 
+// --- Shared types (from types.zig) ---
+
+pub const types = @import("types.zig");
+
 // --- Local Stubs Imports ---
 
-const types = @import("stubs/types.zig");
 const client = @import("stubs/client.zig");
 
 // --- Handlers and Routes ---

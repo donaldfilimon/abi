@@ -9,6 +9,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+pub const types = @import("types.zig");
 
 // ── Core database module (all real logic lives here) ───────────────────────
 const core_db = @import("../../core/database/mod.zig");
@@ -51,7 +52,7 @@ pub const KMeans = core_db.KMeans;
 pub const ScalarQuantizer = core_db.ScalarQuantizer;
 pub const ProductQuantizer = core_db.ProductQuantizer;
 
-pub const DatabaseFeatureError = core_db.DatabaseFeatureError;
+pub const DatabaseFeatureError = types.DatabaseFeatureError;
 
 // ── Context (framework integration) ────────────────────────────────────────
 pub const Context = core_db.Context;

@@ -1,17 +1,12 @@
 //! Compute stub — disabled at compile time.
 
 const std = @import("std");
+pub const types = @import("types.zig");
 
 pub const mesh = struct {};
 
-pub const ComputeError = error{
-    MeshUnavailable,
-    NodeUnreachable,
-    TaskFailed,
-    OutOfMemory,
-};
-
-pub const Error = ComputeError;
+pub const ComputeError = types.ComputeError;
+pub const Error = types.Error;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,

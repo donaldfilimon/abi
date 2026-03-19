@@ -7,6 +7,12 @@ const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
 // ============================================================================
+// Shared types (from types.zig)
+// ============================================================================
+
+pub const shared_types = @import("types.zig");
+
+// ============================================================================
 // Local Stubs Imports
 // ============================================================================
 
@@ -20,12 +26,13 @@ const exporters = @import("stubs/exporters.zig");
 // Re-exports
 // ============================================================================
 
-pub const Error = types.Error;
-pub const MetricsConfig = types.MetricsConfig;
-pub const MetricsSummary = types.MetricsSummary;
+pub const Error = shared_types.Error;
+pub const MetricsConfig = shared_types.MetricsConfig;
+pub const MetricsSummary = shared_types.MetricsSummary;
 pub const BundleConfig = types.BundleConfig;
 pub const PrometheusConfig = types.PrometheusConfig;
 pub const OtelConfig = types.OtelConfig;
+pub const MonitoringError = shared_types.MonitoringError;
 pub const OtelSpanKind = types.OtelSpanKind;
 pub const OtelMetricType = types.OtelMetricType;
 pub const OtelStatus = types.OtelStatus;
@@ -106,7 +113,7 @@ pub const statsd = exporters.statsd;
 
 // Monitoring re-exports for parity with mod.zig
 pub const monitoring = alerting;
-pub const MonitoringError = error{FeatureDisabled};
+// MonitoringError is re-exported from shared_types above
 pub const StatsDClient = struct {};
 pub const StatsDConfig = struct {};
 pub const StatsDError = error{FeatureDisabled};

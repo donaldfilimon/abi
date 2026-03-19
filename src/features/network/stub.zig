@@ -30,12 +30,17 @@ const unified_memory_mod = @import("stubs/unified_memory.zig");
 const linking_mod = @import("stubs/linking.zig");
 
 // ============================================================================
+// Shared types (from types.zig)
+// ============================================================================
+pub const shared_types = @import("types.zig");
+
+// ============================================================================
 // Core Types Re-exports
 // ============================================================================
 
-pub const Error = types.Error;
-pub const NetworkError = error{ FeatureDisabled, NotInitialized };
-pub const NetworkConfig = types.NetworkConfig;
+pub const Error = shared_types.Error;
+pub const NetworkError = shared_types.NetworkError;
+pub const NetworkConfig = shared_types.NetworkConfig;
 pub const NetworkState = types.NetworkState;
 pub const Node = types.Node;
 pub const NodeStatus = types.NodeStatus;
