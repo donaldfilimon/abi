@@ -221,7 +221,7 @@ pub const EmotionProcessor = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .trajectory = .{},
+            .trajectory = .empty,
         };
     }
 

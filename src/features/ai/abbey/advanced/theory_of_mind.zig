@@ -274,26 +274,26 @@ pub const TheoryOfMind = struct {
         return MentalModel{
             .user_id = user_id,
             .beliefs = .{
-                .explicit_beliefs = .{},
-                .inferred_beliefs = .{},
-                .belief_conflicts = .{},
+                .explicit_beliefs = .empty,
+                .inferred_beliefs = .empty,
+                .belief_conflicts = .empty,
             },
             .knowledge_state = .{
-                .known_topics = .{},
-                .expertise_areas = .{},
-                .knowledge_gaps = .{},
+                .known_topics = .empty,
+                .expertise_areas = .empty,
+                .knowledge_gaps = .empty,
             },
             .intentions = .{
                 .current_goal = null,
-                .goal_stack = .{},
-                .past_goals = .{},
+                .goal_stack = .empty,
+                .past_goals = .empty,
             },
             .emotional_model = .{
                 .current_state = .neutral,
                 .emotional_baseline = .neutral,
                 .emotional_volatility = 0.5,
-                .trigger_patterns = .{},
-                .emotional_history = .{},
+                .trigger_patterns = .empty,
+                .emotional_history = .empty,
             },
             .preferences = .{
                 .verbosity = self.default_model.default_verbosity,

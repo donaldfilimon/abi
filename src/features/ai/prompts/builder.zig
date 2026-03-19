@@ -68,7 +68,7 @@ pub const PromptBuilder = struct {
         return .{
             .allocator = allocator,
             .profile = profiles.getProfile(profile_type),
-            .messages = .{},
+            .messages = .empty,
         };
     }
 
@@ -77,7 +77,7 @@ pub const PromptBuilder = struct {
         return .{
             .allocator = allocator,
             .profile = profile,
-            .messages = .{},
+            .messages = .empty,
         };
     }
 

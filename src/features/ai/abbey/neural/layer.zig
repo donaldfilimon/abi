@@ -530,7 +530,7 @@ pub const Sequential = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
-            .layers = .{},
+            .layers = .empty,
         };
     }
 

@@ -98,7 +98,7 @@ pub const ReasoningChain = struct {
     pub fn init(_: std.mem.Allocator, query: []const u8) Self {
         return .{
             .query = query,
-            .steps = .{},
+            .steps = .empty,
             .overall_confidence = 1.0,
             .conclusion = null,
             .reasoning_time_ms = 0,

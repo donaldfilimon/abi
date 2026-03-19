@@ -134,7 +134,7 @@ pub const ProblemDecomposer = struct {
     pub fn init(allocator: std.mem.Allocator, config: InitConfig) Self {
         return Self{
             .allocator = allocator,
-            .decomposition_patterns = .{},
+            .decomposition_patterns = .empty,
             .max_sub_problems = config.max_sub_problems,
             .max_depth = config.max_depth,
         };
@@ -149,8 +149,8 @@ pub const ProblemDecomposer = struct {
         var decomposition = ProblemDecomposition{
             .original_query = query,
             .problem_type = self.detectProblemType(query),
-            .sub_problems = .{},
-            .dependencies = .{},
+            .sub_problems = .empty,
+            .dependencies = .empty,
             .execution_plan = null,
             .synthesis_strategy = .chain_of_thought,
         };
@@ -222,9 +222,9 @@ pub const ProblemDecomposer = struct {
         _ = self;
 
         var analysis = QueryAnalysis{
-            .components = .{},
-            .connectors = .{},
-            .modifiers = .{},
+            .components = .empty,
+            .connectors = .empty,
+            .modifiers = .empty,
         };
 
         // Extract question words

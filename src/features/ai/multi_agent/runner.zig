@@ -577,7 +577,7 @@ pub const WorkflowRunner = struct {
                 tokens,
                 feedback,
                 confidence,
-                .conversation,
+                .text_conversation,
             ) catch continue;
         }
     }

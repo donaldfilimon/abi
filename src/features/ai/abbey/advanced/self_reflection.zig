@@ -188,10 +188,10 @@ pub const SelfReflectionEngine = struct {
     pub fn init(allocator: std.mem.Allocator, config: ReflectionConfig) Self {
         return Self{
             .allocator = allocator,
-            .evaluations = .{},
+            .evaluations = .empty,
             .performance_metrics = PerformanceMetrics.init(),
-            .common_issues = .{},
-            .improvement_effectiveness = .{},
+            .common_issues = .empty,
+            .improvement_effectiveness = .empty,
             .config = config,
         };
     }
@@ -386,7 +386,7 @@ pub const SelfReflectionEngine = struct {
         _ = response;
 
         if (chain) |c| {
-            return c.getConfidence().score;
+            return c.overall_confidence;
         }
         return 0.5; // Default uncertainty
     }
@@ -571,11 +571,11 @@ pub const SelfReflectionEngine = struct {
         // Evaluate based on reasoning chain
         const c = chain.?;
         return ReasoningQuality{
-            .logical_validity = c.getConfidence().score,
+            .logical_validity = c.overall_confidence,
             .evidence_support = 0.6,
             .assumption_clarity = 0.5,
             .counterargument_consideration = 0.4,
-            .conclusion_strength = c.getConfidence().score,
+            .conclusion_strength = c.overall_confidence,
             .issues = &[_]ReasoningQuality.ReasoningIssue{},
         };
     }
