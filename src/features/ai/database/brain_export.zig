@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const training = @import("../training/mod.zig");
+const training = if (build_options.feat_training) @import("../training/mod.zig") else @import("../training/stub.zig");
 const export_mod = @import("export.zig");
 const database = if (build_options.feat_database)
     @import("../../database/mod.zig")

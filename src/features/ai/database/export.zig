@@ -8,7 +8,7 @@ const db = if (build_options.feat_database)
     @import("../../database/mod.zig")
 else
     @import("../../database/stub.zig");
-const training = @import("../training/mod.zig");
+const training = if (build_options.feat_training) @import("../training/mod.zig") else @import("../training/stub.zig");
 
 pub fn exportGguf(
     allocator: std.mem.Allocator,
