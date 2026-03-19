@@ -228,6 +228,44 @@ const core_vectors = [_]IntegrationVector{
         .expectation = .{ .expect_failure = true },
         .category = .core,
     },
+    .{
+        .id = "system-info",
+        .args = &.{"system-info"},
+        .category = .core,
+    },
+    .{
+        .id = "doctor.run",
+        .args = &.{"doctor"},
+        .category = .core,
+        .timeout = .cli,
+    },
+    .{
+        .id = "completions.bash",
+        .args = &.{ "completions", "bash" },
+        .category = .core,
+    },
+    .{
+        .id = "completions.zsh",
+        .args = &.{ "completions", "zsh" },
+        .category = .core,
+    },
+    .{
+        .id = "env.show",
+        .args = &.{ "env", "show" },
+        .category = .core,
+    },
+    .{
+        .id = "db.unknown-sub",
+        .args = &.{ "db", "nonexistent" },
+        .expectation = .{ .expect_failure = true },
+        .category = .core,
+    },
+    .{
+        .id = "llm.unknown-sub",
+        .args = &.{ "llm", "nonexistent" },
+        .expectation = .{ .expect_failure = true },
+        .category = .core,
+    },
 };
 
 // ── AI commands ─────────────────────────────────────────────────────────
@@ -298,6 +336,18 @@ const ai_vectors = [_]IntegrationVector{
         .args = &.{ "help", "convert" },
         .category = .ai,
         .required_features = .{ .feat_ai = true },
+    },
+    .{
+        .id = "ralph.status",
+        .args = &.{ "ralph", "status" },
+        .category = .ai,
+        .required_features = .{ .feat_ai = true, .feat_reasoning = true },
+    },
+    .{
+        .id = "ralph.skills",
+        .args = &.{ "ralph", "skills" },
+        .category = .ai,
+        .required_features = .{ .feat_ai = true, .feat_reasoning = true },
     },
 };
 
@@ -496,6 +546,41 @@ const ui_vectors = [_]IntegrationVector{
         .args = &.{ "editor", "--help" },
         .category = .ui,
     },
+    .{
+        .id = "ui.db.help",
+        .args = &.{ "ui", "db", "--help" },
+        .category = .ui,
+        .required_features = .{ .feat_database = true },
+    },
+    .{
+        .id = "ui.train.help",
+        .args = &.{ "ui", "train", "--help" },
+        .category = .ui,
+        .required_features = .{ .feat_ai = true, .feat_training = true },
+    },
+    .{
+        .id = "ui.network.help",
+        .args = &.{ "ui", "network", "--help" },
+        .category = .ui,
+        .required_features = .{ .feat_network = true },
+    },
+    .{
+        .id = "ui.bench.help",
+        .args = &.{ "ui", "bench", "--help" },
+        .category = .ui,
+        .required_features = .{ .feat_benchmarks = true },
+    },
+    .{
+        .id = "ui.streaming.help",
+        .args = &.{ "ui", "streaming", "--help" },
+        .category = .ui,
+    },
+    .{
+        .id = "ui.chat.help",
+        .args = &.{ "ui", "chat", "--help" },
+        .category = .ui,
+        .required_features = .{ .feat_ai = true, .feat_llm = true },
+    },
 };
 
 // ── Network commands ────────────────────────────────────────────────────
@@ -504,6 +589,12 @@ const network_vectors = [_]IntegrationVector{
     .{
         .id = "network.help",
         .args = &.{ "help", "network" },
+        .category = .network,
+        .required_features = .{ .feat_network = true },
+    },
+    .{
+        .id = "network.list",
+        .args = &.{ "network", "list" },
         .category = .network,
         .required_features = .{ .feat_network = true },
     },
