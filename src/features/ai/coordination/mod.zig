@@ -2,7 +2,6 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const legacy_profiles = @import("../profiles/mod.zig");
 const legacy_types = @import("../types.zig");
 const legacy_config = @import("../config.zig");
 const legacy_abi = @import("../abi/mod.zig");
