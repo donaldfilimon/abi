@@ -119,6 +119,7 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "feat_database", .path = "src/core/database/distributed/integration_test.zig" },
     .{ .flag = "feat_database", .path = "src/core/database/distributed/shard_assignment_test.zig" },
     .{ .flag = "feat_database", .path = "src/core/database/distributed/version_vector_test.zig" },
+    .{ .flag = "feat_profiling", .path = "src/features/observability/mod.zig" },
     .{ .flag = "feat_profiling", .path = "src/features/observability/tracing.zig" },
     .{ .flag = "feat_profiling", .path = "src/features/observability/metrics/primitives.zig" },
     .{ .flag = null, .path = "src/services/mcp/mod.zig" },
