@@ -70,10 +70,10 @@ Use this map to choose validation expectations from the changed paths.
 | Changed path pattern | Review focus | Expected checks |
 | --- | --- | --- |
 | `tools/cli/` or CLI command metadata | Command wiring, registry metadata, help/output drift | `zig build test`, `zig build refresh-cli-registry`, `zig build check-cli-registry` |
-| `tools/cli/terminal/` or TUI panels | Dashboard behavior, async loop, non-blocking input, renderer coupling | `zig build tui-tests` |
+| `tools/cli/terminal/` or TUI panels | Dashboard behavior, async loop, non-blocking input, renderer coupling | `zig build test` |
 | `tools/gendocs/`, `docs/`, `README.md`, `CLAUDE.md` | Docs generation coupling, stale registry/module data | `zig build check-docs` |
 | `src/features/*/mod.zig`, `src/features/*/stub.zig`, `build/options.zig`, `build/flags.zig`, `src/core/feature_catalog.zig` | Feature-gate parity, public surface drift, disabled-build compatibility | `zig build validate-flags` |
-| `src/core/database/` or `src/features/database/` | WDBX engine behavior, database correctness, replication, graph logic | `zig build database-fast-tests` |
+| `src/core/database/` or `src/features/database/` | WDBX engine behavior, database correctness, replication, graph logic | `zig build test` |
 | `build.zig`, `build/`, `.zigversion`, `build.zig.zon`, `.cel/`, `tools/scripts/` | Zig 0.16 build API usage, pin consistency, Darwin/CEL workflow integrity | `zig build full-check`, `zig build verify-all` on a host where the toolchain links |
 | Any non-trivial code change | End-to-end ABI correctness | `zig build full-check`, `zig build verify-all` on a host where the toolchain links |
 

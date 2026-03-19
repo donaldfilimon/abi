@@ -90,10 +90,10 @@ const config = @import("core/config/mod.zig");
 
 **Single-module file ownership** — every `.zig` file belongs to exactly one named module. All `src/` files belong to the single `abi` module. No `shared_services` or `core` named modules exist.
 ```zig
-// WRONG — cross-module relative path
-const shared = @import("../../../../services/shared/simd/mod.zig");  // if shared_services is a named module
+// WRONG — named module import from within src/ (causes circular dependency)
+const shared = @import("abi").foundation;
 // CORRECT — relative path within same module (all src/ is one module)
-const shared = @import("../../../../services/shared/simd/mod.zig");  // fine, same abi module
+const shared = @import("../../../../services/shared/simd/mod.zig");
 // ALSO CORRECT — use abi's exported namespace from tools/cli/ (separate module)
 const shared = @import("abi").foundation;
 ```

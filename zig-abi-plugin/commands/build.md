@@ -56,6 +56,12 @@ Run a build step with automatic Darwin workaround detection.
 | `check-cli-registry` | Verify registry is current |
 | `check-docs` | Docs consistency check |
 | `benchmarks` | Run benchmarks |
+| `check-stub-parity` | Verify mod.zig/stub.zig declaration parity across all feature modules |
+| `toolchain-doctor` | Inspect active Zig resolution and toolchain health |
+| `check-zig-version` | Verify .zigversion pin matches docs and build.zig.zon |
+| `preflight` | Run integration environment diagnostics |
+| `gendocs` | Regenerate documentation from source |
+| `check-feature-catalog` | Verify feature catalog consistency |
 
 ## Tips
 

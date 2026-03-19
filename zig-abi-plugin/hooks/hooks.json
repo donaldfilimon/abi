@@ -8,6 +8,10 @@
           {
             "type": "prompt",
             "prompt": "Check the command for this pattern:\nIf the command contains `zig fmt .` (formatting from the repo root), warn: 'Do NOT run `zig fmt .` from the repository root — it walks vendored fixtures with intentionally invalid code. Use `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` to target specific directories instead.'\nOnly warn if matched — otherwise output empty string."
+          },
+          {
+            "type": "prompt",
+            "prompt": "Check the command for this pattern:\nIf the command contains `zig build` but does NOT contain `run_build.sh`, warn: 'On Darwin 25+ (macOS 26+), bare `zig build` fails with a linker error. Use `./tools/scripts/run_build.sh <step> --summary all` instead. Format checks (`zig fmt`) always work.'\nOnly warn if matched — otherwise output empty string."
           }
         ]
       },
@@ -28,6 +32,18 @@
           {
             "type": "prompt",
             "prompt": "Check the edit for THREE patterns:\n1. If this edit modified a file matching `src/features/*/mod.zig`, remind: 'Remember to update the matching stub.zig with the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n2. If this edit modified a file matching `src/features/*/stub.zig`, remind: 'Ensure the matching mod.zig has the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n3. If this edit introduced `@import(\"../../wdbx/` or `@import(\"../../../wdbx/` or any relative path containing `wdbx/wdbx.zig` from within `src/features/`, warn: 'The `wdbx/` relative import path is incorrect — there is no `wdbx` named module. Use the correct relative path to the database core (e.g., `@import(\"../../core/database/...\")`) instead.'\nOnly warn if matched — otherwise output empty string."
+          },
+          {
+            "type": "prompt",
+            "prompt": "Check the edit for this pattern:\nIf this edit modified a file matching `build/options.zig`, remind: 'You edited build/options.zig — remember to update tools/cli/tests/build_options_stub.zig to include any new feat_* flags. Missing stubs cause CLI test compilation failures.'\nOnly warn if matched — otherwise output empty string."
+          },
+          {
+            "type": "prompt",
+            "prompt": "Check the edit for this pattern:\nIf this edit modified a file matching `src/core/feature_catalog.zig`, remind: 'You edited feature_catalog.zig — run `zig build gendocs` and `zig build refresh-cli-registry` to regenerate artifacts. The catalog is the source of truth for feature counts.'\nOnly warn if matched — otherwise output empty string."
+          },
+          {
+            "type": "prompt",
+            "prompt": "Check the edit for this pattern:\nIf this edit modified a file matching `tools/cli/commands/**`, remind: 'You edited a CLI command — run `zig build refresh-cli-registry` to update the command registry.'\nOnly warn if matched — otherwise output empty string."
           }
         ]
       }

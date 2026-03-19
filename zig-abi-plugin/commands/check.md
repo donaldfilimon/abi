@@ -54,6 +54,9 @@ Scan for Zig 0.16 deprecated patterns:
 - `std.meta.intToEnum` — use `@enumFromInt`
 - `usingnamespace` — removed in 0.16
 - Invalid format specifiers like `{t}` in `std.log` / `std.fmt`
+- `std.io.fixedBufferStream` — removed in 0.16, use manual buffer slicing
+- `std.time.Instant` — removed in 0.16, use `std.c.clock_gettime(.MONOTONIC, &ts)`
+- `_ = param` after referencing param — triggers "pointless discard" in 0.16, use `_:` prefix in signature
 
 ### `flags`
 Run the feature flag sync validation script:
