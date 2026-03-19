@@ -3,6 +3,11 @@ name: cel-language
 description: Use when working with CEL (.cel files), the stage0 compiler, cel.toml, stdlib/cel/, tests/cel/, or asking about CEL syntax and commands
 ---
 
+> **STATUS: NOT YET IMPLEMENTED** — The CEL language infrastructure described below
+> (cel.toml, tools/cel/, stdlib/cel/, tests/cel/) does not yet exist in the repository.
+> This skill documents the planned design. Do not attempt to run CEL commands or
+> reference CEL files until the infrastructure is created.
+
 # CEL Language
 
 Use this skill for ABI's CEL language work, not for generic Zig bootstrap maintenance.

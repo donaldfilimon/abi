@@ -74,6 +74,22 @@ Post-Phase 15 improvements (PRs #516-521):
 
 Gate: 227/227. All 56 flag combinations validated. Darwin stage3 pending upstream Zig fix.
 
+### Codebase-Wide Review + Advancement (2026-03-19)
+
+Review pass (14 agents, 17 files):
+- [x] Fixed 4 ungated cross-feature imports in AI sub-modules (metrics, coordination, training, memory)
+- [x] Added missing `feat_lsp`/`feat_mcp` to CLI build_options_stub.zig
+- [x] C bindings: `abi_is_feature_enabled` coverage 6→27 features, `abi_enabled_feature_count` 8→17 fields
+- [x] Documentation: lang/ Swift/Kotlin, example count 35→36, feat_mobile default, AGENTS.md dedup
+- [x] Plugin: fixed hooks wdbx advice, ghost build steps, step counts, test manifest target
+
+Advancement pass:
+- [x] Added `types.zig` to 8 feature directories (compute, database, desktop, documents, gpu, network, observability, web) — now 19/19 complete
+- [x] Removed legacy `src/abi.zig` tombstone and all doc references
+- [x] Wired 5 orphaned GPU test files into test discovery manifest
+- [x] Plugin: CEL skill marked aspirational, new-feature command Step 10 added, import hook broadened to all src/
+- [x] LSP/MCP: confirmed internally gated via module switcher pattern — no root.zig changes needed
+
 ### Completed (Archived)
 
 Historical phases of the master-branch structure redesign and normalization (completed March 2026):

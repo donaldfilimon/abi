@@ -13,7 +13,6 @@ abi/
 │
 ├── src/                      # All framework source — single "abi" module
 │   ├── root.zig              # Public package entrypoint (@import("abi"))
-│   ├── abi.zig               # Legacy tombstone (not imported by any code)
 │   ├── core/                 # Always-on framework internals
 │   ├── features/             # Comptime-gated feature modules (19 directories)
 │   ├── services/             # Runtime services shared across features
@@ -25,7 +24,7 @@ abi/
 ├── examples/                 # Standalone example programs
 ├── benchmarks/               # Performance benchmark suites
 ├── bindings/                 # C and WASM language bindings
-├── lang/                     # Future high-level language bindings (Python, JS/TS); wraps bindings/c/
+├── lang/                     # High-level language bindings (Swift, Kotlin); wraps bindings/c/
 ├── docs/                     # Maintained + generated documentation
 │
 ├── CLAUDE.md                 # AI agent instructions and conventions
@@ -40,7 +39,6 @@ abi/
 ```
 src/
 ├── root.zig                  # Public API surface — what @import("abi") exposes
-├── abi.zig                   # Legacy tombstone — not imported by any code
 │
 ├── core/                     # Always-on internals
 │   ├── config/               # Configuration loading and validation
@@ -207,6 +205,6 @@ are produced by `zig build gendocs` — do not hand-edit.
 | `bindings/` | WASM and other language bindings |
 | `benchmarks/` | Performance suites (see `benchmarks/README.md`) |
 | `examples/` | Standalone example programs (see `examples/README.md`) |
-| `lang/` | Future high-level language bindings (Python, JS/TS); wraps `bindings/c/` |
+| `lang/` | High-level language bindings (Swift, Kotlin); wraps `bindings/c/` |
 | `tasks/` | Agent task tracking (`todo.md`, `lessons.md`) |
 | `.claude/` | Claude Code configuration and skills |

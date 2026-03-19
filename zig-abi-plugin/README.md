@@ -16,7 +16,7 @@ claude --plugin-dir zig-abi-plugin
 |---------|---------|
 | `/zig-abi:build [step]` | Smart build with Darwin workaround detection |
 | `/zig-abi:check [scope]` | Verification checks (format, imports, stub-sync, deprecated) |
-| `/zig-abi:new-feature <name>` | Scaffold new feature module (8-step process) |
+| `/zig-abi:new-feature <name>` | Scaffold new feature module (9-step process) |
 
 ### Skills
 

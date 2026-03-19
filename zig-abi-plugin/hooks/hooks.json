@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Check the edit for this pattern:\nIf the file path matches `src/features/*/` AND the edit introduces `@import(\"abi\")`, warn: 'Files inside src/features/ are part of the abi module. Using @import(\"abi\") from within the module causes a circular dependency error. Use relative imports (e.g., @import(\"../../services/shared/mod.zig\")) or @import(\"build_options\") instead.'\nOnly warn if matched — otherwise output empty string."
+            "prompt": "Check the edit for this pattern:\nIf the file path matches `src/` (but NOT `src/services/tests/`) AND the edit introduces `@import(\"abi\")`, warn: 'Files inside src/ are part of the abi module. Using @import(\"abi\") from within the module causes a circular dependency error. Use relative imports (e.g., @import(\"../../services/shared/mod.zig\")) or @import(\"build_options\") instead. Note: src/services/tests/ is a separate test root and MAY use @import(\"abi\").'\nOnly warn if matched — otherwise output empty string."
           }
         ]
       }
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Check the edit for THREE patterns:\n1. If this edit modified a file matching `src/features/*/mod.zig`, remind: 'Remember to update the matching stub.zig with the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n2. If this edit modified a file matching `src/features/*/stub.zig`, remind: 'Ensure the matching mod.zig has the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n3. If this edit introduced `@import(\"../../wdbx/` or `@import(\"../../../wdbx/` or any relative path containing `wdbx/wdbx.zig` from within `src/features/`, warn: 'Use `@import(\"wdbx\")` (named module) instead of a relative path to avoid module conflict — a file can only belong to one Zig module.'\nOnly warn if matched — otherwise output empty string."
+            "prompt": "Check the edit for THREE patterns:\n1. If this edit modified a file matching `src/features/*/mod.zig`, remind: 'Remember to update the matching stub.zig with the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n2. If this edit modified a file matching `src/features/*/stub.zig`, remind: 'Ensure the matching mod.zig has the same public function signatures. Run /zig-abi:check stub-sync to verify.'\n3. If this edit introduced `@import(\"../../wdbx/` or `@import(\"../../../wdbx/` or any relative path containing `wdbx/wdbx.zig` from within `src/features/`, warn: 'The `wdbx/` relative import path is incorrect — there is no `wdbx` named module. Use the correct relative path to the database core (e.g., `@import(\"../../core/database/...\")`) instead.'\nOnly warn if matched — otherwise output empty string."
           }
         ]
       }

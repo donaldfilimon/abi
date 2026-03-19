@@ -28,11 +28,10 @@ The `foundation` namespace (`abi.foundation`) is part of the `abi` module, acces
 ```
 src/
 ├── root.zig                    # Public package root (thin re-export)
-├── abi.zig                     # Internal composition (comptime gating hub)
 ├── core/                       # Foundation: config, framework, registry, errors
 │   ├── config/                 # Feature configs (always-on)
 │   ├── framework/              # Lifecycle, feature_imports, builder
-│   │   └── feature_imports.zig # Central comptime gating for 21 features
+│   │   └── feature_imports.zig # Central comptime gating for 17 feature module imports
 │   ├── registry/               # Plugin registry
 │   └── database/               # Semantic store core (WDBX V3)
 ├── features/                   # Comptime-gated domain implementations
@@ -95,7 +94,7 @@ Every comptime-gated feature has paired files:
 - `build/module_catalog.zig` — Feature module registration and catalog metadata
 - `build/options.zig` — Feature flag definitions (27 `feat_*` flags)
 - `build/flags.zig` — Validation matrix (56 flag combos)
-- `build/test_discovery.zig` — Feature test manifest (81+ entries)
+- `build/test_discovery.zig` — Feature test manifest (169 entries, defined in module_catalog.zig)
 
 ## Performance & SIMD
 

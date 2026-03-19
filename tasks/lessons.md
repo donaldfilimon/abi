@@ -99,7 +99,7 @@ Version pinning, parallel agents, and CI gate discipline.
 
 - When cherry-picking from worktree branches, always close the superseded PRs immediately to prevent stale PR accumulation.
 - `std.time.Instant` does not exist in Zig 0.16. Use `std.c.clock_gettime(.MONOTONIC, &ts)` for wall-clock timing in build/ and tools/ code.
-- Files under `docs/` are managed by gendocs — placing non-generated `.md` files there triggers `check-docs` drift. Use `tasks/plans/` for implementation plans instead.
+- Files under `docs/` are managed by gendocs — placing non-generated `.md` files there triggers `check-docs` drift. Use `docs/plans/` for implementation plans instead.
 - C bindings (`bindings/c/`) use `@import("abi")` (correct — outside src/). New feature exports follow the opaque handle pattern: `FooHandle = opaque {}`, `FooWrapper` struct, `export fn` with integer return codes.
 - RLE compression for block storage: use 0xFF marker byte with escape sequence `[0xFF, 0x01, 0xFF]` for literal 0xFF bytes. Simple, no external deps, good for zero-padded vector data.
 - POSIX file I/O (`std.posix.open/write/read/close/lseek`) works for block storage in Zig 0.16. The `std.Io.Threaded` API is more complex and better suited for full-featured applications, not low-level storage.

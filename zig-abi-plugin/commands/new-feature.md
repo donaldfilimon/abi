@@ -13,7 +13,7 @@ allowed-tools:
 
 # Scaffold New ABI Feature
 
-Create a complete feature module following all 9 required steps.
+Create a complete feature module following all 10 required steps.
 
 ## Instructions
 
@@ -99,8 +99,8 @@ Add the feature to the `Feature` enum in `src/core/feature_catalog.zig`, and add
 - `.real_module_path` — `"features/<name>/mod.zig"`
 - `.stub_module_path` — `"features/<name>/stub.zig"`
 
-### Step 6: Add to test_discovery.zig
-Add a test entry to `build/test_discovery.zig` manifest:
+### Step 6: Add to module_catalog.zig
+Add a test entry to `build/module_catalog.zig` manifest:
 ```zig
 .{ .flag = "feat_<name>", .path = "features/<name>/mod.zig" },
 ```
@@ -127,9 +127,19 @@ Run `zig fmt --check` on all modified files, then report:
 - Which validation steps still need to run (validate-flags, full-check)
 - On Darwin: note that full validation may still require Linux CI or another host with a working Zig linker
 
+### Step 10: Wire into Framework Lifecycle
+
+Add the new feature's comptime-gated import to `src/core/framework/feature_imports.zig`:
+
+```zig
+pub const <name> = if (build_options.feat_<name>) @import("../../features/<name>/mod.zig") else @import("../../features/<name>/stub.zig");
+```
+
+This file is the central hub where the framework lifecycle (init, shutdown, health checks) discovers features. Without this step, the feature will compile but won't participate in `App.init()` / `App.deinit()`.
+
 ## Important
 - Use snake_case for the flag name (convert kebab-case: `my-feature` → `feat_my_feature`)
 - Every pub fn in mod.zig MUST have a matching signature in stub.zig
 - Stub functions return `error.FeatureDisabled`, `null`, `0`, or `void` as appropriate
 - Both mod.zig and stub.zig should have `test { std.testing.refAllDecls(@This()); }`
-- Named module imports: use `@import("wdbx")`, `@import("build_options")` — never relative paths to named module roots
+- Named module imports: use `@import("build_options")` for build options — all other imports within `src/` must use relative paths

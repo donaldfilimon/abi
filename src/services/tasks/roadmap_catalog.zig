@@ -297,7 +297,7 @@ pub const plan_specs = [_]PlanSpec{
     .{
         .slug = "integration-gates-v1",
         .title = "Integration Gates v1",
-        .status = .blocked,
+        .status = .in_progress,
         .owner = owner_abbey,
         .scope = "Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green.",
         .success_criteria = &.{
@@ -388,7 +388,7 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .summary = "Wave 4: finish full command-tree PTY/probe validation with integration preflight and artifact reporting while interim cli-tests/tui-tests/launcher smoke validation remains required.",
         .track = .infra,
         .horizon = .next,
-        .status = .blocked,
+        .status = .in_progress,
         .owner = owner_abbey,
         .validation_gate = &gate_integration_interim,
         .plan_slug = "integration-gates-v1",

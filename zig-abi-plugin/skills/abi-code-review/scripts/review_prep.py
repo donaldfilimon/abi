@@ -189,7 +189,7 @@ def recommend_commands(paths: list[str]) -> list[dict[str, str]]:
         for path in paths
     ):
         add(
-            "zig build cli-tests",
+            "zig build test",
             "CLI files changed; cover command parsing and help/output behavior.",
         )
         add(
@@ -227,7 +227,7 @@ def recommend_commands(paths: list[str]) -> list[dict[str, str]]:
         for path in paths
     ):
         add(
-            "zig build wdbx-fast-tests",
+            "zig build database-fast-tests",
             "WDBX or database paths changed; run the focused database gate.",
         )
 

@@ -193,7 +193,7 @@ organized by domain.
 
 - `abi.ai.profiles` is the canonical behavior-profile namespace.
 - The public named `wdbx` package surface has been removed; use `abi.database`.
-- `src/root.zig` is the canonical package root for the `abi` module. `src/abi.zig` is a legacy internal file (not imported by any code).
+- `src/root.zig` is the canonical package root for the `abi` module.
 
 ## Project structure
 

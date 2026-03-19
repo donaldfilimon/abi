@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2905+5d71e3051` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`. Note: `src/abi.zig` is a legacy internal file — not the package root.
+Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2905+5d71e3051` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`.
 
 ## Commands
 
@@ -49,9 +49,10 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `tools/cli/` — CLI commands and registry (`tools/cli/registry/`)
 - `tools/gendocs/` — Documentation generator (edits go here, not in generated `docs/api/`)
 - `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
-- `lang/` — Reserved for future high-level language bindings (Python, JS/TS); wraps `bindings/c/`
+- `lang/` — High-level language bindings (Swift, Kotlin); wraps `bindings/c/`
 - `tests/integration/` — Integration test matrix manifest and preflight diagnostics
-- `examples/` — 35 standalone programs demonstrating API usage across all feature domains
+- `examples/` — 36 standalone programs demonstrating API usage across all feature domains
+- `zig-abi-plugin/` — Claude Code plugin: smart build routing, stub-sync validation, Zig 0.16 pattern checks, feature scaffolding (`/zig-abi:build`, `/zig-abi:check`, `/zig-abi:new-feature`)
 
 ### Public API surface
 
@@ -120,10 +121,14 @@ See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 - `@enumFromInt(x)` not `intToEnum`
 - `ArrayListUnmanaged` / `AutoHashMapUnmanaged` init: `.empty` not `.{}`
 - `pub fn main(init: std.process.Init) !void` not `pub fn main() !void`
+- `std.io.fixedBufferStream` does not exist — use manual buffer slicing
+- `std.time.Instant` does not exist — use `std.c.clock_gettime(.MONOTONIC, &ts)`
+- `_ = param` after referencing `param` triggers "pointless discard" — use `_:` prefix in signature
+- `defer` on lists returned via `toOwnedSlice()` causes use-after-free — use `errdefer` when returning owned memory
 
 ## Feature Flags
 
-All enabled by default. Disable: `-Dfeat-<name>=false`. GPU backend: `-Dgpu-backend=metal`.
+All enabled by default (except `feat-mobile`, which defaults to `false`). Disable: `-Dfeat-<name>=false`. GPU backend: `-Dgpu-backend=metal`.
 27 flags in `build/options.zig`, 56 combos validated in `build/flags.zig`.
 Catalog source of truth: `src/core/feature_catalog.zig`.
 
@@ -155,7 +160,7 @@ Catalog source of truth: `src/core/feature_catalog.zig`.
 
 ## Plugin System
 
-External modules register at runtime via `abi.registry.plugin.PluginRegistry`. Plugins declare capabilities (`ai_provider`, `connector`, `storage_backend`, `gpu_backend`, etc.) and follow a `registered → loading → active → unloading` lifecycle. C bindings available in `bindings/c/include/abi.h` (`abi_plugin_register`, etc.).
+External modules register at runtime via `abi.registry.plugin.PluginRegistry`. Plugins declare capabilities (`ai_provider`, `connector`, `storage_backend`, `gpu_backend`, etc.) and follow a `registered → loading → active → unloading` lifecycle. C bindings available in `bindings/c/include/abi.h` (`abi_plugin_register`, etc.). New C binding exports follow the opaque handle pattern: `FooHandle = opaque {}`, `FooWrapper` struct, `export fn` with integer return codes.
 
 ## Raft Consensus
 
