@@ -90,6 +90,18 @@ Advancement pass:
 - [x] Plugin: CEL skill marked aspirational, new-feature command Step 10 added, import hook broadened to all src/
 - [x] LSP/MCP: confirmed internally gated via module switcher pattern — no root.zig changes needed
 
+Wave 5A + docs sync pass:
+- [x] Simplified redundant AI dual-gating in llm, training, explore isEnabled()
+- [x] Fixed auth verifyToken page_allocator leak (added allocator parameter)
+- [x] Consolidated auth module's 15 repeated @import calls
+- [x] Fixed network stub types namespace divergence (shared_types → types)
+- [x] Added observability/mod.zig to feature test manifest
+- [x] Removed dead AI sub-module framework lifecycle code (initAiSubModules, 4 facade files, 2 routing files — 974 lines deleted)
+- [x] Gated cross-feature imports in brain_export, export, abbey_train, retriever
+- [x] Corrected test manifest flags for eval/rag/constitution (feat_ai → feat_reasoning)
+- [x] Fixed training stub parity: LoraModel init arity, LoraConfig.TargetModules, 6 missing methods
+- [x] Fixed stale docs: README phantom abi.zig, example count 35→36, feature count, feat-mobile exception
+
 ### Completed (Archived)
 
 Historical phases of the master-branch structure redesign and normalization (completed March 2026):
