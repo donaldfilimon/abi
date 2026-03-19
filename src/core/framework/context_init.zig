@@ -141,42 +141,9 @@ fn initConvertedFeatures(comptime Framework: type, allocator: std.mem.Allocator,
     }
 }
 
-/// AI sub-module spec for non-fatal initialization.
-const AiSubSpec = struct {
-    fw_field: []const u8,
-    feat_flag: []const u8,
-    label: []const u8,
-};
-
-const ai_sub_specs = [_]AiSubSpec{
-    .{ .fw_field = "ai_core", .feat_flag = "feat_ai", .label = "ai.core" },
-    .{ .fw_field = "ai_inference", .feat_flag = "feat_llm", .label = "ai.inference" },
-    .{ .fw_field = "ai_training", .feat_flag = "feat_training", .label = "ai.training" },
-    .{ .fw_field = "ai_reasoning", .feat_flag = "feat_reasoning", .label = "ai.reasoning" },
-};
-
-/// Initialize AI sub-modules non-fatally (main AI module stays available even
-/// if sub-features fail). Users check via `abi system-info`.
-fn initAiSubModules(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) void {
-    if (cfg.ai) |ai_cfg| {
-        inline for (ai_sub_specs) |spec| {
-            if (comptime @field(build_options, spec.feat_flag)) {
-                @field(fw, spec.fw_field) = @field(fi, spec.fw_field ++ "_mod").Context.init(
-                    allocator,
-                    ai_cfg,
-                ) catch |err| blk: {
-                    std.log.warn(spec.label ++ " sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
-                    break :blk null;
-                };
-            }
-        }
-    }
-}
-
 fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
     try initStandardFeatures(Framework, allocator, cfg, fw);
     try initConvertedFeatures(Framework, allocator, cfg, fw);
-    initAiSubModules(Framework, allocator, cfg, fw);
 
     // Always initialize HA manager using default provider when available.
     fw.ha = ha_mod.HaManager.init(allocator, .{});

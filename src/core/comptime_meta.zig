@@ -27,8 +27,6 @@ pub const Feature = feature_catalog.Feature;
 pub const InitMode = enum {
     /// `fw.<field> = try mod.Context.init(allocator, cfg_value);`
     standard,
-    /// AI sub-module: non-fatal catch with warning log.
-    non_fatal,
     /// Skip auto-init (feature is initialized by custom code, e.g. HA).
     manual,
 };
@@ -70,11 +68,6 @@ pub const descriptors = [_]FeatureDescriptor{
     .{ .field_name = "pages", .feature_tag = .pages, .build_flag = "feat_pages" },
     .{ .field_name = "benchmarks", .feature_tag = .benchmarks, .build_flag = "feat_benchmarks" },
     .{ .field_name = "mobile", .feature_tag = .mobile, .build_flag = "feat_mobile" },
-    // ── AI facade sub-modules ───────────────────────────────────────────
-    .{ .field_name = "ai_core", .feature_tag = .agents, .build_flag = "feat_ai", .init_mode = .non_fatal },
-    .{ .field_name = "ai_inference", .feature_tag = .llm, .build_flag = "feat_llm", .init_mode = .non_fatal },
-    .{ .field_name = "ai_training", .feature_tag = .training, .build_flag = "feat_training", .init_mode = .non_fatal },
-    .{ .field_name = "ai_reasoning", .feature_tag = .reasoning, .build_flag = "feat_reasoning", .init_mode = .non_fatal },
 };
 
 pub const descriptor_count = descriptors.len;
@@ -130,11 +123,11 @@ pub fn validateTopLevel(cfg: config_mod.Config) config_mod.ConfigError!void {
 // ============================================================================
 
 test "descriptor count matches expected" {
-    // 17 top-level + 4 AI sub-modules = 21
-    try std.testing.expectEqual(@as(usize, 21), descriptor_count);
+    // 17 top-level features
+    try std.testing.expectEqual(@as(usize, 17), descriptor_count);
 }
 
-test "top_level_count excludes non-fatal and manual" {
+test "top_level_count excludes manual" {
     try std.testing.expectEqual(@as(usize, 17), top_level_count);
 }
 

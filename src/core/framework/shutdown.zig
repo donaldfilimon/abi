@@ -22,10 +22,6 @@ const gateway_mod = fi.gateway_mod;
 const pages_mod = fi.pages_mod;
 const benchmarks_mod = fi.benchmarks_mod;
 const mobile_mod = fi.mobile_mod;
-const ai_core_mod = fi.ai_core_mod;
-const ai_inference_mod = fi.ai_inference_mod;
-const ai_training_mod = fi.ai_training_mod;
-const ai_reasoning_mod = fi.ai_reasoning_mod;
 
 /// Composable error type for registry operations from framework shutdown helpers.
 const registry_types = @import("../registry/types.zig");
