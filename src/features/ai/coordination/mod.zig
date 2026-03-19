@@ -1,12 +1,14 @@
 //! Canonical coordination surface over the legacy multi-profile system.
 
 const std = @import("std");
+const build_options = @import("build_options");
 const legacy_profiles = @import("../profiles/mod.zig");
 const legacy_types = @import("../types.zig");
 const legacy_config = @import("../config.zig");
 const legacy_abi = @import("../abi/mod.zig");
 const profiles = @import("../profiles/mod.zig");
-const semantic_store = @import("../../database/mod.zig").semantic_store;
+const db_mod = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
+const semantic_store = db_mod.semantic_store;
 
 pub const InteractionRequest = legacy_types.ProfileRequest;
 pub const InteractionResponse = legacy_types.ProfileResponse;

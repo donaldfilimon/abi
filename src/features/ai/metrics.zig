@@ -18,8 +18,9 @@
 //! - `core_metrics.SlidingWindow` - Timestamp-based sliding window
 
 const std = @import("std");
+const build_options = @import("build_options");
 const types = @import("types.zig");
-const obs = @import("../../features/observability/mod.zig");
+const obs = if (build_options.feat_profiling) @import("../observability/mod.zig") else @import("../observability/stub.zig");
 const alerts = @import("health.zig");
 
 // Shared metrics primitives (for standalone use)

@@ -19,7 +19,7 @@ const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 const time_utils = @import("../../../services/shared/mod.zig").utils;
 const time = @import("../../../services/shared/mod.zig").time;
-const database = @import("../../database/mod.zig");
+const database = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
 
 // Local submodule imports
 const checkpoint = @import("checkpoint.zig");

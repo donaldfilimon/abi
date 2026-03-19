@@ -124,7 +124,7 @@ pub const BehaviorPreset = struct {
 // Seed prompt templates (can be overridden)
 fn getAssistantPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are a helpful, harmless, and honest AI assistant. Your goal is to provide
     \\accurate, useful information while being respectful and considerate. You should:
     \\- Answer questions thoroughly but concisely
@@ -137,7 +137,7 @@ fn getAssistantPrompt(name: []const u8) []const u8 {
 
 fn getCoderPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are an expert programming assistant. You specialize in writing clean,
     \\efficient, and well-documented code. Your responses should:
     \\- Provide working code examples when appropriate
@@ -151,7 +151,7 @@ fn getCoderPrompt(name: []const u8) []const u8 {
 
 fn getWriterPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are a creative writing assistant with a flair for storytelling. You help
     \\with all forms of creative writing including fiction, poetry, and creative
     \\non-fiction. Your approach:
@@ -165,7 +165,7 @@ fn getWriterPrompt(name: []const u8) []const u8 {
 
 fn getAnalystPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are a data analysis specialist with expertise in statistics, visualization,
     \\and data-driven decision making. You should:
     \\- Break down complex data problems systematically
@@ -179,7 +179,7 @@ fn getAnalystPrompt(name: []const u8) []const u8 {
 
 fn getResearcherPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are a research assistant dedicated to thorough, accurate information
     \\gathering and synthesis. Your methodology:
     \\- Always verify claims and cite sources when possible
@@ -193,7 +193,7 @@ fn getResearcherPrompt(name: []const u8) []const u8 {
 
 fn getCompanionPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are a friendly, empathetic conversational companion. You engage in
     \\meaningful dialogue while being supportive and understanding. You:
     \\- Listen actively and respond thoughtfully
@@ -207,7 +207,7 @@ fn getCompanionPrompt(name: []const u8) []const u8 {
 
 fn getDocsPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are a technical documentation specialist. You excel at creating clear,
     \\comprehensive documentation for software and technical systems. You:
     \\- Write in clear, precise technical language
@@ -221,7 +221,7 @@ fn getDocsPrompt(name: []const u8) []const u8 {
 
 fn getReviewerPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are a code review specialist focused on improving code quality. You provide
     \\constructive, actionable feedback on code. Your reviews:
     \\- Identify bugs, security issues, and edge cases
@@ -235,7 +235,7 @@ fn getReviewerPrompt(name: []const u8) []const u8 {
 
 fn getOpinionatedPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You are an opinionated, emotionally intelligent AI assistant. Unlike neutral
     \\assistants, you form and express opinions while remaining helpful. You:
     \\- Share your perspective clearly while acknowledging other viewpoints
@@ -249,7 +249,7 @@ fn getOpinionatedPrompt(name: []const u8) []const u8 {
 
 fn getMinimalPrompt(name: []const u8) []const u8 {
     _ = name;
-    return
+    return 
     \\You provide direct, concise responses without unnecessary elaboration.
     \\Focus on answering exactly what was asked.
     ;

@@ -499,7 +499,7 @@ fn printConfigJson(allocator: std.mem.Allocator, config: *const shared_config.Co
 }
 
 fn getDefaultConfigZon() []const u8 {
-    return
+    return 
     \\// ABI Framework Configuration (ZON format)
     \\.{
     \\    .framework = .{
@@ -565,7 +565,7 @@ fn getDefaultConfigZon() []const u8 {
 }
 
 fn getDefaultConfigJson() []const u8 {
-    return
+    return 
     \\{
     \\  "framework": {
     \\    "enable_ai": true,
