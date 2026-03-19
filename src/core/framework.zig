@@ -105,6 +105,9 @@ const gateway_mod = fi.gateway_mod;
 const pages_mod = fi.pages_mod;
 const benchmarks_mod = fi.benchmarks_mod;
 const mobile_mod = fi.mobile_mod;
+const compute_mod = fi.compute_mod;
+const documents_mod = fi.documents_mod;
+const desktop_mod = fi.desktop_mod;
 const ha_mod = @import("../services/ha/mod.zig");
 const runtime_mod = @import("../services/runtime/mod.zig");
 
@@ -194,6 +197,12 @@ pub const Framework = struct {
     benchmarks: ?*benchmarks_mod.Context = null,
     /// Mobile context, or null if mobile is not enabled.
     mobile: ?*mobile_mod.Context = null,
+    /// Compute context, or null if compute is not enabled.
+    compute: ?*compute_mod.Context = null,
+    /// Documents context, or null if documents is not enabled.
+    documents: ?*documents_mod.Context = null,
+    /// Desktop context, or null if desktop is not enabled.
+    desktop: ?*desktop_mod.Context = null,
     /// High availability manager, or null if not initialized.
     ha: ?ha_mod.HaManager = null,
     /// Runtime context (always available).

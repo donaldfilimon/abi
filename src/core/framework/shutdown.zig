@@ -22,6 +22,9 @@ const gateway_mod = fi.gateway_mod;
 const pages_mod = fi.pages_mod;
 const benchmarks_mod = fi.benchmarks_mod;
 const mobile_mod = fi.mobile_mod;
+const compute_mod = fi.compute_mod;
+const documents_mod = fi.documents_mod;
+const desktop_mod = fi.desktop_mod;
 
 /// Composable error type for registry operations from framework shutdown helpers.
 const registry_types = @import("../registry/types.zig");
@@ -52,6 +55,13 @@ pub fn deinitFeatures(self: anytype) void {
         self.ha = null;
     }
 
+    // Configless features (reverse order: desktop, documents, compute).
+    // These are heap-allocated by the framework (not self-owned), so we
+    // must destroy the allocation after calling deinit.
+    deinitConfiglessContext(desktop_mod.Context, &self.desktop, self.allocator);
+    deinitConfiglessContext(documents_mod.Context, &self.documents, self.allocator);
+    deinitConfiglessContext(compute_mod.Context, &self.compute, self.allocator);
+
     // Standard feature modules (reverse order of initFeatureContexts).
     deinitOptionalContext(mobile_mod.Context, &self.mobile);
     deinitOptionalContext(benchmarks_mod.Context, &self.benchmarks);
@@ -76,6 +86,17 @@ pub fn deinitFeatures(self: anytype) void {
 pub fn deinitOptionalContext(comptime Context: type, slot: *?*Context) void {
     if (slot.*) |ctx| {
         ctx.deinit();
+        slot.* = null;
+    }
+}
+
+/// Deinitialize a configless feature context and free the heap allocation.
+/// Used for features whose Context.init returns a value (not a pointer),
+/// so the framework owns the heap allocation.
+fn deinitConfiglessContext(comptime Context: type, slot: *?*Context, allocator: std.mem.Allocator) void {
+    if (slot.*) |ctx| {
+        ctx.deinit();
+        allocator.destroy(ctx);
         slot.* = null;
     }
 }

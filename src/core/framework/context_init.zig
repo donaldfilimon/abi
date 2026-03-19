@@ -29,6 +29,9 @@ const gateway_mod = fi.gateway_mod;
 const pages_mod = fi.pages_mod;
 const benchmarks_mod = fi.benchmarks_mod;
 const mobile_mod = fi.mobile_mod;
+const compute_mod = fi.compute_mod;
+const documents_mod = fi.documents_mod;
+const desktop_mod = fi.desktop_mod;
 const ha_mod = @import("../../services/ha/mod.zig");
 const runtime_mod = @import("../../services/runtime/mod.zig");
 
@@ -141,9 +144,33 @@ fn initConvertedFeatures(comptime Framework: type, allocator: std.mem.Allocator,
     }
 }
 
+/// Initialize a configless feature: allocate a Context on the heap and init with just an allocator.
+fn initConfigless(comptime Mod: type, allocator: std.mem.Allocator) !*Mod.Context {
+    const ctx = try allocator.create(Mod.Context);
+    ctx.* = Mod.Context.init(allocator);
+    return ctx;
+}
+
+/// Initialize features that have no config struct (allocator-only init).
+fn initConfiglessFeatures(comptime Framework: type, allocator: std.mem.Allocator, fw: *Framework) Framework.Error!void {
+    if (comptime build_options.feat_compute) {
+        fw.compute = initConfigless(compute_mod, allocator) catch return error.OutOfMemory;
+        try fw.registry.registerComptime(.compute);
+    }
+    if (comptime build_options.feat_documents) {
+        fw.documents = initConfigless(documents_mod, allocator) catch return error.OutOfMemory;
+        try fw.registry.registerComptime(.documents);
+    }
+    if (comptime build_options.feat_desktop) {
+        fw.desktop = initConfigless(desktop_mod, allocator) catch return error.OutOfMemory;
+        try fw.registry.registerComptime(.desktop);
+    }
+}
+
 fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
     try initStandardFeatures(Framework, allocator, cfg, fw);
     try initConvertedFeatures(Framework, allocator, cfg, fw);
+    try initConfiglessFeatures(Framework, allocator, fw);
 
     // Always initialize HA manager using default provider when available.
     fw.ha = ha_mod.HaManager.init(allocator, .{});

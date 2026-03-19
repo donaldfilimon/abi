@@ -68,6 +68,9 @@ pub const descriptors = [_]FeatureDescriptor{
     .{ .field_name = "pages", .feature_tag = .pages, .build_flag = "feat_pages" },
     .{ .field_name = "benchmarks", .feature_tag = .benchmarks, .build_flag = "feat_benchmarks" },
     .{ .field_name = "mobile", .feature_tag = .mobile, .build_flag = "feat_mobile" },
+    .{ .field_name = "compute", .feature_tag = .compute, .build_flag = "feat_compute", .init_mode = .manual },
+    .{ .field_name = "documents", .feature_tag = .documents, .build_flag = "feat_documents", .init_mode = .manual },
+    .{ .field_name = "desktop", .feature_tag = .desktop, .build_flag = "feat_desktop", .init_mode = .manual },
 };
 
 pub const descriptor_count = descriptors.len;
@@ -123,8 +126,8 @@ pub fn validateTopLevel(cfg: config_mod.Config) config_mod.ConfigError!void {
 // ============================================================================
 
 test "descriptor count matches expected" {
-    // 17 top-level features
-    try std.testing.expectEqual(@as(usize, 17), descriptor_count);
+    // 20 top-level features
+    try std.testing.expectEqual(@as(usize, 20), descriptor_count);
 }
 
 test "top_level_count excludes manual" {
