@@ -10,13 +10,13 @@ const config_module = @import("../../core/config/mod.zig");
 // Shared types (from types.zig)
 // ============================================================================
 
-pub const shared_types = @import("types.zig");
+pub const types = @import("types.zig");
 
 // ============================================================================
 // Local Stubs Imports
 // ============================================================================
 
-const types = @import("stubs/types.zig");
+const stub_types = @import("stubs/types.zig");
 const metrics_stubs = @import("stubs/metrics.zig");
 pub const tracing = @import("stubs/tracing.zig");
 pub const alerting = @import("stubs/alerting.zig");
@@ -26,30 +26,30 @@ const exporters = @import("stubs/exporters.zig");
 // Re-exports
 // ============================================================================
 
-pub const Error = shared_types.Error;
-pub const MetricsConfig = shared_types.MetricsConfig;
-pub const MetricsSummary = shared_types.MetricsSummary;
-pub const BundleConfig = types.BundleConfig;
-pub const PrometheusConfig = types.PrometheusConfig;
-pub const OtelConfig = types.OtelConfig;
-pub const MonitoringError = shared_types.MonitoringError;
-pub const OtelSpanKind = types.OtelSpanKind;
-pub const OtelMetricType = types.OtelMetricType;
-pub const OtelStatus = types.OtelStatus;
-pub const TraceId = types.TraceId;
-pub const SpanId = types.SpanId;
-pub const SpanKind = types.SpanKind;
-pub const SpanStatus = types.SpanStatus;
-pub const AttributeValue = types.AttributeValue;
-pub const SpanAttribute = types.SpanAttribute;
-pub const SpanEvent = types.SpanEvent;
-pub const SpanLink = types.SpanLink;
-pub const PropagationFormat = types.PropagationFormat;
-pub const SamplerType = types.SamplerType;
-pub const AlertState = types.AlertState;
-pub const AlertSeverity = types.AlertSeverity;
-pub const AlertError = types.AlertError;
-pub const AlertCallback = types.AlertCallback;
+pub const Error = types.Error;
+pub const MetricsConfig = types.MetricsConfig;
+pub const MetricsSummary = types.MetricsSummary;
+pub const BundleConfig = stub_types.BundleConfig;
+pub const PrometheusConfig = stub_types.PrometheusConfig;
+pub const OtelConfig = stub_types.OtelConfig;
+pub const MonitoringError = types.MonitoringError;
+pub const OtelSpanKind = stub_types.OtelSpanKind;
+pub const OtelMetricType = stub_types.OtelMetricType;
+pub const OtelStatus = stub_types.OtelStatus;
+pub const TraceId = stub_types.TraceId;
+pub const SpanId = stub_types.SpanId;
+pub const SpanKind = stub_types.SpanKind;
+pub const SpanStatus = stub_types.SpanStatus;
+pub const AttributeValue = stub_types.AttributeValue;
+pub const SpanAttribute = stub_types.SpanAttribute;
+pub const SpanEvent = stub_types.SpanEvent;
+pub const SpanLink = stub_types.SpanLink;
+pub const PropagationFormat = stub_types.PropagationFormat;
+pub const SamplerType = stub_types.SamplerType;
+pub const AlertState = stub_types.AlertState;
+pub const AlertSeverity = stub_types.AlertSeverity;
+pub const AlertError = stub_types.AlertError;
+pub const AlertCallback = stub_types.AlertCallback;
 
 // Metrics
 pub const MetricsCollector = metrics_stubs.MetricsCollector;
@@ -81,7 +81,7 @@ pub const OtelSpan = tracing.OtelSpan;
 pub const OtelContext = tracing.OtelContext;
 pub const OtelMetric = tracing.OtelMetric;
 pub const OtelAttribute = tracing.OtelAttribute;
-pub const OtelAttributeValue = types.AttributeValue;
+pub const OtelAttributeValue = stub_types.AttributeValue;
 pub const OtelEvent = tracing.OtelEvent;
 pub const formatTraceId = tracing.formatTraceId;
 pub const formatSpanId = tracing.formatSpanId;
@@ -102,7 +102,7 @@ pub const createAlertRule = alerting.createAlertRule;
 // Exporters
 pub const prometheus = struct {
     pub const PrometheusExporter = exporters.PrometheusExporter;
-    pub const PrometheusConfig = types.PrometheusConfig;
+    pub const PrometheusConfig = stub_types.PrometheusConfig;
     pub const PrometheusFormatter = exporters.PrometheusFormatter;
     pub const generateMetricsOutput = exporters.generateMetricsOutput;
 };
@@ -113,7 +113,7 @@ pub const statsd = exporters.statsd;
 
 // Monitoring re-exports for parity with mod.zig
 pub const monitoring = alerting;
-// MonitoringError is re-exported from shared_types above
+// MonitoringError is re-exported from types above
 pub const StatsDClient = struct {};
 pub const StatsDConfig = struct {};
 pub const StatsDError = error{FeatureDisabled};
