@@ -117,13 +117,13 @@ be used per-thread or with external synchronization.
 
 ### <a id="pub-const-weberror"></a>`pub const WebError`
 
-<sup>**const**</sup> | [source](../../src/features/web/mod.zig#L143)
+<sup>**const**</sup> | [source](../../src/features/web/mod.zig#L145)
 
 Errors specific to the web module.
 
 ### <a id="pub-const-context"></a>`pub const Context`
 
-<sup>**const**</sup> | [source](../../src/features/web/mod.zig#L167)
+<sup>**const**</sup> | [source](../../src/features/web/mod.zig#L165)
 
 Web Context for Framework integration.
 
@@ -146,31 +146,31 @@ defer json.deinit();
 
 ### <a id="pub-fn-get-self-context-url-const-u8-response"></a>`pub fn get(self: *Context, url: []const u8) !Response`
 
-<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L195)
+<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L193)
 
 Perform an HTTP GET request.
 
 ### <a id="pub-fn-getwithoptions-self-context-url-const-u8-options-requestoptions-response"></a>`pub fn getWithOptions(self: *Context, url: []const u8, options: RequestOptions) !Response`
 
-<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L203)
+<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L201)
 
 Perform an HTTP GET request with options.
 
 ### <a id="pub-fn-postjson-self-context-url-const-u8-body-const-u8-response"></a>`pub fn postJson(self: *Context, url: []const u8, body: []const u8) !Response`
 
-<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L211)
+<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L209)
 
 Perform an HTTP POST request with JSON body.
 
 ### <a id="pub-fn-freeresponse-self-context-response-response-void"></a>`pub fn freeResponse(self: *Context, response: Response) void`
 
-<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L219)
+<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L217)
 
 Free a response body.
 
 ### <a id="pub-fn-parsejsonvalue-self-context-response-response-parsedjson"></a>`pub fn parseJsonValue(self: *Context, response: Response) !ParsedJson`
 
-<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L224)
+<sup>**fn**</sup> | [source](../../src/features/web/mod.zig#L222)
 
 Parse a JSON response.
 

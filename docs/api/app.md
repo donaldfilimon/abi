@@ -91,7 +91,7 @@ The framework transitions through the following states:
 
 ### <a id="pub-const-framework"></a>`pub const Framework`
 
-<sup>**const**</sup> | [source](../../src/core/framework.zig#L143)
+<sup>**const**</sup> | [source](../../src/core/framework.zig#L146)
 
 Framework orchestration handle.
 
@@ -128,20 +128,20 @@ if (fw.gpu) |gpu_ctx| {
 
 ### <a id="pub-const-state"></a>`pub const State`
 
-<sup>**const**</sup> | [source](../../src/core/framework.zig#L203)
+<sup>**const**</sup> | [source](../../src/core/framework.zig#L212)
 
 Framework lifecycle states.
 
 ### <a id="pub-const-error"></a>`pub const Error`
 
-<sup>**const**</sup> | [source](../../src/core/framework.zig#L207)
+<sup>**const**</sup> | [source](../../src/core/framework.zig#L216)
 
 Composable framework error set.
 See `core/errors.zig` for the full hierarchy.
 
 ### <a id="pub-fn-init-allocator-std-mem-allocator-cfg-config-error-framework"></a>`pub fn init(allocator: std.mem.Allocator, cfg: Config) Error!Framework`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L240)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L249)
 
 Initialize the framework with the given configuration.
 
@@ -177,14 +177,14 @@ defer fw.deinit();
 
 ### <a id="pub-fn-initwithio-allocator-std-mem-allocator-cfg-config-io-std-io-error-framework"></a>`pub fn initWithIo(allocator: std.mem.Allocator, cfg: Config, io: std.Io) Error!Framework`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L246)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L255)
 
 Initialize the framework with the given configuration **and** an I/O backend.
 This method is used by the builder when `withIo` is supplied.
 
 ### <a id="pub-fn-initdefault-allocator-std-mem-allocator-error-framework"></a>`pub fn initDefault(allocator: std.mem.Allocator) Error!Framework`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L269)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L278)
 
 Create a framework with default configuration.
 
@@ -208,7 +208,7 @@ defer fw.deinit();
 
 ### <a id="pub-fn-initminimal-allocator-std-mem-allocator-error-framework"></a>`pub fn initMinimal(allocator: std.mem.Allocator) Error!Framework`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L297)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L306)
 
 Create a framework with minimal configuration (no features enabled).
 
@@ -237,7 +237,7 @@ try std.testing.expect(fw.ai == null);
 
 ### <a id="pub-fn-builder-allocator-std-mem-allocator-frameworkbuilder"></a>`pub fn builder(allocator: std.mem.Allocator) FrameworkBuilder`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L323)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L332)
 
 Start building a framework configuration.
 
@@ -264,7 +264,7 @@ defer fw.deinit();
 
 ### <a id="pub-fn-deinit-self-framework-void"></a>`pub fn deinit(self: *Framework) void`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L345)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L354)
 
 Shutdown and cleanup the framework.
 
@@ -287,75 +287,75 @@ fw.deinit();  // Clean up all resources
 
 ### <a id="pub-fn-shutdownwithtimeout-self-framework-timeout-ms-u64-bool"></a>`pub fn shutdownWithTimeout(self: *Framework, timeout_ms: u64) bool`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L351)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L360)
 
 Shutdown with timeout. Currently synchronous (timeout reserved for
 future async cleanup). Returns true if clean shutdown completed.
 
 ### <a id="pub-fn-isrunning-self-const-framework-bool"></a>`pub fn isRunning(self: *const Framework) bool`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L360)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L369)
 
 Check if the framework is running.
 
 ### <a id="pub-fn-isenabled-self-const-framework-feature-feature-bool"></a>`pub fn isEnabled(self: *const Framework, feature: Feature) bool`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L365)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L374)
 
 Check if a feature is enabled.
 
 ### <a id="pub-fn-getstate-self-const-framework-state"></a>`pub fn getState(self: *const Framework) State`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L370)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L379)
 
 Get the current framework state.
 
 ### <a id="pub-fn-getruntime-self-framework-runtime-mod-context"></a>`pub fn getRuntime(self: *Framework) *runtime_mod.Context`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L375)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L384)
 
 Get runtime context (always available).
 
 ### <a id="pub-fn-getregistry-self-framework-registry"></a>`pub fn getRegistry(self: *Framework) *Registry`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L380)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L389)
 
 Get the feature registry for runtime feature management.
 
 ### <a id="pub-fn-isfeatureregistered-self-const-framework-feature-feature-bool"></a>`pub fn isFeatureRegistered(self: *const Framework, feature: Feature) bool`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L385)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L394)
 
 Check if a feature is registered in the registry.
 
 ### <a id="pub-fn-listregisteredfeatures-self-const-framework-allocator-std-mem-allocator-registryerror-feature"></a>`pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) RegistryError![]Feature`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L390)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L399)
 
 List all registered features.
 
 ### <a id="pub-const-frameworkbuilder"></a>`pub const FrameworkBuilder`
 
-<sup>**const**</sup> | [source](../../src/core/framework.zig#L396)
+<sup>**const**</sup> | [source](../../src/core/framework.zig#L405)
 
 Fluent builder for Framework initialization.
 
 ### <a id="pub-fn-withdefaults-self-frameworkbuilder-frameworkbuilder"></a>`pub fn withDefaults(self: *FrameworkBuilder) *FrameworkBuilder`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L408)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L417)
 
 Start with default configuration.
 
 ### <a id="pub-fn-withio-self-frameworkbuilder-io-std-io-frameworkbuilder"></a>`pub fn withIo(self: *FrameworkBuilder, io: std.Io) *FrameworkBuilder`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L414)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L423)
 
 Provide a shared I/O backend for the framework.
 Pass the `std.Io` obtained from `IoBackend.init`.
 
 ### <a id="pub-fn-with-self-frameworkbuilder-comptime-feature-feature-cfg-anytype-frameworkbuilder"></a>`pub fn with(self: *FrameworkBuilder, comptime feature: Feature, cfg: anytype) *FrameworkBuilder`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L429)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L438)
 
 Enable a feature with explicit configuration.
 
@@ -369,7 +369,7 @@ var fw = try Framework.builder(allocator)
 
 ### <a id="pub-fn-withdefault-self-frameworkbuilder-comptime-feature-feature-frameworkbuilder"></a>`pub fn withDefault(self: *FrameworkBuilder, comptime feature: Feature) *FrameworkBuilder`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L442)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L451)
 
 Enable a feature with its default configuration.
 
@@ -383,13 +383,13 @@ var fw = try Framework.builder(allocator)
 
 ### <a id="pub-fn-withplugins-self-frameworkbuilder-plugin-config-config-module-pluginconfig-frameworkbuilder"></a>`pub fn withPlugins(self: *FrameworkBuilder, plugin_config: config_module.PluginConfig) *FrameworkBuilder`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L447)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L456)
 
 Configure plugins.
 
 ### <a id="pub-fn-build-self-frameworkbuilder-framework-error-framework"></a>`pub fn build(self: *FrameworkBuilder) Framework.Error!Framework`
 
-<sup>**fn**</sup> | [source](../../src/core/framework.zig#L454)
+<sup>**fn**</sup> | [source](../../src/core/framework.zig#L463)
 
 Build and initialize the framework.
 If an I/O backend was supplied via `withIo`, it will be stored in the

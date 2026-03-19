@@ -5,7 +5,7 @@ description: Generated implementation plan
 
 # Integration Gates v1
 ## Status
-- Status: **Blocked**
+- Status: **In Progress**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
@@ -39,7 +39,7 @@ Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock
 
 | ID | Item | Track | Horizon | Status | Gate |
 | -- | --- | --- | --- | --- | --- |
-| RM-007 | Complete exhaustive CLI integration gate | Infrastructure | Next | Blocked | zig build cli-tests-full ; zig build cli-tests ; zig build tui-tests ; zig build run -- ui launch --help ; zig build run -- ui gpu --help |
+| RM-007 | Complete exhaustive CLI integration gate | Infrastructure | Next | In Progress | zig build cli-tests-full ; zig build cli-tests ; zig build tui-tests ; zig build run -- ui launch --help ; zig build run -- ui gpu --help |
 
 Roadmap guide: [../roadmap/](../roadmap/)
 

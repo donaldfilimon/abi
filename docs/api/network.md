@@ -44,37 +44,37 @@ try registry.register("node-a", "127.0.0.1:9000");
 
 ### <a id="pub-const-context"></a>`pub const Context`
 
-<sup>**const**</sup> | [source](../../src/features/network/mod.zig#L354)
+<sup>**const**</sup> | [source](../../src/features/network/mod.zig#L333)
 
 Network context for Framework integration.
 
 ### <a id="pub-fn-connect-self-context-void"></a>`pub fn connect(self: *Context) !void`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L383)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L362)
 
 Connect to the network.
 
 ### <a id="pub-fn-disconnect-self-context-void"></a>`pub fn disconnect(self: *Context) void`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L391)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L370)
 
 Disconnect from the network.
 
 ### <a id="pub-fn-getstate-self-context-state"></a>`pub fn getState(self: *Context) State`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L396)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L375)
 
 Get current state.
 
 ### <a id="pub-fn-discoverpeers-self-context-nodeinfo"></a>`pub fn discoverPeers(self: *Context) ![]NodeInfo`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L401)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L380)
 
 Discover peers.
 
 ### <a id="pub-fn-sendtask-self-context-node-id-const-u8-task-anytype-void"></a>`pub fn sendTask(self: *Context, node_id: []const u8, task: anytype) !void`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L409)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L388)
 
 Send a task to a remote node.
 

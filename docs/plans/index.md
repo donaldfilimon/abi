@@ -14,8 +14,8 @@ Active generated plans: **6**. This index is generated from the canonical roadma
 | [Docs + Assistant Canonical Sync](./docs-roadmap-sync-v2.md) | In Progress | Abbey | Canonical docs wave: align AGENTS.md, zig-master, tasks/todo.md, root status docs, and generated outputs around one workflow and Zig validation contract. |
 | [Feature Modules Restructure v1](./feature-modules-restructure-v1.md) | In Progress | Abbey | Wave 5 active lane: remove legacy facades, finalize module boundaries, and consolidate shared primitives. |
 | [GPU Redesign v3](./gpu-redesign-v3.md) | In Progress | Abbey | Wave 3 active lane: enforce strict backend policy, pool lifecycle safety, and cross-target policy verification. |
+| [Integration Gates v1](./integration-gates-v1.md) | In Progress | Abbey | Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green. |
 | [TUI Modular Extraction v2](./tui-modular-v2.md) | In Progress | Abbey | Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests. |
-| [Integration Gates v1](./integration-gates-v1.md) | Blocked | Abbey | Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green. |
 
 
 ## Roadmap Horizons

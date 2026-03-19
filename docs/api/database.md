@@ -26,7 +26,7 @@ identical types and functions regardless of whether `feat_database` selects
 
 ### <a id="pub-fn-isenabled-bool"></a>`pub fn isEnabled() bool`
 
-<sup>**fn**</sup> | [source](../../src/features/database/mod.zig#L85)
+<sup>**fn**</sup> | [source](../../src/features/database/mod.zig#L86)
 
 Check if the database module is enabled at compile time.
 
