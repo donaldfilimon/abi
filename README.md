@@ -212,7 +212,7 @@ abi/
 │   ├── gendocs/          # Documentation generator
 │   └── scripts/          # Build helpers and consistency checks
 ├── tests/                # Integration test roots
-├── examples/             # 36 standalone example programs
+├── examples/             # 35 standalone example programs
 ├── benchmarks/           # Performance benchmark suites
 ├── bindings/             # C and WASM language bindings
 ├── lang/                 # Swift Package and Kotlin/JNI bridges

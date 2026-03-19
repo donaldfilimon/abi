@@ -51,7 +51,7 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
 - `lang/` — High-level language bindings (Swift, Kotlin); wraps `bindings/c/`
 - `tests/integration/` — Integration test matrix manifest and preflight diagnostics
-- `examples/` — 36 standalone programs demonstrating API usage across all feature domains
+- `examples/` — 35 standalone programs demonstrating API usage across all feature domains
 - `zig-abi-plugin/` — Claude Code plugin: smart build routing, stub-sync validation, Zig 0.16 pattern checks, feature scaffolding (`/zig-abi:build`, `/zig-abi:check`, `/zig-abi:new-feature`)
 
 ### Public API surface
