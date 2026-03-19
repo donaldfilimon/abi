@@ -9,6 +9,7 @@ Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0
 ## Commands
 
 ```bash
+./build.sh test --summary all         # auto-resolves Zig, delegates on Darwin 26+
 zig build                             # build all targets
 zig build run -- --help               # run the CLI
 zig build test --summary all          # primary tests
@@ -28,7 +29,9 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 
 **Running a single test**: `zig test src/path/to/file.zig -fno-emit-bin` for standalone files. For module-integrated tests, use `zig build test --summary all` with feature flags to narrow scope (e.g., `zig build test -Dfeat-ai=false -Dfeat-gpu=false --summary all` to skip AI and GPU tests).
 
-**Darwin 25+ / macOS 26+**: stock prebuilt Zig's internal LLD linker fails before `build.zig` runs (undefined symbols: `_malloc_size`, `__availability_version_check`, etc.). Compilation succeeds — only linking is blocked. Primary workaround: `./tools/scripts/run_build.sh <step> --summary all` intercepts the linker failure, extracts the compiled `.o`, and relinks with Apple's `/usr/bin/ld`. This provides **full gate coverage** including `full-check`, `check-docs`, and all 56 flag combos. The bootstrap script (`bootstrap_host_zig.sh`) builds `zig1`/`zig2` but stage3 self-build currently fails on Darwin 26.4. If bootstrap succeeds, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH` for direct `zig build` support. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
+**Darwin 25+ / macOS 26+**: stock prebuilt Zig's internal LLD linker fails before `build.zig` runs (undefined symbols: `_malloc_size`, `__availability_version_check`, etc.). Compilation succeeds — only linking is blocked. **Recommended**: use `./build.sh <args>` which auto-resolves the correct Zig and delegates to `run_build.sh` on Darwin 26+. Alternative: `./tools/scripts/run_build.sh <step> --summary all` intercepts the linker failure, extracts the compiled `.o`, and relinks with Apple's `/usr/bin/ld`. This provides **full gate coverage** including `full-check`, `check-docs`, and all 56 flag combos. The bootstrap script (`bootstrap_host_zig.sh`) builds `zig1`/`zig2` but stage3 self-build currently fails on Darwin 26.4. If bootstrap succeeds, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH` for direct `zig build` support. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
+
+**Version mismatch**: if your Zig version doesn't match the pin in `.zigversion`, both `build.sh` and `run_build.sh` detect this and print clear instructions. On very old builds (dev < 2000), `build.zig` itself prints a warning and only registers format-check steps (`lint`, `fix`). The compatibility layer in `build/compat.zig` centralizes all `b.graph.*` access behind comptime gates.
 
 ## Architecture
 

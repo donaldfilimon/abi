@@ -1,4 +1,5 @@
 const std = @import("std");
+const compat = @import("compat.zig");
 const gpu_mod = @import("gpu.zig");
 
 const GpuBackend = gpu_mod.GpuBackend;
@@ -213,7 +214,7 @@ pub fn applyAllPlatformLinks(
     // On macOS 26+ with version-clamped targets, Zig's framework auto-detection
     // breaks. Explicitly add SDK framework paths so linkFramework can resolve.
     if (os_tag == .macos and is_blocked_darwin) {
-        addSdkFrameworkPaths(mod, mod.owner.graph.io);
+        addSdkFrameworkPaths(mod, mod.owner);
     }
 
     applyLinuxLinks(mod, os_tag, gpu_backends);
@@ -232,8 +233,8 @@ pub fn applyAllPlatformLinks(
 /// search breaks because the host SDK version doesn't match the clamped
 /// deployment target. This function explicitly adds the SDK's framework
 /// directories so that `-framework Accelerate` etc. can resolve.
-pub fn addSdkFrameworkPaths(mod: *std.Build.Module, io: std.Io) void {
-    const sdk_path = detectSdkPath(io) orelse return;
+pub fn addSdkFrameworkPaths(mod: *std.Build.Module, b: *std.Build) void {
+    const sdk_path = detectSdkPath(b) orelse return;
     const alloc = mod.owner.allocator;
 
     const fw_path = std.fmt.allocPrint(alloc, "{s}/System/Library/Frameworks", .{sdk_path}) catch return;
@@ -244,23 +245,16 @@ pub fn addSdkFrameworkPaths(mod: *std.Build.Module, io: std.Io) void {
 }
 
 /// Detect the macOS SDK path by probing known locations.
-pub fn detectSdkPath(io: std.Io) ?[]const u8 {
+pub fn detectSdkPath(b: *std.Build) ?[]const u8 {
     const candidates = [_][]const u8{
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
         "/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
     };
     for (candidates) |path| {
-        if (dirExists(io, path)) return path;
+        if (compat.dirExists(b, path)) return path;
     }
     return null;
-}
-
-/// Check if a directory exists using Zig's Io.Dir API.
-fn dirExists(io: std.Io, path: []const u8) bool {
-    var dir = std.Io.Dir.openDirAbsolute(io, path, .{}) catch return false;
-    dir.close(io);
-    return true;
 }
 
 // =============================================================================
@@ -277,14 +271,14 @@ const required_metal_framework_paths = [_][]const u8{
 /// Probe whether Metal frameworks can be linked on this host.  Tries
 /// `xcrun --sdk macosx --show-sdk-path` first; falls back to checking
 /// framework paths directly.
-pub fn canLinkMetalFrameworks(io: std.Io, os_tag: std.Target.Os.Tag) bool {
+pub fn canLinkMetalFrameworks(b: *std.Build, os_tag: std.Target.Os.Tag) bool {
     if (os_tag != .macos) return false;
 
-    if (commandSucceeds(io, &.{ "/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path" }))
+    if (compat.commandSucceeds(b, &.{ "/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path" }))
         return true;
 
     for (required_metal_framework_paths) |path|
-        if (!dirExists(io, path)) return false;
+        if (!compat.dirExists(b, path)) return false;
     return true;
 }
 
@@ -330,21 +324,6 @@ fn isExplicitMetalRequested(backend_arg: ?[]const u8) bool {
     return false;
 }
 
-fn commandSucceeds(io: std.Io, argv: []const []const u8) bool {
-    var child = std.process.spawn(io, .{
-        .argv = argv,
-        .stdin = .ignore,
-        .stdout = .ignore,
-        .stderr = .ignore,
-    }) catch return false;
-
-    const term = child.wait(io) catch return false;
-    return switch (term) {
-        .exited => |code| code == 0,
-        else => false,
-    };
-}
-
 /// On Darwin 25+ (macOS 26+), Zig's built-in Mach-O linker cannot resolve
 /// system symbols.  This helper takes a compiled artifact (from addObject
 /// with use_llvm=true) and produces a Run step that relinks via Apple's
@@ -362,7 +341,7 @@ pub fn darwinRelink(
     compiler_rt: ?[]const u8,
 ) *std.Build.Step.Run {
     const rt_path = compiler_rt orelse findCompilerRt(b);
-    const sdk_path = detectSdkPath(b.graph.io) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+    const sdk_path = detectSdkPath(b) orelse "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
 
     const relink = b.addSystemCommand(&.{ "/usr/bin/ld", "-dynamic" });
     relink.addArg("-platform_version");
@@ -399,10 +378,14 @@ pub fn darwinRelink(
 
 /// Find libcompiler_rt.a path by walking the Zig global cache.
 pub fn findCompilerRt(b: *std.Build) ?[]const u8 {
-    const home = b.graph.environ_map.get("HOME") orelse return null;
+    // Directory walking requires b.graph.io (std.Io); bail on older toolchains.
+    if (comptime !compat.has_graph) return null;
+
+    const home = compat.getEnv(b, "HOME") orelse return null;
     const global_cache = std.fs.path.join(b.allocator, &.{ home, ".cache", "zig", "o" }) catch return null;
     defer b.allocator.free(global_cache);
 
+    // Safe: guarded by has_graph comptime check above.
     const io = b.graph.io;
     var dir = std.Io.Dir.openDirAbsolute(io, global_cache, .{ .iterate = true }) catch return null;
     defer dir.close(io);

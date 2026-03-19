@@ -5,6 +5,7 @@
 //! Apple-ld workaround so that `build.zig` does not need per-site forks.
 const std = @import("std");
 const builtin = @import("builtin");
+const compat = @import("compat.zig");
 const link = @import("link.zig");
 
 // ── Context ──────────────────────────────────────────────────────────────
@@ -161,37 +162,17 @@ fn useDarwinDegradedMode(b: *std.Build) bool {
 }
 
 fn usesKnownGoodHostZig(b: *std.Build) bool {
-    const expected_version = readZigVersion();
-    const zig_exe = b.graph.zig_exe;
+    const expected_version = compat.pinned_version;
+    const zig_exe = compat.getZigExe(b) orelse return false;
 
-    if (b.graph.environ_map.get("ABI_HOST_ZIG")) |explicit_host_zig| {
+    if (compat.getEnv(b, "ABI_HOST_ZIG")) |explicit_host_zig| {
         if (std.mem.eql(u8, zig_exe, explicit_host_zig)) return true;
     }
 
-    const cache_root = b.graph.environ_map.get("ABI_HOST_ZIG_CACHE_DIR") orelse blk: {
-        const home = b.graph.environ_map.get("HOME") orelse return false;
+    const cache_root = compat.getEnv(b, "ABI_HOST_ZIG_CACHE_DIR") orelse blk: {
+        const home = compat.getEnv(b, "HOME") orelse return false;
         break :blk b.fmt("{s}/.cache/abi-host-zig", .{home});
     };
     const canonical_host_zig = b.fmt("{s}/{s}/bin/zig", .{ cache_root, expected_version });
     return std.mem.eql(u8, zig_exe, canonical_host_zig);
-}
-
-/// Read the pinned Zig version from `.zigversion` at comptime.
-/// Returns the version string with trailing whitespace stripped.
-fn readZigVersion() []const u8 {
-    // Comptime: embed file and strip trailing whitespace in one step.
-    return comptime blk: {
-        const raw: []const u8 = @embedFile("../.zigversion");
-        if (raw.len == 0) @compileError(".zigversion is empty — expected a Zig version string");
-        var end: usize = raw.len;
-        while (end > 0) {
-            if (raw[end - 1] == '\n' or raw[end - 1] == '\r' or
-                raw[end - 1] == ' ' or raw[end - 1] == '\t')
-            {
-                end -= 1;
-            } else break;
-        }
-        if (end == 0) @compileError(".zigversion contains only whitespace");
-        break :blk raw[0..end];
-    };
 }

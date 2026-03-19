@@ -1,4 +1,5 @@
 const std = @import("std");
+const compat = @import("compat.zig");
 const darwin = @import("darwin.zig");
 
 /// Descriptor for a build target (example, tool, etc.).
@@ -98,9 +99,9 @@ pub const cross_check_targets = [_]CrossTarget{
 };
 
 /// Check whether a path exists within the build root.
+/// Delegates to `compat.pathExists` for version-safe `b.graph.io` access.
 pub fn pathExists(b: *std.Build, path: []const u8) bool {
-    b.build_root.handle.access(b.graph.io, path, .{}) catch return false;
-    return true;
+    return compat.pathExists(b, path);
 }
 
 /// Register build steps for a table of `BuildTarget` entries.  Skips

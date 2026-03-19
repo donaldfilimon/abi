@@ -245,6 +245,32 @@ if [[ $SELF_TEST -eq 1 ]]; then
     exit $?
 fi
 
+# ── Version mismatch detection ───────────────────────────────────────────
+
+expected_ver="$(cat "$ZIGVERSION_FILE" 2>/dev/null || true)"
+if [[ -n "$expected_ver" ]]; then
+    actual_ver="$("$ZIG" version 2>/dev/null || true)"
+    if [[ -n "$actual_ver" && "$actual_ver" != "$expected_ver" ]]; then
+        # Extract dev build number (e.g. "2905" from "0.16.0-dev.2905+...")
+        dev_num="${actual_ver#*dev.}"
+        dev_num="${dev_num%%+*}"
+        if [[ "$dev_num" =~ ^[0-9]+$ ]] && (( dev_num < 2000 )); then
+            log "ERROR: Zig version too old for this build system."
+            log "  Required: $expected_ver"
+            log "  Found:    $actual_ver (dev build $dev_num < 2000)"
+            log ""
+            log "  Options:"
+            log "    1. Download the pinned version from ziglang.org/builds"
+            log "    2. Run: ./tools/scripts/bootstrap_host_zig.sh"
+            log "    3. Use ./build.sh which auto-resolves the correct Zig"
+            exit 1
+        else
+            log "WARNING: Zig version mismatch — expected $expected_ver, got $actual_ver"
+            log "  Proceeding, but build may fail with unexpected errors."
+        fi
+    fi
+fi
+
 # ── Step 1: Try zig build normally ───────────────────────────────────────
 
 STDERR_FILE="$(mktemp)"

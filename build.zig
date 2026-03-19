@@ -2,6 +2,7 @@
 const std = @import("std");
 
 const cli_tests = @import("build/cli_tests.zig");
+const compat = @import("build/compat.zig");
 const darwin = @import("build/darwin.zig");
 const flags = @import("build/flags.zig");
 const gpu = @import("build/gpu.zig");
@@ -16,6 +17,14 @@ const test_discovery = @import("build/test_discovery.zig");
 const wasm = @import("build/wasm.zig");
 
 pub fn build(b: *std.Build) void {
+    // ── Version guard ──────────────────────────────────────────────────
+    // On older 0.16-dev toolchains without b.graph, only format checks work.
+    compat.checkVersion(b);
+    if (comptime !compat.has_graph) {
+        registerFormatOnlySteps(b);
+        return;
+    }
+
     const ctx = darwin.initDarwinCtx(b);
     if (ctx.is_blocked) {
         std.log.warn(
@@ -32,7 +41,7 @@ pub fn build(b: *std.Build) void {
     }
     const target = darwin.resolveNativeTarget(b);
     const optimize = b.standardOptimizeOption(.{});
-    const can_link_metal = link.canLinkMetalFrameworks(b.graph.io, target.result.os.tag);
+    const can_link_metal = link.canLinkMetalFrameworks(b, target.result.os.tag);
 
     // ── Build options ───────────────────────────────────────────────────
     const backend_arg = b.option([]const u8, "gpu-backend", gpu.backend_option_help);
@@ -716,6 +725,16 @@ pub fn build(b: *std.Build) void {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
+
+/// Register format-only steps when the full build system is unavailable
+/// (e.g. on older 0.16-dev toolchains without b.graph).
+fn registerFormatOnlySteps(b: *std.Build) void {
+    const fmt_paths = &.{ "build.zig", "build", "src", "tools", "examples", "tests", "bindings", "lang" };
+    const lint_fmt = b.addFmt(.{ .paths = fmt_paths, .check = true });
+    b.step("lint", "Check code formatting").dependOn(&lint_fmt.step);
+    const fix_fmt = b.addFmt(.{ .paths = fmt_paths, .check = false });
+    b.step("fix", "Format source files in place").dependOn(&fix_fmt.step);
+}
 
 /// Wire both core (required) and optional checks into a gate step.
 fn wireChecks(
