@@ -58,11 +58,11 @@ pub fn publicModuleByName(name: []const u8) ?PublicModule {
 }
 
 pub const feature_test_manifest = [_]FeatureTestEntry{
-    .{ .flag = "feat_ai", .path = "src/features/ai/eval/mod.zig" },
-    .{ .flag = "feat_ai", .path = "src/features/ai/rag/mod.zig" },
+    .{ .flag = "feat_reasoning", .path = "src/features/ai/eval/mod.zig" },
+    .{ .flag = "feat_reasoning", .path = "src/features/ai/rag/mod.zig" },
     .{ .flag = "feat_ai", .path = "src/features/ai/templates/mod.zig" },
     .{ .flag = "feat_ai", .path = "src/features/ai/orchestration/mod.zig" },
-    .{ .flag = "feat_ai", .path = "src/features/ai/constitution/mod.zig" },
+    .{ .flag = "feat_reasoning", .path = "src/features/ai/constitution/mod.zig" },
     .{ .flag = "feat_ai", .path = "src/features/ai/documents/mod.zig" },
     .{ .flag = "feat_ai", .path = "src/features/ai/memory/mod.zig" },
     .{ .flag = "feat_ai", .path = "src/features/ai/tools/mod.zig" },
