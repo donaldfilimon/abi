@@ -120,6 +120,15 @@ pub fn build(b: *std.Build) void {
         ctx,
     );
 
+    // ── CLI full integration tests (matrix manifest) ────────────────────
+    _ = cli_tests.addCliTestsFull(
+        b,
+        cli_artifact.compile,
+        target,
+        optimize,
+        ctx,
+    );
+
     // ── TUI / CLI unit tests ───────────────────────────────────────────
     var tui_tests_step: ?*std.Build.Step = null;
     var gendocs_source_tests_step: ?*std.Build.Step = null;
