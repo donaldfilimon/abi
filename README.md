@@ -201,9 +201,8 @@ organized by domain.
 abi/
 ├── src/                  # Framework source (single "abi" module)
 │   ├── root.zig          # Public package entrypoint (@import("abi"))
-│   ├── abi.zig           # Internal composition layer
 │   ├── core/             # Always-on framework internals
-│   ├── features/         # 19 comptime-gated modules (mod/stub/types pattern)
+│   ├── features/         # 20 comptime-gated feature imports across 19 directories (mod/stub/types pattern)
 │   ├── services/         # Runtime services, connectors, security
 │   └── inference/        # ML inference: sampler, scheduler, KV cache
 ├── build/                # Modular build system (options, flags, modules)
@@ -213,7 +212,7 @@ abi/
 │   ├── gendocs/          # Documentation generator
 │   └── scripts/          # Build helpers and consistency checks
 ├── tests/                # Integration test roots
-├── examples/             # 35 standalone example programs
+├── examples/             # 36 standalone example programs
 ├── benchmarks/           # Performance benchmark suites
 ├── bindings/             # C and WASM language bindings
 ├── lang/                 # Swift Package and Kotlin/JNI bridges
@@ -268,7 +267,7 @@ while obtaining the bootstrapped compiler.
 
 ## Feature flags
 
-All features default to enabled. Disable features with `-Dfeat-<name>=false`.
+All features default to enabled except `feat-mobile` (defaults to `false`). Disable features with `-Dfeat-<name>=false`.
 
 ```bash
 zig build -Dfeat-gpu=false -Dfeat-ai=false

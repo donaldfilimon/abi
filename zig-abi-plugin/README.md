@@ -119,7 +119,7 @@ The ABI Framework uses comptime feature gating with 27 `feat_*` flags and 56 val
 | `feat_database` | true | Vector database (WDBX) |
 | `feat_network` | true | Distributed compute |
 
-All flags default to `true`. Disable with `-Dfeat-<name>=false`.
+All flags default to `true` except `feat-mobile` (defaults to `false`). Disable with `-Dfeat-<name>=false`.
 
 ## Platform Notes
 

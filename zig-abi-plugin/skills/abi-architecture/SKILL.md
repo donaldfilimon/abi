@@ -31,7 +31,7 @@ src/
 ├── core/                       # Foundation: config, framework, registry, errors
 │   ├── config/                 # Feature configs (always-on)
 │   ├── framework/              # Lifecycle, feature_imports, builder
-│   │   └── feature_imports.zig # Central comptime gating for 17 feature module imports
+│   │   └── feature_imports.zig # Central comptime gating for 20 comptime-gated feature imports
 │   ├── registry/               # Plugin registry
 │   └── database/               # Semantic store core (WDBX V3)
 ├── features/                   # Comptime-gated domain implementations
@@ -43,7 +43,7 @@ src/
 │   ├── runtime/                # Task scheduling, concurrency
 │   ├── connectors/             # LLM providers (23 integrations)
 │   └── ha/, lsp/, mcp/, acp/, platform/, tasks/
-└── api_server/, inference/
+└── inference/
 tests/                             # Future integration & e2e tests
 bindings/                          # Language bindings (moved from src/bindings/)
 ```
