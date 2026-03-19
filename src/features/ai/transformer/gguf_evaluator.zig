@@ -95,14 +95,75 @@ pub fn applyRoPE(x: []f32, pos: usize, head_dim: usize, base: f32) void {
 
 /// Computes multi-head scaled dot-product attention
 /// out = softmax(Q * K^T / sqrt(d)) * V
-/// This is a simplified structural stub designed to be replaced by Metal/SIMD
+/// This is a simplified CPU implementation designed to be replaced by Metal/SIMD
 pub fn selfAttention(allocator: std.mem.Allocator, q: *Tensor, k: *Tensor, v: *Tensor) !Tensor {
-    _ = allocator;
-    _ = q;
-    _ = k;
-    _ = v;
-    std.log.debug("MHA stub: Computing scaled dot-product attention...", .{});
-    return error.NotImplemented;
+    std.log.debug("MHA: Computing scaled dot-product attention...", .{});
+
+    const seq_len = q.shape[0];
+    const head_dim = q.shape[1];
+
+    if (head_dim == 0) return error.DimensionMismatch;
+    if (k.shape[0] != seq_len or k.shape[1] != head_dim) return error.DimensionMismatch;
+    if (v.shape[0] != seq_len) return error.DimensionMismatch;
+
+    const v_dim = v.shape[1];
+    const scale: f32 = 1.0 / @sqrt(@as(f32, @floatFromInt(head_dim)));
+
+    // Compute K^T (transpose): (head_dim x seq_len)
+    const kt_data = try allocator.alloc(f32, head_dim * seq_len);
+    defer allocator.free(kt_data);
+
+    for (0..seq_len) |r| {
+        for (0..head_dim) |c| {
+            kt_data[c * seq_len + r] = k.data[r * head_dim + c];
+        }
+    }
+
+    var kt = Tensor{
+        .allocator = allocator,
+        .shape = .{ head_dim, seq_len, 1, 1 },
+        .data = kt_data,
+    };
+
+    // scores = Q @ K^T => (seq_len x seq_len)
+    var scores = try q.matmul(&kt);
+    defer scores.deinit();
+
+    // Scale, apply causal mask, and softmax per row
+    for (0..seq_len) |i| {
+        for (0..seq_len) |j| {
+            if (j > i) {
+                scores.data[i * seq_len + j] = -1.0e9;
+            } else {
+                scores.data[i * seq_len + j] *= scale;
+            }
+        }
+
+        // Numerically stable softmax
+        var max_val: f32 = scores.data[i * seq_len];
+        for (1..seq_len) |j| {
+            const val = scores.data[i * seq_len + j];
+            if (val > max_val) max_val = val;
+        }
+
+        var sum: f32 = 0.0;
+        for (0..seq_len) |j| {
+            const exp_val = @exp(scores.data[i * seq_len + j] - max_val);
+            scores.data[i * seq_len + j] = exp_val;
+            sum += exp_val;
+        }
+
+        if (sum > 0.0) {
+            for (0..seq_len) |j| {
+                scores.data[i * seq_len + j] /= sum;
+            }
+        }
+    }
+
+    // output = scores @ V => (seq_len x v_dim)
+    const output = try scores.matmul(v);
+
+    return output;
 }
 
 /// Represents a raw parsed GGUF Tensor Info block

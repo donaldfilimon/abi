@@ -5,10 +5,13 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 const metrics_mod = @import("metrics.zig");
 const auth_mod = @import("auth.zig");
 const handlers_mod = @import("handlers.zig");
 const time_mod = @import("../services/shared/mod.zig").time;
+
+const log = std.log.scoped(.api_server);
 
 fn monotonicNowNs() i128 {
     const instant = time_mod.Instant.now() catch return 0;
@@ -163,6 +166,13 @@ pub const CircuitBreaker = struct {
 pub const Server = struct {
     const Self = @This();
 
+    pub const StartError = error{
+        InvalidAddress,
+        SocketCreateFailed,
+        BindFailed,
+        ListenFailed,
+    };
+
     allocator: Allocator,
     config: Config,
     metrics: metrics_mod.Metrics,
@@ -171,6 +181,7 @@ pub const Server = struct {
     rate_limiter: RateLimiter,
     circuit_breaker: CircuitBreaker,
     running: bool,
+    listener: ?std.posix.socket_t,
 
     pub fn init(allocator: Allocator, config: Config) Self {
         var metrics = metrics_mod.Metrics{};
@@ -183,33 +194,184 @@ pub const Server = struct {
             .rate_limiter = RateLimiter.init(allocator, config.rate_limit_requests, config.rate_limit_window_sec),
             .circuit_breaker = CircuitBreaker.init(5, 3, 30),
             .running = false,
+            .listener = null,
         };
     }
 
     pub fn deinit(self: *Self) void {
+        if (self.listener) |sock| {
+            std.posix.close(sock);
+            self.listener = null;
+        }
         self.auth.deinit();
         self.rate_limiter.deinit();
     }
 
-    /// Start the server (blocking). In production, this would accept TCP connections.
-    pub fn start(self: *Self) !void {
-        self.running = true;
+    /// Start the server (blocking). Binds to the configured host:port,
+    /// then enters a single-threaded accept loop: accept → read → route → respond → close.
+    /// Returns when `stop()` is called or a fatal socket error occurs.
+    pub fn start(self: *Self) StartError!void {
         // Fix the metrics pointer after struct move.
         self.handlers.metrics = &self.metrics;
 
-        const addr = std.net.Address.parseIp4(self.config.host, self.config.port) catch {
-            return error.InvalidAddress;
+        // --- Create TCP listener socket ---
+        const sock = std.posix.socket(
+            std.posix.AF.INET,
+            std.posix.SOCK.STREAM,
+            0,
+        ) catch {
+            return error.SocketCreateFailed;
         };
-        _ = addr;
+        errdefer std.posix.close(sock);
 
-        // The actual TCP accept loop would go here.
-        // For now, this is a structural placeholder that validates the server
-        // can be instantiated and started. Real networking is deferred to
-        // integration with the existing web server infrastructure.
+        // Allow rapid restarts without TIME_WAIT blocking.
+        const enable: i32 = 1;
+        _ = std.posix.setsockopt(
+            sock,
+            std.posix.SOL.SOCKET,
+            std.posix.SO.REUSEADDR,
+            std.mem.asBytes(&enable),
+        );
+
+        // --- Bind ---
+        const ip4 = Io.net.Ip4Address.parse(self.config.host, self.config.port) catch
+            return error.InvalidAddress;
+
+        const sin: std.c.sockaddr.in = .{
+            .port = std.mem.nativeToBig(u16, ip4.port),
+            .addr = @bitCast(ip4.bytes),
+        };
+        const sock_addr: *const std.posix.sockaddr = @ptrCast(&sin);
+        std.posix.bind(sock, sock_addr, @sizeOf(std.c.sockaddr.in)) catch
+            return error.BindFailed;
+
+        // --- Listen ---
+        std.posix.listen(sock, 128) catch
+            return error.ListenFailed;
+
+        self.listener = sock;
+        self.running = true;
+        log.info("API server listening on {s}:{d}", .{ self.config.host, self.config.port });
+
+        // --- Accept loop (single-threaded) ---
+        while (self.running) {
+            var client_addr: std.posix.sockaddr = undefined;
+            var addr_len: std.posix.socklen_t = @sizeOf(std.posix.sockaddr);
+
+            const client_sock = std.posix.accept(sock, &client_addr, &addr_len, 0) catch |err| {
+                // If we're shutting down, the listener socket may have been closed.
+                if (!self.running) break;
+                log.warn("accept failed: {}", .{err});
+                continue;
+            };
+            defer std.posix.close(client_sock);
+
+            self.handleConnection(client_sock);
+        }
+
+        log.info("API server stopped", .{});
+    }
+
+    /// Process a single HTTP connection: read request, route, write response.
+    fn handleConnection(self: *Self, client_sock: std.posix.socket_t) void {
+        var buf: [8192]u8 = undefined;
+        const n = std.posix.read(client_sock, &buf) catch |err| {
+            log.warn("read error: {}", .{err});
+            return;
+        };
+        if (n == 0) return; // Client closed immediately.
+
+        const raw = buf[0..n];
+
+        // Parse the HTTP request line: "METHOD /path HTTP/1.x\r\n..."
+        const req_info = parseHttpRequest(raw) orelse {
+            writeResponse(client_sock, 400, "application/json", "{\"error\":{\"message\":\"Bad request\",\"type\":\"invalid_request_error\"}}");
+            return;
+        };
+
+        // Run the request through the full pipeline (rate limiter, auth, router).
+        const response = self.processRequest(req_info);
+
+        writeResponse(client_sock, response.status, response.content_type, response.body);
+    }
+
+    /// Write an HTTP/1.1 response to the client socket.
+    fn writeResponse(sock: std.posix.socket_t, status: u16, content_type: []const u8, body: []const u8) void {
+        const reason = httpReasonPhrase(status);
+        var hdr_buf: [512]u8 = undefined;
+        const header = std.fmt.bufPrint(&hdr_buf, "HTTP/1.1 {d} {s}\r\nContent-Type: {s}\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{
+            status,
+            reason,
+            content_type,
+            body.len,
+        }) catch return;
+
+        _ = std.posix.write(sock, header) catch return;
+        _ = std.posix.write(sock, body) catch return;
+    }
+
+    /// Minimal HTTP request line parser. Extracts method, path, body, and headers.
+    fn parseHttpRequest(raw: []const u8) ?handlers_mod.RequestInfo {
+        // Find end of request line.
+        const line_end = std.mem.indexOf(u8, raw, "\r\n") orelse return null;
+        const request_line = raw[0..line_end];
+
+        // Split "METHOD /path HTTP/1.x"
+        var it = std.mem.splitScalar(u8, request_line, ' ');
+        const method = it.next() orelse return null;
+        const path = it.next() orelse return null;
+        // HTTP version token ignored.
+
+        // Find end of headers.
+        const headers_end = std.mem.indexOf(u8, raw, "\r\n\r\n");
+        const header_section = if (headers_end) |pos| raw[line_end + 2 .. pos] else raw[line_end + 2 ..];
+        const body = if (headers_end) |pos| raw[pos + 4 ..] else "";
+
+        // Extract API key from "Authorization: Bearer <key>" header.
+        const api_key = extractHeader(header_section, "Authorization: Bearer ");
+        const content_type = extractHeader(header_section, "Content-Type: ");
+
+        return .{
+            .method = method,
+            .path = path,
+            .body = body,
+            .api_key = api_key,
+            .content_type = content_type,
+        };
+    }
+
+    /// Search headers for a specific prefix and return the value after it.
+    fn extractHeader(headers: []const u8, prefix: []const u8) ?[]const u8 {
+        var line_it = std.mem.splitSequence(u8, headers, "\r\n");
+        while (line_it.next()) |line| {
+            if (std.mem.startsWith(u8, line, prefix)) {
+                return line[prefix.len..];
+            }
+        }
+        return null;
+    }
+
+    /// Map status codes to reason phrases.
+    fn httpReasonPhrase(status: u16) []const u8 {
+        return switch (status) {
+            200 => "OK",
+            400 => "Bad Request",
+            401 => "Unauthorized",
+            404 => "Not Found",
+            405 => "Method Not Allowed",
+            429 => "Too Many Requests",
+            503 => "Service Unavailable",
+            else => "Unknown",
+        };
     }
 
     pub fn stop(self: *Self) void {
         self.running = false;
+        // Close the listener socket to unblock accept().
+        if (self.listener) |sock| {
+            std.posix.close(sock);
+            self.listener = null;
+        }
     }
 
     /// Create an API key.
@@ -327,4 +489,46 @@ test "server rejects without api key" {
         .content_type = null,
     });
     try std.testing.expectEqual(@as(u16, 401), resp.status);
+}
+
+test "parseHttpRequest parses GET" {
+    const raw = "GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    const req = Server.parseHttpRequest(raw).?;
+    try std.testing.expectEqualStrings("GET", req.method);
+    try std.testing.expectEqualStrings("/health", req.path);
+    try std.testing.expectEqualStrings("", req.body);
+    try std.testing.expect(req.api_key == null);
+}
+
+test "parseHttpRequest parses POST with body and auth" {
+    const raw = "POST /v1/chat/completions HTTP/1.1\r\nContent-Type: application/json\r\nAuthorization: Bearer sk-test-key\r\n\r\n{\"model\":\"abi-1\"}";
+    const req = Server.parseHttpRequest(raw).?;
+    try std.testing.expectEqualStrings("POST", req.method);
+    try std.testing.expectEqualStrings("/v1/chat/completions", req.path);
+    try std.testing.expectEqualStrings("{\"model\":\"abi-1\"}", req.body);
+    try std.testing.expectEqualStrings("sk-test-key", req.api_key.?);
+    try std.testing.expectEqualStrings("application/json", req.content_type.?);
+}
+
+test "parseHttpRequest rejects garbage" {
+    try std.testing.expect(Server.parseHttpRequest("not http") == null);
+    try std.testing.expect(Server.parseHttpRequest("") == null);
+}
+
+test "extractHeader finds matching header" {
+    const headers = "Host: localhost\r\nContent-Type: text/plain\r\nX-Custom: value";
+    const ct = Server.extractHeader(headers, "Content-Type: ");
+    try std.testing.expectEqualStrings("text/plain", ct.?);
+}
+
+test "extractHeader returns null for missing header" {
+    const headers = "Host: localhost\r\n";
+    try std.testing.expect(Server.extractHeader(headers, "Authorization: ") == null);
+}
+
+test "httpReasonPhrase returns correct phrases" {
+    try std.testing.expectEqualStrings("OK", Server.httpReasonPhrase(200));
+    try std.testing.expectEqualStrings("Not Found", Server.httpReasonPhrase(404));
+    try std.testing.expectEqualStrings("Too Many Requests", Server.httpReasonPhrase(429));
+    try std.testing.expectEqualStrings("Unknown", Server.httpReasonPhrase(999));
 }
