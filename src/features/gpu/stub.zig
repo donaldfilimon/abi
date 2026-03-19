@@ -228,7 +228,7 @@ pub const gradient_compression = struct {
 
 // Namespaced GPU API surface (hard API cutover)
 pub const backends = struct {
-    pub const types = struct {
+    pub const backend_types = struct {
         pub const Backend = @import("backend.zig").Backend;
         pub const DetectionLevel = @import("backend.zig").DetectionLevel;
         pub const BackendAvailability = @import("backend.zig").BackendAvailability;

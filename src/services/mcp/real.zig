@@ -505,7 +505,7 @@ fn handleDbDiagnostics(
         \\  Cache hit rate: {d:.1}%
         \\  SIMD: {s}
     , .{
-        diag.count,
+        diag.vector_count,
         diag.dimension,
         diag.memory_bytes,
         diag.search_count,
