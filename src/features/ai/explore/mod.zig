@@ -102,7 +102,7 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
 
 /// Check if explore features are enabled
 pub fn isEnabled() bool {
-    return build_options.feat_ai and build_options.feat_explore;
+    return build_options.feat_explore;
 }
 
 test {
