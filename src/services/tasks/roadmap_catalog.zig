@@ -279,7 +279,7 @@ pub const plan_specs = [_]PlanSpec{
     .{
         .slug = "feature-modules-restructure-v1",
         .title = "Feature Modules Restructure v1",
-        .status = .in_progress,
+        .status = .done,
         .owner = owner_abbey,
         .scope = "Wave 5 active lane: remove legacy facades, finalize module boundaries, and consolidate shared primitives.",
         .success_criteria = &.{
@@ -410,7 +410,7 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .summary = "Wave 5 active: remove legacy facades, finalize module boundaries, and consolidate shared primitives.",
         .track = .platform,
         .horizon = .now,
-        .status = .in_progress,
+        .status = .done,
         .owner = owner_abbey,
         .validation_gate = &gate_feature_core,
         .plan_slug = "feature-modules-restructure-v1",

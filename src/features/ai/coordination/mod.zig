@@ -2,15 +2,15 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const legacy_types = @import("../types.zig");
-const legacy_config = @import("../config.zig");
-const legacy_abi = @import("../abi/mod.zig");
+const types = @import("../types.zig");
+const config = @import("../config.zig");
+const abi_router = @import("../abi/mod.zig");
 const profiles = @import("../profiles/mod.zig");
 const db_mod = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
 const semantic_store = db_mod.semantic_store;
 
-pub const InteractionRequest = legacy_types.ProfileRequest;
-pub const InteractionResponse = legacy_types.ProfileResponse;
+pub const InteractionRequest = types.ProfileRequest;
+pub const InteractionResponse = types.ProfileResponse;
 /// Coordination context wrapping profile selection state.
 pub const CoordinationContext = struct {
     allocator: std.mem.Allocator,
@@ -35,9 +35,9 @@ pub const InteractionCoordinator = struct {
     }
 };
 
-pub const CoordinationConfig = legacy_config.MultiProfileConfig;
-pub const LegacyRoutingDecision = legacy_types.RoutingDecision;
-pub const PolicyFlags = legacy_types.PolicyFlags;
+pub const CoordinationConfig = config.MultiProfileConfig;
+pub const LegacyRoutingDecision = types.RoutingDecision;
+pub const PolicyFlags = types.PolicyFlags;
 
 pub const ProfileSelection = struct {
     selected_profile: profiles.BehaviorProfile,
@@ -71,17 +71,17 @@ pub const ProfileSelection = struct {
 
 pub const PolicyRouter = struct {
     allocator: std.mem.Allocator,
-    inner: *legacy_abi.AbiRouter,
+    inner: *abi_router.AbiRouter,
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator, cfg: legacy_config.AbiConfig) !*Self {
+    pub fn init(allocator: std.mem.Allocator, cfg: config.AbiConfig) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
         self.* = .{
             .allocator = allocator,
-            .inner = try legacy_abi.AbiRouter.init(allocator, cfg),
+            .inner = try abi_router.AbiRouter.init(allocator, cfg),
         };
         return self;
     }
@@ -91,7 +91,7 @@ pub const PolicyRouter = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn addRoutingRule(self: *Self, rule: legacy_abi.RoutingRule) !void {
+    pub fn addRoutingRule(self: *Self, rule: abi_router.RoutingRule) !void {
         try self.inner.addRoutingRule(rule);
     }
 
