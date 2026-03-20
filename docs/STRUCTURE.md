@@ -120,13 +120,13 @@ The build system selects between `mod.zig` and `stub.zig` at comptime via
 
 ```
 build/
-├── options.zig               # 28 feature flag definitions
-├── flags.zig                 # 56 flag combination validations
+├── options.zig               # 27 feature flag definitions
+├── flags.zig                 # 58 flag combination validations
 ├── modules.zig               # Module creation, import wiring, version parsing
 ├── module_catalog.zig        # Module registry for gendocs
 ├── targets.zig               # Example/target tables, cross-compilation matrix
 ├── test_discovery.zig        # Unified abi-module test root (feature tests)
-├── link.zig                  # Platform linking (macOS, Linux, Windows, BSD, Android, Solaris, Haiku)
+├── link.zig                  # Platform linking (macOS, Linux, Windows, BSD, Android, illumos, Haiku)
 ├── gpu.zig                   # GPU backend option parsing
 ├── gpu_policy.zig            # GPU policy validation
 ├── mobile.zig                # Mobile target support

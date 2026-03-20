@@ -167,7 +167,7 @@ The build system handles linking per-platform via `applyAllPlatformLinks()`:
 - **Windows**: CUDA, Vulkan
 - **BSD**: Vulkan, OpenGL
 - **Android**: log, android, EGL, GLESv2
-- **Solaris**: socket, nsl, OpenGL (Mesa)
+- **illumos**: socket, nsl, OpenGL (Mesa)
 - **Haiku**: OpenGL
 
 Never set `use_lld = true` on macOS (zero Mach-O support).

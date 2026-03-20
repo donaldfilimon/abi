@@ -87,9 +87,9 @@ if (feat_gpu) {
 }
 ```
 
-28 feature flags exist (including AI subfeature flags `feat_explore`,
+27 feature flags exist (including AI subfeature flags `feat_explore`,
 `feat_llm`, `feat_vision`, `feat_training`, `feat_reasoning`), all enabled by
-default. Disable with `-Dfeat-<name>=false`. The 56 validated flag
+default. Disable with `-Dfeat-<name>=false`. The 58 validated flag
 combinations live in `build/flags.zig`.
 
 ## Zig 0.16 API Patterns

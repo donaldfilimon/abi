@@ -107,7 +107,7 @@ Platform linking in `build/link.zig` via `applyAllPlatformLinks()` covers:
 - **Windows**: CUDA, Vulkan
 - **BSD**: Vulkan, OpenGL
 - **Android**: log, android, EGL, GLESv2
-- **Solaris**: socket, nsl, OpenGL (Mesa)
+- **illumos**: socket, nsl, OpenGL (Mesa)
 - **Haiku**: OpenGL
 
 ## Circular Import: "no module named 'abi'"
