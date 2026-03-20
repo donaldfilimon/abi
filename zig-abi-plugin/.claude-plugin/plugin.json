@@ -22,7 +22,9 @@
     "skills/feature-scaffolding/SKILL.md",
     "skills/testing-patterns/SKILL.md",
     "skills/wdbx-mcp/SKILL.md",
-    "skills/zig-016-patterns/SKILL.md"
+    "skills/zig-016-patterns/SKILL.md",
+    "skills/merge-conflict-resolver/SKILL.md",
+    "skills/plan-checkpoint/SKILL.md"
   ],
   "agents": [
     "agents/stub-sync-validator.md",

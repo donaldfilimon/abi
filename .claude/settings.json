@@ -20,6 +20,17 @@
         ]
       }
     ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Session approaching context limit. Before compaction, note: (1) which plan phases are complete vs in-progress, (2) any uncommitted changes or pending validation gates, (3) key architecture decisions made this session. Preserve this context through the compaction."
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -108,6 +119,15 @@
           {
             "type": "command",
             "command": "COMMAND=$(jq -r '.tool_input.command // empty'); if echo \"$COMMAND\" | grep -qE 'zig build.*(feature-tests|test).*--summary'; then OUTPUT=$(jq -r '.tool_output // empty'); PASS=$(echo \"$OUTPUT\" | grep -oE '[0-9]+ pass' | head -1 | grep -oE '[0-9]+'); BASELINE_MAIN=$(grep test_main_pass tools/scripts/baseline.zig 2>/dev/null | grep -oE '[0-9]+'); BASELINE_FEAT=$(grep test_feature_pass tools/scripts/baseline.zig 2>/dev/null | grep -oE '[0-9]+'); if [ -n \"$PASS\" ] && [ -n \"$BASELINE_MAIN\" ] && [ \"$PASS\" != \"$BASELINE_MAIN\" ] && [ -n \"$BASELINE_FEAT\" ] && [ \"$PASS\" != \"$BASELINE_FEAT\" ]; then echo \"WARNING: Test count $PASS differs from baselines (main=$BASELINE_MAIN, feature=$BASELINE_FEAT). Run /baseline-sync if counts changed.\"; fi; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -qE 'features/[^/]+/(mod|stub)\\.zig$'; then FEATURE=$(echo \"$FILE\" | sed -E 's|.*/features/([^/]+)/.*|\\1|'); if ! grep -q \"\\\"$FEATURE\\\"\" src/core/feature_catalog.zig 2>/dev/null; then echo \"WARNING: Feature '$FEATURE' edited but not found in feature_catalog.zig\"; fi; fi"
           }
         ]
       }
