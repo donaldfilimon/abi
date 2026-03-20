@@ -28,12 +28,7 @@ zig build test --summary all 2>&1 | tail -20
 zig build feature-tests --summary all 2>&1 | tail -20
 ```
 
-If the build fails due to the Darwin linker issue, use the wrapper:
-
-```bash
-./tools/scripts/run_build.sh test --summary all 2>&1 | tail -20
-./tools/scripts/run_build.sh feature-tests --summary all 2>&1 | tail -20
-```
+If the build fails due to the Darwin linker issue, ensure a host-built Zig matching `.zigversion` (`0.16.0-dev.2934+47d2e5de9`) is on PATH. The legacy `run_build.sh` wrapper has been removed.
 
 ### Step 2: Extract counts from the summary output
 

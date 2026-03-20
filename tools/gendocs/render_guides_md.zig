@@ -173,10 +173,9 @@ fn buildAutoContent(
         try out.appendSlice(allocator,
             \\## Toolchain
             \\
-            \\Keep the active shell aligned to `.zigversion` before running ABI validation gates. On Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig into ABI's canonical cache first.
+            \\Keep the active shell aligned to `.zigversion` before running ABI validation gates. On Darwin 25+ / macOS 26+, ensure a host-built Zig matching `.zigversion` is on `PATH`.
             \\
             \\```bash
-            \\./tools/scripts/bootstrap_host_zig.sh
             \\export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
             \\hash -r
             \\zig build toolchain-doctor
@@ -192,7 +191,7 @@ fn buildAutoContent(
             \\- Canonical policy: [AGENTS.md](../../AGENTS.md)
             \\- Task plan interface: `tasks/todo.md`
             \\- Lessons interface: `tasks/lessons.md`
-            \\- Zig validation: `zig build full-check` on supported hosts; on Darwin 25+ / macOS 26+, run `./tools/scripts/bootstrap_host_zig.sh`, prepend the canonical cache bin dir to `PATH`, and record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` only as fallback evidence if stock Zig is linker-blocked
+            \\- Zig validation: `zig build full-check` on supported hosts; on Darwin 25+ / macOS 26+, ensure a host-built Zig matching `.zigversion` is on `PATH` and record `zig fmt --check ...` plus `zig build typecheck --summary all` only as fallback evidence if stock Zig is linker-blocked
             \\
             \\Use the workflow contract checks during iteration and close-out:
             \\

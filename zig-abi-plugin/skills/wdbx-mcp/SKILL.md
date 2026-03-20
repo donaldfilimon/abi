@@ -1,11 +1,11 @@
 ---
 name: wdbx-mcp
-description: Use when interacting with the WDBX vector database via MCP tools, setting up the WDBX MCP server, troubleshooting database connectivity, or learning about available database operations and their parameters
+description: This skill should be used when interacting with the WDBX vector database or ZLS language server via MCP tools, setting up the MCP server, troubleshooting database/ZLS connectivity, or learning about available database and LSP operations and their parameters.
 ---
 
-# WDBX MCP Integration
+# WDBX & ZLS MCP Integration
 
-Connect to the ABI Framework's WDBX vector database through the Model Context Protocol. This skill covers server setup, available tools, query patterns, and troubleshooting.
+Connect to the ABI Framework's WDBX vector database and ZLS language server through the Model Context Protocol. This skill covers server setup, available tools (database + LSP), query patterns, and troubleshooting.
 
 ## Quick Start
 
@@ -58,6 +58,19 @@ The WDBX MCP server is configured in `zig-abi-plugin/.mcp.json`:
 | `db_stats` | Vector count, dimensions, memory | — | `db_name` |
 | `db_backup` | Save database to file | `path` | `db_name` |
 | `db_diagnostics` | Performance metrics | — | `db_name` |
+
+### ZLS (Language Server) Tools
+
+| Tool | Description | Required Params | Optional Params |
+|------|-------------|-----------------|-----------------|
+| `zls_request` | Send arbitrary LSP request | `method` | `params`, `path`, `text`, `workspace_root`, `zls_path`, `zig_exe_path`, `log_level`, `enable_snippets` |
+| `zls_hover` | Hover info for a symbol | `path`, `line`, `character` | `text`, `workspace_root`, `zls_path`, `zig_exe_path` |
+| `zls_completion` | Completion items at position | `path`, `line`, `character` | `text`, `workspace_root`, `zls_path`, `zig_exe_path` |
+| `zls_definition` | Go-to-definition for symbol | `path`, `line`, `character` | `text`, `workspace_root`, `zls_path`, `zig_exe_path` |
+| `zls_references` | Find all references | `path`, `line`, `character` | `include_declaration`, `text`, `workspace_root` |
+| `zls_rename` | Rename symbol | `path`, `line`, `character`, `new_name` | `text`, `workspace_root` |
+| `zls_format` | Format document | `path` | `tab_size`, `insert_spaces`, `text`, `workspace_root` |
+| `zls_diagnostics` | Document diagnostics | `path` | `text`, `workspace_root`, `zls_path`, `zig_exe_path` |
 
 ## Usage Patterns
 
@@ -124,7 +137,7 @@ All tools accept `db_name` (defaults to `"default"`). Suggested databases:
 ### Tools fail with connection error
 
 1. The `abi` binary may not be built — run `zig build` first
-2. On Darwin 25+, use `./tools/scripts/run_build.sh run -- mcp serve --db`
+2. On Darwin 25+, a host-built Zig matching `.zigversion` is required for linking
 3. Check `ABI_DB_PATH` if set — directory must exist and be writable
 
 ### Database appears empty
@@ -135,9 +148,16 @@ All tools accept `db_name` (defaults to `"default"`). Suggested databases:
 
 ## Implementation Details
 
-**Source:** `src/services/mcp/real.zig` — tool definitions and handlers
-**Server:** `src/services/mcp/server.zig` — JSON-RPC 2.0 protocol
+**Source:** `src/services/mcp/real.zig` — database tool definitions and handlers
+**ZLS Bridge:** `src/services/mcp/zls_bridge.zig` — ZLS/LSP tool definitions and handlers
+**Server:** `src/services/mcp/server.zig` — JSON-RPC 2.0 protocol over stdio
 **Types:** `src/services/mcp/types.zig` — protocol message types
 **Database:** `src/core/database/mod.zig` — WDBX engine (SIMD-accelerated cosine similarity)
+**LSP Client:** `src/services/lsp/mod.zig` — ZLS client integration
 
-The MCP server is gated by `build_options.feat_mcp` and the database tools are gated by `build_options.feat_database`. Both default to `true`.
+**Server modes:**
+- `createDatabaseServer()` — database tools only (`abi-database`)
+- `createZlsServer()` — ZLS/LSP tools only (`abi-zls`)
+- `createCombinedServer()` — both database + ZLS tools (`abi-database-zls`)
+
+The MCP server is gated by `build_options.feat_mcp` and the database tools by `build_options.feat_database`. Both default to `true`.

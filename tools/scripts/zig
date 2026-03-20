@@ -1,29 +1,11 @@
-#!/bin/bash
-# Transparent zig wrapper for Darwin 25+ (macOS 26+).
-#
-# On Darwin 25+, stock Zig's internal LLD linker cannot resolve system symbols.
-# This shim delegates to zig_darwin26_wrapper.sh which intercepts link failures
-# and relinks with Apple's /usr/bin/ld automatically.
-#
-# Usage:
-#   export PATH="$(pwd)/tools/scripts:$PATH"
-#   zig build run -- --help    # just works on Darwin 25+
-#
-# On non-Darwin or Darwin < 26, this passes through to the real zig binary.
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-
-# Reuse the shared toolchain resolution (avoids duplicate zig-finding logic)
-source "$SCRIPT_DIR/zig_toolchain.sh"
-
-# On Darwin 26+, delegate to the wrapper
-if [[ "$(uname -s)" == "Darwin" ]]; then
-    macos_ver="$(sw_vers -productVersion 2>/dev/null || echo 0)"
-    macos_major="${macos_ver%%.*}"
-    if [[ "$macos_major" -ge 26 ]]; then
-        exec "$SCRIPT_DIR/zig_darwin26_wrapper.sh" "$@"
-    fi
-fi
-
-# Non-Darwin or Darwin < 26: pass through to real zig
-exec "$(abi_toolchain_resolve_active_zig)" "$@"
+#!/usr/bin/env bash
+# Zig shim — delegates to the real zig binary on PATH.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Find zig on PATH, excluding this shim
+while IFS= read -r -d: dir; do
+    [[ "$dir" == "$SCRIPT_DIR" ]] && continue
+    [[ -x "$dir/zig" ]] && exec "$dir/zig" "$@"
+done <<< "$PATH:"
+echo "error: zig not found on PATH" >&2
+exit 1

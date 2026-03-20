@@ -12,7 +12,7 @@ zig build examples
 # On Darwin 25+ / macOS 26+, prefer a host-built or otherwise known-good Zig.
 # If stock prebuilt Zig is linker-blocked before build.zig runs, use the
 # fallback wrapper:
-./tools/scripts/run_build.sh examples
+zig build examples
 ```
 
 All examples are compiled as part of `zig build verify-all`.

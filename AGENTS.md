@@ -2,7 +2,7 @@
 title: AGENTS.md — Workflow Contract
 purpose: Defines workflow contract for human and automated contributors
 last_updated: 2026-03-18
-target_zig_version: 0.16.0-dev.2905+5d71e3051
+target_zig_version: 0.16.0-dev.2934+47d2e5de9
 ---
 
 # AGENTS.md — Contributor Workflow Contract

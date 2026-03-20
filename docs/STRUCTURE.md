@@ -9,7 +9,7 @@ of each directory and key file patterns.
 abi/
 ├── build.zig                 # Build root — defines all steps, targets, gates
 ├── build.zig.zon             # Package manifest (Zig 0.16 format)
-├── .zigversion               # Pinned Zig version (0.16.0-dev.2905+...)
+├── .zigversion               # Pinned Zig version (0.16.0-dev.2934+...)
 │
 ├── src/                      # All framework source — single "abi" module
 │   ├── root.zig              # Public package entrypoint (@import("abi"))
@@ -120,14 +120,13 @@ The build system selects between `mod.zig` and `stub.zig` at comptime via
 
 ```
 build/
-├── options.zig               # 27 feature flag definitions
+├── options.zig               # 28 feature flag definitions
 ├── flags.zig                 # 56 flag combination validations
 ├── modules.zig               # Module creation, import wiring, version parsing
 ├── module_catalog.zig        # Module registry for gendocs
-├── darwin.zig                # Darwin 25+ degraded-mode abstraction (DarwinCtx)
 ├── targets.zig               # Example/target tables, cross-compilation matrix
-├── test_discovery.zig        # Feature test manifest
-├── link.zig                  # Platform linking, Darwin darwinRelink() logic
+├── test_discovery.zig        # Unified abi-module test root (feature tests)
+├── link.zig                  # Platform linking (macOS, Linux, Windows, BSD, Android, Solaris, Haiku)
 ├── gpu.zig                   # GPU backend option parsing
 ├── gpu_policy.zig            # GPU policy validation
 ├── mobile.zig                # Mobile target support
@@ -153,8 +152,6 @@ tools/
 │   └── render_api_md.zig     # Markdown renderer
 │
 ├── scripts/                  # Validation and utility scripts
-│   ├── run_build.sh          # Darwin 25+ build wrapper
-│   ├── fmt_repo.sh           # Format check wrapper
 │   ├── baseline.zig          # Version baseline checks
 │   ├── check_*.zig           # Various consistency checks
 │   └── util.zig              # Shared script utilities

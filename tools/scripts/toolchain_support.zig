@@ -58,11 +58,42 @@ pub const Inspection = struct {
 };
 
 pub fn inspect(allocator: std.mem.Allocator, io: std.Io) !Inspection {
-    const result = try captureCommand(allocator, io, "bash tools/scripts/inspect_toolchain.sh");
+    // Inline toolchain inspection: read .zigversion, probe canonical cache, resolve zig binary.
+    // Previously delegated to inspect_toolchain.sh (now removed).
+    const result = try captureCommand(allocator, io, "bash -c '" ++
+        "set -e; " ++
+        "expected=$(cat .zigversion 2>/dev/null | tr -d \"\\n\" || echo \"\"); " ++
+        "cache_root=\"$HOME/.cache/abi-host-zig\"; " ++
+        "cache_path=\"$cache_root/$expected/bin/zig\"; " ++
+        "cache_exists=0; cache_version=\"\"; cache_matches_expected=0; " ++
+        "if [ -x \"$cache_path\" ]; then cache_exists=1; cache_version=$(\"$cache_path\" version 2>/dev/null || echo \"\"); " ++
+        "[ \"$cache_version\" = \"$expected\" ] && cache_matches_expected=1; fi; " ++
+        "sel_status=no_zig_found; sel_source=none; sel_env_name=\"\"; sel_path=\"\"; sel_version=\"\"; sel_matches=0; " ++
+        "if [ -n \"${ABI_HOST_ZIG:-}\" ]; then " ++
+        "  if [ -x \"$ABI_HOST_ZIG\" ]; then sel_source=abi_host_zig; sel_path=\"$ABI_HOST_ZIG\"; sel_version=$(\"$ABI_HOST_ZIG\" version 2>/dev/null || echo \"\"); " ++
+        "    [ \"$sel_version\" = \"$expected\" ] && { sel_status=ok; sel_matches=1; } || sel_status=abi_host_zig_mismatch; " ++
+        "  else sel_status=abi_host_zig_missing; fi; " ++
+        "elif [ -n \"${ZIG_REAL:-}\" ]; then " ++
+        "  if [ -x \"$ZIG_REAL\" ]; then sel_source=zig_real; sel_path=\"$ZIG_REAL\"; sel_version=$(\"$ZIG_REAL\" version 2>/dev/null || echo \"\"); " ++
+        "    [ \"$sel_version\" = \"$expected\" ] && { sel_status=ok; sel_matches=1; } || sel_status=ok; " ++
+        "  else sel_status=zig_real_missing; fi; " ++
+        "elif [ \"$cache_exists\" = 1 ] && [ \"$cache_matches_expected\" = 1 ]; then " ++
+        "  sel_source=cache; sel_path=\"$cache_path\"; sel_version=\"$cache_version\"; sel_status=ok; sel_matches=1; " ++
+        "elif command -v zig >/dev/null 2>&1; then " ++
+        "  sel_source=path; sel_path=$(command -v zig); sel_version=$(zig version 2>/dev/null || echo \"\"); " ++
+        "  [ \"$sel_version\" = \"$expected\" ] && { sel_status=ok; sel_matches=1; } || sel_status=ok; " ++
+        "fi; " ++
+        "echo \"expected_version=$expected\"; echo \"cache_root=$cache_root\"; echo \"cache_path=$cache_path\"; " ++
+        "echo \"cache_exists=$cache_exists\"; echo \"cache_version=$cache_version\"; " ++
+        "echo \"cache_matches_expected=$cache_matches_expected\"; echo \"selected_status=$sel_status\"; " ++
+        "echo \"selected_source=$sel_source\"; echo \"selected_env_name=$sel_env_name\"; " ++
+        "echo \"selected_path=$sel_path\"; echo \"selected_version=$sel_version\"; " ++
+        "echo \"selected_matches_expected=$sel_matches\"" ++
+        "'");
     defer allocator.free(result.output);
 
     if (result.exit_code != 0) {
-        std.debug.print("inspect_toolchain.sh failed (exit {d}):\n{s}\n", .{ result.exit_code, result.output });
+        std.debug.print("toolchain inspection failed (exit {d}):\n{s}\n", .{ result.exit_code, result.output });
         return error.ToolchainInspectionFailed;
     }
 
@@ -257,7 +288,7 @@ pub fn printDoctorReport(allocator: std.mem.Allocator, io: std.Io) !usize {
 
 pub fn printRecommendedBootstrap(inspection: *const Inspection) !void {
     const cache_bin_dir = std.fs.path.dirname(inspection.cache_path) orelse inspection.cache_path;
-    std.debug.print("  ./tools/scripts/bootstrap_host_zig.sh\n", .{});
+    std.debug.print("  # Obtain host-built Zig matching .zigversion, then:\n", .{});
     std.debug.print("  export PATH=\"{s}:$PATH\"\n", .{cache_bin_dir});
     std.debug.print("  hash -r\n", .{});
     std.debug.print("  zig build toolchain-doctor\n", .{});
@@ -380,8 +411,8 @@ fn captureCommand(allocator: std.mem.Allocator, io: std.Io, cmd: []const u8) !Co
 
     // On macOS, relinked binaries may inherit a sanitized environment that
     // lacks /opt/homebrew/bin, /usr/local/bin on PATH and may even be missing
-    // HOME.  Restore common tool locations and HOME so child shell scripts
-    // (e.g. inspect_toolchain.sh) work correctly.
+    // HOME.  Restore common tool locations and HOME so child shell commands
+    // work correctly.
     // Note: plain ~ does not expand when HOME is unset, but ~username does.
     const env_fixup = if (comptime builtin.os.tag == .macos)
         "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; " ++
