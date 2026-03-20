@@ -65,13 +65,6 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-flag-sync.sh "${CLAUDE_PROJECT_DIR:-.}"
 ```
 Reports mismatches between `build/options.zig`, `build/flags.zig`, and `src/core/feature_catalog.zig` flag counts.
 
-### `darwin`
-Run the Darwin relink audit:
-```bash
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/audit-darwin-targets.sh "${CLAUDE_PROJECT_DIR:-.}"
-```
-Checks that every `addExecutable()` in `build.zig` has `darwinRelink()` wiring or an `is_blocked_darwin` guard.
-
 ### `all` (default)
 Run all checks above in sequence. Report a summary table:
 
@@ -84,8 +77,7 @@ Run all checks above in sequence. Report a summary table:
 | stub-sync | PASS/FAIL | N mismatches |
 | deprecated | PASS/FAIL | N patterns |
 | flags | PASS/FAIL | N mismatches |
-| darwin | PASS/FAIL | N missing |
 
 ## Tips
 - On Darwin 25+, `zig build full-check` won't work directly due to linker incompatibility — use this command instead
-- For full build-system verification, use `/zig-abi:build full-check` which wraps `run_build.sh`
+- For full build-system verification, use `/zig-abi:build full-check`

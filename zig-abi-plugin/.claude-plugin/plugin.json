@@ -1,6 +1,6 @@
 {
   "name": "zig-abi",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, WDBX vector database MCP integration, CEL language support, code review heuristics, cross-module import validation, and real-time verification for the ABI Zig codebase.",
   "author": {
     "name": "Donald Filimon"
@@ -16,7 +16,11 @@
   "skills": [
     "skills/abi-architecture/SKILL.md",
     "skills/abi-code-review/SKILL.md",
+    "skills/build-troubleshooting/SKILL.md",
     "skills/cel-language/SKILL.md",
+    "skills/cli-development/SKILL.md",
+    "skills/feature-scaffolding/SKILL.md",
+    "skills/testing-patterns/SKILL.md",
     "skills/wdbx-mcp/SKILL.md",
     "skills/zig-016-patterns/SKILL.md"
   ],

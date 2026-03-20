@@ -8,10 +8,6 @@
           {
             "type": "prompt",
             "prompt": "Check the command for this pattern:\nIf the command contains `zig fmt .` (formatting from the repo root), warn: 'Do NOT run `zig fmt .` from the repository root — it walks vendored fixtures with intentionally invalid code. Use `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` to target specific directories instead.'\nOnly warn if matched — otherwise output empty string."
-          },
-          {
-            "type": "prompt",
-            "prompt": "Check the command for this pattern:\nIf the command contains `zig build` but does NOT contain `run_build.sh`, warn: 'On Darwin 25+ (macOS 26+), bare `zig build` fails with a linker error. Use `./tools/scripts/run_build.sh <step> --summary all` instead. Format checks (`zig fmt`) always work.'\nOnly warn if matched — otherwise output empty string."
           }
         ]
       },
@@ -54,7 +50,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Before stopping, provide an advisory checklist of ABI project standards (do NOT block — this is informational only):\n1. If any file in src/features/*/mod.zig was edited this session, was the matching stub.zig also updated? If not, remind the user.\n2. If any Zig files were edited, was `zig fmt --check` run on them? If not, suggest it.\n3. If any CLI commands in tools/cli/commands/ were added or modified, was `refresh-cli-registry` mentioned? If not, remind.\n4. If the task involved build.zig changes, were the is_blocked_darwin guards considered?\nOutput reminders for any unaddressed items, or confirm all checks pass."
+            "prompt": "Before stopping, provide an advisory checklist of ABI project standards (do NOT block — this is informational only):\n1. If any file in src/features/*/mod.zig was edited this session, was the matching stub.zig also updated? If not, remind the user.\n2. If any Zig files were edited, was `zig fmt --check` run on them? If not, suggest it.\n3. If any CLI commands in tools/cli/commands/ were added or modified, was `refresh-cli-registry` mentioned? If not, remind.\n4. If build.zig changes affect platform linking, were build/link.zig platform paths verified?\nOutput reminders for any unaddressed items, or confirm all checks pass."
           }
         ]
       }

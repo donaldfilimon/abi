@@ -1,6 +1,6 @@
 ---
 name: abi-code-review
-description: Use when reviewing ABI code changes, PRs, or diffs — applies Zig 0.16 review patterns, path-to-gate mapping, and ABI-specific heuristics for feature modules, build system, CLI, and database changes
+description: This skill should be used when reviewing ABI code changes, PRs, or diffs — applies Zig 0.16 (dev.2934+) review patterns, path-to-gate mapping, and ABI-specific heuristics for feature modules, build system, CLI, and database changes.
 ---
 
 # ABI Code Review
@@ -27,9 +27,10 @@ Use this skill to review ABI changes with the repo's actual workflow, Zig pin, a
 
 ### Pin and Framing
 
-- ABI pins Zig via `.zigversion`; read that file instead of assuming a stable release.
+- ABI pins Zig at `0.16.0-dev.2934+47d2e5de9` via `.zigversion`; read that file instead of assuming a stable release.
 - Describe the repo as Zig `0.16.0-dev` or Zig 0.16-dev/master-era when reviewing API usage and toolchain behavior.
 - Use `CLAUDE.md` as the repo-local summary of known 0.16 migration constraints and Darwin caveats.
+- Build scripts (`build.sh`, `tools/scripts/run_build.sh`, `build/compat.zig`, `build/darwin.zig`) have been removed — direct `zig build` is the primary build path.
 
 ### Build API Patterns
 
@@ -57,11 +58,19 @@ Use this skill to review ABI changes with the repo's actual workflow, Zig pin, a
 - When a public function changes in `src/features/<name>/mod.zig`, check whether `src/features/<name>/stub.zig` still exposes a matching signature and behavior contract.
 - Keep feature-module imports relative inside `src/features/`; direct `@import("abi")` inside feature code is an ABI rule violation.
 - When feature flags, catalog entries, or build options move, expect `zig build validate-flags` to matter.
+- 27 flags in `CanonicalFlags` (including `feat_lsp`, `feat_mcp`); catalog has 29 features with sub-features.
+
+### Test Discovery
+
+- `build/test_discovery.zig` uses the unified `abi` module as test root (not per-entry modules).
+- This avoids single-module file ownership violations when test entries share files.
+- The `feature_test_manifest` in `module_catalog.zig` remains as documentation.
 
 ### Toolchain Caveat
 
-- The repo documents a Darwin/macOS 26+ stock-Zig linker failure outside normal patch scope.
-- Only flag toolchain-related issues when a change breaks `.cel`, bootstrap, version consistency, or diagnostics that are meant to manage that environment.
+- The repo documents a Darwin/macOS 25+ stock-Zig linker failure outside normal patch scope.
+- Only flag toolchain-related issues when a change breaks CEL, version consistency, or diagnostics.
+- The legacy `build.sh`, `run_build.sh`, `compat.zig`, and `darwin.zig` wrapper scripts have been removed. Platform-specific linking now lives in `build/link.zig`.
 
 ## Path-to-Gate Mapping
 
@@ -74,7 +83,7 @@ Use this map to choose validation expectations from the changed paths.
 | `tools/gendocs/`, `docs/`, `README.md`, `CLAUDE.md` | Docs generation coupling, stale registry/module data | `zig build check-docs` |
 | `src/features/*/mod.zig`, `src/features/*/stub.zig`, `build/options.zig`, `build/flags.zig`, `src/core/feature_catalog.zig` | Feature-gate parity, public surface drift, disabled-build compatibility | `zig build validate-flags` |
 | `src/core/database/` or `src/features/database/` | WDBX engine behavior, database correctness, replication, graph logic | `zig build test` |
-| `build.zig`, `build/`, `.zigversion`, `build.zig.zon`, `.cel/`, `tools/scripts/` | Zig 0.16 build API usage, pin consistency, Darwin/CEL workflow integrity | `zig build full-check`, `zig build verify-all` on a host where the toolchain links |
+| `build.zig`, `build/`, `.zigversion`, `build.zig.zon` | Zig 0.16 build API usage, pin consistency, platform linking integrity | `zig build full-check`, `zig build verify-all` on a host where the toolchain links |
 | Any non-trivial code change | End-to-end ABI correctness | `zig build full-check`, `zig build verify-all` on a host where the toolchain links |
 
 ### Gate Notes
