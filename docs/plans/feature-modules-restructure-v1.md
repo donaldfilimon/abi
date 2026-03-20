@@ -5,7 +5,7 @@ description: Generated implementation plan
 
 # Feature Modules Restructure v1
 ## Status
-- Status: **In Progress**
+- Status: **Done**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
