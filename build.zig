@@ -94,7 +94,7 @@ pub fn build(b: *std.Build) void {
     );
 
     // ── CLI full integration tests (matrix manifest) ────────────────────
-    _ = cli_tests.addCliTestsFull(
+    const cli_tests_full_step = cli_tests.addCliTestsFull(
         b,
         cli_artifact,
         target,
@@ -658,6 +658,7 @@ pub fn build(b: *std.Build) void {
     if (check_wasm_step) |s| verify_all_step.dependOn(s);
     if (check_docs_step) |docs_step| verify_all_step.dependOn(docs_step);
     verify_all_step.dependOn(cross_check_step);
+    verify_all_step.dependOn(cli_tests_full_step);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
