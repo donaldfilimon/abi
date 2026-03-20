@@ -4,12 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2905+5d71e3051` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`.
+Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2934+47d2e5de9` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`.
 
 ## Commands
 
 ```bash
-./build.sh test --summary all         # auto-resolves Zig, delegates on Darwin 26+
 zig build                             # build all targets
 zig build run -- --help               # run the CLI
 zig build test --summary all          # primary tests
@@ -23,15 +22,16 @@ zig build preflight                   # integration environment diagnostics
 zig build refresh-cli-registry        # after CLI changes
 zig build gendocs                     # regenerate docs
 zig build check-docs                  # verify docs consistency
+zig build cli-tests                   # CLI smoke tests (~53 vectors)
+zig build cli-tests-full              # exhaustive CLI integration tests
 zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  # format check (always works)
-./tools/scripts/bootstrap_host_zig.sh # build pinned host Zig into the canonical cache
 ```
 
 **Running a single test**: `zig test src/path/to/file.zig -fno-emit-bin` for standalone files. For module-integrated tests, use `zig build test --summary all` with feature flags to narrow scope (e.g., `zig build test -Dfeat-ai=false -Dfeat-gpu=false --summary all` to skip AI and GPU tests).
 
-**Darwin 25+ / macOS 26+**: stock prebuilt Zig's internal LLD linker fails before `build.zig` runs (undefined symbols: `_malloc_size`, `__availability_version_check`, etc.). Compilation succeeds — only linking is blocked. **Recommended**: use `./build.sh <args>` which auto-resolves the correct Zig and delegates to `run_build.sh` on Darwin 26+. Alternative: `./tools/scripts/run_build.sh <step> --summary all` intercepts the linker failure, extracts the compiled `.o`, and relinks with Apple's `/usr/bin/ld`. This provides **full gate coverage** including `full-check`, `check-docs`, and all 56 flag combos. The bootstrap script (`bootstrap_host_zig.sh`) builds `zig1`/`zig2` but stage3 self-build currently fails on Darwin 26.4. If bootstrap succeeds, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH` for direct `zig build` support. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work.
+**Darwin 25+ / macOS 26+**: stock prebuilt Zig's internal LLD linker fails with undefined symbols at link time. Use a pinned Zig matching `.zigversion` on PATH for full gate coverage. Never `use_lld = true` on macOS (zero Mach-O support). Format checks always work as fallback.
 
-**Version mismatch**: if your Zig version doesn't match the pin in `.zigversion`, both `build.sh` and `run_build.sh` detect this and print clear instructions. On very old builds (dev < 2000), `build.zig` itself prints a warning and only registers format-check steps (`lint`, `fix`). The compatibility layer in `build/compat.zig` centralizes all `b.graph.*` access behind comptime gates.
+**Version mismatch**: if your Zig version doesn't match the pin in `.zigversion`, `build.zig` detects this and prints clear instructions.
 
 ## Architecture
 
@@ -42,13 +42,13 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `src/core/` — Config, feature catalog, registry (incl. plugin system), `stub_context.zig`
 - `src/inference/` — ML inference: engine, scheduler, sampler (pluggable top-p/top-k strategies), paged KV cache
 - `build/` — Modular build system:
-  - `options.zig` — 27 `feat_*` flag definitions, Darwin feature forcing
-  - `flags.zig` — 56-combo validation matrix, `CanonicalFlags`
+  - `options.zig` — 27 `feat_*` flag definitions (`CanonicalFlags`)
+  - `flags.zig` — 58-combo validation matrix
   - `modules.zig` — Module creation, `wireAbiImports()`
-  - `module_catalog.zig` — Gendocs module registry (34 entries)
-  - `darwin.zig` — Darwin 25+ degraded-mode abstraction (`DarwinCtx`, `addExeOrObject`, `addRunStep`, `addHostScriptStep`)
-  - `link.zig` — Platform linking, Darwin `darwinRelink()` logic
-  - `test_discovery.zig` — Feature test manifest
+  - `module_catalog.zig` — Gendocs module registry (34 entries), feature test manifest (179 entries)
+  - `link.zig` — Platform linking (macOS, Linux, Windows, BSD, Android, illumos, Haiku)
+  - `test_discovery.zig` — Unified `abi` module test root
+  - `cli_tests.zig` — CLI smoke (~53 vectors) and exhaustive integration tests
 - `tools/cli/` — CLI commands and registry (`tools/cli/registry/`)
 - `tools/gendocs/` — Documentation generator (edits go here, not in generated `docs/api/`)
 - `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
@@ -110,7 +110,7 @@ See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 - **Full check**: `full-check` runs typecheck + test + check-docs + check-cli + validate-flags + check-feature-catalog
 - **Test helpers**: `src/services/tests/helpers.zig` provides `TestAllocator` (leak detection), platform-aware skip (`skipIfNoGpu`), vector utilities, temp dir management
 - **Test roots**: `src/services/tests/mod.zig` is a separate test root with named imports injected by `build.zig`. Its child files must use `@import("abi")`, not relative imports — switching to relative `src/root.zig` imports creates duplicate module ownership (`abi` and `root`) during `zig build test`. Test discovery uses `test {}` blocks with force-references (`_ = abi.ai.llm.io;`) to include submodule tests in the runner
-- **Darwin**: always use `./tools/scripts/run_build.sh <step> --summary all` instead of direct `zig build` (see Commands section for details)
+- **Darwin**: use a pinned Zig matching `.zigversion` on PATH, or `zig fmt --check ...` / `zig test <file> -fno-emit-bin` as fallback (see Commands section)
 
 ## Zig 0.16 API Changes
 
@@ -132,7 +132,7 @@ See [AGENTS.md](AGENTS.md) for the full contributor workflow contract.
 ## Feature Flags
 
 All enabled by default (except `feat-mobile`, which defaults to `false`). Disable: `-Dfeat-<name>=false`. GPU backend: `-Dgpu-backend=metal`.
-27 flags in `build/options.zig`, 56 combos validated in `build/flags.zig`.
+27 flags in `build/options.zig`, 58 combos validated in `build/flags.zig`.
 Catalog source of truth: `src/core/feature_catalog.zig`.
 
 ## Env Vars
@@ -152,8 +152,8 @@ Catalog source of truth: `src/core/feature_catalog.zig`.
 | Gate | Command | When |
 |------|---------|------|
 | Format check | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | Every change (always works) |
-| Full check | `zig build full-check` | Before completing (requires pinned host-built Zig or known-good toolchain) |
-| Darwin fallback | `./tools/scripts/run_build.sh typecheck --summary all` | When stock Zig is linker-blocked on Darwin 25+ |
+| Full check | `zig build full-check` | Before completing (requires pinned Zig matching `.zigversion` on PATH) |
+| Darwin fallback | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | When stock Zig is linker-blocked on Darwin 25+ |
 | Full release | `zig build verify-all` | Release prep |
 
 4. Update `stub.zig` when changing `mod.zig` signatures
@@ -199,7 +199,7 @@ Suites cover SIMD, memory, concurrency, database, network, crypto, AI, and GPU w
 
 | Symptom / Mistake | Prevention & Fix |
 |-------------------|-----------------|
-| Undefined symbols (`_malloc_size`, etc.) on macOS | Stock Zig LLD fails on Darwin 25+. Bootstrap host Zig via `./tools/scripts/bootstrap_host_zig.sh` or use `./tools/scripts/run_build.sh` |
+| Undefined symbols (`_malloc_size`, etc.) on macOS | Stock Zig LLD fails on Darwin 25+. Use pinned Zig matching `.zigversion` on PATH, or format-check only (`zig fmt --check ...`) |
 | "no module named 'abi' available within module 'abi'" | Never use `@import("abi")` inside `src/` — use relative imports. Only external code (CLI, tests) uses `@import("abi")` |
 | "missing struct field: items" on unmanaged collections | Use `.empty` not `.{}` for `ArrayListUnmanaged`/`AutoHashMapUnmanaged` (Zig 0.16 change) |
 | Stub compilation fails when feature disabled | `stub.zig` must match `mod.zig` signatures. Run `zig build test -Dfeat-<name>=false --summary all` to verify |
@@ -210,7 +210,7 @@ Suites cover SIMD, memory, concurrency, database, network, crypto, AI, and GPU w
 | `zig fmt .` fails on vendored code | Always specify explicit paths: `zig fmt build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` |
 | Gendocs/registry out of sync | Update `src/core/feature_catalog.zig` first, then `zig build gendocs` + `zig build refresh-cli-registry` |
 | Cross-directory imports in `build/` or `tools/` fail | Files in `build/` must compile standalone. Tool-side modules can't reach `../../build/*.zig` — pass shared metadata as named module imports from `build.zig` |
-| Wrong Zig toolchain on Darwin 25+ | Keep to pinned Zig on PATH, `ABI_HOST_ZIG`, or `$HOME/.cache/abi-host-zig/<.zigversion>/bin/zig`. Prepend that bin dir to `PATH` before `zig build full-check` |
+| Wrong Zig toolchain on Darwin 25+ | Use pinned Zig matching `.zigversion` on PATH. Format checks always work as fallback |
 
 ## References
 
@@ -218,5 +218,5 @@ Suites cover SIMD, memory, concurrency, database, network, crypto, AI, and GPU w
 - [tasks/lessons.md](tasks/lessons.md) — Correction log (prevents repeat mistakes)
 - [docs/PATTERNS.md](docs/PATTERNS.md) — Zig 0.16 codebase patterns
 - [docs/STRUCTURE.md](docs/STRUCTURE.md) — Full directory tree reference
-- [docs/guides/integration-environment.md](docs/guides/integration-environment.md) — CI/local/degraded mode contract
+- [docs/guides/integration-environment.md](docs/guides/integration-environment.md) — CI/local environment contract
 - [docs/plans/index.md](docs/plans/index.md) — Active execution plans and status
