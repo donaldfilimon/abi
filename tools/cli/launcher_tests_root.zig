@@ -1,5 +1,3 @@
-const std = @import("std");
-
 test {
     _ = @import("terminal/launcher/actions.zig");
     _ = @import("terminal/launcher/completion.zig");
@@ -20,8 +18,4 @@ test {
     _ = @import("terminal/launcher/state.zig");
     _ = @import("terminal/launcher/style_adapter.zig");
     _ = @import("terminal/launcher/types.zig");
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }
