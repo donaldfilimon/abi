@@ -56,7 +56,14 @@ See [CLAUDE.md — mod/stub contract](CLAUDE.md#modstub-contract) for details. S
 
 ## Verification Gates
 
-Run the strongest gate your environment supports — see [CLAUDE.md — Workflow](CLAUDE.md#workflow) for the gate table and Darwin 25+ details.
+Run the strongest gate your environment supports. See [docs/guides/zig-validation.md](docs/guides/zig-validation.md) for Darwin 25+ details and full command reference.
+
+| Gate | Command | When |
+|------|---------|------|
+| Format check | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | Every change (always works) |
+| Full check | `zig build full-check` | Before completing (requires pinned Zig matching `.zigversion` on PATH) |
+| Darwin fallback | `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` | When stock Zig is linker-blocked on Darwin 25+ |
+| Full release | `zig build verify-all` | Release prep |
 
 ## Documentation Changes
 
