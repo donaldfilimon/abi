@@ -26,7 +26,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     // ── Feature test manifest ───────────────────────────────────────────
-    const manifest_path = "build/test_discovery.zig";
+    const manifest_path = "build/module_catalog.zig";
     if (!util.fileExists(io, manifest_path)) {
         std.debug.print("ERROR: feature test manifest missing: {s}\n", .{manifest_path});
         errors += 1;
