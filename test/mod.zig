@@ -14,6 +14,20 @@ const security_tests = @import("integration/security_test.zig");
 const gpu_tests = @import("integration/gpu_test.zig");
 const web_tests = @import("integration/web_test.zig");
 const network_tests = @import("integration/network_test.zig");
+const auth_tests = @import("integration/auth_test.zig");
+const gateway_tests = @import("integration/gateway_test.zig");
+const analytics_tests = @import("integration/analytics_test.zig");
+const desktop_tests = @import("integration/desktop_test.zig");
+const mobile_tests = @import("integration/mobile_test.zig");
+const messaging_tests = @import("integration/messaging_test.zig");
+const cloud_tests = @import("integration/cloud_test.zig");
+const compute_tests = @import("integration/compute_test.zig");
+const storage_tests = @import("integration/storage_test.zig");
+const search_tests = @import("integration/search_test.zig");
+const cache_tests = @import("integration/cache_test.zig");
+const connector_tests = @import("integration/connector_test.zig");
+const mcp_tests = @import("integration/mcp_test.zig");
+const observability_tests = @import("integration/observability_test.zig");
 
 test {
     std.testing.refAllDecls(@This());
