@@ -16,9 +16,7 @@ pub const opencode = struct {};
 pub const skill_registry = struct {};
 pub const sync_manager = struct {};
 pub const orchestrator = struct {};
-pub const http = struct {};
-pub const json_util = struct {};
-pub const process_util = struct {};
+pub const utils = struct {};
 
 // Re-exports for convenience (minimal types so API surface matches)
 pub const Orchestrator = struct {};

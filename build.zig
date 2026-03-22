@@ -183,6 +183,71 @@ pub fn build(b: *std.Build) void {
     b.step("lint", "Check formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = true }).step);
     b.step("fix", "Fix formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = false }).step);
 
+    // ── Cross-compilation check ────────────────────────────────────────
+    const cross_check_step = b.step("cross-check", "Verify cross-compilation for key targets");
+    const cross_targets = [_]struct { arch: std.Target.Cpu.Arch, os: std.Target.Os.Tag, name: []const u8 }{
+        .{ .arch = .aarch64, .os = .linux, .name = "aarch64-linux" },
+        .{ .arch = .x86_64, .os = .linux, .name = "x86_64-linux" },
+        .{ .arch = .wasm32, .os = .wasi, .name = "wasm32-wasi" },
+        .{ .arch = .x86_64, .os = .macos, .name = "x86_64-macos" },
+    };
+    inline for (cross_targets) |ct| {
+        const cross_target = b.resolveTargetQuery(.{ .cpu_arch = ct.arch, .os_tag = ct.os });
+        const cross_opts = b.addOptions();
+        // Disable platform-specific features for cross targets
+        cross_opts.addOption(bool, "feat_gpu", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_ai", true);
+        cross_opts.addOption(bool, "feat_database", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_network", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_profiling", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_web", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_pages", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_analytics", true);
+        cross_opts.addOption(bool, "feat_cloud", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_auth", true);
+        cross_opts.addOption(bool, "feat_messaging", true);
+        cross_opts.addOption(bool, "feat_cache", true);
+        cross_opts.addOption(bool, "feat_storage", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_search", true);
+        cross_opts.addOption(bool, "feat_mobile", false);
+        cross_opts.addOption(bool, "feat_gateway", true);
+        cross_opts.addOption(bool, "feat_benchmarks", true);
+        cross_opts.addOption(bool, "feat_compute", true);
+        cross_opts.addOption(bool, "feat_documents", true);
+        cross_opts.addOption(bool, "feat_desktop", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_llm", true);
+        cross_opts.addOption(bool, "feat_training", true);
+        cross_opts.addOption(bool, "feat_vision", true);
+        cross_opts.addOption(bool, "feat_explore", true);
+        cross_opts.addOption(bool, "feat_reasoning", true);
+        cross_opts.addOption(bool, "feat_lsp", ct.os != .wasi);
+        cross_opts.addOption(bool, "feat_mcp", ct.os != .wasi);
+        cross_opts.addOption(bool, "gpu_metal", false);
+        cross_opts.addOption(bool, "gpu_cuda", false);
+        cross_opts.addOption(bool, "gpu_vulkan", false);
+        cross_opts.addOption(bool, "gpu_webgpu", false);
+        cross_opts.addOption(bool, "gpu_opengl", false);
+        cross_opts.addOption(bool, "gpu_opengles", false);
+        cross_opts.addOption(bool, "gpu_webgl2", false);
+        cross_opts.addOption(bool, "gpu_stdgpu", ct.os != .wasi);
+        cross_opts.addOption(bool, "gpu_fpga", false);
+        cross_opts.addOption(bool, "gpu_tpu", false);
+        cross_opts.addOption([]const u8, "package_version", "0.1.0");
+
+        const cross_mod = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"),
+            .target = cross_target,
+            .optimize = optimize,
+        });
+        cross_mod.addImport("build_options", cross_opts.createModule());
+        const cross_lib = b.addLibrary(.{
+            .name = "cross-" ++ ct.name,
+            .root_module = cross_mod,
+            .linkage = .static,
+        });
+        cross_check_step.dependOn(&cross_lib.step);
+    }
+
     // ── Aggregate check ─────────────────────────────────────────────────
     const check_step = b.step("check", "Run lint + test + parity");
     check_step.dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = true }).step);

@@ -16,11 +16,12 @@ hash -r
 
 ```bash
 zig build                          # Build static library (default)
-zig build test --summary all       # Run tests
+zig build test --summary all       # Run tests (src/ + test/)
 zig build check                    # Lint + test + stub parity (full gate)
 zig build lint                     # Check formatting (read-only)
 zig build fix                      # Auto-format in place
 zig build check-parity             # Verify mod/stub declaration parity
+zig build cross-check              # Verify cross-compilation (linux, wasi, x86_64)
 zig build lib                      # Build static library artifact
 ```
 
@@ -35,7 +36,7 @@ zig build -Dgpu-backend=metal
 zig build -Dgpu-backend=cuda,vulkan
 ```
 
-The build.zig is self-contained (~170 lines) with all feature flags defined inline. No external build modules.
+The build.zig is self-contained with all feature flags defined inline. No external build modules.
 
 ## Architecture
 
@@ -77,9 +78,23 @@ The `build_options` module provides these fields (all `bool` unless noted):
 - GPU backends: `gpu_metal`, `gpu_cuda`, `gpu_vulkan`, `gpu_webgpu`, `gpu_opengl`, `gpu_opengles`, `gpu_webgl2`, `gpu_stdgpu`, `gpu_fpga`, `gpu_tpu`
 - `package_version` (`[]const u8`)
 
+## Import Rules
+
+- **Within `src/`**: use relative imports only (`@import("../../foundation/mod.zig")`). Never `@import("abi")` from inside the module — causes circular "no module named 'abi'" error.
+- **From `test/`**: use `@import("abi")` and `@import("build_options")` — these are wired as named module imports by build.zig.
+- **Cross-feature imports**: never import another feature's `mod.zig` directly (bypasses the comptime gate). Use conditional: `const obs = if (build_options.feat_profiling) @import("../../features/observability/mod.zig") else @import("../../features/observability/stub.zig");`
+- **Explicit `.zig` extensions** required on all path imports (Zig 0.16).
+
 ## Key Conventions
 
 - The public surface is `abi.<domain>` (e.g., `abi.gpu`, `abi.ai`, `abi.database`). Use `src/root.zig` as the single source of truth for what's exported.
 - Struct field renames: grep for `.field_name` (with leading dot) to catch anonymous struct literals that won't match `StructName{` searches.
 - `src/core/feature_catalog.zig` is the canonical source of truth for feature metadata.
 - `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, and `StubContextWithConfig` — reuse these in stubs instead of defining custom lifecycle boilerplate.
+
+## Zig 0.16 Gotchas
+
+- `ArrayListUnmanaged` init: use `.empty` not `.{}` (struct fields changed)
+- `var` vs `const`: compiler enforces const for never-mutated locals
+- Function pointers: can call through `*const fn` directly without dereferencing
+- `zig fmt .` from root: don't — use `zig build fix` to avoid vendored fixtures

@@ -4,19 +4,17 @@
 
 const std = @import("std");
 
-pub const types = @import("protocol/types.zig");
+pub const types = @import("types.zig");
 pub const backend = @import("backends/backend.zig");
 pub const claude = @import("backends/claude.zig");
 pub const codex = @import("backends/codex.zig");
 pub const ollama = @import("backends/ollama.zig");
 pub const mlx = @import("backends/mlx.zig");
 pub const opencode = @import("backends/opencode.zig");
-pub const skill_registry = @import("skills/registry.zig");
-pub const sync_manager = @import("sync/manager.zig");
+pub const skill_registry = @import("skill_registry.zig");
+pub const sync_manager = @import("sync_manager.zig");
 pub const orchestrator = @import("orchestrator.zig");
-pub const http = @import("utils/http.zig");
-pub const json_util = @import("utils/json.zig");
-pub const process_util = @import("utils/process.zig");
+pub const utils = @import("utils.zig");
 
 // ── Re-exports for convenience ───────────────────────────────────────────────
 

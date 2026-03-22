@@ -1,10 +1,10 @@
 //! Orchestrator: multi-backend inference and skill sync.
 
 const std = @import("std");
-const types = @import("protocol/types.zig");
+const types = @import("types.zig");
 const backend = @import("backends/backend.zig");
-const skill_registry = @import("skills/registry.zig");
-const sync_manager = @import("sync/manager.zig");
+const skill_registry = @import("skill_registry.zig");
+const sync_manager = @import("sync_manager.zig");
 
 pub const Orchestrator = struct {
     allocator: std.mem.Allocator,

@@ -52,7 +52,7 @@ pub const self_improve = @import("self_improve.zig");
 pub const deep_research = @import("tools/deep_research.zig");
 pub const dynamic_api = @import("tools/dynamic_api.zig");
 pub const runtime_bridge = @import("tools/runtime_bridge.zig");
-pub const os_control = @import("tools/os_control/mod.zig");
+pub const os_control = @import("tools/os_control.zig");
 
 pub const Context = core_facade.Context;
 pub const createRegistry = core_facade.createRegistry;

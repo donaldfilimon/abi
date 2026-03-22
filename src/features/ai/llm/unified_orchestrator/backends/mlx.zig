@@ -1,7 +1,7 @@
 //! MLX backend stub.
 
 const std = @import("std");
-const types = @import("../protocol/types.zig");
+const types = @import("../types.zig");
 const BackendInterface = @import("backend.zig").BackendInterface;
 
 fn run(

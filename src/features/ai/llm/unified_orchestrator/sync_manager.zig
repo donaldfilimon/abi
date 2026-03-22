@@ -1,7 +1,7 @@
 //! Sync manager stub (cross-frontend skill sync).
 
 const std = @import("std");
-const types = @import("../protocol/types.zig");
+const types = @import("types.zig");
 
 pub const SyncManager = struct {
     allocator: std.mem.Allocator,
