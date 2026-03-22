@@ -61,6 +61,20 @@ jobs:
       - name: Cross-compilation check
         run: zig build cross-check
 
+  build-binaries:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - name: Build CLI binary
+        run: zig build cli
+      - name: Build MCP server
+        run: zig build mcp
+
   check:
     name: Full Check
     runs-on: ubuntu-latest
