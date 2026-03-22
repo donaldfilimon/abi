@@ -80,3 +80,7 @@ pub const MultiProfileSystem = struct {
         return self._metrics;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}
