@@ -50,6 +50,7 @@ zig build check-parity             # Verify mod/stub declaration parity
 zig build cross-check              # Verify cross-compilation (linux, wasi, x86_64)
 zig build lib                      # Build static library artifact
 zig build mcp                      # Build MCP stdio server (zig-out/bin/abi-mcp)
+zig build cli                      # Build ABI CLI binary (zig-out/bin/abi)
 zig build doctor                   # Report build configuration and diagnostics
 ```
 

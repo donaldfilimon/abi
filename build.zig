@@ -174,6 +174,25 @@ pub fn build(b: *std.Build) void {
     }
     b.step("mcp", "Build MCP stdio server").dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
 
+    // ── CLI binary ──────────────────────────────────────────────────────
+    const cli_exe = b.addExecutable(.{
+        .name = "abi",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    cli_exe.root_module.addImport("build_options", build_options_module);
+    if (target.result.os.tag == .macos) {
+        cli_exe.root_module.linkSystemLibrary("System", .{});
+        cli_exe.root_module.linkSystemLibrary("c", .{});
+        cli_exe.root_module.linkSystemLibrary("objc", .{});
+        cli_exe.root_module.linkFramework("IOKit", .{});
+        if (feat_gpu) cli_exe.root_module.linkFramework("Accelerate", .{});
+    }
+    b.step("cli", "Build ABI command-line interface").dependOn(&b.addInstallArtifact(cli_exe, .{}).step);
+
     // ── Tests ───────────────────────────────────────────────────────────
     const test_step = b.step("test", "Run tests");
 
