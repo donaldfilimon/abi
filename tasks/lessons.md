@@ -26,8 +26,12 @@ Workarounds for the stock Zig LLD linker failure on Darwin 25+ and toolchain res
 - Bootstrapping a pinned host-built Zig is not enough by itself for direct `zig build` gates on Darwin 25+. Prepend the canonical cache bin dir to `PATH` (or invoke that binary explicitly) before expecting `zig build full-check` to leave degraded mode.
 - On blocked Darwin hosts, `zig run tools/scripts/toolchain_doctor.zig` and `zig run tools/scripts/check_zig_version_consistency.zig` hit the same pre-`build.zig` linker wall. Use `./tools/scripts/inspect_toolchain.sh` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback.
 
-Root cause: The Zig build runner itself must link against Darwin system libraries before build.zig executes, so prebuilt Zig binaries fail on newer macOS versions. Ad hoc toolchain paths introduced subtle breakage.
-Prevention rule: On Darwin 25+, bootstrap a host-built Zig via bootstrap_host_zig.sh and prepend its bin dir to PATH. Use only the canonical Zig resolution chain (PATH, ABI_HOST_ZIG, host cache). Never set use_lld = true on macOS.
+- Building Zig from source on Darwin 25+ does not fix the linker issue. The C++ bootstrap (`zig2`) links fine with system clang/ld, but the stage 3 self-hosted build uses `zig2`'s embedded LLD which has the same Darwin 25 tbd stub bug. This is a chicken-and-egg problem — the fix must come from upstream Zig, not from local host builds.
+- Zig 0.16.0-dev.2962 requires LLVM 21.x. Homebrew default is LLVM 22. Use `brew install llvm@21` and `-DCMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@21;/opt/homebrew/opt/zstd"`.
+- zstd must be explicitly linked when building Zig from source on macOS with Homebrew — add it to `CMAKE_PREFIX_PATH`.
+
+Root cause: The Zig build runner itself must link against Darwin system libraries before build.zig executes, so prebuilt Zig binaries fail on newer macOS versions. Ad hoc toolchain paths introduced subtle breakage. Host-building Zig doesn't escape the LLD bug because the self-hosted stage uses the bootstrap's embedded LLD.
+Prevention rule: On Darwin 25+, bootstrap a host-built Zig via bootstrap_host_zig.sh and prepend its bin dir to PATH. Use only the canonical Zig resolution chain (PATH, ABI_HOST_ZIG, host cache). Never set use_lld = true on macOS. Wait for upstream Zig LLD fixes rather than attempting local source builds.
 
 ## Module System & Imports
 
@@ -111,6 +115,8 @@ Version pinning, parallel agents, and CI gate discipline.
 - `defer` vs `errdefer` for lists returned via `toOwnedSlice()`: `defer list.deinit()` causes use-after-free because it frees the list even on the success path where ownership transferred to the caller. Always use `errdefer` when the function returns owned memory.
 - `git add -A` can accidentally include build artifacts (e.g. `lang/swift/.build/`). Always prefer `git add <specific files>` and maintain `.gitignore` entries for build output directories.
 - Feature modules that are pure re-export facades (like `features/database/mod.zig`) only need `refAllDecls` tests — adding duplicate tests would mirror the core module's test suite.
+
+- Version pin bumps have abbreviated refs. When updating version strings like `0.16.0-dev.2934+47d2e5de9`, also grep for abbreviated forms like `dev.2934+` and `dev.2934` that won't match the full-string sed pattern. Use multiple grep passes to catch all occurrences.
 
 Root cause: Partial version pin updates left inconsistent metadata, and large restructuring commits invalidated in-flight PRs from parallel agents. Zig 0.16 time APIs differ from older versions. Gendocs manages docs/ exclusively. Agent-generated code sometimes uses removed Zig APIs.
 Prevention rule: Treat all version pin files as an atomic set. Triage stale PRs after restructuring commits. Run both zig fmt and typecheck as complementary verification gates. Use POSIX clock_gettime for timing, not std.time.Instant. Keep non-generated docs outside docs/. Always run check-zig-016-patterns after agent-generated code.
