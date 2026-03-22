@@ -123,6 +123,32 @@ Both suites link the same platform frameworks (macOS: System, IOKit, Accelerate,
 
 `zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`.
 
+### Multi-Persona Pipeline (Abbey-Aviva-Abi)
+
+The full pipeline is wired end-to-end in `src/features/ai/persona/router.zig`:
+```
+User Input → Abi Analysis (sentiment + policy + rules)
+  → AdaptiveModulator (EMA user preference learning)
+  → Routing Decision (single / parallel / consensus)
+  → Persona Execution (Abbey / Aviva / Abi)
+  → Constitution Validation (6 principles)
+  → WDBX Memory Storage (cryptographic block chain)
+  → Response
+```
+
+Key files: `persona/router.zig` (orchestration), `persona/memory.zig` (WDBX storage), `abi/mod.zig` (routing), `modulation.zig` (preference learning), `constitution/mod.zig` (ethical enforcement).
+
+### Inference Engine
+
+Multi-backend engine (`src/inference/engine.zig`) supports:
+- `demo` — synthetic text for testing (default)
+- `connector` — delegates to external LLM providers (OpenAI, Anthropic, Ollama, etc.)
+- `local` — built-in transformer forward pass (integration point for GGUF loading)
+
+### Specification
+
+`docs/spec/ABBEY-SPEC.md` — comprehensive mega spec covering architecture, personas, behavioral model, math foundations, ethics, benchmarks, implementation status, and visual assets.
+
 ## Import Rules
 
 - **Within `src/`**: use relative imports only (`@import("../../foundation/mod.zig")`). Never `@import("abi")` from inside the module — causes circular "no module named 'abi'" error.
