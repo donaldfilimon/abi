@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "darwin-linker-diagnosis",
+  "prompt": "I'm getting 'error: undefined symbol: _abort' and about 30 other undefined symbols when trying to build on my M4 Mac running macOS Tahoe. zig build test fails completely. How do I fix this?",
+  "assertions": [
+    {"text": "Identifies this as Darwin 25+ / macOS Tahoe linker issue", "type": "contains_concept"},
+    {"text": "Recommends using ./build.sh which auto-relinks with Apple ld", "type": "contains_concept"},
+    {"text": "Mentions tools/zigup.sh for zig version management", "type": "contains_concept"},
+    {"text": "Suggests zig build lint as always-works fallback for verification", "type": "contains_concept"},
+    {"text": "Mentions clearing .zig-cache if stale cache is suspected", "type": "contains_concept"},
+    {"text": "Warns against use_lld = true on macOS", "type": "contains_concept"}
+  ]
+}

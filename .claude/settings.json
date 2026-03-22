@@ -1,0 +1,71 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q 'features/.*\\.zig$'; then CONTENT=$(jq -r '(.tool_input.new_string // \"\") + (.tool_input.content // \"\")'); if echo \"$CONTENT\" | grep -q '@import(\"abi\")'; then echo 'BLOCKED: @import(\"abi\") in features/ causes circular imports. Use relative imports instead.' >&2; exit 1; fi; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zigversion'; then echo 'WARNING: .zigversion edit detected — MUST also update atomically: build.zig.zon and .github/workflows/ci.yml. Run tools/zigup.sh --install to re-download.'; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zig$'; then ZIG=$(bash tools/zigup.sh --status 2>/dev/null || true); if [ -n \"$ZIG\" ] && [ -x \"$ZIG\" ]; then \"$ZIG\" fmt \"$FILE\" 2>/dev/null || true; elif command -v zig >/dev/null 2>&1; then zig fmt \"$FILE\" 2>/dev/null || true; fi; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/mod\\.zig$'; then STUB=$(echo \"$FILE\" | sed 's/mod\\.zig$/stub.zig/'); [ -f \"$STUB\" ] && echo \"WARNING: stub.zig exists alongside this mod.zig — remember to update $STUB to keep signatures in sync. Run 'zig build check-parity' to verify.\" || true; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/stub\\.zig$'; then MOD=$(echo \"$FILE\" | sed 's/stub\\.zig$/mod.zig/'); [ -f \"$MOD\" ] && echo \"WARNING: mod.zig exists alongside this stub.zig — verify $MOD doesn't need matching changes. Run 'zig build check-parity' to verify.\" || true; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '/src/root\\.zig$'; then echo 'WARNING: src/root.zig changed — update test/mod.zig if public API surface changed. Run: ./build.sh test --summary all'; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -qE 'features/[^/]+/(mod|stub)\\.zig$'; then FEATURE=$(echo \"$FILE\" | sed -E 's|.*/features/([^/]+)/.*|\\1|'); if ! grep -q \"\\\"$FEATURE\\\"\" src/core/feature_catalog.zig 2>/dev/null; then echo \"WARNING: Feature '$FEATURE' edited but not found in feature_catalog.zig\"; fi; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

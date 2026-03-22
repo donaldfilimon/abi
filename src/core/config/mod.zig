@@ -1,0 +1,431 @@
+//! Configuration Module
+//!
+//! Re-exports all configuration types from domain-specific files.
+//! Import this module for access to all configuration types.
+//!
+//! Use `ConfigLoader` (see `loader.zig`) to load config from environment variables
+//! (e.g. `ABI_GPU_BACKEND`, `ABI_LLM_MODEL_PATH`). Use `Config.Builder` for fluent construction.
+
+const std = @import("std");
+const build_options = @import("build_options");
+const feature_catalog = @import("../feature_catalog.zig");
+
+// Domain-specific config imports
+pub const gpu_config = @import("gpu.zig");
+pub const ai_config = @import("ai.zig");
+pub const database_config = @import("database.zig");
+pub const network_config = @import("network.zig");
+pub const observability_config = @import("observability.zig");
+pub const web_config = @import("web.zig");
+pub const cloud_config = @import("cloud.zig");
+pub const platform_config = @import("platform.zig");
+pub const content_config = @import("content.zig");
+pub const gateway_config = @import("gateway.zig");
+pub const benchmarks_config = @import("benchmarks.zig");
+pub const plugin_config = @import("plugin.zig");
+pub const lsp_config = @import("lsp.zig");
+pub const loader = @import("loader.zig");
+
+// Re-export loader types
+pub const ConfigLoader = loader.ConfigLoader;
+pub const LoadError = loader.LoadError;
+pub const Feature = feature_catalog.Feature;
+pub const feature_count = feature_catalog.feature_count;
+
+// Re-export config types by domain (convenience; use *_config for defaults/helpers)
+// Compute
+pub const GpuConfig = gpu_config.GpuConfig;
+pub const RecoveryConfig = gpu_config.GpuConfig.RecoveryConfig;
+pub const AiConfig = ai_config.AiConfig;
+pub const ProfilesConfig = ai_config.ProfilesConfig;
+pub const LlmConfig = ai_config.LlmConfig;
+pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
+pub const AgentsConfig = ai_config.AgentsConfig;
+pub const TrainingConfig = ai_config.TrainingConfig;
+pub const ContentKind = ai_config.ContentKind;
+pub const DatabaseConfig = database_config.DatabaseConfig;
+// Network & platform
+pub const NetworkConfig = network_config.NetworkConfig;
+pub const UnifiedMemoryConfig = network_config.UnifiedMemoryConfig;
+pub const LinkingConfig = network_config.LinkingConfig;
+pub const ObservabilityConfig = observability_config.ObservabilityConfig;
+pub const WebConfig = web_config.WebConfig;
+pub const CloudConfig = cloud_config.CloudConfig;
+pub const AnalyticsConfig = content_config.AnalyticsConfig;
+pub const AuthConfig = platform_config.AuthConfig;
+// Data & infra
+pub const MessagingConfig = platform_config.MessagingConfig;
+pub const CacheConfig = platform_config.CacheConfig;
+pub const EvictionPolicy = platform_config.EvictionPolicy;
+pub const StorageConfig = platform_config.StorageConfig;
+pub const StorageBackend = platform_config.StorageBackend;
+pub const SearchConfig = content_config.SearchConfig;
+pub const GatewayConfig = gateway_config.GatewayConfig;
+pub const PagesConfig = content_config.PagesConfig;
+pub const BenchmarksConfig = benchmarks_config.BenchmarksConfig;
+pub const MobileConfig = platform_config.MobileConfig;
+pub const PluginConfig = plugin_config.PluginConfig;
+pub const LspConfig = lsp_config.LspConfig;
+
+// ============================================================================
+// Unified Config
+// ============================================================================
+
+/// Unified configuration for the ABI framework.
+/// All feature configs are optional - null means the feature is disabled.
+pub const Config = struct {
+    gpu: ?GpuConfig = null,
+    ai: ?AiConfig = null,
+    database: ?DatabaseConfig = null,
+    network: ?NetworkConfig = null,
+    observability: ?ObservabilityConfig = null,
+    web: ?WebConfig = null,
+    cloud: ?CloudConfig = null,
+    analytics: ?AnalyticsConfig = null,
+    auth: ?AuthConfig = null,
+    messaging: ?MessagingConfig = null,
+    cache: ?CacheConfig = null,
+    storage: ?StorageConfig = null,
+    search: ?SearchConfig = null,
+    mobile: ?MobileConfig = null,
+    gateway: ?GatewayConfig = null,
+    pages: ?PagesConfig = null,
+    benchmarks: ?BenchmarksConfig = null,
+    plugins: PluginConfig = .{},
+    lsp: ?LspConfig = null,
+
+    /// Create a config with all compile-time enabled features using defaults.
+    pub fn defaults() Config {
+        return .{
+            .gpu = if (build_options.feat_gpu) GpuConfig.defaults() else null,
+            .ai = if (build_options.feat_ai) AiConfig.defaults() else null,
+            .database = if (build_options.feat_database) DatabaseConfig.defaults() else null,
+            .network = if (build_options.feat_network) NetworkConfig.defaults() else null,
+            .observability = if (build_options.feat_profiling) ObservabilityConfig.defaults() else null,
+            .web = if (build_options.feat_web) WebConfig.defaults() else null,
+            .cloud = if (build_options.feat_cloud) CloudConfig.defaults() else null,
+            .analytics = if (build_options.feat_analytics) AnalyticsConfig.defaults() else null,
+            .auth = if (build_options.feat_auth) AuthConfig.defaults() else null,
+            .messaging = if (build_options.feat_messaging) MessagingConfig.defaults() else null,
+            .cache = if (build_options.feat_cache) CacheConfig.defaults() else null,
+            .storage = if (build_options.feat_storage) StorageConfig.defaults() else null,
+            .search = if (build_options.feat_search) SearchConfig.defaults() else null,
+            .mobile = if (build_options.feat_mobile) MobileConfig.defaults() else null,
+            .gateway = if (build_options.feat_gateway) GatewayConfig.defaults() else null,
+            .pages = if (build_options.feat_pages) PagesConfig.defaults() else null,
+            .benchmarks = if (build_options.feat_benchmarks) BenchmarksConfig.defaults() else null,
+            .lsp = if (build_options.feat_lsp) LspConfig.defaults() else null,
+        };
+    }
+
+    /// Create a minimal config with no features enabled.
+    pub fn minimal() Config {
+        return .{};
+    }
+
+    /// Check if a feature is enabled in this config.
+    pub fn isEnabled(self: Config, feature: Feature) bool {
+        return switch (feature) {
+            .gpu => self.gpu != null,
+            .ai => self.ai != null,
+            .llm => if (self.ai) |ai| ai.llm != null else false,
+            .embeddings => if (self.ai) |ai| ai.embeddings != null else false,
+            .agents => if (self.ai) |ai| ai.agents != null else false,
+            .training => if (self.ai) |ai| ai.training != null else false,
+            .database => self.database != null,
+            .network => self.network != null,
+            .observability => self.observability != null,
+            .web => self.web != null,
+            .profiles => if (self.ai) |ai| ai.profiles != null else false,
+            .cloud => self.cloud != null,
+            .analytics => self.analytics != null,
+            .auth => self.auth != null,
+            .messaging => self.messaging != null,
+            .cache => self.cache != null,
+            .storage => self.storage != null,
+            .search => self.search != null,
+            .mobile => self.mobile != null,
+            .gateway => self.gateway != null,
+            .pages => self.pages != null,
+            .benchmarks => self.benchmarks != null,
+            .reasoning => self.ai != null and build_options.feat_reasoning,
+            .constitution => self.ai != null,
+            .compute => build_options.feat_compute,
+            .documents => build_options.feat_documents,
+            .desktop => build_options.feat_desktop,
+            .lsp => self.lsp != null,
+            .mcp => build_options.feat_mcp,
+        };
+    }
+
+    /// Get list of enabled features.
+    pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature {
+        var list = std.ArrayListUnmanaged(Feature).empty;
+        errdefer list.deinit(allocator);
+
+        inline for (std.meta.fields(Feature)) |field| {
+            const feature: Feature = @enumFromInt(field.value);
+            if (self.isEnabled(feature)) {
+                try list.append(allocator, feature);
+            }
+        }
+
+        return list.toOwnedSlice(allocator);
+    }
+};
+
+// ============================================================================
+// Builder Pattern
+// ============================================================================
+
+/// Fluent builder for constructing Config.
+pub const Builder = struct {
+    allocator: std.mem.Allocator,
+    config: Config,
+
+    pub fn init(allocator: std.mem.Allocator) Builder {
+        return .{
+            .allocator = allocator,
+            .config = Config.minimal(),
+        };
+    }
+
+    pub fn withDefaults(self: *Builder) *Builder {
+        self.config = Config.defaults();
+        return self;
+    }
+
+    /// Helper to get the correct config type for a feature
+    fn FeatureConfig(comptime feature: Feature) type {
+        return switch (feature) {
+            .gpu => GpuConfig,
+            .ai => AiConfig,
+            .llm => LlmConfig,
+            .embeddings => EmbeddingsConfig,
+            .agents => AgentsConfig,
+            .training => TrainingConfig,
+            .profiles,
+            .reasoning,
+            .constitution,
+            .compute,
+            .documents,
+            .desktop,
+            .mcp,
+            => struct {}, // Compile-time or nested features with no explicit config struct yet
+            .database => DatabaseConfig,
+            .network => NetworkConfig,
+            .observability => ObservabilityConfig,
+            .web => WebConfig,
+            .cloud => CloudConfig,
+            .analytics => AnalyticsConfig,
+            .auth => AuthConfig,
+            .messaging => MessagingConfig,
+            .cache => CacheConfig,
+            .storage => StorageConfig,
+            .search => SearchConfig,
+            .mobile => MobileConfig,
+            .gateway => GatewayConfig,
+            .pages => PagesConfig,
+            .benchmarks => BenchmarksConfig,
+            .lsp => LspConfig,
+        };
+    }
+
+    /// Enable a feature with explicit configuration.
+    pub fn with(self: *Builder, comptime feature: Feature, cfg: anytype) *Builder {
+        const ExpectedCfg = FeatureConfig(feature);
+        const typed_cfg: ExpectedCfg = cfg;
+
+        if (feature == .llm or feature == .embeddings or feature == .agents or feature == .training) {
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+            @field(self.config.ai.?, @tagName(feature)) = typed_cfg;
+        } else if (feature == .profiles or feature == .reasoning or feature == .constitution) {
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+        } else if (feature == .compute or feature == .documents or feature == .desktop or feature == .mcp) {
+            // Compile-time-only features do not have runtime config structs.
+        } else {
+            @field(self.config, @tagName(feature)) = typed_cfg;
+        }
+        return self;
+    }
+
+    /// Enable a feature with its default configuration.
+    pub fn withDefault(self: *Builder, comptime feature: Feature) *Builder {
+        const CfgType = FeatureConfig(feature);
+
+        if (feature == .llm) {
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+            self.config.ai.?.llm = LlmConfig.defaults();
+        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .profiles or feature == .reasoning or feature == .constitution) {
+            // These don't have distinct config structs at the moment, handled through AiConfig
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+        } else if (feature == .compute or feature == .documents or feature == .desktop or feature == .mcp) {
+            // Compile-time-only features do not have runtime config structs.
+        } else {
+            @field(self.config, @tagName(feature)) = CfgType.defaults();
+        }
+        return self;
+    }
+
+    /// Finalize and return the built config; no allocation.
+    pub fn build(self: *Builder) Config {
+        return self.config;
+    }
+};
+
+// ============================================================================
+// Validation
+// ============================================================================
+
+pub const ConfigError = error{
+    FeatureDisabled,
+    InvalidConfig,
+    MissingRequired,
+    ConflictingConfig,
+};
+
+const FeatureValidation = struct {
+    is_enabled_in_config: bool,
+    is_enabled_at_build: bool,
+};
+
+/// Validate configuration against compile-time constraints.
+pub fn validate(cfg: Config) ConfigError!void {
+    const validations = [_]FeatureValidation{
+        .{ .is_enabled_in_config = cfg.gpu != null, .is_enabled_at_build = build_options.feat_gpu },
+        .{ .is_enabled_in_config = cfg.ai != null, .is_enabled_at_build = build_options.feat_ai },
+        .{ .is_enabled_in_config = cfg.database != null, .is_enabled_at_build = build_options.feat_database },
+        .{ .is_enabled_in_config = cfg.network != null, .is_enabled_at_build = build_options.feat_network },
+        .{ .is_enabled_in_config = cfg.web != null, .is_enabled_at_build = build_options.feat_web },
+        .{ .is_enabled_in_config = cfg.cloud != null, .is_enabled_at_build = build_options.feat_cloud },
+        .{ .is_enabled_in_config = cfg.analytics != null, .is_enabled_at_build = build_options.feat_analytics },
+        .{ .is_enabled_in_config = cfg.observability != null, .is_enabled_at_build = build_options.feat_profiling },
+        .{ .is_enabled_in_config = cfg.auth != null, .is_enabled_at_build = build_options.feat_auth },
+        .{ .is_enabled_in_config = cfg.messaging != null, .is_enabled_at_build = build_options.feat_messaging },
+        .{ .is_enabled_in_config = cfg.cache != null, .is_enabled_at_build = build_options.feat_cache },
+        .{ .is_enabled_in_config = cfg.storage != null, .is_enabled_at_build = build_options.feat_storage },
+        .{ .is_enabled_in_config = cfg.search != null, .is_enabled_at_build = build_options.feat_search },
+        .{ .is_enabled_in_config = cfg.mobile != null, .is_enabled_at_build = build_options.feat_mobile },
+        .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.feat_gateway },
+        .{ .is_enabled_in_config = cfg.pages != null, .is_enabled_at_build = build_options.feat_pages },
+        .{ .is_enabled_in_config = cfg.benchmarks != null, .is_enabled_at_build = build_options.feat_benchmarks },
+        .{ .is_enabled_in_config = cfg.lsp != null, .is_enabled_at_build = build_options.feat_lsp },
+    };
+    inline for (validations) |entry| {
+        if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {
+            return ConfigError.FeatureDisabled;
+        }
+    }
+
+    // LLM is nested under AI and has its own compile-time flag.
+    if (cfg.ai) |ai| {
+        if (ai.llm != null and !build_options.feat_llm) {
+            return ConfigError.FeatureDisabled;
+        }
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "Config.defaults respects build options" {
+    const config = Config.defaults();
+    if (build_options.feat_gpu) {
+        try std.testing.expect(config.gpu != null);
+    } else {
+        try std.testing.expect(config.gpu == null);
+    }
+}
+
+test "Config.minimal has no features" {
+    const config = Config.minimal();
+    try std.testing.expect(config.gpu == null);
+    try std.testing.expect(config.ai == null);
+    try std.testing.expect(config.database == null);
+    try std.testing.expect(config.cloud == null);
+}
+
+test "Builder creates valid config" {
+    var builder = Builder.init(std.testing.allocator);
+    const config = builder.withDefaults().build();
+    try validate(config);
+}
+
+test "Feature.isCompileTimeEnabled" {
+    // At least some feature should match build_options
+    const gpu_enabled = Feature.gpu.isCompileTimeEnabled();
+    try std.testing.expectEqual(build_options.feat_gpu, gpu_enabled);
+}
+
+test "validate returns FeatureDisabled for compile-time disabled features" {
+    if (!build_options.feat_gpu) {
+        var config = Config.minimal();
+        config.gpu = GpuConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.feat_ai) {
+        var config = Config.minimal();
+        config.ai = AiConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.feat_database) {
+        var config = Config.minimal();
+        config.database = DatabaseConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.feat_network) {
+        var config = Config.minimal();
+        config.network = NetworkConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.feat_web) {
+        var web_cfg = Config.minimal();
+        web_cfg.web = WebConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(web_cfg));
+    }
+
+    if (!build_options.feat_cloud) {
+        var cloud_cfg = Config.minimal();
+        cloud_cfg.cloud = CloudConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(cloud_cfg));
+    }
+
+    if (!build_options.feat_analytics) {
+        var config = Config.minimal();
+        config.analytics = AnalyticsConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.feat_profiling) {
+        var config = Config.minimal();
+        config.observability = ObservabilityConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+}
+
+test "validate returns FeatureDisabled for llm when llm build flag is disabled" {
+    if (build_options.feat_ai and !build_options.feat_llm) {
+        var config = Config.minimal();
+        var ai = AiConfig.defaults();
+        ai.llm = LlmConfig.defaults();
+        config.ai = ai;
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -1,0 +1,15 @@
+{
+  "eval_id": 1,
+  "eval_name": "add-gated-feature",
+  "prompt": "I need to add a new feature called 'telemetry' to the ABI codebase. It should be gated like the other features. Where do I create files, what's the pattern for mod.zig/stub.zig/types.zig, and how do I wire it into root.zig and build_options?",
+  "assertions": [
+    {"text": "Mentions creating src/features/telemetry/ directory", "type": "contains_concept"},
+    {"text": "Describes mod.zig + stub.zig + types.zig pattern", "type": "contains_concept"},
+    {"text": "References StubFeature or StubFeatureNoConfig from core/stub_helpers.zig", "type": "contains_concept"},
+    {"text": "Shows the conditional import pattern in root.zig (if build_options.feat_telemetry)", "type": "contains_concept"},
+    {"text": "Mentions adding flag to build.zig (self-contained, no build/ directory)", "type": "contains_concept"},
+    {"text": "Mentions running zig build check-parity for validation", "type": "contains_concept"},
+    {"text": "Warns about import rules (relative imports inside src/, no @import(\"abi\"))", "type": "contains_concept"},
+    {"text": "Mentions updating feature_catalog.zig", "type": "contains_concept"}
+  ]
+}

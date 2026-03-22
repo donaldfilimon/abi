@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "abi-db": {
+      "command": "zig-out/bin/abi-mcp",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "ABI_DB_PATH": "${ABI_DB_PATH:-./data/wdbx}"
+      }
+    },
+    "zig-docs": {
+      "command": "npx",
+      "args": ["-y", "@nicholasq/zig-docs-mcp"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"]
+    }
+  }
+}
