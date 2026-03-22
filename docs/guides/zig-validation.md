@@ -4,7 +4,7 @@ Single source of truth for Zig toolchain setup, build commands, and API compatib
 
 ## Toolchain Pin
 
-This project is pinned to Zig `0.16.0-dev.2934+47d2e5de9` (see `.zigversion`). If your Zig version doesn't match, `build.zig` detects the mismatch and prints clear instructions.
+This project is pinned to Zig `0.16.0-dev.2962+08416b44f` (see `.zigversion`). If your Zig version doesn't match, `build.zig` detects the mismatch and prints clear instructions.
 
 ## Build Commands
 

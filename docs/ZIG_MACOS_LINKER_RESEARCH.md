@@ -2,7 +2,7 @@
 title: Zig on macOS 26+: ABI Linker Notes
 purpose: Research and workarounds for Darwin linker failures
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2934+47d2e5de9
+target_zig_version: 0.16.0-dev.2962+08416b44f
 ---
 
 # Zig on macOS 26+: ABI Linker Notes

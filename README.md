@@ -2,7 +2,7 @@
 title: ABI Framework
 purpose: Main project entry point and documentation map
 last_updated: 2026-03-18
-target_zig_version: 0.16.0-dev.2934+47d2e5de9
+target_zig_version: 0.16.0-dev.2962+08416b44f
 ---
 
 # ABI Framework
@@ -26,7 +26,7 @@ entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`.
 
 | Item | Value |
 |------|-------|
-| Zig pin | `0.16.0-dev.2934+47d2e5de9` |
+| Zig pin | `0.16.0-dev.2962+08416b44f` |
 | Package root | `src/root.zig` |
 | Main validation gate | `zig build full-check` |
 | Full release gate | `zig build verify-all` |

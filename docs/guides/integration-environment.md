@@ -25,7 +25,7 @@ The CI environment is the single source of truth for gate pass/fail.
 
 | Requirement | Value |
 |-------------|-------|
-| Version | Must exactly match `.zigversion` (`0.16.0-dev.2934+47d2e5de9`) |
+| Version | Must exactly match `.zigversion` (`0.16.0-dev.2962+08416b44f`) |
 | Source | Host-built or official prebuilt tarball for `x86_64-linux` |
 | PATH | `zig` binary must be first on `$PATH`; no version shims |
 
@@ -89,7 +89,7 @@ failures.
 
 ### Known linker limitation
 
-On **Darwin 25+ / macOS 26+**, the stock prebuilt Zig (`0.16.0-dev.2934+`)
+On **Darwin 25+ / macOS 26+**, the stock prebuilt Zig (`0.16.0-dev.2962+`)
 fails at the linker stage before `build.zig` runs. This is a host toolchain
 issue, not an ABI bug.
 

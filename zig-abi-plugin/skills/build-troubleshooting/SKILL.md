@@ -5,7 +5,7 @@ description: This skill diagnoses and resolves ABI build failures. Trigger when 
 
 # Build Troubleshooting for ABI
 
-Pinned at Zig `0.16.0-dev.2934+47d2e5de9` (`.zigversion`), package version `0.4.0` (`build.zig.zon`). All legacy build wrappers (`build.sh`, `build/compat.zig`, `build/darwin.zig`, `tools/scripts/run_build.sh`, `tools/scripts/bootstrap_host_zig.sh`, `tools/scripts/zig_toolchain.sh`, `tools/scripts/zig_darwin26_wrapper.sh`) have been removed. The only supported build path is direct `zig build` with the pinned Zig on PATH.
+Pinned at Zig `0.16.0-dev.2962+08416b44f` (`.zigversion`), package version `0.4.0` (`build.zig.zon`). All legacy build wrappers (`build.sh`, `build/compat.zig`, `build/darwin.zig`, `tools/scripts/run_build.sh`, `tools/scripts/bootstrap_host_zig.sh`, `tools/scripts/zig_toolchain.sh`, `tools/scripts/zig_darwin26_wrapper.sh`) have been removed. The only supported build path is direct `zig build` with the pinned Zig on PATH.
 
 ## Darwin 25+ Linker Failure
 
@@ -27,7 +27,7 @@ Compilation succeeds. Only the linking step fails. No `build.zig` workaround exi
 
 ### Fix
 
-Use a host-built or known-good Zig matching the `.zigversion` pin (`0.16.0-dev.2934+47d2e5de9`) that uses the system linker instead of LLD. Ensure this Zig is first on PATH.
+Use a host-built or known-good Zig matching the `.zigversion` pin (`0.16.0-dev.2962+08416b44f`) that uses the system linker instead of LLD. Ensure this Zig is first on PATH.
 
 Never set `use_lld = true` on macOS. LLD has zero Mach-O support.
 
@@ -51,7 +51,7 @@ Build output shows a version mismatch warning, or only format-check steps (`lint
 
 ### Diagnosis
 
-1. Check the pinned version: read `.zigversion` (should contain `0.16.0-dev.2934+47d2e5de9`).
+1. Check the pinned version: read `.zigversion` (should contain `0.16.0-dev.2962+08416b44f`).
 2. Check the active Zig version: `zig version`.
 3. Compare the two. Any mismatch triggers the detection logic in `build.zig`.
 
@@ -191,7 +191,7 @@ Compilation fails with an import path not found error after adding a `.zig` suff
 1. Verify the target file actually exists at the expected path.
 2. Check for gated imports: the file might only be available when a feature flag is enabled.
 3. Confirm the import path depth matches the source file's location in the directory tree.
-4. Ensure explicit `.zig` extensions are present on all path imports (required in Zig 0.16 / dev.2934+).
+4. Ensure explicit `.zig` extensions are present on all path imports (required in Zig 0.16 / dev.2962+).
 
 ### Fix
 

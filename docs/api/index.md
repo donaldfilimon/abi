@@ -2,7 +2,7 @@
 title: ABI Framework API Reference
 purpose: Comprehensive API documentation auto-generated from source code
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2934+47d2e5de9
+target_zig_version: 0.16.0-dev.2962+08416b44f
 ---
 
 # ABI Framework API Reference

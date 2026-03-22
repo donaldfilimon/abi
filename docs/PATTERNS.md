@@ -1,7 +1,7 @@
 # ABI Codebase Patterns (Zig 0.16)
 
 Key patterns and conventions used throughout the ABI codebase, specific to
-Zig 0.16 (`0.16.0-dev.2934+47d2e5de9`).
+Zig 0.16 (`0.16.0-dev.2962+08416b44f`).
 
 ## Module System
 

@@ -16,7 +16,7 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 
 **Out of scope:**
 - Phases 1–14 (completed, archived below)
-- Zig version repinning beyond `0.16.0-dev.2934+47d2e5de9`
+- Zig version repinning beyond `0.16.0-dev.2962+08416b44f`
 - New feature modules not on the Phase 15 roadmap
 
 ## Verification Criteria

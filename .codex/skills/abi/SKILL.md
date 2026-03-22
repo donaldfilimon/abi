@@ -1,6 +1,6 @@
 ---
 name: abi
-description: This skill should be used when working in the ABI Framework repository (Zig 0.16, pinned dev.2934+) to apply required planning, verification, and close-out workflow expectations before and after code changes.
+description: This skill should be used when working in the ABI Framework repository (Zig 0.16, pinned dev.2962+) to apply required planning, verification, and close-out workflow expectations before and after code changes.
 ---
 
 # ABI Skill
@@ -20,7 +20,7 @@ Activate for implementation, refactors, bug fixes, or review follow-ups in this 
 
 ## Required quality gates
 - Prefer targeted checks first, then broader suite if environment permits.
-- Primary build path: `zig build` with pinned Zig (`0.16.0-dev.2934+47d2e5de9`).
+- Primary build path: `zig build` with pinned Zig (`0.16.0-dev.2962+08416b44f`).
 - On Darwin/macOS 25+ where stock Zig cannot link, run `zig fmt --check ...` first, then `zig build test --summary all` with a host-built Zig.
 - If a command is environment-blocked, record the limitation and continue with alternate evidence.
 - Keep diffs minimal and avoid unrelated cleanup.

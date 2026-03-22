@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2934+47d2e5de9` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`.
+Zig 0.16 framework for AI services, vector search, and GPU compute. Pinned to `0.16.0-dev.2962+08416b44f` (`.zigversion`). Package entrypoint: `src/root.zig`, exposed as `@import("abi")`.
 
 ## Commands
 
@@ -28,9 +28,9 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `src/inference/` — ML inference: engine, scheduler, sampler (pluggable top-p/top-k strategies), paged KV cache
 - `build/` — Modular build system:
   - `options.zig` — 27 `feat_*` flag definitions (`CanonicalFlags`)
-  - `flags.zig` — 58-combo validation matrix
+  - `flags.zig` — 60-combo validation matrix
   - `modules.zig` — Module creation, `wireAbiImports()`
-  - `module_catalog.zig` — Gendocs module registry (34 entries), feature test manifest (179 entries)
+  - `module_catalog.zig` — Gendocs module registry (35 entries), feature test manifest (179 entries)
   - `link.zig` — Platform linking (macOS, Linux, Windows, BSD, Android, illumos, Haiku)
   - `test_discovery.zig` — Unified `abi` module test root
   - `cli_tests.zig` — CLI smoke (~53 vectors) and exhaustive integration tests
@@ -39,7 +39,7 @@ zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/  #
 - `bindings/` — C and WASM language bindings (C bindings include plugin registry API)
 - `lang/` — High-level language bindings (Swift, Kotlin); wraps `bindings/c/`
 - `tests/integration/` — Integration test matrix manifest and preflight diagnostics
-- `examples/` — 35 standalone programs demonstrating API usage across all feature domains
+- `examples/` — 36 standalone programs demonstrating API usage across all feature domains
 - `zig-abi-plugin/` — Claude Code plugin: smart build routing, stub-sync validation, Zig 0.16 pattern checks, feature scaffolding (`/zig-abi:build`, `/zig-abi:check`, `/zig-abi:new-feature`)
 
 ### Public API surface

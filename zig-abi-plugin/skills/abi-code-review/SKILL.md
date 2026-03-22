@@ -1,6 +1,6 @@
 ---
 name: abi-code-review
-description: This skill should be used when reviewing ABI code changes, PRs, or diffs — applies Zig 0.16 (dev.2934+) review patterns, path-to-gate mapping, and ABI-specific heuristics for feature modules, build system, CLI, and database changes.
+description: This skill should be used when reviewing ABI code changes, PRs, or diffs — applies Zig 0.16 (dev.2962+) review patterns, path-to-gate mapping, and ABI-specific heuristics for feature modules, build system, CLI, and database changes.
 ---
 
 # ABI Code Review
@@ -27,7 +27,7 @@ Use this skill to review ABI changes with the repo's actual workflow, Zig pin, a
 
 ### Pin and Framing
 
-- ABI pins Zig at `0.16.0-dev.2934+47d2e5de9` via `.zigversion`; read that file instead of assuming a stable release.
+- ABI pins Zig at `0.16.0-dev.2962+08416b44f` via `.zigversion`; read that file instead of assuming a stable release.
 - Describe the repo as Zig `0.16.0-dev` or Zig 0.16-dev/master-era when reviewing API usage and toolchain behavior.
 - Use `CLAUDE.md` as the repo-local summary of known 0.16 migration constraints and Darwin caveats.
 - Build scripts (`build.sh`, `tools/scripts/run_build.sh`, `build/compat.zig`, `build/darwin.zig`) have been removed — direct `zig build` is the primary build path.

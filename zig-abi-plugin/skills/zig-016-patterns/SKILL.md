@@ -1,11 +1,11 @@
 ---
 name: zig-016-patterns
-description: This skill should be used when writing or modifying Zig code in the ABI project. Provides Zig 0.16 API patterns (pinned at dev.2934+), migration guidance from deprecated APIs, and platform-specific linking notes. Trigger when user writes Zig code, encounters Zig compilation errors, asks about Zig 0.16 APIs, or mentions "std.time", "std.posix", "std.Io", "LazyPath", "Alignment", "HashMap", "DebugAllocator", or "main signature".
+description: This skill should be used when writing or modifying Zig code in the ABI project. Provides Zig 0.16 API patterns (pinned at dev.2962+), migration guidance from deprecated APIs, and platform-specific linking notes. Trigger when user writes Zig code, encounters Zig compilation errors, asks about Zig 0.16 APIs, or mentions "std.time", "std.posix", "std.Io", "LazyPath", "Alignment", "HashMap", "DebugAllocator", or "main signature".
 ---
 
 # Zig 0.16 API Patterns for ABI
 
-Pinned at `0.16.0-dev.2934+47d2e5de9`. Follow these patterns exactly — older patterns will not compile.
+Pinned at `0.16.0-dev.2962+08416b44f`. Follow these patterns exactly — older patterns will not compile.
 
 ## Removed / Changed APIs
 
@@ -78,13 +78,13 @@ Takes `*const [N]u8` / `*[N]u8`. Use `std.builtin.Endian.little` / `.big`.
 ### usingnamespace
 REMOVED in 0.16. Pass parent context as parameters to submodule init functions instead.
 
-### Module System (dev.2934+)
+### Module System (dev.2962+)
 
 **Explicit extensions required** — `@import("path/to/file")` must end in `.zig`:
 ```zig
 // WRONG (dev.1503 style)
 const config = @import("core/config");
-// CORRECT (dev.2934+)
+// CORRECT (dev.2962+)
 const config = @import("core/config/mod.zig");
 ```
 
@@ -151,7 +151,7 @@ Zig's `std.fmt` does NOT support `{t}`. Common valid specifiers:
 ### Darwin 26+ Linker
 Stock prebuilt Zig's internal LLD linker fails on Darwin 25+ with undefined symbols (`__availability_version_check`, `_arc4random_buf`, `_malloc_size`). Compilation succeeds — only linking is blocked. The build runner itself cannot link, so no `build.zig` workaround helps.
 
-**Recommended**: use a host-built or known-good Zig matching `.zigversion` (`0.16.0-dev.2934+47d2e5de9`) for `zig build full-check` / `zig build check-docs`.
+**Recommended**: use a host-built or known-good Zig matching `.zigversion` (`0.16.0-dev.2962+08416b44f`) for `zig build full-check` / `zig build check-docs`.
 
 **Fallback options** (when stock Zig cannot link):
 1. `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/` — format check (no linking needed)

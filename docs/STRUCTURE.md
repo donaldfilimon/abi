@@ -9,7 +9,7 @@ of each directory and key file patterns.
 abi/
 ├── build.zig                 # Build root — defines all steps, targets, gates
 ├── build.zig.zon             # Package manifest (Zig 0.16 format)
-├── .zigversion               # Pinned Zig version (0.16.0-dev.2934+...)
+├── .zigversion               # Pinned Zig version (0.16.0-dev.2962+...)
 │
 ├── src/                      # All framework source — single "abi" module
 │   ├── root.zig              # Public package entrypoint (@import("abi"))

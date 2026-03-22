@@ -7,9 +7,9 @@ description: This skill should be used when working with ABI module structure, f
 
 ## Framework Overview
 
-ABI is a modular Zig 0.16 framework (pinned `0.16.0-dev.2934+47d2e5de9`, package version `0.4.0`) for distributed AI systems, vector search, and GPU compute. It uses comptime feature gates controlled via `build.zig` flags.
+ABI is a modular Zig 0.16 framework (pinned `0.16.0-dev.2962+08416b44f`, package version `0.4.0`) for distributed AI systems, vector search, and GPU compute. It uses comptime feature gates controlled via `build.zig` flags.
 
-## Named Modules (dev.2934+)
+## Named Modules (dev.2962+)
 
 Only 3 named modules exist:
 
@@ -81,7 +81,7 @@ examples/                          # 35 standalone example programs
 - 58 combos validated in `build/flags.zig`
 - Flags exported via `build_options` module
 - Disable: `zig build -Dfeat-gpu=false`
-- New in dev.2934: `feat_lsp`, `feat_mcp` flags for service gating
+- New in dev.2962: `feat_lsp`, `feat_mcp` flags for service gating
 
 ## mod/stub Contract
 

@@ -5,7 +5,7 @@ description: This skill should be used when writing, running, or debugging tests
 
 # ABI Testing Patterns
 
-ABI is a Zig 0.16 framework (pinned `0.16.0-dev.2934+47d2e5de9`) with a layered test architecture spanning unit tests, feature tests, CLI tests, integration tests, and a full-check gate. This skill documents how tests are structured, discovered, run, and debugged.
+ABI is a Zig 0.16 framework (pinned `0.16.0-dev.2962+08416b44f`) with a layered test architecture spanning unit tests, feature tests, CLI tests, integration tests, and a full-check gate. This skill documents how tests are structured, discovered, run, and debugged.
 
 ## Test Types
 
