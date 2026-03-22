@@ -11,6 +11,9 @@ const persona_pipeline = @import("integration/persona_pipeline_test.zig");
 const database_tests = @import("integration/database_test.zig");
 const inference_tests = @import("integration/inference_test.zig");
 const security_tests = @import("integration/security_test.zig");
+const messaging_tests = @import("integration/messaging_test.zig");
+const cloud_tests = @import("integration/cloud_test.zig");
+const compute_tests = @import("integration/compute_test.zig");
 
 test {
     std.testing.refAllDecls(@This());
