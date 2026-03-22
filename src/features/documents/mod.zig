@@ -5,17 +5,12 @@
 
 pub const html = @import("html.zig");
 pub const pdf = @import("pdf.zig");
+pub const types = @import("types.zig");
 
 const std = @import("std");
 
-pub const DocumentsError = error{
-    ParseFailed,
-    UnsupportedFormat,
-    InvalidInput,
-    OutOfMemory,
-};
-
-pub const Error = DocumentsError;
+pub const DocumentsError = types.DocumentsError;
+pub const Error = types.Error;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,

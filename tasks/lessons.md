@@ -54,8 +54,10 @@ Build infrastructure patterns, test discovery, and bulk operation safety.
 - Never bulk find-replace without excluding string literal interiors. After any bulk text operation, run `zig fmt --check` immediately. Corruption cascades across multiple waves -- don't commit until parse errors reach 0.
 - The format-check surface must cover all source directories: `build.zig build/ src/ tools/ tests/ bindings/ lang/`. Keep `AGENTS.md`, `CLAUDE.md`, and `tools/scripts/fmt_repo.sh` in sync.
 
-Root cause: Build system files used cross-directory relative imports violating single-module ownership, and bulk text operations corrupted source files in ways that cascaded across compilation units.
-Prevention rule: Never use cross-directory relative imports in build/ or tools/. Pass shared metadata via named module imports from build.zig. Run zig fmt --check immediately after any bulk text operation.
+- `@hasField(std.Build, "graph")` is true on Zig dev.104 because `Build.Graph` exists, but it lacks `environ_map`, `io`, and `zig_exe`. Use `@hasField(std.Build, "graph") and @hasField(std.Build.Graph, "environ_map")` for the comptime gate. On dev.104, `comptime` keyword is redundant on module-level `const` (triggers error), and explicit `_ = param` discards are "pointless" when the parameter appears in a dead comptime branch.
+
+Root cause: Build system files used cross-directory relative imports violating single-module ownership, and bulk text operations corrupted source files in ways that cascaded across compilation units. Comptime gates that only checked for `graph` field existence missed that older toolchains have a different Graph struct shape.
+Prevention rule: Never use cross-directory relative imports in build/ or tools/. Pass shared metadata via named module imports from build.zig. Run zig fmt --check immediately after any bulk text operation. When gating on `b.graph.*` APIs, check for specific sub-fields, not just the graph field.
 
 ## Feature Module Contract (mod/stub)
 
@@ -99,7 +101,7 @@ Version pinning, parallel agents, and CI gate discipline.
 
 - When cherry-picking from worktree branches, always close the superseded PRs immediately to prevent stale PR accumulation.
 - `std.time.Instant` does not exist in Zig 0.16. Use `std.c.clock_gettime(.MONOTONIC, &ts)` for wall-clock timing in build/ and tools/ code.
-- Files under `docs/` are managed by gendocs — placing non-generated `.md` files there triggers `check-docs` drift. Use `tasks/plans/` for implementation plans instead.
+- Files under `docs/` are managed by gendocs — placing non-generated `.md` files there triggers `check-docs` drift. Use `docs/plans/` for implementation plans instead.
 - C bindings (`bindings/c/`) use `@import("abi")` (correct — outside src/). New feature exports follow the opaque handle pattern: `FooHandle = opaque {}`, `FooWrapper` struct, `export fn` with integer return codes.
 - RLE compression for block storage: use 0xFF marker byte with escape sequence `[0xFF, 0x01, 0xFF]` for literal 0xFF bytes. Simple, no external deps, good for zero-padded vector data.
 - POSIX file I/O (`std.posix.open/write/read/close/lseek`) works for block storage in Zig 0.16. The `std.Io.Threaded` API is more complex and better suited for full-featured applications, not low-level storage.

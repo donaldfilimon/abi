@@ -3,16 +3,12 @@
 //! Provides native UI extensions and integrations for the host OS.
 
 pub const macos_menu = @import("macos_menu.zig");
+pub const types = @import("types.zig");
 
 const std = @import("std");
 
-pub const DesktopError = error{
-    PlatformUnsupported,
-    IntegrationFailed,
-    OutOfMemory,
-};
-
-pub const Error = DesktopError;
+pub const DesktopError = types.DesktopError;
+pub const Error = types.Error;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,

@@ -75,6 +75,35 @@ fn checkCase(target_case: TargetCase, mismatches: *usize) void {
             .{target_case.name},
         );
     }
+
+    // Compare resolveAutoBackendNames across feature-flag permutations.
+    const flag_combos = [_][2]bool{
+        .{ true, true },
+        .{ true, false },
+        .{ false, true },
+        .{ false, false },
+    };
+    for (flag_combos) |combo| {
+        const build_ctx = build_policy.SelectionContext{
+            .platform = build_class,
+            .enable_gpu = combo[0],
+            .enable_web = combo[1],
+        };
+        const runtime_ctx = runtime_policy.SelectionContext{
+            .platform = runtime_class,
+            .enable_gpu = combo[0],
+            .enable_web = combo[1],
+        };
+        const build_backends = build_policy.resolveAutoBackendNames(build_ctx);
+        const runtime_backends = runtime_policy.resolveAutoBackendNames(runtime_ctx);
+        if (!sameStringSlice(build_backends.slice(), runtime_backends.slice())) {
+            mismatch(
+                mismatches,
+                "{s}: resolveAutoBackendNames mismatch (gpu={}, web={})\n",
+                .{ target_case.name, combo[0], combo[1] },
+            );
+        }
+    }
 }
 
 fn sameStringSlice(a: []const []const u8, b: []const []const u8) bool {

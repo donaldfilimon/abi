@@ -94,11 +94,11 @@ pub const WdbxFusion = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .cache = .{},
+            .cache = .empty,
             .cache_count = 0,
-            .documents = .{},
+            .documents = .empty,
             .next_doc_id = 1,
-            .doc_vectors = .{},
+            .doc_vectors = .empty,
         };
     }
 

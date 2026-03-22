@@ -113,24 +113,21 @@ pub const formatTraceId = otel.formatTraceId;
 pub const formatSpanId = otel.formatSpanId;
 pub const createOtelResource = otel.createOtelResource;
 
+// ============================================================================
+// Shared types (from types.zig)
+// ============================================================================
+pub const types = @import("types.zig");
+
 // Legacy type aliases
-pub const MetricsConfig = struct {};
-pub const MetricsSummary = struct {};
+pub const MetricsConfig = types.MetricsConfig;
+pub const MetricsSummary = types.MetricsSummary;
 
 // ============================================================================
 // Module Lifecycle
 // ============================================================================
 
-pub const Error = error{
-    ObservabilityDisabled,
-    MetricsError,
-    TracingError,
-    ExportFailed,
-};
-
-pub const MonitoringError = error{
-    MonitoringDisabled,
-};
+pub const Error = types.Error;
+pub const MonitoringError = types.MonitoringError;
 
 var initialized: bool = false;
 

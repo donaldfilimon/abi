@@ -28,7 +28,7 @@ fn renderCoverage(
         \\title: API Documentation Coverage
         \\purpose: Per-module documentation coverage of public symbols
         \\last_updated: 2026-03-16
-        \\target_zig_version: 0.16.0-dev.2905+5d71e3051
+        \\target_zig_version: 0.16.0-dev.2934+47d2e5de9
         \\---
         \\
         \\# API Documentation Coverage
@@ -96,7 +96,7 @@ fn renderIndex(
         \\title: ABI Framework API Reference
         \\purpose: Comprehensive API documentation auto-generated from source code
         \\last_updated: 2026-03-16
-        \\target_zig_version: 0.16.0-dev.2905+5d71e3051
+        \\target_zig_version: 0.16.0-dev.2934+47d2e5de9
         \\---
         \\
         \\# ABI Framework API Reference
@@ -163,7 +163,7 @@ fn renderModule(
         \\title: {s} API
         \\purpose: Generated API reference for {s}
         \\last_updated: 2026-03-16
-        \\target_zig_version: 0.16.0-dev.2905+5d71e3051
+        \\target_zig_version: 0.16.0-dev.2934+47d2e5de9
         \\---
         \\
         \\# {s}

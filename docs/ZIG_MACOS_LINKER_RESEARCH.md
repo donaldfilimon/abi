@@ -2,7 +2,7 @@
 title: Zig on macOS 26+: ABI Linker Notes
 purpose: Research and workarounds for Darwin linker failures
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2905+5d71e3051
+target_zig_version: 0.16.0-dev.2934+47d2e5de9
 ---
 
 # Zig on macOS 26+: ABI Linker Notes
@@ -18,7 +18,7 @@ that executes `build.zig`. That means:
 
 - the failure happens before your `build.zig` logic runs
 - toggling `use_llvm` or other build settings inside `build.zig` cannot fix that first failure
-- the supported fix for full local validation is the pinned host-built Zig produced by `./tools/scripts/bootstrap_host_zig.sh`
+- the supported fix for full local validation is the pinned host-built Zig produced by a host-built Zig matching `.zigversion`
 - wrapper-based validation and compile-only checks are fallback evidence paths while the host toolchain is being replaced
 
 ## Typical symptoms
@@ -68,7 +68,7 @@ This is ABI's supported full-validation path on macOS 26.4. The goal is a Zig
 toolchain that can run the normal gates directly:
 
 ```bash
-./tools/scripts/bootstrap_host_zig.sh
+# Build host Zig matching .zigversion, then:
 export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
 hash -r
 zig build toolchain-doctor
@@ -87,8 +87,8 @@ If the active stock toolchain is still linker-blocked, use the wrapper only as
 temporary fallback evidence:
 
 ```bash
-./tools/scripts/run_build.sh typecheck --summary all
-./tools/scripts/run_build.sh full-check
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
+zig build full-check
 ```
 
 This keeps work moving, but it is not ABI's supported end state for full local
@@ -121,7 +121,7 @@ use the wrapper for interim typecheck evidence and use compile-only checks when
 the host linker still cannot emit binaries.
 
 ```bash
-./tools/scripts/run_build.sh typecheck --summary all
+zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 zig test src/services/tests/mod.zig -fno-emit-bin
 ```
@@ -130,9 +130,9 @@ zig test src/services/tests/mod.zig -fno-emit-bin
 
 Use this sequence when working locally on macOS 26+:
 
-1. Need full local validation: run `./tools/scripts/bootstrap_host_zig.sh`, prepend the canonical cache bin dir to `PATH`, then rerun `zig build ...`
+1. Need full local validation: run a host-built Zig matching `.zigversion`, prepend the canonical cache bin dir to `PATH`, then rerun `zig build ...`
 2. Need formatting only: run `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
-3. Temporarily blocked on stock Zig: run `./tools/scripts/run_build.sh typecheck --summary all`
+3. Temporarily blocked on stock Zig: run `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
 4. Need targeted syntax/type validation: use `zig test <path> -fno-emit-bin`
 5. Need binary-emitting validation before a working local toolchain exists: use Linux CI or another working host
 
@@ -155,7 +155,7 @@ Treat it as a normal code issue when:
 
 - `zig build lint`, `zig build full-check`, and `zig build check-docs` may be blocked on affected stock Darwin toolchains
 - `zig build full-check` remains the canonical gate, and ABI expects the canonical cached host-built Zig for full local validation on macOS 26.4
-- blocked hosts should record alternate evidence explicitly, including `./tools/scripts/run_build.sh typecheck --summary all`
+- blocked hosts should record alternate evidence explicitly, including `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
 - docs and task notes should record exactly which command failed and which fallback was used
 
 ## Related files
@@ -163,6 +163,3 @@ Treat it as a normal code issue when:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `tasks/lessons.md`
-- `tools/scripts/bootstrap_host_zig.sh`
-- `tools/scripts/inspect_toolchain.sh`
-- `tools/scripts/run_build.sh`

@@ -293,33 +293,12 @@ pub const frameMessage = rpc_protocol.frameMessage;
 pub const parseRpcFrame = rpc_protocol.parseFrame;
 
 // ============================================================================
-// Error types
+// Shared types (from types.zig)
 // ============================================================================
-pub const NetworkError = error{
-    NetworkDisabled,
-    NotInitialized,
-};
-
-pub const Error = error{
-    NetworkDisabled,
-    ConnectionFailed,
-    NodeNotFound,
-    ConsensusFailed,
-    Timeout,
-};
-
-// ============================================================================
-// Configuration
-// ============================================================================
-const DEFAULT_CLUSTER_ID = "default";
-const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 30_000;
-const DEFAULT_MAX_NODES: usize = 256;
-
-pub const NetworkConfig = struct {
-    cluster_id: []const u8 = DEFAULT_CLUSTER_ID,
-    heartbeat_timeout_ms: u64 = DEFAULT_HEARTBEAT_TIMEOUT_MS,
-    max_nodes: usize = DEFAULT_MAX_NODES,
-};
+pub const types = @import("types.zig");
+pub const NetworkError = types.NetworkError;
+pub const Error = types.Error;
+pub const NetworkConfig = types.NetworkConfig;
 
 pub const NetworkState = struct {
     allocator: std.mem.Allocator,

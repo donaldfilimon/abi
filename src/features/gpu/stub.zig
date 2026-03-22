@@ -6,11 +6,13 @@ const stub_common = @import("../../services/shared/mod.zig").stub_common;
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
+pub const types = @import("types.zig");
+
 pub const Error = error{ FeatureDisabled, NoDeviceAvailable, InitializationFailed, InvalidConfig, OutOfMemory, KernelCompilationFailed, KernelExecutionFailed } || stub_common.CommonError;
 pub const GpuError = Error;
-pub const MemoryError = error{ OutOfMemory, InvalidPointer, BufferTooSmall, HostAccessDisabled, DeviceMemoryMissing, SizeMismatch, InvalidOffset, TransferFailed };
-pub const KernelError = error{ CompilationFailed, InvalidKernel, InvalidArgument, LaunchFailed, BackendUnsupported };
-pub const BackendSelectionError = error{ RequestedBackendUnavailable, NoBackendsAvailable, OutOfMemory };
+pub const MemoryError = types.MemoryError;
+pub const KernelError = types.KernelError;
+pub const BackendSelectionError = types.BackendSelectionError;
 
 // ── Local Stubs Imports ────────────────────────────────────────────────────
 
@@ -226,7 +228,7 @@ pub const gradient_compression = struct {
 
 // Namespaced GPU API surface (hard API cutover)
 pub const backends = struct {
-    pub const types = struct {
+    pub const backend_types = struct {
         pub const Backend = @import("backend.zig").Backend;
         pub const DetectionLevel = @import("backend.zig").DetectionLevel;
         pub const BackendAvailability = @import("backend.zig").BackendAvailability;
@@ -320,27 +322,9 @@ pub const factory = backend_factory_mod;
 
 // ── Additional Types ──────────────────────────────────────────────────────
 
-pub const MemoryInfo = struct {
-    total_bytes: u64 = 0,
-    used_bytes: u64 = 0,
-    free_bytes: u64 = 0,
-    peak_used_bytes: u64 = 0,
-};
-
-pub const GpuStats = struct {
-    kernels_launched: u64 = 0,
-    buffers_created: u64 = 0,
-    bytes_allocated: u64 = 0,
-    host_to_device_transfers: u64 = 0,
-    device_to_host_transfers: u64 = 0,
-    total_execution_time_ns: u64 = 0,
-};
-
-pub const MetricsSummary = struct {
-    total_kernel_invocations: u64 = 0,
-    avg_kernel_time_ns: f64 = 0,
-    kernels_per_second: f64 = 0,
-};
+pub const MemoryInfo = types.MemoryInfo;
+pub const GpuStats = types.GpuStats;
+pub const MetricsSummary = types.MetricsSummary;
 
 // ── Gpu struct ─────────────────────────────────────────────────────────────
 

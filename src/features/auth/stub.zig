@@ -68,7 +68,7 @@ pub fn createToken(
     return error.FeatureDisabled;
 }
 
-pub fn verifyToken(_: []const u8) AuthError!Token {
+pub fn verifyToken(_: std.mem.Allocator, _: []const u8) AuthError!Token {
     return error.FeatureDisabled;
 }
 

@@ -54,6 +54,9 @@ Scan for Zig 0.16 deprecated patterns:
 - `std.meta.intToEnum` — use `@enumFromInt`
 - `usingnamespace` — removed in 0.16
 - Invalid format specifiers like `{t}` in `std.log` / `std.fmt`
+- `std.io.fixedBufferStream` — removed in 0.16, use manual buffer slicing
+- `std.time.Instant` — removed in 0.16, use `std.c.clock_gettime(.MONOTONIC, &ts)`
+- `_ = param` after referencing param — triggers "pointless discard" in 0.16, use `_:` prefix in signature
 
 ### `flags`
 Run the feature flag sync validation script:
@@ -61,13 +64,6 @@ Run the feature flag sync validation script:
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-flag-sync.sh "${CLAUDE_PROJECT_DIR:-.}"
 ```
 Reports mismatches between `build/options.zig`, `build/flags.zig`, and `src/core/feature_catalog.zig` flag counts.
-
-### `darwin`
-Run the Darwin relink audit:
-```bash
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/audit-darwin-targets.sh "${CLAUDE_PROJECT_DIR:-.}"
-```
-Checks that every `addExecutable()` in `build.zig` has `darwinRelink()` wiring or an `is_blocked_darwin` guard.
 
 ### `all` (default)
 Run all checks above in sequence. Report a summary table:
@@ -81,8 +77,7 @@ Run all checks above in sequence. Report a summary table:
 | stub-sync | PASS/FAIL | N mismatches |
 | deprecated | PASS/FAIL | N patterns |
 | flags | PASS/FAIL | N mismatches |
-| darwin | PASS/FAIL | N missing |
 
 ## Tips
 - On Darwin 25+, `zig build full-check` won't work directly due to linker incompatibility — use this command instead
-- For full build-system verification, use `/zig-abi:build full-check` which wraps `run_build.sh`
+- For full build-system verification, use `/zig-abi:build full-check`

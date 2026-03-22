@@ -175,7 +175,7 @@ pub const MultiHeadAttention = struct {
             .w_k = w_k,
             .w_v = w_v,
             .w_o = w_o,
-            .attention_history = .{},
+            .attention_history = .empty,
         };
     }
 

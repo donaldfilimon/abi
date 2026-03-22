@@ -2,7 +2,7 @@
 title: network API
 purpose: Generated API reference for network
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2905+5d71e3051
+target_zig_version: 0.16.0-dev.2934+47d2e5de9
 ---
 
 # network
@@ -44,37 +44,37 @@ try registry.register("node-a", "127.0.0.1:9000");
 
 ### <a id="pub-const-context"></a>`pub const Context`
 
-<sup>**const**</sup> | [source](../../src/features/network/mod.zig#L354)
+<sup>**const**</sup> | [source](../../src/features/network/mod.zig#L333)
 
 Network context for Framework integration.
 
 ### <a id="pub-fn-connect-self-context-void"></a>`pub fn connect(self: *Context) !void`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L383)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L362)
 
 Connect to the network.
 
 ### <a id="pub-fn-disconnect-self-context-void"></a>`pub fn disconnect(self: *Context) void`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L391)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L370)
 
 Disconnect from the network.
 
 ### <a id="pub-fn-getstate-self-context-state"></a>`pub fn getState(self: *Context) State`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L396)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L375)
 
 Get current state.
 
 ### <a id="pub-fn-discoverpeers-self-context-nodeinfo"></a>`pub fn discoverPeers(self: *Context) ![]NodeInfo`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L401)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L380)
 
 Discover peers.
 
 ### <a id="pub-fn-sendtask-self-context-node-id-const-u8-task-anytype-void"></a>`pub fn sendTask(self: *Context, node_id: []const u8, task: anytype) !void`
 
-<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L409)
+<sup>**fn**</sup> | [source](../../src/features/network/mod.zig#L388)
 
 Send a task to a remote node.
 
@@ -91,4 +91,4 @@ Send a task to a remote node.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `zig test <file> -fno-emit-bin` as fallback evidence while replacing the toolchain.

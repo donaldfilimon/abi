@@ -9,7 +9,7 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo unknown)"
     MACOS_MAJOR="${MACOS_VER%%.*}"
     if [[ "$MACOS_MAJOR" -ge 25 ]] 2>/dev/null; then
-        echo "ABI: macOS $MACOS_VER detected (Darwin linker blocked). Use ./tools/scripts/run_build.sh or /zig-abi:build for builds."
+        echo "ABI: macOS $MACOS_VER detected (Darwin 25+ — stock Zig LLD linker may fail). Use a host-built Zig matching .zigversion on PATH."
     fi
 fi
 
@@ -25,22 +25,9 @@ if command -v zig &>/dev/null; then
     echo "ABI: PATH Zig version: $ZIG_VER"
     if [[ -n "$PINNED_VER" && "$ZIG_VER" != "$PINNED_VER" ]]; then
         echo "ABI: WARNING — PATH Zig ($ZIG_VER) does not match pinned version ($PINNED_VER)."
-        echo "ABI:   Run ./tools/scripts/bootstrap_host_zig.sh and prepend the cache to PATH."
     fi
 else
     echo "ABI: WARNING — zig not found on PATH."
-fi
-
-# ── Host-built Zig cache check ───────────────────────────────────────────
-HOST_CACHE="$HOME/.cache/abi-host-zig"
-if [[ -d "$HOST_CACHE" ]]; then
-    if [[ -n "$PINNED_VER" && -d "$HOST_CACHE/$PINNED_VER/bin" ]]; then
-        echo "ABI: Host-built Zig cache found at $HOST_CACHE/$PINNED_VER/"
-    elif [[ -n "$PINNED_VER" ]]; then
-        echo "ABI: Host-built cache exists but no $PINNED_VER build. Run bootstrap_host_zig.sh to rebuild."
-    fi
-else
-    echo "ABI: No host-built Zig cache at $HOST_CACHE — run bootstrap_host_zig.sh if linker fails."
 fi
 
 # ── Task and lessons check ───────────────────────────────────────────────

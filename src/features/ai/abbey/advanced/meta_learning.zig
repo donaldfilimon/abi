@@ -136,7 +136,7 @@ pub const MetaLearner = struct {
             .meta_learning_rate = config.meta_learning_rate,
             .inner_learning_rate = config.inner_learning_rate,
             .adaptation_steps = config.adaptation_steps,
-            .task_history = .{},
+            .task_history = .empty,
             .domain_statistics = [_]DomainStats{.{}} ** 7,
             .strategy_weights = strategy_weights,
         };
@@ -341,9 +341,9 @@ pub const FewShotLearner = struct {
     pub fn init(allocator: std.mem.Allocator, dim: usize) Self {
         return Self{
             .allocator = allocator,
-            .support_set = .{},
+            .support_set = .empty,
             .prototype_dim = dim,
-            .prototypes = .{},
+            .prototypes = .empty,
         };
     }
 
@@ -479,7 +479,7 @@ pub const CurriculumScheduler = struct {
             .allocator = allocator,
             .current_difficulty = initial_difficulty,
             .progression_rate = 0.05,
-            .task_queue = .{},
+            .task_queue = .empty,
         };
     }
 

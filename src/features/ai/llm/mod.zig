@@ -607,7 +607,7 @@ pub const Context = struct {
 
 /// Check if LLM features are enabled
 pub fn isEnabled() bool {
-    return build_options.feat_ai and build_options.feat_llm;
+    return build_options.feat_llm;
 }
 
 /// Quick inference helper

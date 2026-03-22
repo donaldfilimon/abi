@@ -32,7 +32,6 @@ pub const PreflightReport = struct {
     gpu_backend: CheckResult,
     git: CheckResult,
     curl: CheckResult,
-    run_build_sh: CheckResult,
     env_openai: CheckResult,
     env_anthropic: CheckResult,
     env_ollama_host: CheckResult,
@@ -124,7 +123,7 @@ fn checkPlatform() CheckResult {
 
 fn checkLinker() CheckResult {
     if (is_blocked_darwin) {
-        return .{ .name = "linker", .status = .degraded, .detail = "blocked darwin — Apple ld workaround required; use run_build.sh" };
+        return .{ .name = "linker", .status = .degraded, .detail = "blocked darwin — requires host-built Zig matching .zigversion" };
     }
     if (builtin.os.tag == .macos) {
         return .{ .name = "linker", .status = .ok, .detail = "macOS system linker" };
@@ -180,17 +179,32 @@ fn checkEnvVar(allocator: std.mem.Allocator, io: std.Io, name: []const u8) Check
     return .{ .name = name, .status = .missing, .detail = "UNSET" };
 }
 
-fn checkRunBuildSh(io: std.Io) CheckResult {
-    if (util.fileExists(io, "tools/scripts/run_build.sh")) {
-        if (is_blocked_darwin) {
-            return .{ .name = "run_build.sh", .status = .ok, .detail = "present (required for Darwin pipeline)" };
-        }
-        return .{ .name = "run_build.sh", .status = .ok, .detail = "present" };
+fn checkHostZigCache(allocator: std.mem.Allocator, io: std.Io) CheckResult {
+    // Check whether the canonical host-built Zig cache contains a matching binary.
+    const expected_raw = util.readFileAlloc(allocator, io, ".zigversion", 1024) catch {
+        return .{ .name = "host-zig-cache", .status = .degraded, .detail = ".zigversion not readable" };
+    };
+    defer allocator.free(expected_raw);
+    const expected = util.trimSpace(expected_raw);
+
+    const cache_check = std.fmt.allocPrint(allocator, "test -x \"$HOME/.cache/abi-host-zig/{s}/bin/zig\" && echo yes || echo no", .{expected}) catch {
+        return .{ .name = "host-zig-cache", .status = .degraded, .detail = "alloc failed" };
+    };
+    defer allocator.free(cache_check);
+
+    const res = util.captureCommand(allocator, io, cache_check) catch {
+        return .{ .name = "host-zig-cache", .status = .degraded, .detail = "could not probe cache" };
+    };
+    defer allocator.free(res.output);
+
+    const out = util.trimSpace(res.output);
+    if (std.mem.eql(u8, out, "yes")) {
+        return .{ .name = "host-zig-cache", .status = .ok, .detail = "host-built Zig found in canonical cache" };
     }
     if (is_blocked_darwin) {
-        return .{ .name = "run_build.sh", .status = .missing, .detail = "NOT FOUND — required on blocked Darwin for linking" };
+        return .{ .name = "host-zig-cache", .status = .missing, .detail = "NOT FOUND — host-built Zig required on blocked Darwin" };
     }
-    return .{ .name = "run_build.sh", .status = .degraded, .detail = "not found (optional on this platform)" };
+    return .{ .name = "host-zig-cache", .status = .degraded, .detail = "not found (optional on this platform)" };
 }
 
 fn checkNetwork(allocator: std.mem.Allocator, io: std.Io) CheckResult {
@@ -213,7 +227,6 @@ fn buildReport(allocator: std.mem.Allocator, io: std.Io) PreflightReport {
         .gpu_backend = checkGpuBackend(allocator, io),
         .git = checkTool(allocator, io, "git"),
         .curl = checkTool(allocator, io, "curl"),
-        .run_build_sh = checkRunBuildSh(io),
         .env_openai = checkEnvVar(allocator, io, "ABI_OPENAI_API_KEY"),
         .env_anthropic = checkEnvVar(allocator, io, "ABI_ANTHROPIC_API_KEY"),
         .env_ollama_host = checkEnvVar(allocator, io, "ABI_OLLAMA_HOST"),
@@ -262,7 +275,6 @@ fn printReport(report: PreflightReport) void {
     printSection("Tools", &.{
         report.git,
         report.curl,
-        report.run_build_sh,
     });
 
     printSection("Environment Variables", &.{
@@ -324,7 +336,7 @@ fn printJsonReport(report: PreflightReport) void {
 
 /// Exit codes:
 ///   0 = all checks OK
-///   1 = blocked (critical tool missing — e.g. zig binary or run_build.sh on Darwin)
+///   1 = blocked (critical tool missing — e.g. zig binary)
 ///   2 = degraded (some features unavailable but tests can run)
 pub fn main(init: std.process.Init) !void {
     var gpa_state = std.heap.DebugAllocator(.{}){};

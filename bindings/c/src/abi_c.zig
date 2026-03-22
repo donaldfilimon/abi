@@ -294,7 +294,8 @@ export fn abi_version_info(out_version: *VersionInfo) void {
     out_version.full = @ptrCast(ver.ptr);
 }
 
-/// Check if a feature is enabled.
+/// Check if a feature is enabled at compile time.
+/// Exhaustively covers all feature flags from the build system.
 export fn abi_is_feature_enabled(framework: ?*FrameworkHandle, feature: [*:0]const u8) bool {
     _ = framework;
     const feature_str = std.mem.sliceTo(feature, 0);
@@ -305,6 +306,27 @@ export fn abi_is_feature_enabled(framework: ?*FrameworkHandle, feature: [*:0]con
     if (std.mem.eql(u8, feature_str, "network")) return build_options.feat_network;
     if (std.mem.eql(u8, feature_str, "web")) return build_options.feat_web;
     if (std.mem.eql(u8, feature_str, "profiling")) return build_options.feat_profiling;
+    if (std.mem.eql(u8, feature_str, "analytics")) return build_options.feat_analytics;
+    if (std.mem.eql(u8, feature_str, "cloud")) return build_options.feat_cloud;
+    if (std.mem.eql(u8, feature_str, "auth")) return build_options.feat_auth;
+    if (std.mem.eql(u8, feature_str, "messaging")) return build_options.feat_messaging;
+    if (std.mem.eql(u8, feature_str, "cache")) return build_options.feat_cache;
+    if (std.mem.eql(u8, feature_str, "storage")) return build_options.feat_storage;
+    if (std.mem.eql(u8, feature_str, "search")) return build_options.feat_search;
+    if (std.mem.eql(u8, feature_str, "mobile")) return build_options.feat_mobile;
+    if (std.mem.eql(u8, feature_str, "gateway")) return build_options.feat_gateway;
+    if (std.mem.eql(u8, feature_str, "pages")) return build_options.feat_pages;
+    if (std.mem.eql(u8, feature_str, "benchmarks")) return build_options.feat_benchmarks;
+    if (std.mem.eql(u8, feature_str, "compute")) return build_options.feat_compute;
+    if (std.mem.eql(u8, feature_str, "documents")) return build_options.feat_documents;
+    if (std.mem.eql(u8, feature_str, "desktop")) return build_options.feat_desktop;
+    if (std.mem.eql(u8, feature_str, "lsp")) return build_options.feat_lsp;
+    if (std.mem.eql(u8, feature_str, "mcp")) return build_options.feat_mcp;
+    if (std.mem.eql(u8, feature_str, "llm")) return build_options.feat_llm;
+    if (std.mem.eql(u8, feature_str, "training")) return build_options.feat_training;
+    if (std.mem.eql(u8, feature_str, "reasoning")) return build_options.feat_reasoning;
+    if (std.mem.eql(u8, feature_str, "explore")) return build_options.feat_explore;
+    if (std.mem.eql(u8, feature_str, "vision")) return build_options.feat_vision;
 
     return false;
 }
@@ -331,6 +353,15 @@ export fn abi_enabled_feature_count(framework: ?*FrameworkHandle) c_int {
         if (wrapper.framework.observability != null) count += 1;
         if (wrapper.framework.analytics != null) count += 1;
         if (wrapper.framework.cloud != null) count += 1;
+        if (wrapper.framework.auth != null) count += 1;
+        if (wrapper.framework.messaging != null) count += 1;
+        if (wrapper.framework.cache != null) count += 1;
+        if (wrapper.framework.storage != null) count += 1;
+        if (wrapper.framework.search != null) count += 1;
+        if (wrapper.framework.gateway != null) count += 1;
+        if (wrapper.framework.pages != null) count += 1;
+        if (wrapper.framework.benchmarks != null) count += 1;
+        if (wrapper.framework.mobile != null) count += 1;
         return count;
     }
     return 0;

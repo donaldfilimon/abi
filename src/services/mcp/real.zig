@@ -102,6 +102,50 @@ pub fn createDatabaseServer(allocator: std.mem.Allocator, version: []const u8) !
         .handler = handleDbDelete,
     });
 
+    try server.addTool(.{
+        .def = .{
+            .name = "db_get",
+            .description = "Retrieve a single vector by ID from the database",
+            .input_schema =
+            \\{"type":"object","properties":{"id":{"type":"integer","description":"Vector ID to retrieve"},"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":["id"]}
+            ,
+        },
+        .handler = handleDbGet,
+    });
+
+    try server.addTool(.{
+        .def = .{
+            .name = "db_update",
+            .description = "Update an existing vector's data in the database",
+            .input_schema =
+            \\{"type":"object","properties":{"id":{"type":"integer","description":"Vector ID to update"},"vector":{"type":"array","items":{"type":"number"},"description":"New vector data (float32 array)"},"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":["id","vector"]}
+            ,
+        },
+        .handler = handleDbUpdate,
+    });
+
+    try server.addTool(.{
+        .def = .{
+            .name = "db_backup",
+            .description = "Save the database to a file for persistence or recovery",
+            .input_schema =
+            \\{"type":"object","properties":{"path":{"type":"string","description":"File path to save the backup"},"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":["path"]}
+            ,
+        },
+        .handler = handleDbBackup,
+    });
+
+    try server.addTool(.{
+        .def = .{
+            .name = "db_diagnostics",
+            .description = "Get detailed performance diagnostics for the database",
+            .input_schema =
+            \\{"type":"object","properties":{"db_name":{"type":"string","description":"Database name (default: default)","default":"default"}},"required":[]}
+            ,
+        },
+        .handler = handleDbDiagnostics,
+    });
+
     return server;
 }
 
@@ -325,6 +369,153 @@ fn handleDbDelete(
     try out.appendSlice(allocator, msg);
 }
 
+fn handleDbGet(
+    allocator: std.mem.Allocator,
+    params: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    const p = params orelse return error.InvalidParams;
+
+    const id_val = p.get("id") orelse return error.InvalidParams;
+    if (id_val != .integer or id_val.integer < 0) return error.InvalidParams;
+    const id: u64 = @intCast(id_val.integer);
+
+    const db_name = if (p.get("db_name")) |dn|
+        (if (dn == .string) dn.string else null)
+    else
+        null;
+
+    var handle = try getOrCreateDb(allocator, db_name);
+    defer database.close(&handle);
+
+    const vec_view = database.get(&handle, id);
+    if (vec_view) |v| {
+        var buf: [256]u8 = undefined;
+        const s = std.fmt.bufPrint(&buf, "Vector ID={d}\n  Dimensions: {d}\n  Metadata: {s}", .{
+            id,
+            v.vector.len,
+            if (v.metadata) |m| m else "(none)",
+        }) catch "found";
+        try out.appendSlice(allocator, s);
+    } else {
+        var buf: [64]u8 = undefined;
+        const msg = std.fmt.bufPrint(&buf, "Vector ID={d} not found", .{id}) catch "Not found";
+        try out.appendSlice(allocator, msg);
+    }
+}
+
+fn handleDbUpdate(
+    allocator: std.mem.Allocator,
+    params: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    const p = params orelse return error.InvalidParams;
+
+    const id_val = p.get("id") orelse return error.InvalidParams;
+    if (id_val != .integer or id_val.integer < 0) return error.InvalidParams;
+    const id: u64 = @intCast(id_val.integer);
+
+    const vec_val = p.get("vector") orelse return error.InvalidParams;
+    if (vec_val != .array) return error.InvalidParams;
+
+    var vec = std.ArrayListUnmanaged(f32).empty;
+    defer vec.deinit(allocator);
+
+    for (vec_val.array.items) |item| {
+        const v: f32 = switch (item) {
+            .float => @floatCast(item.float),
+            .integer => @floatFromInt(item.integer),
+            else => return error.InvalidParams,
+        };
+        try vec.append(allocator, v);
+    }
+
+    const db_name = if (p.get("db_name")) |dn|
+        (if (dn == .string) dn.string else null)
+    else
+        null;
+
+    var handle = try getOrCreateDb(allocator, db_name);
+    defer database.close(&handle);
+
+    const updated = try database.update(&handle, id, vec.items);
+
+    var buf: [128]u8 = undefined;
+    const msg = if (updated)
+        std.fmt.bufPrint(&buf, "Updated vector ID={d} (dimension={d})", .{ id, vec.items.len }) catch "Updated"
+    else
+        std.fmt.bufPrint(&buf, "Vector ID={d} not found — no update performed", .{id}) catch "Not found";
+    try out.appendSlice(allocator, msg);
+}
+
+fn handleDbBackup(
+    allocator: std.mem.Allocator,
+    params: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    const p = params orelse return error.InvalidParams;
+
+    const path_val = p.get("path") orelse return error.InvalidParams;
+    if (path_val != .string) return error.InvalidParams;
+    const path = path_val.string;
+
+    const db_name = if (p.get("db_name")) |dn|
+        (if (dn == .string) dn.string else null)
+    else
+        null;
+
+    var handle = try getOrCreateDb(allocator, db_name);
+    defer database.close(&handle);
+
+    database.backup(&handle, path) catch |err| {
+        var buf: [256]u8 = undefined;
+        const msg = std.fmt.bufPrint(&buf, "Backup failed: {s}", .{@errorName(err)}) catch "Backup failed";
+        try out.appendSlice(allocator, msg);
+        return;
+    };
+
+    try out.appendSlice(allocator, "Database backed up to: ");
+    try out.appendSlice(allocator, path);
+}
+
+fn handleDbDiagnostics(
+    allocator: std.mem.Allocator,
+    params: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    const db_name = if (params) |p|
+        (if (p.get("db_name")) |dn| (if (dn == .string) dn.string else null) else null)
+    else
+        null;
+
+    var handle = try getOrCreateDb(allocator, db_name);
+    defer database.close(&handle);
+
+    const diag = database.diagnostics(&handle);
+
+    try out.appendSlice(allocator, "WDBX Diagnostics:\n");
+
+    var buf: [512]u8 = undefined;
+    const s = std.fmt.bufPrint(&buf,
+        \\  Vectors: {d}
+        \\  Dimensions: {d}
+        \\  Memory: {d} bytes
+        \\  Searches performed: {d}
+        \\  Avg search time: {d} ns
+        \\  Cache hit rate: {d:.1}%
+        \\  SIMD: {s}
+    , .{
+        diag.vector_count,
+        diag.dimension,
+        diag.memory_bytes,
+        diag.search_count,
+        diag.avg_search_ns,
+        diag.cache_hit_rate * 100.0,
+        if (diag.simd_enabled) "enabled" else "disabled",
+    }) catch "error formatting diagnostics";
+    try out.appendSlice(allocator, s);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Tests
 // ═══════════════════════════════════════════════════════════════
@@ -334,12 +525,16 @@ test "createDatabaseServer registers tools" {
     var server = try createDatabaseServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 5), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 9), server.tools.items.len);
     try std.testing.expectEqualStrings("db_query", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("db_insert", server.tools.items[1].def.name);
     try std.testing.expectEqualStrings("db_stats", server.tools.items[2].def.name);
     try std.testing.expectEqualStrings("db_list", server.tools.items[3].def.name);
     try std.testing.expectEqualStrings("db_delete", server.tools.items[4].def.name);
+    try std.testing.expectEqualStrings("db_get", server.tools.items[5].def.name);
+    try std.testing.expectEqualStrings("db_update", server.tools.items[6].def.name);
+    try std.testing.expectEqualStrings("db_backup", server.tools.items[7].def.name);
+    try std.testing.expectEqualStrings("db_diagnostics", server.tools.items[8].def.name);
 }
 
 test "createCombinedServer registers database and ZLS tools" {

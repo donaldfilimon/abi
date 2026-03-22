@@ -37,9 +37,8 @@ test "auth token verify round-trip" {
     const created = try auth.createToken(allocator, "roundtrip_user");
     defer allocator.free(created.raw);
 
-    const verified = try auth.verifyToken(created.raw);
-    // sub is heap-allocated by verifyToken via page_allocator; free it.
-    defer if (verified.claims.sub.len > 0) std.heap.page_allocator.free(verified.claims.sub);
+    const verified = try auth.verifyToken(allocator, created.raw);
+    defer if (verified.claims.sub.len > 0) allocator.free(verified.claims.sub);
     try std.testing.expectEqualStrings("roundtrip_user", verified.claims.sub);
     try std.testing.expect(verified.claims.exp > 0);
 }
@@ -126,17 +125,17 @@ test "auth verifyToken rejects tampered payload" {
         }
     }
 
-    const result = auth.verifyToken(tampered);
+    const result = auth.verifyToken(allocator, tampered);
     try std.testing.expectError(error.InvalidCredentials, result);
 }
 
 test "auth verifyToken rejects empty string" {
-    const result = auth.verifyToken("");
+    const result = auth.verifyToken(std.testing.allocator, "");
     try std.testing.expectError(error.InvalidCredentials, result);
 }
 
 test "auth verifyToken rejects malformed token" {
-    const result = auth.verifyToken("not-a-jwt-token");
+    const result = auth.verifyToken(std.testing.allocator, "not-a-jwt-token");
     try std.testing.expectError(error.InvalidCredentials, result);
 }
 
@@ -186,9 +185,9 @@ test "auth createToken verifyToken round-trip preserves user_id" {
         const token = try auth.createToken(allocator, uid);
         defer allocator.free(token.raw);
 
-        const verified = try auth.verifyToken(token.raw);
+        const verified = try auth.verifyToken(allocator, token.raw);
         defer if (verified.claims.sub.len > 0)
-            std.heap.page_allocator.free(verified.claims.sub);
+            allocator.free(verified.claims.sub);
 
         try std.testing.expectEqualStrings(uid, verified.claims.sub);
     }

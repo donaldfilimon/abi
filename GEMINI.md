@@ -2,7 +2,7 @@
 title: Gemini Guide
 purpose: Specific instructions for the Gemini CLI
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2905+5d71e3051
+target_zig_version: 0.16.0-dev.2934+47d2e5de9
 ---
 
 # Gemini Guide
@@ -15,7 +15,7 @@ not a separate workflow or Zig policy source.
 - Repo workflow: [AGENTS.md](AGENTS.md)
 - Active execution tracker: [tasks/todo.md](tasks/todo.md)
 - Correction log: [tasks/lessons.md](tasks/lessons.md)
-- Zig validation: `zig build full-check` with a host-built or otherwise known-good Zig on Darwin 25+ / macOS 26+; if stock Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence
+- Zig validation: `zig build full-check` with a host-built or otherwise known-good Zig on Darwin 25+ / macOS 26+; if stock Zig is linker-blocked, record `zig fmt --check ...` plus `zig test <file> -fno-emit-bin` as fallback evidence
 
 ## Expectations
 

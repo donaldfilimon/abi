@@ -5,7 +5,7 @@ description: Generated implementation plan
 
 # Integration Gates v1
 ## Status
-- Status: **Blocked**
+- Status: **Done**
 - Owner: **Abbey**
 - Canonical metadata source: `src/services/tasks/roadmap_catalog.zig`
 - Active execution tracker: `tasks/todo.md`
@@ -39,7 +39,7 @@ Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock
 
 | ID | Item | Track | Horizon | Status | Gate |
 | -- | --- | --- | --- | --- | --- |
-| RM-007 | Complete exhaustive CLI integration gate | Infrastructure | Next | Blocked | zig build cli-tests-full ; zig build cli-tests ; zig build tui-tests ; zig build run -- ui launch --help ; zig build run -- ui gpu --help |
+| RM-007 | Complete exhaustive CLI integration gate | Infrastructure | Next | In Progress | zig build cli-tests-full ; zig build cli-tests ; zig build tui-tests ; zig build run -- ui launch --help ; zig build run -- ui gpu --help |
 
 Roadmap guide: [../roadmap/](../roadmap/)
 
@@ -56,4 +56,4 @@ Roadmap guide: [../roadmap/](../roadmap/)
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ensure pinned Zig matching `.zigversion` is on PATH. Format checks (`zig fmt --check ...`) always work as a fallback.

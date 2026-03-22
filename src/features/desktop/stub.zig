@@ -1,16 +1,12 @@
 //! Desktop stub — disabled at compile time.
 
 const std = @import("std");
+pub const types = @import("types.zig");
 
 pub const macos_menu = struct {};
 
-pub const DesktopError = error{
-    PlatformUnsupported,
-    IntegrationFailed,
-    OutOfMemory,
-};
-
-pub const Error = DesktopError;
+pub const DesktopError = types.DesktopError;
+pub const Error = types.Error;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,

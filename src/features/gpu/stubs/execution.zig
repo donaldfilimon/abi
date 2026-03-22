@@ -10,7 +10,7 @@ pub const ExecutionResult = struct {
     device_id: u32 = 0,
 };
 pub const ExecutionStats = struct {};
-pub const HealthStatus = enum { healthy, degraded, unhealthy };
+pub const HealthStatus = enum { healthy, degraded, unhealthy, unknown };
 pub const GpuStats = struct {
     kernels_launched: usize = 0,
     buffers_created: usize = 0,

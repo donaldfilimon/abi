@@ -2,7 +2,7 @@
 title: docs/
 purpose: Documentation guide — what's maintained, what's generated, and how to add pages
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2905+5d71e3051
+target_zig_version: 0.16.0-dev.2934+47d2e5de9
 ---
 
 # Documentation Guide
@@ -24,24 +24,19 @@ API references. Understanding which is which prevents accidental overwrites.
 
 | Directory | Source | Regenerate |
 |-----------|--------|------------|
-| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
-| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
-| `data/` | Structured data exports | `zig build gendocs`; on Darwin 25+ / macOS 26+, bootstrap the pinned host-built Zig first, then use `./tools/scripts/run_build.sh gendocs` only if stock Zig is still linker-blocked |
+| `api/` | `tools/gendocs/` + `build/module_catalog.zig` | `zig build gendocs` (requires pinned Zig on Darwin 25+) |
+| `plans/` | `src/services/tasks/roadmap_catalog.zig` | `zig build gendocs` (requires pinned Zig on Darwin 25+) |
+| `data/` | Structured data exports | `zig build gendocs` (requires pinned Zig on Darwin 25+) |
 
 Generated files are overwritten each time `gendocs` runs. Do not hand-edit them;
 instead, modify the source templates in `tools/gendocs/` or the catalog data.
 
 ## How to Regenerate
 
-On Darwin 25+ / macOS 26+, ABI's supported docs-validation path is the pinned
-host-built Zig from `./tools/scripts/bootstrap_host_zig.sh`, then prepending
-`$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`. Use
-`run_build.sh` only as fallback evidence when stock prebuilt Zig is
-linker-blocked before `build.zig` runs.
+On Darwin 25+ / macOS 26+, use a host-built Zig matching `.zigversion`. Prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`.
 
 ```bash
-# Full regeneration
-./tools/scripts/bootstrap_host_zig.sh
+# Full regeneration (ensure pinned Zig is on PATH)
 export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
 hash -r
 zig build gendocs
@@ -52,11 +47,8 @@ zig build gendocs -- --no-wasm --untracked-md
 # Check-only mode (verify determinism, no writes)
 zig build gendocs -- --check --no-wasm --untracked-md
 
-# On Darwin 25+ / 26+ fallback path (relinks with Apple ld, then runs gendocs)
-./tools/scripts/run_build.sh gendocs
-
-# Darwin fallback check-only mode
-./tools/scripts/run_build.sh check-docs --summary all
+# Docs consistency check
+zig build check-docs
 ```
 
 ## Markdown Allowlist Policy

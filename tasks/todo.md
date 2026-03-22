@@ -16,7 +16,7 @@ Advance the ABI Zig 0.16 framework toward production maturity: complete the Phas
 
 **Out of scope:**
 - Phases 1–14 (completed, archived below)
-- Zig version repinning beyond `0.16.0-dev.2905+5d71e3051`
+- Zig version repinning beyond `0.16.0-dev.2934+47d2e5de9`
 - New feature modules not on the Phase 15 roadmap
 
 ## Verification Criteria
@@ -73,6 +73,34 @@ Post-Phase 15 improvements (PRs #516-521):
 - [x] Use-after-free fix in block_chain traverseBackward (defer→errdefer)
 
 Gate: 227/227. All 56 flag combinations validated. Darwin stage3 pending upstream Zig fix.
+
+### Codebase-Wide Review + Advancement (2026-03-19)
+
+Review pass (14 agents, 17 files):
+- [x] Fixed 4 ungated cross-feature imports in AI sub-modules (metrics, coordination, training, memory)
+- [x] Added missing `feat_lsp`/`feat_mcp` to CLI build_options_stub.zig
+- [x] C bindings: `abi_is_feature_enabled` coverage 6→27 features, `abi_enabled_feature_count` 8→17 fields
+- [x] Documentation: lang/ Swift/Kotlin, example count 35→36, feat_mobile default, AGENTS.md dedup
+- [x] Plugin: fixed hooks wdbx advice, ghost build steps, step counts, test manifest target
+
+Advancement pass:
+- [x] Added `types.zig` to 8 feature directories (compute, database, desktop, documents, gpu, network, observability, web) — now 19/19 complete
+- [x] Removed legacy `src/abi.zig` tombstone and all doc references
+- [x] Wired 5 orphaned GPU test files into test discovery manifest
+- [x] Plugin: CEL skill marked aspirational, new-feature command Step 10 added, import hook broadened to all src/
+- [x] LSP/MCP: confirmed internally gated via module switcher pattern — no root.zig changes needed
+
+Wave 5A + docs sync pass:
+- [x] Simplified redundant AI dual-gating in llm, training, explore isEnabled()
+- [x] Fixed auth verifyToken page_allocator leak (added allocator parameter)
+- [x] Consolidated auth module's 15 repeated @import calls
+- [x] Fixed network stub types namespace divergence (shared_types → types)
+- [x] Added observability/mod.zig to feature test manifest
+- [x] Removed dead AI sub-module framework lifecycle code (initAiSubModules, 4 facade files, 2 routing files — 974 lines deleted)
+- [x] Gated cross-feature imports in brain_export, export, abbey_train, retriever
+- [x] Corrected test manifest flags for eval/rag/constitution (feat_ai → feat_reasoning)
+- [x] Fixed training stub parity: LoraModel init arity, LoraConfig.TargetModules, 6 missing methods
+- [x] Fixed stale docs: README phantom abi.zig, example count 35→36, feature count, feat-mobile exception
 
 ### Completed (Archived)
 

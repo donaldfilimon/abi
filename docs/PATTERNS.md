@@ -1,7 +1,7 @@
 # ABI Codebase Patterns (Zig 0.16)
 
 Key patterns and conventions used throughout the ABI codebase, specific to
-Zig 0.16 (`0.16.0-dev.2905+5d71e3051`).
+Zig 0.16 (`0.16.0-dev.2934+47d2e5de9`).
 
 ## Module System
 
@@ -89,7 +89,7 @@ if (feat_gpu) {
 
 27 feature flags exist (including AI subfeature flags `feat_explore`,
 `feat_llm`, `feat_vision`, `feat_training`, `feat_reasoning`), all enabled by
-default. Disable with `-Dfeat-<name>=false`. The 56 validated flag
+default. Disable with `-Dfeat-<name>=false`. The 58 validated flag
 combinations live in `build/flags.zig`.
 
 ## Zig 0.16 API Patterns
@@ -179,7 +179,7 @@ libraries. The codebase handles this with:
 2. **`use_llvm = true`** on all artifacts — allows compilation without linking
 3. **Manual relinking** — `build.zig` uses Apple's `/usr/bin/ld` to link
    `gendocs` and the main `abi` CLI executable.
-4. **`./tools/scripts/run_build.sh`** — wrapper script for initial build runner
+4. **Host-built Zig** — required on Darwin 25+ where stock Zig cannot link
    bootstrap.
 
 ```zig

@@ -9,11 +9,10 @@ of each directory and key file patterns.
 abi/
 ├── build.zig                 # Build root — defines all steps, targets, gates
 ├── build.zig.zon             # Package manifest (Zig 0.16 format)
-├── .zigversion               # Pinned Zig version (0.16.0-dev.2905+...)
+├── .zigversion               # Pinned Zig version (0.16.0-dev.2934+...)
 │
 ├── src/                      # All framework source — single "abi" module
 │   ├── root.zig              # Public package entrypoint (@import("abi"))
-│   ├── abi.zig               # Legacy tombstone (not imported by any code)
 │   ├── core/                 # Always-on framework internals
 │   ├── features/             # Comptime-gated feature modules (19 directories)
 │   ├── services/             # Runtime services shared across features
@@ -25,7 +24,7 @@ abi/
 ├── examples/                 # Standalone example programs
 ├── benchmarks/               # Performance benchmark suites
 ├── bindings/                 # C and WASM language bindings
-├── lang/                     # Future high-level language bindings (Python, JS/TS); wraps bindings/c/
+├── lang/                     # High-level language bindings (Swift, Kotlin); wraps bindings/c/
 ├── docs/                     # Maintained + generated documentation
 │
 ├── CLAUDE.md                 # AI agent instructions and conventions
@@ -40,7 +39,6 @@ abi/
 ```
 src/
 ├── root.zig                  # Public API surface — what @import("abi") exposes
-├── abi.zig                   # Legacy tombstone — not imported by any code
 │
 ├── core/                     # Always-on internals
 │   ├── config/               # Configuration loading and validation
@@ -123,13 +121,12 @@ The build system selects between `mod.zig` and `stub.zig` at comptime via
 ```
 build/
 ├── options.zig               # 27 feature flag definitions
-├── flags.zig                 # 56 flag combination validations
+├── flags.zig                 # 58 flag combination validations
 ├── modules.zig               # Module creation, import wiring, version parsing
 ├── module_catalog.zig        # Module registry for gendocs
-├── darwin.zig                # Darwin 25+ degraded-mode abstraction (DarwinCtx)
 ├── targets.zig               # Example/target tables, cross-compilation matrix
-├── test_discovery.zig        # Feature test manifest
-├── link.zig                  # Platform linking, Darwin darwinRelink() logic
+├── test_discovery.zig        # Unified abi-module test root (feature tests)
+├── link.zig                  # Platform linking (macOS, Linux, Windows, BSD, Android, illumos, Haiku)
 ├── gpu.zig                   # GPU backend option parsing
 ├── gpu_policy.zig            # GPU policy validation
 ├── mobile.zig                # Mobile target support
@@ -155,8 +152,6 @@ tools/
 │   └── render_api_md.zig     # Markdown renderer
 │
 ├── scripts/                  # Validation and utility scripts
-│   ├── run_build.sh          # Darwin 25+ build wrapper
-│   ├── fmt_repo.sh           # Format check wrapper
 │   ├── baseline.zig          # Version baseline checks
 │   ├── check_*.zig           # Various consistency checks
 │   └── util.zig              # Shared script utilities
@@ -207,6 +202,6 @@ are produced by `zig build gendocs` — do not hand-edit.
 | `bindings/` | WASM and other language bindings |
 | `benchmarks/` | Performance suites (see `benchmarks/README.md`) |
 | `examples/` | Standalone example programs (see `examples/README.md`) |
-| `lang/` | Future high-level language bindings (Python, JS/TS); wraps `bindings/c/` |
+| `lang/` | High-level language bindings (Swift, Kotlin); wraps `bindings/c/` |
 | `tasks/` | Agent task tracking (`todo.md`, `lessons.md`) |
 | `.claude/` | Claude Code configuration and skills |

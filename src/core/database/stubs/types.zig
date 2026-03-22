@@ -20,6 +20,11 @@ pub const DiagnosticsInfo = struct {
     name: []const u8 = "",
     vector_count: usize = 0,
     dimension: usize = 0,
+    memory_bytes: usize = 0,
+    search_count: usize = 0,
+    avg_search_ns: u64 = 0,
+    cache_hit_rate: f64 = 0.0,
+    simd_enabled: bool = false,
     pub fn isHealthy(_: DiagnosticsInfo) bool {
         return false;
     }

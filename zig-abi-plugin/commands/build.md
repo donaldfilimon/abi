@@ -20,13 +20,19 @@ Run a build step with automatic Darwin workaround detection.
    uname -s
    ```
 
-3. **If Darwin**: Use the wrapper first, then fall back:
+3. **If Darwin**: Check for host-built Zig matching `.zigversion`:
    ```bash
-   ./tools/scripts/run_build.sh <step>
+   ZIG_PIN=$(cat .zigversion)
+   HOST_ZIG="$HOME/.cache/abi-host-zig/$ZIG_PIN/bin/zig"
+   if [ -x "$HOST_ZIG" ]; then
+     "$HOST_ZIG" build <step> --summary all
+   else
+     zig build <step> --summary all
+   fi
    ```
-   If that still fails with the known linker error (`__availability_version_check`), fall back to:
-   - For `lint`/`fmt`: `./tools/scripts/fmt_repo.sh --check`
-   - For `fix`: `./tools/scripts/fmt_repo.sh`
+   If linking fails with `__availability_version_check` or `_malloc_size`, fall back to:
+   - For `lint`/`fmt`: `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
+   - For `fix`: `zig fmt build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
    - For `test`: `zig test src/services/tests/mod.zig -fno-emit-bin` (compile-only — no actual test execution)
    - For `validate-flags`: Report that this requires a linking-capable toolchain
    - Otherwise: Report that this step requires Linux CI or another host with a working Zig linker
@@ -56,6 +62,12 @@ Run a build step with automatic Darwin workaround detection.
 | `check-cli-registry` | Verify registry is current |
 | `check-docs` | Docs consistency check |
 | `benchmarks` | Run benchmarks |
+| `check-stub-parity` | Verify mod.zig/stub.zig declaration parity across all feature modules |
+| `toolchain-doctor` | Inspect active Zig resolution and toolchain health |
+| `check-zig-version` | Verify .zigversion pin matches docs and build.zig.zon |
+| `preflight` | Run integration environment diagnostics |
+| `gendocs` | Regenerate documentation from source |
+| `check-feature-catalog` | Verify feature catalog consistency |
 
 ## Tips
 

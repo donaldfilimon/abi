@@ -31,8 +31,8 @@ Identify the 3-5 most recent lessons relevant to the current task. Present a bri
 Pay special attention to and always surface lessons in these categories, regardless of recency:
 
 - **Zig 0.16 API changes** — any lessons about deprecated or renamed APIs
-- **Darwin linker issues (macOS 25+/26+)** — linker workarounds and build runner limitations
-- **Build system patterns** — test manifest rules, module ownership, format check surfaces
+- **Darwin linker issues (macOS 25+)** — stock Zig LLD failure, host-built Zig requirement (legacy build.sh/run_build.sh removed)
+- **Build system patterns** — unified abi-module test root, module ownership, format check surfaces, 27 feature flags
 - **mod/stub sync** — parity requirements, stub boilerplate, CLI sub-module re-exports
 - **Import rules** — relative vs `@import("abi")`, cross-feature gating, explicit `.zig` extensions
 - **foundation namespace** — not a separate module, relative path access within `src/`

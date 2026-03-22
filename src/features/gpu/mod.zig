@@ -260,11 +260,13 @@ var cached_gpu_allocator: ?std.mem.Allocator = null;
 pub const BufferFlags = memory.BufferFlags;
 pub const GpuBuffer = memory.GpuBuffer;
 pub const Buffer = GpuBuffer; // Alias for convenience
+pub const types = @import("types.zig");
+
 pub const MemoryError = memory.MemoryError;
 pub const KernelError = interface.KernelError;
-pub const GpuError = memory.MemoryError || error{GpuDisabled};
-pub const Error = GpuError;
-pub const BackendSelectionError = error{ RequestedBackendUnavailable, NoBackendsAvailable, OutOfMemory };
+pub const GpuError = types.GpuError;
+pub const Error = types.Error;
+pub const BackendSelectionError = types.BackendSelectionError;
 
 pub const MemoryInfo = unified.MemoryInfo;
 pub const GpuStats = unified.GpuStats;

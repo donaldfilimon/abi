@@ -4,6 +4,12 @@
 const std = @import("std");
 const core_types = @import("core/types.zig");
 
+// Re-export core types used by abbey, emotion, and other sub-modules
+pub const EmotionType = core_types.EmotionType;
+pub const EmotionalState = core_types.EmotionalState;
+pub const getTimestampNs = core_types.getTimestampNs;
+pub const getTimestampSec = core_types.getTimestampSec;
+
 /// Available profile types in the system.
 pub const ProfileType = enum {
     /// General-purpose helpful assistant.

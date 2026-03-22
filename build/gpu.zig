@@ -123,8 +123,8 @@ fn appendAutoBackends(
 
     const names = gpu_policy.resolveAutoBackendNames(.{
         .platform = gpu_policy.classify(target_os, target_abi),
-        .feat_gpu = feat_gpu,
-        .feat_web = feat_web,
+        .enable_gpu = feat_gpu,
+        .enable_web = feat_web,
         .can_link_metal = can_link_metal,
         .warn_if_metal_skipped = warn_if_metal_skipped,
         .allow_simulated = false,

@@ -1,6 +1,7 @@
 //! Database feature stub facade mirroring `mod.zig`.
 
 const std = @import("std");
+pub const types = @import("types.zig");
 const core_db = @import("../../core/database/stub.zig");
 
 pub const engine = core_db.engine;
@@ -37,7 +38,7 @@ pub const DatabaseError = core_db.DatabaseError;
 pub const KMeans = core_db.KMeans;
 pub const ScalarQuantizer = core_db.ScalarQuantizer;
 pub const ProductQuantizer = core_db.ProductQuantizer;
-pub const DatabaseFeatureError = core_db.DatabaseFeatureError;
+pub const DatabaseFeatureError = types.DatabaseFeatureError;
 pub const Context = core_db.Context;
 
 pub const init = core_db.init;

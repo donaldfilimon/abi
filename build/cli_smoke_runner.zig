@@ -76,6 +76,40 @@ const safe_function_vectors = [_]FixedVector{
     .{ .id = "ui.editor.help", .args = &.{ "ui", "editor", "--help" } },
     .{ .id = "ui.dashboard.alias", .args = &.{ "ui", "dashboard" } },
     .{ .id = "ui.launch.removed", .args = &.{ "ui", "launch" }, .expect_success = false },
+
+    // ── Core / infrastructure (functional invocations) ────────────────
+    .{ .id = "system-info", .args = &.{"system-info"} },
+    .{ .id = "doctor.run", .args = &.{"doctor"}, .timeout = .cli },
+    .{ .id = "completions.bash", .args = &.{ "completions", "bash" } },
+    .{ .id = "completions.zsh", .args = &.{ "completions", "zsh" } },
+    .{ .id = "env.show", .args = &.{ "env", "show" } },
+    .{ .id = "matrix.help", .args = &.{ "matrix", "--help" } },
+    .{ .id = "clean.help", .args = &.{ "clean", "--help" } },
+
+    // ── Database / train extended ─────────────────────────────────────
+    .{ .id = "db.help", .args = &.{ "db", "--help" } },
+    .{ .id = "train.help", .args = &.{ "train", "--help" } },
+
+    // ── Network ───────────────────────────────────────────────────────
+    .{ .id = "network.list", .args = &.{ "network", "list" } },
+    .{ .id = "network.help", .args = &.{ "network", "--help" } },
+
+    // ── Ralph / reasoning ─────────────────────────────────────────────
+    .{ .id = "ralph.status", .args = &.{ "ralph", "status" } },
+    .{ .id = "ralph.skills", .args = &.{ "ralph", "skills" } },
+
+    // ── UI subcommands (extended help coverage) ───────────────────────
+    .{ .id = "ui.db.help", .args = &.{ "ui", "db", "--help" } },
+    .{ .id = "ui.train.help", .args = &.{ "ui", "train", "--help" } },
+    .{ .id = "ui.network.help", .args = &.{ "ui", "network", "--help" } },
+    .{ .id = "ui.bench.help", .args = &.{ "ui", "bench", "--help" } },
+    .{ .id = "ui.streaming.help", .args = &.{ "ui", "streaming", "--help" } },
+    .{ .id = "ui.chat.help", .args = &.{ "ui", "chat", "--help" } },
+
+    // ── Error paths (expected failures) ───────────────────────────────
+    .{ .id = "top.unknown-cmd", .args = &.{"nonexistent"}, .expect_success = false },
+    .{ .id = "db.unknown-sub", .args = &.{ "db", "nonexistent" }, .expect_success = false },
+    .{ .id = "llm.unknown-sub", .args = &.{ "llm", "nonexistent" }, .expect_success = false },
 };
 
 fn addVector(

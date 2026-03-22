@@ -76,6 +76,12 @@ pub const LlmTrainingConfig = struct {
     enable_metrics_stream: bool = false,
     export_gguf_path: ?[]const u8 = null,
     export_name: ?[]const u8 = null,
+    gpu_backend: ?[]const u8 = null,
+    gpu_batch_threshold: u32 = 8,
+    gpu_device_buffer_mb: u32 = 256,
+    pub fn validate(_: LlmTrainingConfig) Error!void {
+        return error.FeatureDisabled;
+    }
 };
 
 pub const TrainableModelConfig = struct {
@@ -275,6 +281,9 @@ pub const LlamaTrainer = struct {
     pub fn trainStepWithMetrics(_: *@This(), _: []const u32, _: []const u32) Error!StepMetrics {
         return error.FeatureDisabled;
     }
+    pub fn trainEpoch(_: *@This(), _: []const u32, _: usize) Error!f32 {
+        return error.FeatureDisabled;
+    }
     pub fn saveCheckpoint(_: *@This(), _: []const u8) Error!void {
         return error.FeatureDisabled;
     }
@@ -300,6 +309,9 @@ pub const TrainableModel = struct {
     pub fn deinit(_: *@This()) void {}
     pub fn numParams(_: @This()) u64 {
         return 0;
+    }
+    pub fn prepareForTraining(_: *@This(), _: u32) Error!void {
+        return error.FeatureDisabled;
     }
     pub fn exportToGguf(_: *const @This(), _: std.mem.Allocator, _: []const u8, _: anytype) Error!void {
         return error.FeatureDisabled;
@@ -621,19 +633,54 @@ pub const DistributedTrainer = distributed.DistributedTrainer;
 
 // ── Missing type stubs for mod.zig parity ──────────────────────────────────
 
-pub const LoraConfig = struct { rank: u32 = 8, alpha: f32 = 16.0, dropout: f32 = 0.1, target_modules: []const []const u8 = &.{} };
+pub const LoraConfig = struct {
+    rank: u32 = 8,
+    alpha: f32 = 16.0,
+    dropout: f32 = 0.0,
+    target_modules: TargetModules = .{},
+    merge_weights: bool = true,
+    init_scale: f32 = 1.0,
+
+    pub const TargetModules = struct {
+        q_proj: bool = true,
+        k_proj: bool = false,
+        v_proj: bool = true,
+        o_proj: bool = false,
+        gate_proj: bool = false,
+        up_proj: bool = false,
+        down_proj: bool = false,
+    };
+
+    pub fn getScaling(self: LoraConfig) f32 {
+        return self.alpha / @as(f32, @floatFromInt(self.rank));
+    }
+};
 pub const LoraAdapter = struct {
     pub fn init(_: std.mem.Allocator, _: LoraConfig) Error!@This() {
         return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
+    pub fn numParams(_: *const @This()) usize {
+        return 0;
+    }
 };
-pub const LoraLayerAdapters = struct {};
+pub const LoraLayerAdapters = struct {
+    pub fn numParams(_: *const @This()) usize {
+        return 0;
+    }
+};
 pub const LoraModel = struct {
-    pub fn init(_: std.mem.Allocator, _: anytype, _: LoraConfig) Error!@This() {
+    pub fn init(_: std.mem.Allocator, _: u32, _: u32, _: u32, _: u32, _: u32, _: LoraConfig) Error!@This() {
         return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
+    pub fn numParams(_: *const @This()) usize {
+        return 0;
+    }
+    pub fn mergeWeights(_: *const @This(), _: anytype) void {}
+    pub fn save(_: *const @This(), _: std.mem.Allocator, _: []const u8) Error!void {
+        return error.FeatureDisabled;
+    }
 };
 
 pub const MixedPrecisionConfig = struct { enabled: bool = false, loss_scale: f32 = 1.0 };

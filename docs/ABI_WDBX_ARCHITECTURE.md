@@ -2,7 +2,7 @@
 title: ABI WDBX Architecture
 purpose: Technical specification and architectural guidelines for WDBX
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2905+5d71e3051
+target_zig_version: 0.16.0-dev.2934+47d2e5de9
 ---
 
 # ABI WDBX Architecture

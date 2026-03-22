@@ -1,15 +1,15 @@
 ---
 name: abi-architecture
-description: Use when working with ABI module structure, feature gating, import rules, build system wiring, or asking about how the codebase is organized. Triggers on questions about mod.zig/stub.zig, feature flags, build/modules.zig, build/module_catalog.zig, named modules, or cross-module imports.
+description: This skill should be used when working with ABI module structure, feature gating, import rules, build system wiring, or asking about how the codebase is organized. Triggers on questions about mod.zig/stub.zig, feature flags, build/modules.zig, build/module_catalog.zig, named modules, cross-module imports, "how many features", or "directory structure".
 ---
 
 # ABI Architecture & Module Guidelines
 
 ## Framework Overview
 
-ABI is a modular Zig 0.16 framework for distributed AI systems, vector search, and GPU compute. It uses comptime feature gates controlled via `build.zig` flags.
+ABI is a modular Zig 0.16 framework (pinned `0.16.0-dev.2934+47d2e5de9`, package version `0.4.0`) for distributed AI systems, vector search, and GPU compute. It uses comptime feature gates controlled via `build.zig` flags.
 
-## Named Modules (dev.2905+)
+## Named Modules (dev.2934+)
 
 Only 3 named modules exist:
 
@@ -28,25 +28,37 @@ The `foundation` namespace (`abi.foundation`) is part of the `abi` module, acces
 ```
 src/
 ├── root.zig                    # Public package root (thin re-export)
-├── abi.zig                     # Internal composition (comptime gating hub)
+├── main.zig                    # Zig 0.16 standard entrypoint
 ├── core/                       # Foundation: config, framework, registry, errors
 │   ├── config/                 # Feature configs (always-on)
 │   ├── framework/              # Lifecycle, feature_imports, builder
-│   │   └── feature_imports.zig # Central comptime gating for 21 features
+│   │   └── feature_imports.zig # Central comptime gating for 20 comptime-gated feature imports
 │   ├── registry/               # Plugin registry
 │   └── database/               # Semantic store core (WDBX V3)
-├── features/                   # Comptime-gated domain implementations
+├── features/                   # Comptime-gated domain implementations (19 dirs)
 │   ├── ai/                     # LLM, agents, training, reasoning (mod.zig + stub.zig)
 │   ├── gpu/                    # GPU compute, DSL, backends (mod.zig + stub.zig)
-│   └── ... (19 feature dirs)
+│   └── ... (17 more feature dirs)
 ├── services/                   # Runtime services
 │   ├── shared/                 # SIMD, time, sync, security, logging (foundation module root)
 │   ├── runtime/                # Task scheduling, concurrency
-│   ├── connectors/             # LLM providers (23 integrations)
+│   ├── connectors/             # LLM providers (19 connectors + stubs)
 │   └── ha/, lsp/, mcp/, acp/, platform/, tasks/
-└── api_server/, inference/
-tests/                             # Future integration & e2e tests
-bindings/                          # Language bindings (moved from src/bindings/)
+└── inference/                  # ML inference engine, scheduler, sampler, paged KV cache
+build/                             # Modular build system
+├── options.zig                    # 27 feat_* flag definitions (CanonicalFlags)
+├── flags.zig                      # 58-combo validation matrix
+├── modules.zig                    # Module creation, wireAbiImports()
+├── module_catalog.zig             # 34 gendocs entries, 179 feature test entries
+├── test_discovery.zig             # Unified abi-module test root (not per-entry)
+├── link.zig                       # Platform linking (macOS, Linux, Windows, BSD, etc.)
+├── targets.zig                    # 35 examples + 18 cross-compilation targets
+├── cli_tests.zig                  # CLI smoke (~53 vectors) + exhaustive tests
+└── cli_smoke_runner.zig           # CLI smoke test runner
+tests/                             # Integration & e2e tests with matrix manifest
+bindings/                          # C and WASM language bindings
+lang/                              # Swift and Kotlin high-level bindings
+examples/                          # 35 standalone example programs
 ```
 
 ## Import Rules
@@ -64,10 +76,12 @@ bindings/                          # Language bindings (moved from src/bindings/
 
 ## Feature Flag Conventions
 
-- Prefix: `feat_<name>` (NOT `enable_<name>`), all default to `true`
-- 27 flags in `build/options.zig`, 56 combos validated in `build/flags.zig`
+- Prefix: `feat_<name>` (NOT `enable_<name>`), all default to `true` (except `feat_mobile`)
+- 27 flags in `build/options.zig` (including 2 internal: `feat_explore`, `feat_vision`)
+- 58 combos validated in `build/flags.zig`
 - Flags exported via `build_options` module
 - Disable: `zig build -Dfeat-gpu=false`
+- New in dev.2934: `feat_lsp`, `feat_mcp` flags for service gating
 
 ## mod/stub Contract
 
@@ -92,10 +106,13 @@ Every comptime-gated feature has paired files:
 ## Build System
 
 - `build/modules.zig` — Module creation (`wireAbiImports(module, build_opts)` wires `build_options`; no separate foundation module)
-- `build/module_catalog.zig` — Feature module registration and catalog metadata
-- `build/options.zig` — Feature flag definitions (27 `feat_*` flags)
-- `build/flags.zig` — Validation matrix (56 flag combos)
-- `build/test_discovery.zig` — Feature test manifest (81+ entries)
+- `build/module_catalog.zig` — Feature module registration, catalog metadata, and 179 feature test entries
+- `build/options.zig` — Feature flag definitions (27 flags in `CanonicalFlags`)
+- `build/flags.zig` — Validation matrix (58 flag combos)
+- `build/test_discovery.zig` — Unified `abi` module as test root (single-module ownership; previous per-entry approach removed)
+- `build/link.zig` — Platform-specific linking (macOS frameworks, Linux/Windows/BSD/Android/illumos/Haiku libs)
+- `build/targets.zig` — 35 example targets + 18 cross-compilation targets
+- `build/cli_tests.zig` — CLI test steps: `cli-tests` (smoke, ~53 vectors) and `cli-tests-full` (exhaustive)
 
 ## Performance & SIMD
 

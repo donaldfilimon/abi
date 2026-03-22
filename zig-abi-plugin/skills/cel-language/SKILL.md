@@ -1,7 +1,12 @@
 ---
 name: cel-language
-description: Use when working with CEL (.cel files), the stage0 compiler, cel.toml, stdlib/cel/, tests/cel/, or asking about CEL syntax and commands
+description: This skill should be used when working with CEL (.cel files), the stage0 compiler, cel.toml, stdlib/cel/, tests/cel/, or asking about CEL syntax and commands. Triggers on "CEL", ".cel files", "stage0", "cel.toml", or CEL formatting/testing.
 ---
+
+> **STATUS: NOT YET IMPLEMENTED** — The CEL language infrastructure described below
+> (cel.toml, tools/cel/, stdlib/cel/, tests/cel/) does not yet exist in the repository.
+> This skill documents the planned design. Do not attempt to run CEL commands or
+> reference CEL files until the infrastructure is created.
 
 # CEL Language
 
@@ -18,7 +23,7 @@ CEL is ABI's language surface. The practical surface during stage0 is defined by
 - `tests/cel/` -- CEL test files and smoke tests
 - `stdlib/cel/` -- CEL standard library modules
 
-Treat `.zig-bootstrap/` as the canonical Zig bridge surface and `.cel/` as the backing implementation layer during the transition. Do not assume features beyond the current stage0 compiler without checking `tools/cel/stage0/main.c`.
+Do not assume features beyond the current stage0 compiler without checking `tools/cel/stage0/main.c`.
 
 ## Commands
 
@@ -101,10 +106,9 @@ If changing stage0 parsing or codegen in `tools/cel/stage0/main.c`, verify at le
 ## ABI Transition Rules
 
 - CEL is the language direction.
-- `.zig-bootstrap/` is the canonical Zig bridge namespace.
-- The older `.cel/` tree is still the backing Zig/bootstrap implementation for now, but that is separate from CEL language source files.
+- Direct `zig build` is the primary build path.
 
-When a task is really about Zig bootstrap activation, build failures, or ZLS setup, do not treat that as a CEL-language task just because the path contains `.cel/`.
+When a task is really about Zig build failures or ZLS setup, do not treat that as a CEL-language task.
 
 ## When To Inspect The Compiler Directly
 

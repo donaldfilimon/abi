@@ -4,9 +4,8 @@ shopt -s inherit_errexit 2>/dev/null || true
 unset CDPATH
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-source "$SCRIPT_DIR/zig_toolchain.sh"
 
-cd "$(abi_toolchain_repo_root)"
+cd "$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: ./tools/scripts/fmt_repo.sh [zig fmt args...]"
@@ -17,8 +16,4 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   exit 0
 fi
 
-# Resolve the active Zig binary via the fallback chain in zig_toolchain.sh:
-# ABI_HOST_ZIG -> ZIG_REAL -> ZIG env -> cached host-built Zig -> PATH lookup.
-ZIG="$(abi_toolchain_resolve_active_zig)"
-
-exec "$ZIG" fmt "$@" build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
+exec zig fmt "$@" build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/

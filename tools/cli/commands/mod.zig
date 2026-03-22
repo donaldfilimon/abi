@@ -41,12 +41,15 @@ pub const acp = generated.acp;
 pub const ralph = generated.ralph;
 pub const gendocs = generated.gendocs;
 pub const brain = generated.brain;
+pub const chat = generated.chat;
+pub const context_agent = generated.context_agent;
 pub const doctor = generated.doctor;
 pub const editor = generated.editor;
 pub const matrix = generated.matrix;
 pub const clean = generated.clean;
 pub const env = generated.env;
 pub const init = generated.init;
+pub const update = generated.update;
 
 // ─── Comptime-derived command registry ────────────────────────────────────────
 

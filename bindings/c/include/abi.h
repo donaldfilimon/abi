@@ -309,7 +309,10 @@ void abi_version_info(abi_version_info_t *out_version);
 /**
  * Check if a feature is enabled.
  *
- * Valid feature names: "ai", "gpu", "database", "network", "web", "profiling".
+ * Valid feature names: "ai", "gpu", "database", "network", "web", "profiling",
+ * "analytics", "cloud", "auth", "messaging", "cache", "storage", "search",
+ * "mobile", "gateway", "pages", "benchmarks", "compute", "documents",
+ * "desktop", "lsp", "mcp", "llm", "training", "reasoning", "explore", "vision".
  *
  * @param framework Framework handle (may be NULL for compile-time check).
  * @param feature Null-terminated feature name.
@@ -331,7 +334,7 @@ const char *abi_get_state(abi_framework_t *framework);
  * Get the number of features that initialized successfully.
  *
  * @param framework  Framework handle.
- * @return Count of active features (0-8).
+ * @return Count of active features (0-17).
  */
 int abi_enabled_feature_count(abi_framework_t *framework);
 

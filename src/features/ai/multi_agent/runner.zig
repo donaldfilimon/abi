@@ -28,10 +28,7 @@ const supervisor_mod = @import("supervisor.zig");
 const messaging = @import("messaging.zig");
 const protocol = @import("protocol.zig");
 const build_options = @import("build_options");
-const agents_mod = if (build_options.feat_ai)
-    @import("../agents/mod.zig")
-else
-    @import("../agents/stub.zig");
+const agents_mod = @import("../agents/mod.zig");
 const time = @import("../../../services/shared/mod.zig").time;
 const training = if (build_options.feat_training)
     @import("../training/mod.zig")
@@ -580,7 +577,7 @@ pub const WorkflowRunner = struct {
                 tokens,
                 feedback,
                 confidence,
-                .conversation,
+                .text_conversation,
             ) catch continue;
         }
     }

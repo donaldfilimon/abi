@@ -2,7 +2,7 @@
 title: gpu API
 purpose: Generated API reference for gpu
 last_updated: 2026-03-16
-target_zig_version: 0.16.0-dev.2905+5d71e3051
+target_zig_version: 0.16.0-dev.2934+47d2e5de9
 ---
 
 # gpu
@@ -124,7 +124,7 @@ These may change without notice:
 
 ### <a id="pub-const-context"></a>`pub const Context`
 
-<sup>**const**</sup> | [source](../../src/features/gpu/mod.zig#L403)
+<sup>**const**</sup> | [source](../../src/features/gpu/mod.zig#L405)
 
 GPU Context for Framework integration.
 
@@ -153,7 +153,7 @@ defer ctx.destroyBuffer(&buffer);
 
 ### <a id="pub-fn-init-allocator-std-mem-allocator-cfg-config-module-gpuconfig-context"></a>`pub fn init(allocator: std.mem.Allocator, cfg: config_module.GpuConfig) !*Context`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L425)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L427)
 
 Initialize the GPU context with the given configuration.
 
@@ -174,43 +174,43 @@ A pointer to the initialized Context.
 
 ### <a id="pub-fn-getgpu-self-context-error-gpu"></a>`pub fn getGpu(self: *Context) Error!*Gpu`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L467)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L469)
 
 Get the underlying Gpu instance.
 
 ### <a id="pub-fn-createbuffer-self-context-comptime-t-type-count-usize-options-bufferoptions-unifiedbuffer"></a>`pub fn createBuffer(self: *Context, comptime T: type, count: usize, options: BufferOptions) !UnifiedBuffer`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L472)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L474)
 
 Create a buffer.
 
 ### <a id="pub-fn-createbufferfromslice-self-context-comptime-t-type-data-const-t-options-bufferoptions-unifiedbuffer"></a>`pub fn createBufferFromSlice(self: *Context, comptime T: type, data: []const T, options: BufferOptions) !UnifiedBuffer`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L477)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L479)
 
 Create a buffer from a slice.
 
 ### <a id="pub-fn-destroybuffer-self-context-buffer-unifiedbuffer-void"></a>`pub fn destroyBuffer(self: *Context, buffer: *UnifiedBuffer) void`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L482)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L484)
 
 Destroy a buffer.
 
 ### <a id="pub-fn-vectoradd-self-context-a-unifiedbuffer-b-unifiedbuffer-result-unifiedbuffer-executionresult"></a>`pub fn vectorAdd(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer) !ExecutionResult`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L487)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L489)
 
 Vector addition.
 
 ### <a id="pub-fn-matrixmultiply-self-context-a-unifiedbuffer-b-unifiedbuffer-result-unifiedbuffer-dims-unified-matrixdims-executionresult"></a>`pub fn matrixMultiply(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer, dims: unified.MatrixDims) !ExecutionResult`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L492)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L494)
 
 Matrix multiplication.
 
 ### <a id="pub-fn-gethealth-self-context-healthstatus"></a>`pub fn getHealth(self: *Context) !HealthStatus`
 
-<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L497)
+<sup>**fn**</sup> | [source](../../src/features/gpu/mod.zig#L499)
 
 Get GPU health status.
 
@@ -227,4 +227,4 @@ Get GPU health status.
 - Correction log: [tasks/lessons.md](../../tasks/lessons.md)
 
 ## Zig Validation
-Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `./tools/scripts/run_build.sh typecheck --summary all` as fallback evidence while replacing the toolchain.
+Use `zig build full-check` / `zig build check-docs` on supported hosts. On Darwin 25+ / macOS 26+, ABI expects a host-built or otherwise known-good Zig matching `.zigversion`. If stock prebuilt Zig is linker-blocked, record `zig fmt --check ...` plus `zig test <file> -fno-emit-bin` as fallback evidence while replacing the toolchain.

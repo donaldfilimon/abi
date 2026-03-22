@@ -47,6 +47,21 @@
         },
     },
     .{
+        .slug = "integration-gates-v1",
+        .title = "Integration Gates v1",
+        .status = "In Progress",
+        .owner = "Abbey",
+        .scope = "Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green.",
+        .gate_commands = .{
+            "zig build cli-tests-full",
+            "zig build cli-tests",
+            "zig build tui-tests",
+            "zig build run -- ui launch --help",
+            "zig build run -- ui gpu --help",
+            "zig build verify-all",
+        },
+    },
+    .{
         .slug = "tui-modular-v2",
         .title = "TUI Modular Extraction v2",
         .status = "In Progress",
@@ -57,21 +72,6 @@
             "zig build tui-tests",
             "zig build run -- ui launch --help",
             "zig build run -- ui gpu --help",
-        },
-    },
-    .{
-        .slug = "integration-gates-v1",
-        .title = "Integration Gates v1",
-        .status = "Blocked",
-        .owner = "Abbey",
-        .scope = "Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green.",
-        .gate_commands = .{
-            "zig build cli-tests-full",
-            "zig build cli-tests",
-            "zig build tui-tests",
-            "zig build run -- ui launch --help",
-            "zig build run -- ui gpu --help",
-            "zig build verify-all",
         },
     },
 }

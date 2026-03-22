@@ -10,7 +10,7 @@ const config_module = @import("../../core/config/mod.zig");
 // Local Stubs Imports
 // ============================================================================
 
-const types = @import("stubs/types.zig");
+const stub_types = @import("stubs/types.zig");
 const protocol_mod = @import("stubs/protocol.zig");
 const scheduler_mod = @import("stubs/scheduler.zig");
 const ha_mod = @import("stubs/ha.zig");
@@ -30,17 +30,22 @@ const unified_memory_mod = @import("stubs/unified_memory.zig");
 const linking_mod = @import("stubs/linking.zig");
 
 // ============================================================================
+// Shared types (from types.zig)
+// ============================================================================
+pub const types = @import("types.zig");
+
+// ============================================================================
 // Core Types Re-exports
 // ============================================================================
 
 pub const Error = types.Error;
-pub const NetworkError = error{ FeatureDisabled, NotInitialized };
+pub const NetworkError = types.NetworkError;
 pub const NetworkConfig = types.NetworkConfig;
-pub const NetworkState = types.NetworkState;
-pub const Node = types.Node;
-pub const NodeStatus = types.NodeStatus;
-pub const NodeInfo = types.NodeInfo;
-pub const NodeRegistry = types.NodeRegistry;
+pub const NetworkState = stub_types.NetworkState;
+pub const Node = stub_types.Node;
+pub const NodeStatus = stub_types.NodeStatus;
+pub const NodeInfo = stub_types.NodeInfo;
+pub const NodeRegistry = stub_types.NodeRegistry;
 
 // ============================================================================
 // Protocol Re-exports

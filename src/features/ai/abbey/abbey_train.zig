@@ -11,8 +11,9 @@
 //!                   --epochs 3 --batch-size 4
 
 const std = @import("std");
-const training = @import("../training/mod.zig");
-const lora_mod = @import("../training/lora.zig");
+const build_options = @import("build_options");
+const training = if (build_options.feat_training) @import("../training/mod.zig") else @import("../training/stub.zig");
+const lora_mod = if (build_options.feat_training) @import("../training/lora.zig") else @import("../training/stub.zig");
 const bpe = @import("../llm/tokenizer/bpe.zig");
 const gguf_reader = @import("../llm/io/gguf.zig");
 const brain_export = @import("../database/brain_export.zig");

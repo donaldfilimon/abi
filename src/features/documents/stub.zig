@@ -1,18 +1,13 @@
 //! Documents stub — disabled at compile time.
 
 const std = @import("std");
+pub const types = @import("types.zig");
 
 pub const html = struct {};
 pub const pdf = struct {};
 
-pub const DocumentsError = error{
-    ParseFailed,
-    UnsupportedFormat,
-    InvalidInput,
-    OutOfMemory,
-};
-
-pub const Error = DocumentsError;
+pub const DocumentsError = types.DocumentsError;
+pub const Error = types.Error;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,

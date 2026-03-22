@@ -1,5 +1,7 @@
 const std = @import("std");
-const darwin = @import("darwin.zig");
+const link = @import("link.zig");
+const gpu_mod = @import("gpu.zig");
+const GpuBackend = gpu_mod.GpuBackend;
 
 /// Descriptor for a build target (example, tool, etc.).
 pub const BuildTarget = struct {
@@ -112,7 +114,8 @@ pub fn buildTargets(
     build_opts: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    ctx: darwin.DarwinCtx,
+    gpu_metal: bool,
+    gpu_backends: []const GpuBackend,
     aggregate: ?*std.Build.Step,
     aggregate_runs: bool,
 ) void {
@@ -126,25 +129,24 @@ pub fn buildTargets(
             .optimize = exe_optimize,
             .link_libc = true,
         });
-        const artifact = darwin.addExeOrObject(b, t.name, mod, ctx);
-        artifact.compile.root_module.addImport("abi", abi_module);
-        artifact.compile.root_module.addImport("build_options", build_opts);
-        applyPerformanceTweaks(artifact.compile, exe_optimize);
-        const step = b.step(t.step_name, t.description);
+        const exe = b.addExecutable(.{ .name = t.name, .root_module = mod });
+        exe.root_module.addImport("abi", abi_module);
+        exe.root_module.addImport("build_options", build_opts);
+        link.applyAllPlatformLinks(exe.root_module, target.result.os.tag, gpu_metal, gpu_backends);
+        applyPerformanceTweaks(exe, exe_optimize);
+        const step_entry = b.step(t.step_name, t.description);
 
-        const run = darwin.addRunStep(b, artifact, b.fmt("{s}_linked", .{t.name}), ctx);
+        const run = b.addRunArtifact(exe);
         if (b.args) |args| run.addArgs(args);
-        step.dependOn(&run.step);
+        step_entry.dependOn(&run.step);
 
-        if (!artifact.is_object) {
-            b.installArtifact(artifact.compile);
-        }
+        b.installArtifact(exe);
 
         if (aggregate) |agg| {
             if (aggregate_runs) {
                 agg.dependOn(&run.step);
             } else {
-                agg.dependOn(&artifact.compile.step);
+                agg.dependOn(&exe.step);
             }
         }
     }

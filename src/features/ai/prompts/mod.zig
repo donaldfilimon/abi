@@ -40,7 +40,7 @@ pub fn createBuilder(allocator: std.mem.Allocator) PromptBuilder {
 
 /// Create a prompt builder with a specific profile
 pub fn createBuilderWithProfile(allocator: std.mem.Allocator, profile_type: ProfileType) PromptBuilder {
-    return PromptBuilder.init(allocator, profile_type);
+    return PromptBuilder.initCustom(allocator, getProfile(profile_type));
 }
 
 /// Create a prompt builder with a custom profile definition

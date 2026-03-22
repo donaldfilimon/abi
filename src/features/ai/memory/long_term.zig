@@ -4,10 +4,12 @@
 //! based on semantic similarity to the current query.
 
 const std = @import("std");
+const build_options = @import("build_options");
 const time = @import("../../../services/shared/mod.zig").utils;
 const simd = @import("../../../services/shared/mod.zig").simd;
 const mod = @import("mod.zig");
-const semantic_store = @import("../../database/mod.zig").semantic_store;
+const db_mod = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
+const semantic_store = db_mod.semantic_store;
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
 const MemoryStats = mod.MemoryStats;

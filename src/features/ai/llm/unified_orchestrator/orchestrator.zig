@@ -20,7 +20,7 @@ pub const Orchestrator = struct {
     pub fn init(allocator: std.mem.Allocator) Orchestrator {
         const self = Orchestrator{
             .allocator = allocator,
-            .backends = .{},
+            .backends = .empty,
             .skills = skill_registry.SkillRegistry.init(allocator),
             .sync = sync_manager.SyncManager.init(allocator),
         };

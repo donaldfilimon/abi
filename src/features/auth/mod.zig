@@ -30,22 +30,23 @@ pub const AuthConfig = core_config.AuthConfig;
 // ============================================================================
 
 const shared = @import("../../services/shared/mod.zig");
-pub const api_keys = shared.security.api_keys;
-pub const audit = @import("../../services/shared/mod.zig").security.audit;
-pub const certificates = @import("../../services/shared/mod.zig").security.certificates;
-pub const cors = @import("../../services/shared/mod.zig").security.cors;
-pub const encryption = @import("../../services/shared/mod.zig").security.encryption;
-pub const headers = @import("../../services/shared/mod.zig").security.headers;
-pub const ip_filter = @import("../../services/shared/mod.zig").security.ip_filter;
-pub const jwt = @import("../../services/shared/mod.zig").security.jwt;
-pub const mtls = @import("../../services/shared/mod.zig").security.mtls;
-pub const password = @import("../../services/shared/mod.zig").security.password;
-pub const rate_limit = @import("../../services/shared/mod.zig").security.rate_limit;
-pub const rbac = @import("../../services/shared/mod.zig").security.rbac;
-pub const secrets = @import("../../services/shared/mod.zig").security.secrets;
-pub const session = @import("../../services/shared/mod.zig").security.session;
-pub const tls = @import("../../services/shared/mod.zig").security.tls;
-pub const validation = @import("../../services/shared/mod.zig").security.validation;
+const security = shared.security;
+pub const api_keys = security.api_keys;
+pub const audit = security.audit;
+pub const certificates = security.certificates;
+pub const cors = security.cors;
+pub const encryption = security.encryption;
+pub const headers = security.headers;
+pub const ip_filter = security.ip_filter;
+pub const jwt = security.jwt;
+pub const mtls = security.mtls;
+pub const password = security.password;
+pub const rate_limit = security.rate_limit;
+pub const rbac = security.rbac;
+pub const secrets = security.secrets;
+pub const session = security.session;
+pub const tls = security.tls;
+pub const validation = security.validation;
 
 // ============================================================================
 // Auth-level Types (from types.zig)
@@ -157,15 +158,10 @@ pub fn createToken(
 /// Uses the default dev secret; production callers should use `jwt.JwtManager`
 /// directly with their own secret.
 ///
-/// Note: The returned Token's `.claims.sub` is heap-allocated via page_allocator
-/// when non-empty and should be freed by the caller if needed. The `.raw` field
-/// points to the input `token_str` (caller-owned, not duped).
-pub fn verifyToken(token_str: []const u8) AuthError!Token {
-    // Use the page allocator since we have no allocator parameter.
-    // This is acceptable for a convenience wrapper; high-throughput code
-    // should use jwt.JwtManager directly with a proper allocator.
-    const allocator = std.heap.page_allocator;
-
+/// Note: The returned Token's `.claims.sub` is heap-allocated via the provided
+/// allocator when non-empty and should be freed by the caller when done.
+/// The `.raw` field points to the input `token_str` (caller-owned, not duped).
+pub fn verifyToken(allocator: std.mem.Allocator, token_str: []const u8) AuthError!Token {
     var manager = jwt.JwtManager.init(allocator, active_jwt_secret, .{
         .required_claims = &.{},
     });

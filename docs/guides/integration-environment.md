@@ -25,7 +25,7 @@ The CI environment is the single source of truth for gate pass/fail.
 
 | Requirement | Value |
 |-------------|-------|
-| Version | Must exactly match `.zigversion` (`0.16.0-dev.2905+5d71e3051`) |
+| Version | Must exactly match `.zigversion` (`0.16.0-dev.2934+47d2e5de9`) |
 | Source | Host-built or official prebuilt tarball for `x86_64-linux` |
 | PATH | `zig` binary must be first on `$PATH`; no version shims |
 
@@ -34,7 +34,7 @@ The CI environment is the single source of truth for gate pass/fail.
 | Tool | Purpose | Required |
 |------|---------|----------|
 | `git` | Source checkout, version detection | Yes |
-| `sh` / `bash` | Script execution (`run_build.sh`, CI glue) | Yes |
+| `sh` / `bash` | Script execution (CI glue) | Yes |
 | C system headers | Zig cross-compilation cache (libc stubs) | Provided by base image |
 
 ### Network access
@@ -89,25 +89,21 @@ failures.
 
 ### Known linker limitation
 
-On **Darwin 25+ / macOS 26+**, the stock prebuilt Zig (`0.16.0-dev.2905`)
+On **Darwin 25+ / macOS 26+**, the stock prebuilt Zig (`0.16.0-dev.2934+`)
 fails at the linker stage before `build.zig` runs. This is a host toolchain
 issue, not an ABI bug.
 
-**Resolution options (pick one):**
+**Resolution**: use a host-built Zig matching `.zigversion`. Prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`, then use direct `zig build` gates.
 
-1. **Canonical cached host-built Zig** — run `./tools/scripts/bootstrap_host_zig.sh`, prepend `$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin` to `PATH`, then use direct `zig build` gates
-2. **`./tools/scripts/run_build.sh`** — two-pass workaround that relinks
-   the build runner with Apple's `/usr/bin/ld` (see `tools/scripts/run_build.sh`)
-3. **Fallback evidence** — when neither option above is available, record:
-   - `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
-   - `./tools/scripts/run_build.sh typecheck --summary all`
+**Fallback evidence** — when a host-built Zig is unavailable, record:
+- `zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/`
+- `zig test <file> -fno-emit-bin` (compile-only, no linking)
 
-   This is fallback evidence only, not a replacement for `zig build full-check`.
+This is fallback evidence only, not a replacement for `zig build full-check`.
 
 The supported full-validation path on Darwin is:
 
 ```bash
-./tools/scripts/bootstrap_host_zig.sh
 export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
 hash -r
 zig build toolchain-doctor
@@ -141,15 +137,11 @@ zig test src/path/to/file.zig -fno-emit-bin
 # Format check (always works, even when linker is broken)
 zig fmt --check build.zig build/ src/ tools/ examples/ tests/ bindings/ lang/
 
-# Canonical host-built Zig path
-./tools/scripts/bootstrap_host_zig.sh
+# Host-built Zig path (if available)
 export PATH="$HOME/.cache/abi-host-zig/$(cat .zigversion)/bin:$PATH"
 hash -r
 zig build toolchain-doctor
-
-# Build runner workaround
-./tools/scripts/run_build.sh test --summary all
-./tools/scripts/run_build.sh typecheck --summary all
+zig build test --summary all
 ```
 
 ---
