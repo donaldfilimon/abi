@@ -11,16 +11,20 @@ const std = @import("std");
 pub const ComputeError = types.ComputeError;
 pub const Error = types.Error;
 
+var compute_initialized: bool = false;
+
 pub const Context = struct {
     allocator: std.mem.Allocator,
     initialized: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) Context {
+        compute_initialized = true;
         return .{ .allocator = allocator, .initialized = true };
     }
 
     pub fn deinit(self: *Context) void {
         self.initialized = false;
+        compute_initialized = false;
     }
 };
 
@@ -29,7 +33,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return false;
+    return compute_initialized;
 }
 
 test {
@@ -39,8 +43,10 @@ test {
 test "Context init and deinit" {
     var ctx = Context.init(std.testing.allocator);
     try std.testing.expect(ctx.initialized);
+    try std.testing.expect(isInitialized());
     ctx.deinit();
     try std.testing.expect(!ctx.initialized);
+    try std.testing.expect(!isInitialized());
 }
 
 test "isEnabled returns true" {

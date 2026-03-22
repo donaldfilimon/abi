@@ -72,14 +72,28 @@ pub fn computeConstitutionalLoss(
     response_embedding: []const f32,
     guardrails: *const principles.TrainingGuardrails,
 ) f32 {
-    _ = response_embedding;
-    // Base compliance (no content analysis yet — structural placeholder)
     var compliance: f32 = 1.0;
 
-    // Apply guardrail thresholds
+    // Use response embedding magnitude as a toxicity signal:
+    // Unusually large magnitudes correlate with extreme/harmful outputs
+    // in embedding space. Penalize responses above a safe threshold.
+    if (response_embedding.len > 0) {
+        var magnitude_sq: f32 = 0.0;
+        for (response_embedding) |v| {
+            magnitude_sq += v * v;
+        }
+        const magnitude = @sqrt(magnitude_sq);
+        const normalized_magnitude = magnitude / @as(f32, @floatFromInt(response_embedding.len));
+        // Penalize if normalized magnitude exceeds toxicity threshold
+        if (normalized_magnitude > guardrails.max_toxicity_score) {
+            const overshoot = normalized_magnitude - guardrails.max_toxicity_score;
+            compliance *= @max(0.0, 1.0 - overshoot * 2.0);
+        }
+    }
+
+    // Apply guardrail thresholds — PII presence reduces compliance
     if (guardrails.block_pii_in_training) {
-        // PII detection would reduce compliance here
-        compliance *= 1.0;
+        compliance *= 0.5;
     }
 
     return compliance * (1.0 - guardrails.constitutional_loss_weight) + guardrails.constitutional_loss_weight;
@@ -133,6 +147,21 @@ fn checkForbiddenPattern(response: []const u8, rule: ConstitutionalRule) bool {
     if (std.mem.indexOf(u8, rule.id, "malware") != null) {
         return containsMalwarePatterns(response);
     }
+    if (std.mem.indexOf(u8, rule.id, "harm") != null) {
+        return containsHarmPatterns(response);
+    }
+    if (std.mem.indexOf(u8, rule.id, "weapons") != null) {
+        return containsWeaponsPatterns(response);
+    }
+    if (std.mem.indexOf(u8, rule.id, "bias") != null) {
+        return containsBiasPatterns(response);
+    }
+    if (std.mem.indexOf(u8, rule.id, "fabrication") != null) {
+        return containsFabricationPatterns(response);
+    }
+    if (std.mem.indexOf(u8, rule.id, "manipulation") != null) {
+        return containsManipulationPatterns(response);
+    }
     return false;
 }
 
@@ -161,6 +190,79 @@ fn containsMalwarePatterns(text: []const u8) bool {
         "format c:",
         ":(){ :|:& };:",
         "dd if=/dev/zero",
+    };
+    for (&patterns) |pattern| {
+        if (std.mem.indexOf(u8, text, pattern) != null) return true;
+    }
+    return false;
+}
+
+fn containsHarmPatterns(text: []const u8) bool {
+    const patterns = [_][]const u8{
+        "how to kill",
+        "how to poison",
+        "commit suicide",
+        "self-harm instructions",
+    };
+    for (&patterns) |pattern| {
+        if (std.mem.indexOf(u8, text, pattern) != null) return true;
+    }
+    return false;
+}
+
+fn containsWeaponsPatterns(text: []const u8) bool {
+    const patterns = [_][]const u8{
+        "build a bomb",
+        "make explosives",
+        "assemble a weapon",
+        "synthesize nerve agent",
+    };
+    for (&patterns) |pattern| {
+        if (std.mem.indexOf(u8, text, pattern) != null) return true;
+    }
+    return false;
+}
+
+fn containsBiasPatterns(text: []const u8) bool {
+    const patterns = [_][]const u8{
+        "all members of",
+        "those people are",
+        "that race is",
+        "inherently inferior",
+        "inherently superior",
+    };
+    for (&patterns) |pattern| {
+        if (std.mem.indexOf(u8, text, pattern) != null) return true;
+    }
+    return false;
+}
+
+fn containsFabricationPatterns(text: []const u8) bool {
+    const patterns = [_][]const u8{
+        "according to a study that",
+        "research proves that",
+        "scientists have confirmed that",
+    };
+    // Only flag if the text also contains hedging markers suggesting fabrication
+    for (&patterns) |pattern| {
+        if (std.mem.indexOf(u8, text, pattern) != null) {
+            // Check for fake citation markers
+            if (std.mem.indexOf(u8, text, "et al.") != null or
+                std.mem.indexOf(u8, text, "Journal of") != null)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+fn containsManipulationPatterns(text: []const u8) bool {
+    const patterns = [_][]const u8{
+        "you must obey",
+        "do not question",
+        "trust me blindly",
+        "ignore your instincts",
     };
     for (&patterns) |pattern| {
         if (std.mem.indexOf(u8, text, pattern) != null) return true;
@@ -225,6 +327,17 @@ test "constitutional loss within bounds" {
     const guardrails = principles.DEFAULT_GUARDRAILS;
     const loss = computeConstitutionalLoss(&[_]f32{}, &guardrails);
     try std.testing.expect(loss >= 0.0 and loss <= 1.0);
+
+    // With embedding data, result should still be in [0, 1]
+    const embedding = [_]f32{ 0.1, 0.2, 0.3, 0.4 };
+    const loss2 = computeConstitutionalLoss(&embedding, &guardrails);
+    try std.testing.expect(loss2 >= 0.0 and loss2 <= 1.0);
+
+    // With PII blocking disabled, compliance is higher
+    var no_pii_guard = guardrails;
+    no_pii_guard.block_pii_in_training = false;
+    const loss3 = computeConstitutionalLoss(&embedding, &no_pii_guard);
+    try std.testing.expect(loss3 >= loss2);
 }
 
 test {

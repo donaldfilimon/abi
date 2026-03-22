@@ -151,6 +151,8 @@ pub const UnifiedMemoryError = error{
     RegionLocked,
     /// Remote node is not connected.
     NodeNotConnected,
+    /// Remote node/address has no data (never written).
+    RemoteNodeUnreachable,
     /// Remote operation timed out.
     OperationTimeout,
     /// Coherence violation detected.
@@ -223,6 +225,65 @@ pub const MemoryNode = struct {
 
 pub const NodeId = u64;
 
+/// Key for the simulated remote memory store, combining node and address.
+pub const RemoteMemoryKey = struct {
+    node_id: NodeId,
+    region_id: RegionId,
+    offset: usize,
+};
+
+/// Thread-safe in-process store that simulates remote node memory.
+/// Keyed by (node_id, region_id, offset), stores byte slices.
+/// This enables semantically correct distributed memory for single-node
+/// testing and development without requiring real RDMA or network I/O.
+pub const RemoteMemoryStore = struct {
+    /// Stored data indexed by remote memory key.
+    data: std.AutoHashMapUnmanaged(RemoteMemoryKey, []u8),
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) RemoteMemoryStore {
+        return .{
+            .data = .{},
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *RemoteMemoryStore) void {
+        var it = self.data.valueIterator();
+        while (it.next()) |val| {
+            self.allocator.free(val.*);
+        }
+        self.data.deinit(self.allocator);
+    }
+
+    /// Write data to simulated remote memory at the given key.
+    pub fn write(self: *RemoteMemoryStore, key: RemoteMemoryKey, bytes: []const u8) !void {
+        const result = self.data.getOrPut(self.allocator, key) catch return error.OutOfMemory;
+        if (result.found_existing) {
+            // Free old data if size differs, otherwise overwrite in place
+            if (result.value_ptr.*.len != bytes.len) {
+                self.allocator.free(result.value_ptr.*);
+                result.value_ptr.* = self.allocator.dupe(u8, bytes) catch return error.OutOfMemory;
+            } else {
+                @memcpy(result.value_ptr.*, bytes);
+            }
+        } else {
+            result.value_ptr.* = self.allocator.dupe(u8, bytes) catch return error.OutOfMemory;
+        }
+    }
+
+    /// Read data from simulated remote memory. Returns error if key not found.
+    pub fn read(self: *RemoteMemoryStore, key: RemoteMemoryKey, buffer: []u8) !void {
+        const stored = self.data.get(key) orelse return error.RemoteNodeUnreachable;
+        const copy_len = @min(buffer.len, stored.len);
+        @memcpy(buffer[0..copy_len], stored[0..copy_len]);
+        // Zero-fill remainder if buffer is larger than stored data
+        if (buffer.len > copy_len) {
+            @memset(buffer[copy_len..], 0);
+        }
+    }
+};
+
 /// Unified Memory Manager - main interface for distributed memory.
 pub const UnifiedMemoryManager = struct {
     allocator: std.mem.Allocator,
@@ -236,6 +297,9 @@ pub const UnifiedMemoryManager = struct {
 
     /// Connected nodes.
     nodes: std.AutoHashMapUnmanaged(NodeId, *MemoryNode),
+
+    /// Simulated remote memory store for in-process distributed memory.
+    remote_store: RemoteMemoryStore,
 
     /// Coherence protocol manager.
     coherence_manager: ?*CoherenceProtocol,
@@ -296,6 +360,7 @@ pub const UnifiedMemoryManager = struct {
             .local_regions = .{},
             .remote_regions = .{},
             .nodes = .{},
+            .remote_store = RemoteMemoryStore.init(allocator),
             .coherence_manager = null,
             .stats = .{},
             .mutex = .{},
@@ -337,6 +402,9 @@ pub const UnifiedMemoryManager = struct {
             handle.cached_pages.deinit(self.allocator);
         }
         self.remote_regions.deinit(self.allocator);
+
+        // Clean up remote memory store
+        self.remote_store.deinit();
 
         // Clean up nodes
         var node_it = self.nodes.valueIterator();
@@ -505,17 +573,19 @@ pub const UnifiedMemoryManager = struct {
             }
         }
 
-        // Network transfer not yet implemented
-        // Requirements:
-        // - Network protocol definition (RPC/message format)
-        // - Serialization/deserialization for memory read requests
-        // - Connection management to remote nodes
-        // - Authentication and encryption (if config.encrypt_transfers)
-        // - Timeout and retry logic (config.operation_timeout_ms, config.retry_count)
-        // - Server-side handler for remote read requests
-        // - RDMA support where available (if config.rdma_enabled)
-        // For now, simulate with zeros
-        @memset(buffer, 0);
+        // Read from simulated remote memory store.
+        // In a production deployment this would perform a real network transfer
+        // (RPC, RDMA, etc.), but the in-process store provides semantically
+        // correct behavior for single-node testing and development.
+        const key = RemoteMemoryKey{
+            .node_id = node_id,
+            .region_id = region_id,
+            .offset = offset,
+        };
+        self.remote_store.read(key, buffer) catch |err| switch (err) {
+            error.RemoteNodeUnreachable => return error.RemoteNodeUnreachable,
+            else => return error.TransferFailed,
+        };
 
         self.stats.remote_reads += 1;
         self.stats.bytes_transferred_in += buffer.len;
@@ -539,13 +609,15 @@ pub const UnifiedMemoryManager = struct {
             cm.requestWrite(region_id, offset / self.config.page_size) catch return error.CoherenceViolation;
         }
 
-        // Network transfer not yet implemented
-        // Requirements: Same as readRemote() plus:
-        // - Write request serialization
-        // - Server-side handler for remote write requests
-        // - Acknowledgment/response handling
-        // - Atomic write guarantees for coherence protocol
-        // For now, only track statistics (actual transfer pending implementation)
+        // Write to simulated remote memory store.
+        // In a production deployment this would perform a real network transfer
+        // with acknowledgment handling and atomic write guarantees.
+        const key = RemoteMemoryKey{
+            .node_id = node_id,
+            .region_id = region_id,
+            .offset = offset,
+        };
+        self.remote_store.write(key, data) catch return error.TransferFailed;
 
         self.stats.remote_writes += 1;
         self.stats.bytes_transferred_out += data.len;

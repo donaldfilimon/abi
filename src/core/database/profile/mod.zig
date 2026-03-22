@@ -46,17 +46,41 @@ pub const ProfileRouter = struct {
     }
 };
 
+pub const ActionHandler = *const fn ([]const u8) []const u8;
+
 pub const ActionBus = struct {
     allocator: std.mem.Allocator,
+    handlers: std.StringHashMapUnmanaged(ActionHandler) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) ActionBus {
         return .{ .allocator = allocator };
     }
 
+    pub fn deinit(self: *ActionBus) void {
+        self.handlers.deinit(self.allocator);
+    }
+
+    /// Register a handler for a named action. Subsequent dispatch calls
+    /// matching this action name will invoke the handler.
+    pub fn register(self: *ActionBus, action: []const u8, handler: ActionHandler) !void {
+        try self.handlers.put(self.allocator, action, handler);
+    }
+
+    /// Dispatch an action by name. If a handler is registered, it is invoked
+    /// with the provided arguments and its result is returned. Otherwise,
+    /// returns a JSON acknowledgment containing the action name.
     pub fn dispatch(self: *ActionBus, tool_name: []const u8, args: []const u8) ![]const u8 {
-        _ = self;
-        _ = tool_name;
-        _ = args;
-        return "{}"; // JSON response stub
+        std.log.info("ActionBus: dispatching action=\"{s}\" args_len={d}", .{ tool_name, args.len });
+
+        if (self.handlers.get(tool_name)) |handler| {
+            return handler(args);
+        }
+
+        // No registered handler — return a JSON acknowledgment.
+        return std.fmt.allocPrint(
+            self.allocator,
+            "{{\"action\":\"{s}\",\"status\":\"accepted\",\"args_len\":{d}}}",
+            .{ tool_name, args.len },
+        );
     }
 };

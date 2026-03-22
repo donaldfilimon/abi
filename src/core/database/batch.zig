@@ -136,6 +136,9 @@ pub const ProgressInfo = struct {
     batch_success_rate: f64,
 };
 
+/// Storage callback type for persisting individual records.
+pub const StoreFn = *const fn (id: u64, vector: []const f32, metadata: ?[]const u8) anyerror!void;
+
 /// Batch processor for bulk operations.
 pub const BatchProcessor = struct {
     allocator: std.mem.Allocator,
@@ -143,6 +146,7 @@ pub const BatchProcessor = struct {
     pending_records: std.ArrayListUnmanaged(BatchRecord),
     pending_size: usize,
     progress_callback: ?ProgressCallback,
+    store_fn: ?StoreFn,
     stats: ProcessorStats,
     mutex: sync.Mutex,
 
@@ -161,9 +165,22 @@ pub const BatchProcessor = struct {
             .pending_records = .empty,
             .pending_size = 0,
             .progress_callback = null,
+            .store_fn = null,
             .stats = .{},
             .mutex = .{},
         };
+    }
+
+    /// Create a batch processor with a storage backend.
+    pub fn initWithStore(allocator: std.mem.Allocator, config: BatchConfig, store_fn: StoreFn) BatchProcessor {
+        var bp = init(allocator, config);
+        bp.store_fn = store_fn;
+        return bp;
+    }
+
+    /// Set storage callback for persisting records.
+    pub fn setStoreFn(self: *BatchProcessor, store_fn: StoreFn) void {
+        self.store_fn = store_fn;
     }
 
     pub fn deinit(self: *BatchProcessor) void {
@@ -213,8 +230,22 @@ pub const BatchProcessor = struct {
     fn flushInternal(self: *BatchProcessor) !void {
         if (self.pending_records.items.len == 0) return;
 
-        // Process batch (placeholder - actual storage integration would go here)
-        self.stats.total_inserted += self.pending_records.items.len;
+        // Persist each record via the storage backend
+        var batch_successful: usize = 0;
+        if (self.store_fn) |store| {
+            for (self.pending_records.items) |record| {
+                store(record.id, record.vector, record.metadata) catch |err| {
+                    std.log.debug("batch flush: store error for id={d}: {s}", .{ record.id, @errorName(err) });
+                    self.stats.total_errors += 1;
+                    continue;
+                };
+                batch_successful += 1;
+            }
+        } else {
+            // No storage backend configured — count all as successful
+            batch_successful = self.pending_records.items.len;
+        }
+        self.stats.total_inserted += batch_successful;
         self.stats.batches_processed += 1;
 
         // Report progress
@@ -264,7 +295,6 @@ pub const BatchProcessor = struct {
 
         var successful: usize = 0;
         var failed: usize = 0;
-        _ = &failed; // Reserved for future error handling
         var skipped: usize = 0;
         var failed_ids = std.ArrayListUnmanaged(u64).empty;
         var errors = std.ArrayListUnmanaged(BatchError).empty;
@@ -299,7 +329,25 @@ pub const BatchProcessor = struct {
                     }
                 }
 
-                // Insert (placeholder - actual storage would go here)
+                // Persist via storage backend
+                if (self.store_fn) |store| {
+                    store(record.id, record.vector, record.metadata) catch |err| {
+                        std.log.debug("batch insert: store error for id={d}: {s}", .{ record.id, @errorName(err) });
+                        if (self.config.continue_on_error) {
+                            try failed_ids.append(self.allocator, record.id);
+                            try errors.append(self.allocator, .{
+                                .id = record.id,
+                                .error_code = .storage_error,
+                                .message = @errorName(err),
+                                .retry_count = 0,
+                            });
+                            failed += 1;
+                            continue;
+                        } else {
+                            return error.StorageFailed;
+                        }
+                    };
+                }
                 successful += 1;
             }
 
@@ -364,7 +412,6 @@ pub const BatchProcessor = struct {
     fn insertBatchSequentialNoTiming(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
         var successful: usize = 0;
         var failed: usize = 0;
-        _ = &failed;
         var skipped: usize = 0;
         var failed_ids = std.ArrayListUnmanaged(u64).empty;
         var errors = std.ArrayListUnmanaged(BatchError).empty;
@@ -381,6 +428,25 @@ pub const BatchProcessor = struct {
                         return error.ValidationFailed;
                     }
                 }
+            }
+            // Persist via storage backend
+            if (self.store_fn) |store| {
+                store(record.id, record.vector, record.metadata) catch |err| {
+                    std.log.debug("batch insert: store error for id={d}: {s}", .{ record.id, @errorName(err) });
+                    if (self.config.continue_on_error) {
+                        try failed_ids.append(self.allocator, record.id);
+                        try errors.append(self.allocator, .{
+                            .id = record.id,
+                            .error_code = .storage_error,
+                            .message = @errorName(err),
+                            .retry_count = 0,
+                        });
+                        failed += 1;
+                        continue;
+                    } else {
+                        return error.StorageFailed;
+                    }
+                };
             }
             successful += 1;
         }
@@ -421,6 +487,7 @@ pub const BatchProcessor = struct {
             skipped: std.atomic.Value(usize),
             failed: std.atomic.Value(usize),
             processor: *BatchProcessor,
+            store_fn: ?StoreFn,
         };
 
         var worker_state = WorkerState{
@@ -429,6 +496,7 @@ pub const BatchProcessor = struct {
             .skipped = std.atomic.Value(usize).init(0),
             .failed = std.atomic.Value(usize).init(0),
             .processor = self,
+            .store_fn = self.store_fn,
         };
 
         // Create worker threads
@@ -453,7 +521,13 @@ pub const BatchProcessor = struct {
                         }
                     }
 
-                    // Process record (placeholder - actual storage would go here)
+                    // Persist via storage backend
+                    if (state.store_fn) |store| {
+                        store(record.id, record.vector, record.metadata) catch {
+                            _ = state.failed.fetchAdd(1, .monotonic);
+                            continue;
+                        };
+                    }
                     _ = state.successful.fetchAdd(1, .monotonic);
                 }
             }
@@ -678,6 +752,7 @@ pub const BatchOperationBuilder = struct {
     allocator: std.mem.Allocator,
     records: std.ArrayListUnmanaged(BatchRecord),
     config: BatchConfig,
+    store_fn: ?StoreFn = null,
 
     pub fn init(allocator: std.mem.Allocator) BatchOperationBuilder {
         return .{
@@ -710,6 +785,12 @@ pub const BatchOperationBuilder = struct {
         return self;
     }
 
+    /// Set storage backend for persisting records.
+    pub fn withStore(self: *BatchOperationBuilder, store_fn: StoreFn) *BatchOperationBuilder {
+        self.store_fn = store_fn;
+        return self;
+    }
+
     /// Add a record.
     pub fn addRecord(self: *BatchOperationBuilder, id: u64, vector: []const f32) !*BatchOperationBuilder {
         try self.records.append(self.allocator, .{
@@ -736,7 +817,10 @@ pub const BatchOperationBuilder = struct {
 
     /// Execute the batch insert.
     pub fn execute(self: *BatchOperationBuilder) !BatchResult {
-        var processor = BatchProcessor.init(self.allocator, self.config);
+        var processor = if (self.store_fn) |sf|
+            BatchProcessor.initWithStore(self.allocator, self.config, sf)
+        else
+            BatchProcessor.init(self.allocator, self.config);
         defer processor.deinit();
         return processor.insertBatch(self.records.items);
     }

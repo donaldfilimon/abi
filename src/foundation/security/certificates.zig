@@ -165,6 +165,10 @@ pub const CertificateConfig = struct {
     min_rsa_key_size: u32 = 2048,
     /// Alert callback for expiration warnings
     expiry_alert_callback: ?*const fn (cert: *const CertificateInfo, days_remaining: i64) void = null,
+    /// Skip revocation checking. When true (default), OCSP/CRL checks are skipped
+    /// and a warning is logged. When false, certificates without a reachable OCSP
+    /// responder will get status .unknown instead of being silently assumed valid.
+    skip_revocation_check: bool = true,
 };
 
 /// Certificate manager
@@ -477,6 +481,11 @@ pub const CertificateManager = struct {
     }
 
     /// Check OCSP status
+    ///
+    /// When `skip_revocation_check` is true (default), this logs a warning and
+    /// returns `.unknown` to honestly indicate that revocation was not verified.
+    /// When false, it attempts to check revocation but returns `.unknown` if no
+    /// OCSP responder is reachable (never silently claims a certificate is valid).
     pub fn checkOcspStatus(self: *CertificateManager, cert: *const CertificateInfo) !OcspStatus {
         self.stats.ocsp_checks += 1;
 
@@ -484,9 +493,25 @@ pub const CertificateManager = struct {
             return .unknown;
         }
 
+        // Check if the certificate is clearly expired — no network needed
+        if (cert.isExpired()) {
+            return .revoked;
+        }
+
+        // When revocation checking is skipped, be explicit about it
+        if (self.config.skip_revocation_check) {
+            std.log.warn("revocation check skipped for certificate {s} " ++
+                "(skip_revocation_check=true); certificate status is UNKNOWN — " ++
+                "set skip_revocation_check=false and configure an OCSP responder " ++
+                "to enable revocation checking", .{cert.serial_number});
+            return .unknown;
+        }
+
         // Get OCSP responder URL
         const responder_url = self.config.ocsp_responder orelse {
-            // No responder configured, return unknown
+            // No responder configured — cannot verify revocation status
+            std.log.warn("no OCSP responder configured for certificate {s}; " ++
+                "revocation status is unknown", .{cert.serial_number});
             return .unknown;
         };
 
@@ -498,35 +523,27 @@ pub const CertificateManager = struct {
         const request = try self.buildOcspRequest(cert);
         defer self.allocator.free(request);
 
-        // OCSP (Online Certificate Status Protocol) validation not yet implemented
-        // Requirements:
-        // - HTTP client with POST support and HTTPS (use src/features/web/client.zig)
+        // OCSP (Online Certificate Status Protocol) network validation not yet implemented.
+        // Requirements for a full implementation:
+        // - HTTP client with POST support (use src/features/web/client.zig)
         // - DER/ASN.1 encoding for OCSP request (see buildOcspRequest())
         // - Request headers: Content-Type: application/ocsp-request
         // - POST binary OCSP request to responder_url
         // - Parse DER/ASN.1 OCSP response (OCSPResponse structure)
-        // - Verify OCSP response signature (requires X.509 signature verification)
+        // - Verify OCSP response signature
         // - Extract certificate status: good, revoked, or unknown
-        // - Handle errors: network failures, invalid responses, signature failures
-        // - Optional: Response caching to avoid repeated OCSP queries
         //
         // References:
         // - RFC 6960: X.509 Internet Public Key Infrastructure OCSP
-        // - Requires ASN.1/DER parsing library
 
-        // For now, check if the certificate is clearly expired
-        if (cert.isExpired()) {
-            return .revoked;
-        }
-
-        // Log that OCSP check was requested but network call not implemented
-        std.log.debug("OCSP check requested for cert {s} via {s} (network not implemented)", .{
-            cert.serial_number,
+        // Since we cannot reach the OCSP responder, return unknown — never
+        // silently claim the certificate is valid without actual verification.
+        std.log.warn("OCSP responder {s} configured but network OCSP is not implemented; " ++
+            "returning unknown status for certificate {s}", .{
             responder_url,
+            cert.serial_number,
         });
-
-        // Return good for valid certificates (WARNING: does not actually check revocation)
-        return .good;
+        return .unknown;
     }
 
     /// Build OCSP request data

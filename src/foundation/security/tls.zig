@@ -80,6 +80,9 @@ pub const TlsConnection = struct {
     allocator: std.mem.Allocator,
     is_server: bool,
     is_established: bool,
+    /// Whether an underlying transport (socket/stream) is connected.
+    /// Without a real transport, read/write will return error.NotConnected.
+    connected: bool,
     negotiated_version: ?TlsVersion,
     negotiated_cipher: ?[]const u8,
     peer_certificate: ?TlsCertificate,
@@ -98,6 +101,7 @@ pub const TlsConnection = struct {
             .allocator = allocator,
             .is_server = true,
             .is_established = false,
+            .connected = false,
             .negotiated_version = null,
             .negotiated_cipher = null,
             .peer_certificate = null,
@@ -118,6 +122,7 @@ pub const TlsConnection = struct {
             .allocator = allocator,
             .is_server = false,
             .is_established = false,
+            .connected = false,
             .negotiated_version = null,
             .negotiated_cipher = null,
             .peer_certificate = null,
@@ -322,28 +327,31 @@ pub const TlsConnection = struct {
             return error.HandshakeNotCompleted;
         }
 
-        // TLS record decryption not yet implemented - currently returns simulated data
-        // Requirements for real implementation:
-        // - Read TLS record header from transport (5 bytes):
-        //   * Content type (1 byte): application_data (23), alert (21), etc.
-        //   * Protocol version (2 bytes)
-        //   * Length (2 bytes)
+        // Without an underlying transport (socket/stream), we cannot read data.
+        // Real TLS record decryption requires:
+        // - Read TLS record header from transport (5 bytes)
         // - Read encrypted payload based on length
-        // - Decrypt using negotiated cipher suite:
-        //   * TLS 1.3 uses AEAD (AES-GCM or ChaCha20-Poly1305)
-        //   * Construct nonce from sequence number
-        //   * Additional data = record header
-        // - Verify AEAD authentication tag
-        // - Remove padding (if any)
+        // - Decrypt using negotiated cipher suite (AEAD)
+        // - Verify authentication tag
         // - Return plaintext application data
-        // - Increment sequence number
-        // - Handle record fragmentation and reassembly
         //
-        // For now, return simulated data
-        const data = "Encrypted data decrypted successfully";
-        const len = @min(buffer.len, data.len);
-        @memcpy(buffer[0..len], data[0..len]);
-        return len;
+        // When a real transport is available, delegate to it here.
+        if (!self.connected) {
+            return error.NotConnected;
+        }
+
+        // If there is buffered data from the transport, return it
+        if (self.read_buffer.items.len > 0) {
+            const len = @min(buffer.len, self.read_buffer.items.len);
+            @memcpy(buffer[0..len], self.read_buffer.items[0..len]);
+            // Remove consumed bytes from the front
+            std.mem.copyForwards(u8, self.read_buffer.items[0 .. self.read_buffer.items.len - len], self.read_buffer.items[len..]);
+            self.read_buffer.items.len -= len;
+            return len;
+        }
+
+        // No data available from transport
+        return 0;
     }
 
     pub fn write(self: *TlsConnection, data: []const u8) !usize {
@@ -351,26 +359,19 @@ pub const TlsConnection = struct {
             return error.HandshakeNotCompleted;
         }
 
-        // TLS record encryption not yet implemented - currently simulates write
-        // Requirements for real implementation:
+        // Without an underlying transport (socket/stream), we cannot send data.
+        // Real TLS record encryption requires:
         // - Fragment data if larger than max record size (16KB)
-        // - For each fragment:
-        //   * Construct TLS record header:
-        //     - Content type = application_data (23)
-        //     - Protocol version = TLS 1.2 (for compatibility)
-        //     - Length = encrypted payload length
-        //   * Encrypt plaintext using negotiated cipher suite:
-        //     - TLS 1.3 uses AEAD (AES-GCM or ChaCha20-Poly1305)
-        //     - Nonce from sequence number
-        //     - Additional data = record header
-        //     - Compute authentication tag
-        //   * Construct final record: header || ciphertext || tag
-        //   * Write to underlying transport
-        //   * Increment sequence number
-        // - Handle partial writes and buffering
-        // - Return total bytes written
+        // - Encrypt each fragment using negotiated cipher suite (AEAD)
+        // - Construct TLS record: header || ciphertext || tag
+        // - Write to underlying transport
         //
-        // For now, simulate successful write
+        // When a real transport is available, delegate to it here.
+        if (!self.connected) {
+            return error.NotConnected;
+        }
+
+        // Buffer data for the underlying transport
         try self.write_buffer.appendSlice(self.allocator, data);
         return data.len;
     }
@@ -379,6 +380,7 @@ pub const TlsConnection = struct {
         // Send close_notify alert
         self.is_established = false;
         self.handshake_completed = false;
+        self.connected = false;
     }
 
     pub fn getNegotiatedProtocol(self: *TlsConnection) ?[]const u8 {
@@ -436,6 +438,7 @@ pub const TlsError = error{
     HandshakeFailed,
     HandshakeAlreadyCompleted,
     HandshakeNotCompleted,
+    NotConnected,
     CertificateExpired,
     CertificateNotYetValid,
     CertificateRevoked,
@@ -565,21 +568,19 @@ test "tls handshake" {
     try std.testing.expectEqualStrings("TLS_AES_256_GCM_SHA384", conn.negotiated_cipher.?);
 }
 
-test "tls read write after handshake" {
+test "tls read write without transport returns NotConnected" {
     const allocator = std.testing.allocator;
     var conn = TlsConnection.initClient(allocator);
     defer conn.deinit();
 
     try conn.startHandshake();
 
-    // Test write
-    const written = try conn.write("Hello, TLS!");
-    try std.testing.expectEqual(@as(usize, 11), written);
+    // Without an underlying transport, write should return NotConnected
+    try std.testing.expectError(error.NotConnected, conn.write("Hello, TLS!"));
 
-    // Test read (returns simulated decrypted data)
+    // Without an underlying transport, read should return NotConnected
     var buffer: [256]u8 = undefined;
-    const read_len = try conn.read(&buffer);
-    try std.testing.expect(read_len > 0);
+    try std.testing.expectError(error.NotConnected, conn.read(&buffer));
 }
 
 test "tls session info" {

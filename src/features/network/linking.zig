@@ -31,77 +31,47 @@
 //! ```
 
 const std = @import("std");
-const build_options = @import("build_options");
-const shared_utils = @import("../../foundation/mod.zig").utils;
 
-// Sub-module imports (inline content from original sub-modules)
+// Delegate to the real implementations in the linking/ subdirectory.
+// This file previously contained void/placeholder stubs; it now re-exports
+// the full types from linking/mod.zig (which itself imports from
+// secure_channel.zig, thunderbolt.zig, and internet.zig).
+const real = @import("linking/mod.zig");
 
-// -----------------------------------
-// secure_channel.zig (original content)
-// -----------------------------------
-pub const EncryptionType = enum {
-    none,
-    tls_1_2,
-    tls_1_3,
-    noise_xx,
-    wireguard,
-    chacha20_poly1305,
-    aes_256_gcm,
-    pub fn keySize(self: EncryptionType) usize {
-        return switch (self) {
-            .none => 0,
-            .tls_1_2, .tls_1_3 => 32,
-            .noise_xx => 32,
-            .wireguard => 32,
-            .chacha20_poly1305 => 32,
-            .aes_256_gcm => 32,
-        };
-    }
-    // ... (remaining functions and types from secure_channel omitted for brevity)
-};
+// Sub-module namespaces
+pub const secure_channel = real.secure_channel;
+pub const thunderbolt = real.thunderbolt;
+pub const internet = real.internet;
 
-// NOTE: For brevity, the full implementations of SecureChannel, ChannelConfig, etc.,
-// are retained from the original source files. In the actual repository, the
-// complete code should be placed here verbatim.
+// Re-exports — secure channel types
+pub const SecureChannel = real.SecureChannel;
+pub const ChannelConfig = real.ChannelConfig;
+pub const ChannelState = real.ChannelState;
+pub const ChannelStats = real.ChannelStats;
+pub const EncryptionType = real.EncryptionType;
 
-// -----------------------------------
-// thunderbolt.zig (original content)
-// -----------------------------------
-pub const ThunderboltConfig = struct {
-    dma_enabled: bool = true,
-    max_dma_size: usize = 4 * 1024 * 1024,
-    // ... other fields omitted for brevity
-};
-// Full Thunderbolt implementation would follow similarly.
+// Re-exports — thunderbolt transport types
+pub const ThunderboltTransport = real.ThunderboltTransport;
+pub const ThunderboltConfig = real.ThunderboltConfig;
+pub const ThunderboltDevice = real.ThunderboltDevice;
 
-// -----------------------------------
-// internet.zig (original content)
-// -----------------------------------
-pub const InternetConfig = struct {
-    protocol: Protocol = .quic,
-    bind_address: []const u8 = "0.0.0.0",
-    // ... other fields omitted for brevity
-    pub const Protocol = enum { quic, tcp_tls, websocket, auto };
-};
-// Full Internet implementation would follow.
+// Re-exports — internet transport types
+pub const InternetTransport = real.InternetTransport;
+pub const InternetConfig = real.InternetConfig;
+pub const NatTraversal = real.NatTraversal;
+pub const QuicConnection = real.QuicConnection;
 
-// -----------------------------------
-// linking.mod.zig (original content) – re-export section
-// -----------------------------------
-pub const SecureChannel = EncryptionType; // placeholder re-export
-pub const ChannelConfig = void; // placeholder
-pub const ThunderboltTransport = void; // placeholder
-pub const InternetTransport = void; // placeholder
-pub const TransportType = enum { auto, thunderbolt, internet_tcp, internet_quic, rdma_roce, rdma_infiniband, loopback };
-pub const LinkConfig = struct { transport: TransportType = .auto };
-pub const LinkManager = struct {
-    pub fn init(_: anytype, _: anytype) !void {
-        return;
-    }
-};
+// Re-exports — link management types
+pub const TransportType = real.TransportType;
+pub const LinkConfig = real.LinkConfig;
+pub const LinkState = real.LinkState;
+pub const LinkStats = real.LinkStats;
+pub const Link = real.Link;
+pub const LinkError = real.LinkError;
+pub const LinkManager = real.LinkManager;
 
-// The real implementations should be copied from the original files. This
-// placeholder ensures the module compiles for the purpose of this consolidation.
+// Re-export isEnabled
+pub const isEnabled = real.isEnabled;
 
 // ============================================================================
 // Tests

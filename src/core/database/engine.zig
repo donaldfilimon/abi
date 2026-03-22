@@ -99,6 +99,7 @@ pub const Engine = struct {
 
     /// Subconscious "Dream State": Prunes memories (vectors) that have not been accessed frequently.
     /// This is typically called by a background thread when the agent enters an idle state.
+    /// After pruning, the HNSW index is rebuilt to stay consistent with the remaining vectors.
     pub fn dreamStatePrune(self: *Engine, score_threshold: f32) void {
         self.db_lock.lock();
         defer self.db_lock.unlock();
@@ -111,16 +112,11 @@ pub const Engine = struct {
         var i: usize = 0;
         while (i < self.vectors_array.items.len) {
             if (self.vectors_array.items[i].access_score < score_threshold) {
-                // Prune logic
                 const item = self.vectors_array.orderedRemove(i);
                 self.allocator.free(item.id);
                 self.allocator.free(item.vec);
                 self.deinitOwnedMetadata(item.metadata);
                 pruned_count += 1;
-                // Since orderedRemove shifts elements left, we don't increment i.
-                // However, we must note that HNSW indexes or dedup maps might now be stale.
-                // In a full implementation, we would mark these indices as tombstoned
-                // or reconstruct the HNSW graph here during deep sleep.
             } else {
                 // decay score slowly as part of dream processing
                 self.vectors_array.items[i].access_score *= 0.9;
@@ -129,7 +125,41 @@ pub const Engine = struct {
             }
         }
 
+        // Rebuild HNSW index to match the pruned vectors_array.
+        if (pruned_count > 0) {
+            self.rebuildHnswIndex();
+        }
+
         std.log.info("Dream State Complete: Kept {d} memories, Pruned {d} memories.", .{ kept_count, pruned_count });
+    }
+
+    /// Rebuild the HNSW compatibility index from the current vectors_array.
+    /// Call this after any operation that removes entries from vectors_array
+    /// to keep the HNSW vectors list in sync.
+    pub fn rebuildHnswIndex(self: *Engine) void {
+        // Clear existing HNSW compatibility vectors
+        for (self.hnsw_index.vectors.items) |v| self.allocator.free(v);
+        self.hnsw_index.vectors.clearRetainingCapacity();
+
+        // Re-insert all remaining vectors
+        for (self.vectors_array.items) |item| {
+            const cloned = self.allocator.dupe(f32, item.vec) catch {
+                std.log.err("HNSW rebuild: allocation failed, index may be incomplete", .{});
+                return;
+            };
+            self.hnsw_index.vectors.append(self.allocator, cloned) catch {
+                self.allocator.free(cloned);
+                std.log.err("HNSW rebuild: append failed, index may be incomplete", .{});
+                return;
+            };
+        }
+
+        // Reset entry point if the index is now empty
+        if (self.vectors_array.items.len == 0) {
+            self.hnsw_index.entry_point = null;
+        }
+
+        std.log.info("HNSW index rebuilt with {d} vectors", .{self.vectors_array.items.len});
     }
 
     pub fn index(

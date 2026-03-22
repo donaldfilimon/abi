@@ -108,41 +108,88 @@ pub const Engine = struct {
         }
         defer self.kv_cache.free(request.id);
 
-        const num_tokens = @min(request.max_tokens, 64);
+        const num_tokens = request.max_tokens;
         const tokens = try self.allocator.alloc(u32, num_tokens);
         const vocab_n = @min(self.config.vocab_size, 256);
         var local_sampler = self.sampler;
         local_sampler.params.temperature = request.temperature;
         local_sampler.params.top_p = request.top_p;
         local_sampler.params.top_k = request.top_k;
-        for (tokens) |*t| {
+
+        // Seed logits from the prompt content so output depends on input.
+        // Hash each prompt byte to create a per-position context seed.
+        var prompt_hash: u64 = 0x517cc1b727220a95; // FNV offset basis
+        for (request.prompt) |byte| {
+            prompt_hash ^= @as(u64, byte);
+            prompt_hash *%= 0x100000001b3; // FNV prime
+        }
+
+        var finish_reason: FinishReason = .length;
+        var actual_count: u32 = 0;
+
+        for (tokens, 0..) |*t, step_i| {
             var logits_buf: [256]f32 = undefined;
             const logits_slice = logits_buf[0..vocab_n];
+
+            // Build logits seeded by prompt hash and step position.
+            // This produces input-dependent, non-trivial distributions.
+            var step_seed = prompt_hash +% @as(u64, @intCast(step_i)) *% 0x9e3779b97f4a7c15;
             for (logits_slice, 0..) |*l, j| {
-                l.* = @as(f32, @floatFromInt(j)) * 0.01;
+                // Mix step seed with token index for varied distribution
+                const mixed = step_seed ^ (@as(u64, @intCast(j)) *% 0x517cc1b727220a95);
+                // Convert to float in [-2, 2] range for reasonable logit values
+                const bits: u32 = @truncate(mixed >> 16);
+                l.* = (@as(f32, @floatFromInt(bits % 1024)) / 256.0) - 2.0;
+                step_seed = step_seed *% 0x100000001b3 +% @as(u64, @intCast(j));
             }
+
+            // Boost EOS-like tokens (id 0, 1, 2) slightly in later steps
+            // to allow natural stopping
+            if (step_i > num_tokens / 2) {
+                if (vocab_n > 2) {
+                    logits_slice[1] += @as(f32, @floatFromInt(step_i)) * 0.02;
+                    logits_slice[2] += @as(f32, @floatFromInt(step_i)) * 0.015;
+                }
+            }
+
             t.* = local_sampler.sample(logits_slice);
+            actual_count += 1;
+
+            // Treat token ids 0-2 as stop tokens (EOS) after generating
+            // at least a few tokens
+            if (t.* <= 2 and step_i >= 4) {
+                finish_reason = .stop;
+                actual_count = @intCast(step_i + 1);
+                break;
+            }
+        }
+
+        // Build text output from generated tokens using a simple ASCII mapping
+        const text_buf = try self.allocator.alloc(u8, actual_count);
+        for (tokens[0..actual_count], 0..) |tok, i| {
+            // Map token id to printable ASCII range [32..126]
+            text_buf[i] = @intCast(32 + (tok % 95));
         }
 
         const end = time_mod.timestampMs();
         const latency: f32 = @floatFromInt(end - start);
         const tps: f32 = if (latency > 0)
-            @as(f32, @floatFromInt(num_tokens)) / (latency / 1000.0)
+            @as(f32, @floatFromInt(actual_count)) / (latency / 1000.0)
         else
             0;
 
         self.total_requests += 1;
-        self.total_tokens += num_tokens;
+        self.total_tokens += actual_count;
 
         return Result{
             .id = request.id,
-            .text = "[generated response placeholder]",
+            .text = text_buf,
             .tokens = tokens,
-            .finish_reason = .stop,
+            .finish_reason = finish_reason,
             .prompt_tokens = @intCast(@min(request.prompt.len, std.math.maxInt(u32))),
-            .completion_tokens = @intCast(num_tokens),
+            .completion_tokens = actual_count,
             .latency_ms = latency,
-            .ttft_ms = latency / @as(f32, @floatFromInt(@max(num_tokens, 1))),
+            .ttft_ms = latency / @as(f32, @floatFromInt(@max(actual_count, 1))),
             .tokens_per_second = tps,
         };
     }
@@ -209,9 +256,10 @@ test "engine generate" {
         .top_k = 40,
     });
     defer allocator.free(result.tokens);
+    defer allocator.free(result.text);
 
-    try std.testing.expectEqual(FinishReason.stop, result.finish_reason);
     try std.testing.expect(result.completion_tokens > 0);
+    try std.testing.expect(result.text.len > 0);
     try std.testing.expectEqual(@as(u64, 1), engine.getStats().total_requests);
 }
 

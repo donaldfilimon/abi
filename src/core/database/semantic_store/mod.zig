@@ -118,6 +118,68 @@ pub fn searchStore(
     return handle.db.search(allocator, query, top_k);
 }
 
+/// Search with weighted influence scoring that populates InfluenceTrace metadata.
+/// Uses the semantic weighting formula: similarity*0.7 + importance*0.2 + recency*0.1.
+pub fn searchStoreWeighted(
+    handle: *StoreHandle,
+    allocator: std.mem.Allocator,
+    query: []const f32,
+    top_k: usize,
+) ![]RetrievalHit {
+    const raw_results = try handle.db.search(allocator, query, top_k * 2);
+    defer allocator.free(raw_results);
+
+    const stats = handle.db.stats();
+    const total_count = stats.count;
+
+    var hits = std.ArrayList(RetrievalHit).init(allocator);
+    errdefer hits.deinit();
+
+    for (raw_results, 0..) |result, rank| {
+        // Derive importance from the raw similarity score (higher score = more important).
+        const importance: f32 = @min(1.0, @max(0.0, result.score));
+
+        // Derive recency from insertion order: more recent vectors have higher IDs.
+        // Normalize to [0,1] based on position relative to total count.
+        const recency: f32 = if (total_count > 0)
+            @as(f32, @floatFromInt(result.id)) / @as(f32, @floatFromInt(@max(total_count, 1)))
+        else
+            1.0;
+
+        const weights = WeightInputs{
+            .similarity = result.score,
+            .importance = importance,
+            .recency = @min(1.0, recency),
+        };
+
+        const trace = InfluenceTrace{
+            .source = .semantic_store,
+            .block_id = result.id,
+            .weight_inputs = weights,
+        };
+
+        try hits.append(.{
+            .block_id = result.id,
+            .score = weights.combinedScore(),
+            .similarity = result.score,
+            .importance = importance,
+            .trace = trace,
+        });
+
+        if (hits.items.len >= top_k) break;
+        _ = rank;
+    }
+
+    // Sort by combined score descending
+    std.sort.pdq(RetrievalHit, hits.items, {}, struct {
+        fn lessThan(_: void, a: RetrievalHit, b: RetrievalHit) bool {
+            return a.score > b.score;
+        }
+    }.lessThan);
+
+    return hits.toOwnedSlice();
+}
+
 pub fn insertBatch(handle: *StoreHandle, items: []const BatchItem) !void {
     try handle.db.insertBatch(items);
 }
