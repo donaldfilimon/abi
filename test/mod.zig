@@ -8,6 +8,8 @@ const build_options = @import("build_options");
 
 // Integration test modules
 const persona_pipeline = @import("integration/persona_pipeline_test.zig");
+const database_tests = @import("integration/database_test.zig");
+const inference_tests = @import("integration/inference_test.zig");
 
 test {
     std.testing.refAllDecls(@This());

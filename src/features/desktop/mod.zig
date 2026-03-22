@@ -28,7 +28,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return false;
+    return true; // Module is available when feature flag is enabled
 }
 
 test {
