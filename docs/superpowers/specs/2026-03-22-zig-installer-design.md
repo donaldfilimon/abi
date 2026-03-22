@@ -1,38 +1,34 @@
 # Zig Installer for ABI — Design Spec
 
 **Date:** 2026-03-22
-**Status:** Draft
+**Status:** Draft (rev 2 — post-review fixes)
 **Problem:** ABI pins a Zig 0.16-dev nightly, but stock prebuilt Zig fails to link on Darwin 25+ (macOS 26.4) due to a `.tbd` stub parsing bug in Zig's embedded LLD. The project has scattered workarounds (`use_zvm_master.sh`, `emergency_bootstrap`, manual cache population) but no unified solution.
 
 ## Goals
 
 1. Single command to install the correct pinned Zig for any supported platform
 2. Automatically detect and work around the Darwin 25+ LLD bug
-3. Support both a local patch-and-rebuild path and an upstream-fix tracking path
-4. Replace fragmented toolchain scripts with one modular Zig tool
+3. Support an upstream-fix tracking path as the primary Darwin strategy, with a speculative local patch-and-rebuild path as a secondary option
+4. Replace fragmented toolchain scripts with one cohesive tool
 5. Preserve the existing `$HOME/.cache/abi-host-zig/<version>/` cache convention
 
 ## Non-Goals
 
 - Hosting pre-built patched binaries (deferred to a future iteration)
 - Replacing CI's `mlugg/setup-zig@v1` (Linux CI is unaffected)
-- Supporting platforms not already in `build/link.zig`
+- Platforms beyond the installer support table (illumos, Haiku, Android, NetBSD, OpenBSD, DragonFly are supported by `build/link.zig` for cross-compilation but not as installer host platforms)
 
 ## Architecture
 
-### Two-Stage Bootstrap
+### Platform-Adaptive Bootstrap
 
-**Stage 1 — Shell shim** (`install.sh` / `install.ps1`):
-A minimal shell script (~40 lines) that requires no Zig. It:
-1. Reads `.zigversion` from the repo root
-2. Checks if the target version is already cached (early exit)
-3. Detects OS + arch
-4. Downloads stock Zig from `ziglang.org/builds` to a temp directory
-5. Uses that stock Zig to compile and run the real installer
-6. Prints `PATH` export instructions
+The installer uses different strategies depending on whether stock Zig can link binaries on the host platform.
 
-**Stage 2 — Zig installer** (`tools/zig-install/`):
-A modular Zig package compiled by the stock Zig from stage 1. Handles all platform-specific logic.
+**Unaffected platforms (Linux, Windows, FreeBSD, macOS < Darwin 25):**
+Two-stage bootstrap — a shell shim downloads stock Zig, then compiles and runs the Zig installer package for cache management and status commands.
+
+**Darwin 25+ (LLD-affected):**
+The shell shim handles the entire Darwin path directly in bash, because stock Zig cannot link any binary on the affected platform — including the installer itself. This avoids the chicken-and-egg problem. The Zig installer modules (`platform.zig`, `cache.zig`, etc.) are only compiled and used on platforms where stock Zig works.
 
 ### Directory Structure
 
@@ -45,10 +41,11 @@ tools/zig-install/
 ├── patcher.zig          # LLD patch application + zig-bootstrap orchestration
 ├── upstream.zig         # Query ziglang.org/builds for newer nightlies
 ├── patches/
-│   └── lld-darwin25-tbd.patch   # LLD .tbd stub parsing fix
+│   └── lld-darwin25-tbd.patch   # LLD .tbd stub parsing fix (speculative)
 └── shim/
-    ├── install.sh       # Unix bootstrap shim (bash)
-    └── install.ps1      # Windows bootstrap shim (PowerShell)
+    ├── install.sh       # Unix bootstrap shim (bash) — handles Darwin path natively
+    ├── install.ps1      # Windows bootstrap shim (PowerShell)
+    └── darwin_fix.sh    # Darwin-specific logic sourced by install.sh
 ```
 
 ## CLI Interface
@@ -57,13 +54,14 @@ tools/zig-install/
 # Primary usage — install pinned Zig for this repo:
 ./tools/zig-install/shim/install.sh
 
-# Once bootstrapped, explicit commands via the Zig installer:
-zig build run -- install                    # Install pinned version (default)
-zig build run -- install --force            # Re-install even if cached
-zig build run -- install --use-upstream-fix # Try newer nightly with Darwin fix
-zig build run -- status                     # Show toolchain state
-zig build run -- clean                      # Remove old cached versions
-zig build run -- clean --all                # Remove all cached versions
+# With flags:
+./tools/zig-install/shim/install.sh --force              # Re-install even if cached
+./tools/zig-install/shim/install.sh --use-upstream-fix    # Try newer nightly with Darwin fix
+
+# On unaffected platforms, once Zig is installed, the Zig-native CLI is also available:
+cd tools/zig-install && zig build run -- status           # Show toolchain state
+cd tools/zig-install && zig build run -- clean             # Remove old cached versions
+cd tools/zig-install && zig build run -- clean --all       # Remove all cached versions
 ```
 
 ## Install Flow
@@ -79,28 +77,43 @@ Check cache ($HOME/.cache/abi-host-zig/<version>/bin/zig)
     ▼
 Detect platform (os + arch + kernel version)
     │
-    ├── NOT affected by LLD bug ──► Download stock Zig ──► Place in cache ──► Done
+    ├── NOT affected by LLD bug ──► Download stock Zig ──► SHA256 verify
+    │                                    │
+    │                                    ▼
+    │                              Place in cache ──► Done
     │
-    ▼ (Darwin 25+)
+    ▼ (Darwin 25+, handled entirely in bash)
     │
-    ├── --use-upstream-fix? ──► Query ziglang.org/builds ──► Download newer nightly
-    │                              │                              │
-    │                              │                         Run smoke test
-    │                              │                              │
-    │                              │                    ┌── Pass ──► Install ──► Done
-    │                              │                    └── Fail ──► Warn, fall through
+    ├── --use-upstream-fix? ──► Query ziglang.org/builds/index.json
+    │                              │
+    │                              ▼
+    │                         Download newer nightly (same minor version)
+    │                              │
+    │                         Run smoke test (compile + link trivial .zig)
+    │                              │
+    │                    ┌── Pass ──► Install to cache ──► Done
+    │                    └── Fail ──► Warn, fall through to patch path
+    │
+    ▼ (speculative patch path — requires validated patch)
+    │
+    ├── Patch file exists and prerequisites met?
+    │   │
+    │   ├── No ──► Error: "No validated LLD patch available.
+    │   │          Use --use-upstream-fix or wait for upstream Zig fix."
+    │   │
+    │   ▼ Yes
     │
     ▼
 Validate prerequisites (cmake, llvm@21, zstd)
     │
     ▼
-Clone zig-bootstrap (shallow, matching LLVM tag)
+Clone zig-bootstrap (shallow, depth=1)
     │
     ▼
-Apply patches/lld-darwin25-tbd.patch
+Apply patches/lld-darwin25-tbd.patch via git apply
     │
     ▼
-Run bootstrap build (aarch64-macos-none)
+Run zig-bootstrap's ./build script (${ARCH}-macos-none native)
     │
     ▼
 Run smoke test (compile + link trivial program)
@@ -126,7 +139,7 @@ https://ziglang.org/builds/zig-{os}-{arch}-{version}.zip      (Windows)
 
 Validates downloads via SHA256 hash from `ziglang.org/builds/index.json`.
 
-Supported platforms (matching `build/link.zig`):
+Supported installer host platforms:
 
 | OS       | Arch              | Stock Download | LLD Bug Possible |
 |----------|-------------------|----------------|-------------------|
@@ -134,6 +147,8 @@ Supported platforms (matching `build/link.zig`):
 | macos    | aarch64, x86_64   | Yes            | Yes (Darwin 25+)  |
 | windows  | x86_64            | Yes            | No                |
 | freebsd  | x86_64            | Yes            | No                |
+
+Note: `build/link.zig` supports additional platforms (illumos, Haiku, Android, BSD variants) for cross-compilation targets, but these are not installer host platforms.
 
 ### `cache.zig` — Cache Management
 
@@ -152,11 +167,19 @@ $HOME/.cache/abi-host-zig/
   "source": "stock|patched|upstream-fix",
   "version": "0.16.0-dev.2962+08416b44f",
   "installed_at": "2026-03-22T10:30:00Z",
-  "sha256": "abc123...",
-  "upstream_version": null,
-  "patch_applied": null
+  "sha256": "abc123def456...",
+  "upstream_version": "0.16.0-dev.3010+...",
+  "patch_applied": "lld-darwin25-tbd.patch"
 }
 ```
+
+Field types:
+- `source`: string enum — `"stock"`, `"patched"`, or `"upstream-fix"`
+- `version`: string — the `.zigversion` pin this was installed for
+- `installed_at`: string — ISO 8601 timestamp
+- `sha256`: string — hex SHA256 of the downloaded/built `zig` binary
+- `upstream_version`: string or null — if `source` is `"upstream-fix"`, the actual nightly version installed
+- `patch_applied`: string or null — if `source` is `"patched"`, the patch filename used
 
 The `source` field is critical for the hybrid model — when binary hosting is added later, the installer can check `.meta` to decide whether to replace a locally-patched build with an official pre-built one.
 
@@ -164,32 +187,28 @@ The `source` field is critical for the hybrid model — when binary hosting is a
 - Default: removes all versions except the currently pinned one
 - `--all`: removes the entire `abi-host-zig/` directory
 
-### `patcher.zig` — LLD Patch & Bootstrap
+### `patcher.zig` — LLD Patch & Bootstrap (Speculative)
 
-Responsibilities:
+**Status:** This module is speculative. The LLD patch does not yet exist. Per the research in `docs/ZIG_MACOS_LINKER_RESEARCH.md`, building Zig from source alone does not fix the Darwin 25+ issue because stage 3 uses the bootstrap's embedded LLD. The patch must target LLD's Mach-O `.tbd` stub parser *before* the bootstrap builds the final Zig binary. Until a validated patch exists, `--use-upstream-fix` is the primary Darwin strategy.
+
+**If/when a patch is developed**, this module's responsibilities are:
 1. Validate build prerequisites are installed
-2. Clone `zig-bootstrap` (shallow, depth=1, matching LLVM tag for the pinned version)
+2. Clone `zig-bootstrap` (shallow, depth=1)
 3. Apply `patches/lld-darwin25-tbd.patch` via `git apply`
-4. Run the bootstrap build: `./build aarch64-macos-none native`
+4. Run `./build ${ARCH}-macos-none native` (zig-bootstrap's own build script — not cmake directly; the `./build` script invokes cmake internally with the correct flags)
 5. Run a smoke test on the resulting binary
 6. Install to cache on success
 
 **Prerequisite validation** (Darwin):
-- `cmake` — required for zig-bootstrap
+- `cmake` — required by zig-bootstrap internally
 - `llvm@21` — Zig 0.16-dev.2962 requires LLVM 21.x (Homebrew default is LLVM 22)
 - `zstd` — required for LLVM/LLD linking
+- ~10 GB free disk space
 
 On missing prerequisites, prints:
 ```
 Missing build prerequisites for Darwin patched build:
   brew install cmake llvm@21 zstd
-```
-
-**Build environment:**
-```bash
-cmake -B build \
-  -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@21;/opt/homebrew/opt/zstd" \
-  ...
 ```
 
 **Smoke test:** Compiles and links a trivial Zig program targeting the native host:
@@ -200,34 +219,43 @@ If this links successfully, the LLD fix is working. If it fails with the charact
 
 **Build log preservation:** On failure, the full build log is saved to `$HOME/.cache/abi-host-zig/build.log` and its path is printed.
 
+**Interrupt handling:** The build runs in a temp directory. Only on success is the result copied to the cache. Ctrl-C during the build leaves no partial state in the cache — the trap handler removes the temp directory.
+
 ### `upstream.zig` — Upstream Fix Tracker
 
-Activated by `--use-upstream-fix`. Responsibilities:
+Activated by `--use-upstream-fix`. This is the **primary Darwin 25+ strategy**.
+
+Responsibilities:
 1. Fetch `ziglang.org/builds/index.json`
-2. Find the latest nightly newer than the pinned version
+2. Find the latest 0.16.x nightly newer than the pinned version (same minor version to limit API breakage risk)
 3. Download it for the current platform
-4. Run the smoke test (same as patcher)
+4. Run the smoke test (same as patcher — compile + link a trivial program)
 5. If the smoke test passes, install with `source: "upstream-fix"` in `.meta`
 6. Print a warning: version differs from `.zigversion`, tests may behave differently
 
-If the smoke test fails, warn that the upstream hasn't fixed the issue yet and suggest using the patch path instead.
+Version constraint: only considers nightlies matching `0.16.0-dev.*` to avoid major API breakage from a hypothetical 0.17.x release.
+
+If the smoke test fails, warn that the upstream hasn't fixed the issue yet and suggest waiting or checking for a validated LLD patch.
 
 ### `shim/install.sh` — Unix Bootstrap
 
-~40 lines of bash. Requirements: `curl` or `wget`, `tar`, `sha256sum` or `shasum`.
+Requirements: `bash`, `curl` or `wget`, `tar`, `sha256sum` or `shasum`.
 
+The shim has two code paths:
+
+**Path A — Unaffected platforms (~50 lines):**
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 VERSION="$(cat "$REPO_ROOT/.zigversion" | tr -d '\n')"
 CACHE_DIR="$HOME/.cache/abi-host-zig/$VERSION"
 
 # Early exit if already installed
 if [ -x "$CACHE_DIR/bin/zig" ]; then
     CACHED_VER="$("$CACHE_DIR/bin/zig" version 2>/dev/null || echo "")"
-    if [ "$CACHED_VER" = "$VERSION" ]; then
+    if [ "$CACHED_VER" = "$VERSION" ] && [ "${1:-}" != "--force" ]; then
         echo "Zig $VERSION already installed at $CACHE_DIR/bin/zig"
         echo "export PATH=\"$CACHE_DIR/bin:\$PATH\""
         exit 0
@@ -240,20 +268,54 @@ ARCH="$(uname -m)"
 case "$ARCH" in arm64) ARCH="aarch64" ;; esac
 case "$OS" in darwin) OS="macos" ;; esac
 
+# Check if Darwin 25+ (LLD-affected)
+if [ "$OS" = "macos" ]; then
+    KERN_MAJOR="$(uname -r | cut -d. -f1)"
+    if [ "$KERN_MAJOR" -ge 25 ] 2>/dev/null; then
+        source "$(dirname "${BASH_SOURCE[0]}")/darwin_fix.sh"
+        darwin_install "$VERSION" "$CACHE_DIR" "$ARCH" "$@"
+        exit $?
+    fi
+fi
+
 # Download stock Zig to temp
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 URL="https://ziglang.org/builds/zig-${OS}-${ARCH}-${VERSION}.tar.xz"
-echo "Downloading stock Zig from $URL..."
-curl -fSL "$URL" | tar -xJ -C "$TMP" --strip-components=1
+echo "[1/3] Downloading stock Zig from $URL..."
+curl -fSL "$URL" -o "$TMP/zig.tar.xz"
 
-# Run the installer
-"$TMP/zig" build run --build-file "$REPO_ROOT/tools/zig-install/build.zig" -- install
+# Verify SHA256
+echo "[2/3] Verifying SHA256..."
+EXPECTED_HASH="$(curl -fsSL "https://ziglang.org/builds/index.json" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['${VERSION}']['${OS}-${ARCH}']['shasum'])" 2>/dev/null || echo "")"
+if [ -n "$EXPECTED_HASH" ]; then
+    ACTUAL_HASH="$(shasum -a 256 "$TMP/zig.tar.xz" | cut -d' ' -f1)"
+    if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+        echo "error: SHA256 mismatch" >&2; exit 1
+    fi
+fi
+
+tar -xJf "$TMP/zig.tar.xz" -C "$TMP" --strip-components=1
+
+# Install to cache
+echo "[3/3] Installing to $CACHE_DIR..."
+mkdir -p "$CACHE_DIR"
+cp -r "$TMP/zig" "$TMP/lib" "$CACHE_DIR/" 2>/dev/null || cp -r "$TMP"/* "$CACHE_DIR/"
+
+echo "Zig $VERSION installed."
+echo "export PATH=\"$CACHE_DIR/bin:\$PATH\""
 ```
+
+**Path B — Darwin 25+ (`darwin_fix.sh`, sourced by `install.sh`):**
+Handles upstream-fix download + smoke test, and speculative patch-and-rebuild, entirely in bash. ~100 lines covering:
+- `--use-upstream-fix`: download newer 0.16.x nightly, smoke test, install
+- Speculative patch path: validate prerequisites, clone zig-bootstrap, apply patch, build, smoke test
+- Temp directory cleanup on interrupt (trap)
 
 ### `shim/install.ps1` — Windows Bootstrap
 
-~40 lines of PowerShell. Same flow, uses `.zip` instead of `.tar.xz`, uses `Invoke-WebRequest` for download.
+~50 lines of PowerShell. Same flow as Path A (stock Zig download), using `.zip` instead of `.tar.xz` and `Invoke-WebRequest` for download. No Darwin path needed.
 
 ## Integration with Existing Tooling
 
@@ -262,16 +324,16 @@ curl -fSL "$URL" | tar -xJ -C "$TMP" --strip-components=1
 | Current Tool | Replacement |
 |---|---|
 | `tools/scripts/use_zvm_master.sh` | `install.sh` — no ZVM dependency needed |
-| `tools/scripts/emergency_bootstrap` (binary) | `patcher.zig` — source-based, maintainable |
-| Manual `$HOME/.cache/abi-host-zig/` population | `cache.zig` — automated with provenance tracking |
+| `tools/scripts/emergency_bootstrap` (binary) | `darwin_fix.sh` patch path — source-based, maintainable |
+| Manual `$HOME/.cache/abi-host-zig/` population | Automated by `install.sh` with provenance tracking |
 
 ### Preserves
 
 | Current Tool | Status |
 |---|---|
 | `tools/scripts/zig` shim | Kept — points to installer-managed binary via PATH |
-| `tools/scripts/toolchain_doctor.zig` | `status` command absorbs its diagnostics |
-| `tools/scripts/toolchain_support.zig` | Reused by `status` command initially |
+| `tools/scripts/toolchain_doctor.zig` | `status` command wraps `toolchain_support.zig`'s `inspect()` function |
+| `tools/scripts/toolchain_support.zig` | Reused — `status` calls `inspect()`, does not reimplement |
 | `.zigversion` | Unchanged — single source of truth |
 | `$HOME/.cache/abi-host-zig/<version>/` | Unchanged — installer writes here |
 | CI `mlugg/setup-zig@v1` on Ubuntu | Unchanged — Linux is unaffected |
@@ -286,10 +348,13 @@ A macOS CI runner could use `./tools/zig-install/shim/install.sh` to validate th
 |---|---|
 | Missing prerequisites (Darwin) | List missing packages with `brew install` command |
 | Network failure | Retry up to 3 times with exponential backoff |
-| Patch doesn't apply | Error with instructions to file issue or try `--use-upstream-fix` |
+| SHA256 mismatch | Hard error — do not install |
+| Patch doesn't apply | Error: "No validated LLD patch available. Use --use-upstream-fix or wait for upstream Zig fix." |
 | Bootstrap build fails | Save log to `$HOME/.cache/abi-host-zig/build.log`, print path |
-| Smoke test fails (upstream) | Warn nightly doesn't fix issue, suggest patch path |
+| Smoke test fails (upstream) | Warn nightly doesn't fix issue yet |
+| Disk space < 10 GB (Darwin build) | Warn before starting the 30-60 minute build |
 | Unsupported platform | Error with list of supported platforms |
+| Ctrl-C during build | Trap removes temp directory; cache is never left in partial state |
 
 ## Progress Output
 
@@ -308,14 +373,18 @@ Run: export PATH="$HOME/.cache/abi-host-zig/0.16.0-dev.2962+08416b44f/bin:$PATH"
 
 ## The LLD Patch
 
-The patch targets Zig's LLVM fork's LLD, specifically the Mach-O `.tbd` stub file parser. On Darwin 25+, Apple's `.tbd` stubs moved to a format or location that LLD doesn't handle correctly, causing symbols like `_malloc_size`, `_nanosleep`, `_arc4random_buf` to be unresolvable.
+**Status: Speculative — research needed before implementation.**
 
-The patch file (`patches/lld-darwin25-tbd.patch`) must:
+The patch would target Zig's LLVM fork's LLD, specifically the Mach-O `.tbd` stub file parser. On Darwin 25+, Apple's `.tbd` stubs moved to a format or location that LLD doesn't handle correctly, causing symbols like `_malloc_size`, `_nanosleep`, `_arc4random_buf` to be unresolvable.
+
+Per `docs/ZIG_MACOS_LINKER_RESEARCH.md`, building Zig from source without patching does NOT fix the issue — the C++ bootstrap (`zig2`) links fine with system clang/ld, but stage 3 uses `zig2`'s embedded LLD which has the same bug. The patch must fix LLD *before* the bootstrap builds stage 3.
+
+The patch file (`patches/lld-darwin25-tbd.patch`) would need to:
 1. Fix `.tbd` stub resolution for Darwin 25+ SDK paths
-2. Apply cleanly against the LLVM tag used by the pinned Zig version
+2. Apply cleanly against the LLVM tag used by the pinned Zig version's zig-bootstrap
 3. Not break linking on other platforms
 
-**Research needed:** The exact patch content requires analysis of Zig's LLVM fork and the Darwin 25 `.tbd` format changes. This is a key implementation risk — if the fix is non-trivial, the `--use-upstream-fix` path becomes the primary Darwin solution until the patch is developed.
+**Implementation risk:** If the fix is non-trivial or requires deep LLVM/LLD expertise, `--use-upstream-fix` remains the primary Darwin solution until either (a) the patch is developed and validated, or (b) upstream Zig fixes the issue in a newer nightly.
 
 ## Future Extensions
 
