@@ -30,9 +30,9 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
-const sync = @import("../../../services/shared/mod.zig").sync;
-const retry = @import("../../../services/shared/utils/retry.zig");
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
+const retry = @import("../../../foundation/utils/retry.zig");
 const build_options = @import("build_options");
 const agents = @import("../agents/mod.zig");
 

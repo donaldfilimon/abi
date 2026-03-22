@@ -1,6 +1,6 @@
 //! Federated learning registry and coordinator utilities.
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").utils;
+const time = @import("../../../foundation/mod.zig").utils;
 
 pub const NodeInfo = struct {
     id: []const u8,
@@ -208,7 +208,7 @@ pub const Coordinator = struct {
                 now > update.timestamp and
                 now - update.timestamp > self.config.max_staleness_seconds)
             {
-                const removed = self.updates.swapRemove(i);
+                var removed = self.updates.swapRemove(i);
                 removed.deinit(self.allocator);
                 continue;
             }
@@ -253,7 +253,7 @@ pub const Coordinator = struct {
     fn pruneUpdates(self: *Coordinator) void {
         if (self.config.max_updates == 0) return;
         while (self.updates.items.len > self.config.max_updates) {
-            const removed = self.updates.orderedRemove(0);
+            var removed = self.updates.orderedRemove(0);
             removed.deinit(self.allocator);
         }
     }

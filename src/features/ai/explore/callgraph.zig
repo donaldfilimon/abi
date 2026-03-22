@@ -74,8 +74,8 @@ pub const CallGraph = struct {
         const key = try self.allocator.dupe(u8, func.name);
         errdefer self.allocator.free(key);
 
-        try self.calls.put(self.allocator, key, .{});
-        try self.called_by.put(self.allocator, key, .{});
+        try self.calls.put(self.allocator, key, .empty);
+        try self.called_by.put(self.allocator, key, .empty);
     }
 
     /// Add a call relationship (caller -> callee)

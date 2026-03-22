@@ -31,7 +31,7 @@
 const std = @import("std");
 const math = std.math;
 const vit = @import("vit.zig");
-const simd = @import("../../../services/shared/mod.zig").simd;
+const simd = @import("../../../foundation/mod.zig").simd;
 
 // ============================================================================
 // Configuration
@@ -865,7 +865,7 @@ pub const UnifiedEmbeddingSpace = struct {
         return .{
             .allocator = allocator,
             .embedding_dim = embedding_dim,
-            .embeddings = .{},
+            .embeddings = .empty,
         };
     }
 

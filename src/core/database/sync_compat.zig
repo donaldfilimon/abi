@@ -1,6 +1,6 @@
 //! Local synchronization compatibility primitives for WDBX tests.
 //!
-//! Mirrors the `RwLock` behavior from `src/services/shared/sync.zig`, but stays
+//! Mirrors the `RwLock` behavior from `src/foundation/sync.zig`, but stays
 //! within this module path so direct `zig test src/core/database/*.zig`
 //! commands can compile without cross-module-path imports.
 

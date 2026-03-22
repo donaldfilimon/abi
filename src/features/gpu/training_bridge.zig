@@ -10,7 +10,7 @@
 const std = @import("std");
 const ai_ops = @import("ai_ops.zig");
 const coordinator_ai_ops = @import("coordinator_ai_ops.zig");
-const time = @import("../../services/shared/mod.zig").time;
+const time = @import("../../foundation/mod.zig").time;
 
 const AiOps = ai_ops.AiOps;
 const AiOpsError = ai_ops.AiOpsError;

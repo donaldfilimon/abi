@@ -22,7 +22,7 @@ pub const ShortTermMemory = struct {
     pub fn init(allocator: std.mem.Allocator, capacity: usize) ShortTermMemory {
         return .{
             .allocator = allocator,
-            .messages = .{},
+            .messages = .empty,
             .capacity = capacity,
             .total_tokens = 0,
             .owns_messages = false,

@@ -45,7 +45,7 @@
 
 const std = @import("std");
 const memory = @import("base.zig");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 /// Cache line size for alignment (x86/ARM64)
 pub const CACHE_LINE_SIZE: usize = 64;

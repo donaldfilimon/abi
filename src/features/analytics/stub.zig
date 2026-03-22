@@ -1,7 +1,7 @@
 //! Analytics stub — disabled at compile time.
 
 const std = @import("std");
-const stub_context = @import("../../core/stub_context.zig");
+const stub_context = @import("../../core/stub_helpers.zig");
 const types = @import("types.zig");
 
 // --- Shared Types (from types.zig) ---

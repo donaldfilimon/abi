@@ -26,7 +26,7 @@ pub const SlidingWindowMemory = struct {
     pub fn init(allocator: std.mem.Allocator, max_tokens: usize) SlidingWindowMemory {
         return .{
             .allocator = allocator,
-            .messages = .{},
+            .messages = .empty,
             .max_tokens = max_tokens,
             .current_tokens = 0,
             .owns_messages = false,
@@ -43,7 +43,7 @@ pub const SlidingWindowMemory = struct {
     ) SlidingWindowMemory {
         return .{
             .allocator = allocator,
-            .messages = .{},
+            .messages = .empty,
             .max_tokens = max_tokens,
             .current_tokens = 0,
             .owns_messages = false,

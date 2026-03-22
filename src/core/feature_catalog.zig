@@ -323,16 +323,16 @@ pub const all = [_]Metadata{
         .description = "LSP (ZLS) service",
         .compile_flag_field = "feat_lsp",
         .parity_spec = .lsp,
-        .real_module_path = "services/lsp/mod.zig",
-        .stub_module_path = "services/lsp/stub.zig",
+        .real_module_path = "protocols/lsp/mod.zig",
+        .stub_module_path = "protocols/lsp/stub.zig",
     },
     .{
         .feature = .mcp,
         .description = "MCP (Model Context Protocol) service",
         .compile_flag_field = "feat_mcp",
         .parity_spec = .mcp,
-        .real_module_path = "services/mcp/mod.zig",
-        .stub_module_path = "services/mcp/stub.zig",
+        .real_module_path = "protocols/mcp/mod.zig",
+        .stub_module_path = "protocols/mcp/stub.zig",
     },
 };
 

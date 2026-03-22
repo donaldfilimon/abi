@@ -18,9 +18,9 @@
 
 const std = @import("std");
 const Io = std.Io;
-const platform_time = @import("../../services/shared/mod.zig").utils;
+const platform_time = @import("../../foundation/mod.zig").utils;
 const time = platform_time;
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const connection_pool = @import("connection_pool.zig");
 const circuit_breaker = @import("circuit_breaker.zig");
 const retry = @import("retry.zig");

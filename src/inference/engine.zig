@@ -9,6 +9,7 @@ const Allocator = std.mem.Allocator;
 const kv_cache_mod = @import("kv_cache.zig");
 const scheduler_mod = @import("scheduler.zig");
 const sampler_mod = @import("sampler.zig");
+const time_mod = @import("../foundation/time.zig");
 
 pub const Config = struct {
     vocab_size: u32 = 128256,
@@ -89,7 +90,7 @@ pub const Engine = struct {
     }
 
     pub fn generate(self: *Self, request: scheduler_mod.Request) !Result {
-        const start = std.time.milliTimestamp();
+        const start = time_mod.timestampMs();
 
         const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
         if (!cache_ok) {
@@ -123,7 +124,7 @@ pub const Engine = struct {
             t.* = local_sampler.sample(logits_slice);
         }
 
-        const end = std.time.milliTimestamp();
+        const end = time_mod.timestampMs();
         const latency: f32 = @floatFromInt(end - start);
         const tps: f32 = if (latency > 0)
             @as(f32, @floatFromInt(num_tokens)) / (latency / 1000.0)

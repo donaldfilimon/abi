@@ -1,8 +1,8 @@
 //! Generic profile wrapper for prompt-defined profiles.
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").time;
-const sync = @import("../../services/shared/mod.zig").sync;
+const time = @import("../../foundation/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
 const types = @import("types.zig");
 const agent_mod = @import("agents/mod.zig");
 const prompt_profiles = @import("prompts/mod.zig");

@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const MiddlewareContext = types.MiddlewareContext;
 const logging_key = "_logging";
 const access_log_key = "_access_log";

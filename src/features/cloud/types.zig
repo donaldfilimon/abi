@@ -4,7 +4,7 @@
 //! Provides a unified interface for AWS Lambda, GCP Functions, and Azure Functions.
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").time;
+const time = @import("../../foundation/mod.zig").time;
 
 /// Supported cloud providers.
 pub const CloudProvider = enum {

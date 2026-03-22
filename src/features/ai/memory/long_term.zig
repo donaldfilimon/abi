@@ -5,8 +5,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const time = @import("../../../services/shared/mod.zig").utils;
-const simd = @import("../../../services/shared/mod.zig").simd;
+const time = @import("../../../foundation/mod.zig").utils;
+const simd = @import("../../../foundation/mod.zig").simd;
 const mod = @import("mod.zig");
 const db_mod = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
 const semantic_store = db_mod.semantic_store;
@@ -84,7 +84,7 @@ pub const LongTermMemory = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .memories = .{},
+            .memories = .empty,
             .total_access = 0,
             .next_block_id = 1,
         };

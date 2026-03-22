@@ -10,7 +10,7 @@
 //! - Emotional trajectory tracking
 
 const std = @import("std");
-const string_utils = @import("../../../services/shared/mod.zig").utils;
+const string_utils = @import("../../../foundation/mod.zig").utils;
 const core_types = @import("../types.zig");
 
 /// Emotion types detected in user input.

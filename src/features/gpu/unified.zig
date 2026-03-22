@@ -29,8 +29,8 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").time;
-const sync = @import("../../services/shared/mod.zig").sync;
+const time = @import("../../foundation/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 const stream_mod = @import("stream.zig");

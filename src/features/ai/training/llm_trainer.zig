@@ -15,7 +15,7 @@
 //! - Checkpointing and resumption
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const trainable_model = @import("trainable_model.zig");
 const loss_mod = @import("loss.zig");
 const mod = @import("mod.zig");

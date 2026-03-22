@@ -7,7 +7,7 @@
 //! - Context-aware retrieval
 
 const std = @import("std");
-const platform_time = @import("../../../services/shared/mod.zig").time;
+const platform_time = @import("../../../foundation/mod.zig").time;
 
 // Platform-aware time function (works on WASM)
 fn getTimestamp() i64 {
@@ -56,7 +56,7 @@ pub const TopicTracker = struct {
         return .{
             .allocator = allocator,
             .topics = .{},
-            .topic_order = .{},
+            .topic_order = .empty,
         };
     }
 
@@ -85,7 +85,7 @@ pub const TopicTracker = struct {
                     .last_mentioned = now,
                     .mention_count = 1,
                     .relevance_score = 0.5,
-                    .subtopics = .{},
+                    .subtopics = .empty,
                 });
                 try self.topic_order.append(self.allocator, topic);
             }
@@ -203,8 +203,8 @@ pub const ConversationContext = struct {
             .allocator = allocator,
             .started = now,
             .last_activity = now,
-            .unresolved_questions = .{},
-            .themes = .{},
+            .unresolved_questions = .empty,
+            .themes = .empty,
         };
     }
 
@@ -313,7 +313,7 @@ pub const ContextWindow = struct {
         return .{
             .allocator = allocator,
             .max_tokens = max_tokens,
-            .messages = .{},
+            .messages = .empty,
         };
     }
 

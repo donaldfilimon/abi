@@ -33,8 +33,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const utils = @import("../../../services/shared/mod.zig").utils;
-const sync = @import("../../../services/shared/mod.zig").sync;
+const utils = @import("../../../foundation/mod.zig").utils;
+const sync = @import("../../../foundation/mod.zig").sync;
 
 const Mutex = sync.Mutex;
 

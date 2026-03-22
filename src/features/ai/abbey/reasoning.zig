@@ -12,7 +12,7 @@
 //! - Step formatting and presentation
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const emotion = @import("emotion.zig");
 const core_types = @import("../types.zig");
 

@@ -112,7 +112,7 @@ pub const Engine = struct {
         while (i < self.vectors_array.items.len) {
             if (self.vectors_array.items[i].access_score < score_threshold) {
                 // Prune logic
-                var item = self.vectors_array.orderedRemove(i);
+                const item = self.vectors_array.orderedRemove(i);
                 self.allocator.free(item.id);
                 self.allocator.free(item.vec);
                 self.deinitOwnedMetadata(item.metadata);

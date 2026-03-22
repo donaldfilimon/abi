@@ -97,7 +97,7 @@ pub const PagedKVCache = struct {
         }
 
         for (0..pages_needed) |_| {
-            const page_id = self.free_pages.popOrNull() orelse return error.OutOfPages;
+            const page_id = self.free_pages.pop() orelse return error.OutOfPages;
             self.pages[page_id].seq_id = seq_id;
             self.pages[page_id].used_tokens = 0;
             try entry.value_ptr.append(self.allocator, page_id);

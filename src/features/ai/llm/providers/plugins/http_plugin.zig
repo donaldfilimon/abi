@@ -1,5 +1,5 @@
 const std = @import("std");
-const connectors = @import("../../../../../services/connectors/mod.zig");
+const connectors = @import("../../../../../connectors/mod.zig");
 const types = @import("../types.zig");
 const errors = @import("../errors.zig");
 const manifest = @import("manifest.zig");

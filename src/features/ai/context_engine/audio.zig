@@ -6,8 +6,8 @@
 
 const std = @import("std");
 const context_engine = @import("mod.zig");
-const sync = @import("../../../services/shared/mod.zig").sync;
-const abi_time = @import("../../../services/shared/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
+const abi_time = @import("../../../foundation/mod.zig").time;
 
 /// Asynchronous Text-To-Speech engine.
 /// Offloads blocking TTS playback to a detached thread queue.
@@ -137,7 +137,7 @@ pub const AudioStreamer = struct {
     pub fn flushVoiceActivity(self: *AudioStreamer) !?context_engine.AudioChunk {
         if (!self.is_listening) return null;
 
-        var child = &self.recorder_process.?;
+        const child = &self.recorder_process.?;
         const stdout = child.stdout orelse return null;
 
         var buf: [4096]u8 = undefined;

@@ -1,7 +1,7 @@
 //! OpenTelemetry integration for distributed tracing and metrics.
 const std = @import("std");
 const build_options = @import("build_options");
-const time = @import("../../services/shared/mod.zig").utils;
+const time = @import("../../foundation/mod.zig").utils;
 const observability = @import("mod.zig");
 
 pub const OtelConfig = struct {

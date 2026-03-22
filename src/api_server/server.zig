@@ -9,7 +9,7 @@ const Io = std.Io;
 const metrics_mod = @import("metrics.zig");
 const auth_mod = @import("auth.zig");
 const handlers_mod = @import("handlers.zig");
-const time_mod = @import("../services/shared/mod.zig").time;
+const time_mod = @import("../foundation/mod.zig").time;
 
 const log = std.log.scoped(.api_server);
 

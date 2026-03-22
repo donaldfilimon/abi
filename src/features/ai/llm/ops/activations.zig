@@ -11,7 +11,7 @@
 //! to avoid runtime overhead. See the CompTimeConstants namespace.
 
 const std = @import("std");
-const simd = @import("../../../../services/shared/simd/mod.zig");
+const simd = @import("../../../../foundation/simd/mod.zig");
 
 // ============================================================================
 // Comptime Constants

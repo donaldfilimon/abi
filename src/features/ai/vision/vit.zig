@@ -774,7 +774,7 @@ pub const VisionTransformer = struct {
     cls_bias: ?[]f32,
 
     pub fn init(allocator: std.mem.Allocator, config: ViTConfig) !VisionTransformer {
-        const patch_embed = try PatchEmbedding.init(allocator, config);
+        var patch_embed = try PatchEmbedding.init(allocator, config);
         errdefer patch_embed.deinit();
 
         const blocks = try allocator.alloc(TransformerBlock, config.num_layers);

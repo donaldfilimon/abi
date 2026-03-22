@@ -487,7 +487,7 @@ pub fn loadFromEnvironment(allocator: std.mem.Allocator) !AbbeyConfig {
     return config;
 }
 
-fn getEnv(allocator: std.mem.Allocator, key: []const u8) ?[]const u8 {
+fn getEnv(allocator: std.mem.Allocator, key: [:0]const u8) ?[]const u8 {
     const raw = std.c.getenv(key.ptr) orelse return null;
     return allocator.dupe(u8, std.mem.sliceTo(raw, 0)) catch null;
 }

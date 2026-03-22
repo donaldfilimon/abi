@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/content.zig");
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const types = @import("types.zig");
 
 pub const SearchConfig = types.SearchConfig;

@@ -26,23 +26,23 @@ pub const framework = @import("core/framework.zig");
 // ── Services (non-feature-gated) ─────────────────────────────────────────
 
 /// Shared foundations: logging, security, time/SIMD primitives.
-pub const foundation = @import("services/shared/mod.zig");
+pub const foundation = @import("foundation/mod.zig");
 /// Runtime services: task scheduling, event loops, resource management.
-pub const runtime = @import("services/runtime/mod.zig");
+pub const runtime = @import("runtime/mod.zig");
 /// Platform abstraction: OS detection, capabilities, environment.
-pub const platform = @import("services/platform/mod.zig");
+pub const platform = @import("platform/mod.zig");
 /// External service connectors: HTTP clients, API adapters.
-pub const connectors = @import("services/connectors/mod.zig");
+pub const connectors = @import("connectors/mod.zig");
 /// Task management: async job queues, scheduling, progress tracking.
-pub const tasks = @import("services/tasks/mod.zig");
+pub const tasks = @import("tasks/mod.zig");
 /// Model Context Protocol (MCP) server and client implementation.
-pub const mcp = @import("services/mcp/mod.zig");
+pub const mcp = @import("protocols/mcp/mod.zig");
 /// Language Server Protocol (LSP) implementation.
-pub const lsp = @import("services/lsp/mod.zig");
+pub const lsp = @import("protocols/lsp/mod.zig");
 /// Agent Communication Protocol (ACP) for multi-agent messaging.
-pub const acp = @import("services/acp/mod.zig");
+pub const acp = @import("protocols/acp/mod.zig");
 /// High availability: leader election, failover, health monitoring.
-pub const ha = @import("services/ha/mod.zig");
+pub const ha = @import("protocols/ha/mod.zig");
 /// ML inference: engine, scheduler, sampler, paged KV cache.
 pub const inference = @import("inference/mod.zig");
 

@@ -7,7 +7,7 @@
 //! - InstructionDataset: Alpaca/ShareGPT format parsing
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
     return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });

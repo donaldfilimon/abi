@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const core_config = @import("../../../core/config/content.zig");
-const stub_context = @import("../../../core/stub_context.zig");
+const stub_context = @import("../../../core/stub_helpers.zig");
 
 pub const PagesConfig = core_config.PagesConfig;
 

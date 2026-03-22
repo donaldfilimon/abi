@@ -1,5 +1,5 @@
 const std = @import("std");
-const string_utils = @import("../../../services/shared/mod.zig").utils;
+const string_utils = @import("../../../foundation/mod.zig").utils;
 const ExploreConfig = @import("config.zig").ExploreConfig;
 const ExploreLevel = @import("config.zig").ExploreLevel;
 const SearchPattern = @import("search.zig").SearchPattern;

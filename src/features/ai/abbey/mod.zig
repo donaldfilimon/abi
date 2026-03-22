@@ -346,7 +346,7 @@ pub const Abbey = struct {
 
     pub fn deinit(self: *Self) void {
         if (self.current_reasoning) |*chain| {
-            chain.deinit();
+            chain.deinit(self.allocator);
         }
         self.conversation_context.deinit();
         self.topic_tracker.deinit();

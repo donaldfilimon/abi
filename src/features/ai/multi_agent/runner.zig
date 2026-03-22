@@ -29,7 +29,7 @@ const messaging = @import("messaging.zig");
 const protocol = @import("protocol.zig");
 const build_options = @import("build_options");
 const agents_mod = @import("../agents/mod.zig");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const training = if (build_options.feat_training)
     @import("../training/mod.zig")
 else

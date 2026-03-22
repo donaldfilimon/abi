@@ -93,8 +93,8 @@ pub const DependencyGraph = struct {
         const key = try self.allocator.dupe(u8, module.name);
         errdefer self.allocator.free(key);
 
-        try self.dependencies.put(self.allocator, key, .{});
-        try self.dependents.put(self.allocator, key, .{});
+        try self.dependencies.put(self.allocator, key, .empty);
+        try self.dependents.put(self.allocator, key, .empty);
     }
 
     /// Add a dependency relationship (from -> to)

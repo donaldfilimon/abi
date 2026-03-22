@@ -4,7 +4,7 @@
 //! using a configurable transformer architecture with multi-head attention.
 
 const std = @import("std");
-const simd = @import("../../../services/shared/mod.zig").simd;
+const simd = @import("../../../foundation/mod.zig").simd;
 
 pub const TransformerError = error{
     InvalidConfiguration,

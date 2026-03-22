@@ -6,12 +6,12 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const shared_utils = @import("../../../services/shared/mod.zig").utils;
+const shared_utils = @import("../../../foundation/mod.zig").utils;
 const http = shared_utils.async_http;
 const retry = shared_utils.http_retry;
-const connectors = @import("../../../services/connectors/mod.zig");
+const connectors = @import("../../../connectors/mod.zig");
 const time = shared_utils;
-const platform_time = @import("../../../services/shared/mod.zig").time;
+const platform_time = @import("../../../foundation/mod.zig").time;
 const provider_router_mod = @import("../llm/providers/router.zig");
 const provider_types = @import("../llm/providers/types.zig");
 const advanced_cognition = @import("../abbey/advanced.zig");

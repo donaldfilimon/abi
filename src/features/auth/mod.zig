@@ -1,7 +1,7 @@
 //! Auth Module
 //!
 //! Authentication and security infrastructure for the ABI framework.
-//! Re-exports the full security infrastructure from `services/shared/security/`.
+//! Re-exports the full security infrastructure from `foundation/security/`.
 //!
 //! When the `auth` feature is enabled, all security sub-modules are available:
 //! - `abi.auth.jwt` — JSON Web Tokens (HMAC-SHA256/384/512)
@@ -26,10 +26,10 @@ const core_config = @import("../../core/config/platform.zig");
 pub const AuthConfig = core_config.AuthConfig;
 
 // ============================================================================
-// Security Sub-modules (re-exported from services/shared/security/)
+// Security Sub-modules (re-exported from foundation/security/)
 // ============================================================================
 
-const shared = @import("../../services/shared/mod.zig");
+const shared = @import("../../foundation/mod.zig");
 const security = shared.security;
 pub const api_keys = security.api_keys;
 pub const audit = security.audit;
@@ -131,7 +131,7 @@ pub fn isInitialized() bool {
 }
 
 /// Create a signed JWT token for the given user_id.
-/// Delegates to `jwt.JwtManager.createToken` from `services/shared/security/jwt.zig`.
+/// Delegates to `jwt.JwtManager.createToken` from `foundation/security/jwt.zig`.
 pub fn createToken(
     allocator: std.mem.Allocator,
     user_id: []const u8,
@@ -154,7 +154,7 @@ pub fn createToken(
 }
 
 /// Verify a JWT token string and return parsed token info.
-/// Delegates to `jwt.JwtManager.verifyToken` from `services/shared/security/jwt.zig`.
+/// Delegates to `jwt.JwtManager.verifyToken` from `foundation/security/jwt.zig`.
 /// Uses the default dev secret; production callers should use `jwt.JwtManager`
 /// directly with their own secret.
 ///
@@ -201,7 +201,7 @@ pub fn verifyToken(allocator: std.mem.Allocator, token_str: []const u8) AuthErro
 
 /// Create a new session for the given user_id.
 /// Delegates to `session.SessionManager.create` from
-/// `services/shared/security/session.zig`.
+/// `foundation/security/session.zig`.
 ///
 /// The returned `Session.id` and `Session.user_id` are heap-allocated via the
 /// provided allocator; callers should free them when done (or use an arena).
@@ -253,7 +253,7 @@ pub fn createSession(
 
 /// Check if a user has a given permission.
 /// Delegates to `rbac.RbacManager.hasPermission` from
-/// `services/shared/security/rbac.zig`.
+/// `foundation/security/rbac.zig`.
 ///
 /// Maps the auth-level `Permission` enum to the RBAC module's `Permission`.
 /// Creates an ephemeral RbacManager with default roles. Without explicit

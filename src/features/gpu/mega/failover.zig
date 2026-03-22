@@ -4,8 +4,8 @@
 //! protection, exponential backoff, and health monitoring.
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
-const sync = @import("../../../services/shared/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const backend_mod = @import("../backend.zig");
 const failover_types = @import("../failover_types.zig");
 

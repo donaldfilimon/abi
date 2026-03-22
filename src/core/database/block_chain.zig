@@ -22,7 +22,7 @@
 //! - Two-stage retrieval: ANN index + reranking with recency decay
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").time;
+const time = @import("../../foundation/mod.zig").time;
 const crypto = std.crypto;
 
 /// Conversation block for WDBX memory system

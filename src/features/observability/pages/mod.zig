@@ -11,8 +11,8 @@
 
 const std = @import("std");
 const core_config = @import("../../../core/config/content.zig");
-const sync = @import("../../../services/shared/mod.zig").sync;
-const radix = @import("../../../services/shared/mod.zig").utils.radix_tree;
+const sync = @import("../../../foundation/mod.zig").sync;
+const radix = @import("../../../foundation/mod.zig").utils.radix_tree;
 
 /// Shared radix tree instantiated for page indices.
 const PageTree = radix.RadixTree(u32);
@@ -123,7 +123,7 @@ const PageEntry = struct {
     title_owned: []u8,
 };
 
-/// Radix tree node — shared implementation from `services/shared/utils/radix_tree.zig`.
+/// Radix tree node — shared implementation from `foundation/utils/radix_tree.zig`.
 const RadixNode = PageTree.Node;
 
 // ── Module State ───────────────────────────────────────────────────────

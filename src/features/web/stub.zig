@@ -1,250 +1,74 @@
-//! Web stub — disabled at compile time.
+//! Web stub -- disabled at compile time.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-const profile_types = struct {
-    pub const ProfileType = enum { assistant, coder, writer, analyst, companion, docs, reviewer, minimal, abbey, aviva, abi, ralph, ava };
-};
-
-// --- Shared types (from types.zig) ---
-
-pub const types = @import("types.zig");
-
-// --- Local Stubs Imports ---
-
+const stub_types = @import("stubs/types.zig");
 const client = @import("stubs/client.zig");
 
-// --- Handlers and Routes ---
-
-pub const handlers = struct {
-    pub const chat = struct {
-        pub const ChatHandler = StubChatHandler;
-        pub const ChatRequest = StubChatRequest;
-        pub const ChatResponse = StubChatResponse;
-        pub const ChatResult = StubChatResult;
-    };
-};
-
-pub const routes = struct {
-    pub const profiles = struct {
-        pub const Router = StubRouter;
-        pub const Route = StubRoute;
-        pub const RouteContext = StubRouteContext;
-    };
-};
-
-pub const ChatHandler = StubChatHandler;
-pub const ChatRequest = StubChatRequest;
-pub const ChatResponse = StubChatResponse;
-pub const ChatResult = StubChatResult;
-pub const ProfileRouter = StubRouter;
-pub const Route = StubRoute;
-pub const RouteContext = StubRouteContext;
-
-// --- Stub Type Definitions ---
-
-const StubChatRequest = struct {
-    content: []const u8,
-    user_id: ?[]const u8 = null,
-    session_id: ?[]const u8 = null,
-    profile: ?[]const u8 = null,
-    context: ?[]const u8 = null,
-    max_tokens: ?u32 = null,
-    temperature: ?f32 = null,
-    pub fn deinit(_: *StubChatRequest, _: std.mem.Allocator) void {}
-    pub fn dupe(_: std.mem.Allocator, other: StubChatRequest) !StubChatRequest {
-        return other;
-    }
-};
-
-const StubChatResponse = struct {
-    content: []const u8,
-    profile: []const u8,
-    confidence: f32,
-    latency_ms: u64,
-    code_blocks: ?[]const StubCodeBlock = null,
-    references: ?[]const StubSource = null,
-    request_id: ?[]const u8 = null,
-};
-
-const StubChatResult = struct { status: u16, body: []const u8 };
-const StubCodeBlock = struct { language: []const u8, code: []const u8 };
-const StubSource = struct { title: []const u8, url: ?[]const u8 = null, confidence: f32 };
-
-const StubChatHandler = struct {
-    allocator: std.mem.Allocator,
-    pub fn init(allocator: std.mem.Allocator) StubChatHandler {
-        return .{ .allocator = allocator };
-    }
-    pub fn handleChat(_: *StubChatHandler, _: []const u8) ![]const u8 {
-        return error.FeatureDisabled;
-    }
-    pub fn handleAbbeyChat(_: *StubChatHandler, _: []const u8) ![]const u8 {
-        return error.FeatureDisabled;
-    }
-    pub fn handleAvivaChat(_: *StubChatHandler, _: []const u8) ![]const u8 {
-        return error.FeatureDisabled;
-    }
-    pub fn handleChatWithProfileResult(_: *StubChatHandler, _: []const u8, _: ?profile_types.ProfileType) !StubChatResult {
-        return error.FeatureDisabled;
-    }
-    pub fn listProfiles(_: *StubChatHandler) ![]const u8 {
-        return error.FeatureDisabled;
-    }
-    pub fn getMetrics(_: *StubChatHandler) ![]const u8 {
-        return error.FeatureDisabled;
-    }
-    pub fn formatError(_: *StubChatHandler, _: []const u8, _: []const u8, _: ?[]const u8) ![]const u8 {
-        return error.FeatureDisabled;
-    }
-};
-
-const Method = enum { GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD };
-
-const StubRoute = struct {
-    path: []const u8,
-    method: Method,
-    description: []const u8,
-    requires_auth: bool = false,
-};
-
-const StubRouteContext = struct {
-    allocator: std.mem.Allocator,
-    body: []const u8 = "",
-    response_status: u16 = 200,
-    response_content_type: []const u8 = "application/json",
-    pub fn init(allocator: std.mem.Allocator, _: *StubChatHandler) StubRouteContext {
-        return .{ .allocator = allocator };
-    }
-    pub fn deinit(_: *StubRouteContext) void {}
-    pub fn write(_: *StubRouteContext, _: []const u8) !void {}
-    pub fn setStatus(self: *StubRouteContext, status: u16) void {
-        self.response_status = status;
-    }
-    pub fn setContentType(self: *StubRouteContext, content_type: []const u8) void {
-        self.response_content_type = content_type;
-    }
-};
-
-const StubRouter = struct {
-    allocator: std.mem.Allocator,
-    pub fn init(allocator: std.mem.Allocator, _: *StubChatHandler) StubRouter {
-        return .{ .allocator = allocator };
-    }
-    pub fn match(_: *const StubRouter, _: []const u8, _: Method) ?StubRoute {
-        return null;
-    }
-    pub fn getRouteDefinitions(_: *const StubRouter) []const StubRoute {
-        return &.{};
-    }
-};
-
-// --- Server and Middleware Stubs ---
-
-pub const server = struct {
-    pub const Server = StubServer;
-    pub const ServerConfig = struct {
-        host: []const u8 = "127.0.0.1",
-        port: u16 = 8080,
-        max_connections: usize = 1024,
-        read_timeout_ms: u32 = 30_000,
-        write_timeout_ms: u32 = 30_000,
-        keep_alive: bool = true,
-        keep_alive_timeout_ms: u32 = 5_000,
-        worker_threads: u32 = 4,
-    };
-    pub const ServerState = enum { stopped, starting, running, stopping };
-    pub const ServerStats = struct {};
-    pub const ServerError = error{FeatureDisabled};
-};
-
-const StubServer = struct {
-    pub fn init(_: std.mem.Allocator, _: anytype) StubServer {
-        return .{};
-    }
-    pub fn deinit(_: *StubServer) void {}
-};
-
-pub const middleware = struct {
-    pub const observability = struct {
-        pub const BUCKET_COUNT: usize = 8;
-        pub const bucket_bounds_us: [BUCKET_COUNT]u64 = .{
-            100,
-            500,
-            1_000,
-            5_000,
-            50_000,
-            200_000,
-            1_000_000,
-            std.math.maxInt(u64),
-        };
-        pub const RequestMetrics = StubRequestMetrics;
-        pub const MetricsSnapshot = StubMetricsSnapshot;
-        pub const MetricsMiddleware = StubMetricsMiddleware;
-    };
-
-    pub const MetricsMiddleware = StubMetricsMiddleware;
-    pub const RequestMetrics = StubRequestMetrics;
-    pub const MetricsSnapshot = StubMetricsSnapshot;
-};
-
-const stub_bucket_count = 8;
-
-const StubRequestMetrics = struct {
-    start_ns: i128,
-};
-
-const StubMetricsSnapshot = struct {
-    total_requests: u64,
-    total_errors: u64,
-    active_requests: u64,
-    request_durations_us: [stub_bucket_count]u64,
-    status_counts: [6]u64,
-};
-
-const StubMetricsMiddleware = struct {
-    total_requests: u64 = 0,
-    total_errors: u64 = 0,
-    active_requests: u64 = 0,
-    request_durations_us: [stub_bucket_count]u64 = .{0} ** stub_bucket_count,
-    status_counts: [6]u64 = .{0} ** 6,
-
-    pub fn init() StubMetricsMiddleware {
-        return .{};
-    }
-    pub fn processRequest(_: *StubMetricsMiddleware) StubRequestMetrics {
-        return .{ .start_ns = 0 };
-    }
-    pub fn recordResponse(_: *StubMetricsMiddleware, _: StubRequestMetrics, _: u16) void {}
-    pub fn getSnapshot(_: *const StubMetricsMiddleware) StubMetricsSnapshot {
-        return .{
-            .total_requests = 0,
-            .total_errors = 0,
-            .active_requests = 0,
-            .request_durations_us = .{0} ** stub_bucket_count,
-            .status_counts = .{0} ** 6,
-        };
-    }
-    pub fn formatPrometheus(_: *const StubMetricsMiddleware, _: std.mem.Allocator) ![]u8 {
-        return error.FeatureDisabled;
-    }
-    pub fn reset(_: *StubMetricsMiddleware) void {}
-};
-
-// --- Re-exports ---
-
+// --- Shared types (from types.zig) ---
+pub const types = @import("types.zig");
 pub const WebError = types.WebError;
 pub const Response = types.Response;
 pub const RequestOptions = types.RequestOptions;
 pub const WeatherConfig = types.WeatherConfig;
 pub const JsonValue = types.JsonValue;
 pub const ParsedJson = types.ParsedJson;
+
+// --- Client re-exports ---
 pub const HttpClient = client.HttpClient;
 pub const WeatherClient = client.WeatherClient;
 
-// --- Context ---
+// --- Chat handler re-exports ---
+pub const ChatHandler = stub_types.ChatHandler;
+pub const ChatRequest = stub_types.ChatRequest;
+pub const ChatResponse = stub_types.ChatResponse;
+pub const ChatResult = stub_types.ChatResult;
+pub const ProfileRouter = stub_types.Router;
+pub const Route = stub_types.Route;
+pub const RouteContext = stub_types.RouteContext;
 
+// --- Handlers and Routes namespaces ---
+pub const handlers = struct {
+    pub const chat = struct {
+        pub const ChatHandler = stub_types.ChatHandler;
+        pub const ChatRequest = stub_types.ChatRequest;
+        pub const ChatResponse = stub_types.ChatResponse;
+        pub const ChatResult = stub_types.ChatResult;
+    };
+};
+
+pub const routes = struct {
+    pub const profiles = struct {
+        pub const Router = stub_types.Router;
+        pub const Route = stub_types.Route;
+        pub const RouteContext = stub_types.RouteContext;
+    };
+};
+
+// --- Server and Middleware ---
+pub const server = struct {
+    pub const Server = stub_types.Server;
+    pub const ServerConfig = stub_types.ServerConfig;
+    pub const ServerState = stub_types.ServerState;
+    pub const ServerStats = stub_types.ServerStats;
+    pub const ServerError = stub_types.ServerError;
+};
+
+pub const middleware = struct {
+    pub const observability = struct {
+        pub const BUCKET_COUNT = stub_types.BUCKET_COUNT;
+        pub const bucket_bounds_us = stub_types.bucket_bounds_us;
+        pub const RequestMetrics = stub_types.RequestMetrics;
+        pub const MetricsSnapshot = stub_types.MetricsSnapshot;
+        pub const MetricsMiddleware = stub_types.MetricsMiddleware;
+    };
+    pub const MetricsMiddleware = stub_types.MetricsMiddleware;
+    pub const RequestMetrics = stub_types.RequestMetrics;
+    pub const MetricsSnapshot = stub_types.MetricsSnapshot;
+};
+
+// --- Context ---
 pub const Context = struct {
     allocator: std.mem.Allocator,
     config: config_module.WebConfig,
@@ -269,7 +93,6 @@ pub const Context = struct {
 };
 
 // --- HTTP Utilities ---
-
 pub const http = struct {
     pub fn isSuccess(status: u16) bool {
         return status >= 200 and status < 300;
@@ -286,9 +109,7 @@ pub const http = struct {
 };
 
 // --- Module Lifecycle ---
-
 var initialized: bool = false;
-
 pub fn init(_: std.mem.Allocator) !void {
     return error.FeatureDisabled;
 }
@@ -303,7 +124,6 @@ pub fn isInitialized() bool {
 }
 
 // --- Convenience Functions ---
-
 pub fn get(_: std.mem.Allocator, _: []const u8) !Response {
     return error.FeatureDisabled;
 }

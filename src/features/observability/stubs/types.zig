@@ -43,6 +43,32 @@ pub const AlertSeverity = enum { info, warning, critical };
 pub const AlertError = error{AlertDisabled};
 pub const AlertCallback = *const fn () void;
 
+pub const MonitoringError = error{
+    MonitoringDisabled,
+};
+
+// Stub-only types
+pub const StatsDClient = struct {};
+pub const StatsDConfig = struct {};
+pub const StatsDError = error{FeatureDisabled};
+
+pub const ObservabilityBundle = struct {
+    const tracing_mod = @import("tracing.zig");
+    const OtelSpan = tracing_mod.OtelSpan;
+
+    pub fn init(_: std.mem.Allocator, _: BundleConfig) Error!ObservabilityBundle {
+        return error.FeatureDisabled;
+    }
+    pub fn deinit(_: *ObservabilityBundle) void {}
+    pub fn start(_: *ObservabilityBundle) Error!void {
+        return error.FeatureDisabled;
+    }
+    pub fn stop(_: *ObservabilityBundle) void {}
+    pub fn startSpan(_: *ObservabilityBundle, _: []const u8) Error!?OtelSpan {
+        return error.FeatureDisabled;
+    }
+};
+
 test {
     std.testing.refAllDecls(@This());
 }

@@ -1,36 +1,30 @@
 //! Model Management stub — disabled at compile time.
 
 const std = @import("std");
+const types = @import("types.zig");
 
-pub const Error = error{ ModelsDisabled, ModelNotFound, DownloadFailed, InvalidModelId, CacheNotAccessible, NetworkError, FileSystemError, HuggingFaceError, OutOfMemory };
+// Re-export types
+pub const Error = types.Error;
+pub const ManagerConfig = types.ManagerConfig;
+pub const ModelFormat = types.ModelFormat;
+pub const QuantizationType = types.QuantizationType;
+pub const CachedModel = types.CachedModel;
+pub const DownloadConfig = types.DownloadConfig;
+pub const DownloadProgress = types.DownloadProgress;
+pub const DownloadError = types.DownloadError;
+pub const DownloadResult = types.DownloadResult;
+pub const HuggingFaceModel = types.HuggingFaceModel;
+pub const HuggingFaceFile = types.HuggingFaceFile;
+pub const SearchResult = types.SearchResult;
+pub const ModelSpec = types.ModelSpec;
+pub const QuantInfo = types.QuantInfo;
+pub const ModelInfo = types.ModelInfo;
 
 pub fn isEnabled() bool {
     return false;
 }
 
 // --- Manager ---
-
-pub const ManagerConfig = struct {
-    cache_dir: ?[]const u8 = null,
-    auto_scan: bool = true,
-    extensions: []const []const u8 = &.{ ".gguf", ".mlx", ".bin", ".safetensors" },
-};
-
-pub const ModelFormat = enum { gguf, safetensors, bin, pytorch, unknown };
-pub const QuantizationType = enum { q4_0, q4_1, q5_0, q5_1, q8_0, f16, f32, unknown };
-
-pub const CachedModel = struct {
-    path: []const u8,
-    name: []const u8,
-    size_bytes: u64,
-    format: ModelFormat = .unknown,
-    quantization: ?QuantizationType = null,
-    source_url: ?[]const u8 = null,
-    downloaded_at: i64 = 0,
-    checksum: ?[]const u8 = null,
-    pub fn deinit(_: *CachedModel, _: std.mem.Allocator) void {}
-};
-
 pub const Manager = struct {
     allocator: std.mem.Allocator,
     pub fn init(_: std.mem.Allocator, _: ManagerConfig) Error!Manager {
@@ -70,32 +64,12 @@ pub const Manager = struct {
 };
 
 pub const manager = struct {
-    pub const Manager = @This().Manager;
-    pub const ManagerConfig = @This().ManagerConfig;
-    pub const CachedModel = @This().CachedModel;
+    pub const Manager_ = Manager;
+    pub const ManagerConfig_ = ManagerConfig;
+    pub const CachedModel_ = CachedModel;
 };
 
 // --- Downloader ---
-
-pub const DownloadConfig = struct {
-    output_path: ?[]const u8 = null,
-    progress_callback: ?*const fn (DownloadProgress) void = null,
-    resume_download: bool = true,
-    verify_checksum: bool = true,
-    expected_checksum: ?[]const u8 = null,
-};
-
-pub const DownloadProgress = struct { total_bytes: u64, downloaded_bytes: u64, speed_bytes_per_sec: u64, eta_seconds: ?u32, percent: u8 };
-pub const DownloadError = error{ DownloadFailed, NetworkError, FileSystemError, ModelsDisabled };
-
-pub const DownloadResult = struct {
-    path: []const u8,
-    bytes_downloaded: u64,
-    checksum: [64]u8,
-    was_resumed: bool,
-    checksum_verified: bool,
-};
-
 pub const Downloader = struct {
     allocator: std.mem.Allocator,
     pub fn init(allocator: std.mem.Allocator) Downloader {
@@ -111,33 +85,13 @@ pub const Downloader = struct {
 };
 
 pub const downloader = struct {
-    pub const Downloader = @This().Downloader;
-    pub const DownloadConfig = @This().DownloadConfig;
-    pub const DownloadProgress = @This().DownloadProgress;
-    pub const DownloadError = @This().DownloadError;
+    pub const Downloader_ = Downloader;
+    pub const DownloadConfig_ = DownloadConfig;
+    pub const DownloadProgress_ = DownloadProgress;
+    pub const DownloadError_ = DownloadError;
 };
 
 // --- HuggingFace ---
-
-pub const HuggingFaceModel = struct {
-    id: []const u8,
-    author: []const u8,
-    downloads: u64,
-    likes: u64,
-    files: []const HuggingFaceFile,
-    pub fn deinit(_: *HuggingFaceModel, _: std.mem.Allocator) void {}
-};
-
-pub const HuggingFaceFile = struct { name: []const u8, size_bytes: u64, quantization: ?[]const u8 };
-
-pub const SearchResult = struct {
-    models: []HuggingFaceModel,
-    total_count: u64,
-    pub fn deinit(_: *SearchResult, _: std.mem.Allocator) void {}
-};
-
-pub const ModelSpec = struct { model_id: []const u8, filename: ?[]const u8, quantization_hint: ?[]const u8 };
-
 pub const HuggingFaceClient = struct {
     allocator: std.mem.Allocator,
     pub fn init(allocator: std.mem.Allocator, _: ?[]const u8) HuggingFaceClient {
@@ -167,27 +121,17 @@ pub const HuggingFaceClient = struct {
     }
 };
 
-pub const QuantInfo = struct { name: []const u8, bits: f32, desc: []const u8 };
-
 pub const huggingface = struct {
-    pub const HuggingFaceClient = @This().HuggingFaceClient;
-    pub const HuggingFaceModel = @This().HuggingFaceModel;
-    pub const HuggingFaceFile = @This().HuggingFaceFile;
-    pub const SearchResult = @This().SearchResult;
+    pub const HuggingFaceClient_ = HuggingFaceClient;
+    pub const HuggingFaceModel_ = HuggingFaceModel;
+    pub const HuggingFaceFile_ = HuggingFaceFile;
+    pub const SearchResult_ = SearchResult;
 };
 
-// --- Registry (merged from stubs/model_registry.zig) ---
-
-pub const ModelInfo = struct {
-    name: []const u8 = "",
-    parameters: u64 = 0,
-    description: []const u8 = "",
-};
-
+// --- Registry ---
 pub const ModelRegistry = struct {
     allocator: std.mem.Allocator,
     models: std.ArrayListUnmanaged(ModelInfo) = .empty,
-
     pub fn init(allocator: std.mem.Allocator) ModelRegistry {
         return .{ .allocator = allocator };
     }
@@ -206,7 +150,6 @@ pub const ModelRegistry = struct {
 };
 
 // --- Tests ---
-
 test "stub returns disabled error" {
     const manager_result = Manager.init(std.testing.allocator, .{});
     try std.testing.expectError(error.ModelsDisabled, manager_result);

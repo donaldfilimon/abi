@@ -70,8 +70,8 @@ pub const SummarizingMemory = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .messages = .{},
-            .summaries = .{},
+            .messages = .empty,
+            .summaries = .empty,
             .total_tokens = 0,
             .owns_messages = false,
             .system_message = null,

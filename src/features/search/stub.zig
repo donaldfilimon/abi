@@ -3,7 +3,7 @@
 //! API-compatible no-op implementations when search is disabled.
 
 const std = @import("std");
-const stub_context = @import("../../core/stub_context.zig");
+const stub_context = @import("../../core/stub_helpers.zig");
 const types = @import("types.zig");
 
 pub const SearchConfig = types.SearchConfig;

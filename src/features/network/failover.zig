@@ -4,8 +4,8 @@
 
 const std = @import("std");
 const loadbalancer = @import("loadbalancer.zig");
-const platform_time = @import("../../services/shared/mod.zig").time;
-const sync = @import("../../services/shared/mod.zig").sync;
+const platform_time = @import("../../foundation/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
 
 pub const FailoverConfig = struct {
     /// Health check interval in milliseconds.

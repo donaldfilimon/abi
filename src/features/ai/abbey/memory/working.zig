@@ -84,10 +84,10 @@ pub const WorkingMemory = struct {
     pub fn init(allocator: std.mem.Allocator, capacity: usize, token_budget: usize) Self {
         return Self{
             .allocator = allocator,
-            .items = .{},
+            .items = .empty,
             .capacity = capacity,
             .token_budget = token_budget,
-            .focus_stack = .{},
+            .focus_stack = .empty,
         };
     }
 

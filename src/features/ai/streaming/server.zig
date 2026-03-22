@@ -17,13 +17,13 @@
 //! - POST /admin/reload - Hot-reload model without server restart
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const mod = @import("mod.zig");
 const sse = @import("sse.zig");
 const websocket = @import("websocket.zig");
 const backends = @import("backends/mod.zig");
 const formats = @import("formats/mod.zig");
-const shared_utils = @import("../../../services/shared/mod.zig").utils;
+const shared_utils = @import("../../../foundation/mod.zig").utils;
 const build_options = @import("build_options");
 const observability = if (build_options.feat_profiling) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");
 const net_utils = shared_utils.net;

@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const server = @import("../server/mod.zig");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const user_id_key = "user_id";
 
 /// Context passed through the middleware chain.

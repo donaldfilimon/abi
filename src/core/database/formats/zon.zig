@@ -40,7 +40,7 @@
 
 const std = @import("std");
 const batch = @import("../batch.zig");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 /// ZON format version for WDBX databases.
 pub const ZON_FORMAT_VERSION: u32 = 1;

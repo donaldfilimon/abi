@@ -27,7 +27,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const chunker = @import("chunker.zig");
 const Chunk = chunker.Chunk;
-const simd = @import("../../../services/shared/mod.zig").simd;
+const simd = @import("../../../foundation/mod.zig").simd;
 const embeddings = if (build_options.feat_ai) @import("../embeddings/mod.zig") else @import("../embeddings/stub.zig");
 
 /// Common AI processing errors

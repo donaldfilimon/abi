@@ -5,9 +5,9 @@
 
 const std = @import("std");
 const registry = @import("registry.zig");
-const platform_time = @import("../../services/shared/mod.zig").utils;
+const platform_time = @import("../../foundation/mod.zig").utils;
 const time = platform_time;
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 
 pub const LoadBalancerStrategy = enum {
     round_robin,

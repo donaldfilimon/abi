@@ -4,8 +4,8 @@
 //! All operations are no-ops when observability is disabled.
 
 const std = @import("std");
-const time = @import("../../../../services/shared/mod.zig").time;
-const sync = @import("../../../../services/shared/mod.zig").sync;
+const time = @import("../../../../foundation/mod.zig").time;
+const sync = @import("../../../../foundation/mod.zig").sync;
 
 /// A sample with timestamp.
 pub const TimestampedSample = struct {

@@ -3,6 +3,10 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const core_config = @import("core/config.zig");
+
+// Re-export ConfigBuilder from core config
+pub const ConfigBuilder = core_config.ConfigBuilder;
 
 /// Global configuration for the Multi-Profile system.
 pub const MultiProfileConfig = struct {

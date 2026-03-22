@@ -8,7 +8,13 @@ const core_types = @import("core/types.zig");
 pub const EmotionType = core_types.EmotionType;
 pub const EmotionalState = core_types.EmotionalState;
 pub const getTimestampNs = core_types.getTimestampNs;
+pub const getTimestampMs = core_types.getTimestampMs;
 pub const getTimestampSec = core_types.getTimestampSec;
+pub const ConfidenceLevel = core_types.ConfidenceLevel;
+pub const Confidence = core_types.Confidence;
+pub const SessionId = core_types.SessionId;
+pub const Relationship = core_types.Relationship;
+pub const Message = core_types.Message;
 
 /// Available profile types in the system.
 pub const ProfileType = enum {

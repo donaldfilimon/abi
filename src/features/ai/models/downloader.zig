@@ -13,8 +13,8 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const shared_utils = @import("../../../services/shared/mod.zig").utils;
-const platform_time = @import("../../../services/shared/mod.zig").time;
+const shared_utils = @import("../../../foundation/mod.zig").utils;
+const platform_time = @import("../../../foundation/mod.zig").time;
 
 /// Download configuration options.
 pub const DownloadConfig = struct {

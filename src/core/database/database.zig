@@ -7,7 +7,7 @@
 //! - Cache-aligned storage: 64-byte alignment for hot data
 
 const std = @import("std");
-const shared = @import("../../services/shared/mod.zig");
+const shared = @import("../../foundation/mod.zig");
 const simd = shared.simd;
 const sync = shared.sync;
 const Mutex = sync.Mutex;
@@ -532,7 +532,7 @@ pub const Database = struct {
             return allocator.alloc(SearchResult, 0);
         }
 
-        var results = try allocator.alloc(SearchResult, alloc_len);
+        const results = try allocator.alloc(SearchResult, alloc_len);
         errdefer allocator.free(results);
 
         const count = self.searchIntoWithNorm(query, query_norm, top_k, results);

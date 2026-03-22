@@ -398,7 +398,7 @@ pub const OnlineLearner = struct {
             .learning_rate = config.learning_rate,
             .gamma = config.gamma,
             .update_interval = config.update_interval,
-            .loss_history = .{},
+            .loss_history = .empty,
         };
     }
 

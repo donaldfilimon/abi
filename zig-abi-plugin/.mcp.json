@@ -1,9 +1,0 @@
-{
-  "wdbx": {
-    "command": "abi",
-    "args": ["mcp", "serve", "--db"],
-    "env": {
-      "ABI_DB_PATH": "${ABI_DB_PATH}"
-    }
-  }
-}

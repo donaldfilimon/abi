@@ -53,7 +53,7 @@ pub const RuntimeBridge = struct {
 
         // Write synthetic script to a temporary file
         var tmp_name_buf: [64]u8 = [_]u8{0} ** 64;
-        const ts = @import("../../../services/shared/mod.zig").time.timestampMs();
+        const ts = @import("../../../foundation/mod.zig").time.timestampMs();
         const tmp_file_name = try std.fmt.bufPrint(&tmp_name_buf, ".abi_synthetic_script_{d}{s}", .{ ts, ext });
 
         var file = try std.Io.Dir.cwd().createFile(self.io.*, tmp_file_name, .{ .truncate = true });
@@ -76,7 +76,7 @@ pub const RuntimeBridge = struct {
         try args.append(self.allocator, tmp_file_name);
 
         // In Zig 0.16 we execute via child process natively
-        var result = try std.process.run(self.allocator, self.io.*, .{
+        const result = try std.process.run(self.allocator, self.io.*, .{
             .argv = args.items,
         });
 

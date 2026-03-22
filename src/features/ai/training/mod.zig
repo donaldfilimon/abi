@@ -17,8 +17,8 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
-const time_utils = @import("../../../services/shared/mod.zig").utils;
-const time = @import("../../../services/shared/mod.zig").time;
+const time_utils = @import("../../../foundation/mod.zig").utils;
+const time = @import("../../../foundation/mod.zig").time;
 const database = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
 
 // Local submodule imports

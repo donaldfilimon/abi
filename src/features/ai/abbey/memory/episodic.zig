@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const types = @import("../../types.zig");
-const simd = @import("../../../../services/shared/simd/mod.zig");
+const simd = @import("../../../../foundation/simd/mod.zig");
 
 // ============================================================================
 // Episode Types
@@ -73,7 +73,7 @@ pub const EpisodicMemory = struct {
     pub fn init(allocator: std.mem.Allocator, max_episodes: usize, embedding_dim: usize) Self {
         return Self{
             .allocator = allocator,
-            .episodes = .{},
+            .episodes = .empty,
             .max_episodes = max_episodes,
             .embedding_dim = embedding_dim,
             .time_index = .{},
@@ -120,9 +120,9 @@ pub const EpisodicMemory = struct {
             .id = self.episode_counter,
             .start_time = now,
             .end_time = now,
-            .messages = .{},
+            .messages = .empty,
             .emotional_arc = .{},
-            .topics = .{},
+            .topics = .empty,
         });
 
         self.current_episode = &self.episodes.items[self.episodes.items.len - 1];
@@ -180,7 +180,7 @@ pub const EpisodicMemory = struct {
         for (episode.topics.items) |topic| {
             const result = try self.topic_index.getOrPut(self.allocator, topic);
             if (!result.found_existing) {
-                result.value_ptr.* = .{};
+                result.value_ptr.* = .empty;
             }
             try result.value_ptr.append(self.allocator, idx);
         }
@@ -189,7 +189,7 @@ pub const EpisodicMemory = struct {
         const emotion_key = @intFromEnum(episode.emotional_arc.peak_emotion);
         const emotion_result = try self.emotion_index.getOrPut(self.allocator, emotion_key);
         if (!emotion_result.found_existing) {
-            emotion_result.value_ptr.* = .{};
+            emotion_result.value_ptr.* = .empty;
         }
         try emotion_result.value_ptr.append(self.allocator, idx);
     }

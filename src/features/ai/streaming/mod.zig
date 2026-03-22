@@ -93,7 +93,7 @@
 //! | `/v1/models` | GET | List available models (OpenAI-compatible) |
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 pub const sse = @import("sse.zig");
 pub const backpressure = @import("backpressure.zig");
 pub const buffer = @import("buffer.zig");

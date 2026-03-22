@@ -12,8 +12,8 @@
 //! - RwLock for concurrent route lookups
 
 const std = @import("std");
-const sync = @import("../../services/shared/mod.zig").sync;
-const time_mod = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
+const time_mod = @import("../../foundation/mod.zig").time;
 const gateway_types = @import("types.zig");
 const routing = @import("routing.zig");
 const rate_limit_mod = @import("rate_limit.zig");
@@ -62,7 +62,7 @@ const RouteEntry = struct {
     upstream_owned: []u8,
 };
 
-/// Radix tree node — shared implementation from `services/shared/utils/radix_tree.zig`.
+/// Radix tree node — shared implementation from `foundation/utils/radix_tree.zig`.
 const RadixNode = RouteTree.Node;
 const RateLimiter = rate_limit_mod.RateLimiter;
 const CircuitBreaker = circuit_breaker_mod.CircuitBreaker;

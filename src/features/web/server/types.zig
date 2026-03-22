@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const Io = std.Io;
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 /// Configuration for the HTTP server.
 pub const ServerConfig = struct {

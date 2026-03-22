@@ -4,7 +4,7 @@
 //! for autoregressive text generation.
 
 const std = @import("std");
-const time = @import("../services/shared/mod.zig").time;
+const time = @import("../foundation/mod.zig").time;
 
 pub const SamplingParams = struct {
     temperature: f32 = 0.7,
@@ -240,7 +240,7 @@ test "top-p nucleus sampling with allocator" {
     const allocator = std.testing.allocator;
     // Skewed distribution: token 0 has ~0.73 probability after softmax
     // With top_p=0.5, only token 0 should be in the nucleus
-    var logits = [_]f32{ 5.0, 2.0, 1.0, 0.5, 0.1, 0.01, 0.001, 0.0001 };
+    const logits = [_]f32{ 5.0, 2.0, 1.0, 0.5, 0.1, 0.01, 0.001, 0.0001 };
     var sampler = Sampler.initWithSeedAndAllocator(allocator, .{
         .temperature = 1.0,
         .top_k = 0,
@@ -261,7 +261,7 @@ test "top-p nucleus sampling with allocator" {
 
 test "top-p nucleus sampling without allocator (linear fallback)" {
     // Small vocab — linear scan path
-    var logits = [_]f32{ 5.0, 2.0, 1.0, 0.1 };
+    const logits = [_]f32{ 5.0, 2.0, 1.0, 0.1 };
     var sampler = Sampler.initWithSeed(.{
         .temperature = 1.0,
         .top_k = 0,

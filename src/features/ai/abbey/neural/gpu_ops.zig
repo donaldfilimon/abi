@@ -9,7 +9,7 @@
 //! is disabled.
 
 const std = @import("std");
-const time = @import("../../../../services/shared/mod.zig").time;
+const time = @import("../../../../foundation/mod.zig").time;
 const build_options = @import("build_options");
 
 // Centralized GPU interface - handles compile-time gating and stubs

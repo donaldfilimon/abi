@@ -10,6 +10,5 @@ pub const errors = @import("errors.zig");
 pub const feature_catalog = @import("feature_catalog.zig");
 pub const framework = @import("framework.zig");
 pub const registry = @import("registry/mod.zig");
-pub const database = @import("database/mod.zig");
-pub const stub_context = @import("stub_context.zig");
+pub const stub_context = @import("stub_helpers.zig");
 pub const comptime_meta = @import("comptime_meta.zig");

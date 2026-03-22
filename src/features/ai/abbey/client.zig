@@ -7,11 +7,11 @@
 //! - Retry and fallback handling
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const types = @import("../types.zig");
 const config = @import("../core/config.zig");
 const build_options = @import("build_options");
-const shared_utils = @import("../../../services/shared/mod.zig").utils;
+const shared_utils = @import("../../../foundation/mod.zig").utils;
 
 // Import web client if web feature is enabled
 const web_client = if (build_options.feat_web) @import("../../web/client.zig") else @as(?void, null);

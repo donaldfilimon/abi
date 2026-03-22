@@ -5,10 +5,10 @@
 //! wrapper, and allowRequest() API.
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").utils;
-const sync = @import("../../services/shared/mod.zig").sync;
+const time = @import("../../foundation/mod.zig").utils;
+const sync = @import("../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
-const resilience = @import("../../services/shared/mod.zig").resilience.circuit_breaker;
+const resilience = @import("../../foundation/mod.zig").resilience.circuit_breaker;
 
 /// Error set for network operations wrapped by the circuit breaker.
 pub const NetworkOperationError = error{

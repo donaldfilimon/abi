@@ -212,7 +212,7 @@ pub const SseDecoder = struct {
     pub fn init(allocator: std.mem.Allocator) SseDecoder {
         return .{
             .allocator = allocator,
-            .buffer = .{},
+            .buffer = .empty,
             .last_event_id = null,
         };
     }

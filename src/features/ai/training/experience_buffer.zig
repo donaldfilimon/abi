@@ -4,7 +4,7 @@
 //! for the self-learning system.
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const learning_types = @import("learning_types.zig");
 
 pub const LearningExperience = learning_types.LearningExperience;
@@ -26,8 +26,8 @@ pub const ExperienceBuffer = struct {
     pub fn init(allocator: std.mem.Allocator, capacity: usize) Self {
         return .{
             .allocator = allocator,
-            .experiences = .{},
-            .priorities = .{},
+            .experiences = .empty,
+            .priorities = .empty,
             .capacity = capacity,
             .total_priority = 0,
             .alpha = 0.6,

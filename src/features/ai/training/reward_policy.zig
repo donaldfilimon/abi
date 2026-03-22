@@ -5,7 +5,7 @@
 //! - PolicyNetwork: actor-critic architecture for policy gradient updates
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 // ============================================================================
 // Reward Model

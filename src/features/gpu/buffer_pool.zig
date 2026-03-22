@@ -3,7 +3,7 @@
 //! Extracted from `unified.zig` to separate buffer concerns.
 
 const std = @import("std");
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const buffer_mod = @import("unified_buffer.zig");
 const device_mod = @import("device.zig");
 

@@ -88,7 +88,7 @@ pub const ConfidenceCalibrator = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
-            .predictions = .{},
+            .predictions = .empty,
         };
     }
 

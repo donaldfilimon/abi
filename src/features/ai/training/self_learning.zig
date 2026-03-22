@@ -36,7 +36,7 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 // Re-exports from extracted modules
 const learning_types_mod = @import("learning_types.zig");

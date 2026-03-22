@@ -1,5 +1,5 @@
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const json = std.json;
 const Tool = @import("tool.zig").Tool;
 const ToolResult = @import("tool.zig").ToolResult;

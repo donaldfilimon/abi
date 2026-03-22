@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const mod = @import("mod.zig");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 // ============================================================================
 // Types

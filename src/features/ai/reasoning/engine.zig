@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const core_types = @import("../types.zig");
-const platform_time = @import("../../../services/shared/mod.zig").time;
+const platform_time = @import("../../../foundation/mod.zig").time;
 
 // Re-export canonical types from core for consistency
 pub const ConfidenceLevel = core_types.ConfidenceLevel;
@@ -109,7 +109,7 @@ pub const ReasoningChain = struct {
         return .{
             .allocator = allocator,
             .query = query,
-            .steps = .{},
+            .steps = .empty,
             .start_time_ns = getTimestampNs(),
         };
     }

@@ -28,10 +28,10 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
-const sync = @import("../../../services/shared/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
-const shared_utils = @import("../../../services/shared/mod.zig").utils;
+const shared_utils = @import("../../../foundation/mod.zig").utils;
 
 // Sub-module imports
 pub const memory_region = @import("memory_region.zig");

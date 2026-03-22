@@ -22,7 +22,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-const utils = @import("../../services/shared/mod.zig").utils;
+const utils = @import("../../foundation/mod.zig").utils;
 const this_module = @This();
 
 pub const CloudEvent = types.CloudEvent;

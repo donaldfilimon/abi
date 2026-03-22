@@ -1,7 +1,7 @@
 //! Authentication Middleware
 //!
 //! Provides JWT and API key authentication for HTTP requests.
-//! Delegates to shared security modules from `services/shared/security/`
+//! Delegates to shared security modules from `foundation/security/`
 //! for JWT and API key operations where possible.
 
 const std = @import("std");
@@ -10,8 +10,8 @@ const server = @import("../server/mod.zig");
 const MiddlewareContext = types.MiddlewareContext;
 
 // Shared security modules — used for delegation where applicable.
-const shared_jwt = @import("../../../services/shared/mod.zig").security.jwt;
-const shared_api_keys = @import("../../../services/shared/mod.zig").security.api_keys;
+const shared_jwt = @import("../../../foundation/mod.zig").security.jwt;
+const shared_api_keys = @import("../../../foundation/mod.zig").security.api_keys;
 
 /// Authentication configuration.
 pub const AuthConfig = struct {
@@ -158,7 +158,7 @@ pub fn extractBearerToken(ctx: *MiddlewareContext, config: AuthConfig) ?[]const 
 ///
 /// NOTE: For full-featured JWT handling (claims parsing, expiration checks,
 /// algorithm selection, token blacklisting), use `shared_jwt.JwtManager`
-/// from `services/shared/security/jwt.zig` directly. This lightweight
+/// from `foundation/security/jwt.zig` directly. This lightweight
 /// inline validator is kept for the middleware hot-path where allocating a
 /// JwtManager is undesirable. It verifies the HMAC-SHA256 signature and
 /// extracts a hardcoded user_id; claims parsing is not performed here.
@@ -219,7 +219,7 @@ fn authFail(message: []const u8) AuthResult {
 /// NOTE: This performs a simple plaintext comparison against a static list,
 /// suitable for lightweight middleware use. For production API key management
 /// with salted hashing, key rotation, scopes, and expiration, use
-/// `shared_api_keys.ApiKeyManager` from `services/shared/security/api_keys.zig`.
+/// `shared_api_keys.ApiKeyManager` from `foundation/security/api_keys.zig`.
 pub fn isValidApiKey(key: []const u8, valid_keys: []const []const u8) bool {
     if (valid_keys.len == 0) return false;
     for (valid_keys) |valid_key| {

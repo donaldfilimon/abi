@@ -15,7 +15,7 @@
 //! - Auto-ban after 10 consecutive violations (1 hour ban)
 
 const std = @import("std");
-const rate_limit = @import("../../../services/shared/mod.zig").security.rate_limit;
+const rate_limit = @import("../../../foundation/mod.zig").security.rate_limit;
 
 /// Helper to serialize a value to JSON using Zig 0.16 API
 fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std.json.Stringify.Options) ![]u8 {

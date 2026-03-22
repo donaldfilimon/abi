@@ -9,8 +9,8 @@
 //! - Concurrent operation handling
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
-const sync = @import("../../../services/shared/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const gpu = @import("../mod.zig");
 const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;

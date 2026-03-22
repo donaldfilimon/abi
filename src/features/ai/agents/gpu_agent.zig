@@ -51,7 +51,7 @@
 //! for concurrent access from multiple threads.
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const build_options = @import("build_options");
 
 // GPU integration (conditional)

@@ -9,7 +9,7 @@
 const std = @import("std");
 const json = std.json;
 const tool = @import("tool.zig");
-const os = @import("../../../services/shared/mod.zig").os;
+const os = @import("../../../foundation/mod.zig").os;
 
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
@@ -46,7 +46,7 @@ fn executeServiceStatus(ctx: *Context, args: json.Value) ToolExecutionError!Tool
             return error.OutOfMemory;
         defer ctx.allocator.free(cmd);
 
-        var result = os.exec(ctx.allocator, cmd) catch {
+        const result = os.exec(ctx.allocator, cmd) catch {
             return ToolResult.fromError(ctx.allocator, "Failed to query service status");
         };
         ctx.allocator.free(result.stderr);
@@ -55,7 +55,7 @@ fn executeServiceStatus(ctx: *Context, args: json.Value) ToolExecutionError!Tool
     }
 
     // No service specified — list all
-    var result = os.exec(ctx.allocator, "systemctl list-units --type=service --no-pager 2>/dev/null | head -30 || launchctl list 2>/dev/null | head -30 || echo 'Service manager not available'") catch {
+    const result = os.exec(ctx.allocator, "systemctl list-units --type=service --no-pager 2>/dev/null | head -30 || launchctl list 2>/dev/null | head -30 || echo 'Service manager not available'") catch {
         return ToolResult.fromError(ctx.allocator, "Failed to list services");
     };
     ctx.allocator.free(result.stderr);
@@ -99,7 +99,7 @@ fn executeListDeps(ctx: *Context, args: json.Value) ToolExecutionError!ToolResul
         return error.OutOfMemory;
     defer ctx.allocator.free(cmd);
 
-    var result = os.exec(ctx.allocator, cmd) catch {
+    const result = os.exec(ctx.allocator, cmd) catch {
         return ToolResult.fromError(ctx.allocator, "Failed to read dependency files");
     };
     ctx.allocator.free(result.stderr);
@@ -122,7 +122,7 @@ pub const list_deps_tool = Tool{
 
 fn executeSystemPackages(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     _ = args;
-    var result = os.exec(ctx.allocator, "dpkg -l 2>/dev/null | tail -40 || brew list 2>/dev/null | head -40 || pacman -Q 2>/dev/null | head -40 || rpm -qa 2>/dev/null | head -40 || echo 'No package manager detected'") catch {
+    const result = os.exec(ctx.allocator, "dpkg -l 2>/dev/null | tail -40 || brew list 2>/dev/null | head -40 || pacman -Q 2>/dev/null | head -40 || rpm -qa 2>/dev/null | head -40 || echo 'No package manager detected'") catch {
         return ToolResult.fromError(ctx.allocator, "Failed to list system packages");
     };
     ctx.allocator.free(result.stderr);
@@ -164,7 +164,7 @@ fn executeWatchFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
         return error.OutOfMemory;
     defer ctx.allocator.free(cmd);
 
-    var result = os.exec(ctx.allocator, cmd) catch {
+    const result = os.exec(ctx.allocator, cmd) catch {
         return ToolResult.fromError(ctx.allocator, "File watch failed");
     };
     ctx.allocator.free(result.stderr);

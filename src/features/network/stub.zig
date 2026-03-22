@@ -6,10 +6,7 @@
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-// ============================================================================
-// Local Stubs Imports
-// ============================================================================
-
+// --- Local Stubs Imports ---
 const stub_types = @import("stubs/types.zig");
 const protocol_mod = @import("stubs/protocol.zig");
 const scheduler_mod = @import("stubs/scheduler.zig");
@@ -29,28 +26,20 @@ const rpc_protocol_mod = @import("stubs/rpc_protocol.zig");
 const unified_memory_mod = @import("stubs/unified_memory.zig");
 const linking_mod = @import("stubs/linking.zig");
 
-// ============================================================================
-// Shared types (from types.zig)
-// ============================================================================
+// --- Shared types (from types.zig) ---
 pub const types = @import("types.zig");
-
-// ============================================================================
-// Core Types Re-exports
-// ============================================================================
-
 pub const Error = types.Error;
 pub const NetworkError = types.NetworkError;
 pub const NetworkConfig = types.NetworkConfig;
+
+// --- Core Types ---
 pub const NetworkState = stub_types.NetworkState;
 pub const Node = stub_types.Node;
 pub const NodeStatus = stub_types.NodeStatus;
 pub const NodeInfo = stub_types.NodeInfo;
 pub const NodeRegistry = stub_types.NodeRegistry;
 
-// ============================================================================
-// Protocol Re-exports
-// ============================================================================
-
+// --- Protocol ---
 pub const TaskEnvelope = protocol_mod.TaskEnvelope;
 pub const ResultEnvelope = protocol_mod.ResultEnvelope;
 pub const ResultStatus = protocol_mod.ResultStatus;
@@ -59,10 +48,7 @@ pub const decodeTask = protocol_mod.decodeTask;
 pub const encodeResult = protocol_mod.encodeResult;
 pub const decodeResult = protocol_mod.decodeResult;
 
-// ============================================================================
-// Scheduler Re-exports
-// ============================================================================
-
+// --- Scheduler ---
 pub const TaskScheduler = scheduler_mod.TaskScheduler;
 pub const SchedulerConfig = scheduler_mod.SchedulerConfig;
 pub const SchedulerError = scheduler_mod.SchedulerError;
@@ -72,10 +58,7 @@ pub const ComputeNode = scheduler_mod.ComputeNode;
 pub const LoadBalancingStrategy = scheduler_mod.LoadBalancingStrategy;
 pub const SchedulerStats = scheduler_mod.SchedulerStats;
 
-// ============================================================================
-// High Availability Re-exports
-// ============================================================================
-
+// --- High Availability ---
 pub const HealthCheck = ha_mod.HealthCheck;
 pub const ClusterConfig = ha_mod.ClusterConfig;
 pub const HaError = ha_mod.HaError;
@@ -84,10 +67,7 @@ pub const ClusterState = ha_mod.ClusterState;
 pub const HealthCheckResult = ha_mod.HealthCheckResult;
 pub const FailoverPolicy = ha_mod.FailoverPolicy;
 
-// ============================================================================
-// Service Discovery Re-exports
-// ============================================================================
-
+// --- Service Discovery ---
 pub const ServiceDiscovery = discovery_mod.ServiceDiscovery;
 pub const DiscoveryConfig = discovery_mod.DiscoveryConfig;
 pub const DiscoveryBackend = discovery_mod.DiscoveryBackend;
@@ -98,10 +78,7 @@ pub const generateServiceId = discovery_mod.generateServiceId;
 pub const base64Encode = discovery_mod.base64Encode;
 pub const base64Decode = discovery_mod.base64Decode;
 
-// ============================================================================
-// Load Balancer Re-exports
-// ============================================================================
-
+// --- Load Balancer ---
 pub const LoadBalancer = loadbalancer_mod.LoadBalancer;
 pub const LoadBalancerConfig = loadbalancer_mod.LoadBalancerConfig;
 pub const LoadBalancerStrategy = loadbalancer_mod.LoadBalancerStrategy;
@@ -109,10 +86,7 @@ pub const LoadBalancerError = loadbalancer_mod.LoadBalancerError;
 pub const NodeState = loadbalancer_mod.NodeState;
 pub const NodeStats = loadbalancer_mod.NodeStats;
 
-// ============================================================================
-// Retry Re-exports
-// ============================================================================
-
+// --- Retry ---
 pub const RetryConfig = retry_mod.RetryConfig;
 pub const RetryResult = retry_mod.RetryResult;
 pub const RetryError = retry_mod.RetryError;
@@ -123,10 +97,7 @@ pub const BackoffCalculator = retry_mod.BackoffCalculator;
 pub const retryOperation = retry_mod.retry;
 pub const retryWithStrategy = retry_mod.retryWithStrategy;
 
-// ============================================================================
-// Rate Limiter Re-exports
-// ============================================================================
-
+// --- Rate Limiter ---
 pub const RateLimiter = rate_limiter_mod.RateLimiter;
 pub const RateLimiterConfig = rate_limiter_mod.RateLimiterConfig;
 pub const RateLimitAlgorithm = rate_limiter_mod.RateLimitAlgorithm;
@@ -136,10 +107,7 @@ pub const SlidingWindowLimiter = rate_limiter_mod.SlidingWindowLimiter;
 pub const FixedWindowLimiter = rate_limiter_mod.FixedWindowLimiter;
 pub const LimiterStats = rate_limiter_mod.LimiterStats;
 
-// ============================================================================
-// Connection Pool Re-exports
-// ============================================================================
-
+// --- Connection Pool ---
 pub const ConnectionPool = connection_pool_mod.ConnectionPool;
 pub const ConnectionPoolConfig = connection_pool_mod.ConnectionPoolConfig;
 pub const PooledConnection = connection_pool_mod.PooledConnection;
@@ -149,10 +117,7 @@ pub const HostKey = connection_pool_mod.HostKey;
 pub const PoolStats = connection_pool_mod.PoolStats;
 pub const PoolBuilder = connection_pool_mod.PoolBuilder;
 
-// ============================================================================
-// Raft Consensus Re-exports
-// ============================================================================
-
+// --- Raft Consensus ---
 pub const RaftNode = raft_mod.RaftNode;
 pub const RaftState = raft_mod.RaftState;
 pub const RaftConfig = raft_mod.RaftConfig;
@@ -178,10 +143,7 @@ pub const ConfigChangeType = raft_mod.ConfigChangeType;
 pub const ConfigChangeRequest = raft_mod.ConfigChangeRequest;
 pub const applyConfigChange = raft_mod.applyConfigChange;
 
-// ============================================================================
-// Transport Re-exports
-// ============================================================================
-
+// --- Transport ---
 pub const TcpTransport = transport_mod.TcpTransport;
 pub const TransportConfig = transport_mod.TransportConfig;
 pub const TransportError = transport_mod.TransportError;
@@ -192,19 +154,13 @@ pub const PeerConnection = transport_mod.PeerConnection;
 pub const RpcSerializer = transport_mod.RpcSerializer;
 pub const parseAddress = transport_mod.parseAddress;
 
-// ============================================================================
-// Raft Transport Re-exports
-// ============================================================================
-
+// --- Raft Transport ---
 pub const RaftTransport = raft_transport_mod.RaftTransport;
 pub const RaftTransportConfig = raft_transport_mod.RaftTransportConfig;
 pub const RaftTransportStats = raft_transport_mod.RaftTransport.RaftTransportStats;
 pub const PeerAddress = raft_transport_mod.PeerAddress;
 
-// ============================================================================
-// Circuit Breaker Re-exports
-// ============================================================================
-
+// --- Circuit Breaker ---
 pub const CircuitBreaker = circuit_breaker_mod.CircuitBreaker;
 pub const CircuitConfig = circuit_breaker_mod.CircuitConfig;
 pub const CircuitState = circuit_breaker_mod.CircuitState;
@@ -215,19 +171,13 @@ pub const CircuitMetricEntry = circuit_breaker_mod.CircuitMetricEntry;
 pub const NetworkOperationError = circuit_breaker_mod.NetworkOperationError;
 pub const AggregateStats = circuit_breaker_mod.AggregateStats;
 
-// ============================================================================
-// Failover Re-exports
-// ============================================================================
-
+// --- Failover ---
 pub const FailoverManager = failover_mod.FailoverManager;
 pub const FailoverConfig = failover_mod.FailoverConfig;
 pub const FailoverState = failover_mod.FailoverState;
 pub const FailoverEvent = failover_mod.FailoverEvent;
 
-// ============================================================================
-// Unified Memory Re-exports
-// ============================================================================
-
+// --- Unified Memory ---
 pub const UnifiedMemoryManager = unified_memory_mod.UnifiedMemoryManager;
 pub const UnifiedMemoryConfig = unified_memory_mod.UnifiedMemoryConfig;
 pub const UnifiedMemoryError = unified_memory_mod.UnifiedMemoryError;
@@ -241,10 +191,7 @@ pub const RemotePtr = unified_memory_mod.RemotePtr;
 pub const RemoteSlice = unified_memory_mod.RemoteSlice;
 pub const MemoryNode = unified_memory_mod.MemoryNode;
 
-// ============================================================================
-// Linking Re-exports
-// ============================================================================
-
+// --- Linking ---
 pub const LinkManager = linking_mod.LinkManager;
 pub const Link = linking_mod.Link;
 pub const LinkConfig = linking_mod.LinkConfig;
@@ -265,10 +212,7 @@ pub const InternetConfig = linking_mod.InternetConfig;
 pub const NatTraversal = linking_mod.NatTraversal;
 pub const QuicConnection = linking_mod.QuicConnection;
 
-// ============================================================================
-// Sub-module Namespace Re-exports
-// ============================================================================
-
+// --- Sub-module Namespace Re-exports ---
 pub const retry = retry_mod;
 pub const rate_limiter = rate_limiter_mod;
 pub const connection_pool = connection_pool_mod;
@@ -282,10 +226,7 @@ pub const failover = failover_mod;
 pub const heartbeat = heartbeat_mod;
 pub const rpc_protocol = rpc_protocol_mod;
 
-// ============================================================================
-// Heartbeat FSM Re-exports
-// ============================================================================
-
+// --- Heartbeat FSM ---
 pub const NodeHealthState = heartbeat_mod.NodeHealthState;
 pub const ClusterHealthState = heartbeat_mod.ClusterHealthState;
 pub const HeartbeatEvent = heartbeat_mod.HeartbeatEvent;
@@ -293,10 +234,7 @@ pub const HeartbeatConfig = heartbeat_mod.HeartbeatConfig;
 pub const HeartbeatStateMachine = heartbeat_mod.HeartbeatStateMachine;
 pub const EventCallback = heartbeat_mod.EventCallback;
 
-// ============================================================================
-// RPC Protocol Re-exports
-// ============================================================================
-
+// --- RPC Protocol ---
 pub const RpcMessageType = rpc_protocol_mod.MessageType;
 pub const RpcHeader = rpc_protocol_mod.RpcHeader;
 pub const ParsedFrame = rpc_protocol_mod.ParsedFrame;
@@ -306,13 +244,9 @@ pub const BlockHeader = rpc_protocol_mod.BlockHeader;
 pub const frameMessage = rpc_protocol_mod.frameMessage;
 pub const parseRpcFrame = rpc_protocol_mod.parseFrame;
 
-// ============================================================================
-// Context (Framework integration)
-// ============================================================================
-
+// --- Context ---
 pub const Context = struct {
     pub const State = enum { disconnected, connecting, connected, error_state };
-
     pub fn init(_: std.mem.Allocator, _: config_module.NetworkConfig) Error!*Context {
         return error.NetworkDisabled;
     }
@@ -332,10 +266,7 @@ pub const Context = struct {
     }
 };
 
-// ============================================================================
-// Module Lifecycle
-// ============================================================================
-
+// --- Module Lifecycle ---
 pub fn isEnabled() bool {
     return false;
 }

@@ -99,8 +99,8 @@
 //! be used per-thread or with external synchronization.
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").time;
-const sync = @import("../../services/shared/mod.zig").sync;
+const time = @import("../../foundation/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
@@ -137,7 +137,7 @@ pub const HttpClient = client.HttpClient;
 pub const RequestOptions = client.RequestOptions;
 pub const WeatherClient = weather.WeatherClient;
 pub const WeatherConfig = weather.WeatherConfig;
-pub const http = @import("../../services/shared/mod.zig").utils.http;
+pub const http = @import("../../foundation/mod.zig").utils.http;
 
 pub const types = @import("types.zig");
 

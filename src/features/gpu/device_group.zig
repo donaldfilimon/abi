@@ -8,7 +8,7 @@ const build_options = @import("build_options");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Device identifier.

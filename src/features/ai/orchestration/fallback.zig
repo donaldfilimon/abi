@@ -4,8 +4,8 @@
 //! health tracking, circuit breakers, and failover strategies.
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
-const utils = @import("../../../services/shared/mod.zig").utils;
+const time = @import("../../../foundation/mod.zig").time;
+const utils = @import("../../../foundation/mod.zig").utils;
 
 // ============================================================================
 // Types
@@ -205,7 +205,7 @@ pub const FallbackManager = struct {
             .allocator = allocator,
             .config = config,
             .circuit_breakers = .{},
-            .fallback_chain = .{},
+            .fallback_chain = .empty,
         };
     }
 

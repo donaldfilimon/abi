@@ -1,5 +1,0 @@
-module CABI [system] {
-    umbrella header "shim.h"
-    link "abi"
-    export *
-}

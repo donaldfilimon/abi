@@ -11,7 +11,7 @@
 //! - Fact checking with confidence scoring
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const types = @import("../types.zig");
 const config = @import("../config.zig");
 const agent_mod = @import("../agents/mod.zig");

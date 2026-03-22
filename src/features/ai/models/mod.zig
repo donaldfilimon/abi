@@ -64,7 +64,7 @@ pub const SearchResult = huggingface.SearchResult;
 
 /// Check if model management is enabled at compile time.
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.feat_ai;
 }
 
 /// Error types for model management operations.

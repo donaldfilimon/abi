@@ -1,6 +1,6 @@
 const std = @import("std");
 const llm = @import("../mod.zig");
-const connectors = @import("../../../../services/connectors/mod.zig");
+const connectors = @import("../../../../connectors/mod.zig");
 const types = @import("types.zig");
 const errors = @import("errors.zig");
 const registry = @import("registry.zig");
@@ -177,7 +177,7 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
         if (err == error.ConnectionRefused) {
             std.log.info("llama-server not running. Attempting to spawn locally...", .{});
 
-            const os = @import("../../../../services/shared/os.zig");
+            const os = @import("../../../../foundation/os.zig");
             const cmd = try std.fmt.allocPrint(allocator, "nohup llama-server -m {s} --port 8080 > /tmp/llama-server.log 2>&1 &", .{cfg.model});
             defer allocator.free(cmd);
 
@@ -188,7 +188,7 @@ fn generateLlamaCpp(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
             result.deinit();
 
             std.log.info("Spawned llama-server. Waiting for it to become ready...", .{});
-            const time_mod = @import("../../../../services/shared/mod.zig").time;
+            const time_mod = @import("../../../../foundation/mod.zig").time;
             time_mod.sleepNs(3 * std.time.ns_per_s);
             text = try client.generate(cfg.prompt, cfg.max_tokens);
         } else {

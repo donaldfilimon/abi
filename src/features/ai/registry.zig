@@ -5,7 +5,7 @@ const std = @import("std");
 const types = @import("types.zig");
 const config = @import("config.zig");
 
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Central registry managing the lifecycle and discovery of AI profiles.

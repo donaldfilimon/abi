@@ -278,7 +278,7 @@ pub const Link = struct {
     stats: LinkStats = .{},
     allocator: std.mem.Allocator = undefined,
     send_queue: std.ArrayListUnmanaged(QueuedMessage) = .empty,
-    mutex: @import("../../../services/shared/mod.zig").sync.Mutex = .{},
+    mutex: @import("../../../foundation/mod.zig").sync.Mutex = .{},
 
     pub const QueuedMessage = struct {
         data: []const u8,
@@ -326,7 +326,7 @@ pub const LinkManager = struct {
     default_config: LinkConfig = .{},
     stats: ManagerStats = .{},
     next_link_id: u64 = 1,
-    mutex: @import("../../../services/shared/mod.zig").sync.Mutex = .{},
+    mutex: @import("../../../foundation/mod.zig").sync.Mutex = .{},
 
     pub const ManagerStats = struct {
         links_created: u64 = 0,

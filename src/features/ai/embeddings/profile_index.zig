@@ -19,8 +19,8 @@ const database = if (build_options.feat_database)
 else
     @import("../../database/stub.zig");
 const seed_data = @import("seed_data.zig");
-const time = @import("../../../services/shared/mod.zig").time;
-const simd = @import("../../../services/shared/simd/mod.zig");
+const time = @import("../../../foundation/mod.zig").time;
+const simd = @import("../../../foundation/simd/mod.zig");
 
 /// Result of a profile matching operation.
 pub const ProfileMatch = struct {

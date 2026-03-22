@@ -1,16 +1,16 @@
 //! Gateway-specific rate limiting (nanosecond-precision, histogram-based sliding window).
 //!
-//! Delegates to the shared `services/shared/resilience/rate_limiter.zig` for core
+//! Delegates to the shared `foundation/resilience/rate_limiter.zig` for core
 //! algorithms (token bucket, sliding window, fixed window). This module adapts
 //! the gateway-specific `RateLimitConfig` to the shared `Config` format.
 //!
 //! For HTTP/API-level rate limiting with per-key tracking, bans, whitelist,
-//! and auth integration, see `services/shared/security/rate_limit.zig`.
+//! and auth integration, see `foundation/security/rate_limit.zig`.
 //! For per-connection rate limiting, see `features/network/rate_limiter.zig`.
 
 const std = @import("std");
 const types = @import("types.zig");
-const shared_rl = @import("../../services/shared/mod.zig").resilience.rate_limiter;
+const shared_rl = @import("../../foundation/mod.zig").resilience.rate_limiter;
 
 pub const RateLimitConfig = types.RateLimitConfig;
 pub const RateLimitAlgorithm = types.RateLimitAlgorithm;

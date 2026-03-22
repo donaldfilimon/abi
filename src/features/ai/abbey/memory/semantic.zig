@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const types = @import("../../types.zig");
-const simd = @import("../../../../services/shared/simd/mod.zig");
+const simd = @import("../../../../foundation/simd/mod.zig");
 
 // ============================================================================
 // Knowledge Types
@@ -72,7 +72,7 @@ pub const SemanticMemory = struct {
     pub fn init(allocator: std.mem.Allocator, embedding_dim: usize) Self {
         return Self{
             .allocator = allocator,
-            .knowledge = .{},
+            .knowledge = .empty,
             .embedding_dim = embedding_dim,
             .category_index = .{},
             .id_to_index = .{},
@@ -114,14 +114,14 @@ pub const SemanticMemory = struct {
             .source = source,
             .created_at = now,
             .accessed_at = now,
-            .associations = .{},
+            .associations = .empty,
         });
 
         // Index by category
         const cat_key = @intFromEnum(category);
         const result = try self.category_index.getOrPut(self.allocator, cat_key);
         if (!result.found_existing) {
-            result.value_ptr.* = .{};
+            result.value_ptr.* = .empty;
         }
         try result.value_ptr.append(self.allocator, idx);
 

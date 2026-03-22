@@ -24,7 +24,7 @@ const obs = if (build_options.feat_profiling) @import("../observability/mod.zig"
 const alerts = @import("health.zig");
 
 // Shared metrics primitives (for standalone use)
-const core_metrics = @import("../../services/shared/mod.zig").utils.metric_types;
+const core_metrics = @import("../../foundation/mod.zig").utils.metric_types;
 
 /// Collection of metrics for a specific profile.
 pub const ProfileMetricSet = struct {

@@ -33,9 +33,9 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const backend_factory = @import("backend_factory.zig");
-const shared = @import("../../services/shared/mod.zig");
+const shared = @import("../../foundation/mod.zig");
 const simd = shared.simd;
 const dispatcher_mod = @import("dispatch/coordinator.zig");
 const device_mod = @import("device.zig");

@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const core_types = @import("../types.zig");
-const platform_time = @import("../../../services/shared/mod.zig").time;
+const platform_time = @import("../../../foundation/mod.zig").time;
 
 // Re-export the canonical EmotionType from core types
 // This ensures type consistency across the AI module

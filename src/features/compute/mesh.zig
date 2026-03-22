@@ -41,7 +41,7 @@ pub const MeshOrchestrator = struct {
 
     pub fn init(allocator: std.mem.Allocator, io: *std.Io) MeshOrchestrator {
         var local_id: [16]u8 = undefined;
-        var prng = @import("../../services/shared/mod.zig").security.csprng.init();
+        var prng = @import("../../foundation/mod.zig").security.csprng.init();
         prng.random().bytes(&local_id);
 
         return .{
@@ -194,7 +194,7 @@ pub const MeshOrchestrator = struct {
     fn registerPeer(self: *MeshOrchestrator, node_id: [16]u8, addr: std.c.sockaddr.in, backend: ComputeNode.BackendType, vram_mb: u64) void {
         for (self.nodes.items) |*node| {
             if (std.mem.eql(u8, &node.id, &node_id)) {
-                node.last_seen_ms = @intCast(@import("../../services/shared/mod.zig").time.timestampMs());
+                node.last_seen_ms = @intCast(@import("../../foundation/mod.zig").time.timestampMs());
                 return; // Already known
             }
         }
@@ -207,7 +207,7 @@ pub const MeshOrchestrator = struct {
             .is_local = false,
             .available_vram_mb = vram_mb,
             .backend = backend,
-            .last_seen_ms = @intCast(@import("../../services/shared/mod.zig").time.timestampMs()),
+            .last_seen_ms = @intCast(@import("../../foundation/mod.zig").time.timestampMs()),
         }) catch {};
     }
 

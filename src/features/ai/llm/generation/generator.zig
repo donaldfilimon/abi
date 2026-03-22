@@ -1,7 +1,7 @@
 //! Text generator for autoregressive generation.
 
 const std = @import("std");
-const time = @import("../../../../services/shared/mod.zig").time;
+const time = @import("../../../../foundation/mod.zig").time;
 const sampler_mod = @import("sampler.zig");
 const tokenizer = @import("../tokenizer/mod.zig");
 

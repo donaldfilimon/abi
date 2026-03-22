@@ -13,7 +13,7 @@ const std = @import("std");
 const index = @import("profile_index.zig");
 const learning = @import("learning.zig");
 const seed = @import("seed_data.zig");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 
 // Re-export core types from profile_index
 pub const ProfileEmbeddingIndex = index.ProfileEmbeddingIndex;

@@ -463,7 +463,7 @@ pub fn globalAvgPool2D(
 test "maxpool2d output dimensions" {
     const allocator = std.testing.allocator;
 
-    var pool = MaxPool2D.init(allocator, 2, 2, 0);
+    var pool = try MaxPool2D.init(allocator, 2, 2, 0);
     defer pool.deinit();
 
     const out_size = pool.outputSize(4, 4);
@@ -474,7 +474,7 @@ test "maxpool2d output dimensions" {
 test "maxpool2d forward" {
     const allocator = std.testing.allocator;
 
-    var pool = MaxPool2D.init(allocator, 2, 2, 0);
+    var pool = try MaxPool2D.init(allocator, 2, 2, 0);
     defer pool.deinit();
 
     // 1x1x4x4 input
@@ -499,7 +499,7 @@ test "maxpool2d forward" {
 test "avgpool2d forward" {
     const allocator = std.testing.allocator;
 
-    var pool = AvgPool2D.init(allocator, 2, 2, 0);
+    var pool = try AvgPool2D.init(allocator, 2, 2, 0);
     defer pool.deinit();
 
     // 1x1x4x4 input
@@ -566,7 +566,7 @@ test "global avg pool" {
 test "maxpool2d backward" {
     const allocator = std.testing.allocator;
 
-    var pool = MaxPool2D.init(allocator, 2, 2, 0);
+    var pool = try MaxPool2D.init(allocator, 2, 2, 0);
     defer pool.deinit();
 
     // 1x1x4x4 input

@@ -3,11 +3,11 @@
 //! Thread-safe metric types for counters, gauges, and histograms.
 //! Used as building blocks for domain-specific metrics.
 //!
-//! Implementation lives in `services/shared/utils/metric_types.zig`
+//! Implementation lives in `foundation/utils/metric_types.zig`
 //! since these primitives are shared across multiple feature modules.
 
 const std = @import("std");
-const metric_types = @import("../../../services/shared/mod.zig").utils.metric_types;
+const metric_types = @import("../../../foundation/mod.zig").utils.metric_types;
 
 // Re-export all types from the shared implementation
 pub const Counter = metric_types.Counter;

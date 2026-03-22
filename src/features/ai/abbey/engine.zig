@@ -108,7 +108,7 @@ pub const AbbeyEngine = struct {
     /// Clean up resources
     pub fn deinit(self: *Self) void {
         if (self.current_reasoning) |*chain| {
-            chain.deinit();
+            chain.deinit(self.allocator);
         }
         self.topic_tracker.deinit();
         self.calibrator.deinit();
@@ -642,7 +642,7 @@ pub const AbbeyEngine = struct {
     pub fn clearConversation(self: *Self) void {
         self.memory.clearWorking();
         if (self.current_reasoning) |*chain| {
-            chain.deinit();
+            chain.deinit(self.allocator);
             self.current_reasoning = null;
         }
         self.turn_count = 0;

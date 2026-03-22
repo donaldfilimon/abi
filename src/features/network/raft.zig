@@ -15,8 +15,8 @@
 //!   try node.tick(); // Process timeouts and state transitions
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").time;
-const sync = @import("../../services/shared/mod.zig").sync;
+const time = @import("../../foundation/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
 
 // Re-export persistence and snapshot types for backward compatibility
 const raft_persistence = @import("raft_persistence.zig");

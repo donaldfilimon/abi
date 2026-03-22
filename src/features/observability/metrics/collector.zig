@@ -2,10 +2,10 @@
 //!
 //! Named metric registration and lifecycle management. These types carry
 //! a `name` field for identification within the collector, unlike the
-//! lightweight primitives in `services/shared/utils/metric_types.zig`.
+//! lightweight primitives in `foundation/utils/metric_types.zig`.
 
 const std = @import("std");
-const sync = @import("../../../services/shared/mod.zig").sync;
+const sync = @import("../../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 // ============================================================================

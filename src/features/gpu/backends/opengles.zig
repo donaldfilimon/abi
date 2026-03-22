@@ -4,8 +4,8 @@
 //! for mobile and embedded platforms. Requires OpenGL ES 3.1+ for compute shader support.
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
-const sync = @import("../../../services/shared/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");

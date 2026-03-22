@@ -50,10 +50,10 @@ pub const TokenBuffer = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .items = .{},
+            .items = .empty,
             .ring_head = 0,
             .ring_tail = 0,
-            .coalesce_buffer = .{},
+            .coalesce_buffer = .empty,
             .total_pushed = 0,
             .total_popped = 0,
             .total_dropped = 0,
@@ -317,7 +317,7 @@ pub const CoalescingBuffer = struct {
     pub fn init(allocator: std.mem.Allocator, max_length: usize) CoalescingBuffer {
         return .{
             .allocator = allocator,
-            .buffer = .{},
+            .buffer = .empty,
             .token_count = 0,
             .max_length = max_length,
             .flush_on_punctuation = true,

@@ -6,33 +6,24 @@
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-// ============================================================================
-// Shared types (from types.zig)
-// ============================================================================
-
+// --- Shared types (from types.zig) ---
 pub const types = @import("types.zig");
+pub const Error = types.Error;
+pub const MetricsConfig = types.MetricsConfig;
+pub const MetricsSummary = types.MetricsSummary;
+pub const MonitoringError = types.MonitoringError;
 
-// ============================================================================
-// Local Stubs Imports
-// ============================================================================
-
+// --- Local Stubs Imports ---
 const stub_types = @import("stubs/types.zig");
 const metrics_stubs = @import("stubs/metrics.zig");
 pub const tracing = @import("stubs/tracing.zig");
 pub const alerting = @import("stubs/alerting.zig");
 const exporters = @import("stubs/exporters.zig");
 
-// ============================================================================
-// Re-exports
-// ============================================================================
-
-pub const Error = types.Error;
-pub const MetricsConfig = types.MetricsConfig;
-pub const MetricsSummary = types.MetricsSummary;
+// --- Stub-only types from stubs/types.zig ---
 pub const BundleConfig = stub_types.BundleConfig;
 pub const PrometheusConfig = stub_types.PrometheusConfig;
 pub const OtelConfig = stub_types.OtelConfig;
-pub const MonitoringError = types.MonitoringError;
 pub const OtelSpanKind = stub_types.OtelSpanKind;
 pub const OtelMetricType = stub_types.OtelMetricType;
 pub const OtelStatus = stub_types.OtelStatus;
@@ -50,8 +41,12 @@ pub const AlertState = stub_types.AlertState;
 pub const AlertSeverity = stub_types.AlertSeverity;
 pub const AlertError = stub_types.AlertError;
 pub const AlertCallback = stub_types.AlertCallback;
+pub const ObservabilityBundle = stub_types.ObservabilityBundle;
+pub const StatsDClient = stub_types.StatsDClient;
+pub const StatsDConfig = stub_types.StatsDConfig;
+pub const StatsDError = stub_types.StatsDError;
 
-// Metrics
+// --- Metrics ---
 pub const MetricsCollector = metrics_stubs.MetricsCollector;
 pub const Counter = metrics_stubs.Counter;
 pub const Gauge = metrics_stubs.Gauge;
@@ -66,7 +61,7 @@ pub const registerDefaultMetrics = metrics_stubs.registerDefaultMetrics;
 pub const recordRequest = metrics_stubs.recordRequest;
 pub const recordError = metrics_stubs.recordError;
 
-// Tracing
+// --- Tracing ---
 pub const Tracer = tracing.Tracer;
 pub const Span = tracing.Span;
 pub const TraceContext = tracing.TraceContext;
@@ -87,7 +82,7 @@ pub const formatTraceId = tracing.formatTraceId;
 pub const formatSpanId = tracing.formatSpanId;
 pub const createOtelResource = tracing.createOtelResource;
 
-// Alerting
+// --- Alerting ---
 pub const AlertManager = alerting.AlertManager;
 pub const AlertManagerConfig = alerting.AlertManagerConfig;
 pub const AlertRule = alerting.AlertRule;
@@ -99,7 +94,7 @@ pub const AlertHandler = alerting.AlertHandler;
 pub const MetricValues = alerting.MetricValues;
 pub const createAlertRule = alerting.createAlertRule;
 
-// Exporters
+// --- Exporters ---
 pub const prometheus = struct {
     pub const PrometheusExporter = exporters.PrometheusExporter;
     pub const PrometheusConfig = stub_types.PrometheusConfig;
@@ -111,29 +106,10 @@ pub const PrometheusFormatter = exporters.PrometheusFormatter;
 pub const generateMetricsOutput = exporters.generateMetricsOutput;
 pub const statsd = exporters.statsd;
 
-// Monitoring re-exports for parity with mod.zig
+// --- Monitoring ---
 pub const monitoring = alerting;
-// MonitoringError is re-exported from types above
-pub const StatsDClient = struct {};
-pub const StatsDConfig = struct {};
-pub const StatsDError = error{FeatureDisabled};
 
-// Unified observability bundle (stub)
-pub const ObservabilityBundle = struct {
-    pub fn init(_: std.mem.Allocator, _: BundleConfig) Error!ObservabilityBundle {
-        return error.FeatureDisabled;
-    }
-    pub fn deinit(_: *ObservabilityBundle) void {}
-    pub fn start(_: *ObservabilityBundle) Error!void {
-        return error.FeatureDisabled;
-    }
-    pub fn stop(_: *ObservabilityBundle) void {}
-    pub fn startSpan(_: *ObservabilityBundle, _: []const u8) Error!?OtelSpan {
-        return error.FeatureDisabled;
-    }
-};
-
-// Context for Framework integration
+// --- Context ---
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.ObservabilityConfig) Error!*Context {
         return error.ObservabilityDisabled;
@@ -150,6 +126,7 @@ pub const Context = struct {
     }
 };
 
+// --- Module Lifecycle ---
 pub fn isEnabled() bool {
     return false;
 }
@@ -161,11 +138,9 @@ pub fn init(_: std.mem.Allocator) Error!void {
 }
 pub fn deinit() void {}
 
-// System Information Helper (Stub)
+// --- System Information & Core Metrics ---
 pub const system_info = @import("stubs/system_info.zig");
 pub const SystemInfo = system_info.SystemInfo;
-
-// Core Metrics Module (Stub)
 pub const core_metrics = @import("stubs/core_metrics.zig");
 
 test {

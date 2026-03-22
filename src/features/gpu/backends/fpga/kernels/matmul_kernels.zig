@@ -11,8 +11,8 @@
 //! - Latency: <10us for typical LLM weight matrices
 
 const std = @import("std");
-const time = @import("../../../../../services/shared/time.zig");
-const sync = @import("../../../../../services/shared/sync.zig");
+const time = @import("../../../../../foundation/time.zig");
+const sync = @import("../../../../../foundation/sync.zig");
 const build_options = @import("build_options");
 const distance_kernels = @import("distance_kernels.zig");
 

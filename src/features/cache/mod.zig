@@ -13,8 +13,8 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/platform.zig");
-const sync = @import("../../services/shared/mod.zig").sync;
-const time = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
+const time = @import("../../foundation/mod.zig").time;
 const types = @import("types.zig");
 
 pub const CacheConfig = types.CacheConfig;
@@ -79,7 +79,7 @@ const EntrySlab = struct {
     }
 
     fn release(self: *EntrySlab, allocator: std.mem.Allocator, idx: NodeIndex) void {
-        var entry = &self.entries.items[idx];
+        const entry = &self.entries.items[idx];
         if (entry.key_buf.len > 0) allocator.free(entry.key_buf);
         if (entry.value_buf.len > 0) allocator.free(entry.value_buf);
         entry.* = .{

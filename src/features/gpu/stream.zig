@@ -7,9 +7,9 @@ const std = @import("std");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 // Import utilities from the shared directory (relative to this file)
-const time_utils = @import("../../services/shared/mod.zig").utils;
+const time_utils = @import("../../foundation/mod.zig").utils;
 
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 pub const Backend = backend_mod.Backend;

@@ -5,8 +5,8 @@ const ToolResult = tool.ToolResult;
 const Context = tool.Context;
 const Parameter = tool.Parameter;
 const json = std.json;
-const os = @import("../../../services/shared/mod.zig").os;
-const sync = @import("../../../services/shared/mod.zig").sync;
+const os = @import("../../../foundation/mod.zig").os;
+const sync = @import("../../../foundation/mod.zig").sync;
 
 // Registry for tracking spawned background server PIDs
 var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .empty;

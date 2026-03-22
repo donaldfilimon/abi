@@ -1,17 +1,17 @@
 //! Rate limiting for network requests (nanosecond-precision, single-client).
 //!
-//! Delegates to the shared `services/shared/resilience/rate_limiter.zig` for core
+//! Delegates to the shared `foundation/resilience/rate_limiter.zig` for core
 //! algorithms (token bucket, sliding window, fixed window, leaky bucket). This
 //! module preserves the existing network-specific public API and adds
 //! network-specific extensions like `acquireBlocking`.
 //!
 //! For HTTP/API-level rate limiting with per-key tracking, bans, whitelist,
-//! and auth integration, see `services/shared/security/rate_limit.zig`.
+//! and auth integration, see `foundation/security/rate_limit.zig`.
 
 const std = @import("std");
-const time = @import("../../services/shared/mod.zig").utils;
-const sync = @import("../../services/shared/mod.zig").sync;
-const shared_rl = @import("../../services/shared/mod.zig").resilience.rate_limiter;
+const time = @import("../../foundation/mod.zig").utils;
+const sync = @import("../../foundation/mod.zig").sync;
+const shared_rl = @import("../../foundation/mod.zig").resilience.rate_limiter;
 
 pub const RateLimitAlgorithm = enum { token_bucket, sliding_window, fixed_window, leaky_bucket };
 

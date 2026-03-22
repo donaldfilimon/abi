@@ -7,7 +7,7 @@
 //! - Session and profile association
 
 const std = @import("std");
-const time = @import("../../../services/shared/mod.zig").time;
+const time = @import("../../../foundation/mod.zig").time;
 const cfg = @import("config.zig");
 
 /// Rating type for feedback.

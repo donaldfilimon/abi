@@ -6,8 +6,8 @@
 //! Reference: https://platform.openai.com/docs/api-reference/chat
 
 const std = @import("std");
-const time = @import("../../../../services/shared/mod.zig").time;
-const sync = @import("../../../../services/shared/mod.zig").sync;
+const time = @import("../../../../foundation/mod.zig").time;
+const sync = @import("../../../../foundation/mod.zig").sync;
 const backends = @import("../backends/mod.zig");
 
 /// Chat message role

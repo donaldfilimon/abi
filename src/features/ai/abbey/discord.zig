@@ -15,7 +15,7 @@ const std = @import("std");
 const engine = @import("engine.zig");
 const core_types = @import("../types.zig");
 const core_config = @import("../core/config.zig");
-const discord = @import("../../../services/connectors/discord/mod.zig");
+const discord = @import("../../../connectors/discord/mod.zig");
 const emotions = @import("emotions.zig");
 
 // ============================================================================

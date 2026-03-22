@@ -11,6 +11,7 @@ const features_agent = @import("agent.zig");
 const features_tools = @import("../tools/mod.zig");
 
 pub const Agent = features_agent.Agent;
+pub const AgentBackend = features_agent.AgentBackend;
 pub const AgentConfig = features_agent.AgentConfig;
 pub const Tool = features_tools.Tool;
 pub const ToolResult = features_tools.ToolResult;

@@ -13,8 +13,8 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/platform.zig");
-const sync = @import("../../services/shared/mod.zig").sync;
-const time_mod = @import("../../services/shared/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
+const time_mod = @import("../../foundation/mod.zig").time;
 const types = @import("types.zig");
 
 pub const MessagingConfig = types.MessagingConfig;

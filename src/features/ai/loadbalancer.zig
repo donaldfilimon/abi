@@ -13,10 +13,10 @@
 const std = @import("std");
 const types = @import("types.zig");
 const config = @import("config.zig");
-const cb = @import("../../services/shared/mod.zig").resilience.circuit_breaker;
-const time = @import("../../services/shared/mod.zig").time;
+const cb = @import("../../foundation/mod.zig").resilience.circuit_breaker;
+const time = @import("../../foundation/mod.zig").time;
 
-const sync = @import("../../services/shared/mod.zig").sync;
+const sync = @import("../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
 
 /// Status of a profile node.

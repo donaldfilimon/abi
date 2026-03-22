@@ -17,7 +17,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const simd = @import("../../services/shared/mod.zig").simd;
+const simd = @import("../../foundation/mod.zig").simd;
 const index_mod = @import("index.zig");
 
 /// ScaNN configuration parameters
