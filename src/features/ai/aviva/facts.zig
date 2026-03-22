@@ -82,10 +82,10 @@ pub const FactCheckResult = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .claims = .{},
+            .claims = .empty,
             .overall_confidence = 1.0,
             .verification_needed_count = 0,
-            .qualifications = .{},
+            .qualifications = .empty,
         };
     }
 

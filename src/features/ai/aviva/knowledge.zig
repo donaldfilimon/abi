@@ -95,7 +95,7 @@ pub const RetrievalResult = struct {
     pub fn init(allocator: std.mem.Allocator, query: []const u8) Self {
         return .{
             .allocator = allocator,
-            .fragments = .{},
+            .fragments = .empty,
             .query = query,
             .total_found = 0,
             .retrieval_time_ms = 0,
@@ -166,7 +166,7 @@ pub const KnowledgeRetriever = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .cache = .{},
+            .cache = .empty,
             .knowledge_base = KnowledgeBase.init(allocator),
         };
     }
@@ -288,7 +288,7 @@ pub const KnowledgeBase = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .fragments = .{},
+            .fragments = .empty,
         };
     }
 

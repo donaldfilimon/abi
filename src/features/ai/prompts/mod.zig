@@ -30,7 +30,12 @@ pub fn getProfile(profile_type: ProfileType) Profile {
 
 /// List all available profiles
 pub fn listProfiles() []const ProfileType {
-    return &[_]ProfileType{ .assistant, .coder, .writer, .analyst };
+    return &[_]ProfileType{
+        .assistant, .coder, .writer,   .analyst,
+        .companion, .docs,  .reviewer, .minimal,
+        .abbey,     .ralph, .aviva,    .abi,
+        .ava,
+    };
 }
 
 /// Create a prompt builder with default assistant profile

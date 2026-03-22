@@ -105,7 +105,7 @@ pub const RoutingRulesScore = struct {
     pub fn init(allocator: std.mem.Allocator) RoutingRulesScore {
         return .{
             .allocator = allocator,
-            .matched_rules = .{},
+            .matched_rules = .empty,
         };
     }
 
