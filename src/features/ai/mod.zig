@@ -44,6 +44,10 @@ pub const coordination = if (build_options.feat_ai) @import("coordination/mod.zi
 pub const models = if (build_options.feat_ai) @import("models/mod.zig") else @import("models/stub.zig");
 pub const transformer = if (build_options.feat_ai) @import("transformer/mod.zig") else @import("transformer/stub.zig");
 pub const federated = if (build_options.feat_ai) @import("federated/mod.zig") else @import("federated/stub.zig");
+
+/// Multi-persona orchestration: registry, router, collaboration bus.
+pub const persona = if (build_options.feat_ai) @import("persona/mod.zig") else struct {};
+
 pub const tool_agent = tools;
 pub const discovery = explore;
 pub const jumpstart = @import("context_engine/jumpstart.zig");
