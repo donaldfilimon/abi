@@ -38,6 +38,7 @@ const lsp_tests = @import("integration/lsp_test.zig");
 const pages_tests = @import("integration/pages_test.zig");
 const training_tests = @import("integration/training_test.zig");
 const benchmarks_tests = @import("integration/benchmarks_test.zig");
+const ha_tests = @import("integration/ha_test.zig");
 
 test {
     std.testing.refAllDecls(@This());
