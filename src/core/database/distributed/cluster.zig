@@ -10,10 +10,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const shard_manager = @import("shard_manager.zig");
-const heartbeat_mod = if (build_options.feat_network)
-    @import("../../../features/network/heartbeat.zig")
+const network_mod = if (build_options.feat_network)
+    @import("../../../features/network/mod.zig")
 else
-    @import("../../../features/network/stubs/heartbeat.zig");
+    @import("../../../features/network/stub.zig");
 
 // ============================================================================
 // Types
@@ -89,7 +89,7 @@ pub const ClusterManager = struct {
     started: bool,
     leader_id: u64,
     /// Unified heartbeat FSM for hysteresis-based health tracking.
-    health_fsm: heartbeat_mod.HeartbeatStateMachine,
+    health_fsm: network_mod.HeartbeatStateMachine,
 
     pub fn init(allocator: std.mem.Allocator, config: ClusterConfig) ClusterManager {
         var self_info: NodeInfo = undefined;
@@ -111,7 +111,7 @@ pub const ClusterManager = struct {
             .peers = .empty,
             .started = false,
             .leader_id = 0,
-            .health_fsm = heartbeat_mod.HeartbeatStateMachine.init(allocator, .{
+            .health_fsm = network_mod.HeartbeatStateMachine.init(allocator, .{
                 .suspect_threshold = 2,
                 .unhealthy_threshold = @as(u32, config.failure_timeout_ms / @max(config.heartbeat_interval_ms, 1)),
             }),

@@ -32,6 +32,48 @@ pub const WalEntry = struct {
     data_len: u32,
     // Checksums
     crc32: u32,
+
+    pub const encoded_len: usize = 48;
+    pub const CodecError = error{ BufferTooSmall, InvalidEntryType };
+
+    pub fn encode(self: WalEntry, out: []u8) CodecError!void {
+        if (out.len < encoded_len) return error.BufferTooSmall;
+
+        std.mem.writeInt(u64, out[0..8], self.sequence, .little);
+        out[8] = @intFromEnum(self.entry_type);
+        @memset(out[9..16], 0);
+        std.mem.writeInt(i64, out[16..24], self.timestamp, .little);
+        std.mem.writeInt(u64, out[24..32], self.vector_id, .little);
+        std.mem.writeInt(u32, out[32..36], self.dimension, .little);
+        std.mem.writeInt(u32, out[36..40], self.data_offset, .little);
+        std.mem.writeInt(u32, out[40..44], self.data_len, .little);
+        std.mem.writeInt(u32, out[44..48], self.crc32, .little);
+    }
+
+    pub fn decode(bytes: []const u8) CodecError!WalEntry {
+        if (bytes.len < encoded_len) return error.BufferTooSmall;
+
+        const entry_type: WalEntryType = switch (bytes[8]) {
+            @intFromEnum(WalEntryType.insert) => .insert,
+            @intFromEnum(WalEntryType.delete) => .delete,
+            @intFromEnum(WalEntryType.update) => .update,
+            @intFromEnum(WalEntryType.batch_insert) => .batch_insert,
+            @intFromEnum(WalEntryType.snapshot_marker) => .snapshot_marker,
+            @intFromEnum(WalEntryType.compaction_marker) => .compaction_marker,
+            else => return error.InvalidEntryType,
+        };
+
+        return .{
+            .sequence = std.mem.readInt(u64, bytes[0..8], .little),
+            .entry_type = entry_type,
+            .timestamp = std.mem.readInt(i64, bytes[16..24], .little),
+            .vector_id = std.mem.readInt(u64, bytes[24..32], .little),
+            .dimension = std.mem.readInt(u32, bytes[32..36], .little),
+            .data_offset = std.mem.readInt(u32, bytes[36..40], .little),
+            .data_len = std.mem.readInt(u32, bytes[40..44], .little),
+            .crc32 = std.mem.readInt(u32, bytes[44..48], .little),
+        };
+    }
 };
 
 pub const WalHeader = struct {
@@ -41,6 +83,38 @@ pub const WalHeader = struct {
     created_at: i64 = 0,
     entry_count: u64 = 0,
     last_sequence: u64 = 0,
+
+    pub const encoded_len: usize = 40;
+    pub const CodecError = error{ BufferTooSmall, InvalidMagic, InvalidVersion };
+
+    pub fn encode(self: WalHeader, out: []u8) CodecError!void {
+        if (out.len < encoded_len) return error.BufferTooSmall;
+
+        @memcpy(out[0..4], &self.magic);
+        std.mem.writeInt(u16, out[4..6], self.version, .little);
+        @memset(out[6..8], 0);
+        std.mem.writeInt(u64, out[8..16], self.node_id, .little);
+        std.mem.writeInt(i64, out[16..24], self.created_at, .little);
+        std.mem.writeInt(u64, out[24..32], self.entry_count, .little);
+        std.mem.writeInt(u64, out[32..40], self.last_sequence, .little);
+    }
+
+    pub fn decode(bytes: []const u8) CodecError!WalHeader {
+        if (bytes.len < encoded_len) return error.BufferTooSmall;
+        if (!std.mem.eql(u8, bytes[0..4], "WALX")) return error.InvalidMagic;
+
+        const version = std.mem.readInt(u16, bytes[4..6], .little);
+        if (version != 1) return error.InvalidVersion;
+
+        return .{
+            .magic = .{ 'W', 'A', 'L', 'X' },
+            .version = version,
+            .node_id = std.mem.readInt(u64, bytes[8..16], .little),
+            .created_at = std.mem.readInt(i64, bytes[16..24], .little),
+            .entry_count = std.mem.readInt(u64, bytes[24..32], .little),
+            .last_sequence = std.mem.readInt(u64, bytes[32..40], .little),
+        };
+    }
 };
 
 // ============================================================================
@@ -245,8 +319,8 @@ pub const WalWriter = struct {
 
     /// Serialize the WAL to a byte buffer for disk persistence.
     pub fn serialize(self: *const WalWriter, allocator: std.mem.Allocator) ![]u8 {
-        const header_size = @sizeOf(WalHeader);
-        const entry_size = @sizeOf(WalEntry);
+        const header_size = WalHeader.encoded_len;
+        const entry_size = WalEntry.encoded_len;
         const entries_size = self.entries.items.len * entry_size;
         const total = header_size + entries_size + self.data_buf.items.len;
 
@@ -254,14 +328,12 @@ pub const WalWriter = struct {
         var offset: usize = 0;
 
         // Write header
-        const header_bytes = std.mem.asBytes(&self.header);
-        @memcpy(buffer[offset .. offset + header_size], header_bytes);
+        try self.header.encode(buffer[offset .. offset + header_size]);
         offset += header_size;
 
         // Write entries
         for (self.entries.items) |entry| {
-            const entry_bytes = std.mem.asBytes(&entry);
-            @memcpy(buffer[offset .. offset + entry_size], entry_bytes);
+            try entry.encode(buffer[offset .. offset + entry_size]);
             offset += entry_size;
         }
 
@@ -275,33 +347,47 @@ pub const WalWriter = struct {
 
     /// Deserialize WAL from a byte buffer (recovery).
     pub fn deserialize(self: *WalWriter, buffer: []const u8) !void {
-        const header_size = @sizeOf(WalHeader);
-        const entry_size = @sizeOf(WalEntry);
+        const header_size = WalHeader.encoded_len;
+        const entry_size = WalEntry.encoded_len;
 
         if (buffer.len < header_size) return error.InvalidData;
 
         // Read header
-        self.header = std.mem.bytesToValue(WalHeader, buffer[0..header_size]);
+        self.header = WalHeader.decode(buffer[0..header_size]) catch return error.InvalidData;
 
-        // Validate magic
-        if (!std.mem.eql(u8, &self.header.magic, "WALX")) return error.InvalidData;
+        const entry_count = std.math.cast(usize, self.header.entry_count) orelse return error.InvalidData;
+        const required_entry_bytes = std.math.mul(usize, entry_count, entry_size) catch return error.InvalidData;
+        if (required_entry_bytes > buffer.len - header_size) return error.InvalidData;
 
         var offset: usize = header_size;
 
         // Read entries
         self.entries.items.len = 0;
         var entries_read: u64 = 0;
-        while (entries_read < self.header.entry_count and offset + entry_size <= buffer.len) {
-            const entry = std.mem.bytesToValue(WalEntry, buffer[offset..][0..entry_size]);
+        while (entries_read < self.header.entry_count) {
+            const entry = WalEntry.decode(buffer[offset .. offset + entry_size]) catch return error.InvalidData;
             try self.entries.append(self.allocator, entry);
             offset += entry_size;
             entries_read += 1;
         }
 
         // Read data buffer
+        self.data_buf.items.len = 0;
         if (offset < buffer.len) {
-            self.data_buf.items.len = 0;
             try self.data_buf.appendSlice(self.allocator, buffer[offset..]);
+        }
+
+        for (self.entries.items) |entry| {
+            if (entry.data_len == 0) continue;
+
+            const start = std.math.cast(usize, entry.data_offset) orelse return error.InvalidData;
+            const data_len = std.math.cast(usize, entry.data_len) orelse return error.InvalidData;
+            const end = std.math.add(usize, start, data_len) catch return error.InvalidData;
+
+            if (entry.dimension == 0) return error.InvalidData;
+            if (data_len % @sizeOf(f32) != 0) return error.InvalidData;
+            if (data_len / @sizeOf(f32) != entry.dimension) return error.InvalidData;
+            if (end > self.data_buf.items.len) return error.InvalidData;
         }
 
         self.dirty = false;
@@ -353,8 +439,9 @@ pub const WalReader = struct {
 
     pub fn getVectorData(self: *const WalReader, entry: WalEntry) ?[]const f32 {
         if (entry.data_len == 0) return null;
-        const start = entry.data_offset;
-        const end = start + entry.data_len;
+        const start: usize = @intCast(entry.data_offset);
+        const data_len: usize = @intCast(entry.data_len);
+        const end = std.math.add(usize, start, data_len) catch return null;
         if (end > self.data.len) return null;
         const bytes = self.data[start..end];
         return std.mem.bytesAsSlice(f32, @alignCast(bytes));
@@ -582,6 +669,46 @@ test "WalWriter flush and recover from file" {
 
     // Cleanup.
     _ = std.c.unlink(tmp_path);
+}
+
+test "WalWriter deserialize rejects corrupted magic" {
+    const allocator = std.testing.allocator;
+    var wal_writer = WalWriter.init(allocator, "/tmp/test.wal", 42);
+    defer wal_writer.deinit();
+
+    try wal_writer.appendInsert(1, 2, &[_]f32{ 1.0, 2.0 });
+
+    const serialized = try wal_writer.serialize(allocator);
+    defer allocator.free(serialized);
+
+    var corrupted = try allocator.dupe(u8, serialized);
+    defer allocator.free(corrupted);
+    corrupted[0] = 'B';
+
+    var wal2 = WalWriter.init(allocator, "/tmp/test2.wal", 0);
+    defer wal2.deinit();
+
+    try std.testing.expectError(error.InvalidData, wal2.deserialize(corrupted));
+}
+
+test "WalWriter deserialize rejects invalid entry type" {
+    const allocator = std.testing.allocator;
+    var wal_writer = WalWriter.init(allocator, "/tmp/test.wal", 42);
+    defer wal_writer.deinit();
+
+    try wal_writer.appendInsert(1, 2, &[_]f32{ 1.0, 2.0 });
+
+    const serialized = try wal_writer.serialize(allocator);
+    defer allocator.free(serialized);
+
+    var corrupted = try allocator.dupe(u8, serialized);
+    defer allocator.free(corrupted);
+    corrupted[WalHeader.encoded_len + 8] = 0xff;
+
+    var wal2 = WalWriter.init(allocator, "/tmp/test2.wal", 0);
+    defer wal2.deinit();
+
+    try std.testing.expectError(error.InvalidData, wal2.deserialize(corrupted));
 }
 
 test {

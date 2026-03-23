@@ -308,8 +308,9 @@ pub const TcpTransport = struct {
         };
 
         // Send header + payload
-        const header_bytes = std.mem.asBytes(&header);
-        try peer.send(header_bytes);
+        var header_bytes: [MessageHeader.SIZE]u8 = undefined;
+        try header.encode(&header_bytes);
+        try peer.send(&header_bytes);
         if (payload.len > 0) {
             try peer.send(payload);
         }
@@ -366,8 +367,9 @@ pub const TcpTransport = struct {
             .checksum = std.hash.crc.Crc32.hash(payload),
         };
 
-        const header_bytes = std.mem.asBytes(&header);
-        try peer.send(header_bytes);
+        var header_bytes: [MessageHeader.SIZE]u8 = undefined;
+        try header.encode(&header_bytes);
+        try peer.send(&header_bytes);
         if (payload.len > 0) {
             try peer.send(payload);
         }
@@ -391,8 +393,9 @@ pub const TcpTransport = struct {
             .checksum = std.hash.crc.Crc32.hash(payload),
         };
 
-        const header_bytes = std.mem.asBytes(&header);
-        try peer.send(header_bytes);
+        var header_bytes: [MessageHeader.SIZE]u8 = undefined;
+        try header.encode(&header_bytes);
+        try peer.send(&header_bytes);
         if (payload.len > 0) {
             try peer.send(payload);
         }
@@ -473,29 +476,18 @@ pub const TcpTransport = struct {
 
             if (total_read < MessageHeader.SIZE) break;
 
-            const header: *const MessageHeader = @ptrCast(@alignCast(&header_buf));
-
-            // Validate header
-            if (header.magic != MAGIC_NUMBER) {
+            const header = MessageHeader.decode(&header_buf) catch break;
+            header.validate(self.config.max_message_size) catch |err| {
                 if (self.config.enable_logging) {
-                    std.log.warn("Transport: Invalid magic from {s}", .{peer_addr});
+                    switch (err) {
+                        error.InvalidMagic => std.log.warn("Transport: Invalid magic from {s}", .{peer_addr}),
+                        error.InvalidVersion => std.log.warn("Transport: Invalid version from {s}", .{peer_addr}),
+                        error.MessageTooLarge => std.log.warn("Transport: Message too large from {s}", .{peer_addr}),
+                        else => std.log.warn("Transport: Invalid header from {s}: {}", .{ peer_addr, err }),
+                    }
                 }
                 break;
-            }
-
-            if (header.version != PROTOCOL_VERSION) {
-                if (self.config.enable_logging) {
-                    std.log.warn("Transport: Invalid version from {s}", .{peer_addr});
-                }
-                break;
-            }
-
-            if (header.payload_length > self.config.max_message_size) {
-                if (self.config.enable_logging) {
-                    std.log.warn("Transport: Message too large from {s}", .{peer_addr});
-                }
-                break;
-            }
+            };
 
             // Read payload
             const payload = self.allocator.alloc(u8, header.payload_length) catch break;
@@ -533,10 +525,10 @@ pub const TcpTransport = struct {
 
             // Check if this is a response to a pending request
             if (self.isResponseMessage(header.message_type)) {
-                self.handleResponse(header, payload);
+                self.handleResponse(&header, payload);
             } else {
                 // Handle as incoming request
-                self.handleRequest(client_fd, peer_addr, header, payload);
+                self.handleRequest(client_fd, peer_addr, &header, payload);
             }
         }
 
@@ -612,8 +604,9 @@ pub const TcpTransport = struct {
             .checksum = std.hash.crc.Crc32.hash(response),
         };
 
-        const header_bytes = std.mem.asBytes(&resp_header);
-        _ = std.posix.send(client_fd, header_bytes, 0) catch return;
+        var header_bytes: [MessageHeader.SIZE]u8 = undefined;
+        resp_header.encode(&header_bytes) catch return;
+        _ = std.posix.send(client_fd, &header_bytes, 0) catch return;
         if (response.len > 0) {
             _ = std.posix.send(client_fd, response, 0) catch return;
         }

@@ -4,22 +4,86 @@ pub const RaftNode = struct {
     allocator: std.mem.Allocator,
     node_id: []const u8,
     config: RaftConfig,
+    current_term: u64 = 0,
+    commit_index: u64 = 0,
+    last_applied: u64 = 0,
+    state: RaftState = .follower,
+    leader_id: ?[]const u8 = null,
+    peers: std.StringHashMapUnmanaged(PeerState) = .{},
+    log: std.ArrayListUnmanaged(LogEntry) = .empty,
 
-    pub fn init(_: std.mem.Allocator, _: []const u8, _: RaftConfig) !@This() {
-        return error.NetworkDisabled;
+    pub fn init(allocator: std.mem.Allocator, node_id: []const u8, config: RaftConfig) !@This() {
+        return .{
+            .allocator = allocator,
+            .node_id = node_id,
+            .config = config,
+        };
     }
-    pub fn deinit(_: *@This()) void {}
+    pub fn deinit(self: *@This()) void {
+        for (self.log.items) |entry| {
+            self.allocator.free(entry.data);
+        }
+        self.log.deinit(self.allocator);
 
-    pub fn getStats(_: *const @This()) RaftStats {
-        return .{};
+        var peer_iter = self.peers.iterator();
+        while (peer_iter.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+        }
+        self.peers.deinit(self.allocator);
+
+        if (self.leader_id) |leader_id| {
+            if (leader_id.ptr != self.node_id.ptr) {
+                self.allocator.free(leader_id);
+            }
+        }
+
+        self.* = undefined;
     }
 
-    pub fn getLeader(_: *const @This()) ?[]const u8 {
-        return null;
+    pub fn getStats(self: *const @This()) RaftStats {
+        return .{
+            .current_term = self.current_term,
+            .state = self.state,
+            .commit_index = self.commit_index,
+            .last_applied = self.last_applied,
+            .log_length = self.log.items.len,
+            .peer_count = self.peers.count(),
+            .leader_id = self.leader_id,
+        };
     }
 
-    pub fn isLeader(_: *const @This()) bool {
-        return false;
+    pub fn getLeader(self: *const @This()) ?[]const u8 {
+        return self.leader_id;
+    }
+
+    pub fn isLeader(self: *const @This()) bool {
+        return self.state == .leader;
+    }
+
+    pub fn addPeer(self: *@This(), peer_id: []const u8) !void {
+        if (self.peers.contains(peer_id)) return;
+
+        const peer_copy = try self.allocator.dupe(u8, peer_id);
+        errdefer self.allocator.free(peer_copy);
+
+        try self.peers.put(self.allocator, peer_copy, .{
+            .node_id = peer_copy,
+            .next_index = @as(u64, @intCast(self.log.items.len + 1)),
+        });
+    }
+
+    pub fn appendCommand(self: *@This(), data: []const u8) !u64 {
+        const index: u64 = @intCast(self.log.items.len + 1);
+        const data_copy = try self.allocator.dupe(u8, data);
+        errdefer self.allocator.free(data_copy);
+
+        try self.log.append(self.allocator, .{
+            .term = self.current_term,
+            .index = index,
+            .data = data_copy,
+            .entry_type = .command,
+        });
+        return index;
     }
 
     pub fn handleRequestVote(_: *@This(), _: RequestVoteRequest) !RequestVoteResponse {

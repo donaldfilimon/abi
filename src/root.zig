@@ -36,9 +36,9 @@ pub const connectors = @import("connectors/mod.zig");
 /// Task management: async job queues, scheduling, progress tracking.
 pub const tasks = @import("tasks/mod.zig");
 /// Model Context Protocol (MCP) server and client implementation.
-pub const mcp = @import("protocols/mcp/mod.zig");
+pub const mcp = if (build_options.feat_mcp) @import("protocols/mcp/mod.zig") else @import("protocols/mcp/stub.zig");
 /// Language Server Protocol (LSP) implementation.
-pub const lsp = @import("protocols/lsp/mod.zig");
+pub const lsp = if (build_options.feat_lsp) @import("protocols/lsp/mod.zig") else @import("protocols/lsp/stub.zig");
 /// Agent Communication Protocol (ACP) for multi-agent messaging.
 pub const acp = @import("protocols/acp.zig");
 /// High availability: leader election, failover, health monitoring.

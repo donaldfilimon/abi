@@ -10,6 +10,7 @@ const build_options = @import("build_options");
 const persona_pipeline = @import("integration/persona_pipeline_test.zig");
 const database_tests = @import("integration/database_test.zig");
 const database_surface_tests = @import("integration/database_surface_test.zig");
+const feature_boundary_tests = @import("integration/feature_boundary_test.zig");
 const inference_tests = @import("integration/inference_test.zig");
 const security_tests = @import("integration/security_test.zig");
 const gpu_tests = @import("integration/gpu_test.zig");

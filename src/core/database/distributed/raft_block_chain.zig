@@ -201,8 +201,6 @@ pub const DistributedBlockChain = struct {
         // Raft entry is committed — apply to local chain
         const local_chain = try self.getOrCreateChain(session_id);
         const block_id = try local_chain.addBlock(config);
-        const mvcc_chain = try self.mvcc_store.getChain(session_id);
-        _ = try mvcc_chain.addBlock(config);
 
         std.log.info("DistributedBlockChain: Block {d} committed to session {s} (log index: {d}, polls: {d})", .{ block_id, session_id, log_index, poll_count });
 
@@ -286,6 +284,21 @@ pub const DistributedBlockChain = struct {
 
     /// Get blocks visible at current read timestamp (MVCC)
     pub fn getVisibleBlocks(self: *Self, session_id: []const u8) ![]const u64 {
+        if (self.local_chains.get(session_id)) |chain| {
+            const read_ts = self.mvcc_store.read_timestamps.get(session_id) orelse time.unixSeconds();
+            var visible = std.ArrayListUnmanaged(u64).empty;
+            errdefer visible.deinit(self.allocator);
+
+            var iter = chain.blocks.iterator();
+            while (iter.next()) |entry| {
+                if (entry.value_ptr.isVisible(read_ts)) {
+                    try visible.append(self.allocator, entry.key_ptr.*);
+                }
+            }
+
+            return visible.toOwnedSlice(self.allocator);
+        }
+
         return try self.mvcc_store.getVisibleBlocks(session_id);
     }
 
@@ -325,10 +338,7 @@ pub const DistributedBlockChain = struct {
     /// Add block locally (no consensus)
     fn addBlockLocal(self: *Self, session_id: []const u8, config: block_chain.BlockConfig) !u64 {
         const chain = try self.getOrCreateChain(session_id);
-        const block_id = try chain.addBlock(config);
-        const mvcc_chain = try self.mvcc_store.getChain(session_id);
-        _ = try mvcc_chain.addBlock(config);
-        return block_id;
+        return try chain.addBlock(config);
     }
 
     /// Serialize block config for Raft log

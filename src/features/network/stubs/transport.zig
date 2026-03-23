@@ -12,6 +12,16 @@ pub const TcpTransport = struct {
         return error.NetworkDisabled;
     }
     pub fn deinit(_: *@This()) void {}
+
+    pub fn sendRequest(
+        _: *@This(),
+        _: []const u8,
+        _: u16,
+        _: anytype,
+        _: []const u8,
+    ) ![]u8 {
+        return error.NetworkDisabled;
+    }
 };
 
 pub const TransportConfig = struct {

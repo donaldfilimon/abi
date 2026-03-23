@@ -126,7 +126,7 @@ pub const MessageType = enum(u8) {
 };
 
 /// Message header for framing.
-pub const MessageHeader = extern struct {
+pub const MessageHeader = struct {
     /// Magic number for validation.
     magic: u32 = MAGIC_NUMBER,
     /// Protocol version.
@@ -142,7 +142,40 @@ pub const MessageHeader = extern struct {
     /// CRC32 checksum of payload (0 if disabled).
     checksum: u32 = 0,
 
-    pub const SIZE: usize = @sizeOf(MessageHeader);
+    pub const SIZE: usize = 24;
+    pub const CodecError = error{BufferTooSmall};
+
+    pub fn encode(self: MessageHeader, out: []u8) CodecError!void {
+        if (out.len < SIZE) return error.BufferTooSmall;
+
+        std.mem.writeInt(u32, out[0..4], self.magic, .little);
+        out[4] = self.version;
+        out[5] = self.message_type;
+        std.mem.writeInt(u16, out[6..8], self.flags, .little);
+        std.mem.writeInt(u64, out[8..16], self.request_id, .little);
+        std.mem.writeInt(u32, out[16..20], self.payload_length, .little);
+        std.mem.writeInt(u32, out[20..24], self.checksum, .little);
+    }
+
+    pub fn decode(bytes: []const u8) CodecError!MessageHeader {
+        if (bytes.len < SIZE) return error.BufferTooSmall;
+
+        return .{
+            .magic = std.mem.readInt(u32, bytes[0..4], .little),
+            .version = bytes[4],
+            .message_type = bytes[5],
+            .flags = std.mem.readInt(u16, bytes[6..8], .little),
+            .request_id = std.mem.readInt(u64, bytes[8..16], .little),
+            .payload_length = std.mem.readInt(u32, bytes[16..20], .little),
+            .checksum = std.mem.readInt(u32, bytes[20..24], .little),
+        };
+    }
+
+    pub fn validate(self: MessageHeader, max_message_size: usize) TransportError!void {
+        if (self.magic != MAGIC_NUMBER) return error.InvalidMagic;
+        if (self.version != PROTOCOL_VERSION) return error.InvalidVersion;
+        if (@as(usize, self.payload_length) > max_message_size) return error.MessageTooLarge;
+    }
 };
 
 pub const MAGIC_NUMBER: u32 = 0x41424954; // "ABIT"
@@ -202,6 +235,37 @@ pub fn parseAddress(address: []const u8) !struct { host: []const u8, port: u16 }
 
 test "message header size" {
     try std.testing.expectEqual(@as(usize, 24), MessageHeader.SIZE);
+}
+
+test "message header encode/decode roundtrip" {
+    const header = MessageHeader{
+        .message_type = @intFromEnum(MessageType.rpc_request),
+        .request_id = 42,
+        .payload_length = 128,
+        .checksum = 0xdeadbeef,
+    };
+
+    var buffer: [MessageHeader.SIZE]u8 = undefined;
+    try header.encode(&buffer);
+
+    const decoded = try MessageHeader.decode(&buffer);
+    try std.testing.expectEqual(header.magic, decoded.magic);
+    try std.testing.expectEqual(header.version, decoded.version);
+    try std.testing.expectEqual(header.message_type, decoded.message_type);
+    try std.testing.expectEqual(header.flags, decoded.flags);
+    try std.testing.expectEqual(header.request_id, decoded.request_id);
+    try std.testing.expectEqual(header.payload_length, decoded.payload_length);
+    try std.testing.expectEqual(header.checksum, decoded.checksum);
+}
+
+test "message header validation rejects oversized payload" {
+    const header = MessageHeader{
+        .message_type = @intFromEnum(MessageType.db_search_request),
+        .request_id = 1,
+        .payload_length = 1025,
+    };
+
+    try std.testing.expectError(error.MessageTooLarge, header.validate(1024));
 }
 
 test "address parsing ipv4" {
