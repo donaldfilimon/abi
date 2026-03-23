@@ -75,6 +75,8 @@ abi connectors         # List 16 LLM provider connectors with env vars
 abi info               # Framework architecture summary
 abi chat <msg>         # Route through multi-persona pipeline
 abi db <subcommand>    # Vector database (add, query, stats, optimize, backup, restore, serve)
+abi serve              # Start ACP HTTP server (default 127.0.0.1:8080)
+abi acp serve          # Same as above (explicit ACP prefix)
 abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)
 abi help               # Full help reference
 ```
@@ -107,7 +109,9 @@ The build.zig is self-contained with all feature flags defined inline. No extern
 - `src/protocols/` — Protocol implementations: mcp/, lsp/, acp/, ha/
 - `src/inference/` — ML inference: engine, scheduler, sampler, paged KV cache
 - `src/core/database/` — Vector database implementation (consumed by features/database/ facade)
+- `src/main.zig` — CLI entry point (builds as `abi` binary)
 - `src/mcp_main.zig` — MCP stdio server entry point (builds as `abi-mcp` binary)
+- `src/ffi.zig` — C-ABI FFI endpoints for linking as a static library (`libabi.a`)
 - `test/` — Integration tests via `test/mod.zig` (uses `@import("abi")`, separate from unit tests in `src/`)
 
 ### The Mod/Stub Pattern
@@ -127,6 +131,12 @@ When modifying a feature's public API, **both `mod.zig` and `stub.zig` must be u
 Note: `pages` is nested under `src/features/observability/pages/` (not its own top-level feature dir), but is gated by `feat_pages` independently from `feat_profiling`.
 
 The mod/stub pattern also applies to protocols: `mcp` and `lsp` are comptime-gated via `feat_mcp` and `feat_lsp` in `root.zig`, with stubs at `src/protocols/{mcp,lsp}/stub.zig`.
+
+### Convenience Aliases in root.zig
+
+- `abi.meta.package_version` / `abi.meta.version()` — version string from build options
+- `abi.meta.features` — re-exports `src/core/feature_catalog.zig`
+- `abi.app.App` / `abi.app.AppBuilder` / `abi.app.builder(allocator)` — framework lifecycle wrappers around `abi.framework`
 
 ### Build Options
 
@@ -212,6 +222,7 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
 - `var` vs `const`: compiler enforces const for never-mutated locals
 - Function pointers: can call through `*const fn` directly without dereferencing
+- Entry points use `pub fn main(init: std.process.Init) !void` (not the older `pub fn main() !void`). Access args via `init.minimal.args`, allocator via `init.gpa` or `init.arena`.
 - `zig fmt .` from root: don't — use `zig build fix` to avoid vendored fixtures
 
 ## Skill Overrides
