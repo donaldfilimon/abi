@@ -75,18 +75,6 @@ jobs:
       - name: Build MCP server
         run: zig build mcp
 
-  check:
-    name: Full Check
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v1
-        with:
-          version: ${{ env.ZIG_VERSION }}
-      - name: Lint + Test + Parity
-        run: zig build check
-
   macos:
     name: macOS Build
     runs-on: macos-latest
