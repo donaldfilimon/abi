@@ -317,7 +317,13 @@ pub const Condition = struct {
             if (rc == .TIMEDOUT) return error.Timeout;
             // EINTR is treated as a spurious wakeup (caller re-checks predicate)
         } else {
-            // Fallback: spin-wait approximation
+            // Fallback for non-POSIX/non-libc targets (freestanding, WASI).
+            // LIMITATION: this path cannot detect a signal — it always times out
+            // after `timeout_ns` nanoseconds regardless of whether `signal()` was
+            // called during the wait.  Callers using `timedWait` as a
+            // wait-for-signal primitive on these targets will burn the full timeout
+            // on every call.  Use `wait()` + a deadline check loop instead when
+            // targeting freestanding/WASI.
             const timer = time_mod.Timer.start() catch return error.Timeout;
             mutex.unlock();
             defer mutex.lock();

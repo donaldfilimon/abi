@@ -270,19 +270,19 @@ pub const ParallelBuildStats = misc.parallel_hnsw.ParallelBuildStats;
 
 // --- Module Lifecycle ---
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(_: std.mem.Allocator) !void {
     return error.FeatureDisabled;
 }
 pub fn deinit() void {
-    initialized = false;
+    initialized.store(false, .release);
 }
 pub fn isEnabled() bool {
     return false;
 }
 pub fn isInitialized() bool {
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 // --- Core Database Operations ---
