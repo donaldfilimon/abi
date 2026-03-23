@@ -590,7 +590,7 @@ pub const pitr = struct {
 // Module Lifecycle
 // =============================================================================
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(allocator: std.mem.Allocator) Error!void {
     _ = allocator;
@@ -598,7 +598,7 @@ pub fn init(allocator: std.mem.Allocator) Error!void {
 }
 
 pub fn deinit() void {
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 pub fn isEnabled() bool {
@@ -606,7 +606,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 // =============================================================================

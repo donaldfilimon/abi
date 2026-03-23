@@ -197,15 +197,15 @@ pub const Context = struct {
     }
 };
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    initialized = true;
+    initialized.store(true, .release);
 }
 
 pub fn deinit() void {
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 pub fn isEnabled() bool {
@@ -213,7 +213,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 // ============================================================================

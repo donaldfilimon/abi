@@ -54,16 +54,16 @@ pub const mlx = @import("mlx.zig");
 pub const llama_cpp = @import("llama_cpp.zig");
 pub const shared = @import("shared.zig");
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 /// Initialize the connectors subsystem (idempotent; no-op if already initialized).
 pub fn init(_: std.mem.Allocator) !void {
-    initialized = true;
+    initialized.store(true, .release);
 }
 
 /// Tear down the connectors subsystem; safe to call multiple times.
 pub fn deinit() void {
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 /// Returns true; connectors are always available when this module is compiled in.
@@ -73,7 +73,7 @@ pub fn isEnabled() bool {
 
 /// Returns true after `init()` has been called.
 pub fn isInitialized() bool {
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 const builtin = @import("builtin");

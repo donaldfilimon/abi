@@ -397,7 +397,7 @@ pub const Context = struct {
 // ============================================================================
 var state_mutex = sync.Mutex{};
 var default_state: ?NetworkState = null;
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub fn isEnabled() bool {
     return build_options.feat_network;
@@ -406,7 +406,7 @@ pub fn isEnabled() bool {
 pub fn isInitialized() bool {
     state_mutex.lock();
     defer state_mutex.unlock();
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 pub fn init(allocator: std.mem.Allocator) Error!void {
@@ -422,7 +422,7 @@ pub fn initWithConfig(allocator: std.mem.Allocator, config: NetworkConfig) Error
     if (default_state == null) {
         default_state = NetworkState.init(allocator, config) catch return error.NetworkDisabled;
     }
-    initialized = true;
+    initialized.store(true, .release);
 }
 
 pub fn deinit() void {
@@ -433,7 +433,7 @@ pub fn deinit() void {
         state.deinit();
         default_state = null;
     }
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 pub fn defaultRegistry() Error!*NodeRegistry {

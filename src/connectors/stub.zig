@@ -19,14 +19,14 @@ pub const Error = error{
     OutOfMemory,
 };
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(_: std.mem.Allocator) !void {
     return Error.FeatureDisabled;
 }
 
 pub fn deinit() void {
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 pub fn isEnabled() bool {
@@ -34,7 +34,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 pub fn getEnvOwned(_: std.mem.Allocator, _: []const u8) !?[]u8 {
