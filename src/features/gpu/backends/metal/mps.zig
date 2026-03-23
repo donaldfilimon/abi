@@ -37,7 +37,7 @@ pub const MpsError = error{
 
 var mps_lib: ?std.DynLib = null;
 var mps_graph_lib: ?std.DynLib = null;
-var mps_load_attempted: bool = false;
+var mps_load_attempted = std.atomic.Value(bool).init(false);
 
 // Obj-C runtime pointers (shared with metal.zig)
 var objc_msgSend_fn: ?*const fn (ID, SEL) callconv(.c) ID = null;
@@ -85,19 +85,19 @@ pub fn deinit() void {
     if (mps_graph_lib) |lib| lib.close();
     mps_lib = null;
     mps_graph_lib = null;
-    mps_load_attempted = false;
+    mps_load_attempted.store(false, .release);
     selectors_loaded = false;
 }
 
 pub fn isAvailable() bool {
     if (builtin.target.os.tag != .macos) return false;
-    if (mps_load_attempted) return mps_lib != null;
+    if (mps_load_attempted.load(.acquire)) return mps_lib != null;
     return tryLoadMps();
 }
 
 fn tryLoadMps() bool {
-    if (mps_load_attempted) return mps_lib != null;
-    mps_load_attempted = true;
+    if (mps_load_attempted.load(.acquire)) return mps_lib != null;
+    mps_load_attempted.store(true, .release);
 
     const paths = [_][]const u8{
         "/System/Library/Frameworks/MetalPerformanceShaders.framework/MetalPerformanceShaders",
