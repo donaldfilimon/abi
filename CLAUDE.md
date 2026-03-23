@@ -10,12 +10,8 @@ Zig version is pinned in `.zigversion`. The zig version manager auto-downloads t
 
 ```bash
 tools/zigup.sh --status    # Print zig path (auto-install if missing)
-tools/zigup.sh --install   # Force re-download zig + ZLS
 tools/zigup.sh --link      # Symlink zig + zls into ~/.local/bin
-tools/zigup.sh --unlink    # Remove symlinks from local bin
-tools/zigup.sh --update    # Check for newer zig and update if available
-tools/zigup.sh --check     # Report if update available (no download)
-tools/zigup.sh --clean     # Remove all cached versions
+# Also: --install, --unlink, --update, --check, --clean
 ```
 
 Cross-compilation helper:
@@ -73,7 +69,7 @@ abi features           # List all 30 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
 abi connectors         # List 16 LLM provider connectors with env vars
 abi info               # Framework architecture summary
-abi chat <msg>         # Route through multi-persona pipeline
+abi chat <message...>  # Route through multi-persona pipeline
 abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
 abi serve              # Start ACP HTTP server (default 127.0.0.1:8080)
 abi acp serve          # Same as above (explicit ACP prefix)
@@ -170,6 +166,11 @@ Two test suites run under `zig build test`:
 
 Both suites link the same platform frameworks (macOS: System, IOKit, Accelerate, Metal, objc).
 
+To add a new integration test:
+1. Create `test/integration/<name>_test.zig`
+2. Import it from `test/mod.zig` (e.g., `const foo_tests = @import("integration/foo_test.zig");`)
+3. Use `@import("abi")` and `@import("build_options")` — never relative imports from `test/`
+
 ### MCP Server
 
 `zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`.
@@ -224,8 +225,9 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - Function pointers: can call through `*const fn` directly without dereferencing
 - Entry points use `pub fn main(init: std.process.Init) !void` (not the older `pub fn main() !void`). Access args via `init.minimal.args`, allocator via `init.gpa` or `init.arena`.
 - `zig fmt .` from root: don't — use `zig build fix` to avoid vendored fixtures
+- IO operations: use `std.Io.Threaded` + `std.Io.Dir.cwd()` pattern (not the removed `std.fs.cwd()`)
 
 ## Skill Overrides
 
 - **brainstorming**: For this Zig codebase, skip the full brainstorming workflow for: single-file bug fixes, stub parity fixes, import path updates, and Zig 0.16 migration changes. Use brainstorming only for new features, new modules, or architectural changes.
-- **writing-skills / skill-creator**: For this project, keep skills concise. Follow the patterns in `zig-abi-plugin/skills/` as examples of well-scoped project skills.
+- **writing-skills / skill-creator**: For this project, keep skills concise. Follow the patterns in `.claude/skills/` as examples of well-scoped project skills.
