@@ -130,17 +130,17 @@ const DevicePeerInfo = struct {
 /// Global state
 var device_info_map: ?std.AutoHashMapUnmanaged(DeviceId, DevicePeerInfo) = null;
 var metal_allocator_ref: ?std.mem.Allocator = null;
-var metal_peer_initialized: bool = false;
+var metal_peer_initialized = std.atomic.Value(bool).init(false);
 
 // Metal shared event selectors (would be cached after first use)
 var sel_newSharedEvent: SEL = undefined;
 var sel_signaledValue: SEL = undefined;
 var sel_notifyListener: SEL = undefined;
-var selectors_initialized: bool = false;
+var selectors_initialized = std.atomic.Value(bool).init(false);
 
 /// Initialize Metal peer transfer backend.
 pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
-    if (metal_peer_initialized) return;
+    if (metal_peer_initialized.load(.acquire)) return;
 
     // Only available on macOS/iOS
     if (builtin.os.tag != .macos and builtin.os.tag != .ios) {
@@ -153,7 +153,7 @@ pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
     // Probe device capabilities
     try probeDeviceCapabilities(device_count);
 
-    metal_peer_initialized = true;
+    metal_peer_initialized.store(true, .release);
 }
 
 /// Deinitialize Metal peer transfer backend.
@@ -163,7 +163,7 @@ pub fn deinit() void {
         device_info_map = null;
     }
     metal_allocator_ref = null;
-    metal_peer_initialized = false;
+    metal_peer_initialized.store(false, .release);
 }
 
 /// Probe device capabilities.

@@ -54,7 +54,7 @@ const DevicePairSupport = struct {
 
 /// Global state
 var external_memory_matrix: ?std.AutoHashMapUnmanaged(u64, DevicePairSupport) = null;
-var vulkan_peer_initialized: bool = false;
+var vulkan_peer_initialized = std.atomic.Value(bool).init(false);
 var ext_functions: ?VulkanExtFunctions = null;
 var device_contexts: ?std.AutoHashMapUnmanaged(DeviceId, DeviceContext) = null;
 var allocator_ref: ?std.mem.Allocator = null;
@@ -68,10 +68,10 @@ const DeviceContext = struct {
 
 /// Initialize Vulkan peer transfer backend.
 pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
-    if (vulkan_peer_initialized) return;
+    if (vulkan_peer_initialized.load(.acquire)) return;
 
     // Ensure Vulkan is initialized
-    if (!vulkan.vulkan_initialized) {
+    if (!vulkan.vulkan_initialized.load(.acquire)) {
         vulkan.initVulkanGlobal(allocator) catch return error.VulkanNotAvailable;
     }
 
@@ -95,7 +95,7 @@ pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
     // Probe external memory support between devices
     try probeExternalMemorySupport(device_count);
 
-    vulkan_peer_initialized = true;
+    vulkan_peer_initialized.store(true, .release);
 }
 
 /// Deinitialize Vulkan peer transfer backend.
@@ -111,7 +111,7 @@ pub fn deinit() void {
     ext_functions = null;
     allocator_ref = null;
     vulkan_ext.deinitExtFunctions();
-    vulkan_peer_initialized = false;
+    vulkan_peer_initialized.store(false, .release);
 }
 
 /// Probe external memory support between device pairs.
@@ -831,7 +831,7 @@ pub fn destroyExportableBuffer(device_id: DeviceId, buffer_handle: *anyopaque) v
 
 /// Check if the Vulkan peer transfer backend is initialized.
 pub fn isInitialized() bool {
-    return vulkan_peer_initialized;
+    return vulkan_peer_initialized.load(.acquire);
 }
 
 /// Check if timeline semaphores are supported on a device.

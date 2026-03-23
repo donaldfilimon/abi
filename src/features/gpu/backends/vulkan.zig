@@ -177,7 +177,7 @@ pub const KernelConfig = vulkan_types.KernelConfig;
 // ============================================================================
 
 pub var vulkan_lib: ?std.DynLib = null;
-pub var vulkan_initialized: bool = false;
+pub var vulkan_initialized = std.atomic.Value(bool).init(false);
 pub var vulkan_context: ?VulkanContext = null;
 pub var detected_api_version_raw: u32 = vulkan_caps.encodeApiVersion(.{
     .major = 1,
@@ -340,7 +340,7 @@ fn loadInstanceFunctions(instance: VkInstance) bool {
 }
 
 pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
-    if (vulkan_initialized) return;
+    if (vulkan_initialized.load(.acquire)) return;
 
     if (!tryLoadVulkanLibrary()) {
         return VulkanError.InitializationFailed;
@@ -458,11 +458,11 @@ pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
         .memory_properties = mem_props,
     };
 
-    vulkan_initialized = true;
+    vulkan_initialized.store(true, .release);
 }
 
 pub fn deinit() void {
-    if (!vulkan_initialized) return;
+    if (!vulkan_initialized.load(.acquire)) return;
     const ctx = vulkan_context.?;
 
     vkDestroyCommandPool.?(ctx.device, ctx.command_pool, null);
@@ -470,7 +470,7 @@ pub fn deinit() void {
     vkDestroyInstance.?(ctx.instance, null);
 
     vulkan_context = null;
-    vulkan_initialized = false;
+    vulkan_initialized.store(false, .release);
     detected_api_version_raw = vulkan_caps.encodeApiVersion(.{
         .major = 1,
         .minor = 0,
@@ -529,7 +529,7 @@ pub const VulkanBackend = struct {
 
     pub fn init(allocator: std.mem.Allocator) interface.BackendError!*Self {
         // Initialize global Vulkan state if needed
-        if (!vulkan_initialized) {
+        if (!vulkan_initialized.load(.acquire)) {
             initVulkanGlobal(allocator) catch |err| {
                 return switch (err) {
                     VulkanError.InitializationFailed => interface.BackendError.InitFailed,
@@ -575,7 +575,7 @@ pub const VulkanBackend = struct {
     }
 
     pub fn getDeviceCount(_: *Self) u32 {
-        if (!vulkan_initialized) return 0;
+        if (!vulkan_initialized.load(.acquire)) return 0;
         return 1;
     }
 

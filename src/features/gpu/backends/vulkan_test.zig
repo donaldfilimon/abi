@@ -43,7 +43,7 @@ test "VkResult success value is zero" {
 
 test "vulkan_initialized starts as false" {
     // Can't call isAvailable directly, but we can verify the initial state
-    try std.testing.expect(!vulkan.vulkan_initialized);
+    try std.testing.expect(!vulkan.vulkan_initialized.load(.acquire));
 }
 
 test "linux vulkan minimum api version is 1.3" {

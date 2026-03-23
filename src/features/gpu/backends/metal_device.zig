@@ -19,7 +19,7 @@ pub const DeviceInfo = metal_types.DeviceInfo;
 
 /// Initialize the Metal backend: load libraries, create device and command queue.
 pub fn init() !void {
-    if (s.metal_initialized) return;
+    if (s.metal_initialized.load(.acquire)) return;
 
     if (builtin.target.os.tag != .macos) {
         return s.MetalError.InitializationFailed;
@@ -90,7 +90,7 @@ pub fn init() !void {
 
     s.metal_device = device;
     s.metal_command_queue = command_queue;
-    s.metal_initialized = true;
+    s.metal_initialized.store(true, .release);
 
     std.log.debug("Metal backend initialized: {s}, {d:.2} GB VRAM", .{
         s.device_name_buf[0..s.device_name_len],
@@ -150,8 +150,8 @@ pub fn deinit() void {
     }
     s.metal_lib = null;
     s.objc_lib = null;
-    s.metal_initialized = false;
-    s.selectors_initialized = false;
+    s.metal_initialized.store(false, .release);
+    s.selectors_initialized.store(false, .release);
     s.cached_feature_set = null;
     s.cached_metal_level = .none;
 
@@ -296,7 +296,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
     errdefer devices.deinit(allocator);
 
     // Initialize Metal if not already done
-    if (!s.metal_initialized) {
+    if (!s.metal_initialized.load(.acquire)) {
         init() catch {
             return &[_]Device{};
         };
@@ -371,7 +371,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
 
 /// Get detailed information about the current default Metal device.
 pub fn getDeviceInfo() ?DeviceInfo {
-    if (!s.metal_initialized or s.metal_device == null) return null;
+    if (!s.metal_initialized.load(.acquire) or s.metal_device == null) return null;
 
     var info = DeviceInfo{
         .name = if (s.device_name_len > 0) s.device_name_buf[0..s.device_name_len] else "Unknown",
@@ -489,7 +489,7 @@ fn loadMetalFunctions() bool {
 }
 
 fn initializeSelectors() s.MetalError!void {
-    if (s.selectors_initialized) return;
+    if (s.selectors_initialized.load(.acquire)) return;
 
     const sel_fn = s.sel_registerName orelse return s.MetalError.SelectorNotFound;
 
@@ -544,5 +544,5 @@ fn initializeSelectors() s.MetalError!void {
     s.sel_maxTotalThreadsPerThreadgroup = sel_fn("maxTotalThreadsPerThreadgroup");
     s.sel_threadExecutionWidth = sel_fn("threadExecutionWidth");
 
-    s.selectors_initialized = true;
+    s.selectors_initialized.store(true, .release);
 }

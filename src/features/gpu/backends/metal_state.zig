@@ -46,7 +46,7 @@ pub const MtlCopyAllDevicesFn = metal_types.MtlCopyAllDevicesFn;
 pub var metal_lib: ?std.DynLib = null;
 pub var objc_lib: ?std.DynLib = null;
 pub var foundation_lib: ?std.DynLib = null;
-pub var metal_initialized: bool = false;
+pub var metal_initialized = std.atomic.Value(bool).init(false);
 pub var metal_device: ID = null;
 pub var metal_command_queue: ID = null;
 
@@ -166,4 +166,4 @@ pub var sel_objectAtIndex: SEL = undefined;
 pub var sel_maxTotalThreadsPerThreadgroup: SEL = undefined;
 pub var sel_threadExecutionWidth: SEL = undefined;
 
-pub var selectors_initialized: bool = false;
+pub var selectors_initialized = std.atomic.Value(bool).init(false);
