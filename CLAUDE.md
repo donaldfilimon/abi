@@ -23,6 +23,11 @@ Cross-compilation helper:
 tools/crossbuild.sh        # Cross-compile for linux, wasi, x86_64 targets
 ```
 
+Build Zig from source (Codeberg mirror, requires `brew install llvm`):
+```bash
+tools/compile_zig_codeberg.sh  # Compile Zig from master via Codeberg mirror
+```
+
 Auto-update checker:
 ```bash
 tools/auto_update.sh       # Check and apply updates for zig + zls

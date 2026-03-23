@@ -88,7 +88,7 @@ fn printHelp() void {
     std.debug.print("{s}", .{text});
 }
 
-fn wantsHelp(args: []const [:0]const u8) bool {
+pub fn wantsHelp(args: []const [:0]const u8) bool {
     for (args) |a| {
         const s = std.mem.sliceTo(a, 0);
         if (std.mem.eql(u8, s, "help") or std.mem.eql(u8, s, "--help") or std.mem.eql(u8, s, "-h"))
@@ -108,7 +108,7 @@ const CommonArgs = struct {
 };
 
 /// Parse flags common to add and query commands.
-fn parseCommonArgs(args: []const [:0]const u8) CommonArgs {
+pub fn parseCommonArgs(args: []const [:0]const u8) CommonArgs {
     var result = CommonArgs{};
     var i: usize = 0;
     while (i < args.len) {
@@ -485,7 +485,7 @@ fn isBareLegacyFilename(path: []const u8) bool {
     return true;
 }
 
-fn parseDbPath(args: []const [:0]const u8) ?[]const u8 {
+pub fn parseDbPath(args: []const [:0]const u8) ?[]const u8 {
     var path: ?[]const u8 = null;
     var i: usize = 0;
     while (i < args.len) {
@@ -721,6 +721,35 @@ test "isBareLegacyFilename identifies bare names only" {
     try std.testing.expect(!isBareLegacyFilename("nested/legacy.db"));
     try std.testing.expect(!isBareLegacyFilename("../legacy.db"));
     try std.testing.expect(!isBareLegacyFilename(""));
+}
+
+test "wantsHelp detects help flags" {
+    try std.testing.expect(wantsHelp(&.{"help"}));
+    try std.testing.expect(wantsHelp(&.{"--help"}));
+    try std.testing.expect(wantsHelp(&.{"-h"}));
+    try std.testing.expect(wantsHelp(&.{})); // empty args
+    try std.testing.expect(!wantsHelp(&.{"add"}));
+}
+
+test "parseCommonArgs parses flags" {
+    const args = [_][:0]const u8{ "--id", "7", "--vector", "0.5,0.6", "--db", "test.db", "--top-k", "5" };
+    const parsed = parseCommonArgs(&args);
+    try std.testing.expectEqual(@as(?u64, 7), parsed.id);
+    try std.testing.expectEqualStrings("0.5,0.6", parsed.vector_text.?);
+    try std.testing.expectEqualStrings("test.db", parsed.path.?);
+    try std.testing.expectEqual(@as(usize, 5), parsed.top_k);
+}
+
+test "parseDbPath returns path" {
+    const args = [_][:0]const u8{ "--db", "my.db" };
+    const path = parseDbPath(&args);
+    try std.testing.expect(path != null);
+    try std.testing.expectEqualStrings("my.db", path.?);
+}
+
+test "parseDbPath returns null for empty" {
+    const empty: []const [:0]const u8 = &.{};
+    try std.testing.expect(parseDbPath(empty) == null);
 }
 
 test {

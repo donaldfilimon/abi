@@ -51,7 +51,7 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-fn printVersion() void {
+pub fn printVersion() void {
     const version = build_options.package_version;
     std.debug.print(
         \\ABI Framework v{s}
@@ -62,7 +62,7 @@ fn printVersion() void {
     , .{version});
 }
 
-fn printHelp() void {
+pub fn printHelp() void {
     std.debug.print(
         \\ABI — Multi-Persona AI Framework with WDBX
         \\
@@ -85,7 +85,7 @@ fn printHelp() void {
     , .{});
 }
 
-fn printInfo() void {
+pub fn printInfo() void {
     std.debug.print(
         \\ABI Framework — Architecture Summary
         \\════════════════════════════════════════
@@ -116,7 +116,7 @@ fn printInfo() void {
     , .{});
 }
 
-fn runDoctor(allocator: std.mem.Allocator) !void {
+pub fn runDoctor(allocator: std.mem.Allocator) !void {
     _ = allocator;
     const version = build_options.package_version;
 
@@ -179,7 +179,7 @@ fn runDoctor(allocator: std.mem.Allocator) !void {
     });
 }
 
-fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
+pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
     // Initialize the multi-persona router for routing decisions
     const persona = root.ai.persona;
     var registry = persona.PersonaRegistry.init(allocator, .{});
@@ -218,6 +218,54 @@ fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
         decision.weights.aviva * 100.0,
         decision.weights.abi * 100.0,
     });
+}
+
+/// Command dispatch extracted from main() for testability.
+/// Takes the command string and remaining args iterator, plus an allocator.
+pub fn dispatch(allocator: std.mem.Allocator, command: ?[]const u8, next_arg: ?[]const u8) !void {
+    const cmd = command orelse {
+        printHelp();
+        return;
+    };
+
+    if (std.mem.eql(u8, cmd, "version")) {
+        printVersion();
+    } else if (std.mem.eql(u8, cmd, "doctor")) {
+        try runDoctor(allocator);
+    } else if (std.mem.eql(u8, cmd, "info")) {
+        printInfo();
+    } else if (std.mem.eql(u8, cmd, "chat")) {
+        const message = next_arg orelse {
+            std.debug.print("Usage: abi chat <message>\n", .{});
+            return;
+        };
+        try runChat(allocator, message);
+    } else if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h")) {
+        printHelp();
+    } else {
+        std.debug.print("Unknown command: {s}\n\n", .{cmd});
+        printHelp();
+    }
+}
+
+test "version prints without error" {
+    printVersion();
+}
+
+test "help prints without error" {
+    printHelp();
+}
+
+test "info prints without error" {
+    printInfo();
+}
+
+test "doctor runs without error" {
+    try runDoctor(std.testing.allocator);
+}
+
+test "chat routes message without error" {
+    try runChat(std.testing.allocator, "Hello, how are you?");
 }
 
 test {
