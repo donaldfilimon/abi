@@ -461,7 +461,7 @@ pub fn loadFromEnvironment(allocator: std.mem.Allocator) !AbbeyConfig {
         config.llm.model = model;
     }
 
-    if (getEnv(allocator, "OPENAI_API_KEY") orelse getEnv(allocator, "ABI_OPENAI_API_KEY")) |key| {
+    if (getEnv(allocator, "ABI_OPENAI_API_KEY") orelse getEnv(allocator, "OPENAI_API_KEY")) |key| {
         // Transfer ownership - caller is responsible for freeing via config.deinit()
         config.llm.api_key = key;
         if (config.llm.backend == .echo) {
@@ -477,7 +477,7 @@ pub fn loadFromEnvironment(allocator: std.mem.Allocator) !AbbeyConfig {
     }
 
     // Load Discord configuration
-    if (getEnv(allocator, "DISCORD_BOT_TOKEN") orelse getEnv(allocator, "ABI_DISCORD_TOKEN")) |token| {
+    if (getEnv(allocator, "ABI_DISCORD_BOT_TOKEN") orelse getEnv(allocator, "DISCORD_BOT_TOKEN")) |token| {
         // Transfer ownership - caller is responsible for freeing via config.deinit()
         config.discord.bot_token = token;
         config.discord.enabled = true;

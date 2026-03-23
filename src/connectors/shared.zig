@@ -460,11 +460,11 @@ test "ProviderInfo can be constructed" {
     const info = ProviderInfo{
         .name = "openai",
         .is_available = true,
-        .env_key = "OPENAI_API_KEY",
+        .env_key = "ABI_OPENAI_API_KEY",
     };
     try std.testing.expectEqualStrings("openai", info.name);
     try std.testing.expect(info.is_available);
-    try std.testing.expectEqualStrings("OPENAI_API_KEY", info.env_key);
+    try std.testing.expectEqualStrings("ABI_OPENAI_API_KEY", info.env_key);
 }
 
 test "provider error sets are proper supersets of ProviderError" {

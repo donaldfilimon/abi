@@ -386,22 +386,22 @@ pub const ProviderInfo = struct {
 
 pub const ProviderRegistry = struct {
     pub const providers: [16]ProviderInfo = .{
-        .{ .name = "openai", .display_name = "OpenAI", .env_key = "OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = false },
-        .{ .name = "anthropic", .display_name = "Anthropic", .env_key = "ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = false },
-        .{ .name = "claude", .display_name = "Claude", .env_key = "ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = true },
-        .{ .name = "codex", .display_name = "Codex", .env_key = "OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
+        .{ .name = "openai", .display_name = "OpenAI", .env_key = "ABI_OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = false },
+        .{ .name = "anthropic", .display_name = "Anthropic", .env_key = "ABI_ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = false },
+        .{ .name = "claude", .display_name = "Claude", .env_key = "ABI_ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = true },
+        .{ .name = "codex", .display_name = "Codex", .env_key = "ABI_OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
         .{ .name = "opencode", .display_name = "OpenCode", .env_key = "ABI_OPENCODE_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
-        .{ .name = "gemini", .display_name = "Google Gemini", .env_key = "GEMINI_API_KEY", .base_url = "https://generativelanguage.googleapis.com/v1beta", .is_alias = false },
-        .{ .name = "huggingface", .display_name = "HuggingFace", .env_key = "HF_API_TOKEN", .base_url = "https://api-inference.huggingface.co", .is_alias = false },
-        .{ .name = "ollama", .display_name = "Ollama", .env_key = "OLLAMA_HOST", .base_url = "http://127.0.0.1:11434", .is_alias = false },
-        .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
-        .{ .name = "mistral", .display_name = "Mistral AI", .env_key = "MISTRAL_API_KEY", .base_url = "https://api.mistral.ai/v1", .is_alias = false },
-        .{ .name = "cohere", .display_name = "Cohere", .env_key = "COHERE_API_KEY", .base_url = "https://api.cohere.ai/v1", .is_alias = false },
+        .{ .name = "gemini", .display_name = "Google Gemini", .env_key = "ABI_GEMINI_API_KEY", .base_url = "https://generativelanguage.googleapis.com/v1beta", .is_alias = false },
+        .{ .name = "huggingface", .display_name = "HuggingFace", .env_key = "ABI_HF_API_TOKEN", .base_url = "https://api-inference.huggingface.co", .is_alias = false },
+        .{ .name = "ollama", .display_name = "Ollama", .env_key = "ABI_OLLAMA_HOST", .base_url = "http://127.0.0.1:11434", .is_alias = false },
+        .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "ABI_OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
+        .{ .name = "mistral", .display_name = "Mistral AI", .env_key = "ABI_MISTRAL_API_KEY", .base_url = "https://api.mistral.ai/v1", .is_alias = false },
+        .{ .name = "cohere", .display_name = "Cohere", .env_key = "ABI_COHERE_API_KEY", .base_url = "https://api.cohere.ai/v1", .is_alias = false },
         .{ .name = "lm_studio", .display_name = "LM Studio", .env_key = "ABI_LM_STUDIO_HOST", .base_url = "http://localhost:1234", .is_alias = false },
-        .{ .name = "vllm", .display_name = "vLLM", .env_key = "VLLM_HOST", .base_url = "http://localhost:8000", .is_alias = false },
-        .{ .name = "mlx", .display_name = "MLX", .env_key = "MLX_HOST", .base_url = "http://localhost:8080", .is_alias = false },
-        .{ .name = "llama_cpp", .display_name = "llama.cpp", .env_key = "LLAMA_CPP_HOST", .base_url = "http://localhost:8080", .is_alias = false },
-        .{ .name = "discord", .display_name = "Discord", .env_key = "DISCORD_BOT_TOKEN", .base_url = "https://discord.com/api/v10", .is_alias = false },
+        .{ .name = "vllm", .display_name = "vLLM", .env_key = "ABI_VLLM_HOST", .base_url = "http://localhost:8000", .is_alias = false },
+        .{ .name = "mlx", .display_name = "MLX", .env_key = "ABI_MLX_HOST", .base_url = "http://localhost:8080", .is_alias = false },
+        .{ .name = "llama_cpp", .display_name = "llama.cpp", .env_key = "ABI_LLAMA_CPP_HOST", .base_url = "http://localhost:8080", .is_alias = false },
+        .{ .name = "discord", .display_name = "Discord", .env_key = "ABI_DISCORD_BOT_TOKEN", .base_url = "https://discord.com/api/v10", .is_alias = false },
     };
 
     pub fn listAll() []const ProviderInfo {

@@ -298,22 +298,22 @@ pub const ProviderInfo = struct {
 
 pub const ProviderRegistry = struct {
     pub const providers: [16]ProviderInfo = .{
-        .{ .name = "openai", .display_name = "OpenAI", .env_key = "OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = false },
-        .{ .name = "anthropic", .display_name = "Anthropic", .env_key = "ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = false },
-        .{ .name = "claude", .display_name = "Claude", .env_key = "ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = true },
-        .{ .name = "codex", .display_name = "Codex", .env_key = "OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
+        .{ .name = "openai", .display_name = "OpenAI", .env_key = "ABI_OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = false },
+        .{ .name = "anthropic", .display_name = "Anthropic", .env_key = "ABI_ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = false },
+        .{ .name = "claude", .display_name = "Claude", .env_key = "ABI_ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = true },
+        .{ .name = "codex", .display_name = "Codex", .env_key = "ABI_OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
         .{ .name = "opencode", .display_name = "OpenCode", .env_key = "ABI_OPENCODE_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
-        .{ .name = "gemini", .display_name = "Google Gemini", .env_key = "GEMINI_API_KEY", .base_url = "https://generativelanguage.googleapis.com/v1beta", .is_alias = false },
-        .{ .name = "huggingface", .display_name = "HuggingFace", .env_key = "HF_API_TOKEN", .base_url = "https://api-inference.huggingface.co", .is_alias = false },
-        .{ .name = "ollama", .display_name = "Ollama", .env_key = "OLLAMA_HOST", .base_url = "http://127.0.0.1:11434", .is_alias = false },
-        .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
-        .{ .name = "mistral", .display_name = "Mistral AI", .env_key = "MISTRAL_API_KEY", .base_url = "https://api.mistral.ai/v1", .is_alias = false },
-        .{ .name = "cohere", .display_name = "Cohere", .env_key = "COHERE_API_KEY", .base_url = "https://api.cohere.ai/v1", .is_alias = false },
+        .{ .name = "gemini", .display_name = "Google Gemini", .env_key = "ABI_GEMINI_API_KEY", .base_url = "https://generativelanguage.googleapis.com/v1beta", .is_alias = false },
+        .{ .name = "huggingface", .display_name = "HuggingFace", .env_key = "ABI_HF_API_TOKEN", .base_url = "https://api-inference.huggingface.co", .is_alias = false },
+        .{ .name = "ollama", .display_name = "Ollama", .env_key = "ABI_OLLAMA_HOST", .base_url = "http://127.0.0.1:11434", .is_alias = false },
+        .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "ABI_OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
+        .{ .name = "mistral", .display_name = "Mistral AI", .env_key = "ABI_MISTRAL_API_KEY", .base_url = "https://api.mistral.ai/v1", .is_alias = false },
+        .{ .name = "cohere", .display_name = "Cohere", .env_key = "ABI_COHERE_API_KEY", .base_url = "https://api.cohere.ai/v1", .is_alias = false },
         .{ .name = "lm_studio", .display_name = "LM Studio", .env_key = "ABI_LM_STUDIO_HOST", .base_url = "http://localhost:1234", .is_alias = false },
-        .{ .name = "vllm", .display_name = "vLLM", .env_key = "VLLM_HOST", .base_url = "http://localhost:8000", .is_alias = false },
-        .{ .name = "mlx", .display_name = "MLX", .env_key = "MLX_HOST", .base_url = "http://localhost:8080", .is_alias = false },
-        .{ .name = "llama_cpp", .display_name = "llama.cpp", .env_key = "LLAMA_CPP_HOST", .base_url = "http://localhost:8080", .is_alias = false },
-        .{ .name = "discord", .display_name = "Discord", .env_key = "DISCORD_BOT_TOKEN", .base_url = "https://discord.com/api/v10", .is_alias = false },
+        .{ .name = "vllm", .display_name = "vLLM", .env_key = "ABI_VLLM_HOST", .base_url = "http://localhost:8000", .is_alias = false },
+        .{ .name = "mlx", .display_name = "MLX", .env_key = "ABI_MLX_HOST", .base_url = "http://localhost:8080", .is_alias = false },
+        .{ .name = "llama_cpp", .display_name = "llama.cpp", .env_key = "ABI_LLAMA_CPP_HOST", .base_url = "http://localhost:8080", .is_alias = false },
+        .{ .name = "discord", .display_name = "Discord", .env_key = "ABI_DISCORD_BOT_TOKEN", .base_url = "https://discord.com/api/v10", .is_alias = false },
     };
 
     pub fn listAll() []const ProviderInfo {
@@ -330,6 +330,47 @@ pub const ProviderRegistry = struct {
         }
         return null;
     }
+};
+
+/// Standardized environment variable names for each provider.
+///
+/// Each provider checks env vars in priority order: ABI-namespaced first,
+/// then legacy names as fallbacks. This constant documents the canonical
+/// primary and fallback env var names for all providers.
+pub const ENV_VARS = struct {
+    pub const openai = struct {
+        pub const api_key = &[_][]const u8{ "ABI_OPENAI_API_KEY", "OPENAI_API_KEY" };
+        pub const base_url = &[_][]const u8{ "ABI_OPENAI_BASE_URL", "OPENAI_BASE_URL" };
+        pub const model = &[_][]const u8{ "ABI_OPENAI_MODEL", "OPENAI_MODEL" };
+    };
+    pub const anthropic = struct {
+        pub const api_key = &[_][]const u8{ "ABI_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY" };
+        pub const base_url = &[_][]const u8{ "ABI_ANTHROPIC_BASE_URL", "ANTHROPIC_BASE_URL" };
+        pub const model = &[_][]const u8{ "ABI_ANTHROPIC_MODEL", "ANTHROPIC_MODEL" };
+    };
+    pub const gemini = struct {
+        pub const api_key = &[_][]const u8{ "ABI_GEMINI_API_KEY", "GEMINI_API_KEY" };
+        pub const base_url = &[_][]const u8{ "ABI_GEMINI_BASE_URL", "GEMINI_BASE_URL" };
+        pub const model = &[_][]const u8{ "ABI_GEMINI_MODEL", "GEMINI_MODEL" };
+    };
+    pub const huggingface = struct {
+        pub const api_key = &[_][]const u8{ "ABI_HF_API_TOKEN", "HF_API_TOKEN", "HUGGING_FACE_HUB_TOKEN" };
+        pub const base_url = &[_][]const u8{ "ABI_HF_BASE_URL", "HF_BASE_URL" };
+        pub const model = &[_][]const u8{ "ABI_HF_MODEL", "HF_MODEL" };
+    };
+    pub const ollama = struct {
+        pub const host = &[_][]const u8{ "ABI_OLLAMA_HOST", "OLLAMA_HOST" };
+        pub const model = &[_][]const u8{ "ABI_OLLAMA_MODEL", "OLLAMA_MODEL" };
+    };
+    pub const mistral = struct {
+        pub const api_key = &[_][]const u8{ "ABI_MISTRAL_API_KEY", "MISTRAL_API_KEY" };
+    };
+    pub const cohere = struct {
+        pub const api_key = &[_][]const u8{ "ABI_COHERE_API_KEY", "COHERE_API_KEY" };
+    };
+    pub const discord = struct {
+        pub const bot_token = &[_][]const u8{ "ABI_DISCORD_BOT_TOKEN", "DISCORD_BOT_TOKEN" };
+    };
 };
 
 test "connectors init toggles state" {
@@ -376,7 +417,7 @@ test "ProviderRegistry.getByName finds openai" {
     const info = ProviderRegistry.getByName("openai");
     try std.testing.expect(info != null);
     try std.testing.expectEqualStrings("OpenAI", info.?.display_name);
-    try std.testing.expectEqualStrings("OPENAI_API_KEY", info.?.env_key);
+    try std.testing.expectEqualStrings("ABI_OPENAI_API_KEY", info.?.env_key);
     try std.testing.expect(!info.?.is_alias);
 }
 
@@ -404,6 +445,50 @@ test "ProviderRegistry.getByName identifies aliases" {
 test "ProviderRegistry.listAvailable returns all providers" {
     const available = ProviderRegistry.listAvailable();
     try std.testing.expectEqual(@as(usize, 16), available.len);
+}
+
+test "ProviderRegistry env_key uses ABI-namespaced primary" {
+    // All non-alias providers should have ABI_ prefix in their env_key
+    for (ProviderRegistry.providers) |p| {
+        if (p.is_alias) continue;
+        try std.testing.expect(std.mem.startsWith(u8, p.env_key, "ABI_"));
+    }
+}
+
+test "ENV_VARS documents ABI-prefixed primary for OpenAI" {
+    try std.testing.expectEqualStrings("ABI_OPENAI_API_KEY", ENV_VARS.openai.api_key[0]);
+    try std.testing.expectEqualStrings("OPENAI_API_KEY", ENV_VARS.openai.api_key[1]);
+}
+
+test "ENV_VARS documents ABI-prefixed primary for Anthropic" {
+    try std.testing.expectEqualStrings("ABI_ANTHROPIC_API_KEY", ENV_VARS.anthropic.api_key[0]);
+    try std.testing.expectEqualStrings("ANTHROPIC_API_KEY", ENV_VARS.anthropic.api_key[1]);
+}
+
+test "ENV_VARS documents ABI-prefixed primary for Gemini" {
+    try std.testing.expectEqualStrings("ABI_GEMINI_API_KEY", ENV_VARS.gemini.api_key[0]);
+    try std.testing.expectEqualStrings("GEMINI_API_KEY", ENV_VARS.gemini.api_key[1]);
+}
+
+test "ENV_VARS documents ABI-prefixed primary for HuggingFace" {
+    try std.testing.expectEqualStrings("ABI_HF_API_TOKEN", ENV_VARS.huggingface.api_key[0]);
+    try std.testing.expectEqualStrings("HF_API_TOKEN", ENV_VARS.huggingface.api_key[1]);
+    // HuggingFace has a third legacy fallback
+    try std.testing.expectEqualStrings("HUGGING_FACE_HUB_TOKEN", ENV_VARS.huggingface.api_key[2]);
+}
+
+test "ENV_VARS documents ABI-prefixed primary for Ollama" {
+    try std.testing.expectEqualStrings("ABI_OLLAMA_HOST", ENV_VARS.ollama.host[0]);
+    try std.testing.expectEqualStrings("OLLAMA_HOST", ENV_VARS.ollama.host[1]);
+}
+
+test "getFirstEnvOwned returns first match in priority order" {
+    // When no env vars are set, should return null
+    const result = try getFirstEnvOwned(std.testing.allocator, &.{
+        "ABI_TEST_PRIORITY_FIRST_99999",
+        "ABI_TEST_PRIORITY_SECOND_99999",
+    });
+    try std.testing.expect(result == null);
 }
 
 test {
