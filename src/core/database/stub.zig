@@ -255,6 +255,9 @@ pub const DiskANNIndex = misc.diskann.DiskANNIndex;
 pub const DiskANNConfig = misc.diskann.DiskANNConfig;
 pub const PQCodebook = misc.diskann.PQCodebook;
 pub const DiskANNStats = misc.diskann.IndexStats;
+pub const VamanaIndex = misc.diskann.VamanaIndex;
+pub const VamanaConfig = misc.diskann.VamanaConfig;
+pub const VamanaSearchResult = misc.diskann.VamanaSearchResult;
 
 // --- ScaNN ---
 pub const ScaNNIndex = misc.scann.ScaNNIndex;
