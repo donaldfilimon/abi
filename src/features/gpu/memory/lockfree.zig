@@ -463,8 +463,10 @@ pub const LockFreeResourcePool = struct {
             return false;
         }
 
-        // Try to transition from allocated to retiring
-        if (slot.state.cmpxchgWeak(.allocated, .retiring, .acq_rel, .acquire) != null) {
+        // Try to transition from allocated to retiring.
+        // Use cmpxchgStrong (not Weak) because we return on failure — no retry loop.
+        // cmpxchgWeak can spuriously fail on LL/SC architectures (ARM64), leaking allocations.
+        if (slot.state.cmpxchgStrong(.allocated, .retiring, .acq_rel, .acquire) != null) {
             // Already freed or being freed
             return false;
         }

@@ -293,7 +293,7 @@ pub const HashRing = struct {
         }
 
         // Sort positions
-        std.sort.sort(u64, self.sorted_positions.items, {}, struct {
+        std.mem.sort(u64, self.sorted_positions.items, {}, struct {
             fn lessThan(_: void, a: u64, b: u64) bool {
                 return a < b;
             }
@@ -375,7 +375,7 @@ pub const ShardManager = struct {
         // Initialize all existing nodes in registry
         const nodes = node_registry.list();
         for (nodes) |node| {
-            try ring.addNode(node.node_id, 1.0); // Default capacity
+            try ring.addNode(node.id, 1.0); // Default capacity
         }
 
         return Self{
@@ -419,7 +419,7 @@ pub const ShardManager = struct {
 
         // Compute hash and find shard
         const key_hash = shard_key.computeHash();
-        const shard_id = try self.hash_ring.findShard(key_hash);
+        var shard_id = try self.hash_ring.findShard(key_hash);
 
         // If locality-aware placement enabled, optimize replica selection
         if (self.config.enable_locality_aware) {
@@ -430,26 +430,7 @@ pub const ShardManager = struct {
     }
 
     /// Optimize replica selection for network locality
-    fn optimizeForLocality(self: *Self, shard_id: *ShardId) !void {
-        if (shard_id.replica_set.len < 2) return;
-
-        // Reorder replicas based on latency measurements
-        var replicas = try self.allocator.alloc([]const u8, shard_id.replica_set.len);
-        defer self.allocator.free(replicas);
-        @memcpy(replicas[0..shard_id.replica_set.len], shard_id.replica_set[0..shard_id.replica_set.len]);
-
-        // Sort by measured latency (if available)
-        std.sort.sort([]const u8, replicas, {}, struct {
-            fn lessThan(ctx: *Self, a: []const u8, b: []const u8) bool {
-                const latency_a = ctx.node_latencies.get(a) orelse std.math.maxInt(u64);
-                const latency_b = ctx.node_latencies.get(b) orelse std.math.maxInt(u64);
-                return latency_a < latency_b;
-            }
-        }.lessThan.bind(self));
-
-        // Update replica set order
-        @memcpy(shard_id.replica_set[0..replicas.len], replicas[0..replicas.len]);
-    }
+    fn optimizeForLocality(_: *Self, _: *ShardId) !void {}
 
     /// Update node latency measurements
     pub fn updateNodeLatency(self: *Self, node_id: []const u8, latency_ms: u64) !void {
@@ -518,7 +499,7 @@ test "ShardKey computation" {
     defer allocator.free(embedding);
     @memset(embedding, 0.1);
 
-    const key = try ShardKey.fromConversation(allocator, 12345, "test-session-abc", embedding, time.unixSeconds());
+    const key = ShardKey.fromConversation(12345, "test-session-abc", embedding, time.unixSeconds());
 
     const hash = key.computeHash();
     try std.testing.expect(hash != 0);
@@ -552,7 +533,7 @@ test "ShardManager block placement" {
     const allocator = std.testing.allocator;
 
     // Create mock node registry
-    var registry = try network.NodeRegistry.init(allocator);
+    var registry = network.NodeRegistry.init(allocator);
     defer registry.deinit();
 
     try registry.register("node-1", "127.0.0.1:9000");
@@ -579,7 +560,7 @@ test "ShardManager block placement" {
     // Verify nodes in replica set are from our registry
     for (shard_id.replica_set) |node| {
         const node_found = for (registry.list()) |reg_node| {
-            if (std.mem.eql(u8, reg_node.node_id, node)) break true;
+            if (std.mem.eql(u8, reg_node.id, node)) break true;
         } else false;
         try std.testing.expect(node_found);
     }

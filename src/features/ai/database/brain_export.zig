@@ -12,7 +12,6 @@ const database = if (build_options.feat_database)
     @import("../../database/mod.zig")
 else
     @import("../../database/stub.zig");
-const semantic_store = database.semantic_store;
 
 /// Configuration for dual brain export.
 pub const BrainExportConfig = struct {
@@ -63,22 +62,22 @@ pub fn exportDual(
 
     // ── WDBX export ─────────────────────────────────────────────────────
     {
-        var handle = try semantic_store.createDatabase(allocator, "brain_export");
-        defer semantic_store.closeDatabase(&handle);
+        var store = try database.Store.open(allocator, "brain_export");
+        defer store.deinit();
 
         // Store weights as vector ID 0
-        try semantic_store.insertVector(&handle, 0, model.weights, model.name);
+        try store.insert(0, model.weights, model.name);
 
         // Store training metadata as JSON in a metadata vector
         if (config.include_training_history) {
             if (metadata) |meta| {
                 const meta_json = try serializeTrainingMeta(allocator, meta);
                 defer allocator.free(meta_json);
-                try semantic_store.insertVector(&handle, 1, &.{}, meta_json);
+                try store.insert(1, &.{}, meta_json);
             }
         }
 
-        try semantic_store.backup(&handle, config.wdbx_path);
+        try store.save(config.wdbx_path);
         result.wdbx_written = true;
     }
 
@@ -118,4 +117,41 @@ test "TrainingMetadata defaults" {
     const meta = TrainingMetadata{};
     try std.testing.expectEqualStrings("unnamed", meta.model_name);
     try std.testing.expectEqual(@as(u32, 0), meta.epochs_completed);
+}
+
+test "exportDual writes WDBX metadata through abi.database.Store" {
+    if (!build_options.feat_database or !build_options.feat_training) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/brain-export.wdbx", .{tmp.sub_path});
+    defer allocator.free(path);
+
+    var model = try training.ModelState.init(allocator, 3, "brain-model");
+    defer model.deinit();
+    model.weights[0] = 0.25;
+    model.weights[1] = 0.5;
+    model.weights[2] = 0.75;
+
+    const result = try exportDual(allocator, &model, .{
+        .wdbx_path = path,
+    }, .{
+        .model_name = "brain-model",
+        .epochs_completed = 3,
+        .training_samples = 42,
+    });
+
+    try std.testing.expect(result.wdbx_written);
+
+    var store = try database.Store.load(allocator, path);
+    defer store.deinit();
+
+    const weights = store.get(0) orelse return error.TestUnexpectedResult;
+    try std.testing.expectEqualStrings("brain-model", weights.metadata.?);
+
+    const meta = store.get(1) orelse return error.TestUnexpectedResult;
+    try std.testing.expect(meta.metadata != null);
+    try std.testing.expect(std.mem.indexOf(u8, meta.metadata.?, "\"model_name\"") != null);
 }

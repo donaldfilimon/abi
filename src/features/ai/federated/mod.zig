@@ -328,6 +328,8 @@ test "federated coordinator rejects stale updates" {
         .sample_count = 1,
     });
 
+    const stale_wait = std.c.timespec{ .sec = 2, .nsec = 0 };
+    _ = std.c.nanosleep(&stale_wait, null);
     coordinator.updates.items[0].timestamp = 0;
     try std.testing.expectError(CoordinatorError.InsufficientUpdates, coordinator.aggregate());
 }

@@ -6,7 +6,7 @@
 const std = @import("std");
 const abi = @import("abi");
 
-const block_chain = abi.database.block_chain;
+const block_chain = abi.database.memory.block_chain;
 const BlockChain = block_chain.BlockChain;
 const BlockConfig = block_chain.BlockConfig;
 const ProfileTag = block_chain.ProfileTag;

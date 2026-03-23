@@ -4,7 +4,7 @@ const std = @import("std");
 const types = @import("../types.zig");
 const config = @import("../config.zig");
 const profiles = @import("../profiles/stub.zig");
-const semantic_store = @import("../../database/stub.zig").semantic_store;
+const memory_db = @import("../../database/stub.zig").memory;
 
 pub const InteractionRequest = types.ProfileRequest;
 pub const InteractionResponse = types.ProfileResponse;
@@ -42,7 +42,7 @@ pub const ProfileSelection = struct {
     confidence: f32 = 0.0,
     policy_flags: PolicyFlags = .{},
     reasoning: []const u8 = "",
-    influence_trace: ?semantic_store.InfluenceTrace = null,
+    influence_trace: ?memory_db.InfluenceTrace = null,
 
     pub fn deinit(self: *ProfileSelection, _: std.mem.Allocator) void {
         self.* = undefined;
@@ -66,7 +66,7 @@ pub const PolicyRouter = struct {
     pub fn routeProfile(
         _: *PolicyRouter,
         _: InteractionRequest,
-        _: ?semantic_store.InfluenceTrace,
+        _: ?memory_db.InfluenceTrace,
     ) error{FeatureDisabled}!ProfileSelection {
         return error.FeatureDisabled;
     }

@@ -69,13 +69,13 @@ pub const VersionVector = struct {
 
     /// Update version with timestamp from another node
     pub fn update(self: *Self, allocator: std.mem.Allocator, node_id: []const u8, timestamp: i64) !void {
-        const node_copy = try allocator.dupe(u8, node_id);
-
-        if (self.timestamps.getPtr(node_copy)) |existing| {
+        if (self.timestamps.getPtr(node_id)) |existing| {
             if (timestamp > existing.*) {
                 existing.* = timestamp;
             }
         } else {
+            const node_copy = try allocator.dupe(u8, node_id);
+            errdefer allocator.free(node_copy);
             try self.timestamps.put(allocator, node_copy, timestamp);
         }
     }
@@ -564,7 +564,7 @@ test "BlockExchangeManager initialization" {
     const allocator = std.testing.allocator;
 
     // Create mock dependencies
-    var registry = try network.NodeRegistry.init(allocator);
+    var registry = network.NodeRegistry.init(allocator);
     defer registry.deinit();
 
     try registry.register("test-node", "127.0.0.1:9000");

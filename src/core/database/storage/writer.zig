@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const database = @import("../database.zig");
-const fmt = @import("format.zig");
+const fmt = @import("format_v2.zig");
 const integrity = @import("integrity.zig");
 
 const Crc32 = integrity.Crc32;

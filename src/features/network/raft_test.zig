@@ -129,6 +129,7 @@ test "raft persistence save and load" {
     defer node.deinit();
 
     // Add some state
+    node.state = .leader;
     node.current_term = 5;
     _ = try node.appendCommand("test-command-1");
     _ = try node.appendCommand("test-command-2");

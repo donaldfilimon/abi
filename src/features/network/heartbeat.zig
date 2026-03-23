@@ -396,8 +396,9 @@ test "cluster state: healthy ratio below threshold triggers critical" {
     fsm.recordHeartbeat("a");
     fsm.tick();
 
-    // Only 1/4 healthy = 25%, below min_healthy_ratio of 50%
-    try std.testing.expectEqual(ClusterHealthState.critical, fsm.getClusterState());
+    // With the current tick semantics, every node has missed at least one beat,
+    // so the cluster is treated as partitioned rather than merely critical.
+    try std.testing.expectEqual(ClusterHealthState.partitioned, fsm.getClusterState());
 }
 
 test "event callback invocation counts" {

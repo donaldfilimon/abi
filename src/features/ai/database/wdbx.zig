@@ -11,7 +11,6 @@ const database = if (build_options.feat_database)
     @import("../../database/mod.zig")
 else
     @import("../../database/stub.zig");
-const wdbx_engine = database.neural;
 
 pub const DatasetError = error{
     DatabaseDisabled,
@@ -31,6 +30,16 @@ const TokenBlockHeader = struct {
     token_count: u32,
     text_len: u32,
 };
+
+fn writeIntLe(comptime T: type, bytes: []u8, value: T) void {
+    const raw: *[@sizeOf(T)]u8 = @ptrCast(bytes.ptr);
+    std.mem.writeInt(T, raw, value, .little);
+}
+
+fn readIntLe(comptime T: type, bytes: []const u8) T {
+    const raw: *const [@sizeOf(T)]u8 = @ptrCast(bytes.ptr);
+    return std.mem.readInt(T, raw, .little);
+}
 
 fn tokenBlockDedupVector(id: u64) [4]f32 {
     return .{
@@ -57,7 +66,7 @@ pub const TokenBlock = struct {
 
 pub const WdbxTokenDataset = struct {
     allocator: std.mem.Allocator,
-    engine: wdbx_engine.Engine,
+    store: database.Store,
     path: []const u8,
     next_id: u64,
     dirty: bool,
@@ -68,27 +77,20 @@ pub const WdbxTokenDataset = struct {
         const path_copy = try allocator.dupe(u8, path);
         errdefer allocator.free(path_copy);
 
-        // Initialize modern engine
-        var engine = wdbx_engine.Engine.init(allocator, .{}) catch |err| return mapWdbxError(err);
-        errdefer engine.deinit();
-
-        // Check if file exists and load
-        if (fileExists(allocator, path)) {
-            const loaded = wdbx_engine.load(allocator, path) catch |err| switch (err) {
-                error.FileNotFound => null,
+        var store = if (fileExists(allocator, path))
+            database.Store.load(allocator, path) catch |err| switch (err) {
+                error.FileNotFound => try database.Store.open(allocator, "token_dataset"),
                 else => return mapWdbxError(err),
-            };
-            if (loaded) |l| {
-                engine.deinit();
-                engine = l;
             }
-        }
+        else
+            try database.Store.open(allocator, "token_dataset");
+        errdefer store.deinit();
 
-        const next_id = try computeNextId(&engine);
+        const next_id = try computeNextId(&store);
 
         return .{
             .allocator = allocator,
-            .engine = engine,
+            .store = store,
             .path = path_copy,
             .next_id = next_id,
             .dirty = false,
@@ -96,14 +98,14 @@ pub const WdbxTokenDataset = struct {
     }
 
     pub fn deinit(self: *WdbxTokenDataset) void {
-        self.engine.deinit();
+        self.store.deinit();
         self.allocator.free(self.path);
         self.* = undefined;
     }
 
     pub fn save(self: *WdbxTokenDataset) DatasetError!void {
         if (!self.dirty) return;
-        wdbx_engine.save(&self.engine, self.path) catch |err| return mapWdbxError(err);
+        self.store.save(self.path) catch |err| return mapWdbxError(err);
         self.dirty = false;
     }
 
@@ -111,19 +113,8 @@ pub const WdbxTokenDataset = struct {
         const encoded_metadata = try encodeTokenBlock(self.allocator, tokens, text);
         defer self.allocator.free(encoded_metadata);
 
-        // Convert numeric ID to string for modern engine
-        var id_buf: [32]u8 = undefined;
-        const id_str = std.fmt.bufPrint(&id_buf, "{d}", .{self.next_id}) catch return error.PayloadTooLarge;
-
         const dedup_vector = tokenBlockDedupVector(self.next_id);
-
-        // Map encoded tokens to the 'extra' field of structured metadata
-        const metadata = wdbx_engine.Metadata{
-            .text = text orelse "",
-            .extra = encoded_metadata,
-        };
-
-        self.engine.indexByVector(id_str, &dedup_vector, metadata) catch |err| return mapWdbxError(err);
+        self.store.insert(self.next_id, &dedup_vector, encoded_metadata) catch |err| return mapWdbxError(err);
 
         self.next_id += 1;
         self.dirty = true;
@@ -141,14 +132,17 @@ pub const WdbxTokenDataset = struct {
     }
 
     pub fn collectTokens(self: *WdbxTokenDataset, max_tokens: usize) DatasetError![]u32 {
-        const count = self.engine.count();
+        const count = self.store.stats().count;
         if (count == 0) return self.allocator.alloc(u32, 0);
 
         var tokens = std.ArrayListUnmanaged(u32).empty;
         errdefer tokens.deinit(self.allocator);
 
-        for (self.engine.vectors_array.items) |item| {
-            if (item.metadata.extra) |meta| {
+        const records = try self.store.list(count);
+        defer self.allocator.free(records);
+
+        for (records) |item| {
+            if (item.metadata) |meta| {
                 _ = try appendTokensFromBlock(self.allocator, &tokens, meta, max_tokens);
                 if (max_tokens > 0 and tokens.items.len >= max_tokens) break;
             }
@@ -192,14 +186,14 @@ pub fn encodeTokenBlock(
     var buffer = try allocator.alloc(u8, total_len);
 
     @memcpy(buffer[0..token_block_magic.len], token_block_magic);
-    std.mem.writeInt(u16, buffer[4..6], token_block_version, .little);
-    std.mem.writeInt(u16, buffer[6..8], 0, .little);
-    std.mem.writeInt(u32, buffer[8..12], @intCast(tokens.len), .little);
-    std.mem.writeInt(u32, buffer[12..16], @intCast(text_bytes.len), .little);
+    writeIntLe(u16, buffer[4..6], token_block_version);
+    writeIntLe(u16, buffer[6..8], 0);
+    writeIntLe(u32, buffer[8..12], @intCast(tokens.len));
+    writeIntLe(u32, buffer[12..16], @intCast(text_bytes.len));
 
     var offset: usize = token_block_header_len;
     for (tokens) |token| {
-        std.mem.writeInt(u32, buffer[offset..][0..4], token, .little);
+        writeIntLe(u32, buffer[offset..][0..4], token);
         offset += 4;
     }
 
@@ -222,7 +216,7 @@ pub fn decodeTokenBlock(allocator: std.mem.Allocator, bytes: []const u8) Dataset
     var offset: usize = 0;
     var idx: usize = 0;
     while (idx < tokens.len) : (idx += 1) {
-        const token = std.mem.readInt(u32, tokens_bytes[offset..][0..4], .little);
+        const token = readIntLe(u32, tokens_bytes[offset..][0..4]);
         tokens[idx] = token;
         offset += 4;
     }
@@ -260,7 +254,7 @@ pub fn appendTokensFromBlock(
     var offset: usize = tokens_start;
     while (offset + 4 <= tokens_end) : (offset += 4) {
         if (max_tokens > 0 and out.items.len >= max_tokens) break;
-        const token = std.mem.readInt(u32, bytes[offset..][0..4], .little);
+        const token = readIntLe(u32, bytes[offset..][0..4]);
         try out.append(allocator, token);
         appended += 1;
     }
@@ -291,7 +285,7 @@ pub fn readTokenBinFile(allocator: std.mem.Allocator, path: []const u8) DatasetE
     var offset: usize = 0;
     var idx: usize = 0;
     while (idx < count) : (idx += 1) {
-        tokens[idx] = std.mem.readInt(u32, data[offset..][0..4], .little);
+        tokens[idx] = readIntLe(u32, data[offset..][0..4]);
         offset += 4;
     }
 
@@ -314,23 +308,25 @@ pub fn writeTokenBinFile(allocator: std.mem.Allocator, path: []const u8, tokens:
 fn readHeader(bytes: []const u8) DatasetError!TokenBlockHeader {
     if (bytes.len < token_block_header_len) return error.InvalidFormat;
     if (!std.mem.eql(u8, bytes[0..4], token_block_magic)) return error.InvalidFormat;
-    const version = std.mem.readInt(u16, bytes[4..6], .little);
+    const version = readIntLe(u16, bytes[4..6]);
     if (version != token_block_version) return error.InvalidFormat;
 
     return .{
-        .token_count = std.mem.readInt(u32, bytes[8..12], .little),
-        .text_len = std.mem.readInt(u32, bytes[12..16], .little),
+        .token_count = readIntLe(u32, bytes[8..12]),
+        .text_len = readIntLe(u32, bytes[12..16]),
     };
 }
 
-fn computeNextId(engine: *const wdbx_engine.Engine) DatasetError!u64 {
-    const count = engine.count();
+fn computeNextId(store: *database.Store) DatasetError!u64 {
+    const count = store.stats().count;
     if (count == 0) return 1;
 
+    const records = try store.list(count);
+    defer store.allocator().free(records);
+
     var max_id: u64 = 0;
-    for (engine.vectors_array.items) |item| {
-        const id = std.fmt.parseInt(u64, item.id, 10) catch continue;
-        if (id > max_id) max_id = id;
+    for (records) |item| {
+        if (item.id > max_id) max_id = item.id;
     }
     return max_id + 1;
 }
@@ -353,6 +349,32 @@ fn mapWdbxError(err: anyerror) DatasetError {
         error.PayloadTooLarge => error.PayloadTooLarge,
         else => error.ReadFailed,
     };
+}
+
+test "WdbxTokenDataset persists token blocks across save/load" {
+    if (!build_options.feat_database) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/token-dataset.wdbx", .{tmp.sub_path});
+    defer allocator.free(path);
+
+    var dataset = try WdbxTokenDataset.init(allocator, path);
+    defer dataset.deinit();
+
+    try dataset.appendTokens(&.{ 1, 2, 3, 4 }, "hello");
+    try dataset.appendTokens(&.{ 5, 6 }, null);
+    try dataset.save();
+
+    var reopened = try WdbxTokenDataset.init(allocator, path);
+    defer reopened.deinit();
+
+    const tokens = try reopened.collectTokens(0);
+    defer allocator.free(tokens);
+
+    try std.testing.expectEqualSlices(u32, &.{ 1, 2, 3, 4, 5, 6 }, tokens);
 }
 
 test {

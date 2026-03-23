@@ -107,13 +107,13 @@ pub fn clipGradients(gradients: []f32, max_norm: f32) f32 {
 }
 
 pub fn saveModelToWdbx(allocator: std.mem.Allocator, model: *const ModelState, path: []const u8) !void {
-    var handle = try database.semantic_store.createDatabase(allocator, "model_checkpoint");
-    defer database.semantic_store.closeDatabase(&handle);
+    var store = try database.Store.open(allocator, "model_checkpoint");
+    defer store.deinit();
 
     // Store weights as vector ID 0
-    try database.semantic_store.insertVector(&handle, 0, model.weights, model.name);
+    try store.insert(0, model.weights, model.name);
 
-    try database.semantic_store.backup(&handle, path);
+    try store.save(path);
 }
 
 pub fn train(
@@ -298,4 +298,32 @@ fn calculateAccuracy(weights: []f32, gradients: []f32) f32 {
         if (prediction == 1) correct += 1;
     }
     return @as(f32, @floatFromInt(correct)) / @as(f32, @floatFromInt(weights.len));
+}
+
+test "saveModelToWdbx writes weights through abi.database.Store" {
+    if (!build_options.feat_database) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/model-checkpoint.wdbx", .{tmp.sub_path});
+    defer allocator.free(path);
+
+    var model = try ModelState.init(allocator, 3, "checkpoint-model");
+    defer model.deinit();
+    model.weights[0] = 1.0;
+    model.weights[1] = 2.0;
+    model.weights[2] = 3.0;
+
+    try saveModelToWdbx(allocator, &model, path);
+
+    var store = try database.Store.load(allocator, path);
+    defer store.deinit();
+
+    const weights = store.get(0) orelse return error.TestUnexpectedResult;
+    try std.testing.expectEqualStrings("checkpoint-model", weights.metadata.?);
+    try std.testing.expectEqual(@as(usize, 3), weights.vector.len);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), weights.vector[0], 0.0001);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), weights.vector[2], 0.0001);
 }

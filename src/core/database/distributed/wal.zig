@@ -212,19 +212,14 @@ pub const WalWriter = struct {
 
         const wal_path = self.path[0..self.path_len];
 
-        const fd = std.posix.open(
-            wal_path,
-            .{ .ACCMODE = .WRONLY, .CREAT = true, .TRUNC = true },
-            0o644,
-        ) catch return error.InvalidData;
-        defer std.posix.close(fd);
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        defer io_backend.deinit();
+        const io = io_backend.io();
 
-        var written: usize = 0;
-        while (written < serialized.len) {
-            const n = std.posix.write(fd, serialized[written..]) catch return error.InvalidData;
-            if (n == 0) return error.InvalidData;
-            written += n;
-        }
+        var file = std.Io.Dir.cwd().createFile(io, wal_path, .{ .truncate = true }) catch return error.InvalidData;
+        defer file.close(io);
+
+        file.writeStreamingAll(io, serialized) catch return error.InvalidData;
 
         self.dirty = false;
     }
@@ -233,31 +228,17 @@ pub const WalWriter = struct {
     ///
     /// Reads the entire file, then deserializes header + entries + data
     /// into a fresh WalWriter that is returned to the caller.
-    pub fn recover(allocator: std.mem.Allocator, wal_path: []const u8) !WalWriter {
-        const fd = std.posix.open(
-            wal_path,
-            .{ .ACCMODE = .RDONLY },
-            0,
-        ) catch return error.InvalidData;
-        defer std.posix.close(fd);
+    pub fn recover(alloc: std.mem.Allocator, wal_path: []const u8) !WalWriter {
+        var io_backend = std.Io.Threaded.init(alloc, .{ .environ = std.process.Environ.empty });
+        defer io_backend.deinit();
+        const io = io_backend.io();
 
-        // Determine file size via seek.
-        const end_off = std.posix.lseek(fd, 0, .END) catch return error.InvalidData;
-        const file_size: usize = @intCast(end_off);
-        if (file_size == 0) return error.InvalidData;
-        _ = std.posix.lseek(fd, 0, .SET) catch return error.InvalidData;
+        const buffer = std.Io.Dir.cwd().readFileAlloc(io, wal_path, alloc, .limited(64 * 1024 * 1024)) catch return error.InvalidData;
+        defer alloc.free(buffer);
 
-        const buffer = try allocator.alloc(u8, file_size);
-        defer allocator.free(buffer);
+        if (buffer.len == 0) return error.InvalidData;
 
-        var total: usize = 0;
-        while (total < file_size) {
-            const n = std.posix.read(fd, buffer[total..]) catch return error.InvalidData;
-            if (n == 0) return error.InvalidData;
-            total += n;
-        }
-
-        var writer = WalWriter.init(allocator, wal_path, 0);
+        var writer = WalWriter.init(alloc, wal_path, 0);
         try writer.deserialize(buffer);
         return writer;
     }
@@ -579,7 +560,7 @@ test "WalWriter flush and recover from file" {
     const tmp_path = "/tmp/abi_wal_flush_test.wal";
 
     // Clean up any leftover file.
-    std.posix.unlink(tmp_path) catch {};
+    _ = std.c.unlink(tmp_path);
 
     {
         var wal = WalWriter.init(allocator, tmp_path, 7);
@@ -600,7 +581,7 @@ test "WalWriter flush and recover from file" {
     try std.testing.expectEqual(WalEntryType.delete, recovered.entries.items[1].entry_type);
 
     // Cleanup.
-    std.posix.unlink(tmp_path) catch {};
+    _ = std.c.unlink(tmp_path);
 }
 
 test {

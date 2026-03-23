@@ -138,44 +138,37 @@ pub const PeerConnection = struct {
     }
 
     fn connectToAddress(self: *PeerConnection, addr: NetworkAddress, config: TransportConfig) !void {
-        const socket = std.posix.socket(
-            @intFromEnum(addr.family()),
-            std.posix.SOCK.STREAM,
-            std.posix.IPPROTO.TCP,
-        ) catch {
+        const sock = std.c.socket(addr.family(), std.c.SOCK.STREAM, 0);
+        if (sock < 0) {
             self.state = .error_state;
             return TransportError.ConnectionFailed;
-        };
-        errdefer std.posix.close(socket);
+        }
+        const socket: std.posix.fd_t = @intCast(sock);
+        errdefer _ = std.c.close(socket);
 
         // Set socket options
         if (config.enable_keepalive) {
-            std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.KEEPALIVE, &std.mem.toBytes(@as(c_int, 1))) catch |err| {
-                std.log.warn("Transport: Failed to set SO_KEEPALIVE on socket: {}", .{err});
-            };
+            const one: c_int = 1;
+            _ = std.c.setsockopt(socket, std.c.SOL.SOCKET, std.c.SO.KEEPALIVE, std.mem.asBytes(&one), @sizeOf(c_int));
         }
 
         // Set connect timeout via SO_RCVTIMEO/SO_SNDTIMEO
         const timeout_s = config.connect_timeout_ms / 1000;
         const timeout_us = (config.connect_timeout_ms % 1000) * 1000;
-        const timeval = std.posix.timeval{
+        const timeval = std.c.timeval{
             .sec = @intCast(timeout_s),
             .usec = @intCast(timeout_us),
         };
-        std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, std.mem.asBytes(&timeval)) catch |err| {
-            std.log.warn("Transport: Failed to set SO_RCVTIMEO on socket: {}", .{err});
-        };
-        std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.SNDTIMEO, std.mem.asBytes(&timeval)) catch |err| {
-            std.log.warn("Transport: Failed to set SO_SNDTIMEO on socket: {}", .{err});
-        };
+        _ = std.c.setsockopt(socket, std.c.SOL.SOCKET, std.c.SO.RCVTIMEO, std.mem.asBytes(&timeval), @sizeOf(std.c.timeval));
+        _ = std.c.setsockopt(socket, std.c.SOL.SOCKET, std.c.SO.SNDTIMEO, std.mem.asBytes(&timeval), @sizeOf(std.c.timeval));
 
         // Connect
-        std.posix.connect(socket, &addr.any, addr.getOsSockLen()) catch {
-            std.posix.close(socket);
+        if (std.c.connect(socket, &addr.any, addr.getOsSockLen()) < 0) {
+            _ = std.c.close(socket);
             self.state = .error_state;
             self.consecutive_failures += 1;
             return TransportError.ConnectionFailed;
-        };
+        }
 
         self.socket_fd = socket;
         self.state = .connected;
@@ -189,7 +182,7 @@ pub const PeerConnection = struct {
 
         if (self.socket_fd) |fd| {
             self.state = .closing;
-            std.posix.close(fd);
+            _ = std.c.close(fd);
             self.socket_fd = null;
         }
         self.state = .disconnected;
@@ -207,14 +200,15 @@ pub const PeerConnection = struct {
 
         var total_sent: usize = 0;
         while (total_sent < data.len) {
-            const sent = std.posix.send(socket, data[total_sent..], 0) catch |err| {
+            const remaining = data[total_sent..];
+            const rc = std.c.send(socket, remaining.ptr, remaining.len, 0);
+            if (rc < 0) {
                 self.requests_failed += 1;
                 self.consecutive_failures += 1;
-                if (err == error.WouldBlock or err == error.ConnectionResetByPeer) {
-                    self.state = .error_state;
-                }
+                self.state = .error_state;
                 return TransportError.SendFailed;
-            };
+            }
+            const sent: usize = @intCast(rc);
 
             if (sent == 0) {
                 self.state = .error_state;
@@ -234,16 +228,13 @@ pub const PeerConnection = struct {
 
         const socket = self.socket_fd orelse return TransportError.NotConnected;
 
-        const received = std.posix.recv(socket, buffer, 0) catch |err| {
+        const rc = std.c.recv(socket, buffer.ptr, buffer.len, 0);
+        if (rc < 0) {
             self.consecutive_failures += 1;
-            if (err == error.WouldBlock) {
-                return TransportError.ConnectionTimeout;
-            }
-            if (err == error.ConnectionResetByPeer) {
-                self.state = .error_state;
-            }
+            self.state = .error_state;
             return TransportError.ReceiveFailed;
-        };
+        }
+        const received: usize = @intCast(rc);
 
         if (received == 0) {
             self.state = .disconnected;

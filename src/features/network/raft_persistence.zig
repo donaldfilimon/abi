@@ -34,6 +34,12 @@ const RAFT_MAGIC: u32 = 0x52414654; // "RAFT"
 /// Current format version.
 const RAFT_VERSION: u16 = 1;
 
+fn readStructUnaligned(comptime T: type, bytes: []const u8) T {
+    var value: T = undefined;
+    @memcpy(std.mem.asBytes(&value), bytes[0..@sizeOf(T)]);
+    return value;
+}
+
 /// Raft persistence manager for durable state storage.
 pub const RaftPersistence = struct {
     allocator: std.mem.Allocator,
@@ -149,7 +155,7 @@ pub const RaftPersistence = struct {
 
         // Read persistent state
         if (buffer.len < offset + @sizeOf(PersistentState)) return error.InvalidFormat;
-        const state: *const PersistentState = @ptrCast(@alignCast(buffer[offset..].ptr));
+        const state = readStructUnaligned(PersistentState, buffer[offset..][0..@sizeOf(PersistentState)]);
         offset += @sizeOf(PersistentState);
 
         // Apply state
@@ -174,7 +180,7 @@ pub const RaftPersistence = struct {
         var i: u32 = 0;
         while (i < state.log_count) : (i += 1) {
             if (buffer.len < offset + @sizeOf(PersistentLogEntry)) return error.InvalidFormat;
-            const entry_header: *const PersistentLogEntry = @ptrCast(@alignCast(buffer[offset..].ptr));
+            const entry_header = readStructUnaligned(PersistentLogEntry, buffer[offset..][0..@sizeOf(PersistentLogEntry)]);
             offset += @sizeOf(PersistentLogEntry);
 
             if (buffer.len < offset + entry_header.data_len) return error.InvalidFormat;

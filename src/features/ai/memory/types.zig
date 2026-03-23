@@ -1,7 +1,12 @@
 //! Chat memory stub types — extracted from stub.zig.
 
 const std = @import("std");
-const semantic_store = @import("../../database/stub.zig").semantic_store;
+const build_options = @import("build_options");
+const db_mod = if (build_options.feat_database)
+    @import("../../database/mod.zig")
+else
+    @import("../../database/stub.zig");
+const memory_db = db_mod.memory;
 
 pub const MessageRole = enum {
     system,
@@ -83,7 +88,7 @@ pub const RetrievalResult = struct {
     message: Message = .{},
     similarity: f32 = 0,
     importance: f32 = 0,
-    hit: semantic_store.RetrievalHit = .{},
+    hit: memory_db.RetrievalHit = .{},
 };
 
 pub const MemoryConfig = struct {

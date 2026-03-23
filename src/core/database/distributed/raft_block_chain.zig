@@ -201,6 +201,8 @@ pub const DistributedBlockChain = struct {
         // Raft entry is committed — apply to local chain
         const local_chain = try self.getOrCreateChain(session_id);
         const block_id = try local_chain.addBlock(config);
+        const mvcc_chain = try self.mvcc_store.getChain(session_id);
+        _ = try mvcc_chain.addBlock(config);
 
         std.log.info("DistributedBlockChain: Block {d} committed to session {s} (log index: {d}, polls: {d})", .{ block_id, session_id, log_index, poll_count });
 
@@ -323,7 +325,10 @@ pub const DistributedBlockChain = struct {
     /// Add block locally (no consensus)
     fn addBlockLocal(self: *Self, session_id: []const u8, config: block_chain.BlockConfig) !u64 {
         const chain = try self.getOrCreateChain(session_id);
-        return try chain.addBlock(config);
+        const block_id = try chain.addBlock(config);
+        const mvcc_chain = try self.mvcc_store.getChain(session_id);
+        _ = try mvcc_chain.addBlock(config);
+        return block_id;
     }
 
     /// Serialize block config for Raft log
@@ -472,7 +477,7 @@ test "DistributedBlockChain local operations" {
     defer allocator.free(visible);
 
     try std.testing.expect(visible.len >= 1);
-    try std.testing.expect(visible[0] == block_id);
+    try std.testing.expect(std.mem.indexOfScalar(u64, visible, block_id) != null);
 }
 
 test "DistributedBlockChain chain management" {

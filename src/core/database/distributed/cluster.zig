@@ -480,7 +480,7 @@ test "ClusterMessage serialize/deserialize round-trip" {
 test "PeerAddress.fromString parsing" {
     const addr = PeerAddress.fromString("192.168.1.1:8080");
     try std.testing.expectEqual(@as(u16, 8080), addr.port);
-    try std.testing.expectEqual(@as(u8, 13), addr.host_len);
+    try std.testing.expectEqual(@as(u8, 11), addr.host_len);
     try std.testing.expect(std.mem.eql(u8, "192.168.1.1", addr.host[0..11]));
 }
 

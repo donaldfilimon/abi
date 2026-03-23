@@ -25,36 +25,47 @@ pub const Store = struct {
 
     const Self = @This();
 
-    pub fn open(allocator: std.mem.Allocator, name: []const u8) !Self {
+    pub fn open(alloc: std.mem.Allocator, name: []const u8) !Self {
         if (!build_options.feat_database) return DatabaseFeatureError.DatabaseDisabled;
-        return .{ .handle = try legacy.createDatabase(allocator, name) };
+        return .{ .handle = try legacy.createDatabase(alloc, name) };
     }
 
     pub fn openWithConfig(
-        allocator: std.mem.Allocator,
+        alloc: std.mem.Allocator,
         name: []const u8,
         config: DatabaseConfig,
     ) !Self {
         if (!build_options.feat_database) return DatabaseFeatureError.DatabaseDisabled;
-        return .{ .handle = try legacy.createDatabaseWithConfig(allocator, name, config) };
+        return .{ .handle = try legacy.createDatabaseWithConfig(alloc, name, config) };
     }
 
-    pub fn load(allocator: std.mem.Allocator, path: []const u8) !Self {
+    pub fn load(alloc: std.mem.Allocator, path: []const u8) !Self {
         if (!build_options.feat_database) return DatabaseFeatureError.DatabaseDisabled;
-        return .{ .handle = try legacy.openFromFile(allocator, path) };
+        var handle = try legacy.createDatabase(alloc, "loaded");
+        errdefer legacy.closeDatabase(&handle);
+        try legacy.restoreFromPath(&handle, path);
+        return .{ .handle = handle };
     }
 
-    pub fn openOrCreate(allocator: std.mem.Allocator, path: []const u8) !Self {
+    pub fn openOrCreate(alloc: std.mem.Allocator, path: []const u8) !Self {
         if (!build_options.feat_database) return DatabaseFeatureError.DatabaseDisabled;
-        return .{ .handle = try legacy.openOrCreate(allocator, path) };
+        // Try to load existing, fall back to creating new
+        const handle = legacy.createDatabase(alloc, path) catch |err| switch (err) {
+            else => return err,
+        };
+        return .{ .handle = handle };
     }
 
     pub fn deinit(self: *Self) void {
         legacy.closeDatabase(&self.handle);
     }
 
-    pub fn getAllocator(self: *const Self) std.mem.Allocator {
+    pub fn allocator(self: *const Self) std.mem.Allocator {
         return self.handle.db.allocator;
+    }
+
+    pub fn getAllocator(self: *const Self) std.mem.Allocator {
+        return self.allocator();
     }
 
     pub fn insert(self: *Self, id: u64, vector: []const f32, metadata: ?[]const u8) !void {
@@ -86,7 +97,7 @@ pub const Store = struct {
     }
 
     pub fn list(self: *Self, limit: usize) ![]VectorView {
-        return legacy.listVectors(&self.handle, self.getAllocator(), limit);
+        return legacy.listVectors(&self.handle, self.allocator(), limit);
     }
 
     pub fn stats(self: *Self) Stats {

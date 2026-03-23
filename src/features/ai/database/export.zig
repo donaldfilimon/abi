@@ -16,7 +16,7 @@ pub fn exportGguf(
     path: []const u8,
 ) !void {
     // 1. Create Unified Format
-    var builder = db.UnifiedFormatBuilder.init(allocator);
+    var builder = db.retrieval.formats.UnifiedFormatBuilder.init(allocator);
     defer builder.deinit();
 
     // Add weights
@@ -37,11 +37,11 @@ pub fn exportGguf(
     const unified_bytes = try builder.build();
     defer allocator.free(unified_bytes);
 
-    var format = try db.UnifiedFormat.fromMemory(allocator, unified_bytes);
+    var format = try db.retrieval.formats.UnifiedFormat.fromMemory(allocator, unified_bytes);
     defer format.deinit();
 
     // 2. Convert to GGUF
-    const gguf_bytes = try db.toGguf(allocator, &format);
+    const gguf_bytes = try db.retrieval.formats.toGguf(allocator, &format);
     defer allocator.free(gguf_bytes);
 
     // 3. Write to disk

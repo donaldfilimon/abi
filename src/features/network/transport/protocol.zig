@@ -37,19 +37,15 @@ pub const NetworkAddress = struct {
             .port = std.mem.nativeToBig(u16, ip6.port),
             .flowinfo = ip6.flow,
             .addr = ip6.bytes,
-            .scope_id = switch (ip6.interface) {
-                .none => 0,
-                .index => |idx| idx,
-                .name => 0,
-            },
+            .scope_id = if (@hasField(@TypeOf(ip6.interface), "index")) ip6.interface.index else 0,
         };
         addr.addr_len = @sizeOf(std.c.sockaddr.in6);
         return addr;
     }
 
-    /// Return the address family (AF.INET or AF.INET6).
-    pub fn family(self: *const NetworkAddress) std.posix.AF {
-        return @enumFromInt(self.any.family);
+    /// Return the address family as a raw integer (AF_INET or AF_INET6).
+    pub fn family(self: *const NetworkAddress) c_uint {
+        return @intCast(self.any.family);
     }
 
     /// Return the sockaddr length for posix calls.

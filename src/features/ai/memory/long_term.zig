@@ -9,7 +9,7 @@ const time = @import("../../../foundation/mod.zig").utils;
 const simd = @import("../../../foundation/mod.zig").simd;
 const mod = @import("mod.zig");
 const db_mod = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
-const semantic_store = db_mod.semantic_store;
+const memory_db = db_mod.memory;
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
 const MemoryStats = mod.MemoryStats;
@@ -68,7 +68,7 @@ pub const RetrievalResult = struct {
     /// Memory importance.
     importance: f32,
     /// Canonical retrieval metadata shared with the semantic store surface.
-    hit: semantic_store.RetrievalHit,
+    hit: memory_db.RetrievalHit,
 };
 
 /// Long-term memory with vector-based retrieval.
@@ -226,7 +226,7 @@ pub const LongTermMemory = struct {
             entry.access_count += 1;
             entry.last_accessed = accessed_at;
             self.total_access += 1;
-            const trace = semantic_store.InfluenceTrace{
+            const trace = memory_db.InfluenceTrace{
                 .source = .local_memory,
                 .block_id = entry.block_id,
                 .weight_inputs = .{

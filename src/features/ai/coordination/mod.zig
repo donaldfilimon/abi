@@ -7,7 +7,7 @@ const config = @import("../config.zig");
 const abi_router = @import("../abi/mod.zig");
 const profiles = @import("../profiles/mod.zig");
 const db_mod = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
-const semantic_store = db_mod.semantic_store;
+const memory_db = db_mod.memory;
 
 pub const InteractionRequest = types.ProfileRequest;
 pub const InteractionResponse = types.ProfileResponse;
@@ -45,7 +45,7 @@ pub const ProfileSelection = struct {
     confidence: f32,
     policy_flags: PolicyFlags,
     reasoning: []const u8,
-    influence_trace: ?semantic_store.InfluenceTrace = null,
+    influence_trace: ?memory_db.InfluenceTrace = null,
 
     pub fn deinit(self: *ProfileSelection, allocator: std.mem.Allocator) void {
         allocator.free(self.reasoning);
@@ -56,7 +56,7 @@ pub const ProfileSelection = struct {
     pub fn fromLegacy(
         allocator: std.mem.Allocator,
         decision: LegacyRoutingDecision,
-        trace: ?semantic_store.InfluenceTrace,
+        trace: ?memory_db.InfluenceTrace,
     ) !ProfileSelection {
         return .{
             .selected_profile = profiles.fromLegacyProfile(decision.selected_profile),
@@ -106,7 +106,7 @@ pub const PolicyRouter = struct {
     pub fn routeProfile(
         self: *Self,
         request: InteractionRequest,
-        trace: ?semantic_store.InfluenceTrace,
+        trace: ?memory_db.InfluenceTrace,
     ) !ProfileSelection {
         var legacy = try self.inner.route(request);
         defer legacy.deinit(self.allocator);
@@ -148,7 +148,7 @@ test "profile selection maps legacy routing decisions" {
     var selection = try ProfileSelection.fromLegacy(
         allocator,
         decision,
-        semantic_store.InfluenceTrace.forRetrieval(7, 0.7, 0.6),
+        memory_db.InfluenceTrace.forRetrieval(7, 0.7, 0.6),
     );
     defer selection.deinit(allocator);
 

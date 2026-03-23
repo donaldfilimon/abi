@@ -220,14 +220,9 @@ const database = if (build_options.feat_database)
 else
     @import("../../features/database/stub.zig");
 
-fn getOrCreateDb(allocator: std.mem.Allocator, name_opt: ?[]const u8) !database.DatabaseHandle {
+fn getOrCreateDb(allocator: std.mem.Allocator, name_opt: ?[]const u8) !database.Store {
     const name = name_opt orelse "default";
-    return database.open(allocator, name) catch |err| {
-        if (err == error.DatabaseAlreadyExists) {
-            return database.connect(allocator, name);
-        }
-        return err;
-    };
+    return database.Store.open(allocator, name);
 }
 
 fn handleDbQuery(
@@ -263,10 +258,10 @@ fn handleDbQuery(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    const results = try database.search(&handle, allocator, query_vec.items, top_k);
+    const results = try store.search(query_vec.items, top_k);
     defer allocator.free(results);
 
     // Format results as JSON text
@@ -324,10 +319,10 @@ fn handleDbInsert(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    try database.insert(&handle, id, vec.items, metadata);
+    try store.insert(id, vec.items, metadata);
 
     var buf: [128]u8 = undefined;
     const msg = std.fmt.bufPrint(&buf, "Inserted vector ID={d} (dimension={d})", .{ id, vec.items.len }) catch "Inserted";
@@ -344,10 +339,10 @@ fn handleDbStats(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    const stats = database.stats(&handle);
+    const stats = store.stats();
 
     try out.appendSlice(allocator, "WDBX Database Statistics:\n");
 
@@ -376,10 +371,10 @@ fn handleDbList(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    const vectors = try database.list(&handle, allocator, limit);
+    const vectors = try store.list(limit);
     defer allocator.free(vectors);
 
     try out.appendSlice(allocator, "Stored vectors:\n");
@@ -417,10 +412,10 @@ fn handleDbDelete(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    const deleted = database.remove(&handle, id);
+    const deleted = store.remove(id);
 
     var buf: [128]u8 = undefined;
     const msg = if (deleted)
@@ -446,10 +441,10 @@ fn handleDbGet(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    const vec_view = database.get(&handle, id);
+    const vec_view = store.get(id);
     if (vec_view) |v| {
         var buf: [256]u8 = undefined;
         const s = std.fmt.bufPrint(&buf, "Vector ID={d}\n  Dimensions: {d}\n  Metadata: {s}", .{
@@ -496,10 +491,10 @@ fn handleDbUpdate(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    const updated = try database.update(&handle, id, vec.items);
+    const updated = try store.update(id, vec.items);
 
     var buf: [128]u8 = undefined;
     const msg = if (updated)
@@ -525,10 +520,10 @@ fn handleDbBackup(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    database.backup(&handle, path) catch |err| {
+    store.save(path) catch |err| {
         var buf: [256]u8 = undefined;
         const msg = std.fmt.bufPrint(&buf, "Backup failed: {s}", .{@errorName(err)}) catch "Backup failed";
         try out.appendSlice(allocator, msg);
@@ -549,10 +544,10 @@ fn handleDbDiagnostics(
     else
         null;
 
-    var handle = try getOrCreateDb(allocator, db_name);
-    defer database.close(&handle);
+    var store = try getOrCreateDb(allocator, db_name);
+    defer store.deinit();
 
-    const diag = database.diagnostics(&handle);
+    const diag = store.diagnostics();
 
     try out.appendSlice(allocator, "WDBX Diagnostics:\n");
 

@@ -6,7 +6,10 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const neural_database = if (build_options.feat_ai) @import("../../database/mod.zig").neural else @import("../../database/stub.zig").neural;
+const neural_database = if (build_options.feat_ai)
+    @import("../database/neural_store.zig")
+else
+    @import("../database/neural_store_stub.zig");
 
 pub const TriadEngine = struct {
     allocator: std.mem.Allocator,

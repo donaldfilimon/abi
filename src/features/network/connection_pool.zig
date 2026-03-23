@@ -154,7 +154,7 @@ pub const ConnectionPool = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .connections = .{},
+            .connections = .empty,
             .next_id = std.atomic.Value(u64).init(1),
             .mutex = .{},
             .total_created = std.atomic.Value(u64).init(0),

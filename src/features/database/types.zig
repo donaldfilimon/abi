@@ -3,8 +3,8 @@
 //! Both `mod.zig` (real implementation) and `stub.zig` (disabled no-op)
 //! import from here so that type definitions are not duplicated.
 //!
-//! Note: most database types (SearchResult, DatabaseHandle, Stats, etc.)
-//! live in `src/core/database/` and are re-exported by both mod and stub.
+//! Note: the canonical public WDBX types now live under the `Store`, `Context`,
+//! `memory`, `storage`, `distributed`, and `retrieval` namespaces.
 //! This file covers only the feature-level error set.
 
 pub const DatabaseFeatureError = error{

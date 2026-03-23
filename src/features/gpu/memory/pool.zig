@@ -937,7 +937,7 @@ test "memory pressure handling" {
     // This should trigger memory pressure
     const result = pool.allocate(1024, .{});
     if (result) |buf| {
-        _ = buf;
+        _ = pool.free(buf); // Free the pressure allocation to avoid leak
     } else |err| {
         try std.testing.expectEqual(error.OutOfMemory, err);
     }

@@ -148,14 +148,12 @@ pub const TcpTransport = struct {
             return TransportError.AddressParseError;
         };
 
-        const listener = std.posix.socket(
-            @intFromEnum(addr.family()),
-            std.posix.SOCK.STREAM,
-            std.posix.IPPROTO.TCP,
-        ) catch {
+        const sock = std.c.socket(addr.family(), std.c.SOCK.STREAM, 0);
+        if (sock < 0) {
             return TransportError.BindFailed;
-        };
-        errdefer std.posix.close(listener);
+        }
+        const listener: std.posix.fd_t = @intCast(sock);
+        errdefer _ = std.c.close(listener);
 
         // Allow address reuse
         std.posix.setsockopt(
@@ -183,7 +181,7 @@ pub const TcpTransport = struct {
         // Start accept thread
         self.accept_thread = std.Thread.spawn(.{}, acceptLoop, .{self}) catch {
             self.running.store(false, .release);
-            std.posix.close(listener);
+            _ = std.c.close(listener);
             self.listener = null;
             return TransportError.ListenFailed;
         };
@@ -204,7 +202,7 @@ pub const TcpTransport = struct {
 
         // Close listener
         if (self.listener) |listener| {
-            std.posix.close(listener);
+            _ = std.c.close(listener);
             self.listener = null;
         }
 
@@ -440,7 +438,7 @@ pub const TcpTransport = struct {
 
             // Spawn handler thread for this connection
             _ = std.Thread.spawn(.{}, handleConnection, .{ self, client_fd, client_addr }) catch {
-                std.posix.close(client_fd);
+                _ = std.c.close(client_fd);
                 continue;
             };
         }
@@ -448,7 +446,7 @@ pub const TcpTransport = struct {
 
     // Internal: Handle a single client connection
     fn handleConnection(self: *TcpTransport, client_fd: std.posix.socket_t, addr: std.posix.sockaddr) void {
-        defer std.posix.close(client_fd);
+        defer _ = std.c.close(client_fd);
 
         var addr_buf: [64]u8 = undefined;
         const peer_addr = std.fmt.bufPrint(&addr_buf, "{}", .{addr}) catch "unknown";
