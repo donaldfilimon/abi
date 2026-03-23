@@ -19,39 +19,14 @@ const root = @import("root.zig");
 const feature_catalog = root.meta.features;
 
 pub fn main(init: std.process.Init) !void {
-    _ = init;
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = init.gpa;
 
-    var args = std.process.args();
+    var args = std.process.Args.Iterator.init(init.minimal.args);
     _ = args.skip(); // skip argv[0] (program name)
 
-    const command = args.next() orelse {
-        printHelp();
-        return;
-    };
-
-    if (std.mem.eql(u8, command, "version")) {
-        printVersion();
-    } else if (std.mem.eql(u8, command, "doctor")) {
-        try runDoctor(allocator);
-    } else if (std.mem.eql(u8, command, "info")) {
-        printInfo();
-    } else if (std.mem.eql(u8, command, "chat")) {
-        const message = args.next() orelse {
-            std.debug.print("Usage: abi chat <message>\n", .{});
-            return;
-        };
-        try runChat(allocator, message);
-    } else if (std.mem.eql(u8, command, "dashboard")) {
-        try runDashboard(allocator);
-    } else if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help") or std.mem.eql(u8, command, "-h")) {
-        printHelp();
-    } else {
-        std.debug.print("Unknown command: {s}\n\n", .{command});
-        printHelp();
-    }
+    const command = args.next();
+    const next_arg = args.next();
+    try dispatch(allocator, command, next_arg);
 }
 
 pub fn printVersion() void {
@@ -120,8 +95,7 @@ pub fn printInfo() void {
     , .{});
 }
 
-pub fn runDoctor(allocator: std.mem.Allocator) !void {
-    _ = allocator;
+pub fn runDoctor() void {
     const version = build_options.package_version;
 
     std.debug.print(
@@ -225,12 +199,11 @@ pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
 }
 
 pub fn runDashboard(allocator: std.mem.Allocator) !void {
-    const tui = root.tui;
-    if (!tui.isEnabled()) {
-        std.debug.print("TUI is disabled. Rebuild with -Dfeat-tui=true\n", .{});
-        return;
+    const has_dashboard = comptime @hasDecl(root.tui.dashboard, "run");
+    if (has_dashboard) {
+        return root.tui.dashboard.run(allocator);
     }
-    try tui.dashboard.run(allocator);
+    std.debug.print("TUI is disabled. Rebuild with -Dfeat-tui=true\n", .{});
 }
 
 /// Command dispatch extracted from main() for testability.
@@ -244,7 +217,7 @@ pub fn dispatch(allocator: std.mem.Allocator, command: ?[]const u8, next_arg: ?[
     if (std.mem.eql(u8, cmd, "version")) {
         printVersion();
     } else if (std.mem.eql(u8, cmd, "doctor")) {
-        try runDoctor(allocator);
+        runDoctor();
     } else if (std.mem.eql(u8, cmd, "info")) {
         printInfo();
     } else if (std.mem.eql(u8, cmd, "chat")) {
@@ -276,7 +249,7 @@ test "info prints without error" {
 }
 
 test "doctor runs without error" {
-    try runDoctor(std.testing.allocator);
+    runDoctor();
 }
 
 test "chat routes message without error" {

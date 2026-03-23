@@ -52,7 +52,7 @@ pub const validation = security.validation;
 // Auth-level Types (from types.zig)
 // ============================================================================
 
-const auth_types = @import("types.zig");
+pub const auth_types = @import("types.zig");
 pub const AuthError = auth_types.AuthError;
 pub const Error = AuthError;
 pub const Token = auth_types.Token;

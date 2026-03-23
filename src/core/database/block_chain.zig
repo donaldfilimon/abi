@@ -405,14 +405,14 @@ fn generateBlockId(config: BlockConfig) u64 {
     var hasher = std.hash.XxHash3.init(0);
     hasher.update(std.mem.asBytes(&timestamp));
     hasher.update(std.mem.sliceAsBytes(config.query_embedding));
-    
+
     // Add randomness to prevent collisions for identical requests in the same second
     const static = struct {
         var counter: u64 = 0;
     };
     _ = @atomicRmw(u64, &static.counter, .Add, 1, .monotonic);
     hasher.update(std.mem.asBytes(&static.counter));
-    
+
     const hash = hasher.final();
     return @as(u64, @intCast(timestamp)) ^ hash;
 }

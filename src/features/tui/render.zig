@@ -60,7 +60,7 @@ pub const Screen = struct {
     }
 
     /// Flush changes: emit ANSI only for cells that differ between front and back.
-    pub fn flush(self: *Screen, writer: std.io.AnyWriter) !void {
+    pub fn flush(self: *Screen, writer: *std.Io.Writer) !void {
         var last_style: ?Style = null;
 
         for (0..self.height) |y| {
@@ -163,9 +163,9 @@ test "Screen flush writes changed cells" {
     screen.setCell(0, 0, .{ .char = 'X', .style = .{} });
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try screen.flush(fbs.writer().any());
-    const written = fbs.getWritten();
+    var writer = std.Io.Writer.fixed(&buf);
+    try screen.flush(&writer);
+    const written = buf[0..writer.end];
     // Should have emitted something for the changed cell
     try std.testing.expect(written.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, written, "X") != null);

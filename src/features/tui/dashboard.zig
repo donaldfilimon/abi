@@ -106,90 +106,84 @@ pub fn renderDashboard(screen: *Screen) void {
     widgets.renderStatusBar(screen, status_area, " q:quit  r:refresh", "ABI Framework ", status_style);
 }
 
-fn renderFeaturePanel(screen: *Screen, area: Rect) void {
-    widgets.renderPanel(screen, area, " Features ", header_style);
-    const flags = getFeatureFlags();
-    const inner = Rect{
+/// Render a list of flag entries starting at a given row within an inner rect.
+/// Returns the number of rows rendered.
+fn renderFlags(screen: *Screen, inner: Rect, flags: []const FlagEntry, start_row: u16) u16 {
+    var rendered: u16 = 0;
+    for (flags, 0..) |flag, i| {
+        const row = start_row + @as(u16, @intCast(i));
+        if (row >= inner.height) break;
+        const indicator: []const u8 = if (flag.enabled) "[+]" else "[-]";
+        const style = if (flag.enabled) green_style else red_style;
+        widgets.renderText(screen, .{ .x = inner.x, .y = inner.y + row, .width = 4, .height = 1 }, indicator, style);
+        widgets.renderText(screen, .{ .x = inner.x + 4, .y = inner.y + row, .width = inner.width -| 4, .height = 1 }, flag.name, style);
+        rendered += 1;
+    }
+    return rendered;
+}
+
+fn innerRect(area: Rect) Rect {
+    return .{
         .x = area.x + 2,
         .y = area.y + 1,
         .width = area.width -| 4,
         .height = area.height -| 2,
     };
+}
 
-    for (flags, 0..) |flag, i| {
-        const row = @as(u16, @intCast(i));
-        if (row >= inner.height) break;
-        const indicator: []const u8 = if (flag.enabled) "[+]" else "[-]";
-        const style = if (flag.enabled) green_style else red_style;
-        widgets.renderText(screen, .{
-            .x = inner.x,
-            .y = inner.y + row,
-            .width = 4,
-            .height = 1,
-        }, indicator, style);
-        widgets.renderText(screen, .{
-            .x = inner.x + 4,
-            .y = inner.y + row,
-            .width = inner.width -| 4,
-            .height = 1,
-        }, flag.name, style);
-    }
+fn renderFeaturePanel(screen: *Screen, area: Rect) void {
+    widgets.renderPanel(screen, area, " Features ", header_style);
+    const flags = getFeatureFlags();
+    _ = renderFlags(screen, innerRect(area), &flags, 0);
 }
 
 fn renderGpuPanel(screen: *Screen, area: Rect) void {
     widgets.renderPanel(screen, area, " GPU Backends ", header_style);
-    const flags = getGpuFlags();
-    const inner = Rect{
-        .x = area.x + 2,
-        .y = area.y + 1,
-        .width = area.width -| 4,
-        .height = area.height -| 2,
-    };
-
-    for (flags, 0..) |flag, i| {
-        const row = @as(u16, @intCast(i));
-        if (row >= inner.height) break;
-        const indicator: []const u8 = if (flag.enabled) "[+]" else "[-]";
-        const style = if (flag.enabled) green_style else red_style;
-        widgets.renderText(screen, .{
-            .x = inner.x,
-            .y = inner.y + row,
-            .width = 4,
-            .height = 1,
-        }, indicator, style);
-        widgets.renderText(screen, .{
-            .x = inner.x + 4,
-            .y = inner.y + row,
-            .width = inner.width -| 4,
-            .height = 1,
-        }, flag.name, style);
-    }
+    const inner = innerRect(area);
+    const gpu_flags = getGpuFlags();
+    const rows_used = renderFlags(screen, inner, &gpu_flags, 0);
 
     // AI sub-features section
-    const ai_y = inner.y + @as(u16, @intCast(flags.len)) + 1;
-    if (ai_y < inner.y + inner.height) {
-        widgets.renderText(screen, .{
-            .x = inner.x,
-            .y = ai_y,
-            .width = inner.width,
-            .height = 1,
-        }, "AI Sub-features:", header_style);
+    const ai_row = rows_used + 1;
+    if (ai_row >= inner.height) return;
 
-        const ai_flags = [_]FlagEntry{
-            .{ .name = "llm", .enabled = build_options.feat_llm },
-            .{ .name = "training", .enabled = build_options.feat_training },
-            .{ .name = "vision", .enabled = build_options.feat_vision },
-            .{ .name = "reasoning", .enabled = build_options.feat_reasoning },
-        };
-        for (ai_flags, 0..) |flag, i| {
-            const row = ai_y + 1 + @as(u16, @intCast(i));
-            if (row >= inner.y + inner.height) break;
-            const indicator: []const u8 = if (flag.enabled) "[+]" else "[-]";
-            const style = if (flag.enabled) green_style else red_style;
-            widgets.renderText(screen, .{ .x = inner.x, .y = row, .width = 4, .height = 1 }, indicator, style);
-            widgets.renderText(screen, .{ .x = inner.x + 4, .y = row, .width = inner.width -| 4, .height = 1 }, flag.name, style);
-        }
+    widgets.renderText(screen, .{
+        .x = inner.x,
+        .y = inner.y + ai_row,
+        .width = inner.width,
+        .height = 1,
+    }, "AI Sub-features:", header_style);
+
+    const ai_flags = [_]FlagEntry{
+        .{ .name = "llm", .enabled = build_options.feat_llm },
+        .{ .name = "training", .enabled = build_options.feat_training },
+        .{ .name = "vision", .enabled = build_options.feat_vision },
+        .{ .name = "reasoning", .enabled = build_options.feat_reasoning },
+    };
+    _ = renderFlags(screen, inner, &ai_flags, ai_row + 1);
+}
+
+/// Write the contents of a buffer to a POSIX file descriptor.
+fn flushToFd(fd: std.posix.fd_t, data: []const u8) void {
+    var offset: usize = 0;
+    while (offset < data.len) {
+        const n = std.c.write(fd, data[offset..].ptr, data.len - offset);
+        if (n > 0) {
+            offset += @intCast(n);
+        } else break;
     }
+}
+
+/// Flush a screen to a file descriptor via a buffer.
+fn flushScreenToFd(screen: *Screen, fd: std.posix.fd_t) !void {
+    var buf: [16384]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buf);
+    screen.flush(&writer) catch {
+        // Buffer may be too small; flush what we have
+        flushToFd(fd, buf[0..writer.end]);
+        return;
+    };
+    flushToFd(fd, buf[0..writer.end]);
 }
 
 /// Run the interactive dashboard.
@@ -209,18 +203,28 @@ pub fn run(allocator: std.mem.Allocator) !void {
     try term.enableRawMode();
     defer term.disableRawMode();
 
-    const stdout = std.io.getStdOut().writer().any();
-    try ansi.hideCursor(stdout);
-    defer ansi.showCursor(stdout) catch {};
-    try ansi.clearScreen(stdout);
+    const stdout_fd = std.posix.STDOUT_FILENO;
+
+    // Hide cursor and clear screen
+    {
+        var buf: [256]u8 = undefined;
+        var writer = std.Io.Writer.fixed(&buf);
+        try ansi.hideCursor(&writer);
+        try ansi.clearScreen(&writer);
+        flushToFd(stdout_fd, buf[0..writer.end]);
+    }
+
+    // Show cursor on exit
+    defer {
+        var buf: [64]u8 = undefined;
+        var writer = std.Io.Writer.fixed(&buf);
+        ansi.showCursor(&writer) catch {};
+        flushToFd(stdout_fd, buf[0..writer.end]);
+    }
 
     // Initial render
     renderDashboard(&screen);
-    try screen.flush(stdout);
-
-    // Event loop
-    const reader = events_mod.EventReader.init();
-    _ = reader;
+    try flushScreenToFd(&screen, stdout_fd);
 
     // Simple polling loop — read one byte at a time
     const stdin_fd = std.posix.STDIN_FILENO;
@@ -243,13 +247,18 @@ pub fn run(allocator: std.mem.Allocator) !void {
 
         // Re-render on any key
         renderDashboard(&screen);
-        try screen.flush(stdout);
+        try flushScreenToFd(&screen, stdout_fd);
     }
 
-    // Cleanup
-    try ansi.clearScreen(stdout);
-    try ansi.moveCursor(stdout, 0, 0);
-    try ansi.showCursor(stdout);
+    // Cleanup: clear screen and show cursor
+    {
+        var buf: [256]u8 = undefined;
+        var writer = std.Io.Writer.fixed(&buf);
+        try ansi.clearScreen(&writer);
+        try ansi.moveCursor(&writer, 0, 0);
+        try ansi.showCursor(&writer);
+        flushToFd(stdout_fd, buf[0..writer.end]);
+    }
 }
 
 test "getFeatureFlags returns 20 entries" {

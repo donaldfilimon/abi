@@ -30,6 +30,11 @@ const mcp_tests = @import("integration/mcp_test.zig");
 const observability_tests = @import("integration/observability_test.zig");
 const cli_tests = @import("integration/cli_test.zig");
 const tui_tests = @import("integration/tui_test.zig");
+const documents_tests = @import("integration/documents_test.zig");
+const lsp_tests = @import("integration/lsp_test.zig");
+const pages_tests = @import("integration/pages_test.zig");
+const training_tests = @import("integration/training_test.zig");
+const benchmarks_tests = @import("integration/benchmarks_test.zig");
 
 test {
     std.testing.refAllDecls(@This());

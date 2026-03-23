@@ -17,7 +17,7 @@ Confirm the feature name is not already taken. List existing directories:
 ls src/features/
 ```
 
-There are currently 19 feature directories. Choose a `lower_snake_case` name that does not collide.
+There are currently 20 feature directories. Choose a `lower_snake_case` name that does not collide.
 
 ## Step 1: Create the Feature Directory
 
@@ -151,7 +151,7 @@ The build.zig is self-contained (no external build/ modules). Add the flag inlin
 const feat_<name> = b.option(bool, "feat-<name>", "<Description>") orelse true;
 ```
 
-Use `orelse true` for features enabled by default, `orelse false` for opt-in (like `feat_mobile`).
+Use `orelse true` for features enabled by default, `orelse false` for opt-in (like `feat_mobile`, `feat_tui`).
 
 Then add it to the build options block where other flags are set:
 ```zig
@@ -174,7 +174,21 @@ Edit `src/root.zig`. Add in the features section:
 pub const <name> = if (build_options.feat_<name>) @import("features/<name>/mod.zig") else @import("features/<name>/stub.zig");
 ```
 
-## Step 5: Format and Verify
+## Step 5: Add to Cross-Compilation
+
+In `build.zig`'s cross-check section, add the feature to the cross-compilation options:
+```zig
+cross_opts.addOption(bool, "feat_<name>", !is_wasm); // or true/false per platform
+```
+
+## Step 6: Create Integration Test
+
+Create `test/integration/<name>_test.zig` following existing patterns. Import `@import("abi")` and `@import("build_options")`. Test `isEnabled()`, type accessibility, and stub API behavior. Wire it into `test/mod.zig`:
+```zig
+const <name>_tests = @import("integration/<name>_test.zig");
+```
+
+## Step 7: Format and Verify
 
 ```bash
 zig build lib                      # Build passes

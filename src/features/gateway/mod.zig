@@ -14,7 +14,7 @@
 const std = @import("std");
 const sync = @import("../../foundation/mod.zig").sync;
 const time_mod = @import("../../foundation/mod.zig").time;
-const gateway_types = @import("types.zig");
+pub const gateway_types = @import("types.zig");
 const routing = @import("routing.zig");
 const rate_limit_mod = @import("rate_limit.zig");
 const circuit_breaker_mod = @import("circuit_breaker.zig");

@@ -34,7 +34,7 @@ pub const Terminal = struct {
             };
         }
         const fd = std.posix.STDOUT_FILENO;
-        if (!std.posix.isatty(fd)) {
+        if (std.c.isatty(fd) == 0) {
             return error.UnsupportedTerminal;
         }
         const termios = try std.posix.tcgetattr(fd);
@@ -45,34 +45,29 @@ pub const Terminal = struct {
     }
 
     /// Enable raw terminal mode (disable echo, canonical, signals).
+    /// Manipulates individual struct fields of Zig 0.16's packed termios flags.
     pub fn enableRawMode(self: *Terminal) !void {
         if (comptime !is_posix) return;
         var raw = self.original_termios;
 
         // Input: disable break, CR→NL, parity, strip, flow control
-        raw.iflag = raw.iflag.intersect(.{
-            .BRKINT = false,
-            .ICRNL = false,
-            .INPCK = false,
-            .ISTRIP = false,
-            .IXON = false,
-        });
+        raw.iflag.BRKINT = false;
+        raw.iflag.ICRNL = false;
+        raw.iflag.INPCK = false;
+        raw.iflag.ISTRIP = false;
+        raw.iflag.IXON = false;
 
         // Output: disable post-processing
-        raw.oflag = raw.oflag.intersect(.{
-            .OPOST = false,
-        });
+        raw.oflag.OPOST = false;
 
         // Local: disable echo, canonical, signals, extended
-        raw.lflag = raw.lflag.intersect(.{
-            .ECHO = false,
-            .ICANON = false,
-            .IEXTEN = false,
-            .ISIG = false,
-        });
+        raw.lflag.ECHO = false;
+        raw.lflag.ICANON = false;
+        raw.lflag.IEXTEN = false;
+        raw.lflag.ISIG = false;
 
-        // Control: 8-bit chars
-        raw.cflag = raw.cflag.unionWith(.{ .CS8 = true });
+        // Control: set 8-bit chars via CSIZE field
+        raw.cflag.CSIZE = .CS8;
 
         // Read: minimum 0 chars, timeout 100ms
         raw.cc[@intFromEnum(std.posix.V.MIN)] = 0;

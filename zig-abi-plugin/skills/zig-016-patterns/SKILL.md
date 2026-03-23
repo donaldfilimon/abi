@@ -161,6 +161,71 @@ Zig's `std.fmt` does NOT support `{t}`. Common valid specifiers:
 
 **Comptime gating trap:** Invalid format specifiers in comptime-dead branches (e.g., `if (builtin.os.tag != .macos)` on macOS) won't error on the gated platform but WILL error on other targets.
 
+### Writer API (std.Io.Writer)
+`std.io.AnyWriter` and `std.io.fixedBufferStream` are REMOVED. Use `std.Io.Writer`:
+```zig
+// WRONG
+var fbs = std.io.fixedBufferStream(&buf);
+try doWrite(fbs.writer().any());
+const written = fbs.getWritten();
+
+// CORRECT
+var writer = std.Io.Writer.fixed(&buf);
+try doWrite(&writer);
+const written = buf[0..writer.end];
+
+// Function signature: pass by pointer
+fn doWrite(w: *std.Io.Writer) !void {
+    try w.print("{d}", .{42});
+    try w.writeAll("hello");
+}
+```
+
+### Process Args (CLI)
+`std.process.args()` is REMOVED. Use `Init` parameter:
+```zig
+// WRONG
+var args = std.process.args();
+
+// CORRECT
+pub fn main(init: std.process.Init) !void {
+    var args = std.process.Args.Iterator.init(init.minimal.args);
+    _ = args.skip(); // skip argv[0]
+    const cmd = args.next() orelse return;
+    // Use init.gpa as allocator (pre-configured, leak-checked in debug)
+}
+```
+
+### Terminal Detection
+`std.posix.isatty` is REMOVED. Use C library:
+```zig
+if (std.c.isatty(fd) != 0) { /* is a terminal */ }
+```
+
+### Termios (POSIX terminal control)
+Termios flag types are packed structs with named fields, not integer bitmasks:
+```zig
+var raw = try std.posix.tcgetattr(fd);
+raw.iflag.BRKINT = false;
+raw.iflag.ICRNL = false;
+raw.lflag.ECHO = false;
+raw.lflag.ICANON = false;
+raw.cflag.CSIZE = .CS8;  // multi-bit field via enum
+try std.posix.tcsetattr(fd, .FLUSH, raw);
+```
+
+### Comptime Stub Compatibility
+When calling methods that only exist on the real module (not the stub), use `@hasDecl`:
+```zig
+// WRONG — stub.dashboard = struct {} has no "run" method
+try root.tui.dashboard.run(allocator);
+
+// CORRECT — comptime check
+if (comptime @hasDecl(root.tui.dashboard, "run")) {
+    return root.tui.dashboard.run(allocator);
+}
+```
+
 ## Platform Notes
 
 ### Darwin 26+ Linker

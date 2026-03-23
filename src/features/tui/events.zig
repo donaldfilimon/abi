@@ -32,7 +32,7 @@ pub const EventReader = struct {
             '\t' => .tab,
             127 => .backspace,
             0x1b => .escape,
-            1...26 => .{ .ctrl = byte + 'a' - 1 }, // Ctrl+A through Ctrl+Z
+            1...8, 11...12, 14...26 => .{ .ctrl = byte + 'a' - 1 }, // Ctrl+A through Ctrl+Z (excluding \t, \n, \r)
             else => .{ .char = byte },
         };
     }

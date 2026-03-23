@@ -257,6 +257,12 @@ pub fn build(b: *std.Build) void {
     });
     parity_mod.addImport("build_options", build_options_module);
     const parity_tests = b.addTest(.{ .root_module = parity_mod });
+    if (target.result.os.tag == .macos) {
+        parity_tests.root_module.linkSystemLibrary("c", .{});
+        parity_tests.root_module.linkSystemLibrary("objc", .{});
+        parity_tests.root_module.linkFramework("IOKit", .{});
+        if (feat_gpu) parity_tests.root_module.linkFramework("Accelerate", .{});
+    }
     const check_parity_step = b.step("check-parity", "Verify mod/stub declaration parity");
     check_parity_step.dependOn(&b.addRunArtifact(parity_tests).step);
 

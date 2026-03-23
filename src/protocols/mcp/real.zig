@@ -20,6 +20,7 @@ pub const Server = @import("server.zig").Server;
 pub const RegisteredTool = @import("server.zig").RegisteredTool;
 pub const RegisteredResource = @import("server.zig").RegisteredResource;
 pub const ResourceHandler = @import("server.zig").ResourceHandler;
+pub const ToolHandler = @import("server.zig").ToolHandler;
 pub const zls_bridge = @import("zls_bridge.zig");
 
 pub const createZlsServer = zls_bridge.createZlsServer;

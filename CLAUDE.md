@@ -65,7 +65,7 @@ On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binari
 
 ### Feature Flags
 
-All features default to enabled except `feat-mobile` (false). Disable with `-Dfeat-<name>=false`:
+All features default to enabled except `feat-mobile` and `feat-tui` (both false). Disable with `-Dfeat-<name>=false`:
 ```bash
 zig build -Dfeat-gpu=false -Dfeat-ai=false
 zig build -Dgpu-backend=metal
@@ -80,7 +80,7 @@ The build.zig is self-contained with all feature flags defined inline. No extern
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 19 feature directories under src/features/ (29 features total including AI sub-features in the catalog)
+- `src/features/` — 20 feature directories under src/features/ (30 features total including AI sub-features in the catalog)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction
@@ -111,7 +111,7 @@ Note: `pages` is nested under `src/features/observability/pages/` (not its own t
 ### Build Options
 
 The `build_options` module provides these fields (all `bool` unless noted):
-- Feature flags: `feat_gpu`, `feat_ai`, `feat_database`, `feat_network`, `feat_profiling`, `feat_web`, `feat_pages`, `feat_analytics`, `feat_cloud`, `feat_auth`, `feat_messaging`, `feat_cache`, `feat_storage`, `feat_search`, `feat_mobile`, `feat_gateway`, `feat_benchmarks`, `feat_compute`, `feat_documents`, `feat_desktop`
+- Feature flags: `feat_gpu`, `feat_ai`, `feat_database`, `feat_network`, `feat_profiling`, `feat_web`, `feat_pages`, `feat_analytics`, `feat_cloud`, `feat_auth`, `feat_messaging`, `feat_cache`, `feat_storage`, `feat_search`, `feat_mobile`, `feat_gateway`, `feat_benchmarks`, `feat_compute`, `feat_documents`, `feat_desktop`, `feat_tui`
 - AI sub-features: `feat_llm`, `feat_training`, `feat_vision`, `feat_explore`, `feat_reasoning`
 - Protocols: `feat_lsp`, `feat_mcp`
 - GPU backends: `gpu_metal`, `gpu_cuda`, `gpu_vulkan`, `gpu_webgpu`, `gpu_opengl`, `gpu_opengles`, `gpu_webgl2`, `gpu_stdgpu`, `gpu_fpga`, `gpu_tpu`

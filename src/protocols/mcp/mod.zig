@@ -12,6 +12,7 @@ pub const Server = impl.Server;
 pub const RegisteredTool = impl.RegisteredTool;
 pub const RegisteredResource = impl.RegisteredResource;
 pub const ResourceHandler = impl.ResourceHandler;
+pub const ToolHandler = impl.ToolHandler;
 pub const zls_bridge = impl.zls_bridge;
 pub const createZlsServer = impl.createZlsServer;
 pub const createCombinedServer = impl.createCombinedServer;
