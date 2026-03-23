@@ -290,10 +290,12 @@ pub fn printInfo() void {
         \\
         \\Inference:
         \\  Backends: demo | connector | local
-        \\  Connectors: OpenAI, Anthropic, Ollama, + 20 more
+        \\  16 connectors: OpenAI, Anthropic, Claude, Gemini, Mistral,
+        \\    Cohere, HuggingFace, Ollama, LM Studio, vLLM, MLX,
+        \\    llama.cpp, Codex, OpenCode, Discord, local-scheduler
         \\
         \\Features: 20 feature directories, 30 in catalog (mod/stub pattern)
-        \\GPU: Metal, CUDA, Vulkan, WebGPU, stdgpu
+        \\GPU backends: Metal, CUDA, Vulkan, WebGPU, OpenGL, stdgpu, FPGA, TPU
         \\Protocols: MCP, LSP, ACP, HA
         \\
         \\Spec: docs/spec/ABBEY-SPEC.md
