@@ -187,7 +187,7 @@ pub const Client = struct {
 
         if (params.return_full_text) |return_full_text| {
             if (!first) try json_str.append(self.allocator, ',');
-            try json_str.print(self.allocator, "\"return_full_text\":{d}", .{@intFromBool(return_full_text)});
+            try json_str.print(self.allocator, "\"return_full_text\":{s}", .{if (return_full_text) "true" else "false"});
         }
     }
 

@@ -619,9 +619,59 @@ pub const DiskANNIndex = struct {
 
     /// Beam search with prefetching (optimized for disk access)
     fn beamSearch(self: *DiskANNIndex, query: []const f32, list_size: u32) ![]SearchCandidate {
-        _ = list_size;
-        // Simplified beam search - production would use async I/O and prefetching
-        return try self.greedySearch(query, self.config.search_list_size);
+        _ = query;
+        const beam_width = self.config.beam_width;
+
+        var candidates = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).init(self.allocator, {});
+        defer candidates.deinit();
+
+        var visited: std.AutoHashMapUnmanaged(u32, void) = .empty;
+        defer visited.deinit(self.allocator);
+
+        // Start from entry point using PQ distance
+        const entry_dist = self.codebook.?.computeAsymmetricDistance(self.pq_codes.items[self.entry_point]);
+        try candidates.add(.{ .id = self.entry_point, .distance = entry_dist });
+        try visited.put(self.allocator, self.entry_point, {});
+
+        var result_list = std.ArrayListUnmanaged(SearchCandidate).empty;
+        var unexpanded = std.ArrayListUnmanaged(SearchCandidate).empty;
+        defer unexpanded.deinit(self.allocator);
+
+        while (candidates.count() > 0) {
+            unexpanded.clearRetainingCapacity();
+
+            // Pop up to beam_width candidates to expand in parallel
+            while (candidates.count() > 0 and unexpanded.items.len < beam_width) {
+                const current = candidates.remove();
+                try unexpanded.append(self.allocator, current);
+
+                try result_list.append(self.allocator, current);
+                if (result_list.items.len >= list_size) break;
+            }
+
+            if (result_list.items.len >= list_size) break;
+
+            // Expand candidates in the beam
+            for (unexpanded.items) |current| {
+                if (current.id >= self.graph.items.len) continue;
+
+                for (self.graph.items[current.id].items) |neighbor_id| {
+                    if (visited.contains(neighbor_id)) continue;
+                    try visited.put(self.allocator, neighbor_id, {});
+
+                    if (neighbor_id >= self.pq_codes.items.len) continue;
+
+                    const neighbor_dist = self.codebook.?.computeAsymmetricDistance(self.pq_codes.items[neighbor_id]);
+                    try candidates.add(.{ .id = neighbor_id, .distance = neighbor_dist });
+
+                    while (candidates.count() > list_size * 2) {
+                        _ = candidates.removeOrNull();
+                    }
+                }
+            }
+        }
+
+        return try result_list.toOwnedSlice(self.allocator);
     }
 
     /// Persistence error set for save/load operations
