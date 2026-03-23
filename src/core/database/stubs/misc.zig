@@ -456,6 +456,23 @@ pub const diskann = struct {
     pub const DiskANNConfig = struct {};
     pub const PQCodebook = struct {};
     pub const IndexStats = struct {};
+    pub const VamanaIndex = struct {
+        pub fn init(_: std.mem.Allocator, _: u32, _: anytype) @This() {
+            return .{};
+        }
+        pub fn deinit(_: *@This()) void {}
+    };
+    pub const VamanaConfig = struct {
+        max_degree: u32 = 64,
+        alpha: f32 = 1.2,
+        build_list_size: u32 = 128,
+        search_list_size: u32 = 64,
+        beam_width: u32 = 4,
+    };
+    pub const VamanaSearchResult = struct {
+        id: u32,
+        distance: f32,
+    };
 };
 
 // ============================================================================
