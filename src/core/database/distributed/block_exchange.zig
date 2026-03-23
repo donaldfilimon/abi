@@ -46,7 +46,7 @@ pub const SyncState = enum {
 /// Version vector for causal consistency
 pub const VersionVector = struct {
     node_id: []const u8,
-    timestamps: std.AutoHashMapUnmanaged([]const u8, i64), // Node ID -> latest timestamp
+    timestamps: std.StringHashMapUnmanaged(i64), // Node ID -> latest timestamp
 
     const Self = @This();
 

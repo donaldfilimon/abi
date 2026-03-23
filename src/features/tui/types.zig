@@ -78,11 +78,11 @@ pub const Style = struct {
 
     pub const default = Style{};
 
-    pub fn fg(color: Color) Style {
+    pub fn withFg(color: Color) Style {
         return .{ .fg = color };
     }
 
-    pub fn bold() Style {
+    pub fn withBold() Style {
         return .{ .bold = true };
     }
 };
@@ -213,13 +213,17 @@ test "Rect area" {
 }
 
 test "Color fgCode" {
-    try std.testing.expectEqual(@as(?u8, 31), Color.red.fgCode());
-    try std.testing.expectEqual(@as(?u8, 91), Color.bright_red.fgCode());
-    try std.testing.expect(Color.default.fgCode() == null);
+    const red: Color = .red;
+    const bright_red: Color = .bright_red;
+    const default: Color = .default;
+    try std.testing.expectEqual(@as(?u8, 31), red.fgCode());
+    try std.testing.expectEqual(@as(?u8, 91), bright_red.fgCode());
+    try std.testing.expect(default.fgCode() == null);
 }
 
 test "Color bgCode" {
-    try std.testing.expectEqual(@as(?u8, 41), Color.red.bgCode());
+    const red: Color = .red;
+    try std.testing.expectEqual(@as(?u8, 41), red.bgCode());
 }
 
 test "Cell default is blank space" {

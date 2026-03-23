@@ -88,6 +88,8 @@ pub const compute = if (build_options.feat_compute) @import("features/compute/mo
 pub const documents = if (build_options.feat_documents) @import("features/documents/mod.zig") else @import("features/documents/stub.zig");
 /// Desktop integration: native windowing, system tray, notifications.
 pub const desktop = if (build_options.feat_desktop) @import("features/desktop/mod.zig") else @import("features/desktop/stub.zig");
+/// Terminal user interface: raw mode, ANSI rendering, widgets, dashboard.
+pub const tui = if (build_options.feat_tui) @import("features/tui/mod.zig") else @import("features/tui/stub.zig");
 
 // ── Convenience aliases ──────────────────────────────────────────────────
 

@@ -26,6 +26,7 @@ pub fn build(b: *std.Build) void {
     const feat_compute = b.option(bool, "feat-compute", "Distributed compute") orelse true;
     const feat_documents = b.option(bool, "feat-documents", "Document processing") orelse true;
     const feat_desktop = b.option(bool, "feat-desktop", "Desktop integration") orelse true;
+    const feat_tui = b.option(bool, "feat-tui", "Terminal user interface") orelse false;
 
     // AI sub-feature flags
     const feat_llm = b.option(bool, "feat-llm", "LLM inference") orelse feat_ai;
@@ -90,6 +91,7 @@ pub fn build(b: *std.Build) void {
     build_opts.addOption(bool, "feat_compute", feat_compute);
     build_opts.addOption(bool, "feat_documents", feat_documents);
     build_opts.addOption(bool, "feat_desktop", feat_desktop);
+    build_opts.addOption(bool, "feat_tui", feat_tui);
     build_opts.addOption(bool, "feat_llm", feat_llm);
     build_opts.addOption(bool, "feat_training", feat_training);
     build_opts.addOption(bool, "feat_vision", feat_vision);
@@ -343,6 +345,8 @@ pub fn build(b: *std.Build) void {
         cross_opts.addOption(bool, "feat_documents", true);
         // Desktop: only macOS (uses NSStatusItem / ObjC runtime)
         cross_opts.addOption(bool, "feat_desktop", !is_wasm and !is_linux);
+        // TUI: needs POSIX termios — not WASM
+        cross_opts.addOption(bool, "feat_tui", !is_wasm);
         cross_opts.addOption(bool, "feat_llm", true);
         cross_opts.addOption(bool, "feat_training", true);
         cross_opts.addOption(bool, "feat_vision", true);

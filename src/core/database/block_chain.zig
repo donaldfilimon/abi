@@ -222,8 +222,12 @@ pub const BlockChain = struct {
             block.skip_pointer = try self.calculateSkipPointer(head);
         }
 
-        // Store block
-        try self.blocks.put(self.allocator, block_id, block);
+        // Store block in memory
+        const fetch_result = try self.blocks.fetchPut(self.allocator, block_id, block);
+        if (fetch_result) |old| {
+            var old_block = old.value;
+            old_block.deinit(self.allocator);
+        }
 
         // Update chain head
         self.current_head = block_id;
@@ -397,12 +401,19 @@ pub const BlockChain = struct {
 
 /// Generate block ID from config
 fn generateBlockId(config: BlockConfig) u64 {
-    // Use hash of embedding + timestamp for uniqueness
     const timestamp = time.unixSeconds();
-    const hash_input = std.mem.asBytes(&timestamp) ++
-        std.mem.sliceAsBytes(config.query_embedding);
-
-    const hash = std.hash.XxHash3.hash(0, hash_input);
+    var hasher = std.hash.XxHash3.init(0);
+    hasher.update(std.mem.asBytes(&timestamp));
+    hasher.update(std.mem.sliceAsBytes(config.query_embedding));
+    
+    // Add randomness to prevent collisions for identical requests in the same second
+    const static = struct {
+        var counter: u64 = 0;
+    };
+    _ = @atomicRmw(u64, &static.counter, .Add, 1, .monotonic);
+    hasher.update(std.mem.asBytes(&static.counter));
+    
+    const hash = hasher.final();
     return @as(u64, @intCast(timestamp)) ^ hash;
 }
 
@@ -433,7 +444,7 @@ fn computeBlockHash(allocator: std.mem.Allocator, config: BlockConfig) ![32]u8 {
 pub const MvccStore = struct {
     allocator: std.mem.Allocator,
     chains: std.StringHashMapUnmanaged(BlockChain), // Session ID -> BlockChain
-    read_timestamps: std.AutoHashMapUnmanaged([]const u8, i64), // Session -> read timestamp
+    read_timestamps: std.StringHashMapUnmanaged(i64), // Session -> read timestamp
 
     const Self = @This();
 

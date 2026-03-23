@@ -73,9 +73,8 @@ pub fn resolveExistingPreferredZigPath(
 
 /// Read .zigversion from cwd and resolve the abi-zig cached binary.
 fn resolveAbiZigFromVersionFile(allocator: std.mem.Allocator, io: std.Io) !?[]u8 {
-    const cwd = std.fs.cwd();
-    const version_bytes = cwd.readFileAlloc(io.allocator, ".zigversion", 4096) catch return null;
-    defer io.allocator.free(version_bytes);
+    const version_bytes = std.Io.Dir.cwd().readFileAlloc(io, ".zigversion", allocator, .limited(4096)) catch return null;
+    defer allocator.free(version_bytes);
     // Trim whitespace
     const version = std.mem.trim(u8, version_bytes, " \t\r\n");
     if (version.len == 0) return null;

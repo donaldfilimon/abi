@@ -34,6 +34,7 @@ pub const Feature = enum {
     compute,
     documents,
     desktop,
+    tui,
     lsp,
     mcp,
 
@@ -80,6 +81,7 @@ pub const ParitySpec = enum {
     compute,
     documents,
     desktop,
+    tui,
     lsp,
     mcp,
 };
@@ -317,6 +319,14 @@ pub const all = [_]Metadata{
         .parity_spec = .desktop,
         .real_module_path = "features/desktop/mod.zig",
         .stub_module_path = "features/desktop/stub.zig",
+    },
+    .{
+        .feature = .tui,
+        .description = "Terminal user interface",
+        .compile_flag_field = "feat_tui",
+        .parity_spec = .tui,
+        .real_module_path = "features/tui/mod.zig",
+        .stub_module_path = "features/tui/stub.zig",
     },
     .{
         .feature = .lsp,

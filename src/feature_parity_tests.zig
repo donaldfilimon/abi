@@ -76,6 +76,7 @@ comptime {
     assertParity("pages", @import("features/observability/pages/mod.zig"), @import("features/observability/pages/stub.zig"));
     assertParity("search", @import("features/search/mod.zig"), @import("features/search/stub.zig"));
     assertParity("storage", @import("features/storage/mod.zig"), @import("features/storage/stub.zig"));
+    assertParity("tui", @import("features/tui/mod.zig"), @import("features/tui/stub.zig"));
     assertParity("web", @import("features/web/mod.zig"), @import("features/web/stub.zig"));
     assertParity("lsp", @import("protocols/lsp/mod.zig"), @import("protocols/lsp/stub.zig"));
     assertParity("mcp", @import("protocols/mcp/mod.zig"), @import("protocols/mcp/stub.zig"));

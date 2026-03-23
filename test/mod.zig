@@ -28,6 +28,8 @@ const cache_tests = @import("integration/cache_test.zig");
 const connector_tests = @import("integration/connector_test.zig");
 const mcp_tests = @import("integration/mcp_test.zig");
 const observability_tests = @import("integration/observability_test.zig");
+const cli_tests = @import("integration/cli_test.zig");
+const tui_tests = @import("integration/tui_test.zig");
 
 test {
     std.testing.refAllDecls(@This());

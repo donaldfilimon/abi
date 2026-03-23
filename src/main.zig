@@ -8,6 +8,7 @@
 //!   abi doctor        Run diagnostics (features, platform, GPU)
 //!   abi info          Show framework architecture summary
 //!   abi chat <msg>    Route a message through the persona pipeline
+//!   abi dashboard     Launch interactive TUI dashboard
 //!   abi help          Show this help message
 
 const std = @import("std");
@@ -43,6 +44,8 @@ pub fn main(init: std.process.Init) !void {
             return;
         };
         try runChat(allocator, message);
+    } else if (std.mem.eql(u8, command, "dashboard")) {
+        try runDashboard(allocator);
     } else if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help") or std.mem.eql(u8, command, "-h")) {
         printHelp();
     } else {
@@ -73,6 +76,7 @@ pub fn printHelp() void {
         \\  doctor     Run diagnostics (features, platform, GPU)
         \\  info       Show framework architecture summary
         \\  chat <msg> Route a message through the persona pipeline
+        \\  dashboard  Launch interactive TUI dashboard
         \\  help       Show this help message
         \\
         \\Build commands:
@@ -220,6 +224,15 @@ pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
     });
 }
 
+pub fn runDashboard(allocator: std.mem.Allocator) !void {
+    const tui = root.tui;
+    if (!tui.isEnabled()) {
+        std.debug.print("TUI is disabled. Rebuild with -Dfeat-tui=true\n", .{});
+        return;
+    }
+    try tui.dashboard.run(allocator);
+}
+
 /// Command dispatch extracted from main() for testability.
 /// Takes the command string and remaining args iterator, plus an allocator.
 pub fn dispatch(allocator: std.mem.Allocator, command: ?[]const u8, next_arg: ?[]const u8) !void {
@@ -240,6 +253,8 @@ pub fn dispatch(allocator: std.mem.Allocator, command: ?[]const u8, next_arg: ?[
             return;
         };
         try runChat(allocator, message);
+    } else if (std.mem.eql(u8, cmd, "dashboard")) {
+        try runDashboard(allocator);
     } else if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h")) {
         printHelp();
     } else {
