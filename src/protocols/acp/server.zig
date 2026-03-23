@@ -298,7 +298,9 @@ fn appendEscaped(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8),
             else => {
                 if (c < 0x20) {
                     var hex_buf: [6]u8 = undefined;
-                    const hex = std.fmt.bufPrint(&hex_buf, "\\u{x:0>4}", .{c}) catch continue;
+                    const hex = std.fmt.bufPrint(&hex_buf, "\\u{x:0>4}", .{c}) catch {
+                        continue; // skip unprintable character on format error
+                    };
                     try buf.appendSlice(allocator, hex);
                 } else {
                     try buf.append(allocator, c);
