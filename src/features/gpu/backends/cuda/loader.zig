@@ -148,7 +148,7 @@ pub const CudaFunctions = struct {
 // Global state for the loaded CUDA library and its symbols
 var cuda_lib: ?std.DynLib = null;
 var cuda_functions: CudaFunctions = .{};
-var load_attempted: bool = false;
+var load_attempted = std.atomic.Value(bool).init(false);
 
 // Helper to lookup a symbol from the optional library.
 fn bind(comptime T: type, name: [:0]const u8) ?T {
@@ -228,16 +228,16 @@ pub const LoadError = error{ LibraryNotFound, SymbolNotFound, PlatformNotSupport
 /// Load CUDA library and all functions
 pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     if (!shared.canUseDynLib()) {
-        load_attempted = true;
+        load_attempted.store(true, .release);
         return error.PlatformNotSupported;
     }
 
     // If we already attempted loading, return the existing state.
-    if (load_attempted) {
+    if (load_attempted.load(.acquire)) {
         if (cuda_lib != null) return &cuda_functions;
         return error.LibraryNotFound;
     }
-    load_attempted = true;
+    load_attempted.store(true, .release);
 
     // Platform‑specific library names; honour a CUDA_PATH env var if set.
     var lib_paths = std.ArrayListUnmanaged([]const u8).empty;
@@ -342,7 +342,7 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
 pub fn unload() void {
     if (!shared.canUseDynLib()) {
         cuda_functions = .{};
-        load_attempted = false;
+        load_attempted.store(false, .release);
         return;
     }
 
@@ -351,13 +351,13 @@ pub fn unload() void {
         cuda_lib = null;
     }
     cuda_functions = .{};
-    load_attempted = false;
+    load_attempted.store(false, .release);
 }
 
 /// Check if CUDA is available (without triggering load)
 pub fn isAvailable() bool {
     // If already loaded, check the result
-    if (load_attempted) {
+    if (load_attempted.load(.acquire)) {
         return cuda_lib != null and cuda_functions.core.cuInit != null;
     }
     // Not loaded yet - return false (caller should call load() with allocator first)
@@ -366,7 +366,7 @@ pub fn isAvailable() bool {
 
 /// Check if CUDA is available, attempting to load if necessary
 pub fn isAvailableWithAlloc(allocator: std.mem.Allocator) bool {
-    if (!load_attempted) {
+    if (!load_attempted.load(.acquire)) {
         _ = load(allocator) catch return false;
     }
     return cuda_lib != null and cuda_functions.core.cuInit != null;

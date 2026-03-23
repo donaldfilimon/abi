@@ -39,7 +39,7 @@ pub const CoreMlError = error{
 
 var coreml_lib: ?std.DynLib = null;
 var foundation_lib: ?std.DynLib = null;
-var coreml_load_attempted: bool = false;
+var coreml_load_attempted = std.atomic.Value(bool).init(false);
 
 // Obj-C runtime pointers (shared with metal.zig/mps.zig)
 var objc_msgSend_fn: ?*const fn (ID, SEL) callconv(.c) ID = null;
@@ -94,19 +94,19 @@ pub fn deinit() void {
     if (foundation_lib) |lib| lib.close();
     coreml_lib = null;
     foundation_lib = null;
-    coreml_load_attempted = false;
+    coreml_load_attempted.store(false, .release);
     selectors_loaded = false;
 }
 
 pub fn isAvailable() bool {
     if (builtin.target.os.tag != .macos) return false;
-    if (coreml_load_attempted) return coreml_lib != null;
+    if (coreml_load_attempted.load(.acquire)) return coreml_lib != null;
     return tryLoadCoreML();
 }
 
 fn tryLoadCoreML() bool {
-    if (coreml_load_attempted) return coreml_lib != null;
-    coreml_load_attempted = true;
+    if (coreml_load_attempted.load(.acquire)) return coreml_lib != null;
+    coreml_load_attempted.store(true, .release);
 
     const paths = [_][]const u8{
         "/System/Library/Frameworks/CoreML.framework/CoreML",
