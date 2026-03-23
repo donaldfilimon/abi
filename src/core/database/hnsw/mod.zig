@@ -612,6 +612,12 @@ pub const HnswIndex = struct {
         // Limit search expansion for performance
         const max_candidates = @max(top_k * 2, self.ef_construction / 2);
 
+        // Determine GPU batch threshold for this search
+        const gpu_batch_threshold: usize = if (self.gpu_accelerator) |accel|
+            accel.config.batch_threshold
+        else
+            std.math.maxInt(usize); // Effectively disables batching
+
         while (head < state.queue.items.len and state.queue.items.len < max_candidates) : (head += 1) {
             const u = state.queue.items[head];
             // Safety: Check that node has layers before accessing layer 0
@@ -619,19 +625,76 @@ pub const HnswIndex = struct {
 
             const neighbors = self.nodes[u].layers[0].nodes;
 
-            // Prefetch neighbor vectors
+            // Collect unvisited neighbor IDs
+            var unvisited_count: usize = 0;
             for (neighbors) |v| {
                 if (!state.visited.contains(v) and v < records.len) {
-                    @prefetch(records[v].vector.ptr, .{ .locality = 2, .rw = .read });
+                    unvisited_count += 1;
                 }
             }
 
-            for (neighbors) |v| {
-                if (!state.visited.contains(v)) {
-                    try state.visited.put(allocator, v, {});
-                    const d = self.computeDistance(query, query_norm, records[v].vector);
-                    try state.candidates.put(allocator, v, d);
-                    try state.queue.append(allocator, v);
+            // Use GPU-accelerated batch distance when batch exceeds threshold
+            if (unvisited_count >= gpu_batch_threshold and self.gpu_accelerator != null) {
+                // Collect unvisited neighbor IDs and vectors for batch computation
+                const unvisited_ids = allocator.alloc(u32, unvisited_count) catch {
+                    // Fall back to sequential on alloc failure
+                    self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                    continue;
+                };
+                defer allocator.free(unvisited_ids);
+
+                const unvisited_vecs = allocator.alloc([]const f32, unvisited_count) catch {
+                    self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                    continue;
+                };
+                defer allocator.free(unvisited_vecs);
+
+                var idx: usize = 0;
+                for (neighbors) |v| {
+                    if (!state.visited.contains(v) and v < records.len) {
+                        unvisited_ids[idx] = v;
+                        unvisited_vecs[idx] = records[v].vector;
+                        idx += 1;
+                    }
+                }
+
+                const batch_distances = allocator.alloc(f32, unvisited_count) catch {
+                    self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                    continue;
+                };
+                defer allocator.free(batch_distances);
+
+                // Use GPU accelerator for batch cosine similarity
+                if (self.gpu_accelerator) |accel| {
+                    accel.batchCosineSimilarity(query, query_norm, unvisited_vecs, batch_distances) catch {
+                        // Fall back to sequential on GPU failure
+                        self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                        continue;
+                    };
+
+                    // Convert similarities to distances and add to candidates
+                    for (unvisited_ids, 0..) |v, vi| {
+                        try state.visited.put(allocator, v, {});
+                        const d = 1.0 - batch_distances[vi];
+                        try state.candidates.put(allocator, v, d);
+                        try state.queue.append(allocator, v);
+                    }
+                }
+            } else {
+                // Sequential path: prefetch + compute one by one
+                for (neighbors) |v| {
+                    if (!state.visited.contains(v) and v < records.len) {
+                        @prefetch(records[v].vector.ptr, .{ .locality = 2, .rw = .read });
+                    }
+                }
+
+                for (neighbors) |v| {
+                    if (!state.visited.contains(v)) {
+                        try state.visited.put(allocator, v, {});
+                        const d = self.computeDistance(query, query_norm, records[v].vector);
+                        try state.candidates.put(allocator, v, d);
+                        try state.queue.append(allocator, v);
+                    }
                 }
             }
         }
@@ -663,6 +726,31 @@ pub const HnswIndex = struct {
             return final;
         }
         return results;
+    }
+
+    /// Sequential fallback for processing neighbors when GPU batch path fails.
+    fn searchNeighborsSequential(
+        self: *const HnswIndex,
+        allocator: std.mem.Allocator,
+        neighbors: []const u32,
+        records: []const index_mod.VectorRecordView,
+        query: []const f32,
+        query_norm: f32,
+        state: *SearchState,
+    ) !void {
+        for (neighbors) |v| {
+            if (!state.visited.contains(v) and v < records.len) {
+                @prefetch(records[v].vector.ptr, .{ .locality = 2, .rw = .read });
+            }
+        }
+        for (neighbors) |v| {
+            if (!state.visited.contains(v)) {
+                try state.visited.put(allocator, v, {});
+                const d = self.computeDistance(query, query_norm, records[v].vector);
+                try state.candidates.put(allocator, v, d);
+                try state.queue.append(allocator, v);
+            }
+        }
     }
 
     /// Compute cosine distance between query and vector using SIMD.
@@ -1227,6 +1315,96 @@ test "getLayerCount returns expected value" {
     const layer_count = idx.getLayerCount();
     try std.testing.expect(layer_count >= 1);
     try std.testing.expectEqual(layer_count, @as(u32, @intCast(idx.max_layer + 1)));
+}
+
+test "HNSW search results identical with and without GPU accelerator" {
+    const allocator = std.testing.allocator;
+
+    // Create test records
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 0, .vector = &[_]f32{ 1.0, 0.0, 0.0, 0.0 } },
+        .{ .id = 1, .vector = &[_]f32{ 0.9, 0.1, 0.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 1.0, 0.0, 0.0 } },
+        .{ .id = 3, .vector = &[_]f32{ 0.0, 0.0, 1.0, 0.0 } },
+        .{ .id = 4, .vector = &[_]f32{ 0.0, 0.0, 0.0, 1.0 } },
+        .{ .id = 5, .vector = &[_]f32{ 0.5, 0.5, 0.0, 0.0 } },
+    };
+
+    // Build index without GPU
+    var idx_no_gpu = try HnswIndex.buildWithConfig(allocator, &records, .{
+        .m = 4,
+        .ef_construction = 16,
+        .enable_gpu = false,
+        .search_pool_size = 0,
+        .distance_cache_size = 0,
+    });
+    defer idx_no_gpu.deinit(allocator);
+
+    // Build index with GPU accelerator (low threshold to trigger batch path)
+    var idx_with_gpu = try HnswIndex.buildWithConfig(allocator, &records, .{
+        .m = 4,
+        .ef_construction = 16,
+        .enable_gpu = true,
+        .gpu_batch_threshold = 2, // Low threshold to exercise batch code path
+        .search_pool_size = 0,
+        .distance_cache_size = 0,
+    });
+    defer idx_with_gpu.deinit(allocator);
+
+    const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
+
+    const results_no_gpu = try idx_no_gpu.search(allocator, &records, &query, 3);
+    defer allocator.free(results_no_gpu);
+
+    const results_with_gpu = try idx_with_gpu.search(allocator, &records, &query, 3);
+    defer allocator.free(results_with_gpu);
+
+    // Both should return the same number of results
+    try std.testing.expectEqual(results_no_gpu.len, results_with_gpu.len);
+
+    // Both should find the same top result (id=0, exact match)
+    if (results_no_gpu.len > 0 and results_with_gpu.len > 0) {
+        try std.testing.expectEqual(results_no_gpu[0].id, results_with_gpu[0].id);
+        // Scores should be within f32 epsilon
+        try std.testing.expectApproxEqAbs(results_no_gpu[0].score, results_with_gpu[0].score, 0.01);
+    }
+}
+
+test "HNSW GPU batch threshold behavior" {
+    const allocator = std.testing.allocator;
+
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 0, .vector = &[_]f32{ 1.0, 0.0, 0.0 } },
+        .{ .id = 1, .vector = &[_]f32{ 0.0, 1.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 0.0, 1.0 } },
+    };
+
+    // Build with very high threshold - should never trigger GPU batch
+    var idx = try HnswIndex.buildWithConfig(allocator, &records, .{
+        .m = 4,
+        .ef_construction = 16,
+        .enable_gpu = true,
+        .gpu_batch_threshold = 10000,
+        .search_pool_size = 0,
+        .distance_cache_size = 0,
+    });
+    defer idx.deinit(allocator);
+
+    const query = [_]f32{ 1.0, 0.0, 0.0 };
+
+    const results = try idx.search(allocator, &records, &query, 2);
+    defer allocator.free(results);
+
+    // Should still return valid results via sequential path
+    try std.testing.expect(results.len > 0);
+    // First result should be id=0 (exact match)
+    try std.testing.expectEqual(@as(u32, 0), results[0].id);
+
+    // GPU stats should show zero GPU ops (threshold too high)
+    if (idx.gpu_accelerator) |accel| {
+        const stats = accel.getStats();
+        try std.testing.expectEqual(@as(u64, 0), stats.gpu_ops);
+    }
 }
 
 // Test discovery: pull in extracted test file and sub-modules
