@@ -102,7 +102,7 @@ pub const WorkflowDef = struct {
     steps: []const Step,
 
     /// Validate the workflow DAG: check for missing dependencies and cycles.
-    pub fn validate(self: WorkflowDef) ValidationResult {
+    pub fn validate(self: WorkflowDef, allocator: std.mem.Allocator) !ValidationResult {
         // Check for missing dependency references
         for (self.steps) |step| {
             for (step.depends_on) |dep_id| {
@@ -113,7 +113,7 @@ pub const WorkflowDef = struct {
         }
 
         // Check for cycles using DFS with coloring
-        if (self.hasCycle()) {
+        if (try self.hasCycle(allocator)) {
             return .{ .valid = false, .error_message = "workflow contains a cycle" };
         }
 
@@ -205,20 +205,21 @@ pub const WorkflowDef = struct {
 
     // -- internal cycle detection --
 
-    fn hasCycle(self: WorkflowDef) bool {
+    fn hasCycle(self: WorkflowDef, allocator: std.mem.Allocator) !bool {
         // DFS coloring: 0=white, 1=gray (in progress), 2=black (done)
-        var colors: [64]u8 = [_]u8{0} ** 64;
-        if (self.steps.len > 64) return false; // safety limit
+        const colors = try allocator.alloc(u8, self.steps.len);
+        defer allocator.free(colors);
+        @memset(colors, 0);
 
         for (0..self.steps.len) |i| {
             if (colors[i] == 0) {
-                if (self.dfsHasCycle(i, &colors)) return true;
+                if (self.dfsHasCycle(i, colors)) return true;
             }
         }
         return false;
     }
 
-    fn dfsHasCycle(self: WorkflowDef, idx: usize, colors: *[64]u8) bool {
+    fn dfsHasCycle(self: WorkflowDef, idx: usize, colors: []u8) bool {
         colors[idx] = 1; // gray
         const step = self.steps[idx];
         for (step.depends_on) |dep_id| {
@@ -571,7 +572,7 @@ pub const preset_workflows = struct {
 
 test "workflow validation - valid DAG" {
     const wf = preset_workflows.code_review;
-    const result = wf.validate();
+    const result = try wf.validate(std.testing.allocator);
     try std.testing.expect(result.valid);
 }
 
@@ -592,7 +593,7 @@ test "workflow validation - missing dependency" {
             },
         },
     };
-    const result = wf.validate();
+    const result = try wf.validate(std.testing.allocator);
     try std.testing.expect(!result.valid);
     try std.testing.expectEqualStrings("missing dependency reference", result.error_message);
 }
@@ -604,7 +605,7 @@ test "workflow validation - empty" {
         .description = "No steps",
         .steps = &.{},
     };
-    const result = wf.validate();
+    const result = try wf.validate(std.testing.allocator);
     try std.testing.expect(!result.valid);
 }
 
@@ -634,7 +635,7 @@ test "workflow validation - cycle detection" {
             },
         },
     };
-    const result = wf.validate();
+    const result = try wf.validate(std.testing.allocator);
     try std.testing.expect(!result.valid);
     try std.testing.expectEqualStrings("workflow contains a cycle", result.error_message);
 }

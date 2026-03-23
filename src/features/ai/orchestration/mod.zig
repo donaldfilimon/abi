@@ -496,8 +496,20 @@ pub const Orchestrator = struct {
         }
 
         // Combine responses using ensemble method
+        var combined = std.ArrayList(u8).init(response_allocator);
+        errdefer combined.deinit();
+
+        for (responses.items, 0..) |resp, i| {
+            if (i > 0) {
+                combined.appendSlice("\n\n--- Ensemble Response ---\n\n") catch return OrchestrationError.OutOfMemory;
+            }
+            combined.appendSlice(resp) catch return OrchestrationError.OutOfMemory;
+        }
+
+        const final_response = combined.toOwnedSlice() catch return OrchestrationError.OutOfMemory;
+
         return EnsembleResult{
-            .response = try response_allocator.dupe(u8, responses.items[0]),
+            .response = final_response,
             .model_count = responses.items.len,
             .confidence = calculateEnsembleConfidence(responses.items.len, available.items.len),
         };
@@ -611,17 +623,18 @@ pub const Orchestrator = struct {
             total_weight += model.config.weight;
         }
 
-        // Random selection based on weight (simplified - use first model for determinism)
+        // Random selection based on weight
+        var prng = std.Random.DefaultPrng.init(@as(u64, @bitCast(unixMs())));
+        const rand_val = prng.random().float(f64) * total_weight;
         var cumulative: f64 = 0.0;
-        const target = total_weight * 0.5; // Deterministic for now
         for (available) |model| {
             cumulative += model.config.weight;
-            if (cumulative >= target) {
+            if (cumulative >= rand_val) {
                 return model;
             }
         }
 
-        return available[0];
+        return available[available.len - 1];
     }
 
     fn selectByPriority(self: *Orchestrator, available: []*ModelEntry) *ModelEntry {

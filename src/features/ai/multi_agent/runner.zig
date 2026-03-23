@@ -147,7 +147,7 @@ pub const WorkflowRunner = struct {
     /// Execute a complete workflow DAG.
     pub fn run(self: *WorkflowRunner, def: *const workflow_mod.WorkflowDef) !WorkflowResult {
         // 1. Validate
-        const validation = def.validate();
+        const validation = try def.validate(self.allocator);
         if (!validation.valid) {
             return RunError.InvalidWorkflow;
         }
