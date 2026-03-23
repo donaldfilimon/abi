@@ -187,6 +187,10 @@ pub const SystemCapabilities = struct {
     gpu_memory_bytes: u64 = 0,
     /// GPU compute capability (CUDA)
     gpu_compute_capability: ?f32 = null,
+    /// GPU VRAM in GB
+    vram_gb: u64 = 0,
+    /// Compute type (Metal/CUDA/Vulkan/CPU etc)
+    compute_type: []const u8 = "CPU",
     /// Whether AVX2 SIMD is available
     avx2_available: bool = false,
     /// Whether AVX-512 SIMD is available
@@ -594,8 +598,24 @@ pub fn detectCapabilities() SystemCapabilities {
 
     // GPU detection would require GPU module integration
     if (build_options.feat_gpu) {
-        // GPU capabilities would be detected from gpu module
-        caps.gpu_available = false; // Set by GPU module if available
+        const gpu_mod = @import("../../gpu/mod.zig");
+
+        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        defer arena.deinit();
+
+        if (gpu_mod.device.enumerateAllDevices(arena.allocator())) |devices| {
+            for (devices) |dev| {
+                if (dev.device_type != .cpu and dev.device_type != .other) {
+                    caps.gpu_available = true;
+                    caps.compute_type = @tagName(dev.backend);
+                    if (dev.total_memory) |mem| {
+                        caps.gpu_memory_bytes = mem;
+                        caps.vram_gb = mem / (1024 * 1024 * 1024);
+                    }
+                    break;
+                }
+            }
+        } else |_| {}
     }
 
     return caps;

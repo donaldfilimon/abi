@@ -73,6 +73,17 @@ pub fn createStatusServer(allocator: std.mem.Allocator, version: []const u8) !Se
         .handler = handleAbiVersion,
     });
 
+    try server.addTool(.{
+        .def = .{
+            .name = "hardware_status",
+            .description = "Query system hardware capabilities including CPU cores, RAM, and GPU/VRAM details",
+            .input_schema =
+            \\{"type":"object","properties":{},"required":[]}
+            ,
+        },
+        .handler = handleHardwareStatus,
+    });
+
     return server;
 }
 
@@ -205,6 +216,17 @@ pub fn createDatabaseServer(allocator: std.mem.Allocator, version: []const u8) !
             ,
         },
         .handler = handleDbDiagnostics,
+    });
+
+    try server.addTool(.{
+        .def = .{
+            .name = "db_lilex_query",
+            .description = "Placeholder tool for future WDBX tight-coupling and advanced Lilex queries",
+            .input_schema =
+            \\{"type":"object","properties":{"query":{"type":"string","description":"Lilex query string"}},"required":["query"]}
+            ,
+        },
+        .handler = handleDbLilexQuery,
     });
 
     return server;
@@ -572,6 +594,14 @@ fn handleDbDiagnostics(
     try out.appendSlice(allocator, s);
 }
 
+fn handleDbLilexQuery(
+    allocator: std.mem.Allocator,
+    _: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    try out.appendSlice(allocator, "db_lilex_query placeholder is active. Future WDBX integration pending.");
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Status / Diagnostics Tool Handlers
 // ═══════════════════════════════════════════════════════════════
@@ -633,6 +663,18 @@ fn handleAbiVersion(
     try out.appendSlice(allocator, "\nZig: 0.16.0-dev");
 }
 
+fn handleHardwareStatus(
+    allocator: std.mem.Allocator,
+    _: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    const discovery = @import("../../features/ai/explore/discovery.zig");
+    const caps = discovery.detectCapabilities();
+    const json_str = try std.json.Stringify.valueAlloc(allocator, caps, .{});
+    defer allocator.free(json_str);
+    try out.appendSlice(allocator, json_str);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Tests
 // ═══════════════════════════════════════════════════════════════
@@ -642,7 +684,7 @@ test "createDatabaseServer registers tools" {
     var server = try createDatabaseServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 9), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 10), server.tools.items.len);
     try std.testing.expectEqualStrings("db_query", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("db_insert", server.tools.items[1].def.name);
     try std.testing.expectEqualStrings("db_stats", server.tools.items[2].def.name);
@@ -652,6 +694,7 @@ test "createDatabaseServer registers tools" {
     try std.testing.expectEqualStrings("db_update", server.tools.items[6].def.name);
     try std.testing.expectEqualStrings("db_backup", server.tools.items[7].def.name);
     try std.testing.expectEqualStrings("db_diagnostics", server.tools.items[8].def.name);
+    try std.testing.expectEqualStrings("db_lilex_query", server.tools.items[9].def.name);
 }
 
 test "createCombinedServer registers database and ZLS tools" {
@@ -682,16 +725,17 @@ test "createCombinedServer registers database and ZLS tools" {
     try std.testing.expect(saw_abi_version);
 }
 
-test "createStatusServer registers 4 tools" {
+test "createStatusServer registers 5 tools" {
     const allocator = std.testing.allocator;
     var server = try createStatusServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 4), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 5), server.tools.items.len);
     try std.testing.expectEqualStrings("abi_status", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("abi_health", server.tools.items[1].def.name);
     try std.testing.expectEqualStrings("abi_features", server.tools.items[2].def.name);
     try std.testing.expectEqualStrings("abi_version", server.tools.items[3].def.name);
+    try std.testing.expectEqualStrings("hardware_status", server.tools.items[4].def.name);
 }
 
 test {

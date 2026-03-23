@@ -108,6 +108,13 @@ pub const SecretValue = struct {
     }
 };
 
+/// Vault provider types
+pub const VaultProviderType = enum {
+    hashicorp,
+    aws_secrets_manager,
+    azure_key_vault,
+};
+
 /// Secrets manager configuration
 pub const SecretsConfig = struct {
     /// Default provider type
@@ -120,6 +127,8 @@ pub const SecretsConfig = struct {
     vault_url: ?[]const u8 = null,
     /// Vault token
     vault_token: ?[]const u8 = null,
+    /// Vault provider type
+    vault_provider: VaultProviderType = .hashicorp,
     /// Environment variable prefix
     env_prefix: []const u8 = "ABI_",
     /// Enable audit logging
@@ -552,6 +561,26 @@ pub const SecretsManager = struct {
     }
 
     fn loadFromVault(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
+        return switch (self.config.vault_provider) {
+            .hashicorp => self.loadFromHashicorpVault(name),
+            .aws_secrets_manager => self.loadFromAws(name),
+            .azure_key_vault => self.loadFromAzure(name),
+        };
+    }
+
+    fn loadFromAws(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
+        _ = self;
+        _ = name;
+        return error.NotImplemented;
+    }
+
+    fn loadFromAzure(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
+        _ = self;
+        _ = name;
+        return error.NotImplemented;
+    }
+
+    fn loadFromHashicorpVault(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
         // HashiCorp Vault / AWS Secrets Manager integration
         // Requires vault_url and vault_token to be configured
         const vault_url = self.config.vault_url orelse return error.VaultUrlNotConfigured;
@@ -1024,6 +1053,7 @@ pub const SecureString = struct {
 
 /// Errors
 pub const SecretsError = error{
+    NotImplemented,
     SecretNotFound,
     SecretTooShort,
     SecretTooLong,

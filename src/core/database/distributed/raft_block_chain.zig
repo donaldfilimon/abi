@@ -330,7 +330,8 @@ pub const DistributedBlockChain = struct {
         const session_copy = try self.allocator.dupe(u8, session_id);
         errdefer self.allocator.free(session_copy);
 
-        const chain = block_chain.BlockChain.init(self.allocator, session_copy);
+        var chain = block_chain.BlockChain.init(self.allocator, session_copy);
+        errdefer chain.deinit();
         try self.local_chains.put(self.allocator, session_copy, chain);
 
         return self.local_chains.getPtr(session_copy).?;
@@ -592,6 +593,34 @@ test "DistributedBlockChain getBlock non-existent returns null" {
     // Query a session/block that was never added
     const block = dbc.getBlock("no-such-session", 999);
     try std.testing.expect(block == null);
+}
+
+fn testDistributedBlockChainLocalInsertion(allocator: std.mem.Allocator, session_id: []const u8, config: block_chain.BlockConfig) !void {
+    var dbc = try DistributedBlockChain.init(allocator, "oom-node", .{});
+    defer dbc.deinit();
+
+    const block_id = try dbc.addBlock(session_id, config);
+    try std.testing.expect(block_id != 0);
+
+    const scratch = try allocator.alloc(u8, 1);
+    defer allocator.free(scratch);
+}
+
+test "DistributedBlockChain local insertion cleans up on OOM" {
+    const allocator = std.testing.allocator;
+    const session_id = try allocator.dupe(u8, "distributed-oom-session");
+    defer allocator.free(session_id);
+
+    const embedding = [_]f32{ 0.1, 0.2, 0.3, 0.4 };
+    const config = block_chain.BlockConfig{
+        .query_embedding = &embedding,
+        .profile_tag = .{ .primary_profile = .abbey },
+        .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
+        .intent = .empathy_seeking,
+        .previous_hash = .{0} ** 32,
+    };
+
+    try std.testing.checkAllAllocationFailures(allocator, testDistributedBlockChainLocalInsertion, .{ session_id, config });
 }
 
 test {

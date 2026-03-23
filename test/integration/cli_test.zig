@@ -192,7 +192,7 @@ test "cli: serve address parsing honors addr and port flags" {
 
 test "cli: plugin path helper builds successfully" {
     var builder = abi.App.builder(std.testing.allocator);
-    _ = builder.withPlugins(abi.config.PluginConfig.withPaths(&.{ "/tmp/abi-plugin.so" }));
+    _ = builder.withPlugins(abi.config.PluginConfig.withPaths(&.{"/tmp/abi-plugin.so"}));
 
     var fw = try builder.build();
     defer fw.deinit();

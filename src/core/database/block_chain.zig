@@ -185,16 +185,25 @@ pub const BlockChain = struct {
     allocator: std.mem.Allocator,
     blocks: std.AutoHashMapUnmanaged(u64, ConversationBlock),
     session_id: []const u8,
+    session_id_owned: bool = false,
     current_head: ?u64 = null,
 
     const Self = @This();
 
     /// Initialize a new block chain for a session
     pub fn init(allocator: std.mem.Allocator, session_id: []const u8) Self {
+        var session_id_owned = false;
+        const stored_session_id = blk: {
+            const duped_session_id = allocator.dupe(u8, session_id) catch break :blk session_id;
+            session_id_owned = true;
+            break :blk duped_session_id;
+        };
+
         return .{
             .allocator = allocator,
             .blocks = .empty,
-            .session_id = allocator.dupe(u8, session_id) catch session_id,
+            .session_id = stored_session_id,
+            .session_id_owned = session_id_owned,
         };
     }
 
@@ -205,7 +214,9 @@ pub const BlockChain = struct {
             entry.value_ptr.deinit(self.allocator);
         }
         self.blocks.deinit(self.allocator);
-        self.allocator.free(self.session_id);
+        if (self.session_id_owned) {
+            self.allocator.free(self.session_id);
+        }
     }
 
     /// Add a new block to the chain
@@ -480,7 +491,8 @@ pub const MvccStore = struct {
         const session_copy = try self.allocator.dupe(u8, session_id);
         errdefer self.allocator.free(session_copy);
 
-        const chain = BlockChain.init(self.allocator, session_copy);
+        var chain = BlockChain.init(self.allocator, session_copy);
+        errdefer chain.deinit();
         try self.chains.put(self.allocator, session_copy, chain);
 
         return self.chains.getPtr(session_copy).?;
@@ -622,4 +634,43 @@ test "MvccStore visibility control" {
 
     try std.testing.expect(visible.len == 1);
     try std.testing.expect(visible[0] == block_id);
+}
+
+fn testBlockChainInitBorrowedSessionId(allocator: std.mem.Allocator, session_id: []const u8) !void {
+    var chain = BlockChain.init(allocator, session_id);
+    defer chain.deinit();
+
+    try std.testing.expect(std.mem.eql(u8, chain.session_id, session_id));
+
+    // Force an allocator-visible failure after the init path so swallowed OOMs
+    // still surface to checkAllAllocationFailures.
+    const scratch = try allocator.alloc(u8, 1);
+    defer allocator.free(scratch);
+}
+
+test "BlockChain init handles caller-owned session IDs" {
+    const allocator = std.testing.allocator;
+    const session_id = try allocator.dupe(u8, "caller-owned-session");
+    defer allocator.free(session_id);
+
+    try std.testing.checkAllAllocationFailures(allocator, testBlockChainInitBorrowedSessionId, .{session_id});
+}
+
+fn testMvccStoreGetChainInsertion(allocator: std.mem.Allocator, session_id: []const u8) !void {
+    var store = MvccStore.init(allocator);
+    defer store.deinit();
+
+    const chain = try store.getChain(session_id);
+    try std.testing.expect(chain.current_head == null);
+
+    const scratch = try allocator.alloc(u8, 1);
+    defer allocator.free(scratch);
+}
+
+test "MvccStore.getChain cleans up on insertion failure" {
+    const allocator = std.testing.allocator;
+    const session_id = try allocator.dupe(u8, "mvcc-oom-session");
+    defer allocator.free(session_id);
+
+    try std.testing.checkAllAllocationFailures(allocator, testMvccStoreGetChainInsertion, .{session_id});
 }
