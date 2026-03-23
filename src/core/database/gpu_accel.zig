@@ -569,6 +569,33 @@ pub const GpuAccelerator = struct {
         return error.DispatcherNotAvailable;
     }
 
+    /// Batch L2 distance computation (actual Euclidean distance, not squared).
+    ///
+    /// Computes L2 distance between a query vector and multiple vectors.
+    /// Automatically uses GPU for large batches and SIMD for small batches.
+    ///
+    /// @param query Query vector
+    /// @param vectors Array of vectors to compare against
+    /// @param results Output array for L2 distances (same length as vectors)
+    pub fn batchL2Distance(
+        self: *Self,
+        query: []const f32,
+        vectors: []const []const f32,
+        results: []f32,
+    ) !void {
+        std.debug.assert(vectors.len == results.len);
+
+        if (vectors.len == 0) return;
+
+        // Compute squared distances first, then sqrt
+        try self.batchL2DistanceSquared(query, vectors, results);
+
+        // Apply sqrt to get actual L2 distance
+        for (results) |*r| {
+            r.* = @sqrt(r.*);
+        }
+    }
+
     /// Get acceleration statistics.
     pub fn getStats(self: *const Self) GpuAccelStats {
         const total_gpu_ops = self.gpu_ops + self.gpu_kernel_ops;
@@ -793,6 +820,121 @@ test "GpuAccelerator stats tracking" {
     accel.resetStats();
     const reset_stats = accel.getStats();
     try std.testing.expectEqual(@as(u64, 0), reset_stats.simd_ops);
+}
+
+test "GpuAccelerator batchL2Distance correctness" {
+    const allocator = std.testing.allocator;
+
+    var accel = try GpuAccelerator.init(allocator, .{
+        .batch_threshold = 2, // Low threshold for testing
+    });
+    defer accel.deinit();
+
+    const query = [_]f32{ 1.0, 0.0, 0.0 };
+
+    const vectors = [_][]const f32{
+        &[_]f32{ 1.0, 0.0, 0.0 }, // Distance = 0.0 (identical)
+        &[_]f32{ 0.0, 1.0, 0.0 }, // Distance = sqrt(2)
+        &[_]f32{ 4.0, 0.0, 0.0 }, // Distance = 3.0
+        &[_]f32{ 1.0, 1.0, 1.0 }, // Distance = sqrt(2)
+    };
+
+    var results: [4]f32 = undefined;
+
+    try accel.batchL2Distance(&query, &vectors, &results);
+
+    // Verify against naive L2 distance
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), results[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, @sqrt(@as(f32, 2.0))), results[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), results[2], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, @sqrt(@as(f32, 2.0))), results[3], 0.001);
+
+    // Should have tracked at least one operation
+    const stats = accel.getStats();
+    try std.testing.expect(stats.gpu_ops + stats.simd_ops > 0);
+}
+
+test "GpuAccelerator batchL2Distance matches scalar" {
+    const allocator = std.testing.allocator;
+
+    var accel = try GpuAccelerator.init(allocator, .{
+        .batch_threshold = 2,
+    });
+    defer accel.deinit();
+
+    const query = [_]f32{ 0.5, -1.0, 2.0, 0.3 };
+
+    const vectors = [_][]const f32{
+        &[_]f32{ 1.0, 2.0, -1.0, 0.0 },
+        &[_]f32{ 0.0, 0.0, 0.0, 0.0 },
+        &[_]f32{ 0.5, -1.0, 2.0, 0.3 }, // Identical to query
+    };
+
+    var batch_results: [3]f32 = undefined;
+    try accel.batchL2Distance(&query, &vectors, &batch_results);
+
+    // Compute naive L2 distances for comparison
+    for (vectors, 0..) |vec, i| {
+        var sum: f32 = 0.0;
+        for (0..query.len) |j| {
+            const diff = query[j] - vec[j];
+            sum += diff * diff;
+        }
+        const expected = @sqrt(sum);
+        try std.testing.expectApproxEqAbs(expected, batch_results[i], 0.001);
+    }
+}
+
+test "GpuAccelerator batchL2Distance empty" {
+    const allocator = std.testing.allocator;
+
+    var accel = try GpuAccelerator.init(allocator, .{});
+    defer accel.deinit();
+
+    const query = [_]f32{ 1.0, 2.0 };
+    const vectors = [_][]const f32{};
+    var results = [_]f32{};
+
+    // Should not error on empty input
+    try accel.batchL2Distance(&query, &vectors, &results);
+}
+
+test "GpuAccelerator batchL2DistanceSquared threshold behavior" {
+    const allocator = std.testing.allocator;
+
+    // Create accelerator with high threshold to force SIMD path
+    var accel_simd = try GpuAccelerator.init(allocator, .{
+        .batch_threshold = 10000,
+    });
+    defer accel_simd.deinit();
+
+    // Create accelerator with low threshold to attempt GPU path
+    var accel_gpu = try GpuAccelerator.init(allocator, .{
+        .batch_threshold = 2,
+    });
+    defer accel_gpu.deinit();
+
+    const query = [_]f32{ 1.0, 2.0, 3.0 };
+    const vectors = [_][]const f32{
+        &[_]f32{ 4.0, 5.0, 6.0 },
+        &[_]f32{ 7.0, 8.0, 9.0 },
+        &[_]f32{ 0.0, 0.0, 0.0 },
+    };
+
+    var results_simd: [3]f32 = undefined;
+    var results_gpu: [3]f32 = undefined;
+
+    try accel_simd.batchL2Distance(&query, &vectors, &results_simd);
+    try accel_gpu.batchL2Distance(&query, &vectors, &results_gpu);
+
+    // Both paths should produce identical results within f32 epsilon
+    for (0..3) |i| {
+        try std.testing.expectApproxEqAbs(results_simd[i], results_gpu[i], 0.001);
+    }
+
+    // SIMD-only path should have logged SIMD ops
+    const simd_stats = accel_simd.getStats();
+    try std.testing.expect(simd_stats.simd_ops > 0);
 }
 
 test {
