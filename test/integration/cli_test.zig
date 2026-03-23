@@ -179,10 +179,23 @@ test "cli: serve address parsing honors addr and port flags" {
     defer std.testing.allocator.free(port_address);
     try std.testing.expectEqualStrings("127.0.0.1:9090", port_address);
 
+    const ipv6_args = [_][:0]const u8{ "--host", "::1", "--port", "9090" };
+    const ipv6_address = try cli.parseServeAddress(std.testing.allocator, &ipv6_args);
+    defer std.testing.allocator.free(ipv6_address);
+    try std.testing.expectEqualStrings("[::1]:9090", ipv6_address);
+
     const addr_args = [_][:0]const u8{ "--addr", "0.0.0.0:8080" };
     const explicit_address = try cli.parseServeAddress(std.testing.allocator, &addr_args);
     defer std.testing.allocator.free(explicit_address);
     try std.testing.expectEqualStrings("0.0.0.0:8080", explicit_address);
+}
+
+test "cli: plugin path helper builds successfully" {
+    var builder = abi.App.builder(std.testing.allocator);
+    _ = builder.withPlugins(abi.config.PluginConfig.withPaths(&.{ "/tmp/abi-plugin.so" }));
+
+    var fw = try builder.build();
+    defer fw.deinit();
 }
 
 test "cli: untrusted plugin paths are rejected" {

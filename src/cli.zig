@@ -7,6 +7,15 @@ const acp = @import("protocols/acp/mod.zig");
 const default_host = "127.0.0.1";
 const default_port: u16 = 8080;
 
+fn formatServeAddress(allocator: std.mem.Allocator, host: []const u8, port: u16) ![]u8 {
+    const bracketed = host.len >= 2 and host[0] == '[' and host[host.len - 1] == ']';
+    if (bracketed or std.mem.indexOfScalar(u8, host, ':') == null) {
+        return std.fmt.allocPrint(allocator, "{s}:{d}", .{ host, port });
+    }
+
+    return std.fmt.allocPrint(allocator, "[{s}]:{d}", .{ host, port });
+}
+
 pub fn isServeInvocation(args: []const [:0]const u8) bool {
     if (args.len == 0) return false;
     if (std.mem.eql(u8, args[0], "serve")) return true;
@@ -51,7 +60,7 @@ pub fn parseServeAddress(allocator: std.mem.Allocator, args: []const [:0]const u
         return allocator.dupe(u8, address);
     }
 
-    return std.fmt.allocPrint(allocator, "{s}:{d}", .{ host, port });
+    return formatServeAddress(allocator, host, port);
 }
 
 pub fn runServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -93,6 +102,11 @@ test "serve address parsing honors addr and port flags" {
     const port_address = try parseServeAddress(std.testing.allocator, &port_args);
     defer std.testing.allocator.free(port_address);
     try std.testing.expectEqualStrings("127.0.0.1:9090", port_address);
+
+    const ipv6_args = [_][:0]const u8{ "--host", "::1", "--port", "9090" };
+    const ipv6_address = try parseServeAddress(std.testing.allocator, &ipv6_args);
+    defer std.testing.allocator.free(ipv6_address);
+    try std.testing.expectEqualStrings("[::1]:9090", ipv6_address);
 
     const addr_args = [_][:0]const u8{ "--addr", "0.0.0.0:8080" };
     const explicit_address = try parseServeAddress(std.testing.allocator, &addr_args);

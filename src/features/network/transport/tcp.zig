@@ -115,9 +115,7 @@ pub const TcpTransport = struct {
         // Clean up pending requests
         var req_iter = self.pending_requests.valueIterator();
         while (req_iter.next()) |req| {
-            if (req.*.response_data) |data| {
-                self.allocator.free(data);
-            }
+            req.*.deinit(self.allocator);
             self.allocator.destroy(req.*);
         }
         self.pending_requests.deinit(self.allocator);
@@ -296,6 +294,7 @@ pub const TcpTransport = struct {
             self.mutex.lock();
             defer self.mutex.unlock();
             _ = self.pending_requests.remove(request_id);
+            pending.deinit(self.allocator);
             self.allocator.destroy(pending);
         }
 
@@ -334,7 +333,10 @@ pub const TcpTransport = struct {
             defer self.mutex.unlock();
             _ = self.pending_requests.remove(request_id);
         }
-        defer self.allocator.destroy(pending);
+        defer {
+            pending.deinit(self.allocator);
+            self.allocator.destroy(pending);
+        }
 
         if (response) |data| {
             self.stats.requests_completed += 1;
@@ -558,8 +560,8 @@ pub const TcpTransport = struct {
 
     fn handleResponse(self: *TcpTransport, header: *const MessageHeader, payload: []const u8) void {
         self.mutex.lock();
+        defer self.mutex.unlock();
         const pending = self.pending_requests.get(header.request_id);
-        self.mutex.unlock();
 
         if (pending) |req| {
             // Copy payload for the waiter

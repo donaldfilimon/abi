@@ -34,6 +34,15 @@ pub const PendingRequest = struct {
         };
     }
 
+    pub fn deinit(self: *PendingRequest, allocator: std.mem.Allocator) void {
+        if (self.response_data) |data| {
+            allocator.free(data);
+        }
+        self.condition.deinit();
+        self.mutex.deinit();
+        self.* = undefined;
+    }
+
     pub fn isTimedOut(self: *const PendingRequest) bool {
         const elapsed: i64 = @intCast(time.nowNanoseconds());
         return (elapsed - self.sent_at_ns) > self.timeout_ns;
@@ -66,7 +75,9 @@ pub const PendingRequest = struct {
             return e;
         }
 
-        return self.response_data;
+        const response = self.response_data;
+        self.response_data = null;
+        return response;
     }
 };
 
@@ -265,4 +276,19 @@ test "peer connection init and deinit" {
     try std.testing.expectEqualStrings("127.0.0.1", peer.address);
     try std.testing.expectEqual(@as(u16, 9000), peer.port);
     try std.testing.expect(!peer.isConnected());
+}
+
+test "pending request deinit preserves response ownership" {
+    const allocator = std.testing.allocator;
+
+    var pending = PendingRequest.init(42, 1);
+    const response = try allocator.dupe(u8, "ok");
+    pending.complete(response, null);
+
+    const got = try pending.waitForCompletion(1);
+    try std.testing.expect(got != null);
+    try std.testing.expectEqualStrings("ok", got.?);
+    allocator.free(got.?);
+
+    pending.deinit(allocator);
 }

@@ -377,6 +377,8 @@ const ThreadPool = struct {
 
         self.allocator.free(self.threads);
         self.queue.deinit(self.allocator);
+        self.condition.deinit();
+        self.mutex.deinit();
         self.* = undefined;
     }
 
@@ -481,6 +483,13 @@ test "HostStagedBackend allReduce" {
     try std.testing.expectApproxEqAbs(@as(f32, 8.0), buf1[1], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 10.0), buf1[2], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 12.0), buf1[3], 0.001);
+}
+
+test "ThreadPool init and deinit" {
+    const allocator = std.testing.allocator;
+    var pool: ThreadPool = undefined;
+    try pool.init(allocator, 1);
+    pool.deinit();
 }
 
 test {

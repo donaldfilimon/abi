@@ -364,6 +364,15 @@ test "Builder creates valid config" {
     try validate(config);
 }
 
+test "validate rejects raw plugin paths without allow_untrusted" {
+    var config = Config.minimal();
+    config.plugins = .{
+        .paths = &.{"/tmp/abi-untrusted-plugin.so"},
+    };
+
+    try std.testing.expectError(ConfigError.InvalidConfig, validate(config));
+}
+
 test "Feature.isCompileTimeEnabled" {
     // At least some feature should match build_options
     const gpu_enabled = Feature.gpu.isCompileTimeEnabled();

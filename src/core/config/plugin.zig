@@ -64,6 +64,7 @@ pub const PluginConfig = struct {
         return .{
             .paths = paths,
             .auto_discover = true,
+            .allow_untrusted = true,
         };
     }
 };
@@ -84,4 +85,11 @@ fn dupeStringSlices(allocator: std.mem.Allocator, slices: []const []const u8) ![
     }
 
     return out;
+}
+
+test "plugin config withPaths opts into untrusted loading" {
+    const config = PluginConfig.withPaths(&.{"./plugins"});
+    try std.testing.expect(config.auto_discover);
+    try std.testing.expect(config.allow_untrusted);
+    try std.testing.expectEqual(@as(usize, 1), config.paths.len);
 }
