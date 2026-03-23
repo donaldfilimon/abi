@@ -15,6 +15,24 @@ pub const PersonaId = enum {
             .abi => "Abi",
         };
     }
+
+    /// Hex color code per ABBEY-SPEC persona definitions.
+    pub fn colorCode(self: PersonaId) []const u8 {
+        return switch (self) {
+            .abbey => "#00B3A1", // Teal
+            .aviva => "#7B4FFF", // Purple
+            .abi => "#FF8C42", // Orange
+        };
+    }
+
+    /// Human-readable role description per spec.
+    pub fn role(self: PersonaId) []const u8 {
+        return switch (self) {
+            .abbey => "Empathetic Polymath",
+            .aviva => "Direct Expert",
+            .abi => "Adaptive Moderator",
+        };
+    }
 };
 
 /// Lifecycle state of a persona instance.

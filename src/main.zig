@@ -1,15 +1,20 @@
 //! ABI CLI — Command-line interface for the ABI framework.
 //!
 //! Provides user-facing commands for interacting with the multi-persona
-//! AI system, WDBX database, and framework diagnostics.
+//! AI system, WDBX database, full-text search, and framework diagnostics.
 //!
 //! Usage:
-//!   abi version       Print version and build info
-//!   abi doctor        Run diagnostics (features, platform, GPU)
-//!   abi info          Show framework architecture summary
-//!   abi chat <msg>    Route a message through the persona pipeline
-//!   abi dashboard     Launch interactive TUI dashboard
-//!   abi help          Show this help message
+//!   abi                   Show status overview with enabled features
+//!   abi version           Print version and build info
+//!   abi doctor            Run diagnostics (features, platform, GPU)
+//!   abi features          List all features with status
+//!   abi platform          Show platform detection info
+//!   abi connectors        List available LLM connectors
+//!   abi info              Show framework architecture summary
+//!   abi chat <msg>        Route a message through the persona pipeline
+//!   abi db <subcommand>   Vector database operations
+//!   abi dashboard         Launch interactive TUI dashboard
+//!   abi help              Show this help message
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -17,6 +22,8 @@ const build_options = @import("build_options");
 // Framework modules (relative imports within src/)
 const root = @import("root.zig");
 const feature_catalog = root.meta.features;
+
+// ── Entry Point ─────────────────────────────────────────────────────────
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
@@ -29,6 +36,97 @@ pub fn main(init: std.process.Init) !void {
     try dispatch(allocator, command, next_arg);
 }
 
+// ── Command Dispatch ────────────────────────────────────────────────────
+
+pub fn dispatch(allocator: std.mem.Allocator, command: ?[]const u8, next_arg: ?[]const u8) !void {
+    const cmd = command orelse {
+        printStatus();
+        return;
+    };
+
+    if (std.mem.eql(u8, cmd, "version")) {
+        printVersion();
+    } else if (std.mem.eql(u8, cmd, "doctor")) {
+        runDoctor();
+    } else if (std.mem.eql(u8, cmd, "features")) {
+        printFeatures();
+    } else if (std.mem.eql(u8, cmd, "platform")) {
+        printPlatform();
+    } else if (std.mem.eql(u8, cmd, "connectors")) {
+        printConnectors();
+    } else if (std.mem.eql(u8, cmd, "info")) {
+        printInfo();
+    } else if (std.mem.eql(u8, cmd, "chat")) {
+        const message = next_arg orelse {
+            std.debug.print("Usage: abi chat <message>\n", .{});
+            return;
+        };
+        try runChat(allocator, message);
+    } else if (std.mem.eql(u8, cmd, "db")) {
+        try runDb(allocator, next_arg);
+    } else if (std.mem.eql(u8, cmd, "dashboard")) {
+        try runDashboard(allocator);
+    } else if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h")) {
+        printHelp();
+    } else {
+        std.debug.print("Unknown command: {s}\n\n", .{cmd});
+        printHelp();
+    }
+}
+
+// ── Status (no-args) ────────────────────────────────────────────────────
+
+pub fn printStatus() void {
+    const version = build_options.package_version;
+
+    // Count enabled features
+    const enabled = comptime blk: {
+        var count: u32 = 0;
+        for (feature_catalog.all) |entry| {
+            if (@field(build_options, entry.compile_flag_field)) count += 1;
+        }
+        break :blk count;
+    };
+
+    std.debug.print(
+        \\ABI Framework v{s}
+        \\Zig 0.16.0-dev | {d}/{d} features enabled
+        \\
+        \\Commands:
+        \\  version      Print version and build info
+        \\  doctor       Run diagnostics (features, platform, GPU)
+        \\  features     List all {d} features with status
+        \\  platform     Show platform detection info
+        \\  connectors   List available LLM connectors
+        \\  info         Framework architecture summary
+        \\  chat <msg>   Route through persona pipeline
+        \\
+    , .{ version, enabled, feature_catalog.feature_count, feature_catalog.feature_count });
+
+    // Feature-gated commands
+    std.debug.print("  db <cmd>     Vector database operations       ", .{});
+    printFeatureTag(build_options.feat_database);
+    std.debug.print("  dashboard    Interactive TUI dashboard         ", .{});
+    printFeatureTag(build_options.feat_tui);
+
+    std.debug.print(
+        \\  help         Show detailed help
+        \\
+        \\Run 'abi <command>' for details. 'abi help' for full reference.
+        \\
+    , .{});
+}
+
+fn printFeatureTag(enabled: bool) void {
+    if (enabled) {
+        std.debug.print("[enabled]\n", .{});
+    } else {
+        std.debug.print("[disabled]\n", .{});
+    }
+}
+
+// ── Version ─────────────────────────────────────────────────────────────
+
 pub fn printVersion() void {
     const version = build_options.package_version;
     std.debug.print(
@@ -40,21 +138,30 @@ pub fn printVersion() void {
     , .{version});
 }
 
+// ── Help ────────────────────────────────────────────────────────────────
+
 pub fn printHelp() void {
     std.debug.print(
         \\ABI — Multi-Persona AI Framework with WDBX
         \\
         \\Usage: abi <command> [args]
         \\
-        \\Commands:
-        \\  version    Print version and build info
-        \\  doctor     Run diagnostics (features, platform, GPU)
-        \\  info       Show framework architecture summary
-        \\  chat <msg> Route a message through the persona pipeline
-        \\  dashboard  Launch interactive TUI dashboard
-        \\  help       Show this help message
+        \\Diagnostics:
+        \\  version      Print version and build info
+        \\  doctor       Run diagnostics (features, platform, GPU)
+        \\  features     List all features with enabled/disabled status
+        \\  platform     Show platform detection (OS, arch, CPU)
+        \\  connectors   List available LLM provider connectors
+        \\  info         Show framework architecture summary
         \\
-        \\Build commands:
+        \\AI & Data:
+        \\  chat <msg>   Route a message through the persona pipeline
+        \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
+        \\
+        \\Interactive:
+        \\  dashboard    Launch interactive TUI dashboard (requires -Dfeat-tui=true)
+        \\
+        \\Build:
         \\  zig build cli          Build this CLI binary
         \\  zig build mcp          Build MCP stdio server
         \\  zig build lib          Build static library
@@ -63,6 +170,105 @@ pub fn printHelp() void {
         \\
     , .{});
 }
+
+// ── Features ────────────────────────────────────────────────────────────
+
+pub fn printFeatures() void {
+    std.debug.print(
+        \\ABI Features — Compile-Time Feature Catalog
+        \\════════════════════════════════════════════
+        \\
+    , .{});
+
+    // Print all features from the canonical catalog
+    inline for (feature_catalog.all) |entry| {
+        const enabled = @field(build_options, entry.compile_flag_field);
+        const tag: []const u8 = if (enabled) "[+]" else "[-]";
+        const parent_str: []const u8 = if (entry.parent != null) "  " else "";
+        std.debug.print("  {s} {s}{s} — {s}\n", .{ tag, parent_str, entry.feature.name(), entry.description });
+    }
+
+    const enabled = comptime blk: {
+        var count: u32 = 0;
+        for (feature_catalog.all) |entry| {
+            if (@field(build_options, entry.compile_flag_field)) count += 1;
+        }
+        break :blk count;
+    };
+    std.debug.print("\n{d}/{d} features enabled.\n", .{ enabled, feature_catalog.feature_count });
+}
+
+// ── Platform ────────────────────────────────────────────────────────────
+
+pub fn printPlatform() void {
+    const platform = root.platform;
+    const info = platform.getPlatformInfo();
+
+    std.debug.print(
+        \\ABI Platform — System Detection
+        \\════════════════════════════════
+        \\
+        \\OS:           {s}
+        \\Architecture: {s}
+        \\Description:  {s}
+        \\CPU Cores:    {d}
+        \\Threading:    {s}
+        \\
+    , .{
+        @tagName(info.os),
+        @tagName(info.arch),
+        platform.getDescription(),
+        platform.getCpuCount(),
+        if (platform.supportsThreading()) "supported" else "unavailable",
+    });
+
+    // GPU backend info
+    std.debug.print("GPU Backends:\n", .{});
+    inline for (.{
+        .{ "metal", build_options.gpu_metal },
+        .{ "cuda", build_options.gpu_cuda },
+        .{ "vulkan", build_options.gpu_vulkan },
+        .{ "webgpu", build_options.gpu_webgpu },
+        .{ "opengl", build_options.gpu_opengl },
+        .{ "stdgpu", build_options.gpu_stdgpu },
+    }) |backend| {
+        if (backend[1]) {
+            std.debug.print("  [+] {s}\n", .{backend[0]});
+        }
+    }
+
+    std.debug.print("\n", .{});
+}
+
+// ── Connectors ──────────────────────────────────────────────────────────
+
+pub fn printConnectors() void {
+    std.debug.print(
+        \\ABI Connectors — LLM Provider Adapters
+        \\═══════════════════════════════════════
+        \\
+        \\Available connectors (env var → provider):
+        \\
+        \\  OPENAI_API_KEY          → OpenAI (GPT-4, GPT-3.5)
+        \\  ANTHROPIC_API_KEY       → Anthropic (Claude)
+        \\  GOOGLE_AI_API_KEY       → Google Gemini
+        \\  MISTRAL_API_KEY         → Mistral AI
+        \\  COHERE_API_KEY          → Cohere (Chat, Embed, Rerank)
+        \\  HUGGINGFACE_API_TOKEN   → HuggingFace Inference API
+        \\  OLLAMA_HOST             → Ollama (local, default: localhost:11434)
+        \\  LM_STUDIO_HOST          → LM Studio (local, OpenAI-compatible)
+        \\  VLLM_HOST               → vLLM (local, high-throughput)
+        \\  MLX_HOST                → MLX (Apple Silicon optimized)
+        \\  LLAMA_CPP_HOST          → llama.cpp server
+        \\  DISCORD_BOT_TOKEN       → Discord bot integration
+        \\
+        \\Connector status: always available (not feature-gated).
+        \\Set the env var to enable a provider. Use 'abi chat' to test routing.
+        \\
+    , .{});
+}
+
+// ── Info ────────────────────────────────────────────────────────────────
 
 pub fn printInfo() void {
     std.debug.print(
@@ -86,7 +292,7 @@ pub fn printInfo() void {
         \\  Backends: demo | connector | local
         \\  Connectors: OpenAI, Anthropic, Ollama, + 20 more
         \\
-        \\Features: 19 comptime-gated modules (mod/stub pattern)
+        \\Features: 20 feature directories, 30 in catalog (mod/stub pattern)
         \\GPU: Metal, CUDA, Vulkan, WebGPU, stdgpu
         \\Protocols: MCP, LSP, ACP, HA
         \\
@@ -94,6 +300,8 @@ pub fn printInfo() void {
         \\
     , .{});
 }
+
+// ── Doctor ──────────────────────────────────────────────────────────────
 
 pub fn runDoctor() void {
     const version = build_options.package_version;
@@ -117,6 +325,7 @@ pub fn runDoctor() void {
         \\  feat_mcp       = {any}
         \\  feat_mobile    = {any}
         \\  feat_desktop   = {any}
+        \\  feat_tui       = {any}
         \\
         \\AI Sub-features:
         \\  feat_llm       = {any}
@@ -146,6 +355,7 @@ pub fn runDoctor() void {
         build_options.feat_mcp,
         build_options.feat_mobile,
         build_options.feat_desktop,
+        build_options.feat_tui,
         build_options.feat_llm,
         build_options.feat_training,
         build_options.feat_vision,
@@ -157,8 +367,9 @@ pub fn runDoctor() void {
     });
 }
 
+// ── Chat ────────────────────────────────────────────────────────────────
+
 pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
-    // Initialize the multi-persona router for routing decisions
     const persona = root.ai.persona;
     var registry = persona.PersonaRegistry.init(allocator, .{});
     defer registry.deinit();
@@ -166,7 +377,6 @@ pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
     var router = persona.MultiPersonaRouter.init(allocator, &registry, .{});
     defer router.deinit();
 
-    // Route the message through Abi analysis
     const decision = router.route(message);
 
     std.debug.print(
@@ -198,6 +408,26 @@ pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
     });
 }
 
+// ── Database ────────────────────────────────────────────────────────────
+
+pub fn runDb(allocator: std.mem.Allocator, subcommand: ?[]const u8) !void {
+    const db_cli = root.database;
+    if (comptime @hasDecl(db_cli, "cli")) {
+        // Build args slice from the subcommand
+        if (subcommand) |sub| {
+            const args = [_][:0]const u8{@ptrCast(sub.ptr[0..sub.len :0])};
+            try db_cli.cli.run(allocator, &args);
+        } else {
+            const empty: []const [:0]const u8 = &.{};
+            try db_cli.cli.run(allocator, empty);
+        }
+    } else {
+        std.debug.print("Database is disabled. Rebuild with -Dfeat-database=true\n", .{});
+    }
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────
+
 pub fn runDashboard(allocator: std.mem.Allocator) !void {
     const has_dashboard = comptime @hasDecl(root.tui.dashboard, "run");
     if (has_dashboard) {
@@ -206,35 +436,7 @@ pub fn runDashboard(allocator: std.mem.Allocator) !void {
     std.debug.print("TUI is disabled. Rebuild with -Dfeat-tui=true\n", .{});
 }
 
-/// Command dispatch extracted from main() for testability.
-/// Takes the command string and remaining args iterator, plus an allocator.
-pub fn dispatch(allocator: std.mem.Allocator, command: ?[]const u8, next_arg: ?[]const u8) !void {
-    const cmd = command orelse {
-        printHelp();
-        return;
-    };
-
-    if (std.mem.eql(u8, cmd, "version")) {
-        printVersion();
-    } else if (std.mem.eql(u8, cmd, "doctor")) {
-        runDoctor();
-    } else if (std.mem.eql(u8, cmd, "info")) {
-        printInfo();
-    } else if (std.mem.eql(u8, cmd, "chat")) {
-        const message = next_arg orelse {
-            std.debug.print("Usage: abi chat <message>\n", .{});
-            return;
-        };
-        try runChat(allocator, message);
-    } else if (std.mem.eql(u8, cmd, "dashboard")) {
-        try runDashboard(allocator);
-    } else if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h")) {
-        printHelp();
-    } else {
-        std.debug.print("Unknown command: {s}\n\n", .{cmd});
-        printHelp();
-    }
-}
+// ── Tests ───────────────────────────────────────────────────────────────
 
 test "version prints without error" {
     printVersion();
@@ -244,12 +446,28 @@ test "help prints without error" {
     printHelp();
 }
 
+test "status prints without error" {
+    printStatus();
+}
+
 test "info prints without error" {
     printInfo();
 }
 
 test "doctor runs without error" {
     runDoctor();
+}
+
+test "features prints without error" {
+    printFeatures();
+}
+
+test "platform prints without error" {
+    printPlatform();
+}
+
+test "connectors prints without error" {
+    printConnectors();
 }
 
 test "chat routes message without error" {
