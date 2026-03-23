@@ -723,22 +723,22 @@ pub const ScaNNIndex = struct {
         // Phase 3: Rerank top candidates with exact distances
         const rerank_count = @min(candidates.items.len, k * self.config.rerank_factor);
         var results = std.ArrayListUnmanaged(index_mod.IndexResult).empty;
+        defer results.deinit(self.allocator);
 
         for (candidates.items[0..rerank_count]) |candidate| {
             const vec = self.vectors.items[candidate.id];
             const exact_dist = computeL2DistanceSquared(query, vec);
 
             try results.append(self.allocator, .{
-                .id = candidate.id,
-                .distance = @sqrt(exact_dist),
-                .metadata = null,
+                .id = @as(u64, candidate.id),
+                .score = @sqrt(exact_dist),
             });
         }
 
-        // Sort by exact distance
+        // Sort by exact distance (score = L2 distance, lower is better)
         std.mem.sort(index_mod.IndexResult, results.items, {}, struct {
             fn lessThan(_: void, a: index_mod.IndexResult, b: index_mod.IndexResult) bool {
-                return a.distance < b.distance;
+                return a.score < b.score;
             }
         }.lessThan);
 
@@ -959,4 +959,280 @@ test "scann search" {
 
     try std.testing.expect(results.len >= 1);
     try std.testing.expect(results[0].id == 0); // Closest to first vector
+}
+
+test "scann partition search with 200 vectors and 10 partitions" {
+    const allocator = std.testing.allocator;
+    const dim: u32 = 8;
+    const num_vectors: u32 = 200;
+    const num_partitions: u32 = 10;
+
+    // Generate pseudo-random vectors using a simple LCG
+    var flat_vectors = try allocator.alloc(f32, num_vectors * dim);
+    defer allocator.free(flat_vectors);
+
+    var seed: u64 = 12345;
+    for (flat_vectors) |*v| {
+        seed = seed *% 6364136223846793005 +% 1442695040888963407;
+        v.* = @as(f32, @floatFromInt(@as(i32, @truncate(@as(i64, @bitCast(seed >> 33)))))) / 2147483648.0;
+    }
+
+    const config = ScaNNConfig{
+        .dimensions = dim,
+        .num_partitions = num_partitions,
+        .partitions_to_search = 10,
+        .quantization_type = .scalar,
+        .rerank_factor = 4,
+        .seed = 99,
+    };
+
+    var index = try ScaNNIndex.init(allocator, config);
+    defer index.deinit();
+
+    try index.build(flat_vectors);
+
+    try std.testing.expect(index.num_vectors == num_vectors);
+    try std.testing.expect(index.partitions.items.len == num_partitions);
+
+    // Search with a query near the first vector
+    const query = flat_vectors[0..dim];
+    const results = try index.search(query, 5);
+    defer allocator.free(results);
+
+    try std.testing.expect(results.len >= 1);
+    // The query IS the first vector, so it should be in results with distance ~0
+    var found_self = false;
+    for (results) |r| {
+        if (r.id == 0) {
+            found_self = true;
+            try std.testing.expect(r.score < 0.01);
+        }
+    }
+    try std.testing.expect(found_self);
+
+    // Compute brute-force top-5 to check recall
+    var brute_force_top: [5]struct { id: u32, dist: f32 } = undefined;
+    for (&brute_force_top) |*bf| {
+        bf.* = .{ .id = 0, .dist = std.math.inf(f32) };
+    }
+
+    for (0..num_vectors) |i| {
+        const vec = flat_vectors[i * dim ..][0..dim];
+        const dist = computeL2DistanceSquared(query, vec);
+        // Insert into sorted top-5
+        var pos: usize = 5;
+        while (pos > 0 and dist < brute_force_top[pos - 1].dist) : (pos -= 1) {}
+        if (pos < 5) {
+            var j: usize = 4;
+            while (j > pos) : (j -= 1) {
+                brute_force_top[j] = brute_force_top[j - 1];
+            }
+            brute_force_top[pos] = .{ .id = @intCast(i), .dist = dist };
+        }
+    }
+
+    // Check recall: at least 3 of the brute-force top-5 should appear in results
+    var recall_hits: u32 = 0;
+    for (results) |r| {
+        for (brute_force_top) |bf| {
+            if (r.id == bf.id) {
+                recall_hits += 1;
+                break;
+            }
+        }
+    }
+    // With all partitions searched, recall should be high
+    try std.testing.expect(recall_hits >= 3);
+}
+
+test "scann num_probes affects recall" {
+    const allocator = std.testing.allocator;
+    const dim: u32 = 8;
+    const num_vectors: u32 = 200;
+
+    // Generate vectors
+    var flat_vectors = try allocator.alloc(f32, num_vectors * dim);
+    defer allocator.free(flat_vectors);
+
+    var seed: u64 = 67890;
+    for (flat_vectors) |*v| {
+        seed = seed *% 6364136223846793005 +% 1442695040888963407;
+        v.* = @as(f32, @floatFromInt(@as(i32, @truncate(@as(i64, @bitCast(seed >> 33)))))) / 2147483648.0;
+    }
+
+    // Compute brute-force top-10
+    const query = flat_vectors[0..dim];
+    var bf_top: [10]u32 = undefined;
+    var bf_dists: [10]f32 = undefined;
+    for (&bf_dists) |*d| d.* = std.math.inf(f32);
+
+    for (0..num_vectors) |i| {
+        const vec = flat_vectors[i * dim ..][0..dim];
+        const dist = computeL2DistanceSquared(query, vec);
+        var pos: usize = 10;
+        while (pos > 0 and dist < bf_dists[pos - 1]) : (pos -= 1) {}
+        if (pos < 10) {
+            var j: usize = 9;
+            while (j > pos) : (j -= 1) {
+                bf_top[j] = bf_top[j - 1];
+                bf_dists[j] = bf_dists[j - 1];
+            }
+            bf_top[pos] = @intCast(i);
+            bf_dists[pos] = dist;
+        }
+    }
+
+    // Search with num_probes=1
+    const config_low = ScaNNConfig{
+        .dimensions = dim,
+        .num_partitions = 10,
+        .partitions_to_search = 1,
+        .quantization_type = .scalar,
+        .rerank_factor = 4,
+        .seed = 77,
+    };
+
+    var index_low = try ScaNNIndex.init(allocator, config_low);
+    defer index_low.deinit();
+    try index_low.build(flat_vectors);
+
+    const results_low = try index_low.search(query, 10);
+    defer allocator.free(results_low);
+
+    var recall_low: u32 = 0;
+    for (results_low) |r| {
+        for (bf_top) |bf_id| {
+            if (r.id == bf_id) {
+                recall_low += 1;
+                break;
+            }
+        }
+    }
+
+    // Search with num_probes=10 (all partitions)
+    const config_high = ScaNNConfig{
+        .dimensions = dim,
+        .num_partitions = 10,
+        .partitions_to_search = 10,
+        .quantization_type = .scalar,
+        .rerank_factor = 4,
+        .seed = 77,
+    };
+
+    var index_high = try ScaNNIndex.init(allocator, config_high);
+    defer index_high.deinit();
+    try index_high.build(flat_vectors);
+
+    const results_high = try index_high.search(query, 10);
+    defer allocator.free(results_high);
+
+    var recall_high: u32 = 0;
+    for (results_high) |r| {
+        for (bf_top) |bf_id| {
+            if (r.id == bf_id) {
+                recall_high += 1;
+                break;
+            }
+        }
+    }
+
+    // More probes should give equal or better recall
+    try std.testing.expect(recall_high >= recall_low);
+    // With all partitions searched, recall should be perfect or near-perfect
+    try std.testing.expect(recall_high >= 8);
+}
+
+test "scann search with clustered vectors" {
+    const allocator = std.testing.allocator;
+    const dim: u32 = 4;
+
+    // Create 3 tight clusters around known centers
+    // Cluster 0: center at (10, 0, 0, 0) -- vectors 0..9
+    // Cluster 1: center at (0, 10, 0, 0) -- vectors 10..19
+    // Cluster 2: center at (0, 0, 10, 0) -- vectors 20..29
+    const num_vectors: u32 = 30;
+    var flat_vectors: [num_vectors * dim]f32 = undefined;
+
+    var seed: u64 = 11111;
+    for (0..num_vectors) |i| {
+        const cluster = i / 10;
+        for (0..dim) |d| {
+            seed = seed *% 6364136223846793005 +% 1442695040888963407;
+            const noise = @as(f32, @floatFromInt(@as(i32, @truncate(@as(i64, @bitCast(seed >> 33)))))) / 2147483648.0 * 0.5;
+            flat_vectors[i * dim + d] = if (d == cluster) 10.0 + noise else noise;
+        }
+    }
+
+    const config = ScaNNConfig{
+        .dimensions = dim,
+        .num_partitions = 3,
+        .partitions_to_search = 1,
+        .quantization_type = .scalar,
+        .rerank_factor = 4,
+        .seed = 42,
+    };
+
+    var index = try ScaNNIndex.init(allocator, config);
+    defer index.deinit();
+
+    try index.build(&flat_vectors);
+
+    // Query near cluster 0 center
+    const query0 = [_]f32{ 10.0, 0.0, 0.0, 0.0 };
+    const results0 = try index.search(&query0, 5);
+    defer allocator.free(results0);
+
+    // All results should be from cluster 0 (ids 0..9)
+    for (results0) |r| {
+        try std.testing.expect(r.id < 10);
+    }
+
+    // Query near cluster 1 center
+    const query1 = [_]f32{ 0.0, 10.0, 0.0, 0.0 };
+    const results1 = try index.search(&query1, 5);
+    defer allocator.free(results1);
+
+    // All results should be from cluster 1 (ids 10..19)
+    for (results1) |r| {
+        try std.testing.expect(r.id >= 10 and r.id < 20);
+    }
+
+    // Query near cluster 2 center
+    const query2 = [_]f32{ 0.0, 0.0, 10.0, 0.0 };
+    const results2 = try index.search(&query2, 5);
+    defer allocator.free(results2);
+
+    // All results should be from cluster 2 (ids 20..29)
+    for (results2) |r| {
+        try std.testing.expect(r.id >= 20 and r.id < 30);
+    }
+}
+
+test "scann index stats" {
+    const allocator = std.testing.allocator;
+
+    const config = ScaNNConfig{
+        .dimensions = 4,
+        .num_partitions = 2,
+        .partitions_to_search = 2,
+        .quantization_type = .scalar,
+    };
+
+    var index = try ScaNNIndex.init(allocator, config);
+    defer index.deinit();
+
+    const vectors = [_]f32{
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1,
+    };
+
+    try index.build(&vectors);
+
+    const stats = index.getStats();
+    try std.testing.expect(stats.num_vectors == 4);
+    try std.testing.expect(stats.num_partitions == 2);
+    try std.testing.expect(stats.build_complete);
+    try std.testing.expect(stats.memory_bytes > 0);
 }
