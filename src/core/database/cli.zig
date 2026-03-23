@@ -95,7 +95,7 @@ pub fn wantsHelp(args: []const [:0]const u8) bool {
         if (std.mem.eql(u8, s, "help") or std.mem.eql(u8, s, "--help") or std.mem.eql(u8, s, "-h"))
             return true;
     }
-    return args.len == 0;
+    return false;
 }
 
 /// Parsed CLI arguments shared by add/query commands.
@@ -728,7 +728,7 @@ test "wantsHelp detects help flags" {
     try std.testing.expect(wantsHelp(&.{"help"}));
     try std.testing.expect(wantsHelp(&.{"--help"}));
     try std.testing.expect(wantsHelp(&.{"-h"}));
-    try std.testing.expect(wantsHelp(&.{})); // empty args
+    try std.testing.expect(!wantsHelp(&.{})); // empty args
     try std.testing.expect(!wantsHelp(&.{"add"}));
 }
 

@@ -273,7 +273,9 @@ pub const WalReader = struct {
 // Tests
 // ============================================================================
 
-const tmp_prefix = "/tmp/abi_wal_test_";
+fn getTestPath(buf: *[128]u8, name: []const u8) ![]u8 {
+    return std.fmt.bufPrint(buf, "/tmp/abi_wal_test_{d}_{s}.wal", .{ @import("../../../foundation/mod.zig").time.unixMs(), name });
+}
 
 fn deleteTestFile(path: []const u8) void {
     const allocator = std.testing.allocator;
@@ -285,7 +287,8 @@ fn deleteTestFile(path: []const u8) void {
 
 test "wal write and replay entries" {
     const allocator = std.testing.allocator;
-    const path = tmp_prefix ++ "roundtrip.wal";
+    var path_buf: [128]u8 = undefined;
+    const path = try getTestPath(&path_buf, "roundtrip");
     defer deleteTestFile(path);
     deleteTestFile(path);
 
@@ -328,7 +331,8 @@ test "wal write and replay entries" {
 
 test "wal checkpoint and truncate" {
     const allocator = std.testing.allocator;
-    const path = tmp_prefix ++ "checkpoint.wal";
+    var path_buf: [128]u8 = undefined;
+    const path = try getTestPath(&path_buf, "checkpoint");
     defer deleteTestFile(path);
     deleteTestFile(path);
 
@@ -358,7 +362,8 @@ test "wal checkpoint and truncate" {
 
 test "wal crc detects corruption" {
     const allocator = std.testing.allocator;
-    const path = tmp_prefix ++ "corrupt.wal";
+    var path_buf: [128]u8 = undefined;
+    const path = try getTestPath(&path_buf, "corrupt");
     defer deleteTestFile(path);
     deleteTestFile(path);
 
@@ -390,7 +395,8 @@ test "wal crc detects corruption" {
 
 test "wal empty payload entries" {
     const allocator = std.testing.allocator;
-    const path = tmp_prefix ++ "empty.wal";
+    var path_buf: [128]u8 = undefined;
+    const path = try getTestPath(&path_buf, "empty");
     defer deleteTestFile(path);
     deleteTestFile(path);
 
@@ -416,7 +422,8 @@ test "wal empty payload entries" {
 
 test "wal resume appending to existing file" {
     const allocator = std.testing.allocator;
-    const path = tmp_prefix ++ "resume.wal";
+    var path_buf: [128]u8 = undefined;
+    const path = try getTestPath(&path_buf, "resume");
     defer deleteTestFile(path);
     deleteTestFile(path);
 
