@@ -9,6 +9,17 @@
 //!
 //! The engine maintains a consistent API regardless of backend, enabling
 //! seamless switching between local and remote inference.
+//!
+//! ## Thread Safety
+//!
+//! `total_requests`, `total_tokens`, and `total_elapsed_ns` are
+//! `std.atomic.Value(u64)` counters updated with `fetchAdd(.acq_rel)` so that
+//! concurrent `generateAsync` callers never produce torn reads or lost updates.
+//! `getStats()` reads them with `load(.acquire)` and requires no mutex.
+//!
+//! `in_flight_async` is guarded by `async_mu`.
+//! `generation_mu` serialises access to the KV cache and sampler state inside
+//! each `generate*` call.
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -16,6 +27,7 @@ const kv_cache_mod = @import("kv_cache.zig");
 const scheduler_mod = @import("scheduler.zig");
 const sampler_mod = @import("sampler.zig");
 const time_mod = @import("../foundation/time.zig");
+const sync_mod = @import("../foundation/sync.zig");
 
 /// Inference backend selection.
 pub const Backend = enum {
@@ -52,13 +64,26 @@ pub const FinishReason = enum {
 pub const Result = struct {
     id: u64,
     text: []const u8,
+    text_owned: bool = true,
     tokens: []const u32,
+    tokens_owned: bool = true,
     finish_reason: FinishReason,
     prompt_tokens: u32,
     completion_tokens: u32,
     latency_ms: f32,
     ttft_ms: f32,
     tokens_per_second: f32,
+
+    pub fn deinit(self: *Result, allocator: Allocator) void {
+        if (self.text_owned) {
+            allocator.free(self.text);
+        }
+        if (self.tokens_owned) {
+            allocator.free(self.tokens);
+        }
+        self.text_owned = false;
+        self.tokens_owned = false;
+    }
 };
 
 pub const Stats = struct {
@@ -79,6 +104,32 @@ const demo_vocabulary = [_][]const u8{
     "response", "request", "context", "agent",  "neural", "graph",   "batch",  "stream", "config", "module",
 };
 
+fn makeErrorResult(id: u64, message: []const u8) Result {
+    return .{
+        .id = id,
+        .text = message,
+        .text_owned = false,
+        .tokens = &.{},
+        .tokens_owned = false,
+        .finish_reason = .error_,
+        .prompt_tokens = 0,
+        .completion_tokens = 0,
+        .latency_ms = 0,
+        .ttft_ms = 0,
+        .tokens_per_second = 0,
+    };
+}
+
+fn elapsedNsToMs(elapsed_ns: u64) f32 {
+    return @as(f32, @floatFromInt(elapsed_ns)) / @as(f32, @floatFromInt(std.time.ns_per_ms));
+}
+
+fn tokensPerSecond(token_count: u32, elapsed_ns: u64) f32 {
+    if (elapsed_ns == 0) return 0;
+    return @as(f32, @floatFromInt(token_count)) * @as(f32, @floatFromInt(std.time.ns_per_s)) /
+        @as(f32, @floatFromInt(elapsed_ns));
+}
+
 pub const Engine = struct {
     const Self = @This();
 
@@ -88,9 +139,18 @@ pub const Engine = struct {
     scheduler: scheduler_mod.Scheduler,
     sampler: sampler_mod.Sampler,
 
-    total_requests: u64,
-    total_tokens: u64,
-    next_request_id: u64,
+    /// Atomic counters — safe to update from concurrent generateAsync threads
+    /// without holding generation_mu.
+    total_requests: std.atomic.Value(u64),
+    total_tokens: std.atomic.Value(u64),
+    total_elapsed_ns: std.atomic.Value(u64),
+
+    /// Serialises KV-cache access and sampler state within each generate call.
+    generation_mu: sync_mod.Mutex = .{},
+    /// Guards in_flight_async and closing_async.
+    async_mu: sync_mod.Mutex = .{},
+    in_flight_async: u32 = 0,
+    closing_async: bool = false,
 
     pub fn init(allocator: Allocator, config: Config) !Self {
         const cache = try kv_cache_mod.PagedKVCache.init(allocator, .{
@@ -107,19 +167,42 @@ pub const Engine = struct {
             .kv_cache = cache,
             .scheduler = scheduler_mod.Scheduler.init(allocator, config.max_batch_size * 4),
             .sampler = sampler_mod.Sampler.initWithAllocator(allocator, .{}),
-            .total_requests = 0,
-            .total_tokens = 0,
-            .next_request_id = 1,
+            .total_requests = std.atomic.Value(u64).init(0),
+            .total_tokens = std.atomic.Value(u64).init(0),
+            .total_elapsed_ns = std.atomic.Value(u64).init(0),
         };
     }
 
     pub fn deinit(self: *Self) void {
+        self.async_mu.lock();
+        self.closing_async = true;
+        self.async_mu.unlock();
+
+        while (true) {
+            self.async_mu.lock();
+            const in_flight = self.in_flight_async;
+            self.async_mu.unlock();
+            if (in_flight == 0) break;
+            time_mod.sleepMs(1);
+        }
+
+        self.generation_mu.lock();
+        self.generation_mu.unlock();
+
         self.kv_cache.deinit();
         self.scheduler.deinit();
     }
 
     /// Generate a response using the configured backend.
     pub fn generate(self: *Self, request: scheduler_mod.Request) !Result {
+        self.async_mu.lock();
+        const closing = self.closing_async;
+        self.async_mu.unlock();
+        if (closing) return error.ShutdownInProgress;
+
+        self.generation_mu.lock();
+        defer self.generation_mu.unlock();
+
         return switch (self.config.backend) {
             .demo => self.generateDemo(request),
             .connector => self.generateConnector(request),
@@ -135,21 +218,11 @@ pub const Engine = struct {
     /// Currently implements a prompt-echo response that preserves the
     /// engine API contract while the connector bridge is integrated.
     fn generateConnector(self: *Self, request: scheduler_mod.Request) !Result {
-        const start = time_mod.timestampMs();
+        const start = time_mod.timestampNs();
 
         const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
         if (!cache_ok) {
-            return Result{
-                .id = request.id,
-                .text = "Error: insufficient KV cache capacity",
-                .tokens = &.{},
-                .finish_reason = .error_,
-                .prompt_tokens = 0,
-                .completion_tokens = 0,
-                .latency_ms = 0,
-                .ttft_ms = 0,
-                .tokens_per_second = 0,
-            };
+            return makeErrorResult(request.id, "Error: insufficient KV cache capacity");
         }
         defer self.kv_cache.free(request.id);
 
@@ -162,23 +235,27 @@ pub const Engine = struct {
             .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
         );
 
-        const end = time_mod.timestampMs();
-        const latency: f32 = @floatFromInt(end - start);
+        const end = time_mod.timestampNs();
+        const elapsed_ns = end - start;
+        const latency = elapsedNsToMs(elapsed_ns);
         const token_count: u32 = @intCast(@min(response_text.len / 4, std.math.maxInt(u32)));
 
-        self.total_requests += 1;
-        self.total_tokens += token_count;
+        _ = self.total_requests.fetchAdd(1, .acq_rel);
+        _ = self.total_tokens.fetchAdd(token_count, .acq_rel);
+        _ = self.total_elapsed_ns.fetchAdd(elapsed_ns, .acq_rel);
 
         return Result{
             .id = request.id,
             .text = response_text,
+            .text_owned = true,
             .tokens = &.{},
+            .tokens_owned = false,
             .finish_reason = .stop,
             .prompt_tokens = @intCast(@min(request.prompt.len, std.math.maxInt(u32))),
             .completion_tokens = token_count,
             .latency_ms = latency,
             .ttft_ms = latency,
-            .tokens_per_second = if (latency > 0) @as(f32, @floatFromInt(token_count)) / (latency / 1000.0) else 0,
+            .tokens_per_second = tokensPerSecond(token_count, elapsed_ns),
         };
     }
 
@@ -201,21 +278,11 @@ pub const Engine = struct {
 
     /// Demo generation: synthetic text seeded from input prompts.
     fn generateDemo(self: *Self, request: scheduler_mod.Request) !Result {
-        const start = time_mod.timestampMs();
+        const start = time_mod.timestampNs();
 
         const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
         if (!cache_ok) {
-            return Result{
-                .id = request.id,
-                .text = "Error: insufficient KV cache capacity",
-                .tokens = &.{},
-                .finish_reason = .error_,
-                .prompt_tokens = 0,
-                .completion_tokens = 0,
-                .latency_ms = 0,
-                .ttft_ms = 0,
-                .tokens_per_second = 0,
-            };
+            return makeErrorResult(request.id, "Error: insufficient KV cache capacity");
         }
         defer self.kv_cache.free(request.id);
 
@@ -286,20 +353,21 @@ pub const Engine = struct {
             }
         }
 
-        const end = time_mod.timestampMs();
-        const latency: f32 = @floatFromInt(end - start);
-        const tps: f32 = if (latency > 0)
-            @as(f32, @floatFromInt(actual_count)) / (latency / 1000.0)
-        else
-            0;
+        const end = time_mod.timestampNs();
+        const elapsed_ns = end - start;
+        const latency = elapsedNsToMs(elapsed_ns);
+        const tps = tokensPerSecond(actual_count, elapsed_ns);
 
-        self.total_requests += 1;
-        self.total_tokens += actual_count;
+        _ = self.total_requests.fetchAdd(1, .acq_rel);
+        _ = self.total_tokens.fetchAdd(actual_count, .acq_rel);
+        _ = self.total_elapsed_ns.fetchAdd(elapsed_ns, .acq_rel);
 
         return Result{
             .id = request.id,
             .text = text_buf,
+            .text_owned = true,
             .tokens = tokens,
+            .tokens_owned = true,
             .finish_reason = finish_reason,
             .prompt_tokens = @intCast(@min(request.prompt.len, std.math.maxInt(u32))),
             .completion_tokens = actual_count,
@@ -313,15 +381,93 @@ pub const Engine = struct {
         return self.scheduler.submit(request);
     }
 
+    pub const AsyncCallback = *const fn (Result) void;
+
+    fn beginAsyncJob(self: *Self) !void {
+        self.async_mu.lock();
+        defer self.async_mu.unlock();
+        if (self.closing_async) return error.ShutdownInProgress;
+        self.in_flight_async += 1;
+    }
+
+    fn finishAsyncJob(self: *Self) void {
+        self.async_mu.lock();
+        defer self.async_mu.unlock();
+        std.debug.assert(self.in_flight_async > 0);
+        self.in_flight_async -= 1;
+    }
+
+    /// Generate a response asynchronously on a separate thread, invoking a callback upon completion.
+    /// This prevents blocking the main execution thread during long inference passes.
+    pub fn generateAsync(self: *Self, request: scheduler_mod.Request, callback: AsyncCallback) !void {
+        try self.beginAsyncJob();
+        errdefer self.finishAsyncJob();
+
+        const prompt_copy = try self.allocator.dupe(u8, request.prompt);
+        errdefer self.allocator.free(prompt_copy);
+
+        const profile_copy = try self.allocator.dupe(u8, request.profile);
+        errdefer self.allocator.free(profile_copy);
+
+        const AsyncContext = struct {
+            engine: *Self,
+            request: scheduler_mod.Request,
+            callback: AsyncCallback,
+
+            fn run(ctx: @This()) void {
+                defer ctx.engine.finishAsyncJob();
+                defer ctx.engine.allocator.free(ctx.request.profile);
+                defer ctx.engine.allocator.free(ctx.request.prompt);
+
+                var res = ctx.engine.generate(ctx.request) catch makeErrorResult(ctx.request.id, "Error: internal generation error");
+                defer res.deinit(ctx.engine.allocator);
+                ctx.callback(res);
+            }
+        };
+
+        const ctx = AsyncContext{
+            .engine = self,
+            .request = .{
+                .id = request.id,
+                .prompt = prompt_copy,
+                .max_tokens = request.max_tokens,
+                .temperature = request.temperature,
+                .top_p = request.top_p,
+                .top_k = request.top_k,
+                .profile = profile_copy,
+                .priority = request.priority,
+                .created_at = request.created_at,
+                .stream = request.stream,
+            },
+            .callback = callback,
+        };
+
+        const thread = try std.Thread.spawn(.{}, AsyncContext.run, .{ctx});
+        thread.detach();
+    }
+
+    fn isClosing(self: *Self) bool {
+        self.async_mu.lock();
+        defer self.async_mu.unlock();
+        return self.closing_async;
+    }
+
+    /// Return a snapshot of engine statistics. Safe to call from any thread
+    /// without holding any lock — counters are read with acquire ordering.
     pub fn getStats(self: *const Self) Stats {
-        const avg_tps: f32 = if (self.total_requests > 0)
-            @as(f32, @floatFromInt(self.total_tokens)) / @as(f32, @floatFromInt(self.total_requests))
+        const reqs = self.total_requests.load(.acquire);
+        const toks = self.total_tokens.load(.acquire);
+        const ns = self.total_elapsed_ns.load(.acquire);
+
+        const avg_tps: f32 = if (ns > 0)
+            @as(f32, @floatFromInt(toks)) * @as(f32, @floatFromInt(std.time.ns_per_s)) /
+                @as(f32, @floatFromInt(ns))
         else
             0;
 
         return .{
-            .total_requests = self.total_requests,
-            .total_tokens_generated = self.total_tokens,
+            .total_requests = reqs,
+            .total_tokens_generated = toks,
             .active_sequences = @intCast(self.kv_cache.activeSequences()),
             .cache_utilization = self.kv_cache.getUtilization(),
             .pending_requests = @intCast(self.scheduler.pendingCount()),
@@ -372,8 +518,7 @@ test "engine generate demo" {
         .top_p = 0.9,
         .top_k = 40,
     });
-    defer allocator.free(result.tokens);
-    defer allocator.free(result.text);
+    defer result.deinit(allocator);
 
     try std.testing.expect(result.completion_tokens > 0);
     try std.testing.expect(result.text.len > 0);
@@ -400,7 +545,7 @@ test "engine connector backend" {
         .prompt = "Explain HNSW",
         .max_tokens = 10,
     });
-    defer allocator.free(result.text);
+    defer result.deinit(allocator);
 
     try std.testing.expect(result.text.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, result.text, "test-model") != null);
@@ -423,4 +568,78 @@ test "engine submit to scheduler" {
     const ok = try engine.submit(.{ .id = 1, .prompt = "test", .priority = 100 });
     try std.testing.expect(ok);
     try std.testing.expectEqual(@as(u32, 1), engine.getStats().pending_requests);
+}
+
+const AsyncPromptHelper = struct {
+    var done: std.atomic.Value(bool) = .{ .raw = false };
+    var result_id: std.atomic.Value(u64) = .{ .raw = 0 };
+    var text_len: std.atomic.Value(usize) = .{ .raw = 0 };
+
+    fn cb(res: Result) void {
+        result_id.store(res.id, .release);
+        text_len.store(res.text.len, .release);
+        done.store(true, .release);
+    }
+};
+
+test "engine generate async clones request prompt" {
+    const allocator = std.testing.allocator;
+
+    var engine = try Engine.init(allocator, .{
+        .kv_cache_pages = 100,
+        .page_size = 16,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+        .max_batch_size = 4,
+        .vocab_size = 256,
+    });
+    defer engine.deinit();
+
+    AsyncPromptHelper.done.store(false, .release);
+    AsyncPromptHelper.result_id.store(0, .release);
+    AsyncPromptHelper.text_len.store(0, .release);
+
+    const prompt = try allocator.dupe(u8, "async prompt lifetime regression");
+    try engine.generateAsync(.{
+        .id = 42,
+        .prompt = prompt,
+        .max_tokens = 12,
+        .priority = 100,
+    }, AsyncPromptHelper.cb);
+    allocator.free(prompt);
+
+    var noise = try allocator.alloc(u8, 4096);
+    defer allocator.free(noise);
+    @memset(noise, 0xaa);
+
+    var spins: usize = 0;
+    while (!AsyncPromptHelper.done.load(.acquire) and spins < 5000) : (spins += 1) {
+        time_mod.sleepMs(1);
+    }
+
+    try std.testing.expect(AsyncPromptHelper.done.load(.acquire));
+    try std.testing.expectEqual(@as(u64, 42), AsyncPromptHelper.result_id.load(.acquire));
+    try std.testing.expect(AsyncPromptHelper.text_len.load(.acquire) > 0);
+}
+
+test "engine average throughput uses elapsed time" {
+    const allocator = std.testing.allocator;
+
+    var engine = try Engine.init(allocator, .{
+        .kv_cache_pages = 10,
+        .page_size = 16,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+        .max_batch_size = 2,
+    });
+    defer engine.deinit();
+
+    engine.total_requests.store(3, .release);
+    engine.total_tokens.store(300, .release);
+    engine.total_elapsed_ns.store(2 * std.time.ns_per_s, .release);
+
+    const stats = engine.getStats();
+    try std.testing.expectApproxEqAbs(@as(f32, 150.0), stats.avg_tokens_per_second, 0.001);
 }
