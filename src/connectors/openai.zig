@@ -27,15 +27,9 @@ const async_http = @import("../foundation/mod.zig").utils.async_http;
 const json_utils = @import("../foundation/mod.zig").utils.json;
 
 /// Errors that can occur when interacting with the OpenAI API.
-pub const OpenAIError = error{
-    /// API key was not provided via environment variable.
+/// Superset of shared.ProviderError with OpenAI-specific additions.
+pub const OpenAIError = shared.ProviderError || error{
     MissingApiKey,
-    /// The API request failed (network error or non-2xx status).
-    ApiRequestFailed,
-    /// The API response could not be parsed.
-    InvalidResponse,
-    /// Rate limit exceeded (HTTP 429). Retry after backoff.
-    RateLimitExceeded,
 };
 
 pub const Config = struct {

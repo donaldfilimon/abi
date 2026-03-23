@@ -55,7 +55,6 @@ pub const PersonaInstance = struct {
                         .persona = .abbey,
                         .content = result.content,
                         .confidence = result.confidence.score,
-                        .reasoning = result.reasoning_summary,
                         .allocator = self.allocator,
                     };
                 }

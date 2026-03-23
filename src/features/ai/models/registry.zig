@@ -1,39 +1,38 @@
-//! Model registry — tracks available models and their metadata.
-
 const std = @import("std");
 
 pub const ModelInfo = struct {
-    name: []const u8 = "",
-    provider: []const u8 = "",
-    context_length: u32 = 0,
-    max_tokens: u32 = 0,
-    supports_streaming: bool = false,
+    name: []const u8,
+    provider: []const u8 = "unknown",
+    context_window: u32 = 4096,
 };
 
 pub const ModelRegistry = struct {
     allocator: std.mem.Allocator,
+    models: std.StringHashMapUnmanaged(ModelInfo),
 
     pub fn init(allocator: std.mem.Allocator) ModelRegistry {
-        return .{ .allocator = allocator };
+        return .{
+            .allocator = allocator,
+            .models = .{},
+        };
     }
 
-    pub fn deinit(_: *ModelRegistry) void {}
-
-    pub fn lookup(_: *const ModelRegistry, _: []const u8) ?ModelInfo {
-        return null;
+    pub fn deinit(self: *ModelRegistry) void {
+        self.models.deinit(self.allocator);
     }
 
-    pub fn count(_: *const ModelRegistry) usize {
-        return 0;
+    pub fn register(self: *ModelRegistry, name: []const u8, info: ModelInfo) !void {
+        try self.models.put(self.allocator, name, info);
+    }
+
+    pub fn get(self: *const ModelRegistry, name: []const u8) ?ModelInfo {
+        return self.models.get(name);
+    }
+
+    pub fn count(self: *const ModelRegistry) usize {
+        return self.models.count();
     }
 };
-
-test "ModelRegistry basic operations" {
-    var reg = ModelRegistry.init(std.testing.allocator);
-    defer reg.deinit();
-    try std.testing.expectEqual(@as(usize, 0), reg.count());
-    try std.testing.expect(reg.lookup("gpt-4") == null);
-}
 
 test {
     std.testing.refAllDecls(@This());

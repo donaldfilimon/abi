@@ -27,13 +27,24 @@ pub const PersonaBus = struct {
 
     const Inbox = struct {
         buffer: [max_inbox_size]PersonaMessage = undefined,
-        len: usize = 0,
+        head: usize = 0,
+        tail: usize = 0,
+        count: usize = 0,
         mutex: foundation.sync.Mutex = .{},
 
         fn append(self: *Inbox, msg: PersonaMessage) error{Overflow}!void {
-            if (self.len >= max_inbox_size) return error.Overflow;
-            self.buffer[self.len] = msg;
-            self.len += 1;
+            if (self.count >= max_inbox_size) return error.Overflow;
+            self.buffer[self.tail] = msg;
+            self.tail = (self.tail + 1) % max_inbox_size;
+            self.count += 1;
+        }
+
+        fn pop(self: *Inbox) ?PersonaMessage {
+            if (self.count == 0) return null;
+            const msg = self.buffer[self.head];
+            self.head = (self.head + 1) % max_inbox_size;
+            self.count -= 1;
+            return msg;
         }
     };
 
@@ -79,16 +90,7 @@ pub const PersonaBus = struct {
         inbox.mutex.lock();
         defer inbox.mutex.unlock();
 
-        if (inbox.len == 0) return null;
-
-        // Remove from front (shift)
-        const msg = inbox.buffer[0];
-        // Shift remaining messages left
-        for (1..inbox.len) |i| {
-            inbox.buffer[i - 1] = inbox.buffer[i];
-        }
-        inbox.len -= 1;
-        return msg;
+        return inbox.pop();
     }
 
     /// Check if a persona has pending messages.
@@ -96,7 +98,7 @@ pub const PersonaBus = struct {
         var inbox = self.inboxes.getPtr(id);
         inbox.mutex.lock();
         defer inbox.mutex.unlock();
-        return inbox.len > 0;
+        return inbox.count > 0;
     }
 
     /// Get count of pending messages for a persona.
@@ -104,7 +106,7 @@ pub const PersonaBus = struct {
         var inbox = self.inboxes.getPtr(id);
         inbox.mutex.lock();
         defer inbox.mutex.unlock();
-        return inbox.len;
+        return inbox.count;
     }
 
     /// Clear all inboxes.
@@ -113,7 +115,9 @@ pub const PersonaBus = struct {
             var inbox = self.inboxes.getPtr(id);
             inbox.mutex.lock();
             defer inbox.mutex.unlock();
-            inbox.len = 0;
+            inbox.head = 0;
+            inbox.tail = 0;
+            inbox.count = 0;
         }
     }
 
@@ -170,6 +174,48 @@ test "persona bus empty receive" {
 
     const received = bus.receive(.abbey);
     try std.testing.expect(received == null);
+}
+
+test "persona bus FIFO ordering with wrap-around" {
+    var bus = PersonaBus.init(std.testing.allocator);
+    defer bus.deinit();
+
+    const capacity = PersonaBus.max_inbox_size;
+
+    // Fill the queue to capacity
+    for (0..capacity) |i| {
+        const conf: f32 = @floatFromInt(i);
+        const msg = PersonaBus.createMessage(.abbey, .aviva, .request, "msg", conf / 100.0);
+        try bus.send(msg);
+    }
+    try std.testing.expectEqual(capacity, bus.pendingCount(.aviva));
+
+    // Drain half — verifying FIFO order
+    for (0..capacity / 2) |i| {
+        const received = bus.receive(.aviva);
+        try std.testing.expect(received != null);
+        const expected: f32 = @floatFromInt(i);
+        try std.testing.expectEqual(expected / 100.0, received.?.confidence);
+    }
+    try std.testing.expectEqual(capacity / 2, bus.pendingCount(.aviva));
+
+    // Refill the freed slots (this wraps the tail around)
+    for (0..capacity / 2) |i| {
+        const conf: f32 = @floatFromInt(capacity + i);
+        const msg = PersonaBus.createMessage(.abbey, .aviva, .response, "wrap", conf / 100.0);
+        try bus.send(msg);
+    }
+    try std.testing.expectEqual(capacity, bus.pendingCount(.aviva));
+
+    // Drain all — verify complete FIFO order across the wrap boundary
+    for (0..capacity) |i| {
+        const received = bus.receive(.aviva);
+        try std.testing.expect(received != null);
+        const expected: f32 = @floatFromInt(capacity / 2 + i);
+        try std.testing.expectEqual(expected / 100.0, received.?.confidence);
+    }
+    try std.testing.expectEqual(@as(usize, 0), bus.pendingCount(.aviva));
+    try std.testing.expect(bus.receive(.aviva) == null);
 }
 
 test {
