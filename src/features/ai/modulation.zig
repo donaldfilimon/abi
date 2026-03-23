@@ -116,16 +116,35 @@ pub const AdaptiveModulator = struct {
     }
 
     /// Modulate a routing score based on user preference history.
+    ///
+    /// Copies all needed profile data under the lock, then releases the mutex
+    /// before computing the modulated score. This avoids holding the lock
+    /// during arithmetic and prevents TOCTOU races if the profile is mutated
+    /// concurrently by recordInteraction().
     pub fn modulate(
         self: *Self,
         session_id: []const u8,
         profile_type: types.ProfileType,
         original_score: f32,
     ) ModulationResult {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        // Snapshot profile data and calibration stats under the lock.
+        const snapshot = blk: {
+            self.mutex.lock();
+            defer self.mutex.unlock();
 
-        const user_profile = self.profiles.get(session_id) orelse {
+            const user_profile = self.profiles.get(session_id) orelse {
+                break :blk null;
+            };
+
+            break :blk .{
+                .total_interactions = user_profile.total_interactions,
+                .pref = user_profile.getPreference(profile_type),
+                .cal_hits = self.calibration_hits,
+                .cal_total = self.calibration_total,
+            };
+        };
+
+        const snap = snapshot orelse {
             return .{
                 .original_score = original_score,
                 .modulated_score = original_score,
@@ -136,7 +155,7 @@ pub const AdaptiveModulator = struct {
         };
 
         // Check if we have enough history
-        if (user_profile.total_interactions < self.config.min_interactions) {
+        if (snap.total_interactions < self.config.min_interactions) {
             return .{
                 .original_score = original_score,
                 .modulated_score = original_score,
@@ -146,17 +165,14 @@ pub const AdaptiveModulator = struct {
             };
         }
 
-        const pref = user_profile.getPreference(profile_type);
+        // Compute preference bias from the copied value
+        const preference_bias = (snap.pref.score - 0.5) * self.config.preference_weight;
 
-        // Compute preference bias
-        const preference_bias = (pref.score - 0.5) * self.config.preference_weight;
-
-        // Compute calibration adjustment
+        // Compute calibration adjustment from copied stats
         var calibration_adj: f32 = 0.0;
-        if (self.config.enable_calibration and self.calibration_total > 0) {
-            const hit_rate = @as(f32, @floatFromInt(self.calibration_hits)) /
-                @as(f32, @floatFromInt(self.calibration_total));
-            // Adjust scores toward calibrated hit rate
+        if (self.config.enable_calibration and snap.cal_total > 0) {
+            const hit_rate = @as(f32, @floatFromInt(snap.cal_hits)) /
+                @as(f32, @floatFromInt(snap.cal_total));
             calibration_adj = (hit_rate - 0.5) * 0.1;
         }
 
@@ -303,6 +319,41 @@ test "AdaptiveModulator calibration" {
 
     const accuracy = modulator.calibrationAccuracy();
     try std.testing.expectApproxEqAbs(@as(f32, 0.6667), accuracy, 0.01);
+}
+
+test "AdaptiveModulator modulate returns copied data not references" {
+    const allocator = std.testing.allocator;
+    var modulator = try AdaptiveModulator.init(allocator, .{
+        .min_interactions = 2,
+        .ema_alpha = 0.5,
+        .preference_weight = 0.3,
+    });
+    defer modulator.deinit();
+
+    // Build up enough history to activate modulation
+    var i: u32 = 0;
+    while (i < 5) : (i += 1) {
+        try modulator.recordInteraction("snap-user", .abbey, true);
+    }
+
+    // Take a modulation result (snapshot captured under lock, computed after release)
+    const result1 = modulator.modulate("snap-user", .abbey, 0.6);
+    try std.testing.expect(result1.modulation_active);
+
+    // Mutate the profile after the first modulate call
+    try modulator.recordInteraction("snap-user", .abbey, false);
+    try modulator.recordInteraction("snap-user", .abbey, false);
+    try modulator.recordInteraction("snap-user", .abbey, false);
+
+    // Take a second snapshot — should reflect the new (lower) preference
+    const result2 = modulator.modulate("snap-user", .abbey, 0.6);
+    try std.testing.expect(result2.modulation_active);
+
+    // The first result must be unchanged (it was computed from a value copy)
+    try std.testing.expectApproxEqAbs(result1.modulated_score, result1.modulated_score, 0.001);
+
+    // The second result should differ because the profile changed
+    try std.testing.expect(result2.preference_bias < result1.preference_bias);
 }
 
 test {
