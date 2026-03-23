@@ -288,6 +288,50 @@ pub fn tryLoadLlamaCpp(allocator: std.mem.Allocator) !?llama_cpp.Config {
     return llama_cpp.loadFromEnv(allocator) catch null;
 }
 
+pub const ProviderInfo = struct {
+    name: []const u8,
+    display_name: []const u8,
+    env_key: []const u8,
+    base_url: []const u8,
+    is_alias: bool,
+};
+
+pub const ProviderRegistry = struct {
+    pub const providers: [16]ProviderInfo = .{
+        .{ .name = "openai", .display_name = "OpenAI", .env_key = "OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = false },
+        .{ .name = "anthropic", .display_name = "Anthropic", .env_key = "ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = false },
+        .{ .name = "claude", .display_name = "Claude", .env_key = "ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = true },
+        .{ .name = "codex", .display_name = "Codex", .env_key = "OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
+        .{ .name = "opencode", .display_name = "OpenCode", .env_key = "ABI_OPENCODE_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
+        .{ .name = "gemini", .display_name = "Google Gemini", .env_key = "GEMINI_API_KEY", .base_url = "https://generativelanguage.googleapis.com/v1beta", .is_alias = false },
+        .{ .name = "huggingface", .display_name = "HuggingFace", .env_key = "HF_API_TOKEN", .base_url = "https://api-inference.huggingface.co", .is_alias = false },
+        .{ .name = "ollama", .display_name = "Ollama", .env_key = "OLLAMA_HOST", .base_url = "http://127.0.0.1:11434", .is_alias = false },
+        .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
+        .{ .name = "mistral", .display_name = "Mistral AI", .env_key = "MISTRAL_API_KEY", .base_url = "https://api.mistral.ai/v1", .is_alias = false },
+        .{ .name = "cohere", .display_name = "Cohere", .env_key = "COHERE_API_KEY", .base_url = "https://api.cohere.ai/v1", .is_alias = false },
+        .{ .name = "lm_studio", .display_name = "LM Studio", .env_key = "ABI_LM_STUDIO_HOST", .base_url = "http://localhost:1234", .is_alias = false },
+        .{ .name = "vllm", .display_name = "vLLM", .env_key = "VLLM_HOST", .base_url = "http://localhost:8000", .is_alias = false },
+        .{ .name = "mlx", .display_name = "MLX", .env_key = "MLX_HOST", .base_url = "http://localhost:8080", .is_alias = false },
+        .{ .name = "llama_cpp", .display_name = "llama.cpp", .env_key = "LLAMA_CPP_HOST", .base_url = "http://localhost:8080", .is_alias = false },
+        .{ .name = "discord", .display_name = "Discord", .env_key = "DISCORD_BOT_TOKEN", .base_url = "https://discord.com/api/v10", .is_alias = false },
+    };
+
+    pub fn listAll() []const ProviderInfo {
+        return &providers;
+    }
+
+    pub fn listAvailable() []const ProviderInfo {
+        return &providers;
+    }
+
+    pub fn getByName(name: []const u8) ?ProviderInfo {
+        for (providers) |p| {
+            if (std.mem.eql(u8, p.name, name)) return p;
+        }
+        return null;
+    }
+};
+
 test "connectors init toggles state" {
     try init(std.testing.allocator);
     try std.testing.expect(isInitialized());
@@ -321,6 +365,45 @@ test "AuthHeader.header returns HTTP header" {
 
 test "isEnabled always returns true" {
     try std.testing.expect(isEnabled());
+}
+
+test "ProviderRegistry.listAll returns 16 providers" {
+    const all = ProviderRegistry.listAll();
+    try std.testing.expectEqual(@as(usize, 16), all.len);
+}
+
+test "ProviderRegistry.getByName finds openai" {
+    const info = ProviderRegistry.getByName("openai");
+    try std.testing.expect(info != null);
+    try std.testing.expectEqualStrings("OpenAI", info.?.display_name);
+    try std.testing.expectEqualStrings("OPENAI_API_KEY", info.?.env_key);
+    try std.testing.expect(!info.?.is_alias);
+}
+
+test "ProviderRegistry.getByName finds anthropic" {
+    const info = ProviderRegistry.getByName("anthropic");
+    try std.testing.expect(info != null);
+    try std.testing.expectEqualStrings("Anthropic", info.?.display_name);
+}
+
+test "ProviderRegistry.getByName returns null for nonexistent" {
+    const info = ProviderRegistry.getByName("nonexistent");
+    try std.testing.expect(info == null);
+}
+
+test "ProviderRegistry.getByName identifies aliases" {
+    const claude_info = ProviderRegistry.getByName("claude");
+    try std.testing.expect(claude_info != null);
+    try std.testing.expect(claude_info.?.is_alias);
+
+    const codex_info = ProviderRegistry.getByName("codex");
+    try std.testing.expect(codex_info != null);
+    try std.testing.expect(codex_info.?.is_alias);
+}
+
+test "ProviderRegistry.listAvailable returns all providers" {
+    const available = ProviderRegistry.listAvailable();
+    try std.testing.expectEqual(@as(usize, 16), available.len);
 }
 
 test {
