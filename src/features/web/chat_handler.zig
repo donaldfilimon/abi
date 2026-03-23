@@ -27,7 +27,7 @@ fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std
 const build_options = @import("build_options");
 const ai_mod = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
 const profiles = ai_mod.profiles;
-const types = @import("../ai/types.zig");
+const types = ai_mod.types;
 
 /// Chat request from client.
 pub const ChatRequest = struct {

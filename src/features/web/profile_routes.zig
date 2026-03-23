@@ -12,9 +12,11 @@
 //! - GET  /api/v1/profiles/health   - Health check
 
 const std = @import("std");
+const build_options = @import("build_options");
 const chat = @import("chat_handler.zig");
-const types = @import("../ai/types.zig");
-const health = @import("../ai/health.zig");
+const ai_mod = if (build_options.feat_ai) @import("../ai/mod.zig") else @import("../ai/stub.zig");
+const types = ai_mod.types;
+const health = ai_mod.health;
 const time = @import("../../foundation/mod.zig").time;
 
 /// HTTP method.

@@ -131,7 +131,7 @@ pub const HealthChecker = struct {
             .load_balancer = null,
             .history = .{},
             .last_results = .{},
-            .custom_checks = .{},
+            .custom_checks = .empty,
             .mutex = .{},
         };
     }
@@ -169,7 +169,7 @@ pub const HealthChecker = struct {
         defer self.mutex.unlock();
 
         if (!self.history.contains(profile_type)) {
-            try self.history.put(self.allocator, profile_type, .{});
+            try self.history.put(self.allocator, profile_type, .empty);
         }
     }
 

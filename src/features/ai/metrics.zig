@@ -68,7 +68,7 @@ pub const LatencyWindow = struct {
     pub fn init(allocator: std.mem.Allocator, max_samples: usize) Self {
         return .{
             .allocator = allocator,
-            .samples = .{},
+            .samples = .empty,
             .max_samples = max_samples,
         };
     }

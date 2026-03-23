@@ -7,7 +7,6 @@
 //! Storage format uses unified storage wal_entry block type (0x05).
 
 const std = @import("std");
-const foundation_time = @import("../../../foundation/time.zig");
 const SerializationCursor = @import("../../../foundation/utils/binary.zig").SerializationCursor;
 
 // ============================================================================
@@ -164,7 +163,7 @@ pub const WalWriter = struct {
         self.dirty = false;
 
         // Set creation timestamp
-        self.header.created_at = foundation_time.unixSeconds();
+        self.header.created_at = wallClockUnixSeconds();
 
         return self;
     }
@@ -524,8 +523,25 @@ pub const ReplicationState = struct {
 // Helpers
 // ============================================================================
 
+fn wallClockUnixSeconds() i64 {
+    var ts: std.c.timespec = undefined;
+    if (std.c.clock_gettime(.REALTIME, &ts) != 0) return 0;
+    return @intCast(ts.sec);
+}
+
 fn currentTimestamp() i64 {
-    return foundation_time.unixSeconds();
+    return wallClockUnixSeconds();
+}
+
+fn testRealtimeUnixSeconds() i64 {
+    var ts: std.c.timespec = undefined;
+    if (std.c.clock_gettime(.REALTIME, &ts) != 0) return 0;
+    return @intCast(ts.sec);
+}
+
+fn expectTimestampInRange(actual: i64, min_expected: i64, max_expected: i64) !void {
+    try std.testing.expect(actual >= min_expected - 2);
+    try std.testing.expect(actual <= max_expected + 2);
 }
 
 // ============================================================================
@@ -572,6 +588,22 @@ test "WalWriter entriesSince" {
     try std.testing.expectEqual(@as(usize, 2), since.len);
 }
 
+test "WalWriter timestamps use wall-clock seconds" {
+    const allocator = std.testing.allocator;
+    const before_init = testRealtimeUnixSeconds();
+    var wal_writer = WalWriter.init(allocator, "/tmp/test.wal", 42);
+    defer wal_writer.deinit();
+    const after_init = testRealtimeUnixSeconds();
+
+    const before_append = testRealtimeUnixSeconds();
+    try wal_writer.appendInsert(100, 3, &[_]f32{ 1.0, 2.0, 3.0 });
+    const after_append = testRealtimeUnixSeconds();
+
+    try std.testing.expectEqual(@as(usize, 1), wal_writer.entries.items.len);
+    try expectTimestampInRange(wal_writer.header.created_at, before_init, after_init);
+    try expectTimestampInRange(wal_writer.entries.items[0].timestamp, before_append, after_append);
+}
+
 test "WalWriter serialize/deserialize round-trip" {
     const allocator = std.testing.allocator;
     var wal_writer = WalWriter.init(allocator, "/tmp/test.wal", 42);
@@ -579,6 +611,9 @@ test "WalWriter serialize/deserialize round-trip" {
 
     try wal_writer.appendInsert(100, 3, &[_]f32{ 1.0, 2.0, 3.0 });
     try wal_writer.appendInsert(101, 3, &[_]f32{ 4.0, 5.0, 6.0 });
+    const created_at = wal_writer.header.created_at;
+    const first_timestamp = wal_writer.entries.items[0].timestamp;
+    const second_timestamp = wal_writer.entries.items[1].timestamp;
 
     const serialized = try wal_writer.serialize(allocator);
     defer allocator.free(serialized);
@@ -592,7 +627,10 @@ test "WalWriter serialize/deserialize round-trip" {
     try std.testing.expectEqual(@as(u64, 42), wal2.header.node_id);
     try std.testing.expectEqual(@as(u64, 2), wal2.header.entry_count);
     try std.testing.expectEqual(@as(u64, 2), wal2.lastSequence());
+    try std.testing.expectEqual(created_at, wal2.header.created_at);
     try std.testing.expectEqual(@as(usize, 2), wal2.entries.items.len);
+    try std.testing.expectEqual(first_timestamp, wal2.entries.items[0].timestamp);
+    try std.testing.expectEqual(second_timestamp, wal2.entries.items[1].timestamp);
     try std.testing.expectEqual(@as(u64, 100), wal2.entries.items[0].vector_id);
     try std.testing.expectEqual(@as(u64, 101), wal2.entries.items[1].vector_id);
 }
