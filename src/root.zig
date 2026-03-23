@@ -35,6 +35,8 @@ pub const platform = @import("platform/mod.zig");
 pub const connectors = @import("connectors/mod.zig");
 /// Shared CLI helpers for command dispatch and serve parsing.
 pub const cli = @import("cli.zig");
+/// C-ABI FFI endpoints for linking as a static library (libabi.a).
+pub const ffi = @import("ffi.zig");
 /// Task management: async job queues, scheduling, progress tracking.
 pub const tasks = @import("tasks/mod.zig");
 /// Model Context Protocol (MCP) server and client implementation.
