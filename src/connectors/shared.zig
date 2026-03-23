@@ -59,6 +59,32 @@ pub const ConnectorError = error{
     OutOfMemory,
 };
 
+/// Unified error set for all provider connectors.
+/// Provider-specific error sets should be a superset of this base set.
+/// This allows callers to handle common failure modes without importing
+/// provider-specific types.
+pub const ProviderError = error{
+    MissingAuth,
+    ApiRequestFailed,
+    RateLimitExceeded,
+    InvalidResponse,
+    Timeout,
+    NetworkError,
+    ModelNotFound,
+    FeatureDisabled,
+};
+
+// ============================================================================
+// Provider Info
+// ============================================================================
+
+/// Metadata about a provider connector, used for discovery and availability checks.
+pub const ProviderInfo = struct {
+    name: []const u8,
+    is_available: bool,
+    env_key: []const u8,
+};
+
 // ============================================================================
 // Secure Memory Helpers
 // ============================================================================
@@ -394,6 +420,69 @@ test "envIsSet returns false for nonexistent var" {
 test "anyEnvIsSet returns false for empty list" {
     const empty = [_][]const u8{};
     try std.testing.expect(!anyEnvIsSet(&empty));
+}
+
+test "ProviderError is subset of OpenAI error set" {
+    const openai = @import("openai.zig");
+    // Verify every ProviderError value is present in OpenAIError.
+    // If ProviderError has a value not in OpenAIError, this assignment fails at comptime.
+    const provider_as_openai: openai.OpenAIError = @errorCast(ProviderError.ApiRequestFailed);
+    try std.testing.expectEqual(provider_as_openai, openai.OpenAIError.ApiRequestFailed);
+}
+
+test "ProviderError is subset of Anthropic error set" {
+    const anthropic = @import("anthropic.zig");
+    const provider_as_anthropic: anthropic.AnthropicError = @errorCast(ProviderError.RateLimitExceeded);
+    try std.testing.expectEqual(provider_as_anthropic, anthropic.AnthropicError.RateLimitExceeded);
+}
+
+test "ProviderError is subset of Ollama error set" {
+    const ollama = @import("ollama.zig");
+    const provider_as_ollama: ollama.OllamaError = @errorCast(ProviderError.InvalidResponse);
+    try std.testing.expectEqual(provider_as_ollama, ollama.OllamaError.InvalidResponse);
+}
+
+test "ProviderError contains all expected error cases" {
+    const errors = [_]ProviderError{
+        ProviderError.MissingAuth,
+        ProviderError.ApiRequestFailed,
+        ProviderError.RateLimitExceeded,
+        ProviderError.InvalidResponse,
+        ProviderError.Timeout,
+        ProviderError.NetworkError,
+        ProviderError.ModelNotFound,
+        ProviderError.FeatureDisabled,
+    };
+    try std.testing.expectEqual(@as(usize, 8), errors.len);
+}
+
+test "ProviderInfo can be constructed" {
+    const info = ProviderInfo{
+        .name = "openai",
+        .is_available = true,
+        .env_key = "OPENAI_API_KEY",
+    };
+    try std.testing.expectEqualStrings("openai", info.name);
+    try std.testing.expect(info.is_available);
+    try std.testing.expectEqualStrings("OPENAI_API_KEY", info.env_key);
+}
+
+test "provider error sets are proper supersets of ProviderError" {
+    const openai = @import("openai.zig");
+    const anthropic = @import("anthropic.zig");
+    const ollama = @import("ollama.zig");
+
+    // OpenAI has MissingApiKey beyond ProviderError
+    const oe: openai.OpenAIError = openai.OpenAIError.MissingApiKey;
+    try std.testing.expect(oe == openai.OpenAIError.MissingApiKey);
+
+    // Anthropic has ContentFiltered and MissingApiKey beyond ProviderError
+    const ae: anthropic.AnthropicError = anthropic.AnthropicError.ContentFiltered;
+    try std.testing.expect(ae == anthropic.AnthropicError.ContentFiltered);
+
+    // Ollama has ModelNotAvailable beyond ProviderError
+    const le: ollama.OllamaError = ollama.OllamaError.ModelNotAvailable;
+    try std.testing.expect(le == ollama.OllamaError.ModelNotAvailable);
 }
 
 test {

@@ -10,16 +10,9 @@ const async_http = @import("../foundation/mod.zig").utils.async_http;
 const json_utils = @import("../foundation/mod.zig").utils.json;
 
 /// Errors that can occur when interacting with the Anthropic API.
-pub const AnthropicError = error{
-    /// API key was not provided via environment variable.
+/// Superset of shared.ProviderError with Anthropic-specific additions.
+pub const AnthropicError = shared.ProviderError || error{
     MissingApiKey,
-    /// The API request failed (network error or non-2xx status).
-    ApiRequestFailed,
-    /// The API response could not be parsed.
-    InvalidResponse,
-    /// Rate limit exceeded (HTTP 429). Retry after backoff.
-    RateLimitExceeded,
-    /// Content was filtered by Anthropic's safety systems.
     ContentFiltered,
 };
 
@@ -277,6 +270,53 @@ pub const Client = struct {
         };
     }
 
+    pub fn embeddings(self: *Client, request: EmbeddingRequest) !EmbeddingResponse {
+        const url = try std.fmt.allocPrint(self.allocator, "{s}/embeddings", .{self.config.base_url});
+        defer self.allocator.free(url);
+
+        const json = try self.encodeEmbeddingRequest(request);
+        defer self.allocator.free(json);
+
+        var http_req = try async_http.HttpRequest.init(self.allocator, .post, url);
+        defer http_req.deinit();
+
+        try http_req.setHeader("x-api-key", self.config.api_key);
+        try http_req.setHeader("anthropic-version", "2023-06-01");
+        try http_req.setJsonBody(json);
+
+        var http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
+        defer http_res.deinit();
+
+        if (!http_res.isSuccess()) {
+            if (http_res.status_code == 429) {
+                return AnthropicError.RateLimitExceeded;
+            }
+            return AnthropicError.ApiRequestFailed;
+        }
+
+        return try self.decodeEmbeddingResponse(http_res.body);
+    }
+
+    pub fn embedSingle(self: *Client, text: []const u8) ![]f32 {
+        const texts = [_][]const u8{text};
+        const response = try self.embeddings(.{ .input = &texts });
+        defer {
+            for (response.data) |d| {
+                self.allocator.free(d.embedding);
+                self.allocator.free(d.object);
+            }
+            self.allocator.free(response.data);
+            self.allocator.free(response.object);
+            self.allocator.free(response.model);
+        }
+
+        if (response.data.len == 0) {
+            return AnthropicError.InvalidResponse;
+        }
+
+        return try self.allocator.dupe(f32, response.data[0].embedding);
+    }
+
     /// Get text content from response (combines all text blocks)
     pub fn getResponseText(self: *Client, response: MessagesResponse) ![]u8 {
         var result = std.ArrayListUnmanaged(u8).empty;
@@ -289,6 +329,85 @@ pub const Client = struct {
         }
 
         return result.toOwnedSlice(self.allocator);
+    }
+
+    fn encodeEmbeddingRequest(self: *Client, request: EmbeddingRequest) ![]u8 {
+        var json_str = std.ArrayListUnmanaged(u8).empty;
+        errdefer json_str.deinit(self.allocator);
+
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"input\":[");
+
+        try shared.encodeStringArray(self.allocator, &json_str, request.input);
+
+        try json_str.appendSlice(self.allocator, "],\"input_type\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.input_type);
+        try json_str.appendSlice(self.allocator, "\"}");
+
+        return json_str.toOwnedSlice(self.allocator);
+    }
+
+    fn decodeEmbeddingResponse(self: *Client, json: []const u8) !EmbeddingResponse {
+        const parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            self.allocator,
+            json,
+            .{ .ignore_unknown_fields = true },
+        );
+        defer parsed.deinit();
+
+        const object = try json_utils.getRequiredObject(parsed.value);
+
+        const obj_str = try json_utils.parseStringField(object, "object", self.allocator);
+        errdefer self.allocator.free(obj_str);
+
+        const model = try json_utils.parseStringField(object, "model", self.allocator);
+        errdefer self.allocator.free(model);
+
+        const data_array = try json_utils.parseArrayField(object, "data");
+        var data = try self.allocator.alloc(EmbeddingData, data_array.items.len);
+        var data_filled: usize = 0;
+        errdefer {
+            for (data[0..data_filled]) |d| {
+                self.allocator.free(d.embedding);
+                self.allocator.free(d.object);
+            }
+            self.allocator.free(data);
+        }
+
+        for (data_array.items, 0..) |item, i| {
+            const data_obj = try json_utils.getRequiredObject(item);
+            const d_object = try json_utils.parseStringField(data_obj, "object", self.allocator);
+            errdefer self.allocator.free(d_object);
+
+            const index: u32 = @intCast(try json_utils.parseIntField(data_obj, "index"));
+
+            const emb_array = try json_utils.parseArrayField(data_obj, "embedding");
+            var embedding = try self.allocator.alloc(f32, emb_array.items.len);
+            for (emb_array.items, 0..) |val, j| {
+                embedding[j] = @floatCast(val.float);
+            }
+
+            data[i] = .{
+                .object = d_object,
+                .index = index,
+                .embedding = embedding,
+            };
+            data_filled += 1;
+        }
+
+        const usage_obj = try json_utils.parseObjectField(object, "usage");
+        const usage = EmbeddingUsage{
+            .total_tokens = @intCast(try json_utils.parseIntField(usage_obj, "total_tokens")),
+        };
+
+        return EmbeddingResponse{
+            .object = obj_str,
+            .data = data,
+            .model = model,
+            .usage = usage,
+        };
     }
 };
 
@@ -389,6 +508,28 @@ test "anthropic message encoding" {
     try std.testing.expect(std.mem.indexOf(u8, json, "\"model\":\"claude-3-5-sonnet-20241022\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"max_tokens\":1024") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"role\":\"user\"") != null);
+}
+
+test "anthropic embedding request encoding" {
+    const allocator = std.testing.allocator;
+
+    const config = Config{
+        .api_key = try allocator.dupe(u8, "test-key"),
+        .base_url = try allocator.dupe(u8, "https://api.anthropic.com/v1"),
+    };
+    var client = try Client.init(allocator, config);
+    defer client.deinit();
+
+    const input = [_][]const u8{ "Hello world", "Embed this" };
+    const json = try client.encodeEmbeddingRequest(.{
+        .input = &input,
+    });
+    defer allocator.free(json);
+
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"model\":\"voyage-3\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"Hello world\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"Embed this\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"input_type\":\"document\"") != null);
 }
 
 test "isAvailable returns bool" {

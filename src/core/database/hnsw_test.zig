@@ -132,6 +132,60 @@ test "distance cache basic operations" {
     try std.testing.expect(stats.misses == 1);
 }
 
+test "hnsw default config enables pool and cache" {
+    const allocator = std.testing.allocator;
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 1, .vector = &[_]f32{ 1.0, 0.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 1.0, 0.0 } },
+        .{ .id = 3, .vector = &[_]f32{ 0.0, 0.0, 1.0 } },
+    };
+
+    // Build with default Config — pool and cache should be active
+    var index = try HnswIndex.buildWithConfig(allocator, &records, .{});
+    defer index.deinit(allocator);
+
+    try std.testing.expect(index.state_pool != null);
+    try std.testing.expect(index.distance_cache != null);
+
+    // Verify search works with the default pool
+    const query = [_]f32{ 0.7, 0.7, 0.0 };
+    const results = try index.search(allocator, &records, &query, 2);
+    defer allocator.free(results);
+    try std.testing.expect(results.len > 0);
+}
+
+test "hnsw build() enables pool and cache by default" {
+    const allocator = std.testing.allocator;
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 1, .vector = &[_]f32{ 1.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 1.0 } },
+        .{ .id = 3, .vector = &[_]f32{ 0.7, 0.7 } },
+    };
+
+    var index = try HnswIndex.build(allocator, &records, 16, 100);
+    defer index.deinit(allocator);
+
+    // build() should now use Config defaults (pool_size=8, cache_size=1024)
+    try std.testing.expect(index.state_pool != null);
+    try std.testing.expect(index.distance_cache != null);
+}
+
+test "hnsw adaptive ef scales with dataset size" {
+    const AdaptiveSearchConfig = hnsw.AdaptiveSearchConfig;
+    const config = AdaptiveSearchConfig{};
+
+    const ef_small = config.adaptiveEfForSize(100);
+    const ef_medium = config.adaptiveEfForSize(10_000);
+    const ef_large = config.adaptiveEfForSize(1_000_000);
+
+    // ef should increase with dataset size
+    try std.testing.expect(ef_small <= ef_medium);
+    try std.testing.expect(ef_medium <= ef_large);
+
+    // Large datasets should be capped at max_ef
+    try std.testing.expectEqual(@as(u32, 500), ef_large);
+}
+
 test "hnsw with gpu acceleration config" {
     const allocator = std.testing.allocator;
     const records = [_]index_mod.VectorRecordView{
