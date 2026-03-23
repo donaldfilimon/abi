@@ -144,6 +144,22 @@ test "cli: chat message helper joins tokenized args" {
     try std.testing.expectEqualStrings("Hello, how are you?", message);
 }
 
+test "cli: chat message helper handles single arg" {
+    const single = [_][:0]const u8{"hello"};
+    const message = try cli.joinChatMessage(std.testing.allocator, &single);
+    defer std.testing.allocator.free(message);
+
+    try std.testing.expectEqualStrings("hello", message);
+}
+
+test "cli: chat message helper handles empty args" {
+    const empty: []const [:0]const u8 = &.{};
+    const message = try cli.joinChatMessage(std.testing.allocator, empty);
+    defer std.testing.allocator.free(message);
+
+    try std.testing.expectEqualStrings("", message);
+}
+
 // === App Builder Path ===
 
 test "cli: app version returns non-empty string" {
