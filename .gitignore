@@ -117,8 +117,8 @@ training_data.txt
 *.safetensors
 *.safetensors.index.json
 mlx_model/
-models/
-test-models/
+/models/
+/test-models/
 train.bin
 testingllm.ckpt/
 
