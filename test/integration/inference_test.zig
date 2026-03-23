@@ -102,6 +102,72 @@ test "inference: scheduler accepts and tracks requests" {
     try std.testing.expectEqual(@as(u32, 2), engine.getStats().pending_requests);
 }
 
+test "inference: sampler with deterministic seed produces consistent output" {
+    const Sampler = abi.inference.Sampler;
+    var s1 = Sampler.initWithSeed(.{ .temperature = 1.0 }, 42);
+    var s2 = Sampler.initWithSeed(.{ .temperature = 1.0 }, 42);
+
+    var logits1 = [_]f32{ 1.0, 2.0, 3.0, 0.5, 1.5 };
+    var logits2 = [_]f32{ 1.0, 2.0, 3.0, 0.5, 1.5 };
+
+    const token1 = s1.sample(&logits1);
+    const token2 = s2.sample(&logits2);
+    try std.testing.expectEqual(token1, token2);
+}
+
+test "inference: sampler argmax returns highest logit index" {
+    const Sampler = abi.inference.Sampler;
+    const logits = [_]f32{ 0.1, 0.3, 0.9, 0.2, 0.5 };
+    try std.testing.expectEqual(@as(u32, 2), Sampler.argmax(&logits));
+}
+
+test "inference: sampler handles single-element logits" {
+    const Sampler = abi.inference.Sampler;
+    var s = Sampler.initWithSeed(.{}, 1);
+    var logits = [_]f32{5.0};
+    try std.testing.expectEqual(@as(u32, 0), s.sample(&logits));
+}
+
+test "inference: KV cache allocates and frees pages" {
+    const PagedKVCache = abi.inference.PagedKVCache;
+    var cache = try PagedKVCache.init(std.testing.allocator, .{
+        .num_pages = 4,
+        .page_size = 8,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+    });
+    defer cache.deinit();
+
+    // Allocate pages for a sequence
+    const ok = try cache.allocate(1, 8);
+    try std.testing.expect(ok);
+
+    // Free the sequence — pages should return to pool
+    cache.free(1);
+    try std.testing.expectEqual(@as(usize, 4), cache.free_pages.items.len);
+}
+
+test "inference: KV cache rejects allocation when full" {
+    const PagedKVCache = abi.inference.PagedKVCache;
+    var cache = try PagedKVCache.init(std.testing.allocator, .{
+        .num_pages = 2,
+        .page_size = 4,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 2,
+    });
+    defer cache.deinit();
+
+    // Fill all pages
+    const ok1 = try cache.allocate(1, 8);
+    try std.testing.expect(ok1);
+
+    // No pages left — should return false
+    const ok2 = try cache.allocate(2, 4);
+    try std.testing.expect(!ok2);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

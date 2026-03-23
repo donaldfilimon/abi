@@ -167,6 +167,58 @@ test "pipeline: full component attachment" {
     try std.testing.expect(decision.reason.len > 0);
 }
 
+// ── Edge Cases ───────────────────────────────────────────────────────
+
+test "pipeline: empty message produces valid routing decision" {
+    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    defer registry.deinit();
+
+    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    defer router.deinit();
+
+    const decision = router.route("");
+    // Even empty input must produce a valid decision
+    try std.testing.expect(decision.confidence >= 0.0);
+    try std.testing.expect(decision.confidence <= 1.0);
+    try std.testing.expect(decision.reason.len > 0);
+}
+
+test "pipeline: all routing weights sum to approximately 1.0" {
+    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    defer registry.deinit();
+
+    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    defer router.deinit();
+
+    const decision = router.route("Tell me about machine learning");
+    const sum = decision.weights.abbey + decision.weights.aviva + decision.weights.abi;
+    // Weights should sum to ~1.0 (with floating point tolerance)
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), sum, 0.01);
+}
+
+test "pipeline: each weight is in valid range" {
+    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    defer registry.deinit();
+
+    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    defer router.deinit();
+
+    const queries = [_][]const u8{
+        "Help me debug this",
+        "I'm feeling anxious about my project",
+        "What are the compliance rules?",
+        "",
+        "a",
+    };
+
+    for (queries) |q| {
+        const d = router.route(q);
+        try std.testing.expect(d.weights.abbey >= 0.0 and d.weights.abbey <= 1.0);
+        try std.testing.expect(d.weights.aviva >= 0.0 and d.weights.aviva <= 1.0);
+        try std.testing.expect(d.weights.abi >= 0.0 and d.weights.abi <= 1.0);
+    }
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

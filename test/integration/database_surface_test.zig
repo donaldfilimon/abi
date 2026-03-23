@@ -68,6 +68,36 @@ test "database: public API surface compiles" {
     try std.testing.expectEqual(build_options.feat_database, abi.database.isEnabled());
 }
 
+test "database: Stats type has expected fields" {
+    const Stats = abi.database.Stats;
+    const stats: Stats = .{};
+    try std.testing.expectEqual(@as(usize, 0), stats.count);
+    try std.testing.expectEqual(@as(usize, 0), stats.dimension);
+    try std.testing.expectEqual(@as(usize, 0), stats.memory_bytes);
+}
+
+test "database: DiagnosticsInfo defaults are healthy" {
+    const DiagnosticsInfo = abi.database.DiagnosticsInfo;
+    const info: DiagnosticsInfo = .{};
+    try std.testing.expect(info.isHealthy());
+    try std.testing.expectEqual(@as(f32, 1.0), info.index_health);
+    try std.testing.expectEqual(@as(f32, 1.0), info.norm_cache_health);
+    try std.testing.expect(info.pool_stats == null);
+}
+
+test "database: SearchResult type is accessible" {
+    const SearchResult = abi.database.SearchResult;
+    const result: SearchResult = .{};
+    try std.testing.expectEqual(@as(u64, 0), result.id);
+    try std.testing.expectEqual(@as(f32, 0.0), result.score);
+}
+
+test "database: DatabaseConfig type compiles" {
+    const Config = abi.database.DatabaseConfig;
+    const cfg: Config = .{};
+    _ = cfg;
+}
+
 test "database: boundary forbids direct core database imports" {
     const allocator = std.testing.allocator;
     var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
