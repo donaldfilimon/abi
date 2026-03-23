@@ -119,8 +119,9 @@ const FreeListNode = struct {
     _padding: [CACHE_LINE_SIZE - @sizeOf(std.atomic.Value(u64)) - @sizeOf(u32)]u8 = undefined,
 
     const TAG_BITS: u6 = 16;
-    const TAG_MASK: u64 = (@as(u64, 1) << TAG_BITS) - 1;
-    const PTR_MASK: u64 = ~TAG_MASK;
+    const TAG_SHIFT: u6 = 48;
+    const PTR_MASK: u64 = (@as(u64, 1) << TAG_SHIFT) - 1;
+    const TAG_MASK: u64 = ~PTR_MASK;
 
     fn getPointer(tagged: u64) ?*FreeListNode {
         const ptr_bits = tagged & PTR_MASK;
@@ -129,12 +130,12 @@ const FreeListNode = struct {
     }
 
     fn getTag(tagged: u64) u16 {
-        return @truncate(tagged & TAG_MASK);
+        return @truncate(tagged >> TAG_SHIFT);
     }
 
     fn makeTagged(ptr: ?*FreeListNode, tag: u16) u64 {
         const ptr_bits: u64 = if (ptr) |p| @intFromPtr(p) else 0;
-        return (ptr_bits & PTR_MASK) | @as(u64, tag);
+        return (ptr_bits & PTR_MASK) | (@as(u64, tag) << TAG_SHIFT);
     }
 };
 
