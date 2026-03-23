@@ -26,15 +26,9 @@ const async_http = @import("../foundation/mod.zig").utils.async_http;
 const json_utils = @import("../foundation/mod.zig").utils.json;
 
 /// Errors that can occur when interacting with the Ollama API.
-pub const OllamaError = error{
-    /// The API request failed (network error or non-2xx status).
-    ApiRequestFailed,
-    /// The API response could not be parsed.
-    InvalidResponse,
-    /// The model is not available or still loading.
+/// Superset of shared.ProviderError with Ollama-specific additions.
+pub const OllamaError = shared.ProviderError || error{
     ModelNotAvailable,
-    /// Rate limit exceeded (HTTP 429). Retry after backoff.
-    RateLimitExceeded,
 };
 
 /// Configuration for connecting to an Ollama instance.
