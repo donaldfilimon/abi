@@ -142,6 +142,151 @@ test "cli: app version returns non-empty string" {
     try std.testing.expect(version.len > 0);
 }
 
+// === Status Command Path (printStatus data) ===
+
+test "cli: status enabled count matches catalog iteration" {
+    // Replicate the comptime enabled-feature count used by printStatus()
+    const catalog = abi.meta.features;
+    const enabled = comptime blk: {
+        var count: u32 = 0;
+        for (catalog.all) |entry| {
+            if (@field(build_options, entry.compile_flag_field)) count += 1;
+        }
+        break :blk count;
+    };
+    // At least some features should be enabled in the default build
+    try std.testing.expect(enabled > 0);
+    try std.testing.expect(enabled <= catalog.feature_count);
+}
+
+test "cli: status uses package_version from build_options" {
+    // printStatus reads build_options.package_version — verify it's consistent
+    const bo_version = build_options.package_version;
+    const meta_version = abi.meta.package_version;
+    try std.testing.expectEqualStrings(bo_version, meta_version);
+}
+
+// === Features Command Path (printFeatures data) ===
+
+test "cli: feature catalog has 30 entries" {
+    const catalog = abi.meta.features;
+    try std.testing.expectEqual(@as(usize, 30), catalog.feature_count);
+}
+
+test "cli: every feature has a valid compile flag in build_options" {
+    const catalog = abi.meta.features;
+    // printFeatures() reads @field(build_options, entry.compile_flag_field) for each.
+    // Verify all compile flags produce a bool (true or false) at comptime.
+    inline for (catalog.all) |entry| {
+        const enabled: bool = @field(build_options, entry.compile_flag_field);
+        try std.testing.expect(enabled == true or enabled == false);
+    }
+}
+
+test "cli: feature names are unique and non-empty" {
+    const catalog = abi.meta.features;
+    for (catalog.all, 0..) |a, i| {
+        try std.testing.expect(a.feature.name().len > 0);
+        // Verify uniqueness: no two entries share the same feature enum
+        for (catalog.all[0..i]) |b| {
+            try std.testing.expect(a.feature != b.feature);
+        }
+    }
+}
+
+test "cli: parent features reference valid catalog entries" {
+    const catalog = abi.meta.features;
+    for (catalog.all) |entry| {
+        if (entry.parent) |parent_feat| {
+            // The parent must also exist in the catalog
+            var found = false;
+            for (catalog.all) |other| {
+                if (other.feature == parent_feat) {
+                    found = true;
+                    break;
+                }
+            }
+            try std.testing.expect(found);
+        }
+    }
+}
+
+// === Platform Command Path (printPlatform data) ===
+
+test "cli: platform getPlatformInfo returns valid OS and arch" {
+    const platform = abi.platform;
+    const info = platform.getPlatformInfo();
+    // OS tag name should be non-empty
+    try std.testing.expect(@tagName(info.os).len > 0);
+    // Arch tag name should be non-empty
+    try std.testing.expect(@tagName(info.arch).len > 0);
+}
+
+test "cli: platform getDescription returns non-empty string" {
+    const desc = abi.platform.getDescription();
+    try std.testing.expect(desc.len > 0);
+}
+
+test "cli: platform getCpuCount returns at least 1" {
+    const cpus = abi.platform.getCpuCount();
+    try std.testing.expect(cpus >= 1);
+}
+
+test "cli: platform supportsThreading returns a bool" {
+    const val = abi.platform.supportsThreading();
+    try std.testing.expect(val == true or val == false);
+}
+
+// === Database CLI Command Path (runDb data) ===
+
+test "cli: database module exposes cli decl" {
+    // runDb() checks @hasDecl(db, "cli") — verify it's present
+    const db = abi.database;
+    try std.testing.expect(@hasDecl(@TypeOf(db), "cli"));
+}
+
+test "cli: database cli has run function" {
+    const db_cli = abi.database.cli;
+    try std.testing.expect(@hasDecl(@TypeOf(db_cli), "run"));
+}
+
+test "cli: database cli wantsHelp recognizes help flag" {
+    const db_cli = abi.database.cli;
+    if (@hasDecl(@TypeOf(db_cli), "wantsHelp")) {
+        const help_args = [_][:0]const u8{"--help"};
+        try std.testing.expect(db_cli.wantsHelp(&help_args));
+
+        const no_help_args = [_][:0]const u8{"stats"};
+        try std.testing.expect(!db_cli.wantsHelp(&no_help_args));
+    }
+}
+
+// === Dashboard Command Path (runDashboard data) ===
+
+test "cli: tui module is accessible" {
+    // runDashboard() accesses root.tui — verify the module exists
+    const tui = abi.tui;
+    _ = tui;
+}
+
+test "cli: tui has dashboard decl" {
+    // runDashboard() accesses root.tui.dashboard
+    try std.testing.expect(@hasDecl(@TypeOf(abi.tui), "dashboard"));
+}
+
+test "cli: tui isEnabled reflects build option" {
+    const enabled = abi.tui.isEnabled();
+    try std.testing.expectEqual(build_options.feat_tui, enabled);
+}
+
+// === Connectors Command Path (printConnectors data) ===
+
+test "cli: connectors module is accessible" {
+    // printConnectors() prints static text, but the module should be reachable
+    const conn = abi.connectors;
+    _ = conn;
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

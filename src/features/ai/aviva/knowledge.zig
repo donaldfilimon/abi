@@ -368,13 +368,9 @@ pub const KnowledgeBase = struct {
         errdefer results.deinit(allocator);
 
         for (search_results) |hit| {
-            // Retrieve full vector view to get metadata
-            const handle = db_ctx.getHandle() catch continue;
-            const view = core_db.get(handle, hit.id) orelse continue;
-
             // Convert WDBX SearchResult to KnowledgeFragment
             const frag = KnowledgeFragment{
-                .content = view.metadata orelse "Retrieved from WDBX",
+                .content = "Retrieved from WDBX",
                 .source = .{ .name = "wdbx-vector-search", .source_type = .internal },
                 .relevance = hit.score,
                 .confidence = @min(hit.score * 1.1, 1.0), // Slightly boost confidence

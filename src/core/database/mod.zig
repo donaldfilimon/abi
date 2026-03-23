@@ -29,6 +29,9 @@ pub const parallel_search = @import("parallel_search.zig");
 pub const engine = @import("engine.zig");
 pub const block_chain = @import("block_chain.zig");
 
+/// Re-exported for child modules (distributed/) that need time utilities.
+pub const time = @import("../../foundation/mod.zig").time;
+
 pub const StoreHandle = semantic_store.StoreHandle;
 pub const DatabaseHandle = semantic_store.DatabaseHandle;
 pub const DatabaseConfig = config_module.DatabaseConfig;
