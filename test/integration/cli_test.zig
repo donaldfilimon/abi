@@ -315,6 +315,15 @@ test "cli: database cli has run function" {
     try std.testing.expect(@hasDecl(@TypeOf(db_cli), "run"));
 }
 
+test "cli: database diagnostics type is accessible and healthy by default" {
+    const DiagnosticsInfo = abi.database.DiagnosticsInfo;
+    const info: DiagnosticsInfo = .{};
+    try std.testing.expect(info.isHealthy());
+    try std.testing.expectEqual(@as(f32, 1.0), info.index_health);
+    try std.testing.expectEqual(@as(f32, 1.0), info.norm_cache_health);
+    try std.testing.expect(info.pool_stats == null);
+}
+
 test "cli: database cli wantsHelp recognizes help flag" {
     const db_cli = abi.database.cli;
     if (@hasDecl(@TypeOf(db_cli), "wantsHelp")) {

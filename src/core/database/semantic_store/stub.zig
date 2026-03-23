@@ -11,6 +11,7 @@ pub const VectorView = types.VectorView;
 pub const Stats = types.Stats;
 pub const DatabaseConfig = types.DatabaseConfig;
 pub const BatchItem = types.BatchItem;
+pub const DiagnosticsInfo = types.DiagnosticsInfo;
 
 pub const MemoryBlock = misc.block_chain.ConversationBlock;
 pub const MemoryBlockConfig = misc.block_chain.BlockChainConfig;
@@ -145,6 +146,9 @@ pub fn listVectors(_: *StoreHandle, _: std.mem.Allocator, _: usize) ![]VectorVie
     return error.DatabaseDisabled;
 }
 pub fn getStats(_: *StoreHandle) Stats {
+    return .{};
+}
+pub fn getDiagnostics(_: *StoreHandle) DiagnosticsInfo {
     return .{};
 }
 pub fn optimize(_: *StoreHandle) !void {

@@ -63,7 +63,7 @@ abi platform       # Show platform detection (OS, arch, CPU, GPU)
 abi connectors     # List 16 LLM provider connectors
 abi info           # Framework architecture summary
 abi chat <message...>  # Route through multi-persona pipeline
-abi db <cmd>       # Vector database (add, query, stats, optimize, backup, restore, serve)
+abi db <cmd>       # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
 abi dashboard      # Interactive TUI (requires -Dfeat-tui=true)
 abi help           # Full help reference
 ```

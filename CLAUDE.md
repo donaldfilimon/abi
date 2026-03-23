@@ -74,7 +74,7 @@ abi platform           # Platform detection (OS, arch, CPU, GPU backends)
 abi connectors         # List 16 LLM provider connectors with env vars
 abi info               # Framework architecture summary
 abi chat <msg>         # Route through multi-persona pipeline
-abi db <subcommand>    # Vector database (add, query, stats, optimize, backup, restore, serve)
+abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
 abi serve              # Start ACP HTTP server (default 127.0.0.1:8080)
 abi acp serve          # Same as above (explicit ACP prefix)
 abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)

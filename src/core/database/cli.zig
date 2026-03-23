@@ -45,6 +45,11 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "diagnostics")) {
+        try handleDiagnostics(allocator, args[1..]);
+        return;
+    }
+
     if (std.mem.eql(u8, command, "optimize")) {
         try handleOptimize(allocator, args[1..]);
         return;
@@ -76,6 +81,7 @@ fn printHelp() void {
         "  add --id <id> (--vector <csv> | --embed <text>) [--meta <text>] [--db <path>]\n" ++
         "  query (--vector <csv> | --embed <text>) [--top-k <n>] [--db <path>]\n" ++
         "  stats [--db <path>]\n" ++
+        "  diagnostics [--db <path>]\n" ++
         "  optimize [--db <path>]\n" ++
         "  backup --db <path> --out <path>\n" ++
         "  restore --db <path> --in <path>\n" ++
@@ -231,9 +237,28 @@ fn handleStats(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     const stats = semantic_store.getStats(&ctx.handle);
     std.debug.print(
-        "Database stats: {d} vectors, dimension {d}\n",
-        .{ stats.count, stats.dimension },
+        "Database stats: {d} vectors, dimension {d}, {d} bytes\n",
+        .{ stats.count, stats.dimension, stats.memory_bytes },
     );
+}
+
+fn handleDiagnostics(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printHelp();
+        return;
+    }
+    const path = parseDbPath(args);
+
+    var ctx = try DbContext.init(allocator, path);
+    defer ctx.deinit();
+    if (ctx.path == null) {
+        try seedDatabase(&ctx.handle);
+    }
+
+    const info = semantic_store.getDiagnostics(&ctx.handle);
+    const output = try info.formatToString(allocator);
+    defer allocator.free(output);
+    std.debug.print("{s}\n", .{output});
 }
 
 fn handleServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

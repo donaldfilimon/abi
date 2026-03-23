@@ -14,6 +14,7 @@ pub const VectorView = database.VectorView;
 pub const Stats = database.Stats;
 pub const DatabaseConfig = database.DatabaseConfig;
 pub const BatchItem = database.Database.BatchItem;
+pub const DiagnosticsInfo = database.DiagnosticsInfo;
 
 pub const MemoryBlock = struct {
     id: u64 = 0,
@@ -215,6 +216,10 @@ pub fn listVectors(
 
 pub fn getStats(handle: *StoreHandle) Stats {
     return handle.db.stats();
+}
+
+pub fn getDiagnostics(handle: *StoreHandle) DiagnosticsInfo {
+    return handle.db.diagnostics();
 }
 
 pub fn optimize(handle: *StoreHandle) !void {
