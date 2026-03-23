@@ -297,6 +297,291 @@ pub fn isRetryableStatus(status: u16) bool {
 }
 
 // ============================================================================
+// OpenAI-Compatible Generic Client
+// ============================================================================
+
+const async_http = @import("../foundation/mod.zig").utils.async_http;
+
+/// Configuration for OpenAI-compatible local inference servers.
+/// Used by vLLM, LM Studio, llama.cpp, and similar providers that expose
+/// the `/v1/chat/completions` endpoint.
+pub const OpenAICompatConfig = struct {
+    host: []u8,
+    api_key: ?[]u8 = null,
+    model: []const u8 = "default",
+    model_owned: bool = false,
+    timeout_ms: u32 = 120_000,
+
+    pub fn deinit(self: *OpenAICompatConfig, allocator: std.mem.Allocator) void {
+        allocator.free(self.host);
+        if (self.api_key) |key| {
+            secureFree(allocator, key);
+        }
+        if (self.model_owned) allocator.free(@constCast(self.model));
+        self.* = undefined;
+    }
+};
+
+/// Standard OpenAI-compatible chat completion request.
+pub const OpenAICompatChatRequest = struct {
+    model: []const u8,
+    messages: []const ChatMessage,
+    temperature: f32 = 0.7,
+    max_tokens: ?u32 = null,
+    top_p: f32 = 1.0,
+    stream: bool = false,
+};
+
+/// Standard OpenAI-compatible chat completion response.
+pub const OpenAICompatChatResponse = struct {
+    id: []const u8,
+    model: []const u8,
+    choices: []OpenAICompatChoice,
+    usage: OpenAICompatUsage,
+};
+
+/// A single choice in an OpenAI-compatible response.
+pub const OpenAICompatChoice = struct {
+    index: u32,
+    message: ChatMessage,
+    finish_reason: []const u8,
+};
+
+/// Token usage in an OpenAI-compatible response.
+pub const OpenAICompatUsage = struct {
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    total_tokens: u32,
+};
+
+/// Generic client for OpenAI-compatible inference servers.
+///
+/// Eliminates boilerplate across providers that expose the standard
+/// `/v1/chat/completions` endpoint (vLLM, LM Studio, llama.cpp, etc.).
+///
+/// Providers use this by embedding the generic and delegating:
+/// ```zig
+/// pub const Client = struct {
+///     generic: shared.OpenAICompatClient,
+///     // ... provider-specific fields/methods ...
+/// };
+/// ```
+pub const OpenAICompatClient = struct {
+    allocator: std.mem.Allocator,
+    config: OpenAICompatConfig,
+    http: async_http.AsyncHttpClient,
+
+    pub fn init(allocator: std.mem.Allocator, config: OpenAICompatConfig) !OpenAICompatClient {
+        const http = try async_http.AsyncHttpClient.init(allocator);
+        errdefer http.deinit();
+
+        return .{
+            .allocator = allocator,
+            .config = config,
+            .http = http,
+        };
+    }
+
+    pub fn deinit(self: *OpenAICompatClient) void {
+        self.http.deinit();
+        self.config.deinit(self.allocator);
+        self.* = undefined;
+    }
+
+    /// Send a chat completion request to the OpenAI-compatible endpoint.
+    pub fn chatCompletion(self: *OpenAICompatClient, request: OpenAICompatChatRequest) !OpenAICompatChatResponse {
+        return try openaiCompatChatCompletion(self.allocator, &self.http, &self.config, request);
+    }
+
+    /// Convenience: chat with an array of messages using the configured model.
+    pub fn chat(self: *OpenAICompatClient, messages: []const ChatMessage) !OpenAICompatChatResponse {
+        return try self.chatCompletion(.{
+            .model = self.config.model,
+            .messages = messages,
+        });
+    }
+
+    /// Convenience: single-turn chat with a user prompt.
+    pub fn chatSimple(self: *OpenAICompatClient, prompt: []const u8) !OpenAICompatChatResponse {
+        const msgs = [_]ChatMessage{
+            .{ .role = "user", .content = prompt },
+        };
+        return try self.chat(&msgs);
+    }
+
+    /// Encode an OpenAI-compatible chat request to JSON.
+    pub fn encodeChatRequest(self: *OpenAICompatClient, request: OpenAICompatChatRequest) ![]u8 {
+        return try openaiCompatEncodeChatRequest(self.allocator, request);
+    }
+
+    /// Decode an OpenAI-compatible chat response from JSON.
+    pub fn decodeChatResponse(self: *OpenAICompatClient, json: []const u8) !OpenAICompatChatResponse {
+        return try openaiCompatDecodeChatResponse(self.allocator, json);
+    }
+
+    /// Free an OpenAI-compatible chat response and all its owned memory.
+    pub fn deinitChatResponse(self: *OpenAICompatClient, response: *OpenAICompatChatResponse) void {
+        openaiCompatDeinitChatResponse(self.allocator, response);
+    }
+};
+
+/// Free-function: encode an OpenAI-compatible chat request to JSON.
+/// Use this from providers that keep their own Client struct layout but
+/// want to eliminate encode boilerplate.
+pub fn openaiCompatEncodeChatRequest(
+    allocator: std.mem.Allocator,
+    request: OpenAICompatChatRequest,
+) ![]u8 {
+    var json_str = std.ArrayListUnmanaged(u8).empty;
+    errdefer json_str.deinit(allocator);
+
+    try json_str.appendSlice(allocator, "{\"model\":\"");
+    try json_utils.appendJsonEscaped(allocator, &json_str, request.model);
+    try json_str.appendSlice(allocator, "\",\"messages\":[");
+
+    try encodeMessageArray(allocator, &json_str, request.messages);
+
+    try json_str.print(allocator, "],\"temperature\":{d:.2},\"top_p\":{d:.2}", .{
+        request.temperature,
+        request.top_p,
+    });
+
+    if (request.max_tokens) |max_tokens| {
+        try json_str.print(allocator, ",\"max_tokens\":{d}", .{max_tokens});
+    }
+
+    if (request.stream) {
+        try json_str.appendSlice(allocator, ",\"stream\":true");
+    }
+
+    try json_str.append(allocator, '}');
+
+    return json_str.toOwnedSlice(allocator);
+}
+
+/// Free-function: decode an OpenAI-compatible chat response from JSON.
+pub fn openaiCompatDecodeChatResponse(
+    allocator: std.mem.Allocator,
+    json: []const u8,
+) !OpenAICompatChatResponse {
+    const parsed = try std.json.parseFromSlice(
+        std.json.Value,
+        allocator,
+        json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const object = try json_utils.getRequiredObject(parsed.value);
+
+    const id = try json_utils.parseStringField(object, "id", allocator);
+    errdefer allocator.free(id);
+
+    const model = try json_utils.parseStringField(object, "model", allocator);
+    errdefer allocator.free(model);
+
+    const choices_array = try json_utils.parseArrayField(object, "choices");
+    if (choices_array.items.len == 0) {
+        return ConnectorError.InvalidResponse;
+    }
+
+    var choices = try allocator.alloc(OpenAICompatChoice, choices_array.items.len);
+    var choices_filled: usize = 0;
+    errdefer {
+        for (choices[0..choices_filled]) |*choice| {
+            allocator.free(choice.message.role);
+            allocator.free(choice.message.content);
+            allocator.free(choice.finish_reason);
+        }
+        allocator.free(choices);
+    }
+
+    for (choices_array.items, 0..) |choice_value, i| {
+        const choice_obj = try json_utils.getRequiredObject(choice_value);
+        const index: u32 = @intCast(try json_utils.parseIntField(choice_obj, "index"));
+
+        const message_obj = try json_utils.parseObjectField(choice_obj, "message");
+        const role = try json_utils.parseStringField(message_obj, "role", allocator);
+        const content = try json_utils.parseStringField(message_obj, "content", allocator);
+
+        const finish_reason = try json_utils.parseStringField(choice_obj, "finish_reason", allocator);
+
+        choices[i] = .{
+            .index = index,
+            .message = .{ .role = role, .content = content },
+            .finish_reason = finish_reason,
+        };
+        choices_filled += 1;
+    }
+
+    const usage_obj = try json_utils.parseObjectField(object, "usage");
+    const usage = OpenAICompatUsage{
+        .prompt_tokens = @intCast(try json_utils.parseIntField(usage_obj, "prompt_tokens")),
+        .completion_tokens = @intCast(try json_utils.parseIntField(usage_obj, "completion_tokens")),
+        .total_tokens = @intCast(try json_utils.parseIntField(usage_obj, "total_tokens")),
+    };
+
+    return OpenAICompatChatResponse{
+        .id = id,
+        .model = model,
+        .choices = choices,
+        .usage = usage,
+    };
+}
+
+/// Free-function: perform a full chat completion request against an
+/// OpenAI-compatible endpoint. Combines URL construction, encoding,
+/// HTTP request, and decoding.
+pub fn openaiCompatChatCompletion(
+    allocator: std.mem.Allocator,
+    http: *async_http.AsyncHttpClient,
+    config: *const OpenAICompatConfig,
+    request: OpenAICompatChatRequest,
+) !OpenAICompatChatResponse {
+    const url = try std.fmt.allocPrint(allocator, "{s}/v1/chat/completions", .{config.host});
+    defer allocator.free(url);
+
+    const json = try openaiCompatEncodeChatRequest(allocator, request);
+    defer allocator.free(json);
+
+    var http_req = try async_http.HttpRequest.init(allocator, .post, url);
+    defer http_req.deinit();
+
+    if (config.api_key) |key| {
+        try http_req.setBearerToken(key);
+    }
+    try http_req.setJsonBody(json);
+
+    var http_res = try http.fetchJsonWithRetry(&http_req, DEFAULT_RETRY_OPTIONS);
+    defer http_res.deinit();
+
+    if (!http_res.isSuccess()) {
+        if (http_res.status_code == 429) {
+            return ConnectorError.RateLimitExceeded;
+        }
+        return ConnectorError.ApiRequestFailed;
+    }
+
+    return try openaiCompatDecodeChatResponse(allocator, http_res.body);
+}
+
+/// Free-function: free an OpenAI-compatible chat response.
+pub fn openaiCompatDeinitChatResponse(
+    allocator: std.mem.Allocator,
+    response: *OpenAICompatChatResponse,
+) void {
+    allocator.free(response.id);
+    allocator.free(response.model);
+    for (response.choices) |*choice| {
+        allocator.free(choice.message.role);
+        allocator.free(choice.message.content);
+        allocator.free(choice.finish_reason);
+    }
+    allocator.free(response.choices);
+    response.* = undefined;
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -483,6 +768,131 @@ test "provider error sets are proper supersets of ProviderError" {
     // Ollama has ModelNotAvailable beyond ProviderError
     const le: ollama.OllamaError = ollama.OllamaError.ModelNotAvailable;
     try std.testing.expect(le == ollama.OllamaError.ModelNotAvailable);
+}
+
+// ============================================================================
+// OpenAI-Compatible Generic Client Tests
+// ============================================================================
+
+test "OpenAICompatConfig deinit frees host" {
+    const allocator = std.testing.allocator;
+    var config = OpenAICompatConfig{
+        .host = try allocator.dupe(u8, "http://localhost:8000"),
+    };
+    config.deinit(allocator);
+}
+
+test "OpenAICompatConfig deinit frees api key securely" {
+    const allocator = std.testing.allocator;
+    var config = OpenAICompatConfig{
+        .host = try allocator.dupe(u8, "http://localhost:8000"),
+        .api_key = try allocator.dupe(u8, "secret-key"),
+        .model = try allocator.dupe(u8, "my-model"),
+        .model_owned = true,
+    };
+    config.deinit(allocator);
+}
+
+test "OpenAICompatClient init and deinit" {
+    const allocator = std.testing.allocator;
+    const config = OpenAICompatConfig{
+        .host = try allocator.dupe(u8, "http://localhost:8000"),
+    };
+    var client = try OpenAICompatClient.init(allocator, config);
+    client.deinit();
+}
+
+test "OpenAICompatClient encodeChatRequest produces valid JSON" {
+    const allocator = std.testing.allocator;
+    const config = OpenAICompatConfig{
+        .host = try allocator.dupe(u8, "http://localhost:8000"),
+    };
+    var client = try OpenAICompatClient.init(allocator, config);
+    defer client.deinit();
+
+    const msgs = [_]ChatMessage{
+        .{ .role = "user", .content = "Hello" },
+    };
+
+    const json = try client.encodeChatRequest(.{
+        .model = "test-model",
+        .messages = &msgs,
+    });
+    defer allocator.free(json);
+
+    // Verify valid JSON by parsing
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json, .{});
+    defer parsed.deinit();
+
+    const obj = try json_utils.getRequiredObject(parsed.value);
+    const model_str = try json_utils.parseStringField(obj, "model", allocator);
+    defer allocator.free(model_str);
+    try std.testing.expectEqualStrings("test-model", model_str);
+}
+
+test "OpenAICompatClient encodeChatRequest with max_tokens and stream" {
+    const allocator = std.testing.allocator;
+    const config = OpenAICompatConfig{
+        .host = try allocator.dupe(u8, "http://localhost:8000"),
+    };
+    var client = try OpenAICompatClient.init(allocator, config);
+    defer client.deinit();
+
+    const msgs = [_]ChatMessage{
+        .{ .role = "system", .content = "You are helpful." },
+        .{ .role = "user", .content = "Hi" },
+    };
+
+    const json = try client.encodeChatRequest(.{
+        .model = "llama3",
+        .messages = &msgs,
+        .max_tokens = 512,
+        .stream = true,
+        .temperature = 0.5,
+    });
+    defer allocator.free(json);
+
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"max_tokens\":512") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"stream\":true") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"temperature\":0.50") != null);
+}
+
+test "OpenAICompatClient decodeChatResponse parses valid response" {
+    const allocator = std.testing.allocator;
+    const config = OpenAICompatConfig{
+        .host = try allocator.dupe(u8, "http://localhost:8000"),
+    };
+    var client = try OpenAICompatClient.init(allocator, config);
+    defer client.deinit();
+
+    const json =
+        \\{"id":"chatcmpl-123","model":"llama3","choices":[{"index":0,"message":{"role":"assistant","content":"Hello!"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}
+    ;
+
+    var resp = try client.decodeChatResponse(json);
+    defer client.deinitChatResponse(&resp);
+
+    try std.testing.expectEqualStrings("chatcmpl-123", resp.id);
+    try std.testing.expectEqualStrings("llama3", resp.model);
+    try std.testing.expectEqual(@as(usize, 1), resp.choices.len);
+    try std.testing.expectEqualStrings("assistant", resp.choices[0].message.role);
+    try std.testing.expectEqualStrings("Hello!", resp.choices[0].message.content);
+    try std.testing.expectEqualStrings("stop", resp.choices[0].finish_reason);
+    try std.testing.expectEqual(@as(u32, 5), resp.usage.prompt_tokens);
+    try std.testing.expectEqual(@as(u32, 2), resp.usage.completion_tokens);
+    try std.testing.expectEqual(@as(u32, 7), resp.usage.total_tokens);
+}
+
+test "OpenAICompatChatRequest default values" {
+    const msgs = [_]ChatMessage{.{ .role = "user", .content = "test" }};
+    const req = OpenAICompatChatRequest{
+        .model = "test",
+        .messages = &msgs,
+    };
+    try std.testing.expectEqual(@as(f32, 0.7), req.temperature);
+    try std.testing.expectEqual(@as(f32, 1.0), req.top_p);
+    try std.testing.expectEqual(@as(?u32, null), req.max_tokens);
+    try std.testing.expect(!req.stream);
 }
 
 test {
