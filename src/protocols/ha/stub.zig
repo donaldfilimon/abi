@@ -636,20 +636,20 @@ pub const pitr = struct {};
 
 var initialized = std.atomic.Value(bool).init(false);
 
-fn init(allocator: std.mem.Allocator) Error!void {
+pub fn init(allocator: std.mem.Allocator) Error!void {
     _ = allocator;
     return Error.FeatureDisabled;
 }
 
-fn deinit() void {
+pub fn deinit() void {
     initialized.store(false, .release);
 }
 
-fn isEnabled() bool {
+pub fn isEnabled() bool {
     return false;
 }
 
-fn isInitialized() bool {
+pub fn isInitialized() bool {
     return initialized.load(.acquire);
 }
 
