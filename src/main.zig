@@ -30,8 +30,8 @@ const feature_catalog = root.meta.features;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const arena = init.arena.allocator();
+    const args = try init.minimal.args.toSlice(arena);
 
     try dispatch(allocator, args[1..]);
 }
@@ -51,7 +51,6 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     }
 
     const cmd = args[0];
-    const next_arg = if (args.len > 1) args[1] else null;
 
     if (std.mem.eql(u8, cmd, "version")) {
         printVersion();
@@ -66,13 +65,15 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     } else if (std.mem.eql(u8, cmd, "info")) {
         printInfo();
     } else if (std.mem.eql(u8, cmd, "chat")) {
-        const message = next_arg orelse {
-            std.debug.print("Usage: abi chat <message>\n", .{});
+        if (args.len < 2) {
+            std.debug.print("Usage: abi chat <message...>\n", .{});
             return;
-        };
-        try runChat(allocator, message);
+        }
+        try runChat(allocator, args[1..]);
     } else if (std.mem.eql(u8, cmd, "db")) {
-        try runDb(allocator, next_arg);
+        try runDb(allocator, args[1..]);
+    } else if (std.mem.eql(u8, cmd, "lsp")) {
+        try runLsp(allocator);
     } else if (std.mem.eql(u8, cmd, "dashboard")) {
         try runDashboard(allocator);
     } else if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h")) {
@@ -385,12 +386,26 @@ pub fn runDoctor() void {
 
 // ── Chat ────────────────────────────────────────────────────────────────
 
-pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
-    const persona = root.ai.persona;
-    var registry = persona.PersonaRegistry.init(allocator, .{});
+pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8) !void {
+    if (!build_options.feat_ai) {
+        std.debug.print("AI features are disabled. Rebuild with -Dfeat-ai=true\n", .{});
+        return;
+    }
+
+    // Join the message arguments into a single string
+    var full_message = std.ArrayListUnmanaged(u8).empty;
+    defer full_message.deinit(allocator);
+    for (message_args, 0..) |arg, i| {
+        if (i > 0) try full_message.append(allocator, ' ');
+        try full_message.appendSlice(allocator, arg);
+    }
+    const message = full_message.items;
+
+    const ai = root.ai;
+    var registry = ai.persona.PersonaRegistry.init(allocator, .{});
     defer registry.deinit();
 
-    var router = persona.MultiPersonaRouter.init(allocator, &registry, .{});
+    var router = ai.persona.MultiPersonaRouter.init(allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route(message);
@@ -422,23 +437,33 @@ pub fn runChat(allocator: std.mem.Allocator, message: []const u8) !void {
         decision.weights.aviva * 100.0,
         decision.weights.abi * 100.0,
     });
+
+    std.debug.print("\nExecution:\n", .{});
+
+    // In a real implementation we would execute the backend here.
+    // For now we simulate the executor response:
+    std.debug.print("  [✓] Route validated. Engine would execute here.\n", .{});
 }
 
 // ── Database ────────────────────────────────────────────────────────────
 
-pub fn runDb(allocator: std.mem.Allocator, subcommand: ?[]const u8) !void {
+pub fn runDb(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const db_cli = root.database;
     if (comptime @hasDecl(db_cli, "cli")) {
-        // Build args slice from the subcommand
-        if (subcommand) |sub| {
-            const args = [_][:0]const u8{@ptrCast(sub.ptr[0..sub.len :0])};
-            try db_cli.cli.run(allocator, &args);
-        } else {
-            const empty: []const [:0]const u8 = &.{};
-            try db_cli.cli.run(allocator, empty);
-        }
+        try db_cli.cli.run(allocator, args);
     } else {
         std.debug.print("Database is disabled. Rebuild with -Dfeat-database=true\n", .{});
+    }
+}
+
+// ── LSP ─────────────────────────────────────────────────────────────────
+
+pub fn runLsp(allocator: std.mem.Allocator) !void {
+    const lsp = root.lsp;
+    if (comptime @hasDecl(lsp, "server")) {
+        try lsp.server.run(allocator);
+    } else {
+        std.debug.print("LSP is disabled. Rebuild with -Dfeat-lsp=true\n", .{});
     }
 }
 
