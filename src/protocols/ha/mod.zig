@@ -224,7 +224,9 @@ pub const HaManager = struct {
     /// Recover to a specific point in time
     pub fn recoverToPoint(self: *HaManager, timestamp: i64) !void {
         if (self.pitr_manager) |*pm| {
-            return pm.recoverToTimestamp(timestamp);
+            var result = try pm.recoverToTimestamp(timestamp);
+            result.deinit();
+            return;
         }
         return error.PitrDisabled;
     }
