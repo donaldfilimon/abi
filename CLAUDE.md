@@ -61,6 +61,24 @@ zig build doctor                   # Report build configuration and diagnostics
 
 Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/` and `build.zig`.
 
+### CLI Commands
+
+Build with `zig build cli` (or `./build.sh cli`). Binary: `zig-out/bin/abi`.
+
+```bash
+abi                    # Smart status (feature count, enabled/disabled tags)
+abi version            # Version and build info
+abi doctor             # Build config report (all feature flags + GPU backends)
+abi features           # List all 30 features from catalog with [+]/[-] status
+abi platform           # Platform detection (OS, arch, CPU, GPU backends)
+abi connectors         # List 16 LLM provider connectors with env vars
+abi info               # Framework architecture summary
+abi chat <msg>         # Route through multi-persona pipeline
+abi db <subcommand>    # Vector database (add, query, stats, optimize, backup, restore, serve)
+abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)
+abi help               # Full help reference
+```
+
 On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binaries. Use `./build.sh` which auto-relinks with Apple's native linker. This applies to **all** build steps including tests: `./build.sh test --summary all`. On Linux / older macOS, `zig build` works directly.
 
 ### Feature Flags

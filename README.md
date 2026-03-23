@@ -55,11 +55,17 @@ Build the CLI binary with `zig build cli` (or `./build.sh cli` on macOS 26.4+).
 The binary lands at `zig-out/bin/abi`. Entry point: `src/main.zig`.
 
 ```bash
-abi version       # Print version and build info
-abi doctor        # Run diagnostics (features, platform, GPU)
-abi info          # Show framework architecture summary
-abi chat <msg>    # Route a message through the persona pipeline
-abi help          # Show this help message
+abi                # Smart status (feature count + available commands)
+abi version        # Print version and build info
+abi doctor         # Run diagnostics (all feature flags + GPU backends)
+abi features       # List all 30 features with [+]/[-] status
+abi platform       # Show platform detection (OS, arch, CPU, GPU)
+abi connectors     # List 16 LLM provider connectors
+abi info           # Framework architecture summary
+abi chat <msg>     # Route through multi-persona pipeline
+abi db <cmd>       # Vector database (add, query, stats, optimize, backup, restore, serve)
+abi dashboard      # Interactive TUI (requires -Dfeat-tui=true)
+abi help           # Full help reference
 ```
 
 ## Pipeline architecture
@@ -159,7 +165,7 @@ zig build check-parity             # Verify mod/stub declaration parity only
 
 Two test suites run under `zig build test`:
 1. **Unit tests** (`src/root.zig`) -- `refAllDecls` walks the entire module tree.
-2. **Integration tests** (`test/mod.zig`) -- 24+ tests covering database, inference, persona pipeline, and security.
+2. **Integration tests** (`test/mod.zig`) -- 28 modules covering database, inference, persona pipeline, security, CLI, TUI, and all features.
 
 ## Specification
 
