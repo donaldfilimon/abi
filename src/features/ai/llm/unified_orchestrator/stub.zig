@@ -37,3 +37,7 @@ pub fn createDefaultOrchestrator(allocator: std.mem.Allocator) Error!Orchestrato
     _ = allocator;
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
