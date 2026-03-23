@@ -293,7 +293,9 @@ pub const KnowledgeBase = struct {
     db_context: ?*core_db.Context = null,
 
     const Self = @This();
-    const core_db = @import("../../../core/database/mod.zig");
+    // Import through the database feature facade (not core directly)
+    const build_options = @import("build_options");
+    const core_db = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{

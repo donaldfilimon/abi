@@ -25,6 +25,7 @@ pub const storage = core_db.storage;
 pub const cli = core_db.cli;
 pub const neural = core_db.neural;
 pub const semantic_store = core_db.semantic_store;
+pub const block_chain = core_db.block_chain;
 
 pub const DatabaseConfig = core_db.DatabaseConfig;
 pub const DatabaseHandle = core_db.DatabaseHandle;

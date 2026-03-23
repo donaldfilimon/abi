@@ -37,6 +37,7 @@ pub const storage = core_db.storage;
 pub const cli = core_db.cli;
 pub const neural = core_db.neural;
 pub const semantic_store = core_db.semantic_store;
+pub const block_chain = core_db.block_chain;
 
 // ── Type re-exports (parity with stub.zig) ─────────────────────────────────
 pub const DatabaseConfig = core_config.DatabaseConfig;

@@ -18,7 +18,10 @@ const PersonaId = types.PersonaId;
 const RoutingDecision = types.RoutingDecision;
 const PersonaResponse = types.PersonaResponse;
 
-const block_chain = @import("../../../core/database/block_chain.zig");
+// Import through the database feature facade (not core directly)
+const build_options = @import("build_options");
+const db_feature = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
+const block_chain = db_feature.block_chain;
 const BlockChain = block_chain.BlockChain;
 const BlockConfig = block_chain.BlockConfig;
 const ProfileTag = block_chain.ProfileTag;
