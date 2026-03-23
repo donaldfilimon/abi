@@ -54,29 +54,9 @@ const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
 const build_options = @import("build_options");
 
-// GPU integration (conditional)
+// GPU integration (conditional — use proper stub to maintain parity)
 const gpu_available = build_options.feat_gpu;
-const gpu_mod = if (gpu_available) @import("../../gpu/mod.zig") else struct {
-    pub const mega = struct {
-        pub const Coordinator = void;
-        pub const LearningScheduler = void;
-        pub const WorkloadProfile = StubWorkloadProfile;
-        pub const WorkloadCategory = StubWorkloadCategory;
-        pub const ScheduleDecision = StubScheduleDecision;
-        pub const BackendInstance = StubBackendInstance;
-    };
-    pub const Backend = enum {
-        cuda,
-        vulkan,
-        metal,
-        webgpu,
-        opengl,
-        opengles,
-        webgl2,
-        fpga,
-        stdgpu,
-    };
-};
+const gpu_mod = if (gpu_available) @import("../../gpu/mod.zig") else @import("../../gpu/stub.zig");
 
 // Stub types for when GPU is disabled
 const StubWorkloadProfile = struct {

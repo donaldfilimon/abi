@@ -10,7 +10,7 @@ set -euo pipefail
 #          ./build.sh -Dfeat-gpu=false
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-AUTO_LINK=true
+AUTO_LINK=false
 
 # Check for --link flag
 ARGS=""
