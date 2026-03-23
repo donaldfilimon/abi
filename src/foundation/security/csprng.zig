@@ -8,15 +8,18 @@ const builtin = @import("builtin");
 
 /// Get a seeded CSPRNG for cryptographic operations.
 /// The seed is sourced from OS entropy (arc4random_buf on macOS/BSD,
-/// or getrandom on platforms where arc4random_buf is unavailable.
-pub fn init() std.Random.DefaultCsprng {
+/// or getrandom on platforms where arc4random_buf is unavailable).
+/// Returns an error if no secure entropy source is available on this target.
+pub fn init() error{ EntropySourceFailed, UnsupportedPlatform }!std.Random.DefaultCsprng {
     var seed: [std.Random.DefaultCsprng.secret_seed_length]u8 = undefined;
-    fillEntropy(&seed);
+    try fillEntropy(&seed);
     return std.Random.DefaultCsprng.init(seed);
 }
 
 /// Fill a buffer with OS-sourced entropy.
-fn fillEntropy(buf: []u8) void {
+/// Returns an error instead of panicking when the entropy source is
+/// unavailable or returns unexpected results.
+fn fillEntropy(buf: []u8) error{ EntropySourceFailed, UnsupportedPlatform }!void {
     if (buf.len == 0) return;
 
     // Use arc4random_buf when available via libc (macOS/BSD).
@@ -34,18 +37,24 @@ fn fillEntropy(buf: []u8) void {
             switch (std.posix.errno(rc)) {
                 .SUCCESS => {
                     const n: usize = @intCast(rc);
-                    if (n == 0) @panic("secure entropy unavailable via getrandom");
+                    if (n == 0) return error.EntropySourceFailed;
                     i += n;
                 },
                 .INTR => continue,
-                else => |err| std.debug.panic("secure entropy unavailable via getrandom: {t}", .{err}),
+                else => return error.EntropySourceFailed,
             }
         }
         return;
     }
 
-    // Fail closed on unsupported targets instead of silently downgrading entropy.
-    @panic("no secure OS entropy source available for this target");
+    // Freestanding / unsupported target: no OS entropy source exists.
+    // Use comptime to surface this as a compile error on known-unsupported
+    // targets rather than failing silently at runtime.
+    if (comptime builtin.os.tag == .freestanding) {
+        @compileError("csprng is not supported on freestanding targets -- provide your own entropy source");
+    }
+
+    return error.UnsupportedPlatform;
 }
 
 /// Check whether the platform has a hardware-backed or kernel-provided
@@ -61,34 +70,31 @@ pub fn isHardwareBackedAvailable() bool {
     return false;
 }
 
-/// Same as `init()` but returns an error instead of panicking when no
-/// secure entropy source is available.  Prefer this in library code
-/// where callers should be able to handle the failure gracefully.
+/// Same as `init()` but presents a unified error type for callers that
+/// want to handle all entropy failures under one tag.
 pub fn initSafe() error{NoCsprngAvailable}!std.Random.DefaultCsprng {
-    if (!isHardwareBackedAvailable()) {
-        return error.NoCsprngAvailable;
-    }
-    var seed: [std.Random.DefaultCsprng.secret_seed_length]u8 = undefined;
-    fillEntropy(&seed);
-    return std.Random.DefaultCsprng.init(seed);
+    return init() catch return error.NoCsprngAvailable;
 }
 
 /// Convenience: fill a buffer with cryptographically random bytes.
 /// Avoids needing to store the CSPRNG instance for one-shot usage.
-pub fn fillRandom(buf: []u8) void {
-    var rng = init();
+/// Returns an error if entropy is unavailable.
+pub fn fillRandom(buf: []u8) error{ EntropySourceFailed, UnsupportedPlatform }!void {
+    var rng = try init();
     rng.fill(buf);
 }
 
 /// Convenience: get a random integer less than `less_than`.
-pub fn uintLessThan(comptime T: type, less_than: T) T {
-    var rng = init();
+/// Returns an error if entropy is unavailable.
+pub fn uintLessThan(comptime T: type, less_than: T) error{ EntropySourceFailed, UnsupportedPlatform }!T {
+    var rng = try init();
     return rng.random().uintLessThan(T, less_than);
 }
 
 /// Convenience: shuffle a slice randomly.
-pub fn shuffle(comptime T: type, buf: []T) void {
-    var rng = init();
+/// Returns an error if entropy is unavailable.
+pub fn shuffle(comptime T: type, buf: []T) error{ EntropySourceFailed, UnsupportedPlatform }!void {
+    var rng = try init();
     rng.random().shuffle(T, buf);
 }
 
@@ -114,7 +120,7 @@ pub fn FixedList(comptime T: type, comptime capacity: usize) type {
 }
 
 test "csprng produces non-zero output" {
-    var rng = init();
+    var rng = try init();
     const r = rng.random();
     var buf: [32]u8 = undefined;
     r.bytes(&buf);
@@ -130,8 +136,8 @@ test "csprng produces non-zero output" {
 }
 
 test "csprng different instances produce different output" {
-    var rng1 = init();
-    var rng2 = init();
+    var rng1 = try init();
+    var rng2 = try init();
     var buf1: [32]u8 = undefined;
     var buf2: [32]u8 = undefined;
     rng1.random().bytes(&buf1);
@@ -142,7 +148,7 @@ test "csprng different instances produce different output" {
 
 test "fillRandom supports large buffer" {
     var buf: [4096]u8 = undefined;
-    fillRandom(&buf);
+    try fillRandom(&buf);
 
     var all_zero = true;
     for (buf) |b| {

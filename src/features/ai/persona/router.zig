@@ -275,7 +275,9 @@ pub const MultiPersonaRouter = struct {
 
                 // Store the blocked interaction in memory
                 if (self.memory) |*mem| {
-                    mem.recordInteraction(decision, input, safe_response) catch {};
+                    mem.recordInteraction(decision, input, safe_response) catch |err| {
+                        std.log.warn("persona: failed to record blocked interaction: {s}", .{@errorName(err)});
+                    };
                 }
 
                 return safe_response;
@@ -284,7 +286,9 @@ pub const MultiPersonaRouter = struct {
 
         // Store interaction in WDBX memory (best-effort, don't fail the response)
         if (self.memory) |*mem| {
-            mem.recordInteraction(decision, input, response) catch {};
+            mem.recordInteraction(decision, input, response) catch |err| {
+                std.log.warn("persona: failed to record memory interaction: {s}", .{@errorName(err)});
+            };
         }
 
         // Record interaction for modulator preference learning
@@ -294,7 +298,9 @@ pub const MultiPersonaRouter = struct {
                 .aviva => .aviva,
                 .abi => .abi,
             };
-            mod.recordInteraction("default", persona_profile, true) catch {};
+            mod.recordInteraction("default", persona_profile, true) catch |err| {
+                std.log.warn("persona: failed to record modulator interaction: {s}", .{@errorName(err)});
+            };
         }
 
         return response;

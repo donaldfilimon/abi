@@ -105,11 +105,11 @@ pub const EmotionalState = struct {
 pub const InstanceId = struct {
     bytes: [16]u8,
 
-    pub fn generate() InstanceId {
+    pub fn generate() error{ EntropySourceFailed, UnsupportedPlatform }!InstanceId {
         var bytes: [16]u8 = undefined;
         // Use project CSPRNG (Zig 0.16 removed std.crypto.random)
         const csprng = @import("security/csprng.zig");
-        var rng = csprng.init();
+        var rng = try csprng.init();
         rng.fill(&bytes);
         return .{ .bytes = bytes };
     }
@@ -133,7 +133,7 @@ pub const SessionId = struct {
 
     pub fn create(allocator: std.mem.Allocator, user_id: ?[]const u8, timestamp: i64) !SessionId {
         return .{
-            .id = InstanceId.generate(),
+            .id = try InstanceId.generate(),
             .created_at = timestamp,
             .user_id = if (user_id) |uid| try allocator.dupe(u8, uid) else null,
         };

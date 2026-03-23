@@ -39,9 +39,9 @@ pub const MeshOrchestrator = struct {
     tensor_thread: ?std.Thread = null,
     tensor_socket: ?c_int = null,
 
-    pub fn init(allocator: std.mem.Allocator, io: *std.Io) MeshOrchestrator {
+    pub fn init(allocator: std.mem.Allocator, io: *std.Io) !MeshOrchestrator {
         var local_id: [16]u8 = undefined;
-        var prng = @import("../../foundation/mod.zig").security.csprng.init();
+        var prng = try @import("../../foundation/mod.zig").security.csprng.init();
         prng.random().bytes(&local_id);
 
         return .{
