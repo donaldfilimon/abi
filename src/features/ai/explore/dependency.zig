@@ -178,7 +178,7 @@ pub const DependencyGraph = struct {
                 var cycle = std.ArrayListUnmanaged([]const u8).empty;
                 const start_idx = for (path.items, 0..) |item2, i| {
                     if (std.mem.eql(u8, item2, current)) break i;
-                } else unreachable;
+                } else return error.InternalGraphError;
                 try cycle.appendSlice(self.allocator, path.items[start_idx..]);
                 try cycles.append(self.allocator, try cycle.toOwnedSlice(self.allocator));
                 return;

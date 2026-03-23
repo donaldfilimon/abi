@@ -102,7 +102,7 @@ fn getConnection() SmcError!io_connect_t {
     smc_mu.lock();
     defer smc_mu.unlock();
     if (conn_initialized) return cached_conn;
-
+ 
     const matching = IOServiceMatching("AppleSMC");
     const service = IOServiceGetMatchingService(mach_task_self_(), matching);
     if (service == 0) return error.SmcNotFound;
