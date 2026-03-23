@@ -230,6 +230,8 @@ pub fn isInitialized() bool {
 }
 
 test "store roundtrip methods mirror legacy handle behavior" {
+    if (!build_options.feat_database) return error.SkipZigTest;
+
     var store = try Store.open(std.testing.allocator, "store-methods");
     defer store.deinit();
 

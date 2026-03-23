@@ -167,6 +167,8 @@ test "conversation memory initialization" {
 }
 
 test "conversation memory records interaction" {
+    if (!build_options.feat_database) return error.SkipZigTest;
+
     var mem = ConversationMemory.init(std.testing.allocator, "test-session");
     defer mem.deinit();
 
@@ -191,6 +193,8 @@ test "conversation memory records interaction" {
 }
 
 test "conversation memory chain integrity" {
+    if (!build_options.feat_database) return error.SkipZigTest;
+
     var mem = ConversationMemory.init(std.testing.allocator, "chain-test");
     defer mem.deinit();
 

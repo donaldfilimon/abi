@@ -301,18 +301,88 @@ pub const storage = struct {
 
 pub const block_chain = struct {
     pub const BlockChain = struct {
-        pub fn init(_: std.mem.Allocator, _: anytype) !@This() {
+        current_head: ?u64 = null,
+
+        pub fn init(_: std.mem.Allocator, _: anytype) @This() {
+            return .{};
+        }
+        pub fn deinit(_: *@This()) void {}
+        pub fn addBlock(_: *@This(), _: BlockConfig) !u64 {
             return error.DatabaseDisabled;
+        }
+        pub fn getBlock(_: *const @This(), _: u64) ?ConversationBlock {
+            return null;
+        }
+    };
+    pub const ConversationBlock = struct {
+        hash: [32]u8 = .{0} ** 32,
+        previous_hash: [32]u8 = .{0} ** 32,
+        parent_block_id: ?u64 = null,
+        skip_pointer: ?u64 = null,
+
+        pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
+    };
+    pub const BlockConfig = struct {
+        query_embedding: []const f32 = &.{},
+        response_embedding: ?[]const f32 = null,
+        profile_tag: ProfileTag = .{ .primary_profile = .abbey },
+        routing_weights: RoutingWeights = .{},
+        intent: IntentCategory = .general,
+        risk_score: f32 = 0.0,
+        policy_flags: PolicyFlags = .{},
+        parent_block_id: ?u64 = null,
+        skip_pointer: ?u64 = null,
+        summary_pointer: ?u64 = null,
+        previous_hash: [32]u8 = .{0} ** 32,
+    };
+    pub const BlockChainConfig = struct {};
+    pub const BlockChainError = error{ DatabaseDisabled, InvalidBlock, ChainCorrupted };
+    pub const ProfileTag = struct {
+        primary_profile: ProfileType,
+        blend_coefficient: f32 = 0.0,
+        secondary_profile: ?ProfileType = null,
+
+        pub const ProfileType = enum {
+            abbey,
+            aviva,
+            abi,
+            blended,
+        };
+    };
+    pub const RoutingWeights = struct {
+        abbey_weight: f32 = 0.0,
+        aviva_weight: f32 = 0.0,
+        abi_weight: f32 = 0.0,
+
+        pub fn getPrimaryProfile(_: @This()) ProfileTag.ProfileType {
+            return .abbey;
+        }
+        pub fn getBlendCoefficient(_: @This()) f32 {
+            return 0.0;
+        }
+    };
+    pub const IntentCategory = enum {
+        general,
+        empathy_seeking,
+        technical_problem,
+        factual_inquiry,
+        creative_generation,
+        policy_check,
+        safety_critical,
+    };
+    pub const PolicyFlags = struct {
+        is_safe: bool = true,
+        requires_moderation: bool = false,
+        sensitive_topic: bool = false,
+        pii_detected: bool = false,
+        violation_details: ?[]const u8 = null,
+    };
+    pub const MvccStore = struct {
+        pub fn init(_: std.mem.Allocator) @This() {
+            return .{};
         }
         pub fn deinit(_: *@This()) void {}
     };
-    pub const ConversationBlock = struct {};
-    pub const BlockChainConfig = struct {};
-    pub const BlockChainError = error{ DatabaseDisabled, InvalidBlock, ChainCorrupted };
-    pub const ProfileTag = enum { assistant, user, system };
-    pub const RoutingWeights = struct {};
-    pub const IntentCategory = enum { query, command, conversation };
-    pub const PolicyFlags = struct {};
 };
 
 // ============================================================================
