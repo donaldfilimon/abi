@@ -136,6 +136,14 @@ test "cli: routing decision has valid weights" {
     try std.testing.expect(decision.weights.abi <= 1.0);
 }
 
+test "cli: chat message helper joins tokenized args" {
+    const message_args = [_][:0]const u8{ "Hello,", "how", "are", "you?" };
+    const message = try cli.joinChatMessage(std.testing.allocator, &message_args);
+    defer std.testing.allocator.free(message);
+
+    try std.testing.expectEqualStrings("Hello, how are you?", message);
+}
+
 // === App Builder Path ===
 
 test "cli: app version returns non-empty string" {

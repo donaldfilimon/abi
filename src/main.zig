@@ -11,7 +11,7 @@
 //!   abi platform          Show platform detection info
 //!   abi connectors        List available LLM connectors
 //!   abi info              Show framework architecture summary
-//!   abi chat <msg>        Route a message through the persona pipeline
+//!   abi chat <message...>  Route a message through the persona pipeline
 //!   abi serve             Start the ACP HTTP server
 //!   abi acp serve         Start the ACP HTTP server
 //!   abi db <subcommand>   Vector database operations
@@ -109,7 +109,7 @@ pub fn printStatus() void {
         \\  platform     Show platform detection info
         \\  connectors   List available LLM connectors
         \\  info         Framework architecture summary
-        \\  chat <msg>   Route through persona pipeline
+        \\  chat <message...>  Route through persona pipeline
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
         \\
@@ -167,7 +167,7 @@ pub fn printHelp() void {
         \\  info         Show framework architecture summary
         \\
         \\AI & Data:
-        \\  chat <msg>   Route a message through the persona pipeline
+        \\  chat <message...>  Route a message through the persona pipeline
         \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
@@ -392,14 +392,8 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         return;
     }
 
-    // Join the message arguments into a single string
-    var full_message = std.ArrayListUnmanaged(u8).empty;
-    defer full_message.deinit(allocator);
-    for (message_args, 0..) |arg, i| {
-        if (i > 0) try full_message.append(allocator, ' ');
-        try full_message.appendSlice(allocator, arg);
-    }
-    const message = full_message.items;
+    const message = try cli.joinChatMessage(allocator, message_args);
+    defer allocator.free(message);
 
     const ai = root.ai;
     var registry = ai.persona.PersonaRegistry.init(allocator, .{});
@@ -512,7 +506,8 @@ test "connectors prints without error" {
 }
 
 test "chat routes message without error" {
-    try runChat(std.testing.allocator, "Hello, how are you?");
+    const message_args = [_][:0]const u8{ "Hello,", "how", "are", "you?" };
+    try runChat(std.testing.allocator, &message_args);
 }
 
 test {

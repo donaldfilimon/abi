@@ -7,6 +7,18 @@ const acp = @import("protocols/acp/mod.zig");
 const default_host = "127.0.0.1";
 const default_port: u16 = 8080;
 
+pub fn joinChatMessage(allocator: std.mem.Allocator, message_args: []const [:0]const u8) ![]u8 {
+    var full_message = std.ArrayListUnmanaged(u8).empty;
+    errdefer full_message.deinit(allocator);
+
+    for (message_args, 0..) |arg, i| {
+        if (i > 0) try full_message.append(allocator, ' ');
+        try full_message.appendSlice(allocator, arg);
+    }
+
+    return full_message.toOwnedSlice(allocator);
+}
+
 fn formatServeAddress(allocator: std.mem.Allocator, host: []const u8, port: u16) ![]u8 {
     const bracketed = host.len >= 2 and host[0] == '[' and host[host.len - 1] == ']';
     if (bracketed or std.mem.indexOfScalar(u8, host, ':') == null) {
