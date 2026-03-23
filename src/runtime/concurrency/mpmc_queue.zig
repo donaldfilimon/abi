@@ -215,7 +215,7 @@ pub fn BlockingMpmcQueue(comptime T: type) type {
         /// Condition for waiting poppers
         pop_cond: sync.Condition = .{},
         /// Mutex for condition variables
-        mutex: sync.Mutex = .{},
+        mutex: sync.BlockingMutex = .{},
         /// Whether the queue is closed
         closed: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
@@ -227,6 +227,9 @@ pub fn BlockingMpmcQueue(comptime T: type) type {
 
         pub fn deinit(self: *Self) void {
             self.close();
+            self.mutex.deinit();
+            self.push_cond.deinit();
+            self.pop_cond.deinit();
             self.inner.deinit();
             self.* = undefined;
         }

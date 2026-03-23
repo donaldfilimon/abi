@@ -110,7 +110,7 @@ pub const TaskGroup = struct {
     allocator: std.mem.Allocator,
     config: TaskGroupConfig,
     tasks: std.ArrayListUnmanaged(Task),
-    mutex: sync.Mutex,
+    mutex: sync.BlockingMutex,
     condition: sync.Condition,
     next_id: std.atomic.Value(u64),
     cancellation_source: CancellationSource,
@@ -150,6 +150,8 @@ pub const TaskGroup = struct {
 
     /// Deinitialize the task group.
     pub fn deinit(self: *TaskGroup) void {
+        self.mutex.deinit();
+        self.condition.deinit();
         self.cancellation_source.deinit();
         self.tasks.deinit(self.allocator);
         self.* = undefined;

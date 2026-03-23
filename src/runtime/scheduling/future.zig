@@ -62,7 +62,7 @@ pub fn Future(comptime T: type) type {
         allocator: std.mem.Allocator,
         state: std.atomic.Value(u8),
         result: ?Result,
-        mutex: sync.Mutex,
+        mutex: sync.BlockingMutex,
         condition: sync.Condition,
         callbacks: std.ArrayListUnmanaged(CallbackEntry),
         cancel_token: ?*CancellationToken,
@@ -104,6 +104,8 @@ pub fn Future(comptime T: type) type {
         /// Deinitialize the future.
         pub fn deinit(self: *Self) void {
             self.callbacks.deinit(self.allocator);
+            self.mutex.deinit();
+            self.condition.deinit();
             self.* = undefined;
         }
 
