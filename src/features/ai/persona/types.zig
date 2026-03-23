@@ -96,12 +96,10 @@ pub const PersonaResponse = struct {
     persona: PersonaId,
     content: []const u8,
     confidence: f32,
-    reasoning: ?[]const u8 = null,
     allocator: std.mem.Allocator,
 
     pub fn deinit(self: *PersonaResponse) void {
         self.allocator.free(self.content);
-        if (self.reasoning) |r| self.allocator.free(r);
     }
 };
 

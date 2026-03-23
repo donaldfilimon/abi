@@ -117,9 +117,6 @@ pub const HnswIndex = struct {
         return buildWithConfig(allocator, records, .{
             .m = m,
             .ef_construction = ef_construction,
-            .search_pool_size = 0, // Legacy mode: no pool
-            .distance_cache_size = 0, // Legacy mode: no cache
-            .enable_gpu = false, // Legacy mode: no GPU
         });
     }
 

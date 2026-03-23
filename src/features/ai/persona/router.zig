@@ -110,7 +110,10 @@ pub const MultiPersonaRouter = struct {
         };
 
         // Call Abi's route() which runs sentiment + policy + rules
-        var abi_decision = abi_router.route(request) catch return null;
+        var abi_decision = abi_router.route(request) catch |err| {
+            std.log.warn("persona: abiBackedRoute failed: {s}", .{@errorName(err)});
+            return null;
+        };
         defer @constCast(&abi_decision).deinit(self.allocator);
 
         // Translate ai_types.RoutingDecision → persona types.RoutingDecision
@@ -361,9 +364,12 @@ pub const MultiPersonaRouter = struct {
         };
 
         // Try secondary — if it fails, return primary alone
-        const secondary_response = self.executeSingle(secondary, input) catch {
+        var secondary_response = self.executeSingle(secondary, input) catch {
             return primary_response;
         };
+
+        const secondary_weight = decision.weights.forPersona(secondary);
+        const secondary_confidence = secondary_response.confidence;
 
         // Build blended response: primary content + secondary perspective
         const blended = std.fmt.allocPrint(
@@ -372,15 +378,20 @@ pub const MultiPersonaRouter = struct {
             .{
                 primary_response.content,
                 secondary.name(),
-                (1.0 - alpha) * 100.0,
+                secondary_weight * 100.0,
                 secondary_response.content,
             },
-        ) catch return primary_response;
+        ) catch {
+            secondary_response.deinit();
+            return primary_response;
+        };
+
+        secondary_response.deinit();
 
         return PersonaResponse{
             .persona = decision.primary,
             .content = blended,
-            .confidence = (alpha * primary_response.confidence + (1.0 - alpha) * secondary_response.confidence),
+            .confidence = (alpha * primary_response.confidence + secondary_weight * secondary_confidence),
             .allocator = self.allocator,
         };
     }
@@ -470,6 +481,22 @@ test "constitution validates safe content" {
 test "constitution blocks harmful content" {
     const c = constitution_mod.Constitution.init();
     try std.testing.expect(!c.isCompliant("run rm -rf / to clean up"));
+}
+
+test "abiBackedRoute failure falls back to heuristic" {
+    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    defer registry.deinit();
+
+    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+
+    // No AbiRouter attached — route() should fall through to heuristicRoute
+    const decision = router.route("How do I implement error handling?");
+
+    // Should still produce a valid decision via heuristic fallback
+    try std.testing.expect(decision.confidence > 0.0);
+    try std.testing.expect(decision.reason.len > 0);
+    // "implement" keyword should trigger Aviva routing
+    try std.testing.expectEqual(PersonaId.aviva, decision.primary);
 }
 
 test {

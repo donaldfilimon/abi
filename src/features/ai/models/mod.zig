@@ -1,7 +1,4 @@
-//! AI model management — registry, metadata, and model lifecycle.
-
 pub const registry = @import("registry.zig");
-
 pub const ModelRegistry = registry.ModelRegistry;
 pub const ModelInfo = registry.ModelInfo;
 
