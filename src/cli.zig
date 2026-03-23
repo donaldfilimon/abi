@@ -63,7 +63,36 @@ pub fn parseServeAddress(allocator: std.mem.Allocator, args: []const [:0]const u
     return formatServeAddress(allocator, host, port);
 }
 
+pub fn printServeHelp() void {
+    std.debug.print(
+        \\Usage: abi serve [options]
+        \\
+        \\Start the Agent Communication Protocol (ACP) server.
+        \\
+        \\Options:
+        \\  --addr <host:port>   Listen on explicit address (e.g. 0.0.0.0:8080)
+        \\  --host <hostname>    Listen host (default: 127.0.0.1)
+        \\  --port <port>        Listen port (default: 8080)
+        \\  --help, -h           Show this help message
+        \\
+    , .{});
+}
+
+pub fn wantsServeHelp(args: []const [:0]const u8) bool {
+    for (args) |a| {
+        if (std.mem.eql(u8, a, "help") or std.mem.eql(u8, a, "--help") or std.mem.eql(u8, a, "-h")) {
+            return true;
+        }
+    }
+    return false;
+}
+
 pub fn runServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsServeHelp(args)) {
+        printServeHelp();
+        return;
+    }
+
     const address = try parseServeAddress(allocator, args);
     defer allocator.free(address);
 
