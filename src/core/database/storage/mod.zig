@@ -40,6 +40,7 @@ pub const QuantizedVectors = compression.QuantizedVectors;
 pub const WalEntry = wal.WalEntry;
 pub const WalEntryType = wal.WalEntryType;
 pub const WalWriter = wal.WalWriter;
+pub const WalReader = wal.WalReader;
 
 pub const StorageError = error{
     InvalidMagic,
