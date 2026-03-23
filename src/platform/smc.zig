@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const sync = @import("../foundation/sync.zig");
 
 /// Thermal reading from SMC sensors.
 pub const SmcReading = struct {
@@ -90,21 +91,25 @@ extern "c" fn IOConnectCallStructMethod(
 extern "c" fn mach_task_self_() mach_port_t;
 
 // Cached IOKit connection — opened once, reused across calls.
+// smc_mu guards the check-and-set to prevent a TOCTOU race under concurrent callers.
+var smc_mu: sync.Mutex = .{};
 var cached_conn: io_connect_t = 0;
 var conn_initialized: bool = false;
 
 fn getConnection() SmcError!io_connect_t {
     if (comptime !is_darwin) return error.PlatformUnsupported;
-    if (conn_initialized) return cached_conn;
+    smc_mu.lock();
+    defer smc_mu.unlock();
+    if (!conn_initialized) {
+        const matching = IOServiceMatching("AppleSMC");
+        const service = IOServiceGetMatchingService(mach_task_self_(), matching);
+        if (service == 0) return error.SmcNotFound;
 
-    const matching = IOServiceMatching("AppleSMC");
-    const service = IOServiceGetMatchingService(mach_task_self_(), matching);
-    if (service == 0) return error.SmcNotFound;
-
-    if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
-        return error.SmcConnectFailed;
+        if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
+            return error.SmcConnectFailed;
+        }
+        conn_initialized = true;
     }
-    conn_initialized = true;
     return cached_conn;
 }
 

@@ -507,7 +507,7 @@ pub const JwtManager = struct {
             .hs384 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha384),
             .hs512 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha512),
             .rs256 => return error.RsaSigningNotSupported,
-            .none => unreachable,
+            .none => return error.AlgorithmNone,
         };
         defer self.allocator.free(expected_b64);
 
@@ -731,6 +731,8 @@ pub const JwtError = error{
     InvalidBase64,
     /// RSA signing (RS256) not supported - requires external RSA cryptography library
     RsaSigningNotSupported,
+    /// Algorithm 'none' encountered during signature verification
+    AlgorithmNone,
     OutOfMemory,
 };
 

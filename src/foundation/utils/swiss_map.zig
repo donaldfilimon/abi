@@ -379,7 +379,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
             // Safety: insertUnchecked is only called from rehash() with a
             // freshly-allocated table sized to fit all entries. If we exhaust
             // probing, the capacity calculation in ensureCapacity is wrong.
-            unreachable;
+            @panic("swiss_map: insertUnchecked exhausted probing â capacity invariant violated");
         }
 
         // ── Capacity Management ──────────────────────────────────
