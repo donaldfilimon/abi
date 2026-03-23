@@ -28,6 +28,7 @@ const storage_tests = @import("integration/storage_test.zig");
 const search_tests = @import("integration/search_test.zig");
 const cache_tests = @import("integration/cache_test.zig");
 const connector_tests = @import("integration/connector_test.zig");
+const connector_errors_tests = @import("integration/connector_errors_test.zig");
 const mcp_tests = @import("integration/mcp_test.zig");
 const observability_tests = @import("integration/observability_test.zig");
 const cli_tests = @import("integration/cli_test.zig");
