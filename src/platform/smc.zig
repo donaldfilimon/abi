@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const sync = @import("../foundation/sync.zig");
 
 /// Thermal reading from SMC sensors.
 pub const SmcReading = struct {
@@ -90,11 +91,16 @@ extern "c" fn IOConnectCallStructMethod(
 extern "c" fn mach_task_self_() mach_port_t;
 
 // Cached IOKit connection — opened once, reused across calls.
+// Protected by smc_mu to prevent TOCTOU: two threads must not both see
+// conn_initialized == false and both call IOServiceOpen simultaneously.
+var smc_mu: sync.BlockingMutex = .{};
 var cached_conn: io_connect_t = 0;
 var conn_initialized: bool = false;
 
 fn getConnection() SmcError!io_connect_t {
     if (comptime !is_darwin) return error.PlatformUnsupported;
+    smc_mu.lock();
+    defer smc_mu.unlock();
     if (conn_initialized) return cached_conn;
 
     const matching = IOServiceMatching("AppleSMC");

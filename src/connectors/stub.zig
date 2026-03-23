@@ -19,7 +19,7 @@ pub const Error = error{
     OutOfMemory,
 };
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(_: std.mem.Allocator) !void {
     return Error.FeatureDisabled;
