@@ -21,6 +21,8 @@ pub const ConstitutionalRule = principles.ConstitutionalRule;
 pub const TrainingGuardrails = principles.TrainingGuardrails;
 pub const ConstitutionalScore = enforcement.ConstitutionalScore;
 pub const Violation = enforcement.Violation;
+pub const SafetyScore = enforcement.SafetyScore;
+pub const SafetyViolation = enforcement.SafetyViolation;
 
 /// The Constitution engine — stateless, principle-driven evaluation.
 pub const Constitution = struct {
@@ -57,6 +59,11 @@ pub const Constitution = struct {
     /// Check if a response is compliant (no critical violations).
     pub fn isCompliant(_: *const Constitution, response: []const u8) bool {
         return enforcement.evaluateResponse(response).isCompliant();
+    }
+
+    /// Run standalone pattern-based safety evaluation.
+    pub fn evaluateSafety(_: *const Constitution, text: []const u8) SafetyScore {
+        return enforcement.evaluateSafety(text);
     }
 
     /// Get all principle definitions.
