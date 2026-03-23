@@ -7,7 +7,7 @@
 //! ## Environment Variables
 //!
 //! - `ABI_HF_API_TOKEN`, `HF_API_TOKEN`, or `HUGGING_FACE_HUB_TOKEN`: API token (required)
-//! - `ABI_HF_BASE_URL`: Base URL (default: https://api-inference.huggingface.co)
+//! - `ABI_HF_BASE_URL` or `HF_BASE_URL`: Base URL (default: https://api-inference.huggingface.co)
 //! - `ABI_HF_MODEL` or `HF_MODEL`: Default model (default: gpt2)
 //!
 //! ## Example
@@ -228,6 +228,7 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
 
     const base_url_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_HF_BASE_URL",
+        "HF_BASE_URL",
     });
     // Treat empty base URL as unset — fall through to default
     const base_url = if (base_url_raw) |u| blk: {

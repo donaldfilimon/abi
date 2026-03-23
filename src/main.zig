@@ -260,21 +260,22 @@ pub fn printConnectors() void {
         \\ABI Connectors — LLM Provider Adapters
         \\═══════════════════════════════════════
         \\
-        \\Available connectors (env var → provider):
+        \\Available connectors (primary env var → provider):
         \\
-        \\  OPENAI_API_KEY          → OpenAI (GPT-4, GPT-3.5)
-        \\  ANTHROPIC_API_KEY       → Anthropic (Claude)
-        \\  GOOGLE_AI_API_KEY       → Google Gemini
-        \\  MISTRAL_API_KEY         → Mistral AI
-        \\  COHERE_API_KEY          → Cohere (Chat, Embed, Rerank)
-        \\  HUGGINGFACE_API_TOKEN   → HuggingFace Inference API
-        \\  OLLAMA_HOST             → Ollama (local, default: localhost:11434)
-        \\  LM_STUDIO_HOST          → LM Studio (local, OpenAI-compatible)
-        \\  VLLM_HOST               → vLLM (local, high-throughput)
-        \\  MLX_HOST                → MLX (Apple Silicon optimized)
-        \\  LLAMA_CPP_HOST          → llama.cpp server
-        \\  DISCORD_BOT_TOKEN       → Discord bot integration
+        \\  ABI_OPENAI_API_KEY      → OpenAI (GPT-4, GPT-3.5)
+        \\  ABI_ANTHROPIC_API_KEY   → Anthropic (Claude)
+        \\  ABI_GEMINI_API_KEY      → Google Gemini
+        \\  ABI_MISTRAL_API_KEY     → Mistral AI
+        \\  ABI_COHERE_API_KEY      → Cohere (Chat, Embed, Rerank)
+        \\  ABI_HF_API_TOKEN        → HuggingFace Inference API
+        \\  ABI_OLLAMA_HOST         → Ollama (local, default: localhost:11434)
+        \\  ABI_LM_STUDIO_HOST      → LM Studio (local, OpenAI-compatible)
+        \\  ABI_VLLM_HOST           → vLLM (local, high-throughput)
+        \\  ABI_MLX_HOST            → MLX (Apple Silicon optimized)
+        \\  ABI_LLAMA_CPP_HOST      → llama.cpp server
+        \\  ABI_DISCORD_BOT_TOKEN   → Discord bot integration
         \\
+        \\Legacy env vars (e.g. OPENAI_API_KEY) are supported as fallbacks.
         \\Connector status: always available (not feature-gated).
         \\Set the env var to enable a provider. Use 'abi chat' to test routing.
         \\
