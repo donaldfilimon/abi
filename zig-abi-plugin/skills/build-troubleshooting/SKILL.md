@@ -148,7 +148,7 @@ Only external code (CLI in `tools/cli/`, test roots) may use `@import("abi")`.
 
 For cross-feature imports, never import another feature's `mod.zig` directly (bypasses the comptime gate). Use a conditional import with `build_options`:
 ```zig
-const obs = if (build_options.feat_profiling)
+const obs = if (build_options.feat_observability)
     @import("../../observability/mod.zig")
 else
     @import("../../observability/stub.zig");
@@ -249,6 +249,12 @@ Quick reference for available build steps and when to use each:
 | `./build.sh --link lib` | Build + symlink zig/zls to ~/.local/bin | No |
 
 When the linker is blocked (Darwin 25+), use `./build.sh` which auto-relinks with Apple ld.
+
+## build.sh AUTO_LINK Behavior
+
+The `--link` flag in `build.sh` is opt-in. If `build.sh` always symlinks zig/zls into `~/.local/bin` even without `--link`, check that the `AUTO_LINK` variable defaults to `false` at the top of the script. The intended behavior is:
+- `./build.sh` — build only, no symlinks
+- `./build.sh --link lib` — build and symlink zig/zls to ~/.local/bin
 
 ## Escalation Checklist
 

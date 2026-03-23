@@ -255,3 +255,52 @@ Never set `use_lld = true` on macOS (zero Mach-O support).
 
 ### WASM
 `time.unixSeconds()` returns 0 on WASM (no timer). Guard time-dependent logic accordingly.
+
+## Additional Patterns
+
+### SerializationCursor for Decode
+
+Use `SerializationCursor` from `foundation/utils/binary.zig` for decode methods. The auto-advancing cursor eliminates manual byte-offset arithmetic and makes decode logic clearer.
+
+```zig
+const binary = @import("../../foundation/utils/binary.zig");
+
+pub fn decode(allocator: std.mem.Allocator, data: []const u8) !MyStruct {
+    var cursor = binary.SerializationCursor{ .data = data };
+    const version = cursor.readByte() catch return error.BufferTooSmall;
+    const id = cursor.readInt(u32, .little) catch return error.BufferTooSmall;
+    // ...
+}
+```
+
+Key points:
+- Map `EndOfData` to `BufferTooSmall` at each call site
+- Use `readByte()` for single-byte enum discriminants
+- Leave encode methods using manual `writeInt` (fixed buffer, no allocation needed)
+
+### errdefer Before toOwnedSlice
+
+Always use `errdefer` (not `defer`) before `toOwnedSlice` — `toOwnedSlice` transfers ownership to the caller, so freeing on success is a use-after-free:
+```zig
+var list = std.ArrayListUnmanaged(u8).empty;
+errdefer list.deinit(allocator);  // only free if we error
+const result = try list.toOwnedSlice(allocator);
+return result;  // caller owns the slice
+```
+
+### foundation.time.unixSeconds() Over Raw Syscalls
+
+Never use `std.c.clock_gettime` directly. Use the foundation wrapper:
+```zig
+const now = foundation.time.unixSeconds(); // portable, WASM-safe (returns 0)
+```
+
+### Comptime Asserts for Struct Padding
+
+Verify struct sizes at comptime to catch padding issues, especially for cache-line-aligned structures:
+```zig
+comptime {
+    const fields_size = @sizeOf(DataField) + @sizeOf(MetaField);
+    std.debug.assert(CACHE_LINE_SIZE >= fields_size);
+}
+```

@@ -28,7 +28,7 @@ Features set per target during cross-check (from `build.zig` lines 304-333):
 | feat_ai | yes | yes | yes | yes |
 | feat_database | yes | yes | **no** | yes |
 | feat_network | yes | yes | **no** | yes |
-| feat_profiling | yes | yes | **no** | yes |
+| feat_observability | yes | yes | **no** | yes |
 | feat_web | yes | yes | **no** | yes |
 | feat_pages | yes | yes | **no** | yes |
 | feat_analytics | yes | yes | yes | yes |
@@ -102,7 +102,7 @@ Hardware-specific backends (Metal, CUDA, Vulkan) are disabled because cross-chec
 
 **Fix:** Use relative paths: `@import("../../foundation/mod.zig")`. For cross-feature imports, always use the comptime gate:
 ```zig
-const obs = if (build_options.feat_profiling)
+const obs = if (build_options.feat_observability)
     @import("../../features/observability/mod.zig")
 else
     @import("../../features/observability/stub.zig");
