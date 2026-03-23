@@ -4,6 +4,7 @@
 //! then payload. Encode/decode only; no I/O.
 
 const std = @import("std");
+const SerializationCursor = @import("../../../foundation/utils/binary.zig").SerializationCursor;
 
 pub const MessageType = enum(u8) {
     heartbeat = 0,
@@ -26,10 +27,11 @@ pub const Header = struct {
 
     pub fn decode(bytes: []const u8) !Header {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
-        const raw_type = bytes[0];
+        var cursor = SerializationCursor.init(bytes);
+        const raw_type = cursor.readByte() catch return error.BufferTooSmall;
         if (raw_type > 3) return error.InvalidMessageType;
         const msg_type: MessageType = @enumFromInt(raw_type);
-        const payload_len = std.mem.readInt(u32, bytes[1..5], .little);
+        const payload_len = cursor.readInt(u32) catch return error.BufferTooSmall;
         return .{ .msg_type = msg_type, .payload_len = payload_len };
     }
 };
@@ -51,10 +53,14 @@ pub const HeartbeatPayload = struct {
 
     pub fn decode(bytes: []const u8) !HeartbeatPayload {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
+        var cursor = SerializationCursor.init(bytes);
+        const node_id = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const load_factor = cursor.readFloat(f32) catch return error.BufferTooSmall;
+        const timestamp = cursor.readInt(i64) catch return error.BufferTooSmall;
         return .{
-            .node_id = std.mem.readInt(u32, bytes[0..4], .little),
-            .load_factor = @bitCast(std.mem.readInt(u32, bytes[4..8], .little)),
-            .timestamp = std.mem.readInt(i64, bytes[8..16], .little),
+            .node_id = node_id,
+            .load_factor = load_factor,
+            .timestamp = timestamp,
         };
     }
 };
@@ -74,10 +80,13 @@ pub const BlockSyncRequest = struct {
 
     pub fn decode(bytes: []const u8) !BlockSyncRequest {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
+        var cursor = SerializationCursor.init(bytes);
+        const shard_id = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const block_id_slice = cursor.readBytes(32) catch return error.BufferTooSmall;
         var block_id: [32]u8 = undefined;
-        @memcpy(&block_id, bytes[4..36]);
+        @memcpy(&block_id, block_id_slice);
         return .{
-            .shard_id = std.mem.readInt(u32, bytes[0..4], .little),
+            .shard_id = shard_id,
             .block_id = block_id,
         };
     }
@@ -103,12 +112,14 @@ pub const BlockSyncResponse = struct {
 
     pub fn decode(bytes: []const u8) !BlockSyncResponse {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
-        const raw_status = bytes[0];
+        var cursor = SerializationCursor.init(bytes);
+        const raw_status = cursor.readByte() catch return error.BufferTooSmall;
         if (raw_status > 1) return error.InvalidStatus;
         const status: BlockSyncStatus = @enumFromInt(raw_status);
+        const total_byte_len = cursor.readInt(u32) catch return error.BufferTooSmall;
         return .{
             .status = status,
-            .total_byte_len = std.mem.readInt(u32, bytes[1..5], .little),
+            .total_byte_len = total_byte_len,
         };
     }
 };
@@ -132,8 +143,9 @@ pub const BlockChunk = struct {
     /// Decode fixed header; caller uses payload[fixed_len..][0..chunk_len] for data.
     pub fn decodeHeader(payload: []const u8) !BlockChunk {
         if (payload.len < fixed_len) return error.BufferTooSmall;
-        const chunk_index = std.mem.readInt(u32, payload[0..4], .little);
-        const chunk_len = std.mem.readInt(u32, payload[4..8], .little);
+        var cursor = SerializationCursor.init(payload);
+        const chunk_index = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const chunk_len = cursor.readInt(u32) catch return error.BufferTooSmall;
         return .{ .chunk_index = chunk_index, .chunk_len = chunk_len };
     }
 };

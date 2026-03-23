@@ -7,6 +7,8 @@
 //! Storage format uses unified storage wal_entry block type (0x05).
 
 const std = @import("std");
+const foundation_time = @import("../../../foundation/time.zig");
+const SerializationCursor = @import("../../../foundation/utils/binary.zig").SerializationCursor;
 
 // ============================================================================
 // Types
@@ -53,7 +55,18 @@ pub const WalEntry = struct {
     pub fn decode(bytes: []const u8) CodecError!WalEntry {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
 
-        const entry_type: WalEntryType = switch (bytes[8]) {
+        var cursor = SerializationCursor.init(bytes);
+        const sequence = cursor.readInt(u64) catch return error.BufferTooSmall;
+        const entry_type_byte = cursor.readByte() catch return error.BufferTooSmall;
+        cursor.skip(7) catch return error.BufferTooSmall; // padding bytes 9..16
+        const timestamp = cursor.readInt(i64) catch return error.BufferTooSmall;
+        const vector_id = cursor.readInt(u64) catch return error.BufferTooSmall;
+        const dimension = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const data_offset = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const data_len = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const crc32 = cursor.readInt(u32) catch return error.BufferTooSmall;
+
+        const entry_type: WalEntryType = switch (entry_type_byte) {
             @intFromEnum(WalEntryType.insert) => .insert,
             @intFromEnum(WalEntryType.delete) => .delete,
             @intFromEnum(WalEntryType.update) => .update,
@@ -64,14 +77,14 @@ pub const WalEntry = struct {
         };
 
         return .{
-            .sequence = std.mem.readInt(u64, bytes[0..8], .little),
+            .sequence = sequence,
             .entry_type = entry_type,
-            .timestamp = std.mem.readInt(i64, bytes[16..24], .little),
-            .vector_id = std.mem.readInt(u64, bytes[24..32], .little),
-            .dimension = std.mem.readInt(u32, bytes[32..36], .little),
-            .data_offset = std.mem.readInt(u32, bytes[36..40], .little),
-            .data_len = std.mem.readInt(u32, bytes[40..44], .little),
-            .crc32 = std.mem.readInt(u32, bytes[44..48], .little),
+            .timestamp = timestamp,
+            .vector_id = vector_id,
+            .dimension = dimension,
+            .data_offset = data_offset,
+            .data_len = data_len,
+            .crc32 = crc32,
         };
     }
 };
@@ -101,18 +114,27 @@ pub const WalHeader = struct {
 
     pub fn decode(bytes: []const u8) CodecError!WalHeader {
         if (bytes.len < encoded_len) return error.BufferTooSmall;
-        if (!std.mem.eql(u8, bytes[0..4], "WALX")) return error.InvalidMagic;
 
-        const version = std.mem.readInt(u16, bytes[4..6], .little);
+        var cursor = SerializationCursor.init(bytes);
+        const magic_bytes = cursor.readBytes(4) catch return error.BufferTooSmall;
+        if (!std.mem.eql(u8, magic_bytes, "WALX")) return error.InvalidMagic;
+
+        const version = cursor.readInt(u16) catch return error.BufferTooSmall;
         if (version != 1) return error.InvalidVersion;
+        cursor.skip(2) catch return error.BufferTooSmall; // padding bytes 6..8
+
+        const node_id = cursor.readInt(u64) catch return error.BufferTooSmall;
+        const created_at = cursor.readInt(i64) catch return error.BufferTooSmall;
+        const entry_count = cursor.readInt(u64) catch return error.BufferTooSmall;
+        const last_sequence = cursor.readInt(u64) catch return error.BufferTooSmall;
 
         return .{
             .magic = .{ 'W', 'A', 'L', 'X' },
             .version = version,
-            .node_id = std.mem.readInt(u64, bytes[8..16], .little),
-            .created_at = std.mem.readInt(i64, bytes[16..24], .little),
-            .entry_count = std.mem.readInt(u64, bytes[24..32], .little),
-            .last_sequence = std.mem.readInt(u64, bytes[32..40], .little),
+            .node_id = node_id,
+            .created_at = created_at,
+            .entry_count = entry_count,
+            .last_sequence = last_sequence,
         };
     }
 };
@@ -142,9 +164,7 @@ pub const WalWriter = struct {
         self.dirty = false;
 
         // Set creation timestamp
-        var ts: std.c.timespec = undefined;
-        _ = std.c.clock_gettime(.REALTIME, &ts);
-        self.header.created_at = @intCast(ts.sec);
+        self.header.created_at = foundation_time.unixSeconds();
 
         return self;
     }
@@ -505,9 +525,7 @@ pub const ReplicationState = struct {
 // ============================================================================
 
 fn currentTimestamp() i64 {
-    var ts: std.c.timespec = undefined;
-    _ = std.c.clock_gettime(.REALTIME, &ts);
-    return @intCast(ts.sec);
+    return foundation_time.unixSeconds();
 }
 
 // ============================================================================

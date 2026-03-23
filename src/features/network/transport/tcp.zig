@@ -85,14 +85,14 @@ pub const TcpTransport = struct {
         transport.* = .{
             .allocator = allocator,
             .config = config,
-            .peers = .{},
+            .peers = .empty,
             .pool = pool,
-            .pending_requests = .{},
+            .pending_requests = .empty,
             .next_request_id = std.atomic.Value(u64).init(1),
             .listener = null,
             .running = std.atomic.Value(bool).init(false),
             .accept_thread = null,
-            .handlers = .{},
+            .handlers = .empty,
             .mutex = .{},
             .stats = .{},
         };

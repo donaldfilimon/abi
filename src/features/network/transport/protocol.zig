@@ -3,6 +3,7 @@
 //! Shared types, enums, error types, and protocol constants for the transport layer.
 
 const std = @import("std");
+const SerializationCursor = @import("../../../foundation/utils/binary.zig").SerializationCursor;
 
 /// Network address wrapper for low-level posix socket operations.
 /// Replaces the removed `std.net.Address` in Zig 0.16 by wrapping
@@ -160,14 +161,23 @@ pub const MessageHeader = struct {
     pub fn decode(bytes: []const u8) CodecError!MessageHeader {
         if (bytes.len < SIZE) return error.BufferTooSmall;
 
+        var cursor = SerializationCursor.init(bytes);
+        const magic = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const version = cursor.readByte() catch return error.BufferTooSmall;
+        const message_type = cursor.readByte() catch return error.BufferTooSmall;
+        const flags = cursor.readInt(u16) catch return error.BufferTooSmall;
+        const request_id = cursor.readInt(u64) catch return error.BufferTooSmall;
+        const payload_length = cursor.readInt(u32) catch return error.BufferTooSmall;
+        const checksum = cursor.readInt(u32) catch return error.BufferTooSmall;
+
         return .{
-            .magic = std.mem.readInt(u32, bytes[0..4], .little),
-            .version = bytes[4],
-            .message_type = bytes[5],
-            .flags = std.mem.readInt(u16, bytes[6..8], .little),
-            .request_id = std.mem.readInt(u64, bytes[8..16], .little),
-            .payload_length = std.mem.readInt(u32, bytes[16..20], .little),
-            .checksum = std.mem.readInt(u32, bytes[20..24], .little),
+            .magic = magic,
+            .version = version,
+            .message_type = message_type,
+            .flags = flags,
+            .request_id = request_id,
+            .payload_length = payload_length,
+            .checksum = checksum,
         };
     }
 

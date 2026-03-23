@@ -100,7 +100,15 @@ const SlotMetadata = struct {
     /// Timestamp of allocation (for debugging/metrics)
     alloc_time: std.atomic.Value(i64),
     /// Padding to ensure next slot starts on cache line
-    _padding: [CACHE_LINE_SIZE - @sizeOf(std.atomic.Value(u32)) - @sizeOf(std.atomic.Value(SlotState)) - @sizeOf(std.atomic.Value(usize)) - @sizeOf(std.atomic.Value(i64))]u8 = undefined,
+    // Padding ensures each SlotMetadata occupies exactly one cache line.
+    // comptime assert guards against underflow if atomic sizes change.
+    _padding: [padding_size]u8 = undefined,
+
+    const fields_size = @sizeOf(std.atomic.Value(u32)) + @sizeOf(std.atomic.Value(SlotState)) + @sizeOf(std.atomic.Value(usize)) + @sizeOf(std.atomic.Value(i64));
+    const padding_size = CACHE_LINE_SIZE - fields_size; // asserted below
+    comptime {
+        std.debug.assert(CACHE_LINE_SIZE >= fields_size);
+    }
 
     const SlotState = enum(u8) {
         free = 0,
@@ -109,9 +117,14 @@ const SlotMetadata = struct {
     };
 };
 
-/// Lock-free free list node
-/// Uses tagged pointer to prevent ABA problem
+/// Lock-free free list node.
+/// Uses upper 16 bits of a 64-bit pointer for an ABA tag.
+/// Safe on 48-bit VA userspace (x86_64 4-level paging, aarch64).
+/// Will need revision if 5-level paging (57-bit VA) is ever required.
 const FreeListNode = struct {
+    comptime {
+        std.debug.assert(@sizeOf(usize) == 8); // tagged pointers require 64-bit
+    }
     /// Next pointer with embedded tag
     next: std.atomic.Value(u64) align(CACHE_LINE_SIZE),
     /// Slot index this node represents

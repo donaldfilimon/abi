@@ -64,6 +64,14 @@ pub const SerializationCursor = struct {
         };
     }
 
+    /// Read a single byte and advance the cursor.
+    pub fn readByte(self: *SerializationCursor) Error!u8 {
+        if (self.pos >= self.data.len) return Error.EndOfData;
+        const b = self.data[self.pos];
+        self.pos += 1;
+        return b;
+    }
+
     /// Read a fixed number of bytes.
     pub fn readBytes(self: *SerializationCursor, n: usize) Error![]const u8 {
         if (self.pos + n > self.data.len) return Error.EndOfData;

@@ -431,7 +431,7 @@ pub const BatchExecutor = struct {
 
     pub fn init(allocator: std.mem.Allocator, manager: *UnifiedMemoryManager) BatchExecutor {
         return .{
-            .operations = .{},
+            .operations = .empty,
             .allocator = allocator,
             .manager = manager,
         };
