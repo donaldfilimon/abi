@@ -49,14 +49,44 @@ zig build mcp                      # Build MCP stdio server (zig-out/bin/abi-mcp
 zig build doctor                   # Report build configuration and diagnostics
 ```
 
+## CLI
+
+Build the CLI binary with `zig build cli` (or `./build.sh cli` on macOS 26.4+).
+The binary lands at `zig-out/bin/abi`. Entry point: `src/main.zig`.
+
+```bash
+abi version       # Print version and build info
+abi doctor        # Run diagnostics (features, platform, GPU)
+abi info          # Show framework architecture summary
+abi chat <msg>    # Route a message through the persona pipeline
+abi help          # Show this help message
+```
+
+## Pipeline architecture
+
+The multi-persona pipeline (Abbey-Aviva-Abi) is wired end-to-end in `src/features/ai/persona/router.zig`:
+
+```
+User Input
+  -> Abi Analysis        (sentiment + policy + rules)
+  -> Modulation          (EMA user preference learning)
+  -> Routing Decision    (single / parallel / consensus)
+  -> Persona Execution   (Abbey / Aviva / Abi)
+  -> Constitution        (6-principle ethical validation)
+  -> WDBX Memory         (cryptographic block-chain storage)
+  -> Response
+```
+
 ## Feature flags
 
 All features default to enabled except `feat-mobile` (false). Disable with `-Dfeat-<name>=false`:
 
 ```bash
-zig build -Dfeat-gpu=false -Dfeat-ai=false
-zig build -Dgpu-backend=metal
-zig build -Dgpu-backend=cuda,vulkan
+zig build -Dfeat-gpu=false -Dfeat-ai=false    # Disable GPU and AI features
+zig build -Dfeat-training=false                # Disable training sub-feature only
+zig build -Dfeat-mobile=true                   # Enable mobile (off by default)
+zig build -Dgpu-backend=metal                  # Single GPU backend
+zig build -Dgpu-backend=cuda,vulkan            # Multiple GPU backends
 ```
 
 ## Public surface
@@ -117,6 +147,24 @@ Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
 
 ABI is pinned to the Zig version in `.zigversion`. On macOS 26.4+, `./build.sh`
 auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
+
+## Testing
+
+```bash
+zig build test --summary all       # Run all unit + integration tests
+./build.sh test --summary all      # Same, via macOS 26.4+ wrapper
+zig build check                    # Full gate: lint + test + stub parity
+zig build check-parity             # Verify mod/stub declaration parity only
+```
+
+Two test suites run under `zig build test`:
+1. **Unit tests** (`src/root.zig`) -- `refAllDecls` walks the entire module tree.
+2. **Integration tests** (`test/mod.zig`) -- 24+ tests covering database, inference, persona pipeline, and security.
+
+## Specification
+
+See [docs/spec/ABBEY-SPEC.md](docs/spec/ABBEY-SPEC.md) for the comprehensive mega spec covering
+architecture, personas, behavioral model, math foundations, ethics, and benchmarks.
 
 ## License
 
