@@ -61,6 +61,13 @@ pub const FinishReason = enum {
     error_,
 };
 
+/// Generation result.
+///
+/// **Ownership**: The caller owns the returned `Result` and *must* call
+/// `deinit()` with the same allocator that the engine was initialised with
+/// when the result is no longer needed. Failing to do so will leak the
+/// backing `text` and `tokens` buffers when the respective `*_owned` flags
+/// are `true`.
 pub const Result = struct {
     id: u64,
     text: []const u8,
@@ -74,6 +81,7 @@ pub const Result = struct {
     ttft_ms: f32,
     tokens_per_second: f32,
 
+    /// Release owned buffers. Safe to call multiple times.
     pub fn deinit(self: *Result, allocator: Allocator) void {
         if (self.text_owned) {
             allocator.free(self.text);
@@ -83,6 +91,81 @@ pub const Result = struct {
         }
         self.text_owned = false;
         self.tokens_owned = false;
+    }
+};
+
+/// Thread-safe container returned by `generateAsyncWithTimeout`.
+///
+/// The engine spawns a background thread that writes the result into this
+/// container. The caller can either:
+///   - call `wait()` / `waitTimeout()` to block until the result is ready, or
+///   - call `deinit()` to abandon the result (the background thread will
+///     clean up its own allocations).
+///
+/// Exactly one of {caller, background thread} frees the inner `Result`
+/// buffers, coordinated by the `state` atomic.
+pub const AsyncResult = struct {
+    const Self = @This();
+
+    const State = enum(u8) {
+        /// Background thread has not yet written the result.
+        pending = 0,
+        /// Result is available for the caller to consume.
+        ready = 1,
+        /// Caller abandoned the result; background thread must free it.
+        abandoned = 2,
+    };
+
+    allocator: Allocator,
+    state: std.atomic.Value(u8),
+    result: Result,
+
+    /// Block until the result is available or `timeout_ms` elapses.
+    /// Returns `null` on timeout. The caller owns the returned `Result`
+    /// and must call `Result.deinit()` on it.
+    pub fn waitTimeout(self: *Self, timeout_ms: u64) ?Result {
+        const deadline_ns = time_mod.timestampNs() + timeout_ms * std.time.ns_per_ms;
+        while (self.state.load(.acquire) == @intFromEnum(State.pending)) {
+            if (time_mod.timestampNs() >= deadline_ns) return null;
+            time_mod.sleepMs(1);
+        }
+        return self.result;
+    }
+
+    /// Block indefinitely until the result is available. The caller
+    /// owns the returned `Result` and must call `Result.deinit()`.
+    pub fn wait(self: *Self) Result {
+        while (self.state.load(.acquire) == @intFromEnum(State.pending)) {
+            time_mod.sleepMs(1);
+        }
+        return self.result;
+    }
+
+    /// Abandon a pending result. If the background thread has not yet
+    /// finished, it will free the result and this container when it
+    /// completes.
+    ///
+    /// **Must only be called when the result has NOT been consumed**
+    /// (i.e. `waitTimeout` returned `null` or `wait` was never called).
+    /// After calling `deinit()`, the caller must not dereference `self`.
+    pub fn deinit(self: *Self) void {
+        // Try to transition pending -> abandoned so the thread knows
+        // it must free the result itself.
+        _ = self.state.cmpxchgStrong(
+            @intFromEnum(State.pending),
+            @intFromEnum(State.abandoned),
+            .acq_rel,
+            .acquire,
+        );
+        // The heap-allocated AsyncResult is freed by the background
+        // thread after it finishes (it always runs to completion).
+    }
+
+    /// Free the container after the result has been consumed via
+    /// `wait()` or `waitTimeout()`. The caller must have already
+    /// extracted and taken ownership of the inner `Result`.
+    pub fn destroy(self: *Self) void {
+        self.allocator.destroy(self);
     }
 };
 
@@ -234,6 +317,7 @@ pub const Engine = struct {
             "[{s}] Processing: {s}",
             .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
         );
+        errdefer self.allocator.free(response_text);
 
         const end = time_mod.timestampNs();
         const elapsed_ns = end - start;
@@ -288,6 +372,7 @@ pub const Engine = struct {
 
         const num_tokens = request.max_tokens;
         const tokens = try self.allocator.alloc(u32, num_tokens);
+        errdefer self.allocator.free(tokens);
         const vocab_n = @min(self.config.vocab_size, 256);
         var local_sampler = self.sampler;
         local_sampler.params.temperature = request.temperature;
@@ -397,8 +482,13 @@ pub const Engine = struct {
         self.in_flight_async -= 1;
     }
 
-    /// Generate a response asynchronously on a separate thread, invoking a callback upon completion.
-    /// This prevents blocking the main execution thread during long inference passes.
+    /// Generate a response asynchronously on a separate thread, invoking a
+    /// callback upon completion. The callback receives the result by value;
+    /// the engine frees the result's owned buffers *after* the callback
+    /// returns.
+    ///
+    /// **Note**: prefer `generateAsyncWithTimeout` for new code — it gives
+    /// the caller explicit ownership and timeout support.
     pub fn generateAsync(self: *Self, request: scheduler_mod.Request, callback: AsyncCallback) !void {
         try self.beginAsyncJob();
         errdefer self.finishAsyncJob();
@@ -444,6 +534,96 @@ pub const Engine = struct {
 
         const thread = try std.Thread.spawn(.{}, AsyncContext.run, .{ctx});
         thread.detach();
+    }
+
+    /// Generate a response asynchronously, returning an `*AsyncResult` that
+    /// the caller can poll or wait on with an optional timeout.
+    ///
+    /// **Ownership contract**:
+    /// - On success the caller receives a heap-allocated `*AsyncResult`.
+    /// - Call `waitTimeout(ms)` or `wait()` to retrieve the inner `Result`.
+    /// - The returned `Result` is owned by the caller — call
+    ///   `result.deinit(engine.allocator)` when done.
+    /// - If the caller no longer needs the result (e.g. after a timeout),
+    ///   call `async_result.deinit()`. The background thread will free the
+    ///   inner buffers when it completes.
+    /// - The `*AsyncResult` itself is freed by the background thread after
+    ///   it finishes, so the caller must not dereference it after calling
+    ///   `deinit()`.
+    pub fn generateAsyncWithTimeout(self: *Self, request: scheduler_mod.Request) !*AsyncResult {
+        try self.beginAsyncJob();
+        errdefer self.finishAsyncJob();
+
+        const prompt_copy = try self.allocator.dupe(u8, request.prompt);
+        errdefer self.allocator.free(prompt_copy);
+
+        const profile_copy = try self.allocator.dupe(u8, request.profile);
+        errdefer self.allocator.free(profile_copy);
+
+        const ar = try self.allocator.create(AsyncResult);
+        errdefer self.allocator.destroy(ar);
+
+        ar.* = .{
+            .allocator = self.allocator,
+            .state = std.atomic.Value(u8).init(@intFromEnum(AsyncResult.State.pending)),
+            .result = undefined,
+        };
+
+        const TimeoutContext = struct {
+            engine: *Self,
+            request: scheduler_mod.Request,
+            ar: *AsyncResult,
+
+            fn run(ctx: @This()) void {
+                defer ctx.engine.finishAsyncJob();
+                defer ctx.engine.allocator.free(ctx.request.profile);
+                defer ctx.engine.allocator.free(ctx.request.prompt);
+
+                const res = ctx.engine.generate(ctx.request) catch makeErrorResult(ctx.request.id, "Error: internal generation error");
+
+                // Write result data before attempting to publish.
+                ctx.ar.result = res;
+
+                // Atomically transition pending -> ready. If the caller
+                // has already abandoned (pending -> abandoned), we own
+                // the result and must free it.
+                const prev = ctx.ar.state.cmpxchgStrong(
+                    @intFromEnum(AsyncResult.State.pending),
+                    @intFromEnum(AsyncResult.State.ready),
+                    .acq_rel,
+                    .acquire,
+                );
+                if (prev != null) {
+                    // Caller abandoned — clean up owned buffers directly.
+                    if (ctx.ar.result.text_owned) ctx.engine.allocator.free(ctx.ar.result.text);
+                    if (ctx.ar.result.tokens_owned) ctx.engine.allocator.free(ctx.ar.result.tokens);
+                    ctx.engine.allocator.destroy(ctx.ar);
+                    return;
+                }
+            }
+        };
+
+        const ctx = TimeoutContext{
+            .engine = self,
+            .request = .{
+                .id = request.id,
+                .prompt = prompt_copy,
+                .max_tokens = request.max_tokens,
+                .temperature = request.temperature,
+                .top_p = request.top_p,
+                .top_k = request.top_k,
+                .profile = profile_copy,
+                .priority = request.priority,
+                .created_at = request.created_at,
+                .stream = request.stream,
+            },
+            .ar = ar,
+        };
+
+        const thread = try std.Thread.spawn(.{}, TimeoutContext.run, .{ctx});
+        thread.detach();
+
+        return ar;
     }
 
     fn isClosing(self: *Self) bool {
@@ -642,4 +822,128 @@ test "engine average throughput uses elapsed time" {
 
     const stats = engine.getStats();
     try std.testing.expectApproxEqAbs(@as(f32, 150.0), stats.avg_tokens_per_second, 0.001);
+}
+
+test "result deinit frees owned buffers (leak detection)" {
+    const allocator = std.testing.allocator;
+
+    var engine = try Engine.init(allocator, .{
+        .kv_cache_pages = 100,
+        .page_size = 16,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+        .max_batch_size = 4,
+        .vocab_size = 256,
+    });
+    defer engine.deinit();
+
+    // Generate and free — testing allocator detects leaks if deinit is skipped.
+    var result = try engine.generate(.{
+        .id = 99,
+        .prompt = "leak check",
+        .max_tokens = 8,
+    });
+    try std.testing.expect(result.text_owned);
+    try std.testing.expect(result.tokens_owned);
+
+    result.deinit(allocator);
+
+    // After deinit, owned flags must be false (safe to call again).
+    try std.testing.expect(!result.text_owned);
+    try std.testing.expect(!result.tokens_owned);
+}
+
+test "result deinit is idempotent" {
+    const allocator = std.testing.allocator;
+
+    var engine = try Engine.init(allocator, .{
+        .kv_cache_pages = 100,
+        .page_size = 16,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+        .max_batch_size = 4,
+        .vocab_size = 256,
+    });
+    defer engine.deinit();
+
+    var result = try engine.generate(.{
+        .id = 100,
+        .prompt = "double free guard",
+        .max_tokens = 6,
+    });
+
+    result.deinit(allocator);
+    // Second deinit must be a no-op (no double-free).
+    result.deinit(allocator);
+}
+
+test "error result has no owned buffers" {
+    var err_result = makeErrorResult(0, "boom");
+    try std.testing.expect(!err_result.text_owned);
+    try std.testing.expect(!err_result.tokens_owned);
+    // deinit on error result is a no-op — must not crash.
+    err_result.deinit(std.testing.allocator);
+}
+
+test "generateAsyncWithTimeout returns result" {
+    const allocator = std.testing.allocator;
+
+    var engine = try Engine.init(allocator, .{
+        .kv_cache_pages = 100,
+        .page_size = 16,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+        .max_batch_size = 4,
+        .vocab_size = 256,
+    });
+    defer engine.deinit();
+
+    const ar = try engine.generateAsyncWithTimeout(.{
+        .id = 77,
+        .prompt = "timeout test",
+        .max_tokens = 8,
+    });
+
+    // Wait with a generous timeout.
+    const maybe_result = ar.waitTimeout(5000);
+    try std.testing.expect(maybe_result != null);
+
+    var result = maybe_result.?;
+    try std.testing.expectEqual(@as(u64, 77), result.id);
+    try std.testing.expect(result.text.len > 0);
+    result.deinit(allocator);
+
+    // Free the container now that we have consumed the result.
+    ar.destroy();
+}
+
+test "generateAsyncWithTimeout abandon cleans up" {
+    const allocator = std.testing.allocator;
+
+    var engine = try Engine.init(allocator, .{
+        .kv_cache_pages = 100,
+        .page_size = 16,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+        .max_batch_size = 4,
+        .vocab_size = 256,
+    });
+    defer engine.deinit();
+
+    const ar = try engine.generateAsyncWithTimeout(.{
+        .id = 88,
+        .prompt = "abandon test",
+        .max_tokens = 8,
+    });
+
+    // Immediately abandon — the background thread will free the result.
+    ar.deinit();
+
+    // Wait for the background thread to finish via engine.deinit()
+    // (called by defer above). The testing allocator will detect
+    // leaks if the thread fails to free the result.
 }
