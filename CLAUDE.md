@@ -137,6 +137,21 @@ The `build_options` module provides these fields (all `bool` unless noted):
 - GPU backends: `gpu_metal`, `gpu_cuda`, `gpu_vulkan`, `gpu_webgpu`, `gpu_opengl`, `gpu_opengles`, `gpu_webgl2`, `gpu_stdgpu`, `gpu_fpga`, `gpu_tpu`
 - `package_version` (`[]const u8`)
 
+### GPU Backend Status
+
+| Backend | Status | Notes |
+|---------|--------|-------|
+| Metal | Functional | macOS only, MPS acceleration, full compute pipeline |
+| CUDA | Functional | NVIDIA GPUs, dynamic library loading |
+| Vulkan | Functional | Cross-platform, full pipeline/descriptor management |
+| stdgpu | Functional | CPU-based SPIR-V emulation (default, headless-safe) |
+| WebGPU | Partial | API structure present, dynamic library loading |
+| OpenGL | Partial | Compute shaders (GL 4.3+), 35+ function pointers |
+| OpenGL ES | Partial | Mobile/embedded (GLES 3.1+) |
+| WebGL2 | Stub | No compute shader support — returns error on all ops |
+| DirectML | Stub | Windows-only, minimal implementation |
+| FPGA | Stub | Simulation mode only, kernel modules not wired |
+
 ### Test Architecture
 
 Two test suites run under `zig build test`:

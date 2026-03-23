@@ -46,21 +46,17 @@ pub fn deinit() void {
 }
 
 pub fn isAvailable() bool {
-    // FPGA hardware detection strategy:
-    // 1. Check for XRT (Xilinx) via xrt::device enumeration
-    // 2. Check for OpenCL FPGA platforms via clGetPlatformIDs
-    // 3. Check for Intel FPGA via oneAPI Level Zero
-    // 4. Check simulation/test mode via environment variables
-
-    // For now, simulate availability if FPGA build flag is enabled
-    // In production, this would perform actual hardware detection
-    return true; // Assume available in simulation mode for testing
+    // FPGA backend is a simulation stub — no real hardware detection is performed.
+    // Returning true would cause higher-level code to route work to this backend,
+    // which would silently produce incorrect results. Return false until a real
+    // hardware detection path (XRT, OpenCL FPGA platform, or Intel oneAPI) is wired.
+    return false;
 }
 
 pub fn getDeviceCount() u32 {
-    // Simulation: Return 1 virtual FPGA device for testing
-    // Real implementation would query runtime for device count
-    return if (isAvailable()) 1 else 0;
+    // No real FPGA hardware detection — always report 0 devices.
+    // When isAvailable() gains real detection, this can delegate to the runtime.
+    return 0;
 }
 
 pub fn getDeviceInfo(device_id: u32) error{DeviceNotFound}!struct {
