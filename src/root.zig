@@ -33,6 +33,8 @@ pub const runtime = @import("runtime/mod.zig");
 pub const platform = @import("platform/mod.zig");
 /// External service connectors: HTTP clients, API adapters.
 pub const connectors = @import("connectors/mod.zig");
+/// Shared CLI helpers for command dispatch and serve parsing.
+pub const cli = @import("cli.zig");
 /// Task management: async job queues, scheduling, progress tracking.
 pub const tasks = @import("tasks/mod.zig");
 /// Model Context Protocol (MCP) server and client implementation.

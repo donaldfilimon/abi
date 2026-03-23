@@ -299,6 +299,10 @@ const FeatureValidation = struct {
 
 /// Validate configuration against compile-time constraints.
 pub fn validate(cfg: Config) ConfigError!void {
+    if (cfg.plugins.paths.len > 0 and !cfg.plugins.allow_untrusted) {
+        return ConfigError.InvalidConfig;
+    }
+
     const validations = [_]FeatureValidation{
         .{ .is_enabled_in_config = cfg.gpu != null, .is_enabled_at_build = build_options.feat_gpu },
         .{ .is_enabled_in_config = cfg.ai != null, .is_enabled_at_build = build_options.feat_ai },

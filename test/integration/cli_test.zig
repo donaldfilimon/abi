@@ -7,6 +7,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
+const cli = abi.cli;
 
 // === Version Command Path ===
 
@@ -164,6 +165,33 @@ test "cli: status uses package_version from build_options" {
     const bo_version = build_options.package_version;
     const meta_version = abi.meta.package_version;
     try std.testing.expectEqualStrings(bo_version, meta_version);
+}
+
+test "cli: serve routing recognizes acp alias" {
+    try std.testing.expect(cli.isServeInvocation(&.{"serve"}));
+    try std.testing.expect(cli.isServeInvocation(&.{ "acp", "serve" }));
+    try std.testing.expect(!cli.isServeInvocation(&.{ "acp", "status" }));
+}
+
+test "cli: serve address parsing honors addr and port flags" {
+    const port_args = [_][:0]const u8{ "--port", "9090" };
+    const port_address = try cli.parseServeAddress(std.testing.allocator, &port_args);
+    defer std.testing.allocator.free(port_address);
+    try std.testing.expectEqualStrings("127.0.0.1:9090", port_address);
+
+    const addr_args = [_][:0]const u8{ "--addr", "0.0.0.0:8080" };
+    const explicit_address = try cli.parseServeAddress(std.testing.allocator, &addr_args);
+    defer std.testing.allocator.free(explicit_address);
+    try std.testing.expectEqualStrings("0.0.0.0:8080", explicit_address);
+}
+
+test "cli: untrusted plugin paths are rejected" {
+    var builder = abi.App.builder(std.testing.allocator);
+    _ = builder.withPlugins(.{
+        .paths = &.{"/tmp/abi-untrusted-plugin.so"},
+        .allow_untrusted = false,
+    });
+    try std.testing.expectError(error.InvalidConfig, builder.build());
 }
 
 // === Features Command Path (printFeatures data) ===

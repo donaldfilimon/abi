@@ -347,7 +347,7 @@ const ThreadPool = struct {
     allocator: std.mem.Allocator,
     threads: []std.Thread,
     queue: std.ArrayListUnmanaged(TransferTask),
-    mutex: sync.Mutex,
+    mutex: sync.BlockingMutex,
     condition: sync.Condition,
     shutdown: std.atomic.Value(bool),
 

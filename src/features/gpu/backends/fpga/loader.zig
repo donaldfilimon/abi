@@ -77,13 +77,13 @@ pub const BitstreamHandle = struct {
 };
 
 /// Global state for FPGA loader
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 var detected_devices: u32 = 0;
 var device_cache: [8]DeviceInfo = undefined;
 
 /// Initialize the FPGA loader subsystem
 pub fn init() LoaderError!void {
-    if (initialized) return;
+    if (initialized.load(.acquire)) return;
 
     if (comptime !build_options.gpu_fpga) {
         return error.PlatformNotSupported;
@@ -98,20 +98,20 @@ pub fn init() LoaderError!void {
         std.log.info("FPGA loader: Detected {d} FPGA device(s)", .{detected_devices});
     }
 
-    initialized = true;
+    initialized.store(true, .release);
 }
 
 /// Deinitialize the FPGA loader subsystem
 pub fn deinit() void {
-    if (!initialized) return;
+    if (!initialized.load(.acquire)) return;
     detected_devices = 0;
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 /// Detect available FPGA devices
 pub fn detectFpgaDevices() u32 {
     if (comptime !build_options.gpu_fpga) return 0;
-    if (!initialized) {
+    if (!initialized.load(.acquire)) {
         return detectFpgaDevicesInternal();
     }
     return detected_devices;

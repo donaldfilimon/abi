@@ -580,7 +580,9 @@ test "search save and load index round-trip" {
     const score_before = before[0].score;
 
     // Save to disk
-    const tmp_path = "/tmp/abi_search_persist_test.idx";
+    var path_buf: [128]u8 = undefined;
+    const tmp_path = try std.fmt.bufPrint(&path_buf, "/tmp/abi_search_persist_test_{d}.idx", .{@import("../../foundation/mod.zig").time.unixMs()});
+
     try saveIndex(allocator, "persist", tmp_path);
     defer persistence.unlinkFile(tmp_path);
 

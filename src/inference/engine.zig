@@ -510,7 +510,7 @@ test "engine generate demo" {
     });
     defer engine.deinit();
 
-    const result = try engine.generate(.{
+    var result = try engine.generate(.{
         .id = 1,
         .prompt = "Hello world",
         .max_tokens = 10,
@@ -540,7 +540,7 @@ test "engine connector backend" {
     });
     defer engine.deinit();
 
-    const result = try engine.generate(.{
+    var result = try engine.generate(.{
         .id = 1,
         .prompt = "Explain HNSW",
         .max_tokens = 10,
@@ -609,7 +609,7 @@ test "engine generate async clones request prompt" {
     }, AsyncPromptHelper.cb);
     allocator.free(prompt);
 
-    var noise = try allocator.alloc(u8, 4096);
+    const noise = try allocator.alloc(u8, 4096);
     defer allocator.free(noise);
     @memset(noise, 0xaa);
 

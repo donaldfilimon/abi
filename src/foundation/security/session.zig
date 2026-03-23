@@ -481,7 +481,7 @@ pub const SessionManager = struct {
 
     fn generateSessionId(self: *SessionManager) ![]const u8 {
         var random_bytes: [64]u8 = undefined;
-        csprng.fillRandom(random_bytes[0..self.config.id_length]);
+        csprng.fillRandom(random_bytes[0..self.config.id_length]) catch unreachable;
 
         // Sign if key is configured
         if (self.config.signing_key) |key| {

@@ -65,7 +65,7 @@ var cuda_peer_lib: ?std.DynLib = null;
 var nccl_lib: ?std.DynLib = null;
 var peer_access_matrix: ?std.AutoHashMapUnmanaged(u64, PeerAccessState) = null;
 var cuda_allocator_ref: ?std.mem.Allocator = null;
-var nccl_initialized: bool = false;
+var nccl_initialized = std.atomic.Value(bool).init(false);
 var nccl_comms: ?[]NcclComm = null;
 
 // Loaded CUDA peer functions
@@ -127,7 +127,7 @@ pub fn deinit() void {
     }
     cuda_allocator_ref = null;
 
-    nccl_initialized = false;
+    nccl_initialized.store(false, .release);
 }
 
 /// Load NCCL library.
@@ -308,7 +308,7 @@ pub fn initNCCLComms(device_ids: []const DeviceId) !void {
         }
     }
 
-    nccl_initialized = true;
+    nccl_initialized.store(true, .release);
 }
 
 /// Convert ReduceOp to NCCL operation.

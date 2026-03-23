@@ -183,7 +183,7 @@ pub const TlsConnection = struct {
 
     fn performClientHandshake(self: *TlsConnection) !void {
         // Generate client random
-        csprng.fillRandom(&self.client_random);
+        csprng.fillRandom(&self.client_random) catch unreachable;
 
         // Send ClientHello
         self.handshake_state = .client_hello_sent;
@@ -209,7 +209,7 @@ pub const TlsConnection = struct {
 
     fn performServerHandshake(self: *TlsConnection) !void {
         // Generate server random
-        csprng.fillRandom(&self.server_random);
+        csprng.fillRandom(&self.server_random) catch unreachable;
 
         // Receive ClientHello
         try self.receiveClientHello();

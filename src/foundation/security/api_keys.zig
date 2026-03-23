@@ -129,7 +129,7 @@ pub const ApiKeyManager = struct {
 
         // Generate random salt for this key
         var salt: [SALT_LENGTH]u8 = undefined;
-        csprng.fillRandom(&salt);
+        csprng.fillRandom(&salt) catch unreachable;
 
         const key_hash = try self.hashKeyWithSalt(key_plain, &salt);
         const key_prefix = key_plain[0..@min(8, key_plain.len)];
@@ -233,7 +233,7 @@ pub const ApiKeyManager = struct {
     fn generateKeyPlain(self: *ApiKeyManager) ![]const u8 {
         const key_bytes = try self.allocator.alloc(u8, self.config.key_length);
         defer self.allocator.free(key_bytes);
-        csprng.fillRandom(key_bytes);
+        csprng.fillRandom(key_bytes) catch unreachable;
         return self.encodeKey(key_bytes);
     }
 

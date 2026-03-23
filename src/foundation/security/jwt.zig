@@ -250,7 +250,7 @@ pub const JwtManager = struct {
         if (final_claims.jti == null) {
             // Generate unique token ID
             var jti_buf: [16]u8 = undefined;
-            csprng.fillRandom(&jti_buf);
+            csprng.fillRandom(&jti_buf) catch unreachable;
             final_claims.jti = try self.allocator.dupe(u8, &jti_buf);
         }
         // Free auto-generated jti after serialization (only if we created it)
@@ -773,7 +773,7 @@ pub fn extractBearerToken(auth_header: []const u8) ?[]const u8 {
 /// Generate a secure random secret key
 pub fn generateSecretKey(allocator: std.mem.Allocator, length: usize) ![]u8 {
     const key = try allocator.alloc(u8, length);
-    csprng.fillRandom(key);
+    csprng.fillRandom(key) catch unreachable;
     return key;
 }
 

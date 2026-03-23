@@ -26,10 +26,10 @@ pub const memory = @import("memory.zig");
 pub const loader = @import("loader.zig");
 pub const types = @import("types.zig");
 
-var initialized = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init() !void {
-    if (initialized) return;
+    if (initialized.load(.acquire)) return;
 
     // FPGA initialization
     // In real implementation, this would:
@@ -38,11 +38,11 @@ pub fn init() !void {
     // 3. Initialize context and command queue
 
     // For now, mark as initialized even in simulation mode
-    initialized = true;
+    initialized.store(true, .release);
 }
 
 pub fn deinit() void {
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 pub fn isAvailable() bool {

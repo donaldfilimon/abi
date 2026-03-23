@@ -34,12 +34,15 @@ pub fn withDefault(comptime Builder: type, self: *Builder, comptime feature: con
 }
 
 pub fn withPlugins(comptime Builder: type, self: *Builder, plugin_cfg: config_module.PluginConfig) *Builder {
-    _ = self.config_builder.with(.plugins, plugin_cfg);
+    self.config_builder.config.plugins = plugin_cfg;
     return self;
 }
 
 pub fn build(comptime Framework: type, comptime Builder: type, self: *Builder) Framework.Error!Framework {
-    const config = self.config_builder.build();
+    var config = self.config_builder.build();
+    try config_module.validate(config);
+
+    config.plugins = try config.plugins.dupe(self.allocator);
     if (self.io) |io| {
         return Framework.initWithIo(self.allocator, config, io);
     }

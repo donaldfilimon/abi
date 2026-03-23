@@ -190,7 +190,7 @@ pub const Encryptor = struct {
 
         // Generate random nonce
         var nonce: [24]u8 = undefined;
-        csprng.fillRandom(nonce[0..nonce_size]);
+        csprng.fillRandom(nonce[0..nonce_size]) catch unreachable;
 
         // Allocate ciphertext buffer
         const ciphertext = try self.allocator.alloc(u8, plaintext.len);
@@ -232,7 +232,7 @@ pub const Encryptor = struct {
     pub fn encryptWithPassword(self: *Encryptor, plaintext: []const u8, password: []const u8) !EncryptedData {
         // Generate salt
         var salt: [16]u8 = undefined;
-        csprng.fillRandom(&salt);
+        csprng.fillRandom(&salt) catch unreachable;
 
         // Derive key
         const key = try self.deriveKey(password, &salt);
@@ -430,7 +430,7 @@ pub const KeyWrapper = struct {
     /// Returns [60]u8: 12-byte nonce + 32-byte ciphertext + 16-byte tag.
     pub fn wrap(self: *KeyWrapper, dek: [32]u8) ![60]u8 {
         var nonce: [12]u8 = undefined;
-        csprng.fillRandom(&nonce);
+        csprng.fillRandom(&nonce) catch unreachable;
 
         var ciphertext: [32]u8 = undefined;
         var tag: [16]u8 = undefined;
@@ -493,7 +493,7 @@ pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) 
         var remaining = size;
         while (remaining > 0) {
             const to_write = @min(rand_buf.len, remaining);
-            csprng.fillRandom(rand_buf[0..to_write]);
+            csprng.fillRandom(rand_buf[0..to_write]) catch unreachable;
             try writer.interface.writeAll(rand_buf[0..to_write]);
             remaining -= to_write;
         }
@@ -524,7 +524,7 @@ pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) 
 /// Generate a random encryption key
 pub fn generateKey() [32]u8 {
     var key: [32]u8 = undefined;
-    csprng.fillRandom(&key);
+    csprng.fillRandom(&key) catch unreachable;
     return key;
 }
 

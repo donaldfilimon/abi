@@ -37,9 +37,12 @@ const runtime_mod = @import("../../runtime/mod.zig");
 
 /// Initialize a framework with the provided configuration.
 pub fn init(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config) Framework.Error!Framework {
+    var cfg_owned = cfg;
+    errdefer cfg_owned.plugins.deinit(allocator);
+
     var fw = Framework{
         .allocator = allocator,
-        .config = cfg,
+        .config = cfg_owned,
         .state = .initializing,
         .registry = registry_mod.Registry.init(allocator),
         .runtime = undefined,
@@ -47,7 +50,7 @@ pub fn init(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_
     errdefer fw.registry.deinit();
 
     // Configure feature graph from configuration and compile-time flags.
-    try config_module.validate(cfg);
+    try config_module.validate(cfg_owned);
 
     // Initialize runtime (always available).
     fw.runtime = try runtime_mod.Context.init(allocator);
@@ -55,7 +58,7 @@ pub fn init(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_
 
     // Initialize enabled features and register them.
     errdefer shutdown.deinitFeatures(&fw);
-    try initFeatureContexts(Framework, allocator, cfg, &fw);
+    try initFeatureContexts(Framework, allocator, cfg_owned, &fw);
     return fw;
 }
 

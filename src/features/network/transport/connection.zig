@@ -21,7 +21,7 @@ pub const PendingRequest = struct {
     completed: std.atomic.Value(bool),
     error_code: ?TransportError = null,
     condition: sync.Condition,
-    mutex: sync.Mutex,
+    mutex: sync.BlockingMutex,
 
     pub fn init(request_id: u64, timeout_ms: u64) PendingRequest {
         return .{

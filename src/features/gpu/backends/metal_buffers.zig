@@ -36,7 +36,7 @@ pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) !*anyopaq
 }
 
 pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usize) !*anyopaque {
-    if (!s.metal_initialized or s.metal_device == null) {
+    if (!s.metal_initialized.load(.acquire) or s.metal_device == null) {
         return s.MetalError.BufferCreationFailed;
     }
 

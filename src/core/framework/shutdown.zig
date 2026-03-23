@@ -38,6 +38,7 @@ pub fn deinit(self: anytype) void {
     deinitFeatures(self);
     self.registry.deinit();
     self.runtime.deinit();
+    self.config.plugins.deinit(self.allocator);
     state_machine.markStopped(&self.state);
 }
 

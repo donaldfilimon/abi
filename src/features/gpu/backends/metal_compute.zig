@@ -81,7 +81,7 @@ pub fn compileKernel(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
 ) types.KernelError!*anyopaque {
-    if (!s.metal_initialized or s.metal_device == null) {
+    if (!s.metal_initialized.load(.acquire) or s.metal_device == null) {
         return types.KernelError.CompilationFailed;
     }
 
@@ -201,7 +201,7 @@ pub fn launchKernel(
 ) types.KernelError!void {
     _ = allocator;
 
-    if (!s.metal_initialized or s.metal_command_queue == null) {
+    if (!s.metal_initialized.load(.acquire) or s.metal_command_queue == null) {
         return types.KernelError.LaunchFailed;
     }
 
@@ -288,7 +288,7 @@ pub fn launchKernelAsync(
 ) types.KernelError!s.ID {
     _ = allocator;
 
-    if (!s.metal_initialized or s.metal_command_queue == null) {
+    if (!s.metal_initialized.load(.acquire) or s.metal_command_queue == null) {
         return types.KernelError.LaunchFailed;
     }
 

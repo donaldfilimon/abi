@@ -12,6 +12,8 @@
 //!   abi connectors        List available LLM connectors
 //!   abi info              Show framework architecture summary
 //!   abi chat <msg>        Route a message through the persona pipeline
+//!   abi serve             Start the ACP HTTP server
+//!   abi acp serve         Start the ACP HTTP server
 //!   abi db <subcommand>   Vector database operations
 //!   abi dashboard         Launch interactive TUI dashboard
 //!   abi help              Show this help message
@@ -21,28 +23,35 @@ const build_options = @import("build_options");
 
 // Framework modules (relative imports within src/)
 const root = @import("root.zig");
+const cli = @import("cli.zig");
 const feature_catalog = root.meta.features;
 
 // ── Entry Point ─────────────────────────────────────────────────────────
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
-    var args = std.process.Args.Iterator.init(init.minimal.args);
-    _ = args.skip(); // skip argv[0] (program name)
-
-    const command = args.next();
-    const next_arg = args.next();
-    try dispatch(allocator, command, next_arg);
+    try dispatch(allocator, args[1..]);
 }
 
 // ── Command Dispatch ────────────────────────────────────────────────────
 
-pub fn dispatch(allocator: std.mem.Allocator, command: ?[]const u8, next_arg: ?[]const u8) !void {
-    const cmd = command orelse {
+pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
         printStatus();
         return;
-    };
+    }
+
+    if (cli.isServeInvocation(args)) {
+        const serve_args = if (std.mem.eql(u8, args[0], "acp")) args[2..] else args[1..];
+        try cli.runServe(allocator, serve_args);
+        return;
+    }
+
+    const cmd = args[0];
+    const next_arg = if (args.len > 1) args[1] else null;
 
     if (std.mem.eql(u8, cmd, "version")) {
         printVersion();
@@ -100,6 +109,8 @@ pub fn printStatus() void {
         \\  connectors   List available LLM connectors
         \\  info         Framework architecture summary
         \\  chat <msg>   Route through persona pipeline
+        \\  serve        Start the ACP HTTP server
+        \\  acp serve    Start the ACP HTTP server
         \\
     , .{ version, enabled, feature_catalog.feature_count, feature_catalog.feature_count });
 
@@ -157,6 +168,8 @@ pub fn printHelp() void {
         \\AI & Data:
         \\  chat <msg>   Route a message through the persona pipeline
         \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
+        \\  serve        Start the ACP HTTP server
+        \\  acp serve    Start the ACP HTTP server
         \\
         \\Interactive:
         \\  dashboard    Launch interactive TUI dashboard (requires -Dfeat-tui=true)
