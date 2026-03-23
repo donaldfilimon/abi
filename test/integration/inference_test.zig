@@ -145,7 +145,8 @@ test "inference: KV cache allocates and frees pages" {
 
     // Free the sequence — pages should return to pool
     cache.free(1);
-    try std.testing.expectEqual(@as(usize, 4), cache.free_pages.items.len);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), cache.getUtilization(), 1e-5);
+    try std.testing.expectEqual(@as(usize, 0), cache.activeSequences());
 }
 
 test "inference: KV cache rejects allocation when full" {

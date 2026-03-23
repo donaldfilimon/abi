@@ -41,9 +41,7 @@ pub const WeightInputs = struct {
 
 pub const Lineage = struct {
     parent_block_id: ?u64 = null,
-    shard_key: ?ShardKey = null,
-    version_vector: ?VersionVector = null,
-    conflict: ?BlockConflict = null,
+    shard_key_hash: ?u64 = null,
     replica_count: u32 = 0,
 };
 
