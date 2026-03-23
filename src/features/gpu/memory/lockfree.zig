@@ -976,6 +976,80 @@ test "lock-free pool concurrent stress test" {
     try std.testing.expectEqual(@as(u64, 0), stats.active_allocations);
 }
 
+test "lockfree pool concurrent stress" {
+    const thread_count = 4;
+    const iterations = 100;
+    const slot_size = 256;
+
+    var pool = try LockFreeResourcePool.init(std.testing.allocator, .{
+        .max_slots = 64,
+        .slot_size = slot_size,
+        .enable_thread_local_cache = false, // force global free-list contention
+    });
+    defer pool.deinit();
+
+    var threads: [thread_count]std.Thread = undefined;
+    var spawned: usize = 0;
+    errdefer {
+        var i: usize = 0;
+        while (i < spawned) : (i += 1) {
+            threads[i].join();
+        }
+    }
+
+    for (&threads, 0..) |*t, tid| {
+        t.* = try std.Thread.spawn(.{}, struct {
+            fn worker(p: *LockFreeResourcePool, thread_id: usize) !void {
+                const pattern_byte: u8 = @truncate(thread_id + 0xA0);
+
+                for (0..iterations) |_| {
+                    // Allocate
+                    const handle = p.allocate() catch continue; // pool temporarily full, skip
+
+                    // Get underlying buffer and write a thread-specific pattern
+                    const buf = p.get(handle) orelse {
+                        _ = p.free(handle);
+                        continue;
+                    };
+                    const slice = buf.bytes;
+                    const write_len = @min(slot_size, slice.len);
+                    @memset(slice[0..write_len], pattern_byte);
+
+                    // Verify the pattern is intact
+                    for (slice[0..write_len]) |byte| {
+                        // Another thread may have allocated a different slot, but
+                        // *this* slot must still contain our pattern (no aliasing).
+                        if (byte != pattern_byte) {
+                            return error.PatternCorrupted;
+                        }
+                    }
+
+                    // Free
+                    if (!p.free(handle)) {
+                        return error.FreeFailed;
+                    }
+                }
+            }
+        }.worker, .{ &pool, tid });
+        spawned += 1;
+    }
+
+    // Join all threads
+    for (threads[0..spawned]) |*t| {
+        t.join();
+    }
+
+    // After all threads complete, every allocation should be freed
+    const stats = pool.getStats();
+    try std.testing.expectEqual(@as(u64, 0), stats.active_allocations);
+
+    // Sanity: total_allocations == total_deallocations
+    try std.testing.expectEqual(stats.total_allocations, stats.total_deallocations);
+
+    // At least some allocations should have succeeded
+    try std.testing.expect(stats.total_allocations > 0);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
