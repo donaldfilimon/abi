@@ -42,7 +42,7 @@ pub const mcp = if (build_options.feat_mcp) @import("protocols/mcp/mod.zig") els
 /// Language Server Protocol (LSP) implementation.
 pub const lsp = if (build_options.feat_lsp) @import("protocols/lsp/mod.zig") else @import("protocols/lsp/stub.zig");
 /// Agent Communication Protocol (ACP) for multi-agent messaging.
-pub const acp = @import("protocols/acp.zig");
+pub const acp = @import("protocols/acp/mod.zig");
 /// High availability: leader election, failover, health monitoring.
 pub const ha = @import("protocols/ha/mod.zig");
 /// ML inference: engine, scheduler, sampler, paged KV cache.
