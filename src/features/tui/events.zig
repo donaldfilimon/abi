@@ -25,6 +25,24 @@ pub const EventReader = struct {
         return .{ .fd = {} };
     }
 
+    /// Read an event from the file descriptor, blocking until one is available.
+    pub fn readEvent(self: *EventReader) !?Event {
+        if (comptime !is_posix) return null;
+
+        var buf: [16]u8 = undefined;
+        const bytes_read = try std.posix.read(self.fd, &buf);
+        if (bytes_read == 0) return null;
+
+        if (buf[0] == 0x1b) {
+            if (bytes_read == 1) {
+                return .{ .key = .escape };
+            }
+            return .{ .key = parseEscapeSequence(buf[1..bytes_read]) };
+        }
+
+        return .{ .key = parseKey(buf[0]) };
+    }
+
     /// Parse a single byte into a Key event.
     pub fn parseKey(byte: u8) Key {
         return switch (byte) {

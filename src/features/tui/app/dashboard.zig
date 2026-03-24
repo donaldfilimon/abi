@@ -31,6 +31,15 @@ const FlagEntry = struct {
     enabled: bool,
 };
 
+const Panel = enum {
+    features,
+    gpu,
+};
+
+const AppState = struct {
+    focused_panel: Panel = .features,
+};
+
 /// Get all feature flags from build_options.
 fn getFeatureFlags() [20]FlagEntry {
     return .{
@@ -67,7 +76,7 @@ fn getGpuFlags() [4]FlagEntry {
 }
 
 /// Render the dashboard to a screen buffer.
-pub fn renderDashboard(screen: *Screen) void {
+pub fn renderDashboard(screen: *Screen, state: *const AppState) void {
     screen.clear();
     const full = screen.rect();
 
@@ -97,13 +106,13 @@ pub fn renderDashboard(screen: *Screen) void {
     const right_area = body_split.right;
 
     // Feature flags panel
-    renderFeaturePanel(screen, left_area);
+    renderFeaturePanel(screen, left_area, state.focused_panel == .features);
 
     // GPU + AI panel
-    renderGpuPanel(screen, right_area);
+    renderGpuPanel(screen, right_area, state.focused_panel == .gpu);
 
     // Status bar
-    widgets.renderStatusBar(screen, status_area, " q:quit  r:refresh", "ABI Framework ", status_style);
+    widgets.renderStatusBar(screen, status_area, " q:quit  tab:focus", "ABI Framework ", status_style);
 }
 
 /// Render a list of flag entries starting at a given row within an inner rect.
@@ -131,14 +140,16 @@ fn innerRect(area: Rect) Rect {
     };
 }
 
-fn renderFeaturePanel(screen: *Screen, area: Rect) void {
-    widgets.renderPanel(screen, area, " Features ", header_style);
+fn renderFeaturePanel(screen: *Screen, area: Rect, focused: bool) void {
+    const style = if (focused) header_style else Style{ .fg = .white };
+    widgets.renderPanel(screen, area, " Features ", style);
     const flags = getFeatureFlags();
     _ = renderFlags(screen, innerRect(area), &flags, 0);
 }
 
-fn renderGpuPanel(screen: *Screen, area: Rect) void {
-    widgets.renderPanel(screen, area, " GPU Backends ", header_style);
+fn renderGpuPanel(screen: *Screen, area: Rect, focused: bool) void {
+    const style = if (focused) header_style else Style{ .fg = .white };
+    widgets.renderPanel(screen, area, " GPU Backends ", style);
     const inner = innerRect(area);
     const gpu_flags = getGpuFlags();
     const rows_used = renderFlags(screen, inner, &gpu_flags, 0);
@@ -152,7 +163,7 @@ fn renderGpuPanel(screen: *Screen, area: Rect) void {
         .y = inner.y + ai_row,
         .width = inner.width,
         .height = 1,
-    }, "AI Sub-features:", header_style);
+    }, "AI Sub-features:", style);
 
     const ai_flags = [_]FlagEntry{
         .{ .name = "llm", .enabled = build_options.feat_llm },
@@ -214,39 +225,42 @@ pub fn run(allocator: std.mem.Allocator) !void {
         flushToFd(stdout_fd, buf[0..writer.end]);
     }
 
-    // Show cursor on exit
-    defer {
+    // Hide cursor and clear screen initially
+    {
         var buf: [64]u8 = undefined;
         var writer = std.Io.Writer.fixed(&buf);
-        ansi.showCursor(&writer) catch {};
+        ansi.hideCursor(&writer) catch {};
         flushToFd(stdout_fd, buf[0..writer.end]);
     }
 
+    var app_state = AppState{};
+
     // Initial render
-    renderDashboard(&screen);
+    renderDashboard(&screen, &app_state);
     try flushScreenToFd(&screen, stdout_fd);
 
-    // Simple polling loop — read one byte at a time
-    const stdin_fd = std.posix.STDIN_FILENO;
-    while (true) {
-        var buf: [8]u8 = undefined;
-        const bytes_read = std.posix.read(stdin_fd, &buf) catch break;
-        if (bytes_read == 0) continue;
+    var event_reader = events_mod.EventReader.init();
 
-        const key = events_mod.EventReader.parseKey(buf[0]);
-        switch (key) {
-            .char => |c| {
-                if (c == 'q' or c == 'Q') break;
-            },
-            .ctrl => |c| {
-                if (c == 'c') break; // Ctrl+C
-            },
-            .escape => break,
-            else => {},
+    // Event loop
+    while (true) {
+        if (event_reader.readEvent() catch null) |event| {
+            switch (event.key) {
+                .char => |c| {
+                    if (c == 'q' or c == 'Q') break;
+                },
+                .ctrl => |c| {
+                    if (c == 'c') break; // Ctrl+C
+                },
+                .tab => {
+                    app_state.focused_panel = if (app_state.focused_panel == .features) .gpu else .features;
+                },
+                .escape => break,
+                else => {},
+            }
         }
 
         // Re-render on any key
-        renderDashboard(&screen);
+        renderDashboard(&screen, &app_state);
         try flushScreenToFd(&screen, stdout_fd);
     }
 
@@ -274,7 +288,8 @@ test "getGpuFlags returns 4 entries" {
 test "renderDashboard does not crash" {
     var screen = try Screen.init(std.testing.allocator, 80, 24);
     defer screen.deinit();
-    renderDashboard(&screen);
+    const app_state = AppState{};
+    renderDashboard(&screen, &app_state);
     // Verify some content was written
     try std.testing.expect(screen.back[0].char != ' ' or screen.back[1].char != ' ');
 }
