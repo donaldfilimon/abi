@@ -458,6 +458,35 @@ pub const PitrManager = struct {
         _ = self;
         return Error.FeatureDisabled;
     }
+
+    pub fn saveOperationLog(self: *PitrManager, path: []const u8) Error!void {
+        _ = self;
+        _ = path;
+        return Error.FeatureDisabled;
+    }
+
+    pub fn loadOperationLog(self: *PitrManager, path: []const u8) Error!void {
+        _ = self;
+        _ = path;
+        return Error.FeatureDisabled;
+    }
+
+    pub fn saveCheckpoints(self: *PitrManager, path: []const u8) Error!void {
+        _ = self;
+        _ = path;
+        return Error.FeatureDisabled;
+    }
+
+    pub fn loadCheckpoints(self: *PitrManager, path: []const u8) Error!void {
+        _ = self;
+        _ = path;
+        return Error.FeatureDisabled;
+    }
+
+    pub fn getOperationLogLen(self: *PitrManager) u64 {
+        _ = self;
+        return 0;
+    }
 };
 
 // =============================================================================
@@ -474,6 +503,8 @@ pub const HaConfig = struct {
     max_replication_lag_ms: u64 = 5000,
     auto_failover: bool = true,
     regions: []const []const u8 = &.{"primary"},
+    pitr_log_path: []const u8 = "",
+    pitr_checkpoint_path: []const u8 = "",
     on_event: ?*const fn (HaEvent) void = null,
 };
 

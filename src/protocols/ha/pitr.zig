@@ -663,7 +663,7 @@ pub const PitrManager = struct {
     }
 
     /// Persist recovery point checkpoints to disk.
-    /// Format: count (u64) + N * (sequence: u64, timestamp: i64, size: u64, op_count: u32, checksum: [32]u8)
+    /// Format: count (u64) + N * (sequence: u64, timestamp: u64, size_bytes: u64, op_count: u64, checksum: [32]u8)
     pub fn saveCheckpoints(self: *PitrManager, path: []const u8) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -677,7 +677,7 @@ pub const PitrManager = struct {
         for (self.recovery_points.items) |rp| {
             try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.sequence));
             try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.timestamp));
-            try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.size));
+            try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.size_bytes));
             try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.operation_count));
             try buf.appendSlice(self.allocator, &rp.checksum);
         }
@@ -723,19 +723,19 @@ pub const PitrManager = struct {
         const count = std.mem.readInt(u64, data[pos..][0..8], .little);
         pos += 8;
 
-        const entry_size: usize = 8 + 8 + 8 + 4 + 32; // sequence + timestamp + size + op_count + checksum
+        const entry_size: usize = 8 + 8 + 8 + 8 + 32; // sequence + timestamp + size_bytes + op_count + checksum
         var i: u64 = 0;
         while (i < count) : (i += 1) {
             if (pos + entry_size > data.len) return error.UnexpectedEndOfFile;
 
             const sequence = std.mem.readInt(u64, data[pos..][0..8], .little);
             pos += 8;
-            const timestamp = std.mem.readInt(i64, data[pos..][0..8], .little);
+            const timestamp = std.mem.readInt(u64, data[pos..][0..8], .little);
             pos += 8;
-            const size = std.mem.readInt(u64, data[pos..][0..8], .little);
+            const size_bytes = std.mem.readInt(u64, data[pos..][0..8], .little);
             pos += 8;
-            const op_count = std.mem.readInt(u32, data[pos..][0..4], .little);
-            pos += 4;
+            const op_count = std.mem.readInt(u64, data[pos..][0..8], .little);
+            pos += 8;
             var checksum: [32]u8 = undefined;
             @memcpy(&checksum, data[pos..][0..32]);
             pos += 32;
@@ -743,7 +743,7 @@ pub const PitrManager = struct {
             try self.recovery_points.append(self.allocator, .{
                 .sequence = sequence,
                 .timestamp = timestamp,
-                .size = size,
+                .size_bytes = size_bytes,
                 .operation_count = op_count,
                 .checksum = checksum,
             });
