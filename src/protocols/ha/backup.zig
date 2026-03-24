@@ -8,9 +8,20 @@
 //! - Backup verification and integrity checks
 
 const std = @import("std");
-const time = @import("../../foundation/mod.zig").time;
-
 const sync = @import("../../foundation/mod.zig").sync;
+
+/// Wall-clock timestamp in seconds (suitable for backup metadata that must
+/// survive across process restarts, unlike the monotonic foundation.time).
+fn wallClockSec() u64 {
+    if (@hasDecl(std.posix, "system")) {
+        var ts: std.posix.timespec = undefined;
+        if (std.posix.errno(std.posix.system.clock_gettime(.REALTIME, &ts)) == .SUCCESS) {
+            return @intCast(@max(ts.sec, 0));
+        }
+    }
+    // Fallback for WASM or unsupported platforms
+    return 0;
+}
 const Mutex = sync.Mutex;
 
 /// Backup file format magic bytes: "ABIB" (ABI Backup)
@@ -334,7 +345,7 @@ pub const BackupOrchestrator = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.timestampSec();
+        const now = wallClockSec();
         const interval_sec = @as(u64, self.config.interval_hours) * 3600;
         const last = self.last_backup_time;
         return (now - last) >= interval_sec;
@@ -396,7 +407,7 @@ pub const BackupOrchestrator = struct {
             else => mode,
         };
 
-        const start_time = time.timestampSec();
+        const start_time = wallClockSec();
 
         self.state = .backing_up;
         self.emitEvent(.{ .backup_progress = .{ .backup_id = backup_id, .percent = 10 } });
@@ -483,7 +494,7 @@ pub const BackupOrchestrator = struct {
         const crc_val = std.hash.crc.Crc32IsoHdlc.hash(backup_buf[0 .. backup_buf.len - CRC32_SIZE]);
         std.mem.writeInt(u32, checksum[0..4], crc_val, .little);
 
-        const end_time = time.timestampSec();
+        const end_time = wallClockSec();
         const duration_ms = (end_time - start_time) * 1000;
 
         // Record metadata
