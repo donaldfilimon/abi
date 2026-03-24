@@ -33,6 +33,79 @@ MACOS_VER="26.4"
 STDERR_FILE="$(mktemp)"
 trap 'rm -f "$STDERR_FILE"' EXIT
 
+build_runner_arch() {
+    local build_bin="$1"
+    local archs
+    local file_out
+
+    archs="$(lipo -archs "$build_bin" 2>/dev/null || true)"
+    if [[ -n "$archs" ]]; then
+        set -- $archs
+        printf '%s\n' "$1"
+        return 0
+    fi
+
+    file_out="$(file -b "$build_bin" 2>/dev/null || true)"
+    case "$file_out" in
+        *arm64*|*aarch64*)
+            printf 'arm64\n'
+            return 0
+            ;;
+        *x86_64*)
+            printf 'x86_64\n'
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
+archive_matches_arch() {
+    local archive="$1"
+    local expected_arch="$2"
+    local info
+    local arch_list
+    local arch
+
+    info="$(lipo -info "$archive" 2>/dev/null || true)"
+    [[ -z "$info" ]] && return 1
+
+    case "$info" in
+        *" are: "*)
+            arch_list="${info##*: }"
+            ;;
+        *" architecture: "*)
+            arch_list="${info##*: }"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    for arch in $arch_list; do
+        if [[ "$arch" == "$expected_arch" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+find_host_compiler_rt() {
+    local expected_arch="$1"
+    local archive
+
+    while IFS= read -r archive; do
+        [[ -z "$archive" ]] && continue
+        if archive_matches_arch "$archive" "$expected_arch"; then
+            printf '%s\n' "$archive"
+            return 0
+        fi
+    done < <(ls -t "$HOME/.cache/zig/o/"*/libcompiler_rt.a 2>/dev/null || true)
+
+    return 1
+}
+
 run_build() {
     # Run zig build, capture stderr
     "$ZIG2" build \
@@ -52,22 +125,31 @@ if run_build "$@"; then
     exit 0
 fi
 
-# Find the build_zcu.o
-BUILD_O="$(find .zig-cache/o -name 'build_zcu.o' 2>/dev/null | head -1 || true)"
-
-# Find compiler_rt - use the most recent one from global cache
-CRT="$(ls -t "$HOME/.cache/zig/o/"*/libcompiler_rt.a 2>/dev/null | head -1 || true)"
+# Find the newest build_zcu.o from the current cache.
+BUILD_O="$(ls -t .zig-cache/o/*/build_zcu.o 2>/dev/null | head -1 || true)"
 
 if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
     BUILD_DIR="$(dirname "$BUILD_O")"
     BUILD_BIN="$BUILD_DIR/build"
+    BUILD_ARCH="$(build_runner_arch "$BUILD_BIN" || true)"
 
-    echo "[darwin-wrapper] Relinking $BUILD_BIN with Apple ld + compiler_rt..." >&2
+    if [[ -z "$BUILD_ARCH" ]]; then
+        echo "[darwin-wrapper] Could not determine build runner architecture from $BUILD_BIN" >&2
+        cat "$STDERR_FILE" >&2
+        exit 1
+    fi
+
+    CRT="$(find_host_compiler_rt "$BUILD_ARCH" || true)"
+    if [[ -z "$CRT" || ! -f "$CRT" ]]; then
+        echo "[darwin-wrapper] No host-compatible libcompiler_rt.a found for build runner architecture $BUILD_ARCH" >&2
+        cat "$STDERR_FILE" >&2
+        exit 1
+    fi
+
+    echo "[darwin-wrapper] Relinking $BUILD_BIN with Apple ld + compiler_rt ($BUILD_ARCH)..." >&2
 
     LD_ARGS=(-dynamic -platform_version macos "$MACOS_VER" "$MACOS_VER" -syslibroot "$SYSROOT" -e _main -o "$BUILD_BIN" "$BUILD_O")
-    if [[ -n "$CRT" && -f "$CRT" ]]; then
-        LD_ARGS+=("$CRT")
-    fi
+    LD_ARGS+=("$CRT")
     LD_ARGS+=(-lSystem)
 
     /usr/bin/ld "${LD_ARGS[@]}" 2>&1

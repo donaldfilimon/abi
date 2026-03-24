@@ -147,15 +147,15 @@ const gate_gpu_core = [_][]const u8{
 
 const gate_gpu_plan = [_][]const u8{
     "zig build typecheck",
-    "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
-    "zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck",
+    "zig build -Dtarget=x86_64-linux-gnu typecheck",
+    "zig build -Dtarget=x86_64-windows-gnu typecheck",
     "zig build verify-all",
 };
 
 const gate_gpu_cross_target = [_][]const u8{
-    "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
-    "zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck",
-    "zig build -Dtarget=aarch64-macos -Dgpu-backend=auto typecheck",
+    "zig build -Dtarget=x86_64-linux-gnu typecheck",
+    "zig build -Dtarget=x86_64-windows-gnu typecheck",
+    "zig build -Dtarget=aarch64-macos typecheck",
 };
 
 const gate_feature_core = [_][]const u8{
