@@ -2,14 +2,28 @@
 
 const std = @import("std");
 const config_module = @import("../../../core/config/mod.zig");
-const types = @import("types.zig");
+const shared_types = @import("types.zig");
 
-pub const Agent = types.Agent;
-pub const AgentBackend = types.AgentBackend;
-pub const AgentConfig = types.AgentConfig;
-pub const Tool = types.Tool;
-pub const ToolResult = types.ToolResult;
-pub const ToolRegistry = types.ToolRegistry;
+pub const types = shared_types;
+pub const Agent = shared_types.Agent;
+pub const AgentBackend = shared_types.AgentBackend;
+pub const AgentConfig = shared_types.AgentConfig;
+pub const AgentError = shared_types.AgentError;
+pub const Message = shared_types.Message;
+pub const ErrorContext = shared_types.ErrorContext;
+pub const OperationContext = shared_types.OperationContext;
+pub const BackendMetrics = shared_types.BackendMetrics;
+pub const MIN_TEMPERATURE = shared_types.MIN_TEMPERATURE;
+pub const MAX_TEMPERATURE = shared_types.MAX_TEMPERATURE;
+pub const MIN_TOP_P = shared_types.MIN_TOP_P;
+pub const MAX_TOP_P = shared_types.MAX_TOP_P;
+pub const MAX_TOKENS_LIMIT = shared_types.MAX_TOKENS_LIMIT;
+pub const DEFAULT_TEMPERATURE = shared_types.DEFAULT_TEMPERATURE;
+pub const DEFAULT_TOP_P = shared_types.DEFAULT_TOP_P;
+pub const DEFAULT_MAX_TOKENS = shared_types.DEFAULT_MAX_TOKENS;
+pub const Tool = shared_types.Tool;
+pub const ToolResult = shared_types.ToolResult;
+pub const ToolRegistry = shared_types.ToolRegistry;
 
 pub const Error = error{
     AgentsDisabled,
@@ -22,7 +36,8 @@ pub const Error = error{
 pub const Context = struct {
     allocator: std.mem.Allocator = undefined,
     config: config_module.AgentsConfig = .{},
-    agents: std.StringHashMapUnmanaged(*Agent) = .{},
+    agents: std.StringHashMapUnmanaged(*Agent) = .empty,
+    owned_tools: std.ArrayListUnmanaged(*Tool) = .empty,
     tool_registry: ?*ToolRegistry = null,
 
     pub fn init(_: std.mem.Allocator, _: config_module.AgentsConfig) !*Context {

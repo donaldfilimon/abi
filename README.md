@@ -48,6 +48,7 @@ zig build mcp-tests                # Run MCP integration tests
 zig build messaging-tests          # Run messaging unit + integration tests
 zig build secrets-tests            # Run secrets unit + integration tests
 zig build pitr-tests               # Run PITR unit + integration tests
+zig build agents-tests             # Run agents unit + integration tests
 zig build gateway-tests            # Run gateway unit + integration tests
 zig build inference-tests          # Run inference unit + integration tests
 zig build cli-tests                # Run CLI tests
@@ -177,6 +178,7 @@ zig build check-parity             # Verify mod/stub declaration parity only
 zig build messaging-tests          # Focused messaging runtime lane
 zig build secrets-tests            # Focused secrets runtime lane
 zig build pitr-tests               # Focused PITR runtime lane
+zig build agents-tests             # Focused agents runtime lane
 zig build gateway-tests            # Focused gateway runtime lane
 zig build inference-tests          # Focused inference runtime lane
 ```

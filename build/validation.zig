@@ -19,6 +19,7 @@ pub const Steps = struct {
     messaging_tests_step: *std.Build.Step,
     secrets_tests_step: *std.Build.Step,
     pitr_tests_step: *std.Build.Step,
+    agents_tests_step: *std.Build.Step,
     gateway_tests_step: *std.Build.Step,
     inference_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
@@ -151,6 +152,31 @@ pub fn addSteps(ctx: Context) Steps {
     pitr_tests_step.dependOn(&ctx.b.addRunArtifact(pitr_unit_tests).step);
     pitr_tests_step.dependOn(&ctx.b.addRunArtifact(pitr_integration_tests).step);
 
+    const agents_unit_tests = addModuleTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "src/agents_mod_test.zig",
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(agents_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const agents_integration_tests = addIntegrationTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "test/agents_mod.zig",
+        ctx.abi_module,
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(agents_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const agents_tests_step = ctx.b.step("agents-tests", "Run agents-focused unit and integration tests");
+    agents_tests_step.dependOn(&ctx.b.addRunArtifact(agents_unit_tests).step);
+    agents_tests_step.dependOn(&ctx.b.addRunArtifact(agents_integration_tests).step);
+
     const gateway_unit_tests = addModuleTests(
         ctx.b,
         ctx.target,
@@ -221,6 +247,7 @@ pub fn addSteps(ctx: Context) Steps {
         .messaging_tests_step = messaging_tests_step,
         .secrets_tests_step = secrets_tests_step,
         .pitr_tests_step = pitr_tests_step,
+        .agents_tests_step = agents_tests_step,
         .gateway_tests_step = gateway_tests_step,
         .inference_tests_step = inference_tests_step,
         .check_step = check_step,

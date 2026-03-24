@@ -9,7 +9,7 @@ Guidance for AI coding agents working in this repository.
 - **Test**: `zig build test --summary all` or `./build.sh test --summary all`
 - **Lint**: `zig build lint` / **Fix**: `zig build fix`
 - **Parity check**: `zig build check-parity`
-- **Validation gates**: `zig build feature-tests`, `mcp-tests`, `messaging-tests`, `secrets-tests`, `pitr-tests`, `gateway-tests`, `inference-tests`, `cli-tests`, `tui-tests`, `typecheck` (compile-only), `validate-flags`, `full-check`, `verify-all`
+- **Validation gates**: `zig build feature-tests`, `mcp-tests`, `messaging-tests`, `secrets-tests`, `pitr-tests`, `agents-tests`, `gateway-tests`, `inference-tests`, `cli-tests`, `tui-tests`, `typecheck` (compile-only), `validate-flags`, `full-check`, `verify-all`
 - **Full gate**: `zig build check` (lint + test + parity)
 - **CLI**: `zig build cli` produces `zig-out/bin/abi`
 - **MCP server**: `zig build mcp` produces `zig-out/bin/abi-mcp`

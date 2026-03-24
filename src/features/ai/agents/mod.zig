@@ -1,18 +1,29 @@
-//! Agents Sub-module
-//!
-//! AI agent runtime with tool support and conversation management.
+//! Agents sub-module facade.
 
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
-
-// Re-export from agent module (now at src/features/ai/agent.zig)
 const features_agent = @import("agent.zig");
 const features_tools = @import("../tools/mod.zig");
 
+pub const types = @import("types.zig");
+
 pub const Agent = features_agent.Agent;
-pub const AgentBackend = features_agent.AgentBackend;
-pub const AgentConfig = features_agent.AgentConfig;
+pub const AgentBackend = types.AgentBackend;
+pub const AgentConfig = types.AgentConfig;
+pub const AgentError = types.AgentError;
+pub const Message = types.Message;
+pub const ErrorContext = types.ErrorContext;
+pub const OperationContext = types.OperationContext;
+pub const BackendMetrics = types.BackendMetrics;
+pub const MIN_TEMPERATURE = types.MIN_TEMPERATURE;
+pub const MAX_TEMPERATURE = types.MAX_TEMPERATURE;
+pub const MIN_TOP_P = types.MIN_TOP_P;
+pub const MAX_TOP_P = types.MAX_TOP_P;
+pub const MAX_TOKENS_LIMIT = types.MAX_TOKENS_LIMIT;
+pub const DEFAULT_TEMPERATURE = types.DEFAULT_TEMPERATURE;
+pub const DEFAULT_TOP_P = types.DEFAULT_TOP_P;
+pub const DEFAULT_MAX_TOKENS = types.DEFAULT_MAX_TOKENS;
 pub const Tool = features_tools.Tool;
 pub const ToolResult = features_tools.ToolResult;
 pub const ToolRegistry = features_tools.ToolRegistry;
@@ -25,11 +36,11 @@ pub const Error = error{
     MaxAgentsReached,
 };
 
-/// Agents context for framework integration.
 pub const Context = struct {
     allocator: std.mem.Allocator,
     config: config_module.AgentsConfig,
     agents: std.StringHashMapUnmanaged(*Agent),
+    owned_tools: std.ArrayListUnmanaged(*Tool),
     tool_registry: ?*ToolRegistry = null,
 
     pub fn init(allocator: std.mem.Allocator, cfg: config_module.AgentsConfig) !*Context {
@@ -39,13 +50,13 @@ pub const Context = struct {
         ctx.* = .{
             .allocator = allocator,
             .config = cfg,
-            .agents = .{},
+            .agents = .empty,
+            .owned_tools = .empty,
         };
         return ctx;
     }
 
     pub fn deinit(self: *Context) void {
-        // Clean up agents (free duped key names + agent values)
         var it = self.agents.iterator();
         while (it.next()) |entry| {
             self.allocator.free(@constCast(entry.key_ptr.*));
@@ -54,15 +65,19 @@ pub const Context = struct {
         }
         self.agents.deinit(self.allocator);
 
-        if (self.tool_registry) |r| {
-            r.deinit();
-            self.allocator.destroy(r);
+        for (self.owned_tools.items) |tool_ptr| {
+            self.allocator.destroy(tool_ptr);
+        }
+        self.owned_tools.deinit(self.allocator);
+
+        if (self.tool_registry) |registry| {
+            registry.deinit();
+            self.allocator.destroy(registry);
         }
 
         self.allocator.destroy(self);
     }
 
-    /// Create a new agent.
     pub fn createAgent(self: *Context, name: []const u8) !*Agent {
         if (self.agents.count() >= self.config.max_agents) {
             return error.MaxAgentsReached;
@@ -80,14 +95,12 @@ pub const Context = struct {
         return agent_ptr;
     }
 
-    /// Get an existing agent.
     pub fn getAgent(self: *Context, name: []const u8) ?*Agent {
         return self.agents.get(name);
     }
 
-    /// Get or create the tool registry.
     pub fn getToolRegistry(self: *Context) !*ToolRegistry {
-        if (self.tool_registry) |r| return r;
+        if (self.tool_registry) |registry| return registry;
 
         const registry = try self.allocator.create(ToolRegistry);
         registry.* = ToolRegistry.init(self.allocator);
@@ -95,81 +108,18 @@ pub const Context = struct {
         return registry;
     }
 
-    /// Register a tool.
     pub fn registerTool(self: *Context, tool: Tool) !void {
         const registry = try self.getToolRegistry();
-        try registry.register(tool);
+        const tool_ptr = try self.allocator.create(Tool);
+        errdefer self.allocator.destroy(tool_ptr);
+
+        tool_ptr.* = tool;
+        try self.owned_tools.append(self.allocator, tool_ptr);
+        errdefer _ = self.owned_tools.pop();
+        try registry.register(tool_ptr);
     }
 };
 
 pub fn isEnabled() bool {
     return build_options.feat_ai;
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-test "agents context initialization" {
-    if (!isEnabled()) return error.SkipZigTest;
-
-    const allocator = std.testing.allocator;
-    const ctx = try Context.init(allocator, .{});
-    defer ctx.deinit();
-
-    try std.testing.expect(ctx.agents.count() == 0);
-    try std.testing.expect(ctx.tool_registry == null);
-}
-
-test "agents context create and get agent" {
-    if (!isEnabled()) return error.SkipZigTest;
-
-    const allocator = std.testing.allocator;
-    const ctx = try Context.init(allocator, .{ .max_agents = 5 });
-    defer ctx.deinit();
-
-    const agent_ptr = try ctx.createAgent("test-agent");
-    try std.testing.expect(ctx.agents.count() == 1);
-
-    const retrieved = ctx.getAgent("test-agent");
-    try std.testing.expect(retrieved != null);
-    try std.testing.expectEqual(agent_ptr, retrieved.?);
-
-    const missing = ctx.getAgent("nonexistent");
-    try std.testing.expect(missing == null);
-}
-
-test "agents context max agents limit" {
-    if (!isEnabled()) return error.SkipZigTest;
-
-    const allocator = std.testing.allocator;
-    const ctx = try Context.init(allocator, .{ .max_agents = 2 });
-    defer ctx.deinit();
-
-    _ = try ctx.createAgent("agent1");
-    _ = try ctx.createAgent("agent2");
-
-    // Should fail - max agents reached
-    try std.testing.expectError(error.MaxAgentsReached, ctx.createAgent("agent3"));
-}
-
-test "agents context tool registry lazy initialization" {
-    if (!isEnabled()) return error.SkipZigTest;
-
-    const allocator = std.testing.allocator;
-    const ctx = try Context.init(allocator, .{});
-    defer ctx.deinit();
-
-    try std.testing.expect(ctx.tool_registry == null);
-
-    const registry1 = try ctx.getToolRegistry();
-    try std.testing.expect(ctx.tool_registry != null);
-
-    // Should return same instance
-    const registry2 = try ctx.getToolRegistry();
-    try std.testing.expect(registry1 == registry2);
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }
