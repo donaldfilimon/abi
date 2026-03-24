@@ -1,11 +1,20 @@
 //! Integration Tests: TUI
 //!
 //! Tests the TUI module's non-interactive components through
-//! the abi public API.
+//! the abi public API. Covers types, layout primitives, screen
+//! rendering, and dashboard smoke tests.
 
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
+
+/// Helper: skip test when TUI feature is disabled.
+fn requireRealTui() !void {
+    if (!build_options.feat_tui) return error.SkipZigTest;
+}
+
+/// Re-export dashboard's hasVisibleCell for use in tests.
+const hasVisibleCell = abi.tui.dashboard.hasVisibleCell;
 
 // === Module Availability ===
 
@@ -79,11 +88,16 @@ test "tui: Rect hit testing contains method" {
     try std.testing.expect(!r.contains(30, 30)); // bottom
 }
 
+// === Layout Primitive Splitting ===
+
 test "tui: Layout primitive splitting" {
+    try requireRealTui();
+
     const Rect = abi.tui.types.Rect;
     const Constraint = abi.tui.types.Constraint;
     const layout = abi.tui.layout;
 
+    // Vertical split with fixed, percentage, and min constraints
     const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 40 };
     const constraints = [_]Constraint{
         .{ .fixed = 5 },
@@ -95,9 +109,128 @@ test "tui: Layout primitive splitting" {
     try std.testing.expectEqual(@as(usize, 3), split_res.len);
 
     const rects = split_res.slice();
+
+    // Fixed region: exactly 5 columns wide
     try std.testing.expectEqual(@as(u16, 5), rects[0].width);
-    try std.testing.expectEqual(@as(u16, 50), rects[1].width); // 50% of 100
-    try std.testing.expectEqual(@as(u16, 45), rects[2].width); // Remaining 45 satisfies min=10
+    try std.testing.expectEqual(@as(u16, 0), rects[0].x);
+    try std.testing.expectEqual(@as(u16, 40), rects[0].height); // full height preserved
+
+    // Percentage region: 50% of 100 = 50 columns
+    try std.testing.expectEqual(@as(u16, 50), rects[1].width);
+    try std.testing.expectEqual(@as(u16, 5), rects[1].x); // offset by previous
+
+    // Min region: remaining space (45), satisfies min=10
+    try std.testing.expectEqual(@as(u16, 45), rects[2].width);
+    try std.testing.expectEqual(@as(u16, 55), rects[2].x);
+
+    // Horizontal split sanity check
+    const h_constraints = [_]Constraint{
+        .{ .fixed = 3 },
+        .{ .fixed = 18 },
+        .{ .fixed = 3 },
+    };
+    const h_res = layout.split(r, .horizontal, &h_constraints);
+    try std.testing.expectEqual(@as(usize, 3), h_res.len);
+    const h_rects = h_res.slice();
+    try std.testing.expectEqual(@as(u16, 3), h_rects[0].height);
+    try std.testing.expectEqual(@as(u16, 18), h_rects[1].height);
+    try std.testing.expectEqual(@as(u16, 3), h_rects[1].y);
+
+    // Empty constraints yields zero rects
+    const empty_res = layout.split(r, .vertical, &[_]Constraint{});
+    try std.testing.expectEqual(@as(usize, 0), empty_res.len);
+}
+
+// === Screen Resize and Rect Contract ===
+
+test "tui: Screen resize and rect contract" {
+    try requireRealTui();
+
+    const Screen = abi.tui.render.Screen;
+
+    // Create an initial 80x24 screen
+    var screen = try Screen.init(std.testing.allocator, 80, 24);
+    defer screen.deinit();
+
+    try std.testing.expectEqual(@as(u16, 80), screen.width);
+    try std.testing.expectEqual(@as(u16, 24), screen.height);
+
+    // rect() must reflect current dimensions
+    const r1 = screen.rect();
+    try std.testing.expectEqual(@as(u16, 0), r1.x);
+    try std.testing.expectEqual(@as(u16, 0), r1.y);
+    try std.testing.expectEqual(@as(u16, 80), r1.width);
+    try std.testing.expectEqual(@as(u16, 24), r1.height);
+
+    // Write a cell and verify it lands in the back buffer
+    screen.setCell(5, 3, .{ .char = 'Z', .style = .{} });
+    const idx = @as(usize, 3) * @as(usize, 80) + 5;
+    try std.testing.expectEqual(@as(u21, 'Z'), screen.back[idx].char);
+
+    // Resize to 40x12
+    try screen.resize(40, 12);
+    try std.testing.expectEqual(@as(u16, 40), screen.width);
+    try std.testing.expectEqual(@as(u16, 12), screen.height);
+
+    // rect() must reflect new dimensions
+    const r2 = screen.rect();
+    try std.testing.expectEqual(@as(u16, 40), r2.width);
+    try std.testing.expectEqual(@as(u16, 12), r2.height);
+
+    // After resize, buffer should be cleared (all blanks)
+    for (screen.back) |cell| {
+        try std.testing.expectEqual(@as(u21, ' '), cell.char);
+    }
+
+    // Buffer length must match new dimensions
+    try std.testing.expectEqual(@as(usize, 40 * 12), screen.back.len);
+    try std.testing.expectEqual(@as(usize, 40 * 12), screen.front.len);
+
+    // clear() resets back buffer to blanks
+    screen.setCell(0, 0, .{ .char = 'X', .style = .{} });
+    screen.clear();
+    try std.testing.expectEqual(@as(u21, ' '), screen.back[0].char);
+}
+
+// === Dashboard Render Smoke ===
+
+test "tui: dashboard render smoke on standard and compact screens" {
+    try requireRealTui();
+
+    const Screen = abi.tui.render.Screen;
+
+    // Standard 80x24 terminal
+    {
+        var screen = try Screen.init(std.testing.allocator, 80, 24);
+        defer screen.deinit();
+        var state: abi.tui.dashboard.AppState = .{};
+        abi.tui.dashboard.renderDashboard(&screen, &state);
+
+        // Dashboard must have written visible content
+        try std.testing.expect(hasVisibleCell(&screen));
+    }
+
+    // Compact 20x8 terminal — dashboard should not crash
+    {
+        var screen = try Screen.init(std.testing.allocator, 20, 8);
+        defer screen.deinit();
+        var state: abi.tui.dashboard.AppState = .{};
+        abi.tui.dashboard.renderDashboard(&screen, &state);
+
+        // Even on a small screen, something should render
+        try std.testing.expect(hasVisibleCell(&screen));
+    }
+
+    // Tiny 12x5 terminal — extreme edge case, must not crash
+    {
+        var screen = try Screen.init(std.testing.allocator, 12, 5);
+        defer screen.deinit();
+        var state: abi.tui.dashboard.AppState = .{};
+        abi.tui.dashboard.renderDashboard(&screen, &state);
+
+        // At minimum the screen should still function
+        try std.testing.expect(screen.width == 12 and screen.height == 5);
+    }
 }
 
 test {

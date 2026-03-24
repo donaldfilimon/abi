@@ -14,7 +14,7 @@ const widgets = @import("../widgets.zig");
 const events_mod = @import("../events.zig");
 
 const Style = types.Style;
-const Color = types.Color;
+const Key = types.Key;
 const Rect = types.Rect;
 const Screen = render_mod.Screen;
 const Terminal = terminal_mod.Terminal;
@@ -31,14 +31,85 @@ const FlagEntry = struct {
     enabled: bool,
 };
 
-const Panel = enum {
+pub const Panel = enum {
     features,
     gpu,
 };
 
-const AppState = struct {
+pub const AppState = struct {
     focused_panel: Panel = .features,
 };
+
+/// Result of computing the dashboard layout regions.
+pub const DashboardLayout = struct {
+    header: Rect,
+    body: Rect,
+    status: Rect,
+    features_panel: Rect,
+    gpu_panel: Rect,
+};
+
+/// Actions the dashboard can take in response to input.
+pub const DashboardAction = enum {
+    none,
+    quit,
+};
+
+/// Compute the layout regions for the dashboard from a full-screen rect.
+pub fn computeLayout(full: Rect) DashboardLayout {
+    // Split: header (3) + body + status bar (1)
+    const vsplit = full.splitHorizontal(3);
+    const header_area = vsplit.top;
+    const body_and_status = vsplit.bottom;
+    const bsplit = body_and_status.splitHorizontal(body_and_status.height -| 1);
+    const body_area = bsplit.top;
+    const status_area = bsplit.bottom;
+
+    // Body: split into features (left) and GPU/AI (right)
+    const body_split = body_area.splitVertical(body_area.width / 2);
+
+    return .{
+        .header = header_area,
+        .body = body_area,
+        .status = status_area,
+        .features_panel = body_split.left,
+        .gpu_panel = body_split.right,
+    };
+}
+
+/// Process a key event and return the resulting action.
+pub fn handleKey(state: *AppState, key: Key) DashboardAction {
+    switch (key) {
+        .char => |c| {
+            if (c == 'q' or c == 'Q') return .quit;
+        },
+        .ctrl => |c| {
+            if (c == 'c') return .quit;
+        },
+        .tab => {
+            state.focused_panel = if (state.focused_panel == .features) .gpu else .features;
+        },
+        .escape => return .quit,
+        else => {},
+    }
+    return .none;
+}
+
+/// Hit test the features and GPU panels, returning which panel (if any)
+/// contains the given coordinates.
+pub fn hitTestPanel(dl: DashboardLayout, x: u16, y: u16) ?Panel {
+    if (dl.features_panel.contains(x, y)) return .features;
+    if (dl.gpu_panel.contains(x, y)) return .gpu;
+    return null;
+}
+
+/// Check whether any cell in the slice has a visible (non-space) character.
+pub fn hasVisibleCell(cells: []const types.Cell) bool {
+    for (cells) |cell| {
+        if (cell.char != ' ') return true;
+    }
+    return false;
+}
 
 /// Get all feature flags from build_options.
 fn getFeatureFlags() [20]FlagEntry {
@@ -78,41 +149,28 @@ fn getGpuFlags() [4]FlagEntry {
 /// Render the dashboard to a screen buffer.
 pub fn renderDashboard(screen: *Screen, state: *const AppState) void {
     screen.clear();
-    const full = screen.rect();
-
-    // Split: header (3) + body + status bar (1)
-    const vsplit = full.splitHorizontal(3);
-    const header_area = vsplit.top;
-    const body_and_status = vsplit.bottom;
-    const bsplit = body_and_status.splitHorizontal(body_and_status.height -| 1);
-    const body_area = bsplit.top;
-    const status_area = bsplit.bottom;
+    const dl = computeLayout(screen.rect());
 
     // Header
-    widgets.renderPanel(screen, header_area, " ABI Dashboard ", header_style);
-    if (header_area.height >= 2) {
+    widgets.renderPanel(screen, dl.header, " ABI Dashboard ", header_style);
+    if (dl.header.height >= 2) {
         const version_text = "v" ++ build_options.package_version ++ " | Zig 0.16 | Multi-Persona AI + WDBX";
         widgets.renderText(screen, .{
-            .x = header_area.x + 2,
-            .y = header_area.y + 1,
-            .width = header_area.width -| 4,
+            .x = dl.header.x + 2,
+            .y = dl.header.y + 1,
+            .width = dl.header.width -| 4,
             .height = 1,
         }, version_text, dim_style);
     }
 
-    // Body: split into features (left) and GPU/AI (right)
-    const body_split = body_area.splitVertical(body_area.width / 2);
-    const left_area = body_split.left;
-    const right_area = body_split.right;
-
     // Feature flags panel
-    renderFeaturePanel(screen, left_area, state.focused_panel == .features);
+    renderFeaturePanel(screen, dl.features_panel, state.focused_panel == .features);
 
     // GPU + AI panel
-    renderGpuPanel(screen, right_area, state.focused_panel == .gpu);
+    renderGpuPanel(screen, dl.gpu_panel, state.focused_panel == .gpu);
 
     // Status bar
-    widgets.renderStatusBar(screen, status_area, " q:quit  tab:focus", "ABI Framework ", status_style);
+    widgets.renderStatusBar(screen, dl.status, " q:quit  tab:focus", "ABI Framework ", status_style);
 }
 
 /// Render a list of flag entries starting at a given row within an inner rect.
@@ -225,14 +283,6 @@ pub fn run(allocator: std.mem.Allocator) !void {
         flushToFd(stdout_fd, buf[0..writer.end]);
     }
 
-    // Hide cursor and clear screen initially
-    {
-        var buf: [64]u8 = undefined;
-        var writer = std.Io.Writer.fixed(&buf);
-        ansi.hideCursor(&writer) catch {};
-        flushToFd(stdout_fd, buf[0..writer.end]);
-    }
-
     var app_state = AppState{};
 
     // Initial render
@@ -244,19 +294,8 @@ pub fn run(allocator: std.mem.Allocator) !void {
     // Event loop
     while (true) {
         if (event_reader.readEvent() catch null) |event| {
-            switch (event.key) {
-                .char => |c| {
-                    if (c == 'q' or c == 'Q') break;
-                },
-                .ctrl => |c| {
-                    if (c == 'c') break; // Ctrl+C
-                },
-                .tab => {
-                    app_state.focused_panel = if (app_state.focused_panel == .features) .gpu else .features;
-                },
-                .escape => break,
-                else => {},
-            }
+            const action = handleKey(&app_state, event.key);
+            if (action == .quit) break;
         }
 
         // Re-render on any key
@@ -275,6 +314,10 @@ pub fn run(allocator: std.mem.Allocator) !void {
     }
 }
 
+// =============================================================================
+// Tests
+// =============================================================================
+
 test "getFeatureFlags returns 20 entries" {
     const flags = getFeatureFlags();
     try std.testing.expectEqual(@as(usize, 20), flags.len);
@@ -292,6 +335,142 @@ test "renderDashboard does not crash" {
     renderDashboard(&screen, &app_state);
     // Verify some content was written
     try std.testing.expect(screen.back[0].char != ' ' or screen.back[1].char != ' ');
+}
+
+test "computeLayout partitions 80x24 screen" {
+    const full = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    const dl = computeLayout(full);
+
+    // Header is 3 rows
+    try std.testing.expectEqual(@as(u16, 3), dl.header.height);
+    try std.testing.expectEqual(@as(u16, 0), dl.header.y);
+
+    // Status bar is 1 row at the bottom
+    try std.testing.expectEqual(@as(u16, 1), dl.status.height);
+    try std.testing.expectEqual(@as(u16, 23), dl.status.y);
+
+    // Body fills the gap
+    try std.testing.expectEqual(@as(u16, 20), dl.body.height);
+    try std.testing.expectEqual(@as(u16, 3), dl.body.y);
+
+    // Panels split the body in half
+    try std.testing.expectEqual(@as(u16, 40), dl.features_panel.width);
+    try std.testing.expectEqual(@as(u16, 40), dl.gpu_panel.width);
+    try std.testing.expectEqual(@as(u16, 0), dl.features_panel.x);
+    try std.testing.expectEqual(@as(u16, 40), dl.gpu_panel.x);
+}
+
+test "computeLayout compact screen 40x10" {
+    const full = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    const dl = computeLayout(full);
+
+    try std.testing.expectEqual(@as(u16, 3), dl.header.height);
+    try std.testing.expectEqual(@as(u16, 1), dl.status.height);
+    // Body = 10 - 3 - 1 = 6
+    try std.testing.expectEqual(@as(u16, 6), dl.body.height);
+    // Panels split 40 / 2 = 20 each
+    try std.testing.expectEqual(@as(u16, 20), dl.features_panel.width);
+    try std.testing.expectEqual(@as(u16, 20), dl.gpu_panel.width);
+}
+
+test "computeLayout minimal 20x5 screen" {
+    const full = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    const dl = computeLayout(full);
+
+    try std.testing.expectEqual(@as(u16, 3), dl.header.height);
+    try std.testing.expectEqual(@as(u16, 1), dl.status.height);
+    try std.testing.expectEqual(@as(u16, 1), dl.body.height);
+    try std.testing.expectEqual(@as(u16, 10), dl.features_panel.width);
+    try std.testing.expectEqual(@as(u16, 10), dl.gpu_panel.width);
+}
+
+test "handleKey quit on q" {
+    var state = AppState{};
+    const action = handleKey(&state, Key{ .char = 'q' });
+    try std.testing.expectEqual(DashboardAction.quit, action);
+}
+
+test "handleKey quit on Q" {
+    var state = AppState{};
+    const action = handleKey(&state, Key{ .char = 'Q' });
+    try std.testing.expectEqual(DashboardAction.quit, action);
+}
+
+test "handleKey quit on escape" {
+    var state = AppState{};
+    const action = handleKey(&state, .escape);
+    try std.testing.expectEqual(DashboardAction.quit, action);
+}
+
+test "handleKey quit on ctrl-c" {
+    var state = AppState{};
+    const action = handleKey(&state, Key{ .ctrl = 'c' });
+    try std.testing.expectEqual(DashboardAction.quit, action);
+}
+
+test "handleKey tab toggles focus" {
+    var state = AppState{};
+    try std.testing.expectEqual(Panel.features, state.focused_panel);
+
+    const a1 = handleKey(&state, .tab);
+    try std.testing.expectEqual(DashboardAction.none, a1);
+    try std.testing.expectEqual(Panel.gpu, state.focused_panel);
+
+    const a2 = handleKey(&state, .tab);
+    try std.testing.expectEqual(DashboardAction.none, a2);
+    try std.testing.expectEqual(Panel.features, state.focused_panel);
+}
+
+test "handleKey unknown key returns none" {
+    var state = AppState{};
+    const action = handleKey(&state, Key{ .char = 'x' });
+    try std.testing.expectEqual(DashboardAction.none, action);
+}
+
+test "hitTestPanel returns features for left half" {
+    const full = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    const dl = computeLayout(full);
+    // Inside features panel
+    try std.testing.expectEqual(Panel.features, hitTestPanel(dl, 5, 10).?);
+    // Inside GPU panel
+    try std.testing.expectEqual(Panel.gpu, hitTestPanel(dl, 50, 10).?);
+    // Header area — neither panel
+    try std.testing.expect(hitTestPanel(dl, 5, 1) == null);
+    // Status bar — neither panel
+    try std.testing.expect(hitTestPanel(dl, 5, 23) == null);
+}
+
+test "hasVisibleCell detects non-blank" {
+    const blank = [_]types.Cell{.{}} ** 5;
+    try std.testing.expect(!hasVisibleCell(&blank));
+
+    var cells = [_]types.Cell{.{}} ** 5;
+    cells[2] = .{ .char = 'A', .style = .{} };
+    try std.testing.expect(hasVisibleCell(&cells));
+}
+
+test "renderDashboard smoke 40x10" {
+    var screen = try Screen.init(std.testing.allocator, 40, 10);
+    defer screen.deinit();
+    const app_state = AppState{};
+    renderDashboard(&screen, &app_state);
+    try std.testing.expect(hasVisibleCell(screen.back));
+}
+
+test "renderDashboard smoke 120x40" {
+    var screen = try Screen.init(std.testing.allocator, 120, 40);
+    defer screen.deinit();
+    const app_state = AppState{};
+    renderDashboard(&screen, &app_state);
+    try std.testing.expect(hasVisibleCell(screen.back));
+}
+
+test "renderDashboard with GPU focus" {
+    var screen = try Screen.init(std.testing.allocator, 80, 24);
+    defer screen.deinit();
+    const app_state = AppState{ .focused_panel = .gpu };
+    renderDashboard(&screen, &app_state);
+    try std.testing.expect(hasVisibleCell(screen.back));
 }
 
 test {
