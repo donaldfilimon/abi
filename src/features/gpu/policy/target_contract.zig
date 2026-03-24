@@ -1,3 +1,9 @@
+//! GPU Backend Policy Contract Validator
+//!
+//! Compile-time contract that validates GPU backend resolution for the build
+//! target. Uses @compileError to catch misconfigurations before runtime.
+//! Included in the `typecheck` build step as a standalone object build.
+
 const std = @import("std");
 const builtin = @import("builtin");
 const policy = @import("mod.zig");
