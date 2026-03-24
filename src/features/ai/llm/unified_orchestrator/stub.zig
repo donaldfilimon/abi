@@ -22,9 +22,8 @@ pub const utils = struct {};
 pub const Orchestrator = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) Error!Orchestrator {
-        _ = allocator;
-        return error.FeatureDisabled;
+    pub fn init(allocator: std.mem.Allocator) Orchestrator {
+        return .{ .allocator = allocator };
     }
 
     pub fn deinit(_: *Orchestrator) void {}

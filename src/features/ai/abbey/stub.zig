@@ -315,8 +315,17 @@ pub const LegacyStats = abbey_types.LegacyStats;
 pub const abbey_train = struct {
     pub const AbbyTrainConfig = struct {
         base_gguf_path: []const u8 = "",
-        training_data_path: []const u8 = "",
-        output_path: []const u8 = "",
+        jsonl_path: []const u8 = "",
+        output_path: []const u8 = "abbey_brain.gguf",
+        epochs: u32 = 3,
+        batch_size: u32 = 4,
+        max_seq_len: u32 = 512,
+        learning_rate: f32 = 2e-5,
+        grad_accum_steps: u32 = 8,
+        lora_rank: u32 = 16,
+        lora_alpha: f32 = 32.0,
+        lora_dropout: f32 = 0.05,
+        save_adapter_path: ?[]const u8 = null,
     };
 
     pub const AbbyTrainError = error{

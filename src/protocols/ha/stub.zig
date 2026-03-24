@@ -141,6 +141,31 @@ pub const ReplicationManager = struct {
         _ = node_id;
         _ = sequence;
     }
+
+    pub fn getState(self: *ReplicationManager) ReplicationState {
+        _ = self;
+        return .initializing;
+    }
+
+    pub fn isLeader(self: *ReplicationManager) bool {
+        _ = self;
+        return false;
+    }
+
+    pub fn getCurrentSequence(self: *ReplicationManager) u64 {
+        _ = self;
+        return 0;
+    }
+
+    pub fn getLeaderNodeId(self: *ReplicationManager) u64 {
+        _ = self;
+        return 0;
+    }
+
+    pub fn processQueue(self: *ReplicationManager) u64 {
+        _ = self;
+        return 0;
+    }
 };
 
 // =============================================================================
