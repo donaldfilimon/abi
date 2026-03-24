@@ -5,13 +5,13 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const types = @import("types.zig");
-const terminal_mod = @import("terminal.zig");
-const render_mod = @import("render.zig");
-const ansi = @import("ansi.zig");
-const layout_mod = @import("layout.zig");
-const widgets = @import("widgets.zig");
-const events_mod = @import("events.zig");
+const types = @import("../types.zig");
+const terminal_mod = @import("../terminal.zig");
+const render_mod = @import("../render.zig");
+const ansi = @import("../ansi.zig");
+const layout_mod = @import("../layout.zig");
+const widgets = @import("../widgets.zig");
+const events_mod = @import("../events.zig");
 
 const Style = types.Style;
 const Color = types.Color;

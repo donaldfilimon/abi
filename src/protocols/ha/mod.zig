@@ -65,6 +65,10 @@ pub const HaConfig = struct {
     auto_failover: bool = true,
     /// Regions for multi-region deployment
     regions: []const []const u8 = &.{"primary"},
+    /// Path for PITR operation log persistence (empty = no persistence)
+    pitr_log_path: []const u8 = "",
+    /// Path for PITR checkpoint persistence (empty = no persistence)
+    pitr_checkpoint_path: []const u8 = "",
     /// Callback for HA events
     on_event: ?*const fn (HaEvent) void = null,
 };
@@ -158,6 +162,18 @@ pub const HaManager = struct {
             self.pitr_manager = PitrManager.init(self.allocator, .{
                 .retention_hours = self.config.pitr_retention_hours,
             });
+
+            // Attempt to load persisted state from prior run
+            if (self.pitr_manager) |*pm| {
+                if (self.config.pitr_log_path.len > 0) {
+                    pm.loadOperationLog(self.config.pitr_log_path) catch {
+                        self.emitEvent(.{ .pitr_checkpoint = .{ .sequence = 0, .timestamp = 0 } });
+                    };
+                }
+                if (self.config.pitr_checkpoint_path.len > 0) {
+                    pm.loadCheckpoints(self.config.pitr_checkpoint_path) catch {};
+                }
+            }
         }
 
         self.is_running = true;
