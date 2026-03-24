@@ -266,6 +266,10 @@ pub fn build(b: *std.Build) void {
     const check_parity_step = b.step("check-parity", "Verify mod/stub declaration parity");
     check_parity_step.dependOn(&b.addRunArtifact(parity_tests).step);
 
+    const feature_tests_step = b.step("feature-tests", "Run feature integration and parity tests");
+    feature_tests_step.dependOn(&b.addRunArtifact(integration_tests).step);
+    feature_tests_step.dependOn(&b.addRunArtifact(parity_tests).step);
+
     // ── Lint / format ───────────────────────────────────────────────────
     const fmt_paths = &.{ "build.zig", "src", "test" };
     b.step("lint", "Check formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = true }).step);
