@@ -17,9 +17,13 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const build_options = @import("build_options");
 
-/// Accelerate framework availability check
-pub const is_available = builtin.os.tag == .macos or builtin.os.tag == .ios or builtin.os.tag == .tvos;
+/// Accelerate framework availability check.
+/// Requires both a supported OS and the GPU feature flag so that
+/// extern symbols are not emitted when feat_gpu is disabled.
+pub const is_available = build_options.feat_gpu and
+    (builtin.os.tag == .macos or builtin.os.tag == .ios or builtin.os.tag == .tvos);
 
 /// CBLAS transpose options
 pub const CblasTranspose = enum(c_int) {

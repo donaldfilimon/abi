@@ -758,6 +758,7 @@ fn createWebGL2VTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
 // ============================================================================
 
 test "factory creates stdgpu backend" {
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const instance = try createBackend(std.testing.allocator, .stdgpu);
     defer destroyBackend(instance);
 
@@ -766,6 +767,7 @@ test "factory creates stdgpu backend" {
 }
 
 test "factory lists available backends" {
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const backends = try listAvailableBackends(std.testing.allocator);
     defer std.testing.allocator.free(backends);
 
@@ -778,6 +780,7 @@ test "factory lists available backends" {
 }
 
 test "backend feature support" {
+    if (!build_options.feat_gpu) return error.SkipZigTest;
     const instance = try createBackend(std.testing.allocator, .stdgpu);
     defer destroyBackend(instance);
 
