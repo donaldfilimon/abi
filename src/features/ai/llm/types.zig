@@ -607,13 +607,13 @@ pub const providers = struct {
             .opencode,   .claude,    .gemini,    .plugin_http, .plugin_native,
         };
         pub const file_model_chain = [_]ProviderId{
-            .local_gguf, .llama_cpp,   .mlx,           .ollama,   .ollama_passthrough,
-            .lm_studio,  .vllm,        .codex,         .opencode, .claude,
+            .local_gguf, .llama_cpp, .mlx,   .ollama,   .ollama_passthrough,
+            .lm_studio,  .vllm,      .codex, .opencode, .claude,
             .gemini,
         };
         pub const model_name_chain = [_]ProviderId{
-            .llama_cpp,   .mlx,           .ollama,    .ollama_passthrough, .lm_studio,
-            .vllm,        .codex,         .opencode,  .claude,             .gemini,
+            .llama_cpp, .mlx,    .ollama,   .ollama_passthrough, .lm_studio,
+            .vllm,      .codex,  .opencode, .claude,             .gemini,
             .anthropic, .openai,
         };
         pub const sync_round_robin_chain = [_]ProviderId{

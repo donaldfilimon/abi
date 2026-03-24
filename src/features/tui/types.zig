@@ -204,7 +204,7 @@ test "Rect hit testing contains" {
     try std.testing.expect(r.contains(10, 5));
     try std.testing.expect(r.contains(15, 10));
     try std.testing.expect(r.contains(29, 14));
-    
+
     // Out of bounds
     try std.testing.expect(!r.contains(9, 5));
     try std.testing.expect(!r.contains(10, 4));
