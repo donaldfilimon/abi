@@ -14,6 +14,13 @@ const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
 // ============================================================================
+// Internal submodule imports (const, NOT pub — avoids parity failures)
+// ============================================================================
+
+const state = @import("state.zig");
+const bundle_mod = @import("bundle.zig");
+
+// ============================================================================
 // Metrics (from metrics/ subdirectory)
 // ============================================================================
 
@@ -123,143 +130,23 @@ pub const MetricsConfig = types.MetricsConfig;
 pub const MetricsSummary = types.MetricsSummary;
 
 // ============================================================================
-// Module Lifecycle
+// Module Lifecycle (delegated to state.zig)
 // ============================================================================
 
 pub const Error = types.Error;
 pub const MonitoringError = types.MonitoringError;
 
-var initialized = std.atomic.Value(bool).init(false);
-
-pub fn init(_: std.mem.Allocator) !void {
-    if (!isEnabled()) return MonitoringError.MonitoringDisabled;
-    initialized.store(true, .release);
-}
-
-pub fn deinit() void {
-    initialized.store(false, .release);
-}
-
-pub fn isEnabled() bool {
-    return build_options.feat_observability;
-}
-
-pub fn isInitialized() bool {
-    return initialized.load(.acquire);
-}
+pub const init = state.init;
+pub const deinit = state.deinit;
+pub const isEnabled = state.isEnabled;
+pub const isInitialized = state.isInitialized;
 
 // ============================================================================
-// Observability Bundle
+// Observability Bundle (delegated to bundle.zig)
 // ============================================================================
 
-pub const ObservabilityBundle = struct {
-    allocator: std.mem.Allocator,
-    collector: MetricsCollector,
-    defaults: DefaultMetrics,
-    circuit_breaker: ?CircuitBreakerMetrics,
-    errors: ?ErrorMetrics,
-    prometheus_exporter: ?*PrometheusExporter,
-    otel_exporter: ?*OtelExporter,
-    tracer: ?*OtelTracer,
-
-    pub fn init(allocator: std.mem.Allocator, config: BundleConfig) !ObservabilityBundle {
-        var collector = MetricsCollector.init(allocator);
-        errdefer collector.deinit();
-
-        const defaults = try registerDefaultMetrics(&collector);
-
-        var cb_metrics: ?CircuitBreakerMetrics = null;
-        if (config.enable_circuit_breaker_metrics) {
-            cb_metrics = try CircuitBreakerMetrics.init(&collector);
-        }
-
-        var err_metrics: ?ErrorMetrics = null;
-        if (config.enable_error_metrics) {
-            err_metrics = try ErrorMetrics.init(&collector);
-        }
-
-        var prom: ?*PrometheusExporter = null;
-        if (config.prometheus) |prom_config| {
-            const exporter = try allocator.create(PrometheusExporter);
-            exporter.* = try PrometheusExporter.init(allocator, prom_config, &collector);
-            prom = exporter;
-        }
-
-        var otel_exp: ?*OtelExporter = null;
-        if (config.otel) |otel_config| {
-            const exporter = try allocator.create(OtelExporter);
-            exporter.* = try OtelExporter.init(allocator, otel_config);
-            otel_exp = exporter;
-        }
-
-        var tracer: ?*OtelTracer = null;
-        if (config.otel) |otel_config| {
-            const t = try allocator.create(OtelTracer);
-            t.* = try OtelTracer.init(allocator, otel_config.service_name);
-            tracer = t;
-        }
-
-        return .{
-            .allocator = allocator,
-            .collector = collector,
-            .defaults = defaults,
-            .circuit_breaker = cb_metrics,
-            .errors = err_metrics,
-            .prometheus_exporter = prom,
-            .otel_exporter = otel_exp,
-            .tracer = tracer,
-        };
-    }
-
-    pub fn deinit(self: *ObservabilityBundle) void {
-        if (self.tracer) |t| {
-            t.deinit();
-            self.allocator.destroy(t);
-        }
-        if (self.otel_exporter) |e| {
-            e.deinit();
-            self.allocator.destroy(e);
-        }
-        if (self.prometheus_exporter) |p| {
-            p.deinit();
-            self.allocator.destroy(p);
-        }
-        self.collector.deinit();
-        self.* = undefined;
-    }
-
-    pub fn start(self: *ObservabilityBundle) !void {
-        if (self.prometheus_exporter) |p| {
-            try p.start();
-        }
-        if (self.otel_exporter) |e| {
-            try e.start();
-        }
-    }
-
-    pub fn stop(self: *ObservabilityBundle) void {
-        if (self.prometheus_exporter) |p| {
-            p.stop();
-        }
-        if (self.otel_exporter) |e| {
-            e.stop();
-        }
-    }
-
-    pub fn startSpan(self: *ObservabilityBundle, name: []const u8) !?OtelSpan {
-        if (self.tracer) |t| {
-            return try t.startSpan(name, null, null);
-        }
-        return null;
-    }
-};
-
-pub const BundleConfig = struct {
-    enable_circuit_breaker_metrics: bool = true,
-    enable_error_metrics: bool = true,
-    prometheus: ?PrometheusConfig = null,
-    otel: ?OtelConfig = null,
-};
+pub const ObservabilityBundle = bundle_mod.ObservabilityBundle;
+pub const BundleConfig = bundle_mod.BundleConfig;
 
 // ============================================================================
 // Context
