@@ -10,10 +10,14 @@
 //! - CpuFallbackAiOps for when GPU is disabled (computes on CPU)
 //! - StubAiOps is an alias for CpuFallbackAiOps (backward compat)
 //! - Error handling via error union
+//!
+//! Sub-modules:
+//! - `ai_ops/cpu_fallback.zig` — CPU fallback implementation
+//! - `ai_ops/adapters.zig` — Generic adapter helper for wrapping concrete impls
+//! - `ai_ops/reexports.zig` — Low-level GPU module re-exports for AI modules
 
 const std = @import("std");
 const build_options = @import("build_options");
-const backend_shared = @import("backends/shared.zig");
 
 // =============================================================================
 // Error Types
@@ -415,481 +419,29 @@ pub const AiOps = struct {
 };
 
 // =============================================================================
-// CPU Fallback Implementation
+// Re-exports from sub-modules
 // =============================================================================
 
 /// CPU fallback implementation when GPU is disabled.
-/// Performs real computations on host memory using standard math.
-/// Pointers are interpreted as f32 arrays laid out in row-major order.
-pub const CpuFallbackAiOps = struct {
-    /// Singleton instance data (no state needed for CPU fallback).
-    const Instance = struct {};
-    var instance: Instance = .{};
-
-    /// Create a CPU fallback AiOps that computes on the host.
-    pub fn init() AiOps {
-        return .{
-            .ptr = @ptrCast(&instance),
-            .vtable = &vtable,
-        };
-    }
-
-    const vtable = AiOps.VTable{
-        .sgemm = cpuSgemm,
-        .sgemmStridedBatched = cpuSgemmBatched,
-        .softmax = cpuSoftmax,
-        .rmsnorm = cpuRmsnorm,
-        .silu = cpuSilu,
-        .gelu = cpuGelu,
-        .scale = cpuScale,
-        .elementwiseMul = cpuElementwiseMul,
-        .elementwiseAdd = cpuElementwiseAdd,
-        .allocDevice = cpuAllocDevice,
-        .copyToDevice = cpuCopyToDevice,
-        .copyFromDevice = cpuCopyFromDevice,
-        .freeDevice = cpuFreeDevice,
-        .isAvailable = cpuIsAvailable,
-        .deinit = cpuDeinit,
-    };
-
-    // =========================================================================
-    // BLAS Operations
-    // =========================================================================
-
-    /// CPU sgemm: C = alpha * op(A) * op(B) + beta * C, row-major layout.
-    /// op(X) is X if no_trans, X^T if trans.
-    fn cpuSgemm(
-        _: *anyopaque,
-        trans_a: Transpose,
-        trans_b: Transpose,
-        m: i32,
-        n: i32,
-        k: i32,
-        alpha: f32,
-        a_ptr: *const anyopaque,
-        lda: i32,
-        b_ptr: *const anyopaque,
-        ldb: i32,
-        beta: f32,
-        c_ptr: *anyopaque,
-        ldc: i32,
-    ) AiOpsError!void {
-        const M: usize = @intCast(m);
-        const N: usize = @intCast(n);
-        const K: usize = @intCast(k);
-        const LDA: usize = @intCast(lda);
-        const LDB: usize = @intCast(ldb);
-        const LDC: usize = @intCast(ldc);
-
-        const a: [*]const f32 = @ptrCast(@alignCast(a_ptr));
-        const b: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-        const c: [*]f32 = @ptrCast(@alignCast(c_ptr));
-
-        for (0..M) |i| {
-            for (0..N) |j| {
-                var sum: f32 = 0.0;
-                for (0..K) |p| {
-                    const a_val = if (trans_a == .trans)
-                        a[p * LDA + i]
-                    else
-                        a[i * LDA + p];
-                    const b_val = if (trans_b == .trans)
-                        b[j * LDB + p]
-                    else
-                        b[p * LDB + j];
-                    sum += a_val * b_val;
-                }
-                c[i * LDC + j] = alpha * sum + beta * c[i * LDC + j];
-            }
-        }
-    }
-
-    /// CPU batched strided sgemm.
-    fn cpuSgemmBatched(
-        _: *anyopaque,
-        trans_a: Transpose,
-        trans_b: Transpose,
-        m: i32,
-        n: i32,
-        k: i32,
-        alpha: f32,
-        a_ptr: *const anyopaque,
-        lda: i32,
-        stride_a: i64,
-        b_ptr: *const anyopaque,
-        ldb: i32,
-        stride_b: i64,
-        beta: f32,
-        c_ptr: *anyopaque,
-        ldc: i32,
-        stride_c: i64,
-        batch_count: i32,
-    ) AiOpsError!void {
-        const M: usize = @intCast(m);
-        const N: usize = @intCast(n);
-        const K: usize = @intCast(k);
-        const LDA: usize = @intCast(lda);
-        const LDB: usize = @intCast(ldb);
-        const LDC: usize = @intCast(ldc);
-        const sa: usize = @intCast(stride_a);
-        const sb: usize = @intCast(stride_b);
-        const sc: usize = @intCast(stride_c);
-
-        const a_base: [*]const f32 = @ptrCast(@alignCast(a_ptr));
-        const b_base: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-        const c_base: [*]f32 = @ptrCast(@alignCast(c_ptr));
-
-        for (0..@intCast(batch_count)) |batch| {
-            const a = a_base + batch * sa;
-            const b = b_base + batch * sb;
-            const c = c_base + batch * sc;
-
-            for (0..M) |i| {
-                for (0..N) |j| {
-                    var sum: f32 = 0.0;
-                    for (0..K) |p| {
-                        const a_val = if (trans_a == .trans)
-                            a[p * LDA + i]
-                        else
-                            a[i * LDA + p];
-                        const b_val = if (trans_b == .trans)
-                            b[j * LDB + p]
-                        else
-                            b[p * LDB + j];
-                        sum += a_val * b_val;
-                    }
-                    c[i * LDC + j] = alpha * sum + beta * c[i * LDC + j];
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // Activation Operations
-    // =========================================================================
-
-    /// CPU softmax: data[i] = exp(data[i]) / sum(exp(data[j])) for j in 0..len.
-    /// Uses max-subtraction for numerical stability.
-    fn cpuSoftmax(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
-        if (len == 0) return;
-        const n: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
-
-        // Find max for numerical stability
-        var max_val: f32 = data[0];
-        for (1..n) |i| {
-            if (data[i] > max_val) max_val = data[i];
-        }
-
-        // Exponentiate and sum
-        var sum: f32 = 0.0;
-        for (0..n) |i| {
-            data[i] = @exp(data[i] - max_val);
-            sum += data[i];
-        }
-
-        // Normalize
-        const inv_sum = 1.0 / sum;
-        for (0..n) |i| {
-            data[i] *= inv_sum;
-        }
-    }
-
-    /// CPU rmsnorm: x = x / rms(x) * weight, where rms(x) = sqrt(mean(x^2) + eps).
-    fn cpuRmsnorm(
-        _: *anyopaque,
-        x_ptr: *anyopaque,
-        weight_ptr: *const anyopaque,
-        len: u32,
-        eps: f32,
-        _: ?*anyopaque,
-    ) AiOpsError!void {
-        if (len == 0) return;
-        const n: usize = @intCast(len);
-        const x: [*]f32 = @ptrCast(@alignCast(x_ptr));
-        const weight: [*]const f32 = @ptrCast(@alignCast(weight_ptr));
-
-        // Compute mean of squares
-        var sum_sq: f32 = 0.0;
-        for (0..n) |i| {
-            sum_sq += x[i] * x[i];
-        }
-        const rms = @sqrt(sum_sq / @as(f32, @floatFromInt(n)) + eps);
-        const inv_rms = 1.0 / rms;
-
-        // Normalize and apply weight
-        for (0..n) |i| {
-            x[i] = x[i] * inv_rms * weight[i];
-        }
-    }
-
-    /// CPU SiLU: x = x * sigmoid(x) = x / (1 + exp(-x)).
-    fn cpuSilu(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
-        const n: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
-
-        for (0..n) |i| {
-            const val = data[i];
-            data[i] = val / (1.0 + @exp(-val));
-        }
-    }
-
-    /// CPU GELU: x = x * 0.5 * (1 + erf(x / sqrt(2))).
-    /// Uses tanh approximation: GELU(x) ~ 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3))).
-    fn cpuGelu(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
-        const n: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
-        const sqrt_2_over_pi: f32 = 0.7978845608028654; // sqrt(2/pi)
-
-        for (0..n) |i| {
-            const x = data[i];
-            const inner = sqrt_2_over_pi * (x + 0.044715 * x * x * x);
-            // tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
-            const e2 = @exp(2.0 * inner);
-            const tanh_val = (e2 - 1.0) / (e2 + 1.0);
-            data[i] = 0.5 * x * (1.0 + tanh_val);
-        }
-    }
-
-    /// CPU scale: x = x * scalar.
-    fn cpuScale(_: *anyopaque, data_ptr: *anyopaque, scalar: f32, len: u32, _: ?*anyopaque) AiOpsError!void {
-        const n: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
-
-        for (0..n) |i| {
-            data[i] *= scalar;
-        }
-    }
-
-    /// CPU element-wise multiply: a = a * b.
-    fn cpuElementwiseMul(_: *anyopaque, a_ptr: *anyopaque, b_ptr: *const anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
-        const n: usize = @intCast(len);
-        const a: [*]f32 = @ptrCast(@alignCast(a_ptr));
-        const b: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-
-        for (0..n) |i| {
-            a[i] *= b[i];
-        }
-    }
-
-    /// CPU element-wise add: a = a + b.
-    fn cpuElementwiseAdd(_: *anyopaque, a_ptr: *anyopaque, b_ptr: *const anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
-        const n: usize = @intCast(len);
-        const a: [*]f32 = @ptrCast(@alignCast(a_ptr));
-        const b: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-
-        for (0..n) |i| {
-            a[i] += b[i];
-        }
-    }
-
-    // =========================================================================
-    // Memory Operations — host-backed buffers pretending to be device memory
-    // =========================================================================
-
-    /// Allocate host memory as a stand-in for device memory.
-    fn cpuAllocDevice(_: *anyopaque, allocator: std.mem.Allocator, size: usize) AiOpsError!DeviceBuffer {
-        const slice = allocator.alloc(u8, size) catch return error.OutOfMemory;
-        return DeviceBuffer{
-            .ptr = @ptrCast(slice.ptr),
-            .size = size,
-            .allocator = allocator,
-            .ops = &(AiOps{
-                .ptr = @ptrCast(&instance),
-                .vtable = &vtable,
-            }),
-        };
-    }
-
-    /// Copy from host to "device" (host-backed).
-    fn cpuCopyToDevice(_: *anyopaque, dst: *anyopaque, src: [*]const u8, len: usize) AiOpsError!void {
-        const dst_slice: [*]u8 = @ptrCast(@alignCast(dst));
-        @memcpy(dst_slice[0..len], src[0..len]);
-    }
-
-    /// Copy from "device" (host-backed) to host.
-    fn cpuCopyFromDevice(_: *anyopaque, dst: [*]u8, src: *const anyopaque, len: usize) AiOpsError!void {
-        const src_slice: [*]const u8 = @ptrCast(@alignCast(src));
-        @memcpy(dst[0..len], src_slice[0..len]);
-    }
-
-    /// Free host-backed "device" memory.
-    fn cpuFreeDevice(_: *anyopaque, ptr: *anyopaque) void {
-        // We cannot free without knowing the size/allocator, so this is a no-op.
-        // Real cleanup happens via DeviceBuffer.deinit() which uses the stored allocator.
-        _ = ptr;
-    }
-
-    /// CPU fallback is always available.
-    fn cpuIsAvailable(_: *anyopaque) bool {
-        return true;
-    }
-
-    fn cpuDeinit(_: *anyopaque) void {}
-};
+pub const CpuFallbackAiOps = @import("ai_ops/cpu_fallback.zig").CpuFallbackAiOps;
 
 /// Backward-compatible alias for the CPU fallback (was StubAiOps).
-pub const StubAiOps = CpuFallbackAiOps;
-
-// =============================================================================
-// Helper for creating AiOps from concrete implementation
-// =============================================================================
+pub const StubAiOps = @import("ai_ops/cpu_fallback.zig").StubAiOps;
 
 /// Create an AiOps wrapper from a concrete implementation type.
-/// The implementation type must have methods matching the VTable signatures.
-pub fn createAiOps(comptime Impl: type, impl: *Impl) AiOps {
-    const gen = struct {
-        fn sgemm(
-            ptr: *anyopaque,
-            trans_a: Transpose,
-            trans_b: Transpose,
-            m: i32,
-            n: i32,
-            k: i32,
-            alpha: f32,
-            a: *const anyopaque,
-            lda: i32,
-            b: *const anyopaque,
-            ldb: i32,
-            beta: f32,
-            c: *anyopaque,
-            ldc: i32,
-        ) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.sgemm(trans_a, trans_b, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-        }
+pub const createAiOps = @import("ai_ops/adapters.zig").createAiOps;
 
-        fn sgemmStridedBatched(
-            ptr: *anyopaque,
-            trans_a: Transpose,
-            trans_b: Transpose,
-            m: i32,
-            n: i32,
-            k: i32,
-            alpha: f32,
-            a: *const anyopaque,
-            lda: i32,
-            stride_a: i64,
-            b: *const anyopaque,
-            ldb: i32,
-            stride_b: i64,
-            beta: f32,
-            c: *anyopaque,
-            ldc: i32,
-            stride_c: i64,
-            batch_count: i32,
-        ) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.sgemmStridedBatched(
-                trans_a,
-                trans_b,
-                m,
-                n,
-                k,
-                alpha,
-                a,
-                lda,
-                stride_a,
-                b,
-                ldb,
-                stride_b,
-                beta,
-                c,
-                ldc,
-                stride_c,
-                batch_count,
-            );
-        }
+// =============================================================================
+// Low-level GPU Module Re-exports for AI Modules
+// =============================================================================
 
-        fn softmax(ptr: *anyopaque, data: *anyopaque, len: u32, stream: ?*anyopaque) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.softmax(data, len, stream);
-        }
+const reexports = @import("ai_ops/reexports.zig");
 
-        fn rmsnorm(ptr: *anyopaque, x: *anyopaque, weight: *const anyopaque, len: u32, eps: f32, stream: ?*anyopaque) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.rmsnorm(x, weight, len, eps, stream);
-        }
-
-        fn silu(ptr: *anyopaque, data: *anyopaque, len: u32, stream: ?*anyopaque) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.silu(data, len, stream);
-        }
-
-        fn gelu(ptr: *anyopaque, data: *anyopaque, len: u32, stream: ?*anyopaque) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.gelu(data, len, stream);
-        }
-
-        fn scale(ptr: *anyopaque, data: *anyopaque, scalar: f32, len: u32, stream: ?*anyopaque) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.scale(data, scalar, len, stream);
-        }
-
-        fn elementwiseMul(ptr: *anyopaque, a: *anyopaque, b: *const anyopaque, len: u32, stream: ?*anyopaque) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.elementwiseMul(a, b, len, stream);
-        }
-
-        fn elementwiseAdd(ptr: *anyopaque, a: *anyopaque, b: *const anyopaque, len: u32, stream: ?*anyopaque) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.elementwiseAdd(a, b, len, stream);
-        }
-
-        fn allocDevice(ptr: *anyopaque, allocator: std.mem.Allocator, size: usize) AiOpsError!DeviceBuffer {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.allocDevice(allocator, size);
-        }
-
-        fn copyToDevice(ptr: *anyopaque, dst: *anyopaque, src: [*]const u8, len: usize) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.copyToDevice(dst, src, len);
-        }
-
-        fn copyFromDevice(ptr: *anyopaque, dst: [*]u8, src: *const anyopaque, len: usize) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.copyFromDevice(dst, src, len);
-        }
-
-        fn freeDevice(ptr: *anyopaque, mem: *anyopaque) void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            self.freeDevice(mem);
-        }
-
-        fn isAvailable(ptr: *anyopaque) bool {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            return self.isAvailable();
-        }
-
-        fn deinitFn(ptr: *anyopaque) void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
-            self.deinit();
-        }
-
-        const vtable = AiOps.VTable{
-            .sgemm = sgemm,
-            .sgemmStridedBatched = sgemmStridedBatched,
-            .softmax = softmax,
-            .rmsnorm = rmsnorm,
-            .silu = silu,
-            .gelu = gelu,
-            .scale = scale,
-            .elementwiseMul = elementwiseMul,
-            .elementwiseAdd = elementwiseAdd,
-            .allocDevice = allocDevice,
-            .copyToDevice = copyToDevice,
-            .copyFromDevice = copyFromDevice,
-            .freeDevice = freeDevice,
-            .isAvailable = isAvailable,
-            .deinit = deinitFn,
-        };
-    };
-
-    return .{
-        .ptr = impl,
-        .vtable = &gen.vtable,
-    };
-}
+pub const gpu_enabled = reexports.gpu_enabled;
+pub const memory = reexports.memory;
+pub const llm_kernels = reexports.llm_kernels;
+pub const cublas = reexports.cublas;
+pub const backend = reexports.backend;
 
 // =============================================================================
 // Tests
@@ -1021,10 +573,6 @@ test "cpu fallback sgemm identity" {
 
 test "cpu fallback sgemm alpha beta" {
     const ops = CpuFallbackAiOps.init();
-    // A = [1, 2; 3, 4], B = [5, 6; 7, 8]
-    // A*B = [19, 22; 43, 50]
-    // C_init = [1, 1; 1, 1]
-    // result = 2.0 * A*B + 3.0 * C_init = [41, 47; 89, 103]
     const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const b = [_]f32{ 5.0, 6.0, 7.0, 8.0 };
     var c = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
@@ -1053,12 +601,10 @@ test "cpu fallback sgemm alpha beta" {
 
 test "cpu fallback sgemm dot product via 1xK * Kx1" {
     const ops = CpuFallbackAiOps.init();
-    // dot(a, b) as 1xK * Kx1 matrix multiply
     const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const b = [_]f32{ 5.0, 6.0, 7.0, 8.0 };
     var c = [_]f32{0.0};
 
-    // sgemv-like: (1x4) * (4x1) = (1x1)
     try ops.sgemm(
         .no_trans,
         .no_trans,
@@ -1075,7 +621,6 @@ test "cpu fallback sgemm dot product via 1xK * Kx1" {
         1,
     );
 
-    // dot = 1*5 + 2*6 + 3*7 + 4*8 = 70
     try std.testing.expectApproxEqAbs(@as(f32, 70.0), c[0], 1e-4);
 }
 
@@ -1087,8 +632,6 @@ test "cpu fallback rmsnorm" {
 
     try ops.rmsnorm(@ptrCast(&x), @ptrCast(&weight), 3, eps, null);
 
-    // rms = sqrt((1+4+9)/3 + 1e-5) = sqrt(4.66667..) ~ 2.16025
-    // normalized: [1/rms, 2/rms, 3/rms]
     const rms = @sqrt((1.0 + 4.0 + 9.0) / 3.0 + eps);
     try std.testing.expectApproxEqAbs(1.0 / rms, x[0], 1e-5);
     try std.testing.expectApproxEqAbs(2.0 / rms, x[1], 1e-5);
@@ -1118,238 +661,9 @@ test "cpu fallback memory round-trip" {
     buf.allocator.free(slice[0..buf.size]);
 }
 
-// =============================================================================
-// Low-level GPU Module Re-exports for AI Modules
-// =============================================================================
-//
-// These re-exports provide AI modules with access to low-level GPU primitives
-// while centralizing the compile-time gating in one place. When GPU is disabled,
-// stub types are provided that return error.NotAvailable.
-
-/// GPU backend availability check.
-pub const gpu_enabled = build_options.feat_gpu;
-
-/// Device memory management re-exports.
-/// Provides DeviceMemory struct with init/deinit and memcpy functions.
-pub const memory = if (build_options.feat_gpu and build_options.gpu_fpga)
-    // FPGA memory interface would go here
-    struct {
-        pub fn init(_: std.mem.Allocator) !void {
-            std.log.info("FPGA memory simulation initialized", .{});
-        }
-
-        pub fn deinit() void {}
-
-        pub const DeviceMemory = struct {
-            ptr: ?*anyopaque,
-            size: usize,
-            allocator: std.mem.Allocator,
-            tier: enum { bram, hbm, ddr } = .ddr,
-
-            pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
-                const ptr = try allocator.alloc(u8, size);
-                return @This(){
-                    .ptr = ptr.ptr,
-                    .size = size,
-                    .allocator = allocator,
-                };
-            }
-
-            pub fn deinit(self: *@This()) void {
-                const slice = @as([*]u8, @ptrCast(@alignCast(self.ptr)))[0..self.size];
-                self.allocator.free(slice);
-            }
-        };
-
-        pub fn memcpyHostToDevice(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
-            const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
-            const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
-            @memcpy(dst_ptr[0..size], src_ptr[0..size]);
-        }
-
-        pub fn memcpyDeviceToHost(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
-            const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
-            const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
-            @memcpy(dst_ptr[0..size], src_ptr[0..size]);
-        }
-    }
-else if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("backends/cuda/memory.zig")
-else
-    struct {
-        pub fn init(_: std.mem.Allocator) !void {
-            return error.NotAvailable;
-        }
-
-        pub fn deinit() void {}
-
-        pub const DeviceMemory = struct {
-            ptr: ?*anyopaque,
-            size: usize,
-            allocator: std.mem.Allocator,
-
-            pub fn init(_: std.mem.Allocator, _: usize) !@This() {
-                return error.NotAvailable;
-            }
-
-            pub fn deinit(_: *@This()) void {}
-        };
-
-        pub fn memcpyHostToDevice(_: *anyopaque, _: *const anyopaque, _: usize) !void {
-            return error.NotAvailable;
-        }
-
-        pub fn memcpyDeviceToHost(_: *anyopaque, _: *anyopaque, _: usize) !void {
-            return error.NotAvailable;
-        }
-    };
-
-/// LLM kernel operations re-exports.
-/// Provides LlmKernelModule with softmax, rmsnorm, silu, gelu, scale, etc.
-pub const llm_kernels = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("backends/cuda/llm_kernels.zig")
-else
-    struct {
-        pub fn isAvailable() bool {
-            return false;
-        }
-
-        pub const LlmKernelModule = struct {
-            pub fn init(_: std.mem.Allocator) !@This() {
-                return error.NotAvailable;
-            }
-
-            pub fn deinit(_: *@This()) void {}
-
-            pub fn softmax(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
-                return error.NotAvailable;
-            }
-
-            pub fn rmsnorm(_: *@This(), _: u64, _: u64, _: u32, _: f32, _: ?*anyopaque) !void {
-                return error.NotAvailable;
-            }
-
-            pub fn silu(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
-                return error.NotAvailable;
-            }
-
-            pub fn gelu(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
-                return error.NotAvailable;
-            }
-
-            pub fn elementwiseMul(_: *@This(), _: u64, _: u64, _: u32, _: ?*anyopaque) !void {
-                return error.NotAvailable;
-            }
-
-            pub fn elementwiseAdd(_: *@This(), _: u64, _: u64, _: u32, _: ?*anyopaque) !void {
-                return error.NotAvailable;
-            }
-
-            pub fn scale(_: *@This(), _: u64, _: f32, _: u32, _: ?*anyopaque) !void {
-                return error.NotAvailable;
-            }
-        };
-    };
-
-/// cuBLAS operations re-exports.
-/// Provides CublasContext with sgemm, sgemmStridedBatched, and matmulRowMajor.
-pub const cublas = if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("backends/cuda/cublas.zig")
-else
-    struct {
-        pub fn isAvailable() bool {
-            return false;
-        }
-
-        pub const CublasOperation = enum { no_trans, trans };
-
-        pub const CublasContext = struct {
-            pub fn init() !@This() {
-                return error.NotAvailable;
-            }
-
-            pub fn deinit(_: *@This()) void {}
-
-            pub fn sgemm(
-                _: *@This(),
-                _: CublasOperation,
-                _: CublasOperation,
-                _: i32,
-                _: i32,
-                _: i32,
-                _: f32,
-                _: *const anyopaque,
-                _: i32,
-                _: *const anyopaque,
-                _: i32,
-                _: f32,
-                _: *anyopaque,
-                _: i32,
-            ) !void {
-                return error.NotAvailable;
-            }
-
-            pub fn sgemmStridedBatched(
-                _: *@This(),
-                _: CublasOperation,
-                _: CublasOperation,
-                _: i32,
-                _: i32,
-                _: i32,
-                _: f32,
-                _: *const anyopaque,
-                _: i32,
-                _: i64,
-                _: *const anyopaque,
-                _: i32,
-                _: i64,
-                _: f32,
-                _: *anyopaque,
-                _: i32,
-                _: i64,
-                _: i32,
-            ) !void {
-                return error.NotAvailable;
-            }
-        };
-
-        pub fn matmulRowMajor(
-            _: *CublasContext,
-            _: *const anyopaque,
-            _: *const anyopaque,
-            _: *anyopaque,
-            _: i32,
-            _: i32,
-            _: i32,
-        ) !void {
-            return error.NotAvailable;
-        }
-    };
-
-/// GPU backend summary for availability detection.
-pub const backend = if (build_options.feat_gpu)
-    @import("backend.zig")
-else
-    struct {
-        pub fn summary() Summary {
-            return .{
-                .module_enabled = false,
-                .enabled_backend_count = 0,
-                .available_backend_count = 0,
-                .device_count = 0,
-                .emulated_devices = 0,
-            };
-        }
-
-        pub const Summary = struct {
-            module_enabled: bool,
-            enabled_backend_count: usize,
-            available_backend_count: usize,
-            device_count: usize,
-            emulated_devices: usize,
-        };
-    };
-
 test {
+    _ = @import("ai_ops/cpu_fallback.zig");
+    _ = @import("ai_ops/adapters.zig");
+    _ = @import("ai_ops/reexports.zig");
     std.testing.refAllDecls(@This());
 }
