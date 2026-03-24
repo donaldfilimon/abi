@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const ai_ops = @import("../ai_ops.zig");
+const activations = @import("../../../foundation/mod.zig").simd.activations;
 
 const AiOps = ai_ops.AiOps;
 const AiOpsError = ai_ops.AiOpsError;
@@ -162,34 +163,15 @@ pub const CpuFallbackAiOps = struct {
     // Activation Operations
     // =========================================================================
 
-    /// CPU softmax: data[i] = exp(data[i]) / sum(exp(data[j])) for j in 0..len.
-    /// Uses max-subtraction for numerical stability.
+    /// CPU softmax: delegates to SIMD-accelerated foundation implementation.
     fn cpuSoftmax(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         if (len == 0) return;
         const n_val: usize = @intCast(len);
         const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
-
-        // Find max for numerical stability
-        var max_val: f32 = data[0];
-        for (1..n_val) |i| {
-            if (data[i] > max_val) max_val = data[i];
-        }
-
-        // Exponentiate and sum
-        var sum: f32 = 0.0;
-        for (0..n_val) |i| {
-            data[i] = @exp(data[i] - max_val);
-            sum += data[i];
-        }
-
-        // Normalize
-        const inv_sum = 1.0 / sum;
-        for (0..n_val) |i| {
-            data[i] *= inv_sum;
-        }
+        activations.softmaxInPlace(data[0..n_val]);
     }
 
-    /// CPU rmsnorm: x = x / rms(x) * weight, where rms(x) = sqrt(mean(x^2) + eps).
+    /// CPU rmsnorm: delegates to SIMD-accelerated foundation implementation.
     fn cpuRmsnorm(
         _: *anyopaque,
         x_ptr: *anyopaque,
@@ -202,47 +184,21 @@ pub const CpuFallbackAiOps = struct {
         const n_val: usize = @intCast(len);
         const x: [*]f32 = @ptrCast(@alignCast(x_ptr));
         const weight: [*]const f32 = @ptrCast(@alignCast(weight_ptr));
-
-        // Compute mean of squares
-        var sum_sq: f32 = 0.0;
-        for (0..n_val) |i| {
-            sum_sq += x[i] * x[i];
-        }
-        const rms = @sqrt(sum_sq / @as(f32, @floatFromInt(n_val)) + eps);
-        const inv_rms = 1.0 / rms;
-
-        // Normalize and apply weight
-        for (0..n_val) |i| {
-            x[i] = x[i] * inv_rms * weight[i];
-        }
+        activations.rmsNormInPlace(x[0..n_val], weight[0..n_val], eps);
     }
 
-    /// CPU SiLU: x = x * sigmoid(x) = x / (1 + exp(-x)).
+    /// CPU SiLU: delegates to SIMD-accelerated foundation implementation.
     fn cpuSilu(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const n_val: usize = @intCast(len);
         const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
-
-        for (0..n_val) |i| {
-            const val = data[i];
-            data[i] = val / (1.0 + @exp(-val));
-        }
+        activations.siluInPlace(data[0..n_val]);
     }
 
-    /// CPU GELU: x = x * 0.5 * (1 + erf(x / sqrt(2))).
-    /// Uses tanh approximation: GELU(x) ~ 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3))).
+    /// CPU GELU: delegates to SIMD-accelerated foundation implementation.
     fn cpuGelu(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const n_val: usize = @intCast(len);
         const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
-        const sqrt_2_over_pi: f32 = 0.7978845608028654; // sqrt(2/pi)
-
-        for (0..n_val) |i| {
-            const x = data[i];
-            const inner = sqrt_2_over_pi * (x + 0.044715 * x * x * x);
-            // tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
-            const e2 = @exp(2.0 * inner);
-            const tanh_val = (e2 - 1.0) / (e2 + 1.0);
-            data[i] = 0.5 * x * (1.0 + tanh_val);
-        }
+        activations.geluInPlace(data[0..n_val]);
     }
 
     /// CPU scale: x = x * scalar.
