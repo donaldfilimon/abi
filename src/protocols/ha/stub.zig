@@ -5,7 +5,7 @@
 const std = @import("std");
 
 /// HA module errors.
-pub const Error = error{
+const Error = error{
     FeatureDisabled,
     BackupsDisabled,
     PitrDisabled,
@@ -18,7 +18,7 @@ pub const Error = error{
     OutOfMemory,
 };
 
-pub const HaError = Error;
+const HaError = Error;
 
 // =============================================================================
 // Replication Types
@@ -37,7 +37,7 @@ pub const ReplicationConfig = struct {
 };
 
 /// Replication mode.
-pub const ReplicationMode = enum {
+const ReplicationMode = enum {
     sync,
     async_fire_forget,
     async_with_ack,
@@ -53,7 +53,7 @@ pub const ReplicationState = enum {
 };
 
 /// Disconnect reasons.
-pub const DisconnectReason = enum {
+const DisconnectReason = enum {
     timeout,
     network_error,
     node_shutdown,
@@ -61,7 +61,7 @@ pub const DisconnectReason = enum {
 };
 
 /// Conflict resolution strategies.
-pub const ConflictResolution = enum {
+const ConflictResolution = enum {
     last_write_wins,
     first_write_wins,
     manual_resolution_required,
@@ -185,14 +185,14 @@ pub const BackupConfig = struct {
 };
 
 /// Backup mode.
-pub const BackupMode = enum {
+const BackupMode = enum {
     full,
     incremental,
     differential,
 };
 
 /// Retention policy.
-pub const RetentionPolicy = struct {
+const RetentionPolicy = struct {
     keep_last: u32 = 10,
     keep_daily_days: u32 = 7,
     keep_weekly_weeks: u32 = 4,
@@ -200,7 +200,7 @@ pub const RetentionPolicy = struct {
 };
 
 /// Backup destination.
-pub const Destination = struct {
+const Destination = struct {
     type: DestinationType,
     path: []const u8,
     bucket: ?[]const u8 = null,
@@ -209,7 +209,7 @@ pub const Destination = struct {
 };
 
 /// Destination types.
-pub const DestinationType = enum {
+const DestinationType = enum {
     local,
     s3,
     gcs,
@@ -230,7 +230,7 @@ pub const BackupState = enum {
 };
 
 /// Backup events.
-pub const BackupEvent = union(enum) {
+const BackupEvent = union(enum) {
     backup_started: struct { backup_id: u64, mode: BackupMode },
     backup_progress: struct { backup_id: u64, percent: u8 },
     backup_completed: struct { backup_id: u64, size_bytes: u64, duration_ms: u64 },
@@ -256,7 +256,7 @@ pub const BackupResult = struct {
 };
 
 /// Backup metadata (internal).
-pub const BackupMetadata = struct {
+const BackupMetadata = struct {
     backup_id: u64,
     timestamp: u64,
     mode: BackupMode,
@@ -342,7 +342,7 @@ pub const PitrConfig = struct {
 };
 
 /// PITR events.
-pub const PitrEvent = union(enum) {
+const PitrEvent = union(enum) {
     checkpoint_created: struct { sequence: u64, size_bytes: u64 },
     checkpoint_pruned: struct { sequence: u64 },
     recovery_started: struct { target_timestamp: i64 },
@@ -361,7 +361,7 @@ pub const RecoveryPoint = struct {
 };
 
 /// Checkpoint header.
-pub const CheckpointHeader = extern struct {
+const CheckpointHeader = extern struct {
     magic: u32 = 0x50495452,
     version: u16 = 1,
     flags: u16 = 0,
@@ -374,7 +374,7 @@ pub const CheckpointHeader = extern struct {
 };
 
 /// Operation types for change capture.
-pub const OperationType = enum(u8) {
+const OperationType = enum(u8) {
     insert = 1,
     update = 2,
     delete = 3,
@@ -382,7 +382,7 @@ pub const OperationType = enum(u8) {
 };
 
 /// Captured operation.
-pub const Operation = struct {
+const Operation = struct {
     type: OperationType,
     timestamp: i64,
     key: []const u8,
@@ -626,38 +626,9 @@ pub const HaManager = struct {
 // Re-export sub-modules as namespaces for API compatibility
 // =============================================================================
 
-pub const replication = struct {
-    pub const ReplicationManager = @This().ReplicationManager;
-    pub const ReplicationConfig = @This().ReplicationConfig;
-    pub const ReplicationState = @This().ReplicationState;
-    pub const ReplicationEvent = @This().ReplicationEvent;
-    pub const ReplicationMode = @This().ReplicationMode;
-    pub const DisconnectReason = @This().DisconnectReason;
-    pub const ConflictResolution = @This().ConflictResolution;
-};
-
-pub const backup = struct {
-    pub const BackupOrchestrator = @This().BackupOrchestrator;
-    pub const BackupConfig = @This().BackupConfig;
-    pub const BackupState = @This().BackupState;
-    pub const BackupResult = @This().BackupResult;
-    pub const BackupEvent = @This().BackupEvent;
-    pub const BackupMode = @This().BackupMode;
-    pub const BackupMetadata = @This().BackupMetadata;
-    pub const RetentionPolicy = @This().RetentionPolicy;
-    pub const Destination = @This().Destination;
-    pub const DestinationType = @This().DestinationType;
-};
-
-pub const pitr = struct {
-    pub const PitrManager = @This().PitrManager;
-    pub const PitrConfig = @This().PitrConfig;
-    pub const RecoveryPoint = @This().RecoveryPoint;
-    pub const PitrEvent = @This().PitrEvent;
-    pub const CheckpointHeader = @This().CheckpointHeader;
-    pub const OperationType = @This().OperationType;
-    pub const Operation = @This().Operation;
-};
+pub const replication = struct {};
+pub const backup = struct {};
+pub const pitr = struct {};
 
 // =============================================================================
 // Module Lifecycle
@@ -665,20 +636,20 @@ pub const pitr = struct {
 
 var initialized = std.atomic.Value(bool).init(false);
 
-pub fn init(allocator: std.mem.Allocator) Error!void {
+fn init(allocator: std.mem.Allocator) Error!void {
     _ = allocator;
     return Error.FeatureDisabled;
 }
 
-pub fn deinit() void {
+fn deinit() void {
     initialized.store(false, .release);
 }
 
-pub fn isEnabled() bool {
+fn isEnabled() bool {
     return false;
 }
 
-pub fn isInitialized() bool {
+fn isInitialized() bool {
     return initialized.load(.acquire);
 }
 

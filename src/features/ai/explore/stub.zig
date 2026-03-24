@@ -18,8 +18,6 @@ pub const ExploreConfig = types.ExploreConfig;
 pub const FileFilter = types.FileFilter;
 pub const SearchScope = types.SearchScope;
 pub const SearchOptions = types.SearchOptions;
-pub const DiscoveryConfig = types.DiscoveryConfig;
-pub const AdaptiveConfig = types.AdaptiveConfig;
 pub const Match = types.Match;
 pub const ExplorationStats = types.ExplorationStats;
 pub const ExploreResult = types.ExploreResult;
@@ -43,21 +41,6 @@ pub const Module = types.Module;
 pub const DependencyEdge = types.DependencyEdge;
 pub const DependencyGraph = types.DependencyGraph;
 pub const DependencyAnalyzer = types.DependencyAnalyzer;
-pub const ModelFormat = types.ModelFormat;
-pub const QuantizationType = types.QuantizationType;
-pub const DiscoveredModel = types.DiscoveredModel;
-pub const SystemCapabilities = types.SystemCapabilities;
-pub const ModelRequirements = types.ModelRequirements;
-pub const WarmupResult = types.WarmupResult;
-pub const ModelDiscovery = types.ModelDiscovery;
-pub const FileMetadata = types.FileMetadata;
-pub const CodeSnippet = types.CodeSnippet;
-pub const CodebaseAnswer = types.CodebaseAnswer;
-pub const IndexResult = types.IndexResult;
-pub const IndexStats = types.IndexStats;
-pub const CodebaseIndex = types.CodebaseIndex;
-pub const detectCapabilities = types.detectCapabilities;
-pub const runWarmup = types.runWarmup;
 
 // ── Submodule Namespace Re-exports ─────────────────────────────────────────
 

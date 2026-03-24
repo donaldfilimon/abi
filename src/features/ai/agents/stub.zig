@@ -4,42 +4,44 @@ const std = @import("std");
 const config_module = @import("../../../core/config/mod.zig");
 const types = @import("types.zig");
 
-pub const llm_providers = @import("../llm/stub.zig").providers;
-
-// ── Re-exported types ──────────────────────────────────────────────────────
-
-pub const Error = types.Error;
-pub const MIN_TEMPERATURE = types.MIN_TEMPERATURE;
-pub const MAX_TEMPERATURE = types.MAX_TEMPERATURE;
-pub const MIN_TOP_P = types.MIN_TOP_P;
-pub const MAX_TOP_P = types.MAX_TOP_P;
-pub const MAX_TOKENS_LIMIT = types.MAX_TOKENS_LIMIT;
-pub const DEFAULT_TEMPERATURE = types.DEFAULT_TEMPERATURE;
-pub const DEFAULT_TOP_P = types.DEFAULT_TOP_P;
-pub const DEFAULT_MAX_TOKENS = types.DEFAULT_MAX_TOKENS;
-pub const AgentError = types.AgentError;
-pub const AgentBackend = types.AgentBackend;
-pub const OperationContext = types.OperationContext;
-pub const ErrorContext = types.ErrorContext;
-pub const AgentConfig = types.AgentConfig;
-pub const Message = types.Message;
 pub const Agent = types.Agent;
-pub const WorkloadType = types.WorkloadType;
-pub const Priority = types.Priority;
-pub const GpuAwareRequest = types.GpuAwareRequest;
-pub const GpuAwareResponse = types.GpuAwareResponse;
-pub const GpuAgentStats = types.GpuAgentStats;
-pub const BackendInfo = types.BackendInfo;
-pub const LearningStatsInfo = types.LearningStatsInfo;
-pub const GpuAgent = types.GpuAgent;
-pub const Context = types.Context;
-pub const ParameterType = types.ParameterType;
-pub const Parameter = types.Parameter;
-pub const ToolExecutionError = types.ToolExecutionError;
-pub const ToolResult = types.ToolResult;
+pub const AgentBackend = types.AgentBackend;
+pub const AgentConfig = types.AgentConfig;
 pub const Tool = types.Tool;
-pub const ToolContext = types.ToolContext;
+pub const ToolResult = types.ToolResult;
 pub const ToolRegistry = types.ToolRegistry;
+
+pub const Error = error{
+    AgentsDisabled,
+    AgentNotFound,
+    ToolNotFound,
+    ExecutionFailed,
+    MaxAgentsReached,
+};
+
+pub const Context = struct {
+    allocator: std.mem.Allocator = undefined,
+    config: config_module.AgentsConfig = .{},
+    agents: std.StringHashMapUnmanaged(*Agent) = .{},
+    tool_registry: ?*ToolRegistry = null,
+
+    pub fn init(_: std.mem.Allocator, _: config_module.AgentsConfig) !*Context {
+        return error.AgentsDisabled;
+    }
+    pub fn deinit(_: *Context) void {}
+    pub fn createAgent(_: *Context, _: []const u8) !*Agent {
+        return error.AgentsDisabled;
+    }
+    pub fn getAgent(_: *Context, _: []const u8) ?*Agent {
+        return null;
+    }
+    pub fn getToolRegistry(_: *Context) !*ToolRegistry {
+        return error.AgentsDisabled;
+    }
+    pub fn registerTool(_: *Context, _: Tool) !void {
+        return error.AgentsDisabled;
+    }
+};
 
 pub fn isEnabled() bool {
     return false;

@@ -1,7 +1,7 @@
 //! Stub for multi-persona orchestration when feat_ai is disabled.
 
 const std = @import("std");
-const types = @import("types.zig");
+pub const types = @import("types.zig");
 
 pub const PersonaId = types.PersonaId;
 pub const PersonaState = types.PersonaState;
@@ -86,6 +86,31 @@ pub const PersonaBus = struct {
         return .{};
     }
     pub fn deinit(_: *PersonaBus) void {}
+};
+
+pub const ConversationMemory = struct {
+    pub fn init(_: std.mem.Allocator) ConversationMemory {
+        return .{};
+    }
+    pub fn deinit(_: *ConversationMemory) void {}
+};
+
+pub const registry = struct {
+    pub const PersonaRegistry_ = PersonaRegistry;
+    pub const PersonaInstance_ = PersonaInstance;
+    pub const MultiPersonaConfig_ = MultiPersonaConfig;
+};
+
+pub const router = struct {
+    pub const MultiPersonaRouter_ = MultiPersonaRouter;
+};
+
+pub const bus = struct {
+    pub const PersonaBus_ = PersonaBus;
+};
+
+pub const memory = struct {
+    pub const ConversationMemory_ = ConversationMemory;
 };
 
 test {

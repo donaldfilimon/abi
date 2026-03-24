@@ -8,8 +8,6 @@ const types = @import("types.zig");
 
 pub const Error = types.Error;
 pub const CheckpointError = types.CheckpointError;
-pub const SaveError = types.SaveError;
-pub const LoadError = types.LoadError;
 pub const TrainError = types.TrainError;
 pub const GradientError = types.GradientError;
 pub const VisionTrainingError = types.VisionTrainingError;
@@ -22,6 +20,10 @@ pub const SaveLatestCheckpointError = types.SaveLatestCheckpointError;
 pub const LoadLlmCheckpointError = types.LoadLlmCheckpointError;
 pub const SaveLlmCheckpointError = types.SaveLlmCheckpointError;
 pub const OptimizerType = types.OptimizerType;
+pub const PrecisionMode = enum {
+    f32_full,
+    mixed_f16_f32,
+};
 pub const LearningRateSchedule = types.LearningRateSchedule;
 pub const ExperienceType = types.ExperienceType;
 pub const DataKind = types.DataKind;
@@ -39,14 +41,10 @@ pub const TrainingLogMetric = types.TrainingLogMetric;
 pub const CheckpointView = types.CheckpointView;
 pub const TrainingReport = types.TrainingReport;
 pub const Checkpoint = types.Checkpoint;
-pub const StepMetrics = types.StepMetrics;
-pub const TrainingStats = types.TrainingStats;
-pub const LearningStats = types.LearningStats;
 pub const TokenBlock = types.TokenBlock;
 pub const Batch = types.Batch;
 pub const GradientAccumulator = types.GradientAccumulator;
 pub const InstructionSample = types.InstructionSample;
-pub const GpuTrainingStats = types.GpuTrainingStats;
 pub const CheckpointStore = types.CheckpointStore;
 pub const TrainingResult = types.TrainingResult;
 pub const LlamaTrainer = types.LlamaTrainer;
@@ -76,7 +74,6 @@ pub const TextTransformerLayerWeights = types.TextTransformerLayerWeights;
 pub const TrainableTextEncoderWeights = types.TrainableTextEncoderWeights;
 pub const LlmCheckpoint = types.LlmCheckpoint;
 pub const LlmCheckpointView = types.LlmCheckpointView;
-pub const GradientAccumulatorFull = types.GradientAccumulatorFull;
 pub const CrossEntropyLoss = types.CrossEntropyLoss;
 pub const MSELoss = types.MSELoss;
 pub const FocalLoss = types.FocalLoss;
@@ -96,32 +93,6 @@ pub const DistributedConfig = types.DistributedConfig;
 pub const DistributedTrainer = types.DistributedTrainer;
 
 // ── Submodule re-exports ───────────────────────────────────────────────────
-
-pub const checkpoint = struct {
-    pub const Checkpoint = types.Checkpoint;
-    pub const CheckpointError = types.CheckpointError;
-    pub const CheckpointStore = types.CheckpointStore;
-    pub const CheckpointView = types.CheckpointView;
-    pub const SaveError = types.SaveError;
-    pub const LoadError = types.LoadError;
-    pub const SaveLatestError = types.SaveError;
-    pub const loadCheckpoint = @import("stub.zig").loadCheckpoint;
-    pub const saveCheckpoint = @import("stub.zig").saveCheckpoint;
-};
-
-pub const llm_checkpoint = struct {
-    pub const LlmCheckpoint = types.LlmCheckpoint;
-    pub const LlmCheckpointView = types.LlmCheckpointView;
-    pub const LoadError = types.LoadError;
-    pub const SaveError = types.SaveError;
-    pub const loadLlmCheckpoint = @import("stub.zig").loadLlmCheckpoint;
-    pub const saveLlmCheckpoint = @import("stub.zig").saveLlmCheckpoint;
-};
-
-pub const gradient = struct {
-    pub const GradientAccumulator = types.GradientAccumulator;
-    pub const GradientError = types.GradientError;
-};
 
 pub const loss = struct {
     pub const CrossEntropyLoss = types.CrossEntropyLoss;
@@ -158,7 +129,7 @@ pub const data_loader = struct {
     pub const parseInstructionDataset = @import("stub.zig").parseInstructionDataset;
 };
 
-pub const wdbx_dataset = struct {
+pub const token_dataset = struct {
     pub const WdbxTokenDataset = types.WdbxTokenDataset;
     pub const TokenBlock = types.TokenBlock;
     pub const encodeTokenBlock = @import("stub.zig").encodeTokenBlock;
@@ -217,6 +188,23 @@ pub const multimodal_trainer = struct {
     pub const TrainableTextEncoderWeights = types.TrainableTextEncoderWeights;
     pub const TextTransformerLayerWeights = types.TextTransformerLayerWeights;
     pub const MultimodalTrainingError = types.MultimodalTrainingError;
+};
+
+pub const optimizer_mod = struct {
+    pub const Optimizer = types.Optimizer;
+    pub const SgdOptimizer = types.SgdOptimizer;
+    pub const AdamOptimizer = types.AdamOptimizer;
+    pub const AdamWOptimizer = types.AdamWOptimizer;
+};
+
+pub const trainer = struct {
+    pub const TrainingResult = types.TrainingResult;
+    pub const train = @import("stub.zig").train;
+    pub const trainAndReport = @import("stub.zig").trainAndReport;
+    pub const trainWithResult = @import("stub.zig").trainWithResult;
+    pub const calculateLearningRate = @import("stub.zig").calculateLearningRate;
+    pub const clipGradients = @import("stub.zig").clipGradients;
+    pub const saveModelToWdbx = @import("stub.zig").saveModelToWdbx;
 };
 
 // ── Free functions ─────────────────────────────────────────────────────────

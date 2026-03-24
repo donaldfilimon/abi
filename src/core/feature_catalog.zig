@@ -37,6 +37,8 @@ pub const Feature = enum {
     tui,
     lsp,
     mcp,
+    acp,
+    ha,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -84,6 +86,8 @@ pub const ParitySpec = enum {
     tui,
     lsp,
     mcp,
+    acp,
+    ha,
 };
 
 pub const Metadata = struct {
@@ -343,6 +347,22 @@ pub const all = [_]Metadata{
         .parity_spec = .mcp,
         .real_module_path = "protocols/mcp/mod.zig",
         .stub_module_path = "protocols/mcp/stub.zig",
+    },
+    .{
+        .feature = .acp,
+        .description = "Agent Communication Protocol",
+        .compile_flag_field = "feat_acp",
+        .parity_spec = .acp,
+        .real_module_path = "protocols/acp/mod.zig",
+        .stub_module_path = "protocols/acp/stub.zig",
+    },
+    .{
+        .feature = .ha,
+        .description = "High availability, replication, failover",
+        .compile_flag_field = "feat_ha",
+        .parity_spec = .ha,
+        .real_module_path = "protocols/ha/mod.zig",
+        .stub_module_path = "protocols/ha/stub.zig",
     },
 };
 

@@ -71,6 +71,29 @@ pub fn exportDual(_: std.mem.Allocator, _: anytype, _: BrainExportConfig, _: ?Tr
     return error.FeatureDisabled;
 }
 
+// Sub-module namespace stubs
+pub const dataset = struct {
+    pub const WdbxTokenDataset_ = WdbxTokenDataset;
+};
+
+pub const convert = struct {
+    pub const tokenBinToWdbx_ = tokenBinToWdbx;
+    pub const wdbxToTokenBin_ = wdbxToTokenBin;
+    pub const readTokenBinFile_ = readTokenBinFile;
+    pub const writeTokenBinFile_ = writeTokenBinFile;
+};
+
+pub const export_mod = struct {
+    pub const exportGguf_ = exportGguf;
+};
+
+pub const brain_export = struct {
+    pub const BrainExportConfig_ = BrainExportConfig;
+    pub const TrainingMetadata_ = TrainingMetadata;
+    pub const ExportResult_ = ExportResult;
+    pub const exportDual_ = @import("stub.zig").exportDual;
+};
+
 test {
     std.testing.refAllDecls(@This());
 }
