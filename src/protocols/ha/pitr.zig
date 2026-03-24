@@ -639,14 +639,115 @@ pub const PitrManager = struct {
             }
         }
 
-        // Write to file
+        // Atomic write: write to temp file, fsync, then rename
+        const tmp_path = try std.fmt.allocPrint(self.allocator, "{s}.tmp", .{path});
+        defer self.allocator.free(tmp_path);
+
         var io_backend = initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
-        var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
-        defer file.close(io);
-        try file.writeStreamingAll(io, buf.items);
+        {
+            var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
+            defer file.close(io);
+            try file.writeStreamingAll(io, buf.items);
+            file.sync(io) catch {}; // fsync before rename for durability
+        }
+
+        // Atomic rename: old file intact if crash during write
+        const cwd = std.Io.Dir.cwd();
+        cwd.rename(tmp_path, cwd, path, io) catch {
+            cwd.deleteFile(io, tmp_path) catch {};
+            return error.PersistFailed;
+        };
+    }
+
+    /// Persist recovery point checkpoints to disk.
+    /// Format: count (u64) + N * (sequence: u64, timestamp: i64, size: u64, op_count: u32, checksum: [32]u8)
+    pub fn saveCheckpoints(self: *PitrManager, path: []const u8) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        var buf = std.ArrayListUnmanaged(u8).empty;
+        defer buf.deinit(self.allocator);
+
+        const count: u64 = self.recovery_points.items.len;
+        try buf.appendSlice(self.allocator, &std.mem.toBytes(count));
+
+        for (self.recovery_points.items) |rp| {
+            try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.sequence));
+            try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.timestamp));
+            try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.size));
+            try buf.appendSlice(self.allocator, &std.mem.toBytes(rp.operation_count));
+            try buf.appendSlice(self.allocator, &rp.checksum);
+        }
+
+        const tmp_path = try std.fmt.allocPrint(self.allocator, "{s}.tmp", .{path});
+        defer self.allocator.free(tmp_path);
+
+        var io_backend = initIoBackend(self.allocator);
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        {
+            var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
+            defer file.close(io);
+            try file.writeStreamingAll(io, buf.items);
+            file.sync(io) catch {};
+        }
+
+        std.Io.Dir.cwd().rename(io, tmp_path, path) catch {
+            std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
+            return error.PersistFailed;
+        };
+    }
+
+    /// Load recovery point checkpoints from disk.
+    pub fn loadCheckpoints(self: *PitrManager, path: []const u8) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const max_size: usize = 16 * 1024 * 1024; // 16MB limit
+        var io_backend = initIoBackend(self.allocator);
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        const data = try std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(max_size));
+        defer self.allocator.free(data);
+
+        // Clear existing checkpoints
+        self.recovery_points.clearRetainingCapacity();
+
+        var pos: usize = 0;
+        if (data.len < 8) return error.UnexpectedEndOfFile;
+        const count = std.mem.readInt(u64, data[pos..][0..8], .little);
+        pos += 8;
+
+        const entry_size: usize = 8 + 8 + 8 + 4 + 32; // sequence + timestamp + size + op_count + checksum
+        var i: u64 = 0;
+        while (i < count) : (i += 1) {
+            if (pos + entry_size > data.len) return error.UnexpectedEndOfFile;
+
+            const sequence = std.mem.readInt(u64, data[pos..][0..8], .little);
+            pos += 8;
+            const timestamp = std.mem.readInt(i64, data[pos..][0..8], .little);
+            pos += 8;
+            const size = std.mem.readInt(u64, data[pos..][0..8], .little);
+            pos += 8;
+            const op_count = std.mem.readInt(u32, data[pos..][0..4], .little);
+            pos += 4;
+            var checksum: [32]u8 = undefined;
+            @memcpy(&checksum, data[pos..][0..32]);
+            pos += 32;
+
+            try self.recovery_points.append(self.allocator, .{
+                .sequence = sequence,
+                .timestamp = timestamp,
+                .size = size,
+                .operation_count = op_count,
+                .checksum = checksum,
+            });
+        }
     }
 
     /// Load an operation log from a binary file, replacing the current log.
