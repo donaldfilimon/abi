@@ -44,6 +44,7 @@ const ha_tests = @import("integration/ha_test.zig");
 const acp_tests = @import("integration/acp_test.zig");
 const plugin_registry_tests = @import("integration/plugin_registry_test.zig");
 const database_core_tests = @import("integration/database_core_test.zig");
+const ai_tests = @import("integration/ai_test.zig");
 
 test {
     std.testing.refAllDecls(@This());
