@@ -112,22 +112,11 @@ const owner_abbey = "Abbey";
 
 // Shared validation gate groups. Keep these canonical so plan specs and
 // roadmap entries stay synchronized when command contracts evolve.
-const gate_docs_generation = [_][]const u8{
-    "zig build gendocs -- --check --no-wasm --untracked-md",
-    "zig build check-docs",
-};
+const gate_docs_generation = [_][]const u8{};
 
-const gate_docs_plan = [_][]const u8{
-    "zig build gendocs -- --no-wasm --untracked-md",
-    "zig build gendocs -- --check --no-wasm --untracked-md",
-    "zig build check-docs",
-    "zig build verify-all",
-    "zig build check-workflow-orchestration-strict --summary all",
-};
+const gate_docs_plan = [_][]const u8{};
 
-const gate_docs_only = [_][]const u8{
-    "zig build check-docs",
-};
+const gate_docs_only = [_][]const u8{};
 
 const gate_cli_core = [_][]const u8{
     "zig build cli-tests",
@@ -148,8 +137,7 @@ const gate_cli_plan = [_][]const u8{
 const gate_tui_core = [_][]const u8{
     "zig build cli-tests",
     "zig build tui-tests",
-    "zig build run -- ui launch --help",
-    "zig build run -- ui gpu --help",
+    "zig build dashboard-smoke",
 };
 
 const gate_gpu_core = [_][]const u8{
@@ -176,19 +164,15 @@ const gate_feature_core = [_][]const u8{
 };
 
 const gate_integration_interim = [_][]const u8{
-    "zig build cli-tests-full",
     "zig build cli-tests",
     "zig build tui-tests",
-    "zig build run -- ui launch --help",
-    "zig build run -- ui gpu --help",
+    "zig build dashboard-smoke",
 };
 
 const gate_integration_plan = [_][]const u8{
-    "zig build cli-tests-full",
     "zig build cli-tests",
     "zig build tui-tests",
-    "zig build run -- ui launch --help",
-    "zig build run -- ui gpu --help",
+    "zig build dashboard-smoke",
     "zig build verify-all",
 };
 
@@ -205,20 +189,19 @@ pub const plan_specs = [_]PlanSpec{
     .{
         .slug = "docs-roadmap-sync-v2",
         .title = "Docs + Assistant Canonical Sync",
-        .status = .in_progress,
+        .status = .blocked,
         .owner = owner_abbey,
-        .scope = "Canonical docs wave: align AGENTS.md, zig-master, tasks/todo.md, root status docs, and generated outputs around one workflow and Zig validation contract.",
+        .scope = "Deferred docs wave: keep handwritten docs aligned with the executable validation contract while generated-docs and workflow-check tooling remain unavailable.",
         .success_criteria = &.{
-            "Workflow ownership is consistent: AGENTS.md for repo policy, zig-master for Zig validation, tasks/todo.md for active execution, and tasks/lessons.md for corrections.",
-            "Generated docs pick up the updated workflow and zig-master wording from canonical gendocs sources in one regeneration wave.",
-            "TODO.md, PLAN.md, and ROADMAP.md act as summary/index surfaces instead of competing live task trackers.",
+            "Active validation contracts name only implemented build steps and no longer claim unavailable docs tooling.",
+            "Handwritten docs remain aligned around AGENTS.md, tasks/todo.md, and the executable Zig build contract.",
+            "The lane stays blocked until real docs generation and workflow validation commands exist.",
         },
         .gate_commands = &gate_docs_plan,
         .milestones = &.{
-            "Update roadmap catalog metadata first, then regenerate docs/plans outputs with --no-wasm --untracked-md.",
-            "Collapse active execution tracking into tasks/todo.md and archive or demote overlapping root/task status files.",
-            "Rewrite assistant-facing docs so CLAUDE.md and GEMINI.md become wrappers around AGENTS.md plus zig-master.",
-            "Close the wave with docs drift checks, strict workflow orchestration checks, and the zig-master verification sequence.",
+            "Keep roadmap metadata and handwritten docs truthful about the currently implemented validation commands.",
+            "Avoid reintroducing generated-docs or workflow-orchestration gates into the active contract until tooling lands.",
+            "Resume the lane only after executable docs generation and docs verification steps exist in build.zig.",
         },
     },
     .{
@@ -297,20 +280,20 @@ pub const plan_specs = [_]PlanSpec{
     .{
         .slug = "integration-gates-v1",
         .title = "Integration Gates v1",
-        .status = .done,
+        .status = .blocked,
         .owner = owner_abbey,
-        .scope = "Wave 4 blocked lane: restore exhaustive integration gates after explicit unblock criteria are met while keeping interim gate policy green.",
+        .scope = "Wave 4 deferred lane: keep the truthful interim integration contract green while exhaustive PTY/probe validation remains unimplemented.",
         .success_criteria = &.{
-            "cli-tests-full is deterministic and isolated across command matrices.",
-            "Preflight diagnostics clearly identify environment, tool, and network blockers.",
-            "Interim cli-tests/tui-tests/launcher-smoke policy remains required until unblock completion.",
+            "The supported integration contract is executable end to end via cli-tests, tui-tests, dashboard-smoke, and verify-all.",
+            "Dashboard smoke coverage exercises the current non-interactive fallback path instead of stale launcher/GPU help commands.",
+            "Future exhaustive PTY/probe validation stays out of the canonical contract until real tooling exists.",
         },
         .gate_commands = &gate_integration_plan,
         .milestones = &.{
-            "Unblock criterion A: complete matrix manifest and PTY timeout policy hardening.",
-            "Unblock criterion B: deliver actionable preflight blocked-report diagnostics.",
-            "Unblock criterion C: document and validate required integration environment contract.",
-            "Policy guard: keep interim cli-tests/tui-tests/launcher smoke checks passing while blocked.",
+            "Policy guard: keep cli-tests, tui-tests, dashboard-smoke, and verify-all passing while the exhaustive lane is blocked.",
+            "Unblock criterion A: implement a real PTY/probe matrix runner rather than catalog-only command strings.",
+            "Unblock criterion B: deliver actionable preflight diagnostics for environment and tool blockers.",
+            "Unblock criterion C: document and validate the real integration environment contract before restoring any wider gate.",
         },
     },
 };
@@ -319,10 +302,10 @@ pub const roadmap_entries = [_]RoadmapEntry{
     .{
         .id = "RM-001",
         .title = "Complete canonical docs and assistant contract sync",
-        .summary = "Unify AGENTS.md, zig-master, tasks/todo.md, and generated docs behind one canonical workflow and Zig validation contract.",
+        .summary = "Keep handwritten docs aligned with the executable validation contract while generated-docs tooling remains blocked.",
         .track = .docs,
         .horizon = .now,
-        .status = .in_progress,
+        .status = .blocked,
         .owner = owner_abbey,
         .validation_gate = &gate_docs_generation,
         .plan_slug = "docs-roadmap-sync-v2",
@@ -362,11 +345,11 @@ pub const roadmap_entries = [_]RoadmapEntry{
     },
     .{
         .id = "RM-005",
-        .title = "Docs v3 pipeline baseline established",
-        .summary = "Initial docs pipeline with gendocs/check-docs/api-app/wasm fallback is complete and in use.",
+        .title = "Docs pipeline contract deferred pending tooling",
+        .summary = "Generated docs and workflow validation remain blocked until real gendocs/check-docs tooling exists.",
         .track = .docs,
         .horizon = .now,
-        .status = .done,
+        .status = .blocked,
         .owner = owner_abbey,
         .validation_gate = &gate_docs_only,
         .plan_slug = "docs-roadmap-sync-v2",
@@ -384,11 +367,11 @@ pub const roadmap_entries = [_]RoadmapEntry{
     },
     .{
         .id = "RM-007",
-        .title = "Complete exhaustive CLI integration gate",
-        .summary = "Wave 4: finish full command-tree PTY/probe validation with integration preflight and artifact reporting while interim cli-tests/tui-tests/launcher smoke validation remains required.",
+        .title = "Keep the truthful interim CLI integration gate green",
+        .summary = "Wave 4 remains blocked on exhaustive PTY/probe tooling, so the supported contract is cli-tests, tui-tests, dashboard-smoke, and verify-all.",
         .track = .infra,
         .horizon = .next,
-        .status = .done,
+        .status = .blocked,
         .owner = owner_abbey,
         .validation_gate = &gate_integration_interim,
         .plan_slug = "integration-gates-v1",
@@ -429,10 +412,10 @@ pub const roadmap_entries = [_]RoadmapEntry{
     .{
         .id = "RM-011",
         .title = "Launch developer education track",
-        .summary = "Define tutorials, certification pathway, and onboarding materials around ABI workflows.",
+        .summary = "Developer education content stays deferred until the docs tooling lane is unblocked and executable again.",
         .track = .docs,
         .horizon = .later,
-        .status = .planned,
+        .status = .blocked,
         .owner = owner_abbey,
         .validation_gate = &gate_docs_only,
         .plan_slug = "docs-roadmap-sync-v2",

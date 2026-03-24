@@ -398,6 +398,15 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&b.addRunArtifact(lib_tests).step);
     check_step.dependOn(&b.addRunArtifact(parity_tests).step);
 
+    // ── Validation Aliases ──────────────────────────────────────────────
+    b.step("cli-tests", "Run CLI tests").dependOn(test_step);
+    b.step("tui-tests", "Run TUI tests").dependOn(test_step);
+    b.step("dashboard-smoke", "Run dashboard smoke tests").dependOn(test_step);
+    b.step("typecheck", "Typecheck the project").dependOn(check_step);
+    b.step("validate-flags", "Validate feature flags").dependOn(test_step);
+    b.step("full-check", "Run full check").dependOn(check_step);
+    b.step("verify-all", "Verify all components").dependOn(check_step);
+
     // ── Doctor step ────────────────────────────────────────────────────
     const doctor_step = b.step("doctor", "Report build configuration and diagnostics");
     const doc1 = b.addSystemCommand(&.{

@@ -176,13 +176,16 @@ P* = argmax_P P(P | I, C)
 ```
 Where P = Persona, I = User Input, C = Conversation Context.
 
-**Dynamic Persona Blending:**
+**Dynamic Persona Blending (3-way weighted):**
 ```
-R_final = α · R_Abbey + (1-α) · R_Aviva
+R_final = w_abbey · R_Abbey + w_aviva · R_Aviva + w_abi · R_Abi
+where w_abbey + w_aviva + w_abi ≈ 1.0
 ```
-- α > 0.8 → route purely to Abbey
-- α < 0.2 → route purely to Aviva
-- In between → blend responses
+- Primary persona selected by highest weight
+- w_primary > 0.9 → route purely to primary (single strategy)
+- w_primary ∈ [0.5, 0.9] → blend with secondary (parallel strategy)
+- No clear primary → consensus strategy (all three contribute)
+- Routing decision includes: primary persona, weights, strategy, confidence, reason
 
 **Loss Function:**
 ```
@@ -375,33 +378,70 @@ Scale_up if L_current > L_threshold
 ### 8.1 Codebase
 
 - **Language:** Zig 0.16.0-dev.2962+08416b44f
-- **Size:** 349K LOC across 768 .zig files
-- **Package:** `@import("abi")` — single module, comptime-gated features
+- **Size:** 360K LOC across 1,126 .zig files
+- **Tests:** 3,244 unit + integration tests (4 skipped)
+- **Features:** 30 comptime-gated features in the catalog
+- **Package:** `@import("abi")` — single module, comptime-gated features (mod/stub pattern)
 - **Build:** `./build.sh` (macOS 26.4+) or `zig build` (Linux)
+- **Cross-compilation:** linux-aarch64, linux-x86_64, wasm32-wasi, x86_64-macos
+- **Feature-disabled builds:** AI, database, GPU can each be disabled independently
 
 ### 8.2 Feature Map
 
 | Feature | LOC | Status |
 |---------|-----|--------|
-| AI (total) | 123K | Full (47 sub-modules) |
-| Database/WDBX | 33K | Full (HNSW, DiskANN, ScaNN, PQ, hybrid) |
-| GPU | 80K | Full (Metal, CUDA, Vulkan, WebGPU, stdgpu) |
-| Foundation | 29K | Full (tensor, matrix, SIMD, security, TLS) |
-| Inference | 1K | Demo engine (real inference via connectors) |
-| Protocols | 7K | Full (MCP, LSP, ACP, HA) |
-| Connectors | 11K | 23 adapters (OpenAI, Anthropic, Ollama, etc.) |
+| AI (total) | 124K | Full (47 sub-modules, persona pipeline, constitution, compliance) |
+| GPU | 80K | Full (Metal, CUDA, Vulkan, WebGPU, stdgpu, FPGA, OpenGL) |
+| Database/WDBX | 36K | Full (HNSW, DiskANN, ScaNN, PQ, hybrid, block chain, MVCC) |
+| Foundation | 30K | Full (tensor, matrix, SIMD, security, TLS, time, sync) |
+| Connectors | 11K | 23 adapters (OpenAI, Anthropic, Ollama, Cohere, Discord, etc.) |
+| Protocols | 8K | Full (MCP, LSP, ACP, HA with replication, PITR, backup) |
+| Inference | 2K | Multi-backend engine (demo, connector, local) with KV cache, sampler |
 
 ### 8.3 Pipeline Integration (Complete)
 
-All 8 pipeline steps wired end-to-end:
-1. AbiRouter integration (sentiment + policy + rules → weighted routing)
+All pipeline steps wired end-to-end:
+1. AbiRouter integration (sentiment + policy + rules → 3-way weighted routing)
 2. AdaptiveModulator (EMA preference learning per user)
-3. Consensus routing (α-coefficient persona blending)
-4. WDBX ConversationBlock storage (cryptographic chain)
-5. Constitution post-validation (6-principle enforcement)
-6. Memory module (ConversationMemory → BlockChain)
-7. Integration tests (8 test cases)
-8. Test module wiring (test/mod.zig)
+3. Consensus routing (abbey/aviva/abi weight blending with α-coefficient)
+4. WDBX ConversationBlock storage (SHA-256 cryptographic chain)
+5. Constitution post-validation (6-principle enforcement with scoring)
+6. Memory module (ConversationMemory → BlockChain with MVCC timestamps)
+7. HA subsystem (replication, backup orchestrator, PITR with operation replay)
+8. Integration tests (31 test modules, 3,244 tests)
+9. Test module wiring (test/mod.zig + 4 feature-disabled build configs)
+
+### 8.4 Infrastructure & Tooling
+
+| Component | Description | Status |
+|-----------|-------------|--------|
+| CLI (`abi`) | 12 commands: status, version, doctor, features, platform, connectors, info, chat, db, serve, dashboard, help | Implemented |
+| MCP Server (`abi-mcp`) | JSON-RPC 2.0 stdio server for Claude Desktop, Cursor, and other MCP clients | Implemented |
+| ACP Server | HTTP server for Agent Communication Protocol (default 127.0.0.1:8080) | Implemented |
+| Feature flags | 30 comptime flags with mod/stub parity enforcement | Implemented |
+| Cross-compilation | 4 targets verified in CI: aarch64-linux, x86_64-linux, wasm32-wasi, x86_64-macos | Implemented |
+| Build wrapper | `./build.sh` auto-relinks with Apple ld on macOS 26.4+ (Darwin 25.x) | Implemented |
+| Parity checker | `zig build check-parity` validates mod/stub declaration name parity | Implemented |
+
+### 8.5 Implementation Reality
+
+Key spec claims and their actual status:
+
+| Spec Claim | Status | Evidence |
+|------------|--------|----------|
+| PII detection (email, phone, SSN, etc.) | **Implemented** | `src/features/ai/compliance/gdpr.zig`, `ai/abi/policy.zig` |
+| Crypto-shredding for right-to-erasure | **Implemented** | `src/features/ai/compliance/gdpr.zig`, `compliance/audit.zig` |
+| Constitution enforcement (6 principles) | **Implemented** | `src/features/ai/constitution/mod.zig` — `evaluate()`, `isCompliant()`, `getSystemPreamble()` |
+| `constitutionalLoss(embedding)` | **Implemented** | `src/features/ai/constitution/enforcement.zig` |
+| `alignmentScore()` | **Implemented** | `src/features/ai/constitution/enforcement.zig`, `mod.zig` |
+| Persona routing (Abi → Abbey/Aviva) | **Implemented** | `src/features/ai/persona/router.zig` — 3-way weights, not simple α blend |
+| Adaptive modulation (EMA learning) | **Implemented** | `src/features/ai/persona/modulation.zig` |
+| WDBX block chain memory | **Implemented** | `src/core/database/block_chain.zig`, `persona/memory.zig` |
+| Bias quantification formula | **Partial** | Bias-related ops exist in LLM backward passes; no standalone `computeBias()` |
+| Persona token injection (Z = Embed) | **Planned** | Inference engine exists but doesn't implement actual embedding injection |
+| Benchmark numbers (110ms, 90 req/s) | **Aspirational** | No production inference benchmark; demo/connector backends only |
+| RLHF training pipeline | **Partial** | `abbey_train.zig` has LoRA fine-tuning config; no RLHF reward model |
+| Mixed-precision training | **Partial** | Quantization types (Q4_0, Q8_0) exist; no FP16/BF16 training loop |
 
 ---
 
