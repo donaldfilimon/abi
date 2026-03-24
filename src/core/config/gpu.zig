@@ -11,6 +11,9 @@ pub const GpuConfig = struct {
     /// GPU backend to use. Auto-detect by default.
     backend: Backend = .auto,
 
+    /// Enforce strict backend selection. If true, do not fall back to other backends if the preferred backend is unavailable.
+    strict_backend: bool = false,
+
     /// Preferred device index (0 = first available).
     device_index: u32 = 0,
 
