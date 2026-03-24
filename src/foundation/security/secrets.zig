@@ -217,7 +217,7 @@ pub const SecretsManager = struct {
                 }
                 // Generate random key (not recommended for production)
                 std.log.warn("Using randomly generated master key - encrypted secrets will be lost on restart!", .{});
-                csprng.fillRandom(&master_key) catch unreachable;
+                try csprng.fillRandom(&master_key);
             }
         }
 
@@ -948,7 +948,7 @@ pub const SecretsManager = struct {
 
     fn encryptSecret(self: *SecretsManager, value: []const u8) SecretsError!SecretValue {
         var nonce: [12]u8 = undefined;
-        csprng.fillRandom(&nonce) catch unreachable;
+        csprng.fillRandom(&nonce) catch return error.DecryptionFailed;
 
         const ciphertext = try self.allocator.alloc(u8, value.len);
         errdefer self.allocator.free(ciphertext);
@@ -1085,7 +1085,7 @@ test "secrets manager initialization" {
     const allocator = std.testing.allocator;
 
     var key: [32]u8 = undefined;
-    csprng.fillRandom(&key) catch unreachable;
+    try csprng.fillRandom(&key);
 
     var manager = try SecretsManager.init(allocator, .{
         .provider = .memory,
@@ -1126,7 +1126,7 @@ test "secret encryption round trip" {
     const allocator = std.testing.allocator;
 
     var key: [32]u8 = undefined;
-    csprng.fillRandom(&key) catch unreachable;
+    try csprng.fillRandom(&key);
 
     var manager = try SecretsManager.init(allocator, .{
         .provider = .memory,
