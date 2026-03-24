@@ -115,11 +115,11 @@ pub const AvivaProfile = struct {
     }
 
     /// Shutdown the profile and free resources.
+    /// Note: does NOT free `self` — the caller (PersonaRegistry) owns the allocation.
     pub fn deinit(self: *Self) void {
         self.knowledge_retriever.deinit();
         self.agent.deinit();
         self.allocator.destroy(self.agent);
-        self.allocator.destroy(self);
     }
 
     pub fn getName(_: *const Self) []const u8 {
@@ -203,7 +203,8 @@ pub const AvivaProfile = struct {
         if (classification.query_type.recommendsCodeBlock()) {
             const blocks = try code_mod.extractCodeBlocks(self.allocator, final_response);
             if (blocks.len > 0) {
-                var code_blocks = try self.allocator.alloc(types.CodeBlock, blocks.len);
+                const code_blocks = try self.allocator.alloc(types.CodeBlock, blocks.len);
+                errdefer self.allocator.free(code_blocks);
                 for (blocks, 0..) |block, i| {
                     code_blocks[i] = .{
                         .language = self.code_generator.getLanguageName(block.language),
@@ -218,7 +219,8 @@ pub const AvivaProfile = struct {
         // Add sources if knowledge was retrieved
         if (knowledge_context) |sources| {
             if (self.config.cite_sources and sources.len > 0) {
-                var refs = try self.allocator.alloc(types.Source, sources.len);
+                const refs = try self.allocator.alloc(types.Source, sources.len);
+                errdefer self.allocator.free(refs);
                 for (sources, 0..) |frag, i| {
                     refs[i] = .{
                         .title = frag.source.name,
