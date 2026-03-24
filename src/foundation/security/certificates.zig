@@ -589,7 +589,7 @@ pub const CertificateManager = struct {
         offset += cert.serial_number.len;
 
         // Nonce (2 bytes)
-        csprng.fillRandom(request[offset .. offset + 2]) catch unreachable;
+        try csprng.fillRandom(request[offset .. offset + 2]);
 
         return request;
     }
@@ -641,7 +641,7 @@ pub const CertificateManager = struct {
 
         // Generate placeholder serial
         var serial_buf: [16]u8 = undefined;
-        csprng.fillRandom(&serial_buf) catch unreachable;
+        try csprng.fillRandom(&serial_buf);
 
         const serial = try std.fmt.allocPrint(self.allocator, "{x}", .{serial_buf});
         errdefer self.allocator.free(serial);
@@ -670,16 +670,16 @@ pub fn generateSelfSigned(allocator: std.mem.Allocator, options: GenerateOptions
 
     // Generate fingerprint
     var fingerprint: [32]u8 = undefined;
-    csprng.fillRandom(&fingerprint) catch unreachable;
+    try csprng.fillRandom(&fingerprint);
 
     // Generate serial
     var serial_buf: [16]u8 = undefined;
-    csprng.fillRandom(&serial_buf) catch unreachable;
+    try csprng.fillRandom(&serial_buf);
     const serial = try std.fmt.allocPrint(allocator, "{x}", .{serial_buf});
 
     // Generate placeholder DER data
     var der_data: [64]u8 = undefined;
-    csprng.fillRandom(&der_data) catch unreachable;
+    try csprng.fillRandom(&der_data);
 
     // Copy SANs
     const san = try allocator.alloc([]const u8, options.san.len);

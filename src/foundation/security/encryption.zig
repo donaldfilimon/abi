@@ -190,7 +190,7 @@ pub const Encryptor = struct {
 
         // Generate random nonce
         var nonce: [24]u8 = undefined;
-        csprng.fillRandom(nonce[0..nonce_size]) catch unreachable;
+        try csprng.fillRandom(nonce[0..nonce_size]);
 
         // Allocate ciphertext buffer
         const ciphertext = try self.allocator.alloc(u8, plaintext.len);
@@ -232,7 +232,7 @@ pub const Encryptor = struct {
     pub fn encryptWithPassword(self: *Encryptor, plaintext: []const u8, password: []const u8) !EncryptedData {
         // Generate salt
         var salt: [16]u8 = undefined;
-        csprng.fillRandom(&salt) catch unreachable;
+        try csprng.fillRandom(&salt);
 
         // Derive key
         const key = try self.deriveKey(password, &salt);
@@ -430,7 +430,7 @@ pub const KeyWrapper = struct {
     /// Returns [60]u8: 12-byte nonce + 32-byte ciphertext + 16-byte tag.
     pub fn wrap(self: *KeyWrapper, dek: [32]u8) ![60]u8 {
         var nonce: [12]u8 = undefined;
-        csprng.fillRandom(&nonce) catch unreachable;
+        try csprng.fillRandom(&nonce);
 
         var ciphertext: [32]u8 = undefined;
         var tag: [16]u8 = undefined;
@@ -493,7 +493,7 @@ pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) 
         var remaining = size;
         while (remaining > 0) {
             const to_write = @min(rand_buf.len, remaining);
-            csprng.fillRandom(rand_buf[0..to_write]) catch unreachable;
+            try csprng.fillRandom(rand_buf[0..to_write]);
             try writer.interface.writeAll(rand_buf[0..to_write]);
             remaining -= to_write;
         }
@@ -522,9 +522,9 @@ pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) 
 }
 
 /// Generate a random encryption key
-pub fn generateKey() [32]u8 {
+pub fn generateKey() ![32]u8 {
     var key: [32]u8 = undefined;
-    csprng.fillRandom(&key) catch unreachable;
+    try csprng.fillRandom(&key);
     return key;
 }
 
@@ -548,7 +548,7 @@ test "encryption round trip" {
     var encryptor = Encryptor.init(allocator, .{});
 
     const plaintext = "Hello, World! This is a test message.";
-    const key = generateKey();
+    const key = try generateKey();
 
     var encrypted = try encryptor.encrypt(plaintext, key, null);
     defer encrypted.deinit(allocator);
@@ -580,7 +580,7 @@ test "password-based encryption" {
 
 test "different algorithms" {
     const allocator = std.testing.allocator;
-    const key = generateKey();
+    const key = try generateKey();
     const plaintext = "Test data for encryption";
 
     inline for (&[_]Algorithm{ .aes_256_gcm, .chacha20_poly1305, .xchacha20_poly1305 }) |alg| {
@@ -601,7 +601,7 @@ test "serialization" {
     var encryptor = Encryptor.init(allocator, .{});
 
     const plaintext = "Data to serialize";
-    const key = generateKey();
+    const key = try generateKey();
 
     var encrypted = try encryptor.encrypt(plaintext, key, null);
     defer encrypted.deinit(allocator);
@@ -623,7 +623,7 @@ test "deserialize rejects invalid algorithm id" {
     var encryptor = Encryptor.init(allocator, .{});
 
     const plaintext = "Data to serialize";
-    const key = generateKey();
+    const key = try generateKey();
 
     var encrypted = try encryptor.encrypt(plaintext, key, null);
     defer encrypted.deinit(allocator);
@@ -640,12 +640,12 @@ test "deserialize rejects invalid algorithm id" {
 
 test "key wrapper" {
     const allocator = std.testing.allocator;
-    const master_key = generateKey();
+    const master_key = try generateKey();
 
     var wrapper = KeyWrapper.init(allocator, master_key);
     defer wrapper.deinit();
 
-    const dek = generateKey();
+    const dek = try generateKey();
 
     const wrapped = try wrapper.wrap(dek);
     const unwrapped = try wrapper.unwrap(wrapped);
