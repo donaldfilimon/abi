@@ -38,6 +38,8 @@ pub fn build(b: *std.Build) void {
     // Protocol flags
     const feat_lsp = b.option(bool, "feat-lsp", "Language Server Protocol") orelse true;
     const feat_mcp = b.option(bool, "feat-mcp", "Model Context Protocol") orelse true;
+    const feat_acp = b.option(bool, "feat-acp", "Agent Communication Protocol") orelse true;
+    const feat_ha = b.option(bool, "feat-ha", "High Availability / replication") orelse true;
 
     // GPU backend flags
     const gpu_backend_str = b.option([]const u8, "gpu-backend", "GPU backends: metal,cuda,vulkan,webgpu,opengl,opengles,webgl2,stdgpu,fpga,tpu (comma-separated)");
@@ -99,6 +101,8 @@ pub fn build(b: *std.Build) void {
         .feat_reasoning = feat_reasoning,
         .feat_lsp = feat_lsp,
         .feat_mcp = feat_mcp,
+        .feat_acp = feat_acp,
+        .feat_ha = feat_ha,
         .gpu_metal = gpu_metal,
         .gpu_cuda = gpu_cuda,
         .gpu_vulkan = gpu_vulkan,
@@ -421,6 +425,8 @@ pub fn build(b: *std.Build) void {
     //  feat_desktop  |  yes  |  no** |    no   |    no     |     no
     //  feat_lsp      |  yes  |  yes  |   yes   |    no     |     no
     //  feat_mcp      |  yes  |  yes  |   yes   |    no     |     no
+    //  feat_acp      |  yes  |  yes  |   yes   |    no     |     no
+    //  feat_ha       |  yes  |  yes  |   yes   |    no     |     no
     //
     //  GPU backends:
     //  gpu_metal     | macOS only (requires Metal framework)
@@ -482,6 +488,8 @@ pub fn build(b: *std.Build) void {
         cross_opts.addOption(bool, "feat_reasoning", true);
         cross_opts.addOption(bool, "feat_lsp", !is_wasm);
         cross_opts.addOption(bool, "feat_mcp", !is_wasm);
+        cross_opts.addOption(bool, "feat_acp", !is_wasm);
+        cross_opts.addOption(bool, "feat_ha", !is_wasm);
 
         // GPU backends — per-platform availability
         cross_opts.addOption(bool, "gpu_metal", false); // Only for macOS native builds with -Dgpu-backend=metal
@@ -550,15 +558,15 @@ pub fn build(b: *std.Build) void {
             \\AI Sub-features:
             \\  feat_llm={} feat_training={} feat_vision={} feat_explore={} feat_reasoning={}
             \\Protocols:
-            \\  feat_lsp={} feat_mcp={}
+            \\  feat_lsp={} feat_mcp={} feat_acp={} feat_ha={}
             \\GPU Backends:
             \\  metal={} cuda={} vulkan={} webgpu={} opengl={}
             \\  opengles={} webgl2={} stdgpu={} fpga={} tpu={}
         , .{
-            feat_llm,   feat_training, feat_vision,  feat_explore, feat_reasoning,
-            feat_lsp,   feat_mcp,      gpu_metal,    gpu_cuda,     gpu_vulkan,
-            gpu_webgpu, gpu_opengl,    gpu_opengles, gpu_webgl2,   gpu_stdgpu,
-            gpu_fpga,   gpu_tpu,
+            feat_llm,   feat_training, feat_vision, feat_explore, feat_reasoning,
+            feat_lsp,   feat_mcp,      feat_acp,    feat_ha,      gpu_metal,
+            gpu_cuda,   gpu_vulkan,    gpu_webgpu,  gpu_opengl,   gpu_opengles,
+            gpu_webgl2, gpu_stdgpu,    gpu_fpga,    gpu_tpu,
         }),
     });
     doc2.step.dependOn(&doc1.step);
@@ -606,6 +614,8 @@ const FeatureFlags = struct {
     feat_reasoning: bool,
     feat_lsp: bool,
     feat_mcp: bool,
+    feat_acp: bool,
+    feat_ha: bool,
     gpu_metal: bool,
     gpu_cuda: bool,
     gpu_vulkan: bool,

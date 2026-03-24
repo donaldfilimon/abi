@@ -28,7 +28,6 @@ pub const CircuitBreakerConfig = types.CircuitBreakerConfig;
 pub const StreamingMetricsConfig = types.StreamingMetricsConfig;
 pub const SessionCacheConfig = types.SessionCacheConfig;
 pub const StreamingRetryableErrors = types.StreamingRetryableErrors;
-pub const BaseRetryConfig = types.BaseRetryConfig;
 pub const StreamingRetryConfig = types.StreamingRetryConfig;
 pub const ServerConfig = types.ServerConfig;
 pub const StreamConfig = types.StreamConfig;
@@ -37,7 +36,6 @@ pub const RecoveryCallback = types.RecoveryCallback;
 pub const BackpressureStats = types.BackpressureStats;
 pub const BufferStats = types.BufferStats;
 pub const StreamStats = types.StreamStats;
-pub const BackendMetricStats = types.BackendMetricStats;
 pub const SseEvent = types.SseEvent;
 pub const StreamToken = types.StreamToken;
 pub const StreamEvent = types.StreamEvent;
@@ -58,7 +56,6 @@ pub const CircuitBreaker = types.CircuitBreaker;
 pub const StreamRecovery = types.StreamRecovery;
 pub const SessionCache = types.SessionCache;
 pub const StreamingMetrics = types.StreamingMetrics;
-pub const formats_openai = types.formats_openai;
 
 // ── Sub-module re-exports (API parity with mod.zig) ────────────────────────
 

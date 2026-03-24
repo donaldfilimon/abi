@@ -106,6 +106,51 @@ pub const AdaptiveAvgPool2D = pooling.AdaptiveAvgPool2D;
 pub const globalAvgPool2D = pooling.globalAvgPool2D;
 pub const BatchNorm2D = batchnorm.BatchNorm2D;
 
+// --- ViT Re-exports ---
+pub const VisionTransformer = struct {};
+pub const PatchEmbedding = struct {};
+pub const MultiHeadAttention = struct {};
+pub const TransformerBlock = struct {};
+pub const ViTLayerNorm = struct {};
+pub const ViTMLP = struct {};
+
+pub fn gelu(x: f32) f32 {
+    return 0.5 * x * (1.0 + @as(f32, @floatCast(std.math.tanh(@as(f64, 0.7978846) * @as(f64, @floatCast(x + 0.044715 * x * x * x))))));
+}
+
+// --- Multimodal Re-exports ---
+pub const CLIPModel = struct {};
+pub const MultiModalConfig = struct {};
+pub const ContrastiveLoss = struct {};
+pub const CrossAttention = struct {};
+pub const TextEncoder = struct {};
+pub const TextEmbedding = struct {};
+pub const FusionBlock = struct {};
+pub const UnifiedEmbeddingSpace = struct {};
+
+// --- Sub-module Namespace Re-exports ---
+pub const vit = struct {
+    pub const VisionTransformer_ = VisionTransformer;
+    pub const ViTConfig_ = ViTConfig;
+    pub const PatchEmbedding_ = PatchEmbedding;
+    pub const MultiHeadAttention_ = MultiHeadAttention;
+    pub const TransformerBlock_ = TransformerBlock;
+    pub const LayerNorm = ViTLayerNorm;
+    pub const MLP = ViTMLP;
+    pub const gelu_ = @import("stub.zig").gelu;
+};
+
+pub const multimodal = struct {
+    pub const CLIPModel_ = CLIPModel;
+    pub const MultiModalConfig_ = MultiModalConfig;
+    pub const ContrastiveLoss_ = ContrastiveLoss;
+    pub const CrossAttention_ = CrossAttention;
+    pub const TextEncoder_ = TextEncoder;
+    pub const TextEmbedding_ = TextEmbedding;
+    pub const FusionBlock_ = FusionBlock;
+    pub const UnifiedEmbeddingSpace_ = UnifiedEmbeddingSpace;
+};
+
 // --- Context ---
 pub const Context = struct {
     allocator: std.mem.Allocator = undefined,

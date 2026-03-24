@@ -5,6 +5,34 @@ const config_module = @import("../../../core/config/mod.zig");
 
 pub const Error = error{ FeatureDisabled, ModelNotFound, EmbeddingFailed, InvalidInput };
 
+// Backend types
+pub const BackendType = enum { openai, huggingface, ollama, local };
+pub const BackendError = error{ MissingCredentials, RequestFailed, InvalidResponse, RateLimitExceeded, OutOfMemory, FeatureDisabled };
+pub const BackendConfig = struct {};
+pub const EmbeddingBackend = struct {
+    backend_type: BackendType = .local,
+    pub fn embed(_: EmbeddingBackend, _: std.mem.Allocator, _: []const u8, _: usize) BackendError![]f32 {
+        return BackendError.FeatureDisabled;
+    }
+    pub fn embedBatch(_: EmbeddingBackend, _: std.mem.Allocator, _: []const []const u8, _: usize) BackendError![][]f32 {
+        return BackendError.FeatureDisabled;
+    }
+    pub fn deinit(_: EmbeddingBackend) void {}
+};
+
+pub const backend = struct {
+    pub const EmbeddingBackend_ = EmbeddingBackend;
+    pub const BackendError_ = BackendError;
+    pub const BackendType_ = BackendType;
+    pub const BackendConfig_ = BackendConfig;
+};
+
+pub const backends = struct {};
+
+pub fn normalizeEmbedding(_: []f32) void {}
+pub fn normalizeEmbeddingBatch(_: [][]f32) void {}
+pub fn normalizeEmbeddingBatchWithNorms(_: [][]f32, _: ?[]f32) void {}
+
 pub const EmbeddingConfig = struct {
     dimension: usize = 384,
     max_seq_len: usize = 512,

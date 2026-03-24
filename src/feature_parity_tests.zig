@@ -80,6 +80,8 @@ comptime {
     assertParity("web", @import("features/web/mod.zig"), @import("features/web/stub.zig"));
     assertParity("lsp", @import("protocols/lsp/mod.zig"), @import("protocols/lsp/stub.zig"));
     assertParity("mcp", @import("protocols/mcp/mod.zig"), @import("protocols/mcp/stub.zig"));
+    assertParity("acp", @import("protocols/acp/mod.zig"), @import("protocols/acp/stub.zig"));
+    assertParity("ha", @import("protocols/ha/mod.zig"), @import("protocols/ha/stub.zig"));
 }
 
 test "mod/stub parity check compiled successfully" {

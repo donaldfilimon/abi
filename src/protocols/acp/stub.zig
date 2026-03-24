@@ -6,10 +6,16 @@
 const std = @import("std");
 
 // =============================================================================
+// Sub-module namespace (empty — types re-exported at top level)
+// =============================================================================
+
+pub const server = struct {};
+
+// =============================================================================
 // Error set
 // =============================================================================
 
-pub const AcpError = error{
+const AcpError = error{
     FeatureDisabled,
     SessionNotFound,
     OutOfMemory,
@@ -224,11 +230,11 @@ pub fn serveHttp(
 
 var initialized = std.atomic.Value(bool).init(false);
 
-pub fn isEnabled() bool {
+fn isEnabled() bool {
     return false;
 }
 
-pub fn isInitialized() bool {
+fn isInitialized() bool {
     return initialized.load(.acquire);
 }
 
@@ -244,13 +250,13 @@ test "Server stub init and deinit" {
         .url = "http://localhost",
         .capabilities = .{},
     };
-    var server = Server.init(std.testing.allocator, card);
-    defer server.deinit();
+    var srv = Server.init(std.testing.allocator, card);
+    defer srv.deinit();
 
-    try std.testing.expectEqual(@as(u32, 0), server.taskCount());
-    try std.testing.expectEqual(@as(u32, 0), server.sessionCount());
-    try std.testing.expect(server.getTask("any") == null);
-    try std.testing.expect(server.getSession("any") == null);
+    try std.testing.expectEqual(@as(u32, 0), srv.taskCount());
+    try std.testing.expectEqual(@as(u32, 0), srv.sessionCount());
+    try std.testing.expect(srv.getTask("any") == null);
+    try std.testing.expect(srv.getSession("any") == null);
 }
 
 test "Server stub createTask returns FeatureDisabled" {
@@ -261,10 +267,10 @@ test "Server stub createTask returns FeatureDisabled" {
         .url = "http://localhost",
         .capabilities = .{},
     };
-    var server = Server.init(std.testing.allocator, card);
-    defer server.deinit();
+    var srv = Server.init(std.testing.allocator, card);
+    defer srv.deinit();
 
-    try std.testing.expectError(AcpError.FeatureDisabled, server.createTask("hello"));
+    try std.testing.expectError(AcpError.FeatureDisabled, srv.createTask("hello"));
 }
 
 test "Server stub createSession returns FeatureDisabled" {
@@ -275,10 +281,10 @@ test "Server stub createSession returns FeatureDisabled" {
         .url = "http://localhost",
         .capabilities = .{},
     };
-    var server = Server.init(std.testing.allocator, card);
-    defer server.deinit();
+    var srv = Server.init(std.testing.allocator, card);
+    defer srv.deinit();
 
-    try std.testing.expectError(AcpError.FeatureDisabled, server.createSession(null));
+    try std.testing.expectError(AcpError.FeatureDisabled, srv.createSession(null));
 }
 
 test "Server stub addTaskToSession returns FeatureDisabled" {
@@ -289,10 +295,10 @@ test "Server stub addTaskToSession returns FeatureDisabled" {
         .url = "http://localhost",
         .capabilities = .{},
     };
-    var server = Server.init(std.testing.allocator, card);
-    defer server.deinit();
+    var srv = Server.init(std.testing.allocator, card);
+    defer srv.deinit();
 
-    try std.testing.expectError(AcpError.FeatureDisabled, server.addTaskToSession("s1", "t1"));
+    try std.testing.expectError(AcpError.FeatureDisabled, srv.addTaskToSession("s1", "t1"));
 }
 
 test "TaskStatus toString stub" {
