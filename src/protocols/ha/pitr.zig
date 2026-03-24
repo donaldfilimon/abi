@@ -18,6 +18,29 @@ fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
     return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
 }
 
+/// Atomic file write: write to tmp, fsync, rename. Old file intact on crash.
+fn atomicWriteFile(allocator: std.mem.Allocator, path: []const u8, data: []const u8) !void {
+    const tmp_path = try std.fmt.allocPrint(allocator, "{s}.tmp", .{path});
+    defer allocator.free(tmp_path);
+
+    var io_backend = initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    {
+        var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
+        defer file.close(io);
+        try file.writeStreamingAll(io, data);
+        file.sync(io) catch {};
+    }
+
+    const cwd = std.Io.Dir.cwd();
+    cwd.rename(tmp_path, cwd, path, io) catch {
+        cwd.deleteFile(io, tmp_path) catch {};
+        return error.PersistFailed;
+    };
+}
+
 /// PITR configuration
 pub const PitrConfig = struct {
     /// Retention period in hours
@@ -639,27 +662,7 @@ pub const PitrManager = struct {
             }
         }
 
-        // Atomic write: write to temp file, fsync, then rename
-        const tmp_path = try std.fmt.allocPrint(self.allocator, "{s}.tmp", .{path});
-        defer self.allocator.free(tmp_path);
-
-        var io_backend = initIoBackend(self.allocator);
-        defer io_backend.deinit();
-        const io = io_backend.io();
-
-        {
-            var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
-            defer file.close(io);
-            try file.writeStreamingAll(io, buf.items);
-            file.sync(io) catch {}; // fsync before rename for durability
-        }
-
-        // Atomic rename: old file intact if crash during write
-        const cwd = std.Io.Dir.cwd();
-        cwd.rename(tmp_path, cwd, path, io) catch {
-            cwd.deleteFile(io, tmp_path) catch {};
-            return error.PersistFailed;
-        };
+        try atomicWriteFile(self.allocator, path, buf.items);
     }
 
     /// Persist recovery point checkpoints to disk.
@@ -682,24 +685,7 @@ pub const PitrManager = struct {
             try buf.appendSlice(self.allocator, &rp.checksum);
         }
 
-        const tmp_path = try std.fmt.allocPrint(self.allocator, "{s}.tmp", .{path});
-        defer self.allocator.free(tmp_path);
-
-        var io_backend = initIoBackend(self.allocator);
-        defer io_backend.deinit();
-        const io = io_backend.io();
-
-        {
-            var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
-            defer file.close(io);
-            try file.writeStreamingAll(io, buf.items);
-            file.sync(io) catch {};
-        }
-
-        std.Io.Dir.cwd().rename(io, tmp_path, path) catch {
-            std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
-            return error.PersistFailed;
-        };
+        try atomicWriteFile(self.allocator, path, buf.items);
     }
 
     /// Load recovery point checkpoints from disk.
