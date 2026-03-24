@@ -32,6 +32,7 @@ const connector_errors_tests = @import("integration/connector_errors_test.zig");
 const mcp_tests = @import("integration/mcp_test.zig");
 const observability_tests = @import("integration/observability_test.zig");
 const cli_tests = @import("integration/cli_test.zig");
+const cli_e2e_tests = @import("integration/cli_e2e_test.zig");
 const tui_tests = @import("integration/tui_test.zig");
 const documents_tests = @import("integration/documents_test.zig");
 const lsp_tests = @import("integration/lsp_test.zig");
