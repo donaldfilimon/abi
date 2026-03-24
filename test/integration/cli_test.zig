@@ -307,17 +307,26 @@ test "cli: platform supportsThreading returns a bool" {
 test "cli: database module exposes cli decl" {
     // runDb() checks @hasDecl(db, "cli") — verify it's present
     const db = abi.database;
-    try std.testing.expect(@hasDecl(@TypeOf(db), "cli"));
+    try std.testing.expect(@hasDecl(db, "cli"));
 }
 
 test "cli: database cli has run function" {
     const db_cli = abi.database.cli;
-    try std.testing.expect(@hasDecl(@TypeOf(db_cli), "run"));
+    try std.testing.expect(@hasDecl(db_cli, "run"));
 }
 
 test "cli: database diagnostics type is accessible and healthy by default" {
     const DiagnosticsInfo = abi.database.DiagnosticsInfo;
-    const info: DiagnosticsInfo = .{};
+    const info: DiagnosticsInfo = .{
+        .name = "test",
+        .vector_count = 0,
+        .dimension = 0,
+        .memory = undefined,
+        .config = undefined,
+        .pool_stats = null,
+        .index_health = 1.0,
+        .norm_cache_health = 1.0,
+    };
     try std.testing.expect(info.isHealthy());
     try std.testing.expectEqual(@as(f32, 1.0), info.index_health);
     try std.testing.expectEqual(@as(f32, 1.0), info.norm_cache_health);
@@ -326,7 +335,7 @@ test "cli: database diagnostics type is accessible and healthy by default" {
 
 test "cli: database cli wantsHelp recognizes help flag" {
     const db_cli = abi.database.cli;
-    if (@hasDecl(@TypeOf(db_cli), "wantsHelp")) {
+    if (@hasDecl(db_cli, "wantsHelp")) {
         const help_args = [_][:0]const u8{"--help"};
         try std.testing.expect(db_cli.wantsHelp(&help_args));
 
@@ -345,7 +354,7 @@ test "cli: tui module is accessible" {
 
 test "cli: tui has dashboard decl" {
     // runDashboard() accesses root.tui.dashboard
-    try std.testing.expect(@hasDecl(@TypeOf(abi.tui), "dashboard"));
+    try std.testing.expect(@hasDecl(abi.tui, "dashboard"));
 }
 
 test "cli: tui isEnabled reflects build option" {

@@ -43,6 +43,13 @@ zig build check                    # Lint + test + stub parity
 zig build lint                     # Check formatting
 zig build fix                      # Auto-format
 zig build check-parity             # Verify mod/stub declaration parity
+zig build feature-tests            # Run feature integration and parity tests
+zig build cli-tests                # Run CLI tests
+zig build tui-tests                # Run TUI tests
+zig build typecheck                # Typecheck the project
+zig build validate-flags           # Validate feature flags
+zig build full-check               # Run full check
+zig build verify-all               # Verify all components
 zig build cross-check              # Verify cross-compilation (linux, wasi, x86_64)
 zig build lib                      # Build static library artifact
 zig build mcp                      # Build MCP stdio server (zig-out/bin/abi-mcp)
