@@ -1,4 +1,14 @@
-//! AI feature facade.
+//! AI Feature Module
+//!
+//! This module contains 33 sub-directories organized into conceptual groups:
+//!
+//! **Inference:** llm, embeddings, vision, models, streaming
+//! **Reasoning:** abbey, aviva, abi, constitution, eval, reasoning
+//! **Agents:** agents, tools, multi_agent, coordination, orchestration
+//! **Learning:** training, memory, federated
+//! **Support:** templates, prompts, documents, profiles, context_engine
+//!
+//! Directory structure is flat (not reorganized by group) to minimize import churn.
 //!
 //! This top-level module presents the canonical `abi.ai` surface for framework
 //! code, tests, and external callers. Compatibility aliases delegate here while
