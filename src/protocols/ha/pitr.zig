@@ -447,12 +447,27 @@ pub const PitrManager = struct {
             }
         }
 
+        if (count == 0) {
+            self.emitEvent(.{ .recovery_failed = .{
+                .reason = "No operations at or before target timestamp",
+            } });
+            return error.NoRecoveryPoint;
+        }
+
         // Allocate result array
         const ops = try self.allocator.alloc(Operation, count);
-        errdefer self.allocator.free(ops);
+        var idx: usize = 0;
+        errdefer {
+            // Free all already-copied entries on error
+            for (ops[0..idx]) |op| {
+                self.allocator.free(op.key);
+                if (op.value) |v| self.allocator.free(v);
+                if (op.previous_value) |v| self.allocator.free(v);
+            }
+            self.allocator.free(ops);
+        }
 
         // Copy matching operations (they are already in order)
-        var idx: usize = 0;
         for (self.operation_log.items) |op| {
             if (op.timestamp <= timestamp) {
                 const key_copy = try self.allocator.dupe(u8, op.key);
@@ -511,7 +526,7 @@ pub const PitrManager = struct {
             }
         }
 
-        if (count == 0 and self.operation_log.items.len > 0) {
+        if (count == 0) {
             self.emitEvent(.{ .recovery_failed = .{
                 .reason = "No operations found at or before target sequence",
             } });
@@ -529,9 +544,16 @@ pub const PitrManager = struct {
 
         // Allocate result array
         const ops = try self.allocator.alloc(Operation, count);
-        errdefer self.allocator.free(ops);
-
         var idx: usize = 0;
+        errdefer {
+            for (ops[0..idx]) |op| {
+                self.allocator.free(op.key);
+                if (op.value) |v| self.allocator.free(v);
+                if (op.previous_value) |v| self.allocator.free(v);
+            }
+            self.allocator.free(ops);
+        }
+
         for (self.operation_log.items) |op| {
             if (op.sequence_number <= sequence) {
                 const key_copy = try self.allocator.dupe(u8, op.key);
@@ -687,6 +709,7 @@ pub const PitrManager = struct {
                 val = try self.allocator.dupe(u8, data[pos .. pos + val_sentinel]);
                 pos += val_sentinel;
             }
+            errdefer if (val) |v| self.allocator.free(v);
 
             // Previous value
             if (pos + 4 > data.len) return error.UnexpectedEndOfFile;
@@ -698,6 +721,7 @@ pub const PitrManager = struct {
                 prev = try self.allocator.dupe(u8, data[pos .. pos + prev_sentinel]);
                 pos += prev_sentinel;
             }
+            errdefer if (prev) |v| self.allocator.free(v);
 
             try self.operation_log.append(self.allocator, .{
                 .type = op_type,
@@ -922,7 +946,7 @@ test "save and load operation log roundtrip" {
     try std.testing.expect(result.operations[3].previous_value == null);
 }
 
-test "empty log recovery succeeds with zero operations" {
+test "empty log recovery returns NoRecoveryPoint" {
     const allocator = std.testing.allocator;
 
     var manager = PitrManager.init(allocator, .{
@@ -930,16 +954,11 @@ test "empty log recovery succeeds with zero operations" {
     });
     defer manager.deinit();
 
-    // Recover from empty log
-    var result = try manager.recoverToTimestamp(999);
-    defer result.deinit();
-
-    try std.testing.expectEqual(@as(u64, 0), result.operations_replayed);
-    try std.testing.expectEqual(@as(u64, 0), result.total_in_log);
-    try std.testing.expectEqual(@as(usize, 0), result.operations.len);
+    // Recover from empty log should return error
+    try std.testing.expectError(error.NoRecoveryPoint, manager.recoverToTimestamp(999));
 }
 
-test "empty log recoverToSequence succeeds with zero operations" {
+test "empty log recoverToSequence returns SequenceNotFound" {
     const allocator = std.testing.allocator;
 
     var manager = PitrManager.init(allocator, .{
@@ -947,11 +966,8 @@ test "empty log recoverToSequence succeeds with zero operations" {
     });
     defer manager.deinit();
 
-    // Recover sequence from empty log should succeed with 0 ops
-    var result = try manager.recoverToSequence(5);
-    defer result.deinit();
-
-    try std.testing.expectEqual(@as(u64, 0), result.operations_replayed);
+    // Recover sequence from empty log should return error
+    try std.testing.expectError(error.SequenceNotFound, manager.recoverToSequence(5));
 }
 
 test {

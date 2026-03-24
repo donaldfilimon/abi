@@ -346,6 +346,7 @@ pub const BackupOrchestrator = struct {
         defer self.mutex.unlock();
 
         const now = wallClockSec();
+        if (now == 0) return true; // Cannot determine time (WASM/unsupported) — assume due
         const interval_sec = @as(u64, self.config.interval_hours) * 3600;
         const last = self.last_backup_time;
         return (now - last) >= interval_sec;
