@@ -98,6 +98,27 @@ test "database: DatabaseConfig type compiles" {
     _ = cfg;
 }
 
+test "database: BatchItem type is accessible" {
+    const BatchItem = abi.database.BatchItem;
+    const item: BatchItem = .{};
+    _ = item;
+}
+
+test "database: VectorView type has expected defaults" {
+    const VectorView = abi.database.VectorView;
+    const view: VectorView = .{};
+    try std.testing.expectEqual(@as(u64, 0), view.id);
+}
+
+test "database: deleteVector stub returns false" {
+    if (!build_options.feat_database) {
+        // Stub deleteVector returns false (no-op)
+        var handle: abi.database.DatabaseHandle = .{};
+        const deleted = abi.database.deleteVector(&handle, 42);
+        try std.testing.expect(!deleted);
+    }
+}
+
 test "database: boundary forbids direct core database imports" {
     const allocator = std.testing.allocator;
     var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });

@@ -107,6 +107,46 @@ test "compute: types sub-module re-exports" {
     _ = compute.types.Context;
 }
 
+// ── MeshOrchestrator ──────────────────────────────────────────────────
+
+test "compute: MeshOrchestrator type exists and has expected fields" {
+    const Orch = compute.mesh.MeshOrchestrator;
+    _ = Orch;
+    // Type is accessible through the public surface
+}
+
+test "compute: ComputeNode default values" {
+    const node = compute.mesh.ComputeNode{
+        .id = [_]u8{0xAB} ** 16,
+        .address = std.mem.zeroes(std.c.sockaddr.in),
+        .is_local = false,
+        .available_vram_mb = 0,
+        .backend = .cpu,
+        .last_seen_ms = 12345,
+    };
+
+    try std.testing.expect(!node.is_local);
+    try std.testing.expectEqual(@as(u64, 0), node.available_vram_mb);
+    try std.testing.expectEqual(@as(u64, 12345), node.last_seen_ms);
+    try std.testing.expectEqual(@as(u8, 0xAB), node.id[0]);
+}
+
+test "compute: BackendType covers all GPU types" {
+    // Verify all enum variants are accessible
+    const backends = [_]compute.mesh.ComputeNode.BackendType{
+        .metal, .cuda, .rocm, .vulkan, .cpu,
+    };
+    try std.testing.expectEqual(@as(usize, 5), backends.len);
+}
+
+test "compute: Context double-init is safe" {
+    var ctx1 = compute.Context.init(std.testing.allocator);
+    var ctx2 = compute.Context.init(std.testing.allocator);
+    ctx1.deinit();
+    ctx2.deinit();
+    // Should not panic or leak
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

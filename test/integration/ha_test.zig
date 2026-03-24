@@ -113,9 +113,10 @@ test "ha: HaManager init/deinit" {
     var manager = ha.HaManager.init(allocator, .{});
     defer manager.deinit();
 
-    try std.testing.expect(!manager.is_running);
-    try std.testing.expect(manager.is_primary);
-    try std.testing.expect(manager.node_id != 0);
+    const status = manager.getStatus();
+    try std.testing.expect(!status.is_running);
+    try std.testing.expect(status.is_primary);
+    try std.testing.expect(status.node_id != 0);
 }
 
 test "ha: HaManager start sets running" {
@@ -125,7 +126,7 @@ test "ha: HaManager start sets running" {
     defer manager.deinit();
 
     try manager.start();
-    try std.testing.expect(manager.is_running);
+    try std.testing.expect(manager.getStatus().is_running);
 }
 
 test "ha: HaManager stop clears running" {
@@ -136,7 +137,7 @@ test "ha: HaManager stop clears running" {
 
     try manager.start();
     manager.stop();
-    try std.testing.expect(!manager.is_running);
+    try std.testing.expect(!manager.getStatus().is_running);
 }
 
 test "ha: HaManager double start is idempotent" {
@@ -147,7 +148,7 @@ test "ha: HaManager double start is idempotent" {
 
     try manager.start();
     try manager.start();
-    try std.testing.expect(manager.is_running);
+    try std.testing.expect(manager.getStatus().is_running);
 }
 
 test "ha: HaManager double stop is safe" {
@@ -159,7 +160,7 @@ test "ha: HaManager double stop is safe" {
     try manager.start();
     manager.stop();
     manager.stop();
-    try std.testing.expect(!manager.is_running);
+    try std.testing.expect(!manager.getStatus().is_running);
 }
 
 // ============================================================================
@@ -397,8 +398,8 @@ test "ha: ReplicationManager init/deinit" {
     });
     defer rm.deinit();
 
-    try std.testing.expectEqual(ha.ReplicationState.initializing, rm.state);
-    try std.testing.expect(rm.is_leader);
+    try std.testing.expectEqual(ha.ReplicationState.initializing, rm.getState());
+    try std.testing.expect(rm.isLeader());
 }
 
 test "ha: ReplicationManager add and count replicas" {
@@ -456,8 +457,8 @@ test "ha: ReplicationManager promoteToPrimary" {
 
     // Promote another node -- local becomes non-leader
     try rm.promoteToPrimary(999);
-    try std.testing.expect(!rm.is_leader);
-    try std.testing.expectEqual(@as(u64, 999), rm.leader_node_id);
+    try std.testing.expect(!rm.isLeader());
+    try std.testing.expectEqual(@as(u64, 999), rm.getLeaderNodeId());
 }
 
 test "ha: ReplicationManager processHeartbeat updates replica state" {
@@ -469,7 +470,7 @@ test "ha: ReplicationManager processHeartbeat updates replica state" {
     try rm.addReplica(100, "us-east-1", "10.0.0.2:5432");
 
     // Process a heartbeat with matching sequence -- should set active
-    rm.processHeartbeat(100, rm.current_sequence);
+    rm.processHeartbeat(100, rm.getCurrentSequence());
 }
 
 // ============================================================================

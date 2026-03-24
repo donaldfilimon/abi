@@ -235,6 +235,34 @@ pub const ReplicationManager = struct {
         self.updateState();
     }
 
+    /// Get current replication state
+    pub fn getState(self: *ReplicationManager) ReplicationState {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.state;
+    }
+
+    /// Check if this node is the leader
+    pub fn isLeader(self: *ReplicationManager) bool {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.is_leader;
+    }
+
+    /// Get the current replication sequence number
+    pub fn getCurrentSequence(self: *ReplicationManager) u64 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.current_sequence;
+    }
+
+    /// Get the leader node ID
+    pub fn getLeaderNodeId(self: *ReplicationManager) u64 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.leader_node_id;
+    }
+
     /// Get replica count
     pub fn getReplicaCount(self: *ReplicationManager) u32 {
         self.mutex.lock();

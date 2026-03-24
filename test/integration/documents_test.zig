@@ -95,6 +95,48 @@ test "documents: types sub-module is accessible" {
     try std.testing.expect(err == error.ParseFailed);
 }
 
+// ============================================================================
+// Error handling
+// ============================================================================
+
+test "documents: error set includes all expected variants" {
+    const errors = [_]documents.DocumentsError{
+        error.ParseFailed,
+        error.UnsupportedFormat,
+        error.InvalidInput,
+        error.OutOfMemory,
+    };
+    // All should be distinct
+    for (errors, 0..) |e, i| {
+        for (errors[i + 1 ..]) |e2| {
+            try std.testing.expect(e != e2);
+        }
+    }
+}
+
+test "documents: context lifecycle is idempotent" {
+    var ctx = documents.Context.init(std.testing.allocator);
+    ctx.deinit();
+    // Second deinit should not panic
+    ctx.deinit();
+}
+
+test "documents: html and pdf stubs are struct types" {
+    // Verify these are proper types, not just void
+    const html_info = @typeInfo(@TypeOf(documents.html));
+    const pdf_info = @typeInfo(@TypeOf(documents.pdf));
+    try std.testing.expect(html_info == .type);
+    try std.testing.expect(pdf_info == .type);
+}
+
+test "documents: feature flag consistency" {
+    // isEnabled and isInitialized should agree on disabled state
+    if (!build_options.feat_documents) {
+        try std.testing.expect(!documents.isEnabled());
+        try std.testing.expect(!documents.isInitialized());
+    }
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
