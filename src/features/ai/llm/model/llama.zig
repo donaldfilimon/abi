@@ -26,6 +26,10 @@ pub const LlamaModel = struct {
     logits: []f32,
     hidden: []f32,
 
+    /// Active persona for token injection (null = no persona bias).
+    /// Set via setPersona() before generate/forward calls.
+    active_persona: ?u8 = null,
+
     pub fn init(allocator: std.mem.Allocator, llama_config: config_mod.LlamaConfig) !LlamaModel {
         if (!llama_config.supportsLlamaAttentionLayout()) {
             return error.UnsupportedArchitecture;
@@ -121,11 +125,29 @@ pub const LlamaModel = struct {
         return model;
     }
 
+    /// Set the active persona for token injection.
+    /// Abbey=0, Aviva=1, Abi=2, null=no persona bias.
+    pub fn setPersona(self: *LlamaModel, persona_id: ?u8) void {
+        self.active_persona = persona_id;
+    }
+
     /// Forward pass for a single token.
     pub fn forward(self: *LlamaModel, token: u32, pos: u32) ![]f32 {
         // Get token embedding
         const embed_offset = @as(usize, token) * self.config.dim;
         @memcpy(self.hidden, self.weights.token_embedding[embed_offset .. embed_offset + self.config.dim]);
+
+        // Persona token injection: Z = Embed(token) + Embed(persona)
+        if (self.active_persona) |pid| {
+            if (pid < 3) {
+                const persona_emb = self.weights.persona_embeddings[pid];
+                if (persona_emb.len == self.config.dim) {
+                    for (self.hidden, persona_emb) |*h, p| {
+                        h.* += p;
+                    }
+                }
+            }
+        }
 
         // Pass through all layers
         for (self.layers, 0..) |*layer, i| {

@@ -46,12 +46,30 @@ pub const LlamaWeights = struct {
     /// Final normalization
     final_norm: []f32,
 
+    /// Persona embeddings: 3 vectors of hidden_dim (Abbey=0, Aviva=1, Abi=2)
+    /// Added to token embeddings before the first transformer layer.
+    persona_embeddings: [3][]f32 = .{ &[_]f32{}, &[_]f32{}, &[_]f32{} },
+
     /// Original GGUF file (for quantized weights)
     gguf_file: ?*gguf.GgufFile,
 
     pub fn init(allocator: std.mem.Allocator, llama_config: config_mod.LlamaConfig) !LlamaWeights {
         const layers = try allocator.alloc(LayerWeights, llama_config.n_layers);
         @memset(layers, std.mem.zeroes(LayerWeights));
+
+        // Initialize persona embeddings with characteristic small biases
+        var persona_embs: [3][]f32 = undefined;
+        for (0..3) |p| {
+            const emb = try allocator.alloc(f32, llama_config.dim);
+            // Deterministic seed per persona for reproducible initialization
+            const seed: u64 = 0x41424900 + @as(u64, p); // "ABI\0" + persona index
+            var prng = std.Random.DefaultPrng.init(seed);
+            const rng = prng.random();
+            for (emb) |*v| {
+                v.* = (rng.float(f32) - 0.5) * 0.02; // Small random in [-0.01, 0.01]
+            }
+            persona_embs[p] = emb;
+        }
 
         return .{
             .allocator = allocator,
@@ -60,6 +78,7 @@ pub const LlamaWeights = struct {
             .layers = layers,
             .output_proj = null,
             .final_norm = &[_]f32{},
+            .persona_embeddings = persona_embs,
             .gguf_file = null,
         };
     }
@@ -86,6 +105,10 @@ pub const LlamaWeights = struct {
 
         if (self.output_proj) |proj| {
             self.allocator.free(proj);
+        }
+
+        for (&self.persona_embeddings) |emb| {
+            if (emb.len > 0) self.allocator.free(emb);
         }
 
         if (self.final_norm.len > 0) {

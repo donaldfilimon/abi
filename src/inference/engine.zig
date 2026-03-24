@@ -408,6 +408,9 @@ pub const Engine = struct {
         const model_opaque = self.local_model orelse return self.generateDemo(request);
         const model: *llm_model.LlamaModel = @ptrCast(@alignCast(model_opaque));
 
+        // Set persona for token injection (Abbey/Aviva/Abi)
+        model.setPersona(request.persona_id);
+
         const start = time_mod.timestampNs();
 
         const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
