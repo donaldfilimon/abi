@@ -444,7 +444,7 @@ Key spec claims and their actual status:
 | Adaptive modulation (EMA learning) | **Implemented** | `src/features/ai/persona/modulation.zig` |
 | WDBX block chain memory | **Implemented** | `src/core/database/block_chain.zig`, `persona/memory.zig` |
 | Bias quantification formula | **Implemented** | `src/features/ai/constitution/enforcement.zig` — `computeBias()` with `BiasScore` struct |
-| Persona token injection (Z = Embed) | **Planned** | Inference engine exists but doesn't implement actual embedding injection |
+| Persona token injection (Z = Embed) | **Planned** | Local backend wired but persona embedding injection not yet in forward pass |
 | Benchmark numbers (110ms, 90 req/s) | **Aspirational** | No production inference benchmark; demo/connector backends only |
 | RLHF training pipeline | **Partial** | `abbey_train.zig` has LoRA fine-tuning config; no RLHF reward model |
 | Mixed-precision training | **Partial** | Quantization types (Q4_0, Q8_0) exist; no FP16/BF16 training loop |
@@ -454,7 +454,7 @@ Key spec claims and their actual status:
 ## Part IX: Future Roadmap
 
 ### 9.1 Near-Term (Infrastructure)
-- **Local inference backend**: GGUF model loading in the inference engine (currently demo/connector only)
+- **Local inference backend**: Engine wired to LLaMA pipeline (GGUF load → tokenize → forward → sample → decode); needs end-to-end testing with real model files
 - **HA cluster deployment**: Real network replication between nodes (currently single-node with queue stubs)
 - **PITR persistent log**: Crash-safe with atomic writes (tmp+fsync+rename), checkpoint persistence, and startup recovery hook in HaManager
 - **Vision module**: Platform screen capture stubs with error types (macOS: CoreGraphics implemented; Linux/Windows: documented stubs ready for implementation)
