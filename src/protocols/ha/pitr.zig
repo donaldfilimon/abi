@@ -624,26 +624,22 @@ pub const PitrManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // Build the binary buffer in memory
         var buf = std.ArrayListUnmanaged(u8).empty;
         defer buf.deinit(self.allocator);
 
-        // Write operation count
         const count: u64 = self.operation_log.items.len;
         try buf.appendSlice(self.allocator, &std.mem.toBytes(@as(u64, count)));
 
-        // Write each operation
         for (self.operation_log.items) |op| {
             try buf.appendSlice(self.allocator, &std.mem.toBytes(op.timestamp));
             try buf.appendSlice(self.allocator, &std.mem.toBytes(op.sequence_number));
             try buf.append(self.allocator, @intFromEnum(op.type));
 
-            // Key
             const key_len: u32 = @intCast(op.key.len);
             try buf.appendSlice(self.allocator, &std.mem.toBytes(key_len));
             try buf.appendSlice(self.allocator, op.key);
 
-            // Value (max u32 sentinel for null)
+            // u32 max sentinel encodes null
             if (op.value) |v| {
                 const val_len: u32 = @intCast(v.len);
                 try buf.appendSlice(self.allocator, &std.mem.toBytes(val_len));
@@ -652,7 +648,6 @@ pub const PitrManager = struct {
                 try buf.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, std.math.maxInt(u32))));
             }
 
-            // Previous value
             if (op.previous_value) |v| {
                 const prev_len: u32 = @intCast(v.len);
                 try buf.appendSlice(self.allocator, &std.mem.toBytes(prev_len));
@@ -701,7 +696,6 @@ pub const PitrManager = struct {
         const data = try std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(max_size));
         defer self.allocator.free(data);
 
-        // Clear existing checkpoints
         self.recovery_points.clearRetainingCapacity();
 
         var pos: usize = 0;

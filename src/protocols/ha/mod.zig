@@ -171,7 +171,9 @@ pub const HaManager = struct {
                     };
                 }
                 if (self.config.pitr_checkpoint_path.len > 0) {
-                    pm.loadCheckpoints(self.config.pitr_checkpoint_path) catch {};
+                    pm.loadCheckpoints(self.config.pitr_checkpoint_path) catch {
+                        self.emitEvent(.{ .pitr_checkpoint = .{ .sequence = 0, .timestamp = 0 } });
+                    };
                 }
             }
         }

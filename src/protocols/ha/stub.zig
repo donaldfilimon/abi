@@ -426,6 +426,23 @@ pub const PitrManager = struct {
         return Error.FeatureDisabled;
     }
 
+    pub fn captureOperationWithTimestamp(
+        self: *PitrManager,
+        op_type: OperationType,
+        key: []const u8,
+        value: ?[]const u8,
+        previous_value: ?[]const u8,
+        timestamp: i64,
+    ) Error!void {
+        _ = self;
+        _ = op_type;
+        _ = key;
+        _ = value;
+        _ = previous_value;
+        _ = timestamp;
+        return Error.FeatureDisabled;
+    }
+
     pub fn createCheckpoint(self: *PitrManager) Error!u64 {
         _ = self;
         return Error.FeatureDisabled;
