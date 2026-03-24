@@ -77,6 +77,11 @@ pub const Server = struct {
     pub fn runInfo(self: *Server) void {
         _ = self;
     }
+
+    pub fn processMessage(self: *Server, _: []const u8, _: anytype) !void {
+        _ = self;
+        return error.FeatureDisabled;
+    }
 };
 
 pub fn createCombinedServer(_: std.mem.Allocator, _: []const u8) !Server {

@@ -34,6 +34,11 @@ pub const RegisteredResource = struct {
     handler: ResourceHandler,
 };
 
+/// Maximum message size accepted by the server (4 MB).
+/// Messages exceeding this limit are rejected with a JSON-RPC Invalid Request error
+/// to prevent denial-of-service via oversized stdin payloads.
+pub const MAX_MESSAGE_SIZE: usize = 4 * 1024 * 1024;
+
 /// MCP Server state
 pub const Server = struct {
     allocator: std.mem.Allocator,
@@ -112,7 +117,7 @@ pub const Server = struct {
             if (trimmed.len == 0) continue; // Skip empty lines
 
             // Dispatch message and write response
-            self.handleMessage(trimmed, &writer.interface) catch |err| {
+            self.processMessage(trimmed, &writer.interface) catch |err| {
                 std.log.err("Error handling message: {t}", .{err});
                 types.writeError(
                     &writer.interface,
@@ -143,6 +148,26 @@ pub const Server = struct {
         std.log.info("MCP server ready ({d} tools registered). Use run(io) with I/O backend.", .{self.tools.items.len});
     }
 
+    /// Process a single JSON-RPC message with size validation.
+    /// This is the public entry point for message handling — it enforces
+    /// MAX_MESSAGE_SIZE and delegates to the internal dispatch logic.
+    /// Returns without error even when the message is invalid; error
+    /// responses are written to `writer` per JSON-RPC 2.0 spec.
+    pub fn processMessage(self: *Self, line: []const u8, writer: anytype) !void {
+        // Enforce message size limit to prevent DoS
+        if (line.len > MAX_MESSAGE_SIZE) {
+            std.log.warn("MCP: rejecting oversized message ({d} bytes, limit {d})", .{ line.len, MAX_MESSAGE_SIZE });
+            try types.writeError(
+                writer,
+                null,
+                types.ErrorCode.invalid_request,
+                "Invalid Request - message too large",
+            );
+            return;
+        }
+        return self.handleMessage(line, writer);
+    }
+
     fn handleMessage(self: *Self, line: []const u8, writer: anytype) !void {
         // Parse JSON
         const parsed = std.json.parseFromSlice(
@@ -170,12 +195,14 @@ pub const Server = struct {
         else
             null;
 
-        // Validate JSON-RPC version (spec requires "2.0")
-        if (obj.get("jsonrpc")) |ver| {
-            if (ver != .string or !std.mem.eql(u8, ver.string, "2.0")) {
-                try types.writeError(writer, id, types.ErrorCode.invalid_request, "Invalid JSON-RPC version");
-                return;
-            }
+        // Validate JSON-RPC version (spec requires "2.0" field to be present)
+        const ver = obj.get("jsonrpc") orelse {
+            try types.writeError(writer, id, types.ErrorCode.invalid_request, "Missing required jsonrpc field");
+            return;
+        };
+        if (ver != .string or !std.mem.eql(u8, ver.string, "2.0")) {
+            try types.writeError(writer, id, types.ErrorCode.invalid_request, "Invalid JSON-RPC version");
+            return;
         }
 
         // Extract method
@@ -969,6 +996,125 @@ test "handleMessage tool error returns isError" {
     const written = out[0..writer.end];
     try std.testing.expect(std.mem.indexOf(u8, written, "\"isError\":true") != null);
     try std.testing.expect(std.mem.indexOf(u8, written, "Error:") != null);
+}
+
+test "processMessage rejects oversized message" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    // Create a message larger than MAX_MESSAGE_SIZE
+    const oversized = try allocator.alloc(u8, MAX_MESSAGE_SIZE + 1);
+    defer allocator.free(oversized);
+    @memset(oversized, 'x');
+
+    var out: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+
+    try server.processMessage(oversized, &writer);
+
+    const written = out[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, written, "-32600") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "message too large") != null);
+}
+
+test "processMessage rejects missing jsonrpc field" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    var out: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+
+    try server.processMessage(
+        \\{"method":"ping","id":1}
+    , &writer);
+
+    const written = out[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, written, "-32600") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "Missing required jsonrpc field") != null);
+}
+
+test "processMessage handler error produces JSON-RPC error not crash" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    try server.addTool(.{
+        .def = .{ .name = "crashy", .description = "Fails with error", .input_schema = "{}" },
+        .handler = struct {
+            fn handle(_: std.mem.Allocator, _: ?std.json.ObjectMap, _: *std.ArrayListUnmanaged(u8)) !void {
+                return error.OutOfMemory;
+            }
+        }.handle,
+    });
+
+    var out: [1024]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+
+    try server.processMessage(
+        \\{"jsonrpc":"2.0","method":"tools/call","id":99,"params":{"name":"crashy"}}
+    , &writer);
+
+    const written = out[0..writer.end];
+    // Should get a proper response (not a crash), with isError flag
+    try std.testing.expect(std.mem.indexOf(u8, written, "\"isError\":true") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "\"id\":99") != null);
+}
+
+test "processMessage normal request works after error recovery" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    try server.addTool(.{
+        .def = .{ .name = "bad", .description = "Fails", .input_schema = "{}" },
+        .handler = struct {
+            fn handle(_: std.mem.Allocator, _: ?std.json.ObjectMap, _: *std.ArrayListUnmanaged(u8)) !void {
+                return error.Broken;
+            }
+        }.handle,
+    });
+
+    // First: send a request that triggers an error
+    {
+        var out: [1024]u8 = undefined;
+        var writer = std.Io.Writer.fixed(&out);
+        try server.processMessage(
+            \\{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"bad"}}
+        , &writer);
+        const written = out[0..writer.end];
+        try std.testing.expect(std.mem.indexOf(u8, written, "\"isError\":true") != null);
+    }
+
+    // Second: send a normal ping — server should still work
+    {
+        var out: [256]u8 = undefined;
+        var writer = std.Io.Writer.fixed(&out);
+        try server.processMessage(
+            \\{"jsonrpc":"2.0","method":"ping","id":2}
+        , &writer);
+        const written = out[0..writer.end];
+        try std.testing.expectEqualStrings(
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{}}\n",
+            written,
+        );
+    }
+}
+
+test "processMessage validates size then content" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    // A message within size limit but with invalid JSON still gets parse error
+    var out: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+    try server.processMessage("not valid json", &writer);
+
+    const written = out[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, written, "-32700") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "Parse error") != null);
 }
 
 test {
