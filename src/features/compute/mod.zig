@@ -11,20 +11,20 @@ const std = @import("std");
 pub const ComputeError = types.ComputeError;
 pub const Error = types.Error;
 
-var compute_initialized: bool = false;
+var compute_initialized = std.atomic.Value(bool).init(false);
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
     initialized: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) Context {
-        compute_initialized = true;
+        compute_initialized.store(true, .release);
         return .{ .allocator = allocator, .initialized = true };
     }
 
     pub fn deinit(self: *Context) void {
         self.initialized = false;
-        compute_initialized = false;
+        compute_initialized.store(false, .release);
     }
 };
 
@@ -33,7 +33,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return compute_initialized;
+    return compute_initialized.load(.acquire);
 }
 
 test {

@@ -224,12 +224,13 @@ pub const Context = struct {
     }
 };
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 var client_mutex = sync.Mutex{};
 var default_client: ?HttpClient = null;
 
 pub fn init(allocator: std.mem.Allocator) !void {
     if (!isEnabled()) return WebError.WebDisabled;
+    if (initialized.load(.acquire)) return;
 
     client_mutex.lock();
     defer client_mutex.unlock();
@@ -237,7 +238,7 @@ pub fn init(allocator: std.mem.Allocator) !void {
     if (default_client == null) {
         default_client = try HttpClient.init(allocator);
     }
-    initialized = true;
+    initialized.store(true, .release);
 }
 
 pub fn deinit() void {
@@ -248,7 +249,7 @@ pub fn deinit() void {
         http_client.deinit();
         default_client = null;
     }
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 pub fn isEnabled() bool {
@@ -256,7 +257,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 pub fn get(allocator: std.mem.Allocator, url: []const u8) !Response {

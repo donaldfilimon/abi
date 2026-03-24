@@ -9,7 +9,7 @@ const build_options = @import("build_options");
 const framework_config = @import("../../core/config/mod.zig");
 const core_facade = @import("facades/core.zig");
 
-var initialized: bool = false;
+var initialized = std.atomic.Value(bool).init(false);
 
 pub const Error = core_facade.Error;
 
@@ -63,11 +63,12 @@ pub const createRegistry = core_facade.createRegistry;
 pub const createAgent = core_facade.createAgent;
 
 pub fn init(_: std.mem.Allocator, _: framework_config.AiConfig) !void {
-    initialized = true;
+    if (initialized.load(.acquire)) return;
+    initialized.store(true, .release);
 }
 
 pub fn deinit() void {
-    initialized = false;
+    initialized.store(false, .release);
 }
 
 pub fn isEnabled() bool {
@@ -75,7 +76,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return initialized;
+    return initialized.load(.acquire);
 }
 
 test {
