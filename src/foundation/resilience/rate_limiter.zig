@@ -122,9 +122,9 @@ pub fn RateLimiter(comptime strategy: SyncStrategy) type {
             .atomic => std.atomic.Value(u64),
             .mutex, .none => u64,
         };
+        // x86_64 codegen does not support lock-free 128-bit atomics; use u64
+        // (nanosecond timestamps fit comfortably: u64 max ≈ 584 years from epoch 0).
         const TimeField = switch (strategy) {
-            // u128 atomics are not supported on x86_64 Linux; u64 nanoseconds
-            // cover ~584 years which is sufficient for rate-limiter timestamps.
             .atomic => std.atomic.Value(u64),
             .mutex, .none => u128,
         };
