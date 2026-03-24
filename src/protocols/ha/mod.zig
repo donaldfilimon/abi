@@ -23,6 +23,7 @@
 //! ```
 
 const std = @import("std");
+const build_options = @import("build_options");
 const platform_time = @import("../../foundation/mod.zig").time;
 
 const sync = @import("../../foundation/mod.zig").sync;
@@ -46,6 +47,26 @@ pub const BackupResult = backup.BackupResult;
 pub const PitrManager = pitr.PitrManager;
 pub const PitrConfig = pitr.PitrConfig;
 pub const RecoveryPoint = pitr.RecoveryPoint;
+
+var initialized = std.atomic.Value(bool).init(false);
+
+pub fn init(_: std.mem.Allocator) !void {
+    if (!isEnabled()) return error.FeatureDisabled;
+    if (initialized.load(.acquire)) return;
+    initialized.store(true, .release);
+}
+
+pub fn deinit() void {
+    initialized.store(false, .release);
+}
+
+pub fn isEnabled() bool {
+    return build_options.feat_ha;
+}
+
+pub fn isInitialized() bool {
+    return initialized.load(.acquire);
+}
 
 /// High Availability configuration
 pub const HaConfig = struct {
