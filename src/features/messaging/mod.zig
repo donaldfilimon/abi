@@ -19,8 +19,9 @@ pub const types = @import("types.zig");
 
 // Submodules
 const state_mod = @import("state.zig");
-const delivery = @import("delivery.zig");
+const delivery_mod = @import("delivery.zig");
 const pattern_matching = @import("pattern_matching.zig");
+const deliverToSubscribers = delivery_mod.deliverToSubscribers;
 
 // Re-export internal types used by submodules (and tests)
 const MessagingState = state_mod.MessagingState;
@@ -104,7 +105,7 @@ pub fn publish(
     defer s.rw_lock.unlock();
 
     // Deliver to all matching subscribers
-    delivery.deliverToSubscribers(s, topic_name, payload, msg_id);
+    deliverToSubscribers(s, topic_name, payload, msg_id);
 
     // Track topic stats
     if (s.topics.get(topic_name)) |topic| {

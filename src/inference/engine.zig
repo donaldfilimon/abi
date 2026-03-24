@@ -24,6 +24,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const build_options = @import("build_options");
+const engine_async = @import("engine/async.zig");
+const engine_backends = @import("engine/backends.zig");
+const engine_types = @import("engine/types.zig");
 const kv_cache_mod = @import("kv_cache.zig");
 const scheduler_mod = @import("scheduler.zig");
 const sampler_mod = @import("sampler.zig");
@@ -38,201 +41,23 @@ else
         pub const LlamaModel = void;
     };
 
-/// Inference backend selection.
-pub const Backend = enum {
-    /// Demo/testing: generates synthetic text seeded from prompts.
-    demo,
-    /// Connector-backed: delegates to external LLM providers (OpenAI, Anthropic, Ollama, etc.).
-    connector,
-    /// Local transformer: uses the built-in Zig transformer implementation.
-    local,
-};
-
-pub const Config = struct {
-    vocab_size: u32 = 128256,
-    hidden_dim: u32 = 4096,
-    num_layers: u32 = 32,
-    num_heads: u32 = 32,
-    head_dim: u32 = 128,
-    max_seq_len: u32 = 131072,
-    max_batch_size: u32 = 64,
-    kv_cache_pages: u32 = 10000,
-    page_size: u32 = 16,
-    /// Which backend to use for inference.
-    backend: Backend = .demo,
-    /// Model identifier for connector backend (e.g., "gpt-4", "claude-3", "llama-3").
-    model_id: []const u8 = "abi-demo",
-    /// Path to GGUF model file for local backend (empty = fall back to demo).
-    model_path: []const u8 = "",
-};
-
-pub const FinishReason = enum {
-    stop,
-    length,
-    error_,
-};
-
-/// Generation result.
-///
-/// **Ownership**: The caller owns the returned `Result` and *must* call
-/// `deinit()` with the same allocator that the engine was initialised with
-/// when the result is no longer needed. Failing to do so will leak the
-/// backing `text` and `tokens` buffers when the respective `*_owned` flags
-/// are `true`.
-pub const Result = struct {
-    id: u64,
-    text: []const u8,
-    text_owned: bool = true,
-    tokens: []const u32,
-    tokens_owned: bool = true,
-    finish_reason: FinishReason,
-    prompt_tokens: u32,
-    completion_tokens: u32,
-    latency_ms: f32,
-    ttft_ms: f32,
-    tokens_per_second: f32,
-
-    /// Release owned buffers. Safe to call multiple times.
-    pub fn deinit(self: *Result, allocator: Allocator) void {
-        if (self.text_owned) {
-            allocator.free(self.text);
-        }
-        if (self.tokens_owned) {
-            allocator.free(self.tokens);
-        }
-        self.text_owned = false;
-        self.tokens_owned = false;
-    }
-};
-
-/// Thread-safe container returned by `generateAsyncWithTimeout`.
-///
-/// The engine spawns a background thread that writes the result into this
-/// container. The caller can either:
-///   - call `wait()` / `waitTimeout()` to block until the result is ready, or
-///   - call `deinit()` to abandon the result (the background thread will
-///     clean up its own allocations).
-///
-/// Exactly one of {caller, background thread} frees the inner `Result`
-/// buffers, coordinated by the `state` atomic.
-pub const AsyncResult = struct {
-    const Self = @This();
-
-    const State = enum(u8) {
-        /// Background thread has not yet written the result.
-        pending = 0,
-        /// Result is available for the caller to consume.
-        ready = 1,
-        /// Caller abandoned the result; background thread must free it.
-        abandoned = 2,
-    };
-
-    allocator: Allocator,
-    state: std.atomic.Value(u8),
-    result: Result,
-
-    /// Block until the result is available or `timeout_ms` elapses.
-    /// Returns `null` on timeout. The caller owns the returned `Result`
-    /// and must call `Result.deinit()` on it.
-    pub fn waitTimeout(self: *Self, timeout_ms: u64) ?Result {
-        const deadline_ns = time_mod.timestampNs() + timeout_ms * std.time.ns_per_ms;
-        while (self.state.load(.acquire) == @intFromEnum(State.pending)) {
-            if (time_mod.timestampNs() >= deadline_ns) return null;
-            time_mod.sleepMs(1);
-        }
-        return self.result;
-    }
-
-    /// Block indefinitely until the result is available. The caller
-    /// owns the returned `Result` and must call `Result.deinit()`.
-    pub fn wait(self: *Self) Result {
-        while (self.state.load(.acquire) == @intFromEnum(State.pending)) {
-            time_mod.sleepMs(1);
-        }
-        return self.result;
-    }
-
-    /// Clean up an AsyncResult. Handles all lifecycle states:
-    ///
-    /// - **pending**: Transitions to `abandoned`; the background thread
-    ///   will free the result buffers and the container when it completes.
-    /// - **ready**: The result was produced but not consumed (or was
-    ///   already consumed and the buffers freed via `Result.deinit()`).
-    ///   Frees any remaining owned buffers and the container.
-    /// - **abandoned**: No-op (already handed off to the background thread).
-    ///
-    /// After calling `deinit()`, the caller must not dereference `self`.
-    pub fn deinit(self: *Self) void {
-        const prev = self.state.cmpxchgStrong(
-            @intFromEnum(State.pending),
-            @intFromEnum(State.abandoned),
-            .acq_rel,
-            .acquire,
-        );
-        if (prev) |state| {
-            if (state == @intFromEnum(State.ready)) {
-                // Result was produced. Free any owned buffers that the
-                // caller has not already freed via Result.deinit(), then
-                // destroy the heap-allocated container.
-                self.result.deinit(self.allocator);
-                self.allocator.destroy(self);
-            }
-            // State.abandoned: another deinit() already ran — no-op.
-        }
-        // CAS succeeded (was pending, now abandoned): the background
-        // thread will free everything when it finishes.
-    }
-
-    /// Free the container after the result has been consumed via
-    /// `wait()` or `waitTimeout()`. The caller must have already
-    /// extracted and taken ownership of the inner `Result`.
-    pub fn destroy(self: *Self) void {
-        self.allocator.destroy(self);
-    }
-};
-
-pub const Stats = struct {
-    total_requests: u64,
-    total_tokens_generated: u64,
-    active_sequences: u32,
-    cache_utilization: f32,
-    pending_requests: u32,
-    avg_tokens_per_second: f32,
-    backend: Backend,
-};
-
-const demo_vocabulary = [_][]const u8{
-    "the",      "a",       "is",      "of",     "and",    "to",      "in",     "that",   "it",     "for",
-    "was",      "on",      "are",     "with",   "as",     "at",      "be",     "this",   "have",   "from",
-    "data",     "model",   "query",   "result", "system", "process", "value",  "node",   "index",  "vector",
-    "search",   "layer",   "output",  "input",  "token",  "state",   "memory", "cache",  "error",  "status",
-    "response", "request", "context", "agent",  "neural", "graph",   "batch",  "stream", "config", "module",
-};
+pub const Backend = engine_types.Backend;
+pub const Config = engine_types.Config;
+pub const FinishReason = engine_types.FinishReason;
+pub const Result = engine_types.Result;
+pub const AsyncResult = engine_types.AsyncResult;
+pub const Stats = engine_types.Stats;
 
 fn makeErrorResult(id: u64, message: []const u8) Result {
-    return .{
-        .id = id,
-        .text = message,
-        .text_owned = false,
-        .tokens = &.{},
-        .tokens_owned = false,
-        .finish_reason = .error_,
-        .prompt_tokens = 0,
-        .completion_tokens = 0,
-        .latency_ms = 0,
-        .ttft_ms = 0,
-        .tokens_per_second = 0,
-    };
+    return engine_types.makeErrorResult(id, message);
 }
 
 fn elapsedNsToMs(elapsed_ns: u64) f32 {
-    return @as(f32, @floatFromInt(elapsed_ns)) / @as(f32, @floatFromInt(std.time.ns_per_ms));
+    return engine_types.elapsedNsToMs(elapsed_ns);
 }
 
 fn tokensPerSecond(token_count: u32, elapsed_ns: u64) f32 {
-    if (elapsed_ns == 0) return 0;
-    return @as(f32, @floatFromInt(token_count)) * @as(f32, @floatFromInt(std.time.ns_per_s)) /
-        @as(f32, @floatFromInt(elapsed_ns));
+    return engine_types.tokensPerSecond(token_count, elapsed_ns);
 }
 
 pub const Engine = struct {
@@ -356,254 +181,32 @@ pub const Engine = struct {
     /// Currently implements a prompt-echo response that preserves the
     /// engine API contract while the connector bridge is integrated.
     fn generateConnector(self: *Self, request: scheduler_mod.Request) !Result {
-        const start = time_mod.timestampNs();
-
-        const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
-        if (!cache_ok) {
-            return makeErrorResult(request.id, "Error: insufficient KV cache capacity");
-        }
-        defer self.kv_cache.free(request.id);
-
-        // Build connector response.
-        // In production: connectors.route(self.config.model_id, request.prompt, .{ ... })
-        // For now: echo-based response that acknowledges the prompt and model.
-        const response_text = try std.fmt.allocPrint(
-            self.allocator,
-            "[{s}] Processing: {s}",
-            .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
-        );
-        errdefer self.allocator.free(response_text);
-
-        const end = time_mod.timestampNs();
-        const elapsed_ns = end - start;
-        const latency = elapsedNsToMs(elapsed_ns);
-        const token_count: u32 = @intCast(@min(response_text.len / 4, std.math.maxInt(u32)));
-
-        _ = self.total_requests.fetchAdd(1, .acq_rel);
-        _ = self.total_tokens.fetchAdd(token_count, .acq_rel);
-        _ = self.total_elapsed_ns.fetchAdd(elapsed_ns, .acq_rel);
-
-        return Result{
-            .id = request.id,
-            .text = response_text,
-            .text_owned = true,
-            .tokens = &.{},
-            .tokens_owned = false,
-            .finish_reason = .stop,
-            .prompt_tokens = @intCast(@min(request.prompt.len, std.math.maxInt(u32))),
-            .completion_tokens = token_count,
-            .latency_ms = latency,
-            .ttft_ms = latency,
-            .tokens_per_second = tokensPerSecond(token_count, elapsed_ns),
-        };
+        return engine_backends.generateConnector(self, request);
     }
 
     /// Local transformer generation: uses the built-in transformer forward pass.
     /// Falls back to demo mode when local model weights are not loaded.
     fn generateLocal(self: *Self, request: scheduler_mod.Request) !Result {
-        if (comptime !(build_options.feat_ai and build_options.feat_llm)) {
-            return self.generateDemo(request);
-        }
-
-        const model_opaque = self.local_model orelse return self.generateDemo(request);
-        const model: *llm_model.LlamaModel = @ptrCast(@alignCast(model_opaque));
-
-        // Set persona for token injection (Abbey/Aviva/Abi)
-        model.setPersona(request.persona_id);
-
-        const start = time_mod.timestampNs();
-
-        const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
-        if (!cache_ok) return makeErrorResult(request.id, "Error: insufficient KV cache capacity");
-        defer self.kv_cache.free(request.id);
-
-        // Tokenize prompt
-        const prompt_tokens = model.encode(request.prompt) catch
-            return makeErrorResult(request.id, "Error: tokenizer failed");
-        defer self.allocator.free(prompt_tokens);
-
-        if (prompt_tokens.len == 0) return makeErrorResult(request.id, "Error: empty prompt");
-
-        // Prefill: run all prompt tokens through the model
-        _ = model.forwardBatch(prompt_tokens, 0) catch
-            return makeErrorResult(request.id, "Error: prefill failed");
-
-        // Autoregressive generation
-        const tokens = try self.allocator.alloc(u32, request.max_tokens);
-        var tokens_owned = true;
-        defer if (tokens_owned) self.allocator.free(tokens);
-
-        var local_sampler = self.sampler;
-        local_sampler.params.temperature = request.temperature;
-        local_sampler.params.top_p = request.top_p;
-        local_sampler.params.top_k = request.top_k;
-
-        var last_token: u32 = prompt_tokens[prompt_tokens.len - 1];
-        var pos: u32 = @intCast(prompt_tokens.len);
-        var actual_count: u32 = 0;
-        var finish_reason: FinishReason = .length;
-
-        for (0..request.max_tokens) |i| {
-            const logits = model.forward(last_token, pos) catch
-                return makeErrorResult(request.id, "Error: forward pass failed");
-            const next_token = local_sampler.sample(logits);
-            tokens[i] = next_token;
-            actual_count += 1;
-            if (next_token <= 2) { // EOS/BOS/PAD tokens
-                finish_reason = .stop;
-                break;
-            }
-            last_token = next_token;
-            pos += 1;
-        }
-
-        // Decode tokens to text
-        const text = model.decode(tokens[0..actual_count]) catch
-            try std.fmt.allocPrint(self.allocator, "<{d} tokens generated>", .{actual_count});
-
-        const elapsed_ns = time_mod.timestampNs() - start;
-        const latency = @as(f32, @floatFromInt(elapsed_ns)) / @as(f32, @floatFromInt(std.time.ns_per_ms));
-
-        _ = self.total_requests.fetchAdd(1, .acq_rel);
-        _ = self.total_tokens.fetchAdd(actual_count, .acq_rel);
-        _ = self.total_elapsed_ns.fetchAdd(elapsed_ns, .acq_rel);
-
-        tokens_owned = false; // Transfer ownership to Result
-        return .{
-            .id = request.id,
-            .text = text,
-            .text_owned = true,
-            .tokens = tokens,
-            .tokens_owned = true,
-            .finish_reason = finish_reason,
-            .prompt_tokens = @intCast(prompt_tokens.len),
-            .completion_tokens = actual_count,
-            .latency_ms = latency,
-            .ttft_ms = latency,
-            .tokens_per_second = tokensPerSecond(actual_count, elapsed_ns),
-        };
+        return engine_backends.generateLocal(self, request);
     }
 
     /// Demo generation: synthetic text seeded from input prompts.
     fn generateDemo(self: *Self, request: scheduler_mod.Request) !Result {
-        const start = time_mod.timestampNs();
-
-        const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
-        if (!cache_ok) {
-            return makeErrorResult(request.id, "Error: insufficient KV cache capacity");
-        }
-        defer self.kv_cache.free(request.id);
-
-        const num_tokens = request.max_tokens;
-        const tokens = try self.allocator.alloc(u32, num_tokens);
-        errdefer self.allocator.free(tokens);
-        const vocab_n = @min(self.config.vocab_size, 256);
-        var local_sampler = self.sampler;
-        local_sampler.params.temperature = request.temperature;
-        local_sampler.params.top_p = request.top_p;
-        local_sampler.params.top_k = request.top_k;
-
-        // Seed logits from the prompt content so output depends on input.
-        var prompt_hash: u64 = 0x517cc1b727220a95;
-        for (request.prompt) |byte| {
-            prompt_hash ^= @as(u64, byte);
-            prompt_hash *%= 0x100000001b3;
-        }
-
-        var finish_reason: FinishReason = .length;
-        var actual_count: u32 = 0;
-
-        for (tokens, 0..) |*t, step_i| {
-            var logits_buf: [256]f32 = undefined;
-            const logits_slice = logits_buf[0..vocab_n];
-
-            var step_seed = prompt_hash +% @as(u64, @intCast(step_i)) *% 0x9e3779b97f4a7c15;
-            for (logits_slice, 0..) |*l, j| {
-                const mixed = step_seed ^ (@as(u64, @intCast(j)) *% 0x517cc1b727220a95);
-                const bits: u32 = @truncate(mixed >> 16);
-                l.* = (@as(f32, @floatFromInt(bits % 1024)) / 256.0) - 2.0;
-                step_seed = step_seed *% 0x100000001b3 +% @as(u64, @intCast(j));
-            }
-
-            if (step_i > num_tokens / 2) {
-                if (vocab_n > 2) {
-                    logits_slice[1] += @as(f32, @floatFromInt(step_i)) * 0.02;
-                    logits_slice[2] += @as(f32, @floatFromInt(step_i)) * 0.015;
-                }
-            }
-
-            t.* = local_sampler.sample(logits_slice);
-            actual_count += 1;
-
-            if (t.* <= 2 and step_i >= 4) {
-                finish_reason = .stop;
-                actual_count = @intCast(step_i + 1);
-                break;
-            }
-        }
-
-        // Build text output from demo vocabulary
-        var total_len: usize = 0;
-        for (tokens[0..actual_count], 0..) |tok, i| {
-            const word = demo_vocabulary[tok % demo_vocabulary.len];
-            total_len += word.len;
-            if (i + 1 < actual_count) total_len += 1;
-        }
-
-        const text_buf = try self.allocator.alloc(u8, total_len);
-        var pos: usize = 0;
-        for (tokens[0..actual_count], 0..) |tok, i| {
-            const word = demo_vocabulary[tok % demo_vocabulary.len];
-            @memcpy(text_buf[pos..][0..word.len], word);
-            pos += word.len;
-            if (i + 1 < actual_count) {
-                text_buf[pos] = ' ';
-                pos += 1;
-            }
-        }
-
-        const end = time_mod.timestampNs();
-        const elapsed_ns = end - start;
-        const latency = elapsedNsToMs(elapsed_ns);
-        const tps = tokensPerSecond(actual_count, elapsed_ns);
-
-        _ = self.total_requests.fetchAdd(1, .acq_rel);
-        _ = self.total_tokens.fetchAdd(actual_count, .acq_rel);
-        _ = self.total_elapsed_ns.fetchAdd(elapsed_ns, .acq_rel);
-
-        return Result{
-            .id = request.id,
-            .text = text_buf,
-            .text_owned = true,
-            .tokens = tokens,
-            .tokens_owned = true,
-            .finish_reason = finish_reason,
-            .prompt_tokens = @intCast(@min(request.prompt.len, std.math.maxInt(u32))),
-            .completion_tokens = actual_count,
-            .latency_ms = latency,
-            .ttft_ms = latency / @as(f32, @floatFromInt(@max(actual_count, 1))),
-            .tokens_per_second = tps,
-        };
+        return engine_backends.generateDemo(self, request);
     }
 
     pub fn submit(self: *Self, request: scheduler_mod.Request) !bool {
         return self.scheduler.submit(request);
     }
 
-    pub const AsyncCallback = *const fn (Result) void;
+    pub const AsyncCallback = engine_async.AsyncCallback;
 
     fn beginAsyncJob(self: *Self) !void {
-        self.async_mu.lock();
-        defer self.async_mu.unlock();
-        if (self.closing_async) return error.ShutdownInProgress;
-        self.in_flight_async += 1;
+        return engine_async.beginAsyncJob(self);
     }
 
     fn finishAsyncJob(self: *Self) void {
-        self.async_mu.lock();
-        defer self.async_mu.unlock();
-        std.debug.assert(self.in_flight_async > 0);
-        self.in_flight_async -= 1;
+        engine_async.finishAsyncJob(self);
     }
 
     /// Generate a response asynchronously on a separate thread, invoking a
@@ -614,50 +217,7 @@ pub const Engine = struct {
     /// **Note**: prefer `generateAsyncWithTimeout` for new code — it gives
     /// the caller explicit ownership and timeout support.
     pub fn generateAsync(self: *Self, request: scheduler_mod.Request, callback: AsyncCallback) !void {
-        try self.beginAsyncJob();
-        errdefer self.finishAsyncJob();
-
-        const prompt_copy = try self.allocator.dupe(u8, request.prompt);
-        errdefer self.allocator.free(prompt_copy);
-
-        const profile_copy = try self.allocator.dupe(u8, request.profile);
-        errdefer self.allocator.free(profile_copy);
-
-        const AsyncContext = struct {
-            engine: *Self,
-            request: scheduler_mod.Request,
-            callback: AsyncCallback,
-
-            fn run(ctx: @This()) void {
-                defer ctx.engine.finishAsyncJob();
-                defer ctx.engine.allocator.free(ctx.request.profile);
-                defer ctx.engine.allocator.free(ctx.request.prompt);
-
-                var res = ctx.engine.generate(ctx.request) catch makeErrorResult(ctx.request.id, "Error: internal generation error");
-                defer res.deinit(ctx.engine.allocator);
-                ctx.callback(res);
-            }
-        };
-
-        const ctx = AsyncContext{
-            .engine = self,
-            .request = .{
-                .id = request.id,
-                .prompt = prompt_copy,
-                .max_tokens = request.max_tokens,
-                .temperature = request.temperature,
-                .top_p = request.top_p,
-                .top_k = request.top_k,
-                .profile = profile_copy,
-                .priority = request.priority,
-                .created_at = request.created_at,
-                .stream = request.stream,
-            },
-            .callback = callback,
-        };
-
-        const thread = try std.Thread.spawn(.{}, AsyncContext.run, .{ctx});
-        thread.detach();
+        return engine_async.generateAsync(self, request, callback);
     }
 
     /// Generate a response asynchronously, returning an `*AsyncResult` that
@@ -675,85 +235,11 @@ pub const Engine = struct {
     ///   it finishes, so the caller must not dereference it after calling
     ///   `deinit()`.
     pub fn generateAsyncWithTimeout(self: *Self, request: scheduler_mod.Request) !*AsyncResult {
-        try self.beginAsyncJob();
-        errdefer self.finishAsyncJob();
-
-        const prompt_copy = try self.allocator.dupe(u8, request.prompt);
-        errdefer self.allocator.free(prompt_copy);
-
-        const profile_copy = try self.allocator.dupe(u8, request.profile);
-        errdefer self.allocator.free(profile_copy);
-
-        const ar = try self.allocator.create(AsyncResult);
-        errdefer self.allocator.destroy(ar);
-
-        ar.* = .{
-            .allocator = self.allocator,
-            .state = std.atomic.Value(u8).init(@intFromEnum(AsyncResult.State.pending)),
-            .result = undefined,
-        };
-
-        const TimeoutContext = struct {
-            engine: *Self,
-            request: scheduler_mod.Request,
-            ar: *AsyncResult,
-
-            fn run(ctx: @This()) void {
-                defer ctx.engine.finishAsyncJob();
-                defer ctx.engine.allocator.free(ctx.request.profile);
-                defer ctx.engine.allocator.free(ctx.request.prompt);
-
-                const res = ctx.engine.generate(ctx.request) catch makeErrorResult(ctx.request.id, "Error: internal generation error");
-
-                // Write result data before attempting to publish.
-                ctx.ar.result = res;
-
-                // Atomically transition pending -> ready. If the caller
-                // has already abandoned (pending -> abandoned), we own
-                // the result and must free it.
-                const prev = ctx.ar.state.cmpxchgStrong(
-                    @intFromEnum(AsyncResult.State.pending),
-                    @intFromEnum(AsyncResult.State.ready),
-                    .acq_rel,
-                    .acquire,
-                );
-                if (prev != null) {
-                    // Caller abandoned — clean up owned buffers directly.
-                    if (ctx.ar.result.text_owned) ctx.engine.allocator.free(ctx.ar.result.text);
-                    if (ctx.ar.result.tokens_owned) ctx.engine.allocator.free(ctx.ar.result.tokens);
-                    ctx.engine.allocator.destroy(ctx.ar);
-                    return;
-                }
-            }
-        };
-
-        const ctx = TimeoutContext{
-            .engine = self,
-            .request = .{
-                .id = request.id,
-                .prompt = prompt_copy,
-                .max_tokens = request.max_tokens,
-                .temperature = request.temperature,
-                .top_p = request.top_p,
-                .top_k = request.top_k,
-                .profile = profile_copy,
-                .priority = request.priority,
-                .created_at = request.created_at,
-                .stream = request.stream,
-            },
-            .ar = ar,
-        };
-
-        const thread = try std.Thread.spawn(.{}, TimeoutContext.run, .{ctx});
-        thread.detach();
-
-        return ar;
+        return engine_async.generateAsyncWithTimeout(self, request);
     }
 
     fn isClosing(self: *Self) bool {
-        self.async_mu.lock();
-        defer self.async_mu.unlock();
-        return self.closing_async;
+        return engine_async.isClosing(self);
     }
 
     /// Return a snapshot of engine statistics. Safe to call from any thread
