@@ -76,7 +76,7 @@ pub fn addSteps(ctx: Context) Steps {
         ctx.b,
         ctx.target,
         ctx.optimize,
-        "src/features/gateway/mod.zig",
+        "src/gateway_mod_test.zig",
         ctx.build_options_module,
     );
     if (ctx.target.result.os.tag == .macos) {
