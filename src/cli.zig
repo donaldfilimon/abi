@@ -7,6 +7,23 @@ const acp = @import("protocols/acp/mod.zig");
 const default_host = "127.0.0.1";
 const default_port: u16 = 8080;
 
+pub const CommandDescriptor = struct {
+    name: []const u8,
+    description: []const u8,
+};
+
+pub const single_token_commands = [_]CommandDescriptor{
+    .{ .name = "version", .description = "Print version and build info" },
+    .{ .name = "doctor", .description = "Run diagnostics (features, platform, GPU)" },
+    .{ .name = "features", .description = "List all features with status" },
+    .{ .name = "platform", .description = "Show platform detection info" },
+    .{ .name = "connectors", .description = "List available LLM connectors" },
+    .{ .name = "info", .description = "Framework architecture summary" },
+    .{ .name = "serve", .description = "Start the ACP HTTP server" },
+    .{ .name = "dashboard", .description = "Launch interactive TUI dashboard" },
+    .{ .name = "lsp", .description = "Start Language Server Protocol (LSP) server" },
+};
+
 pub fn joinChatMessage(allocator: std.mem.Allocator, message_args: []const [:0]const u8) ![]u8 {
     var full_message = std.ArrayListUnmanaged(u8).empty;
     errdefer full_message.deinit(allocator);

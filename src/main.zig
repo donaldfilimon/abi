@@ -112,6 +112,7 @@ pub fn printStatus() void {
         \\  chat <message...>  Route through persona pipeline
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
+        \\  lsp          Start the LSP server
         \\
     , .{ version, enabled, feature_catalog.feature_count, feature_catalog.feature_count });
 
@@ -171,6 +172,7 @@ pub fn printHelp() void {
         \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
+        \\  lsp          Start the Language Server Protocol (LSP) server
         \\
         \\Interactive:
         \\  dashboard    Launch interactive TUI dashboard (requires -Dfeat-tui=true)

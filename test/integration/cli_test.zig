@@ -101,6 +101,33 @@ test "cli: feature catalog metadata is consistent" {
     }
 }
 
+test "cli: single-token commands are described in parity with runtime" {
+    const expected_commands = [_][]const u8{
+        "version",
+        "doctor",
+        "features",
+        "platform",
+        "connectors",
+        "info",
+        "serve",
+        "dashboard",
+        "lsp",
+    };
+
+    try std.testing.expectEqual(expected_commands.len, cli.single_token_commands.len);
+
+    for (expected_commands) |expected| {
+        var found = false;
+        for (cli.single_token_commands) |descriptor| {
+            if (std.mem.eql(u8, descriptor.name, expected)) {
+                found = true;
+                break;
+            }
+        }
+        try std.testing.expect(found);
+    }
+}
+
 // === Chat Command Path ===
 
 test "cli: persona router routes messages" {
