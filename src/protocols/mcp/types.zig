@@ -134,6 +134,19 @@ pub fn writeJsonString(writer: anytype, s: []const u8) !void {
     try writer.writeByte('"');
 }
 
+/// Write a JSON-RPC 2.0 notification (no id field)
+pub fn writeNotification(
+    writer: anytype,
+    method: []const u8,
+    params_json: []const u8,
+) !void {
+    try writer.writeAll("{\"jsonrpc\":\"2.0\",\"method\":\"");
+    try writer.writeAll(method);
+    try writer.writeAll("\",\"params\":");
+    try writer.writeAll(params_json);
+    try writer.writeAll("}\n");
+}
+
 /// Standard JSON-RPC error codes
 pub const ErrorCode = struct {
     pub const parse_error: i32 = -32700;
@@ -183,6 +196,14 @@ test "writeError format" {
     var writer = std.Io.Writer.fixed(&buf);
     try writeError(&writer, .{ .integer = 1 }, -32601, "Method not found");
     const expected = "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}\n";
+    try std.testing.expectEqualStrings(expected, buf[0..writer.end]);
+}
+
+test "writeNotification format" {
+    var buf: [256]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buf);
+    try writeNotification(&writer, "notifications/resources/updated", "{\"uri\":\"abi://status\"}");
+    const expected = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/resources/updated\",\"params\":{\"uri\":\"abi://status\"}}\n";
     try std.testing.expectEqualStrings(expected, buf[0..writer.end]);
 }
 

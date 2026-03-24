@@ -23,6 +23,9 @@ pub const ConstitutionalScore = enforcement.ConstitutionalScore;
 pub const Violation = enforcement.Violation;
 pub const SafetyScore = enforcement.SafetyScore;
 pub const SafetyViolation = enforcement.SafetyViolation;
+pub const BiasScore = enforcement.BiasScore;
+pub const MAX_BIAS_ATTRIBUTES = enforcement.MAX_BIAS_ATTRIBUTES;
+pub const DEFAULT_BIAS_THRESHOLD = enforcement.DEFAULT_BIAS_THRESHOLD;
 
 /// The Constitution engine — stateless, principle-driven evaluation.
 pub const Constitution = struct {
@@ -66,6 +69,12 @@ pub const Constitution = struct {
         return enforcement.evaluateSafety(text);
     }
 
+    /// Quantify bias across protected attributes.
+    /// Implements spec Section 5.4: B = (1/n) * Sigma |Bi|
+    pub fn computeBias(_: *const Constitution, measurements: []const f32, threshold: f32) BiasScore {
+        return enforcement.computeBias(measurements, threshold);
+    }
+
     /// Get all principle definitions.
     pub fn getPrinciples(_: *const Constitution) []const Principle {
         return &principles.ALL_PRINCIPLES;
@@ -99,6 +108,14 @@ test "Constitution preamble available" {
 test "Constitution principles count" {
     const c = Constitution.init();
     try testing.expectEqual(@as(usize, 6), c.getPrinciples().len);
+}
+
+test "Constitution computeBias delegates to enforcement" {
+    const c = Constitution.init();
+    const measurements = [_]f32{ 0.05, -0.2, 0.08, 0.15 };
+    const result = c.computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
+    try testing.expectEqual(@as(usize, 4), result.attribute_count);
+    try testing.expect(result.mean_abs_bias > 0.0);
 }
 
 test {

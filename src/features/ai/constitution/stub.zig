@@ -50,6 +50,26 @@ pub const principles = struct {
     pub const DEFAULT_GUARDRAILS = root.TrainingGuardrails{};
 };
 
+/// Maximum number of per-attribute bias flags.
+pub const MAX_BIAS_ATTRIBUTES = 32;
+
+/// Default bias threshold.
+pub const DEFAULT_BIAS_THRESHOLD: f32 = 0.1;
+
+/// Bias quantification result (stub: always acceptable).
+pub const BiasScore = struct {
+    mean_abs_bias: f32,
+    attribute_flags: [MAX_BIAS_ATTRIBUTES]bool,
+    attribute_count: usize,
+    flagged_count: usize,
+    is_acceptable: bool,
+
+    pub fn flaggedRatio(self: *const BiasScore) f32 {
+        if (self.attribute_count == 0) return 0.0;
+        return @as(f32, @floatFromInt(self.flagged_count)) / @as(f32, @floatFromInt(self.attribute_count));
+    }
+};
+
 /// Stub sub-module matching enforcement.zig public API.
 pub const enforcement = struct {
     pub const ConstitutionalScore = root.ConstitutionalScore;
@@ -66,6 +86,15 @@ pub const enforcement = struct {
     }
     pub fn alignmentScore(_: []const u8) f32 {
         return 1.0;
+    }
+    pub fn computeBias(_: []const f32, _: f32) root.BiasScore {
+        return .{
+            .mean_abs_bias = 0.0,
+            .attribute_flags = [_]bool{false} ** root.MAX_BIAS_ATTRIBUTES,
+            .attribute_count = 0,
+            .flagged_count = 0,
+            .is_acceptable = true,
+        };
     }
 };
 
@@ -98,6 +127,10 @@ pub const Constitution = struct {
 
     pub fn isCompliant(_: *const Constitution, _: []const u8) bool {
         return true;
+    }
+
+    pub fn computeBias(_: *const Constitution, measurements: []const f32, threshold: f32) root.BiasScore {
+        return root.enforcement.computeBias(measurements, threshold);
     }
 
     pub fn getPrinciples(_: *const Constitution) []const root.Principle {

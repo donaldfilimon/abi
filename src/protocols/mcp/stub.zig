@@ -36,6 +36,7 @@ pub const Server = struct {
     allocator: std.mem.Allocator,
     tools: std.ArrayListUnmanaged(RegisteredTool),
     resources: std.ArrayListUnmanaged(RegisteredResource),
+    subscriptions: std.StringHashMapUnmanaged(bool),
     server_name: []const u8,
     server_version: []const u8,
     initialized: bool,
@@ -49,6 +50,7 @@ pub const Server = struct {
             .allocator = allocator,
             .tools = .empty,
             .resources = .empty,
+            .subscriptions = .empty,
             .server_name = name,
             .server_version = version,
             .initialized = false,
@@ -65,6 +67,26 @@ pub const Server = struct {
     }
 
     pub fn addResource(self: *Server, _: RegisteredResource) !void {
+        _ = self;
+        return error.FeatureDisabled;
+    }
+
+    pub fn subscribeResource(self: *Server, _: []const u8) !bool {
+        _ = self;
+        return error.FeatureDisabled;
+    }
+
+    pub fn unsubscribeResource(self: *Server, _: []const u8) bool {
+        _ = self;
+        return false;
+    }
+
+    pub fn isSubscribed(self: *Server, _: []const u8) bool {
+        _ = self;
+        return false;
+    }
+
+    pub fn notifyResourceChanged(self: *Server, _: []const u8, _: anytype) !void {
         _ = self;
         return error.FeatureDisabled;
     }
