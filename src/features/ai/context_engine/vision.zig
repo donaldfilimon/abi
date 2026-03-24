@@ -30,6 +30,8 @@ pub const VideoFrameStreamer = struct {
 
     pub const CaptureError = error{
         PlatformNotSupported,
+        LinuxCaptureNotImplemented,
+        WindowsCaptureNotImplemented,
         OutOfMemory,
     };
 
@@ -50,21 +52,16 @@ pub const VideoFrameStreamer = struct {
         switch (builtin.os.tag) {
             .macos => return self.captureFrameMacOS(),
             .linux => {
-                // TODO: Implement X11/Wayland screen capture.
                 // X11 path: link libX11, use XOpenDisplay/XGetImage or MIT-SHM extension.
                 // Wayland path: use wlr-screencopy-unstable-v1 protocol or xdg-desktop-portal.
-                // For now, return null to indicate no frame is available rather than a hard error,
-                // allowing callers to degrade gracefully.
-                return null;
+                return error.LinuxCaptureNotImplemented;
             },
             .windows => {
-                // TODO: Implement DXGI Desktop Duplication screen capture.
-                // Use IDXGIOutputDuplication::AcquireNextFrame for GPU-accelerated capture.
-                return null;
+                // DXGI path: IDXGIOutputDuplication::AcquireNextFrame for GPU-accelerated capture.
+                return error.WindowsCaptureNotImplemented;
             },
             else => {
-                // Screen capture is not applicable on WASM, freestanding, or other targets.
-                return null;
+                return error.PlatformNotSupported;
             },
         }
     }
@@ -153,6 +150,50 @@ pub const VisionMatrix = struct {
         return synthetic_embedding;
     }
 };
+
+test "captureFrame returns null when inactive" {
+    var streamer = VideoFrameStreamer.init(std.testing.allocator);
+    defer streamer.deinit();
+
+    // Inactive streamer should return null without platform errors
+    const frame = try streamer.captureFrame();
+    try std.testing.expect(frame == null);
+}
+
+test "captureFrame returns platform-specific error when active" {
+    const builtin = @import("builtin");
+    var streamer = VideoFrameStreamer.init(std.testing.allocator);
+    defer streamer.deinit();
+    streamer.active = true;
+
+    switch (builtin.os.tag) {
+        .linux => try std.testing.expectError(
+            error.LinuxCaptureNotImplemented,
+            streamer.captureFrame(),
+        ),
+        .windows => try std.testing.expectError(
+            error.WindowsCaptureNotImplemented,
+            streamer.captureFrame(),
+        ),
+        .macos => {
+            // macOS may return null in headless CI (no display)
+            _ = streamer.captureFrame() catch {};
+        },
+        else => try std.testing.expectError(
+            error.PlatformNotSupported,
+            streamer.captureFrame(),
+        ),
+    }
+}
+
+test "CaptureError includes all platform variants" {
+    const E = VideoFrameStreamer.CaptureError;
+    const e1: E = error.PlatformNotSupported;
+    const e2: E = error.LinuxCaptureNotImplemented;
+    const e3: E = error.WindowsCaptureNotImplemented;
+    try std.testing.expect(e1 != e2);
+    try std.testing.expect(e2 != e3);
+}
 
 test {
     std.testing.refAllDecls(@This());
