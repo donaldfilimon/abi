@@ -335,28 +335,34 @@ Scale_up if L_current > L_threshold
 
 ## Part VII: Performance Benchmarks
 
-### 7.1 Operational Metrics
+> **Note:** The following benchmarks are **design targets** based on architectural analysis.
+> Production benchmarking requires deploying the local inference backend with trained
+> persona models, which is not yet complete (inference engine currently runs in
+> demo/connector mode). Competitor numbers reflect publicly reported figures as of
+> January 2025.
+
+### 7.1 Operational Metrics (Target)
 
 | Metric | Abbey+Aviva+Abi (WDBX) | GPT-4 | Claude | PaLM 2 |
 |--------|------------------------|-------|--------|--------|
-| Latency (ms) | **110** | 180 | 170 | 200 |
-| Throughput (req/s) | **90** | 60 | 62 | 55 |
-| Empathy Score (0-1) | **0.95** | 0.78 | 0.81 | 0.75 |
-| Factual Accuracy (%) | **91.0** | 88.0 | 87.5 | 88.0 |
-| Energy (kWh/1k inf) | **14** | 20 | 19 | 21 |
+| Latency (ms) | **110** (target) | 180 | 170 | 200 |
+| Throughput (req/s) | **90** (target) | 60 | 62 | 55 |
+| Empathy Score (0-1) | **0.95** (target) | 0.78 | 0.81 | 0.75 |
+| Factual Accuracy (%) | **91.0** (target) | 88.0 | 87.5 | 88.0 |
+| Energy (kWh/1k inf) | **14** (target) | 20 | 19 | 21 |
 
-### 7.2 NLP Benchmarks
+### 7.2 NLP Benchmarks (Target)
 
 | Benchmark | Abbey+Aviva+Abi | GPT-4 | Claude | PaLM 2 |
 |-----------|-----------------|-------|--------|--------|
-| GLUE | **86.0** | 82.5 | 83.0 | 81.0 |
-| SuperGLUE | **78.4** | 74.3 | 75.0 | 73.0 |
-| SQuAD 1.1 F1 | **90.7** | 85.0 | 86.0 | 84.5 |
-| SQuAD 2.0 F1 | **85.3** | 80.0 | 81.0 | 79.5 |
-| CoQA F1 | **81.3** | 79.0 | 80.0 | 78.5 |
-| SST-2 | **93.0** | 89.5 | 90.0 | 88.0 |
-| HumanEval Pass@1 | **0.80** | 0.70 | 0.75 | 0.68 |
-| CodeSearchNet MRR | **0.85** | 0.78 | 0.80 | 0.75 |
+| GLUE | **86.0** (target) | 82.5 | 83.0 | 81.0 |
+| SuperGLUE | **78.4** (target) | 74.3 | 75.0 | 73.0 |
+| SQuAD 1.1 F1 | **90.7** (target) | 85.0 | 86.0 | 84.5 |
+| SQuAD 2.0 F1 | **85.3** (target) | 80.0 | 81.0 | 79.5 |
+| CoQA F1 | **81.3** (target) | 79.0 | 80.0 | 78.5 |
+| SST-2 | **93.0** (target) | 89.5 | 90.0 | 88.0 |
+| HumanEval Pass@1 | **0.80** (target) | 0.70 | 0.75 | 0.68 |
+| CodeSearchNet MRR | **0.85** (target) | 0.78 | 0.80 | 0.75 |
 
 ### 7.3 Ablation Studies
 
@@ -447,17 +453,24 @@ Key spec claims and their actual status:
 
 ## Part IX: Future Roadmap
 
-### 9.1 Expanded Personas
-Healthcare, legal, finance, creative arts specializations.
+### 9.1 Near-Term (Infrastructure)
+- **Local inference backend**: GGUF model loading in the inference engine (currently demo/connector only)
+- **HA cluster deployment**: Real network replication between nodes (currently single-node with queue stubs)
+- **PITR persistent log**: File-based operation log with crash recovery (serialization implemented, I/O wired)
+- **Vision module**: Platform screen capture (X11/Wayland on Linux, DXGI on Windows — macOS done)
+- **MCP resource subscriptions**: Server-sent change notifications for vector database state
 
-### 9.2 Enhanced Personalization
-User-specific persona tokens and adaptive learning algorithms.
+### 9.2 Medium-Term (Capabilities)
+- **Persona token injection**: Actual embedding injection (`Z = Embed(PersonaID) ⊕ Embed(UserInput)`) in the transformer forward pass
+- **RLHF reward model**: Complete the training pipeline (LoRA config exists; reward model + PPO missing)
+- **Production benchmarking**: Validate Part VII targets with real inference workloads
+- **Bias quantification**: Standalone `computeBias()` function implementing the `B = (1/n) Σᵢ |Bᵢ|` formula
 
-### 9.3 Multimodal & IoT Integration
-Text, voice, image, and smart device connectivity.
-
-### 9.4 Global Accessibility
-Multi-language support and social good initiatives.
+### 9.3 Long-Term (Expansion)
+- **Expanded personas**: Healthcare, legal, finance, creative arts specializations
+- **Multimodal integration**: Text, voice, image processing with shared embedding space
+- **User-specific persona tokens**: Adaptive learning algorithms per user identity
+- **Global accessibility**: Multi-language support and social good initiatives
 
 ---
 
