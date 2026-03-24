@@ -456,7 +456,7 @@ Key spec claims and their actual status:
 ### 9.1 Near-Term (Infrastructure)
 - **Local inference backend**: GGUF model loading in the inference engine (currently demo/connector only)
 - **HA cluster deployment**: Real network replication between nodes (currently single-node with queue stubs)
-- **PITR persistent log**: File-based operation log with crash recovery (serialization implemented, I/O wired)
+- **PITR persistent log**: Crash-safe with atomic writes (tmp+fsync+rename), checkpoint persistence, and startup recovery hook in HaManager
 - **Vision module**: Platform screen capture stubs with error types (macOS: CoreGraphics implemented; Linux/Windows: documented stubs ready for implementation)
 - **MCP resource subscriptions**: Subscribe/unsubscribe and notification support implemented in server
 
