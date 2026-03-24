@@ -16,6 +16,7 @@ pub const Steps = struct {
     check_parity_step: *std.Build.Step,
     feature_tests_step: *std.Build.Step,
     mcp_tests_step: *std.Build.Step,
+    messaging_tests_step: *std.Build.Step,
     gateway_tests_step: *std.Build.Step,
     inference_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
@@ -72,6 +73,31 @@ pub fn addSteps(ctx: Context) Steps {
     }
     const mcp_tests_step = ctx.b.step("mcp-tests", "Run MCP integration tests");
     mcp_tests_step.dependOn(&ctx.b.addRunArtifact(mcp_tests).step);
+
+    const messaging_unit_tests = addModuleTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "src/messaging_mod_test.zig",
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(messaging_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const messaging_integration_tests = addIntegrationTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "test/messaging_mod.zig",
+        ctx.abi_module,
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(messaging_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const messaging_tests_step = ctx.b.step("messaging-tests", "Run messaging-focused unit and integration tests");
+    messaging_tests_step.dependOn(&ctx.b.addRunArtifact(messaging_unit_tests).step);
+    messaging_tests_step.dependOn(&ctx.b.addRunArtifact(messaging_integration_tests).step);
 
     const gateway_unit_tests = addModuleTests(
         ctx.b,
@@ -140,6 +166,7 @@ pub fn addSteps(ctx: Context) Steps {
         .check_parity_step = check_parity_step,
         .feature_tests_step = feature_tests_step,
         .mcp_tests_step = mcp_tests_step,
+        .messaging_tests_step = messaging_tests_step,
         .gateway_tests_step = gateway_tests_step,
         .inference_tests_step = inference_tests_step,
         .check_step = check_step,

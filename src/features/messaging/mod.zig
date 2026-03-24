@@ -12,22 +12,16 @@
 //! - RwLock for concurrent topic lookups
 
 const std = @import("std");
-const core_config = @import("../../core/config/platform.zig");
-const sync = @import("../../foundation/mod.zig").sync;
-const time_mod = @import("../../foundation/mod.zig").time;
 pub const types = @import("types.zig");
 
 // Submodules
 const state_mod = @import("state.zig");
-const delivery_mod = @import("delivery.zig");
-const pattern_matching = @import("pattern_matching.zig");
-const deliverToSubscribers = delivery_mod.deliverToSubscribers;
+const lifecycle = @import("lifecycle.zig");
+const publish_mod = @import("publish.zig");
+const queries = @import("queries.zig");
+const subscriptions = @import("subscriptions.zig");
 
-// Re-export internal types used by submodules (and tests)
 const MessagingState = state_mod.MessagingState;
-const Subscriber = state_mod.Subscriber;
-const Topic = state_mod.Topic;
-const DLQEntry = state_mod.DLQEntry;
 
 // Re-export public types from types.zig
 pub const MessagingConfig = types.MessagingConfig;
@@ -40,10 +34,6 @@ pub const MessagingStats = types.MessagingStats;
 pub const TopicInfo = types.TopicInfo;
 pub const DeadLetter = types.DeadLetter;
 pub const SubscriberCallback = types.SubscriberCallback;
-
-// Delegate helpers
-const patternMatches = pattern_matching.patternMatches;
-const nowMs = pattern_matching.nowMs;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -68,16 +58,12 @@ var msg_state: ?*MessagingState = null;
 
 /// Initialize the global messaging singleton.
 pub fn init(allocator: std.mem.Allocator, config: MessagingConfig) MessagingError!void {
-    if (msg_state != null) return;
-    msg_state = MessagingState.create(allocator, config) catch return error.OutOfMemory;
+    try lifecycle.init(&msg_state, allocator, config);
 }
 
 /// Tear down the messaging subsystem and all topics/subscribers.
 pub fn deinit() void {
-    if (msg_state) |s| {
-        s.destroy();
-        msg_state = null;
-    }
+    lifecycle.deinit(&msg_state);
 }
 
 pub fn isEnabled() bool {
@@ -85,7 +71,7 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
-    return msg_state != null;
+    return lifecycle.isInitialized(msg_state);
 }
 
 /// Publish a message to a topic. Delivers synchronously to all matching
@@ -97,24 +83,7 @@ pub fn publish(
 ) MessagingError!void {
     _ = allocator;
     const s = msg_state orelse return error.FeatureDisabled;
-
-    const msg_id = s.next_msg_id.fetchAdd(1, .monotonic);
-    _ = s.stat_published.fetchAdd(1, .monotonic);
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    // Deliver to all matching subscribers
-    deliverToSubscribers(s, topic_name, payload, msg_id);
-
-    // Track topic stats
-    if (s.topics.get(topic_name)) |topic| {
-        topic.published += 1;
-    } else {
-        // Auto-create topic on first publish
-        const topic = s.getOrCreateTopic(topic_name) catch return error.OutOfMemory;
-        topic.published = 1;
-    }
+    try publish_mod.publish(s, topic_name, payload);
 }
 
 /// Register a callback for messages matching `topic_pattern`.
@@ -126,590 +95,42 @@ pub fn subscribe(
     user_ctx: ?*anyopaque,
 ) MessagingError!u64 {
     const s = msg_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    const sub_id = s.next_sub_id.fetchAdd(1, .monotonic);
-
-    const pattern_owned = s.allocator.dupe(u8, topic_pattern) catch return error.OutOfMemory;
-    errdefer s.allocator.free(pattern_owned);
-
-    const sub = s.allocator.create(Subscriber) catch return error.OutOfMemory;
-    sub.* = .{
-        .id = sub_id,
-        .pattern = pattern_owned,
-        .callback = callback,
-        .user_ctx = user_ctx,
-    };
-
-    s.subscribers.put(s.allocator, sub_id, sub) catch {
-        s.allocator.destroy(sub);
-        s.allocator.free(pattern_owned);
-        return error.OutOfMemory;
-    };
-
-    // Auto-create topic if exact match (not a pattern)
-    if (std.mem.indexOf(u8, topic_pattern, "*") == null and
-        std.mem.indexOf(u8, topic_pattern, "#") == null)
-    {
-        if (s.getOrCreateTopic(topic_pattern)) |topic| {
-            topic.subscribers.append(s.allocator, sub) catch |err| {
-                std.log.warn("messaging: failed to add subscriber to topic index: {t}", .{err});
-            };
-        } else |_| {}
-    }
-
-    return sub_id;
+    return subscriptions.subscribe(s, topic_pattern, callback, user_ctx);
 }
 
 /// Remove a subscriber by ID. Returns `true` if the subscriber was found.
 pub fn unsubscribe(subscriber_id: u64) MessagingError!bool {
     const s = msg_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    if (s.subscribers.fetchRemove(subscriber_id)) |kv| {
-        const sub = kv.value;
-        // Remove from any topic subscriber lists
-        var topic_iter = s.topics.iterator();
-        while (topic_iter.next()) |entry| {
-            const topic = entry.value_ptr.*;
-            for (topic.subscribers.items, 0..) |t_sub, i| {
-                if (t_sub.id == subscriber_id) {
-                    _ = topic.subscribers.swapRemove(i);
-                    break;
-                }
-            }
-        }
-        s.allocator.free(sub.pattern);
-        s.allocator.destroy(sub);
-        return true;
-    }
-
-    return false;
+    return subscriptions.unsubscribe(s, subscriber_id);
 }
 
 /// List all active topic names. Caller owns the returned slice.
 pub fn listTopics(allocator: std.mem.Allocator) MessagingError![][]const u8 {
     const s = msg_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lockShared();
-    defer s.rw_lock.unlockShared();
-
-    const count = s.topics.count();
-    if (count == 0) return &.{};
-
-    const result = allocator.alloc([]const u8, count) catch return error.OutOfMemory;
-    var i: usize = 0;
-    var iter = s.topics.iterator();
-    while (iter.next()) |entry| {
-        if (i < count) {
-            result[i] = entry.key_ptr.*;
-            i += 1;
-        }
-    }
-
-    return result[0..i];
+    return queries.listTopics(s, allocator);
 }
 
 pub fn topicStats(topic_name: []const u8) MessagingError!TopicInfo {
     const s = msg_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lockShared();
-    defer s.rw_lock.unlockShared();
-
-    const topic = s.topics.get(topic_name) orelse return error.TopicNotFound;
-    return .{
-        .name = topic.name,
-        .subscriber_count = @intCast(topic.subscribers.items.len),
-        .messages_published = topic.published,
-        .messages_delivered = topic.delivered,
-        .messages_failed = topic.failed,
-    };
+    return queries.topicStats(s, topic_name);
 }
 
 /// Retrieve all dead letter entries. Caller owns the returned slice.
 pub fn getDeadLetters(allocator: std.mem.Allocator) MessagingError![]DeadLetter {
     const s = msg_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lockShared();
-    defer s.rw_lock.unlockShared();
-
-    if (s.dead_letters.items.len == 0) return &.{};
-
-    const result = allocator.alloc(DeadLetter, s.dead_letters.items.len) catch
-        return error.OutOfMemory;
-    for (s.dead_letters.items, 0..) |dl, i| {
-        result[i] = .{
-            .message = .{
-                .topic = dl.topic,
-                .payload = dl.payload,
-                .id = dl.msg_id,
-                .timestamp = @intCast(dl.timestamp_ns / std.time.ns_per_ms),
-            },
-            .reason = dl.reason,
-            .timestamp = @intCast(dl.timestamp_ns / std.time.ns_per_ms),
-        };
-    }
-    return result;
+    return queries.getDeadLetters(s, allocator);
 }
 
 /// Discard all dead letter entries.
 pub fn clearDeadLetters() void {
     const s = msg_state orelse return;
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    for (s.dead_letters.items) |*dl| {
-        s.allocator.free(dl.topic);
-        s.allocator.free(dl.payload);
-        s.allocator.free(dl.reason);
-    }
-    s.dead_letters.clearRetainingCapacity();
+    queries.clearDeadLetters(s);
 }
 
 /// Snapshot publish/deliver/fail counters and active topic/subscriber counts.
 pub fn messagingStats() MessagingStats {
     const s = msg_state orelse return .{};
-    return .{
-        .total_published = s.stat_published.load(.monotonic),
-        .total_delivered = s.stat_delivered.load(.monotonic),
-        .total_failed = s.stat_failed.load(.monotonic),
-        .active_topics = @intCast(s.topics.count()),
-        .active_subscribers = @intCast(s.subscribers.count()),
-        .dead_letter_count = @intCast(s.dead_letters.items.len),
-    };
-}
-
-// ── Tests ──────────────────────────────────────────────────────────────
-
-var test_received_count: u32 = 0;
-var test_last_payload: []const u8 = "";
-
-fn testCallback(msg: Message, _: ?*anyopaque) DeliveryResult {
-    test_received_count += 1;
-    test_last_payload = msg.payload;
-    return .ok;
-}
-
-fn testDiscardCallback(_: Message, _: ?*anyopaque) DeliveryResult {
-    return .discard;
-}
-
-test "messaging basic pub/sub" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_received_count = 0;
-    const sub_id = try subscribe(allocator, "events.user", testCallback, null);
-    try std.testing.expect(sub_id > 0);
-
-    try publish(allocator, "events.user", "hello");
-    try std.testing.expectEqual(@as(u32, 1), test_received_count);
-    try std.testing.expectEqualStrings("hello", test_last_payload);
-}
-
-test "messaging unsubscribe" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_received_count = 0;
-    const sub_id = try subscribe(allocator, "test.topic", testCallback, null);
-    try publish(allocator, "test.topic", "msg1");
-    try std.testing.expectEqual(@as(u32, 1), test_received_count);
-
-    const removed = try unsubscribe(sub_id);
-    try std.testing.expect(removed);
-
-    try publish(allocator, "test.topic", "msg2");
-    try std.testing.expectEqual(@as(u32, 1), test_received_count); // unchanged
-}
-
-test "messaging wildcard pattern *" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_received_count = 0;
-    _ = try subscribe(allocator, "events.*", testCallback, null);
-
-    try publish(allocator, "events.user", "payload1");
-    try publish(allocator, "events.order", "payload2");
-    try publish(allocator, "other.topic", "payload3");
-
-    try std.testing.expectEqual(@as(u32, 2), test_received_count);
-}
-
-test "messaging multi-level pattern #" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_received_count = 0;
-    _ = try subscribe(allocator, "events.#", testCallback, null);
-
-    try publish(allocator, "events.user", "p1");
-    try publish(allocator, "events.user.created", "p2");
-    try publish(allocator, "events.order.updated.v2", "p3");
-    try publish(allocator, "other.topic", "p4");
-
-    try std.testing.expectEqual(@as(u32, 3), test_received_count);
-}
-
-test "messaging dead letter queue" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    _ = try subscribe(allocator, "dlq.test", testDiscardCallback, null);
-    try publish(allocator, "dlq.test", "will_fail");
-
-    const dead = try getDeadLetters(allocator);
-    defer allocator.free(dead);
-    try std.testing.expectEqual(@as(usize, 1), dead.len);
-
-    clearDeadLetters();
-    const after = try getDeadLetters(allocator);
-    defer allocator.free(after);
-    try std.testing.expectEqual(@as(usize, 0), after.len);
-}
-
-test "messaging stats" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    _ = try subscribe(allocator, "stats.test", testCallback, null);
-    try publish(allocator, "stats.test", "msg1");
-
-    const s = messagingStats();
-    try std.testing.expect(s.total_published > 0);
-    try std.testing.expect(s.active_subscribers > 0);
-}
-
-var test_fanout_count: u32 = 0;
-
-fn testFanoutCallback(_: Message, _: ?*anyopaque) DeliveryResult {
-    test_fanout_count += 1;
-    return .ok;
-}
-
-test "messaging multiple subscribers fan-out" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_fanout_count = 0;
-    _ = try subscribe(allocator, "fanout.topic", testFanoutCallback, null);
-    _ = try subscribe(allocator, "fanout.topic", testFanoutCallback, null);
-    _ = try subscribe(allocator, "fanout.topic", testFanoutCallback, null);
-
-    try publish(allocator, "fanout.topic", "broadcast");
-
-    // All 3 subscribers should receive the message
-    try std.testing.expectEqual(@as(u32, 3), test_fanout_count);
-}
-
-test "messaging listTopics after publish" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    // Subscribe creates the topic
-    _ = try subscribe(allocator, "list.alpha", testCallback, null);
-    // Publish auto-creates topic if not exists
-    try publish(allocator, "list.beta", "msg");
-
-    const topics = try listTopics(allocator);
-    defer allocator.free(topics);
-    try std.testing.expect(topics.len >= 2);
-}
-
-test "messaging topicStats accuracy" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_received_count = 0;
-    _ = try subscribe(allocator, "tstats.topic", testCallback, null);
-    try publish(allocator, "tstats.topic", "msg1");
-    try publish(allocator, "tstats.topic", "msg2");
-
-    const info = try topicStats("tstats.topic");
-    try std.testing.expectEqual(@as(u64, 2), info.messages_published);
-    try std.testing.expectEqual(@as(u64, 2), info.messages_delivered);
-    try std.testing.expectEqual(@as(u32, 1), info.subscriber_count);
-}
-
-test "messaging publish to non-existent topic auto-creates" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    // No subscribers, no topic — publish should auto-create
-    try publish(allocator, "auto.created", "payload");
-
-    const info = try topicStats("auto.created");
-    try std.testing.expectEqual(@as(u64, 1), info.messages_published);
-    try std.testing.expectEqual(@as(u32, 0), info.subscriber_count);
-}
-
-test "messaging unsubscribe invalid ID is no-op" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    _ = try subscribe(allocator, "test/topic", struct {
-        fn cb(_: Message, _: ?*anyopaque) DeliveryResult {
-            return .ok;
-        }
-    }.cb, null);
-
-    // Unsubscribe with an ID that doesn't exist — should return false
-    const removed = try unsubscribe(999999);
-    try std.testing.expect(!removed);
-
-    const s = messagingStats();
-    try std.testing.expectEqual(@as(u32, 1), s.active_subscribers);
-}
-
-test "messaging publish to empty string topic" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    // Publishing to empty topic — should not crash
-    try publish(allocator, "", "data");
-}
-
-test "messaging multiple wildcard pattern" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    _ = try subscribe(allocator, "sensors/+/data", struct {
-        fn cb(_: Message, _: ?*anyopaque) DeliveryResult {
-            return .ok;
-        }
-    }.cb, null);
-
-    // Should match sensors/temp/data
-    try publish(allocator, "sensors/temp/data", "25C");
-
-    const info = try topicStats("sensors/temp/data");
-    try std.testing.expectEqual(@as(u64, 1), info.messages_published);
-}
-
-// ── Additional inline tests ───────────────────────────────────────────
-
-var test_sub_count_a: u32 = 0;
-var test_sub_count_b: u32 = 0;
-
-fn testCallbackA(_: Message, _: ?*anyopaque) DeliveryResult {
-    test_sub_count_a += 1;
-    return .ok;
-}
-
-fn testCallbackB(_: Message, _: ?*anyopaque) DeliveryResult {
-    test_sub_count_b += 1;
-    return .ok;
-}
-
-test "messaging subscribe and unsubscribe lifecycle" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_sub_count_a = 0;
-    const sub_id = try subscribe(allocator, "lifecycle.topic", testCallbackA, null);
-
-    // Publish and verify delivery
-    try publish(allocator, "lifecycle.topic", "msg1");
-    try std.testing.expectEqual(@as(u32, 1), test_sub_count_a);
-
-    // Unsubscribe and verify no more delivery
-    const removed = try unsubscribe(sub_id);
-    try std.testing.expect(removed);
-
-    try publish(allocator, "lifecycle.topic", "msg2");
-    try std.testing.expectEqual(@as(u32, 1), test_sub_count_a); // unchanged
-
-    // Double unsubscribe returns false
-    const removed2 = try unsubscribe(sub_id);
-    try std.testing.expect(!removed2);
-}
-
-test "messaging publish no subscribers does not error" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    // Publish to a topic with zero subscribers — must succeed
-    try publish(allocator, "no.subs.topic", "lonely_msg");
-
-    const info = try topicStats("no.subs.topic");
-    try std.testing.expectEqual(@as(u64, 1), info.messages_published);
-    try std.testing.expectEqual(@as(u64, 0), info.messages_delivered);
-    try std.testing.expectEqual(@as(u32, 0), info.subscriber_count);
-}
-
-test "messaging multiple subscribers same topic" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_sub_count_a = 0;
-    test_sub_count_b = 0;
-    _ = try subscribe(allocator, "multi.topic", testCallbackA, null);
-    _ = try subscribe(allocator, "multi.topic", testCallbackB, null);
-
-    try publish(allocator, "multi.topic", "broadcast_data");
-
-    try std.testing.expectEqual(@as(u32, 1), test_sub_count_a);
-    try std.testing.expectEqual(@as(u32, 1), test_sub_count_b);
-}
-
-var test_retry_count: u32 = 0;
-
-fn testRetryCallback(_: Message, _: ?*anyopaque) DeliveryResult {
-    test_retry_count += 1;
-    return .retry;
-}
-
-test "messaging acknowledge and reject via DeliveryResult" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_retry_count = 0;
-    _ = try subscribe(allocator, "ack.topic", testRetryCallback, null);
-
-    try publish(allocator, "ack.topic", "will_retry");
-    try std.testing.expectEqual(@as(u32, 1), test_retry_count);
-
-    // retry increments stat_failed but does NOT add to DLQ
-    const stats = messagingStats();
-    try std.testing.expect(stats.total_failed > 0);
-    try std.testing.expectEqual(@as(u32, 0), stats.dead_letter_count);
-}
-
-test "messaging discard sends to dead letter queue" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    _ = try subscribe(allocator, "discard.topic", testDiscardCallback, null);
-
-    try publish(allocator, "discard.topic", "reject_me_1");
-    try publish(allocator, "discard.topic", "reject_me_2");
-
-    const dead = try getDeadLetters(allocator);
-    defer allocator.free(dead);
-    try std.testing.expectEqual(@as(usize, 2), dead.len);
-
-    // Verify DLQ entries have correct topic
-    try std.testing.expectEqualStrings("discard.topic", dead[0].message.topic);
-    try std.testing.expectEqualStrings("discard.topic", dead[1].message.topic);
-
-    // Verify reason
-    try std.testing.expectEqualStrings("subscriber_discard", dead[0].reason);
-}
-
-test "messaging wildcard # matches multiple levels" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_sub_count_a = 0;
-    _ = try subscribe(allocator, "app.#", testCallbackA, null);
-
-    try publish(allocator, "app.users", "p1");
-    try publish(allocator, "app.users.created", "p2");
-    try publish(allocator, "app.orders.shipped.v2", "p3");
-    try publish(allocator, "other.topic", "p4"); // should NOT match
-
-    try std.testing.expectEqual(@as(u32, 3), test_sub_count_a);
-}
-
-test "messaging wildcard * matches single level" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    test_sub_count_a = 0;
-    _ = try subscribe(allocator, "data.*", testCallbackA, null);
-
-    try publish(allocator, "data.temp", "25C");
-    try publish(allocator, "data.humidity", "60%");
-    try publish(allocator, "data.temp.indoor", "22C"); // should NOT match (two levels)
-    try publish(allocator, "info.temp", "30C"); // should NOT match (wrong prefix)
-
-    try std.testing.expectEqual(@as(u32, 2), test_sub_count_a);
-}
-
-test "messaging stats reflect publish and subscribe counts" {
-    const allocator = std.testing.allocator;
-    try init(allocator, MessagingConfig.defaults());
-    defer deinit();
-
-    // Before any activity
-    const s0 = messagingStats();
-    try std.testing.expectEqual(@as(u64, 0), s0.total_published);
-    try std.testing.expectEqual(@as(u32, 0), s0.active_subscribers);
-
-    _ = try subscribe(allocator, "stats2.topic", testCallbackA, null);
-    _ = try subscribe(allocator, "stats2.topic", testCallbackB, null);
-
-    try publish(allocator, "stats2.topic", "msg1");
-    try publish(allocator, "stats2.topic", "msg2");
-
-    const s1 = messagingStats();
-    try std.testing.expectEqual(@as(u64, 2), s1.total_published);
-    try std.testing.expectEqual(@as(u32, 2), s1.active_subscribers);
-    // 2 messages * 2 subscribers = 4 delivered
-    try std.testing.expectEqual(@as(u64, 4), s1.total_delivered);
-}
-
-test "messaging init deinit cycle with allocator" {
-    const allocator = std.testing.allocator;
-
-    // First cycle
-    try init(allocator, MessagingConfig.defaults());
-    try std.testing.expect(isInitialized());
-    _ = try subscribe(allocator, "cycle.test", testCallbackA, null);
-    try publish(allocator, "cycle.test", "data");
-    deinit();
-    try std.testing.expect(!isInitialized());
-
-    // Second cycle — ensures all memory was freed (testing.allocator will
-    // flag leaks if deinit missed anything)
-    try init(allocator, MessagingConfig.defaults());
-    try std.testing.expect(isInitialized());
-    deinit();
-    try std.testing.expect(!isInitialized());
-}
-
-test "messaging patternMatches internal function" {
-    // Exact match
-    try std.testing.expect(patternMatches("foo.bar", "foo.bar"));
-    // Mismatch
-    try std.testing.expect(!patternMatches("foo.bar", "foo.baz"));
-    // Single-level wildcard
-    try std.testing.expect(patternMatches("foo.*", "foo.bar"));
-    try std.testing.expect(!patternMatches("foo.*", "foo.bar.baz"));
-    // Multi-level wildcard
-    try std.testing.expect(patternMatches("foo.#", "foo.bar"));
-    try std.testing.expect(patternMatches("foo.#", "foo.bar.baz"));
-    try std.testing.expect(patternMatches("foo.#", "foo.bar.baz.qux"));
-    // # at root
-    try std.testing.expect(patternMatches("#", "anything.at.all"));
-    // Empty
-    try std.testing.expect(patternMatches("", ""));
-    try std.testing.expect(!patternMatches("foo", ""));
+    return queries.messagingStats(s);
 }
 
 test {
