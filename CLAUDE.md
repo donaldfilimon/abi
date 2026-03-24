@@ -51,7 +51,7 @@ zig build check-parity             # Verify mod/stub declaration parity
 zig build feature-tests            # Run feature integration and parity tests
 zig build cli-tests                # Run CLI tests
 zig build tui-tests                # Run TUI tests
-zig build typecheck                # Typecheck the project
+zig build typecheck                # Compile-only validation for the current/selected target
 zig build validate-flags           # Validate feature flags
 zig build full-check               # Run full check
 zig build verify-all               # Verify all components

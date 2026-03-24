@@ -46,7 +46,7 @@ zig build check-parity             # Verify mod/stub declaration parity
 zig build feature-tests            # Run feature integration and parity tests
 zig build cli-tests                # Run CLI tests
 zig build tui-tests                # Run TUI tests
-zig build typecheck                # Typecheck the project
+zig build typecheck                # Compile-only validation for the current/selected target
 zig build validate-flags           # Validate feature flags
 zig build full-check               # Run full check
 zig build verify-all               # Verify all components
@@ -92,7 +92,7 @@ User Input
 
 ## Feature flags
 
-All features default to enabled except `feat-mobile` (false). Disable with `-Dfeat-<name>=false`:
+All features default to enabled except `feat-mobile` and `feat-tui` (both false). Disable with `-Dfeat-<name>=false`:
 
 ```bash
 zig build -Dfeat-gpu=false -Dfeat-ai=false    # Disable GPU and AI features
@@ -122,7 +122,7 @@ abi/
 ├── src/                  # Framework source (single "abi" module)
 │   ├── root.zig          # Public package entrypoint (@import("abi"))
 │   ├── core/             # Always-on framework internals
-│   ├── features/         # 19 feature directories (29 features including AI sub-features)
+│   ├── features/         # 20 feature directories (30 features including AI sub-features)
 │   ├── foundation/       # Shared utilities: logging, security, time, SIMD, sync
 │   ├── runtime/          # Task scheduling, event loops, concurrency
 │   ├── platform/         # OS detection, capabilities, environment
@@ -172,7 +172,7 @@ zig build check-parity             # Verify mod/stub declaration parity only
 
 Two test suites run under `zig build test`:
 1. **Unit tests** (`src/root.zig`) -- `refAllDecls` walks the entire module tree.
-2. **Integration tests** (`test/mod.zig`) -- 28 modules covering database, inference, persona pipeline, security, CLI, TUI, and all features.
+2. **Integration tests** (`test/mod.zig`) -- 38 modules covering database, inference, persona pipeline, security, CLI, TUI, and all features.
 
 ## Specification
 

@@ -70,46 +70,49 @@ pub fn build(b: *std.Build) void {
         std.log.info("feat_mcp benefits from feat_database for DB tools", .{});
 
     // ── Build options module ────────────────────────────────────────────
+    const flags = FeatureFlags{
+        .feat_gpu = feat_gpu,
+        .feat_ai = feat_ai,
+        .feat_database = feat_database,
+        .feat_network = feat_network,
+        .feat_profiling = feat_profiling,
+        .feat_web = feat_web,
+        .feat_pages = feat_pages,
+        .feat_analytics = feat_analytics,
+        .feat_cloud = feat_cloud,
+        .feat_auth = feat_auth,
+        .feat_messaging = feat_messaging,
+        .feat_cache = feat_cache,
+        .feat_storage = feat_storage,
+        .feat_search = feat_search,
+        .feat_mobile = feat_mobile,
+        .feat_gateway = feat_gateway,
+        .feat_benchmarks = feat_benchmarks,
+        .feat_compute = feat_compute,
+        .feat_documents = feat_documents,
+        .feat_desktop = feat_desktop,
+        .feat_tui = feat_tui,
+        .feat_llm = feat_llm,
+        .feat_training = feat_training,
+        .feat_vision = feat_vision,
+        .feat_explore = feat_explore,
+        .feat_reasoning = feat_reasoning,
+        .feat_lsp = feat_lsp,
+        .feat_mcp = feat_mcp,
+        .gpu_metal = gpu_metal,
+        .gpu_cuda = gpu_cuda,
+        .gpu_vulkan = gpu_vulkan,
+        .gpu_webgpu = gpu_webgpu,
+        .gpu_opengl = gpu_opengl,
+        .gpu_opengles = gpu_opengles,
+        .gpu_webgl2 = gpu_webgl2,
+        .gpu_stdgpu = gpu_stdgpu,
+        .gpu_fpga = gpu_fpga,
+        .gpu_tpu = gpu_tpu,
+    };
+
     const build_opts = b.addOptions();
-    build_opts.addOption(bool, "feat_gpu", feat_gpu);
-    build_opts.addOption(bool, "feat_ai", feat_ai);
-    build_opts.addOption(bool, "feat_database", feat_database);
-    build_opts.addOption(bool, "feat_network", feat_network);
-    build_opts.addOption(bool, "feat_profiling", feat_profiling);
-    build_opts.addOption(bool, "feat_web", feat_web);
-    build_opts.addOption(bool, "feat_pages", feat_pages);
-    build_opts.addOption(bool, "feat_analytics", feat_analytics);
-    build_opts.addOption(bool, "feat_cloud", feat_cloud);
-    build_opts.addOption(bool, "feat_auth", feat_auth);
-    build_opts.addOption(bool, "feat_messaging", feat_messaging);
-    build_opts.addOption(bool, "feat_cache", feat_cache);
-    build_opts.addOption(bool, "feat_storage", feat_storage);
-    build_opts.addOption(bool, "feat_search", feat_search);
-    build_opts.addOption(bool, "feat_mobile", feat_mobile);
-    build_opts.addOption(bool, "feat_gateway", feat_gateway);
-    build_opts.addOption(bool, "feat_benchmarks", feat_benchmarks);
-    build_opts.addOption(bool, "feat_compute", feat_compute);
-    build_opts.addOption(bool, "feat_documents", feat_documents);
-    build_opts.addOption(bool, "feat_desktop", feat_desktop);
-    build_opts.addOption(bool, "feat_tui", feat_tui);
-    build_opts.addOption(bool, "feat_llm", feat_llm);
-    build_opts.addOption(bool, "feat_training", feat_training);
-    build_opts.addOption(bool, "feat_vision", feat_vision);
-    build_opts.addOption(bool, "feat_explore", feat_explore);
-    build_opts.addOption(bool, "feat_reasoning", feat_reasoning);
-    build_opts.addOption(bool, "feat_lsp", feat_lsp);
-    build_opts.addOption(bool, "feat_mcp", feat_mcp);
-    build_opts.addOption(bool, "gpu_metal", gpu_metal);
-    build_opts.addOption(bool, "gpu_cuda", gpu_cuda);
-    build_opts.addOption(bool, "gpu_vulkan", gpu_vulkan);
-    build_opts.addOption(bool, "gpu_webgpu", gpu_webgpu);
-    build_opts.addOption(bool, "gpu_opengl", gpu_opengl);
-    build_opts.addOption(bool, "gpu_opengles", gpu_opengles);
-    build_opts.addOption(bool, "gpu_webgl2", gpu_webgl2);
-    build_opts.addOption(bool, "gpu_stdgpu", gpu_stdgpu);
-    build_opts.addOption(bool, "gpu_fpga", gpu_fpga);
-    build_opts.addOption(bool, "gpu_tpu", gpu_tpu);
-    build_opts.addOption([]const u8, "package_version", "0.1.0");
+    addAllBuildOptions(build_opts, flags);
 
     const build_options_module = build_opts.createModule();
 
@@ -258,6 +261,80 @@ pub fn build(b: *std.Build) void {
     }
     test_step.dependOn(&b.addRunArtifact(integration_tests).step);
 
+    // ── TUI-specific tests (with feat_tui force-enabled) ────────────────
+    {
+        var tui_flags = flags;
+        tui_flags.feat_tui = true;
+        const tui_build_opts = b.addOptions();
+        addAllBuildOptions(tui_build_opts, tui_flags);
+        const tui_build_options_module = tui_build_opts.createModule();
+
+        // TUI library module (with feat_tui=true)
+        const tui_abi_module = b.addModule("abi_tui", .{
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        tui_abi_module.addImport("build_options", tui_build_options_module);
+
+        // TUI unit tests
+        const tui_lib_tests = b.addTest(.{
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/root.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        tui_lib_tests.root_module.addImport("build_options", tui_build_options_module);
+        if (target.result.os.tag == .macos) {
+            tui_lib_tests.root_module.linkSystemLibrary("System", .{});
+            tui_lib_tests.root_module.linkSystemLibrary("c", .{});
+            tui_lib_tests.root_module.linkSystemLibrary("objc", .{});
+            tui_lib_tests.root_module.linkFramework("IOKit", .{});
+            tui_lib_tests.root_module.linkFramework("CoreFoundation", .{});
+            tui_lib_tests.root_module.linkFramework("CoreGraphics", .{});
+            if (feat_gpu) {
+                tui_lib_tests.root_module.linkFramework("Accelerate", .{});
+            }
+            if (gpu_metal) {
+                for ([_][]const u8{ "Metal", "MetalPerformanceShaders" }) |fw| {
+                    tui_lib_tests.root_module.linkFramework(fw, .{});
+                }
+            }
+        }
+
+        // TUI integration tests
+        const tui_integration_mod = b.createModule(.{
+            .root_source_file = b.path("test/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+        tui_integration_mod.addImport("abi", tui_abi_module);
+        tui_integration_mod.addImport("build_options", tui_build_options_module);
+        const tui_integration_tests = b.addTest(.{ .root_module = tui_integration_mod });
+        if (target.result.os.tag == .macos) {
+            tui_integration_tests.root_module.linkSystemLibrary("System", .{});
+            tui_integration_tests.root_module.linkSystemLibrary("c", .{});
+            tui_integration_tests.root_module.linkSystemLibrary("objc", .{});
+            tui_integration_tests.root_module.linkFramework("IOKit", .{});
+            tui_integration_tests.root_module.linkFramework("CoreFoundation", .{});
+            tui_integration_tests.root_module.linkFramework("CoreGraphics", .{});
+            if (feat_gpu) {
+                tui_integration_tests.root_module.linkFramework("Accelerate", .{});
+            }
+            if (gpu_metal) {
+                for ([_][]const u8{ "Metal", "MetalPerformanceShaders" }) |fw| {
+                    tui_integration_tests.root_module.linkFramework(fw, .{});
+                }
+            }
+        }
+
+        const tui_tests_step = b.step("tui-tests", "Run TUI tests with feat-tui=true");
+        tui_tests_step.dependOn(&b.addRunArtifact(tui_lib_tests).step);
+        tui_tests_step.dependOn(&b.addRunArtifact(tui_integration_tests).step);
+    }
+
     // ── Stub parity check ───────────────────────────────────────────────
     const parity_mod = b.createModule(.{
         .root_source_file = b.path("src/feature_parity_tests.zig"),
@@ -281,6 +358,35 @@ pub fn build(b: *std.Build) void {
     const feature_tests_step = b.step("feature-tests", "Run feature integration and parity tests");
     feature_tests_step.dependOn(&b.addRunArtifact(integration_tests).step);
     feature_tests_step.dependOn(&b.addRunArtifact(parity_tests).step);
+
+    // ── Compile-only validation ────────────────────────────────────────
+    //
+    // Use object builds so cross-target validation stays compile-only and
+    // does not pull in platform linkers, frameworks, or test/fmt side effects.
+    const typecheck_root_module = b.createModule(.{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    typecheck_root_module.addImport("build_options", build_options_module);
+    const typecheck_root = b.addObject(.{
+        .name = "abi-typecheck",
+        .root_module = typecheck_root_module,
+    });
+
+    const gpu_policy_contract_module = b.createModule(.{
+        .root_source_file = b.path("src/features/gpu/policy/target_contract.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const gpu_policy_contract = b.addObject(.{
+        .name = "abi-gpu-policy-contract",
+        .root_module = gpu_policy_contract_module,
+    });
+
+    const typecheck_step = b.step("typecheck", "Compile-only validation for the requested target");
+    typecheck_step.dependOn(&typecheck_root.step);
+    typecheck_step.dependOn(&gpu_policy_contract.step);
 
     // ── Lint / format ───────────────────────────────────────────────────
     const fmt_paths = &.{ "build.zig", "src", "test" };
@@ -412,9 +518,7 @@ pub fn build(b: *std.Build) void {
 
     // ── Validation Aliases ──────────────────────────────────────────────
     b.step("cli-tests", "Run CLI tests").dependOn(test_step);
-    b.step("tui-tests", "Run TUI tests").dependOn(test_step);
     b.step("dashboard-smoke", "Run dashboard smoke tests").dependOn(test_step);
-    b.step("typecheck", "Typecheck the project").dependOn(check_step);
     b.step("validate-flags", "Validate feature flags").dependOn(test_step);
     b.step("full-check", "Run full check").dependOn(check_step);
     b.step("verify-all", "Verify all components").dependOn(check_step);
@@ -471,4 +575,52 @@ fn hasBackend(backend_str: ?[]const u8, name: []const u8) bool {
         if (std.mem.eql(u8, trimmed, name)) return true;
     }
     return false;
+}
+
+const FeatureFlags = struct {
+    feat_gpu: bool,
+    feat_ai: bool,
+    feat_database: bool,
+    feat_network: bool,
+    feat_profiling: bool,
+    feat_web: bool,
+    feat_pages: bool,
+    feat_analytics: bool,
+    feat_cloud: bool,
+    feat_auth: bool,
+    feat_messaging: bool,
+    feat_cache: bool,
+    feat_storage: bool,
+    feat_search: bool,
+    feat_mobile: bool,
+    feat_gateway: bool,
+    feat_benchmarks: bool,
+    feat_compute: bool,
+    feat_documents: bool,
+    feat_desktop: bool,
+    feat_tui: bool,
+    feat_llm: bool,
+    feat_training: bool,
+    feat_vision: bool,
+    feat_explore: bool,
+    feat_reasoning: bool,
+    feat_lsp: bool,
+    feat_mcp: bool,
+    gpu_metal: bool,
+    gpu_cuda: bool,
+    gpu_vulkan: bool,
+    gpu_webgpu: bool,
+    gpu_opengl: bool,
+    gpu_opengles: bool,
+    gpu_webgl2: bool,
+    gpu_stdgpu: bool,
+    gpu_fpga: bool,
+    gpu_tpu: bool,
+};
+
+fn addAllBuildOptions(opts: *std.Build.Step.Options, f: FeatureFlags) void {
+    inline for (@typeInfo(FeatureFlags).@"struct".fields) |field| {
+        opts.addOption(bool, field.name, @field(f, field.name));
+    }
+    opts.addOption([]const u8, "package_version", "0.1.0");
 }
