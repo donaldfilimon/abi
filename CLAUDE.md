@@ -133,7 +133,7 @@ When modifying a feature's public API, **both `mod.zig` and `stub.zig` must be u
 
 Note: `pages` is nested under `src/features/observability/pages/` (not its own top-level feature dir), but is gated by `feat_pages` independently from `feat_profiling`.
 
-The mod/stub pattern also applies to protocols: `mcp` and `lsp` are comptime-gated via `feat_mcp` and `feat_lsp` in `root.zig`, with stubs at `src/protocols/{mcp,lsp}/stub.zig`.
+The mod/stub pattern also applies to protocols: `mcp`, `lsp`, `acp`, and `ha` are comptime-gated via `feat_mcp`, `feat_lsp`, `feat_acp`, and `feat_ha` in `root.zig`, with stubs at `src/protocols/{mcp,lsp,acp,ha}/stub.zig`.
 
 Empty `struct {}` sub-module stubs are acceptable when the important types are re-exported at the stub's top level. Only expand sub-module stubs when external code accesses types through the sub-module namespace.
 
@@ -148,7 +148,7 @@ Empty `struct {}` sub-module stubs are acceptable when the important types are r
 The `build_options` module provides these fields (all `bool` unless noted):
 - Feature flags: `feat_gpu`, `feat_ai`, `feat_database`, `feat_network`, `feat_profiling`, `feat_web`, `feat_pages`, `feat_analytics`, `feat_cloud`, `feat_auth`, `feat_messaging`, `feat_cache`, `feat_storage`, `feat_search`, `feat_mobile`, `feat_gateway`, `feat_benchmarks`, `feat_compute`, `feat_documents`, `feat_desktop`, `feat_tui`
 - AI sub-features: `feat_llm`, `feat_training`, `feat_vision`, `feat_explore`, `feat_reasoning` (all require parent `feat_ai`; disabling `feat_ai` disables all sub-features)
-- Protocols: `feat_lsp`, `feat_mcp`
+- Protocols: `feat_lsp`, `feat_mcp`, `feat_acp`, `feat_ha`
 - GPU backends: `gpu_metal`, `gpu_cuda`, `gpu_vulkan`, `gpu_webgpu`, `gpu_opengl`, `gpu_opengles`, `gpu_webgl2`, `gpu_stdgpu`, `gpu_fpga`, `gpu_tpu`
 - `package_version` (`[]const u8`)
 

@@ -37,7 +37,7 @@ Guidance for AI coding agents working in this repository.
 - **Foundation**: `src/foundation/` (logging, security, time, SIMD, sync)
 - **Runtime**: `src/runtime/` (task scheduling, event loops)
 - **Connectors**: `src/connectors/` (OpenAI, Anthropic, Discord, etc.)
-- **Protocols**: `src/protocols/` (mcp/, lsp/, acp/, ha/)
+- **Protocols**: `src/protocols/` (mcp/, lsp/, acp/, ha/) — all comptime-gated via `feat_mcp`, `feat_lsp`, `feat_acp`, `feat_ha`
 - **Inference**: `src/inference/` (multi-backend ML engine)
 - **Feature catalog**: `src/core/feature_catalog.zig` (canonical feature metadata)
 - **Stub helpers**: `src/core/stub_helpers.zig` (reuse `StubFeature`, `StubContext` in stubs)

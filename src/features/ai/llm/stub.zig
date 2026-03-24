@@ -39,7 +39,6 @@ pub const SSEFormatter = types.SSEFormatter;
 pub const InferenceConfig = types.InferenceConfig;
 pub const InferenceStats = types.InferenceStats;
 pub const Engine = types.Engine;
-pub const LlmError = types.LlmError;
 pub const FusionConfig = types.FusionConfig;
 pub const WdbxFusion = types.WdbxFusion;
 pub const Context = types.Context;
