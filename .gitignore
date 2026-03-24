@@ -136,6 +136,11 @@ testingllm.ckpt/
 /synthetic.bin
 /swiftly.pkg
 
+# Root-level build artifacts (stray from manual builds)
+/test.db
+/target_contract.o
+/libcontext_init.a
+
 # ── Zig package cache (downloaded by build system) ───────────────────
 zig-pkg/
 zig-pkg.lock
