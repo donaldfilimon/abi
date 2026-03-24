@@ -20,6 +20,13 @@ pub const defaultOrderForTarget = catalog.defaultOrderForTarget;
 pub const resolveAutoBackendNames = selector.resolveAutoBackendNames;
 pub const optimizationHintsForPlatform = hints.forPlatform;
 
+comptime {
+    const os = @import("builtin").target.os.tag;
+    if (os == .macos or os == .linux or os == .windows) {
+        _ = @import("target_contract.zig");
+    }
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
