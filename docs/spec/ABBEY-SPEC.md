@@ -443,7 +443,7 @@ Key spec claims and their actual status:
 | Persona routing (Abi → Abbey/Aviva) | **Implemented** | `src/features/ai/persona/router.zig` — 3-way weights, not simple α blend |
 | Adaptive modulation (EMA learning) | **Implemented** | `src/features/ai/persona/modulation.zig` |
 | WDBX block chain memory | **Implemented** | `src/core/database/block_chain.zig`, `persona/memory.zig` |
-| Bias quantification formula | **Partial** | Bias-related ops exist in LLM backward passes; no standalone `computeBias()` |
+| Bias quantification formula | **Implemented** | `src/features/ai/constitution/enforcement.zig` — `computeBias()` with `BiasScore` struct |
 | Persona token injection (Z = Embed) | **Planned** | Inference engine exists but doesn't implement actual embedding injection |
 | Benchmark numbers (110ms, 90 req/s) | **Aspirational** | No production inference benchmark; demo/connector backends only |
 | RLHF training pipeline | **Partial** | `abbey_train.zig` has LoRA fine-tuning config; no RLHF reward model |
