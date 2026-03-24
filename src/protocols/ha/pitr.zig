@@ -914,7 +914,7 @@ test "recoverToTimestamp filters operations correctly" {
     var i: i64 = 0;
     while (i < 10) : (i += 1) {
         var buf: [8]u8 = undefined;
-        const key = std.fmt.bufPrint(&buf, "key{d}", .{i}) catch unreachable;
+        const key = try std.fmt.bufPrint(&buf, "key{d}", .{i});
         try manager.captureOperationWithTimestamp(.insert, key, "val", null, 100 + i);
     }
 
@@ -944,7 +944,7 @@ test "recoverToSequence filters operations correctly" {
     var i: usize = 0;
     while (i < 10) : (i += 1) {
         var buf: [8]u8 = undefined;
-        const key = std.fmt.bufPrint(&buf, "key{d}", .{i}) catch unreachable;
+        const key = try std.fmt.bufPrint(&buf, "key{d}", .{i});
         try manager.captureOperationWithTimestamp(.insert, key, "val", null, @intCast(1000 + i));
     }
 
