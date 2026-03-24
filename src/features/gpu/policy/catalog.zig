@@ -123,7 +123,7 @@ test "cross-target policy: web classification and order" {
     try std.testing.expectEqual(PlatformClass.web, class1);
     const class2 = classify(.emscripten, .none);
     try std.testing.expectEqual(PlatformClass.web, class2);
-    
+
     const order = defaultOrder(class1);
     try std.testing.expectEqualStrings("webgpu", order[0]);
     try std.testing.expectEqualStrings("webgl2", order[1]);
@@ -137,7 +137,7 @@ test "cross-target policy: android classification and order" {
     try std.testing.expectEqualStrings("vulkan", order[0]);
     try std.testing.expectEqualStrings("opengles", order[1]);
     try std.testing.expectEqualStrings("stdgpu", order[2]);
-    
+
     const modified = withAndroidPrimary("opengles");
     try std.testing.expectEqualStrings("opengles", modified[0]);
     try std.testing.expectEqualStrings("vulkan", modified[1]);

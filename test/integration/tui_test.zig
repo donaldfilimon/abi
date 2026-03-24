@@ -66,12 +66,12 @@ test "tui: Context init and deinit" {
 test "tui: Rect hit testing contains method" {
     const Rect = abi.tui.types.Rect;
     const r = Rect{ .x = 10, .y = 10, .width = 50, .height = 20 };
-    
+
     // Inside bounds
     try std.testing.expect(r.contains(10, 10));
     try std.testing.expect(r.contains(30, 20));
     try std.testing.expect(r.contains(59, 29));
-    
+
     // Outside bounds
     try std.testing.expect(!r.contains(9, 10)); // left
     try std.testing.expect(!r.contains(10, 9)); // top
@@ -83,17 +83,17 @@ test "tui: Layout primitive splitting" {
     const Rect = abi.tui.types.Rect;
     const Constraint = abi.tui.types.Constraint;
     const layout = abi.tui.layout;
-    
+
     const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 40 };
     const constraints = [_]Constraint{
         .{ .fixed = 5 },
         .{ .percentage = 50 },
         .{ .min = 10 },
     };
-    
+
     const split_res = layout.split(r, .vertical, &constraints);
     try std.testing.expectEqual(@as(usize, 3), split_res.len);
-    
+
     const rects = split_res.slice();
     try std.testing.expectEqual(@as(u16, 5), rects[0].width);
     try std.testing.expectEqual(@as(u16, 50), rects[1].width); // 50% of 100
