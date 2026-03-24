@@ -444,7 +444,7 @@ Key spec claims and their actual status:
 | Adaptive modulation (EMA learning) | **Implemented** | `src/features/ai/persona/modulation.zig` |
 | WDBX block chain memory | **Implemented** | `src/core/database/block_chain.zig`, `persona/memory.zig` |
 | Bias quantification formula | **Implemented** | `src/features/ai/constitution/enforcement.zig` — `computeBias()` with `BiasScore` struct |
-| Persona token injection (Z = Embed) | **Planned** | Local backend wired but persona embedding injection not yet in forward pass |
+| Persona token injection (Z = Embed) | **Implemented** | `llm/model/llama.zig` — additive persona embeddings injected before first layer; `setPersona(id)` API |
 | Benchmark numbers (110ms, 90 req/s) | **Aspirational** | No production inference benchmark; demo/connector backends only |
 | RLHF training pipeline | **Partial** | `abbey_train.zig` has LoRA fine-tuning config; no RLHF reward model |
 | Mixed-precision training | **Partial** | Quantization types (Q4_0, Q8_0) exist; no FP16/BF16 training loop |
