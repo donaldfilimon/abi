@@ -139,7 +139,7 @@ pub fn build(b: *std.Build) void {
     addAllBuildOptions(build_opts, flags);
 
     const build_options_module = build_opts.createModule();
-    const cross_steps = build_cross.addSteps(.{
+    _ = build_cross.addSteps(.{
         .b = b,
         .target = target,
         .optimize = optimize,
