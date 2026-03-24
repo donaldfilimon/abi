@@ -128,6 +128,8 @@ Note: `pages` is nested under `src/features/observability/pages/` (not its own t
 
 The mod/stub pattern also applies to protocols: `mcp` and `lsp` are comptime-gated via `feat_mcp` and `feat_lsp` in `root.zig`, with stubs at `src/protocols/{mcp,lsp}/stub.zig`.
 
+Empty `struct {}` sub-module stubs are acceptable when the important types are re-exported at the stub's top level. Only expand sub-module stubs when external code accesses types through the sub-module namespace.
+
 ### Convenience Aliases in root.zig
 
 - `abi.meta.package_version` / `abi.meta.version()` — version string from build options
@@ -214,6 +216,7 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - Struct field renames: grep for `.field_name` (with leading dot) to catch anonymous struct literals that won't match `StructName{` searches.
 - `src/core/feature_catalog.zig` is the canonical source of truth for feature metadata.
 - `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, and `StubContextWithConfig` — reuse these in stubs instead of defining custom lifecycle boilerplate.
+- Integration tests in `test/` must use public API accessors (e.g., `manager.getStatus()`) not direct struct field access. This preserves the consumer-API boundary and thread-safety contract.
 
 ## Zig 0.16 Gotchas
 
@@ -226,6 +229,8 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - Entry points use `pub fn main(init: std.process.Init) !void` (not the older `pub fn main() !void`). Access args via `init.minimal.args`, allocator via `init.gpa` or `init.arena`.
 - `zig fmt .` from root: don't — use `zig build fix` to avoid vendored fixtures
 - IO operations: use `std.Io.Threaded` + `std.Io.Dir.cwd()` pattern (not the removed `std.fs.cwd()`)
+- `extern` declarations in platform-gated structs: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`, not just OS. Otherwise symbols leak into feature-disabled builds (ref: `accelerate.zig` fix).
+- `foundation.time.timestampSec()` is monotonic from process start — returns 0 in the first second. Use `std.posix.system.clock_gettime(.REALTIME, ...)` for wall-clock timestamps in persisted data.
 
 ## Skill Overrides
 
