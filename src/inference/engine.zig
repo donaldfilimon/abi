@@ -261,9 +261,17 @@ pub const Engine = struct {
     local_model: ?*anyopaque = null,
 
     /// Load a GGUF model for local inference. Requires feat_ai + feat_llm.
+    /// Safe to call multiple times — frees any previously loaded model first.
     pub fn loadModel(self: *Self, path: []const u8) !void {
         if (comptime !(build_options.feat_ai and build_options.feat_llm)) {
             return error.LocalBackendNotAvailable;
+        }
+        // Free existing model if one is already loaded
+        if (self.local_model) |prev_opaque| {
+            const prev: *llm_model.LlamaModel = @ptrCast(@alignCast(prev_opaque));
+            prev.deinit();
+            self.allocator.destroy(prev);
+            self.local_model = null;
         }
         const LlamaModel = llm_model.LlamaModel;
         const model_ptr = try self.allocator.create(LlamaModel);
@@ -419,7 +427,8 @@ pub const Engine = struct {
 
         // Autoregressive generation
         const tokens = try self.allocator.alloc(u32, request.max_tokens);
-        errdefer self.allocator.free(tokens);
+        var tokens_owned = true;
+        defer if (tokens_owned) self.allocator.free(tokens);
 
         var local_sampler = self.sampler;
         local_sampler.params.temperature = request.temperature;
@@ -452,6 +461,11 @@ pub const Engine = struct {
         const elapsed_ns = time_mod.timestampNs() - start;
         const latency = @as(f32, @floatFromInt(elapsed_ns)) / @as(f32, @floatFromInt(std.time.ns_per_ms));
 
+        _ = self.total_requests.fetchAdd(1, .acq_rel);
+        _ = self.total_tokens.fetchAdd(actual_count, .acq_rel);
+        _ = self.total_elapsed_ns.fetchAdd(elapsed_ns, .acq_rel);
+
+        tokens_owned = false; // Transfer ownership to Result
         return .{
             .id = request.id,
             .text = text,
