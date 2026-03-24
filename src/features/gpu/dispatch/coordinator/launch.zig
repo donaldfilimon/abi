@@ -102,7 +102,7 @@ pub fn launchOnBackend(
             }
 
             // Store device handle in buffer for reuse
-            buf.setDeviceHandle(device_ptr);
+            buf.setDeviceHandle(device_ptr, bi);
             buf.clearHostDirty();
         } else {
             device_ptr = buf.getDevicePtr() catch return DispatchError.BufferNotReady;
