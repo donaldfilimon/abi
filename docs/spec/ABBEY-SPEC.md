@@ -4,7 +4,7 @@
 > ethics, benchmarks, implementation, and visual assets.
 >
 > Research conducted by: M | Date: January 4, 2025
-> Implementation: Zig 0.16 (ABI Framework) | Updated: March 22, 2026
+> Implementation: Zig 0.16 (ABI Framework) | Updated: March 24, 2026
 
 ---
 
@@ -20,7 +20,7 @@ ethically aligned assistance across diverse use cases.
 
 - **Multi-Persona Structure**: Abbey (empathetic polymath), Aviva (direct expert), Abi (adaptive moderator)
 - **WDBX Distributed Database**: High-throughput, low-latency data handling with optimized sharding and block chaining
-- **Transformer-Based Core**: Multi-head attention, persona token injection, mixed-precision training
+- **Transformer-Based Core**: Multi-head attention, persona token injection (planned), quantized inference (Q4/Q8)
 - **Ethical & Privacy Safeguards**: Real-time content filtering, bias detection, data anonymization, regulatory compliance
 
 ### Capabilities
@@ -33,9 +33,9 @@ ethically aligned assistance across diverse use cases.
 
 ### Performance
 
-- Low latency (~110ms) and high throughput (90 req/s) under heavy concurrency
-- Benchmark leadership in GLUE, SuperGLUE, SQuAD, CoQA, and code benchmarks
-- ~25% energy reduction vs competitors (14 kWh/1k inferences)
+- Low latency (~110ms target) and high throughput (90 req/s target) under heavy concurrency
+- Benchmark targets set for GLUE, SuperGLUE, SQuAD, CoQA, and code benchmarks
+- ~25% energy reduction target vs competitors (14 kWh/1k inferences)
 
 ---
 
@@ -55,7 +55,7 @@ ethically aligned assistance across diverse use cases.
 User Input → Abi (Context + Policy + Intent Analysis)
   → Adaptive Modulation (EMA preference learning)
   → Persona Selection or Blend (single / parallel / consensus)
-  → Transformer Core (Persona Token Injection)
+  → Transformer Core (Persona Token Injection — planned)
   → WDBX Retrieval + Reasoning
   → Constitution Validation (6 principles)
   → WDBX Memory Storage (block chain)
@@ -275,7 +275,7 @@ L_model = O(N · d²_model / #GPUs)
 ```
 T = N / L_latency
 ```
-At 110ms latency: T = 9.9/0.110 ≈ 90 req/s
+At 110ms latency with 10 concurrent connections: T = 10/0.110 ≈ 90 req/s (target)
 
 ### 5.3 Scaling
 
@@ -364,12 +364,12 @@ Scale_up if L_current > L_threshold
 | HumanEval Pass@1 | **0.80** (target) | 0.70 | 0.75 | 0.68 |
 | CodeSearchNet MRR | **0.85** (target) | 0.78 | 0.80 | 0.75 |
 
-### 7.3 Ablation Studies
+### 7.3 Ablation Studies (Target)
 
 - Removing Abi: 12% increase in policy violations
 - Removing WDBX: 29% throughput drop, 15% latency increase
 
-### 7.4 Error Rates
+### 7.4 Error Rates (Target)
 
 | Error Type | Abbey+Aviva+Abi | GPT-4 | Claude | PaLM 2 |
 |------------|-----------------|-------|--------|--------|
@@ -385,7 +385,7 @@ Scale_up if L_current > L_threshold
 
 - **Language:** Zig 0.16.0-dev.2962+08416b44f
 - **Size:** 360K LOC across 1,126 .zig files
-- **Tests:** 3,244 unit + integration tests (4 skipped)
+- **Tests:** 3,265 unit + integration tests (4 skipped)
 - **Features:** 30 comptime-gated features in the catalog
 - **Package:** `@import("abi")` — single module, comptime-gated features (mod/stub pattern)
 - **Build:** `./build.sh` (macOS 26.4+) or `zig build` (Linux)
@@ -414,7 +414,7 @@ All pipeline steps wired end-to-end:
 5. Constitution post-validation (6-principle enforcement with scoring)
 6. Memory module (ConversationMemory → BlockChain with MVCC timestamps)
 7. HA subsystem (replication, backup orchestrator, PITR with operation replay)
-8. Integration tests (31 test modules, 3,244 tests)
+8. Integration tests (31 test modules, 3,265 tests)
 9. Test module wiring (test/mod.zig + 4 feature-disabled build configs)
 
 ### 8.4 Infrastructure & Tooling
@@ -457,14 +457,13 @@ Key spec claims and their actual status:
 - **Local inference backend**: GGUF model loading in the inference engine (currently demo/connector only)
 - **HA cluster deployment**: Real network replication between nodes (currently single-node with queue stubs)
 - **PITR persistent log**: File-based operation log with crash recovery (serialization implemented, I/O wired)
-- **Vision module**: Platform screen capture (X11/Wayland on Linux, DXGI on Windows — macOS done)
-- **MCP resource subscriptions**: Server-sent change notifications for vector database state
+- **Vision module**: Platform screen capture stubs with error types (macOS: CoreGraphics implemented; Linux/Windows: documented stubs ready for implementation)
+- **MCP resource subscriptions**: Subscribe/unsubscribe and notification support implemented in server
 
 ### 9.2 Medium-Term (Capabilities)
 - **Persona token injection**: Actual embedding injection (`Z = Embed(PersonaID) ⊕ Embed(UserInput)`) in the transformer forward pass
 - **RLHF reward model**: Complete the training pipeline (LoRA config exists; reward model + PPO missing)
 - **Production benchmarking**: Validate Part VII targets with real inference workloads
-- **Bias quantification**: Standalone `computeBias()` function implementing the `B = (1/n) Σᵢ |Bᵢ|` formula
 
 ### 9.3 Long-Term (Expansion)
 - **Expanded personas**: Healthcare, legal, finance, creative arts specializations
