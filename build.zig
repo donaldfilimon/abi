@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) void {
             feat_observability_opt.?,
             feat_profiling_opt.?,
         });
-        return;
+        std.process.exit(1);
     }
     const feat_observability = feat_observability_opt orelse feat_profiling_opt orelse true;
     if (feat_profiling_opt != null and feat_observability_opt == null) {

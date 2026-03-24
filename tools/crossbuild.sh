@@ -177,7 +177,7 @@ build_target() {
 }
 
 # WASM feature flags — disable OS-dependent features
-WASM_FLAGS="-Dfeat-gpu=false -Dfeat-database=false -Dfeat-network=false -Dfeat-profiling=false -Dfeat-web=false -Dfeat-pages=false -Dfeat-cloud=false -Dfeat-storage=false -Dfeat-compute=false -Dfeat-desktop=false -Dfeat-lsp=false -Dfeat-mcp=false"
+WASM_FLAGS="-Dfeat-gpu=false -Dfeat-database=false -Dfeat-network=false -Dfeat-observability=false -Dfeat-web=false -Dfeat-pages=false -Dfeat-cloud=false -Dfeat-storage=false -Dfeat-compute=false -Dfeat-desktop=false -Dfeat-lsp=false -Dfeat-mcp=false"
 
 # iOS feature flags — enable mobile, metal + opengles GPU
 IOS_FLAGS="-Dfeat-mobile=true -Dgpu-backend=metal,opengles"
