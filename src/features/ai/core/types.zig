@@ -41,12 +41,12 @@ fn getCurrentInstant() ?PlatformInstant {
 
 /// Application start time for relative timing (initialized lazily)
 var app_start_instant: ?PlatformInstant = null;
-var app_start_initialized: bool = false;
+var app_start_initialized = std.atomic.Value(bool).init(false);
 
 fn ensureStartInstant() ?PlatformInstant {
-    if (!app_start_initialized) {
+    if (!app_start_initialized.load(.acquire)) {
         app_start_instant = getCurrentInstant();
-        app_start_initialized = true;
+        app_start_initialized.store(true, .release);
     }
     return app_start_instant;
 }

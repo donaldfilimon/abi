@@ -121,15 +121,15 @@ pub fn elapsedSec(start: ?Instant, end: ?Instant) u64 {
 
 /// App start time for relative timing (initialized lazily)
 var app_start: ?Instant = null;
-var app_start_initialized: bool = false;
+var app_start_initialized = std.atomic.Value(bool).init(false);
 
 fn getAppStart() ?Instant {
-    if (!app_start_initialized) {
+    if (!app_start_initialized.load(.acquire)) {
         app_start = Instant.now() catch |err| blk: {
             std.log.debug("Failed to initialize app start time: {t}", .{err});
             break :blk null;
         };
-        app_start_initialized = true;
+        app_start_initialized.store(true, .release);
     }
     return app_start;
 }
