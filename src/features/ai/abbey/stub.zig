@@ -312,7 +312,24 @@ pub const Stats = custom_framework.Stats;
 pub const Abbey = abbey_types.Abbey;
 pub const LegacyResponse = abbey_types.LegacyResponse;
 pub const LegacyStats = abbey_types.LegacyStats;
-pub const abbey_train = struct {};
+pub const abbey_train = struct {
+    pub const AbbyTrainConfig = struct {
+        base_gguf_path: []const u8 = "",
+        training_data_path: []const u8 = "",
+        output_path: []const u8 = "",
+    };
+
+    pub const AbbyTrainError = error{
+        NoTrainingData,
+        InvalidModel,
+        TokenizerLoadFailed,
+        FeatureDisabled,
+    };
+
+    pub fn run(_: std.mem.Allocator, _: AbbyTrainConfig) AbbyTrainError!void {
+        return error.FeatureDisabled;
+    }
+};
 pub const ralph_swarm = struct {
     pub const ParallelRalphContext = struct {
         allocator: std.mem.Allocator,

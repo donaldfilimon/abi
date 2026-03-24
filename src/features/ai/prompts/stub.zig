@@ -76,7 +76,14 @@ pub const builder = struct {
     };
 };
 
-pub const ralph = struct {};
+pub const ralph = struct {
+    pub const LOOP_INJECTION_TEMPLATE: []const u8 = "";
+    pub const STOP_HOOK_TEMPLATE: []const u8 = "";
+
+    pub fn formatLoopInjection(_: std.mem.Allocator, _: usize, _: []const u8) ![]u8 {
+        return error.FeatureDisabled;
+    }
+};
 
 // Stub for the named "types" module that mod.zig imports
 pub const types = struct {

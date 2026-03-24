@@ -19,7 +19,16 @@ pub const orchestrator = struct {};
 pub const utils = struct {};
 
 // Re-exports for convenience (minimal types so API surface matches)
-pub const Orchestrator = struct {};
+pub const Orchestrator = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) Error!Orchestrator {
+        _ = allocator;
+        return error.FeatureDisabled;
+    }
+
+    pub fn deinit(_: *Orchestrator) void {}
+};
 pub const BackendType = enum(u8) { placeholder = 0 };
 pub const BackendConfig = struct {};
 pub const InferenceRequest = struct {};

@@ -141,24 +141,35 @@ pub const AsyncResult = struct {
         return self.result;
     }
 
-    /// Abandon a pending result. If the background thread has not yet
-    /// finished, it will free the result and this container when it
-    /// completes.
+    /// Clean up an AsyncResult. Handles all lifecycle states:
     ///
-    /// **Must only be called when the result has NOT been consumed**
-    /// (i.e. `waitTimeout` returned `null` or `wait` was never called).
+    /// - **pending**: Transitions to `abandoned`; the background thread
+    ///   will free the result buffers and the container when it completes.
+    /// - **ready**: The result was produced but not consumed (or was
+    ///   already consumed and the buffers freed via `Result.deinit()`).
+    ///   Frees any remaining owned buffers and the container.
+    /// - **abandoned**: No-op (already handed off to the background thread).
+    ///
     /// After calling `deinit()`, the caller must not dereference `self`.
     pub fn deinit(self: *Self) void {
-        // Try to transition pending -> abandoned so the thread knows
-        // it must free the result itself.
-        _ = self.state.cmpxchgStrong(
+        const prev = self.state.cmpxchgStrong(
             @intFromEnum(State.pending),
             @intFromEnum(State.abandoned),
             .acq_rel,
             .acquire,
         );
-        // The heap-allocated AsyncResult is freed by the background
-        // thread after it finishes (it always runs to completion).
+        if (prev) |state| {
+            if (state == @intFromEnum(State.ready)) {
+                // Result was produced. Free any owned buffers that the
+                // caller has not already freed via Result.deinit(), then
+                // destroy the heap-allocated container.
+                self.result.deinit(self.allocator);
+                self.allocator.destroy(self);
+            }
+            // State.abandoned: another deinit() already ran — no-op.
+        }
+        // CAS succeeded (was pending, now abandoned): the background
+        // thread will free everything when it finishes.
     }
 
     /// Free the container after the result has been consumed via
@@ -906,18 +917,17 @@ test "generateAsyncWithTimeout returns result" {
         .prompt = "timeout test",
         .max_tokens = 8,
     });
+    // deinit() handles both result buffer cleanup and container
+    // destruction on the happy path (state == ready).
+    defer ar.deinit();
 
     // Wait with a generous timeout.
     const maybe_result = ar.waitTimeout(5000);
     try std.testing.expect(maybe_result != null);
 
-    var result = maybe_result.?;
+    const result = maybe_result.?;
     try std.testing.expectEqual(@as(u64, 77), result.id);
     try std.testing.expect(result.text.len > 0);
-    result.deinit(allocator);
-
-    // Free the container now that we have consumed the result.
-    ar.destroy();
 }
 
 test "generateAsyncWithTimeout abandon cleans up" {
