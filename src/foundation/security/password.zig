@@ -278,7 +278,7 @@ pub const PasswordHasher = struct {
         // Generate salt
         var salt: [32]u8 = undefined;
         const salt_slice = salt[0..params.salt_length];
-        csprng.fillRandom(salt_slice) catch unreachable;
+        try csprng.fillRandom(salt_slice);
 
         // Derive hash using Argon2id
         var derived: [64]u8 = undefined;
@@ -333,7 +333,7 @@ pub const PasswordHasher = struct {
         // Generate salt
         var salt: [32]u8 = undefined;
         const salt_slice = salt[0..params.salt_length];
-        csprng.fillRandom(salt_slice) catch unreachable;
+        try csprng.fillRandom(salt_slice);
 
         // Derive hash
         var derived: [64]u8 = undefined;
@@ -367,7 +367,7 @@ pub const PasswordHasher = struct {
 
         var salt: [32]u8 = undefined;
         const salt_slice = salt[0..params.salt_length];
-        csprng.fillRandom(salt_slice) catch unreachable;
+        try csprng.fillRandom(salt_slice);
 
         var derived: [64]u8 = undefined;
         const hash_slice = derived[0..params.hash_length];
@@ -399,7 +399,7 @@ pub const PasswordHasher = struct {
 
         var salt: [32]u8 = undefined;
         const salt_slice = salt[0..params.salt_length];
-        csprng.fillRandom(salt_slice) catch unreachable;
+        try csprng.fillRandom(salt_slice);
 
         var derived: [64]u8 = undefined;
         const hash_slice = derived[0..params.hash_length];
@@ -437,7 +437,7 @@ pub const PasswordHasher = struct {
 
     fn hashBlake3(self: *PasswordHasher, password: []const u8) !HashedPassword {
         var salt: [16]u8 = undefined;
-        csprng.fillRandom(&salt) catch unreachable;
+        try csprng.fillRandom(&salt);
 
         // Use Blake3 in keyed mode with salt as context
         var hasher = crypto.hash.Blake3.init(.{});
@@ -1010,32 +1010,32 @@ pub fn generatePassword(allocator: std.mem.Allocator, length: usize, options: Ge
 
     // Fill with random characters
     for (result) |*c| {
-        const idx = csprng.uintLessThan(usize, charset.items.len) catch unreachable;
+        const idx = try csprng.uintLessThan(usize, charset.items.len);
         c.* = charset.items[idx];
     }
 
     // Ensure at least one character from each required class
     var pos: usize = 0;
     if (options.include_lowercase and options.require_all_classes) {
-        result[pos] = "abcdefghijklmnopqrstuvwxyz"[csprng.uintLessThan(usize, 26) catch unreachable];
+        result[pos] = "abcdefghijklmnopqrstuvwxyz"[try csprng.uintLessThan(usize, 26)];
         pos += 1;
     }
     if (options.include_uppercase and options.require_all_classes and pos < length) {
-        result[pos] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[csprng.uintLessThan(usize, 26) catch unreachable];
+        result[pos] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[try csprng.uintLessThan(usize, 26)];
         pos += 1;
     }
     if (options.include_digits and options.require_all_classes and pos < length) {
-        result[pos] = "0123456789"[csprng.uintLessThan(usize, 10) catch unreachable];
+        result[pos] = "0123456789"[try csprng.uintLessThan(usize, 10)];
         pos += 1;
     }
     if (options.include_special and options.require_all_classes and pos < length) {
         const special = "!@#$%^&*()_+-=[]{}|;:,.<>?";
-        result[pos] = special[csprng.uintLessThan(usize, special.len) catch unreachable];
+        result[pos] = special[try csprng.uintLessThan(usize, special.len)];
         pos += 1;
     }
 
     // Shuffle the result
-    csprng.shuffle(u8, result) catch unreachable;
+    try csprng.shuffle(u8, result);
 
     return result;
 }
