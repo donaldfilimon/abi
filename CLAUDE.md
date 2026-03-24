@@ -72,7 +72,7 @@ Build with `zig build cli` (or `./build.sh cli`). Binary: `zig-out/bin/abi`.
 abi                    # Smart status (feature count, enabled/disabled tags)
 abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
-abi features           # List all 30 features from catalog with [+]/[-] status
+abi features           # List all 32 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
 abi connectors         # List 16 LLM provider connectors with env vars
 abi info               # Framework architecture summary
@@ -103,7 +103,7 @@ The build.zig is self-contained with all feature flags defined inline. No extern
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 20 feature directories under src/features/ (30 features total including AI sub-features in the catalog)
+- `src/features/` — 20 feature directories under src/features/ (32 features total including AI sub-features in the catalog)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction
