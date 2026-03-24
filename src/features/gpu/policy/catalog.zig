@@ -85,6 +85,64 @@ pub fn defaultOrderForTarget(os_tag: std.Target.Os.Tag, abi: std.Target.Abi) []c
     return defaultOrder(classify(os_tag, abi));
 }
 
+test "cross-target policy: macos classification and order" {
+    const class = classify(.macos, .none);
+    try std.testing.expectEqual(PlatformClass.macos, class);
+    const order = defaultOrder(class);
+    try std.testing.expectEqualStrings("metal", order[0]);
+    try std.testing.expectEqualStrings("vulkan", order[1]);
+    try std.testing.expectEqualStrings("opengl", order[2]);
+    try std.testing.expectEqualStrings("stdgpu", order[3]);
+    try std.testing.expectEqual(@as(usize, 4), order.len);
+}
+
+test "cross-target policy: linux classification and order" {
+    const class = classify(.linux, .gnu);
+    try std.testing.expectEqual(PlatformClass.linux, class);
+    const order = defaultOrder(class);
+    try std.testing.expectEqualStrings("cuda", order[0]);
+    try std.testing.expectEqualStrings("vulkan", order[1]);
+    try std.testing.expectEqualStrings("opengl", order[2]);
+    try std.testing.expectEqualStrings("stdgpu", order[3]);
+    try std.testing.expectEqual(@as(usize, 4), order.len);
+}
+
+test "cross-target policy: windows classification and order" {
+    const class = classify(.windows, .msvc);
+    try std.testing.expectEqual(PlatformClass.windows, class);
+    const order = defaultOrder(class);
+    try std.testing.expectEqualStrings("cuda", order[0]);
+    try std.testing.expectEqualStrings("vulkan", order[1]);
+    try std.testing.expectEqualStrings("opengl", order[2]);
+    try std.testing.expectEqualStrings("stdgpu", order[3]);
+    try std.testing.expectEqual(@as(usize, 4), order.len);
+}
+
+test "cross-target policy: web classification and order" {
+    const class1 = classify(.wasi, .musl);
+    try std.testing.expectEqual(PlatformClass.web, class1);
+    const class2 = classify(.emscripten, .none);
+    try std.testing.expectEqual(PlatformClass.web, class2);
+    
+    const order = defaultOrder(class1);
+    try std.testing.expectEqualStrings("webgpu", order[0]);
+    try std.testing.expectEqualStrings("webgl2", order[1]);
+    try std.testing.expectEqualStrings("simulated", order[2]);
+}
+
+test "cross-target policy: android classification and order" {
+    const class = classify(.linux, .android);
+    try std.testing.expectEqual(PlatformClass.android, class);
+    const order = defaultOrder(class);
+    try std.testing.expectEqualStrings("vulkan", order[0]);
+    try std.testing.expectEqualStrings("opengles", order[1]);
+    try std.testing.expectEqualStrings("stdgpu", order[2]);
+    
+    const modified = withAndroidPrimary("opengles");
+    try std.testing.expectEqualStrings("opengles", modified[0]);
+    try std.testing.expectEqualStrings("vulkan", modified[1]);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
