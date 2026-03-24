@@ -1,6 +1,6 @@
 //! Abbey Fine-Tuning Orchestrator
 //!
-//! End-to-end pipeline: reads lilex-generated Alpaca JSONL, tokenizes with
+//! End-to-end pipeline: reads Alpaca JSONL training data, tokenizes with
 //! the base model's BPE tokenizer, fine-tunes via LoRA, merges adapters into
 //! base weights, and exports the result as a GGUF file for Ollama serving.
 //!
@@ -22,7 +22,7 @@ const brain_export = @import("../database/brain_export.zig");
 pub const AbbyTrainConfig = struct {
     /// Path to base model GGUF (e.g. gemma-3-4b-it.gguf)
     base_gguf_path: []const u8,
-    /// Path to lilex-generated Alpaca JSONL
+    /// Path to Alpaca JSONL training data
     jsonl_path: []const u8,
     /// Output GGUF path
     output_path: []const u8 = "abbey_brain.gguf",

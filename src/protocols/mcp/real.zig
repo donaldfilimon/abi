@@ -218,17 +218,6 @@ pub fn createDatabaseServer(allocator: std.mem.Allocator, version: []const u8) !
         .handler = handleDbDiagnostics,
     });
 
-    try server.addTool(.{
-        .def = .{
-            .name = "db_lilex_query",
-            .description = "Placeholder tool for future WDBX tight-coupling and advanced Lilex queries",
-            .input_schema =
-            \\{"type":"object","properties":{"query":{"type":"string","description":"Lilex query string"}},"required":["query"]}
-            ,
-        },
-        .handler = handleDbLilexQuery,
-    });
-
     return server;
 }
 
@@ -594,14 +583,6 @@ fn handleDbDiagnostics(
     try out.appendSlice(allocator, s);
 }
 
-fn handleDbLilexQuery(
-    allocator: std.mem.Allocator,
-    _: ?std.json.ObjectMap,
-    out: *std.ArrayListUnmanaged(u8),
-) !void {
-    try out.appendSlice(allocator, "db_lilex_query placeholder is active. Future WDBX integration pending.");
-}
-
 // ═══════════════════════════════════════════════════════════════
 // Status / Diagnostics Tool Handlers
 // ═══════════════════════════════════════════════════════════════
@@ -684,7 +665,7 @@ test "createDatabaseServer registers tools" {
     var server = try createDatabaseServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 10), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 9), server.tools.items.len);
     try std.testing.expectEqualStrings("db_query", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("db_insert", server.tools.items[1].def.name);
     try std.testing.expectEqualStrings("db_stats", server.tools.items[2].def.name);
@@ -694,7 +675,6 @@ test "createDatabaseServer registers tools" {
     try std.testing.expectEqualStrings("db_update", server.tools.items[6].def.name);
     try std.testing.expectEqualStrings("db_backup", server.tools.items[7].def.name);
     try std.testing.expectEqualStrings("db_diagnostics", server.tools.items[8].def.name);
-    try std.testing.expectEqualStrings("db_lilex_query", server.tools.items[9].def.name);
 }
 
 test "createCombinedServer registers database and ZLS tools" {

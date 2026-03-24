@@ -56,7 +56,7 @@ pub const ralph_multi = @import("ralph_multi.zig");
 pub const ralph_swarm = @import("ralph_swarm.zig");
 
 // ============================================================================
-// Fine-Tuning Pipeline (lilex JSONL → LoRA → GGUF)
+// Fine-Tuning Pipeline (Alpaca JSONL → LoRA → GGUF)
 // ============================================================================
 
 pub const abbey_train = @import("abbey_train.zig");
