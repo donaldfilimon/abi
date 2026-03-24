@@ -110,10 +110,6 @@ pub const Server = struct {
             );
             return;
         }
-        return self.handleMessage(line, writer);
-    }
-
-    fn handleMessage(self: *Self, line: []const u8, writer: anytype) !void {
         return dispatch.handleMessage(self, line, writer);
     }
 };
@@ -170,7 +166,7 @@ test "handleMessage initialize" {
     const msg =
         \\{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}
     ;
-    try server.handleMessage(msg, &writer);
+    try server.processMessage(msg, &writer);
 
     const written = out[0..writer.end];
     try std.testing.expect(std.mem.indexOf(u8, written, "\"protocolVersion\"") != null);
@@ -186,7 +182,7 @@ test "handleMessage ping" {
     var out: [256]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"ping","id":42}
     , &writer);
 
@@ -214,7 +210,7 @@ test "handleMessage tools/list" {
     var out: [1024]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"tools/list","id":2}
     , &writer);
 
@@ -240,7 +236,7 @@ test "handleMessage tools/call" {
     var out: [1024]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"tools/call","id":3,"params":{"name":"greet","arguments":{}}}
     , &writer);
 
@@ -257,7 +253,7 @@ test "handleMessage unknown method" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"nonexistent/method","id":5}
     , &writer);
 
@@ -274,7 +270,7 @@ test "handleMessage invalid JSON" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage("not json at all", &writer);
+    try server.processMessage("not json at all", &writer);
 
     const written = out[0..writer.end];
     try std.testing.expect(std.mem.indexOf(u8, written, "-32700") != null);
@@ -291,7 +287,7 @@ test "handleMessage notifications/initialized" {
     var out: [256]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"notifications/initialized"}
     , &writer);
 
@@ -308,7 +304,7 @@ test "handleMessage unknown tool" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"tools/call","id":4,"params":{"name":"nonexistent"}}
     , &writer);
 
@@ -324,7 +320,7 @@ test "handleMessage rejects invalid jsonrpc version" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"1.0","method":"ping","id":1}
     , &writer);
 
@@ -340,7 +336,7 @@ test "handleMessage array instead of object" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage("[1,2,3]", &writer);
+    try server.processMessage("[1,2,3]", &writer);
 
     const written = out[0..writer.end];
     try std.testing.expect(std.mem.indexOf(u8, written, "Expected JSON object") != null);
@@ -354,7 +350,7 @@ test "handleMessage missing tool name in params" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{}}
     , &writer);
 
@@ -370,7 +366,7 @@ test "handleMessage non-string method" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":42,"id":1}
     , &writer);
 
@@ -386,7 +382,7 @@ test "handleMessage tools/call with no params" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"tools/call","id":10}
     , &writer);
 
@@ -402,7 +398,7 @@ test "handleMessage with string request ID" {
     var out: [256]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"ping","id":"abc-123"}
     , &writer);
 
@@ -419,7 +415,7 @@ test "handleMessage resources/list empty" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"resources/list","id":5}
     , &writer);
 
@@ -450,7 +446,7 @@ test "handleMessage resources/list with registered resources" {
     var out: [1024]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"resources/list","id":6}
     , &writer);
 
@@ -482,7 +478,7 @@ test "handleMessage resources/read" {
     var out: [1024]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"resources/read","id":7,"params":{"uri":"abi://version"}}
     , &writer);
 
@@ -501,7 +497,7 @@ test "handleMessage resources/read unknown resource" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"resources/read","id":8,"params":{"uri":"abi://nonexistent"}}
     , &writer);
 
@@ -517,7 +513,7 @@ test "handleMessage resources/read missing params" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"resources/read","id":9}
     , &writer);
 
@@ -533,7 +529,7 @@ test "handleMessage resources/read missing URI" {
     var out: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"resources/read","id":10,"params":{}}
     , &writer);
 
@@ -562,7 +558,7 @@ test "handleMessage resources/read error returns error in content" {
     var out: [1024]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"resources/read","id":11,"params":{"uri":"abi://broken"}}
     , &writer);
 
@@ -592,7 +588,7 @@ test "handleMessage initialize advertises resources when registered" {
     var out: [1024]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}
     , &writer);
 
@@ -618,7 +614,7 @@ test "handleMessage tool error returns isError" {
     var out: [1024]u8 = undefined;
     var writer = std.Io.Writer.fixed(&out);
 
-    try server.handleMessage(
+    try server.processMessage(
         \\{"jsonrpc":"2.0","method":"tools/call","id":7,"params":{"name":"fail"}}
     , &writer);
 

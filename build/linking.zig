@@ -13,61 +13,50 @@ pub fn linkDarwinArtifact(
     feat_gpu: bool,
     gpu_metal: bool,
 ) void {
+    // Common libs for all roles except static_lib (which has its own set)
+    if (role != .static_lib) {
+        linkDarwinCommon(artifact, feat_gpu, role != .parity_test);
+    }
+
     switch (role) {
         .static_lib => {
             for ([_][]const u8{ "System", "c" }) |lib| {
                 artifact.root_module.linkSystemLibrary(lib, .{});
             }
-
             if (feat_gpu) {
                 artifact.root_module.linkFramework("Accelerate", .{});
             }
-
             artifact.root_module.linkFramework("IOKit", .{});
             artifact.root_module.linkSystemLibrary("objc", .{});
-
             if (gpu_metal) {
                 for ([_][]const u8{ "Metal", "MetalPerformanceShaders", "CoreGraphics" }) |framework| {
                     artifact.root_module.linkFramework(framework, .{});
                 }
             }
         },
-        .executable => {
-            artifact.root_module.linkSystemLibrary("System", .{});
-            artifact.root_module.linkSystemLibrary("c", .{});
-            artifact.root_module.linkSystemLibrary("objc", .{});
-            artifact.root_module.linkFramework("IOKit", .{});
-            artifact.root_module.linkFramework("CoreFoundation", .{});
-            artifact.root_module.linkFramework("CoreGraphics", .{});
-            if (feat_gpu) {
-                artifact.root_module.linkFramework("Accelerate", .{});
-            }
-        },
+        .executable => {},
         .test_artifact => {
-            artifact.root_module.linkSystemLibrary("System", .{});
-            artifact.root_module.linkSystemLibrary("c", .{});
-            artifact.root_module.linkSystemLibrary("objc", .{});
-            artifact.root_module.linkFramework("IOKit", .{});
-            artifact.root_module.linkFramework("CoreFoundation", .{});
-            artifact.root_module.linkFramework("CoreGraphics", .{});
-            if (feat_gpu) {
-                artifact.root_module.linkFramework("Accelerate", .{});
-            }
             if (gpu_metal) {
                 for ([_][]const u8{ "Metal", "MetalPerformanceShaders" }) |framework| {
                     artifact.root_module.linkFramework(framework, .{});
                 }
             }
         },
-        .parity_test => {
-            artifact.root_module.linkSystemLibrary("c", .{});
-            artifact.root_module.linkSystemLibrary("objc", .{});
-            artifact.root_module.linkFramework("IOKit", .{});
-            artifact.root_module.linkFramework("CoreFoundation", .{});
-            artifact.root_module.linkFramework("CoreGraphics", .{});
-            if (feat_gpu) {
-                artifact.root_module.linkFramework("Accelerate", .{});
-            }
-        },
+        .parity_test => {},
+    }
+}
+
+/// Shared Darwin framework set for executable, test_artifact, and parity_test roles.
+fn linkDarwinCommon(artifact: *std.Build.Step.Compile, feat_gpu: bool, link_system: bool) void {
+    if (link_system) {
+        artifact.root_module.linkSystemLibrary("System", .{});
+    }
+    artifact.root_module.linkSystemLibrary("c", .{});
+    artifact.root_module.linkSystemLibrary("objc", .{});
+    artifact.root_module.linkFramework("IOKit", .{});
+    artifact.root_module.linkFramework("CoreFoundation", .{});
+    artifact.root_module.linkFramework("CoreGraphics", .{});
+    if (feat_gpu) {
+        artifact.root_module.linkFramework("Accelerate", .{});
     }
 }

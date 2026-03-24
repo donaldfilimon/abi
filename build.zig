@@ -210,7 +210,6 @@ pub fn build(b: *std.Build) void {
         .flags = flags,
         .build_options_module = build_options_module,
         .abi_module = abi_module,
-        .typecheck_step = cross_steps.typecheck_step,
     });
 
     // ── Lint / format ───────────────────────────────────────────────────

@@ -9,7 +9,6 @@ pub const Context = struct {
     flags: build_flags.FeatureFlags,
     build_options_module: *std.Build.Module,
     abi_module: *std.Build.Module,
-    typecheck_step: *std.Build.Step,
 };
 
 pub const Steps = struct {
@@ -23,15 +22,14 @@ pub const Steps = struct {
 };
 
 pub fn addSteps(ctx: Context) Steps {
-    _ = ctx.typecheck_step;
-
     const test_step = ctx.b.step("test", "Run tests");
 
     const lib_tests = addModuleTests(ctx.b, ctx.target, ctx.optimize, "src/root.zig", ctx.build_options_module);
     if (ctx.target.result.os.tag == .macos) {
         linking.linkDarwinArtifact(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     }
-    test_step.dependOn(&ctx.b.addRunArtifact(lib_tests).step);
+    const run_lib_tests = ctx.b.addRunArtifact(lib_tests);
+    test_step.dependOn(&run_lib_tests.step);
 
     const integration_tests = addIntegrationTests(
         ctx.b,
@@ -44,7 +42,8 @@ pub fn addSteps(ctx: Context) Steps {
     if (ctx.target.result.os.tag == .macos) {
         linking.linkDarwinArtifact(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     }
-    test_step.dependOn(&ctx.b.addRunArtifact(integration_tests).step);
+    const run_integration = ctx.b.addRunArtifact(integration_tests);
+    test_step.dependOn(&run_integration.step);
 
     addTuiTests(ctx);
 
@@ -52,12 +51,13 @@ pub fn addSteps(ctx: Context) Steps {
     if (ctx.target.result.os.tag == .macos) {
         linking.linkDarwinArtifact(parity_tests, .parity_test, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     }
+    const run_parity = ctx.b.addRunArtifact(parity_tests);
     const check_parity_step = ctx.b.step("check-parity", "Verify mod/stub declaration parity");
-    check_parity_step.dependOn(&ctx.b.addRunArtifact(parity_tests).step);
+    check_parity_step.dependOn(&run_parity.step);
 
     const feature_tests_step = ctx.b.step("feature-tests", "Run feature integration and parity tests");
-    feature_tests_step.dependOn(&ctx.b.addRunArtifact(integration_tests).step);
-    feature_tests_step.dependOn(&ctx.b.addRunArtifact(parity_tests).step);
+    feature_tests_step.dependOn(&run_integration.step);
+    feature_tests_step.dependOn(&run_parity.step);
 
     const mcp_tests = addIntegrationTests(
         ctx.b,
@@ -126,8 +126,8 @@ pub fn addSteps(ctx: Context) Steps {
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     const check_step = ctx.b.step("check", "Run lint + test + parity");
     check_step.dependOn(&ctx.b.addFmt(.{ .paths = fmt_paths, .check = true }).step);
-    check_step.dependOn(&ctx.b.addRunArtifact(lib_tests).step);
-    check_step.dependOn(&ctx.b.addRunArtifact(parity_tests).step);
+    check_step.dependOn(&run_lib_tests.step);
+    check_step.dependOn(&run_parity.step);
 
     ctx.b.step("cli-tests", "Run CLI tests").dependOn(test_step);
     ctx.b.step("dashboard-smoke", "Run dashboard smoke tests").dependOn(test_step);
