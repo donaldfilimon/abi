@@ -60,10 +60,10 @@ pub const AbiRouter = struct {
     }
 
     /// Shutdown the router and free resources.
+    /// Note: does NOT free `self` — the caller (PersonaRegistry) owns the allocation.
     pub fn deinit(self: *Self) void {
         self.rules_engine.deinit();
         self.policy_checker.deinit();
-        self.allocator.destroy(self);
     }
 
     /// Add a custom routing rule to the router.
@@ -247,6 +247,7 @@ pub const AbiProfile = struct {
 test "AbiRouter initialization" {
     const allocator = std.testing.allocator;
     const router = try AbiRouter.init(allocator, .{});
+    defer allocator.destroy(router);
     defer router.deinit();
 
     try std.testing.expect(router.getRuleCount() >= 7);
@@ -255,6 +256,7 @@ test "AbiRouter initialization" {
 test "AbiRouter routing decision" {
     const allocator = std.testing.allocator;
     const router = try AbiRouter.init(allocator, .{});
+    defer allocator.destroy(router);
     defer router.deinit();
 
     const request = types.ProfileRequest{
@@ -273,6 +275,7 @@ test "AbiRouter routing decision" {
 test "AbiRouter technical routing" {
     const allocator = std.testing.allocator;
     const router = try AbiRouter.init(allocator, .{});
+    defer allocator.destroy(router);
     defer router.deinit();
 
     const request = types.ProfileRequest{
@@ -290,6 +293,7 @@ test "AbiRouter technical routing" {
 test "AbiRouter policy violation" {
     const allocator = std.testing.allocator;
     const router = try AbiRouter.init(allocator, .{});
+    defer allocator.destroy(router);
     defer router.deinit();
 
     const request = types.ProfileRequest{

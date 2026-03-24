@@ -193,12 +193,14 @@ pub const PersonaRegistry = struct {
         var aviva = self.instances.getPtr(.aviva);
         if (aviva.aviva_profile) |profile| {
             profile.deinit();
+            self.allocator.destroy(profile);
             aviva.aviva_profile = null;
         }
 
         var abi_inst = self.instances.getPtr(.abi);
         if (abi_inst.abi_router) |router| {
             router.deinit();
+            self.allocator.destroy(router);
             abi_inst.abi_router = null;
         }
 
