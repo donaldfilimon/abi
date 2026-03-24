@@ -30,7 +30,7 @@ Guidance for AI coding agents working in this repository.
 ## Architecture
 
 - **Entrypoint**: `src/root.zig` re-exports all domains as `abi.<domain>`
-- **Features**: 20 directories under `src/features/`, 30 features total (including AI sub-features)
+- **Features**: 20 directories under `src/features/`, 32 features total (including AI sub-features)
 - **Mod/Stub pattern**: each feature has `mod.zig` (real), `stub.zig` (no-op), `types.zig` (shared)
 - **Comptime gating** in `root.zig`: `if (build_options.feat_gpu) mod else stub`
 - **Core**: `src/core/` (config, errors, registry, feature catalog)
