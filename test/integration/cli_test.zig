@@ -9,6 +9,43 @@ const abi = @import("abi");
 const build_options = @import("build_options");
 const cli = abi.cli;
 
+fn renderStatus() ![]u8 {
+    var writer: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    errdefer writer.deinit();
+    try cli.writeStatus(&writer.writer);
+    return writer.toOwnedSlice();
+}
+
+fn renderHelp() ![]u8 {
+    var writer: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    errdefer writer.deinit();
+    try cli.writeHelp(&writer.writer);
+    return writer.toOwnedSlice();
+}
+
+fn renderServeHelp() ![]u8 {
+    var writer: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    errdefer writer.deinit();
+    try cli.writeServeHelp(&writer.writer);
+    return writer.toOwnedSlice();
+}
+
+fn renderChatReport(options: cli.RenderOptions) ![]u8 {
+    var writer: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    errdefer writer.deinit();
+    try cli.writeChatPipelineReport(&writer.writer, options, .{
+        .input = "hello world",
+        .primary = "Abbey",
+        .strategy = "blend",
+        .reason = "Test route",
+        .confidence_pct = 82.0,
+        .abbey_pct = 70.0,
+        .aviva_pct = 20.0,
+        .abi_pct = 10.0,
+    });
+    return writer.toOwnedSlice();
+}
+
 // === Version Command Path ===
 
 test "cli: package version is non-empty" {
@@ -126,6 +163,66 @@ test "cli: single-token commands are described in parity with runtime" {
         }
         try std.testing.expect(found);
     }
+
+    for (cli.single_token_commands) |descriptor| {
+        var found_displayed = false;
+        for (cli.displayed_commands) |displayed| {
+            if (std.mem.eql(u8, displayed.usage, descriptor.name)) {
+                found_displayed = true;
+                break;
+            }
+        }
+        try std.testing.expect(found_displayed);
+    }
+}
+
+test "cli: help output renders the displayed command catalog" {
+    const help = try renderHelp();
+    defer std.testing.allocator.free(help);
+
+    try std.testing.expect(std.mem.indexOf(u8, help, "Diagnostics:") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "AI & Data:") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "Interactive:") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "Build:") != null);
+
+    for (cli.displayed_commands) |command| {
+        try std.testing.expect(std.mem.indexOf(u8, help, command.usage) != null);
+    }
+}
+
+test "cli: status output includes shared feature-gated command tags" {
+    const status = try renderStatus();
+    defer std.testing.allocator.free(status);
+
+    try std.testing.expect(std.mem.indexOf(u8, status, abi.meta.package_version) != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, "db <cmd>") != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, "dashboard") != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, if (build_options.feat_database) "[enabled]" else "[disabled]") != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, if (build_options.feat_tui) "[enabled]" else "[disabled]") != null);
+}
+
+test "cli: serve help uses the shared writer path" {
+    const help = try renderServeHelp();
+    defer std.testing.allocator.free(help);
+
+    try std.testing.expect(std.mem.indexOf(u8, help, "Usage: abi serve [options]") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "--addr <host:port>") != null);
+}
+
+test "cli: chat pipeline report filters the header in pipeline mode" {
+    const report = try renderChatReport(.{ .stdout_is_tty = false });
+    defer std.testing.allocator.free(report);
+
+    try std.testing.expect(std.mem.indexOf(u8, report, "ABI Chat - Persona Pipeline") == null);
+    try std.testing.expect(std.mem.indexOf(u8, report, "Input: hello world") != null);
+    try std.testing.expect(std.mem.indexOf(u8, report, "Execution:") != null);
+}
+
+test "cli: chat pipeline report keeps the header for tty output" {
+    const report = try renderChatReport(.{ .stdout_is_tty = true });
+    defer std.testing.allocator.free(report);
+
+    try std.testing.expect(std.mem.indexOf(u8, report, "ABI Chat - Persona Pipeline") != null);
 }
 
 // === Chat Command Path ===

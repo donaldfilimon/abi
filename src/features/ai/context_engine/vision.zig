@@ -177,7 +177,9 @@ test "captureFrame returns platform-specific error when active" {
         ),
         .macos => {
             // macOS may return null in headless CI (no display)
-            _ = streamer.captureFrame() catch {};
+            if (streamer.captureFrame() catch null) |frame| {
+                streamer.allocator.free(frame.data);
+            }
         },
         else => try std.testing.expectError(
             error.PlatformNotSupported,
