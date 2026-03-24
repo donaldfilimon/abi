@@ -20,6 +20,11 @@ pub const scoring = @import("scoring.zig");
 pub const inverted_index = @import("index.zig");
 pub const persistence = @import("persistence.zig");
 
+// ── Internal sub-modules ────────────────────────────────────────────
+const state_mod = @import("state.zig");
+const document_ops = @import("document_ops.zig");
+const index_lifecycle = @import("index_lifecycle.zig");
+
 // ── Re-exported types ─────────────────────────────────────────────────
 pub const SearchConfig = types.SearchConfig;
 pub const SearchError = types.SearchError;
@@ -27,6 +32,7 @@ pub const Error = SearchError;
 pub const SearchResult = types.SearchResult;
 pub const SearchIndex = types.SearchIndex;
 pub const SearchStats = types.SearchStats;
+const SearchState = state_mod.SearchState;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -46,33 +52,6 @@ pub const Context = struct {
 // ── Module State ───────────────────────────────────────────────────────
 
 var search_state: ?*SearchState = null;
-
-const SearchState = struct {
-    allocator: std.mem.Allocator,
-    config: SearchConfig,
-    indexes: std.StringHashMapUnmanaged(*inverted_index.InvertedIndex),
-    rw_lock: sync.RwLock,
-
-    fn create(allocator: std.mem.Allocator, config: SearchConfig) !*SearchState {
-        const s = try allocator.create(SearchState);
-        s.* = .{
-            .allocator = allocator,
-            .config = config,
-            .indexes = .empty,
-            .rw_lock = sync.RwLock.init(),
-        };
-        return s;
-    }
-
-    fn destroy(self: *SearchState) void {
-        var iter = self.indexes.iterator();
-        while (iter.next()) |entry| {
-            entry.value_ptr.*.destroy();
-        }
-        self.indexes.deinit(self.allocator);
-        self.allocator.destroy(self);
-    }
-};
 
 // ── Public API ─────────────────────────────────────────────────────────
 
@@ -103,33 +82,13 @@ pub fn isInitialized() bool {
 pub fn createIndex(allocator: std.mem.Allocator, name: []const u8) SearchError!SearchIndex {
     _ = allocator;
     const s = search_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    if (s.indexes.get(name) != null) return error.IndexAlreadyExists;
-
-    const idx = inverted_index.InvertedIndex.create(s.allocator, name) catch return error.OutOfMemory;
-    s.indexes.put(s.allocator, idx.name, idx) catch {
-        idx.destroy();
-        return error.OutOfMemory;
-    };
-
-    return .{ .name = idx.name };
+    return index_lifecycle.createIndex(s, name);
 }
 
 /// Delete a named index and all its documents.
 pub fn deleteIndex(name: []const u8) SearchError!void {
     const s = search_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    if (s.indexes.fetchRemove(name)) |kv| {
-        kv.value.destroy();
-    } else {
-        return error.IndexNotFound;
-    }
+    return index_lifecycle.deleteIndex(s, name);
 }
 
 /// Add or update a document in a named index. Tokenizes the content
@@ -140,77 +99,13 @@ pub fn indexDocument(
     content: []const u8,
 ) SearchError!void {
     const s = search_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    const idx = s.indexes.get(index_name) orelse return error.IndexNotFound;
-    idx.addDocument(doc_id, content) catch return error.OutOfMemory;
+    return document_ops.indexDocument(s, index_name, doc_id, content);
 }
 
 /// Remove a document from an index. Returns `true` if the document existed.
 pub fn deleteDocument(index_name: []const u8, doc_id: []const u8) SearchError!bool {
     const s = search_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    const idx = s.indexes.get(index_name) orelse return error.IndexNotFound;
-
-    if (idx.documents.fetchRemove(doc_id)) |kv| {
-        const doc = kv.value;
-        idx.total_terms -= doc.term_count;
-
-        // Re-tokenize stored content to find exactly which terms this document
-        // contributes to — O(terms_in_doc) instead of O(total_terms)
-        var doc_tokens = tokenizer.tokenize(idx.allocator, doc.content, true) catch {
-            // Fallback: scan all terms (original O(T*P) path)
-            var term_iter = idx.term_index.iterator();
-            while (term_iter.next()) |entry| {
-                const pl = entry.value_ptr.*;
-                var i: usize = 0;
-                while (i < pl.postings.items.len) {
-                    if (std.mem.eql(u8, pl.postings.items[i].doc_id, doc.id)) {
-                        const removed = pl.postings.swapRemove(i);
-                        idx.allocator.free(removed.doc_id);
-                        pl.doc_freq -|= 1;
-                    } else {
-                        i += 1;
-                    }
-                }
-            }
-            idx.allocator.free(doc.id);
-            idx.allocator.free(doc.content);
-            idx.allocator.destroy(doc);
-            return true;
-        };
-        defer {
-            for (doc_tokens.items) |t| idx.allocator.free(t);
-            doc_tokens.deinit(idx.allocator);
-        }
-
-        // Only visit posting lists for terms in this document
-        for (doc_tokens.items) |term| {
-            if (idx.term_index.get(term)) |pl| {
-                var i: usize = 0;
-                while (i < pl.postings.items.len) {
-                    if (std.mem.eql(u8, pl.postings.items[i].doc_id, doc.id)) {
-                        const removed = pl.postings.swapRemove(i);
-                        idx.allocator.free(removed.doc_id);
-                        pl.doc_freq -|= 1;
-                    } else {
-                        i += 1;
-                    }
-                }
-            }
-        }
-
-        idx.allocator.free(doc.id);
-        idx.allocator.free(doc.content);
-        idx.allocator.destroy(doc);
-        return true;
-    }
-    return false;
+    return document_ops.deleteDocument(s, index_name, doc_id);
 }
 
 /// Execute a BM25-scored full-text query against a named index.
@@ -257,33 +152,14 @@ pub fn stats() SearchStats {
 pub fn saveIndex(allocator: std.mem.Allocator, name: []const u8, path: []const u8) SearchError!void {
     _ = allocator;
     const s = search_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lockShared();
-    defer s.rw_lock.unlockShared();
-
-    const idx = s.indexes.get(name) orelse return error.IndexNotFound;
-    persistence.saveIndex(idx, path) catch return error.IoError;
+    return index_lifecycle.saveIndex(s, name, path);
 }
 
 /// Deserialize a named index from disk. Creates a new index with the
 /// given name (must not already exist) and populates it from the file.
 pub fn loadIndex(allocator: std.mem.Allocator, name: []const u8, path: []const u8) SearchError!void {
     const s = search_state orelse return error.FeatureDisabled;
-
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
-
-    if (s.indexes.get(name) != null) return error.IndexAlreadyExists;
-
-    const idx = persistence.loadIndex(allocator, name, path) catch |err| switch (err) {
-        error.IoError => return error.IoError,
-        error.IndexCorrupted => return error.IndexCorrupted,
-        error.IndexAlreadyExists => return error.IndexAlreadyExists,
-        error.OutOfMemory => return error.OutOfMemory,
-        error.FeatureDisabled => return error.FeatureDisabled,
-    };
-
-    s.indexes.put(s.allocator, idx.name, idx) catch return error.OutOfMemory;
+    return index_lifecycle.loadIndex(s, allocator, name, path);
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────
