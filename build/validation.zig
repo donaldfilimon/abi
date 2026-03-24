@@ -18,6 +18,7 @@ pub const Steps = struct {
     feature_tests_step: *std.Build.Step,
     mcp_tests_step: *std.Build.Step,
     gateway_tests_step: *std.Build.Step,
+    inference_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
 };
 
@@ -26,7 +27,7 @@ pub fn addSteps(ctx: Context) Steps {
 
     const test_step = ctx.b.step("test", "Run tests");
 
-    const lib_tests = addUnitTests(ctx.b, ctx.target, ctx.optimize, ctx.build_options_module);
+    const lib_tests = addModuleTests(ctx.b, ctx.target, ctx.optimize, "src/root.zig", ctx.build_options_module);
     if (ctx.target.result.os.tag == .macos) {
         linking.linkDarwinArtifact(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     }
@@ -97,6 +98,31 @@ pub fn addSteps(ctx: Context) Steps {
     gateway_tests_step.dependOn(&ctx.b.addRunArtifact(gateway_unit_tests).step);
     gateway_tests_step.dependOn(&ctx.b.addRunArtifact(gateway_integration_tests).step);
 
+    const inference_unit_tests = addModuleTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "src/inference_mod_test.zig",
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(inference_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const inference_integration_tests = addIntegrationTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "test/inference_mod.zig",
+        ctx.abi_module,
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(inference_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const inference_tests_step = ctx.b.step("inference-tests", "Run inference-focused unit and integration tests");
+    inference_tests_step.dependOn(&ctx.b.addRunArtifact(inference_unit_tests).step);
+    inference_tests_step.dependOn(&ctx.b.addRunArtifact(inference_integration_tests).step);
+
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     const check_step = ctx.b.step("check", "Run lint + test + parity");
     check_step.dependOn(&ctx.b.addFmt(.{ .paths = fmt_paths, .check = true }).step);
@@ -115,17 +141,9 @@ pub fn addSteps(ctx: Context) Steps {
         .feature_tests_step = feature_tests_step,
         .mcp_tests_step = mcp_tests_step,
         .gateway_tests_step = gateway_tests_step,
+        .inference_tests_step = inference_tests_step,
         .check_step = check_step,
     };
-}
-
-fn addUnitTests(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    build_options_module: *std.Build.Module,
-) *std.Build.Step.Compile {
-    return addModuleTests(b, target, optimize, "src/root.zig", build_options_module);
 }
 
 fn addModuleTests(

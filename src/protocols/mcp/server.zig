@@ -118,11 +118,6 @@ pub const Server = struct {
     }
 };
 
-/// Append a JSON-escaped string to a buffer
-fn appendJsonEscaped(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), s: []const u8) !void {
-    return json_write.appendJsonEscaped(allocator, buf, s);
-}
-
 // ═══════════════════════════════════════════════════════════════
 // Tests
 // ═══════════════════════════════════════════════════════════════
@@ -155,12 +150,12 @@ test "Server tool registration" {
     try std.testing.expectEqual(@as(usize, 1), server.tools.items.len);
 }
 
-test "appendJsonEscaped" {
+test "appendJsonEscaped via json_write" {
     const allocator = std.testing.allocator;
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
-    try appendJsonEscaped(allocator, &buf, "hello \"world\"");
+    try json_write.appendJsonEscaped(allocator, &buf, "hello \"world\"");
     try std.testing.expectEqualStrings("hello \\\"world\\\"", buf.items);
 }
 

@@ -46,6 +46,7 @@ zig build check-parity             # Verify mod/stub declaration parity
 zig build feature-tests            # Run feature integration and parity tests
 zig build mcp-tests                # Run MCP integration tests
 zig build gateway-tests            # Run gateway unit + integration tests
+zig build inference-tests          # Run inference unit + integration tests
 zig build cli-tests                # Run CLI tests
 zig build tui-tests                # Run TUI tests
 zig build typecheck                # Compile-only validation for the current/selected target
@@ -170,6 +171,8 @@ zig build test --summary all       # Run all unit + integration tests
 ./build.sh test --summary all      # Same, via macOS 26.4+ wrapper
 zig build check                    # Full gate: lint + test + stub parity
 zig build check-parity             # Verify mod/stub declaration parity only
+zig build gateway-tests            # Focused gateway runtime lane
+zig build inference-tests          # Focused inference runtime lane
 ```
 
 Two test suites run under `zig build test`:
