@@ -330,7 +330,7 @@ pub const OpenAIBackend = struct {
             try json_buffer.appendSlice(self.allocator, "{\"role\":\"");
             try json_buffer.appendSlice(self.allocator, msg.role);
             try json_buffer.appendSlice(self.allocator, "\",\"content\":\"");
-            try appendJsonEscaped(&json_buffer, self.allocator, msg.content);
+            try appendJsonEscaped(self.allocator, &json_buffer, msg.content);
             try json_buffer.appendSlice(self.allocator, "\"}");
         }
 
@@ -528,7 +528,7 @@ pub const OllamaBackend = struct {
             try json_buffer.appendSlice(self.allocator, "{\"role\":\"");
             try json_buffer.appendSlice(self.allocator, msg.role);
             try json_buffer.appendSlice(self.allocator, "\",\"content\":\"");
-            try appendJsonEscaped(&json_buffer, self.allocator, msg.content);
+            try appendJsonEscaped(self.allocator, &json_buffer, msg.content);
             try json_buffer.appendSlice(self.allocator, "\"}");
         }
 
@@ -791,19 +791,7 @@ pub const RetryHandler = struct {
 // Helper Functions
 // ============================================================================
 
-/// Append a JSON-escaped string to an ArrayListUnmanaged
-fn appendJsonEscaped(buffer: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, s: []const u8) !void {
-    for (s) |c| {
-        switch (c) {
-            '"' => try buffer.appendSlice(allocator, "\\\""),
-            '\\' => try buffer.appendSlice(allocator, "\\\\"),
-            '\n' => try buffer.appendSlice(allocator, "\\n"),
-            '\r' => try buffer.appendSlice(allocator, "\\r"),
-            '\t' => try buffer.appendSlice(allocator, "\\t"),
-            else => try buffer.append(allocator, c),
-        }
-    }
-}
+const appendJsonEscaped = shared_utils.json.appendJsonEscaped;
 
 // ============================================================================
 // Tests
