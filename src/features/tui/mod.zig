@@ -10,7 +10,7 @@ pub const render = @import("render.zig");
 pub const layout = @import("layout.zig");
 pub const widgets = @import("widgets.zig");
 pub const events = @import("events.zig");
-pub const dashboard = @import("dashboard.zig");
+pub const dashboard = @import("app/dashboard.zig");
 
 const std = @import("std");
 
