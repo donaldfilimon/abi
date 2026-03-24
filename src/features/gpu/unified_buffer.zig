@@ -132,7 +132,6 @@ pub const Buffer = struct {
     // Memory storage
     host_data: ?[]u8,
     device_handle: ?*anyopaque,
-    allocator_backend: ?@import("interface.zig").Backend,
 
     // State tracking
     dirty: std.atomic.Value(u8), // Packed DirtyState
@@ -185,7 +184,6 @@ pub const Buffer = struct {
             .options = options,
             .host_data = host_data,
             .device_handle = null, // Allocated lazily or by backend
-            .allocator_backend = null,
             .dirty = std.atomic.Value(u8).init(if (options.initial_data != null) 0b01 else 0), // host_dirty if has data
             .mode = options.mode,
             .device_id = device.id,
@@ -212,11 +210,7 @@ pub const Buffer = struct {
             self.allocator.free(data);
         }
         self.sync_event.deinit();
-        if (self.allocator_backend) |bi| {
-            if (self.device_handle) |handle| {
-                bi.free(handle);
-            }
-        }
+        // Backend would free device_handle here
         self.* = undefined;
     }
 
@@ -458,9 +452,8 @@ pub const Buffer = struct {
     }
 
     /// Set the device handle (called by backend after allocation).
-    pub fn setDeviceHandle(self: *Buffer, handle: *anyopaque, bi: ?@import("interface.zig").Backend) void {
+    pub fn setDeviceHandle(self: *Buffer, handle: *anyopaque) void {
         self.device_handle = handle;
-        self.allocator_backend = bi;
     }
 
     /// Map the buffer for host access.

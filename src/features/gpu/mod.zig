@@ -444,7 +444,7 @@ pub const Context = struct {
 
         const gpu_config = GpuConfig{
             .preferred_backend = preferred_backend,
-            .allow_fallback = !cfg.strict_backend,
+            .allow_fallback = true,
             .max_memory_bytes = cfg.memory_limit orelse 0,
             .enable_profiling = false,
         };
@@ -456,11 +456,6 @@ pub const Context = struct {
             .allocator = allocator,
             .gpu = try Gpu.init(allocator, gpu_config),
         };
-
-        if (ctx.gpu.active_device == null) {
-            return error.NoDeviceAvailable;
-        }
-
         return ctx;
     }
 

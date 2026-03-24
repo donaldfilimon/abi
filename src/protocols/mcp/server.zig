@@ -44,7 +44,6 @@ pub const Server = struct {
     allocator: std.mem.Allocator,
     tools: std.ArrayListUnmanaged(RegisteredTool),
     resources: std.ArrayListUnmanaged(RegisteredResource),
-    subscriptions: std.StringHashMapUnmanaged(bool),
     server_name: []const u8,
     server_version: []const u8,
     initialized: bool,
@@ -60,7 +59,6 @@ pub const Server = struct {
             .allocator = allocator,
             .tools = .empty,
             .resources = .empty,
-            .subscriptions = .empty,
             .server_name = name,
             .server_version = version,
             .initialized = false,
@@ -68,12 +66,6 @@ pub const Server = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        // Free duped subscription keys
-        var it = self.subscriptions.keyIterator();
-        while (it.next()) |key| {
-            self.allocator.free(key.*);
-        }
-        self.subscriptions.deinit(self.allocator);
         self.tools.deinit(self.allocator);
         self.resources.deinit(self.allocator);
     }
@@ -86,64 +78,6 @@ pub const Server = struct {
     /// Register a resource with the server
     pub fn addResource(self: *Self, resource: RegisteredResource) !void {
         try self.resources.append(self.allocator, resource);
-    }
-
-    /// Subscribe to change notifications for a resource URI.
-    /// The URI must correspond to a registered resource.
-    /// Returns true if the subscription was newly created, false if already subscribed.
-    pub fn subscribeResource(self: *Self, uri: []const u8) !bool {
-        // Verify the resource exists
-        var found = false;
-        for (self.resources.items) |resource| {
-            if (std.mem.eql(u8, resource.def.uri, uri)) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) return error.ResourceNotFound;
-
-        const result = try self.subscriptions.getOrPut(self.allocator, uri);
-        if (result.found_existing) {
-            // Already subscribed
-            return false;
-        }
-        // Dupe the key so it is owned by the subscriptions map
-        result.key_ptr.* = try self.allocator.dupe(u8, uri);
-        result.value_ptr.* = true;
-        return true;
-    }
-
-    /// Unsubscribe from change notifications for a resource URI.
-    /// Returns true if the subscription was removed, false if not subscribed.
-    pub fn unsubscribeResource(self: *Self, uri: []const u8) bool {
-        const entry = self.subscriptions.fetchRemove(uri);
-        if (entry) |kv| {
-            self.allocator.free(kv.key);
-            return true;
-        }
-        return false;
-    }
-
-    /// Check whether a resource URI is currently subscribed.
-    pub fn isSubscribed(self: *Self, uri: []const u8) bool {
-        return self.subscriptions.get(uri) orelse false;
-    }
-
-    /// Send a resource-change notification to the client.
-    /// Only sends if the URI is currently subscribed.
-    /// The caller provides the writer (stdout in production).
-    pub fn notifyResourceChanged(self: *Self, uri: []const u8, writer: anytype) !void {
-        if (!self.isSubscribed(uri)) return;
-
-        // Build params: {"uri":"<escaped-uri>"}
-        var buf = std.ArrayListUnmanaged(u8).empty;
-        defer buf.deinit(self.allocator);
-
-        try buf.appendSlice(self.allocator, "{\"uri\":\"");
-        try appendJsonEscaped(self.allocator, &buf, uri);
-        try buf.appendSlice(self.allocator, "\"}");
-
-        try types.writeNotification(writer, "notifications/resources/updated", buf.items);
     }
 
     /// Run the server loop — reads from stdin, writes to stdout.
@@ -302,10 +236,6 @@ pub const Server = struct {
             try self.handleResourcesList(writer, id);
         } else if (std.mem.eql(u8, method, "resources/read")) {
             try self.handleResourcesRead(writer, id, params);
-        } else if (std.mem.eql(u8, method, "resources/subscribe")) {
-            try self.handleResourcesSubscribe(writer, id, params);
-        } else if (std.mem.eql(u8, method, "resources/unsubscribe")) {
-            try self.handleResourcesUnsubscribe(writer, id, params);
         } else if (std.mem.eql(u8, method, "ping")) {
             try self.handlePing(writer, id);
         } else {
@@ -322,7 +252,7 @@ pub const Server = struct {
         try buf.appendSlice(self.allocator, types.PROTOCOL_VERSION);
         try buf.appendSlice(self.allocator, "\",\"capabilities\":{\"tools\":{\"listChanged\":false}");
         if (self.resources.items.len > 0) {
-            try buf.appendSlice(self.allocator, ",\"resources\":{\"subscribe\":true,\"listChanged\":false}");
+            try buf.appendSlice(self.allocator, ",\"resources\":{\"subscribe\":false,\"listChanged\":false}");
         }
         try buf.appendSlice(self.allocator, "}");
         try buf.appendSlice(self.allocator, ",\"serverInfo\":{\"name\":\"");
@@ -534,55 +464,6 @@ pub const Server = struct {
         }
 
         try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Resource not found");
-    }
-
-    fn handleResourcesSubscribe(self: *Self, writer: anytype, id: ?types.RequestId, params: ?std.json.ObjectMap) !void {
-        const rid = id orelse return;
-
-        const p = params orelse {
-            try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Missing params");
-            return;
-        };
-
-        const uri_val = p.get("uri") orelse {
-            try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Missing resource URI");
-            return;
-        };
-        if (uri_val != .string) {
-            try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Resource URI must be string");
-            return;
-        }
-        const uri = uri_val.string;
-
-        _ = self.subscribeResource(uri) catch {
-            try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Resource not found");
-            return;
-        };
-
-        try types.writeResponse(writer, rid, "{}");
-    }
-
-    fn handleResourcesUnsubscribe(self: *Self, writer: anytype, id: ?types.RequestId, params: ?std.json.ObjectMap) !void {
-        const rid = id orelse return;
-
-        const p = params orelse {
-            try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Missing params");
-            return;
-        };
-
-        const uri_val = p.get("uri") orelse {
-            try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Missing resource URI");
-            return;
-        };
-        if (uri_val != .string) {
-            try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Resource URI must be string");
-            return;
-        }
-        const uri = uri_val.string;
-
-        _ = self.unsubscribeResource(uri);
-
-        try types.writeResponse(writer, rid, "{}");
     }
 };
 
@@ -1234,273 +1115,6 @@ test "processMessage validates size then content" {
     const written = out[0..writer.end];
     try std.testing.expect(std.mem.indexOf(u8, written, "-32700") != null);
     try std.testing.expect(std.mem.indexOf(u8, written, "Parse error") != null);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// Resource Subscription Tests
-// ═══════════════════════════════════════════════════════════════
-
-test "subscribeResource tracks subscription" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    try server.addResource(.{
-        .def = .{
-            .uri = "abi://status",
-            .name = "Status",
-            .description = "Server status",
-        },
-        .handler = struct {
-            fn handle(_: std.mem.Allocator, _: []const u8, o: *std.ArrayListUnmanaged(u8)) !void {
-                try o.appendSlice(std.testing.allocator, "ok");
-            }
-        }.handle,
-    });
-
-    try std.testing.expect(!server.isSubscribed("abi://status"));
-
-    const was_new = try server.subscribeResource("abi://status");
-    try std.testing.expect(was_new);
-    try std.testing.expect(server.isSubscribed("abi://status"));
-
-    // Subscribe again — should return false (already subscribed)
-    const was_new2 = try server.subscribeResource("abi://status");
-    try std.testing.expect(!was_new2);
-}
-
-test "subscribeResource rejects unknown URI" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    const result = server.subscribeResource("abi://nonexistent");
-    try std.testing.expectError(error.ResourceNotFound, result);
-}
-
-test "unsubscribeResource removes subscription" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    try server.addResource(.{
-        .def = .{
-            .uri = "abi://data",
-            .name = "Data",
-            .description = "Some data",
-        },
-        .handler = struct {
-            fn handle(_: std.mem.Allocator, _: []const u8, o: *std.ArrayListUnmanaged(u8)) !void {
-                try o.appendSlice(std.testing.allocator, "data");
-            }
-        }.handle,
-    });
-
-    _ = try server.subscribeResource("abi://data");
-    try std.testing.expect(server.isSubscribed("abi://data"));
-
-    const removed = server.unsubscribeResource("abi://data");
-    try std.testing.expect(removed);
-    try std.testing.expect(!server.isSubscribed("abi://data"));
-
-    // Unsubscribe again — should return false
-    const removed2 = server.unsubscribeResource("abi://data");
-    try std.testing.expect(!removed2);
-}
-
-test "notifyResourceChanged sends notification for subscribed URI" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    try server.addResource(.{
-        .def = .{
-            .uri = "abi://metrics",
-            .name = "Metrics",
-            .description = "Server metrics",
-        },
-        .handler = struct {
-            fn handle(_: std.mem.Allocator, _: []const u8, o: *std.ArrayListUnmanaged(u8)) !void {
-                try o.appendSlice(std.testing.allocator, "{}");
-            }
-        }.handle,
-    });
-
-    _ = try server.subscribeResource("abi://metrics");
-
-    var out: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.notifyResourceChanged("abi://metrics", &writer);
-
-    const written = out[0..writer.end];
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"notifications/resources/updated\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "abi://metrics") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"jsonrpc\":\"2.0\"") != null);
-    // Notification must NOT have an "id" field
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"id\"") == null);
-}
-
-test "notifyResourceChanged is silent for unsubscribed URI" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    var out: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.notifyResourceChanged("abi://unknown", &writer);
-
-    // Nothing should be written
-    try std.testing.expectEqual(@as(usize, 0), writer.end);
-}
-
-test "handleMessage resources/subscribe via JSON-RPC" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    try server.addResource(.{
-        .def = .{
-            .uri = "abi://live",
-            .name = "Live",
-            .description = "Live data",
-        },
-        .handler = struct {
-            fn handle(_: std.mem.Allocator, _: []const u8, o: *std.ArrayListUnmanaged(u8)) !void {
-                try o.appendSlice(std.testing.allocator, "live");
-            }
-        }.handle,
-    });
-
-    var out: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.handleMessage(
-        \\{"jsonrpc":"2.0","method":"resources/subscribe","id":20,"params":{"uri":"abi://live"}}
-    , &writer);
-
-    const written = out[0..writer.end];
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"id\":20") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"result\":{}") != null);
-
-    // Verify subscription is active
-    try std.testing.expect(server.isSubscribed("abi://live"));
-}
-
-test "handleMessage resources/subscribe rejects unknown resource" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    var out: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.handleMessage(
-        \\{"jsonrpc":"2.0","method":"resources/subscribe","id":21,"params":{"uri":"abi://missing"}}
-    , &writer);
-
-    const written = out[0..writer.end];
-    try std.testing.expect(std.mem.indexOf(u8, written, "Resource not found") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "-32602") != null);
-}
-
-test "handleMessage resources/unsubscribe via JSON-RPC" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    try server.addResource(.{
-        .def = .{
-            .uri = "abi://feed",
-            .name = "Feed",
-            .description = "Data feed",
-        },
-        .handler = struct {
-            fn handle(_: std.mem.Allocator, _: []const u8, o: *std.ArrayListUnmanaged(u8)) !void {
-                try o.appendSlice(std.testing.allocator, "feed");
-            }
-        }.handle,
-    });
-
-    // Subscribe first
-    _ = try server.subscribeResource("abi://feed");
-    try std.testing.expect(server.isSubscribed("abi://feed"));
-
-    var out: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.handleMessage(
-        \\{"jsonrpc":"2.0","method":"resources/unsubscribe","id":22,"params":{"uri":"abi://feed"}}
-    , &writer);
-
-    const written = out[0..writer.end];
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"id\":22") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"result\":{}") != null);
-
-    // Verify unsubscribed
-    try std.testing.expect(!server.isSubscribed("abi://feed"));
-}
-
-test "handleMessage resources/subscribe missing params" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    var out: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.handleMessage(
-        \\{"jsonrpc":"2.0","method":"resources/subscribe","id":23}
-    , &writer);
-
-    const written = out[0..writer.end];
-    try std.testing.expect(std.mem.indexOf(u8, written, "Missing params") != null);
-}
-
-test "handleMessage resources/subscribe missing URI" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    var out: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.handleMessage(
-        \\{"jsonrpc":"2.0","method":"resources/subscribe","id":24,"params":{}}
-    , &writer);
-
-    const written = out[0..writer.end];
-    try std.testing.expect(std.mem.indexOf(u8, written, "Missing resource URI") != null);
-}
-
-test "handleMessage initialize advertises subscribe capability" {
-    const allocator = std.testing.allocator;
-    var server = Server.init(allocator, "test", "0.1.0");
-    defer server.deinit();
-
-    try server.addResource(.{
-        .def = .{
-            .uri = "abi://test",
-            .name = "Test",
-            .description = "Test resource",
-        },
-        .handler = struct {
-            fn handle(_: std.mem.Allocator, _: []const u8, o: *std.ArrayListUnmanaged(u8)) !void {
-                try o.appendSlice(std.testing.allocator, "test");
-            }
-        }.handle,
-    });
-
-    var out: [1024]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&out);
-
-    try server.handleMessage(
-        \\{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}
-    , &writer);
-
-    const written = out[0..writer.end];
-    try std.testing.expect(std.mem.indexOf(u8, written, "\"subscribe\":true") != null);
 }
 
 test {

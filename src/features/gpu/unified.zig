@@ -597,12 +597,7 @@ pub const GpuDevice = struct {
 
     /// Initialize a new `GpuDevice` with the given configuration.
     pub fn init(allocator: std.mem.Allocator, config: GpuConfig) !GpuDevice {
-        var gpu = try Gpu.init(allocator, config);
-        if (gpu.active_device == null) {
-            gpu.deinit();
-            return error.NoDeviceAvailable;
-        }
-        return .{ .gpu = gpu };
+        return .{ .gpu = try Gpu.init(allocator, config) };
     }
 
     /// Release all resources.
