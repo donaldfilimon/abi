@@ -132,13 +132,4 @@ pub fn writePadding(fd: std.posix.fd_t, len: usize) !void {
 
 // Helper functions
 
-pub fn computeL2DistanceSquared(a: []const f32, b: []const f32) f32 {
-    std.debug.assert(a.len == b.len);
-
-    var sum: f32 = 0;
-    for (a, b) |av, bv| {
-        const diff = av - bv;
-        sum += diff * diff;
-    }
-    return sum;
-}
+pub const computeL2DistanceSquared = @import("../../../foundation/mod.zig").simd.distances.l2DistanceSquared;

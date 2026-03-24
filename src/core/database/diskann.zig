@@ -46,8 +46,6 @@ pub const DISKANN_HEADER_SIZE = types.DISKANN_HEADER_SIZE;
 
 // Tests
 const std = @import("std");
-const index_mod = @import("index.zig");
-
 test "pq codebook basic" {
     const allocator = std.testing.allocator;
 
