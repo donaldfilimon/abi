@@ -208,6 +208,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/root.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
     lib_tests.root_module.addImport("build_options", build_options_module);
@@ -262,6 +263,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/feature_parity_tests.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
     parity_mod.addImport("build_options", build_options_module);
     const parity_tests = b.addTest(.{ .root_module = parity_mod });
