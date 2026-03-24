@@ -19,6 +19,8 @@ pub const search_state = @import("../search_state.zig");
 pub const distance_cache = @import("../distance_cache.zig");
 pub const search_types = @import("search.zig");
 pub const persistence = @import("persistence.zig");
+pub const insert_impl = @import("insert.zig");
+pub const search_impl = @import("search_impl.zig");
 
 pub const SearchState = search_state.SearchState;
 pub const SearchStatePool = search_state.SearchStatePool;
@@ -56,9 +58,8 @@ pub const HnswIndex = struct {
     // Re-export BatchSearchResult inside struct for backward compatibility
     pub const BatchSearchResult = search_types.BatchSearchResult;
 
-    pub const NodeLayers = struct {
-        layers: []index_mod.NeighborList,
-    };
+    /// Node layer structure — defined in insert_impl to avoid circular imports.
+    pub const NodeLayers = insert_impl.NodeLayers;
 
     pub fn init(allocator: std.mem.Allocator, cfg: anytype, metric: anytype) !HnswIndex {
         _ = metric;
@@ -103,11 +104,6 @@ pub const HnswIndex = struct {
     }
 
     /// Build a new HNSW index from a set of records.
-    /// @param allocator Memory allocator for graph structures
-    /// @param records Source vector records
-    /// @param m Max number of connections per node
-    /// @param ef_construction Size of the dynamic candidate list during construction
-    /// @return Initialized HnswIndex
     pub fn build(
         allocator: std.mem.Allocator,
         records: []const index_mod.VectorRecordView,
@@ -121,10 +117,6 @@ pub const HnswIndex = struct {
     }
 
     /// Build a new HNSW index with full configuration options.
-    /// @param allocator Memory allocator for graph structures
-    /// @param records Source vector records
-    /// @param config Index configuration including performance options
-    /// @return Initialized HnswIndex
     pub fn buildWithConfig(
         allocator: std.mem.Allocator,
         records: []const index_mod.VectorRecordView,
@@ -133,13 +125,13 @@ pub const HnswIndex = struct {
         if (records.len == 0) return index_mod.IndexError.EmptyIndex;
 
         // Initialize optional search state pool
-        var state_pool: ?*SearchStatePool = null;
+        var state_pool_ptr: ?*SearchStatePool = null;
         if (config.search_pool_size > 0) {
             const pool = try allocator.create(SearchStatePool);
             pool.* = try SearchStatePool.init(allocator, config.search_pool_size);
-            state_pool = pool;
+            state_pool_ptr = pool;
         }
-        errdefer if (state_pool) |pool| {
+        errdefer if (state_pool_ptr) |pool| {
             pool.deinit();
             allocator.destroy(pool);
         };
@@ -180,8 +172,7 @@ pub const HnswIndex = struct {
             allocator.destroy(accel);
         };
 
-        // Pre-compute L2 norms for all vectors (avoids redundant norm computation
-        // during construction — each norm would otherwise be computed O(ef_construction) times)
+        // Pre-compute L2 norms for all vectors
         const norms = try allocator.alloc(f32, records.len);
         errdefer allocator.free(norms);
         for (records, 0..) |rec, idx| {
@@ -196,7 +187,7 @@ pub const HnswIndex = struct {
             .entry_point = null,
             .max_layer = -1,
             .nodes = try allocator.alloc(NodeLayers, records.len),
-            .state_pool = state_pool,
+            .state_pool = state_pool_ptr,
             .distance_cache = dist_cache_ptr,
             .gpu_accelerator = gpu_accelerator,
             .norms = norms,
@@ -212,14 +203,30 @@ pub const HnswIndex = struct {
         const random = prng.random();
         const m_l = 1.0 / @as(f32, @log(@as(f32, @floatFromInt(config.m))));
 
-        // Use arena allocator for per-insertion temporaries (HashMaps, ArrayLists)
-        // — bulk-freed after each insert instead of individual alloc/free per container
+        // Use arena allocator for per-insertion temporaries
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
 
         for (records, 0..) |_, i| {
-            try self.insertAt(allocator, arena.allocator(), records, @intCast(i), random, m_l);
-            // Reset arena for next insertion — frees all temporaries in bulk
+            // Delegate to extracted insert module
+            try insert_impl.insertAt(
+                .{
+                    .nodes = self.nodes,
+                    .m_max = self.m_max,
+                    .m_max0 = self.m_max0,
+                    .ef_construction = self.ef_construction,
+                    .norms = self.norms,
+                    .distance_cache = self.distance_cache,
+                },
+                &self.entry_point,
+                &self.max_layer,
+                allocator,
+                arena.allocator(),
+                records,
+                @intCast(i),
+                random,
+                m_l,
+            );
             _ = arena.reset(.retain_capacity);
         }
 
@@ -227,311 +234,10 @@ pub const HnswIndex = struct {
     }
 
     /// Insert a new node into the HNSW graph.
-    ///
-    /// Implements the standard HNSW insertion algorithm:
-    /// 1. Determine target layer using exponential distribution
-    /// 2. Greedy descent from max_layer to target_layer + 1
-    /// 3. Layer-by-layer neighbor connection from target_layer to 0
-    /// 4. Update entry point if new node is at a higher layer
     pub fn insert(self: *HnswIndex, vector: []const f32) !void {
         const cloned = try self.allocator.dupe(f32, vector);
         try self.vectors.append(self.allocator, cloned);
         // Note: Graph is not updated in this compatibility shim.
-    }
-
-    fn insertAt(
-        self: *HnswIndex,
-        allocator: std.mem.Allocator,
-        temp_allocator: std.mem.Allocator,
-        records: []const index_mod.VectorRecordView,
-        node_id: u32,
-        random: std.Random,
-        m_l: f32,
-    ) !void {
-        const target_layer = @as(i32, @intFromFloat(@floor(-@log(random.float(f32)) * m_l)));
-        self.nodes[node_id].layers = try allocator.alloc(index_mod.NeighborList, @intCast(target_layer + 1));
-        for (self.nodes[node_id].layers) |*list| {
-            list.nodes = &.{};
-        }
-
-        if (self.entry_point == null) {
-            self.entry_point = node_id;
-            self.max_layer = target_layer;
-            return;
-        }
-
-        var curr_node = self.entry_point.?;
-        var curr_dist = self.computeNodeDistance(records, node_id, curr_node);
-
-        // 1. Greedy search down to layer above target_layer
-        var lc: i32 = self.max_layer;
-        while (lc > target_layer) : (lc -= 1) {
-            var changed = true;
-            while (changed) {
-                changed = false;
-                const neighbors = self.nodes[curr_node].layers[@intCast(lc)].nodes;
-
-                // Prefetch neighbor vectors
-                for (neighbors) |neighbor| {
-                    if (neighbor < records.len) {
-                        @prefetch(records[neighbor].vector.ptr, .{ .locality = 3, .rw = .read });
-                    }
-                }
-
-                for (neighbors) |neighbor| {
-                    const d = self.computeNodeDistance(records, node_id, neighbor);
-                    if (d < curr_dist) {
-                        curr_dist = d;
-                        curr_node = neighbor;
-                        changed = true;
-                    }
-                }
-            }
-        }
-
-        // 2. Perform layered insertion from target_layer down to 0
-        lc = @min(target_layer, self.max_layer);
-        while (lc >= 0) : (lc -= 1) {
-            try self.connectNeighbors(allocator, temp_allocator, records, node_id, curr_node, @intCast(lc));
-        }
-
-        // 3. Update global entry point if new node is at a higher layer
-        if (target_layer > self.max_layer) {
-            self.max_layer = target_layer;
-            self.entry_point = node_id;
-        }
-    }
-
-    /// Connect a node to its neighbors at a specific layer using proper HNSW neighbor selection.
-    ///
-    /// Uses ef_construction-based candidate expansion and heuristic pruning to select
-    /// diverse, high-quality neighbors. Updates bidirectional links and prunes existing
-    /// neighbors if they exceed m_max (or m_max0 for layer 0).
-    fn connectNeighbors(
-        self: *HnswIndex,
-        allocator: std.mem.Allocator,
-        temp_allocator: std.mem.Allocator,
-        records: []const index_mod.VectorRecordView,
-        node_id: u32,
-        entry: u32,
-        layer: usize,
-    ) !void {
-        const m_val = if (layer == 0) self.m_max0 else self.m_max;
-
-        // Build candidate list using ef_construction expansion
-        // (temporaries use arena allocator — bulk freed by caller)
-        var candidates = std.AutoHashMapUnmanaged(u32, f32).empty;
-        defer candidates.deinit(temp_allocator);
-
-        var visited = std.AutoHashMapUnmanaged(u32, void).empty;
-        defer visited.deinit(temp_allocator);
-
-        // Start with entry point (use cached distance)
-        const entry_dist = self.computeNodeDistance(records, node_id, entry);
-        try candidates.put(temp_allocator, entry, entry_dist);
-        try visited.put(temp_allocator, entry, {});
-
-        // BFS expansion to find candidates
-        var queue = std.ArrayListUnmanaged(u32).empty;
-        defer queue.deinit(temp_allocator);
-        try queue.append(temp_allocator, entry);
-
-        var head: usize = 0;
-        while (head < queue.items.len and candidates.count() < self.ef_construction) : (head += 1) {
-            const curr = queue.items[head];
-            if (layer < self.nodes[curr].layers.len) {
-                const neighbors = self.nodes[curr].layers[layer].nodes;
-
-                // Prefetch neighbor vectors
-                for (neighbors) |neighbor| {
-                    if (!visited.contains(neighbor) and neighbor < records.len) {
-                        @prefetch(records[neighbor].vector.ptr, .{ .locality = 2, .rw = .read });
-                    }
-                }
-
-                for (neighbors) |neighbor| {
-                    if (!visited.contains(neighbor)) {
-                        try visited.put(temp_allocator, neighbor, {});
-                        const dist = self.computeNodeDistance(records, node_id, neighbor);
-                        try candidates.put(temp_allocator, neighbor, dist);
-                        try queue.append(temp_allocator, neighbor);
-                    }
-                }
-            }
-        }
-
-        // Select best neighbors using heuristic pruning
-        const selected = try self.selectNeighborsHeuristic(allocator, temp_allocator, records, node_id, &candidates, m_val);
-        self.nodes[node_id].layers[layer].nodes = selected;
-
-        // Update bidirectional links with proper pruning
-        const node_neighbors = self.nodes[node_id].layers[layer].nodes;
-        for (node_neighbors, 0..) |neighbor, neighbor_idx| {
-            if (layer >= self.nodes[neighbor].layers.len) continue;
-
-            // Prefetch next neighbor's layer structure for the next iteration
-            if (neighbor_idx + 1 < node_neighbors.len) {
-                const next_neighbor = node_neighbors[neighbor_idx + 1];
-                if (next_neighbor < self.nodes.len and self.nodes[next_neighbor].layers.len > layer) {
-                    @prefetch(self.nodes[next_neighbor].layers[layer].nodes.ptr, .{
-                        .locality = 2,
-                        .rw = .read,
-                        .cache = .data,
-                    });
-                }
-            }
-
-            var neighbor_links = std.AutoHashMapUnmanaged(u32, f32).empty;
-            defer neighbor_links.deinit(temp_allocator);
-
-            const existing_neighbors = self.nodes[neighbor].layers[layer].nodes;
-
-            // Prefetch vectors for existing neighbors
-            for (existing_neighbors) |existing| {
-                if (existing < records.len) {
-                    @prefetch(records[existing].vector.ptr, .{
-                        .locality = 2,
-                        .rw = .read,
-                        .cache = .data,
-                    });
-                }
-            }
-
-            // Collect existing neighbors (use cached distances)
-            for (existing_neighbors) |existing| {
-                const dist = self.computeNodeDistance(records, neighbor, existing);
-                try neighbor_links.put(temp_allocator, existing, dist);
-            }
-
-            // Add new link if not exists
-            if (!neighbor_links.contains(node_id)) {
-                const dist = self.computeNodeDistance(records, neighbor, node_id);
-                try neighbor_links.put(temp_allocator, node_id, dist);
-            }
-
-            // Prune if needed
-            if (neighbor_links.count() > m_val) {
-                // selectNeighborsHeuristic uses persistent allocator for the owned slice
-                const pruned = try self.selectNeighborsHeuristic(allocator, temp_allocator, records, neighbor, &neighbor_links, m_val);
-                allocator.free(self.nodes[neighbor].layers[layer].nodes);
-                self.nodes[neighbor].layers[layer].nodes = pruned;
-            } else {
-                // Just update with new links (persistent allocation — outlives function)
-                var new_links = std.ArrayListUnmanaged(u32).empty;
-                errdefer new_links.deinit(allocator);
-
-                var it = neighbor_links.keyIterator();
-                while (it.next()) |key| {
-                    try new_links.append(allocator, key.*);
-                }
-
-                allocator.free(self.nodes[neighbor].layers[layer].nodes);
-                self.nodes[neighbor].layers[layer].nodes = try new_links.toOwnedSlice(allocator);
-            }
-        }
-    }
-
-    /// Select neighbors using heuristic pruning that considers both distance and diversity.
-    fn selectNeighborsHeuristic(
-        self: *const HnswIndex,
-        allocator: std.mem.Allocator,
-        temp_allocator: std.mem.Allocator,
-        records: []const index_mod.VectorRecordView,
-        node_id: u32,
-        candidates: *std.AutoHashMapUnmanaged(u32, f32),
-        m_val: usize,
-    ) ![]u32 {
-
-        // Sort candidates by distance (ascending) — temp allocation
-        const CandidatePair = struct { id: u32, dist: f32 };
-        var sorted = std.ArrayListUnmanaged(CandidatePair).empty;
-        defer sorted.deinit(temp_allocator);
-
-        var it = candidates.iterator();
-        while (it.next()) |entry| {
-            if (entry.key_ptr.* != node_id) { // Don't include self
-                try sorted.append(temp_allocator, .{ .id = entry.key_ptr.*, .dist = entry.value_ptr.* });
-            }
-        }
-
-        // Sort by distance (closest first)
-        std.sort.heap(CandidatePair, sorted.items, {}, struct {
-            fn lessThan(_: void, a: CandidatePair, b: CandidatePair) bool {
-                return a.dist < b.dist;
-            }
-        }.lessThan);
-
-        // Select using heuristic: prefer diverse neighbors over purely closest
-        var selected = std.ArrayListUnmanaged(u32).empty;
-        errdefer selected.deinit(allocator);
-
-        for (sorted.items, 0..) |candidate, idx| {
-            if (selected.items.len >= m_val) break;
-
-            // Prefetch next candidate's vector for the next iteration
-            if (idx + 1 < sorted.items.len) {
-                const next_id = sorted.items[idx + 1].id;
-                if (next_id < records.len) {
-                    @prefetch(records[next_id].vector.ptr, .{
-                        .locality = 3, // High temporal locality - will be used soon
-                        .rw = .read,
-                        .cache = .data,
-                    });
-                }
-            }
-
-            // Check if this candidate is closer to node than to any selected neighbor
-            var should_add = true;
-            for (selected.items) |existing| {
-                // Use pre-computed norms when available
-                const dist_to_existing = if (self.norms.len > candidate.id and self.norms.len > existing) blk: {
-                    const na = self.norms[candidate.id];
-                    const nb = self.norms[existing];
-                    if (na > 0.0 and nb > 0.0) {
-                        const dot = simd.vectorDot(
-                            records[candidate.id].vector,
-                            records[existing].vector,
-                        );
-                        break :blk 1.0 - dot / (na * nb);
-                    }
-                    break :blk 1.0;
-                } else 1.0 - simd.cosineSimilarity(
-                    records[candidate.id].vector,
-                    records[existing].vector,
-                );
-                // If candidate is closer to an existing neighbor than to the node,
-                // skip it to maintain diversity
-                if (dist_to_existing < candidate.dist) {
-                    should_add = false;
-                    break;
-                }
-            }
-
-            if (should_add) {
-                try selected.append(allocator, candidate.id);
-            }
-        }
-
-        // If we don't have enough neighbors due to heuristic, fill with closest
-        if (selected.items.len < m_val) {
-            for (sorted.items) |candidate| {
-                if (selected.items.len >= m_val) break;
-
-                var already_added = false;
-                for (selected.items) |existing| {
-                    if (existing == candidate.id) {
-                        already_added = true;
-                        break;
-                    }
-                }
-
-                if (!already_added) {
-                    try selected.append(allocator, candidate.id);
-                }
-            }
-        }
-
-        return selected.toOwnedSlice(allocator);
     }
 
     /// Search the HNSW graph for the nearest neighbors of a query vector.
@@ -575,7 +281,7 @@ pub const HnswIndex = struct {
         }
 
         var curr_node = self.entry_point.?;
-        var curr_dist = self.computeDistance(query, query_norm, records[curr_node].vector);
+        var curr_dist = search_impl.computeDistance(query, query_norm, records[curr_node].vector);
 
         // 1. Zoom in through layers with prefetching
         var lc: i32 = self.max_layer;
@@ -585,7 +291,6 @@ pub const HnswIndex = struct {
                 changed = false;
                 const neighbors = self.nodes[curr_node].layers[@intCast(lc)].nodes;
 
-                // Prefetch next neighbor's vector data
                 for (neighbors) |neighbor| {
                     if (neighbor < records.len) {
                         @prefetch(records[neighbor].vector.ptr, .{ .locality = 3, .rw = .read });
@@ -593,7 +298,7 @@ pub const HnswIndex = struct {
                 }
 
                 for (neighbors) |neighbor| {
-                    const d = self.computeDistance(query, query_norm, records[neighbor].vector);
+                    const d = search_impl.computeDistance(query, query_norm, records[neighbor].vector);
                     if (d < curr_dist) {
                         curr_dist = d;
                         curr_node = neighbor;
@@ -609,23 +314,20 @@ pub const HnswIndex = struct {
         try state.queue.append(allocator, curr_node);
 
         var head: usize = 0;
-        // Limit search expansion for performance
         const max_candidates = @max(top_k * 2, self.ef_construction / 2);
 
-        // Determine GPU batch threshold for this search
         const gpu_batch_threshold: usize = if (self.gpu_accelerator) |accel|
             accel.config.batch_threshold
         else
-            std.math.maxInt(usize); // Effectively disables batching
+            std.math.maxInt(usize);
 
         while (head < state.queue.items.len and state.queue.items.len < max_candidates) : (head += 1) {
             const u = state.queue.items[head];
-            // Safety: Check that node has layers before accessing layer 0
             if (self.nodes[u].layers.len == 0) continue;
 
             const neighbors = self.nodes[u].layers[0].nodes;
 
-            // Collect unvisited neighbor IDs
+            // Collect unvisited neighbor count
             var unvisited_count: usize = 0;
             for (neighbors) |v| {
                 if (!state.visited.contains(v) and v < records.len) {
@@ -635,16 +337,14 @@ pub const HnswIndex = struct {
 
             // Use GPU-accelerated batch distance when batch exceeds threshold
             if (unvisited_count >= gpu_batch_threshold and self.gpu_accelerator != null) {
-                // Collect unvisited neighbor IDs and vectors for batch computation
                 const unvisited_ids = allocator.alloc(u32, unvisited_count) catch {
-                    // Fall back to sequential on alloc failure
-                    self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                    search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
                     continue;
                 };
                 defer allocator.free(unvisited_ids);
 
                 const unvisited_vecs = allocator.alloc([]const f32, unvisited_count) catch {
-                    self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                    search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
                     continue;
                 };
                 defer allocator.free(unvisited_vecs);
@@ -659,20 +359,17 @@ pub const HnswIndex = struct {
                 }
 
                 const batch_distances = allocator.alloc(f32, unvisited_count) catch {
-                    self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                    search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
                     continue;
                 };
                 defer allocator.free(batch_distances);
 
-                // Use GPU accelerator for batch cosine similarity
                 if (self.gpu_accelerator) |accel| {
                     accel.batchCosineSimilarity(query, query_norm, unvisited_vecs, batch_distances) catch {
-                        // Fall back to sequential on GPU failure
-                        self.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
+                        search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch {};
                         continue;
                     };
 
-                    // Convert similarities to distances and add to candidates
                     for (unvisited_ids, 0..) |v, vi| {
                         try state.visited.put(allocator, v, {});
                         const d = 1.0 - batch_distances[vi];
@@ -691,7 +388,7 @@ pub const HnswIndex = struct {
                 for (neighbors) |v| {
                     if (!state.visited.contains(v)) {
                         try state.visited.put(allocator, v, {});
-                        const d = self.computeDistance(query, query_norm, records[v].vector);
+                        const d = search_impl.computeDistance(query, query_norm, records[v].vector);
                         try state.candidates.put(allocator, v, d);
                         try state.queue.append(allocator, v);
                     }
@@ -706,10 +403,10 @@ pub const HnswIndex = struct {
 
         var cit = state.candidates.iterator();
         var i: usize = 0;
-        while (cit.next()) |entry| {
+        while (cit.next()) |entry_item| {
             results[i] = .{
-                .id = records[entry.key_ptr.*].id,
-                .score = 1.0 - entry.value_ptr.*, // Convert distance back to similarity
+                .id = records[entry_item.key_ptr.*].id,
+                .score = 1.0 - entry_item.value_ptr.*,
             };
             i += 1;
         }
@@ -728,91 +425,40 @@ pub const HnswIndex = struct {
         return results;
     }
 
-    /// Sequential fallback for processing neighbors when GPU batch path fails.
-    fn searchNeighborsSequential(
-        self: *const HnswIndex,
-        allocator: std.mem.Allocator,
-        neighbors: []const u32,
-        records: []const index_mod.VectorRecordView,
-        query: []const f32,
-        query_norm: f32,
-        state: *SearchState,
-    ) !void {
-        for (neighbors) |v| {
-            if (!state.visited.contains(v) and v < records.len) {
-                @prefetch(records[v].vector.ptr, .{ .locality = 2, .rw = .read });
-            }
-        }
-        for (neighbors) |v| {
-            if (!state.visited.contains(v)) {
-                try state.visited.put(allocator, v, {});
-                const d = self.computeDistance(query, query_norm, records[v].vector);
-                try state.candidates.put(allocator, v, d);
-                try state.queue.append(allocator, v);
-            }
-        }
-    }
-
-    /// Compute cosine distance between query and vector using SIMD.
-    inline fn computeDistance(self: *const HnswIndex, query: []const f32, query_norm: f32, vector: []const f32) f32 {
-        _ = self;
-
-        const vec_norm = simd.vectorL2Norm(vector);
-        if (vec_norm == 0.0) return 1.0;
-
-        const dot = simd.vectorDot(query, vector);
-        return 1.0 - (dot / (query_norm * vec_norm));
-    }
-
     /// Compute node-to-node distance with caching support.
     fn computeNodeDistance(self: *const HnswIndex, records: []const index_mod.VectorRecordView, a: u32, b: u32) f32 {
-        // Check cache first
-        if (self.distance_cache) |cache| {
-            if (cache.get(a, b)) |cached| {
-                return cached;
-            }
-        }
-
-        // Compute cosine distance — use pre-computed norms when available
-        const dist = if (self.norms.len > a and self.norms.len > b) blk: {
-            const na = self.norms[a];
-            const nb = self.norms[b];
-            if (na > 0.0 and nb > 0.0) {
-                const dot = simd.vectorDot(records[a].vector, records[b].vector);
-                break :blk 1.0 - dot / (na * nb);
-            }
-            break :blk 1.0;
-        } else 1.0 - simd.cosineSimilarity(records[a].vector, records[b].vector);
-
-        // Store in cache
-        if (self.distance_cache) |cache| {
-            cache.put(a, b, dist);
-        }
-
-        return dist;
+        return insert_impl.computeNodeDistance(
+            .{
+                .nodes = self.nodes,
+                .m_max = self.m_max,
+                .m_max0 = self.m_max0,
+                .ef_construction = self.ef_construction,
+                .norms = self.norms,
+                .distance_cache = self.distance_cache,
+            },
+            records,
+            a,
+            b,
+        );
     }
 
     /// Free resources associated with the index.
     pub fn deinit(self: *HnswIndex, allocator: std.mem.Allocator) void {
-        // Clean up search state pool
         if (self.state_pool) |pool| {
             pool.deinit();
             allocator.destroy(pool);
         }
 
-        // Clean up distance cache
         if (self.distance_cache) |cache| {
             cache.deinit(allocator);
             allocator.destroy(cache);
         }
 
-        // Clean up GPU accelerator
         if (self.gpu_accelerator) |accel| {
             accel.deinit();
             allocator.destroy(accel);
         }
 
-        // Free pre-computed norms
         if (self.norms.len > 0) allocator.free(self.norms);
 
         for (self.nodes) |node| {
@@ -823,13 +469,12 @@ pub const HnswIndex = struct {
         }
         allocator.free(self.nodes);
 
-        // Free compatibility fields (populated by insert() shim and persistence load)
         for (self.vectors.items) |v| allocator.free(v);
         self.vectors.deinit(allocator);
         self.node_levels.deinit(allocator);
-        for (self.neighbors.items) |layers| {
-            for (layers) |nbrs| allocator.free(nbrs);
-            allocator.free(layers);
+        for (self.neighbors.items) |layer_list| {
+            for (layer_list) |nbrs| allocator.free(nbrs);
+            allocator.free(layer_list);
         }
         self.neighbors.deinit(allocator);
 
@@ -877,19 +522,6 @@ pub const HnswIndex = struct {
         self.distance_cache = cache;
     }
 
-    /// Worker context for parallel batch search
-    const BatchSearchWorkerContext = struct {
-        index: *const HnswIndex,
-        records: []const index_mod.VectorRecordView,
-        queries: []const []const f32,
-        top_k: usize,
-        results: []?[]index_mod.IndexResult,
-        allocator: std.mem.Allocator,
-        errors_occurred: *std.atomic.Value(usize),
-        next_index: *std.atomic.Value(usize),
-        total_queries: usize,
-    };
-
     /// Perform batch search on multiple query vectors in parallel.
     pub fn batchSearch(
         self: *const HnswIndex,
@@ -907,43 +539,71 @@ pub const HnswIndex = struct {
             return self.batchSearchSequential(allocator, records, queries, top_k);
         }
 
-        // Allocate results array (nullable to track completion)
+        // Allocate results array
         const results_slots = try allocator.alloc(?[]index_mod.IndexResult, queries.len);
         defer allocator.free(results_slots);
         @memset(results_slots, null);
 
-        // Shared state for work distribution
         var next_index = std.atomic.Value(usize).init(0);
         var errors_occurred = std.atomic.Value(usize).init(0);
 
-        // Determine number of worker threads
         const cpu_count = std.Thread.getCpuCount() catch 4;
         const num_workers = @min(cpu_count, queries.len);
 
-        // Create worker context
-        var context = BatchSearchWorkerContext{
+        const Context = struct {
+            index: *const HnswIndex,
+            records: []const index_mod.VectorRecordView,
+            queries: []const []const f32,
+            top_k: usize,
+            results: []?[]index_mod.IndexResult,
+            alloc: std.mem.Allocator,
+            errors: *std.atomic.Value(usize),
+            next: *std.atomic.Value(usize),
+            total: usize,
+        };
+
+        var context = Context{
             .index = self,
             .records = records,
             .queries = queries,
             .top_k = top_k,
             .results = results_slots,
-            .allocator = allocator,
-            .errors_occurred = &errors_occurred,
-            .next_index = &next_index,
-            .total_queries = queries.len,
+            .alloc = allocator,
+            .errors = &errors_occurred,
+            .next = &next_index,
+            .total = queries.len,
         };
 
-        // Spawn worker threads
         var threads = try allocator.alloc(std.Thread, num_workers);
         defer allocator.free(threads);
 
+        const worker = struct {
+            fn run(ctx: *Context) void {
+                while (true) {
+                    const idx = ctx.next.fetchAdd(1, .monotonic);
+                    if (idx >= ctx.total) break;
+
+                    const search_result = ctx.index.search(
+                        ctx.alloc,
+                        ctx.records,
+                        ctx.queries[idx],
+                        ctx.top_k,
+                    ) catch {
+                        _ = ctx.errors.fetchAdd(1, .monotonic);
+                        ctx.results[idx] = &.{};
+                        return;
+                    };
+
+                    ctx.results[idx] = search_result;
+                }
+            }
+        }.run;
+
         for (0..num_workers) |wi| {
-            threads[wi] = std.Thread.spawn(.{}, batchSearchWorker, .{&context}) catch |err| {
-                // If we can't spawn a thread, clean up what we have and fallback
+            threads[wi] = std.Thread.spawn(.{}, worker, .{&context}) catch |err| {
                 for (0..wi) |j| {
                     threads[j].join();
                 }
-                // Free any results that were allocated
                 for (results_slots) |maybe_result| {
                     if (maybe_result) |result| {
                         allocator.free(result);
@@ -953,14 +613,11 @@ pub const HnswIndex = struct {
             };
         }
 
-        // Wait for all workers to complete
         for (threads) |t| {
             t.join();
         }
 
-        // Check for errors
         if (errors_occurred.load(.acquire) > 0) {
-            // Free any results that were allocated
             for (results_slots) |maybe_result| {
                 if (maybe_result) |result| {
                     allocator.free(result);
@@ -969,7 +626,6 @@ pub const HnswIndex = struct {
             return error.BatchSearchFailed;
         }
 
-        // Convert to final result format
         var final_results = try allocator.alloc(BatchSearchResult, queries.len);
         errdefer allocator.free(final_results);
 
@@ -983,36 +639,7 @@ pub const HnswIndex = struct {
         return final_results;
     }
 
-    /// Worker function for parallel batch search
-    fn batchSearchWorker(context: *BatchSearchWorkerContext) void {
-        while (true) {
-            const idx = context.next_index.fetchAdd(1, .monotonic);
-            if (idx >= context.total_queries) {
-                break;
-            }
-            processQueryIndex(context, idx);
-        }
-    }
-
-    /// Process a single query in the batch
-    fn processQueryIndex(context: *BatchSearchWorkerContext, query_idx: usize) void {
-        const query = context.queries[query_idx];
-
-        const search_result = context.index.search(
-            context.allocator,
-            context.records,
-            query,
-            context.top_k,
-        ) catch {
-            _ = context.errors_occurred.fetchAdd(1, .monotonic);
-            context.results[query_idx] = &.{};
-            return;
-        };
-
-        context.results[query_idx] = search_result;
-    }
-
-    /// Sequential batch search for small batches
+    /// Sequential batch search for small batches.
     fn batchSearchSequential(
         self: *const HnswIndex,
         allocator: std.mem.Allocator,
@@ -1039,7 +666,7 @@ pub const HnswIndex = struct {
         return results;
     }
 
-    /// Free batch search results
+    /// Free batch search results.
     pub fn freeBatchSearchResults(allocator: std.mem.Allocator, results: []BatchSearchResult) void {
         for (results) |r| {
             allocator.free(r.results);
@@ -1068,11 +695,9 @@ pub const HnswIndex = struct {
 
         if (neighbor_ids.len == 0) return;
 
-        // Try GPU acceleration for large batches
         if (self.gpu_accelerator) |accel| {
-            // Build vector slice array for batch computation
             var vectors = self.allocator.alloc([]const f32, neighbor_ids.len) catch {
-                self.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
+                search_impl.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
                 return;
             };
             defer self.allocator.free(vectors);
@@ -1086,7 +711,7 @@ pub const HnswIndex = struct {
             }
 
             accel.batchCosineSimilarity(query, query_norm, vectors, distances) catch {
-                self.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
+                search_impl.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
                 return;
             };
 
@@ -1094,7 +719,7 @@ pub const HnswIndex = struct {
                 d.* = 1.0 - d.*;
             }
         } else {
-            self.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
+            search_impl.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
         }
     }
 
@@ -1108,46 +733,7 @@ pub const HnswIndex = struct {
         distances: []f32,
     ) void {
         _ = self;
-
-        // Prefetch first few vectors to warm the cache
-        const prefetch_ahead: usize = 4;
-        for (0..@min(prefetch_ahead, neighbor_ids.len)) |ni| {
-            const id = neighbor_ids[ni];
-            if (id < records.len) {
-                @prefetch(records[id].vector.ptr, .{
-                    .locality = 2,
-                    .rw = .read,
-                    .cache = .data,
-                });
-            }
-        }
-
-        for (neighbor_ids, 0..) |id, ni| {
-            // Prefetch ahead for upcoming iterations
-            if (ni + prefetch_ahead < neighbor_ids.len) {
-                const future_id = neighbor_ids[ni + prefetch_ahead];
-                if (future_id < records.len) {
-                    @prefetch(records[future_id].vector.ptr, .{
-                        .locality = 2,
-                        .rw = .read,
-                        .cache = .data,
-                    });
-                }
-            }
-
-            if (id < records.len) {
-                const vec = records[id].vector;
-                const vec_norm = simd.vectorL2Norm(vec);
-                if (vec_norm > 0 and query_norm > 0) {
-                    const dot = simd.vectorDot(query, vec);
-                    distances[ni] = 1.0 - (dot / (query_norm * vec_norm));
-                } else {
-                    distances[ni] = 1.0;
-                }
-            } else {
-                distances[ni] = 1.0;
-            }
-        }
+        search_impl.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
     }
 
     /// Save HNSW structure to a binary writer.
@@ -1229,9 +815,7 @@ pub const HnswIndex = struct {
         var total_connections: usize = 0;
         var memory: usize = 0;
 
-        // Account for nodes array
         memory += self.nodes.len * @sizeOf(NodeLayers);
-        // Account for norms array
         memory += self.norms.len * @sizeOf(f32);
 
         for (self.nodes) |node| {
@@ -1280,7 +864,6 @@ pub const HnswIndex = struct {
 test "IndexStats fields populated correctly" {
     const allocator = std.testing.allocator;
 
-    // Build a small index to check stats
     const records = [_]index_mod.VectorRecordView{
         .{ .id = 0, .vector = &[_]f32{ 1.0, 0.0, 0.0, 0.0 } },
         .{ .id = 1, .vector = &[_]f32{ 0.0, 1.0, 0.0, 0.0 } },
@@ -1311,7 +894,6 @@ test "getLayerCount returns expected value" {
     var idx = try HnswIndex.build(allocator, &records, 4, 16);
     defer idx.deinit(allocator);
 
-    // Layer count should be at least 1 (layer 0 always exists)
     const layer_count = idx.getLayerCount();
     try std.testing.expect(layer_count >= 1);
     try std.testing.expectEqual(layer_count, @as(u32, @intCast(idx.max_layer + 1)));
@@ -1320,7 +902,6 @@ test "getLayerCount returns expected value" {
 test "HNSW search results identical with and without GPU accelerator" {
     const allocator = std.testing.allocator;
 
-    // Create test records
     const records = [_]index_mod.VectorRecordView{
         .{ .id = 0, .vector = &[_]f32{ 1.0, 0.0, 0.0, 0.0 } },
         .{ .id = 1, .vector = &[_]f32{ 0.9, 0.1, 0.0, 0.0 } },
@@ -1330,7 +911,6 @@ test "HNSW search results identical with and without GPU accelerator" {
         .{ .id = 5, .vector = &[_]f32{ 0.5, 0.5, 0.0, 0.0 } },
     };
 
-    // Build index without GPU
     var idx_no_gpu = try HnswIndex.buildWithConfig(allocator, &records, .{
         .m = 4,
         .ef_construction = 16,
@@ -1340,12 +920,11 @@ test "HNSW search results identical with and without GPU accelerator" {
     });
     defer idx_no_gpu.deinit(allocator);
 
-    // Build index with GPU accelerator (low threshold to trigger batch path)
     var idx_with_gpu = try HnswIndex.buildWithConfig(allocator, &records, .{
         .m = 4,
         .ef_construction = 16,
         .enable_gpu = true,
-        .gpu_batch_threshold = 2, // Low threshold to exercise batch code path
+        .gpu_batch_threshold = 2,
         .search_pool_size = 0,
         .distance_cache_size = 0,
     });
@@ -1359,13 +938,10 @@ test "HNSW search results identical with and without GPU accelerator" {
     const results_with_gpu = try idx_with_gpu.search(allocator, &records, &query, 3);
     defer allocator.free(results_with_gpu);
 
-    // Both should return the same number of results
     try std.testing.expectEqual(results_no_gpu.len, results_with_gpu.len);
 
-    // Both should find the same top result (id=0, exact match)
     if (results_no_gpu.len > 0 and results_with_gpu.len > 0) {
         try std.testing.expectEqual(results_no_gpu[0].id, results_with_gpu[0].id);
-        // Scores should be within f32 epsilon
         try std.testing.expectApproxEqAbs(results_no_gpu[0].score, results_with_gpu[0].score, 0.01);
     }
 }
@@ -1379,7 +955,6 @@ test "HNSW GPU batch threshold behavior" {
         .{ .id = 2, .vector = &[_]f32{ 0.0, 0.0, 1.0 } },
     };
 
-    // Build with very high threshold - should never trigger GPU batch
     var idx = try HnswIndex.buildWithConfig(allocator, &records, .{
         .m = 4,
         .ef_construction = 16,
@@ -1395,12 +970,9 @@ test "HNSW GPU batch threshold behavior" {
     const results = try idx.search(allocator, &records, &query, 2);
     defer allocator.free(results);
 
-    // Should still return valid results via sequential path
     try std.testing.expect(results.len > 0);
-    // First result should be id=0 (exact match)
     try std.testing.expectEqual(@as(u32, 0), results[0].id);
 
-    // GPU stats should show zero GPU ops (threshold too high)
     if (idx.gpu_accelerator) |accel| {
         const stats = accel.getStats();
         try std.testing.expectEqual(@as(u64, 0), stats.gpu_ops);
@@ -1415,6 +987,8 @@ comptime {
         _ = distance_cache;
         _ = search_types;
         _ = persistence;
+        _ = insert_impl;
+        _ = search_impl;
     }
 }
 
