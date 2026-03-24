@@ -32,8 +32,6 @@ pub const file_model_chain = [_]types.ProviderId{
     .opencode,
     .claude,
     .gemini,
-    .plugin_http,
-    .plugin_native,
 };
 
 pub const model_name_chain = [_]types.ProviderId{
@@ -47,8 +45,6 @@ pub const model_name_chain = [_]types.ProviderId{
     .opencode,
     .claude,
     .gemini,
-    .plugin_http,
-    .plugin_native,
     .anthropic,
     .openai,
 };

@@ -609,12 +609,12 @@ pub const providers = struct {
         pub const file_model_chain = [_]ProviderId{
             .local_gguf, .llama_cpp,   .mlx,           .ollama,   .ollama_passthrough,
             .lm_studio,  .vllm,        .codex,         .opencode, .claude,
-            .gemini,     .plugin_http, .plugin_native,
+            .gemini,
         };
         pub const model_name_chain = [_]ProviderId{
             .llama_cpp,   .mlx,           .ollama,    .ollama_passthrough, .lm_studio,
             .vllm,        .codex,         .opencode,  .claude,             .gemini,
-            .plugin_http, .plugin_native, .anthropic, .openai,
+            .anthropic, .openai,
         };
         pub const sync_round_robin_chain = [_]ProviderId{
             .codex, .opencode, .claude, .gemini, .ollama_passthrough, .ollama,
