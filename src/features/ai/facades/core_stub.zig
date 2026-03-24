@@ -15,8 +15,8 @@ pub const multi_agent = @import("../multi_agent/stub.zig");
 pub const models = @import("../models/stub.zig");
 pub const agent = @import("../agents/stub.zig");
 pub const model_registry = @import("../models/stub.zig");
-pub const gpu_agent = @import("../agents/stub.zig");
-pub const discovery = @import("../explore/stub.zig");
+pub const gpu_agent = @import("../agents/types.zig");
+pub const discovery = @import("../explore/types.zig");
 
 // Re-exports
 pub const Agent = agent.Agent;

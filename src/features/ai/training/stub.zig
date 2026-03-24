@@ -239,19 +239,19 @@ pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) Error![]u32 {
 pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) Error!void {
     return error.FeatureDisabled;
 }
-pub fn loadCheckpoint(_: std.mem.Allocator, _: []const u8) LoadError!Checkpoint {
+pub fn loadCheckpoint(_: std.mem.Allocator, _: []const u8) LoadCheckpointError!Checkpoint {
     return error.FeatureDisabled;
 }
-pub fn saveCheckpoint(_: std.mem.Allocator, _: []const u8, _: CheckpointView) SaveError!void {
+pub fn saveCheckpoint(_: std.mem.Allocator, _: []const u8, _: CheckpointView) SaveCheckpointError!void {
     return error.FeatureDisabled;
 }
 pub fn parseInstructionDataset(_: std.mem.Allocator, _: []const u8) Error!std.ArrayListUnmanaged(InstructionSample) {
     return error.FeatureDisabled;
 }
-pub fn loadLlmCheckpoint(_: std.mem.Allocator, _: []const u8) LoadError!LlmCheckpoint {
+pub fn loadLlmCheckpoint(_: std.mem.Allocator, _: []const u8) LoadLlmCheckpointError!LlmCheckpoint {
     return error.FeatureDisabled;
 }
-pub fn saveLlmCheckpoint(_: std.mem.Allocator, _: []const u8, _: anytype) SaveError!void {
+pub fn saveLlmCheckpoint(_: std.mem.Allocator, _: []const u8, _: anytype) SaveLlmCheckpointError!void {
     return error.FeatureDisabled;
 }
 pub fn fp32ToFp16(_: []const f32, _: []u16) void {}
