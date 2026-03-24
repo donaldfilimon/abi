@@ -23,11 +23,20 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const build_options = @import("build_options");
 const kv_cache_mod = @import("kv_cache.zig");
 const scheduler_mod = @import("scheduler.zig");
 const sampler_mod = @import("sampler.zig");
 const time_mod = @import("../foundation/time.zig");
 const sync_mod = @import("../foundation/sync.zig");
+
+// Local LLM model — comptime-gated on feat_ai + feat_llm
+const llm_model = if (build_options.feat_ai and build_options.feat_llm)
+    @import("../features/ai/llm/model/llama.zig")
+else
+    struct {
+        pub const LlamaModel = void;
+    };
 
 /// Inference backend selection.
 pub const Backend = enum {
@@ -53,6 +62,8 @@ pub const Config = struct {
     backend: Backend = .demo,
     /// Model identifier for connector backend (e.g., "gpt-4", "claude-3", "llama-3").
     model_id: []const u8 = "abi-demo",
+    /// Path to GGUF model file for local backend (empty = fall back to demo).
+    model_path: []const u8 = "",
 };
 
 pub const FinishReason = enum {
@@ -246,6 +257,21 @@ pub const Engine = struct {
     in_flight_async: u32 = 0,
     closing_async: bool = false,
 
+    /// Loaded local LLM model (type-erased; null until loadModel is called).
+    local_model: ?*anyopaque = null,
+
+    /// Load a GGUF model for local inference. Requires feat_ai + feat_llm.
+    pub fn loadModel(self: *Self, path: []const u8) !void {
+        if (comptime !(build_options.feat_ai and build_options.feat_llm)) {
+            return error.LocalBackendNotAvailable;
+        }
+        const LlamaModel = llm_model.LlamaModel;
+        const model_ptr = try self.allocator.create(LlamaModel);
+        errdefer self.allocator.destroy(model_ptr);
+        model_ptr.* = try LlamaModel.load(self.allocator, path);
+        self.local_model = @ptrCast(model_ptr);
+    }
+
     pub fn init(allocator: Allocator, config: Config) !Self {
         const cache = try kv_cache_mod.PagedKVCache.init(allocator, .{
             .num_pages = config.kv_cache_pages,
@@ -282,6 +308,16 @@ pub const Engine = struct {
 
         self.generation_mu.lock();
         self.generation_mu.unlock();
+
+        // Free local model if loaded
+        if (comptime build_options.feat_ai and build_options.feat_llm) {
+            if (self.local_model) |model_opaque| {
+                const model: *llm_model.LlamaModel = @ptrCast(@alignCast(model_opaque));
+                model.deinit();
+                self.allocator.destroy(model);
+                self.local_model = null;
+            }
+        }
 
         self.kv_cache.deinit();
         self.scheduler.deinit();
@@ -357,18 +393,78 @@ pub const Engine = struct {
     /// Local transformer generation: uses the built-in transformer forward pass.
     /// Falls back to demo mode when local model weights are not loaded.
     fn generateLocal(self: *Self, request: scheduler_mod.Request) !Result {
-        // Local transformer integration point.
-        // When model weights are loaded (via src/features/ai/llm/model.zig):
-        //   1. Tokenize input via BPE tokenizer
-        //   2. Run transformer forward pass with KV cache
-        //   3. Sample output tokens via sampler
-        //   4. Decode tokens back to text
-        //
-        // For now, delegate to demo with a marker in the output.
-        // Local transformer integration point.
-        // When model weights are loaded, this would run the transformer forward pass.
-        // For now, delegate to demo backend.
-        return self.generateDemo(request);
+        if (comptime !(build_options.feat_ai and build_options.feat_llm)) {
+            return self.generateDemo(request);
+        }
+
+        const model_opaque = self.local_model orelse return self.generateDemo(request);
+        const model: *llm_model.LlamaModel = @ptrCast(@alignCast(model_opaque));
+
+        const start = time_mod.timestampNs();
+
+        const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
+        if (!cache_ok) return makeErrorResult(request.id, "Error: insufficient KV cache capacity");
+        defer self.kv_cache.free(request.id);
+
+        // Tokenize prompt
+        const prompt_tokens = model.encode(request.prompt) catch
+            return makeErrorResult(request.id, "Error: tokenizer failed");
+        defer self.allocator.free(prompt_tokens);
+
+        if (prompt_tokens.len == 0) return makeErrorResult(request.id, "Error: empty prompt");
+
+        // Prefill: run all prompt tokens through the model
+        _ = model.forwardBatch(prompt_tokens, 0) catch
+            return makeErrorResult(request.id, "Error: prefill failed");
+
+        // Autoregressive generation
+        const tokens = try self.allocator.alloc(u32, request.max_tokens);
+        errdefer self.allocator.free(tokens);
+
+        var local_sampler = self.sampler;
+        local_sampler.params.temperature = request.temperature;
+        local_sampler.params.top_p = request.top_p;
+        local_sampler.params.top_k = request.top_k;
+
+        var last_token: u32 = prompt_tokens[prompt_tokens.len - 1];
+        var pos: u32 = @intCast(prompt_tokens.len);
+        var actual_count: u32 = 0;
+        var finish_reason: FinishReason = .length;
+
+        for (0..request.max_tokens) |i| {
+            const logits = model.forward(last_token, pos) catch
+                return makeErrorResult(request.id, "Error: forward pass failed");
+            const next_token = local_sampler.sample(logits);
+            tokens[i] = next_token;
+            actual_count += 1;
+            if (next_token <= 2) { // EOS/BOS/PAD tokens
+                finish_reason = .stop;
+                break;
+            }
+            last_token = next_token;
+            pos += 1;
+        }
+
+        // Decode tokens to text
+        const text = model.decode(tokens[0..actual_count]) catch
+            try std.fmt.allocPrint(self.allocator, "<{d} tokens generated>", .{actual_count});
+
+        const elapsed_ns = time_mod.timestampNs() - start;
+        const latency = @as(f32, @floatFromInt(elapsed_ns)) / @as(f32, @floatFromInt(std.time.ns_per_ms));
+
+        return .{
+            .id = request.id,
+            .text = text,
+            .text_owned = true,
+            .tokens = tokens,
+            .tokens_owned = true,
+            .finish_reason = finish_reason,
+            .prompt_tokens = @intCast(prompt_tokens.len),
+            .completion_tokens = actual_count,
+            .latency_ms = latency,
+            .ttft_ms = latency,
+            .tokens_per_second = tokensPerSecond(actual_count, elapsed_ns),
+        };
     }
 
     /// Demo generation: synthetic text seeded from input prompts.
