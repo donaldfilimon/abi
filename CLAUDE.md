@@ -225,6 +225,13 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, and `StubContextWithConfig` — reuse these in stubs instead of defining custom lifecycle boilerplate.
 - Integration tests in `test/` must use public API accessors (e.g., `manager.getStatus()`) not direct struct field access. This preserves the consumer-API boundary and thread-safety contract.
 
+### Error Handling Convention
+
+- `@compileError` — compile-time contract violations only (e.g., `target_contract.zig` policy enforcement)
+- `@panic` — unrecoverable invariant violations; never in library code (`src/`), only in CLI entry points (`src/main.zig`) and tests
+- `unreachable` — provably impossible branches where the compiler can verify exhaustiveness at comptime
+- Error unions — all runtime failure paths in library code; prefer `error.FeatureDisabled` in stubs
+
 ## Zig 0.16 Gotchas
 
 - `ArrayListUnmanaged` init: use `.empty` not `.{}` (struct fields changed)
