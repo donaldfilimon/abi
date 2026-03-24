@@ -9,7 +9,7 @@ Guidance for AI coding agents working in this repository.
 - **Test**: `zig build test --summary all` or `./build.sh test --summary all`
 - **Lint**: `zig build lint` / **Fix**: `zig build fix`
 - **Parity check**: `zig build check-parity`
-- **Validation gates**: `zig build feature-tests`, `mcp-tests`, `cli-tests`, `tui-tests`, `typecheck` (compile-only), `validate-flags`, `full-check`, `verify-all`
+- **Validation gates**: `zig build feature-tests`, `mcp-tests`, `gateway-tests`, `cli-tests`, `tui-tests`, `typecheck` (compile-only), `validate-flags`, `full-check`, `verify-all`
 - **Full gate**: `zig build check` (lint + test + parity)
 - **CLI**: `zig build cli` produces `zig-out/bin/abi`
 - **MCP server**: `zig build mcp` produces `zig-out/bin/abi-mcp`
@@ -22,7 +22,7 @@ Guidance for AI coding agents working in this repository.
 4. Both `mod.zig` and `stub.zig` must be updated together — run `zig build check-parity`.
 5. Use `foundation.time.unixMs()` not `std.time.milliTimestamp` (removed in 0.16).
 6. Use `foundation.sync.Mutex` not `std.Thread.Mutex` (may be unavailable).
-7. Never run `zig fmt .` at root — use `zig build fix` (scoped to `src/` and `build.zig`).
+7. Never run `zig fmt .` at root — use `zig build fix` (scoped to `src/`, `build.zig`, `build/`, and `test/`).
 8. All path imports require explicit `.zig` extensions.
 9. `var` vs `const`: compiler enforces const for never-mutated locals.
 10. On macOS 26.4+, use `./build.sh` instead of `zig build` (LLD linker issue).

@@ -50,6 +50,7 @@ zig build fix                      # Auto-format in place
 zig build check-parity             # Verify mod/stub declaration parity
 zig build feature-tests            # Run feature integration and parity tests
 zig build mcp-tests                # Run MCP integration tests
+zig build gateway-tests            # Run gateway unit + integration tests
 zig build cli-tests                # Run CLI tests
 zig build tui-tests                # Run TUI tests
 zig build typecheck                # Compile-only validation for the current/selected target
