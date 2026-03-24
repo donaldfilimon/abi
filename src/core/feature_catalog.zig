@@ -172,7 +172,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .observability,
         .description = "Metrics, tracing, profiling",
-        .compile_flag_field = "feat_profiling",
+        .compile_flag_field = "feat_observability",
         .parity_spec = .observability,
         .real_module_path = "features/observability/mod.zig",
         .stub_module_path = "features/observability/stub.zig",

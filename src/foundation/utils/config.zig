@@ -55,7 +55,7 @@ pub const FrameworkConfig = struct {
     enable_network: bool = build_options.feat_network,
 
     /// Enable/disable profiling
-    enable_profiling: bool = build_options.feat_profiling,
+    enable_profiling: bool = build_options.feat_observability,
 
     /// Number of worker threads (0 = auto-detect)
     worker_threads: usize = 0,

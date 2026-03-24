@@ -25,7 +25,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const observability = if (build_options.feat_profiling) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");
+const observability = if (build_options.feat_observability) @import("../../observability/mod.zig") else @import("../../observability/stub.zig");
 const Counter = observability.Counter;
 const Gauge = observability.Gauge;
 const Histogram = observability.Histogram;

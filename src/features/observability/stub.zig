@@ -1,7 +1,7 @@
 //! Observability Stub Module
 //!
-//! API-compatible no-op implementations when profiling is disabled.
-//! Build with `-Dfeat-profiling=true` for the real implementation.
+//! API-compatible no-op implementations when observability is disabled.
+//! Build with `-Dfeat-observability=true` for the real implementation.
 
 const std = @import("std");
 const stub_helpers = @import("../../core/stub_helpers.zig");

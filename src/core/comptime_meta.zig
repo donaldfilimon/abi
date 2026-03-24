@@ -55,7 +55,7 @@ pub const descriptors = [_]FeatureDescriptor{
     .{ .field_name = "ai", .feature_tag = .ai, .build_flag = "feat_ai" },
     .{ .field_name = "database", .feature_tag = .database, .build_flag = "feat_database" },
     .{ .field_name = "network", .feature_tag = .network, .build_flag = "feat_network" },
-    .{ .field_name = "observability", .feature_tag = .observability, .build_flag = "feat_profiling" },
+    .{ .field_name = "observability", .feature_tag = .observability, .build_flag = "feat_observability" },
     .{ .field_name = "web", .feature_tag = .web, .build_flag = "feat_web" },
     .{ .field_name = "cloud", .feature_tag = .cloud, .build_flag = "feat_cloud" },
     .{ .field_name = "analytics", .feature_tag = .analytics, .build_flag = "feat_analytics" },

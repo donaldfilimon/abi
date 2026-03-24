@@ -632,7 +632,7 @@ fn handleAbiFeatures(
     if (build_options.feat_ai) try out.appendSlice(allocator, " ai");
     if (build_options.feat_database) try out.appendSlice(allocator, " database");
     if (build_options.feat_network) try out.appendSlice(allocator, " network");
-    if (build_options.feat_profiling) try out.appendSlice(allocator, " observability");
+    if (build_options.feat_observability) try out.appendSlice(allocator, " observability");
     if (build_options.feat_web) try out.appendSlice(allocator, " web");
     if (build_options.feat_cloud) try out.appendSlice(allocator, " cloud");
     if (build_options.feat_auth) try out.appendSlice(allocator, " auth");

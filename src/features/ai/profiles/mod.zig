@@ -6,7 +6,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const time = @import("../../../foundation/mod.zig").time;
-const obs = if (build_options.feat_profiling)
+const obs = if (build_options.feat_observability)
     @import("../../observability/mod.zig")
 else
     @import("../../observability/stub.zig");

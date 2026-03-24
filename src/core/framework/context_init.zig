@@ -93,7 +93,7 @@ const standard_features = [_]FeatureSpec{
     .{ .cfg_field = "ai", .fw_field = "ai", .feat_flag = "feat_ai", .registry_id = .ai },
     .{ .cfg_field = "database", .fw_field = "database", .feat_flag = "feat_database", .registry_id = .database },
     .{ .cfg_field = "network", .fw_field = "network", .feat_flag = "feat_network", .registry_id = .network },
-    .{ .cfg_field = "observability", .fw_field = "observability", .feat_flag = "feat_profiling", .registry_id = .observability },
+    .{ .cfg_field = "observability", .fw_field = "observability", .feat_flag = "feat_observability", .registry_id = .observability },
     .{ .cfg_field = "web", .fw_field = "web", .feat_flag = "feat_web", .registry_id = .web },
     .{ .cfg_field = "auth", .fw_field = "auth", .feat_flag = "feat_auth", .registry_id = .auth },
     .{ .cfg_field = "messaging", .fw_field = "messaging", .feat_flag = "feat_messaging", .registry_id = .messaging },

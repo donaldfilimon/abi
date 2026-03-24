@@ -60,11 +60,11 @@ pub const ai = if (build_options.feat_ai) @import("features/ai/mod.zig") else @i
 pub const database = if (build_options.feat_database) @import("features/database/mod.zig") else @import("features/database/stub.zig");
 /// Networking: Raft consensus, distributed coordination, transport.
 pub const network = if (build_options.feat_network) @import("features/network/mod.zig") else @import("features/network/stub.zig");
-/// Observability: profiling, metrics collection, tracing.
-pub const observability = if (build_options.feat_profiling) @import("features/observability/mod.zig") else @import("features/observability/stub.zig");
+/// Observability: metrics collection, tracing, and profiling.
+pub const observability = if (build_options.feat_observability) @import("features/observability/mod.zig") else @import("features/observability/stub.zig");
 /// Web framework: HTTP routing, middleware, request handling.
 pub const web = if (build_options.feat_web) @import("features/web/mod.zig") else @import("features/web/stub.zig");
-/// Dashboard pages: UI components for the observability dashboard.
+/// Dashboard pages: observability UI components gated independently from the core observability module.
 pub const pages = if (build_options.feat_pages) @import("features/observability/pages/mod.zig") else @import("features/observability/pages/stub.zig");
 /// Analytics: event tracking, aggregation, reporting.
 pub const analytics = if (build_options.feat_analytics) @import("features/analytics/mod.zig") else @import("features/analytics/stub.zig");

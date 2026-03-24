@@ -10,7 +10,8 @@ pub fn build(b: *std.Build) void {
     const feat_ai = b.option(bool, "feat-ai", "AI services") orelse true;
     const feat_database = b.option(bool, "feat-database", "Vector database") orelse true;
     const feat_network = b.option(bool, "feat-network", "Networking / Raft") orelse true;
-    const feat_profiling = b.option(bool, "feat-profiling", "Observability / profiling") orelse true;
+    const feat_observability_opt = b.option(bool, "feat-observability", "Observability (metrics, tracing, profiling)");
+    const feat_profiling_opt = b.option(bool, "feat-profiling", "Deprecated alias for feat-observability");
     const feat_web = b.option(bool, "feat-web", "Web framework") orelse true;
     const feat_pages = b.option(bool, "feat-pages", "Dashboard pages") orelse true;
     const feat_analytics = b.option(bool, "feat-analytics", "Analytics") orelse true;
@@ -27,6 +28,17 @@ pub fn build(b: *std.Build) void {
     const feat_documents = b.option(bool, "feat-documents", "Document processing") orelse true;
     const feat_desktop = b.option(bool, "feat-desktop", "Desktop integration") orelse true;
     const feat_tui = b.option(bool, "feat-tui", "Terminal user interface") orelse false;
+    if (feat_observability_opt != null and feat_profiling_opt != null and feat_observability_opt.? != feat_profiling_opt.?) {
+        std.log.err("Conflicting feature flags: -Dfeat-observability={} and -Dfeat-profiling={}", .{
+            feat_observability_opt.?,
+            feat_profiling_opt.?,
+        });
+        return;
+    }
+    const feat_observability = feat_observability_opt orelse feat_profiling_opt orelse true;
+    if (feat_profiling_opt != null and feat_observability_opt == null) {
+        std.log.warn("feat-profiling is deprecated; use feat-observability", .{});
+    }
 
     // AI sub-feature flags
     const feat_llm = b.option(bool, "feat-llm", "LLM inference") orelse feat_ai;
@@ -77,7 +89,7 @@ pub fn build(b: *std.Build) void {
         .feat_ai = feat_ai,
         .feat_database = feat_database,
         .feat_network = feat_network,
-        .feat_profiling = feat_profiling,
+        .feat_observability = feat_observability,
         .feat_web = feat_web,
         .feat_pages = feat_pages,
         .feat_analytics = feat_analytics,
@@ -407,7 +419,7 @@ pub fn build(b: *std.Build) void {
     //  feat_ai       |  yes  |  yes  |   yes   |   yes     |    yes
     //  feat_database |  yes  |  yes  |   yes   |    no     |     no
     //  feat_network  |  yes  |  yes  |   yes   |    no     |     no
-    //  feat_profiling|  yes  |  yes  |   yes   |    no     |     no
+    //  feat_observability| yes |  yes  |   yes   |    no     |     no
     //  feat_web      |  yes  |  yes  |   yes   |    no     |     no
     //  feat_pages    |  yes  |  yes  |   yes   |    no     |     no
     //  feat_analytics|  yes  |  yes  |   yes   |   yes     |    yes
@@ -461,7 +473,7 @@ pub fn build(b: *std.Build) void {
         cross_opts.addOption(bool, "feat_ai", true);
         cross_opts.addOption(bool, "feat_database", !is_wasm);
         cross_opts.addOption(bool, "feat_network", !is_wasm);
-        cross_opts.addOption(bool, "feat_profiling", !is_wasm);
+        cross_opts.addOption(bool, "feat_observability", !is_wasm);
         cross_opts.addOption(bool, "feat_web", !is_wasm);
         cross_opts.addOption(bool, "feat_pages", !is_wasm);
         cross_opts.addOption(bool, "feat_analytics", true);
@@ -540,16 +552,16 @@ pub fn build(b: *std.Build) void {
             \\==============================
             \\Features:
             \\  feat_ai={} feat_gpu={} feat_database={} feat_network={}
-            \\  feat_profiling={} feat_web={} feat_pages={} feat_analytics={}
+            \\  feat_observability={} feat_web={} feat_pages={} feat_analytics={}
             \\  feat_cloud={} feat_auth={} feat_messaging={} feat_cache={}
             \\  feat_storage={} feat_search={} feat_mobile={} feat_gateway={}
             \\  feat_benchmarks={} feat_compute={} feat_documents={} feat_desktop={}
         , .{
-            feat_ai,         feat_gpu,     feat_database,  feat_network,
-            feat_profiling,  feat_web,     feat_pages,     feat_analytics,
-            feat_cloud,      feat_auth,    feat_messaging, feat_cache,
-            feat_storage,    feat_search,  feat_mobile,    feat_gateway,
-            feat_benchmarks, feat_compute, feat_documents, feat_desktop,
+            feat_ai,            feat_gpu,     feat_database,  feat_network,
+            feat_observability, feat_web,     feat_pages,     feat_analytics,
+            feat_cloud,         feat_auth,    feat_messaging, feat_cache,
+            feat_storage,       feat_search,  feat_mobile,    feat_gateway,
+            feat_benchmarks,    feat_compute, feat_documents, feat_desktop,
         }),
     });
     const doc2 = b.addSystemCommand(&.{
@@ -590,7 +602,7 @@ const FeatureFlags = struct {
     feat_ai: bool,
     feat_database: bool,
     feat_network: bool,
-    feat_profiling: bool,
+    feat_observability: bool,
     feat_web: bool,
     feat_pages: bool,
     feat_analytics: bool,

@@ -101,7 +101,7 @@ pub const Config = struct {
             .ai = if (build_options.feat_ai) AiConfig.defaults() else null,
             .database = if (build_options.feat_database) DatabaseConfig.defaults() else null,
             .network = if (build_options.feat_network) NetworkConfig.defaults() else null,
-            .observability = if (build_options.feat_profiling) ObservabilityConfig.defaults() else null,
+            .observability = if (build_options.feat_observability) ObservabilityConfig.defaults() else null,
             .web = if (build_options.feat_web) WebConfig.defaults() else null,
             .cloud = if (build_options.feat_cloud) CloudConfig.defaults() else null,
             .analytics = if (build_options.feat_analytics) AnalyticsConfig.defaults() else null,
@@ -311,7 +311,7 @@ pub fn validate(cfg: Config) ConfigError!void {
         .{ .is_enabled_in_config = cfg.web != null, .is_enabled_at_build = build_options.feat_web },
         .{ .is_enabled_in_config = cfg.cloud != null, .is_enabled_at_build = build_options.feat_cloud },
         .{ .is_enabled_in_config = cfg.analytics != null, .is_enabled_at_build = build_options.feat_analytics },
-        .{ .is_enabled_in_config = cfg.observability != null, .is_enabled_at_build = build_options.feat_profiling },
+        .{ .is_enabled_in_config = cfg.observability != null, .is_enabled_at_build = build_options.feat_observability },
         .{ .is_enabled_in_config = cfg.auth != null, .is_enabled_at_build = build_options.feat_auth },
         .{ .is_enabled_in_config = cfg.messaging != null, .is_enabled_at_build = build_options.feat_messaging },
         .{ .is_enabled_in_config = cfg.cache != null, .is_enabled_at_build = build_options.feat_cache },
@@ -422,7 +422,7 @@ test "validate returns FeatureDisabled for compile-time disabled features" {
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
     }
 
-    if (!build_options.feat_profiling) {
+    if (!build_options.feat_observability) {
         var config = Config.minimal();
         config.observability = ObservabilityConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
