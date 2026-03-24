@@ -24,7 +24,22 @@ const build_options = @import("build_options");
 // Framework modules (relative imports within src/)
 const root = @import("root.zig");
 const cli = @import("cli.zig");
+const os = @import("foundation/os.zig");
 const feature_catalog = root.meta.features;
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+fn printHeader(title: []const u8, subtitle: ?[]const u8) void {
+    if (!os.isatty()) return; // Strip non-diagnostic metadata when piped
+
+    std.debug.print("{s}\n", .{title});
+    if (subtitle) |sub| {
+        std.debug.print("{s}\n", .{sub});
+    } else {
+        for (title) |_| std.debug.print("═", .{});
+        std.debug.print("\n\n", .{});
+    }
+}
 
 // ── Entry Point ─────────────────────────────────────────────────────────
 
@@ -190,11 +205,7 @@ pub fn printHelp() void {
 // ── Features ────────────────────────────────────────────────────────────
 
 pub fn printFeatures() void {
-    std.debug.print(
-        \\ABI Features — Compile-Time Feature Catalog
-        \\════════════════════════════════════════════
-        \\
-    , .{});
+    printHeader("ABI Features — Compile-Time Feature Catalog", null);
 
     // Print all features from the canonical catalog
     inline for (feature_catalog.all) |entry| {
@@ -220,10 +231,9 @@ pub fn printPlatform() void {
     const platform = root.platform;
     const info = platform.getPlatformInfo();
 
+    printHeader("ABI Platform — System Detection", null);
+
     std.debug.print(
-        \\ABI Platform — System Detection
-        \\════════════════════════════════
-        \\
         \\OS:           {s}
         \\Architecture: {s}
         \\Description:  {s}
@@ -259,10 +269,9 @@ pub fn printPlatform() void {
 // ── Connectors ──────────────────────────────────────────────────────────
 
 pub fn printConnectors() void {
+    printHeader("ABI Connectors — LLM Provider Adapters", null);
+
     std.debug.print(
-        \\ABI Connectors — LLM Provider Adapters
-        \\═══════════════════════════════════════
-        \\
         \\Available connectors (primary env var → provider):
         \\
         \\  ABI_OPENAI_API_KEY      → OpenAI (GPT-4, GPT-3.5)
@@ -288,10 +297,9 @@ pub fn printConnectors() void {
 // ── Info ────────────────────────────────────────────────────────────────
 
 pub fn printInfo() void {
+    printHeader("ABI Framework — Architecture Summary", null);
+
     std.debug.print(
-        \\ABI Framework — Architecture Summary
-        \\════════════════════════════════════════
-        \\
         \\Personas:
         \\  Abbey  — Empathetic Polymath (warm, technical, adaptive)
         \\  Aviva  — Direct Expert (concise, factual, efficient)
@@ -406,10 +414,9 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
 
     const decision = router.route(message);
 
+    printHeader("ABI Chat — Persona Pipeline", null);
+
     std.debug.print(
-        \\ABI Chat — Persona Pipeline
-        \\════════════════════════════
-        \\
         \\Input: {s}
         \\
         \\Routing Decision:

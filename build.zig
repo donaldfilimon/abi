@@ -172,6 +172,8 @@ pub fn build(b: *std.Build) void {
         mcp_exe.root_module.linkSystemLibrary("c", .{});
         mcp_exe.root_module.linkSystemLibrary("objc", .{});
         mcp_exe.root_module.linkFramework("IOKit", .{});
+        mcp_exe.root_module.linkFramework("CoreFoundation", .{});
+        mcp_exe.root_module.linkFramework("CoreGraphics", .{});
         if (feat_gpu) mcp_exe.root_module.linkFramework("Accelerate", .{});
     }
     b.step("mcp", "Build MCP stdio server").dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
@@ -191,6 +193,8 @@ pub fn build(b: *std.Build) void {
         cli_exe.root_module.linkSystemLibrary("c", .{});
         cli_exe.root_module.linkSystemLibrary("objc", .{});
         cli_exe.root_module.linkFramework("IOKit", .{});
+        cli_exe.root_module.linkFramework("CoreFoundation", .{});
+        cli_exe.root_module.linkFramework("CoreGraphics", .{});
         if (feat_gpu) cli_exe.root_module.linkFramework("Accelerate", .{});
     }
     b.step("cli", "Build ABI command-line interface").dependOn(&b.addInstallArtifact(cli_exe, .{}).step);
@@ -212,11 +216,13 @@ pub fn build(b: *std.Build) void {
         lib_tests.root_module.linkSystemLibrary("c", .{});
         lib_tests.root_module.linkSystemLibrary("objc", .{});
         lib_tests.root_module.linkFramework("IOKit", .{});
+        lib_tests.root_module.linkFramework("CoreFoundation", .{});
+        lib_tests.root_module.linkFramework("CoreGraphics", .{});
         if (feat_gpu) {
             lib_tests.root_module.linkFramework("Accelerate", .{});
         }
         if (gpu_metal) {
-            for ([_][]const u8{ "Metal", "MetalPerformanceShaders", "CoreGraphics" }) |fw| {
+            for ([_][]const u8{ "Metal", "MetalPerformanceShaders" }) |fw| {
                 lib_tests.root_module.linkFramework(fw, .{});
             }
         }
@@ -238,11 +244,13 @@ pub fn build(b: *std.Build) void {
         integration_tests.root_module.linkSystemLibrary("c", .{});
         integration_tests.root_module.linkSystemLibrary("objc", .{});
         integration_tests.root_module.linkFramework("IOKit", .{});
+        integration_tests.root_module.linkFramework("CoreFoundation", .{});
+        integration_tests.root_module.linkFramework("CoreGraphics", .{});
         if (feat_gpu) {
             integration_tests.root_module.linkFramework("Accelerate", .{});
         }
         if (gpu_metal) {
-            for ([_][]const u8{ "Metal", "MetalPerformanceShaders", "CoreGraphics" }) |fw| {
+            for ([_][]const u8{ "Metal", "MetalPerformanceShaders" }) |fw| {
                 integration_tests.root_module.linkFramework(fw, .{});
             }
         }
@@ -261,6 +269,8 @@ pub fn build(b: *std.Build) void {
         parity_tests.root_module.linkSystemLibrary("c", .{});
         parity_tests.root_module.linkSystemLibrary("objc", .{});
         parity_tests.root_module.linkFramework("IOKit", .{});
+        parity_tests.root_module.linkFramework("CoreFoundation", .{});
+        parity_tests.root_module.linkFramework("CoreGraphics", .{});
         if (feat_gpu) parity_tests.root_module.linkFramework("Accelerate", .{});
     }
     const check_parity_step = b.step("check-parity", "Verify mod/stub declaration parity");
