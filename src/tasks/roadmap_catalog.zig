@@ -244,7 +244,7 @@ pub const plan_specs = [_]PlanSpec{
     .{
         .slug = "tui-modular-v2",
         .title = "TUI Modular Extraction v2",
-        .status = .in_progress,
+        .status = .done,
         .owner = owner_abbey,
         .scope = "Wave 2 active lane: complete modular extraction, enforce layout/input correctness, and expand regression tests.",
         .success_criteria = &.{
@@ -338,7 +338,7 @@ pub const roadmap_entries = [_]RoadmapEntry{
         .summary = "Wave 2 active: complete TUI modular extraction with layout/input correctness and expanded regression tests.",
         .track = .cli_tui,
         .horizon = .now,
-        .status = .in_progress,
+        .status = .done,
         .owner = owner_abbey,
         .validation_gate = &gate_tui_core,
         .plan_slug = "tui-modular-v2",

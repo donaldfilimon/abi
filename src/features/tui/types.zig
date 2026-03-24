@@ -199,6 +199,19 @@ test "Rect splitVertical" {
     try std.testing.expectEqual(@as(u16, 30), split.right.x);
 }
 
+test "Rect hit testing contains" {
+    const r = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
+    try std.testing.expect(r.contains(10, 5));
+    try std.testing.expect(r.contains(15, 10));
+    try std.testing.expect(r.contains(29, 14));
+    
+    // Out of bounds
+    try std.testing.expect(!r.contains(9, 5));
+    try std.testing.expect(!r.contains(10, 4));
+    try std.testing.expect(!r.contains(30, 14));
+    try std.testing.expect(!r.contains(29, 15));
+}
+
 test "Rect contains" {
     const r = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 };
     try std.testing.expect(r.contains(5, 5));
