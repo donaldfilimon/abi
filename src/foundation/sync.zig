@@ -324,7 +324,7 @@ pub const Condition = struct {
             // wait-for-signal primitive on these targets will burn the full timeout
             // on every call.  Use `wait()` + a deadline check loop instead when
             // targeting freestanding/WASI.
-            const timer = time_mod.Timer.start() catch return error.Timeout;
+            var timer = time_mod.Timer.start() catch return error.Timeout;
             mutex.unlock();
             defer mutex.lock();
             while (timer.read() < timeout_ns) {

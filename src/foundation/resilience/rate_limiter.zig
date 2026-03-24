@@ -123,7 +123,9 @@ pub fn RateLimiter(comptime strategy: SyncStrategy) type {
             .mutex, .none => u64,
         };
         const TimeField = switch (strategy) {
-            .atomic => std.atomic.Value(u128),
+            // u128 atomics are not supported on x86_64 Linux; u64 nanoseconds
+            // cover ~584 years which is sufficient for rate-limiter timestamps.
+            .atomic => std.atomic.Value(u64),
             .mutex, .none => u128,
         };
         const MutexField = switch (strategy) {
@@ -184,7 +186,7 @@ pub fn RateLimiter(comptime strategy: SyncStrategy) type {
 
         fn initTime(val: u128) TimeField {
             return switch (strategy) {
-                .atomic => std.atomic.Value(u128).init(val),
+                .atomic => std.atomic.Value(u64).init(@truncate(val)),
                 .mutex, .none => val,
             };
         }
@@ -243,14 +245,14 @@ pub fn RateLimiter(comptime strategy: SyncStrategy) type {
 
         fn loadTime(field: *const TimeField) u128 {
             return switch (strategy) {
-                .atomic => field.load(.monotonic),
+                .atomic => @as(u128, field.load(.monotonic)),
                 .mutex, .none => field.*,
             };
         }
 
         fn storeTime(field: *TimeField, val: u128) void {
             switch (strategy) {
-                .atomic => field.store(val, .monotonic),
+                .atomic => field.store(@truncate(val), .monotonic),
                 .mutex, .none => field.* = val,
             }
         }
