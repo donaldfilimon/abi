@@ -36,6 +36,7 @@ const cli_e2e_tests = @import("integration/cli_e2e_test.zig");
 const tui_tests = @import("integration/tui_test.zig");
 const documents_tests = @import("integration/documents_test.zig");
 const lsp_tests = @import("integration/lsp_test.zig");
+const lsp_protocol_tests = @import("integration/lsp_protocol_test.zig");
 const pages_tests = @import("integration/pages_test.zig");
 const training_tests = @import("integration/training_test.zig");
 const benchmarks_tests = @import("integration/benchmarks_test.zig");
