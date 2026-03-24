@@ -1133,89 +1133,29 @@ pub fn CodeGenerator(comptime Config: type) type {
 }
 
 // ============================================================================
-// Pre-instantiated Generators
+// Pre-instantiated Generators (re-exported from generic/instances.zig)
 // ============================================================================
 
+const instances = @import("generic/instances.zig");
+
 /// GLSL code generator using generic template.
-pub const GlslGenerator = CodeGenerator(@import("configs/glsl_config.zig"));
+pub const GlslGenerator = instances.GlslGenerator;
 
 /// WGSL code generator using generic template.
-pub const WgslGenerator = CodeGenerator(@import("configs/wgsl_config.zig"));
+pub const WgslGenerator = instances.WgslGenerator;
 
 /// MSL code generator using generic template.
-pub const MslGenerator = CodeGenerator(@import("configs/msl_config.zig"));
+pub const MslGenerator = instances.MslGenerator;
 
 /// CUDA code generator using generic template.
-pub const CudaGenerator = CodeGenerator(@import("configs/cuda_config.zig"));
+pub const CudaGenerator = instances.CudaGenerator;
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-test "GlslGenerator basic" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var gen = GlslGenerator.init(allocator);
-    defer gen.deinit();
-
-    const ir = kernel.KernelIR.empty("test_kernel");
-    var result = try gen.generate(&ir);
-    defer result.deinit(allocator);
-
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "#version 450") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "void main()") != null);
-}
-
-test "WgslGenerator basic" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var gen = WgslGenerator.init(allocator);
-    defer gen.deinit();
-
-    const ir = kernel.KernelIR.empty("test_kernel");
-    var result = try gen.generate(&ir);
-    defer result.deinit(allocator);
-
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "@compute") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "@workgroup_size") != null);
-}
-
-test "MslGenerator basic" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var gen = MslGenerator.init(allocator);
-    defer gen.deinit();
-
-    const ir = kernel.KernelIR.empty("test_kernel");
-    var result = try gen.generate(&ir);
-    defer result.deinit(allocator);
-
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "#include <metal_stdlib>") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "kernel void") != null);
-}
-
-test "CudaGenerator basic" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var gen = CudaGenerator.init(allocator);
-    defer gen.deinit();
-
-    const ir = kernel.KernelIR.empty("test_kernel");
-    var result = try gen.generate(&ir);
-    defer result.deinit(allocator);
-
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "#include <cuda_runtime.h>") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result.code, "__global__") != null);
-}
-
 test {
+    _ = @import("generic/instances.zig");
+    _ = @import("generic/tests.zig");
     std.testing.refAllDecls(@This());
 }
