@@ -68,11 +68,11 @@ var objc_msg_send_set_u64: ?ObjcMsgSendSetU64Fn = null;
 var objc_msg_send_get_u64: ?ObjcMsgSendGetU64Fn = null;
 var sel_register_name: ?SelRegisterNameFn = null;
 var objc_get_class: ?ObjcGetClassFn = null;
-var objc_runtime_loaded: bool = false;
+var objc_runtime_loaded = std.atomic.Value(bool).init(false);
 
 /// Attempt to load the Objective-C runtime from libobjc.
 fn ensureObjcRuntime() MetalPeerError!void {
-    if (objc_runtime_loaded) return;
+    if (objc_runtime_loaded.load(.acquire)) return;
 
     if (builtin.os.tag != .macos and builtin.os.tag != .ios) {
         return MetalPeerError.PlatformNotSupported;
@@ -94,7 +94,7 @@ fn ensureObjcRuntime() MetalPeerError!void {
             objc_get_class = lib.lookup(ObjcGetClassFn, "objc_getClass");
 
             if (objc_msg_send != null and sel_register_name != null and objc_get_class != null) {
-                objc_runtime_loaded = true;
+                objc_runtime_loaded.store(true, .release);
                 return;
             }
         } else |_| {}

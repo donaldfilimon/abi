@@ -51,7 +51,7 @@ var sel_release: SEL = undefined;
 var sel_initWithDevice: SEL = undefined;
 var sel_encodeToCommandBuffer: SEL = undefined;
 
-var selectors_loaded: bool = false;
+var selectors_loaded = std.atomic.Value(bool).init(false);
 
 /// Initialize MPS by loading the framework and caching selectors.
 /// Call after Metal is initialized (needs Obj-C runtime to be loaded).
@@ -60,7 +60,7 @@ pub fn init(
     sel_register: *const fn ([*:0]const u8) callconv(.c) SEL,
     get_class: *const fn ([*:0]const u8) callconv(.c) ?Class,
 ) MpsError!void {
-    if (selectors_loaded) return;
+    if (selectors_loaded.load(.acquire)) return;
 
     objc_msgSend_fn = msg_send;
     sel_register_fn = sel_register;
@@ -77,7 +77,7 @@ pub fn init(
     sel_initWithDevice = sel_register("initWithDevice:");
     sel_encodeToCommandBuffer = sel_register("encodeToCommandBuffer:");
 
-    selectors_loaded = true;
+    selectors_loaded.store(true, .release);
 }
 
 pub fn deinit() void {
@@ -86,7 +86,7 @@ pub fn deinit() void {
     mps_lib = null;
     mps_graph_lib = null;
     mps_load_attempted.store(false, .release);
-    selectors_loaded = false;
+    selectors_loaded.store(false, .release);
 }
 
 pub fn isAvailable() bool {

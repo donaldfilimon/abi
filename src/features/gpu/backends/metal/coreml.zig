@@ -50,7 +50,7 @@ var objc_get_class_fn: ?*const fn ([*:0]const u8) callconv(.c) ?Class = null;
 var sel_alloc: SEL = undefined;
 var sel_init: SEL = undefined;
 var sel_release: SEL = undefined;
-var selectors_loaded: bool = false;
+var selectors_loaded = std.atomic.Value(bool).init(false);
 
 /// Compute unit preference for CoreML model execution.
 pub const ComputeUnit = enum(u32) {
@@ -72,7 +72,7 @@ pub fn init(
     sel_register: *const fn ([*:0]const u8) callconv(.c) SEL,
     get_class: *const fn ([*:0]const u8) callconv(.c) ?Class,
 ) CoreMlError!void {
-    if (selectors_loaded) return;
+    if (selectors_loaded.load(.acquire)) return;
 
     objc_msgSend_fn = msg_send;
     sel_register_fn = sel_register;
@@ -86,7 +86,7 @@ pub fn init(
     sel_init = sel_register("init");
     sel_release = sel_register("release");
 
-    selectors_loaded = true;
+    selectors_loaded.store(true, .release);
 }
 
 pub fn deinit() void {
@@ -95,7 +95,7 @@ pub fn deinit() void {
     coreml_lib = null;
     foundation_lib = null;
     coreml_load_attempted.store(false, .release);
-    selectors_loaded = false;
+    selectors_loaded.store(false, .release);
 }
 
 pub fn isAvailable() bool {

@@ -251,9 +251,9 @@ const CudaContext = struct {
     device_memory: std.ArrayListUnmanaged([]u8),
 };
 
-var cuda_initialized = false;
+var cuda_initialized = std.atomic.Value(bool).init(false);
 var cuda_context: ?CudaContext = null;
-var use_native: bool = false;
+var use_native = std.atomic.Value(bool).init(false);
 var init_mutex = sync.Mutex{};
 var cached_allocator: ?std.mem.Allocator = null;
 
@@ -263,7 +263,7 @@ pub fn init(allocator: std.mem.Allocator) CudaError!void {
     init_mutex.lock();
     defer init_mutex.unlock();
 
-    if (cuda_initialized) return;
+    if (cuda_initialized.load(.acquire)) return;
 
     cached_allocator = allocator;
     const cuda_available = tryLoadCuda(allocator);
@@ -307,7 +307,7 @@ pub fn init(allocator: std.mem.Allocator) CudaError!void {
         .device_memory = std.ArrayListUnmanaged([]u8).empty,
     };
 
-    cuda_initialized = true;
+    cuda_initialized.store(true, .release);
 }
 
 fn initSimulationMode() CudaError!void {
@@ -317,7 +317,7 @@ fn initSimulationMode() CudaError!void {
         .stream = null,
         .device_memory = std.ArrayListUnmanaged([]u8).empty,
     };
-    cuda_initialized = true;
+    cuda_initialized.store(true, .release);
 }
 
 /// Deinitialize the CUDA backend and release context.
@@ -326,11 +326,11 @@ pub fn deinit() void {
     init_mutex.lock();
     defer init_mutex.unlock();
 
-    if (!cuda_initialized) return;
+    if (!cuda_initialized.load(.acquire)) return;
 
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         cuda_native.deinit();
-        use_native = false;
+        use_native.store(false, .release);
     }
 
     if (cuda_context) |*ctx| {
@@ -340,19 +340,19 @@ pub fn deinit() void {
     }
 
     cuda_context = null;
-    cuda_initialized = false;
+    cuda_initialized.store(false, .release);
 
     // Unload CUDA library
     cuda_loader.unload();
 }
 
 fn ensureNativeInitialized() !void {
-    if (!use_native) {
+    if (!use_native.load(.acquire)) {
         cuda_native.init() catch |err| {
             std.log.warn("Failed to initialize native CUDA: {}. Using fallback.", .{err});
             return err;
         };
-        use_native = true;
+        use_native.store(true, .release);
         std.log.info("Using native CUDA implementation", .{});
     }
 }
@@ -389,7 +389,7 @@ pub fn launchKernel(
     config: types.KernelConfig,
     args: []const ?*const anyopaque,
 ) types.KernelError!void {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         if (cuda_native.launchKernel(allocator, kernel_handle, config, args)) |_| {
             return;
         } else |err| {
@@ -403,7 +403,7 @@ pub fn launchKernel(
 /// @param allocator Memory allocator (currently unused)
 /// @param kernel_handle Opaque handle from compileKernel to destroy
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         cuda_native.destroyKernel(allocator, kernel_handle);
         return;
     }
@@ -413,7 +413,7 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
 /// Create a new CUDA stream for asynchronous execution.
 /// @return Opaque pointer to CUDA stream or CuResult error
 pub fn createStream() !*anyopaque {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         if (cuda_native.createStream()) |result| {
             return result;
         } else |err| {
@@ -426,7 +426,7 @@ pub fn createStream() !*anyopaque {
 /// Destroy a CUDA stream.
 /// @param stream_ Opaque pointer to CUDA stream to destroy
 pub fn destroyStream(stream_: *anyopaque) void {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         cuda_native.destroyStream(stream_);
         return;
     }
@@ -437,7 +437,7 @@ pub fn destroyStream(stream_: *anyopaque) void {
 /// @param stream_ Opaque pointer to CUDA stream to synchronize
 /// @return CuResult error on synchronization failure
 pub fn synchronizeStream(stream_: *anyopaque) !void {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         return cuda_native.synchronizeStream(stream_);
     }
     const cu_stream: *CuStream = @ptrCast(@alignCast(stream_));
@@ -448,7 +448,7 @@ pub fn synchronizeStream(stream_: *anyopaque) !void {
 /// @param size Size in bytes to allocate
 /// @return Opaque pointer to allocated memory or CuResult error
 pub fn allocateDeviceMemory(size: usize) !*anyopaque {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         if (cuda_native.allocateDeviceMemory(size)) |result| {
             return result;
         } else |err| {
@@ -461,7 +461,7 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
 /// Free device memory allocated by allocateDeviceMemory.
 /// @param ptr Opaque pointer to memory to free
 pub fn freeDeviceMemory(ptr: *anyopaque) void {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         cuda_native.freeDeviceMemory(ptr);
         return;
     }
@@ -474,7 +474,7 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
 /// @param size Number of bytes to copy
 /// @return CuResult error on transfer failure
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         if (cuda_native.memcpyHostToDevice(dst, @ptrCast(@alignCast(src)), size)) |_| {
             return;
         } else |err| {
@@ -490,7 +490,7 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
 /// @param size Number of bytes to copy
 /// @return CuResult error on transfer failure
 pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    if (use_native) {
+    if (use_native.load(.acquire)) {
         if (cuda_native.memcpyDeviceToHost(dst, src, size)) |_| {
             return;
         } else |err| {
