@@ -18,6 +18,7 @@ pub const Steps = struct {
     mcp_tests_step: *std.Build.Step,
     messaging_tests_step: *std.Build.Step,
     secrets_tests_step: *std.Build.Step,
+    pitr_tests_step: *std.Build.Step,
     gateway_tests_step: *std.Build.Step,
     inference_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
@@ -125,6 +126,31 @@ pub fn addSteps(ctx: Context) Steps {
     secrets_tests_step.dependOn(&ctx.b.addRunArtifact(secrets_unit_tests).step);
     secrets_tests_step.dependOn(&ctx.b.addRunArtifact(secrets_integration_tests).step);
 
+    const pitr_unit_tests = addModuleTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "src/pitr_mod_test.zig",
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(pitr_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const pitr_integration_tests = addIntegrationTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "test/pitr_mod.zig",
+        ctx.abi_module,
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(pitr_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const pitr_tests_step = ctx.b.step("pitr-tests", "Run PITR-focused unit and integration tests");
+    pitr_tests_step.dependOn(&ctx.b.addRunArtifact(pitr_unit_tests).step);
+    pitr_tests_step.dependOn(&ctx.b.addRunArtifact(pitr_integration_tests).step);
+
     const gateway_unit_tests = addModuleTests(
         ctx.b,
         ctx.target,
@@ -194,6 +220,7 @@ pub fn addSteps(ctx: Context) Steps {
         .mcp_tests_step = mcp_tests_step,
         .messaging_tests_step = messaging_tests_step,
         .secrets_tests_step = secrets_tests_step,
+        .pitr_tests_step = pitr_tests_step,
         .gateway_tests_step = gateway_tests_step,
         .inference_tests_step = inference_tests_step,
         .check_step = check_step,

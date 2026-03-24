@@ -52,6 +52,7 @@ zig build feature-tests            # Run feature integration and parity tests
 zig build mcp-tests                # Run MCP integration tests
 zig build messaging-tests          # Run messaging unit + integration tests
 zig build secrets-tests            # Run secrets unit + integration tests
+zig build pitr-tests               # Run PITR unit + integration tests
 zig build gateway-tests            # Run gateway unit + integration tests
 zig build inference-tests          # Run inference unit + integration tests
 zig build cli-tests                # Run CLI tests
