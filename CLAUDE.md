@@ -49,6 +49,7 @@ zig build lint                     # Check formatting (read-only)
 zig build fix                      # Auto-format in place
 zig build check-parity             # Verify mod/stub declaration parity
 zig build feature-tests            # Run feature integration and parity tests
+zig build mcp-tests                # Run MCP integration tests
 zig build cli-tests                # Run CLI tests
 zig build tui-tests                # Run TUI tests
 zig build typecheck                # Compile-only validation for the current/selected target
@@ -62,7 +63,7 @@ zig build cli                      # Build ABI CLI binary (zig-out/bin/abi)
 zig build doctor                   # Report build configuration and diagnostics
 ```
 
-Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/` and `build.zig`.
+Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
 
 ### CLI Commands
 
@@ -95,7 +96,11 @@ zig build -Dgpu-backend=metal
 zig build -Dgpu-backend=cuda,vulkan
 ```
 
-The build.zig is self-contained with all feature flags defined inline. No external build modules.
+The build system is split across `build.zig` (root) and `build/` helpers:
+- `build/flags.zig` — `FeatureFlags` struct, `hasBackend()`, `addAllBuildOptions()`
+- `build/cross.zig` — cross-compilation targets (typecheck, cross-check steps)
+- `build/linking.zig` — `linkDarwinArtifact()` for macOS framework linking
+- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring
 
 ## Architecture
 
@@ -115,6 +120,7 @@ The build.zig is self-contained with all feature flags defined inline. No extern
 - `src/main.zig` — CLI entry point (builds as `abi` binary)
 - `src/mcp_main.zig` — MCP stdio server entry point (builds as `abi-mcp` binary)
 - `src/ffi.zig` — C-ABI FFI endpoints for linking as a static library (`libabi.a`)
+- `build/` — Build helpers: flags, cross-compilation, linking, validation (imported by `build.zig`)
 - `test/` — Integration tests via `test/mod.zig` (uses `@import("abi")`, separate from unit tests in `src/`)
 
 ### The Mod/Stub Pattern
@@ -241,7 +247,7 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - `var` vs `const`: compiler enforces const for never-mutated locals
 - Function pointers: can call through `*const fn` directly without dereferencing
 - Entry points use `pub fn main(init: std.process.Init) !void` (not the older `pub fn main() !void`). Access args via `init.minimal.args`, allocator via `init.gpa` or `init.arena`.
-- `zig fmt .` from root: don't — use `zig build fix` to avoid vendored fixtures
+- `zig fmt .` from root: don't — use `zig build fix` (scopes to `src/`, `build.zig`, `build/`, `test/`)
 - IO operations: use `std.Io.Threaded` + `std.Io.Dir.cwd()` pattern (not the removed `std.fs.cwd()`)
 - `extern` declarations in platform-gated structs: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`, not just OS. Otherwise symbols leak into feature-disabled builds (ref: `accelerate.zig` fix).
 - `foundation.time.timestampSec()` is monotonic from process start — returns 0 in the first second. Use `std.posix.system.clock_gettime(.REALTIME, ...)` for wall-clock timestamps in persisted data.
