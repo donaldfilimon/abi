@@ -381,7 +381,7 @@ test "wal crc detects corruption" {
 
         const file = try Dir.cwd().createFile(io, path, .{ .truncate = false });
         defer file.close(io);
-        file.writePositionalAll(io, &.{0xFF}, HEADER_SIZE + 2) catch unreachable;
+        try file.writePositionalAll(io, &.{0xFF}, HEADER_SIZE + 2);
     }
 
     {
