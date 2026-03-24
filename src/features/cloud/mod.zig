@@ -56,6 +56,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
+// Submodule imports
+const detection = @import("detection.zig");
+const response_builder = @import("response_builder.zig");
+
 // Re-export types
 pub const types = @import("types.zig");
 pub const CloudEvent = types.CloudEvent;
@@ -76,6 +80,11 @@ pub const azure_functions = @import("azure_functions.zig");
 pub const aws = aws_lambda;
 pub const gcp = gcp_functions;
 pub const azure = azure_functions;
+
+// Re-export submodule functions and types
+pub const detectProvider = detection.detectProvider;
+pub const detectProviderWithAllocator = detection.detectProviderWithAllocator;
+pub const ResponseBuilder = response_builder.ResponseBuilder;
 
 /// Cloud module errors.
 pub const Error = error{
@@ -135,44 +144,6 @@ pub const Context = struct {
     }
 };
 
-/// Detect which cloud provider environment we're running in.
-/// This function requires an allocator to read environment variables in Zig 0.16.
-pub fn detectProvider() ?CloudProvider {
-    return detectProviderWithAllocator(std.heap.page_allocator);
-}
-
-/// Detect which cloud provider environment we're running in (with explicit allocator).
-pub fn detectProviderWithAllocator(allocator: std.mem.Allocator) ?CloudProvider {
-    // Get environment map using Zig 0.16 API
-    var env_map = std.process.Environ.createMap(std.process.Environ.empty, allocator) catch return null;
-    defer env_map.deinit();
-
-    // AWS Lambda
-    if (env_map.get("AWS_LAMBDA_RUNTIME_API") != null or
-        env_map.get("AWS_LAMBDA_FUNCTION_NAME") != null)
-    {
-        return .aws_lambda;
-    }
-
-    // Google Cloud Functions
-    if (env_map.get("K_SERVICE") != null or
-        env_map.get("FUNCTION_NAME") != null or
-        env_map.get("GOOGLE_CLOUD_PROJECT") != null)
-    {
-        return .gcp_functions;
-    }
-
-    // Azure Functions
-    if (env_map.get("FUNCTIONS_WORKER_RUNTIME") != null or
-        env_map.get("AZURE_FUNCTIONS_ENVIRONMENT") != null or
-        env_map.get("WEBSITE_SITE_NAME") != null)
-    {
-        return .azure_functions;
-    }
-
-    return null;
-}
-
 /// Run a handler on the detected cloud provider.
 /// Automatically selects the appropriate runtime based on environment detection.
 pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler) !void {
@@ -188,67 +159,6 @@ pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler) !void {
         .azure_functions => try azure_functions.runHandler(allocator, handler),
     }
 }
-
-/// Create a response helper for common response patterns.
-pub const ResponseBuilder = struct {
-    allocator: std.mem.Allocator,
-    response: CloudResponse,
-
-    pub fn init(allocator: std.mem.Allocator) ResponseBuilder {
-        return .{
-            .allocator = allocator,
-            .response = CloudResponse.init(allocator),
-        };
-    }
-
-    /// Set HTTP status code.
-    pub fn status(self: *ResponseBuilder, code: u16) *ResponseBuilder {
-        self.response.status_code = code;
-        return self;
-    }
-
-    /// Add a header.
-    pub fn header(self: *ResponseBuilder, key: []const u8, value: []const u8) *ResponseBuilder {
-        self.response.headers.put(self.allocator, key, value) catch |err| {
-            std.log.warn("Failed to set header '{s}': {t}", .{ key, err });
-        };
-        return self;
-    }
-
-    /// Set content type to JSON.
-    pub fn json(self: *ResponseBuilder) *ResponseBuilder {
-        return self.header("Content-Type", "application/json");
-    }
-
-    /// Set content type to plain text.
-    pub fn text(self: *ResponseBuilder) *ResponseBuilder {
-        return self.header("Content-Type", "text/plain");
-    }
-
-    /// Set content type to HTML.
-    pub fn html(self: *ResponseBuilder) *ResponseBuilder {
-        return self.header("Content-Type", "text/html");
-    }
-
-    /// Set the response body.
-    pub fn body(self: *ResponseBuilder, content: []const u8) *ResponseBuilder {
-        self.response.body = content;
-        return self;
-    }
-
-    /// Add CORS headers.
-    pub fn cors(self: *ResponseBuilder, origin: []const u8) *ResponseBuilder {
-        _ = self.header("Access-Control-Allow-Origin", origin);
-        _ = self.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        _ = self.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        return self;
-    }
-
-    /// Build the final response.
-    pub fn build(self: *ResponseBuilder) CloudResponse {
-        return self.response;
-    }
-};
 
 /// Module lifecycle.
 var initialized = std.atomic.Value(bool).init(false);

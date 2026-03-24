@@ -12,12 +12,10 @@
 //! - Thread-safe event buffer with configurable flush
 
 const std = @import("std");
-const time = @import("../../foundation/mod.zig").time;
-const sync = @import("../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
 pub const types = @import("types.zig");
-
-const Mutex = sync.Mutex;
+const engine_mod = @import("engine.zig");
+const funnel_mod = @import("funnel.zig");
 
 // ============================================================================
 // Shared Types (from types.zig)
@@ -29,137 +27,16 @@ pub const AnalyticsError = types.AnalyticsError;
 pub const Error = AnalyticsError;
 
 // ============================================================================
-// Analytics Engine
+// Analytics Engine (from engine.zig)
 // ============================================================================
 
-/// Core analytics engine. Buffers events and provides batch retrieval.
-pub const Engine = struct {
-    allocator: std.mem.Allocator,
-    config: AnalyticsConfig,
-    events: std.ArrayListUnmanaged(types.StoredEvent) = .empty,
-    session_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    event_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    mutex: Mutex = .{},
-
-    pub fn init(allocator: std.mem.Allocator, config: AnalyticsConfig) Engine {
-        return .{
-            .allocator = allocator,
-            .config = config,
-        };
-    }
-
-    pub fn deinit(self: *Engine) void {
-        self.events.deinit(self.allocator);
-        self.* = undefined;
-    }
-
-    /// Track a named event.
-    pub fn track(self: *Engine, name: []const u8) AnalyticsError!void {
-        return self.trackWithSession(name, null);
-    }
-
-    /// Track a named event associated with a session.
-    pub fn trackWithSession(self: *Engine, name: []const u8, session_id: ?[]const u8) AnalyticsError!void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-
-        if (self.events.items.len >= self.config.buffer_capacity) {
-            return AnalyticsError.BufferFull;
-        }
-
-        const ts: u64 = if (self.config.enable_timestamps) timestampMs() else 0;
-
-        self.events.append(self.allocator, .{
-            .name = name,
-            .timestamp_ms = ts,
-            .session_id = session_id,
-        }) catch return AnalyticsError.OutOfMemory;
-
-        _ = self.event_count.fetchAdd(1, .monotonic);
-    }
-
-    /// Start a new session and return its ID.
-    pub fn startSession(self: *Engine) u64 {
-        return self.session_count.fetchAdd(1, .monotonic);
-    }
-
-    /// Get count of buffered events.
-    pub fn bufferedCount(self: *Engine) usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        return self.events.items.len;
-    }
-
-    /// Get total events tracked (including flushed).
-    pub fn totalEvents(self: *const Engine) u64 {
-        return self.event_count.load(.monotonic);
-    }
-
-    /// Flush all buffered events, returning the count flushed.
-    pub fn flush(self: *Engine) usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        const count = self.events.items.len;
-        self.events.clearRetainingCapacity();
-        return count;
-    }
-
-    /// Get a snapshot of current stats.
-    pub fn getStats(self: *Engine) Stats {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        return .{
-            .buffered_events = self.events.items.len,
-            .total_events = self.event_count.load(.monotonic),
-            .total_sessions = self.session_count.load(.monotonic),
-        };
-    }
-
-    pub const Stats = types.Stats;
-};
+pub const Engine = engine_mod.Engine;
 
 // ============================================================================
-// Funnel Tracking
+// Funnel Tracking (from funnel.zig)
 // ============================================================================
 
-/// Track progression through a named funnel.
-pub const Funnel = struct {
-    name: []const u8,
-    steps: std.ArrayListUnmanaged(Step) = .empty,
-    allocator: std.mem.Allocator,
-
-    pub const Step = types.FunnelStep;
-
-    pub fn init(allocator: std.mem.Allocator, name: []const u8) Funnel {
-        return .{ .name = name, .allocator = allocator };
-    }
-
-    pub fn deinit(self: *Funnel) void {
-        self.steps.deinit(self.allocator);
-        self.* = undefined;
-    }
-
-    /// Add a step to the funnel.
-    pub fn addStep(self: *Funnel, step_name: []const u8) !void {
-        try self.steps.append(self.allocator, .{ .name = step_name });
-    }
-
-    /// Record a user reaching a step.
-    pub fn recordStep(self: *Funnel, step_index: usize) void {
-        if (step_index < self.steps.items.len) {
-            _ = self.steps.items[step_index].count.fetchAdd(1, .monotonic);
-        }
-    }
-
-    /// Get step counts for analysis.
-    pub fn getStepCounts(self: *const Funnel, buffer: []u64) []u64 {
-        const len = @min(buffer.len, self.steps.items.len);
-        for (0..len) |i| {
-            buffer[i] = self.steps.items[i].count.load(.monotonic);
-        }
-        return buffer[0..len];
-    }
-};
+pub const Funnel = funnel_mod.Funnel;
 
 // ============================================================================
 // Experiment Tracking
@@ -215,23 +92,6 @@ pub fn isEnabled() bool {
 
 pub fn isInitialized() bool {
     return initialized.load(.acquire);
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/// Application start anchor for monotonic timestamps.
-var app_start: ?time.Instant = null;
-
-fn timestampMs() u64 {
-    const start = app_start orelse blk: {
-        const s = time.Instant.now() catch return 0;
-        app_start = s;
-        break :blk s;
-    };
-    const now = time.Instant.now() catch return 0;
-    return now.since(start) / std.time.ns_per_ms;
 }
 
 // ============================================================================
