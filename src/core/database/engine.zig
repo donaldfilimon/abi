@@ -94,6 +94,8 @@ pub const Engine = struct {
     }
 
     pub fn connectAI(self: *Engine, base_url: []const u8, api_key: ?[]const u8) !void {
+        self.db_lock.lock();
+        defer self.db_lock.unlock();
         self.ai_client = try AIClient.init(self.allocator, base_url, api_key, self.config.network.request_timeout_ms);
     }
 
@@ -127,7 +129,7 @@ pub const Engine = struct {
 
         // Rebuild HNSW index to match the pruned vectors_array.
         if (pruned_count > 0) {
-            self.rebuildHnswIndex();
+            self.rebuildHnswIndexLocked();
         }
 
         std.log.info("Dream State Complete: Kept {d} memories, Pruned {d} memories.", .{ kept_count, pruned_count });
@@ -137,6 +139,13 @@ pub const Engine = struct {
     /// Call this after any operation that removes entries from vectors_array
     /// to keep the HNSW vectors list in sync.
     pub fn rebuildHnswIndex(self: *Engine) void {
+        self.db_lock.lock();
+        defer self.db_lock.unlock();
+        self.rebuildHnswIndexLocked();
+    }
+
+    /// Internal: rebuild HNSW index. Caller must already hold db_lock.
+    fn rebuildHnswIndexLocked(self: *Engine) void {
         // Clear existing HNSW compatibility vectors
         for (self.hnsw_index.vectors.items) |v| self.allocator.free(v);
         self.hnsw_index.vectors.clearRetainingCapacity();
@@ -225,6 +234,9 @@ pub const Engine = struct {
         policy: WritePolicy,
         fingerprint: u64,
     ) !void {
+        self.db_lock.lock();
+        defer self.db_lock.unlock();
+
         switch (policy) {
             .skip_if_same_content => {
                 if (self.findIndexByFingerprint(fingerprint)) |existing_idx| {
@@ -318,6 +330,9 @@ pub const Engine = struct {
 
     /// Delete a vector by ID. Returns true if found and removed.
     pub fn delete(self: *Engine, id: []const u8) bool {
+        self.db_lock.lock();
+        defer self.db_lock.unlock();
+
         for (self.vectors_array.items, 0..) |item, i| {
             if (std.mem.eql(u8, item.id, id)) {
                 self.allocator.free(item.id);
@@ -331,7 +346,9 @@ pub const Engine = struct {
     }
 
     /// Return the current number of indexed vectors.
-    pub fn count(self: *const Engine) usize {
+    pub fn count(self: *Engine) usize {
+        self.db_lock.lockShared();
+        defer self.db_lock.unlockShared();
         return self.vectors_array.items.len;
     }
 
@@ -354,6 +371,8 @@ pub const Engine = struct {
         query_vector: []const f32,
         options: SearchOptions,
     ) ![]SearchResult {
+        self.db_lock.lockShared();
+        defer self.db_lock.unlockShared();
 
         // HW boundary execution.
         // This natively returns absolute index numeric layout mappings matched natively against
