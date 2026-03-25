@@ -263,7 +263,10 @@ pub fn saveToFile(manifest: *const Manifest, path: []const u8) !void {
     if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
         if (idx > 0) {
             const dir_path = path[0..idx];
-            std.Io.Dir.cwd().createDirPath(io, dir_path) catch {};
+            std.Io.Dir.cwd().createDirPath(io, dir_path) catch |e| {
+                std.log.err("Plugin manifest: failed to create directory '{s}': {}", .{ dir_path, e });
+                return error.Unexpected;
+            };
         }
     }
 
