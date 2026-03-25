@@ -270,10 +270,14 @@ pub const lifecycle = struct {
 pub const roadmap = struct {
     pub const RoadmapItem = @import("stub.zig").RoadmapItem;
 
+    pub const catalog = struct {};
+
     pub fn importAll(_: std.mem.Allocator, _: anytype, _: *u64, _: anytype) !usize {
         return error.FeatureDisabled;
     }
 };
+
+pub const roadmap_catalog = roadmap.catalog;
 
 // ============================================================================
 // Manager (main interface stub)
@@ -367,24 +371,6 @@ pub const Manager = struct {
         return error.FeatureDisabled;
     }
 };
-
-// ============================================================================
-// Module Lifecycle
-// ============================================================================
-
-pub fn isEnabled() bool {
-    return false;
-}
-
-pub fn isInitialized() bool {
-    return false;
-}
-
-pub fn init(_: std.mem.Allocator) ManagerError!void {
-    return error.FeatureDisabled;
-}
-
-pub fn deinit() void {}
 
 test {
     std.testing.refAllDecls(@This());

@@ -81,6 +81,10 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *Engine) void {
+        // Acquire exclusive lock to synchronize with any in-flight readers
+        // before tearing down shared state.
+        self.db_lock.lock();
+
         self.cache.deinit();
         self.hnsw_index.deinit(self.allocator);
         if (self.ai_client) |*c| c.deinit();
@@ -91,6 +95,9 @@ pub const Engine = struct {
             self.deinitOwnedMetadata(item.metadata);
         }
         self.vectors_array.deinit(self.allocator);
+
+        // Release before the lock itself becomes invalid.
+        self.db_lock.unlock();
     }
 
     pub fn connectAI(self: *Engine, base_url: []const u8, api_key: ?[]const u8) !void {
@@ -192,13 +199,19 @@ pub const Engine = struct {
         var embedding: []const f32 = undefined;
         var from_cache = false;
 
+        // Acquire shared lock to safely read cache and ai_client fields.
+        // Release before storeVector, which acquires an exclusive lock.
+        self.db_lock.lockShared();
         if (self.cache.get(text)) |cached| {
             embedding = cached;
             from_cache = true;
+            self.db_lock.unlockShared();
         } else if (self.ai_client) |*client| {
+            self.db_lock.unlockShared();
             embedding = try client.generateEmbedding(text);
             try self.cache.put(text, embedding);
         } else {
+            self.db_lock.unlockShared();
             return error.NoAIClient;
         }
         defer if (!from_cache) self.allocator.free(embedding);
@@ -357,11 +370,16 @@ pub const Engine = struct {
         query: []const u8,
         options: SearchOptions,
     ) ![]SearchResult {
-        const query_embedding = if (self.ai_client) |*client|
-            try client.generateEmbedding(query)
-        else
+        // Acquire shared lock to safely read ai_client, then release before
+        // searchByVector (which re-acquires the lock internally).
+        self.db_lock.lockShared();
+        const client_ptr = if (self.ai_client) |*client| client else {
+            self.db_lock.unlockShared();
             return error.NoAIClient;
+        };
+        self.db_lock.unlockShared();
 
+        const query_embedding = try client_ptr.generateEmbedding(query);
         defer self.allocator.free(query_embedding);
         return try self.searchByVector(query_embedding, options);
     }

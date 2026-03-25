@@ -37,16 +37,6 @@ pub const EngineStats = struct {
     tokens_per_second: f32 = 0,
 };
 
-pub const AsyncResult = struct {
-    id: u64 = 0,
-    result: ?EngineResult = null,
-    done: bool = true,
-};
-
-pub const Config = EngineConfig;
-pub const Result = EngineResult;
-pub const Stats = EngineStats;
-
 pub const Engine = struct {
     allocator: std.mem.Allocator,
 

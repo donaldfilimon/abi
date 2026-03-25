@@ -82,6 +82,9 @@ comptime {
     assertParity("mcp", @import("protocols/mcp/mod.zig"), @import("protocols/mcp/stub.zig"));
     assertParity("acp", @import("protocols/acp/mod.zig"), @import("protocols/acp/stub.zig"));
     assertParity("ha", @import("protocols/ha/mod.zig"), @import("protocols/ha/stub.zig"));
+    assertParity("connectors", @import("connectors/mod.zig"), @import("connectors/stub.zig"));
+    assertParity("tasks", @import("tasks/mod.zig"), @import("tasks/stub.zig"));
+    assertParity("inference", @import("inference/mod.zig"), @import("inference/stub.zig"));
 }
 
 test "mod/stub parity check compiled successfully" {
