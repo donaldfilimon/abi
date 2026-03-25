@@ -40,6 +40,7 @@ pub const Server = struct {
     server_name: []const u8,
     server_version: []const u8,
     initialized: bool,
+    auth_token: ?[]const u8,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -54,6 +55,7 @@ pub const Server = struct {
             .server_name = name,
             .server_version = version,
             .initialized = false,
+            .auth_token = null,
         };
     }
 

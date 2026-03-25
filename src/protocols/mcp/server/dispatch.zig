@@ -57,12 +57,16 @@ pub fn handleMessage(self: anytype, line: []const u8, writer: anytype) !void {
     } else if (std.mem.eql(u8, method, "notifications/initialized")) {
         self.initialized = true;
     } else if (std.mem.eql(u8, method, "tools/list")) {
+        if (!checkAuth(self, params, writer, id)) return;
         try tools.handleToolsList(self, writer, id);
     } else if (std.mem.eql(u8, method, "tools/call")) {
+        if (!checkAuth(self, params, writer, id)) return;
         try tools.handleToolsCall(self, writer, id, params);
     } else if (std.mem.eql(u8, method, "resources/list")) {
+        if (!checkAuth(self, params, writer, id)) return;
         try resources.handleResourcesList(self, writer, id);
     } else if (std.mem.eql(u8, method, "resources/read")) {
+        if (!checkAuth(self, params, writer, id)) return;
         try resources.handleResourcesRead(self, writer, id, params);
     } else if (std.mem.eql(u8, method, "ping")) {
         try handlePing(writer, id);
@@ -95,4 +99,20 @@ pub fn handleInitialize(self: anytype, writer: anytype, id: ?types.RequestId) !v
 pub fn handlePing(writer: anytype, id: ?types.RequestId) !void {
     const rid = id orelse return;
     try types.writeResponse(writer, rid, "{}");
+}
+
+/// Validate the request against the server's auth_token, if configured.
+/// Returns `true` if the request is authorized (or auth is disabled).
+/// Returns `false` and writes a JSON-RPC error if the token is missing or wrong.
+fn checkAuth(self: anytype, params: ?std.json.ObjectMap, writer: anytype, id: ?types.RequestId) bool {
+    const expected = self.auth_token orelse return true; // auth disabled
+    if (params) |p| {
+        if (p.get("_auth_token")) |token_val| {
+            if (token_val == .string and std.mem.eql(u8, token_val.string, expected)) {
+                return true;
+            }
+        }
+    }
+    types.writeError(writer, id, types.ErrorCode.unauthorized, "Unauthorized") catch {};
+    return false;
 }

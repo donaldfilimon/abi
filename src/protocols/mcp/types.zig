@@ -154,6 +154,9 @@ pub const ErrorCode = struct {
     pub const method_not_found: i32 = -32601;
     pub const invalid_params: i32 = -32602;
     pub const internal_error: i32 = -32603;
+    /// Custom error code for unauthorized requests (token auth failure).
+    /// Uses the JSON-RPC server error range (-32000 to -32099).
+    pub const unauthorized: i32 = -32001;
 };
 
 // ═══════════════════════════════════════════════════════════════
