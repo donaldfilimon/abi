@@ -46,6 +46,10 @@ const plugin_registry_tests = @import("integration/plugin_registry_test.zig");
 const database_core_tests = @import("integration/database_core_test.zig");
 const ai_tests = @import("integration/ai_test.zig");
 const gpu_policy_contract_tests = @import("integration/gpu_policy_contract_test.zig");
+const gateway_runtime_tests = @import("integration/gateway_runtime_test.zig");
+const agents_tests = @import("integration/agents_test.zig");
+const secrets_tests = @import("integration/secrets_test.zig");
+const pitr_tests = @import("integration/pitr_test.zig");
 
 test {
     std.testing.refAllDecls(@This());
