@@ -1,85 +1,59 @@
 //! Constitution Stub — Returns safe defaults when AI is not compiled.
 const std = @import("std");
+const types = @import("types.zig");
+
+// ============================================================================
+// Re-export canonical types from types.zig
+// ============================================================================
+
+pub const Principle = types.Principle;
+pub const Severity = types.Severity;
+pub const ConstraintKind = types.ConstraintKind;
+pub const ConstitutionalRule = types.ConstitutionalRule;
+pub const Violation = types.Violation;
+pub const ConstitutionalScore = types.ConstitutionalScore;
+pub const TrainingGuardrails = types.TrainingGuardrails;
+pub const SafetyScore = types.SafetyScore;
+pub const SafetyViolation = types.SafetyViolation;
+pub const SafetyViolationCategory = types.SafetyViolationCategory;
+pub const BiasScore = types.BiasScore;
+pub const MAX_BIAS_ATTRIBUTES = types.MAX_BIAS_ATTRIBUTES;
+pub const DEFAULT_BIAS_THRESHOLD = types.DEFAULT_BIAS_THRESHOLD;
 
 const root = @This();
 
-pub const Principle = struct {
-    name: []const u8,
-    description: []const u8,
-};
-
-pub const Severity = enum { advisory, required, critical };
-
-pub const ConstraintKind = enum { must_not_generate, must_flag, should_prefer };
-
-pub const ConstitutionalRule = struct {
-    id: []const u8,
-    description: []const u8,
-    constraint: ConstraintKind,
-    reward_weight: f32,
-};
-
-pub const Violation = struct {
-    rule_id: []const u8,
-    principle_name: []const u8,
-    severity: Severity,
-    confidence: f32,
-};
-
-pub const ConstitutionalScore = struct {
-    overall: f32,
-    violation_count: u8,
-
-    pub fn isCompliant(_: *const ConstitutionalScore) bool {
-        return true;
-    }
-};
-
-pub const TrainingGuardrails = struct {
-    constitutional_loss_weight: f32 = 0.0,
-};
-
 /// Stub sub-module matching principles.zig public API.
 pub const principles = struct {
-    pub const Principle = root.Principle;
-    pub const Severity = root.Severity;
-    pub const ConstraintKind = root.ConstraintKind;
-    pub const ConstitutionalRule = root.ConstitutionalRule;
-    pub const TrainingGuardrails = root.TrainingGuardrails;
-    pub const ALL_PRINCIPLES = [_]root.Principle{};
-    pub const DEFAULT_GUARDRAILS = root.TrainingGuardrails{};
-};
-
-/// Maximum number of per-attribute bias flags.
-pub const MAX_BIAS_ATTRIBUTES = 32;
-
-/// Default bias threshold.
-pub const DEFAULT_BIAS_THRESHOLD: f32 = 0.1;
-
-/// Bias quantification result (stub: always acceptable).
-pub const BiasScore = struct {
-    mean_abs_bias: f32,
-    attribute_flags: [MAX_BIAS_ATTRIBUTES]bool,
-    attribute_count: usize,
-    flagged_count: usize,
-    is_acceptable: bool,
-
-    pub fn flaggedRatio(self: *const BiasScore) f32 {
-        if (self.attribute_count == 0) return 0.0;
-        return @as(f32, @floatFromInt(self.flagged_count)) / @as(f32, @floatFromInt(self.attribute_count));
-    }
+    pub const Principle = types.Principle;
+    pub const Severity = types.Severity;
+    pub const ConstraintKind = types.ConstraintKind;
+    pub const ConstitutionalRule = types.ConstitutionalRule;
+    pub const TrainingGuardrails = types.TrainingGuardrails;
+    pub const ALL_PRINCIPLES = [_]types.Principle{};
+    pub const DEFAULT_GUARDRAILS = types.TrainingGuardrails{};
 };
 
 /// Stub sub-module matching enforcement.zig public API.
 pub const enforcement = struct {
-    pub const ConstitutionalScore = root.ConstitutionalScore;
-    pub const Violation = root.Violation;
+    pub const ConstitutionalScore = types.ConstitutionalScore;
+    pub const Violation = types.Violation;
+    pub const SafetyScore = types.SafetyScore;
+    pub const SafetyViolation = types.SafetyViolation;
+    pub const BiasScore = types.BiasScore;
+    pub const MAX_BIAS_ATTRIBUTES = types.MAX_BIAS_ATTRIBUTES;
+    pub const DEFAULT_BIAS_THRESHOLD = types.DEFAULT_BIAS_THRESHOLD;
 
     pub fn getSystemPreamble() []const u8 {
         return "";
     }
     pub fn evaluateResponse(_: []const u8) root.ConstitutionalScore {
-        return .{ .overall = 1.0, .violation_count = 0 };
+        return .{
+            .overall = 1.0,
+            .violations = [_]?root.Violation{null} ** 16,
+            .violation_count = 0,
+            .highest_severity = null,
+            .safety_score = null,
+        };
     }
     pub fn computeConstitutionalLoss(_: []const f32, _: *const root.TrainingGuardrails) f32 {
         return 1.0;
@@ -94,6 +68,14 @@ pub const enforcement = struct {
             .attribute_count = 0,
             .flagged_count = 0,
             .is_acceptable = true,
+        };
+    }
+    pub fn evaluateSafety(_: []const u8) root.SafetyScore {
+        return .{
+            .is_safe = true,
+            .score = 1.0,
+            .violations = [_]?root.SafetyViolation{null} ** root.SafetyScore.MAX_SAFETY_VIOLATIONS,
+            .violation_count = 0,
         };
     }
 };
@@ -114,7 +96,13 @@ pub const Constitution = struct {
     }
 
     pub fn evaluate(_: *const Constitution, _: []const u8) root.ConstitutionalScore {
-        return .{ .overall = 1.0, .violation_count = 0 };
+        return .{
+            .overall = 1.0,
+            .violations = [_]?root.Violation{null} ** 16,
+            .violation_count = 0,
+            .highest_severity = null,
+            .safety_score = null,
+        };
     }
 
     pub fn constitutionalLoss(_: *const Constitution, _: []const f32) f32 {
@@ -127,6 +115,10 @@ pub const Constitution = struct {
 
     pub fn isCompliant(_: *const Constitution, _: []const u8) bool {
         return true;
+    }
+
+    pub fn evaluateSafety(_: *const Constitution, _: []const u8) root.SafetyScore {
+        return root.enforcement.evaluateSafety("");
     }
 
     pub fn computeBias(_: *const Constitution, measurements: []const f32, threshold: f32) root.BiasScore {

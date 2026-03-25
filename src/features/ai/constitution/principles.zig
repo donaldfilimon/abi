@@ -5,53 +5,17 @@
 //! severity level and associated rules.
 
 const std = @import("std");
+const types = @import("types.zig");
 
 // ============================================================================
-// Types
+// Types — re-exported from types.zig (canonical definitions)
 // ============================================================================
 
-pub const Severity = enum {
-    advisory, // Suggest compliance; allow override
-    required, // Must comply; log violations
-    critical, // Must comply; block action on violation
-
-    pub fn weight(self: Severity) f32 {
-        return switch (self) {
-            .advisory => 0.3,
-            .required => 0.7,
-            .critical => 1.0,
-        };
-    }
-};
-
-pub const ConstraintKind = enum {
-    forbid, // Content must NOT match
-    require, // Content MUST satisfy
-    prefer, // Content SHOULD satisfy (soft constraint)
-};
-
-pub const ConstitutionalRule = struct {
-    id: []const u8,
-    description: []const u8,
-    constraint: ConstraintKind,
-    reward_weight: f32, // How much to weight in RLHF reward
-};
-
-pub const Principle = struct {
-    name: []const u8,
-    description: []const u8,
-    severity: Severity,
-    rules: []const ConstitutionalRule,
-    priority: f32, // 0.0–1.0, for conflict resolution
-};
-
-pub const TrainingGuardrails = struct {
-    max_toxicity_score: f32 = 0.3,
-    require_source_attribution: bool = true,
-    block_pii_in_training: bool = true,
-    human_review_threshold: f32 = 0.8, // Confidence below this triggers review
-    constitutional_loss_weight: f32 = 0.15, // Weight in total RLHF loss
-};
+pub const Severity = types.Severity;
+pub const ConstraintKind = types.ConstraintKind;
+pub const ConstitutionalRule = types.ConstitutionalRule;
+pub const Principle = types.Principle;
+pub const TrainingGuardrails = types.TrainingGuardrails;
 
 // ============================================================================
 // Core Principles

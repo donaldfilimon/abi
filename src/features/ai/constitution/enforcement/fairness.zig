@@ -4,33 +4,16 @@
 //! Provides bias pattern detection and quantification (Spec Section 5.4).
 
 const std = @import("std");
+const types = @import("../types.zig");
 
 /// Maximum number of per-attribute bias flags returned by computeBias.
-pub const MAX_BIAS_ATTRIBUTES = 32;
+pub const MAX_BIAS_ATTRIBUTES = types.MAX_BIAS_ATTRIBUTES;
 
 /// Default threshold: attributes with |Bi| above this are flagged.
-pub const DEFAULT_BIAS_THRESHOLD: f32 = 0.1;
+pub const DEFAULT_BIAS_THRESHOLD: f32 = types.DEFAULT_BIAS_THRESHOLD;
 
 /// Result of bias quantification across protected attributes.
-/// Implements: B = (1/n) * Sigma |Bi|
-pub const BiasScore = struct {
-    /// Mean absolute bias across all attributes.
-    mean_abs_bias: f32,
-    /// Per-attribute flags: true if |Bi| exceeds the threshold.
-    attribute_flags: [MAX_BIAS_ATTRIBUTES]bool,
-    /// Number of attributes that were evaluated.
-    attribute_count: usize,
-    /// Number of attributes that exceeded the threshold.
-    flagged_count: usize,
-    /// Whether overall bias is within acceptable limits.
-    is_acceptable: bool,
-
-    /// Return the fraction of attributes that are flagged.
-    pub fn flaggedRatio(self: *const BiasScore) f32 {
-        if (self.attribute_count == 0) return 0.0;
-        return @as(f32, @floatFromInt(self.flagged_count)) / @as(f32, @floatFromInt(self.attribute_count));
-    }
-};
+pub const BiasScore = types.BiasScore;
 
 /// Compute bias quantification from per-attribute bias measurements.
 ///
