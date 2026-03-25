@@ -30,6 +30,8 @@ fn parseModelId(model_id: []const u8) struct { provider: []const u8, model: []co
 
 /// Try to generate via a real LLM connector. Falls back to echo on failure.
 pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.Result {
+    std.log.warn("inference: connector backend using echo mode for model '{s}' — connector bridge not yet wired to external providers", .{self.config.model_id});
+
     const start = time_mod.timestampNs();
 
     const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
