@@ -350,6 +350,7 @@ The repository includes several specialized agents in `.claude/agents/`:
 - **feature-scaffolder** — Scaffolds new feature modules with mod.zig, stub.zig, types.zig, and build integration
 - **build-troubleshooter** — Diagnoses Zig build failures (compile errors, type mismatches, import issues)
 - **abi-test-writer** — Writes integration tests following ABI conventions (SkipZigTest guards, public API access, mod.zig wiring)
+- **abbey-aviva-abi-architect** — Multi-persona AI pipeline expert (profile routing, persona modulation, constitution validation, WDBX memory)
 
 Invoke these agents via the `Agent` tool with `subagent_type: "<agent-name>"`.
 
