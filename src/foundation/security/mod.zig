@@ -301,6 +301,31 @@ pub const extractBearerToken = jwt.extractBearerToken;
 /// Returns a byte slice of the specified length.
 pub const generateSecretKey = jwt.generateSecretKey;
 
+// Standalone stateless JWT functions (no JwtManager required)
+
+/// Convenience alias: JWT header struct.
+pub const JwtHeader = jwt.JwtHeader;
+
+/// Convenience alias: JWT payload (claims) struct.
+pub const JwtPayload = jwt.JwtPayload;
+
+/// Decode a JWT string without signature verification.
+/// Caller owns returned Token and must call `token.deinit(allocator)`.
+pub const jwtDecode = jwt.decode;
+
+/// Decode and verify a JWT string with HMAC signature validation.
+/// Caller owns returned Token and must call `token.deinit(allocator)`.
+pub const jwtVerify = jwt.verify;
+
+/// Check whether a decoded JWT token is expired.
+pub const jwtIsExpired = jwt.isExpired;
+
+/// Base64url encode (no padding). Caller owns returned slice.
+pub const base64UrlEncode = jwt.base64UrlEncode;
+
+/// Base64url decode (no padding). Caller owns returned slice.
+pub const base64UrlDecode = jwt.base64UrlDecode;
+
 // ============================================================================
 // Password Hashing Types
 // ============================================================================

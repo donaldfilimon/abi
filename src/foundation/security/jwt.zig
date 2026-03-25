@@ -761,7 +761,309 @@ pub fn validateExpiry(claims: anytype, now: i64) bool {
     return true;
 }
 
+// ============================================================================
+// Convenience Type Aliases
+// ============================================================================
+
+/// JWT header (algorithm + type). Alias for `Token.Header`.
+pub const JwtHeader = Token.Header;
+
+/// JWT payload with standard and custom claims. Alias for `Claims`.
+pub const JwtPayload = Claims;
+
+/// Decoded JWT token with header, payload, and signature. Alias for `Token`.
+pub const JwtToken = Token;
+
+// ============================================================================
+// Standalone Stateless JWT Functions
+// ============================================================================
+//
+// These functions provide a simpler API for one-shot JWT operations without
+// requiring a JwtManager instance.  Useful for protocol authentication where
+// you just need to decode/verify an incoming token against a shared secret.
+
+/// Decode a JWT string into its constituent parts without verifying the
+/// signature.  The caller owns all returned memory and must call
+/// `token.deinit(allocator)` when done.
+///
+/// The token string is split on '.', each segment is base64url-decoded, and
+/// the header/payload JSON is parsed into structured types.
+pub fn decode(allocator: std.mem.Allocator, token_str: []const u8) !Token {
+    // Split into header.payload.signature
+    var parts = std.mem.splitScalar(u8, token_str, '.');
+
+    const header_b64 = parts.next() orelse return error.InvalidToken;
+    const payload_b64 = parts.next() orelse return error.InvalidToken;
+    const signature_b64 = parts.next() orelse return error.InvalidToken;
+
+    // Exactly 3 parts required
+    if (parts.next() != null) return error.InvalidToken;
+
+    // Decode header JSON
+    const header_json = try base64UrlDecode(allocator, header_b64);
+    defer allocator.free(header_json);
+
+    const header = parseHeaderStandalone(header_json);
+
+    // Decode payload JSON
+    const payload_json = try base64UrlDecode(allocator, payload_b64);
+    defer allocator.free(payload_json);
+
+    const claims = try parseClaimsStandalone(allocator, payload_json);
+
+    // Decode raw signature bytes
+    const signature = try base64UrlDecode(allocator, signature_b64);
+
+    return Token{
+        .raw = try allocator.dupe(u8, token_str),
+        .header = header,
+        .claims = claims,
+        .signature = signature,
+        .verified = false,
+    };
+}
+
+/// Decode and verify a JWT string using HMAC-SHA256 signature validation.
+/// Returns the decoded token with `verified = true` on success.  Returns
+/// `error.InvalidSignature` if the signature does not match.
+///
+/// The caller owns all returned memory and must call `token.deinit(allocator)`.
+pub fn verify(allocator: std.mem.Allocator, token_str: []const u8, secret: []const u8) !Token {
+    // Split to get the signing input and signature
+    var parts = std.mem.splitScalar(u8, token_str, '.');
+
+    const header_b64 = parts.next() orelse return error.InvalidToken;
+    const payload_b64 = parts.next() orelse return error.InvalidToken;
+    const signature_b64 = parts.next() orelse return error.InvalidToken;
+
+    if (parts.next() != null) return error.InvalidToken;
+
+    // Decode header to check algorithm
+    const header_json = try base64UrlDecode(allocator, header_b64);
+    defer allocator.free(header_json);
+    const header = parseHeaderStandalone(header_json);
+
+    // Only HMAC algorithms supported for stateless verify
+    if (header.alg == .none) return error.AlgorithmNotAllowed;
+    if (header.alg == .rs256) return error.RsaSigningNotSupported;
+
+    // Build signing input: header_b64 + "." + payload_b64
+    const signing_input_len = header_b64.len + 1 + payload_b64.len;
+    const signing_input = try allocator.alloc(u8, signing_input_len);
+    defer allocator.free(signing_input);
+    @memcpy(signing_input[0..header_b64.len], header_b64);
+    signing_input[header_b64.len] = '.';
+    @memcpy(signing_input[header_b64.len + 1 ..], payload_b64);
+
+    // Compute and compare signature for the appropriate HMAC algorithm
+    const sig_valid = switch (header.alg) {
+        .hs256 => try verifyHmacSignature(allocator, signing_input, signature_b64, secret, crypto.auth.hmac.sha2.HmacSha256),
+        .hs384 => try verifyHmacSignature(allocator, signing_input, signature_b64, secret, crypto.auth.hmac.sha2.HmacSha384),
+        .hs512 => try verifyHmacSignature(allocator, signing_input, signature_b64, secret, crypto.auth.hmac.sha2.HmacSha512),
+        .none, .rs256 => unreachable, // handled above
+    };
+
+    if (!sig_valid) {
+        return error.InvalidSignature;
+    }
+
+    // Signature valid — decode payload
+    const payload_json = try base64UrlDecode(allocator, payload_b64);
+    defer allocator.free(payload_json);
+
+    const claims = try parseClaimsStandalone(allocator, payload_json);
+
+    const signature_bytes = try base64UrlDecode(allocator, signature_b64);
+
+    return Token{
+        .raw = try allocator.dupe(u8, token_str),
+        .header = header,
+        .claims = claims,
+        .signature = signature_bytes,
+        .verified = true,
+    };
+}
+
+/// Check whether a decoded token is expired based on its `exp` claim.
+/// Returns `true` if the token has an `exp` claim and it is in the past.
+/// Tokens without an `exp` claim are considered non-expired.
+pub fn isExpired(token: Token) bool {
+    return token.claims.isExpired();
+}
+
+// ============================================================================
+// Public Base64url Helpers
+// ============================================================================
+
+/// Base64url-encode `data` (no padding). Caller owns returned slice.
+pub fn base64UrlEncode(allocator: std.mem.Allocator, data: []const u8) ![]const u8 {
+    const encoder = std.base64.url_safe_no_pad;
+    const size = encoder.Encoder.calcSize(data.len);
+    const buf = try allocator.alloc(u8, size);
+    _ = encoder.Encoder.encode(buf, data);
+    return buf;
+}
+
+/// Base64url-decode `data` (no padding). Caller owns returned slice.
+pub fn base64UrlDecode(allocator: std.mem.Allocator, data: []const u8) ![]const u8 {
+    const decoder = std.base64.url_safe_no_pad;
+    const size = decoder.Decoder.calcSizeForSlice(data) catch return error.InvalidBase64;
+    const buf = try allocator.alloc(u8, size);
+    decoder.Decoder.decode(buf, data) catch {
+        allocator.free(buf);
+        return error.InvalidBase64;
+    };
+    return buf;
+}
+
+// ============================================================================
+// Standalone parsing helpers (no JwtManager / self required)
+// ============================================================================
+
+/// Compute HMAC over `signing_input` and compare against `signature_b64`.
+/// Uses comptime-known Hmac type to avoid runtime type selection.
+fn verifyHmacSignature(
+    allocator: std.mem.Allocator,
+    signing_input: []const u8,
+    signature_b64: []const u8,
+    secret: []const u8,
+    comptime Hmac: type,
+) !bool {
+    var key: [Hmac.key_length]u8 = undefined;
+    if (secret.len >= Hmac.key_length) {
+        @memcpy(&key, secret[0..Hmac.key_length]);
+    } else {
+        @memset(&key, 0);
+        @memcpy(key[0..secret.len], secret);
+    }
+
+    var mac: [Hmac.mac_length]u8 = undefined;
+    var h = Hmac.init(&key);
+    h.update(signing_input);
+    h.final(&mac);
+
+    const expected_b64 = try base64UrlEncode(allocator, &mac);
+    defer allocator.free(expected_b64);
+
+    return constantTimeEqlSlice(signature_b64, expected_b64);
+}
+
+fn parseHeaderStandalone(json: []const u8) Token.Header {
+    var alg: Algorithm = .hs256;
+    if (std.mem.indexOf(u8, json, "\"alg\"")) |idx| {
+        const start = idx + 6;
+        if (start < json.len) {
+            var i = start;
+            while (i < json.len and json[i] != '"') : (i += 1) {}
+            if (i < json.len) {
+                i += 1;
+                const alg_start = i;
+                while (i < json.len and json[i] != '"') : (i += 1) {}
+                if (Algorithm.fromString(json[alg_start..i])) |a| {
+                    alg = a;
+                }
+            }
+        }
+    }
+    return Token.Header{ .alg = alg, .typ = "JWT", .kid = null };
+}
+
+fn parseClaimsStandalone(allocator: std.mem.Allocator, json: []const u8) !Claims {
+    var claims = Claims{};
+    claims.sub = try extractStringClaimStandalone(allocator, json, "sub");
+    claims.iss = try extractStringClaimStandalone(allocator, json, "iss");
+    claims.aud = try extractStringClaimStandalone(allocator, json, "aud");
+    claims.jti = try extractStringClaimStandalone(allocator, json, "jti");
+    claims.exp = extractIntClaimStandalone(json, "exp");
+    claims.nbf = extractIntClaimStandalone(json, "nbf");
+    claims.iat = extractIntClaimStandalone(json, "iat");
+
+    // Parse custom claims: iterate all keys, skip standard ones
+    const standard_keys = [_][]const u8{ "sub", "iss", "aud", "jti", "exp", "nbf", "iat" };
+    var pos: usize = 0;
+    while (pos < json.len) {
+        // Find next key: look for `"<key>"`
+        const key_start_quote = std.mem.indexOfPos(u8, json, pos, "\"") orelse break;
+        const key_start = key_start_quote + 1;
+        const key_end = std.mem.indexOfPos(u8, json, key_start, "\"") orelse break;
+        const key = json[key_start..key_end];
+
+        // Advance past the colon
+        const colon_pos = std.mem.indexOfPos(u8, json, key_end + 1, ":") orelse break;
+        const value_start = colon_pos + 1;
+
+        // Check if this is a standard claim
+        var is_standard = false;
+        for (standard_keys) |sk| {
+            if (std.mem.eql(u8, key, sk)) {
+                is_standard = true;
+                break;
+            }
+        }
+
+        if (!is_standard) {
+            // Try to extract as string value
+            if (extractStringClaimStandalone(allocator, json, key) catch null) |value| {
+                if (claims.custom == null) {
+                    claims.custom = std.StringArrayHashMapUnmanaged([]const u8).empty;
+                }
+                const owned_key = try allocator.dupe(u8, key);
+                try claims.custom.?.put(allocator, owned_key, value);
+            }
+        }
+
+        // Move past this key-value pair
+        pos = value_start;
+        // Skip the value
+        if (pos < json.len and json[pos] == ' ') pos += 1;
+        if (pos < json.len and json[pos] == '"') {
+            // String value: find closing quote
+            const v_start = pos + 1;
+            const v_end = std.mem.indexOfPos(u8, json, v_start, "\"") orelse break;
+            pos = v_end + 1;
+        } else {
+            // Number or other: skip to next comma/brace
+            while (pos < json.len and json[pos] != ',' and json[pos] != '}') : (pos += 1) {}
+        }
+    }
+
+    return claims;
+}
+
+fn extractStringClaimStandalone(allocator: std.mem.Allocator, json: []const u8, claim: []const u8) !?[]const u8 {
+    var search_buf: [64]u8 = undefined;
+    const search = std.fmt.bufPrint(&search_buf, "\"{s}\":\"", .{claim}) catch return null;
+    if (std.mem.indexOf(u8, json, search)) |idx| {
+        const start = idx + search.len;
+        var end = start;
+        while (end < json.len and json[end] != '"') : (end += 1) {}
+        if (end > start) {
+            return try allocator.dupe(u8, json[start..end]);
+        }
+    }
+    return null;
+}
+
+fn extractIntClaimStandalone(json: []const u8, claim: []const u8) ?i64 {
+    var search_buf: [64]u8 = undefined;
+    const search = std.fmt.bufPrint(&search_buf, "\"{s}\":", .{claim}) catch return null;
+    if (std.mem.indexOf(u8, json, search)) |idx| {
+        const start = idx + search.len;
+        var end = start;
+        while (end < json.len and (json[end] == ' ' or json[end] == '\t')) : (end += 1) {}
+        const num_start = end;
+        if (end < json.len and json[end] == '-') end += 1;
+        while (end < json.len and (json[end] >= '0' and json[end] <= '9')) : (end += 1) {}
+        if (end > num_start) {
+            return std.fmt.parseInt(i64, json[num_start..end], 10) catch null;
+        }
+    }
+    return null;
+}
+
+// ============================================================================
 // Helper functions
+// ============================================================================
 
 /// Extract bearer token from Authorization header
 pub fn extractBearerToken(auth_header: []const u8) ?[]const u8 {
@@ -892,6 +1194,175 @@ test "validateExpiry with Claims struct" {
     // Token with no expiry is considered valid
     const no_exp = Claims{};
     try std.testing.expect(validateExpiry(no_exp, now));
+}
+
+// ============================================================================
+// Standalone function tests
+// ============================================================================
+
+test "standalone decode splits and parses JWT" {
+    const allocator = std.testing.allocator;
+
+    // Known HS256 JWT (from jwt.io):
+    //   Header:  {"alg":"HS256","typ":"JWT"}
+    //   Payload: {"sub":"1234567890","iss":"test","exp":9999999999,"iat":1516239022}
+    //   Secret:  "your-256-bit-secret"
+    const token_str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." ++
+        "eyJzdWIiOiIxMjM0NTY3ODkwIiwiaXNzIjoidGVzdCIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxNTE2MjM5MDIyfQ." ++
+        "JD4jJSonpR3FCs-xnBECNx3MLLqVDMBJbvlHJGR9z2Y";
+
+    var token = try decode(allocator, token_str);
+    defer token.deinit(allocator);
+
+    // Header parsed correctly
+    try std.testing.expectEqual(Algorithm.hs256, token.header.alg);
+
+    // Claims parsed correctly
+    try std.testing.expectEqualStrings("1234567890", token.claims.sub.?);
+    try std.testing.expectEqualStrings("test", token.claims.iss.?);
+    try std.testing.expectEqual(@as(i64, 9999999999), token.claims.exp.?);
+    try std.testing.expectEqual(@as(i64, 1516239022), token.claims.iat.?);
+
+    // Not verified (decode only)
+    try std.testing.expect(!token.verified);
+}
+
+test "standalone decode rejects malformed tokens" {
+    const allocator = std.testing.allocator;
+
+    // Too few segments
+    try std.testing.expectError(error.InvalidToken, decode(allocator, "aaa.bbb"));
+    // Too many segments
+    try std.testing.expectError(error.InvalidToken, decode(allocator, "aaa.bbb.ccc.ddd"));
+}
+
+test "standalone verify with known HMAC-SHA256 test vector" {
+    const allocator = std.testing.allocator;
+
+    // First create a token via JwtManager so we have a known-good token+secret pair
+    const secret = "test-secret-key-for-standalone!!";
+    var manager = JwtManager.init(allocator, secret, .{
+        .clock_skew = 0,
+    });
+    defer manager.deinit();
+
+    const token_str = try manager.createToken(.{
+        .sub = "alice",
+        .exp = time.unixSeconds() + 3600,
+    });
+    defer allocator.free(token_str);
+
+    // Verify with standalone function using same secret
+    var token = try verify(allocator, token_str, secret);
+    defer token.deinit(allocator);
+
+    try std.testing.expect(token.verified);
+    try std.testing.expectEqualStrings("alice", token.claims.sub.?);
+}
+
+test "standalone verify rejects wrong secret" {
+    const allocator = std.testing.allocator;
+
+    const secret = "correct-secret-key-32-bytes!!!!!";
+    var manager = JwtManager.init(allocator, secret, .{});
+    defer manager.deinit();
+
+    const token_str = try manager.createToken(.{
+        .sub = "bob",
+        .exp = time.unixSeconds() + 3600,
+    });
+    defer allocator.free(token_str);
+
+    // Wrong secret should fail
+    const result = verify(allocator, token_str, "wrong-secret-key-32-bytes-long!!");
+    try std.testing.expectError(error.InvalidSignature, result);
+}
+
+test "isExpired checks exp claim" {
+    // Token with far-future exp is not expired
+    const valid = Token{
+        .raw = "",
+        .header = .{ .alg = .hs256 },
+        .claims = .{ .exp = 9999999999 },
+        .signature = "",
+        .verified = true,
+    };
+    try std.testing.expect(!isExpired(valid));
+
+    // Token with past exp is expired
+    const expired = Token{
+        .raw = "",
+        .header = .{ .alg = .hs256 },
+        .claims = .{ .exp = 1 },
+        .signature = "",
+        .verified = true,
+    };
+    try std.testing.expect(isExpired(expired));
+
+    // Token with no exp is not expired
+    const no_exp = Token{
+        .raw = "",
+        .header = .{ .alg = .hs256 },
+        .claims = .{},
+        .signature = "",
+        .verified = true,
+    };
+    try std.testing.expect(!isExpired(no_exp));
+}
+
+test "base64UrlEncode and base64UrlDecode roundtrip" {
+    const allocator = std.testing.allocator;
+
+    const original = "Hello, JWT world! Special chars: +/=";
+    const encoded = try base64UrlEncode(allocator, original);
+    defer allocator.free(encoded);
+
+    // base64url should not contain +, /, or =
+    for (encoded) |c| {
+        try std.testing.expect(c != '+');
+        try std.testing.expect(c != '/');
+        try std.testing.expect(c != '=');
+    }
+
+    const decoded = try base64UrlDecode(allocator, encoded);
+    defer allocator.free(decoded);
+
+    try std.testing.expectEqualStrings(original, decoded);
+}
+
+test "base64UrlDecode rejects invalid input" {
+    const allocator = std.testing.allocator;
+    // Invalid base64 characters
+    try std.testing.expectError(error.InvalidBase64, base64UrlDecode(allocator, "!!!invalid!!!"));
+}
+
+test "standalone decode with custom claims" {
+    const allocator = std.testing.allocator;
+
+    // Create a token with custom claims via the manager
+    const secret = "custom-claims-test-secret-key!!!";
+    var manager = JwtManager.init(allocator, secret, .{});
+    defer manager.deinit();
+
+    var custom = std.StringArrayHashMapUnmanaged([]const u8).empty;
+    try custom.put(allocator, try allocator.dupe(u8, "role"), try allocator.dupe(u8, "admin"));
+
+    const token_str = try manager.createToken(.{
+        .sub = "charlie",
+        .exp = time.unixSeconds() + 3600,
+        .custom = custom,
+    });
+    defer allocator.free(token_str);
+
+    // Decode and check custom claims are preserved
+    var token = try decode(allocator, token_str);
+    defer token.deinit(allocator);
+
+    try std.testing.expectEqualStrings("charlie", token.claims.sub.?);
+    try std.testing.expect(token.claims.custom != null);
+    const role = token.claims.custom.?.get("role");
+    try std.testing.expect(role != null);
+    try std.testing.expectEqualStrings("admin", role.?);
 }
 
 test {
