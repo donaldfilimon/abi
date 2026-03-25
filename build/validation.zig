@@ -20,6 +20,7 @@ pub const Steps = struct {
     secrets_tests_step: *std.Build.Step,
     pitr_tests_step: *std.Build.Step,
     agents_tests_step: *std.Build.Step,
+    multi_agent_tests_step: *std.Build.Step,
     orchestration_tests_step: *std.Build.Step,
     gateway_tests_step: *std.Build.Step,
     inference_tests_step: *std.Build.Step,
@@ -78,180 +79,15 @@ pub fn addSteps(ctx: Context) Steps {
     const mcp_tests_step = ctx.b.step("mcp-tests", "Run MCP integration tests");
     mcp_tests_step.dependOn(&ctx.b.addRunArtifact(mcp_tests).step);
 
-    const messaging_unit_tests = addModuleTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "src/messaging_mod_test.zig",
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(messaging_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const messaging_integration_tests = addIntegrationTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "test/messaging_mod.zig",
-        ctx.abi_module,
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(messaging_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const messaging_tests_step = ctx.b.step("messaging-tests", "Run messaging-focused unit and integration tests");
-    messaging_tests_step.dependOn(&ctx.b.addRunArtifact(messaging_unit_tests).step);
-    messaging_tests_step.dependOn(&ctx.b.addRunArtifact(messaging_integration_tests).step);
-
-    const secrets_unit_tests = addModuleTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "src/secrets_mod_test.zig",
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(secrets_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const secrets_integration_tests = addIntegrationTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "test/secrets_mod.zig",
-        ctx.abi_module,
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(secrets_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const secrets_tests_step = ctx.b.step("secrets-tests", "Run secrets-focused unit and integration tests");
-    secrets_tests_step.dependOn(&ctx.b.addRunArtifact(secrets_unit_tests).step);
-    secrets_tests_step.dependOn(&ctx.b.addRunArtifact(secrets_integration_tests).step);
-
-    const pitr_unit_tests = addModuleTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "src/pitr_mod_test.zig",
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(pitr_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const pitr_integration_tests = addIntegrationTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "test/pitr_mod.zig",
-        ctx.abi_module,
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(pitr_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const pitr_tests_step = ctx.b.step("pitr-tests", "Run PITR-focused unit and integration tests");
-    pitr_tests_step.dependOn(&ctx.b.addRunArtifact(pitr_unit_tests).step);
-    pitr_tests_step.dependOn(&ctx.b.addRunArtifact(pitr_integration_tests).step);
-
-    const agents_unit_tests = addModuleTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "src/agents_mod_test.zig",
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(agents_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const agents_integration_tests = addIntegrationTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "test/agents_mod.zig",
-        ctx.abi_module,
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(agents_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const agents_tests_step = ctx.b.step("agents-tests", "Run agents-focused unit and integration tests");
-    agents_tests_step.dependOn(&ctx.b.addRunArtifact(agents_unit_tests).step);
-    agents_tests_step.dependOn(&ctx.b.addRunArtifact(agents_integration_tests).step);
-
-    const orchestration_unit_tests = addModuleTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "src/orchestration_mod_test.zig",
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(orchestration_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const orchestration_integration_tests = addIntegrationTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "test/orchestration_mod.zig",
-        ctx.abi_module,
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(orchestration_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const orchestration_tests_step = ctx.b.step("orchestration-tests", "Run orchestration-focused unit and integration tests");
-    orchestration_tests_step.dependOn(&ctx.b.addRunArtifact(orchestration_unit_tests).step);
-    orchestration_tests_step.dependOn(&ctx.b.addRunArtifact(orchestration_integration_tests).step);
-
-    const gateway_unit_tests = addModuleTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "src/gateway_mod_test.zig",
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(gateway_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const gateway_integration_tests = addIntegrationTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "test/gateway_mod.zig",
-        ctx.abi_module,
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(gateway_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const gateway_tests_step = ctx.b.step("gateway-tests", "Run gateway-focused unit and integration tests");
-    gateway_tests_step.dependOn(&ctx.b.addRunArtifact(gateway_unit_tests).step);
-    gateway_tests_step.dependOn(&ctx.b.addRunArtifact(gateway_integration_tests).step);
-
-    const inference_unit_tests = addModuleTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "src/inference_mod_test.zig",
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(inference_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const inference_integration_tests = addIntegrationTests(
-        ctx.b,
-        ctx.target,
-        ctx.optimize,
-        "test/inference_mod.zig",
-        ctx.abi_module,
-        ctx.build_options_module,
-    );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(inference_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
-    const inference_tests_step = ctx.b.step("inference-tests", "Run inference-focused unit and integration tests");
-    inference_tests_step.dependOn(&ctx.b.addRunArtifact(inference_unit_tests).step);
-    inference_tests_step.dependOn(&ctx.b.addRunArtifact(inference_integration_tests).step);
+    // Feature-specific test lanes: unit tests (src/) + integration tests (test/)
+    const messaging_tests_step = addFeatureTestLane(ctx, "messaging", "messaging");
+    const secrets_tests_step = addFeatureTestLane(ctx, "secrets", "secrets");
+    const pitr_tests_step = addFeatureTestLane(ctx, "pitr", "PITR");
+    const agents_tests_step = addFeatureTestLane(ctx, "agents", "agents");
+    const multi_agent_tests_step = addFeatureTestLane(ctx, "multi_agent", "multi-agent");
+    const orchestration_tests_step = addFeatureTestLane(ctx, "orchestration", "orchestration");
+    const gateway_tests_step = addFeatureTestLane(ctx, "gateway", "gateway");
+    const inference_tests_step = addFeatureTestLane(ctx, "inference", "inference");
 
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     const check_step = ctx.b.step("check", "Run lint + test + parity");
@@ -274,6 +110,7 @@ pub fn addSteps(ctx: Context) Steps {
         .secrets_tests_step = secrets_tests_step,
         .pitr_tests_step = pitr_tests_step,
         .agents_tests_step = agents_tests_step,
+        .multi_agent_tests_step = multi_agent_tests_step,
         .orchestration_tests_step = orchestration_tests_step,
         .gateway_tests_step = gateway_tests_step,
         .inference_tests_step = inference_tests_step,
@@ -359,6 +196,24 @@ fn addTuiTests(ctx: Context) void {
     const tui_tests_step = ctx.b.step("tui-tests", "Run TUI tests with feat-tui=true");
     tui_tests_step.dependOn(&ctx.b.addRunArtifact(tui_lib_tests).step);
     tui_tests_step.dependOn(&ctx.b.addRunArtifact(tui_integration_tests).step);
+}
+
+/// Add a paired unit + integration test step for a feature.
+/// Expects "src/{name}_mod_test.zig" and "test/{name}_mod.zig" to exist.
+/// Creates a build step named "{display_name}-tests".
+fn addFeatureTestLane(ctx: Context, comptime name: []const u8, comptime display_name: []const u8) *std.Build.Step {
+    const unit_tests = addModuleTests(ctx.b, ctx.target, ctx.optimize, "src/" ++ name ++ "_mod_test.zig", ctx.build_options_module);
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const integration_tests = addIntegrationTests(ctx.b, ctx.target, ctx.optimize, "test/" ++ name ++ "_mod.zig", ctx.abi_module, ctx.build_options_module);
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const step = ctx.b.step(display_name ++ "-tests", "Run " ++ display_name ++ "-focused unit and integration tests");
+    step.dependOn(&ctx.b.addRunArtifact(unit_tests).step);
+    step.dependOn(&ctx.b.addRunArtifact(integration_tests).step);
+    return step;
 }
 
 fn addParityTests(
