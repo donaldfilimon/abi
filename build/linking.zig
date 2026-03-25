@@ -13,6 +13,18 @@ pub fn linkDarwinArtifact(
     feat_gpu: bool,
     gpu_metal: bool,
 ) void {
+    const b = artifact.step.owner;
+
+    // On macOS 26+ with a patched SDK overlay (--sysroot), add library and framework
+    // search paths so zig's linker can find -lobjc, -framework IOKit, etc.
+    // -L gets sysroot prepended by zig, so use relative /usr/lib.
+    // -F does NOT get sysroot prepended, so use the absolute overlay path.
+    if (b.sysroot) |sysroot| {
+        artifact.root_module.addLibraryPath(.{ .cwd_relative = "/usr/lib" });
+        const fw_path = std.fmt.allocPrint(b.allocator, "{s}/System/Library/Frameworks", .{sysroot}) catch @panic("OOM");
+        artifact.root_module.addFrameworkPath(.{ .cwd_relative = fw_path });
+    }
+
     // Common libs for all roles except static_lib (which has its own set)
     if (role != .static_lib) {
         linkDarwinCommon(artifact, feat_gpu, true);
