@@ -4,25 +4,14 @@
 //! strict mode that errors on missing variables.
 
 const std = @import("std");
+const types = @import("types.zig");
+const Token = types.Token;
 const parser = @import("parser.zig");
-const Token = parser.Token;
 const string_utils = @import("../../../foundation/mod.zig").utils;
 const json_utils = @import("../../../foundation/mod.zig").utils.json;
 
-pub const RenderError = error{
-    MissingVariable,
-    InvalidValueType,
-    OutOfMemory,
-};
-
-pub const RenderOptions = struct {
-    /// Error on missing variables (otherwise use empty string).
-    strict: bool = false,
-    /// String to use for missing variables when not strict.
-    missing_placeholder: []const u8 = "",
-    /// Automatically escape HTML entities.
-    auto_escape_html: bool = false,
-};
+pub const RenderError = types.RenderError;
+pub const RenderOptions = types.RenderOptions;
 
 pub const Renderer = struct {
     allocator: std.mem.Allocator,

@@ -4,26 +4,12 @@
 //! providers (OpenAI, HuggingFace, Ollama, Local) to be used interchangeably.
 
 const std = @import("std");
+const types = @import("types.zig");
 
-/// Embedding backend errors.
-pub const BackendError = error{
-    /// Backend not initialized or unavailable.
-    BackendNotAvailable,
-    /// API key or credentials missing.
-    MissingCredentials,
-    /// Network or API request failed.
-    RequestFailed,
-    /// Response could not be parsed.
-    InvalidResponse,
-    /// Rate limit exceeded.
-    RateLimitExceeded,
-    /// Input exceeds token limit.
-    TokenLimitExceeded,
-    /// Model not found.
-    ModelNotFound,
-    /// Out of memory.
-    OutOfMemory,
-};
+// Re-export shared types from types.zig (canonical definitions).
+pub const BackendError = types.BackendError;
+pub const BackendType = types.BackendType;
+pub const BackendConfig = types.BackendConfig;
 
 /// Function signature for single text embedding.
 pub const EmbedFn = *const fn (
@@ -44,18 +30,7 @@ pub const EmbedBatchFn = *const fn (
 /// Function signature for backend cleanup.
 pub const DeinitFn = *const fn (ctx: *anyopaque) void;
 
-/// Backend type enumeration.
-pub const BackendType = enum {
-    openai,
-    huggingface,
-    ollama,
-    local,
-    custom,
-
-    pub fn toString(self: BackendType) []const u8 {
-        return @tagName(self);
-    }
-};
+// BackendType is re-exported from types.zig above.
 
 /// Embedding backend interface using vtable pattern.
 /// This allows different backend implementations to be used interchangeably.
@@ -105,23 +80,7 @@ pub const EmbeddingBackend = struct {
     }
 };
 
-/// Backend configuration options.
-pub const BackendConfig = struct {
-    /// API key or token for authentication.
-    api_key: ?[]const u8 = null,
-    /// Base URL for API requests.
-    base_url: ?[]const u8 = null,
-    /// Model identifier.
-    model: []const u8 = "default",
-    /// Output dimensions.
-    dimensions: usize = 384,
-    /// Request timeout in milliseconds.
-    timeout_ms: u32 = 30_000,
-    /// Maximum batch size.
-    max_batch_size: usize = 100,
-    /// Enable caching.
-    enable_cache: bool = true,
-};
+// BackendConfig is re-exported from types.zig above.
 
 // ============================================================================
 // Tests
