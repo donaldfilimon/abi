@@ -28,6 +28,11 @@ pub const Steps = struct {
     network_tests_step: *std.Build.Step,
     web_tests_step: *std.Build.Step,
     observability_tests_step: *std.Build.Step,
+    search_tests_step: *std.Build.Step,
+    auth_tests_step: *std.Build.Step,
+    storage_tests_step: *std.Build.Step,
+    cloud_tests_step: *std.Build.Step,
+    cache_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
 };
 
@@ -96,6 +101,11 @@ pub fn addSteps(ctx: Context) Steps {
     const network_tests_step = addFeatureTestLane(ctx, "network", "network");
     const web_tests_step = addFeatureTestLane(ctx, "web", "web");
     const observability_tests_step = addFeatureTestLane(ctx, "observability", "observability");
+    const search_tests_step = addFeatureTestLane(ctx, "search", "search");
+    const auth_tests_step = addFeatureTestLane(ctx, "auth", "auth");
+    const storage_tests_step = addFeatureTestLane(ctx, "storage", "storage");
+    const cloud_tests_step = addFeatureTestLane(ctx, "cloud", "cloud");
+    const cache_tests_step = addFeatureTestLane(ctx, "cache", "cache");
 
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     const check_step = ctx.b.step("check", "Run lint + test + parity");
@@ -126,6 +136,11 @@ pub fn addSteps(ctx: Context) Steps {
         .network_tests_step = network_tests_step,
         .web_tests_step = web_tests_step,
         .observability_tests_step = observability_tests_step,
+        .search_tests_step = search_tests_step,
+        .auth_tests_step = auth_tests_step,
+        .storage_tests_step = storage_tests_step,
+        .cloud_tests_step = cloud_tests_step,
+        .cache_tests_step = cache_tests_step,
         .check_step = check_step,
     };
 }
