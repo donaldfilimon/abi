@@ -338,8 +338,8 @@ test "engine connector backend" {
     defer result.deinit(allocator);
 
     try std.testing.expect(result.text.len > 0);
-    // model_id "test-model" has no slash, so provider resolves to "echo"
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "[echo/test-model]") != null);
+    // model_id "test-model" has no slash → provider = null → UnsupportedProvider → echo fallback
+    try std.testing.expect(std.mem.indexOf(u8, result.text, "[test-model] Processing:") != null);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 

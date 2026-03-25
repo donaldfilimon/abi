@@ -11,6 +11,19 @@
 const std = @import("std");
 const time = @import("../time.zig");
 
+/// Wall-clock Unix timestamp in seconds (CLOCK_REALTIME).
+/// Used for JWT exp/nbf validation — must not drift like the monotonic app-start clock.
+fn wallClockSeconds() i64 {
+    if (@hasDecl(std.posix, "system")) {
+        var ts: std.posix.timespec = undefined;
+        if (std.posix.errno(std.posix.system.clock_gettime(.REALTIME, &ts)) == .SUCCESS) {
+            return @intCast(@max(ts.sec, 0));
+        }
+    }
+    // Fallback: monotonic approximation (may return 0 in the first second)
+    return wallClockSeconds();
+}
+
 /// Constant-time comparison for variable-length slices (timing-attack resistant).
 /// Uses `std.crypto.utils.timingSafeEql` for the fixed-length comparison after
 /// an early-exit length check (length itself is not secret).
@@ -99,7 +112,7 @@ pub const Claims = struct {
     /// Check if the token is expired
     pub fn isExpired(self: Claims) bool {
         if (self.exp) |exp| {
-            return time.unixSeconds() > exp;
+            return wallClockSeconds() > exp;
         }
         return false;
     }
@@ -107,14 +120,14 @@ pub const Claims = struct {
     /// Check if the token is valid yet (nbf check)
     pub fn isValidYet(self: Claims) bool {
         if (self.nbf) |nbf| {
-            return time.unixSeconds() >= nbf;
+            return wallClockSeconds() >= nbf;
         }
         return true;
     }
 
     /// Validate all time-based claims
     pub fn validateTime(self: Claims, clock_skew: i64) bool {
-        const now = time.unixSeconds();
+        const now = wallClockSeconds();
 
         if (self.exp) |exp| {
             if (now > exp + clock_skew) return false;
@@ -231,7 +244,7 @@ pub const JwtManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.unixSeconds();
+        const now = wallClockSeconds();
 
         // Build claims with defaults
         var final_claims = claims;
@@ -433,7 +446,7 @@ pub const JwtManager = struct {
             try self.cleanupBlacklist();
         }
 
-        const exp = token.claims.exp orelse time.unixSeconds() + 86400;
+        const exp = token.claims.exp orelse wallClockSeconds() + 86400;
         try self.blacklist.put(self.allocator, try self.allocator.dupe(u8, jti), exp);
 
         self.stats.tokens_blacklisted += 1;
@@ -699,7 +712,7 @@ pub const JwtManager = struct {
     }
 
     fn cleanupBlacklist(self: *JwtManager) !void {
-        const now = time.unixSeconds();
+        const now = wallClockSeconds();
         // Single-pass reverse scan: swapRemove from back to front avoids
         // shifting and doesn't need a temporary key list (zero allocations).
         const keys = self.blacklist.keys();
@@ -1092,7 +1105,7 @@ test "jwt create and verify" {
     // Create token
     const token_str = try manager.createToken(.{
         .sub = "user123",
-        .exp = time.unixSeconds() + 3600,
+        .exp = wallClockSeconds() + 3600,
     });
     defer allocator.free(token_str);
 
@@ -1122,7 +1135,7 @@ test "jwt expiration" {
     // Create expired token
     const token_str = try manager.createToken(.{
         .sub = "user123",
-        .exp = time.unixSeconds() - 100, // Expired 100 seconds ago
+        .exp = wallClockSeconds() - 100, // Expired 100 seconds ago
     });
     defer allocator.free(token_str);
 
@@ -1248,7 +1261,7 @@ test "standalone verify with known HMAC-SHA256 test vector" {
 
     const token_str = try manager.createToken(.{
         .sub = "alice",
-        .exp = time.unixSeconds() + 3600,
+        .exp = wallClockSeconds() + 3600,
     });
     defer allocator.free(token_str);
 
@@ -1269,7 +1282,7 @@ test "standalone verify rejects wrong secret" {
 
     const token_str = try manager.createToken(.{
         .sub = "bob",
-        .exp = time.unixSeconds() + 3600,
+        .exp = wallClockSeconds() + 3600,
     });
     defer allocator.free(token_str);
 
@@ -1346,10 +1359,18 @@ test "standalone decode with custom claims" {
 
     var custom = std.StringArrayHashMapUnmanaged([]const u8).empty;
     try custom.put(allocator, try allocator.dupe(u8, "role"), try allocator.dupe(u8, "admin"));
+    defer {
+        var it = custom.iterator();
+        while (it.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        custom.deinit(allocator);
+    }
 
     const token_str = try manager.createToken(.{
         .sub = "charlie",
-        .exp = time.unixSeconds() + 3600,
+        .exp = wallClockSeconds() + 3600,
         .custom = custom,
     });
     defer allocator.free(token_str);
