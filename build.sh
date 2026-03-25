@@ -178,6 +178,8 @@ if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
     if [[ -x "$BUILD_BIN" ]]; then
         echo "[darwin-wrapper] Build runner relinked. Running build..." >&2
         if "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" $SYSROOT_ARGS "$@" 2>"$TEST_STDERR"; then
+            # Show build output (zig writes to stderr)
+            cat "$TEST_STDERR" >&2
             rm -f "$TEST_STDERR"
             if [ "$AUTO_LINK" = true ]; then
                 "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true

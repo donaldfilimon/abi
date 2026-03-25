@@ -183,6 +183,14 @@ pub const Server = struct {
         return AcpError.FeatureDisabled;
     }
 
+    /// Stub: always returns error.FeatureDisabled.
+    pub fn updateTaskStatus(self: *Server, id: []const u8, new_status: TaskStatus) AcpError!void {
+        _ = self;
+        _ = id;
+        _ = new_status;
+        return AcpError.FeatureDisabled;
+    }
+
     /// Stub: always returns null.
     pub fn getTask(self: *Server, id: []const u8) ?*Task {
         _ = self;

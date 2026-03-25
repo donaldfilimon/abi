@@ -9,11 +9,13 @@ pub const HttpError = server.HttpError;
 pub const TransitionError = server.TransitionError;
 
 pub fn isEnabled() bool {
-    return true;
+    const build_options = @import("build_options");
+    return build_options.feat_acp;
 }
 
 pub fn isInitialized() bool {
-    return true;
+    const build_options = @import("build_options");
+    return build_options.feat_acp;
 }
 
 test {

@@ -22,6 +22,7 @@ pub const Server = struct {
     allocator: std.mem.Allocator,
     tools: std.ArrayListUnmanaged(RegisteredTool),
     resources: std.ArrayListUnmanaged(RegisteredResource),
+    subscriptions: std.StringHashMapUnmanaged(bool),
     server_name: []const u8,
     server_version: []const u8,
     initialized: bool,
@@ -41,6 +42,7 @@ pub const Server = struct {
             .allocator = allocator,
             .tools = .empty,
             .resources = .empty,
+            .subscriptions = .empty,
             .server_name = name,
             .server_version = version,
             .initialized = false,
@@ -51,6 +53,7 @@ pub const Server = struct {
     pub fn deinit(self: *Self) void {
         self.tools.deinit(self.allocator);
         self.resources.deinit(self.allocator);
+        self.subscriptions.deinit(self.allocator);
     }
 
     /// Register a tool with the server
@@ -61,6 +64,32 @@ pub const Server = struct {
     /// Register a resource with the server
     pub fn addResource(self: *Self, resource: RegisteredResource) !void {
         try self.resources.append(self.allocator, resource);
+    }
+
+    /// Subscribe to resource change notifications for a given URI.
+    pub fn subscribeResource(self: *Self, uri: []const u8) !bool {
+        const gop = try self.subscriptions.getOrPut(self.allocator, uri);
+        if (gop.found_existing) return false;
+        gop.value_ptr.* = true;
+        return true;
+    }
+
+    /// Unsubscribe from resource change notifications.
+    pub fn unsubscribeResource(self: *Self, uri: []const u8) bool {
+        return self.subscriptions.remove(uri);
+    }
+
+    /// Check if a URI is subscribed.
+    pub fn isSubscribed(self: *Self, uri: []const u8) bool {
+        return self.subscriptions.contains(uri);
+    }
+
+    /// Notify subscribers that a resource has changed.
+    pub fn notifyResourceChanged(self: *Self, uri: []const u8, data: anytype) !void {
+        _ = data;
+        if (!self.isSubscribed(uri)) return;
+        // In stdio mode, emit a JSON-RPC notification
+        std.log.info("MCP: resource changed: {s}", .{uri});
     }
 
     /// Run the server loop — reads from stdin, writes to stdout.

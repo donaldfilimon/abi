@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
-Zig version is pinned in `.zigversion`. The zig version manager auto-downloads the correct version:
+Zig version is pinned in `.zigversion` (currently `0.16.0-dev.2979+e93834410`). The zig version manager auto-downloads the correct version:
 
 ```bash
 tools/zigup.sh --status    # Print zig path (auto-install if missing)
@@ -36,6 +36,14 @@ Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
 To make zig and zls available globally, run `tools/zigup.sh --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Quick Verify (fresh clone)
+
+```bash
+tools/zigup.sh --bootstrap         # Install zig + zls, symlink, verify
+./build.sh test -Dfeat-gpu=false --summary all  # macOS 26.4+
+# or: zig build test --summary all               # Linux / older macOS
 ```
 
 ### Claude Code Plugin
@@ -83,11 +91,6 @@ zig build cli                      # Build ABI CLI binary (zig-out/bin/abi)
 zig build doctor                   # Report build configuration and diagnostics
 ```
 
-```bash
-# macOS 26.4+ test workaround (LLD cannot resolve Accelerate framework):
-./build.sh test -Dfeat-gpu=false --summary all
-```
-
 Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
 
 ### CLI Commands
@@ -110,28 +113,19 @@ abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)
 abi help               # Full help reference
 ```
 
-On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binaries. Use `./build.sh` which auto-relinks with Apple's native linker. This applies to **all** build steps including tests: `./build.sh test --summary all`. The wrapper also auto-retries with `-Dfeat-gpu=false` when Accelerate framework symbols fail to resolve. On Linux / older macOS, `zig build` works directly.
+`./build.sh` is a macOS 26.4+ (Darwin 25.x) wrapper that patches Zig's LLD linker incompatibility with the macOS SDK. It passes all arguments through to `zig build` (e.g., `./build.sh test --summary all`, `./build.sh -Dfeat-gpu=false`). The `--link` flag additionally symlinks zig+zls to `~/.local/bin`. On Linux / older macOS, `zig build` works directly.
 
 ### Running Single Tests
-
-To run a specific test or subset of tests:
 
 ```bash
 # Run a specific test by name pattern
 zig build test --summary all -- --test-filter "test_name_pattern"
 
-# Run focused test lane for a specific feature
-zig build messaging-tests      # messaging unit + integration tests
-zig build secrets-tests          # secrets unit + integration tests
-zig build pitr-tests             # PITR unit + integration tests
-zig build agents-tests           # agents unit + integration tests
-zig build multi-agent-tests      # multi-agent unit + integration tests
-zig build orchestration-tests    # orchestration unit + integration tests
-zig build gateway-tests          # gateway unit + integration tests
-zig build inference-tests        # inference unit + integration tests
-zig build cli-tests              # CLI tests
-zig build tui-tests              # TUI tests
+# On macOS 26.4+:
+./build.sh test --summary all -- --test-filter "test_name_pattern"
 ```
+
+Focused test lanes (e.g., `zig build messaging-tests`) are listed in Build Commands above.
 
 ### Feature Flags
 
