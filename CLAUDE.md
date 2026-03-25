@@ -11,6 +11,8 @@ Zig version is pinned in `.zigversion`. The zig version manager auto-downloads t
 ```bash
 tools/zigup.sh --status    # Print zig path (auto-install if missing)
 tools/zigup.sh --link      # Symlink zig + zls into ~/.local/bin
+tools/zigup.sh --bootstrap # One-command project setup (install, link, verify)
+tools/zigup.sh --doctor    # Toolchain health check (versions, PATH, platform)
 # Also: --install, --unlink, --update, --check, --clean
 ```
 
@@ -69,6 +71,11 @@ zig build lib                      # Build static library artifact
 zig build mcp                      # Build MCP stdio server (zig-out/bin/abi-mcp)
 zig build cli                      # Build ABI CLI binary (zig-out/bin/abi)
 zig build doctor                   # Report build configuration and diagnostics
+```
+
+```bash
+# macOS 26.4+ test workaround (LLD cannot resolve Accelerate framework):
+./build.sh test -Dfeat-gpu=false --summary all
 ```
 
 Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
@@ -280,6 +287,8 @@ The `abi chat` CLI command wires the profile router to the inference engine: rou
 - IO operations: use `std.Io.Threaded` + `std.Io.Dir.cwd()` pattern (not the removed `std.fs.cwd()`)
 - `extern` declarations in platform-gated structs: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`, not just OS. Otherwise symbols leak into feature-disabled builds (ref: `accelerate.zig` fix).
 - `foundation.time.timestampSec()` is monotonic from process start — returns 0 in the first second. Use `std.posix.system.clock_gettime(.REALTIME, ...)` for wall-clock timestamps in persisted data.
+- `std.process.getEnvVarOwned` removed: use `b.graph.environ_map.get("KEY")` in build.zig
+- `std.mem.trimRight` renamed to `std.mem.trimEnd` in Zig 0.16
 
 ## Skill Overrides
 
