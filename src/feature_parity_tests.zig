@@ -85,6 +85,40 @@ comptime {
     assertParity("connectors", @import("connectors/mod.zig"), @import("connectors/stub.zig"));
     assertParity("tasks", @import("tasks/mod.zig"), @import("tasks/stub.zig"));
     assertParity("inference", @import("inference/mod.zig"), @import("inference/stub.zig"));
+
+    // ── AI sub-feature parity assertions ────────────────────────────────
+    // Note: ai/aviva lacks stub.zig — skip until stub is created.
+    assertParity("ai/abi", @import("features/ai/abi/mod.zig"), @import("features/ai/abi/stub.zig"));
+    assertParity("ai/abbey", @import("features/ai/abbey/mod.zig"), @import("features/ai/abbey/stub.zig"));
+    assertParity("ai/compliance", @import("features/ai/compliance/mod.zig"), @import("features/ai/compliance/stub.zig"));
+    assertParity("ai/agents", @import("features/ai/agents/mod.zig"), @import("features/ai/agents/stub.zig"));
+    assertParity("ai/constitution", @import("features/ai/constitution/mod.zig"), @import("features/ai/constitution/stub.zig"));
+    assertParity("ai/context_engine", @import("features/ai/context_engine/mod.zig"), @import("features/ai/context_engine/stub.zig"));
+    assertParity("ai/coordination", @import("features/ai/coordination/mod.zig"), @import("features/ai/coordination/stub.zig"));
+    assertParity("ai/core", @import("features/ai/core/mod.zig"), @import("features/ai/core/stub.zig"));
+    assertParity("ai/database", @import("features/ai/database/mod.zig"), @import("features/ai/database/stub.zig"));
+    assertParity("ai/documents", @import("features/ai/documents/mod.zig"), @import("features/ai/documents/stub.zig"));
+    assertParity("ai/embeddings", @import("features/ai/embeddings/mod.zig"), @import("features/ai/embeddings/stub.zig"));
+    assertParity("ai/eval", @import("features/ai/eval/mod.zig"), @import("features/ai/eval/stub.zig"));
+    assertParity("ai/feedback", @import("features/ai/feedback/mod.zig"), @import("features/ai/feedback/stub.zig"));
+    assertParity("ai/explore", @import("features/ai/explore/mod.zig"), @import("features/ai/explore/stub.zig"));
+    assertParity("ai/federated", @import("features/ai/federated/mod.zig"), @import("features/ai/federated/stub.zig"));
+    assertParity("ai/llm", @import("features/ai/llm/mod.zig"), @import("features/ai/llm/stub.zig"));
+    assertParity("ai/memory", @import("features/ai/memory/mod.zig"), @import("features/ai/memory/stub.zig"));
+    assertParity("ai/models", @import("features/ai/models/mod.zig"), @import("features/ai/models/stub.zig"));
+    assertParity("ai/multi_agent", @import("features/ai/multi_agent/mod.zig"), @import("features/ai/multi_agent/stub.zig"));
+    assertParity("ai/orchestration", @import("features/ai/orchestration/mod.zig"), @import("features/ai/orchestration/stub.zig"));
+    assertParity("ai/profile", @import("features/ai/profile/mod.zig"), @import("features/ai/profile/stub.zig"));
+    assertParity("ai/profiles", @import("features/ai/profiles/mod.zig"), @import("features/ai/profiles/stub.zig"));
+    assertParity("ai/prompts", @import("features/ai/prompts/mod.zig"), @import("features/ai/prompts/stub.zig"));
+    assertParity("ai/rag", @import("features/ai/rag/mod.zig"), @import("features/ai/rag/stub.zig"));
+    assertParity("ai/reasoning", @import("features/ai/reasoning/mod.zig"), @import("features/ai/reasoning/stub.zig"));
+    assertParity("ai/streaming", @import("features/ai/streaming/mod.zig"), @import("features/ai/streaming/stub.zig"));
+    assertParity("ai/templates", @import("features/ai/templates/mod.zig"), @import("features/ai/templates/stub.zig"));
+    assertParity("ai/tools", @import("features/ai/tools/mod.zig"), @import("features/ai/tools/stub.zig"));
+    assertParity("ai/training", @import("features/ai/training/mod.zig"), @import("features/ai/training/stub.zig"));
+    assertParity("ai/transformer", @import("features/ai/transformer/mod.zig"), @import("features/ai/transformer/stub.zig"));
+    assertParity("ai/vision", @import("features/ai/vision/mod.zig"), @import("features/ai/vision/stub.zig"));
 }
 
 test "mod/stub parity check compiled successfully" {

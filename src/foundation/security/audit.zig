@@ -767,7 +767,7 @@ test "audit logger basic operations" {
 test "audit hash chain integrity" {
     const allocator = std.testing.allocator;
     var hmac_key: [32]u8 = undefined;
-    csprng.fillRandom(&hmac_key) catch unreachable;
+    try csprng.fillRandom(&hmac_key);
 
     var logger = AuditLogger.init(allocator, .{
         .enable_hash_chain = true,

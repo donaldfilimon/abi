@@ -91,6 +91,20 @@ pub const DistributedTrainer = types.DistributedTrainer;
 
 // ── Submodule re-exports ───────────────────────────────────────────────────
 
+pub const checkpoint = struct {
+    pub const Checkpoint = types.Checkpoint;
+    pub const CheckpointStore = types.CheckpointStore;
+    pub const CheckpointView = types.CheckpointView;
+};
+pub const llm_checkpoint = struct {
+    pub const LlmCheckpoint = types.LlmCheckpoint;
+    pub const LlmCheckpointView = types.LlmCheckpointView;
+};
+pub const gradient = struct {
+    pub const GradientAccumulator = types.GradientAccumulator;
+};
+pub const training_utils = struct {};
+
 pub const loss = struct {
     pub const CrossEntropyLoss = types.CrossEntropyLoss;
     pub const MSELoss = types.MSELoss;

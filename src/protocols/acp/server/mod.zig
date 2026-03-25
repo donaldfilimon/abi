@@ -66,7 +66,8 @@ pub const Server = struct {
     /// Create a new task from a message
     pub fn createTask(self: *Server, message: []const u8) ![]const u8 {
         var id_buf: [32]u8 = undefined;
-        const id_str = std.fmt.bufPrint(&id_buf, "task-{d}", .{self.next_task_id}) catch "task-0";
+        const id_str = std.fmt.bufPrint(&id_buf, "task-{d}", .{self.next_task_id}) catch
+            return error.OutOfMemory;
         self.next_task_id += 1;
 
         const id = try self.allocator.dupe(u8, id_str);

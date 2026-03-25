@@ -131,6 +131,21 @@ pub const registerNetworkTools = network_tools.registerAll;
 pub const SystemTools = system_tools;
 pub const registerSystemTools = system_tools.registerAll;
 
+pub const mcp_tools = struct {
+    pub fn registerAll(_: *ToolRegistry) !void {
+        return error.FeatureDisabled;
+    }
+};
+pub const deep_research = struct {
+    pub fn registerAll(_: *ToolRegistry) !void {
+        return error.FeatureDisabled;
+    }
+};
+pub const McpTools = mcp_tools;
+pub const registerMcpTools = mcp_tools.registerAll;
+pub const DeepResearchTools = deep_research;
+pub const registerDeepResearchTools = deep_research.registerAll;
+
 pub fn registerCodeAgentTools(_: *ToolRegistry) !void {
     return error.FeatureDisabled;
 }

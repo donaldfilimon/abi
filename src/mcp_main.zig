@@ -21,12 +21,13 @@ pub fn main(init: std.process.Init) !void {
     // Create combined MCP server with all tools
     var server = mcp.createCombinedServer(allocator, version) catch |err| {
         std.log.err("Failed to create MCP server: {}", .{err});
-        return;
+        return err;
     };
     defer server.deinit();
 
     // Run stdio event loop with Zig 0.16 I/O
     server.run(init.io) catch |err| {
         std.log.err("MCP server error: {}", .{err});
+        return err;
     };
 }

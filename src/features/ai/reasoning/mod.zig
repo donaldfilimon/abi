@@ -16,6 +16,8 @@ pub const engine = @import("engine.zig");
 pub const ReasoningChain = engine.ReasoningChain;
 pub const ReasoningStep = engine.ReasoningStep;
 pub const StepType = engine.StepType;
+pub const ConfidenceLevel = engine.ConfidenceLevel;
+pub const Confidence = engine.Confidence;
 
 /// Configuration for reasoning engine
 pub const ReasoningConfig = ai_config.AiConfig.ReasoningConfig;
@@ -46,6 +48,11 @@ pub const Context = struct {
         return ReasoningChain.init(self.allocator, query);
     }
 };
+
+/// Whether the reasoning feature is enabled in this build.
+pub fn isEnabled() bool {
+    return true;
+}
 
 // ============================================================================
 // Tests
