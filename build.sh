@@ -31,7 +31,8 @@ SYSROOT="$(xcrun --show-sdk-path 2>/dev/null || echo "/Applications/Xcode.app/Co
 MACOS_VER="26.4"
 
 STDERR_FILE="$(mktemp)"
-trap 'rm -f "$STDERR_FILE"' EXIT
+TEST_STDERR="$(mktemp)"
+trap 'rm -f "$STDERR_FILE" "$TEST_STDERR"' EXIT
 
 build_runner_arch() {
     local build_bin="$1"
@@ -172,11 +173,31 @@ if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
 
     if [[ -x "$BUILD_BIN" ]]; then
         echo "[darwin-wrapper] Build runner relinked. Running build..." >&2
-        "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" "$@"
-        if [ "$AUTO_LINK" = true ]; then
-            "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+        if "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" "$@" 2>"$TEST_STDERR"; then
+            rm -f "$TEST_STDERR"
+            if [ "$AUTO_LINK" = true ]; then
+                "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+            fi
+            exit 0
         fi
-        exit 0
+
+        # Check if failure is due to Accelerate/vDSP link errors
+        if grep -q "undefined symbol:.*vDSP\|undefined symbol:.*vvexpf\|undefined symbol:.*vvsqrtf" "$TEST_STDERR" 2>/dev/null; then
+            echo "[darwin-wrapper] LLD cannot resolve Accelerate symbols on macOS 26.4+." >&2
+            echo "[darwin-wrapper] Retrying with -Dfeat-gpu=false ..." >&2
+            rm -f "$TEST_STDERR"
+            "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" -Dfeat-gpu=false "$@"
+            EXIT_CODE=$?
+            if [ "$AUTO_LINK" = true ]; then
+                "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+            fi
+            exit $EXIT_CODE
+        fi
+
+        # Other failure — print captured stderr and exit
+        cat "$TEST_STDERR" >&2
+        rm -f "$TEST_STDERR"
+        exit 1
     else
         echo "[darwin-wrapper] Build runner binary not created" >&2
         exit 1
