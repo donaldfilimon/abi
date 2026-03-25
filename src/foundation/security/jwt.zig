@@ -11,6 +11,18 @@
 const std = @import("std");
 const time = @import("../time.zig");
 
+/// Returns the current real Unix epoch time in seconds using CLOCK_REALTIME.
+/// Unlike foundation.time.unixSeconds() (which is monotonic from process start),
+/// this returns the actual wall-clock timestamp required for JWT exp comparisons.
+fn wallClockSecondsReal() i64 {
+    var ts: std.posix.timespec = undefined;
+    if (std.posix.errno(std.posix.system.clock_gettime(.REALTIME, &ts)) != .SUCCESS) {
+        // Fallback: monotonic time is better than 0 for non-WASM platforms
+        return time.unixSeconds();
+    }
+    return ts.sec;
+}
+
 /// Constant-time comparison for variable-length slices (timing-attack resistant).
 /// Uses `std.crypto.utils.timingSafeEql` for the fixed-length comparison after
 /// an early-exit length check (length itself is not secret).
@@ -99,7 +111,7 @@ pub const Claims = struct {
     /// Check if the token is expired
     pub fn isExpired(self: Claims) bool {
         if (self.exp) |exp| {
-            return time.unixSeconds() > exp;
+            return wallClockSecondsReal() > exp;
         }
         return false;
     }
@@ -1345,11 +1357,21 @@ test "standalone decode with custom claims" {
     defer manager.deinit();
 
     var custom = std.StringArrayHashMapUnmanaged([]const u8).empty;
-    try custom.put(allocator, try allocator.dupe(u8, "role"), try allocator.dupe(u8, "admin"));
+    const role_key = try allocator.dupe(u8, "role");
+    const role_val = try allocator.dupe(u8, "admin");
+    try custom.put(allocator, role_key, role_val);
+    defer {
+        var it = custom.iterator();
+        while (it.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        custom.deinit(allocator);
+    }
 
     const token_str = try manager.createToken(.{
         .sub = "charlie",
-        .exp = time.unixSeconds() + 3600,
+        .exp = wallClockSecondsReal() + 3600,
         .custom = custom,
     });
     defer allocator.free(token_str);
