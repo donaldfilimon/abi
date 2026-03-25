@@ -194,6 +194,19 @@ To add a new integration test:
 2. Import it from `test/mod.zig` (e.g., `const foo_tests = @import("integration/foo_test.zig");`)
 3. Use `@import("abi")` and `@import("build_options")` — never relative imports from `test/`
 
+#### Focused Test Lanes
+
+Seven `src/*_mod_test.zig` files (agents, gateway, inference, messaging, orchestration, pitr, secrets) are **test anchor** files. They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
+
+`build/validation.zig` wires each pair into a focused build step via `addModuleTests()` (unit, from `src/`) and `addIntegrationTests()` (integration, from `test/`). Both are combined under a single step like `zig build messaging-tests`.
+
+To add a new focused test lane:
+1. Create `src/<name>_mod_test.zig` — import the feature module and its tests, use `refAllDecls`
+2. Create `test/<name>_mod.zig` — import integration tests via `@import("abi")`
+3. Wire both in `build/validation.zig` following the existing pattern (unit + integration → named step)
+4. Add the new step name to the `Steps` struct and return it from `addSteps()`
+5. Document the `zig build <name>-tests` command in the Build Commands section above
+
 ### MCP Server
 
 `zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`.
