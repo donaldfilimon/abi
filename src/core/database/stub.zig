@@ -1,6 +1,7 @@
 //! Database stub — disabled at compile time.
 
 const std = @import("std");
+const stub_helpers = @import("../stub_helpers.zig");
 const config_module = @import("../../core/config/mod.zig");
 
 // --- Error Types ---
@@ -273,20 +274,11 @@ pub const ParallelBuildStats = misc.parallel_hnsw.ParallelBuildStats;
 
 // --- Module Lifecycle ---
 
-var initialized = std.atomic.Value(bool).init(false);
-
-pub fn init(_: std.mem.Allocator) !void {
-    return error.FeatureDisabled;
-}
-pub fn deinit() void {
-    initialized.store(false, .release);
-}
-pub fn isEnabled() bool {
-    return false;
-}
-pub fn isInitialized() bool {
-    return initialized.load(.acquire);
-}
+const Stub = stub_helpers.StubFeatureNoConfig(error{FeatureDisabled});
+pub const init = Stub.init;
+pub const deinit = Stub.deinit;
+pub const isEnabled = Stub.isEnabled;
+pub const isInitialized = Stub.isInitialized;
 
 // --- Core Database Operations ---
 

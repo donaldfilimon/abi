@@ -3,6 +3,7 @@
 //! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
 
 const std = @import("std");
+const stub_helpers = @import("../../core/stub_helpers.zig");
 const ha_types = @import("types.zig");
 
 /// HA module errors.
@@ -582,24 +583,11 @@ pub const pitr = struct {};
 // Module Lifecycle
 // =============================================================================
 
-var initialized = std.atomic.Value(bool).init(false);
-
-pub fn init(allocator: std.mem.Allocator) Error!void {
-    _ = allocator;
-    return Error.FeatureDisabled;
-}
-
-pub fn deinit() void {
-    initialized.store(false, .release);
-}
-
-pub fn isEnabled() bool {
-    return false;
-}
-
-pub fn isInitialized() bool {
-    return initialized.load(.acquire);
-}
+const Stub = stub_helpers.StubFeatureNoConfig(Error);
+pub const init = Stub.init;
+pub const deinit = Stub.deinit;
+pub const isEnabled = Stub.isEnabled;
+pub const isInitialized = Stub.isInitialized;
 
 // =============================================================================
 // Tests
