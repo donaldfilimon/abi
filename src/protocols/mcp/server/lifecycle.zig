@@ -25,6 +25,10 @@ pub const Server = struct {
     server_name: []const u8,
     server_version: []const u8,
     initialized: bool,
+    /// Optional authentication token. When set, tool and resource requests
+    /// must include a matching `_auth_token` field in their params object.
+    /// Protocol methods (initialize, ping, notifications) are always allowed.
+    auth_token: ?[]const u8,
 
     const Self = @This();
 
@@ -40,6 +44,7 @@ pub const Server = struct {
             .server_name = name,
             .server_version = version,
             .initialized = false,
+            .auth_token = null,
         };
     }
 
