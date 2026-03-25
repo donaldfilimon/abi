@@ -39,6 +39,11 @@ pub const coordinator = coordinator_mod;
 pub const types = types_mod;
 
 pub const WorkflowRunner = runner.WorkflowRunner;
+pub const RunnerConfig = types_mod.RunnerConfig;
+pub const WorkflowResult = types_mod.WorkflowResult;
+pub const StepResult = types_mod.StepResult;
+pub const WorkflowStats = types_mod.WorkflowStats;
+pub const RunError = types_mod.RunError;
 
 pub const Error = types_mod.Error;
 pub const ExecutionStrategy = types_mod.ExecutionStrategy;

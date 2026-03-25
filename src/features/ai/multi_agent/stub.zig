@@ -35,14 +35,13 @@ pub const runner = struct {
 };
 
 pub const WorkflowRunner = StubWorkflowRunner;
+pub const RunnerConfig = types_mod.RunnerConfig;
+pub const WorkflowResult = types_mod.WorkflowResult;
+pub const StepResult = types_mod.StepResult;
+pub const WorkflowStats = types_mod.WorkflowStats;
+pub const RunError = types_mod.RunError;
 
 const StubWorkflowRunner = struct {
-    pub const RunnerConfig = types_mod.RunnerConfig;
-    pub const WorkflowStats = types_mod.WorkflowStats;
-    pub const StepResult = types_mod.StepResult;
-    pub const WorkflowResult = types_mod.WorkflowResult;
-    pub const RunError = types_mod.RunError;
-
     allocator: std.mem.Allocator,
     config: RunnerConfig,
     blackboard: blackboard_mod.Blackboard,
