@@ -60,6 +60,9 @@ pub fn build(b: *std.Build) void {
     const feat_mcp = b.option(bool, "feat-mcp", "Model Context Protocol") orelse true;
     const feat_acp = b.option(bool, "feat-acp", "Agent Communication Protocol") orelse true;
     const feat_ha = b.option(bool, "feat-ha", "High Availability / replication") orelse true;
+    const feat_connectors = b.option(bool, "feat-connectors", "External service connectors") orelse true;
+    const feat_tasks = b.option(bool, "feat-tasks", "Task management") orelse true;
+    const feat_inference = b.option(bool, "feat-inference", "ML inference engine") orelse true;
 
     // GPU backend flags
     const gpu_backend_str = b.option([]const u8, "gpu-backend", "GPU backends: metal,cuda,vulkan,webgpu,opengl,opengles,webgl2,stdgpu,fpga,tpu (comma-separated)");
@@ -123,6 +126,9 @@ pub fn build(b: *std.Build) void {
         .feat_mcp = feat_mcp,
         .feat_acp = feat_acp,
         .feat_ha = feat_ha,
+        .feat_connectors = feat_connectors,
+        .feat_tasks = feat_tasks,
+        .feat_inference = feat_inference,
         .gpu_metal = gpu_metal,
         .gpu_cuda = gpu_cuda,
         .gpu_vulkan = gpu_vulkan,

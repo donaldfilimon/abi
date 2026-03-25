@@ -32,13 +32,13 @@ pub const runtime = @import("runtime/mod.zig");
 /// Platform abstraction: OS detection, capabilities, environment.
 pub const platform = @import("platform/mod.zig");
 /// External service connectors: HTTP clients, API adapters.
-pub const connectors = @import("connectors/mod.zig");
+pub const connectors = if (build_options.feat_connectors) @import("connectors/mod.zig") else @import("connectors/stub.zig");
 /// Shared CLI helpers for command dispatch and serve parsing.
 pub const cli = @import("cli.zig");
 /// C-ABI FFI endpoints for linking as a static library (libabi.a).
 pub const ffi = @import("ffi.zig");
 /// Task management: async job queues, scheduling, progress tracking.
-pub const tasks = @import("tasks/mod.zig");
+pub const tasks = if (build_options.feat_tasks) @import("tasks/mod.zig") else @import("tasks/stub.zig");
 /// Model Context Protocol (MCP) server and client implementation.
 pub const mcp = if (build_options.feat_mcp) @import("protocols/mcp/mod.zig") else @import("protocols/mcp/stub.zig");
 /// Language Server Protocol (LSP) implementation.
@@ -48,7 +48,7 @@ pub const acp = if (build_options.feat_acp) @import("protocols/acp/mod.zig") els
 /// High availability: leader election, failover, health monitoring.
 pub const ha = if (build_options.feat_ha) @import("protocols/ha/mod.zig") else @import("protocols/ha/stub.zig");
 /// ML inference: engine, scheduler, sampler, paged KV cache.
-pub const inference = @import("inference/mod.zig");
+pub const inference = if (build_options.feat_inference) @import("inference/mod.zig") else @import("inference/stub.zig");
 
 // ── Features (comptime-gated mod/stub) ───────────────────────────────────
 
