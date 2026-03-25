@@ -57,6 +57,22 @@ build_runner_arch() {
             ;;
     esac
 
+    # Fallback: check the .o file in the same directory (unlinked build runner)
+    local build_o="${build_bin}_zcu.o"
+    if [[ -f "$build_o" ]]; then
+        file_out="$(file -b "$build_o" 2>/dev/null || true)"
+        case "$file_out" in
+            *arm64*|*aarch64*)
+                printf 'arm64\n'
+                return 0
+                ;;
+            *x86_64*)
+                printf 'x86_64\n'
+                return 0
+                ;;
+        esac
+    fi
+
     return 1
 }
 
