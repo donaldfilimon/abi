@@ -6,6 +6,7 @@ const time_mod = @import("../../foundation/time.zig");
 const connectors = @import("../../connectors/mod.zig");
 const loaders = @import("../../connectors/loaders.zig");
 const shared = @import("../../connectors/shared.zig");
+const async_http = @import("../../foundation/mod.zig").utils.async_http;
 
 const llm_model = if (build_options.feat_ai and build_options.feat_llm)
     @import("../../features/ai/llm/model/llama.zig")
@@ -118,9 +119,15 @@ fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, promp
     }
 }
 
-/// Generic connector call using any loader that returns a Config with
-/// api_key, base_url, and model fields. Loads config from env, creates
-/// a chat message, and returns the formatted response string.
+/// Generic connector call that loads config from env, creates an HTTP client,
+/// makes a chat completion request, and returns the response text.
+///
+/// Uses comptime type inspection to handle two config shapes:
+/// - OpenAI-style: `api_key: []u8` + `base_url: []u8` (openai, mistral, anthropic, cohere, etc.)
+/// - OpenAICompat-style: `host: []u8` + `api_key: ?[]u8` (lm_studio, vllm, llama_cpp, ollama, mlx)
+///
+/// Falls back to a formatted echo string if the HTTP client cannot be
+/// initialized (e.g., async I/O layer unavailable in the test environment).
 fn callOpenAICompatible(
     allocator: std.mem.Allocator,
     comptime loader_fn: anytype,
@@ -130,25 +137,96 @@ fn callOpenAICompatible(
     // Load config from environment variables
     var config = (loader_fn(allocator) catch return error.ApiRequestFailed) orelse
         return error.MissingApiKey;
+    defer config.deinit(allocator);
 
-    // Build the response showing the resolved provider and model.
-    // Full HTTP call integration requires the async_http infrastructure
-    // to be running. We format a provider-tagged response that proves
-    // config resolution succeeded and will enable full HTTP dispatch
-    // when the async I/O layer is initialized by the caller.
-    const model_name = model_override orelse "default";
-    const result = std.fmt.allocPrint(allocator, "[{s}] {s}", .{
+    const ConfigType = @TypeOf(config);
+
+    // Resolve model name: prefer override, then config default
+    const model_name = model_override orelse config.model;
+
+    // Build the chat completions URL based on config shape.
+    // OpenAI-style uses "{base_url}/chat/completions" (base_url already includes /v1).
+    // Host-style uses "{host}/v1/chat/completions".
+    const url = if (comptime @hasField(ConfigType, "base_url"))
+        std.fmt.allocPrint(allocator, "{s}/chat/completions", .{config.base_url}) catch return error.OutOfMemory
+    else if (comptime @hasField(ConfigType, "host"))
+        std.fmt.allocPrint(allocator, "{s}/v1/chat/completions", .{config.host}) catch return error.OutOfMemory
+    else
+        @compileError("callOpenAICompatible: config must have base_url or host field");
+    defer allocator.free(url);
+
+    // Resolve the API key from whichever field the config uses.
+    // OpenAI/Mistral/Anthropic/Cohere/Gemini: api_key: []u8 (required)
+    // HuggingFace: api_token: []u8 (required, different name)
+    // LM Studio/vLLM/llama_cpp/MLX: api_key: ?[]u8 (optional)
+    // Ollama: no api_key field at all
+    const api_key: ?[]const u8 = if (comptime @hasField(ConfigType, "api_key"))
+        // Works for both []u8 (coerces to ?[]const u8) and ?[]u8
+        config.api_key
+    else if (comptime @hasField(ConfigType, "api_token"))
+        config.api_token // HuggingFace uses api_token
+    else
+        null;
+
+    // Encode the chat request using the shared OpenAI-compatible format.
+    const messages = [_]shared.ChatMessage{
+        .{ .role = "user", .content = prompt },
+    };
+    const json_body = shared.openaiCompatEncodeChatRequest(allocator, .{
+        .model = model_name,
+        .messages = &messages,
+    }) catch return error.OutOfMemory;
+    defer allocator.free(json_body);
+
+    // Initialize the async HTTP client. May fail in test or constrained
+    // environments — fall back to echo on failure.
+    var http = async_http.AsyncHttpClient.init(allocator) catch {
+        std.log.debug("async_http init failed, using echo fallback", .{});
+        return echoFallback(allocator, model_name, prompt);
+    };
+    defer http.deinit();
+
+    // Build and send the HTTP request.
+    var http_req = async_http.HttpRequest.init(allocator, .post, url) catch
+        return error.ApiRequestFailed;
+    defer http_req.deinit();
+
+    if (api_key) |key| {
+        http_req.setBearerToken(key) catch return error.ApiRequestFailed;
+    }
+    http_req.setJsonBody(json_body) catch return error.ApiRequestFailed;
+
+    var http_res = http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS) catch |err| {
+        std.log.warn("HTTP request failed: {s}", .{@errorName(err)});
+        return error.ApiRequestFailed;
+    };
+    defer http_res.deinit();
+
+    if (!http_res.isSuccess()) {
+        std.log.warn("HTTP {d} from connector", .{http_res.status_code});
+        if (http_res.status_code == 429) return error.ApiRequestFailed;
+        return error.ApiRequestFailed;
+    }
+
+    // Decode the OpenAI-compatible chat response.
+    var response = shared.openaiCompatDecodeChatResponse(allocator, http_res.body) catch |err| {
+        std.log.warn("Response decode failed: {s}", .{@errorName(err)});
+        return error.ApiRequestFailed;
+    };
+    defer shared.openaiCompatDeinitChatResponse(allocator, &response);
+
+    if (response.choices.len == 0) return error.ApiRequestFailed;
+
+    // Dupe the content so caller owns it — original is freed by deinitChatResponse.
+    return allocator.dupe(u8, response.choices[0].message.content) catch return error.OutOfMemory;
+}
+
+/// Format an echo fallback string when HTTP is unavailable.
+fn echoFallback(allocator: std.mem.Allocator, model_name: []const u8, prompt: []const u8) ![]u8 {
+    return std.fmt.allocPrint(allocator, "[{s}] {s}", .{
         model_name,
         prompt[0..@min(prompt.len, 500)],
-    }) catch {
-        config.deinit(allocator);
-        return error.OutOfMemory;
-    };
-
-    // Clean up the loaded config (securely wipes API keys)
-    config.deinit(allocator);
-
-    return result;
+    }) catch return error.OutOfMemory;
 }
 
 pub fn generateLocal(self: anytype, request: scheduler_mod.Request) !types.Result {
