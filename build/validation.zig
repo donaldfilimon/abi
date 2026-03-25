@@ -132,7 +132,13 @@ fn addModuleTests(
         .link_libc = true,
     });
     test_mod.addImport("build_options", build_options_module);
-    return b.addTest(.{ .root_module = test_mod });
+    const tests = b.addTest(.{ .root_module = test_mod });
+    // macOS 26.4+ (Darwin 25.x): LLD cannot resolve system framework symbols.
+    // Force Apple's native linker for test artifacts.
+    if (target.result.os.tag == .macos) {
+        tests.use_lld = false;
+    }
+    return tests;
 }
 
 fn addIntegrationTests(
@@ -151,7 +157,11 @@ fn addIntegrationTests(
     });
     integration_mod.addImport("abi", abi_module);
     integration_mod.addImport("build_options", build_options_module);
-    return b.addTest(.{ .root_module = integration_mod });
+    const tests = b.addTest(.{ .root_module = integration_mod });
+    if (target.result.os.tag == .macos) {
+        tests.use_lld = false;
+    }
+    return tests;
 }
 
 fn addTuiTests(ctx: Context) void {
@@ -178,6 +188,7 @@ fn addTuiTests(ctx: Context) void {
     });
     tui_lib_tests.root_module.addImport("build_options", tui_build_options_module);
     if (ctx.target.result.os.tag == .macos) {
+        tui_lib_tests.use_lld = false;
         linking.linkDarwinArtifact(tui_lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     }
 
@@ -229,5 +240,9 @@ fn addParityTests(
         .link_libc = true,
     });
     parity_mod.addImport("build_options", build_options_module);
-    return b.addTest(.{ .root_module = parity_mod });
+    const tests = b.addTest(.{ .root_module = parity_mod });
+    if (target.result.os.tag == .macos) {
+        tests.use_lld = false;
+    }
+    return tests;
 }
