@@ -24,6 +24,10 @@ pub const Steps = struct {
     orchestration_tests_step: *std.Build.Step,
     gateway_tests_step: *std.Build.Step,
     inference_tests_step: *std.Build.Step,
+    gpu_tests_step: *std.Build.Step,
+    network_tests_step: *std.Build.Step,
+    web_tests_step: *std.Build.Step,
+    observability_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
 };
 
@@ -88,6 +92,10 @@ pub fn addSteps(ctx: Context) Steps {
     const orchestration_tests_step = addFeatureTestLane(ctx, "orchestration", "orchestration");
     const gateway_tests_step = addFeatureTestLane(ctx, "gateway", "gateway");
     const inference_tests_step = addFeatureTestLane(ctx, "inference", "inference");
+    const gpu_tests_step = addFeatureTestLane(ctx, "gpu", "gpu");
+    const network_tests_step = addFeatureTestLane(ctx, "network", "network");
+    const web_tests_step = addFeatureTestLane(ctx, "web", "web");
+    const observability_tests_step = addFeatureTestLane(ctx, "observability", "observability");
 
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     const check_step = ctx.b.step("check", "Run lint + test + parity");
@@ -114,6 +122,10 @@ pub fn addSteps(ctx: Context) Steps {
         .orchestration_tests_step = orchestration_tests_step,
         .gateway_tests_step = gateway_tests_step,
         .inference_tests_step = inference_tests_step,
+        .gpu_tests_step = gpu_tests_step,
+        .network_tests_step = network_tests_step,
+        .web_tests_step = web_tests_step,
+        .observability_tests_step = observability_tests_step,
         .check_step = check_step,
     };
 }

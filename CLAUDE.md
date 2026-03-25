@@ -340,9 +340,8 @@ Additional specifications:
 
 ## Available Agents
 
-The repository includes several specialized agents in `.claude/agents/`:
+The repository includes 8 specialized agents in `.claude/agents/`:
 
-- **abi-codebase-mega** — Deep codebase assistance for architecture, debugging, GPU backends, and cross-feature integration
 - **abi-stub-fixer** — Automatically updates `stub.zig` files when `mod.zig` public APIs change; runs `zig build check-parity` to verify
 - **darwin-build-doctor** — Diagnoses Zig linker failures on macOS 25+ (Darwin Tahoe)
 - **abi-expert** — General ABI framework guidance (mod/stub pattern, comptime gating, Zig 0.16 conventions)
