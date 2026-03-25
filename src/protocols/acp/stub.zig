@@ -247,11 +247,11 @@ pub fn serveHttp(
 // Module lifecycle
 // =============================================================================
 
-fn isEnabled() bool {
+pub fn isEnabled() bool {
     return false;
 }
 
-fn isInitialized() bool {
+pub fn isInitialized() bool {
     return false;
 }
 

@@ -66,7 +66,6 @@
 //! The Coordinator uses internal synchronization for thread-safe operation.
 //! Multiple threads can call `schedule()` concurrently.
 const std = @import("std");
-const foundation = @import("../../../foundation/mod.zig");
 
 pub const coordinator = @import("coordinator.zig");
 pub const scheduler = @import("scheduler.zig");
