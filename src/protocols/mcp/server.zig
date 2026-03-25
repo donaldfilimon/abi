@@ -4,120 +4,32 @@
 //! registered tool handlers, and writes responses to stdout.
 //!
 //! Designed for use with Claude Desktop, Cursor, and other MCP-compatible clients.
+//!
+//! Implementation is decomposed into submodules under `server/`:
+//!   - `registration.zig` — handler and registered-type definitions
+//!   - `lifecycle.zig` — Server struct, init/deinit, run, message processing
+//!   - `dispatch.zig` — JSON-RPC method routing
+//!   - `io_loop.zig` — stdin/stdout I/O loop
+//!   - `tools.zig` — tools/list and tools/call handlers
+//!   - `resources.zig` — resources/list and resources/read handlers
+//!   - `json_write.zig` — JSON string escaping utilities
 
 const std = @import("std");
-const types = @import("types.zig");
-const io_loop = @import("server/io_loop.zig");
-const dispatch = @import("server/dispatch.zig");
-const json_write = @import("server/json_write.zig");
 
-/// Tool handler function signature
-pub const ToolHandler = *const fn (
-    allocator: std.mem.Allocator,
-    params_json: ?std.json.ObjectMap,
-    out: *std.ArrayListUnmanaged(u8),
-) anyerror!void;
+// ─── Submodule imports ───────────────────────────────────────────────
+const registration = @import("server/registration.zig");
+const lifecycle = @import("server/lifecycle.zig");
 
-/// Registered tool with metadata and handler
-pub const RegisteredTool = struct {
-    def: types.ToolDef,
-    handler: ToolHandler,
-};
+// Re-exported for external consumers (real.zig, zls_bridge.zig, tests)
+pub const json_write = @import("server/json_write.zig");
 
-/// Resource handler function signature
-pub const ResourceHandler = *const fn (
-    allocator: std.mem.Allocator,
-    uri: []const u8,
-    out: *std.ArrayListUnmanaged(u8),
-) anyerror!void;
-
-/// Registered resource with metadata and handler
-pub const RegisteredResource = struct {
-    def: types.ResourceDef,
-    handler: ResourceHandler,
-};
-
-/// Maximum message size accepted by the server (4 MB).
-/// Messages exceeding this limit are rejected with a JSON-RPC Invalid Request error
-/// to prevent denial-of-service via oversized stdin payloads.
-pub const MAX_MESSAGE_SIZE: usize = 4 * 1024 * 1024;
-
-/// MCP Server state
-pub const Server = struct {
-    allocator: std.mem.Allocator,
-    tools: std.ArrayListUnmanaged(RegisteredTool),
-    resources: std.ArrayListUnmanaged(RegisteredResource),
-    server_name: []const u8,
-    server_version: []const u8,
-    initialized: bool,
-    /// Optional authentication token. When set, tool and resource requests
-    /// must include a matching `_auth_token` field in their params object.
-    /// Protocol methods (initialize, ping, notifications) are always allowed.
-    auth_token: ?[]const u8,
-
-    const Self = @This();
-
-    pub fn init(
-        allocator: std.mem.Allocator,
-        name: []const u8,
-        version: []const u8,
-    ) Self {
-        return .{
-            .allocator = allocator,
-            .tools = .empty,
-            .resources = .empty,
-            .server_name = name,
-            .server_version = version,
-            .initialized = false,
-            .auth_token = null,
-        };
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.tools.deinit(self.allocator);
-        self.resources.deinit(self.allocator);
-    }
-
-    /// Register a tool with the server
-    pub fn addTool(self: *Self, tool: RegisteredTool) !void {
-        try self.tools.append(self.allocator, tool);
-    }
-
-    /// Register a resource with the server
-    pub fn addResource(self: *Self, resource: RegisteredResource) !void {
-        try self.resources.append(self.allocator, resource);
-    }
-
-    /// Run the server loop — reads from stdin, writes to stdout.
-    /// The caller must provide a Zig 0.16 I/O handle (from `std.Io.Threaded`).
-    pub fn run(self: *Self, io: std.Io) !void {
-        return io_loop.run(self, io);
-    }
-
-    /// Run without I/O — logs readiness (for environments without I/O backend).
-    pub fn runInfo(self: *Self) void {
-        io_loop.runInfo(self);
-    }
-
-    /// Process a single JSON-RPC message with size validation.
-    /// This is the public entry point for message handling — it enforces
-    /// MAX_MESSAGE_SIZE and delegates to the internal dispatch logic.
-    /// Returns without error even when the message is invalid; error
-    /// responses are written to `writer` per JSON-RPC 2.0 spec.
-    pub fn processMessage(self: *Self, line: []const u8, writer: anytype) !void {
-        if (line.len > MAX_MESSAGE_SIZE) {
-            std.log.warn("MCP: rejecting oversized message ({d} bytes, limit {d})", .{ line.len, MAX_MESSAGE_SIZE });
-            try types.writeError(
-                writer,
-                null,
-                types.ErrorCode.invalid_request,
-                "Invalid Request - message too large",
-            );
-            return;
-        }
-        return dispatch.handleMessage(self, line, writer);
-    }
-};
+// ─── Public type re-exports (preserve exact public surface) ──────────
+pub const ToolHandler = registration.ToolHandler;
+pub const RegisteredTool = registration.RegisteredTool;
+pub const ResourceHandler = registration.ResourceHandler;
+pub const RegisteredResource = registration.RegisteredResource;
+pub const MAX_MESSAGE_SIZE = lifecycle.MAX_MESSAGE_SIZE;
+pub const Server = lifecycle.Server;
 
 // ═══════════════════════════════════════════════════════════════
 // Tests
