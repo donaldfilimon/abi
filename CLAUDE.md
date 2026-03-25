@@ -100,7 +100,7 @@ abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)
 abi help               # Full help reference
 ```
 
-On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binaries. Use `./build.sh` which auto-relinks with Apple's native linker. This applies to **all** build steps including tests: `./build.sh test --summary all`. On Linux / older macOS, `zig build` works directly.
+On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binaries. Use `./build.sh` which auto-relinks with Apple's native linker. This applies to **all** build steps including tests: `./build.sh test --summary all`. The wrapper also auto-retries with `-Dfeat-gpu=false` when Accelerate framework symbols fail to resolve. On Linux / older macOS, `zig build` works directly.
 
 ### Feature Flags
 
@@ -203,7 +203,7 @@ To add a new integration test:
 
 #### Focused Test Lanes
 
-Seven `src/*_mod_test.zig` files (agents, gateway, inference, messaging, orchestration, pitr, secrets) are **test anchor** files. They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
+Eight `src/*_mod_test.zig` files (agents, gateway, inference, messaging, multi_agent, orchestration, pitr, secrets) are **test anchor** files. (Note: `multi_agent` lane was wired in `build/validation.zig` — create the anchor files if missing.) They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
 
 `build/validation.zig` wires each pair into a focused build step via `addModuleTests()` (unit, from `src/`) and `addIntegrationTests()` (integration, from `test/`). Both are combined under a single step like `zig build messaging-tests`.
 
@@ -244,7 +244,7 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - `connector` — resolves provider from `model_id` ("provider/model" format), loads config from env vars, delegates to connector clients (`src/inference/engine/backends.zig`)
 - `local` — built-in transformer forward pass (integration point for GGUF loading)
 
-The connector backend dispatches to 12 providers (openai, anthropic, ollama, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
+The connector backend dispatches to 12 providers (openai, anthropic, ollama, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp, codex). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
 
 The `abi chat` CLI command wires the profile router to the inference engine: routing decision → `Engine.generate()` → connector dispatch → response.
 

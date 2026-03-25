@@ -127,7 +127,7 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
 /// Falls back to error if env vars are missing or network call fails.
 fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, prompt: []const u8) ![]u8 {
     const parsed = parseModelId(model_id);
-    const provider = parsed.provider;
+    const provider = parsed.provider orelse return error.UnsupportedProvider;
     const model_name = if (parsed.model.len > 0) parsed.model else null;
 
     // Try to load and use the OpenAI-compatible connector for supported providers.
