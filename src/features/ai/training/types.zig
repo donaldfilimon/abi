@@ -25,6 +25,16 @@ pub const SaveLlmCheckpointError = SaveError;
 // ── Enums ──────────────────────────────────────────────────────────────────
 
 pub const OptimizerType = enum { sgd, adam, adamw };
+
+/// Precision mode for training.
+/// Controls how weights and activations are stored during forward/backward passes.
+pub const PrecisionMode = enum {
+    /// Full f32 precision for all operations (default).
+    f32_full,
+    /// Mixed precision: FP16 forward-pass working copy, f32 master weights and gradients.
+    mixed_f16_f32,
+};
+
 pub const LearningRateSchedule = enum { constant, linear, cosine, warmup_cosine, step, polynomial, cosine_warm_restarts };
 pub const ExperienceType = enum { text_conversation, vision, video, audio, document, code, reasoning, multi_modal, any };
 pub const DataKind = enum { text, image, video, audio, document, other };

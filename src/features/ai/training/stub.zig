@@ -20,10 +20,7 @@ pub const SaveLatestCheckpointError = types.SaveLatestCheckpointError;
 pub const LoadLlmCheckpointError = types.LoadLlmCheckpointError;
 pub const SaveLlmCheckpointError = types.SaveLlmCheckpointError;
 pub const OptimizerType = types.OptimizerType;
-pub const PrecisionMode = enum {
-    f32_full,
-    mixed_f16_f32,
-};
+pub const PrecisionMode = types.PrecisionMode;
 pub const LearningRateSchedule = types.LearningRateSchedule;
 pub const ExperienceType = types.ExperienceType;
 pub const DataKind = types.DataKind;

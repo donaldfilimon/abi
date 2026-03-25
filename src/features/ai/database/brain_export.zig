@@ -12,37 +12,11 @@ const database = if (build_options.feat_database)
     @import("../../database/mod.zig")
 else
     @import("../../database/stub.zig");
+const shared_types = @import("types.zig");
 
-/// Configuration for dual brain export.
-pub const BrainExportConfig = struct {
-    /// Path for native .wdbx brain file (always written).
-    wdbx_path: []const u8,
-    /// Path for .gguf file (optional — skipped if null).
-    gguf_path: ?[]const u8 = null,
-    /// Include training history/metadata in WDBX.
-    include_training_history: bool = true,
-    /// Include embedding table vectors (IDs 1..N) in WDBX.
-    include_embeddings: bool = true,
-};
-
-/// Training metadata stored in WDBX under tag "ABTR".
-pub const TrainingMetadata = struct {
-    model_name: []const u8 = "unnamed",
-    epochs_completed: u32 = 0,
-    final_loss: f32 = 0.0,
-    learning_rate: f32 = 0.0,
-    lora_rank: u32 = 0,
-    training_samples: u64 = 0,
-    timestamp: i64 = 0,
-};
-
-/// Result of a dual export operation.
-pub const ExportResult = struct {
-    wdbx_written: bool = false,
-    gguf_written: bool = false,
-    wdbx_size_bytes: u64 = 0,
-    gguf_size_bytes: u64 = 0,
-};
+pub const BrainExportConfig = shared_types.BrainExportConfig;
+pub const TrainingMetadata = shared_types.TrainingMetadata;
+pub const ExportResult = shared_types.ExportResult;
 
 /// Export a trained model to both .wdbx and (optionally) .gguf formats.
 ///

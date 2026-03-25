@@ -251,14 +251,8 @@ pub const OptimizerType = enum {
     adamw,
 };
 
-/// Precision mode for training.
-/// Controls how weights and activations are stored during forward/backward passes.
-pub const PrecisionMode = enum {
-    /// Full f32 precision for all operations (default).
-    f32_full,
-    /// Mixed precision: FP16 forward-pass working copy, f32 master weights and gradients.
-    mixed_f16_f32,
-};
+// Re-exported from types.zig — single source of truth for PrecisionMode.
+pub const PrecisionMode = @import("types.zig").PrecisionMode;
 
 pub const LearningRateSchedule = enum {
     constant,

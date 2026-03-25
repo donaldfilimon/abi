@@ -12,11 +12,11 @@ pub const Parser = struct {
     pub fn init(allocator: std.mem.Allocator) Parser {
         return .{ .allocator = allocator };
     }
-    pub fn parse(_: *Parser, _: []const u8) ParseError![]Token {
-        return ParseError.FeatureDisabled;
+    pub fn parse(_: *Parser, _: []const u8) ![]Token {
+        return error.FeatureDisabled;
     }
     pub fn extractVariables(_: *Parser, _: []const Token) ![]const []const u8 {
-        return ParseError.FeatureDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -28,11 +28,11 @@ pub const Renderer = struct {
     pub fn init(allocator: std.mem.Allocator, options: RenderOptions) Renderer {
         return .{ .allocator = allocator, .options = options };
     }
-    pub fn render(_: *Renderer, _: []const Token, _: anytype) RenderError![]u8 {
-        return RenderError.FeatureDisabled;
+    pub fn render(_: *Renderer, _: []const Token, _: anytype) ![]u8 {
+        return error.FeatureDisabled;
     }
-    pub fn renderWithMap(_: *Renderer, _: []const Token, _: std.StringHashMapUnmanaged([]const u8)) RenderError![]u8 {
-        return RenderError.FeatureDisabled;
+    pub fn renderWithMap(_: *Renderer, _: []const Token, _: std.StringHashMapUnmanaged([]const u8)) ![]u8 {
+        return error.FeatureDisabled;
     }
 };
 

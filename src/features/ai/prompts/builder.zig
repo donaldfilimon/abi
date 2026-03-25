@@ -5,54 +5,11 @@
 
 const std = @import("std");
 const profiles = @import("profiles.zig");
+const shared = @import("types.zig");
 
-/// Message role in conversation
-pub const Role = enum {
-    system,
-    user,
-    assistant,
-    tool,
-
-    pub fn toString(self: Role) []const u8 {
-        return switch (self) {
-            .system => "system",
-            .user => "user",
-            .assistant => "assistant",
-            .tool => "tool",
-        };
-    }
-
-    pub fn toPrefix(self: Role) []const u8 {
-        return switch (self) {
-            .system => "System: ",
-            .user => "User: ",
-            .assistant => "Assistant: ",
-            .tool => "Tool: ",
-        };
-    }
-};
-
-/// A single message in the conversation
-pub const Message = struct {
-    role: Role,
-    content: []const u8,
-    /// Whether content is owned by builder (needs freeing)
-    owned: bool = false,
-};
-
-/// Output format for built prompts
-pub const PromptFormat = enum {
-    /// Plain text with role prefixes (User: / Assistant:)
-    text,
-    /// JSON array of message objects
-    json,
-    /// ChatML format (<|system|>, <|user|>, etc.)
-    chatml,
-    /// Llama2/Mistral instruction format
-    llama,
-    /// Raw messages without formatting
-    raw,
-};
+pub const Role = shared.Role;
+pub const Message = shared.Message;
+pub const PromptFormat = shared.PromptFormat;
 
 /// Prompt builder with history and export support
 pub const PromptBuilder = struct {
