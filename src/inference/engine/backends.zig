@@ -15,17 +15,57 @@ else
         pub const LlamaModel = void;
     };
 
-/// Resolve provider from model_id. Expects "provider/model" format.
-/// Returns provider name and model name, or null if no slash separator.
-fn parseModelId(model_id: []const u8) struct { provider: []const u8, model: []const u8 } {
-    if (std.mem.indexOfScalar(u8, model_id, '/')) |idx| {
+/// Known provider identifiers for model ID resolution.
+pub const known_providers = [_][]const u8{
+    "openai",
+    "anthropic",
+    "ollama",
+    "mistral",
+    "cohere",
+    "gemini",
+    "mlx",
+    "huggingface",
+    "lm_studio",
+    "vllm",
+    "llama_cpp",
+    "codex",
+};
+
+/// Parsed model identifier — splits "provider/model" into components.
+pub const ModelId = struct {
+    /// Provider name (e.g. "openai"), or null if no slash separator found.
+    provider: ?[]const u8,
+    /// Model name (e.g. "gpt-4"), or the entire input if no slash found.
+    model: []const u8,
+    /// Whether the resolved provider is in the known_providers list.
+    is_known_provider: bool,
+};
+
+/// Parse a model ID string in "provider/model" format.
+pub fn parseModelId(model_id: []const u8) ModelId {
+    const slash_pos = std.mem.indexOfScalar(u8, model_id, '/');
+    if (slash_pos) |pos| {
+        const provider = model_id[0..pos];
+        const model = if (pos + 1 < model_id.len) model_id[pos + 1 ..] else "";
         return .{
-            .provider = model_id[0..idx],
-            .model = model_id[idx + 1 ..],
+            .provider = provider,
+            .model = model,
+            .is_known_provider = isKnownProvider(provider),
         };
     }
-    // No slash — treat entire string as provider, use its default model
-    return .{ .provider = model_id, .model = "" };
+    return .{
+        .provider = null,
+        .model = model_id,
+        .is_known_provider = false,
+    };
+}
+
+/// Check whether a provider name is in the known_providers list.
+pub fn isKnownProvider(name: []const u8) bool {
+    for (known_providers) |p| {
+        if (std.mem.eql(u8, name, p)) return true;
+    }
+    return false;
 }
 
 /// Try to generate via a real LLM connector. Falls back to echo on failure.
@@ -407,6 +447,76 @@ pub fn generateDemo(self: anytype, request: scheduler_mod.Request) !types.Result
         .ttft_ms = latency / @as(f32, @floatFromInt(@max(actual_count, 1))),
         .tokens_per_second = tps,
     };
+}
+
+test "parseModelId: provider/model format" {
+    const result = parseModelId("openai/gpt-4");
+    try std.testing.expectEqualStrings("openai", result.provider.?);
+    try std.testing.expectEqualStrings("gpt-4", result.model);
+    try std.testing.expect(result.is_known_provider);
+}
+
+test "parseModelId: no slash returns null provider" {
+    const result = parseModelId("ollama");
+    try std.testing.expect(result.provider == null);
+    try std.testing.expectEqualStrings("ollama", result.model);
+    try std.testing.expect(!result.is_known_provider);
+}
+
+test "parseModelId: lm_studio with underscore" {
+    const result = parseModelId("lm_studio/phi-3");
+    try std.testing.expectEqualStrings("lm_studio", result.provider.?);
+    try std.testing.expectEqualStrings("phi-3", result.model);
+    try std.testing.expect(result.is_known_provider);
+}
+
+test "parseModelId: empty string" {
+    const result = parseModelId("");
+    try std.testing.expect(result.provider == null);
+    try std.testing.expectEqualStrings("", result.model);
+    try std.testing.expect(!result.is_known_provider);
+}
+
+test "parseModelId: unknown provider" {
+    const result = parseModelId("custom-provider/my-model");
+    try std.testing.expectEqualStrings("custom-provider", result.provider.?);
+    try std.testing.expectEqualStrings("my-model", result.model);
+    try std.testing.expect(!result.is_known_provider);
+}
+
+test "parseModelId: trailing slash gives empty model" {
+    const result = parseModelId("openai/");
+    try std.testing.expectEqualStrings("openai", result.provider.?);
+    try std.testing.expectEqualStrings("", result.model);
+    try std.testing.expect(result.is_known_provider);
+}
+
+test "parseModelId: multiple slashes uses first" {
+    const result = parseModelId("anthropic/claude-3/sonnet");
+    try std.testing.expectEqualStrings("anthropic", result.provider.?);
+    try std.testing.expectEqualStrings("claude-3/sonnet", result.model);
+    try std.testing.expect(result.is_known_provider);
+}
+
+test "isKnownProvider: all known providers" {
+    try std.testing.expect(isKnownProvider("openai"));
+    try std.testing.expect(isKnownProvider("anthropic"));
+    try std.testing.expect(isKnownProvider("ollama"));
+    try std.testing.expect(isKnownProvider("mistral"));
+    try std.testing.expect(isKnownProvider("cohere"));
+    try std.testing.expect(isKnownProvider("gemini"));
+    try std.testing.expect(isKnownProvider("mlx"));
+    try std.testing.expect(isKnownProvider("huggingface"));
+    try std.testing.expect(isKnownProvider("lm_studio"));
+    try std.testing.expect(isKnownProvider("vllm"));
+    try std.testing.expect(isKnownProvider("llama_cpp"));
+    try std.testing.expect(isKnownProvider("codex"));
+}
+
+test "isKnownProvider: unknown returns false" {
+    try std.testing.expect(!isKnownProvider("foobar"));
+    try std.testing.expect(!isKnownProvider(""));
+    try std.testing.expect(!isKnownProvider("OpenAI")); // case-sensitive
 }
 
 test {

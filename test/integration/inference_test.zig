@@ -55,7 +55,8 @@ test "inference: connector backend returns model-tagged response" {
     defer std.testing.allocator.free(result.text);
 
     try std.testing.expect(result.text.len > 0);
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "claude-3-sonnet") != null);
+    // model_id "claude-3-sonnet" has no slash, so provider resolves to "echo"
+    try std.testing.expect(std.mem.indexOf(u8, result.text, "[echo/claude-3-sonnet]") != null);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 
