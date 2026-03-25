@@ -85,10 +85,6 @@ pub const Client = struct {
 
     const Self = @This();
 
-    // Mix in request and notification methods.
-    pub usingnamespace requests.RequestsMixin(Self);
-    pub usingnamespace notifications.NotificationsMixin(Self);
-
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: Config) !Self {
         const root_path = try resolveWorkspaceRoot(allocator, io, config.workspace_root);
         errdefer allocator.free(root_path);
@@ -158,6 +154,53 @@ pub const Client = struct {
     pub fn workspaceRoot(self: *const Self) []const u8 {
         return self.root_path;
     }
+
+    // -- Notification methods (delegated to notifications.zig) --
+
+    pub fn didOpen(self: *Self, doc: types.TextDocumentItem) !void {
+        return notifications.didOpen(self, doc);
+    }
+
+    // -- Request methods (delegated to requests.zig) --
+
+    pub fn hover(self: *Self, uri: []const u8, pos: types.Position) !Response {
+        return requests.hover(self, uri, pos);
+    }
+
+    pub fn completion(self: *Self, uri: []const u8, pos: types.Position) !Response {
+        return requests.completion(self, uri, pos);
+    }
+
+    pub fn definition(self: *Self, uri: []const u8, pos: types.Position) !Response {
+        return requests.definition(self, uri, pos);
+    }
+
+    pub fn references(self: *Self, uri: []const u8, pos: types.Position, include_decl: bool) !Response {
+        return requests.references(self, uri, pos, include_decl);
+    }
+
+    pub fn rename(
+        self: *Self,
+        uri: []const u8,
+        pos: types.Position,
+        new_name: []const u8,
+    ) !Response {
+        return requests.rename(self, uri, pos, new_name);
+    }
+
+    pub fn formatting(
+        self: *Self,
+        uri: []const u8,
+        options: types.FormattingOptions,
+    ) !Response {
+        return requests.formatting(self, uri, options);
+    }
+
+    pub fn diagnostics(self: *Self, uri: []const u8) !Response {
+        return requests.diagnostics(self, uri);
+    }
+
+    // -- Transport methods (delegated to transport.zig) --
 
     pub fn requestRaw(
         self: *Self,
