@@ -107,10 +107,10 @@
 const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;
 const sync = @import("../../foundation/mod.zig").sync;
-const backend = @import("backend.zig");
-const kernels = @import("runtime_kernels.zig");
-const memory = @import("memory/base.zig");
-const backend_shared = @import("backends/shared.zig");
+pub const backend = @import("backend.zig");
+pub const kernels = @import("runtime_kernels.zig");
+pub const memory = @import("memory/base.zig");
+pub const backend_shared = @import("backends/shared.zig");
 pub const profiling = @import("profiling.zig");
 
 // Performance optimization modules

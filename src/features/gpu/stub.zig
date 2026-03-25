@@ -37,6 +37,10 @@ pub const GpuConfig = types.GpuConfig;
 
 // ── Sub-module namespace stubs ─────────────────────────────────────────────
 
+pub const backend = struct {};
+pub const kernels = struct {};
+pub const memory = struct {};
+pub const backend_shared = struct {};
 pub const profiling = struct {};
 pub const occupancy = struct {};
 pub const fusion = struct {};

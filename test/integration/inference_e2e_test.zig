@@ -1,4 +1,5 @@
 //! Integration Tests: End-to-End Chat Pipeline
+
 //!
 //! Exercises the full path: profile routing → inference engine → connector
 //! dispatch → response. Verifies that a routing decision from the

@@ -214,6 +214,12 @@ pub const NatTraversal = linking_mod.NatTraversal;
 pub const QuicConnection = linking_mod.QuicConnection;
 
 // --- Sub-module Namespace Re-exports ---
+pub const registry = struct {};
+pub const protocol = protocol_mod;
+pub const scheduler = scheduler_mod;
+pub const ha = ha_mod;
+pub const discovery = discovery_mod;
+pub const loadbalancer = loadbalancer_mod;
 pub const retry = retry_mod;
 pub const rate_limiter = rate_limiter_mod;
 pub const connection_pool = connection_pool_mod;

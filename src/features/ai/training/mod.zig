@@ -22,9 +22,9 @@ const config_module = @import("../../../core/config/mod.zig");
 // Sub-module imports
 // ============================================================================
 
-const checkpoint = @import("checkpoint.zig");
-const llm_checkpoint = @import("llm_checkpoint.zig");
-const gradient = @import("gradient.zig");
+pub const checkpoint = @import("checkpoint.zig");
+pub const llm_checkpoint = @import("llm_checkpoint.zig");
+pub const gradient = @import("gradient.zig");
 pub const loss = @import("loss.zig");
 pub const trainable_model = @import("trainable_model.zig");
 pub const llm_trainer = @import("llm_trainer.zig");

@@ -32,12 +32,12 @@ const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
 // Internal module imports
-const registry = @import("registry.zig");
-const protocol = @import("protocol.zig");
-const scheduler = @import("scheduler.zig");
-const ha = @import("ha.zig");
-const discovery = @import("discovery.zig");
-const loadbalancer = @import("loadbalancer.zig");
+pub const registry = @import("registry.zig");
+pub const protocol = @import("protocol.zig");
+pub const scheduler = @import("scheduler.zig");
+pub const ha = @import("ha.zig");
+pub const discovery = @import("discovery.zig");
+pub const loadbalancer = @import("loadbalancer.zig");
 pub const retry = @import("retry.zig");
 pub const rate_limiter = @import("rate_limiter.zig");
 pub const connection_pool = @import("connection_pool.zig");
