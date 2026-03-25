@@ -2,10 +2,23 @@
 //!
 //! Platform lifecycle, sensors, notifications, permissions, and device info.
 //! Provides simulated mobile platform behavior for development and testing.
+//!
+//! Architecture:
+//! - sensors.zig — Simulated sensor readings (accelerometer, gyroscope, GPS, etc.)
+//! - notifications.zig — Notification sending, counting, and clearing
+//! - permissions.zig — Permission check, request, and revoke
+//! - device.zig — Device info and lifecycle state
 
 const std = @import("std");
 pub const types = @import("types.zig");
 
+// Submodules
+const sensors_mod = @import("sensors.zig");
+const notifications_mod = @import("notifications.zig");
+const permissions_mod = @import("permissions.zig");
+const device_mod = @import("device.zig");
+
+// Re-export public types from types.zig
 pub const MobileConfig = types.MobileConfig;
 pub const MobilePlatform = types.MobilePlatform;
 pub const MobileError = types.MobileError;
@@ -46,25 +59,7 @@ pub const Context = struct {
     /// Read a simulated sensor value based on the sensor type.
     pub fn readSensor(self: *Context, sensor_type: SensorType) MobileError!SensorData {
         _ = self;
-        var ts: std.c.timespec = undefined;
-        _ = std.c.clock_gettime(.REALTIME, &ts);
-        const timestamp_ms: u64 = @intCast(@as(i64, @intCast(ts.sec)) * 1000 +
-            @divTrunc(@as(i64, ts.nsec), 1_000_000));
-
-        const values: [3]f32 = switch (sensor_type) {
-            .accelerometer => .{ 0.0, 0.0, 9.81 },
-            .gyroscope => .{ 0.0, 0.0, 0.0 },
-            .magnetometer => .{ 25.0, 0.0, 45.0 },
-            .gps => .{ 37.7749, -122.4194, 0.0 },
-            .barometer => .{ 1013.25, 0.0, 0.0 },
-            .proximity => .{ 1.0, 0.0, 0.0 },
-            .light => .{ 500.0, 0.0, 0.0 },
-        };
-
-        return .{
-            .timestamp_ms = timestamp_ms,
-            .values = values,
-        };
+        return sensors_mod.readSensor(sensor_type);
     }
 
     /// Send a notification and track it in the log.
@@ -74,82 +69,43 @@ pub const Context = struct {
         body_text: []const u8,
         priority: Notification.Priority,
     ) MobileError!void {
-        var entry: NotificationEntry = .{
-            .priority = priority,
-        };
-
-        const t_len: u8 = @intCast(@min(title.len, entry.title_buf.len));
-        @memcpy(entry.title_buf[0..t_len], title[0..t_len]);
-        entry.title_len = t_len;
-
-        const b_len: u16 = @intCast(@min(body_text.len, entry.body_buf.len));
-        @memcpy(entry.body_buf[0..b_len], body_text[0..b_len]);
-        entry.body_len = b_len;
-
-        var ts: std.c.timespec = undefined;
-        _ = std.c.clock_gettime(.REALTIME, &ts);
-        entry.sent_at = @intCast(ts.sec);
-
-        self.notification_log.append(self.allocator, entry) catch return error.OutOfMemory;
+        return notifications_mod.sendNotification(
+            &self.notification_log,
+            self.allocator,
+            title,
+            body_text,
+            priority,
+        );
     }
 
     /// Return the number of tracked notifications.
     pub fn getNotificationCount(self: *const Context) usize {
-        return self.notification_log.items.len;
+        return notifications_mod.getNotificationCount(&self.notification_log);
     }
 
     /// Clear all tracked notifications.
     pub fn clearNotifications(self: *Context) void {
-        self.notification_log.clearRetainingCapacity();
+        notifications_mod.clearNotifications(&self.notification_log);
     }
 
     /// Check the current status of a permission.
     pub fn checkPermission(self: *const Context, perm: Permission) PermissionStatus {
-        return self.permissions[@intFromEnum(perm)];
+        return permissions_mod.checkPermission(&self.permissions, perm);
     }
 
     /// Request a permission (simulated: always grants).
     pub fn requestPermission(self: *Context, perm: Permission) PermissionStatus {
-        self.permissions[@intFromEnum(perm)] = .granted;
-        return .granted;
+        return permissions_mod.requestPermission(&self.permissions, perm);
     }
 
     /// Revoke a previously granted permission.
     pub fn revokePermission(self: *Context, perm: Permission) void {
-        self.permissions[@intFromEnum(perm)] = .denied;
+        permissions_mod.revokePermission(&self.permissions, perm);
     }
 
     /// Return simulated device information based on the configured platform.
     pub fn getDeviceInfo(self: *const Context) DeviceInfo {
-        return switch (self.config.platform) {
-            .ios => .{
-                .platform = .ios,
-                .os_version = "17.4.1",
-                .device_model = "iPhone 15 Pro",
-                .screen_width = 1179,
-                .screen_height = 2556,
-                .battery_level = 0.85,
-                .is_charging = false,
-            },
-            .android => .{
-                .platform = .android,
-                .os_version = "14.0",
-                .device_model = "Pixel 8 Pro",
-                .screen_width = 1344,
-                .screen_height = 2992,
-                .battery_level = 0.72,
-                .is_charging = true,
-            },
-            .auto => .{
-                .platform = .auto,
-                .os_version = "1.0.0",
-                .device_model = "Simulator",
-                .screen_width = 1080,
-                .screen_height = 1920,
-                .battery_level = 1.0,
-                .is_charging = true,
-            },
-        };
+        return device_mod.getDeviceInfo(self.config.platform);
     }
 };
 
@@ -166,17 +122,13 @@ pub fn isInitialized() bool {
     return true;
 }
 
-pub fn getLifecycleState() LifecycleState {
-    return .active;
-}
+pub const getLifecycleState = device_mod.getLifecycleState;
 
 /// Legacy module-level readSensor (string-based, returns default data).
-pub fn readSensor(_: []const u8) MobileError!SensorData {
-    return .{};
-}
+pub const readSensor = sensors_mod.readSensorLegacy;
 
 /// Legacy module-level sendNotification (no tracking).
-pub fn sendNotification(_: []const u8, _: []const u8) MobileError!void {}
+pub const sendNotification = notifications_mod.sendNotificationLegacy;
 
 // ============================================================================
 // Tests
