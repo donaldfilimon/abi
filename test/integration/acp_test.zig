@@ -508,3 +508,7 @@ test "acp: full lifecycle -- server, tasks, sessions, linking" {
     try std.testing.expect(std.mem.indexOf(u8, json, "lifecycle-agent") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"streaming\":true") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

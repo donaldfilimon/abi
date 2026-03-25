@@ -151,3 +151,7 @@ test "phase3: ai boundary forbids direct internal imports" {
     try assertNoDirectFeatureInternalImports(allocator, io, "src/protocols", "ai");
     try assertNoDirectFeatureInternalImports(allocator, io, "test", "ai");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

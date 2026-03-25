@@ -57,3 +57,7 @@ test "GPU policy optimization hints are valid" {
     try std.testing.expect(h.default_queue_depth > 0);
     try std.testing.expect(h.transfer_chunk_bytes > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

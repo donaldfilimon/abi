@@ -610,3 +610,7 @@ test "ha: HaStatus format produces output" {
     const result = std.fmt.bufPrint(&buf, "{}", .{status}) catch unreachable;
     try std.testing.expect(result.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
