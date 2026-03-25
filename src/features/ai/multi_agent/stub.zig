@@ -1,19 +1,15 @@
-//! Multi-Agent stub — disabled at compile time.
+//! Multi-agent stub facade.
 //!
-//! Mirrors all public types and functions from mod.zig so that code
-//! using `abi.ai.multi_agent.*` compiles regardless of the feature flag.
-//! Every mutating function returns `error.AgentDisabled` or a sensible
-//! zero/empty default.
+//! Mirrors the public `mod.zig` surface while the feature is disabled.
 
 const std = @import("std");
-const sync = @import("../../../foundation/mod.zig").sync;
-const agents = @import("../agents/stub.zig");
-const workflow_mod = @import("workflow.zig");
 const blackboard_mod = @import("blackboard.zig");
 const roles_mod = @import("roles.zig");
 const supervisor_mod = @import("supervisor.zig");
 const protocol_mod = @import("protocol.zig");
-const types = @import("types.zig");
+const workflow_mod = @import("workflow.zig");
+const coordinator_mod = @import("coordinator/stub.zig");
+const types_mod = @import("types.zig");
 
 pub const aggregation = @import("aggregation.zig");
 pub const messaging = @import("messaging.zig");
@@ -22,24 +18,17 @@ pub const blackboard = @import("blackboard.zig");
 pub const workflow = @import("workflow.zig");
 pub const supervisor = @import("supervisor.zig");
 pub const protocol = @import("protocol.zig");
+pub const coordinator = coordinator_mod;
+pub const types = types_mod;
 
-// Re-export types
-pub const Error = types.Error;
-pub const ExecutionStrategy = types.ExecutionStrategy;
-pub const AggregationStrategy = types.AggregationStrategy;
-pub const AgentResult = types.AgentResult;
-pub const AgentHealth = types.AgentHealth;
-pub const CoordinatorConfig = types.CoordinatorConfig;
-pub const CoordinatorStats = types.CoordinatorStats;
-pub const RunnerConfig = types.RunnerConfig;
-pub const WorkflowStats = types.WorkflowStats;
-pub const StepResult = types.StepResult;
-pub const WorkflowResult = types.WorkflowResult;
-pub const RunError = types.RunError;
-
-// ---------------------------------------------------------------------------
-// Runner stub
-// ---------------------------------------------------------------------------
+pub const Error = types_mod.Error;
+pub const ExecutionStrategy = types_mod.ExecutionStrategy;
+pub const AggregationStrategy = types_mod.AggregationStrategy;
+pub const AgentResult = types_mod.AgentResult;
+pub const AgentHealth = types_mod.AgentHealth;
+pub const CoordinatorConfig = types_mod.CoordinatorConfig;
+pub const Coordinator = coordinator_mod.Coordinator;
+pub const CoordinatorStats = types_mod.CoordinatorStats;
 
 pub const runner = struct {
     pub const WorkflowRunner = StubWorkflowRunner;
@@ -48,6 +37,12 @@ pub const runner = struct {
 pub const WorkflowRunner = StubWorkflowRunner;
 
 const StubWorkflowRunner = struct {
+    pub const RunnerConfig = types_mod.RunnerConfig;
+    pub const WorkflowStats = types_mod.WorkflowStats;
+    pub const StepResult = types_mod.StepResult;
+    pub const WorkflowResult = types_mod.WorkflowResult;
+    pub const RunError = types_mod.RunError;
+
     allocator: std.mem.Allocator,
     config: RunnerConfig,
     blackboard: blackboard_mod.Blackboard,
@@ -69,7 +64,7 @@ const StubWorkflowRunner = struct {
             }),
             .event_bus = messaging.EventBus.init(allocator),
             .conversation_manager = protocol_mod.ConversationManager.init(allocator, 20),
-            .agent_map = .{},
+            .agent_map = .empty,
         };
     }
 
@@ -86,73 +81,14 @@ const StubWorkflowRunner = struct {
         return error.AgentDisabled;
     }
 
-    pub fn run(_: *StubWorkflowRunner, _: *const workflow_mod.WorkflowDef) !types.WorkflowResult {
+    pub fn run(_: *StubWorkflowRunner, _: *const workflow_mod.WorkflowDef) !WorkflowResult {
         return RunError.ExecutionFailed;
-    }
-};
-
-// ---------------------------------------------------------------------------
-// Coordinator
-// ---------------------------------------------------------------------------
-
-pub const Coordinator = struct {
-    allocator: std.mem.Allocator = undefined,
-    config: CoordinatorConfig = .{},
-    agents_list: std.ArrayListUnmanaged(*agents.Agent) = .empty,
-    health: std.ArrayListUnmanaged(AgentHealth) = .empty,
-    mailboxes: std.ArrayListUnmanaged(messaging.AgentMailbox) = .empty,
-    results: std.ArrayListUnmanaged(AgentResult) = .empty,
-    mutex: sync.Mutex = .{},
-    event_bus: ?messaging.EventBus = null,
-
-    pub fn init(allocator: std.mem.Allocator) Coordinator {
-        return initWithConfig(allocator, .{});
-    }
-    pub fn initWithConfig(allocator: std.mem.Allocator, config: CoordinatorConfig) Coordinator {
-        return .{ .allocator = allocator, .config = config, .event_bus = if (config.enable_events) messaging.EventBus.init(allocator) else null };
-    }
-    pub fn deinit(self: *Coordinator) void {
-        self.results.deinit(self.allocator);
-        for (self.mailboxes.items) |*mb| mb.deinit();
-        self.mailboxes.deinit(self.allocator);
-        self.health.deinit(self.allocator);
-        self.agents_list.deinit(self.allocator);
-        if (self.event_bus) |*bus| bus.deinit();
-        self.* = undefined;
-    }
-    pub fn register(_: *Coordinator, _: *anyopaque) Error!void {
-        return error.AgentDisabled;
-    }
-    pub fn getAgentHealth(_: *const Coordinator, _: usize) ?AgentHealth {
-        return null;
-    }
-    pub fn sendMessage(_: *Coordinator, _: messaging.AgentMessage) Error!void {
-        return error.AgentDisabled;
-    }
-    pub fn pendingMessages(_: *const Coordinator, _: usize) ?usize {
-        return null;
-    }
-    pub fn agentCount(_: *const Coordinator) usize {
-        return 0;
-    }
-    pub fn onEvent(_: *Coordinator, _: messaging.EventType, _: messaging.EventCallback) !void {
-        return error.AgentDisabled;
-    }
-    pub fn runTask(_: *Coordinator, _: []const u8) Error![]u8 {
-        return error.AgentDisabled;
-    }
-    pub fn getStats(_: *const Coordinator) CoordinatorStats {
-        return .{};
     }
 };
 
 pub fn isEnabled() bool {
     return false;
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 test "stub coordinator init and deinit" {
     const allocator = std.testing.allocator;
@@ -182,9 +118,9 @@ test "stub coordinator with event bus" {
 
 test "stub workflow runner init and deinit" {
     const allocator = std.testing.allocator;
-    var wr = WorkflowRunner.init(allocator, .{});
-    defer wr.deinit();
-    try std.testing.expectEqual(@as(u32, 3), wr.config.max_retries);
+    var workflow_runner = WorkflowRunner.init(allocator, .{});
+    defer workflow_runner.deinit();
+    try std.testing.expectEqual(@as(u32, 3), workflow_runner.config.max_retries);
 }
 
 test "stub isEnabled returns false" {
@@ -194,8 +130,16 @@ test "stub isEnabled returns false" {
 test {
     _ = aggregation;
     _ = messaging;
+    _ = roles;
+    _ = blackboard;
+    _ = workflow;
+    _ = supervisor;
+    _ = protocol;
     _ = runner;
+    _ = coordinator;
+    _ = types;
 }
+
 test {
     std.testing.refAllDecls(@This());
 }

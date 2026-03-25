@@ -1,14 +1,8 @@
-//! Multi-Agent stub types — extracted from stub.zig.
+//! Shared public types for the multi-agent feature.
 
 const std = @import("std");
 const retry = @import("../../../foundation/utils/retry.zig");
 const workflow_mod = @import("workflow.zig");
-const messaging = @import("messaging.zig");
-const agents = @import("../agents/stub.zig");
-
-// ---------------------------------------------------------------------------
-// Error set
-// ---------------------------------------------------------------------------
 
 pub const Error = error{
     AgentDisabled,
@@ -19,10 +13,6 @@ pub const Error = error{
     AggregationFailed,
     Timeout,
 };
-
-// ---------------------------------------------------------------------------
-// Execution / Aggregation strategies
-// ---------------------------------------------------------------------------
 
 /// How to execute tasks across agents.
 pub const ExecutionStrategy = enum {
@@ -48,10 +38,6 @@ pub const AggregationStrategy = enum {
         return @tagName(self);
     }
 };
-
-// ---------------------------------------------------------------------------
-// Agent result / health
-// ---------------------------------------------------------------------------
 
 /// Agent execution result.
 pub const AgentResult = struct {
@@ -98,10 +84,6 @@ pub const AgentHealth = struct {
     }
 };
 
-// ---------------------------------------------------------------------------
-// Coordinator config
-// ---------------------------------------------------------------------------
-
 /// Configuration for the coordinator.
 pub const CoordinatorConfig = struct {
     execution_strategy: ExecutionStrategy = .sequential,
@@ -119,10 +101,6 @@ pub const CoordinatorConfig = struct {
     }
 };
 
-// ---------------------------------------------------------------------------
-// Coordinator stats
-// ---------------------------------------------------------------------------
-
 /// Statistics about coordinator execution.
 pub const CoordinatorStats = struct {
     agent_count: usize = 0,
@@ -135,10 +113,6 @@ pub const CoordinatorStats = struct {
         return @as(f64, @floatFromInt(self.success_count)) / @as(f64, @floatFromInt(self.result_count));
     }
 };
-
-// ---------------------------------------------------------------------------
-// Runner types
-// ---------------------------------------------------------------------------
 
 pub const RunnerConfig = struct {
     max_retries: u32 = 3,
