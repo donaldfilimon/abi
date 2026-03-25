@@ -189,7 +189,7 @@ zig build inference-tests          # Focused inference runtime lane
 
 Two test suites run under `zig build test`:
 1. **Unit tests** (`src/root.zig`) -- `refAllDecls` walks the entire module tree.
-2. **Integration tests** (`test/mod.zig`) -- 46 modules covering database, inference, profile pipeline, security, CLI, TUI, and all features.
+2. **Integration tests** (`test/mod.zig`) -- 50 modules covering database, inference, profile pipeline, security, CLI, TUI, and all features.
 
 ## Specification
 
