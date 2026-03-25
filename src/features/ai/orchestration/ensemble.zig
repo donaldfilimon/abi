@@ -4,76 +4,12 @@
 //! to improve quality, reliability, and confidence in generated responses.
 
 const std = @import("std");
+const types = @import("types.zig");
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/// Method for combining multiple model outputs.
-pub const EnsembleMethod = enum {
-    /// Select output by majority vote (for classification/discrete outputs).
-    voting,
-    /// Average numerical outputs or embeddings.
-    averaging,
-    /// Weighted combination based on model reliability.
-    weighted_average,
-    /// Select best output based on confidence scores.
-    best_of_n,
-    /// Concatenate all outputs with deduplication.
-    concatenate,
-    /// Use first successful response.
-    first_success,
-    /// Custom aggregation function.
-    custom,
-
-    pub fn toString(self: EnsembleMethod) []const u8 {
-        return @tagName(self);
-    }
-};
-
-/// Result from ensemble execution.
-pub const EnsembleResult = struct {
-    /// Combined or selected response.
-    response: []u8,
-    /// Number of models that contributed.
-    model_count: usize,
-    /// Confidence in the ensemble result (0.0 to 1.0).
-    confidence: f64,
-    /// Individual model responses (if retained).
-    individual_responses: ?[]const ModelResponse = null,
-    /// Aggregation metadata.
-    metadata: ?AggregationMetadata = null,
-};
-
-/// Individual model response for ensemble.
-pub const ModelResponse = struct {
-    /// Model identifier.
-    model_id: []const u8,
-    /// Generated response.
-    response: []const u8,
-    /// Confidence score from this model.
-    confidence: f64 = 1.0,
-    /// Latency in milliseconds.
-    latency_ms: u64 = 0,
-    /// Whether this response was selected.
-    selected: bool = false,
-};
-
-/// Metadata about the aggregation process.
-pub const AggregationMetadata = struct {
-    /// Method used for aggregation.
-    method: EnsembleMethod,
-    /// Total responses received.
-    total_responses: usize,
-    /// Responses that failed or were invalid.
-    failed_responses: usize,
-    /// Agreement ratio (for voting).
-    agreement_ratio: f64 = 0.0,
-    /// Average confidence across models.
-    avg_confidence: f64 = 0.0,
-    /// Standard deviation of responses (for numerical).
-    std_deviation: f64 = 0.0,
-};
+pub const EnsembleMethod = types.EnsembleMethod;
+pub const EnsembleResult = types.EnsembleResult;
+pub const ModelResponse = types.ModelResponse;
+pub const AggregationMetadata = types.AggregationMetadata;
 
 // ============================================================================
 // Ensemble

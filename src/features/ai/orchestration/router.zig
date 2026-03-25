@@ -4,159 +4,19 @@
 //! various strategies including task type, load balancing, and model capabilities.
 
 const std = @import("std");
-const mod = @import("mod.zig");
 const time = @import("../../../foundation/mod.zig").time;
+const types = @import("types.zig");
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/// Strategy for routing requests to models.
-pub const RoutingStrategy = enum {
-    /// Distribute requests evenly across all models.
-    round_robin,
-    /// Route to model with fewest active requests.
-    least_loaded,
-    /// Route based on task type and model capabilities.
-    task_based,
-    /// Route based on configured weights.
-    weighted,
-    /// Route to highest priority available model.
-    priority,
-    /// Route to cheapest available model.
-    cost_optimized,
-    /// Route to model with lowest average latency.
-    latency_optimized,
-
-    pub fn toString(self: RoutingStrategy) []const u8 {
-        return @tagName(self);
-    }
-};
-
-/// Task type for task-based routing.
-pub const TaskType = enum {
-    /// Complex reasoning tasks.
-    reasoning,
-    /// Code generation and analysis.
-    coding,
-    /// Creative writing and content generation.
-    creative,
-    /// Data analysis and interpretation.
-    analysis,
-    /// Text summarization.
-    summarization,
-    /// Language translation.
-    translation,
-    /// Mathematical computations.
-    math,
-    /// General-purpose tasks.
-    general,
-
-    pub fn toString(self: TaskType) []const u8 {
-        return @tagName(self);
-    }
-
-    /// Detect task type from prompt content (heuristic-based).
-    pub fn detect(prompt: []const u8) TaskType {
-        const lower = blk: {
-            var buf: [512]u8 = undefined;
-            const len = @min(prompt.len, buf.len);
-            for (prompt[0..len], 0..) |c, i| {
-                buf[i] = std.ascii.toLower(c);
-            }
-            break :blk buf[0..len];
-        };
-
-        // Code-related keywords
-        if (std.mem.indexOf(u8, lower, "code") != null or
-            std.mem.indexOf(u8, lower, "function") != null or
-            std.mem.indexOf(u8, lower, "implement") != null or
-            std.mem.indexOf(u8, lower, "debug") != null or
-            std.mem.indexOf(u8, lower, "program") != null)
-        {
-            return .coding;
-        }
-
-        // Math-related keywords
-        if (std.mem.indexOf(u8, lower, "calculate") != null or
-            std.mem.indexOf(u8, lower, "solve") != null or
-            std.mem.indexOf(u8, lower, "equation") != null or
-            std.mem.indexOf(u8, lower, "math") != null)
-        {
-            return .math;
-        }
-
-        // Summarization keywords
-        if (std.mem.indexOf(u8, lower, "summarize") != null or
-            std.mem.indexOf(u8, lower, "summary") != null or
-            std.mem.indexOf(u8, lower, "brief") != null or
-            std.mem.indexOf(u8, lower, "tldr") != null)
-        {
-            return .summarization;
-        }
-
-        // Translation keywords
-        if (std.mem.indexOf(u8, lower, "translate") != null or
-            std.mem.indexOf(u8, lower, "translation") != null)
-        {
-            return .translation;
-        }
-
-        // Creative keywords
-        if (std.mem.indexOf(u8, lower, "write") != null or
-            std.mem.indexOf(u8, lower, "story") != null or
-            std.mem.indexOf(u8, lower, "creative") != null or
-            std.mem.indexOf(u8, lower, "poem") != null)
-        {
-            return .creative;
-        }
-
-        // Analysis keywords
-        if (std.mem.indexOf(u8, lower, "analyze") != null or
-            std.mem.indexOf(u8, lower, "analysis") != null or
-            std.mem.indexOf(u8, lower, "examine") != null or
-            std.mem.indexOf(u8, lower, "evaluate") != null)
-        {
-            return .analysis;
-        }
-
-        // Reasoning keywords
-        if (std.mem.indexOf(u8, lower, "reason") != null or
-            std.mem.indexOf(u8, lower, "explain") != null or
-            std.mem.indexOf(u8, lower, "why") != null or
-            std.mem.indexOf(u8, lower, "think") != null)
-        {
-            return .reasoning;
-        }
-
-        return .general;
-    }
-};
-
-/// Result of routing decision.
-pub const RouteResult = struct {
-    /// ID of the selected model.
-    model_id: []const u8,
-    /// Name of the model.
-    model_name: []const u8,
-    /// Backend type.
-    backend: mod.ModelBackend,
-    /// Original prompt.
-    prompt: []const u8,
-    /// Detected or specified task type.
-    task_type: ?TaskType = null,
-    /// Confidence in the routing decision (0.0 to 1.0).
-    confidence: f64 = 1.0,
-    /// Reason for the routing decision.
-    reason: ?[]const u8 = null,
-};
+pub const RoutingStrategy = types.RoutingStrategy;
+pub const TaskType = types.TaskType;
+pub const RouteResult = types.RouteResult;
 
 /// Routing criteria for filtering models.
 pub const RoutingCriteria = struct {
     /// Required task type (if any).
     task_type: ?TaskType = null,
     /// Required capabilities.
-    required_capabilities: []const mod.Capability = &.{},
+    required_capabilities: []const types.Capability = &.{},
     /// Maximum acceptable latency in ms.
     max_latency_ms: ?u64 = null,
     /// Maximum acceptable cost per 1K tokens.
@@ -164,7 +24,7 @@ pub const RoutingCriteria = struct {
     /// Minimum required success rate.
     min_success_rate: ?f64 = null,
     /// Preferred backends.
-    preferred_backends: []const mod.ModelBackend = &.{},
+    preferred_backends: []const types.ModelBackend = &.{},
     /// Excluded model IDs.
     excluded_models: []const []const u8 = &.{},
 };
@@ -209,7 +69,7 @@ pub const Router = struct {
     /// Score a model for a given criteria.
     pub fn scoreModel(
         _: *Router,
-        model: *const mod.ModelEntry,
+        model: *const types.ModelEntry,
         criteria: RoutingCriteria,
     ) f64 {
         var score: f64 = 1.0;
@@ -292,12 +152,12 @@ pub const Router = struct {
     /// Select the best model from a list based on criteria.
     pub fn selectBest(
         self: *Router,
-        models: []const *mod.ModelEntry,
+        models: []const *types.ModelEntry,
         criteria: RoutingCriteria,
-    ) ?*const mod.ModelEntry {
+    ) ?*const types.ModelEntry {
         if (models.len == 0) return null;
 
-        var best: ?*const mod.ModelEntry = null;
+        var best: ?*const types.ModelEntry = null;
         var best_score: f64 = 0.0;
 
         for (models) |model| {
@@ -350,7 +210,7 @@ pub const RoutingRule = struct {
         /// Exclude specific models.
         exclude: []const []const u8,
         /// Require specific capabilities.
-        require_capabilities: []const mod.Capability,
+        require_capabilities: []const types.Capability,
     };
 
     /// Check if this rule matches the given context.

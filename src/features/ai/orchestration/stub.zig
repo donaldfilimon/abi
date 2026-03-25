@@ -65,38 +65,38 @@ pub const FallbackManager = struct {
 // --- Orchestrator ---
 pub const Orchestrator = struct {
     pub fn init(_: std.mem.Allocator, _: OrchestrationConfig) OrchestrationError!Orchestrator {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn deinit(_: *Orchestrator) void {}
     pub fn registerModel(_: *Orchestrator, _: ModelConfig) OrchestrationError!void {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn unregisterModel(_: *Orchestrator, _: []const u8) OrchestrationError!void {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn getModel(_: *Orchestrator, _: []const u8) ?*ModelEntry {
         return null;
     }
     pub fn setModelEnabled(_: *Orchestrator, _: []const u8, _: bool) OrchestrationError!void {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn setModelHealth(_: *Orchestrator, _: []const u8, _: HealthStatus) OrchestrationError!void {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn route(_: *Orchestrator, _: []const u8, _: ?TaskType) OrchestrationError!RouteResult {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn execute(_: *Orchestrator, _: []const u8, _: ?TaskType, _: std.mem.Allocator) OrchestrationError![]u8 {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn executeEnsemble(_: *Orchestrator, _: []const u8, _: ?TaskType, _: std.mem.Allocator) OrchestrationError!EnsembleResult {
-        return error.FeatureDisabled;
+        return error.OrchestrationDisabled;
     }
     pub fn getStats(_: *Orchestrator) OrchestratorStats {
         return .{};
     }
-    pub fn listModels(_: *Orchestrator, _: std.mem.Allocator) OrchestrationError![][]const u8 {
-        return error.FeatureDisabled;
+    pub fn listModels(_: *Orchestrator, _: std.mem.Allocator) ![][]const u8 {
+        return error.OrchestrationDisabled;
     }
 };
 

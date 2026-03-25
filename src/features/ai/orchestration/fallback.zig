@@ -6,48 +6,10 @@
 const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
 const utils = @import("../../../foundation/mod.zig").utils;
+const types = @import("types.zig");
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/// Health status of a model.
-pub const HealthStatus = enum {
-    /// Model is functioning normally.
-    healthy,
-    /// Model is experiencing intermittent issues.
-    degraded,
-    /// Model is not responding.
-    unhealthy,
-    /// Circuit breaker is open (not accepting requests).
-    circuit_open,
-    /// Model is being probed for recovery.
-    recovering,
-
-    pub fn toString(self: HealthStatus) []const u8 {
-        return @tagName(self);
-    }
-
-    pub fn isAvailable(self: HealthStatus) bool {
-        return self == .healthy or self == .degraded;
-    }
-};
-
-/// Policy for handling fallbacks.
-pub const FallbackPolicy = enum {
-    /// Fail immediately on first error.
-    fail_fast,
-    /// Retry same model before falling back.
-    retry_then_fallback,
-    /// Immediately try next model on failure.
-    immediate_fallback,
-    /// Use circuit breaker pattern.
-    circuit_breaker,
-
-    pub fn toString(self: FallbackPolicy) []const u8 {
-        return @tagName(self);
-    }
-};
+pub const HealthStatus = types.HealthStatus;
+pub const FallbackPolicy = types.FallbackPolicy;
 
 /// Configuration for fallback behavior.
 pub const FallbackConfig = struct {

@@ -20,6 +20,7 @@ pub const Steps = struct {
     secrets_tests_step: *std.Build.Step,
     pitr_tests_step: *std.Build.Step,
     agents_tests_step: *std.Build.Step,
+    orchestration_tests_step: *std.Build.Step,
     gateway_tests_step: *std.Build.Step,
     inference_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
@@ -177,6 +178,31 @@ pub fn addSteps(ctx: Context) Steps {
     agents_tests_step.dependOn(&ctx.b.addRunArtifact(agents_unit_tests).step);
     agents_tests_step.dependOn(&ctx.b.addRunArtifact(agents_integration_tests).step);
 
+    const orchestration_unit_tests = addModuleTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "src/orchestration_mod_test.zig",
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(orchestration_unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const orchestration_integration_tests = addIntegrationTests(
+        ctx.b,
+        ctx.target,
+        ctx.optimize,
+        "test/orchestration_mod.zig",
+        ctx.abi_module,
+        ctx.build_options_module,
+    );
+    if (ctx.target.result.os.tag == .macos) {
+        linking.linkDarwinArtifact(orchestration_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
+    }
+    const orchestration_tests_step = ctx.b.step("orchestration-tests", "Run orchestration-focused unit and integration tests");
+    orchestration_tests_step.dependOn(&ctx.b.addRunArtifact(orchestration_unit_tests).step);
+    orchestration_tests_step.dependOn(&ctx.b.addRunArtifact(orchestration_integration_tests).step);
+
     const gateway_unit_tests = addModuleTests(
         ctx.b,
         ctx.target,
@@ -248,6 +274,7 @@ pub fn addSteps(ctx: Context) Steps {
         .secrets_tests_step = secrets_tests_step,
         .pitr_tests_step = pitr_tests_step,
         .agents_tests_step = agents_tests_step,
+        .orchestration_tests_step = orchestration_tests_step,
         .gateway_tests_step = gateway_tests_step,
         .inference_tests_step = inference_tests_step,
         .check_step = check_step,

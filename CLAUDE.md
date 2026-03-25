@@ -54,6 +54,7 @@ zig build messaging-tests          # Run messaging unit + integration tests
 zig build secrets-tests            # Run secrets unit + integration tests
 zig build pitr-tests               # Run PITR unit + integration tests
 zig build agents-tests             # Run agents unit + integration tests
+zig build orchestration-tests      # Run orchestration unit + integration tests
 zig build gateway-tests            # Run gateway unit + integration tests
 zig build inference-tests          # Run inference unit + integration tests
 zig build cli-tests                # Run CLI tests

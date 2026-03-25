@@ -50,6 +50,7 @@ const gateway_runtime_tests = @import("integration/gateway_runtime_test.zig");
 const agents_tests = @import("integration/agents_test.zig");
 const secrets_tests = @import("integration/secrets_test.zig");
 const pitr_tests = @import("integration/pitr_test.zig");
+const orchestration_tests = @import("integration/orchestration_test.zig");
 
 test {
     std.testing.refAllDecls(@This());
