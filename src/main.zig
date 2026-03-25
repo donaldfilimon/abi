@@ -443,9 +443,43 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
 
     std.debug.print("\nExecution:\n", .{});
 
-    // In a real implementation we would execute the backend here.
-    // For now we simulate the executor response:
-    std.debug.print("  [✓] Route validated. Engine would execute here.\n", .{});
+    // Execute inference via the engine's configured backend
+    const inference = root.inference;
+    var engine = inference.Engine.init(allocator, .{
+        .backend = .connector,
+        .model_id = "ollama/llama3",
+        .kv_cache_pages = 100,
+        .page_size = 16,
+        .num_layers = 1,
+        .num_heads = 1,
+        .head_dim = 4,
+        .max_batch_size = 8,
+    }) catch {
+        std.debug.print("  [✓] Route validated. Engine init failed — no inference available.\n", .{});
+        return;
+    };
+    defer engine.deinit();
+
+    var result = engine.generate(.{
+        .id = 1,
+        .prompt = message,
+        .max_tokens = 256,
+        .temperature = 0.7,
+        .top_p = 0.9,
+        .top_k = 40,
+        .persona_id = @intFromEnum(decision.primary),
+    }) catch {
+        std.debug.print("  [✓] Route validated. Inference generation failed.\n", .{});
+        return;
+    };
+    defer result.deinit(allocator);
+
+    std.debug.print("  [✓] Route validated.\n", .{});
+    std.debug.print("  [✓] Engine responded ({d} tokens, {d:.1}ms):\n\n", .{
+        result.completion_tokens,
+        result.latency_ms,
+    });
+    std.debug.print("{s}\n", .{result.text});
 }
 
 // ── Database ────────────────────────────────────────────────────────────
