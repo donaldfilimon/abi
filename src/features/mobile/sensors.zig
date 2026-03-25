@@ -1,7 +1,6 @@
 //! Sensor simulation for the mobile feature.
 //!
-//! Provides simulated sensor readings (accelerometer, gyroscope, GPS, etc.)
-//! for development and testing on non-mobile platforms.
+//! Provides simulated sensor readings for development and testing.
 
 const std = @import("std");
 const types = @import("types.zig");
@@ -33,7 +32,8 @@ pub fn readSensor(sensor_type: SensorType) MobileError!SensorData {
     };
 }
 
-/// Legacy module-level readSensor (string-based, returns default data).
-pub fn readSensorLegacy(_: []const u8) MobileError!SensorData {
-    return .{};
+test "readSensor returns timestamped data" {
+    const data = try readSensor(.accelerometer);
+    try std.testing.expect(data.timestamp_ms > 0);
+    try std.testing.expectApproxEqAbs(@as(f32, 9.81), data.values[2], 0.001);
 }

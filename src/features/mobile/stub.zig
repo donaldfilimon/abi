@@ -4,6 +4,12 @@ const std = @import("std");
 const stub_helpers = @import("../../core/stub_helpers.zig");
 pub const types = @import("types.zig");
 
+// Submodule stubs — empty structs matching mod.zig's public surface
+pub const sensors = struct {};
+pub const notifications = struct {};
+pub const permissions = struct {};
+pub const device = struct {};
+
 pub const MobileConfig = types.MobileConfig;
 pub const MobilePlatform = types.MobilePlatform;
 pub const MobileError = types.MobileError;

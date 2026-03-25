@@ -1,7 +1,6 @@
 //! Notification tracking for the mobile feature.
 //!
-//! Provides notification sending, counting, and clearing backed by
-//! an in-memory log of NotificationEntry records.
+//! Manages sending and tracking notifications in a fixed-size buffer log.
 
 const std = @import("std");
 const types = @import("types.zig");
@@ -47,5 +46,13 @@ pub fn clearNotifications(log: *std.ArrayListUnmanaged(NotificationEntry)) void 
     log.clearRetainingCapacity();
 }
 
-/// Legacy module-level sendNotification (no tracking).
-pub fn sendNotificationLegacy(_: []const u8, _: []const u8) MobileError!void {}
+test "send and count notifications" {
+    var log: std.ArrayListUnmanaged(NotificationEntry) = .empty;
+    defer log.deinit(std.testing.allocator);
+
+    try sendNotification(&log, std.testing.allocator, "Test", "Body", .normal);
+    try std.testing.expectEqual(@as(usize, 1), getNotificationCount(&log));
+
+    clearNotifications(&log);
+    try std.testing.expectEqual(@as(usize, 0), getNotificationCount(&log));
+}

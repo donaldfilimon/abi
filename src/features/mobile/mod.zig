@@ -2,23 +2,16 @@
 //!
 //! Platform lifecycle, sensors, notifications, permissions, and device info.
 //! Provides simulated mobile platform behavior for development and testing.
-//!
-//! Architecture:
-//! - sensors.zig — Simulated sensor readings (accelerometer, gyroscope, GPS, etc.)
-//! - notifications.zig — Notification sending, counting, and clearing
-//! - permissions.zig — Permission check, request, and revoke
-//! - device.zig — Device info and lifecycle state
 
 const std = @import("std");
 pub const types = @import("types.zig");
 
-// Submodules
-const sensors_mod = @import("sensors.zig");
-const notifications_mod = @import("notifications.zig");
-const permissions_mod = @import("permissions.zig");
-const device_mod = @import("device.zig");
+// Submodules — real implementations live here
+pub const sensors = @import("sensors.zig");
+pub const notifications = @import("notifications.zig");
+pub const permissions = @import("permissions.zig");
+pub const device = @import("device.zig");
 
-// Re-export public types from types.zig
 pub const MobileConfig = types.MobileConfig;
 pub const MobilePlatform = types.MobilePlatform;
 pub const MobileError = types.MobileError;
@@ -59,7 +52,7 @@ pub const Context = struct {
     /// Read a simulated sensor value based on the sensor type.
     pub fn readSensor(self: *Context, sensor_type: SensorType) MobileError!SensorData {
         _ = self;
-        return sensors_mod.readSensor(sensor_type);
+        return sensors.readSensor(sensor_type);
     }
 
     /// Send a notification and track it in the log.
@@ -69,7 +62,7 @@ pub const Context = struct {
         body_text: []const u8,
         priority: Notification.Priority,
     ) MobileError!void {
-        return notifications_mod.sendNotification(
+        return notifications.sendNotification(
             &self.notification_log,
             self.allocator,
             title,
@@ -80,32 +73,32 @@ pub const Context = struct {
 
     /// Return the number of tracked notifications.
     pub fn getNotificationCount(self: *const Context) usize {
-        return notifications_mod.getNotificationCount(&self.notification_log);
+        return notifications.getNotificationCount(&self.notification_log);
     }
 
     /// Clear all tracked notifications.
     pub fn clearNotifications(self: *Context) void {
-        notifications_mod.clearNotifications(&self.notification_log);
+        notifications.clearNotifications(&self.notification_log);
     }
 
     /// Check the current status of a permission.
     pub fn checkPermission(self: *const Context, perm: Permission) PermissionStatus {
-        return permissions_mod.checkPermission(&self.permissions, perm);
+        return permissions.checkPermission(&self.permissions, perm);
     }
 
     /// Request a permission (simulated: always grants).
     pub fn requestPermission(self: *Context, perm: Permission) PermissionStatus {
-        return permissions_mod.requestPermission(&self.permissions, perm);
+        return permissions.requestPermission(&self.permissions, perm);
     }
 
     /// Revoke a previously granted permission.
     pub fn revokePermission(self: *Context, perm: Permission) void {
-        permissions_mod.revokePermission(&self.permissions, perm);
+        permissions.revokePermission(&self.permissions, perm);
     }
 
     /// Return simulated device information based on the configured platform.
     pub fn getDeviceInfo(self: *const Context) DeviceInfo {
-        return device_mod.getDeviceInfo(self.config.platform);
+        return device.getDeviceInfo(self.config.platform);
     }
 };
 
@@ -122,13 +115,17 @@ pub fn isInitialized() bool {
     return true;
 }
 
-pub const getLifecycleState = device_mod.getLifecycleState;
+pub fn getLifecycleState() LifecycleState {
+    return .active;
+}
 
 /// Legacy module-level readSensor (string-based, returns default data).
-pub const readSensor = sensors_mod.readSensorLegacy;
+pub fn readSensor(_: []const u8) MobileError!SensorData {
+    return .{};
+}
 
 /// Legacy module-level sendNotification (no tracking).
-pub const sendNotification = notifications_mod.sendNotificationLegacy;
+pub fn sendNotification(_: []const u8, _: []const u8) MobileError!void {}
 
 // ============================================================================
 // Tests

@@ -1,7 +1,6 @@
 //! Permission management for the mobile feature.
 //!
-//! Provides check, request, and revoke operations for mobile permissions
-//! (camera, microphone, location, etc.) using a simulated permission store.
+//! Simulated permission system that tracks grant/deny state per permission type.
 
 const types = @import("types.zig");
 
@@ -23,4 +22,18 @@ pub fn requestPermission(permissions: *[permission_count]PermissionStatus, perm:
 /// Revoke a previously granted permission.
 pub fn revokePermission(permissions: *[permission_count]PermissionStatus, perm: Permission) void {
     permissions[@intFromEnum(perm)] = .denied;
+}
+
+const std = @import("std");
+
+test "permission lifecycle" {
+    var perms: [permission_count]PermissionStatus = @splat(.not_requested);
+
+    try std.testing.expectEqual(PermissionStatus.not_requested, checkPermission(&perms, .camera));
+
+    _ = requestPermission(&perms, .camera);
+    try std.testing.expectEqual(PermissionStatus.granted, checkPermission(&perms, .camera));
+
+    revokePermission(&perms, .camera);
+    try std.testing.expectEqual(PermissionStatus.denied, checkPermission(&perms, .camera));
 }

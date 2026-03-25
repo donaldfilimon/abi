@@ -1,13 +1,11 @@
 //! Device information for the mobile feature.
 //!
-//! Returns simulated device metadata (model, OS version, screen size,
-//! battery) based on the configured mobile platform.
+//! Returns simulated device metadata based on the configured platform.
 
 const types = @import("types.zig");
 
 const MobilePlatform = types.MobilePlatform;
 const DeviceInfo = types.DeviceInfo;
-const LifecycleState = types.LifecycleState;
 
 /// Return simulated device information based on the configured platform.
 pub fn getDeviceInfo(platform: MobilePlatform) DeviceInfo {
@@ -42,7 +40,16 @@ pub fn getDeviceInfo(platform: MobilePlatform) DeviceInfo {
     };
 }
 
-/// Return the current lifecycle state (module-level convenience).
-pub fn getLifecycleState() LifecycleState {
-    return .active;
+const std = @import("std");
+
+test "getDeviceInfo returns platform-specific data" {
+    const ios = getDeviceInfo(.ios);
+    try std.testing.expectEqual(MobilePlatform.ios, ios.platform);
+    try std.testing.expectEqualStrings("iPhone 15 Pro", ios.device_model);
+
+    const android = getDeviceInfo(.android);
+    try std.testing.expectEqual(MobilePlatform.android, android.platform);
+
+    const auto = getDeviceInfo(.auto);
+    try std.testing.expectEqualStrings("Simulator", auto.device_model);
 }
