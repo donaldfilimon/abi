@@ -77,7 +77,7 @@ const StubWorkflowRunner = struct {
     }
 
     pub fn registerAgent(_: *StubWorkflowRunner, _: []const u8, _: *anyopaque) !void {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn run(_: *StubWorkflowRunner, _: *const workflow_mod.WorkflowDef) !WorkflowResult {

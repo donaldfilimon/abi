@@ -45,7 +45,7 @@ pub const Coordinator = struct {
     }
 
     pub fn register(_: *Coordinator, _: *agents_mod.Agent) Error!void {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getAgentHealth(_: *const Coordinator, _: usize) ?AgentHealth {
@@ -53,7 +53,7 @@ pub const Coordinator = struct {
     }
 
     pub fn sendMessage(_: *Coordinator, _: messaging.AgentMessage) Error!void {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn pendingMessages(_: *const Coordinator, _: usize) ?usize {
@@ -65,11 +65,11 @@ pub const Coordinator = struct {
     }
 
     pub fn onEvent(_: *Coordinator, _: messaging.EventType, _: messaging.EventCallback) !void {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn runTask(_: *Coordinator, _: []const u8) Error![]u8 {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getStats(_: *const Coordinator) CoordinatorStats {
