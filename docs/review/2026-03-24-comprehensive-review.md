@@ -228,33 +228,33 @@ All other major subsystems have `feat_*` gates.
 
 ### P0 — Fix Now (bugs and broken contracts)
 
-- [ ] **Fix Database Engine data race** — Add `db_lock` acquisition to `index`, `delete`, `search`, `searchByVector`, `rebuildHnswIndex`, `count`, `connectAI` in `src/core/database/engine.zig`
-- [ ] **Fix stub parity drift** — Add `isEnabled`, `isInitialized` to 13 feature stubs; add `init`/`deinit` to 5 feature stubs (auth, cache, messaging, search, storage)
-- [ ] **Wire `inference_async_test.zig`** — Add import to `test/mod.zig`
-- [ ] **Fix HNSW double-silent-swallow** — Propagate or log error when sequential fallback fails in `src/core/database/hnsw/mod.zig:340-370`
-- [ ] **Fix WAL sync discard** — Propagate `file.sync()` errors in `src/core/database/storage/wal.zig:137` and `src/protocols/ha/pitr/persistence.zig:213`
+- [x] **Fix Database Engine data race** — Added `db_lock` to all public methods (1f01853)
+- [x] **Fix stub parity drift** — Stubs already had lifecycle functions via StubFeature helpers; fixed orchestration + multi_agent parity gaps (354fa4e, da70e3e)
+- [x] **Wire `inference_async_test.zig`** — Added import to `test/mod.zig` (1f01853)
+- [x] **Fix HNSW double-silent-swallow** — Added log warnings on fallback failure (1f01853)
+- [x] **Fix WAL sync discard** — Propagated file.sync() errors (1f01853, b19af6d)
 
 ### P1 — Wave 5 Decomposition
 
-- [ ] **Decompose `features/mobile/mod.zig`** (533 lines) → sensors, notifications, permissions, device subdirs
-- [ ] **Decompose `protocols/acp/server.zig`** (839 lines) → server/ with routing, sessions, tasks, agent_card
-- [ ] **Decompose `protocols/mcp/real.zig`** (723 lines) → client.zig + protocol.zig, build on existing server/ subdir
-- [ ] **Decompose `protocols/lsp/client.zig`** (634 lines) → client/ with requests, notifications, transport
-- [ ] **Decompose `protocols/ha/backup.zig`** (816 lines) → backup/ with config, execution, storage
-- [ ] **Decompose `protocols/ha/replication.zig`** (647 lines) → replication/ with state, sync, membership
-- [ ] **Reduce `protocols/ha/stub.zig`** (717 lines) — Extract shared types to reduce stub size
-- [ ] **Fix Compute Mesh node drop** — Propagate error in `src/features/compute/mesh.zig:211`
-- [ ] **Fix Plugin manifest dir creation** — Propagate error in `src/features/ai/llm/providers/plugins/manifest.zig:266`
+- [x] **Decompose `features/mobile/mod.zig`** → sensors, notifications, permissions, device (383b44d)
+- [x] **Decompose `protocols/acp/server.zig`** → server/ with routing, sessions, tasks, agent_card (12e8491)
+- [x] **Decompose `protocols/mcp/real.zig`** → handlers/, factories.zig (e9bc644)
+- [x] **Decompose `protocols/lsp/client.zig`** → client/ with requests, notifications, transport (d6fbcf0)
+- [x] **Decompose `protocols/ha/backup.zig`** → backup/ with config, execution, storage (353ea00)
+- [x] **Decompose `protocols/ha/replication.zig`** → replication/ with state, sync, membership (353ea00)
+- [x] **Reduce `protocols/ha/stub.zig`** — Imported shared types from types.zig (717→665 lines) (b61f234)
+- [x] **Fix Compute Mesh node drop** — Propagated error with log message (b19af6d)
+- [x] **Fix Plugin manifest dir creation** — Propagated error with log message (b19af6d)
 
 ### P2 — Feature Completeness (highest impact)
 
-- [ ] **Wire engine-to-connector bridge** — Make `generateConnector` in `src/inference/engine/backends.zig:14` call actual connector clients based on model_id
-- [ ] **Complete `abi chat` end-to-end** — Wire persona router output to inference engine in `src/main.zig:448`
-- [ ] **Add feature gates for inference, tasks, connectors** — Add `feat_inference`, `feat_tasks`, `feat_connectors` build options or gate behind `feat_ai`
+- [x] **Wire engine-to-connector bridge** — Provider resolution from model_id, env config loading, 12 providers (33d74bc)
+- [x] **Complete `abi chat` end-to-end** — Persona router → Engine.generate() (33d74bc)
+- [ ] **Add feature gates for inference, tasks, connectors** — Needs stub modules, deferred
 - [ ] **Add MCP authentication** — Token/API key validation for MCP tool calls
 - [ ] **Add MCP SSE transport** — For web-based clients (Claude Desktop over HTTP)
 - [ ] **Add Metal MPS integration** — Wire MPS operators (GEMM, softmax, layer norm) for real GPU inference on macOS
-- [ ] **Refactor `build/validation.zig`** — Extract helper function for repetitive test step patterns (~378→~100 lines)
+- [x] **Refactor `build/validation.zig`** — Extracted addFeatureTestLane helper (406→240 lines) (958dba1)
 
 ### P3 — Backlog
 

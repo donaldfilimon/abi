@@ -54,6 +54,7 @@ zig build messaging-tests          # Run messaging unit + integration tests
 zig build secrets-tests            # Run secrets unit + integration tests
 zig build pitr-tests               # Run PITR unit + integration tests
 zig build agents-tests             # Run agents unit + integration tests
+zig build multi-agent-tests        # Run multi-agent unit + integration tests
 zig build orchestration-tests      # Run orchestration unit + integration tests
 zig build gateway-tests            # Run gateway unit + integration tests
 zig build inference-tests          # Run inference unit + integration tests
@@ -107,7 +108,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 - `build/flags.zig` — `FeatureFlags` struct, `hasBackend()`, `addAllBuildOptions()`
 - `build/cross.zig` — cross-compilation targets (typecheck, cross-check steps)
 - `build/linking.zig` — `linkDarwinArtifact()` for macOS framework linking
-- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring
+- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring. Uses `addFeatureTestLane()` helper for feature-specific test steps (messaging, secrets, pitr, agents, multi_agent, orchestration, gateway, inference)
 
 ## Architecture
 
@@ -216,8 +217,12 @@ Key files: `persona/router.zig` (orchestration), `persona/memory.zig` (WDBX stor
 
 Multi-backend engine (`src/inference/engine.zig`) supports:
 - `demo` — synthetic text for testing (default)
-- `connector` — delegates to external LLM providers (OpenAI, Anthropic, Ollama, etc.)
+- `connector` — resolves provider from `model_id` ("provider/model" format), loads config from env vars, delegates to connector clients (`src/inference/engine/backends.zig`)
 - `local` — built-in transformer forward pass (integration point for GGUF loading)
+
+The connector backend dispatches to 12 providers (openai, anthropic, ollama, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
+
+The `abi chat` CLI command wires the persona router to the inference engine: routing decision → `Engine.generate()` → connector dispatch → response.
 
 ### Specification
 
