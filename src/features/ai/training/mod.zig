@@ -36,6 +36,7 @@ pub const logging = @import("logging.zig");
 pub const distributed = @import("distributed.zig");
 pub const optimizer_mod = @import("optimizer.zig");
 pub const trainer = @import("trainer.zig");
+pub const training_utils = @import("training_utils.zig");
 
 // ============================================================================
 // Distributed training exports
