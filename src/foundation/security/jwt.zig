@@ -99,7 +99,7 @@ pub const Claims = struct {
     /// Check if the token is expired
     pub fn isExpired(self: Claims) bool {
         if (self.exp) |exp| {
-            return time.unixSeconds() > exp;
+            return time.wallSeconds() > exp;
         }
         return false;
     }
@@ -107,7 +107,7 @@ pub const Claims = struct {
     /// Check if the token is valid yet (nbf check)
     pub fn isValidYet(self: Claims) bool {
         if (self.nbf) |nbf| {
-            return time.unixSeconds() >= nbf;
+            return time.wallSeconds() >= nbf;
         }
         return true;
     }
@@ -1352,6 +1352,15 @@ test "standalone decode with custom claims" {
         .exp = time.unixSeconds() + 3600,
         .custom = custom,
     });
+    // Free the custom map entries after createToken has serialised them
+    {
+        var it = custom.iterator();
+        while (it.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        custom.deinit(allocator);
+    }
     defer allocator.free(token_str);
 
     // Decode and check custom claims are preserved

@@ -109,7 +109,7 @@ pub fn formatSseFrame(allocator: std.mem.Allocator, json_response: []const u8) !
 
     // Each line gets "data: " prefix (6 bytes) + "\n" suffix
     // Plus final extra "\n" for the blank line terminator
-    const out_size = trimmed.len + (line_count * 6) + 1;
+    const out_size = trimmed.len + (line_count * 6) + 2;
     var out = try allocator.alloc(u8, out_size);
     var pos: usize = 0;
 

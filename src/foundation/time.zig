@@ -163,6 +163,19 @@ pub fn unixSeconds() i64 {
     return @intCast(timestampSec());
 }
 
+/// Get current wall-clock time in unix seconds using CLOCK_REALTIME.
+/// Use this for expiry checks and persisted timestamps; unixSeconds() is
+/// monotonic from process start and unsuitable for calendar comparisons.
+/// Returns 0 on WASM (no POSIX clock available).
+pub fn wallSeconds() i64 {
+    if (isWasmTarget()) return 0;
+    var ts: std.posix.timespec = undefined;
+    if (std.posix.errno(std.posix.system.clock_gettime(.REALTIME, &ts)) != .SUCCESS) {
+        return 0;
+    }
+    return @intCast(ts.sec);
+}
+
 /// Get current time in unix seconds (alias for unixSeconds).
 pub fn nowSeconds() i64 {
     return unixSeconds();
