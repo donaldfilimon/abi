@@ -1,7 +1,7 @@
 //! Conversation Memory — WDBX Block Chain Integration
 //!
-//! Bridges the multi-persona orchestration layer with the WDBX block chain
-//! storage system. Each routing decision + persona response is stored as
+//! Bridges the multi-profile orchestration layer with the WDBX block chain
+//! storage system. Each routing decision + profile response is stored as
 //! a ConversationBlock with cryptographic chaining for auditability.
 //!
 //! Per spec Section 4.1:
@@ -14,9 +14,9 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-const PersonaId = types.PersonaId;
+const ProfileId = types.ProfileId;
 const RoutingDecision = types.RoutingDecision;
-const PersonaResponse = types.PersonaResponse;
+const ProfileResponse = types.ProfileResponse;
 
 // Import through the database feature facade (not core directly)
 const build_options = @import("build_options");
@@ -52,7 +52,7 @@ pub const ConversationMemory = struct {
         self: *Self,
         decision: RoutingDecision,
         input: []const u8,
-        _: PersonaResponse,
+        _: ProfileResponse,
     ) !u64 {
         // Generate a simple embedding placeholder from input content.
         // Real embeddings would come from a connector (OpenAI, Cohere, etc.)
@@ -69,7 +69,7 @@ pub const ConversationMemory = struct {
             };
         }
 
-        // Map PersonaId → ProfileTag.ProfileType
+        // Map ProfileId → ProfileTag.ProfileType
         const primary_profile: ProfileTag.ProfileType = switch (decision.primary) {
             .abbey => .abbey,
             .aviva => .aviva,
@@ -77,9 +77,9 @@ pub const ConversationMemory = struct {
         };
 
         // Calculate blend coefficient (how much primary dominates)
-        const blend = decision.weights.forPersona(decision.primary);
+        const blend = decision.weights.forProfile(decision.primary);
 
-        // Determine secondary persona for blending metadata
+        // Determine secondary profile for blending metadata
         const secondary: ?ProfileTag.ProfileType = if (blend < 0.9) blk: {
             if (decision.primary != .abbey and decision.weights.abbey > 0.1) break :blk .abbey;
             if (decision.primary != .aviva and decision.weights.aviva > 0.1) break :blk .aviva;
@@ -180,8 +180,8 @@ test "conversation memory records interaction" {
         .reason = "Technical query",
     };
 
-    const response = PersonaResponse{
-        .persona = .aviva,
+    const response = ProfileResponse{
+        .profile = .aviva,
         .content = "Here is the answer.",
         .confidence = 0.85,
         .allocator = std.testing.allocator,
@@ -206,8 +206,8 @@ test "conversation memory chain integrity" {
         .reason = "Conversational query",
     };
 
-    const response = PersonaResponse{
-        .persona = .abbey,
+    const response = ProfileResponse{
+        .profile = .abbey,
         .content = "I understand how you feel.",
         .confidence = 0.9,
         .allocator = std.testing.allocator,

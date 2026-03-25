@@ -1,14 +1,14 @@
-//! Shared types for the multi-persona orchestration layer.
+//! Shared types for the multi-profile orchestration layer.
 
 const std = @import("std");
 
-/// Identifies which persona is active or targeted.
-pub const PersonaId = enum {
+/// Identifies which profile is active or targeted.
+pub const ProfileId = enum {
     abbey,
     aviva,
     abi,
 
-    pub fn name(self: PersonaId) []const u8 {
+    pub fn name(self: ProfileId) []const u8 {
         return switch (self) {
             .abbey => "Abbey",
             .aviva => "Aviva",
@@ -16,8 +16,8 @@ pub const PersonaId = enum {
         };
     }
 
-    /// Hex color code per ABBEY-SPEC persona definitions.
-    pub fn colorCode(self: PersonaId) []const u8 {
+    /// Hex color code per ABBEY-SPEC profile definitions.
+    pub fn colorCode(self: ProfileId) []const u8 {
         return switch (self) {
             .abbey => "#00B3A1", // Teal
             .aviva => "#7B4FFF", // Purple
@@ -26,7 +26,7 @@ pub const PersonaId = enum {
     }
 
     /// Human-readable role description per spec.
-    pub fn role(self: PersonaId) []const u8 {
+    pub fn role(self: ProfileId) []const u8 {
         return switch (self) {
             .abbey => "Empathetic Polymath",
             .aviva => "Direct Expert",
@@ -35,8 +35,8 @@ pub const PersonaId = enum {
     }
 };
 
-/// Lifecycle state of a persona instance.
-pub const PersonaState = enum {
+/// Lifecycle state of a profile instance.
+pub const ProfileState = enum {
     uninitialized,
     idle,
     active,
@@ -44,21 +44,21 @@ pub const PersonaState = enum {
     failed,
 };
 
-/// Routing strategy for multi-persona request handling.
+/// Routing strategy for multi-profile request handling.
 pub const RoutingStrategy = enum {
-    /// Route to a single best-fit persona.
+    /// Route to a single best-fit profile.
     single,
-    /// Execute multiple personas in parallel, pick best.
+    /// Execute multiple profiles in parallel, pick best.
     parallel,
-    /// Execute all personas and merge via consensus.
+    /// Execute all profiles and merge via consensus.
     consensus,
 };
 
 /// Weighted routing decision produced by the router.
 pub const RoutingDecision = struct {
-    /// Primary persona to handle the request.
-    primary: PersonaId,
-    /// Normalized weights for each persona (sum to 1.0).
+    /// Primary profile to handle the request.
+    primary: ProfileId,
+    /// Normalized weights for each profile (sum to 1.0).
     weights: Weights,
     /// Execution strategy.
     strategy: RoutingStrategy,
@@ -72,7 +72,7 @@ pub const RoutingDecision = struct {
         aviva: f32 = 0.0,
         abi: f32 = 0.0,
 
-        pub fn forPersona(self: Weights, id: PersonaId) f32 {
+        pub fn forProfile(self: Weights, id: ProfileId) f32 {
             return switch (id) {
                 .abbey => self.abbey,
                 .aviva => self.aviva,
@@ -91,21 +91,21 @@ pub const RoutingDecision = struct {
     };
 };
 
-/// A response produced by a persona.
-pub const PersonaResponse = struct {
-    persona: PersonaId,
+/// A response produced by a profile.
+pub const ProfileResponse = struct {
+    profile: ProfileId,
     content: []const u8,
     confidence: f32,
     allocator: std.mem.Allocator,
 
-    pub fn deinit(self: *PersonaResponse) void {
+    pub fn deinit(self: *ProfileResponse) void {
         self.allocator.free(self.content);
     }
 };
 
-/// Message types for inter-persona communication.
+/// Message types for inter-profile communication.
 pub const MessageKind = enum {
-    /// Request another persona's input.
+    /// Request another profile's input.
     request,
     /// Respond to a request.
     response,
@@ -115,17 +115,17 @@ pub const MessageKind = enum {
     veto,
 };
 
-/// A message passed between personas on the collaboration bus.
-pub const PersonaMessage = struct {
-    from: PersonaId,
-    to: ?PersonaId, // null = broadcast
+/// A message passed between profiles on the collaboration bus.
+pub const ProfileMessage = struct {
+    from: ProfileId,
+    to: ?ProfileId, // null = broadcast
     kind: MessageKind,
     payload: []const u8,
     confidence: f32,
     timestamp: i64,
 };
 
-/// Configuration for multi-persona routing behavior.
+/// Configuration for multi-profile routing behavior.
 pub const RoutingConfig = struct {
     /// Default execution strategy.
     default_strategy: RoutingStrategy = .single,
@@ -137,15 +137,15 @@ pub const RoutingConfig = struct {
     enable_weight_learning: bool = false,
 };
 
-/// Errors specific to the persona orchestration layer.
-pub const PersonaError = error{
-    PersonaNotInitialized,
-    PersonaSuspended,
-    PersonaFailed,
+/// Errors specific to the profile orchestration layer.
+pub const ProfileError = error{
+    ProfileNotInitialized,
+    ProfileSuspended,
+    ProfileFailed,
     RoutingFailed,
     BusOverflow,
     Timeout,
-    AllPersonasFailed,
+    AllProfilesFailed,
     OutOfMemory,
 };
 

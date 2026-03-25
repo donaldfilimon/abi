@@ -132,7 +132,7 @@ pub fn load(
             .title = try dupeString(allocator, strings, pt.title),
             .status = Status.fromString(pt.status) orelse .pending,
             .priority = Priority.fromString(pt.priority) orelse .normal,
-            .category = Category.fromString(pt.category) orelse .personal,
+            .category = Category.fromString(pt.category) orelse .profilel,
             .created_at = pt.created_at,
             .updated_at = pt.updated_at,
             .description = if (pt.description) |d| try dupeString(allocator, strings, d) else null,

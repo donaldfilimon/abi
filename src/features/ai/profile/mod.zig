@@ -1,22 +1,22 @@
-//! Multi-Persona Orchestration Layer
+//! Multi-Profile Orchestration Layer
 //!
 //! Provides unified lifecycle management, routing, and collaboration for
-//! the Abbey-Aviva-Abi multi-persona AI system.
+//! the Abbey-Aviva-Abi multi-profile AI system.
 //!
 //! ## Quick Start
 //!
 //! ```zig
-//! const persona = abi.ai.persona;
+//! const profile = abi.ai.profile;
 //!
 //! // Create registry with default config
-//! var registry = persona.PersonaRegistry.init(allocator, .{});
+//! var registry = profile.ProfileRegistry.init(allocator, .{});
 //! defer registry.deinit();
 //!
-//! // Initialize all persona engines
+//! // Initialize all profile engines
 //! try registry.initAll();
 //!
 //! // Create router
-//! var router = persona.MultiPersonaRouter.init(allocator, &registry, .{});
+//! var router = profile.MultiProfileRouter.init(allocator, &registry, .{});
 //!
 //! // Route and execute a query
 //! const response = try router.routeAndExecute("Explain how HNSW indexing works");
@@ -33,22 +33,22 @@ pub const bus = @import("bus.zig");
 pub const memory = @import("memory.zig");
 
 // ── Type re-exports ─────────────────────────────────────────────────────
-pub const PersonaId = types.PersonaId;
-pub const PersonaState = types.PersonaState;
+pub const ProfileId = types.ProfileId;
+pub const ProfileState = types.ProfileState;
 pub const RoutingStrategy = types.RoutingStrategy;
 pub const RoutingDecision = types.RoutingDecision;
-pub const PersonaResponse = types.PersonaResponse;
-pub const PersonaMessage = types.PersonaMessage;
+pub const ProfileResponse = types.ProfileResponse;
+pub const ProfileMessage = types.ProfileMessage;
 pub const MessageKind = types.MessageKind;
 pub const RoutingConfig = types.RoutingConfig;
-pub const PersonaError = types.PersonaError;
+pub const ProfileError = types.ProfileError;
 
-pub const PersonaRegistry = registry.PersonaRegistry;
-pub const PersonaInstance = registry.PersonaInstance;
-pub const MultiPersonaConfig = registry.MultiPersonaConfig;
+pub const ProfileRegistry = registry.ProfileRegistry;
+pub const ProfileInstance = registry.ProfileInstance;
+pub const MultiProfileConfig = registry.MultiProfileConfig;
 
-pub const MultiPersonaRouter = router.MultiPersonaRouter;
-pub const PersonaBus = bus.PersonaBus;
+pub const MultiProfileRouter = router.MultiProfileRouter;
+pub const ProfileBus = bus.ProfileBus;
 pub const ConversationMemory = memory.ConversationMemory;
 
 test {

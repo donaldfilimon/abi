@@ -1,7 +1,7 @@
 //! Integration Tests: Security and Constitution
 //!
 //! Tests the security layer components that are fully implemented:
-//! constitution evaluation, policy checking, and persona routing
+//! constitution evaluation, policy checking, and profile routing
 //! with safety constraints.
 
 const std = @import("std");
@@ -10,11 +10,11 @@ const abi = @import("abi");
 // Constitution
 const Constitution = abi.ai.constitution.Constitution;
 
-// Persona routing
-const persona = abi.ai.persona;
-const PersonaId = persona.PersonaId;
-const MultiPersonaRouter = persona.MultiPersonaRouter;
-const PersonaRegistry = persona.PersonaRegistry;
+// Profile routing
+const profile = abi.ai.profile;
+const ProfileId = profile.ProfileId;
+const MultiProfileRouter = profile.MultiProfileRouter;
+const ProfileRegistry = profile.ProfileRegistry;
 
 test "security: constitution allows safe content" {
     const c = Constitution.init();
@@ -48,22 +48,22 @@ test "security: constitution preamble is non-empty" {
 }
 
 test "security: policy query routes to Abi" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     // Compliance/policy keywords should route to Abi
     const decision = router.route("What is the privacy policy for data compliance?");
-    try std.testing.expectEqual(PersonaId.abi, decision.primary);
+    try std.testing.expectEqual(ProfileId.abi, decision.primary);
 }
 
 test "security: router with constitution attached" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     router.attachConstitution(Constitution.init());
@@ -91,10 +91,10 @@ test "security: empty message is compliant" {
 }
 
 test "security: router confidence is in valid range" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("Help me write a function");
@@ -103,10 +103,10 @@ test "security: router confidence is in valid range" {
 }
 
 test "security: router weights sum to approximately 1.0" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("Explain how databases work");

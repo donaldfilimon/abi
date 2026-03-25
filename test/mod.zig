@@ -7,7 +7,7 @@ const abi = @import("abi");
 const build_options = @import("build_options");
 
 // Integration test modules
-const persona_pipeline = @import("integration/persona_pipeline_test.zig");
+const profile_pipeline = @import("integration/profile_pipeline_test.zig");
 const database_tests = @import("integration/database_test.zig");
 const database_surface_tests = @import("integration/database_surface_test.zig");
 const feature_boundary_tests = @import("integration/feature_boundary_test.zig");
@@ -53,6 +53,7 @@ const secrets_tests = @import("integration/secrets_test.zig");
 const pitr_tests = @import("integration/pitr_test.zig");
 const orchestration_tests = @import("integration/orchestration_test.zig");
 const inference_async_tests = @import("integration/inference_async_test.zig");
+const inference_e2e_tests = @import("integration/inference_e2e_test.zig");
 
 test {
     std.testing.refAllDecls(@This());

@@ -46,9 +46,9 @@ pub const LlamaWeights = struct {
     /// Final normalization
     final_norm: []f32,
 
-    /// Persona embeddings: 3 vectors of hidden_dim (Abbey=0, Aviva=1, Abi=2)
+    /// Profile embeddings: 3 vectors of hidden_dim (Abbey=0, Aviva=1, Abi=2)
     /// Added to token embeddings before the first transformer layer.
-    persona_embeddings: [3][]f32 = .{ &[_]f32{}, &[_]f32{}, &[_]f32{} },
+    profile_embeddings: [3][]f32 = .{ &[_]f32{}, &[_]f32{}, &[_]f32{} },
 
     /// Original GGUF file (for quantized weights)
     gguf_file: ?*gguf.GgufFile,
@@ -57,18 +57,18 @@ pub const LlamaWeights = struct {
         const layers = try allocator.alloc(LayerWeights, llama_config.n_layers);
         @memset(layers, std.mem.zeroes(LayerWeights));
 
-        // Initialize persona embeddings with characteristic small biases
-        var persona_embs: [3][]f32 = undefined;
+        // Initialize profile embeddings with characteristic small biases
+        var profile_embs: [3][]f32 = undefined;
         for (0..3) |p| {
             const emb = try allocator.alloc(f32, llama_config.dim);
-            // Deterministic seed per persona for reproducible initialization
-            const seed: u64 = 0x41424900 + @as(u64, p); // "ABI\0" + persona index
+            // Deterministic seed per profile for reproducible initialization
+            const seed: u64 = 0x41424900 + @as(u64, p); // "ABI\0" + profile index
             var prng = std.Random.DefaultPrng.init(seed);
             const rng = prng.random();
             for (emb) |*v| {
                 v.* = (rng.float(f32) - 0.5) * 0.02; // Small random in [-0.01, 0.01]
             }
-            persona_embs[p] = emb;
+            profile_embs[p] = emb;
         }
 
         return .{
@@ -78,7 +78,7 @@ pub const LlamaWeights = struct {
             .layers = layers,
             .output_proj = null,
             .final_norm = &[_]f32{},
-            .persona_embeddings = persona_embs,
+            .profile_embeddings = profile_embs,
             .gguf_file = null,
         };
     }
@@ -107,7 +107,7 @@ pub const LlamaWeights = struct {
             self.allocator.free(proj);
         }
 
-        for (&self.persona_embeddings) |emb| {
+        for (&self.profile_embeddings) |emb| {
             if (emb.len > 0) self.allocator.free(emb);
         }
 

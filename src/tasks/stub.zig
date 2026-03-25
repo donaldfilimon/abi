@@ -74,7 +74,7 @@ pub const Status = enum(u8) {
 };
 
 pub const Category = enum(u8) {
-    personal = 0,
+    profilel = 0,
     roadmap = 1,
     compute = 2,
     bug = 3,
@@ -82,7 +82,7 @@ pub const Category = enum(u8) {
 
     pub fn toString(self: Category) []const u8 {
         return switch (self) {
-            .personal => "personal",
+            .profilel => "profilel",
             .roadmap => "roadmap",
             .compute => "compute",
             .bug => "bug",
@@ -91,7 +91,7 @@ pub const Category = enum(u8) {
     }
 
     pub fn fromString(s: []const u8) ?Category {
-        if (std.mem.eql(u8, s, "personal")) return .personal;
+        if (std.mem.eql(u8, s, "profilel")) return .profilel;
         if (std.mem.eql(u8, s, "roadmap")) return .roadmap;
         if (std.mem.eql(u8, s, "compute")) return .compute;
         if (std.mem.eql(u8, s, "bug")) return .bug;
@@ -137,7 +137,7 @@ pub const Task = struct {
     description: ?[]const u8 = null,
     status: Status = .pending,
     priority: Priority = .normal,
-    category: Category = .personal,
+    category: Category = .profilel,
     tags: []const []const u8 = &.{},
     created_at: i64 = 0,
     updated_at: i64 = 0,
@@ -185,7 +185,7 @@ pub const ManagerConfig = struct {
 pub const AddOptions = struct {
     description: ?[]const u8 = null,
     priority: Priority = .normal,
-    category: Category = .personal,
+    category: Category = .profilel,
     tags: []const []const u8 = &.{},
     due_date: ?i64 = null,
     parent_id: ?u64 = null,

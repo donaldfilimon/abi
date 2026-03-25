@@ -249,7 +249,7 @@ All other major subsystems have `feat_*` gates.
 ### P2 — Feature Completeness (highest impact)
 
 - [x] **Wire engine-to-connector bridge** — Provider resolution from model_id, env config loading, 12 providers (33d74bc)
-- [x] **Complete `abi chat` end-to-end** — Persona router → Engine.generate() (33d74bc)
+- [x] **Complete `abi chat` end-to-end** — Profile router → Engine.generate() (33d74bc)
 - [ ] **Add feature gates for inference, tasks, connectors** — Needs stub modules, deferred
 - [ ] **Add MCP authentication** — Token/API key validation for MCP tool calls
 - [ ] **Add MCP SSE transport** — For web-based clients (Claude Desktop over HTTP)

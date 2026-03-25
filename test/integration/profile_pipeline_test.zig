@@ -1,35 +1,35 @@
-//! Integration Tests: Abbey-Aviva-Abi Multi-Persona Pipeline
+//! Integration Tests: Abbey-Aviva-Abi Multi-Profile Pipeline
 //!
 //! Tests the full orchestration pipeline per spec:
 //!   User Input → Abi Analysis → Modulation → Routing → Execution
 //!   → Constitution Validation → WDBX Memory Storage → Response
 //!
 //! These tests exercise routing logic, memory storage, and constitution
-//! validation without requiring external connectors or full persona engines.
+//! validation without requiring external connectors or full profile engines.
 
 const std = @import("std");
 const abi = @import("abi");
 
-// Persona orchestration types
-const persona = abi.ai.persona;
-const PersonaId = persona.PersonaId;
-const MultiPersonaRouter = persona.MultiPersonaRouter;
-const PersonaRegistry = persona.PersonaRegistry;
-const ConversationMemory = persona.ConversationMemory;
-const RoutingDecision = persona.RoutingDecision;
+// Profile orchestration types
+const profile = abi.ai.profile;
+const ProfileId = profile.ProfileId;
+const MultiProfileRouter = profile.MultiProfileRouter;
+const ProfileRegistry = profile.ProfileRegistry;
+const ConversationMemory = profile.ConversationMemory;
+const RoutingDecision = profile.RoutingDecision;
 
 // ── Test 1: Technical query routes to Aviva ──────────────────────────────
 
 test "pipeline: technical query routes to Aviva" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("How do I implement a binary search function in Zig?");
 
-    try std.testing.expectEqual(PersonaId.aviva, decision.primary);
+    try std.testing.expectEqual(ProfileId.aviva, decision.primary);
     try std.testing.expect(decision.weights.aviva > decision.weights.abbey);
     try std.testing.expect(decision.weights.aviva > decision.weights.abi);
     try std.testing.expect(decision.confidence > 0.0);
@@ -38,45 +38,45 @@ test "pipeline: technical query routes to Aviva" {
 // ── Test 2: Emotional query routes to Abbey ──────────────────────────────
 
 test "pipeline: emotional query routes to Abbey" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("I feel overwhelmed and need help understanding this concept");
 
-    try std.testing.expectEqual(PersonaId.abbey, decision.primary);
+    try std.testing.expectEqual(ProfileId.abbey, decision.primary);
     try std.testing.expect(decision.weights.abbey > decision.weights.aviva);
 }
 
 // ── Test 3: Policy query routes to Abi ───────────────────────────────────
 
 test "pipeline: compliance query routes to Abi" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("What is the privacy policy for data compliance?");
 
-    try std.testing.expectEqual(PersonaId.abi, decision.primary);
+    try std.testing.expectEqual(ProfileId.abi, decision.primary);
     try std.testing.expect(decision.weights.abi > 0.0);
 }
 
 // ── Test 4: Default query uses Abbey preference ──────────────────────────
 
 test "pipeline: default query favors Abbey" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("Good morning");
 
-    try std.testing.expectEqual(PersonaId.abbey, decision.primary);
+    try std.testing.expectEqual(ProfileId.abbey, decision.primary);
     // Default weights: abbey=0.5, aviva=0.3, abi=0.2
     try std.testing.expect(decision.weights.abbey > decision.weights.aviva);
 }
@@ -96,8 +96,8 @@ test "pipeline: WDBX memory stores routing decisions" {
         .reason = "Technical query",
     };
 
-    const response = persona.PersonaResponse{
-        .persona = .aviva,
+    const response = profile.ProfileResponse{
+        .profile = .aviva,
         .content = "Here is the implementation.",
         .confidence = 0.85,
         .allocator = std.testing.allocator,
@@ -147,10 +147,10 @@ test "pipeline: constitution blocks harmful content" {
 test "pipeline: full component attachment" {
     const constitution = @import("abi").ai.constitution;
 
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     // Attach all pipeline components
@@ -170,10 +170,10 @@ test "pipeline: full component attachment" {
 // ── Edge Cases ───────────────────────────────────────────────────────
 
 test "pipeline: empty message produces valid routing decision" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("");
@@ -184,10 +184,10 @@ test "pipeline: empty message produces valid routing decision" {
 }
 
 test "pipeline: all routing weights sum to approximately 1.0" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("Tell me about machine learning");
@@ -197,10 +197,10 @@ test "pipeline: all routing weights sum to approximately 1.0" {
 }
 
 test "pipeline: each weight is in valid range" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const queries = [_][]const u8{

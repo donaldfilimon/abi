@@ -237,7 +237,7 @@ pub fn generateLocal(self: anytype, request: scheduler_mod.Request) !types.Resul
     const model_opaque = self.local_model orelse return generateDemo(self, request);
     const model: *llm_model.LlamaModel = @ptrCast(@alignCast(model_opaque));
 
-    model.setPersona(request.persona_id);
+    model.setProfile(request.profile_id);
 
     const start = time_mod.timestampNs();
 

@@ -60,7 +60,7 @@ pub const AbiRouter = struct {
     }
 
     /// Shutdown the router and free resources.
-    /// Note: does NOT free `self` — the caller (PersonaRegistry) owns the allocation.
+    /// Note: does NOT free `self` — the caller (ProfileRegistry) owns the allocation.
     pub fn deinit(self: *Self) void {
         self.rules_engine.deinit();
         self.policy_checker.deinit();

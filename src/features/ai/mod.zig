@@ -55,8 +55,8 @@ pub const models = if (build_options.feat_ai) @import("models/mod.zig") else @im
 pub const transformer = if (build_options.feat_ai) @import("transformer/mod.zig") else @import("transformer/stub.zig");
 pub const federated = if (build_options.feat_ai) @import("federated/mod.zig") else @import("federated/stub.zig");
 
-/// Multi-persona orchestration: registry, router, collaboration bus.
-pub const persona = if (build_options.feat_ai) @import("persona/mod.zig") else @import("persona/stub.zig");
+/// Multi-profile orchestration: registry, router, collaboration bus.
+pub const profile = if (build_options.feat_ai) @import("profile/mod.zig") else @import("profile/stub.zig");
 
 pub const tool_agent = tools;
 pub const discovery = explore;
@@ -92,3 +92,4 @@ pub fn isInitialized() bool {
 test {
     std.testing.refAllDecls(@This());
 }
+

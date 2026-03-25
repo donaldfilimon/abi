@@ -85,7 +85,7 @@ abi features           # List all 32 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
 abi connectors         # List 16 LLM provider connectors with env vars
 abi info               # Framework architecture summary
-abi chat <message...>  # Route through multi-persona pipeline
+abi chat <message...>  # Route through multi-profile pipeline
 abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
 abi serve              # Start ACP HTTP server (default 127.0.0.1:8080)
 abi acp serve          # Same as above (explicit ACP prefix)
@@ -120,10 +120,10 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction
-- `src/connectors/` — External service adapters (OpenAI, Anthropic, Discord, etc.)
-- `src/tasks/` — Task management, async job queues
+- `src/connectors/` — External service adapters (OpenAI, Anthropic, Discord, etc.) — comptime-gated by `feat_connectors`
+- `src/tasks/` — Task management, async job queues — comptime-gated by `feat_tasks`
 - `src/protocols/` — Protocol implementations: mcp/, lsp/, acp/, ha/
-- `src/inference/` — ML inference: engine, scheduler, sampler, paged KV cache
+- `src/inference/` — ML inference: engine, scheduler, sampler, paged KV cache — comptime-gated by `feat_inference`
 - `src/core/database/` — Vector database implementation (consumed by features/database/ facade)
 - `src/main.zig` — CLI entry point (builds as `abi` binary)
 - `src/mcp_main.zig` — MCP stdio server entry point (builds as `abi-mcp` binary)
@@ -160,7 +160,7 @@ Empty `struct {}` sub-module stubs are acceptable when the important types are r
 ### Build Options
 
 The `build_options` module provides these fields (all `bool` unless noted):
-- Feature flags: `feat_gpu`, `feat_ai`, `feat_database`, `feat_network`, `feat_observability`, `feat_web`, `feat_pages`, `feat_analytics`, `feat_cloud`, `feat_auth`, `feat_messaging`, `feat_cache`, `feat_storage`, `feat_search`, `feat_mobile`, `feat_gateway`, `feat_benchmarks`, `feat_compute`, `feat_documents`, `feat_desktop`, `feat_tui`
+- Feature flags: `feat_gpu`, `feat_ai`, `feat_database`, `feat_network`, `feat_observability`, `feat_web`, `feat_pages`, `feat_analytics`, `feat_cloud`, `feat_auth`, `feat_messaging`, `feat_cache`, `feat_storage`, `feat_search`, `feat_mobile`, `feat_gateway`, `feat_benchmarks`, `feat_compute`, `feat_documents`, `feat_desktop`, `feat_tui`, `feat_connectors`, `feat_tasks`, `feat_inference`
 - AI sub-features: `feat_llm`, `feat_training`, `feat_vision`, `feat_explore`, `feat_reasoning` (all require parent `feat_ai`; disabling `feat_ai` disables all sub-features)
 - Protocols: `feat_lsp`, `feat_mcp`, `feat_acp`, `feat_ha`
 - GPU backends: `gpu_metal`, `gpu_cuda`, `gpu_vulkan`, `gpu_webgpu`, `gpu_opengl`, `gpu_opengles`, `gpu_webgl2`, `gpu_stdgpu`, `gpu_fpga`, `gpu_tpu`
@@ -198,20 +198,24 @@ To add a new integration test:
 
 `zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`.
 
-### Multi-Persona Pipeline (Abbey-Aviva-Abi)
+### Multi-Profile Pipeline (Abbey-Aviva-Abi)
 
-The full pipeline is wired end-to-end in `src/features/ai/persona/router.zig`:
+The full pipeline is wired end-to-end in `src/features/ai/profile/router.zig`:
 ```
 User Input → Abi Analysis (sentiment + policy + rules)
   → AdaptiveModulator (EMA user preference learning)
   → Routing Decision (single / parallel / consensus)
-  → Persona Execution (Abbey / Aviva / Abi)
+  → Profile Execution (Abbey / Aviva / Abi)
   → Constitution Validation (6 principles)
   → WDBX Memory Storage (cryptographic block chain)
   → Response
 ```
 
-Key files: `persona/router.zig` (orchestration), `persona/memory.zig` (WDBX storage), `abi/mod.zig` (routing), `modulation.zig` (preference learning), `constitution/mod.zig` (ethical enforcement).
+Key files: `profile/router.zig` (orchestration), `profile/memory.zig` (WDBX storage), `abi/mod.zig` (routing), `modulation.zig` (preference learning), `constitution/mod.zig` (ethical enforcement).
+
+### ACP HTTP Server
+
+`abi serve` (or `abi acp serve`) starts an HTTP server on `127.0.0.1:8080` exposing the Agent Communication Protocol. Entry: `src/protocols/acp/server/mod.zig`. Gated by `feat_acp`. The server wires together task management (`src/protocols/acp/server/tasks.zig`) with the ACP protocol layer.
 
 ### Inference Engine
 
@@ -222,11 +226,11 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 
 The connector backend dispatches to 12 providers (openai, anthropic, ollama, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
 
-The `abi chat` CLI command wires the persona router to the inference engine: routing decision → `Engine.generate()` → connector dispatch → response.
+The `abi chat` CLI command wires the profile router to the inference engine: routing decision → `Engine.generate()` → connector dispatch → response.
 
 ### Specification
 
-`docs/spec/ABBEY-SPEC.md` — comprehensive mega spec covering architecture, personas, behavioral model, math foundations, ethics, benchmarks, implementation status, and visual assets.
+`docs/spec/ABBEY-SPEC.md` — comprehensive mega spec covering architecture, profiles, behavioral model, math foundations, ethics, benchmarks, implementation status, and visual assets.
 
 ## Import Rules
 

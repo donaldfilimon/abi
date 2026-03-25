@@ -43,7 +43,7 @@ pub const discovery = explore;
 pub const jumpstart = @import("context_engine/jumpstart.zig");
 pub const context_engine = @import("context_engine/mod.zig");
 pub const self_improve = @import("self_improve.zig");
-pub const persona = @import("persona/stub.zig");
+pub const profile = @import("profile/stub.zig");
 pub const deep_research = struct {
     pub const DeepResearcher = struct {
         allocator: std.mem.Allocator,

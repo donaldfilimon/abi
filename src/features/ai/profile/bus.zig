@@ -1,45 +1,45 @@
-//! PersonaBus: inter-persona collaboration messaging.
+//! ProfileBus: inter-profile collaboration messaging.
 //!
-//! Provides a bounded message queue for personas to exchange opinions,
+//! Provides a bounded message queue for profiles to exchange opinions,
 //! requests, responses, and compliance vetoes. Adapted from the lock-free
 //! RalphBus pattern in abbey/ralph_multi.zig.
 
 const std = @import("std");
 const types = @import("types.zig");
-const PersonaId = types.PersonaId;
-const PersonaMessage = types.PersonaMessage;
+const ProfileId = types.ProfileId;
+const ProfileMessage = types.ProfileMessage;
 const MessageKind = types.MessageKind;
-const PersonaError = types.PersonaError;
+const ProfileError = types.ProfileError;
 
 const foundation = @import("../../../foundation/mod.zig");
 
-/// Bounded message bus for inter-persona communication.
+/// Bounded message bus for inter-profile communication.
 ///
-/// Each persona has its own inbox (bounded queue). Messages can be sent
-/// to a specific persona or broadcast to all.
-pub const PersonaBus = struct {
+/// Each profile has its own inbox (bounded queue). Messages can be sent
+/// to a specific profile or broadcast to all.
+pub const ProfileBus = struct {
     allocator: std.mem.Allocator,
-    inboxes: std.EnumArray(PersonaId, Inbox),
+    inboxes: std.EnumArray(ProfileId, Inbox),
     total_sent: u64 = 0,
     total_dropped: u64 = 0,
 
     const max_inbox_size = 64;
 
     const Inbox = struct {
-        buffer: [max_inbox_size]PersonaMessage = undefined,
+        buffer: [max_inbox_size]ProfileMessage = undefined,
         head: usize = 0,
         tail: usize = 0,
         count: usize = 0,
         mutex: foundation.sync.Mutex = .{},
 
-        fn append(self: *Inbox, msg: PersonaMessage) error{Overflow}!void {
+        fn append(self: *Inbox, msg: ProfileMessage) error{Overflow}!void {
             if (self.count >= max_inbox_size) return error.Overflow;
             self.buffer[self.tail] = msg;
             self.tail = (self.tail + 1) % max_inbox_size;
             self.count += 1;
         }
 
-        fn pop(self: *Inbox) ?PersonaMessage {
+        fn pop(self: *Inbox) ?ProfileMessage {
             if (self.count == 0) return null;
             const msg = self.buffer[self.head];
             self.head = (self.head + 1) % max_inbox_size;
@@ -53,26 +53,26 @@ pub const PersonaBus = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .inboxes = std.EnumArray(PersonaId, Inbox).initFill(.{}),
+            .inboxes = std.EnumArray(ProfileId, Inbox).initFill(.{}),
         };
     }
 
-    /// Send a message to a specific persona's inbox.
-    pub fn send(self: *Self, msg: PersonaMessage) PersonaError!void {
+    /// Send a message to a specific profile's inbox.
+    pub fn send(self: *Self, msg: ProfileMessage) ProfileError!void {
         const target = msg.to orelse return self.broadcast(msg);
         self.deliverTo(target, msg);
     }
 
-    /// Broadcast a message to all personas (except sender).
-    pub fn broadcast(self: *Self, msg: PersonaMessage) PersonaError!void {
-        for (std.enums.values(PersonaId)) |id| {
+    /// Broadcast a message to all profiles (except sender).
+    pub fn broadcast(self: *Self, msg: ProfileMessage) ProfileError!void {
+        for (std.enums.values(ProfileId)) |id| {
             if (id != msg.from) {
                 self.deliverTo(id, msg);
             }
         }
     }
 
-    fn deliverTo(self: *Self, target: PersonaId, msg: PersonaMessage) void {
+    fn deliverTo(self: *Self, target: ProfileId, msg: ProfileMessage) void {
         var inbox = self.inboxes.getPtr(target);
         inbox.mutex.lock();
         defer inbox.mutex.unlock();
@@ -84,8 +84,8 @@ pub const PersonaBus = struct {
         self.total_sent += 1;
     }
 
-    /// Receive the next message for a persona (FIFO). Returns null if empty.
-    pub fn receive(self: *Self, id: PersonaId) ?PersonaMessage {
+    /// Receive the next message for a profile (FIFO). Returns null if empty.
+    pub fn receive(self: *Self, id: ProfileId) ?ProfileMessage {
         var inbox = self.inboxes.getPtr(id);
         inbox.mutex.lock();
         defer inbox.mutex.unlock();
@@ -93,16 +93,16 @@ pub const PersonaBus = struct {
         return inbox.pop();
     }
 
-    /// Check if a persona has pending messages.
-    pub fn hasPending(self: *Self, id: PersonaId) bool {
+    /// Check if a profile has pending messages.
+    pub fn hasPending(self: *Self, id: ProfileId) bool {
         var inbox = self.inboxes.getPtr(id);
         inbox.mutex.lock();
         defer inbox.mutex.unlock();
         return inbox.count > 0;
     }
 
-    /// Get count of pending messages for a persona.
-    pub fn pendingCount(self: *Self, id: PersonaId) usize {
+    /// Get count of pending messages for a profile.
+    pub fn pendingCount(self: *Self, id: ProfileId) usize {
         var inbox = self.inboxes.getPtr(id);
         inbox.mutex.lock();
         defer inbox.mutex.unlock();
@@ -111,7 +111,7 @@ pub const PersonaBus = struct {
 
     /// Clear all inboxes.
     pub fn clear(self: *Self) void {
-        for (std.enums.values(PersonaId)) |id| {
+        for (std.enums.values(ProfileId)) |id| {
             var inbox = self.inboxes.getPtr(id);
             inbox.mutex.lock();
             defer inbox.mutex.unlock();
@@ -122,7 +122,7 @@ pub const PersonaBus = struct {
     }
 
     /// Create a convenience message builder.
-    pub fn createMessage(from: PersonaId, to: ?PersonaId, kind: MessageKind, payload: []const u8, confidence: f32) PersonaMessage {
+    pub fn createMessage(from: ProfileId, to: ?ProfileId, kind: MessageKind, payload: []const u8, confidence: f32) ProfileMessage {
         return .{
             .from = from,
             .to = to,
@@ -138,11 +138,11 @@ pub const PersonaBus = struct {
     }
 };
 
-test "persona bus send and receive" {
-    var bus = PersonaBus.init(std.testing.allocator);
+test "profile bus send and receive" {
+    var bus = ProfileBus.init(std.testing.allocator);
     defer bus.deinit();
 
-    const msg = PersonaBus.createMessage(.abbey, .aviva, .request, "Need fact check", 0.8);
+    const msg = ProfileBus.createMessage(.abbey, .aviva, .request, "Need fact check", 0.8);
     try bus.send(msg);
 
     try std.testing.expect(bus.hasPending(.aviva));
@@ -150,15 +150,15 @@ test "persona bus send and receive" {
 
     const received = bus.receive(.aviva);
     try std.testing.expect(received != null);
-    try std.testing.expectEqual(PersonaId.abbey, received.?.from);
+    try std.testing.expectEqual(ProfileId.abbey, received.?.from);
     try std.testing.expectEqualStrings("Need fact check", received.?.payload);
 }
 
-test "persona bus broadcast" {
-    var bus = PersonaBus.init(std.testing.allocator);
+test "profile bus broadcast" {
+    var bus = ProfileBus.init(std.testing.allocator);
     defer bus.deinit();
 
-    const msg = PersonaBus.createMessage(.abi, null, .veto, "PII detected", 0.95);
+    const msg = ProfileBus.createMessage(.abi, null, .veto, "PII detected", 0.95);
     try bus.broadcast(msg);
 
     // Abi should NOT receive its own broadcast
@@ -168,24 +168,24 @@ test "persona bus broadcast" {
     try std.testing.expect(bus.hasPending(.aviva));
 }
 
-test "persona bus empty receive" {
-    var bus = PersonaBus.init(std.testing.allocator);
+test "profile bus empty receive" {
+    var bus = ProfileBus.init(std.testing.allocator);
     defer bus.deinit();
 
     const received = bus.receive(.abbey);
     try std.testing.expect(received == null);
 }
 
-test "persona bus FIFO ordering with wrap-around" {
-    var bus = PersonaBus.init(std.testing.allocator);
+test "profile bus FIFO ordering with wrap-around" {
+    var bus = ProfileBus.init(std.testing.allocator);
     defer bus.deinit();
 
-    const capacity = PersonaBus.max_inbox_size;
+    const capacity = ProfileBus.max_inbox_size;
 
     // Fill the queue to capacity
     for (0..capacity) |i| {
         const conf: f32 = @floatFromInt(i);
-        const msg = PersonaBus.createMessage(.abbey, .aviva, .request, "msg", conf / 100.0);
+        const msg = ProfileBus.createMessage(.abbey, .aviva, .request, "msg", conf / 100.0);
         try bus.send(msg);
     }
     try std.testing.expectEqual(capacity, bus.pendingCount(.aviva));
@@ -202,7 +202,7 @@ test "persona bus FIFO ordering with wrap-around" {
     // Refill the freed slots (this wraps the tail around)
     for (0..capacity / 2) |i| {
         const conf: f32 = @floatFromInt(capacity + i);
-        const msg = PersonaBus.createMessage(.abbey, .aviva, .response, "wrap", conf / 100.0);
+        const msg = ProfileBus.createMessage(.abbey, .aviva, .response, "wrap", conf / 100.0);
         try bus.send(msg);
     }
     try std.testing.expectEqual(capacity, bus.pendingCount(.aviva));

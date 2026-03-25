@@ -130,8 +130,8 @@ test "phase3: compute boundary forbids direct internal imports" {
 test "phase3: ai public surface compiles" {
     comptime {
         _ = abi.ai.Context;
-        _ = abi.ai.persona.MultiPersonaRouter;
-        _ = abi.ai.persona.ConversationMemory;
+        _ = abi.ai.profile.MultiProfileRouter;
+        _ = abi.ai.profile.ConversationMemory;
         _ = abi.ai.memory.MemoryManager;
         _ = abi.ai.tools.ToolRegistry;
         _ = abi.ai.training.TrainingConfig;

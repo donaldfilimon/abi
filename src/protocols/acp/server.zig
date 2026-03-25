@@ -11,6 +11,7 @@ pub const Task = server_mod.Task;
 pub const Session = server_mod.Session;
 pub const Server = server_mod.Server;
 pub const HttpError = server_mod.HttpError;
+pub const TransitionError = server_mod.TransitionError;
 pub const serveHttp = server_mod.serveHttp;
 
 // Re-export submodule namespaces for direct access

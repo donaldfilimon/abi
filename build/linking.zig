@@ -15,7 +15,7 @@ pub fn linkDarwinArtifact(
 ) void {
     // Common libs for all roles except static_lib (which has its own set)
     if (role != .static_lib) {
-        linkDarwinCommon(artifact, feat_gpu, role != .parity_test);
+        linkDarwinCommon(artifact, feat_gpu, true);
     }
 
     switch (role) {

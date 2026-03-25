@@ -1,6 +1,6 @@
 //! ABI CLI — Command-line interface for the ABI framework.
 //!
-//! Provides user-facing commands for interacting with the multi-persona
+//! Provides user-facing commands for interacting with the multi-profile
 //! AI system, WDBX database, full-text search, and framework diagnostics.
 //!
 //! Usage:
@@ -11,7 +11,7 @@
 //!   abi platform          Show platform detection info
 //!   abi connectors        List available LLM connectors
 //!   abi info              Show framework architecture summary
-//!   abi chat <message...>  Route a message through the persona pipeline
+//!   abi chat <message...>  Route a message through the profile pipeline
 //!   abi serve             Start the ACP HTTP server
 //!   abi acp serve         Start the ACP HTTP server
 //!   abi db <subcommand>   Vector database operations
@@ -124,7 +124,7 @@ pub fn printStatus() void {
         \\  platform     Show platform detection info
         \\  connectors   List available LLM connectors
         \\  info         Framework architecture summary
-        \\  chat <message...>  Route through persona pipeline
+        \\  chat <message...>  Route through profile pipeline
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
         \\  lsp          Start the LSP server
@@ -159,7 +159,7 @@ pub fn printVersion() void {
     const version = build_options.package_version;
     std.debug.print(
         \\ABI Framework v{s}
-        \\Zig 0.16.0-dev | Multi-Persona AI + WDBX
+        \\Zig 0.16.0-dev | Multi-Profile AI + WDBX
         \\
         \\Core: Care first. Clarity always. Competence throughout.
         \\
@@ -170,7 +170,7 @@ pub fn printVersion() void {
 
 pub fn printHelp() void {
     std.debug.print(
-        \\ABI — Multi-Persona AI Framework with WDBX
+        \\ABI — Multi-Profile AI Framework with WDBX
         \\
         \\Usage: abi <command> [args]
         \\
@@ -183,7 +183,7 @@ pub fn printHelp() void {
         \\  info         Show framework architecture summary
         \\
         \\AI & Data:
-        \\  chat <message...>  Route a message through the persona pipeline
+        \\  chat <message...>  Route a message through the profile pipeline
         \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
@@ -300,7 +300,7 @@ pub fn printInfo() void {
     printHeader("ABI Framework — Architecture Summary", null);
 
     std.debug.print(
-        \\Personas:
+        \\Profiles:
         \\  Abbey  — Empathetic Polymath (warm, technical, adaptive)
         \\  Aviva  — Direct Expert (concise, factual, efficient)
         \\  Abi    — Adaptive Moderator (routing, policy, blending)
@@ -406,15 +406,15 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
     defer allocator.free(message);
 
     const ai = root.ai;
-    var registry = ai.persona.PersonaRegistry.init(allocator, .{});
+    var registry = ai.profile.ProfileRegistry.init(allocator, .{});
     defer registry.deinit();
 
-    var router = ai.persona.MultiPersonaRouter.init(allocator, &registry, .{});
+    var router = ai.profile.MultiProfileRouter.init(allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route(message);
 
-    printHeader("ABI Chat — Persona Pipeline", null);
+    printHeader("ABI Chat — Profile Pipeline", null);
 
     std.debug.print(
         \\Input: {s}
@@ -467,7 +467,7 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         .temperature = 0.7,
         .top_p = 0.9,
         .top_k = 40,
-        .persona_id = @intFromEnum(decision.primary),
+        .profile_id = @intFromEnum(decision.primary),
     }) catch {
         std.debug.print("  [✓] Route validated. Inference generation failed.\n", .{});
         return;

@@ -132,8 +132,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/mod.zig",
-        .stub_module_path = "features/ai/stub.zig",
+        .real_module_path = "features/ai/embeddings/mod.zig",
+        .stub_module_path = "features/ai/embeddings/stub.zig",
     },
     .{
         .feature = .agents,
@@ -191,8 +191,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/mod.zig",
-        .stub_module_path = "features/ai/stub.zig",
+        .real_module_path = "features/ai/profile/mod.zig",
+        .stub_module_path = "features/ai/profile/stub.zig",
     },
     .{
         .feature = .cloud,
@@ -297,8 +297,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/mod.zig",
-        .stub_module_path = "features/ai/stub.zig",
+        .real_module_path = "features/ai/constitution/mod.zig",
+        .stub_module_path = "features/ai/constitution/stub.zig",
     },
     .{
         .feature = .compute,

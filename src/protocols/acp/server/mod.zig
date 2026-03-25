@@ -12,6 +12,7 @@
 
 const std = @import("std");
 const net_utils = @import("../../../foundation/mod.zig").utils.net;
+const foundation_time = @import("../../../foundation/time.zig");
 
 pub const agent_card = @import("agent_card.zig");
 pub const tasks = @import("tasks.zig");
@@ -22,6 +23,7 @@ pub const json_utils = @import("json_utils.zig");
 pub const AgentCard = agent_card.AgentCard;
 pub const TaskStatus = tasks.TaskStatus;
 pub const Task = tasks.Task;
+pub const TransitionError = tasks.TransitionError;
 pub const Session = sessions.Session;
 pub const HttpError = routing.HttpError;
 
@@ -69,10 +71,14 @@ pub const Server = struct {
 
         const id = try self.allocator.dupe(u8, id_str);
 
+        const now = foundation_time.unixMs();
         var task = Task{
             .id = id,
             .status = .submitted,
             .messages = .empty,
+            .created_at_ms = now,
+            .updated_at_ms = now,
+            .history = .empty,
         };
         // Single errdefer for the whole task — frees id, messages list, and each message's role+content
         errdefer task.deinit(self.allocator);
@@ -95,6 +101,14 @@ pub const Server = struct {
     /// Get a task by ID
     pub fn getTask(self: *Server, id: []const u8) ?*Task {
         return self.tasks_map.getPtr(id);
+    }
+
+    /// Update a task's status, enforcing valid state transitions.
+    /// Returns error.TaskNotFound if the ID doesn't exist, or
+    /// error.InvalidTransition if the transition is not allowed.
+    pub fn updateTaskStatus(self: *Server, id: []const u8, new_status: TaskStatus) (TransitionError || error{TaskNotFound})!void {
+        const task = self.tasks_map.getPtr(id) orelse return error.TaskNotFound;
+        try task.transitionTo(self.allocator, new_status);
     }
 
     /// Get the number of tasks
@@ -341,6 +355,57 @@ test "Server addTaskToSession" {
     const session = server.getSession(session_id).?;
     try std.testing.expectEqual(@as(usize, 1), session.task_ids.items.len);
     try std.testing.expectEqualStrings(task_id, session.task_ids.items[0]);
+}
+
+test "Server updateTaskStatus valid transition" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, .{
+        .name = "test",
+        .description = "test",
+        .version = "0.1.0",
+        .url = "http://localhost",
+        .capabilities = .{},
+    });
+    defer server.deinit();
+
+    const id = try server.createTask("transition test");
+    try server.updateTaskStatus(id, .working);
+    try std.testing.expectEqual(TaskStatus.working, server.getTask(id).?.status);
+
+    try server.updateTaskStatus(id, .completed);
+    try std.testing.expectEqual(TaskStatus.completed, server.getTask(id).?.status);
+}
+
+test "Server updateTaskStatus invalid transition" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, .{
+        .name = "test",
+        .description = "test",
+        .version = "0.1.0",
+        .url = "http://localhost",
+        .capabilities = .{},
+    });
+    defer server.deinit();
+
+    const id = try server.createTask("transition test");
+    // submitted -> completed is not valid
+    try std.testing.expectError(error.InvalidTransition, server.updateTaskStatus(id, .completed));
+    // Status should remain submitted
+    try std.testing.expectEqual(TaskStatus.submitted, server.getTask(id).?.status);
+}
+
+test "Server updateTaskStatus task not found" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, .{
+        .name = "test",
+        .description = "test",
+        .version = "0.1.0",
+        .url = "http://localhost",
+        .capabilities = .{},
+    });
+    defer server.deinit();
+
+    try std.testing.expectError(error.TaskNotFound, server.updateTaskStatus("nonexistent", .working));
 }
 
 test {

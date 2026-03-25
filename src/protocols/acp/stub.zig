@@ -18,8 +18,12 @@ pub const server = struct {};
 const AcpError = error{
     FeatureDisabled,
     SessionNotFound,
+    TaskNotFound,
+    InvalidTransition,
     OutOfMemory,
 };
+
+pub const TransitionError = error{InvalidTransition};
 
 // =============================================================================
 // AgentCard
@@ -60,6 +64,21 @@ pub const TaskStatus = enum {
     completed,
     failed,
     canceled,
+
+    pub fn canTransitionTo(self: TaskStatus, target: TaskStatus) bool {
+        if (target == .canceled) return true;
+        return switch (self) {
+            .submitted => target == .working,
+            .working => target == .completed or target == .failed or target == .input_required,
+            .input_required => target == .working,
+            .completed, .failed, .canceled => false,
+        };
+    }
+
+    pub fn transition(self: TaskStatus, target: TaskStatus) TransitionError!TaskStatus {
+        if (self.canTransitionTo(target)) return target;
+        return error.InvalidTransition;
+    }
 
     pub fn toString(self: TaskStatus) []const u8 {
         return switch (self) {

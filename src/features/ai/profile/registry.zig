@@ -1,36 +1,36 @@
-//! PersonaRegistry: factory and lifecycle manager for Abbey, Aviva, and Abi.
+//! ProfileRegistry: factory and lifecycle manager for Abbey, Aviva, and Abi.
 //!
-//! Wraps the three persona implementations into a unified interface for
+//! Wraps the three profile implementations into a unified interface for
 //! instantiation, activation, suspension, and teardown.
 
 const std = @import("std");
 const types = @import("types.zig");
-const PersonaId = types.PersonaId;
-const PersonaState = types.PersonaState;
-const PersonaError = types.PersonaError;
-const PersonaResponse = types.PersonaResponse;
+const ProfileId = types.ProfileId;
+const ProfileState = types.ProfileState;
+const ProfileError = types.ProfileError;
+const ProfileResponse = types.ProfileResponse;
 const RoutingConfig = types.RoutingConfig;
 
-// Persona implementations
+// Profile implementations
 const abbey_mod = @import("../abbey/mod.zig");
 const aviva_mod = @import("../aviva/mod.zig");
 const abi_mod = @import("../abi/mod.zig");
 const ai_config = @import("../config.zig");
 
-/// Configuration for the multi-persona system.
-pub const MultiPersonaConfig = struct {
+/// Configuration for the multi-profile system.
+pub const MultiProfileConfig = struct {
     abbey: ai_config.AbbeyConfig = .{},
     aviva: ai_config.AvivaConfig = .{},
     abi: ai_config.AbiConfig = .{},
     routing: RoutingConfig = .{},
 };
 
-/// A single persona instance wrapping its underlying implementation.
-pub const PersonaInstance = struct {
-    id: PersonaId,
-    state: PersonaState = .uninitialized,
+/// A single profile instance wrapping its underlying implementation.
+pub const ProfileInstance = struct {
+    id: ProfileId,
+    state: ProfileState = .uninitialized,
 
-    // Each persona has different types — we store opaque pointers and
+    // Each profile has different types — we store opaque pointers and
     // dispatch through the id. Only one will be non-null.
     abbey_engine: ?*abbey_mod.AbbeyEngine = null,
     aviva_profile: ?*aviva_mod.AvivaProfile = null,
@@ -40,9 +40,9 @@ pub const PersonaInstance = struct {
 
     const Self = @This();
 
-    /// Process a message through this persona's engine.
-    pub fn process(self: *Self, message: []const u8) PersonaError!PersonaResponse {
-        if (self.state != .active and self.state != .idle) return error.PersonaNotInitialized;
+    /// Process a message through this profile's engine.
+    pub fn process(self: *Self, message: []const u8) ProfileError!ProfileResponse {
+        if (self.state != .active and self.state != .idle) return error.ProfileNotInitialized;
 
         self.state = .active;
         defer self.state = .idle;
@@ -50,34 +50,34 @@ pub const PersonaInstance = struct {
         return switch (self.id) {
             .abbey => {
                 if (self.abbey_engine) |engine| {
-                    const result = engine.process(message) catch return error.PersonaFailed;
-                    return PersonaResponse{
-                        .persona = .abbey,
+                    const result = engine.process(message) catch return error.ProfileFailed;
+                    return ProfileResponse{
+                        .profile = .abbey,
                         .content = result.content,
                         .confidence = result.confidence.score,
                         .allocator = self.allocator,
                     };
                 }
-                return error.PersonaNotInitialized;
+                return error.ProfileNotInitialized;
             },
             .aviva => {
                 if (self.aviva_profile) |profile| {
-                    const result = profile.respond(message) catch return error.PersonaFailed;
-                    return PersonaResponse{
-                        .persona = .aviva,
+                    const result = profile.respond(message) catch return error.ProfileFailed;
+                    return ProfileResponse{
+                        .profile = .aviva,
                         .content = result,
                         .confidence = 0.85, // Aviva is high-confidence by design
                         .allocator = self.allocator,
                     };
                 }
-                return error.PersonaNotInitialized;
+                return error.ProfileNotInitialized;
             },
             .abi => {
                 // Abi is primarily a router, not a responder — but can provide
                 // compliance-focused responses when directly addressed.
-                return PersonaResponse{
-                    .persona = .abi,
-                    .content = try self.allocator.dupe(u8, "[Abi] Compliance check passed. Routing to appropriate persona."),
+                return ProfileResponse{
+                    .profile = .abi,
+                    .content = try self.allocator.dupe(u8, "[Abi] Compliance check passed. Routing to appropriate profile."),
                     .confidence = 0.9,
                     .allocator = self.allocator,
                 };
@@ -94,19 +94,19 @@ pub const PersonaInstance = struct {
     }
 };
 
-/// Registry managing all persona instances.
-pub const PersonaRegistry = struct {
+/// Registry managing all profile instances.
+pub const ProfileRegistry = struct {
     allocator: std.mem.Allocator,
-    config: MultiPersonaConfig,
-    instances: std.EnumArray(PersonaId, PersonaInstance),
+    config: MultiProfileConfig,
+    instances: std.EnumArray(ProfileId, ProfileInstance),
     initialized: bool = false,
 
     const Self = @This();
 
     /// Create a new registry with the given configuration.
-    /// Does NOT initialize persona engines — call `initAll()` for that.
-    pub fn init(allocator: std.mem.Allocator, config: MultiPersonaConfig) Self {
-        var instances = std.EnumArray(PersonaId, PersonaInstance).initFill(.{
+    /// Does NOT initialize profile engines — call `initAll()` for that.
+    pub fn init(allocator: std.mem.Allocator, config: MultiProfileConfig) Self {
+        var instances = std.EnumArray(ProfileId, ProfileInstance).initFill(.{
             .id = .abbey, // placeholder, overwritten below
             .allocator = allocator,
         });
@@ -123,7 +123,7 @@ pub const PersonaRegistry = struct {
         };
     }
 
-    /// Initialize all persona engines. Call once at startup.
+    /// Initialize all profile engines. Call once at startup.
     pub fn initAll(self: *Self) !void {
         // Initialize Abbey
         var abbey_instance = self.instances.getPtr(.abbey);
@@ -145,34 +145,34 @@ pub const PersonaRegistry = struct {
         self.initialized = true;
     }
 
-    /// Get a persona instance by ID.
-    pub fn getPersona(self: *Self, id: PersonaId) *PersonaInstance {
+    /// Get a profile instance by ID.
+    pub fn getProfile(self: *Self, id: ProfileId) *ProfileInstance {
         return self.instances.getPtr(id);
     }
 
-    /// Get the Abi router (for use by MultiPersonaRouter).
+    /// Get the Abi router (for use by MultiProfileRouter).
     pub fn getAbiRouter(self: *Self) ?*abi_mod.AbiRouter {
         return self.instances.getPtr(.abi).abi_router;
     }
 
-    /// Suspend a persona (it can be reactivated later).
-    pub fn suspendPersona(self: *Self, id: PersonaId) void {
+    /// Suspend a profile (it can be reactivated later).
+    pub fn suspendProfile(self: *Self, id: ProfileId) void {
         self.instances.getPtr(id).state = .suspended;
     }
 
-    /// Resume a suspended persona.
-    pub fn resumePersona(self: *Self, id: PersonaId) void {
+    /// Resume a suspended profile.
+    pub fn resumeProfile(self: *Self, id: ProfileId) void {
         const instance = self.instances.getPtr(id);
         if (instance.state == .suspended) {
             instance.state = .idle;
         }
     }
 
-    /// List all available (non-suspended, initialized) personas.
-    pub fn listAvailable(self: *Self) [3]?PersonaId {
-        var result: [3]?PersonaId = .{ null, null, null };
+    /// List all available (non-suspended, initialized) profiles.
+    pub fn listAvailable(self: *Self) [3]?ProfileId {
+        var result: [3]?ProfileId = .{ null, null, null };
         var i: usize = 0;
-        for (std.enums.values(PersonaId)) |id| {
+        for (std.enums.values(ProfileId)) |id| {
             if (self.instances.get(id).isAvailable()) {
                 result[i] = id;
                 i += 1;
@@ -181,7 +181,7 @@ pub const PersonaRegistry = struct {
         return result;
     }
 
-    /// Shut down all persona engines and free resources.
+    /// Shut down all profile engines and free resources.
     pub fn deinit(self: *Self) void {
         var abbey = self.instances.getPtr(.abbey);
         if (abbey.abbey_engine) |engine| {
@@ -208,21 +208,21 @@ pub const PersonaRegistry = struct {
     }
 };
 
-test "persona registry init and deinit" {
+test "profile registry init and deinit" {
     const allocator = std.testing.allocator;
-    var registry = PersonaRegistry.init(allocator, .{});
+    var registry = ProfileRegistry.init(allocator, .{});
     defer registry.deinit();
 
-    // Before initAll, personas are uninitialized
-    const abbey = registry.getPersona(.abbey);
-    try std.testing.expectEqual(PersonaState.uninitialized, abbey.state);
+    // Before initAll, profiles are uninitialized
+    const abbey = registry.getProfile(.abbey);
+    try std.testing.expectEqual(ProfileState.uninitialized, abbey.state);
     try std.testing.expectEqualStrings("Abbey", abbey.getName());
 }
 
-test "persona id names" {
-    try std.testing.expectEqualStrings("Abbey", PersonaId.abbey.name());
-    try std.testing.expectEqualStrings("Aviva", PersonaId.aviva.name());
-    try std.testing.expectEqualStrings("Abi", PersonaId.abi.name());
+test "profile id names" {
+    try std.testing.expectEqualStrings("Abbey", ProfileId.abbey.name());
+    try std.testing.expectEqualStrings("Aviva", ProfileId.aviva.name());
+    try std.testing.expectEqualStrings("Abi", ProfileId.abi.name());
 }
 
 test {

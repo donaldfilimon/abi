@@ -82,7 +82,7 @@ All paths below are under `src/features/ai/` (AI sub-modules), NOT the top-level
 | ai/llm | 50 | 65 | stub has extras |
 | ai/embeddings | 16 | 7 | mod has extras |
 | ai/training | 117 | 124 | stub has extras |
-| ai/persona | 20 | 14 | mod has extras |
+| ai/profile | 20 | 14 | mod has extras |
 | ai/database | 14 | 10 | mod has extras |
 | ai/streaming | 68 | 71 | stub has extras |
 | ai/documents | 17 | 15 | mod has extras |
@@ -95,7 +95,7 @@ All paths below are under `src/features/ai/` (AI sub-modules), NOT the top-level
 3. If stub has extras: remove declarations not in mod.zig (unless they're from types.zig and intentionally broader)
 4. If mod has extras: add missing no-op stubs to stub.zig
 
-**Priority order:** By delta magnitude: agents (25), vision (17), explore (17), llm (15), embeddings (9), training (7), persona (6), database (4), streaming (3), documents (2).
+**Priority order:** By delta magnitude: agents (25), vision (17), explore (17), llm (15), embeddings (9), training (7), profile (6), database (4), streaming (3), documents (2).
 
 **Validation:** `./build.sh check-parity` reports zero mismatches. `./build.sh test --summary all` passes.
 

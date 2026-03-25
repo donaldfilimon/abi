@@ -1,8 +1,8 @@
-//! MultiPersonaRouter: extends AbiRouter with multi-persona orchestration.
+//! MultiProfileRouter: extends AbiRouter with multi-profile orchestration.
 //!
 //! Uses Abi's sentiment analysis, policy checking, and rules engine to
 //! produce weighted routing decisions, then dispatches to the appropriate
-//! persona(s) via the PersonaRegistry.
+//! profile(s) via the ProfileRegistry.
 //!
 //! Pipeline per spec:
 //!   User Input → Abi Analysis → Modulation → Routing Decision → Execution
@@ -12,29 +12,29 @@ const std = @import("std");
 const types = @import("types.zig");
 const registry_mod = @import("registry.zig");
 const memory_mod = @import("memory.zig");
-const PersonaId = types.PersonaId;
+const ProfileId = types.ProfileId;
 const RoutingDecision = types.RoutingDecision;
 const RoutingStrategy = types.RoutingStrategy;
 const RoutingConfig = types.RoutingConfig;
-const PersonaResponse = types.PersonaResponse;
-const PersonaError = types.PersonaError;
-const PersonaRegistry = registry_mod.PersonaRegistry;
+const ProfileResponse = types.ProfileResponse;
+const ProfileError = types.ProfileError;
+const ProfileRegistry = registry_mod.ProfileRegistry;
 
 const ai_types = @import("../types.zig");
 const abi_mod = @import("../abi/mod.zig");
 const modulation_mod = @import("../modulation.zig");
 const constitution_mod = @import("../constitution/mod.zig");
 
-/// Multi-persona router that wraps AbiRouter for intelligent dispatch.
+/// Multi-profile router that wraps AbiRouter for intelligent dispatch.
 ///
 /// Implements the full Abbey-Aviva-Abi pipeline:
 /// 1. Abi analyzes input (sentiment + policy + rules)
 /// 2. Translates to weighted routing decision
-/// 3. Executes via appropriate persona(s)
+/// 3. Executes via appropriate profile(s)
 /// 4. Stores interaction in WDBX conversation memory
-pub const MultiPersonaRouter = struct {
+pub const MultiProfileRouter = struct {
     allocator: std.mem.Allocator,
-    registry: *PersonaRegistry,
+    registry: *ProfileRegistry,
     config: RoutingConfig,
     memory: ?memory_mod.ConversationMemory = null,
     modulator: ?*modulation_mod.AdaptiveModulator = null,
@@ -42,7 +42,7 @@ pub const MultiPersonaRouter = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator, registry: *PersonaRegistry, config: RoutingConfig) Self {
+    pub fn init(allocator: std.mem.Allocator, registry: *ProfileRegistry, config: RoutingConfig) Self {
         return .{
             .allocator = allocator,
             .registry = registry,
@@ -88,20 +88,20 @@ pub const MultiPersonaRouter = struct {
 
             // Recalculate primary after modulation
             decision.primary = if (decision.weights.abbey >= decision.weights.aviva and decision.weights.abbey >= decision.weights.abi)
-                PersonaId.abbey
+                ProfileId.abbey
             else if (decision.weights.aviva >= decision.weights.abi)
-                PersonaId.aviva
+                ProfileId.aviva
             else
-                PersonaId.abi;
+                ProfileId.abi;
 
-            decision.confidence = decision.weights.forPersona(decision.primary);
+            decision.confidence = decision.weights.forProfile(decision.primary);
         }
 
         return decision;
     }
 
     /// Route using Abi's sentiment analysis, policy checking, and rules engine.
-    /// Translates Abi's RoutingDecision (ai_types) to persona RoutingDecision.
+    /// Translates Abi's RoutingDecision (ai_types) to profile RoutingDecision.
     fn abiBackedRoute(self: *Self, abi_router: *abi_mod.AbiRouter, input: []const u8) ?RoutingDecision {
         // Build a ProfileRequest for Abi
         const request = ai_types.ProfileRequest{
@@ -111,12 +111,12 @@ pub const MultiPersonaRouter = struct {
 
         // Call Abi's route() which runs sentiment + policy + rules
         var abi_decision = abi_router.route(request) catch |err| {
-            std.log.warn("persona: abiBackedRoute failed: {s}", .{@errorName(err)});
+            std.log.warn("profile: abiBackedRoute failed: {s}", .{@errorName(err)});
             return null;
         };
         defer @constCast(&abi_decision).deinit(self.allocator);
 
-        // Translate ai_types.RoutingDecision → persona types.RoutingDecision
+        // Translate ai_types.RoutingDecision → profile types.RoutingDecision
         var weights = RoutingDecision.Weights{};
 
         // Map selected_profile to weights
@@ -146,23 +146,23 @@ pub const MultiPersonaRouter = struct {
 
         weights.normalize();
 
-        // Determine primary persona from weights
+        // Determine primary profile from weights
         const primary = if (weights.abbey >= weights.aviva and weights.abbey >= weights.abi)
-            PersonaId.abbey
+            ProfileId.abbey
         else if (weights.aviva >= weights.abi)
-            PersonaId.aviva
+            ProfileId.aviva
         else
-            PersonaId.abi;
+            ProfileId.abi;
 
         // Determine strategy based on confidence and policy
         const strategy: RoutingStrategy = if (!abi_decision.policy_flags.is_safe)
-            .single // Policy violations always route to single persona (Abi)
+            .single // Policy violations always route to single profile (Abi)
         else if (abi_decision.confidence < 0.5)
-            .parallel // Low confidence → try multiple personas
+            .parallel // Low confidence → try multiple profiles
         else if (abi_decision.confidence < 0.7 and primary != .abi)
             .consensus // Medium confidence → blend responses
         else
-            .single; // High confidence → single persona
+            .single; // High confidence → single profile
 
         return .{
             .primary = primary,
@@ -227,15 +227,15 @@ pub const MultiPersonaRouter = struct {
 
         weights.normalize();
 
-        // Determine primary persona
+        // Determine primary profile
         const primary = if (weights.abbey >= weights.aviva and weights.abbey >= weights.abi)
-            PersonaId.abbey
+            ProfileId.abbey
         else if (weights.aviva >= weights.abi)
-            PersonaId.aviva
+            ProfileId.aviva
         else
-            PersonaId.abi;
+            ProfileId.abi;
 
-        const confidence = weights.forPersona(primary);
+        const confidence = weights.forProfile(primary);
 
         return .{
             .primary = primary,
@@ -250,8 +250,8 @@ pub const MultiPersonaRouter = struct {
         };
     }
 
-    /// Execute a routed request through the chosen persona(s).
-    pub fn execute(self: *Self, decision: RoutingDecision, input: []const u8) PersonaError!PersonaResponse {
+    /// Execute a routed request through the chosen profile(s).
+    pub fn execute(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
         return switch (decision.strategy) {
             .single => self.executeSingle(decision.primary, input),
             .parallel => self.executeParallel(decision, input),
@@ -261,7 +261,7 @@ pub const MultiPersonaRouter = struct {
 
     /// Route, execute, validate, and store — the full pipeline.
     /// Pipeline: Abi Analysis → Modulation → Execution → Constitution Check → WDBX Store
-    pub fn routeAndExecute(self: *Self, input: []const u8) PersonaError!PersonaResponse {
+    pub fn routeAndExecute(self: *Self, input: []const u8) ProfileError!ProfileResponse {
         const decision = self.route(input);
         const response = try self.execute(decision, input);
 
@@ -269,8 +269,8 @@ pub const MultiPersonaRouter = struct {
         if (self.constitution) |c| {
             if (!c.isCompliant(response.content)) {
                 // Response violates ethical principles — return safe fallback
-                const safe_response = PersonaResponse{
-                    .persona = .abi,
+                const safe_response = ProfileResponse{
+                    .profile = .abi,
                     .content = "I cannot provide this response as it may violate safety guidelines. Please rephrase your request.",
                     .confidence = 1.0,
                     .allocator = self.allocator,
@@ -279,7 +279,7 @@ pub const MultiPersonaRouter = struct {
                 // Store the blocked interaction in memory
                 if (self.memory) |*mem| {
                     mem.recordInteraction(decision, input, safe_response) catch |err| {
-                        std.log.warn("persona: failed to record blocked interaction: {s}", .{@errorName(err)});
+                        std.log.warn("profile: failed to record blocked interaction: {s}", .{@errorName(err)});
                     };
                 }
 
@@ -290,36 +290,36 @@ pub const MultiPersonaRouter = struct {
         // Store interaction in WDBX memory (best-effort, don't fail the response)
         if (self.memory) |*mem| {
             mem.recordInteraction(decision, input, response) catch |err| {
-                std.log.warn("persona: failed to record memory interaction: {s}", .{@errorName(err)});
+                std.log.warn("profile: failed to record memory interaction: {s}", .{@errorName(err)});
             };
         }
 
         // Record interaction for modulator preference learning
         if (self.modulator) |mod| {
-            const persona_profile: ai_types.ProfileType = switch (response.persona) {
+            const profile_profile: ai_types.ProfileType = switch (response.profile) {
                 .abbey => .abbey,
                 .aviva => .aviva,
                 .abi => .abi,
             };
-            mod.recordInteraction("default", persona_profile, true) catch |err| {
-                std.log.warn("persona: failed to record modulator interaction: {s}", .{@errorName(err)});
+            mod.recordInteraction("default", profile_profile, true) catch |err| {
+                std.log.warn("profile: failed to record modulator interaction: {s}", .{@errorName(err)});
             };
         }
 
         return response;
     }
 
-    fn executeSingle(self: *Self, persona_id: PersonaId, input: []const u8) PersonaError!PersonaResponse {
-        const persona = self.registry.getPersona(persona_id);
-        return persona.process(input);
+    fn executeSingle(self: *Self, profile_id: ProfileId, input: []const u8) ProfileError!ProfileResponse {
+        const profile = self.registry.getProfile(profile_id);
+        return profile.process(input);
     }
 
-    fn executeParallel(self: *Self, decision: RoutingDecision, input: []const u8) PersonaError!PersonaResponse {
+    fn executeParallel(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
         // Try primary first, fall back to next highest weight
         const primary_result = self.executeSingle(decision.primary, input);
         if (primary_result) |_| return primary_result else |_| {
-            // Determine fallback persona
-            const fallback: PersonaId = if (decision.primary != .abbey and decision.weights.abbey > 0)
+            // Determine fallback profile
+            const fallback: ProfileId = if (decision.primary != .abbey and decision.weights.abbey > 0)
                 .abbey
             else if (decision.primary != .aviva and decision.weights.aviva > 0)
                 .aviva
@@ -329,27 +329,27 @@ pub const MultiPersonaRouter = struct {
         }
     }
 
-    /// Execute consensus routing: run two personas and blend results.
-    /// Per spec Section 3.1.1 — Dynamic Persona Blending:
+    /// Execute consensus routing: run two profiles and blend results.
+    /// Per spec Section 3.1.1 — Dynamic Profile Blending:
     ///   α > 0.8 → primary only
     ///   α < 0.2 → secondary only
     ///   otherwise → blend both responses
-    fn executeConsensus(self: *Self, decision: RoutingDecision, input: []const u8) PersonaError!PersonaResponse {
-        const alpha = decision.weights.forPersona(decision.primary);
+    fn executeConsensus(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
+        const alpha = decision.weights.forProfile(decision.primary);
 
         // High confidence in primary → single dispatch
         if (alpha > 0.8) {
             return self.executeSingle(decision.primary, input);
         }
 
-        // Determine secondary persona (highest weight after primary)
-        const secondary: PersonaId = blk: {
+        // Determine secondary profile (highest weight after primary)
+        const secondary: ProfileId = blk: {
             if (decision.primary == .abbey) {
-                break :blk if (decision.weights.aviva >= decision.weights.abi) PersonaId.aviva else PersonaId.abi;
+                break :blk if (decision.weights.aviva >= decision.weights.abi) ProfileId.aviva else ProfileId.abi;
             } else if (decision.primary == .aviva) {
-                break :blk if (decision.weights.abbey >= decision.weights.abi) PersonaId.abbey else PersonaId.abi;
+                break :blk if (decision.weights.abbey >= decision.weights.abi) ProfileId.abbey else ProfileId.abi;
             } else {
-                break :blk if (decision.weights.abbey >= decision.weights.aviva) PersonaId.abbey else PersonaId.aviva;
+                break :blk if (decision.weights.abbey >= decision.weights.aviva) ProfileId.abbey else ProfileId.aviva;
             }
         };
 
@@ -368,7 +368,7 @@ pub const MultiPersonaRouter = struct {
             return primary_response;
         };
 
-        const secondary_weight = decision.weights.forPersona(secondary);
+        const secondary_weight = decision.weights.forProfile(secondary);
         const secondary_confidence = secondary_response.confidence;
 
         // Build blended response: primary content + secondary perspective
@@ -388,8 +388,8 @@ pub const MultiPersonaRouter = struct {
 
         secondary_response.deinit();
 
-        return PersonaResponse{
-            .persona = decision.primary,
+        return ProfileResponse{
+            .profile = decision.primary,
             .content = blended,
             .confidence = (alpha * primary_response.confidence + secondary_weight * secondary_confidence),
             .allocator = self.allocator,
@@ -409,53 +409,53 @@ pub const MultiPersonaRouter = struct {
 };
 
 test "heuristic routing - code query" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     const decision = router.route("How do I implement a function in Zig?");
 
-    try std.testing.expectEqual(PersonaId.aviva, decision.primary);
+    try std.testing.expectEqual(ProfileId.aviva, decision.primary);
     try std.testing.expect(decision.weights.aviva > decision.weights.abbey);
 }
 
 test "heuristic routing - emotional query" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     const decision = router.route("I feel stuck, can you help me understand this?");
 
-    try std.testing.expectEqual(PersonaId.abbey, decision.primary);
+    try std.testing.expectEqual(ProfileId.abbey, decision.primary);
 }
 
 test "heuristic routing - compliance query" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     const decision = router.route("What is our privacy policy for user data?");
 
-    try std.testing.expectEqual(PersonaId.abi, decision.primary);
+    try std.testing.expectEqual(ProfileId.abi, decision.primary);
 }
 
 test "heuristic routing - default" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     const decision = router.route("Hello there");
 
     // Default routing favors Abbey
-    try std.testing.expectEqual(PersonaId.abbey, decision.primary);
+    try std.testing.expectEqual(ProfileId.abbey, decision.primary);
     try std.testing.expect(decision.confidence > 0.0);
 }
 
 test "memory attachment" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     router.attachMemory("test-session");
@@ -463,10 +463,10 @@ test "memory attachment" {
 }
 
 test "constitution attachment" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     router.attachConstitution(constitution_mod.Constitution.init());
@@ -484,10 +484,10 @@ test "constitution blocks harmful content" {
 }
 
 test "abiBackedRoute failure falls back to heuristic" {
-    var registry = PersonaRegistry.init(std.testing.allocator, .{});
+    var registry = ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = MultiProfileRouter.init(std.testing.allocator, &registry, .{});
 
     // No AbiRouter attached — route() should fall through to heuristicRoute
     const decision = router.route("How do I implement error handling?");
@@ -496,7 +496,7 @@ test "abiBackedRoute failure falls back to heuristic" {
     try std.testing.expect(decision.confidence > 0.0);
     try std.testing.expect(decision.reason.len > 0);
     // "implement" keyword should trigger Aviva routing
-    try std.testing.expectEqual(PersonaId.aviva, decision.primary);
+    try std.testing.expectEqual(ProfileId.aviva, decision.primary);
 }
 
 test {

@@ -1,6 +1,6 @@
 //! Task Management Module
 //!
-//! Provides unified task tracking for personal tasks, project roadmap
+//! Provides unified task tracking for profilel tasks, project roadmap
 //! items, and distributed compute jobs.
 //!
 //! ## Usage

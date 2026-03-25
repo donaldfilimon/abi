@@ -154,7 +154,7 @@ pub fn renderDashboard(screen: *Screen, state: *const AppState) void {
     // Header
     widgets.renderPanel(screen, dl.header, " ABI Dashboard ", header_style);
     if (dl.header.height >= 2) {
-        const version_text = "v" ++ build_options.package_version ++ " | Zig 0.16 | Multi-Persona AI + WDBX";
+        const version_text = "v" ++ build_options.package_version ++ " | Zig 0.16 | Multi-Profile AI + WDBX";
         widgets.renderText(screen, .{
             .x = dl.header.x + 2,
             .y = dl.header.y + 1,

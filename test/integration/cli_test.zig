@@ -213,7 +213,7 @@ test "cli: chat pipeline report filters the header in pipeline mode" {
     const report = try renderChatReport(.{ .stdout_is_tty = false });
     defer std.testing.allocator.free(report);
 
-    try std.testing.expect(std.mem.indexOf(u8, report, "ABI Chat - Persona Pipeline") == null);
+    try std.testing.expect(std.mem.indexOf(u8, report, "ABI Chat - Profile Pipeline") == null);
     try std.testing.expect(std.mem.indexOf(u8, report, "Input: hello world") != null);
     try std.testing.expect(std.mem.indexOf(u8, report, "Execution:") != null);
 }
@@ -222,17 +222,17 @@ test "cli: chat pipeline report keeps the header for tty output" {
     const report = try renderChatReport(.{ .stdout_is_tty = true });
     defer std.testing.allocator.free(report);
 
-    try std.testing.expect(std.mem.indexOf(u8, report, "ABI Chat - Persona Pipeline") != null);
+    try std.testing.expect(std.mem.indexOf(u8, report, "ABI Chat - Profile Pipeline") != null);
 }
 
 // === Chat Command Path ===
 
-test "cli: persona router routes messages" {
-    const persona = abi.ai.persona;
-    var registry = persona.PersonaRegistry.init(std.testing.allocator, .{});
+test "cli: profile router routes messages" {
+    const profile = abi.ai.profile;
+    var registry = profile.ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = persona.MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = profile.MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("What is machine learning?");
@@ -243,11 +243,11 @@ test "cli: persona router routes messages" {
 }
 
 test "cli: routing decision has valid weights" {
-    const persona = abi.ai.persona;
-    var registry = persona.PersonaRegistry.init(std.testing.allocator, .{});
+    const profile = abi.ai.profile;
+    var registry = profile.ProfileRegistry.init(std.testing.allocator, .{});
     defer registry.deinit();
 
-    var router = persona.MultiPersonaRouter.init(std.testing.allocator, &registry, .{});
+    var router = profile.MultiProfileRouter.init(std.testing.allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route("Help me debug this code");
