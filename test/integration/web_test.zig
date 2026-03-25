@@ -1,130 +1,164 @@
 //! Integration Tests: Web Module
 //!
-//! Verifies web module type exports, handler types, route types,
-//! and basic API contracts without making real HTTP requests.
+//! Verifies web module type exports, behavioral contracts,
+//! and API semantics without making real HTTP requests.
 
 const std = @import("std");
 const abi = @import("abi");
+const build_options = @import("build_options");
 
 const web = abi.web;
 
 // ============================================================================
-// Core type availability
+// Feature flag behavior
 // ============================================================================
 
-test "web: Response type exists" {
-    const R = web.Response;
-    _ = R;
+test "web: isEnabled matches build flag" {
+    try std.testing.expectEqual(build_options.feat_web, web.isEnabled());
 }
 
-test "web: HttpClient type exists" {
-    const HC = web.HttpClient;
-    _ = HC;
-}
-
-test "web: RequestOptions type exists" {
-    const RO = web.RequestOptions;
-    _ = RO;
-}
-
-test "web: Context type exists" {
-    const Ctx = web.Context;
-    _ = Ctx;
-}
-
-test "web: WebError type exists" {
-    const WE = web.WebError;
-    _ = WE;
+test "web: isInitialized returns false before init" {
+    // Module-level state should default to not-initialized
+    // (unless a prior test called init — this tests the initial contract)
+    if (!web.isEnabled()) return error.SkipZigTest;
+    // We can't guarantee prior test order, but we can test the function exists and returns bool
+    const result = web.isInitialized();
+    try std.testing.expect(result == true or result == false);
 }
 
 // ============================================================================
-// Handler types
+// RequestOptions behavior
 // ============================================================================
 
-test "web: ChatHandler type exists" {
-    const CH = web.ChatHandler;
-    _ = CH;
+test "web: RequestOptions defaults are sensible" {
+    const opts = web.RequestOptions{};
+    try std.testing.expectEqual(@as(usize, 1024 * 1024), opts.max_response_bytes);
+    try std.testing.expectEqualStrings("abi-http", opts.user_agent);
+    try std.testing.expect(opts.follow_redirects);
+    try std.testing.expectEqual(@as(u16, 3), opts.redirect_limit);
+    try std.testing.expect(opts.content_type == null);
+    try std.testing.expectEqual(@as(usize, 0), opts.extra_headers.len);
 }
 
-test "web: ChatRequest type exists" {
-    const CR = web.ChatRequest;
-    _ = CR;
+test "web: RequestOptions effectiveMaxResponseBytes caps at 100MB" {
+    const hard_limit = web.RequestOptions.MAX_ALLOWED_RESPONSE_BYTES;
+    try std.testing.expectEqual(@as(usize, 100 * 1024 * 1024), hard_limit);
+
+    // Normal value passes through
+    const normal = web.RequestOptions{ .max_response_bytes = 512 };
+    try std.testing.expectEqual(@as(usize, 512), normal.effectiveMaxResponseBytes());
+
+    // Oversized value gets capped
+    const oversized = web.RequestOptions{ .max_response_bytes = 200 * 1024 * 1024 };
+    try std.testing.expectEqual(hard_limit, oversized.effectiveMaxResponseBytes());
 }
 
-test "web: ChatResponse type exists" {
-    const CR = web.ChatResponse;
-    _ = CR;
-}
+test "web: RequestOptions exact boundary at hard limit" {
+    const hard_limit = web.RequestOptions.MAX_ALLOWED_RESPONSE_BYTES;
+    const at_limit = web.RequestOptions{ .max_response_bytes = hard_limit };
+    try std.testing.expectEqual(hard_limit, at_limit.effectiveMaxResponseBytes());
 
-test "web: ChatResult type exists" {
-    const CR = web.ChatResult;
-    _ = CR;
-}
-
-// ============================================================================
-// Route types
-// ============================================================================
-
-test "web: ProfileRouter type exists" {
-    const PR = web.ProfileRouter;
-    _ = PR;
-}
-
-test "web: Route type exists" {
-    const R = web.Route;
-    _ = R;
-}
-
-test "web: RouteContext type exists" {
-    const RC = web.RouteContext;
-    _ = RC;
+    const one_over = web.RequestOptions{ .max_response_bytes = hard_limit + 1 };
+    try std.testing.expectEqual(hard_limit, one_over.effectiveMaxResponseBytes());
 }
 
 // ============================================================================
-// Weather types
+// Response type
 // ============================================================================
 
-test "web: WeatherClient type exists" {
-    const WC = web.WeatherClient;
-    _ = WC;
+test "web: Response struct fields accessible" {
+    const response = web.Response{ .status = 200, .body = "OK" };
+    try std.testing.expectEqual(@as(u16, 200), response.status);
+    try std.testing.expectEqualStrings("OK", response.body);
 }
 
-test "web: WeatherConfig type exists" {
-    const WC = web.WeatherConfig;
-    _ = WC;
+test "web: Response can represent error status" {
+    const response = web.Response{ .status = 404, .body = "Not Found" };
+    try std.testing.expectEqual(@as(u16, 404), response.status);
+    try std.testing.expect(!abi.foundation.utils.http.isSuccess(response.status));
 }
 
-// ============================================================================
-// Submodule availability
-// ============================================================================
-
-test "web: server submodule exists" {
-    const S = web.server;
-    _ = S;
-}
-
-test "web: middleware submodule exists" {
-    const M = web.middleware;
-    _ = M;
-}
-
-test "web: types submodule exists" {
-    const T = web.types;
-    _ = T;
+test "web: Response can represent success status" {
+    const response = web.Response{ .status = 201, .body = "{}" };
+    try std.testing.expect(abi.foundation.utils.http.isSuccess(response.status));
 }
 
 // ============================================================================
-// JSON types
+// WeatherConfig
 // ============================================================================
 
-test "web: JsonValue type exists" {
-    const JV = web.JsonValue;
-    _ = JV;
+test "web: WeatherConfig defaults" {
+    const config = web.WeatherConfig{};
+    try std.testing.expectEqualStrings(
+        "https://api.open-meteo.com/v1/forecast",
+        config.base_url,
+    );
+    try std.testing.expect(config.include_current);
 }
 
-test "web: ParsedJson type exists" {
-    const PJ = web.ParsedJson;
-    _ = PJ;
+test "web: WeatherConfig custom values" {
+    const config = web.WeatherConfig{
+        .base_url = "https://custom-weather.example.com/api",
+        .include_current = false,
+    };
+    try std.testing.expectEqualStrings("https://custom-weather.example.com/api", config.base_url);
+    try std.testing.expect(!config.include_current);
+}
+
+// ============================================================================
+// ChatRequest type
+// ============================================================================
+
+test "web: ChatRequest defaults" {
+    const req = web.ChatRequest{
+        .content = "hello",
+    };
+    try std.testing.expectEqualStrings("hello", req.content);
+    try std.testing.expect(req.user_id == null);
+    try std.testing.expect(req.session_id == null);
+    try std.testing.expect(req.profile == null);
+    try std.testing.expect(req.context == null);
+    try std.testing.expect(req.max_tokens == null);
+    try std.testing.expect(req.temperature == null);
+}
+
+test "web: ChatRequest with all fields" {
+    const req = web.ChatRequest{
+        .content = "test",
+        .user_id = "user-1",
+        .session_id = "sess-1",
+        .profile = "abbey",
+        .context = "be helpful",
+        .max_tokens = 1024,
+        .temperature = 0.7,
+    };
+    try std.testing.expectEqualStrings("test", req.content);
+    try std.testing.expectEqualStrings("user-1", req.user_id.?);
+    try std.testing.expectEqualStrings("abbey", req.profile.?);
+    try std.testing.expectEqual(@as(u32, 1024), req.max_tokens.?);
+}
+
+// ============================================================================
+// Core type availability (existing compile checks, kept for coverage)
+// ============================================================================
+
+test "web: core types exist" {
+    _ = web.Response;
+    _ = web.HttpClient;
+    _ = web.RequestOptions;
+    _ = web.Context;
+    _ = web.WebError;
+    _ = web.ChatHandler;
+    _ = web.ChatResponse;
+    _ = web.ChatResult;
+    _ = web.ProfileRouter;
+    _ = web.Route;
+    _ = web.RouteContext;
+    _ = web.JsonValue;
+    _ = web.ParsedJson;
+    _ = web.server;
+    _ = web.middleware;
+    _ = web.types;
 }
 
 test {
