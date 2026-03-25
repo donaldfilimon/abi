@@ -3,6 +3,7 @@
 //! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
 
 const std = @import("std");
+const stub_helpers = @import("../core/stub_helpers.zig");
 
 /// Shared connector types (available even when connectors are disabled).
 pub const shared = @import("shared.zig");
@@ -19,23 +20,11 @@ const Error = error{
     OutOfMemory,
 };
 
-var initialized = std.atomic.Value(bool).init(false);
-
-pub fn init(_: std.mem.Allocator) !void {
-    return Error.FeatureDisabled;
-}
-
-pub fn deinit() void {
-    initialized.store(false, .release);
-}
-
-pub fn isEnabled() bool {
-    return false;
-}
-
-pub fn isInitialized() bool {
-    return initialized.load(.acquire);
-}
+const Stub = stub_helpers.StubFeatureNoConfig(Error);
+pub const init = Stub.init;
+pub const deinit = Stub.deinit;
+pub const isEnabled = Stub.isEnabled;
+pub const isInitialized = Stub.isInitialized;
 
 pub fn getEnvOwned(_: std.mem.Allocator, _: []const u8) !?[]u8 {
     return Error.FeatureDisabled;

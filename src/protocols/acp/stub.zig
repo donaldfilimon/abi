@@ -247,14 +247,12 @@ pub fn serveHttp(
 // Module lifecycle
 // =============================================================================
 
-var initialized = std.atomic.Value(bool).init(false);
-
 fn isEnabled() bool {
     return false;
 }
 
 fn isInitialized() bool {
-    return initialized.load(.acquire);
+    return false;
 }
 
 // =============================================================================

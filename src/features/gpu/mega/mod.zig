@@ -42,9 +42,9 @@
 //! std.debug.print("Scheduled to {t} backend\n", .{decision.backend_type});
 //!
 //! // Execute workload and record outcome
-//! const start = std.time.milliTimestamp();
+//! const start = foundation.time.unixMs();
 //! // ... execute workload on decision.backend_type ...
-//! const elapsed = std.time.milliTimestamp() - start;
+//! const elapsed = foundation.time.unixMs() - start;
 //! try coordinator.recordOutcome(decision, @intCast(elapsed), true);
 //! ```
 //!
@@ -66,6 +66,7 @@
 //! The Coordinator uses internal synchronization for thread-safe operation.
 //! Multiple threads can call `schedule()` concurrently.
 const std = @import("std");
+const foundation = @import("../../../foundation/mod.zig");
 
 pub const coordinator = @import("coordinator.zig");
 pub const scheduler = @import("scheduler.zig");
