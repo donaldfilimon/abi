@@ -1,7 +1,7 @@
 //! Orchestration stub — disabled at compile time.
 
 const std = @import("std");
-const types = @import("types.zig");
+pub const types = @import("types.zig");
 
 // Re-export types
 pub const OrchestrationError = types.OrchestrationError;
