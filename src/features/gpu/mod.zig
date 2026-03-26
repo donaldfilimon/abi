@@ -107,6 +107,18 @@
 const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;
 const sync = @import("../../foundation/mod.zig").sync;
+
+// ============================================================================
+// Sub-namespace facades (additive)
+// ============================================================================
+pub const core_gpu = @import("core_gpu.zig");
+pub const execution = @import("execution.zig");
+pub const memory_ns = @import("memory_ns.zig");
+pub const advanced = @import("advanced.zig");
+
+// ============================================================================
+// Internal and Flat Exports
+// ============================================================================
 pub const backend = @import("backend.zig");
 pub const kernels = @import("runtime_kernels.zig");
 pub const memory = @import("memory/base.zig");
