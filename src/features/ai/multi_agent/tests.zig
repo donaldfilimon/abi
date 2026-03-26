@@ -48,22 +48,22 @@ test "coordinator helper types remain usable" {
 }
 
 test "workflow runner nested aliases remain source-compatible" {
-    const config: multi_agent.WorkflowRunner.RunnerConfig = .{
+    const config: multi_agent.RunnerConfig = .{
         .max_retries = 4,
     };
     try std.testing.expectEqual(@as(u32, 4), config.max_retries);
 
-    const run_error = multi_agent.WorkflowRunner.RunError.NoAgents;
-    try std.testing.expectEqual(multi_agent.WorkflowRunner.RunError.NoAgents, run_error);
+    const run_error = multi_agent.RunError.NoAgents;
+    try std.testing.expectEqual(multi_agent.RunError.NoAgents, run_error);
 
-    var step_results = std.StringHashMapUnmanaged(multi_agent.WorkflowRunner.StepResult).empty;
+    var step_results = std.StringHashMapUnmanaged(multi_agent.StepResult).empty;
     defer step_results.deinit(std.testing.allocator);
 
-    const result = multi_agent.WorkflowRunner.WorkflowResult{
+    const result = multi_agent.WorkflowResult{
         .success = false,
         .step_results = step_results,
         .final_output = null,
-        .stats = multi_agent.WorkflowRunner.WorkflowStats{},
+        .stats = multi_agent.WorkflowStats{},
         .allocator = std.testing.allocator,
     };
     try std.testing.expect(!result.success);
@@ -224,7 +224,7 @@ test "workflow runner returns public errors for invalid runs" {
     };
 
     try std.testing.expectError(
-        multi_agent.WorkflowRunner.RunError.NoAgents,
+        multi_agent.RunError.NoAgents,
         no_agent_runner.run(&simple_workflow),
     );
 
@@ -247,7 +247,7 @@ test "workflow runner returns public errors for invalid runs" {
     };
 
     try std.testing.expectError(
-        multi_agent.WorkflowRunner.RunError.InvalidWorkflow,
+        multi_agent.RunError.InvalidWorkflow,
         invalid_runner.run(&invalid_workflow),
     );
 }
