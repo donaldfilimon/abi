@@ -13,14 +13,17 @@ ZIGLY_BIN="$ZIGLY_CLI_DIR/zig-out/bin/zigly"
 if [ ! -f "$ZIGLY_BIN" ]; then
     echo "==> Bootstrapping native zigly manager..." >&2
     cd "$ZIGLY_CLI_DIR"
-    ./build_wrapper.sh >/dev/null 2>&1 || true
+    ./build_wrapper.sh >/dev/null 2>&1 || {
+        echo "==> ERROR: Failed to bootstrap the native Zigly manager." >&2
+        cat target_err.log >&2 2>/dev/null || true
+        exit 1
+    }
     cd - >/dev/null
 fi
 
 if [ -x "$ZIGLY_BIN" ]; then
     exec "$ZIGLY_BIN" "$@"
 else
-    # Fallback directly to bash script if compilation fails entirely
-    echo "==> Native binary build failed. Falling back to bash interpreter..." >&2
-    exec bash "$ZIGLY_CLI_DIR/zigly" "$@"
+    echo "==> ERROR: Native binary could not be found or executed." >&2
+    exit 1
 fi
