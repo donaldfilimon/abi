@@ -34,8 +34,8 @@ for arg in "$@"; do
 done
 set -- $ARGS
 
-# Resolve zig via zigup.sh (auto-downloads if missing)
-ZIG2="$("$SCRIPT_DIR/tools/zigup.sh" --status)"
+# Resolve zig via zigly (auto-downloads if missing)
+ZIG2="$("$SCRIPT_DIR/tools/zigly" --status)"
 ZIG_LIB="$(dirname "$(dirname "$ZIG2")")/lib"
 
 SYSROOT="$(xcrun --show-sdk-path 2>/dev/null || echo "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")"
@@ -270,7 +270,7 @@ esac
 # ── Try direct build first ──────────────────────────────────────────
 if run_build "$@"; then
     if [ "$AUTO_LINK" = true ]; then
-        "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+        "$SCRIPT_DIR/tools/zigly" --link 2>&1 || true
     fi
     exit 0
 fi
@@ -314,7 +314,7 @@ if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
             cat "$TEST_STDERR" >&2
             rm -f "$TEST_STDERR"
             if [ "$AUTO_LINK" = true ]; then
-                "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+                "$SCRIPT_DIR/tools/zigly" --link 2>&1 || true
             fi
             exit 0
         fi
@@ -327,7 +327,7 @@ if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
             "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" $SYSROOT_ARGS -Dfeat-gpu=false "$@"
             EXIT_CODE=$?
             if [ "$AUTO_LINK" = true ]; then
-                "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+                "$SCRIPT_DIR/tools/zigly" --link 2>&1 || true
             fi
             exit $EXIT_CODE
         fi

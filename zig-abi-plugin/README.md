@@ -62,9 +62,9 @@ zig build gpu-tests               # GPU backend tests
 # ... see CLAUDE.md for full list
 
 # Version management
-tools/zigup.sh --bootstrap        # One-command project setup
-tools/zigup.sh --status           # Auto-install zig if missing
-tools/zigup.sh --link             # Symlink zig + zls to ~/.local/bin
+zigly --bootstrap        # One-command project setup
+zigly --status           # Auto-install zig if missing
+zigly --link             # Symlink zig + zls to ~/.local/bin
 ```
 
 ## Feature Flags
@@ -79,5 +79,5 @@ zig build -Dgpu-backend=metal
 ## Platform Notes
 
 - **macOS 26.4+** (Darwin 25+): Stock Zig linker fails. Use `./build.sh` which auto-relinks with Apple's native linker.
-- **Zig version**: Pinned in `.zigversion` (`0.16.0-dev.2984+cb7d2b056`). `tools/zigup.sh` auto-downloads the correct version.
+- **Zig version**: Pinned in `.zigversion` (`0.16.0-dev.2984+cb7d2b056`). `zigly` auto-downloads the correct version.
 - **WASM**: Timer APIs unavailable; foundation time utilities return 0.

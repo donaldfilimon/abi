@@ -12,7 +12,7 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ZIGVERSION_FILE="$REPO_ROOT/.zigversion"
-ZIGUP="$SCRIPT_DIR/zigup.sh"
+ZIGLY="$SCRIPT_DIR/zigly"
 DOWNLOAD_INDEX="https://ziglang.org/download/index.json"
 
 usage() {
@@ -127,7 +127,7 @@ do_update() {
 
     # Force reinstall zig
     log "Installing zig $LATEST_VERSION ..."
-    "$ZIGUP" --install || {
+    "$ZIGLY" --install || {
         log "Install failed, reverting .zigversion"
         mv "${ZIGVERSION_FILE}.bak" "$ZIGVERSION_FILE"
         err "zig install failed for $LATEST_VERSION"
@@ -135,7 +135,7 @@ do_update() {
 
     # Run build check
     log "Running 'zig build check' to verify ..."
-    ZIG="$("$ZIGUP" --status)"
+    ZIG="$("$ZIGLY" --status)"
     ZIG_LIB="$(dirname "$(dirname "$ZIG")")/lib"
     if "$ZIG" build check --zig-lib-dir "$ZIG_LIB" --global-cache-dir "$HOME/.cache/zig" --cache-dir .zig-cache 2>&1; then
         log "Check passed!"
@@ -144,7 +144,7 @@ do_update() {
     else
         log "Check failed! Reverting to $CURRENT_VERSION"
         mv "${ZIGVERSION_FILE}.bak" "$ZIGVERSION_FILE"
-        "$ZIGUP" --install
+        "$ZIGLY" --install
         err "Build check failed with zig $LATEST_VERSION, reverted to $CURRENT_VERSION"
     fi
 }

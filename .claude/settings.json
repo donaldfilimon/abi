@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zigversion'; then echo 'WARNING: .zigversion edit detected — MUST also update atomically: build.zig.zon and .github/workflows/ci.yml. Run tools/zigup.sh --install to re-download.'; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zigversion'; then echo 'WARNING: .zigversion edit detected — MUST also update atomically: build.zig.zon and .github/workflows/ci.yml. Run tools/zigly --install to re-download.'; fi"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zig$'; then ZIG=$(bash tools/zigup.sh --status 2>/dev/null || true); if [ -n \"$ZIG\" ] && [ -x \"$ZIG\" ]; then \"$ZIG\" fmt \"$FILE\" 2>/dev/null || true; elif command -v zig >/dev/null 2>&1; then zig fmt \"$FILE\" 2>/dev/null || true; fi; fi"
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -q '\\.zig$'; then ZIG=$(bash tools/zigly --status 2>/dev/null || true); if [ -n \"$ZIG\" ] && [ -x \"$ZIG\" ]; then \"$ZIG\" fmt \"$FILE\" 2>/dev/null || true; elif command -v zig >/dev/null 2>&1; then zig fmt \"$FILE\" 2>/dev/null || true; fi; fi"
           }
         ]
       },

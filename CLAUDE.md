@@ -9,10 +9,10 @@ ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU accele
 Zig version is pinned in `.zigversion` (currently `0.16.0-dev.2984+cb7d2b056`). The zig version manager auto-downloads the correct version:
 
 ```bash
-tools/zigup.sh --status    # Print zig path (auto-install if missing)
-tools/zigup.sh --link      # Symlink zig + zls into ~/.local/bin
-tools/zigup.sh --bootstrap # One-command project setup (install, link, verify)
-tools/zigup.sh --doctor    # Toolchain health check (versions, PATH, platform)
+zigly --status    # Print zig path (auto-install if missing)
+zigly --link      # Symlink zig + zls into ~/.local/bin
+zigly --bootstrap # One-command project setup (install, link, verify)
+zigly --doctor    # Toolchain health check (versions, PATH, platform)
 # Also: --install, --unlink, --update, --check, --clean
 ```
 
@@ -32,10 +32,9 @@ tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
 Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
+`zigly` also detects system-installed zig from zvm (`~/.zvm/bin/zig`) or brew, preferring those over its own cache when the version matches `.zigversion`. If zvm is installed, `zvm install master` provides both zig and zls.
 
-`zigup.sh` also detects system-installed zig from zvm (`~/.zvm/bin/zig`) or brew, preferring those over its own cache when the version matches `.zigversion`. If zvm is installed, `zvm install master` provides both zig and zls.
-
-To make zig and zls available globally, run `tools/zigup.sh --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
+To make zig and zls available globally, run `zigly --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
@@ -43,8 +42,9 @@ export PATH="$HOME/.local/bin:$PATH"
 ### Quick Verify (fresh clone)
 
 ```bash
-tools/zigup.sh --bootstrap         # Install zig + zls, symlink, verify
+zigly --bootstrap         # Install zig + zls, symlink, verify
 ./build.sh test -Dfeat-gpu=false --summary all  # macOS 26.4+
+```
 # or: zig build test --summary all               # Linux / older macOS
 ```
 

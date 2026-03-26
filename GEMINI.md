@@ -6,7 +6,7 @@ This file provides guidance to Gemini CLI when working with code in this reposit
 
 ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
-Zig version is pinned in `.zigversion`. Use `tools/zigup.sh --status` to auto-install the correct version, or `tools/zigup.sh --link` to symlink zig + zls into `~/.local/bin`.
+Zig version is pinned in `.zigversion`. Use `tools/zigly --status` to auto-install the correct version, or `tools/zigly --link` to symlink zig + zls into `~/.local/bin`.
 
 ## Build Commands
 

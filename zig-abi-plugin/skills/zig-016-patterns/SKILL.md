@@ -237,7 +237,7 @@ Stock prebuilt Zig's internal LLD linker fails on Darwin 25+ with undefined symb
 ./build.sh test --summary all     # Run tests
 ```
 
-Ensure zig is installed: `tools/zigup.sh --status` (auto-downloads if missing).
+Ensure zig is installed: `zigly --status` (auto-downloads if missing).
 
 **Fallback options** (when build.sh cannot be used):
 1. `zig build lint` — format check (no linking needed)
