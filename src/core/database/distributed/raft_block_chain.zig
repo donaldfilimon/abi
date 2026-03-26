@@ -47,7 +47,6 @@ pub const DistributedBlockChainConfig = struct {
 pub const BlockChainConfig = struct {
     default_dimension: usize = 384,
     enable_mvcc: bool = true,
-    enable_skip_pointers: bool = true,
     max_blocks_per_session: usize = 1000,
 };
 

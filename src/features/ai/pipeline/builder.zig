@@ -130,8 +130,18 @@ pub const PipelineBuilder = struct {
 
     /// Build the pipeline. Consumes the step list.
     pub fn build(self: *Self) @import("executor.zig").Pipeline {
-        const steps = self.steps.toOwnedSlice(self.allocator) catch &.{};
-        // Clear steps so deinit doesn't double-free template strings
+        const steps = self.steps.toOwnedSlice(self.allocator) catch blk: {
+            // OOM: free owned step data before clearing to avoid leaks
+            for (self.steps.items) |step| {
+                switch (step.config) {
+                    .template => |cfg| self.allocator.free(cfg.template_str),
+                    else => {},
+                }
+            }
+            self.steps.deinit(self.allocator);
+            self.steps = .empty;
+            break :blk &.{};
+        };
         self.steps = .empty;
 
         return @import("executor.zig").Pipeline.init(

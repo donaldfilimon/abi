@@ -4,6 +4,7 @@
 //! scoring, and populates PipelineContext.context_fragments.
 
 const std = @import("std");
+const foundation = @import("../../../../foundation/mod.zig");
 const types = @import("../types.zig");
 const ctx_mod = @import("../context.zig");
 const PipelineContext = ctx_mod.PipelineContext;
@@ -31,7 +32,7 @@ pub fn execute(pctx: *PipelineContext, cfg: types.RetrieveConfig) !void {
         const text = std.fmt.bufPrint(&buf, "[{s}] (decay={d:.2})", .{
             profile_name,
             if (cfg.apply_recency_decay)
-                block.getRecencyDecay(std.time.timestamp())
+                block.getRecencyDecay(foundation.time.nowSeconds())
             else
                 @as(f32, 1.0),
         }) catch continue;

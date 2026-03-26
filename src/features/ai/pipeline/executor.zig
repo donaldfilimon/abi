@@ -5,6 +5,7 @@
 //! metadata (pipeline_id, step_index, step_tag).
 
 const std = @import("std");
+const foundation = @import("../../../foundation/mod.zig");
 const types = @import("types.zig");
 const ctx_mod = @import("context.zig");
 const persistence = @import("persistence.zig");
@@ -30,6 +31,7 @@ const filter_step = @import("steps/filter.zig");
 pub const Pipeline = struct {
     allocator: std.mem.Allocator,
     session_id: []const u8,
+    session_id_owned: bool = false,
     steps: []Step,
     chain: ?*BlockChain,
     pipeline_id: u64,
@@ -42,14 +44,26 @@ pub const Pipeline = struct {
         steps: []Step,
         chain: ?*BlockChain,
     ) Self {
-        // Generate a unique pipeline ID from timestamp + hash
-        const ts: u64 = @bitCast(std.time.timestamp());
+        // Generate a unique pipeline ID from seed + hash
+        const ts = foundation.time.getUniqueId();
         const session_hash = std.hash.Fnv1a_64.hash(session_id);
         const pid = ts ^ session_hash;
 
+        // Own a copy of session_id so Pipeline is independent of builder lifetime
+        const owned_id = allocator.dupe(u8, session_id) catch {
+            return .{
+                .allocator = allocator,
+                .session_id = session_id,
+                .steps = steps,
+                .chain = chain,
+                .pipeline_id = pid,
+            };
+        };
+
         return .{
             .allocator = allocator,
-            .session_id = session_id,
+            .session_id = owned_id,
+            .session_id_owned = true,
             .steps = steps,
             .chain = chain,
             .pipeline_id = pid,
@@ -58,7 +72,7 @@ pub const Pipeline = struct {
 
     /// Execute the pipeline with the given input.
     pub fn run(self: *Self, input: []const u8) !PipelineResult {
-        const start_ns = std.time.nanoTimestamp();
+        var timer = foundation.time.Timer.start() catch null;
 
         var pctx = try PipelineContext.init(
             self.allocator,
@@ -94,9 +108,7 @@ pub const Pipeline = struct {
             }
         }
 
-        const end_ns = std.time.nanoTimestamp();
-        const elapsed_ns = end_ns - start_ns;
-        const elapsed_ms: u64 = @intCast(@divTrunc(@max(elapsed_ns, 0), std.time.ns_per_ms));
+        const elapsed_ms: u64 = if (timer) |*t| t.read() / std.time.ns_per_ms else 0;
 
         // Build result — transfer ownership of response and block_ids
         const response = if (pctx.generated_response) |r|
@@ -128,6 +140,9 @@ pub const Pipeline = struct {
             }
         }
         self.allocator.free(self.steps);
+        if (self.session_id_owned) {
+            self.allocator.free(self.session_id);
+        }
     }
 };
 

@@ -430,11 +430,6 @@ pub const ContextChunk = struct {
     title: []const u8 = "",
 };
 
-pub const CacheEntry = struct {
-    text_hash: u64 = 0,
-    vector: []f32 = &.{},
-};
-
 pub const WdbxFusion = struct {
     pub fn init(_: std.mem.Allocator, _: FusionConfig) LlmError!WdbxFusion {
         return error.FeatureDisabled;

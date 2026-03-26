@@ -34,7 +34,9 @@ pub fn execute(pctx: *PipelineContext, cfg: types.GenerateConfig) !void {
                     .temperature = cfg.temperature orelse 0.7,
                     .max_tokens = cfg.max_tokens orelse 2048,
                 };
-                if (wrapper.complete(request)) |resp| {
+                if (wrapper.complete(request)) |resp_val| {
+                    var resp = resp_val;
+                    defer resp.deinit(pctx.allocator);
                     const duped = try pctx.allocator.dupe(u8, resp.content);
                     if (pctx.generated_response) |old| pctx.allocator.free(old);
                     pctx.generated_response = duped;

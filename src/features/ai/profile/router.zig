@@ -281,7 +281,7 @@ pub const MultiProfileRouter = struct {
 
                 // Store the blocked interaction in memory
                 if (self.memory) |*mem| {
-                    mem.recordInteraction(decision, input, safe_response) catch |err| {
+                    mem.recordInteraction(decision, input, safe_response, null) catch |err| {
                         std.log.warn("profile: failed to record blocked interaction: {s}", .{@errorName(err)});
                     };
                 }
@@ -292,7 +292,7 @@ pub const MultiProfileRouter = struct {
 
         // Store interaction in WDBX memory (best-effort, don't fail the response)
         if (self.memory) |*mem| {
-            mem.recordInteraction(decision, input, response) catch |err| {
+            mem.recordInteraction(decision, input, response, null) catch |err| {
                 std.log.warn("profile: failed to record memory interaction: {s}", .{@errorName(err)});
             };
         }

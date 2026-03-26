@@ -9,7 +9,7 @@
 //!   - V_t: Query/response embeddings
 //!   - M_t: Profile tag, routing weights, intent, risk
 //!   - T_t: MVCC timestamps
-//!   - R_t: Parent/skip pointers
+//!   - R_t: Parent block pointer
 //!   - H_t: SHA-256 hash chain
 
 const std = @import("std");
@@ -28,7 +28,9 @@ const ProfileTag = block_chain.ProfileTag;
 const RoutingWeights = block_chain.RoutingWeights;
 const IntentCategory = block_chain.IntentCategory;
 const PolicyFlags = block_chain.PolicyFlags;
+const PipelineStepTag = block_chain.PipelineStepTag;
 const pipeline_types = @import("../pipeline/types.zig");
+const PipelineContext = @import("../pipeline/context.zig").PipelineContext;
 
 /// Conversation memory backed by WDBX block chaining.
 /// Stores each interaction as a cryptographically chained block with
@@ -39,6 +41,13 @@ pub const ConversationMemory = struct {
     interaction_count: u64 = 0,
 
     const Self = @This();
+
+    /// Optional pipeline lineage for traceability.
+    pub const PipelineLineage = struct {
+        pipeline_id: ?u64 = null,
+        step_index: ?u16 = null,
+        pipeline_step: PipelineStepTag = .none,
+    };
 
     /// Create a new conversation memory for a session.
     pub fn init(allocator: std.mem.Allocator, session_id: []const u8) Self {
@@ -54,21 +63,11 @@ pub const ConversationMemory = struct {
         decision: RoutingDecision,
         input: []const u8,
         _: ProfileResponse,
+        lineage: ?PipelineLineage,
     ) !u64 {
-        // Generate a simple embedding placeholder from input content.
+        // Placeholder embedding from input content (shared helper).
         // Real embeddings would come from a connector (OpenAI, Cohere, etc.)
-        var query_embedding: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
-        if (input.len > 0) {
-            // Simple hash-based placeholder embedding
-            const hash = std.hash.Fnv1a_32.hash(input);
-            const f: f32 = @floatFromInt(hash);
-            query_embedding = .{
-                @mod(f, 1000.0) / 1000.0,
-                @mod(f * 1.618, 1000.0) / 1000.0,
-                @mod(f * 2.236, 1000.0) / 1000.0,
-                @mod(f * 3.142, 1000.0) / 1000.0,
-            };
-        }
+        var query_embedding = PipelineContext.hashEmbedding(input);
 
         // Map ProfileId → ProfileTag.ProfileType
         const primary_profile: ProfileTag.ProfileType = switch (decision.primary) {
@@ -126,6 +125,9 @@ pub const ConversationMemory = struct {
             },
             .parent_block_id = self.chain.current_head,
             .previous_hash = prev_hash,
+            .pipeline_step = if (lineage) |l| l.pipeline_step else .none,
+            .pipeline_id = if (lineage) |l| l.pipeline_id else null,
+            .step_index = if (lineage) |l| l.step_index else null,
         };
 
         const block_id = try self.chain.addBlock(config);
@@ -200,7 +202,7 @@ test "conversation memory records interaction" {
         .allocator = std.testing.allocator,
     };
 
-    const block_id = try mem.recordInteraction(decision, "How do I implement HNSW?", response);
+    const block_id = try mem.recordInteraction(decision, "How do I implement HNSW?", response, null);
     try std.testing.expect(block_id > 0);
     try std.testing.expectEqual(@as(u64, 1), mem.getInteractionCount());
 }
@@ -227,8 +229,8 @@ test "conversation memory chain integrity" {
     };
 
     // Record two interactions
-    const id1 = try mem.recordInteraction(decision, "I feel stuck", response);
-    const id2 = try mem.recordInteraction(decision, "Can you help more?", response);
+    const id1 = try mem.recordInteraction(decision, "I feel stuck", response, null);
+    const id2 = try mem.recordInteraction(decision, "Can you help more?", response, null);
 
     try std.testing.expect(id1 != id2);
     try std.testing.expectEqual(@as(u64, 2), mem.getInteractionCount());

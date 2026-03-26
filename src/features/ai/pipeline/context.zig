@@ -112,10 +112,11 @@ pub const PipelineContext = struct {
         const owned_value = try self.allocator.dupe(u8, value);
         errdefer self.allocator.free(owned_value);
 
-        if (self.metadata.fetchPut(self.allocator, owned_key, owned_value)) |old| {
+        const maybe_old = try self.metadata.fetchPut(self.allocator, owned_key, owned_value);
+        if (maybe_old) |old| {
             self.allocator.free(old.key);
             self.allocator.free(old.value);
-        } else |_| {}
+        }
     }
 
     /// Get all context fragments concatenated (caller owns returned slice).

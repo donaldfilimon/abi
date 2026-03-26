@@ -3,7 +3,7 @@
 //! Implements the block-chained memory model described in the Abbey-Aviva-Abi
 //! research document. Each conversational turn is stored as a Conversation Block
 //! containing embeddings, metadata, temporal markers, references, and integrity
-//! fields. Blocks are linked into chains per session with skip pointers.
+//! fields. Blocks are linked into chains per session.
 //!
 //! Block Data Model (Research Definition):
 //! B_t = { V_t, M_t, T_t, R_t, H_t }
@@ -11,12 +11,11 @@
 //! - V_t: Query and response embeddings (vector representations)
 //! - M_t: Metadata (profile tag, routing weights, intent, risk score)
 //! - T_t: Temporal markers (commit and end timestamps for MVCC)
-//! - R_t: References (parent block, skip pointer, summary pointers)
+//! - R_t: References (parent block pointer)
 //! - H_t: Integrity fields (cryptographic hash chain)
 //!
 //! Features:
 //! - Multi-version concurrency control (MVCC) with commit/end timestamps
-//! - Skip pointers for efficient traversal of long conversations
 //! - Cryptographic block chaining for auditability and integrity
 //! - Session continuity with parent block references
 //! - Two-stage retrieval: ANN index + reranking with recency decay
@@ -44,8 +43,6 @@ pub const ConversationBlock = struct {
 
     // References (R_t)
     parent_block_id: ?u64 = null,
-    skip_pointer: ?u64 = null, // Logarithmic skip for efficient traversal
-    summary_pointer: ?u64 = null, // Pointer to summarized version
 
     // Integrity (H_t)
     hash: [32]u8, // SHA-256 hash of block content
@@ -74,8 +71,6 @@ pub const ConversationBlock = struct {
             .policy_flags = config.policy_flags,
             .commit_timestamp = now,
             .parent_block_id = config.parent_block_id,
-            .skip_pointer = config.skip_pointer,
-            .summary_pointer = config.summary_pointer,
             .hash = block_hash,
             .previous_hash = config.previous_hash,
             .timestamp = now,
@@ -118,8 +113,6 @@ pub const BlockConfig = struct {
     risk_score: f32 = 0.0,
     policy_flags: PolicyFlags = .{},
     parent_block_id: ?u64 = null,
-    skip_pointer: ?u64 = null,
-    summary_pointer: ?u64 = null,
     previous_hash: [32]u8 = .{0} ** 32,
     /// Pipeline metadata — which step produced this block.
     pipeline_step: PipelineStepTag = .none,
@@ -249,11 +242,6 @@ pub const BlockChain = struct {
         var block = try ConversationBlock.create(self.allocator, config);
         errdefer block.deinit(self.allocator);
 
-        // Add skip pointer if chain has length > 1
-        if (self.current_head) |head| {
-            block.skip_pointer = try self.calculateSkipPointer(head);
-        }
-
         // Store block in memory
         const fetch_result = try self.blocks.fetchPut(self.allocator, block_id, block);
         if (fetch_result) |old| {
@@ -291,69 +279,6 @@ pub const BlockChain = struct {
         }
 
         return result.toOwnedSlice(self.allocator);
-    }
-
-    /// Traverse chain with skip pointers (logarithmic efficiency)
-    pub fn traverseWithSkips(self: *const Self, max_blocks: usize) ![]const u64 {
-        var result = std.ArrayListUnmanaged(u64).empty;
-        defer result.deinit(self.allocator);
-
-        var current = self.current_head;
-        var visited: std.AutoHashMapUnmanaged(u64, void) = .empty;
-        defer visited.deinit(self.allocator);
-
-        while (current != null and result.items.len < max_blocks) {
-            if (self.blocks.get(current.?)) |block| {
-                // Add current block
-                if (!visited.contains(current.?)) {
-                    try result.append(self.allocator, current.?);
-                    try visited.put(self.allocator, current.?, {});
-                }
-
-                // Try skip pointer first, then parent
-                if (block.skip_pointer != null and !visited.contains(block.skip_pointer.?)) {
-                    current = block.skip_pointer;
-                } else {
-                    current = block.parent_block_id;
-                }
-            } else {
-                break;
-            }
-        }
-
-        return result.toOwnedSlice(self.allocator);
-    }
-
-    /// Calculate skip pointer based on chain length
-    fn calculateSkipPointer(self: *const Self, head_id: u64) !?u64 {
-        // Count chain length
-        var length: usize = 0;
-        var current: ?u64 = head_id;
-
-        while (current != null) {
-            length += 1;
-            if (self.blocks.get(current.?)) |block| {
-                current = block.parent_block_id;
-            } else {
-                break;
-            }
-        }
-
-        // Skip pointer every log2(length) blocks
-        if (length >= 2) {
-            const skip_distance = std.math.log2_int(usize, length);
-            var target = head_id;
-            for (0..skip_distance) |_| {
-                if (self.blocks.get(target)) |block| {
-                    target = block.parent_block_id orelse break;
-                } else {
-                    break;
-                }
-            }
-            if (target != head_id) return target;
-        }
-
-        return null;
     }
 
     /// Create summarized block for long conversations
@@ -418,16 +343,7 @@ pub const BlockChain = struct {
         };
 
         // Create and add summary block
-        const summary_id = try self.addBlock(summary_config);
-
-        // Update skip pointers to point to summary
-        for (block_ids) |block_id| {
-            if (self.blocks.getPtr(block_id)) |block_ptr| {
-                block_ptr.summary_pointer = summary_id;
-            }
-        }
-
-        return summary_id;
+        return try self.addBlock(summary_config);
     }
 };
 
