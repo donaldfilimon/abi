@@ -3,6 +3,7 @@
 const std = @import("std");
 const AgentCard = @import("agent_card.zig").AgentCard;
 const Server = @import("mod.zig").Server;
+const discord_routes = @import("discord_routes.zig");
 
 pub const HttpError = std.mem.Allocator.Error || error{
     InvalidAddress,
@@ -37,6 +38,20 @@ pub fn dispatchHttpRequest(
 
     if (std.mem.startsWith(u8, path, "/sessions")) {
         return handleSessionsHttpRoute(allocator, acp_server, request, path);
+    }
+
+    if (std.mem.startsWith(u8, path, "/discord")) {
+        return discord_routes.handleDiscordHttpRoute(allocator, request, path);
+    }
+
+    if (std.mem.eql(u8, path, "/openapi.json")) {
+        if (request.head.method != .GET) {
+            return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+        }
+        const spec = acp_server.getOrBuildOpenApiSpec() catch {
+            return respondJson(request, "{\"error\":\"spec generation failed\"}", .internal_server_error);
+        };
+        return respondJson(request, spec, .ok);
     }
 
     return respondJson(request, "{\"error\":\"not found\"}", .not_found);
@@ -234,7 +249,7 @@ fn parseStatus(status: []const u8) ?@import("tasks.zig").TaskStatus {
     return @import("../types.zig").TaskStatus.fromString(status);
 }
 
-fn readRequestBody(allocator: std.mem.Allocator, request: *std.http.Server.Request) HttpError![]u8 {
+pub fn readRequestBody(allocator: std.mem.Allocator, request: *std.http.Server.Request) HttpError![]u8 {
     var buffer: [4096]u8 = undefined;
     const reader = request.readerExpectContinue(&buffer) catch return HttpError.ReadFailed;
     var list = std.ArrayListUnmanaged(u8).empty;

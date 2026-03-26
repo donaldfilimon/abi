@@ -572,6 +572,26 @@ pub const Client = struct {
         defer response.deinit();
     }
 
+    /// Trigger a typing indicator in a channel.
+    /// The indicator lasts ~10 seconds or until a message is sent.
+    pub fn triggerTypingIndicator(
+        self: *Client,
+        channel_id: Snowflake,
+    ) !void {
+        const endpoint = try std.fmt.allocPrint(
+            self.allocator,
+            "/channels/{s}/typing",
+            .{channel_id},
+        );
+        defer self.allocator.free(endpoint);
+
+        var request = try self.makeRequest(.post, endpoint);
+        defer request.deinit();
+
+        var response = try self.doRequest(&request);
+        defer response.deinit();
+    }
+
     // ========================================================================
     // Application Command Endpoints
     // ========================================================================

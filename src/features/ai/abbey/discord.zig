@@ -335,8 +335,10 @@ pub const AbbeyDiscordBot = struct {
         try client.sendMessage(response.channel_id, response.content);
 
         // Include emoji reaction if provided by the wrapper and mapped in Abbey
-        if (response.suggested_reaction) |emoji| {
-            try client.addReaction(response.channel_id, response.message_id, emoji);
+        if (response.emotional_reaction) |emoji| {
+            if (response.reply_to) |msg_id| {
+                try client.addReaction(response.channel_id, msg_id, emoji);
+            }
         }
     }
 
@@ -380,46 +382,63 @@ pub const BotStats = struct {
 // Command Handling
 // ============================================================================
 
-/// Discord slash command definitions for Abbey
+/// Discord slash command definitions for Abbey.
+/// ApplicationCommand requires runtime Snowflake fields (id, application_id,
+/// version) that cannot be comptime constants, so we build them at runtime.
 pub const AbbeyCommands = struct {
-    /// Chat with Abbey
-    pub const chat_command = discord.ApplicationCommand{
-        .name = "abbey",
-        .description = "Chat with Abbey AI",
-        .type = .chat_input,
-        .options = &[_]discord.ApplicationCommandOption{
-            .{
-                .name = "message",
-                .description = "Your message to Abbey",
-                .type = .string,
-                .required = true,
+    const dummy_snowflake: discord.Snowflake = "0";
+
+    pub fn chatCommand() discord.ApplicationCommand {
+        return .{
+            .id = dummy_snowflake,
+            .application_id = dummy_snowflake,
+            .version = dummy_snowflake,
+            .name = "abbey",
+            .description = "Chat with Abbey AI",
+            .command_type = 1, // CHAT_INPUT
+            .options = &[_]discord.ApplicationCommandOption{
+                .{
+                    .name = "message",
+                    .description = "Your message to Abbey",
+                    .option_type = 3, // STRING
+                    .required = true,
+                },
             },
-        },
-    };
+        };
+    }
 
-    /// Get Abbey's current emotional state
-    pub const mood_command = discord.ApplicationCommand{
-        .name = "abbey-mood",
-        .description = "See Abbey's current emotional state",
-        .type = .chat_input,
-        .options = &[_]discord.ApplicationCommandOption{},
-    };
+    pub fn moodCommand() discord.ApplicationCommand {
+        return .{
+            .id = dummy_snowflake,
+            .application_id = dummy_snowflake,
+            .version = dummy_snowflake,
+            .name = "abbey-mood",
+            .description = "See Abbey's current emotional state",
+            .command_type = 1,
+        };
+    }
 
-    /// Get conversation statistics
-    pub const stats_command = discord.ApplicationCommand{
-        .name = "abbey-stats",
-        .description = "View conversation statistics",
-        .type = .chat_input,
-        .options = &[_]discord.ApplicationCommandOption{},
-    };
+    pub fn statsCommand() discord.ApplicationCommand {
+        return .{
+            .id = dummy_snowflake,
+            .application_id = dummy_snowflake,
+            .version = dummy_snowflake,
+            .name = "abbey-stats",
+            .description = "View conversation statistics",
+            .command_type = 1,
+        };
+    }
 
-    /// Clear conversation context
-    pub const clear_command = discord.ApplicationCommand{
-        .name = "abbey-clear",
-        .description = "Clear conversation context with Abbey",
-        .type = .chat_input,
-        .options = &[_]discord.ApplicationCommandOption{},
-    };
+    pub fn clearCommand() discord.ApplicationCommand {
+        return .{
+            .id = dummy_snowflake,
+            .application_id = dummy_snowflake,
+            .version = dummy_snowflake,
+            .name = "abbey-clear",
+            .description = "Clear conversation context with Abbey",
+            .command_type = 1,
+        };
+    }
 };
 
 /// Handle a slash command interaction

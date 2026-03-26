@@ -122,6 +122,7 @@ pub const Session = struct {
 pub const Server = struct {
     allocator: std.mem.Allocator,
     card: AgentCard,
+    openapi_spec: ?[]u8 = null,
 
     pub fn init(allocator: std.mem.Allocator, card: AgentCard) Server {
         return .{
@@ -132,6 +133,12 @@ pub const Server = struct {
 
     pub fn deinit(self: *Server) void {
         _ = self;
+    }
+
+    /// Stub: always returns error.FeatureDisabled.
+    pub fn getOrBuildOpenApiSpec(self: *Server) AcpError![]const u8 {
+        _ = self;
+        return AcpError.FeatureDisabled;
     }
 
     /// Stub: always returns error.FeatureDisabled.
