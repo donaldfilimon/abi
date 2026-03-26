@@ -1,11 +1,11 @@
 ---
 name: zig-016-patterns
-description: This skill should be used when writing or modifying Zig code in the ABI project. Provides Zig 0.16 API patterns (pinned at dev.2962+), migration guidance from deprecated APIs, and platform-specific linking notes. Trigger when user writes Zig code, encounters Zig compilation errors, asks about Zig 0.16 APIs, or mentions "std.time", "std.posix", "std.Io", "LazyPath", "Alignment", "HashMap", "DebugAllocator", or "main signature".
+description: This skill should be used when writing or modifying Zig code in the ABI project. Provides Zig 0.16 API patterns (pinned at dev.2984+), migration guidance from deprecated APIs, and platform-specific linking notes. Trigger when user writes Zig code, encounters Zig compilation errors, asks about Zig 0.16 APIs, or mentions "std.time", "std.posix", "std.Io", "LazyPath", "Alignment", "HashMap", "DebugAllocator", or "main signature".
 ---
 
 # Zig 0.16 API Patterns for ABI
 
-Pinned at `0.16.0-dev.2962+08416b44f`. Follow these patterns exactly — older patterns will not compile.
+Pinned at `0.16.0-dev.2984+cb7d2b056`. Follow these patterns exactly — older patterns will not compile.
 
 ## Removed / Changed APIs
 
