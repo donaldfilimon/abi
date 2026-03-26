@@ -13,7 +13,7 @@
 
 const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
-const emotion = @import("emotion.zig");
+const emotion = @import("emotions.zig");
 const core_types = @import("../types.zig");
 
 /// A single step in the reasoning chain.
@@ -38,6 +38,10 @@ pub const ReasoningStep = struct {
 
 /// Types of reasoning approaches.
 pub const ReasoningType = enum {
+    /// Initial query assessment.
+    assessment,
+    /// Research or verification needed.
+    research,
     /// Breaking down complex problems.
     decomposition,
     /// Drawing from similar cases.
@@ -61,6 +65,8 @@ pub const ReasoningType = enum {
 
     pub fn getDescription(self: ReasoningType) []const u8 {
         return switch (self) {
+            .assessment => "Assessing query complexity",
+            .research => "Researching or verifying",
             .decomposition => "Breaking down the problem",
             .analogy => "Drawing from similar situations",
             .deduction => "Following logical implications",
@@ -141,6 +147,54 @@ pub const ReasoningChain = struct {
             if (step.needs_validation) return true;
         }
         return false;
+    }
+
+    /// Convenience: add a step by type, title, and confidence score.
+    pub fn addStepByType(
+        self: *Self,
+        allocator: std.mem.Allocator,
+        reasoning_type: ReasoningType,
+        title: []const u8,
+        confidence: f32,
+    ) !void {
+        try self.addStep(allocator, .{
+            .step_number = self.steps.items.len + 1,
+            .title = title,
+            .explanation = title,
+            .confidence = confidence,
+            .reasoning_type = reasoning_type,
+        });
+    }
+
+    /// Finalize the reasoning chain (marks it complete).
+    pub fn finalize(self: *Self) !void {
+        if (self.steps.items.len > 0 and self.conclusion == null) {
+            // Auto-generate a brief conclusion from the last step
+            const last = self.steps.items[self.steps.items.len - 1];
+            self.conclusion = last.title;
+        }
+    }
+
+    /// Get a summary of the reasoning chain. Caller owns returned slice.
+    pub fn getSummary(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(allocator);
+
+        try result.print(allocator, "Query: {s}\nSteps: {d}\n", .{ self.query, self.steps.items.len });
+        for (self.steps.items) |step| {
+            try result.print(allocator, "  {d}. [{s}] {s} ({d:.0}%)\n", .{
+                step.step_number,
+                step.reasoning_type.getDescription(),
+                step.title,
+                step.confidence * 100,
+            });
+        }
+        if (self.conclusion) |c| {
+            try result.print(allocator, "Conclusion: {s}\n", .{c});
+        }
+        try result.print(allocator, "Overall confidence: {d:.0}%\n", .{self.overall_confidence * 100});
+
+        return result.toOwnedSlice(allocator);
     }
 };
 

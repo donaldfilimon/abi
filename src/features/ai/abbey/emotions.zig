@@ -1,28 +1,32 @@
 //! Abbey Emotional Intelligence Module
 //!
-//! Provides emotional context awareness:
+//! Canonical import for all emotion-related types. Provides:
 //! - Emotion detection from text
-//! - Emotional state tracking
+//! - Emotional state tracking and relationship memory
 //! - Response tone adjustment
-//! - Relationship memory
+//! - Emotion processing (EmotionProcessor, EmotionalResponse)
+//! - Trajectory tracking
 //!
-//! NOTE: This file coexists with `emotion.zig` by design.
-//! - `emotions.zig` (this file): The **state + memory** — lightweight
-//!   `EmotionalState` for in-conversation detection, `RelationshipMemory`
-//!   for long-term tracking, `EmotionHelpers`, and `CommunicationPreferences`.
-//!   Imported by `mod.zig` for the legacy Abbey interface.
-//! - `emotion.zig`: The **processor** — `EmotionProcessor` with weighted
-//!   pattern matching, `ToneStyle`, `EmotionalResponse`, trajectory tracking,
-//!   and empathy calibration. Used by the profile pipeline (`profile.zig`,
-//!   `empathy.zig`, `reasoning.zig`).
+//! Re-exports processor types from `emotion.zig` so that all Abbey files
+//! can use a single `@import("emotions.zig")` entry point.
 
 const std = @import("std");
 const core_types = @import("../types.zig");
 const platform_time = @import("../../../foundation/mod.zig").time;
+const emotion_processor = @import("emotion.zig");
 
 // Re-export the canonical EmotionType from core types
 // This ensures type consistency across the AI module
 pub const EmotionType = core_types.EmotionType;
+
+// Re-export processor types from emotion.zig so all Abbey files
+// can use emotions.zig as the single canonical import
+pub const EmotionalResponse = emotion_processor.EmotionalResponse;
+pub const EmotionProcessor = emotion_processor.EmotionProcessor;
+pub const ToneStyle = emotion_processor.ToneStyle;
+pub const EmotionConfig = emotion_processor.EmotionConfig;
+pub const TrajectoryDirection = emotion_processor.TrajectoryDirection;
+pub const EmotionTrajectory = emotion_processor.EmotionTrajectory;
 
 // Platform-aware time function (works on WASM)
 fn getTimestamp() i64 {
