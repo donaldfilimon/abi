@@ -26,6 +26,7 @@ pub const prompts = @import("prompts/stub.zig");
 pub const memory = @import("memory/stub.zig");
 pub const reasoning = @import("reasoning/stub.zig");
 pub const constitution = @import("constitution/stub.zig");
+pub const pipeline = @import("pipeline/stub.zig");
 pub const eval = @import("eval/stub.zig");
 pub const rag = @import("rag/stub.zig");
 pub const templates = @import("templates/stub.zig");

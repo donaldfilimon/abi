@@ -42,6 +42,7 @@ pub const Steps = struct {
     documents_tests_step: *std.Build.Step,
     compute_tests_step: *std.Build.Step,
     desktop_tests_step: *std.Build.Step,
+    pipeline_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
 };
 
@@ -116,6 +117,7 @@ pub fn addSteps(ctx: Context) Steps {
     const documents_tests_step = addFeatureTestLane(ctx, "documents", "documents");
     const compute_tests_step = addFeatureTestLane(ctx, "compute", "compute");
     const desktop_tests_step = addFeatureTestLane(ctx, "desktop", "desktop");
+    const pipeline_tests_step = addFeatureTestLane(ctx, "pipeline", "pipeline");
 
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     const check_step = ctx.b.step("check", "Run lint + test + parity");
@@ -160,6 +162,7 @@ pub fn addSteps(ctx: Context) Steps {
         .documents_tests_step = documents_tests_step,
         .compute_tests_step = compute_tests_step,
         .desktop_tests_step = desktop_tests_step,
+        .pipeline_tests_step = pipeline_tests_step,
         .check_step = check_step,
     };
 }

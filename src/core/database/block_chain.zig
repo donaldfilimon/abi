@@ -121,6 +121,12 @@ pub const BlockConfig = struct {
     skip_pointer: ?u64 = null,
     summary_pointer: ?u64 = null,
     previous_hash: [32]u8 = .{0} ** 32,
+    /// Pipeline metadata — which step produced this block.
+    pipeline_step: PipelineStepTag = .none,
+    /// Groups blocks from a single pipeline execution.
+    pipeline_id: ?u64 = null,
+    /// Ordering within the pipeline (0-indexed).
+    step_index: ?u16 = null,
 };
 
 /// Profile tag with blending coefficient
@@ -169,6 +175,21 @@ pub const IntentCategory = enum {
     creative_generation,
     policy_check,
     safety_critical,
+};
+
+/// Tags identifying which pipeline step produced a block.
+pub const PipelineStepTag = enum {
+    retrieve,
+    template,
+    route,
+    modulate,
+    generate,
+    validate,
+    store,
+    transform,
+    filter,
+    reason,
+    none,
 };
 
 /// Policy flags from Abi router

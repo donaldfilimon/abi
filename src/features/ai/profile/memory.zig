@@ -154,6 +154,12 @@ pub const ConversationMemory = struct {
         return self.chain.traverseBackward(max_blocks);
     }
 
+    /// Get a mutable reference to the underlying block chain.
+    /// Useful for attaching to pipeline builders.
+    pub fn getChainMut(self: *Self) *BlockChain {
+        return &self.chain;
+    }
+
     pub fn deinit(self: *Self) void {
         self.chain.deinit();
     }

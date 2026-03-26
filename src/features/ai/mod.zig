@@ -42,6 +42,7 @@ pub const prompts = if (build_options.feat_ai) @import("prompts/mod.zig") else @
 pub const memory = if (build_options.feat_ai) @import("memory/mod.zig") else @import("memory/stub.zig");
 pub const reasoning = if (build_options.feat_reasoning) @import("reasoning/mod.zig") else @import("reasoning/stub.zig");
 pub const constitution = if (build_options.feat_reasoning) @import("constitution/mod.zig") else @import("constitution/stub.zig");
+pub const pipeline = if (build_options.feat_reasoning) @import("pipeline/mod.zig") else @import("pipeline/stub.zig");
 pub const eval = if (build_options.feat_reasoning) @import("eval/mod.zig") else @import("eval/stub.zig");
 pub const rag = if (build_options.feat_reasoning) @import("rag/mod.zig") else @import("rag/stub.zig");
 pub const templates = if (build_options.feat_ai) @import("templates/mod.zig") else @import("templates/stub.zig");

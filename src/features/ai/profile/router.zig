@@ -24,6 +24,8 @@ const ai_types = @import("../types.zig");
 const abi_mod = @import("../abi/mod.zig");
 const modulation_mod = @import("../modulation.zig");
 const constitution_mod = @import("../constitution/mod.zig");
+const build_options = @import("build_options");
+const pipeline_mod = if (build_options.feat_reasoning) @import("../pipeline/mod.zig") else @import("../pipeline/stub.zig");
 
 /// Multi-profile router that wraps AbiRouter for intelligent dispatch.
 ///
@@ -308,6 +310,33 @@ pub const MultiProfileRouter = struct {
         }
 
         return response;
+    }
+
+    /// Execute the full pipeline using the Abbey Dynamic Model DSL.
+    /// Equivalent to routeAndExecute but expressed as a composable pipeline
+    /// with every step recorded as a WDBX block.
+    pub fn routeAndExecutePipeline(self: *Self, input: []const u8) !pipeline_mod.PipelineResult {
+        const session_id = if (self.memory) |m| m.chain.session_id else "default";
+        var builder = pipeline_mod.chain(self.allocator, session_id);
+        defer builder.deinit();
+
+        // Wire up the WDBX chain from memory if available
+        if (self.memory) |*mem| {
+            _ = builder.withChain(&mem.chain);
+        }
+
+        var p = builder
+            .retrieve(.wdbx, .{ .k = 5 })
+            .template("Given {context}, respond to: {input}")
+            .route(.adaptive)
+            .modulate()
+            .generate(.{})
+            .validate(.constitution)
+            .store(.wdbx)
+            .build();
+        defer p.deinit();
+
+        return p.run(input);
     }
 
     fn executeSingle(self: *Self, profile_id: ProfileId, input: []const u8) ProfileError!ProfileResponse {
