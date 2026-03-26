@@ -11,16 +11,16 @@ const PipelineContext = ctx_mod.PipelineContext;
 
 pub fn execute(pctx: *PipelineContext, _: types.ReasonConfig) !void {
     // Build a reasoning summary from current pipeline state
-    var reasoning = std.ArrayListUnmanaged(u8){};
+    var reasoning = std.ArrayListUnmanaged(u8).empty;
     defer reasoning.deinit(pctx.allocator);
 
     try reasoning.appendSlice(pctx.allocator, "Reasoning trace:\n");
 
     // Step 1: Input analysis
-    try std.fmt.format(reasoning.writer(pctx.allocator), "1. Input length: {d} chars\n", .{pctx.input.len});
+    try reasoning.print(pctx.allocator, "1. Input length: {d} chars\n", .{pctx.input.len});
 
     // Step 2: Context availability
-    try std.fmt.format(reasoning.writer(pctx.allocator), "2. Context fragments: {d}\n", .{pctx.context_fragments.items.len});
+    try reasoning.print(pctx.allocator, "2. Context fragments: {d}\n", .{pctx.context_fragments.items.len});
 
     // Step 3: Routing decision
     if (pctx.primary_profile) |pp| {
@@ -30,7 +30,7 @@ pub fn execute(pctx: *PipelineContext, _: types.ReasonConfig) !void {
             .abi => "Abi",
             .blended => "Blended",
         };
-        try std.fmt.format(reasoning.writer(pctx.allocator), "3. Routed to: {s}\n", .{name});
+        try reasoning.print(pctx.allocator, "3. Routed to: {s}\n", .{name});
     }
 
     // Step 4: Confidence estimate
@@ -39,7 +39,7 @@ pub fn execute(pctx: *PipelineContext, _: types.ReasonConfig) !void {
         break :blk max_w;
     } else 0.5;
 
-    try std.fmt.format(reasoning.writer(pctx.allocator), "4. Confidence: {d:.2}\n", .{confidence});
+    try reasoning.print(pctx.allocator, "4. Confidence: {d:.2}\n", .{confidence});
 
     // Store reasoning as metadata
     try pctx.setMetadata("reasoning", reasoning.items);
