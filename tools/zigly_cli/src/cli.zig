@@ -45,10 +45,14 @@ pub fn doStatus(config: *core.Config, raw_version: []const u8) !void {
     // Check if installed
     const zig_bin_exists = if (std.Io.Dir.accessAbsolute(config.io, zig_bin, .{})) true else |_| false;
     if (zig_bin_exists) {
-        std.debug.print("{s}\n", .{zig_bin});
+        const out_str = std.fmt.allocPrint(config.allocator, "{s}\n", .{zig_bin}) catch return;
+        defer config.allocator.free(out_str);
+        _ = std.Io.File.stdout().writeStreamingAll(config.io, out_str) catch {};
     } else {
         try doInstall(config, version);
-        std.debug.print("{s}\n", .{zig_bin});
+        const out_str = std.fmt.allocPrint(config.allocator, "{s}\n", .{zig_bin}) catch return;
+        defer config.allocator.free(out_str);
+        _ = std.Io.File.stdout().writeStreamingAll(config.io, out_str) catch {};
     }
 }
 
