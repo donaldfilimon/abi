@@ -505,7 +505,6 @@ test "recommends code block" {
     try std.testing.expect(!QueryType.factual_query.recommendsCodeBlock());
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

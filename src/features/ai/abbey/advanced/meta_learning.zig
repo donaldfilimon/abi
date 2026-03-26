@@ -612,7 +612,6 @@ test "curriculum scheduler" {
     try std.testing.expect(scheduler.current_difficulty > 0.3);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

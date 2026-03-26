@@ -677,7 +677,6 @@ pub const ToolRegistry = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

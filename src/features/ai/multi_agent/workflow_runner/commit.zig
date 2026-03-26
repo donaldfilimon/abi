@@ -95,7 +95,6 @@ pub fn commitStepOutcome(
     });
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

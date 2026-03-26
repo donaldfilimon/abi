@@ -148,7 +148,6 @@ pub const ViTConfig = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

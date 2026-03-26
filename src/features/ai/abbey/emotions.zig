@@ -408,7 +408,6 @@ test "relationship memory" {
     try std.testing.expect(memory.getHealthScore() > 0.5);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

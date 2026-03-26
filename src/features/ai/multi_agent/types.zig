@@ -169,7 +169,6 @@ pub const RunError = error{
     OutOfMemory,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

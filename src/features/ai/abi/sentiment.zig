@@ -625,7 +625,6 @@ test "SentimentAnalyzer intent classification" {
     try std.testing.expect(code_req.intent == .code_request);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -299,7 +299,6 @@ test "federated coordinator rejects stale updates" {
     try std.testing.expectError(CoordinatorError.InsufficientUpdates, coordinator.aggregate());
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

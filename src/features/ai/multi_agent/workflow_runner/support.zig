@@ -139,7 +139,6 @@ pub fn recordWorkflowOutcome(runner: anytype, success: bool) void {
     }
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

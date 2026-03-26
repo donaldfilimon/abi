@@ -29,7 +29,6 @@ pub fn runProcess(allocator: std.mem.Allocator, argv: []const []const u8) !std.A
     return .empty;
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

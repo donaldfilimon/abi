@@ -164,7 +164,6 @@ pub const DocumentPipeline = struct {
     };
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

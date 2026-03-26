@@ -595,7 +595,6 @@ test "instance id generation" {
     try std.testing.expect(!std.mem.eql(u8, &id1.bytes, &id2.bytes));
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

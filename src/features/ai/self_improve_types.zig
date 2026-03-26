@@ -63,7 +63,6 @@ pub const PerformanceReport = struct {
     trend: Trend,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -588,7 +588,6 @@ pub const formats_openai = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

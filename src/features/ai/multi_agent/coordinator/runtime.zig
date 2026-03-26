@@ -443,7 +443,6 @@ fn runAgentThread(
     };
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

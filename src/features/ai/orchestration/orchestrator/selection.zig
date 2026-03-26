@@ -194,7 +194,6 @@ pub fn taskToCapability(task_type: types.TaskType) types.Capability {
     };
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

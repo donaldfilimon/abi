@@ -346,7 +346,6 @@ test "RoutingRulesScore getBestProfile" {
     try std.testing.expect(score.getBestProfile() == .abi);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

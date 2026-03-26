@@ -56,7 +56,6 @@ pub const CoordinatorConfig = struct {
     strategy: AggregationStrategy = .mean,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

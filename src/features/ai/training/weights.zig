@@ -427,7 +427,6 @@ pub const ActivationCache = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

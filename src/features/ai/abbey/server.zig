@@ -717,7 +717,6 @@ test "get query param" {
     try std.testing.expect(missing == null);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

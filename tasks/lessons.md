@@ -78,3 +78,92 @@
 - String literals in ProfileResponse.content will crash on deinit — always `allocator.dupe()` heap copies.
 - Check for double imports when adding new type references.
 - Abbey has emotion.zig AND emotions.zig — use emotions.zig (the canonical one).
+
+## Import Patterns
+
+### Lesson 11: Avoid Circular Imports
+- Never use `@import("abi")` from within `src/` — causes circular import error.
+- Within `src/`: use relative imports only (`@import("../../foundation/mod.zig")`)
+- From `test/`: use `@import("abi")` and `@import("build_options")`
+- Cross-feature: use comptime gate, never import another feature's `mod.zig` directly
+- All path imports require explicit `.zig` extensions
+
+### Lesson 12: Comptime Feature Gating
+- Cross-feature imports must use comptime gates: `if (build_options.feat_X) mod else stub`
+- When adding new comptime-gated modules, ensure both mod.zig and stub.zig exist
+- Run `zig build check-parity` after any public API change
+
+## Code Style
+
+### Lesson 13: Naming Conventions
+- camelCase for functions/methods
+- PascalCase for types/structs/enums
+- SCREAMING_SNAKE_CASE for constants
+- Avoid abbreviations unless universally understood (e.g., `num` is fine, `cnt` is not)
+
+### Lesson 14: Struct and File Naming
+- One main type per file named after the filename (e.g., `src/foo/bar.zig` defines `Bar`)
+- Helper types can be nested or defined nearby
+- Use `test {}` blocks with `std.testing.refAllDecls(@This())` at the end of every public type file
+
+### Lesson 15: Memory Patterns
+- Always paired allocation/deallocation
+- Use `defer` for cleanup: `defer x.deinit()` is preferred
+- Prefer arena allocators for temporary parsing work
+- Use `defer { ... multiple statements ... }` when cleanup spans multiple lines
+
+### Lesson 16: Error Handling
+- Prefer error unions (`!`) for recoverable failures
+- Use `error.FeatureDisabled` in stubs
+- `@panic` only in CLI entry points and tests, never in library code
+
+## Module Decomposition
+
+### Lesson 17: VTable Pattern for Backend-Agnostic Interfaces
+- Use VTable pattern (like `AiOps`) for backend-agnostic interfaces
+- Define types in separate `types.zig` to avoid circular dependencies
+- Implement concrete backends that satisfy the VTable interface
+- Use adapters (`adapters.zig`) to wrap concrete implementations
+
+### Lesson 18: Large File Decomposition
+- When a file exceeds ~300 lines, consider splitting into sub-modules
+- Keep the parent file as a thin re-export layer
+- Move tests to a dedicated `tests.zig` sub-module
+- Preserve public API surface in the parent file
+
+## Test Patterns
+
+### Lesson 19: Test Organization
+- Unit tests: `src/root.zig` uses `refAllDecls` to walk all `test` blocks in `src/`
+- Integration tests: `test/mod.zig` imports `@import("abi")` as external consumer
+- Add new integration tests by importing them from `test/mod.zig`
+- Both suites link macOS frameworks: System, IOKit, Accelerate, Metal, objc
+
+### Lesson 20: Focused Test Lanes
+- Use focused test lanes for faster iteration:
+  - `zig build messaging-tests` — Messaging unit + integration
+  - `zig build agents-tests` — Agents unit + integration
+  - `zig build inference-tests` — Inference unit + integration
+  - `zig build gpu-tests` — GPU unit + integration
+- Full gate: `zig build check` (lint + test + parity)
+
+## Module Decomposition Patterns
+
+### Lesson 21: Extraction of Private Methods as Free Functions
+- When extracting private methods from a struct into a sub-module, prefer free functions that take the relevant data as parameters rather than creating a context struct.
+- Example: Fusion detection methods were extracted as `pub fn detectElementWiseChains(allocator, nodes, buffer_refs, patterns)` instead of creating a `DetectionContext` struct.
+- The parent struct calls these functions by passing `self.nodes.items`, `&self.buffer_refs`, `&self.patterns`.
+- This avoids circular dependencies and keeps the sub-module stateless.
+
+### Lesson 22: Preserving Tests in Parent File
+- When decomposing a file, keep the tests in the parent re-export file rather than splitting them across sub-modules.
+- The parent file re-exports all public types, so tests can use the same import paths as before.
+- Sub-modules can have their own `test { std.testing.refAllDecls(@This()); }` blocks for their own types.
+- This preserves test discoverability and avoids test duplication.
+
+### Lesson 23: Import Path Adjustment in Sub-Moving
+- When extracting code into sub-directories, adjust relative imports:
+  - `@import("../occupancy.zig")` becomes `@import("../../occupancy.zig")` when moving into a sub-directory
+  - `@import("../time.zig")` becomes `@import("../../time.zig")` when moving into a sub-directory
+  - `@import("../csprng.zig")` becomes `@import("../csprng.zig")` when staying at the same level
+- Always verify with `./build.sh typecheck` after extraction.

@@ -496,7 +496,6 @@ test "fact check result initialization" {
     try std.testing.expectEqual(@as(f32, 1.0), result.overall_confidence);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

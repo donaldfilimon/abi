@@ -153,7 +153,6 @@ pub const SessionConfig = struct {
     system_prompt: ?[]const u8 = null,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

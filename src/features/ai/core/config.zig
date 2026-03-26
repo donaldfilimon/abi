@@ -537,7 +537,6 @@ test "config builder" {
     try std.testing.expectEqual(LLMConfig.Backend.openai, config.llm.backend);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

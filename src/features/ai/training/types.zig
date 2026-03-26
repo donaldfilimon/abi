@@ -757,7 +757,6 @@ pub const distributed = struct {
 pub const DistributedConfig = distributed.DistributedConfig;
 pub const DistributedTrainer = distributed.DistributedTrainer;
 
-
 test {
     std.testing.refAllDecls(@This());
 }

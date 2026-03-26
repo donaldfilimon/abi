@@ -212,7 +212,6 @@ test "llm checkpoint roundtrip" {
     try std.testing.expectEqualSlices(f32, &v, loaded.v);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

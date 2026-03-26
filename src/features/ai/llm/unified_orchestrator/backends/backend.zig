@@ -17,7 +17,6 @@ pub const BackendInterface = struct {
     ) anyerror!void = null,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -60,7 +60,6 @@ pub const ContextMessage = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

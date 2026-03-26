@@ -237,7 +237,6 @@ test "behavior profiles normalize branded profiles" {
     try std.testing.expectEqual(BehaviorProfile.iterative, fromLegacyProfile(.ralph));
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

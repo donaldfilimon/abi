@@ -43,7 +43,6 @@ pub const TransformerConfig = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

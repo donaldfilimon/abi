@@ -448,7 +448,6 @@ test "remove model deletes file" {
     try manager.removeModel("test_manager_remove_model");
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

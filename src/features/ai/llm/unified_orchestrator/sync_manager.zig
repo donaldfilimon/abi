@@ -20,7 +20,6 @@ pub const SyncManager = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

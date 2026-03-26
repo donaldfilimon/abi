@@ -873,7 +873,6 @@ test "gpu agent backends summary" {
     try std.testing.expect(backends.len >= 1);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

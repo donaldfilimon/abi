@@ -36,7 +36,6 @@ pub const ExportResult = struct {
     gguf_size_bytes: u64 = 0,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -61,7 +61,6 @@ pub const SyncEvent = struct {
 /// Callback for streaming token delivery.
 pub const StreamCallback = *const fn (chunk: []const u8, done: bool) void;
 
-
 test {
     std.testing.refAllDecls(@This());
 }

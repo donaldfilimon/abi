@@ -14,7 +14,6 @@ pub const Engine = @import("../../../core/database/neural.zig").Engine;
 pub const save = @import("../../../core/database/neural.zig").save;
 pub const load = @import("../../../core/database/neural.zig").load;
 
-
 test {
     std.testing.refAllDecls(@This());
 }

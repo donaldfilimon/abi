@@ -39,7 +39,6 @@ pub fn finalizeRun(
     return session.intoResult(success, final_output);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

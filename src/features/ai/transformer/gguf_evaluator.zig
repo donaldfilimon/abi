@@ -282,7 +282,6 @@ test "GGUF Native Stub" {
     try std.testing.expect(logits.len == 1024);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

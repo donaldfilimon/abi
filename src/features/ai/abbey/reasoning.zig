@@ -502,7 +502,6 @@ test "reasoning chain confidence" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.8), chain.overall_confidence, 0.01);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

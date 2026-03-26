@@ -72,7 +72,6 @@ pub const EmbeddingConfig = struct {
     model_id: []const u8 = "default",
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

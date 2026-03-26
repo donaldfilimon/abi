@@ -309,7 +309,6 @@ pub const AbbyTrainError = error{
     TokenizerLoadFailed,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

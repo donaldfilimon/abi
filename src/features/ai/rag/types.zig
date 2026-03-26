@@ -106,7 +106,6 @@ pub const RagResponse = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

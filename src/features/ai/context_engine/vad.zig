@@ -179,7 +179,6 @@ test "vad basic calculation" {
     try std.testing.expectEqual(true, vad.isSpeech(&loud));
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -100,7 +100,6 @@ pub const EvaluationReport = struct {
     max_bleu: f64 = 0,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -1039,7 +1039,6 @@ test "VisionTransformer parameter count" {
     try std.testing.expect(params > 80_000_000 and params < 90_000_000);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

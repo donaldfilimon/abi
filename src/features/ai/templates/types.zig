@@ -88,7 +88,6 @@ pub const ChatMessage = struct {
     content: []const u8,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

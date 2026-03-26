@@ -178,3 +178,64 @@ const response = ProfileResponse{
     ...
 };
 ```
+
+## GPU Patterns
+
+### VTable Pattern for Backend-Agnostic Interfaces
+```zig
+// types.zig — shared types, no circular deps
+pub const AiOpsError = error{ NotAvailable, OutOfMemory, ... };
+pub const DeviceBuffer = struct { ptr: ?*anyopaque, size: usize, ... };
+pub const Transpose = enum { no_trans, trans };
+
+// interface.zig — VTable definition
+pub const AiOps = struct {
+    ptr: *anyopaque,
+    vtable: *const VTable,
+    pub const VTable = struct {
+        sgemm: *const fn (ctx: *anyopaque, ...) AiOpsError!void,
+        softmax: *const fn (ctx: *anyopaque, ...) AiOpsError!void,
+        allocDevice: *const fn (ctx: *anyopaque, ...) AiOpsError!DeviceBuffer,
+        deinit: *const fn (ctx: *anyopaque) void,
+    };
+    // Wrapper methods call through vtable
+    pub fn sgemm(self: AiOps, ...) AiOpsError!void {
+        return self.vtable.sgemm(self.ptr, ...);
+    }
+};
+
+// cpu_fallback.zig — concrete implementation
+pub const CpuFallbackAiOps = struct {
+    pub fn isAvailable(self: *anyopaque) bool { return true; }
+    pub fn sgemm(self: *anyopaque, ...) AiOpsError!void { ... }
+};
+
+// adapters.zig — wrap concrete impls
+pub fn createAiOps(impl: anytype) AiOps { ... }
+```
+
+### Module Decomposition Best Practices
+- When a file exceeds ~300 lines, split into sub-modules
+- Keep parent file as thin re-export layer (see `src/features/gpu/ai_ops.zig`)
+- Move tests to dedicated `tests.zig` sub-module
+- Define shared types in `types.zig` to avoid circular dependencies
+- Use `interface.zig` for VTable/protocol definitions
+
+## Common Pitfalls
+
+### Circular Import Prevention
+- Never use `@import("abi")` from within `src/` — causes circular import error
+- Within `src/`: use relative imports only (`@import("../../foundation/mod.zig")`)
+- From `test/`: use `@import("abi")` and `@import("build_options")`
+- Cross-feature: use comptime gate, never import another feature's `mod.zig` directly
+
+### Memory Ownership
+- Always pair allocation with deallocation
+- Use `defer` for cleanup: `defer x.deinit()` is preferred
+- Arena allocators for temporary parsing work
+- `defer { ... multiple statements ... }` when cleanup spans multiple lines
+
+### Thread Safety
+- Database `Engine`: every public method must acquire `db_lock` before reading shared state
+- Use `foundation.sync.Mutex` not `std.Thread.Mutex` (may be unavailable in Zig 0.16)
+- Platform-gated externs: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`

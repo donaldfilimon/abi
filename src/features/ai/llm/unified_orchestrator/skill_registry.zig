@@ -26,7 +26,6 @@ pub const SkillRegistry = struct {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -521,7 +521,6 @@ test "empathy calibration" {
     try std.testing.expect(high_empathy >= 0.8);
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }

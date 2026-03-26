@@ -53,7 +53,6 @@ pub const StepType = enum {
     }
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

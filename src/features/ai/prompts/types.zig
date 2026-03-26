@@ -96,7 +96,6 @@ pub const PromptFormat = enum {
     raw,
 };
 
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -34,7 +34,6 @@ pub fn load(_: std.mem.Allocator, _: []const u8) !Engine {
     return error.FeatureDisabled;
 }
 
-
 test {
     std.testing.refAllDecls(@This());
 }
