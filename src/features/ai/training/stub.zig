@@ -91,6 +91,13 @@ pub const DistributedTrainer = types.DistributedTrainer;
 
 // ── Submodule re-exports ───────────────────────────────────────────────────
 
+// Sub-namespace facades (additive)
+pub const core_training = struct {};
+pub const models = struct {};
+pub const data = struct {};
+pub const checkpointing = struct {};
+pub const specialized = struct {};
+
 pub const checkpoint = struct {
     pub const Checkpoint = types.Checkpoint;
     pub const CheckpointStore = types.CheckpointStore;

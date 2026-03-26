@@ -19,6 +19,16 @@ const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 
 // ============================================================================
+// Sub-namespace facades (additive)
+// ============================================================================
+
+pub const core_training = @import("core_training.zig");
+pub const models = @import("models.zig");
+pub const data = @import("data.zig");
+pub const checkpointing = @import("checkpointing.zig");
+pub const specialized = @import("specialized.zig");
+
+// ============================================================================
 // Sub-module imports
 // ============================================================================
 
@@ -428,9 +438,9 @@ pub const Context = struct {
     }
 
     /// Save a checkpoint.
-    pub fn saveCheckpoint(self: *Context, name: []const u8, data: anytype) !void {
+    pub fn saveCheckpoint(self: *Context, name: []const u8, payload: anytype) !void {
         const store = try self.getCheckpointStore();
-        try store.save(name, data);
+        try store.save(name, payload);
     }
 
     /// Load a checkpoint.
