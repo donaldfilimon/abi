@@ -5,6 +5,5 @@ const pitr = @import("protocols/ha/pitr.zig");
 const pitr_tests = @import("protocols/ha/pitr/tests.zig");
 
 test {
-    _ = pitr;
     std.testing.refAllDecls(pitr_tests);
 }

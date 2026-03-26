@@ -169,7 +169,7 @@ relink_and_run() {
 
     echo "[darwin-wrapper] Relinking $bin_file with Apple ld ($bin_arch)..." >&2
     /usr/bin/ld -dynamic -platform_version macos "$MACOS_VER" "$MACOS_VER" \
-        -syslibroot "$SYSROOT" -e _main -o "$bin_file" "$obj_file" "$crt" -lSystem 2>&1
+        -syslibroot "$SYSROOT" -e _main -o "$bin_file" "$obj_file" "$crt" "$SYSROOT/usr/lib/libSystem.B.tbd" "$SYSROOT/usr/lib/libc++.tbd" 2>&1
 
     if [[ ! -x "$bin_file" ]]; then
         echo "[darwin-wrapper] Relink failed: $bin_file not executable" >&2
@@ -303,7 +303,7 @@ if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
 
     LD_ARGS=(-dynamic -platform_version macos "$MACOS_VER" "$MACOS_VER" -syslibroot "$SYSROOT" -e _main -o "$BUILD_BIN" "$BUILD_O")
     LD_ARGS+=("$CRT")
-    LD_ARGS+=(-lSystem)
+    LD_ARGS+=("$SYSROOT/usr/lib/libSystem.B.tbd" "$SYSROOT/usr/lib/libc++.tbd")
 
     /usr/bin/ld "${LD_ARGS[@]}" 2>&1
 

@@ -4,6 +4,5 @@ const std = @import("std");
 const cloud = @import("features/cloud/mod.zig");
 
 test {
-    _ = cloud;
     std.testing.refAllDecls(cloud);
 }

@@ -4,6 +4,5 @@ const std = @import("std");
 const acp = @import("protocols/acp/mod.zig");
 
 test {
-    _ = acp;
     std.testing.refAllDecls(acp);
 }

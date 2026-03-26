@@ -4,6 +4,5 @@ const std = @import("std");
 const storage = @import("features/storage/mod.zig");
 
 test {
-    _ = storage;
     std.testing.refAllDecls(storage);
 }

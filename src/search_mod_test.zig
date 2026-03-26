@@ -4,6 +4,5 @@ const std = @import("std");
 const search = @import("features/search/mod.zig");
 
 test {
-    _ = search;
     std.testing.refAllDecls(search);
 }

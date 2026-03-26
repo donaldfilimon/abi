@@ -4,6 +4,5 @@ const std = @import("std");
 const pipeline = @import("features/ai/pipeline/mod.zig");
 
 test {
-    _ = pipeline;
     std.testing.refAllDecls(pipeline);
 }

@@ -4,6 +4,5 @@ const std = @import("std");
 const documents = @import("features/documents/mod.zig");
 
 test {
-    _ = documents;
     std.testing.refAllDecls(documents);
 }

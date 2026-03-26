@@ -4,6 +4,5 @@ const std = @import("std");
 const observability = @import("features/observability/mod.zig");
 
 test {
-    _ = observability;
     std.testing.refAllDecls(observability);
 }

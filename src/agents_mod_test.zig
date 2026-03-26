@@ -5,6 +5,5 @@ const agents = @import("features/ai/agents/mod.zig");
 const agents_tests = @import("features/ai/agents/tests.zig");
 
 test {
-    _ = agents;
     std.testing.refAllDecls(agents_tests);
 }

@@ -4,6 +4,5 @@ const std = @import("std");
 const cache = @import("features/cache/mod.zig");
 
 test {
-    _ = cache;
     std.testing.refAllDecls(cache);
 }

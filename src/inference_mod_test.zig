@@ -4,6 +4,5 @@ const std = @import("std");
 const inference = @import("inference/mod.zig");
 
 test {
-    _ = inference;
     std.testing.refAllDecls(inference);
 }

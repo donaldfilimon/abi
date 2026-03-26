@@ -4,6 +4,5 @@ const std = @import("std");
 const gpu = @import("features/gpu/mod.zig");
 
 test {
-    _ = gpu;
     std.testing.refAllDecls(gpu);
 }

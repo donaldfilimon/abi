@@ -4,6 +4,5 @@ const std = @import("std");
 const multi_agent = @import("features/ai/multi_agent/mod.zig");
 
 test {
-    _ = multi_agent;
-    std.testing.refAllDecls(@This());
+    std.testing.refAllDecls(multi_agent);
 }

@@ -4,6 +4,5 @@ const std = @import("std");
 const tasks = @import("tasks/mod.zig");
 
 test {
-    _ = tasks;
     std.testing.refAllDecls(tasks);
 }

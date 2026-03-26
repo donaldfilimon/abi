@@ -4,6 +4,5 @@ const std = @import("std");
 const database = @import("features/database/mod.zig");
 
 test {
-    _ = database;
     std.testing.refAllDecls(database);
 }

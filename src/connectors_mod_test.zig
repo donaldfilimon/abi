@@ -4,6 +4,5 @@ const std = @import("std");
 const connectors = @import("connectors/mod.zig");
 
 test {
-    _ = connectors;
     std.testing.refAllDecls(connectors);
 }

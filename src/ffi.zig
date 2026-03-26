@@ -24,17 +24,16 @@ export fn abi_init() bool {
     const allocator = std.heap.c_allocator;
     var builder = abi.appBuilder(allocator);
 
-    const app_instance = builder.build() catch |err| {
-        setLastError("Failed to build ABI App: {s}", .{@errorName(err)});
-        return false;
-    };
-
     const app_ptr = allocator.create(abi.App) catch |err| {
         setLastError("Failed to allocate ABI App pointer: {s}", .{@errorName(err)});
         return false;
     };
 
-    app_ptr.* = app_instance;
+    app_ptr.* = builder.build() catch |err| {
+        setLastError("Failed to build ABI App: {s}", .{@errorName(err)});
+        allocator.destroy(app_ptr);
+        return false;
+    };
     global_app = app_ptr;
     return true;
 }

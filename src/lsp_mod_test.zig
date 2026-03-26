@@ -4,6 +4,5 @@ const std = @import("std");
 const lsp = @import("protocols/lsp/mod.zig");
 
 test {
-    _ = lsp;
     std.testing.refAllDecls(lsp);
 }

@@ -125,7 +125,7 @@ abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
 abi features           # List all 35 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
-abi connectors         # List 16 LLM provider connectors with env vars
+abi connectors         # List 12 LLM provider connectors with env vars
 abi info               # Framework architecture summary
 abi chat <message...>  # Route through multi-profile pipeline
 abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
@@ -265,7 +265,7 @@ To add a new integration test:
 
 #### Focused Test Lanes
 
-26 `src/*_mod_test.zig` files (acp, agents, auth, cache, cloud, compute, connectors, database, desktop, documents, gateway, gpu, ha, inference, lsp, messaging, multi_agent, network, observability, orchestration, pitr, search, secrets, storage, tasks, web) are **test anchor** files. They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
+27 `src/*_mod_test.zig` files (acp, agents, auth, cache, cloud, compute, connectors, database, desktop, documents, gateway, gpu, ha, inference, lsp, messaging, multi_agent, network, observability, orchestration, pipeline, pitr, search, secrets, storage, tasks, web) are **test anchor** files. They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
 
 `build/validation.zig` wires each pair into a focused build step via `addModuleTests()` (unit, from `src/`) and `addIntegrationTests()` (integration, from `test/`). Both are combined under a single step like `zig build messaging-tests`.
 
@@ -320,6 +320,11 @@ The router also exposes `routeAndExecutePipeline()` which builds the standard pi
 ### ACP HTTP Server
 
 `abi serve` (or `abi acp serve`) starts an HTTP server on `127.0.0.1:8080` exposing the Agent Communication Protocol. Entry: `src/protocols/acp/server/mod.zig`. Gated by `feat_acp`. The server wires together task management (`src/protocols/acp/server/tasks.zig`) with the ACP protocol layer.
+
+The ACP server also includes:
+- **Discord gateway bridge** (`server/discord_routes.zig`) — routes Discord interactions through ACP
+- **OpenAPI 3.1.0 spec** (`server/openapi.zig`) — auto-generated API documentation
+- **Rich route responses** (`server/routing.zig`) — structured JSON responses with metadata
 
 ### Inference Engine
 
@@ -404,12 +409,14 @@ Invoke these agents via the `Agent` tool with `subagent_type: "<agent-name>"`.
 
 ## Available Skills
 
-The repository includes 4 skills in `.claude/skills/`:
+The repository includes 6 skills in `.claude/skills/`:
 
 - **lessons-review** — Reviews `tasks/lessons.md` for recurring pitfalls before starting work (Zig 0.16 API changes, mod/stub parity, macOS linker, thread safety)
 - **stub-audit** — Verifies AI sub-feature stubs match their `mod.zig` public API and use `stub_helpers.zig` appropriately
 - **cross-check** — Runs cross-compilation verification for linux, wasi, x86_64 targets; validates comptime feature gating
 - **baseline-sync** — Tracks test pass/skip counts from test runs and reports drift from previous baselines
+- **full-check** — One-command full validation gate: lint, parity, tests, feature-tests, cross-check
+- **pre-commit-check** — Run lint + parity check before committing; catches 80% of CI failures locally
 
 ## Code Style
 
