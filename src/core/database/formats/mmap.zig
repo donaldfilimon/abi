@@ -336,9 +336,10 @@ pub const MemoryCursor = struct {
 
     pub fn read(self: *MemoryCursor, comptime T: type) ?T {
         if (self.position + @sizeOf(T) > self.data.len) return null;
-        const result: *const T = @ptrCast(@alignCast(self.data.ptr + self.position));
+        var result: T = undefined;
+        @memcpy(std.mem.asBytes(&result), self.data[self.position..][0..@sizeOf(T)]);
         self.position += @sizeOf(T);
-        return result.*;
+        return result;
     }
 
     pub fn readBytes(self: *MemoryCursor, len: usize) ?[]const u8 {
