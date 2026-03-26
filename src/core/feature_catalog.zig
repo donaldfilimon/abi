@@ -39,9 +39,6 @@ pub const Feature = enum {
     mcp,
     acp,
     ha,
-    connectors,
-    tasks,
-    inference,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -91,9 +88,6 @@ pub const ParitySpec = enum {
     mcp,
     acp,
     ha,
-    connectors,
-    tasks,
-    inference,
 };
 
 pub const Metadata = struct {
@@ -138,8 +132,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/embeddings/mod.zig",
-        .stub_module_path = "features/ai/embeddings/stub.zig",
+        .real_module_path = "features/ai/mod.zig",
+        .stub_module_path = "features/ai/stub.zig",
     },
     .{
         .feature = .agents,
@@ -197,8 +191,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/profile/mod.zig",
-        .stub_module_path = "features/ai/profile/stub.zig",
+        .real_module_path = "features/ai/mod.zig",
+        .stub_module_path = "features/ai/stub.zig",
     },
     .{
         .feature = .cloud,
@@ -300,11 +294,11 @@ pub const all = [_]Metadata{
     .{
         .feature = .constitution,
         .description = "AI safety principles and guardrails",
-        .compile_flag_field = "feat_reasoning",
+        .compile_flag_field = "feat_ai",
         .parity_spec = .ai,
         .parent = .ai,
-        .real_module_path = "features/ai/constitution/mod.zig",
-        .stub_module_path = "features/ai/constitution/stub.zig",
+        .real_module_path = "features/ai/mod.zig",
+        .stub_module_path = "features/ai/stub.zig",
     },
     .{
         .feature = .compute,
@@ -369,30 +363,6 @@ pub const all = [_]Metadata{
         .parity_spec = .ha,
         .real_module_path = "protocols/ha/mod.zig",
         .stub_module_path = "protocols/ha/stub.zig",
-    },
-    .{
-        .feature = .connectors,
-        .description = "External service adapters (LLM providers, Discord, etc.)",
-        .compile_flag_field = "feat_connectors",
-        .parity_spec = .connectors,
-        .real_module_path = "connectors/mod.zig",
-        .stub_module_path = "connectors/stub.zig",
-    },
-    .{
-        .feature = .tasks,
-        .description = "Task management and async job queues",
-        .compile_flag_field = "feat_tasks",
-        .parity_spec = .tasks,
-        .real_module_path = "tasks/mod.zig",
-        .stub_module_path = "tasks/stub.zig",
-    },
-    .{
-        .feature = .inference,
-        .description = "ML inference engine, scheduler, sampler",
-        .compile_flag_field = "feat_inference",
-        .parity_spec = .inference,
-        .real_module_path = "inference/mod.zig",
-        .stub_module_path = "inference/stub.zig",
     },
 };
 

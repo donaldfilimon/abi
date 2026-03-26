@@ -134,7 +134,7 @@ pub fn putWithTtl(key: []const u8, value: []const u8, ttl_ms: u64) CacheError!vo
         const entry = s.slab.getEntry(existing_idx);
         if (entry.active) {
             const old_mem = CacheState.entryMemory(entry);
-            s.memory_used = if (s.memory_used >= old_mem) s.memory_used - old_mem else 0;
+            if (s.memory_used >= old_mem) s.memory_used -= old_mem else s.memory_used = 0;
 
             if (entry.value_buf.len != value.len) {
                 if (entry.value_buf.len > 0) s.allocator.free(entry.value_buf);

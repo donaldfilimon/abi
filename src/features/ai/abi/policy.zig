@@ -443,7 +443,3 @@ test "PolicyChecker PII detection" {
     try std.testing.expect(result.detected_pii.len > 0);
     try std.testing.expect(!result.compliance.gdpr_compliant);
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

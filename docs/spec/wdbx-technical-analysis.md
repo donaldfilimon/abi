@@ -1,6 +1,6 @@
 # WDBX Technical Analysis
 
-> High-Performance Neural State Management for Multi-Profile AI Architectures
+> High-Performance Neural State Management for Multi-Persona AI Architectures
 
 ## 1. Overview
 
@@ -93,10 +93,10 @@ At 110ms latency: T = 9.9 / 0.110 ≈ 90 req/s
 
 ## 8. Transformer Integration
 
-### Profile Token Injection
+### Persona Token Injection
 
 ```
-Z = Embed(ProfileID) ⊕ Embed(UserInput)
+Z = Embed(PersonaID) ⊕ Embed(UserInput)
 R = Transformer(Z)
 ```
 

@@ -6,7 +6,6 @@ const core_config = @import("../../core/config/benchmarks.zig");
 pub const Config = core_config.BenchmarksConfig;
 
 pub const BenchmarksError = error{
-    BenchmarksDisabled,
     FeatureDisabled,
     OutOfMemory,
     InvalidConfig,

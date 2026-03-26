@@ -57,8 +57,8 @@ pub const GenerationConfig = struct {
 
 /// Token from streaming generation
 pub const StreamToken = struct {
-    /// Token text — always heap-allocated; caller must free.
-    text: []u8,
+    /// Token text
+    text: []const u8,
     /// Token ID (if available)
     id: ?u32 = null,
     /// Log probability (if available)

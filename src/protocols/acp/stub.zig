@@ -1,15 +1,9 @@
 //! ACP (Agent Communication Protocol) stub.
 //!
 //! Mirrors the full API of mod.zig / server.zig, returning error.FeatureDisabled
-//! for all operations that would perform real work.  Shared pure-data types
-//! are imported from types.zig so that mod and stub stay in sync automatically.
+//! for all operations that would perform real work.
 
 const std = @import("std");
-const types = @import("types.zig");
-
-// Re-export shared types
-pub const TaskStatus = types.TaskStatus;
-pub const TransitionError = types.TransitionError;
 
 // =============================================================================
 // Sub-module namespace (empty — types re-exported at top level)
@@ -18,23 +12,13 @@ pub const TransitionError = types.TransitionError;
 pub const server = struct {};
 
 // =============================================================================
-// Error sets
+// Error set
 // =============================================================================
 
 const AcpError = error{
     FeatureDisabled,
     SessionNotFound,
-    TaskNotFound,
-    InvalidTransition,
     OutOfMemory,
-};
-
-pub const HttpError = std.mem.Allocator.Error || error{
-    InvalidAddress,
-    ListenFailed,
-    ReadFailed,
-    RequestTooLarge,
-    FeatureDisabled,
 };
 
 // =============================================================================
@@ -65,6 +49,31 @@ pub const AgentCard = struct {
 };
 
 // =============================================================================
+// TaskStatus
+// =============================================================================
+
+/// Task status in the ACP lifecycle.
+pub const TaskStatus = enum {
+    submitted,
+    working,
+    input_required,
+    completed,
+    failed,
+    canceled,
+
+    pub fn toString(self: TaskStatus) []const u8 {
+        return switch (self) {
+            .submitted => "submitted",
+            .working => "working",
+            .input_required => "input-required",
+            .completed => "completed",
+            .failed => "failed",
+            .canceled => "canceled",
+        };
+    }
+};
+
+// =============================================================================
 // Task
 // =============================================================================
 
@@ -72,10 +81,12 @@ pub const AgentCard = struct {
 pub const Task = struct {
     id: []const u8,
     status: TaskStatus,
-    messages: std.ArrayListUnmanaged(types.Message),
+    messages: std.ArrayListUnmanaged(Message),
 
-    /// Re-export for callers that access Task.Message.
-    pub const Message = types.Message;
+    pub const Message = struct {
+        role: []const u8,
+        content: []const u8,
+    };
 
     pub fn deinit(self: *Task, allocator: std.mem.Allocator) void {
         _ = self;
@@ -115,6 +126,18 @@ pub const Session = struct {
 };
 
 // =============================================================================
+// HttpError
+// =============================================================================
+
+pub const HttpError = std.mem.Allocator.Error || error{
+    InvalidAddress,
+    ListenFailed,
+    ReadFailed,
+    RequestTooLarge,
+    FeatureDisabled,
+};
+
+// =============================================================================
 // Server
 // =============================================================================
 
@@ -138,14 +161,6 @@ pub const Server = struct {
     pub fn createTask(self: *Server, message: []const u8) AcpError![]const u8 {
         _ = self;
         _ = message;
-        return AcpError.FeatureDisabled;
-    }
-
-    /// Stub: always returns error.FeatureDisabled.
-    pub fn updateTaskStatus(self: *Server, id: []const u8, new_status: TaskStatus) AcpError!void {
-        _ = self;
-        _ = id;
-        _ = new_status;
         return AcpError.FeatureDisabled;
     }
 
@@ -213,12 +228,14 @@ pub fn serveHttp(
 // Module lifecycle
 // =============================================================================
 
-pub fn isEnabled() bool {
+var initialized = std.atomic.Value(bool).init(false);
+
+fn isEnabled() bool {
     return false;
 }
 
-pub fn isInitialized() bool {
-    return false;
+fn isInitialized() bool {
+    return initialized.load(.acquire);
 }
 
 // =============================================================================

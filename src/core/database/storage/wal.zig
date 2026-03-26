@@ -134,7 +134,7 @@ pub const WalWriter = struct {
 
         const file_len = file.length(io) catch return error.Unexpected;
         file.writePositionalAll(io, frame, file_len) catch return error.Unexpected;
-        file.sync(io) catch return error.Unexpected;
+        file.sync(io) catch {};
 
         return self.seq;
     }

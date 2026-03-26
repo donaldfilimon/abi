@@ -5,7 +5,6 @@ pub const SearchConfig = core_config.SearchConfig;
 
 /// Errors returned by search operations.
 pub const SearchError = error{
-    SearchDisabled,
     FeatureDisabled,
     IndexNotFound,
     InvalidQuery,

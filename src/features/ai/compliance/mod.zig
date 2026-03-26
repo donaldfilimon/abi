@@ -111,7 +111,7 @@ pub const ComplianceEngine = struct {
         }
 
         if (self.cfg.enable_gdpr) {
-            const result = try self.gdpr_checker.check(self.allocator, content);
+            var result = try self.gdpr_checker.check(self.allocator, content);
             if (!result.is_compliant) {
                 overall_compliant = false;
                 total_violations += result.violations.len;
@@ -123,7 +123,7 @@ pub const ComplianceEngine = struct {
         }
 
         if (self.cfg.enable_hipaa) {
-            const result = try self.hipaa_checker.check(self.allocator, content);
+            var result = try self.hipaa_checker.check(self.allocator, content);
             if (!result.is_compliant) {
                 overall_compliant = false;
                 total_violations += result.violations.len;
@@ -135,7 +135,7 @@ pub const ComplianceEngine = struct {
         }
 
         if (self.cfg.enable_ccpa) {
-            const result = try self.ccpa_checker.check(self.allocator, content);
+            var result = try self.ccpa_checker.check(self.allocator, content);
             if (!result.is_compliant) {
                 overall_compliant = false;
                 total_violations += result.violations.len;

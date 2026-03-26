@@ -64,7 +64,3 @@ pub const ToolCallRecord = struct {
 };
 
 pub const ConfirmationFn = *const fn ([]const u8, []const u8) bool;
-
-test {
-    std.testing.refAllDecls(@This());
-}

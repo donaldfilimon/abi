@@ -40,7 +40,6 @@ pub const Server = struct {
     server_name: []const u8,
     server_version: []const u8,
     initialized: bool,
-    auth_token: ?[]const u8,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -55,7 +54,6 @@ pub const Server = struct {
             .server_name = name,
             .server_version = version,
             .initialized = false,
-            .auth_token = null,
         };
     }
 
@@ -130,79 +128,6 @@ pub const zls_bridge = struct {
             return error.FeatureDisabled;
         }
     }.f;
-};
-
-/// Transport stub — mirrors the real transport module's public surface.
-pub const transport = struct {
-    pub const stdio = struct {
-        pub const Config = struct {
-            read_buf_size: usize = 65536,
-            write_buf_size: usize = 65536,
-        };
-
-        pub fn run(_: anytype, _: anytype) !void {
-            return error.FeatureDisabled;
-        }
-    };
-
-    pub const sse = struct {
-        pub const Config = struct {
-            port: u16 = 8081,
-            host: []const u8 = "127.0.0.1",
-            heartbeat_interval_s: u32 = 30,
-            max_clients: u16 = 64,
-            max_body_size: usize = 4 * 1024 * 1024,
-        };
-
-        pub const SseResponseCollector = struct {
-            pub fn init(_: std.mem.Allocator) @This() {
-                return .{};
-            }
-            pub fn deinit(_: *@This()) void {}
-            pub fn reset(_: *@This()) void {}
-        };
-
-        pub fn run(_: anytype, _: anytype, _: Config) !void {
-            return error.FeatureDisabled;
-        }
-
-        pub fn formatSseFrame(_: std.mem.Allocator, _: []const u8) ![]u8 {
-            return error.FeatureDisabled;
-        }
-
-        pub const heartbeat_comment = ":ping\n\n";
-    };
-
-    pub const Transport = union(enum) {
-        stdio_transport: struct {},
-        sse_transport: sse.Config,
-
-        pub const StdioConfig = struct {};
-
-        pub fn run(_: @This(), _: anytype, _: anytype) !void {
-            return error.FeatureDisabled;
-        }
-
-        pub fn initStdio() @This() {
-            return .{ .stdio_transport = .{} };
-        }
-
-        pub fn initSse(config: sse.Config) @This() {
-            return .{ .sse_transport = config };
-        }
-
-        pub fn initSseDefault() @This() {
-            return .{ .sse_transport = .{} };
-        }
-    };
-
-    pub fn runStdio(_: anytype, _: anytype) !void {
-        return error.FeatureDisabled;
-    }
-
-    pub fn runSse(_: anytype, _: anytype, _: sse.Config) !void {
-        return error.FeatureDisabled;
-    }
 };
 
 pub fn isEnabled() bool {

@@ -33,9 +33,8 @@ pub const OSControlManager = struct {
             .read_only => return false,
             .full_control => return true,
             .ask_before_action => {
-                // In a real CLI, this hooks into the confirmation prompt.
-                // TODO: wire into actual CLI/TUI confirmation dialog.
-                std.log.info("[Security] Agent wants to: {s}. Allow? (y/N)", .{action_desc});
+                // In a real CLI, this hooks into the confirmation prompt
+                std.debug.print("\n[Security] Agent wants to: {s}. Allow? (y/N) ", .{action_desc});
                 // Stubbing permission to true for this prototype
                 return true;
             },

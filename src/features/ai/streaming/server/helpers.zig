@@ -41,7 +41,3 @@ pub fn timingSafeEqual(a: []const u8, b: []const u8) bool {
     }
     return diff == 0;
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

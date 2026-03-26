@@ -42,9 +42,9 @@
 //! std.debug.print("Scheduled to {t} backend\n", .{decision.backend_type});
 //!
 //! // Execute workload and record outcome
-//! const start = foundation.time.unixMs();
+//! const start = std.time.milliTimestamp();
 //! // ... execute workload on decision.backend_type ...
-//! const elapsed = foundation.time.unixMs() - start;
+//! const elapsed = std.time.milliTimestamp() - start;
 //! try coordinator.recordOutcome(decision, @intCast(elapsed), true);
 //! ```
 //!

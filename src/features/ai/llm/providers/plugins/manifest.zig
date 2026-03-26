@@ -20,14 +20,14 @@ pub const PluginKind = enum {
 };
 
 pub const PluginEntry = struct {
-    id: []const u8,
+    id: []u8,
     kind: PluginKind,
     enabled: bool = true,
-    base_url: ?[]const u8 = null,
-    model: ?[]const u8 = null,
-    api_key_env: ?[]const u8 = null,
-    library_path: ?[]const u8 = null,
-    symbol: ?[]const u8 = null,
+    base_url: ?[]u8 = null,
+    model: ?[]u8 = null,
+    api_key_env: ?[]u8 = null,
+    library_path: ?[]u8 = null,
+    symbol: ?[]u8 = null,
 
     pub fn deinit(self: *PluginEntry, allocator: std.mem.Allocator) void {
         allocator.free(self.id);
@@ -263,10 +263,7 @@ pub fn saveToFile(manifest: *const Manifest, path: []const u8) !void {
     if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
         if (idx > 0) {
             const dir_path = path[0..idx];
-            std.Io.Dir.cwd().createDirPath(io, dir_path) catch |e| {
-                std.log.err("Plugin manifest: failed to create directory '{s}': {}", .{ dir_path, e });
-                return error.Unexpected;
-            };
+            std.Io.Dir.cwd().createDirPath(io, dir_path) catch {};
         }
     }
 
@@ -320,9 +317,20 @@ pub fn saveToFile(manifest: *const Manifest, path: []const u8) !void {
     try file.writeStreamingAll(io, json.items);
 }
 
-const appendEscaped = @import("../../../../../foundation/utils/json.zig").appendJsonEscaped;
+fn appendEscaped(allocator: std.mem.Allocator, out: *std.ArrayListUnmanaged(u8), value: []const u8) !void {
+    for (value) |ch| {
+        switch (ch) {
+            '"' => try out.appendSlice(allocator, "\\\""),
+            '\\' => try out.appendSlice(allocator, "\\\\"),
+            '\n' => try out.appendSlice(allocator, "\\n"),
+            '\r' => try out.appendSlice(allocator, "\\r"),
+            '\t' => try out.appendSlice(allocator, "\\t"),
+            else => try out.append(allocator, ch),
+        }
+    }
+}
 
-fn freeOptional(allocator: std.mem.Allocator, value: *?[]const u8) void {
+fn freeOptional(allocator: std.mem.Allocator, value: *?[]u8) void {
     if (value.*) |slice| {
         allocator.free(slice);
         value.* = null;

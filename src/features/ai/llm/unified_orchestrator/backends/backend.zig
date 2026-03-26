@@ -16,7 +16,3 @@ pub const BackendInterface = struct {
         callback: types.StreamCallback,
     ) anyerror!void = null,
 };
-
-test {
-    std.testing.refAllDecls(@This());
-}

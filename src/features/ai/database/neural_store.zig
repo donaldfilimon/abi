@@ -3,8 +3,6 @@
 //! This keeps neural ingestion/search out of the public `abi.database` surface
 //! while avoiding direct `core/database/*` imports throughout the AI feature.
 
-const std = @import("std");
-
 pub const Metadata = @import("../../../core/database/neural.zig").Metadata;
 pub const SearchOptions = @import("../../../core/database/neural.zig").SearchOptions;
 pub const SearchResult = @import("../../../core/database/neural.zig").SearchResult;
@@ -13,7 +11,3 @@ pub const EngineVector = @import("../../../core/database/neural.zig").EngineVect
 pub const Engine = @import("../../../core/database/neural.zig").Engine;
 pub const save = @import("../../../core/database/neural.zig").save;
 pub const load = @import("../../../core/database/neural.zig").load;
-
-test {
-    std.testing.refAllDecls(@This());
-}

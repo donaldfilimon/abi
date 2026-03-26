@@ -10,8 +10,24 @@ pub const Confidence = core_types.Confidence;
 
 pub const ReasoningConfig = ai_config.AiConfig.ReasoningConfig;
 
-// Import canonical StepType from shared types (prevents drift with mod/engine)
-pub const StepType = @import("types.zig").StepType;
+pub const StepType = enum {
+    assessment,
+    decomposition,
+    retrieval,
+    analysis,
+    synthesis,
+    research,
+    validation,
+    response,
+
+    pub fn toString(self: StepType) []const u8 {
+        return @tagName(self);
+    }
+
+    pub fn getEmoji(_: StepType) []const u8 {
+        return "[ ]";
+    }
+};
 
 pub const ReasoningStep = struct {
     step_type: StepType,

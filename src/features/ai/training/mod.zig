@@ -22,9 +22,9 @@ const config_module = @import("../../../core/config/mod.zig");
 // Sub-module imports
 // ============================================================================
 
-pub const checkpoint = @import("checkpoint.zig");
-pub const llm_checkpoint = @import("llm_checkpoint.zig");
-pub const gradient = @import("gradient.zig");
+const checkpoint = @import("checkpoint.zig");
+const llm_checkpoint = @import("llm_checkpoint.zig");
+const gradient = @import("gradient.zig");
 pub const loss = @import("loss.zig");
 pub const trainable_model = @import("trainable_model.zig");
 pub const llm_trainer = @import("llm_trainer.zig");
@@ -36,7 +36,6 @@ pub const logging = @import("logging.zig");
 pub const distributed = @import("distributed.zig");
 pub const optimizer_mod = @import("optimizer.zig");
 pub const trainer = @import("trainer.zig");
-pub const training_utils = @import("training_utils.zig");
 
 // ============================================================================
 // Distributed training exports
@@ -251,8 +250,14 @@ pub const OptimizerType = enum {
     adamw,
 };
 
-// Re-exported from types.zig — single source of truth for PrecisionMode.
-pub const PrecisionMode = @import("types.zig").PrecisionMode;
+/// Precision mode for training.
+/// Controls how weights and activations are stored during forward/backward passes.
+pub const PrecisionMode = enum {
+    /// Full f32 precision for all operations (default).
+    f32_full,
+    /// Mixed precision: FP16 forward-pass working copy, f32 master weights and gradients.
+    mixed_f16_f32,
+};
 
 pub const LearningRateSchedule = enum {
     constant,

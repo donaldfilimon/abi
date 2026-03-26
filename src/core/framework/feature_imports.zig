@@ -28,34 +28,3 @@ pub const mobile_mod = if (build_options.feat_mobile) @import("../../features/mo
 pub const compute_mod = if (build_options.feat_compute) @import("../../features/compute/mod.zig") else @import("../../features/compute/stub.zig");
 pub const documents_mod = if (build_options.feat_documents) @import("../../features/documents/mod.zig") else @import("../../features/documents/stub.zig");
 pub const desktop_mod = if (build_options.feat_desktop) @import("../../features/desktop/mod.zig") else @import("../../features/desktop/stub.zig");
-
-const Feature = @import("../feature_catalog.zig").Feature;
-
-/// Get the context type for a given feature.
-pub fn FeatureContext(comptime feature: Feature) type {
-    return switch (feature) {
-        .gpu => *gpu_mod.Context,
-        .ai => *ai_mod.Context,
-        .database => *database_mod.Context,
-        .network => *network_mod.Context,
-        .observability => *observability_mod.Context,
-        .web => *web_mod.Context,
-        .cloud => *cloud_mod.Context,
-        .analytics => *analytics_mod.Context,
-        .auth => *auth_mod.Context,
-        .messaging => *messaging_mod.Context,
-        .cache => *cache_mod.Context,
-        .storage => *storage_mod.Context,
-        .search => *search_mod.Context,
-        .gateway => *gateway_mod.Context,
-        .pages => *pages_mod.Context,
-        .benchmarks => *benchmarks_mod.Context,
-        .mobile => *mobile_mod.Context,
-        .compute => *compute_mod.Context,
-        .documents => *documents_mod.Context,
-        .desktop => *desktop_mod.Context,
-        // Protocols/Connectors/etc usually don't have a Context struct in the same way,
-        // or they are not yet fully integrated into the Framework struct fields.
-        else => @compileError("Feature context type not defined for " ++ @tagName(feature)),
-    };
-}

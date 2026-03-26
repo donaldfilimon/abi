@@ -1,7 +1,6 @@
 //! GPU Stub Module — API-compatible no-ops when GPU is disabled at compile time.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
 const config_module = @import("../../core/config/mod.zig");
 
 // ── Shared types (re-exported) ─────────────────────────────────────────────
@@ -37,10 +36,6 @@ pub const GpuConfig = types.GpuConfig;
 
 // ── Sub-module namespace stubs ─────────────────────────────────────────────
 
-pub const backend = struct {};
-pub const kernels = struct {};
-pub const memory = struct {};
-pub const backend_shared = struct {};
 pub const profiling = struct {};
 pub const occupancy = struct {};
 pub const fusion = struct {};
@@ -217,17 +212,17 @@ pub const Context = struct {
 };
 
 // ── Module-level functions ─────────────────────────────────────────────────
-// init, deinit, isInitialized use canonical StubFeatureNoConfig helper.
-// isEnabled takes a Backend param (not no-arg) so remains custom.
-
-const Stub = stub_helpers.StubFeatureNoConfig(Error);
-pub const init = Stub.init;
-pub const deinit = Stub.deinit;
-pub const isInitialized = Stub.isInitialized;
 
 pub fn isEnabled(_: Backend) bool {
     return false;
 }
+pub fn isInitialized() bool {
+    return false;
+}
+pub fn init(_: std.mem.Allocator) Error!void {
+    return error.FeatureDisabled;
+}
+pub fn deinit() void {}
 pub fn ensureInitialized(_: std.mem.Allocator) Error!void {
     return error.FeatureDisabled;
 }

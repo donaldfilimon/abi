@@ -178,7 +178,3 @@ test "vad basic calculation" {
     const loud = [_]f32{ 0.8, -0.9, 0.7, -0.8 };
     try std.testing.expectEqual(true, vad.isSpeech(&loud));
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

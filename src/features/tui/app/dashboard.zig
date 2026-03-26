@@ -137,18 +137,12 @@ fn getFeatureFlags() [20]FlagEntry {
     };
 }
 
-fn getGpuFlags() [10]FlagEntry {
+fn getGpuFlags() [4]FlagEntry {
     return .{
         .{ .name = "metal", .enabled = build_options.gpu_metal },
         .{ .name = "cuda", .enabled = build_options.gpu_cuda },
         .{ .name = "vulkan", .enabled = build_options.gpu_vulkan },
-        .{ .name = "webgpu", .enabled = build_options.gpu_webgpu },
-        .{ .name = "opengl", .enabled = build_options.gpu_opengl },
-        .{ .name = "opengles", .enabled = build_options.gpu_opengles },
-        .{ .name = "webgl2", .enabled = build_options.gpu_webgl2 },
         .{ .name = "stdgpu", .enabled = build_options.gpu_stdgpu },
-        .{ .name = "fpga", .enabled = build_options.gpu_fpga },
-        .{ .name = "tpu", .enabled = build_options.gpu_tpu },
     };
 }
 
@@ -160,7 +154,7 @@ pub fn renderDashboard(screen: *Screen, state: *const AppState) void {
     // Header
     widgets.renderPanel(screen, dl.header, " ABI Dashboard ", header_style);
     if (dl.header.height >= 2) {
-        const version_text = "v" ++ build_options.package_version ++ " | Zig 0.16 | Multi-Profile AI + WDBX";
+        const version_text = "v" ++ build_options.package_version ++ " | Zig 0.16 | Multi-Persona AI + WDBX";
         widgets.renderText(screen, .{
             .x = dl.header.x + 2,
             .y = dl.header.y + 1,
@@ -329,9 +323,9 @@ test "getFeatureFlags returns 20 entries" {
     try std.testing.expectEqual(@as(usize, 20), flags.len);
 }
 
-test "getGpuFlags returns 10 entries" {
+test "getGpuFlags returns 4 entries" {
     const flags = getGpuFlags();
-    try std.testing.expectEqual(@as(usize, 10), flags.len);
+    try std.testing.expectEqual(@as(usize, 4), flags.len);
 }
 
 test "renderDashboard does not crash" {

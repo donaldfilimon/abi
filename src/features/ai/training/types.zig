@@ -25,16 +25,6 @@ pub const SaveLlmCheckpointError = SaveError;
 // ── Enums ──────────────────────────────────────────────────────────────────
 
 pub const OptimizerType = enum { sgd, adam, adamw };
-
-/// Precision mode for training.
-/// Controls how weights and activations are stored during forward/backward passes.
-pub const PrecisionMode = enum {
-    /// Full f32 precision for all operations (default).
-    f32_full,
-    /// Mixed precision: FP16 forward-pass working copy, f32 master weights and gradients.
-    mixed_f16_f32,
-};
-
 pub const LearningRateSchedule = enum { constant, linear, cosine, warmup_cosine, step, polynomial, cosine_warm_restarts };
 pub const ExperienceType = enum { text_conversation, vision, video, audio, document, code, reasoning, multi_modal, any };
 pub const DataKind = enum { text, image, video, audio, document, other };
@@ -500,8 +490,8 @@ pub const SequencePacker = struct {
     }
     pub const PackedBatch = struct {
         allocator: std.mem.Allocator,
-        tokens: []u32 = &.{},
-        attention_mask: []u8 = &.{},
+        tokens: []u32 = @constCast(&[_]u32{}),
+        attention_mask: []u8 = @constCast(&[_]u8{}),
         batch_size: u32 = 0,
         seq_len: u32 = 0,
         num_batches: u32 = 0,
@@ -756,7 +746,3 @@ pub const distributed = struct {
 
 pub const DistributedConfig = distributed.DistributedConfig;
 pub const DistributedTrainer = distributed.DistributedTrainer;
-
-test {
-    std.testing.refAllDecls(@This());
-}

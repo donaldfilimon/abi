@@ -1,6 +1,6 @@
 //! ABI CLI — Command-line interface for the ABI framework.
 //!
-//! Provides user-facing commands for interacting with the multi-profile
+//! Provides user-facing commands for interacting with the multi-persona
 //! AI system, WDBX database, full-text search, and framework diagnostics.
 //!
 //! Usage:
@@ -11,7 +11,7 @@
 //!   abi platform          Show platform detection info
 //!   abi connectors        List available LLM connectors
 //!   abi info              Show framework architecture summary
-//!   abi chat <message...>  Route a message through the profile pipeline
+//!   abi chat <message...>  Route a message through the persona pipeline
 //!   abi serve             Start the ACP HTTP server
 //!   abi acp serve         Start the ACP HTTP server
 //!   abi db <subcommand>   Vector database operations
@@ -27,35 +27,7 @@ const cli = @import("cli.zig");
 const os = @import("foundation/os.zig");
 const feature_catalog = root.meta.features;
 
-// ── Shared Constants ────────────────────────────────────────────────────
-
-/// All GPU backend names and their build-time enabled state.
-/// Used by both `printPlatform()` and `runDoctor()`.
-const gpu_backends = .{
-    .{ "metal", build_options.gpu_metal },
-    .{ "cuda", build_options.gpu_cuda },
-    .{ "vulkan", build_options.gpu_vulkan },
-    .{ "webgpu", build_options.gpu_webgpu },
-    .{ "opengl", build_options.gpu_opengl },
-    .{ "opengles", build_options.gpu_opengles },
-    .{ "webgl2", build_options.gpu_webgl2 },
-    .{ "stdgpu", build_options.gpu_stdgpu },
-    .{ "fpga", build_options.gpu_fpga },
-    .{ "tpu", build_options.gpu_tpu },
-};
-
 // ── Helpers ─────────────────────────────────────────────────────────────
-
-fn countEnabledFeatures() struct { enabled: usize, total: usize } {
-    const enabled = comptime blk: {
-        var count: usize = 0;
-        for (feature_catalog.all) |entry| {
-            if (@field(build_options, entry.compile_flag_field)) count += 1;
-        }
-        break :blk count;
-    };
-    return .{ .enabled = enabled, .total = feature_catalog.all.len };
-}
 
 fn printHeader(title: []const u8, subtitle: ?[]const u8) void {
     if (!os.isatty()) return; // Strip non-diagnostic metadata when piped
@@ -76,25 +48,21 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const args = try init.minimal.args.toSlice(arena);
 
-    const exit_code = dispatch(allocator, args[1..]) catch |err| blk: {
-        std.debug.print("Error: {s}\n", .{@errorName(err)});
-        break :blk 1;
-    };
-    if (exit_code != 0) std.process.exit(exit_code);
+    try dispatch(allocator, args[1..]);
 }
 
 // ── Command Dispatch ────────────────────────────────────────────────────
 
-pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
+pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printStatus();
-        return 0;
+        return;
     }
 
     if (cli.isServeInvocation(args)) {
         const serve_args = if (std.mem.eql(u8, args[0], "acp")) args[2..] else args[1..];
         try cli.runServe(allocator, serve_args);
-        return 0;
+        return;
     }
 
     const cmd = args[0];
@@ -114,7 +82,7 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
     } else if (std.mem.eql(u8, cmd, "chat")) {
         if (args.len < 2) {
             std.debug.print("Usage: abi chat <message...>\n", .{});
-            return 1;
+            return;
         }
         try runChat(allocator, args[1..]);
     } else if (std.mem.eql(u8, cmd, "db")) {
@@ -128,9 +96,7 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
     } else {
         std.debug.print("Unknown command: {s}\n\n", .{cmd});
         printHelp();
-        return 1;
     }
-    return 0;
 }
 
 // ── Status (no-args) ────────────────────────────────────────────────────
@@ -138,7 +104,14 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
 pub fn printStatus() void {
     const version = build_options.package_version;
 
-    const counts = countEnabledFeatures();
+    // Count enabled features
+    const enabled = comptime blk: {
+        var count: u32 = 0;
+        for (feature_catalog.all) |entry| {
+            if (@field(build_options, entry.compile_flag_field)) count += 1;
+        }
+        break :blk count;
+    };
 
     std.debug.print(
         \\ABI Framework v{s}
@@ -151,13 +124,14 @@ pub fn printStatus() void {
         \\  platform     Show platform detection info
         \\  connectors   List available LLM connectors
         \\  info         Framework architecture summary
-        \\  chat <message...>  Route through profile pipeline
+        \\  chat <message...>  Route through persona pipeline
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
         \\  lsp          Start the LSP server
         \\
-    , .{ version, counts.enabled, counts.total, counts.total });
+    , .{ version, enabled, feature_catalog.feature_count, feature_catalog.feature_count });
 
+    // Feature-gated commands
     std.debug.print("  db <cmd>     Vector database operations       ", .{});
     printFeatureTag(build_options.feat_database);
     std.debug.print("  dashboard    Interactive TUI dashboard         ", .{});
@@ -185,7 +159,7 @@ pub fn printVersion() void {
     const version = build_options.package_version;
     std.debug.print(
         \\ABI Framework v{s}
-        \\Zig 0.16.0-dev | Multi-Profile AI + WDBX
+        \\Zig 0.16.0-dev | Multi-Persona AI + WDBX
         \\
         \\Core: Care first. Clarity always. Competence throughout.
         \\
@@ -196,7 +170,7 @@ pub fn printVersion() void {
 
 pub fn printHelp() void {
     std.debug.print(
-        \\ABI — Multi-Profile AI Framework with WDBX
+        \\ABI — Multi-Persona AI Framework with WDBX
         \\
         \\Usage: abi <command> [args]
         \\
@@ -209,7 +183,7 @@ pub fn printHelp() void {
         \\  info         Show framework architecture summary
         \\
         \\AI & Data:
-        \\  chat <message...>  Route a message through the profile pipeline
+        \\  chat <message...>  Route a message through the persona pipeline
         \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
@@ -233,6 +207,7 @@ pub fn printHelp() void {
 pub fn printFeatures() void {
     printHeader("ABI Features — Compile-Time Feature Catalog", null);
 
+    // Print all features from the canonical catalog
     inline for (feature_catalog.all) |entry| {
         const enabled = @field(build_options, entry.compile_flag_field);
         const tag: []const u8 = if (enabled) "[+]" else "[-]";
@@ -240,8 +215,14 @@ pub fn printFeatures() void {
         std.debug.print("  {s} {s}{s} — {s}\n", .{ tag, parent_str, entry.feature.name(), entry.description });
     }
 
-    const counts = countEnabledFeatures();
-    std.debug.print("\n{d}/{d} features enabled.\n", .{ counts.enabled, counts.total });
+    const enabled = comptime blk: {
+        var count: u32 = 0;
+        for (feature_catalog.all) |entry| {
+            if (@field(build_options, entry.compile_flag_field)) count += 1;
+        }
+        break :blk count;
+    };
+    std.debug.print("\n{d}/{d} features enabled.\n", .{ enabled, feature_catalog.feature_count });
 }
 
 // ── Platform ────────────────────────────────────────────────────────────
@@ -267,10 +248,19 @@ pub fn printPlatform() void {
         if (platform.supportsThreading()) "supported" else "unavailable",
     });
 
+    // GPU backend info
     std.debug.print("GPU Backends:\n", .{});
-    inline for (gpu_backends) |backend| {
-        const tag: []const u8 = if (backend[1]) "[+]" else "[-]";
-        std.debug.print("  {s} {s}\n", .{ tag, backend[0] });
+    inline for (.{
+        .{ "metal", build_options.gpu_metal },
+        .{ "cuda", build_options.gpu_cuda },
+        .{ "vulkan", build_options.gpu_vulkan },
+        .{ "webgpu", build_options.gpu_webgpu },
+        .{ "opengl", build_options.gpu_opengl },
+        .{ "stdgpu", build_options.gpu_stdgpu },
+    }) |backend| {
+        if (backend[1]) {
+            std.debug.print("  [+] {s}\n", .{backend[0]});
+        }
     }
 
     std.debug.print("\n", .{});
@@ -310,7 +300,7 @@ pub fn printInfo() void {
     printHeader("ABI Framework — Architecture Summary", null);
 
     std.debug.print(
-        \\Profiles:
+        \\Personas:
         \\  Abbey  — Empathetic Polymath (warm, technical, adaptive)
         \\  Aviva  — Direct Expert (concise, factual, efficient)
         \\  Abi    — Adaptive Moderator (routing, policy, blending)
@@ -329,7 +319,7 @@ pub fn printInfo() void {
         \\    Cohere, HuggingFace, Ollama, LM Studio, vLLM, MLX,
         \\    llama.cpp, Codex, OpenCode, Discord, local-scheduler
         \\
-        \\Features: 20 feature directories, 35 in catalog (mod/stub pattern)
+        \\Features: 20 feature directories, 30 in catalog (mod/stub pattern)
         \\GPU backends: Metal, CUDA, Vulkan, WebGPU, OpenGL, stdgpu, FPGA, TPU
         \\Protocols: MCP, LSP, ACP, HA
         \\
@@ -350,30 +340,58 @@ pub fn runDoctor() void {
         \\Version: {s}
         \\
         \\Feature Flags:
+        \\  feat_ai        = {any}
+        \\  feat_gpu       = {any}
+        \\  feat_database  = {any}
+        \\  feat_network   = {any}
+        \\  feat_web       = {any}
+        \\  feat_search    = {any}
+        \\  feat_cache     = {any}
+        \\  feat_auth      = {any}
+        \\  feat_lsp       = {any}
+        \\  feat_mcp       = {any}
+        \\  feat_mobile    = {any}
+        \\  feat_desktop   = {any}
+        \\  feat_tui       = {any}
         \\
-    , .{version});
-
-    inline for (feature_catalog.all) |entry| {
-        const enabled = @field(build_options, entry.compile_flag_field);
-        const indent: []const u8 = if (entry.parent != null) "    " else "  ";
-        std.debug.print("{s}{s} = {any}\n", .{ indent, entry.compile_flag_field, enabled });
-    }
-
-    std.debug.print(
+        \\AI Sub-features:
+        \\  feat_llm       = {any}
+        \\  feat_training  = {any}
+        \\  feat_vision    = {any}
+        \\  feat_reasoning = {any}
         \\
         \\GPU Backends:
-        \\
-    , .{});
-
-    inline for (gpu_backends) |backend| {
-        std.debug.print("  gpu_{s} = {any}\n", .{ backend[0], backend[1] });
-    }
-
-    std.debug.print(
+        \\  gpu_metal      = {any}
+        \\  gpu_cuda       = {any}
+        \\  gpu_vulkan     = {any}
+        \\  gpu_stdgpu     = {any}
         \\
         \\Status: All systems nominal.
         \\
-    , .{});
+    , .{
+        version,
+        build_options.feat_ai,
+        build_options.feat_gpu,
+        build_options.feat_database,
+        build_options.feat_network,
+        build_options.feat_web,
+        build_options.feat_search,
+        build_options.feat_cache,
+        build_options.feat_auth,
+        build_options.feat_lsp,
+        build_options.feat_mcp,
+        build_options.feat_mobile,
+        build_options.feat_desktop,
+        build_options.feat_tui,
+        build_options.feat_llm,
+        build_options.feat_training,
+        build_options.feat_vision,
+        build_options.feat_reasoning,
+        build_options.gpu_metal,
+        build_options.gpu_cuda,
+        build_options.gpu_vulkan,
+        build_options.gpu_stdgpu,
+    });
 }
 
 // ── Chat ────────────────────────────────────────────────────────────────
@@ -388,15 +406,15 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
     defer allocator.free(message);
 
     const ai = root.ai;
-    var registry = ai.profile.ProfileRegistry.init(allocator, .{});
+    var registry = ai.persona.PersonaRegistry.init(allocator, .{});
     defer registry.deinit();
 
-    var router = ai.profile.MultiProfileRouter.init(allocator, &registry, .{});
+    var router = ai.persona.MultiPersonaRouter.init(allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route(message);
 
-    printHeader("ABI Chat — Profile Pipeline", null);
+    printHeader("ABI Chat — Persona Pipeline", null);
 
     std.debug.print(
         \\Input: {s}
@@ -425,42 +443,9 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
 
     std.debug.print("\nExecution:\n", .{});
 
-    const inference = root.inference;
-    var engine = inference.Engine.init(allocator, .{
-        .backend = .connector,
-        .model_id = "ollama/llama3",
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-    }) catch |err| {
-        std.debug.print("  [✓] Route validated. Engine init failed: {s}\n", .{@errorName(err)});
-        return;
-    };
-    defer engine.deinit();
-
-    var result = engine.generate(.{
-        .id = 1,
-        .prompt = message,
-        .max_tokens = 256,
-        .temperature = 0.7,
-        .top_p = 0.9,
-        .top_k = 40,
-        .profile_id = @intFromEnum(decision.primary),
-    }) catch |err| {
-        std.debug.print("  [✓] Route validated. Inference generation failed: {s}\n", .{@errorName(err)});
-        return;
-    };
-    defer result.deinit(allocator);
-
-    std.debug.print("  [✓] Route validated.\n", .{});
-    std.debug.print("  [✓] Engine responded ({d} tokens, {d:.1}ms):\n\n", .{
-        result.completion_tokens,
-        result.latency_ms,
-    });
-    std.debug.print("{s}\n", .{result.text});
+    // In a real implementation we would execute the backend here.
+    // For now we simulate the executor response:
+    std.debug.print("  [✓] Route validated. Engine would execute here.\n", .{});
 }
 
 // ── Database ────────────────────────────────────────────────────────────

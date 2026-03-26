@@ -20,7 +20,7 @@ pub fn createVTable(allocator: std.mem.Allocator, backend: Backend) interface.Ba
         .opengl => createOpenGL(allocator),
         .opengles => createOpenGLES(allocator),
         .fpga => createFpga(allocator),
-        .tpu => createTpu(allocator),
+        .tpu => interface.BackendError.NotAvailable,
         .stdgpu, .simulated => simulated.createSimulatedVTable(allocator),
         .webgl2 => simulated.createSimulatedVTable(allocator),
     };
@@ -84,12 +84,6 @@ fn createFpga(allocator: std.mem.Allocator) interface.BackendError!interface.Bac
     if (comptime !build_options.gpu_fpga) return interface.BackendError.NotAvailable;
     const fpga_vtable = @import("fpga/vtable.zig");
     return fpga_vtable.createFpgaVTable(allocator);
-}
-
-fn createTpu(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
-    if (comptime !(if (@hasDecl(build_options, "gpu_tpu")) build_options.gpu_tpu else false)) return interface.BackendError.NotAvailable;
-    const tpu_vtable = @import("tpu/mod.zig");
-    return tpu_vtable.createTpuVTable(allocator);
 }
 
 fn assertRegistryTag(comptime backend: Backend) void {

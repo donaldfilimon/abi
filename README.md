@@ -49,7 +49,6 @@ zig build messaging-tests          # Run messaging unit + integration tests
 zig build secrets-tests            # Run secrets unit + integration tests
 zig build pitr-tests               # Run PITR unit + integration tests
 zig build agents-tests             # Run agents unit + integration tests
-zig build multi-agent-tests        # Run multi-agent unit + integration tests
 zig build orchestration-tests      # Run orchestration unit + integration tests
 zig build gateway-tests            # Run gateway unit + integration tests
 zig build inference-tests          # Run inference unit + integration tests
@@ -78,7 +77,7 @@ abi features       # List all 32 features with [+]/[-] status
 abi platform       # Show platform detection (OS, arch, CPU, GPU)
 abi connectors     # List 16 LLM provider connectors
 abi info           # Framework architecture summary
-abi chat <message...>  # Route through multi-profile pipeline
+abi chat <message...>  # Route through multi-persona pipeline
 abi db <cmd>       # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
 abi dashboard      # Interactive TUI (requires -Dfeat-tui=true)
 abi help           # Full help reference
@@ -86,14 +85,14 @@ abi help           # Full help reference
 
 ## Pipeline architecture
 
-The multi-profile pipeline (Abbey-Aviva-Abi) is wired end-to-end in `src/features/ai/profile/router.zig`:
+The multi-persona pipeline (Abbey-Aviva-Abi) is wired end-to-end in `src/features/ai/persona/router.zig`:
 
 ```
 User Input
   -> Abi Analysis        (sentiment + policy + rules)
   -> Modulation          (EMA user preference learning)
   -> Routing Decision    (single / parallel / consensus)
-  -> Profile Execution   (Abbey / Aviva / Abi)
+  -> Persona Execution   (Abbey / Aviva / Abi)
   -> Constitution        (6-principle ethical validation)
   -> WDBX Memory         (cryptographic block-chain storage)
   -> Response
@@ -181,7 +180,6 @@ zig build messaging-tests          # Focused messaging runtime lane
 zig build secrets-tests            # Focused secrets runtime lane
 zig build pitr-tests               # Focused PITR runtime lane
 zig build agents-tests             # Focused agents runtime lane
-zig build multi-agent-tests        # Focused multi-agent runtime lane
 zig build orchestration-tests      # Focused orchestration runtime lane
 zig build gateway-tests            # Focused gateway runtime lane
 zig build inference-tests          # Focused inference runtime lane
@@ -189,12 +187,12 @@ zig build inference-tests          # Focused inference runtime lane
 
 Two test suites run under `zig build test`:
 1. **Unit tests** (`src/root.zig`) -- `refAllDecls` walks the entire module tree.
-2. **Integration tests** (`test/mod.zig`) -- 50 modules covering database, inference, profile pipeline, security, CLI, TUI, and all features.
+2. **Integration tests** (`test/mod.zig`) -- 38 modules covering database, inference, persona pipeline, security, CLI, TUI, and all features.
 
 ## Specification
 
 See [docs/spec/ABBEY-SPEC.md](docs/spec/ABBEY-SPEC.md) for the comprehensive mega spec covering
-architecture, profiles, behavioral model, math foundations, ethics, and benchmarks.
+architecture, personas, behavioral model, math foundations, ethics, and benchmarks.
 
 ## License
 

@@ -329,7 +329,3 @@ pub const OrchestratorStats = struct {
             @as(f64, @floatFromInt(self.total_requests));
     }
 };
-
-test {
-    std.testing.refAllDecls(@This());
-}

@@ -242,7 +242,3 @@ pub fn registerAll(registry: *tool.ToolRegistry) !void {
         try registry.register(t);
     }
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

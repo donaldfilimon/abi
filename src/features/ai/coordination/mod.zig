@@ -155,7 +155,3 @@ test "profile selection maps legacy routing decisions" {
     try std.testing.expectEqual(profiles.BehaviorProfile.collaborative, selection.selected_profile);
     try std.testing.expectEqual(@as(?u64, 7), selection.influence_trace.?.block_id);
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

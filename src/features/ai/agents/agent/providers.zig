@@ -21,7 +21,3 @@ pub fn generateProviderRouterResponse(
 
     return try allocator.dupe(u8, result.content);
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

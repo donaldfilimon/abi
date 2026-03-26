@@ -6,12 +6,6 @@
 const std = @import("std");
 pub const types = @import("types.zig");
 
-// Submodules — real implementations live here
-pub const sensors = @import("sensors.zig");
-pub const notifications = @import("notifications.zig");
-pub const permissions = @import("permissions.zig");
-pub const device = @import("device.zig");
-
 pub const MobileConfig = types.MobileConfig;
 pub const MobilePlatform = types.MobilePlatform;
 pub const MobileError = types.MobileError;
@@ -52,7 +46,25 @@ pub const Context = struct {
     /// Read a simulated sensor value based on the sensor type.
     pub fn readSensor(self: *Context, sensor_type: SensorType) MobileError!SensorData {
         _ = self;
-        return sensors.readSensor(sensor_type);
+        var ts: std.c.timespec = undefined;
+        _ = std.c.clock_gettime(.REALTIME, &ts);
+        const timestamp_ms: u64 = @intCast(@as(i64, @intCast(ts.sec)) * 1000 +
+            @divTrunc(@as(i64, ts.nsec), 1_000_000));
+
+        const values: [3]f32 = switch (sensor_type) {
+            .accelerometer => .{ 0.0, 0.0, 9.81 },
+            .gyroscope => .{ 0.0, 0.0, 0.0 },
+            .magnetometer => .{ 25.0, 0.0, 45.0 },
+            .gps => .{ 37.7749, -122.4194, 0.0 },
+            .barometer => .{ 1013.25, 0.0, 0.0 },
+            .proximity => .{ 1.0, 0.0, 0.0 },
+            .light => .{ 500.0, 0.0, 0.0 },
+        };
+
+        return .{
+            .timestamp_ms = timestamp_ms,
+            .values = values,
+        };
     }
 
     /// Send a notification and track it in the log.
@@ -62,43 +74,82 @@ pub const Context = struct {
         body_text: []const u8,
         priority: Notification.Priority,
     ) MobileError!void {
-        return notifications.sendNotification(
-            &self.notification_log,
-            self.allocator,
-            title,
-            body_text,
-            priority,
-        );
+        var entry: NotificationEntry = .{
+            .priority = priority,
+        };
+
+        const t_len: u8 = @intCast(@min(title.len, entry.title_buf.len));
+        @memcpy(entry.title_buf[0..t_len], title[0..t_len]);
+        entry.title_len = t_len;
+
+        const b_len: u16 = @intCast(@min(body_text.len, entry.body_buf.len));
+        @memcpy(entry.body_buf[0..b_len], body_text[0..b_len]);
+        entry.body_len = b_len;
+
+        var ts: std.c.timespec = undefined;
+        _ = std.c.clock_gettime(.REALTIME, &ts);
+        entry.sent_at = @intCast(ts.sec);
+
+        self.notification_log.append(self.allocator, entry) catch return error.OutOfMemory;
     }
 
     /// Return the number of tracked notifications.
     pub fn getNotificationCount(self: *const Context) usize {
-        return notifications.getNotificationCount(&self.notification_log);
+        return self.notification_log.items.len;
     }
 
     /// Clear all tracked notifications.
     pub fn clearNotifications(self: *Context) void {
-        notifications.clearNotifications(&self.notification_log);
+        self.notification_log.clearRetainingCapacity();
     }
 
     /// Check the current status of a permission.
     pub fn checkPermission(self: *const Context, perm: Permission) PermissionStatus {
-        return permissions.checkPermission(&self.permissions, perm);
+        return self.permissions[@intFromEnum(perm)];
     }
 
     /// Request a permission (simulated: always grants).
     pub fn requestPermission(self: *Context, perm: Permission) PermissionStatus {
-        return permissions.requestPermission(&self.permissions, perm);
+        self.permissions[@intFromEnum(perm)] = .granted;
+        return .granted;
     }
 
     /// Revoke a previously granted permission.
     pub fn revokePermission(self: *Context, perm: Permission) void {
-        permissions.revokePermission(&self.permissions, perm);
+        self.permissions[@intFromEnum(perm)] = .denied;
     }
 
     /// Return simulated device information based on the configured platform.
     pub fn getDeviceInfo(self: *const Context) DeviceInfo {
-        return device.getDeviceInfo(self.config.platform);
+        return switch (self.config.platform) {
+            .ios => .{
+                .platform = .ios,
+                .os_version = "17.4.1",
+                .device_model = "iPhone 15 Pro",
+                .screen_width = 1179,
+                .screen_height = 2556,
+                .battery_level = 0.85,
+                .is_charging = false,
+            },
+            .android => .{
+                .platform = .android,
+                .os_version = "14.0",
+                .device_model = "Pixel 8 Pro",
+                .screen_width = 1344,
+                .screen_height = 2992,
+                .battery_level = 0.72,
+                .is_charging = true,
+            },
+            .auto => .{
+                .platform = .auto,
+                .os_version = "1.0.0",
+                .device_model = "Simulator",
+                .screen_width = 1080,
+                .screen_height = 1920,
+                .battery_level = 1.0,
+                .is_charging = true,
+            },
+        };
     }
 };
 

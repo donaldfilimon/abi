@@ -21,9 +21,6 @@ pub const system_tools = @import("system_tools.zig");
 pub const mcp_tools = @import("mcp_tools.zig");
 pub const deep_research = @import("deep_research.zig");
 
-const types = @import("types.zig");
-const tool_agent = @import("tool_agent.zig");
-
 pub const Tool = tool.Tool;
 pub const ToolResult = tool.ToolResult;
 pub const ToolRegistry = tool.ToolRegistry;
@@ -31,15 +28,6 @@ pub const Context = tool.Context;
 pub const Parameter = tool.Parameter;
 pub const ParameterType = tool.ParameterType;
 pub const createContext = tool.createContext;
-
-// Tool agent types
-pub const ToolAgentConfig = types.ToolAgentConfig;
-pub const ToolCallRequest = types.ToolCallRequest;
-pub const ToolCallRecord = types.ToolCallRecord;
-pub const ConfirmationFn = types.ConfirmationFn;
-pub const ToolAugmentedAgent = tool_agent.ToolAugmentedAgent;
-pub const generateToolDescriptions = tool_agent.generateToolDescriptions;
-pub const parseToolCalls = tool_agent.parseToolCalls;
 pub const ToolExecutionError = tool.ToolExecutionError;
 pub const hasPathTraversal = tool.hasPathTraversal;
 
