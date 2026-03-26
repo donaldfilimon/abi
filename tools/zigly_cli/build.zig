@@ -15,6 +15,16 @@ pub fn build(b: *std.Build) void {
     
     exe.root_module.link_libc = true;
 
+    const download_mod = b.createModule(.{
+        .root_source_file = b.path("src/download.zig"),
+    });
+    exe.root_module.addImport("download", download_mod);
+
+    const archive_mod = b.createModule(.{
+        .root_source_file = b.path("src/archive.zig"),
+    });
+    exe.root_module.addImport("archive", archive_mod);
+
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
