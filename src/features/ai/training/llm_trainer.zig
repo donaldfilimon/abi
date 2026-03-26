@@ -21,185 +21,23 @@ const loss_mod = @import("loss.zig");
 const mod = @import("mod.zig");
 const llm_checkpoint = @import("llm_checkpoint.zig");
 const logging = @import("logging.zig");
-const ai_ops = @import("../../gpu/ai_ops.zig");
 const training_bridge = @import("../../gpu/training_bridge.zig");
 const mixed_precision = @import("mixed_precision.zig");
 
-/// Training configuration for LLM.
-pub const LlmTrainingConfig = struct {
-    /// Number of training epochs
-    epochs: u32 = 10,
-    /// Batch size (sequences per batch)
-    batch_size: u32 = 4,
-    /// Maximum sequence length
-    max_seq_len: u32 = 512,
-    /// Base learning rate
-    learning_rate: f32 = 1e-5,
-    /// Learning rate schedule
-    lr_schedule: mod.LearningRateSchedule = .warmup_cosine,
-    /// Warmup steps
-    warmup_steps: u32 = 100,
-    /// Total decay steps
-    decay_steps: u32 = 10000,
-    /// Minimum learning rate
-    min_learning_rate: f32 = 1e-7,
-    /// Gradient accumulation steps
-    grad_accum_steps: u32 = 8,
-    /// Maximum gradient norm for clipping
-    max_grad_norm: f32 = 1.0,
-    /// Weight decay for AdamW
-    weight_decay: f32 = 0.01,
-    /// Optimizer type
-    optimizer: mod.OptimizerType = .adamw,
-    /// Label smoothing factor
-    label_smoothing: f32 = 0.0,
-    /// Checkpoint interval (steps, 0 = disabled)
-    checkpoint_interval: u32 = 1000,
-    /// Checkpoint directory path
-    checkpoint_path: ?[]const u8 = null,
-    /// Maximum checkpoints to keep
-    max_checkpoints: u32 = 3,
-    /// Log interval (steps)
-    log_interval: u32 = 10,
-    /// Evaluation interval (steps, 0 = disabled)
-    eval_interval: u32 = 500,
-    /// Mixed precision training (FP16 forward, FP32 gradients)
-    mixed_precision: bool = false,
-    /// Log directory for TensorBoard/W&B output
-    log_dir: ?[]const u8 = null,
-    /// Enable TensorBoard scalar logging
-    enable_tensorboard: bool = false,
-    /// Enable W&B offline logging
-    enable_wandb: bool = false,
-    /// Enable JSONL metrics stream for TUI dashboard
-    enable_metrics_stream: bool = false,
-    /// W&B project name (defaults to "abi")
-    wandb_project: ?[]const u8 = null,
-    /// W&B run name (defaults to "run")
-    wandb_run_name: ?[]const u8 = null,
-    /// W&B entity (defaults to "default")
-    wandb_entity: ?[]const u8 = null,
-    /// Export GGUF weights after training
-    export_gguf_path: ?[]const u8 = null,
-    /// GGUF model name metadata
-    export_name: []const u8 = "abi-llama",
-    /// Enable accelerator path by default (GPU/NPU backends auto-selected when available).
-    use_gpu: bool = true,
-    /// GPU acceleration backend preference
-    gpu_backend: ?[]const u8 = null, // null = auto-select best available
-    /// Threshold for GPU dispatch (batch size below this uses CPU)
-    gpu_batch_threshold: u32 = 8,
-    /// Device memory buffer for GPU operations
-    gpu_device_buffer_mb: u32 = 256, // MB
+// Sub-module imports
+const types = @import("llm_trainer/types.zig");
+const optimizer_mod = @import("llm_trainer/optimizer.zig");
+const checkpoint_mod = @import("llm_trainer/checkpoint.zig");
+const evaluation_mod = @import("llm_trainer/evaluation.zig");
+const logging_ext = @import("llm_trainer/logging_ext.zig");
 
-    pub fn validate(self: LlmTrainingConfig) !void {
-        if (self.epochs == 0) return error.InvalidConfiguration;
-        if (self.batch_size == 0) return error.InvalidConfiguration;
-        if (self.max_seq_len == 0) return error.InvalidConfiguration;
-        if (self.learning_rate <= 0) return error.InvalidConfiguration;
-        if (self.grad_accum_steps == 0) return error.InvalidConfiguration;
-        if (self.max_grad_norm < 0) return error.InvalidConfiguration;
-        if (self.label_smoothing < 0 or self.label_smoothing >= 1) return error.InvalidConfiguration;
-        if ((self.enable_tensorboard or self.enable_wandb or self.enable_metrics_stream) and self.log_dir == null) {
-            return error.InvalidConfiguration;
-        }
-    }
-};
-
-/// Training statistics.
-pub const TrainingStats = struct {
-    /// Current epoch
-    epoch: u32 = 0,
-    /// Current step (optimizer updates)
-    global_step: u64 = 0,
-    /// Current micro-batch within accumulation
-    micro_step: u32 = 0,
-    /// Total tokens processed
-    tokens_processed: u64 = 0,
-    /// Current loss (smoothed)
-    loss: f32 = 0,
-    /// Current accuracy
-    accuracy: f32 = 0,
-    /// Current learning rate
-    learning_rate: f32 = 0,
-    /// Current gradient norm
-    grad_norm: f32 = 0,
-    /// Perplexity
-    perplexity: f32 = 0,
-    /// Training throughput (tokens/sec)
-    throughput: f32 = 0,
-    /// Time since last log (ns)
-    time_ns: u64 = 0,
-
-    pub fn format(self: TrainingStats) [256]u8 {
-        var buf: [256]u8 = undefined;
-        _ = std.fmt.bufPrint(&buf, "epoch={d} step={d} loss={d:.4} acc={d:.2}% ppl={d:.2} lr={e:.2} grad_norm={d:.2} toks/s={d:.0}", .{
-            self.epoch,
-            self.global_step,
-            self.loss,
-            self.accuracy * 100,
-            self.perplexity,
-            self.learning_rate,
-            self.grad_norm,
-            self.throughput,
-        }) catch |err| {
-            std.log.debug("TrainingProgress format buffer overflow: {t}", .{err});
-        };
-        return buf;
-    }
-};
-
-/// Training report.
-pub const TrainingReport = struct {
-    /// Final training loss
-    final_loss: f32,
-    /// Final training accuracy
-    final_accuracy: f32,
-    /// Best validation loss
-    best_val_loss: f32,
-    /// Best validation accuracy
-    best_val_accuracy: f32,
-    /// Final perplexity
-    final_perplexity: f32,
-    /// Total training steps
-    total_steps: u64,
-    /// Total tokens processed
-    total_tokens: u64,
-    /// Total training time (ns)
-    total_time_ns: u64,
-    /// Average throughput
-    avg_throughput: f32,
-    /// Checkpoints saved
-    checkpoints_saved: u32,
-    /// Whether early stopped
-    early_stopped: bool,
-};
-
-/// Evaluation results.
-pub const EvalResult = struct {
-    /// Average loss
-    loss: f32,
-    /// Perplexity (exp(loss))
-    perplexity: f32,
-    /// Token accuracy (correct predictions / total)
-    accuracy: f32,
-    /// Number of batches evaluated
-    num_batches: u32,
-    /// Total tokens evaluated
-    total_tokens: u64,
-};
-
-/// Early stopping configuration.
-pub const EarlyStoppingConfig = struct {
-    /// Number of evaluations without improvement before stopping
-    patience: u32 = 3,
-    /// Minimum improvement to reset patience
-    min_delta: f32 = 0.001,
-    /// Whether to monitor validation loss (true) or perplexity (false)
-    monitor_loss: bool = true,
-    /// Whether early stopping is enabled
-    enabled: bool = true,
-};
+// Re-export types
+pub const LlmTrainingConfig = types.LlmTrainingConfig;
+pub const TrainingStats = types.TrainingStats;
+pub const TrainingReport = types.TrainingReport;
+pub const EvalResult = types.EvalResult;
+pub const EarlyStoppingConfig = types.EarlyStoppingConfig;
+pub const TrainerError = types.TrainerError;
 
 /// LLM Trainer.
 pub const LlamaTrainer = struct {
@@ -208,7 +46,7 @@ pub const LlamaTrainer = struct {
     model: *trainable_model.TrainableModel,
     loss_fn: loss_mod.CrossEntropyLoss,
     accumulator: mod.GradientAccumulator,
-    optimizer_state: OptimizerState,
+    optimizer_state: types.OptimizerState,
     stats: TrainingStats,
     /// GPU training bridge (GPU-accelerated ops with CPU fallback)
     gpu_bridge: ?training_bridge.GpuTrainingBridge,
@@ -223,7 +61,7 @@ pub const LlamaTrainer = struct {
     /// Validation data (optional)
     val_data: ?[]const u32,
     /// Early stopping state
-    early_stopping: EarlyStoppingState,
+    early_stopping: types.EarlyStoppingState,
     /// Best model checkpoint weights
     best_weights: ?[]f32,
     /// Best validation accuracy
@@ -239,22 +77,7 @@ pub const LlamaTrainer = struct {
     accum_correct: u64,
     accum_tokens: u64,
 
-    const EarlyStoppingState = struct {
-        best_metric: f32 = std.math.inf(f32),
-        patience_counter: u32 = 0,
-        stopped: bool = false,
-    };
-
-    const OptimizerState = struct {
-        /// First moment (Adam)
-        m: ?[]f32,
-        /// Second moment (Adam)
-        v: ?[]f32,
-        /// Adam hyperparameters
-        beta1: f32 = 0.9,
-        beta2: f32 = 0.999,
-        epsilon: f32 = 1e-8,
-    };
+    pub const StepMetrics = types.StepMetrics;
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -374,11 +197,6 @@ pub const LlamaTrainer = struct {
         return result.loss;
     }
 
-    pub const StepMetrics = struct {
-        loss: f32,
-        accuracy: f32,
-    };
-
     /// Perform a single training step with metrics.
     pub fn trainStepWithMetrics(
         self: *LlamaTrainer,
@@ -428,7 +246,6 @@ pub const LlamaTrainer = struct {
         if (self.model.hasNonFiniteGradients()) {
             self.nan_skip_count += 1;
             if (self.config.mixed_precision) {
-                // In mixed precision mode, this is expected — the scaler will back off
                 if (self.loss_scaler) |*scaler| {
                     _ = scaler.unscaleGradients(self.model.weights.d_token_embedding);
                     scaler.update(false);
@@ -448,7 +265,6 @@ pub const LlamaTrainer = struct {
             const grads_valid = scaler.unscaleGradients(self.model.weights.d_token_embedding);
             scaler.update(grads_valid);
             if (!grads_valid) {
-                // Overflow detected — skip this step
                 self.model.zeroGradients();
                 return .{ .loss = loss, .accuracy = 0 };
             }
@@ -488,7 +304,26 @@ pub const LlamaTrainer = struct {
 
         // Check if we should do an optimizer step
         if (self.stats.micro_step >= self.config.grad_accum_steps) {
-            try self.optimizerStep();
+            try optimizer_mod.optimizerStep(
+                self.allocator,
+                self.model,
+                self.config,
+                &self.optimizer_state,
+                &self.stats,
+                self.accum_loss,
+                self.accum_correct,
+                self.accum_tokens,
+                &self.loss_history,
+            );
+            try logging_ext.maybeLog(
+                self.config,
+                &self.stats,
+                &self.logger,
+                &self.gpu_bridge,
+                &self.log_timer,
+                &self.last_log_time_ns,
+                &self.last_log_tokens,
+            );
             self.stats.micro_step = 0;
             self.accum_loss = 0;
             self.accum_correct = 0;
@@ -504,151 +339,10 @@ pub const LlamaTrainer = struct {
         };
     }
 
-    /// Perform optimizer step.
-    fn optimizerStep(self: *LlamaTrainer) !void {
-        // Compute average loss
-        const avg_loss = self.accum_loss / @as(f32, @floatFromInt(self.config.grad_accum_steps));
-        const avg_accuracy = if (self.accum_tokens > 0)
-            @as(f32, @floatFromInt(self.accum_correct)) / @as(f32, @floatFromInt(self.accum_tokens))
-        else
-            0;
-
-        // Get current learning rate
-        const lr = mod.calculateLearningRate(
-            .{
-                .learning_rate = self.config.learning_rate,
-                .learning_rate_schedule = self.config.lr_schedule,
-                .warmup_steps = self.config.warmup_steps,
-                .decay_steps = self.config.decay_steps,
-                .min_learning_rate = self.config.min_learning_rate,
-            },
-            self.stats.global_step,
-            self.config.learning_rate,
-        );
-
-        // Apply gradient clipping
-        const grad_norm = self.model.clipGradients(self.config.max_grad_norm);
-
-        // Apply optimizer update based on type
-        switch (self.config.optimizer) {
-            .sgd => {
-                // SGD with momentum
-                self.applySgdUpdate(lr);
-            },
-            .adam, .adamw => {
-                // Adam / AdamW
-                self.applyAdamUpdate(lr, self.config.optimizer == .adamw);
-            },
-        }
-
-        // Zero gradients
-        self.model.zeroGradients();
-
-        // Update stats
-        self.stats.global_step += 1;
-        self.stats.loss = avg_loss;
-        self.stats.accuracy = avg_accuracy;
-        self.stats.perplexity = @exp(avg_loss);
-        self.stats.learning_rate = lr;
-        self.stats.grad_norm = grad_norm;
-
-        // Record loss history
-        try self.loss_history.append(self.allocator, avg_loss);
-
-        try self.maybeLog();
-    }
-
-    /// Collect gradients into a flat array (same layout as collectWeights).
-    fn collectGradients(self: *LlamaTrainer) ![]f32 {
-        const n = self.model.numParams();
-        const grads = try self.allocator.alloc(f32, n);
-        errdefer self.allocator.free(grads);
-
-        var off: usize = 0;
-        const w = &self.model.weights;
-
-        @memcpy(grads[off..][0..w.d_token_embedding.len], w.d_token_embedding);
-        off += w.d_token_embedding.len;
-
-        for (w.layers) |layer| {
-            inline for (.{
-                layer.d_w_q,       layer.d_w_k,    layer.d_w_v,  layer.d_w_o,
-                layer.d_attn_norm, layer.d_w_gate, layer.d_w_up, layer.d_w_down,
-                layer.d_ffn_norm,
-            }) |slice| {
-                @memcpy(grads[off..][0..slice.len], slice);
-                off += slice.len;
-            }
-        }
-
-        @memcpy(grads[off..][0..w.d_final_norm.len], w.d_final_norm);
-        off += w.d_final_norm.len;
-
-        if (w.d_output_proj) |d_op| {
-            @memcpy(grads[off..][0..d_op.len], d_op);
-            off += d_op.len;
-        }
-
-        return grads;
-    }
-
-    /// Apply SGD update: weight -= lr * gradient
-    fn applySgdUpdate(self: *LlamaTrainer, lr: f32) void {
-        const weights = self.model.collectWeights() catch return;
-        defer self.allocator.free(weights);
-        const grads = self.collectGradients() catch return;
-        defer self.allocator.free(grads);
-
-        for (weights, grads) |*w, g| {
-            w.* -= lr * g;
-        }
-
-        self.model.distributeWeights(weights) catch return;
-    }
-
-    /// Apply Adam/AdamW update.
-    fn applyAdamUpdate(self: *LlamaTrainer, lr: f32, weight_decay: bool) void {
-        const beta1 = self.optimizer_state.beta1;
-        const beta2 = self.optimizer_state.beta2;
-        const eps = self.optimizer_state.epsilon;
-        const t = @as(f32, @floatFromInt(self.stats.global_step + 1));
-
-        const bias_correction1 = 1.0 - std.math.pow(f32, beta1, t);
-        const bias_correction2 = 1.0 - std.math.pow(f32, beta2, t);
-
-        const m = self.optimizer_state.m orelse return;
-        const v = self.optimizer_state.v orelse return;
-
-        const weights = self.model.collectWeights() catch return;
-        defer self.allocator.free(weights);
-        const grads = self.collectGradients() catch return;
-        defer self.allocator.free(grads);
-
-        const wd = self.config.weight_decay;
-
-        for (weights, grads, m, v) |*w, g, *mi, *vi| {
-            // Update biased first moment estimate
-            mi.* = beta1 * mi.* + (1.0 - beta1) * g;
-            // Update biased second raw moment estimate
-            vi.* = beta2 * vi.* + (1.0 - beta2) * g * g;
-            // Bias-corrected estimates
-            const m_hat = mi.* / bias_correction1;
-            const v_hat = vi.* / bias_correction2;
-            // AdamW: decoupled weight decay
-            if (weight_decay) {
-                w.* -= lr * wd * w.*;
-            }
-            // Parameter update
-            w.* -= lr * m_hat / (@sqrt(v_hat) + eps);
-        }
-
-        self.model.distributeWeights(weights) catch return;
-    }
-
     /// Train for one epoch.
     pub fn trainEpoch(
         self: *LlamaTrainer,
-        data: []const u32, // Flat array of token IDs
+        data: []const u32,
         num_samples: usize,
     ) !f32 {
         const tokens_per_sample = self.config.max_seq_len;
@@ -661,8 +355,6 @@ pub const LlamaTrainer = struct {
         while (offset + batch_tokens <= data.len) {
             const batch_data = data[offset .. offset + batch_tokens];
 
-            // Input: all tokens except last
-            // Labels: all tokens except first (shifted)
             const input_ids = batch_data[0 .. batch_tokens - 1];
             const labels = batch_data[1..batch_tokens];
 
@@ -687,216 +379,60 @@ pub const LlamaTrainer = struct {
 
     /// Save checkpoint.
     pub fn saveCheckpoint(self: *LlamaTrainer) !void {
-        if (self.config.checkpoint_path) |path| {
-            const weights = try self.model.collectWeights();
-            defer self.allocator.free(weights);
-
-            const m = self.optimizer_state.m orelse return error.OutOfMemory;
-            const v = self.optimizer_state.v orelse return error.OutOfMemory;
-
-            var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
-            defer io_backend.deinit();
-            const io = io_backend.io();
-            try std.Io.Dir.cwd().createDirPath(io, path);
-
-            const filename = try std.fmt.allocPrint(self.allocator, "{s}/llm_step_{d}.ckpt", .{
-                path,
-                self.stats.global_step,
-            });
-            defer self.allocator.free(filename);
-
-            try llm_checkpoint.saveLlmCheckpoint(self.allocator, filename, .{
-                .step = self.stats.global_step,
-                .epoch = self.stats.epoch,
-                .tokens_processed = self.stats.tokens_processed,
-                .weights = weights,
-                .m = m,
-                .v = v,
-            });
-
-            self.checkpoints_saved += 1;
-            std.log.info("Checkpoint saved at step {d}", .{self.stats.global_step});
-        }
+        try checkpoint_mod.saveCheckpoint(
+            self.allocator,
+            self.model,
+            self.config,
+            &self.optimizer_state,
+            &self.stats,
+            &self.checkpoints_saved,
+        );
     }
 
     /// Load checkpoint.
     pub fn loadCheckpoint(self: *LlamaTrainer, path: []const u8) !void {
-        var ckpt = try llm_checkpoint.loadLlmCheckpoint(self.allocator, path);
-        defer ckpt.deinit(self.allocator);
-
-        const expected = self.model.numParams();
-        if (ckpt.weights.len != expected or ckpt.m.len != expected or ckpt.v.len != expected) {
-            return error.ConfigMismatch;
-        }
-
-        try self.model.distributeWeights(ckpt.weights);
-
-        if (self.optimizer_state.m) |m| {
-            @memcpy(m, ckpt.m);
-        }
-        if (self.optimizer_state.v) |v| {
-            @memcpy(v, ckpt.v);
-        }
-
-        self.stats.global_step = ckpt.step;
-        self.stats.epoch = ckpt.epoch;
-        self.stats.tokens_processed = ckpt.tokens_processed;
-
-        std.log.info("Checkpoint loaded from {s} (step {d})", .{ path, ckpt.step });
+        try checkpoint_mod.loadCheckpoint(
+            self.allocator,
+            self.model,
+            &self.optimizer_state,
+            &self.stats,
+            path,
+        );
     }
 
     /// Evaluate model on validation data.
-    /// Runs in inference mode (no gradient computation).
-    /// Uses the real model forward pass to produce logits.
     pub fn evaluate(self: *LlamaTrainer, data: []const u32) !EvalResult {
-        const tokens_per_sample = self.config.max_seq_len;
-        const batch_tokens = self.config.batch_size * tokens_per_sample;
-
-        var total_loss: f32 = 0;
-        var total_correct: u64 = 0;
-        var total_tokens: u64 = 0;
-        var num_batches: u32 = 0;
-
-        // Ensure model is prepared for inference
-        if (self.model.activations == null) {
-            try self.model.prepareForTraining(@intCast(batch_tokens - 1));
-        }
-
-        var offset: usize = 0;
-        while (offset + batch_tokens < data.len) {
-            const batch_data = data[offset .. offset + batch_tokens];
-
-            // Input: all tokens except last
-            // Labels: all tokens except first (shifted)
-            const input_ids = batch_data[0 .. batch_tokens - 1];
-            const labels = batch_data[1..batch_tokens];
-
-            // Forward pass (inference only — no gradients)
-            const logits = try self.allocator.alloc(f32, (batch_tokens - 1) * self.model.config.vocab_size);
-            defer self.allocator.free(logits);
-
-            if (self.gpu_bridge) |*bridge| {
-                try self.model.forwardGpu(input_ids, logits, bridge);
-            } else {
-                try self.model.forward(input_ids, logits);
-            }
-
-            // Compute loss
-            const loss = try self.loss_fn.forward(logits, labels);
-            total_loss += loss;
-
-            // Compute accuracy (argmax prediction vs label)
-            const vocab_size = self.model.config.vocab_size;
-            for (0..batch_tokens - 1) |i| {
-                const logit_start = i * vocab_size;
-                var max_idx: u32 = 0;
-                var max_val: f32 = logits[logit_start];
-                for (1..vocab_size) |j| {
-                    if (logits[logit_start + j] > max_val) {
-                        max_val = logits[logit_start + j];
-                        max_idx = @intCast(j);
-                    }
-                }
-                if (max_idx == labels[i]) {
-                    total_correct += 1;
-                }
-                total_tokens += 1;
-            }
-
-            num_batches += 1;
-            offset += batch_tokens;
-        }
-
-        if (num_batches == 0) {
-            return EvalResult{
-                .loss = 0,
-                .perplexity = 1,
-                .accuracy = 0,
-                .num_batches = 0,
-                .total_tokens = 0,
-            };
-        }
-
-        const avg_loss = total_loss / @as(f32, @floatFromInt(num_batches));
-        const accuracy = if (total_tokens > 0)
-            @as(f32, @floatFromInt(total_correct)) / @as(f32, @floatFromInt(total_tokens))
-        else
-            0;
-
-        return EvalResult{
-            .loss = avg_loss,
-            .perplexity = @exp(avg_loss),
-            .accuracy = accuracy,
-            .num_batches = num_batches,
-            .total_tokens = total_tokens,
-        };
+        return evaluation_mod.evaluate(
+            self.allocator,
+            self.model,
+            &self.loss_fn,
+            &self.gpu_bridge,
+            self.config,
+            data,
+        );
     }
 
     /// Run validation if interval reached and data available.
-    /// Returns true if should continue training (not early stopped).
     pub fn maybeValidate(self: *LlamaTrainer, early_stop_config: EarlyStoppingConfig) !bool {
-        // Check if we should validate
-        if (self.config.eval_interval == 0 or
-            self.stats.global_step % self.config.eval_interval != 0)
-        {
-            return true;
-        }
-
-        const val_data = self.val_data orelse return true;
-
-        // Run evaluation
-        const result = try self.evaluate(val_data);
-        std.log.info("Validation: loss={d:.4} ppl={d:.2} acc={d:.2}%", .{
-            result.loss,
-            result.perplexity,
-            result.accuracy * 100,
-        });
-
-        if (self.logger) |*logger| {
-            try logger.logScalar("val/loss", result.loss, self.stats.global_step);
-            try logger.logScalar("val/perplexity", result.perplexity, self.stats.global_step);
-            try logger.logScalar("val/accuracy", result.accuracy, self.stats.global_step);
-        }
-
-        // Check early stopping
-        if (!early_stop_config.enabled) return true;
-
-        const metric = if (early_stop_config.monitor_loss) result.loss else result.perplexity;
-
-        if (metric < self.early_stopping.best_metric - early_stop_config.min_delta) {
-            // Improvement found
-            self.early_stopping.best_metric = metric;
-            self.early_stopping.patience_counter = 0;
-            self.best_val_accuracy = result.accuracy;
-
-            // Save best weights
-            if (self.best_weights) |bw| self.allocator.free(bw);
-            self.best_weights = try self.model.collectWeights();
-
-            std.log.info("New best model (metric={d:.4})", .{metric});
-        } else {
-            // No improvement
-            self.early_stopping.patience_counter += 1;
-            if (self.early_stopping.patience_counter >= early_stop_config.patience) {
-                std.log.info("Early stopping triggered (patience={d})", .{early_stop_config.patience});
-                self.early_stopping.stopped = true;
-
-                // Restore best weights
-                if (self.best_weights) |bw| {
-                    try self.model.distributeWeights(bw);
-                    std.log.info("Restored best weights", .{});
-                }
-
-                return false;
-            }
-        }
-
-        return true;
+        return evaluation_mod.maybeValidate(
+            self.allocator,
+            self.model,
+            &self.loss_fn,
+            &self.gpu_bridge,
+            self.config,
+            &self.stats,
+            self.val_data,
+            early_stop_config,
+            &self.early_stopping,
+            &self.best_val_accuracy,
+            &self.best_weights,
+            &self.logger,
+        );
     }
 
     /// Check if training was early stopped.
     pub fn wasEarlyStopped(self: *const LlamaTrainer) bool {
-        return self.early_stopping.stopped;
+        return evaluation_mod.wasEarlyStopped(&self.early_stopping);
     }
 
     /// Get current training stats.
@@ -927,59 +463,14 @@ pub const LlamaTrainer = struct {
         };
     }
 
-    fn maybeLog(self: *LlamaTrainer) !void {
-        if (self.logger == null) return;
-        if (self.config.log_interval == 0) return;
-        if (self.stats.global_step % self.config.log_interval != 0) return;
-
-        if (self.log_timer) |*timer| {
-            const now_ns = timer.read();
-            const delta_ns = now_ns - self.last_log_time_ns;
-            if (delta_ns > 0) {
-                const tokens_delta = self.stats.tokens_processed - self.last_log_tokens;
-                self.stats.throughput = @as(f32, @floatFromInt(tokens_delta)) /
-                    (@as(f32, @floatFromInt(delta_ns)) / 1e9);
-            }
-            self.last_log_time_ns = now_ns;
-            self.last_log_tokens = self.stats.tokens_processed;
-        }
-
-        var logger = &self.logger.?;
-        try logger.logScalar("train/loss", self.stats.loss, self.stats.global_step);
-        try logger.logScalar("train/accuracy", self.stats.accuracy, self.stats.global_step);
-        try logger.logScalar("train/perplexity", self.stats.perplexity, self.stats.global_step);
-        try logger.logScalar("train/learning_rate", self.stats.learning_rate, self.stats.global_step);
-        try logger.logScalar("train/grad_norm", self.stats.grad_norm, self.stats.global_step);
-        try logger.logScalar("train/throughput", self.stats.throughput, self.stats.global_step);
-
-        // Log GPU stats if bridge is active
-        try self.logGpuStats();
-    }
-
-    fn logGpuStats(self: *LlamaTrainer) !void {
-        var logger = &(self.logger orelse return);
-        const gpu_stats = self.getGpuStats();
-        if (gpu_stats.gpu_available) {
-            try logger.logScalar("gpu/utilization", gpu_stats.utilization, self.stats.global_step);
-            try logger.logScalar("gpu/kernel_time_ms", gpu_stats.avgKernelTimeMs(), self.stats.global_step);
-            try logger.logScalar("gpu/ops_count", @floatFromInt(gpu_stats.total_gpu_ops), self.stats.global_step);
-            try logger.logScalar("gpu/fallback_count", @floatFromInt(gpu_stats.cpu_fallback_ops), self.stats.global_step);
-        }
-    }
-
+    /// Finalize logging (write summary metrics).
     pub fn finalizeLogging(self: *LlamaTrainer) !void {
-        if (self.logger) |*logger| {
-            const metrics = [_]logging.Metric{
-                .{ .key = "train/final_loss", .value = self.stats.loss },
-                .{ .key = "train/final_accuracy", .value = self.stats.accuracy },
-                .{ .key = "train/final_perplexity", .value = self.stats.perplexity },
-                .{ .key = "val/best_loss", .value = self.early_stopping.best_metric },
-                .{ .key = "val/best_accuracy", .value = self.best_val_accuracy },
-                .{ .key = "train/total_steps", .value = @floatFromInt(self.stats.global_step) },
-                .{ .key = "train/total_tokens", .value = @floatFromInt(self.stats.tokens_processed) },
-            };
-            try logger.writeSummary(&metrics);
-        }
+        try logging_ext.finalizeLogging(
+            &self.logger,
+            &self.stats,
+            &self.early_stopping,
+            self.best_val_accuracy,
+        );
     }
 
     /// Train for one epoch with validation and early stopping.
@@ -1090,13 +581,6 @@ pub fn trainLlmWithValidation(
     return trainer.getReport();
 }
 
-pub const TrainerError = error{
-    InvalidConfiguration,
-    TimerFailed,
-    CheckpointFailed,
-    OutOfMemory,
-};
-
 test "llm training config validation" {
     const valid_config = LlmTrainingConfig{
         .epochs = 1,
@@ -1142,5 +626,11 @@ test "llama trainer init" {
 }
 
 test {
+    // Ensure sub-modules are analyzed
+    _ = types;
+    _ = optimizer_mod;
+    _ = checkpoint_mod;
+    _ = evaluation_mod;
+    _ = logging_ext;
     std.testing.refAllDecls(@This());
 }
