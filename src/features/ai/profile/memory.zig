@@ -28,6 +28,7 @@ const ProfileTag = block_chain.ProfileTag;
 const RoutingWeights = block_chain.RoutingWeights;
 const IntentCategory = block_chain.IntentCategory;
 const PolicyFlags = block_chain.PolicyFlags;
+const pipeline_types = @import("../pipeline/types.zig");
 
 /// Conversation memory backed by WDBX block chaining.
 /// Stores each interaction as a cryptographically chained block with
@@ -158,6 +159,12 @@ pub const ConversationMemory = struct {
     /// Useful for attaching to pipeline builders.
     pub fn getChainMut(self: *Self) *BlockChain {
         return &self.chain;
+    }
+
+    /// Convenience for pipeline DSL: returns a store StepConfig wrapping
+    /// this memory's chain. Use with `builder.withChain(mem.getChainMut())`.
+    pub fn asStoreStep(_: *const Self) pipeline_types.StoreConfig {
+        return .{ .target = .wdbx };
     }
 
     pub fn deinit(self: *Self) void {

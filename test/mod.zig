@@ -52,6 +52,7 @@ const agents_tests = @import("integration/agents_test.zig");
 const secrets_tests = @import("integration/secrets_test.zig");
 const pitr_tests = @import("integration/pitr_test.zig");
 const orchestration_tests = @import("integration/orchestration_test.zig");
+const tasks_tests = @import("integration/tasks_test.zig");
 const inference_async_tests = @import("integration/inference_async_test.zig");
 const inference_e2e_tests = @import("integration/inference_e2e_test.zig");
 

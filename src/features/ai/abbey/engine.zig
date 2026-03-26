@@ -10,6 +10,7 @@
 //! This is the main entry point for Abbey interactions.
 
 const std = @import("std");
+const build_options = @import("build_options");
 const core_types = @import("../types.zig");
 const core_config = @import("../core/config.zig");
 const memory_mod = @import("memory/mod.zig");
@@ -20,6 +21,7 @@ const reasoning = @import("reasoning.zig");
 const emotions = @import("emotions.zig");
 const context = @import("context.zig");
 const prompts = @import("../prompts/mod.zig");
+const pipeline_mod = if (build_options.feat_reasoning) @import("../pipeline/mod.zig") else @import("../pipeline/stub.zig");
 
 // ============================================================================
 // Abbey Engine
@@ -53,6 +55,9 @@ pub const AbbeyEngine = struct {
 
     // Online learning
     learner: ?neural.OnlineLearner = null,
+
+    // Optional pipeline DSL — when attached, process() delegates to it
+    pipeline: ?*pipeline_mod.Pipeline = null,
 
     const Self = @This();
 
@@ -125,6 +130,22 @@ pub const AbbeyEngine = struct {
     }
 
     // ========================================================================
+    // Pipeline DSL Integration
+    // ========================================================================
+
+    /// Attach a pipeline for process() delegation. When attached, process()
+    /// routes through the pipeline DSL instead of the manual step sequence.
+    /// The caller retains ownership of the Pipeline.
+    pub fn attachPipeline(self: *Self, p: *pipeline_mod.Pipeline) void {
+        self.pipeline = p;
+    }
+
+    /// Remove pipeline delegation, reverting to manual processing.
+    pub fn detachPipeline(self: *Self) void {
+        self.pipeline = null;
+    }
+
+    // ========================================================================
     // Conversation Management
     // ========================================================================
 
@@ -171,8 +192,38 @@ pub const AbbeyEngine = struct {
     // Main Processing Pipeline
     // ========================================================================
 
-    /// Process a user message and generate a response
+    /// Process a user message and generate a response.
+    /// When a pipeline is attached via `attachPipeline()`, delegates to
+    /// the pipeline DSL. Otherwise uses the manual step sequence.
     pub fn process(self: *Self, user_input: []const u8) !Response {
+        // Delegate to pipeline if attached
+        if (self.pipeline) |p| {
+            const result = p.run(user_input) catch |err| switch (err) {
+                error.FeatureDisabled => return self.processManual(user_input),
+                else => return err,
+            };
+            var result_mut = result;
+            defer result_mut.deinit();
+
+            return Response{
+                .content = if (result.response) |r|
+                    try self.allocator.dupe(u8, r)
+                else
+                    try self.allocator.dupe(u8, "[Pipeline produced no response]"),
+                .confidence = if (result.validation_passed) .{ .level = .high, .score = 0.9 } else .{ .level = .medium, .score = 0.5 },
+                .emotional_context = self.emotional_state,
+                .reasoning_summary = null,
+                .topics = &.{},
+                .research_performed = false,
+                .generation_time_ms = @intCast(result.elapsed_ms),
+            };
+        }
+
+        return self.processManual(user_input);
+    }
+
+    /// Manual processing pipeline (original implementation).
+    fn processManual(self: *Self, user_input: []const u8) !Response {
         const start_time = core_types.getTimestampMs();
 
         // Ensure conversation is active

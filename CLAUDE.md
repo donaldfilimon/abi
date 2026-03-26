@@ -72,16 +72,36 @@ zig build fix                      # Auto-format in place
 zig build check-parity             # Verify mod/stub declaration parity
 zig build feature-tests            # Run feature integration and parity tests
 zig build mcp-tests                # Run MCP integration tests
-zig build messaging-tests          # Run messaging unit + integration tests
-zig build secrets-tests            # Run secrets unit + integration tests
-zig build pitr-tests               # Run PITR unit + integration tests
-zig build agents-tests             # Run agents unit + integration tests
-zig build multi-agent-tests        # Run multi-agent unit + integration tests
-zig build orchestration-tests      # Run orchestration unit + integration tests
-zig build gateway-tests            # Run gateway unit + integration tests
-zig build inference-tests          # Run inference unit + integration tests
 zig build cli-tests                # Run CLI tests
 zig build tui-tests                # Run TUI tests
+# Focused feature test lanes (27 total — each runs unit + integration tests):
+zig build acp-tests                # ACP protocol tests
+zig build agents-tests             # Agents tests
+zig build auth-tests               # Auth tests
+zig build cache-tests              # Cache tests
+zig build cloud-tests              # Cloud tests
+zig build compute-tests            # Compute tests
+zig build connectors-tests         # Connectors tests
+zig build database-tests           # Database tests
+zig build desktop-tests            # Desktop tests
+zig build documents-tests          # Documents tests
+zig build gateway-tests            # Gateway tests
+zig build gpu-tests                # GPU tests
+zig build ha-tests                 # HA protocol tests
+zig build inference-tests          # Inference tests
+zig build lsp-tests                # LSP protocol tests
+zig build messaging-tests          # Messaging tests
+zig build multi-agent-tests        # Multi-agent tests
+zig build network-tests            # Network tests
+zig build observability-tests      # Observability tests
+zig build orchestration-tests      # Orchestration tests
+zig build pipeline-tests           # Pipeline DSL tests
+zig build pitr-tests               # PITR tests
+zig build search-tests             # Search tests
+zig build secrets-tests            # Secrets tests
+zig build storage-tests            # Storage tests
+zig build tasks-tests              # Tasks tests
+zig build web-tests                # Web tests
 zig build typecheck                # Compile-only validation for the current/selected target
 zig build validate-flags           # Validate feature flags
 zig build full-check               # Run full check
@@ -144,7 +164,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 - `build/flags.zig` — `FeatureFlags` struct, `hasBackend()`, `addAllBuildOptions()`
 - `build/cross.zig` — cross-compilation targets (typecheck, cross-check steps)
 - `build/linking.zig` — `linkDarwinArtifact()` for macOS framework linking
-- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring. Uses `addFeatureTestLane()` helper for feature-specific test steps (messaging, secrets, pitr, agents, multi_agent, orchestration, gateway, inference)
+- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring. Uses `addFeatureTestLane()` helper for all 26 feature-specific test steps
 
 ## Architecture
 
@@ -195,6 +215,7 @@ The `ai` feature (`src/features/ai/`) contains 33+ sub-directories organized by 
 - **Agents:** `agents/`, `tools/`, `multi_agent/`, `coordination/`, `orchestration/`
 - **Learning:** `training/`, `memory/`, `federated/`
 - **Support:** `templates/`, `prompts/`, `documents/`, `profiles/`, `context_engine/`
+- **Pipeline:** `pipeline/` (composable prompt DSL with WDBX-backed steps)
 - **Standalone:** `modulation.zig` (EMA preference learning), `self_improve.zig`, `profile/` (router pipeline)
 
 ### Convenience Aliases in root.zig
@@ -244,7 +265,7 @@ To add a new integration test:
 
 #### Focused Test Lanes
 
-Eight `src/*_mod_test.zig` files (agents, gateway, inference, messaging, multi_agent, orchestration, pitr, secrets) are **test anchor** files. (Note: `multi_agent` lane was wired in `build/validation.zig` — create the anchor files if missing.) They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
+26 `src/*_mod_test.zig` files (acp, agents, auth, cache, cloud, compute, connectors, database, desktop, documents, gateway, gpu, ha, inference, lsp, messaging, multi_agent, network, observability, orchestration, pitr, search, secrets, storage, tasks, web) are **test anchor** files. They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
 
 `build/validation.zig` wires each pair into a focused build step via `addModuleTests()` (unit, from `src/`) and `addIntegrationTests()` (integration, from `test/`). Both are combined under a single step like `zig build messaging-tests`.
 
@@ -273,6 +294,28 @@ User Input → Abi Analysis (sentiment + policy + rules)
 ```
 
 Key files: `profile/router.zig` (orchestration), `profile/memory.zig` (WDBX storage), `abi/mod.zig` (routing), `modulation.zig` (preference learning), `constitution/mod.zig` (ethical enforcement).
+
+### Abbey Dynamic Model (Pipeline DSL)
+
+The pipeline DSL (`src/features/ai/pipeline/`) provides a composable, chainable alternative to the procedural router pipeline. Each step is a typed operation backed by WDBX blocks:
+```zig
+var builder = abi.ai.pipeline.chain(allocator, "session-123");
+var p = builder
+    .withChain(&wdbx_chain)
+    .retrieve(.wdbx, .{ .k = 5 })
+    .template("Given {context}, respond to: {input}")
+    .route(.adaptive)
+    .modulate()
+    .generate(.{})
+    .validate(.constitution)
+    .store(.wdbx)
+    .build();
+const result = try p.run("Hello Abbey!");
+```
+
+Key files: `pipeline/mod.zig` (entry), `pipeline/builder.zig` (DSL), `pipeline/executor.zig` (runner), `pipeline/context.zig` (state), `pipeline/persistence.zig` (WDBX adapter), `pipeline/steps/` (10 step implementations). Gated by `feat_reasoning`. Focused test lane: `zig build pipeline-tests`.
+
+The router also exposes `routeAndExecutePipeline()` which builds the standard pipeline and runs it. `AdaptiveModulator.attachWdbx()` enables write-behind persistence of modulation state to WDBX.
 
 ### ACP HTTP Server
 
@@ -358,6 +401,24 @@ The repository includes 8 specialized agents in `.claude/agents/`:
 - **abbey-aviva-abi-architect** — Multi-persona AI pipeline expert (profile routing, persona modulation, constitution validation, WDBX memory)
 
 Invoke these agents via the `Agent` tool with `subagent_type: "<agent-name>"`.
+
+## Available Skills
+
+The repository includes 4 skills in `.claude/skills/`:
+
+- **lessons-review** — Reviews `tasks/lessons.md` for recurring pitfalls before starting work (Zig 0.16 API changes, mod/stub parity, macOS linker, thread safety)
+- **stub-audit** — Verifies AI sub-feature stubs match their `mod.zig` public API and use `stub_helpers.zig` appropriately
+- **cross-check** — Runs cross-compilation verification for linux, wasi, x86_64 targets; validates comptime feature gating
+- **baseline-sync** — Tracks test pass/skip counts from test runs and reports drift from previous baselines
+
+## Code Style
+
+- Functions and variables: `camelCase`
+- Types and structs: `PascalCase`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Enum variants: `snake_case`
+- Doc comments (`///`) on public API only — not on internal helpers
+- GPU backends use a VTable pattern for backend-agnostic dispatch (see `src/features/gpu/`)
 
 ## Skill Overrides
 

@@ -70,6 +70,9 @@ pub const GenerateConfig = struct {
     mode: GenerateMode = .blocking,
     max_tokens: ?u32 = null,
     temperature: ?f32 = null,
+    /// Opaque pointer to a `ClientWrapper` for LLM inference.
+    /// When null, falls back to demo echo mode.
+    llm_client: ?*anyopaque = null,
 };
 
 /// Validation target.

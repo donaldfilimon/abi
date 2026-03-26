@@ -1,17 +1,24 @@
 //! Route Step — Profile routing decision.
 //!
-//! Uses heuristic keyword matching to determine which profile
-//! (Abbey/Aviva/Abi) should handle the request. Sets routing_weights
-//! and primary_profile on the PipelineContext.
+//! Determines which profile (Abbey/Aviva/Abi) should handle the request
+//! using heuristic keyword matching. Each profile has a set of trigger
+//! keywords; matches increase that profile's weight. Weights are normalized
+//! to sum to 1.0, and the highest-weight profile becomes `primary_profile`.
+//!
+//! Routing strategies (from `RouteConfig.strategy`):
+//! - `.heuristic` / `.adaptive` — keyword scoring (current implementation)
+//! - `.abi_backed` — reserved for Abi-driven routing via the real router
 
 const std = @import("std");
 const types = @import("../types.zig");
 const ctx_mod = @import("../context.zig");
 const PipelineContext = ctx_mod.PipelineContext;
 
-/// Heuristic keyword sets for profile routing.
+/// Abbey: empathetic, conversational, emotionally aware.
 const abbey_keywords = [_][]const u8{ "feel", "think", "opinion", "help me", "explain", "understand", "why" };
+/// Aviva: technical, precise, code-focused.
 const aviva_keywords = [_][]const u8{ "code", "function", "implement", "debug", "error", "compile", "api", "syntax" };
+/// Abi: compliance, policy, safety-oriented.
 const abi_keywords = [_][]const u8{ "policy", "privacy", "comply", "regulate", "moderate", "safe", "filter" };
 
 pub fn execute(pctx: *PipelineContext, _: types.RouteConfig) !void {
@@ -19,43 +26,43 @@ pub fn execute(pctx: *PipelineContext, _: types.RouteConfig) !void {
     const lower = try toLower(pctx.allocator, text);
     defer pctx.allocator.free(lower);
 
-    var abbey_score: f32 = 0.33;
-    var aviva_score: f32 = 0.33;
-    var abi_score: f32 = 0.34;
+    var scores = [3]f32{ 0.33, 0.33, 0.34 }; // abbey, aviva, abi
 
-    // Score based on keyword matches
-    for (abbey_keywords) |kw| {
-        if (std.mem.indexOf(u8, lower, kw) != null) abbey_score += 0.15;
-    }
-    for (aviva_keywords) |kw| {
-        if (std.mem.indexOf(u8, lower, kw) != null) aviva_score += 0.15;
-    }
-    for (abi_keywords) |kw| {
-        if (std.mem.indexOf(u8, lower, kw) != null) abi_score += 0.15;
-    }
+    scores[0] += scoreKeywords(lower, &abbey_keywords);
+    scores[1] += scoreKeywords(lower, &aviva_keywords);
+    scores[2] += scoreKeywords(lower, &abi_keywords);
 
     // Normalize to sum = 1.0
-    const total = abbey_score + aviva_score + abi_score;
+    const total = scores[0] + scores[1] + scores[2];
     if (total > 0) {
-        abbey_score /= total;
-        aviva_score /= total;
-        abi_score /= total;
+        scores[0] /= total;
+        scores[1] /= total;
+        scores[2] /= total;
     }
 
     pctx.routing_weights = .{
-        .abbey_weight = abbey_score,
-        .aviva_weight = aviva_score,
-        .abi_weight = abi_score,
+        .abbey_weight = scores[0],
+        .aviva_weight = scores[1],
+        .abi_weight = scores[2],
     };
 
-    // Determine primary profile
-    if (abbey_score >= aviva_score and abbey_score >= abi_score) {
-        pctx.primary_profile = .abbey;
-    } else if (aviva_score >= abbey_score and aviva_score >= abi_score) {
-        pctx.primary_profile = .aviva;
-    } else {
-        pctx.primary_profile = .abi;
+    pctx.primary_profile = getPrimaryProfile(scores);
+}
+
+/// Returns the profile tag for the highest-scoring profile.
+fn getPrimaryProfile(scores: [3]f32) types.ProfileTag.ProfileType {
+    if (scores[0] >= scores[1] and scores[0] >= scores[2]) return .abbey;
+    if (scores[1] >= scores[0] and scores[1] >= scores[2]) return .aviva;
+    return .abi;
+}
+
+/// Counts keyword matches and returns a weighted score.
+fn scoreKeywords(text: []const u8, keywords: []const []const u8) f32 {
+    var score: f32 = 0;
+    for (keywords) |kw| {
+        if (std.mem.indexOf(u8, text, kw) != null) score += 0.15;
     }
+    return score;
 }
 
 fn toLower(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
