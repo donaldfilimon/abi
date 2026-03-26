@@ -195,6 +195,8 @@ pub const DiscordBotConfig = discord_bot.DiscordBotConfig;
 pub const DiscordBotError = discord_bot.DiscordBotError;
 pub const SessionManager = discord_bot.SessionManager;
 pub const BotStats = discord_bot.BotStats;
+pub const GatewayBridge = discord_bot.GatewayBridge;
+pub const GatewayStats = discord_bot.GatewayStats;
 pub const AbbeyCommands = discord_bot.AbbeyCommands;
 
 // ============================================================================

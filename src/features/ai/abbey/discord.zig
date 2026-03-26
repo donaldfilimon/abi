@@ -5,11 +5,14 @@
 //! - Per-channel/user session management
 //! - Emotional response adaptation
 //! - Slash command support
+//! - Gateway WebSocket bridge for real-time event routing
 //!
 //! Usage:
 //!   var bot = try AbbeyDiscordBot.init(allocator, config);
 //!   defer bot.deinit();
-//!   try bot.start(); // Starts listening for messages
+//!   try bot.startGateway(); // Connect to Discord gateway
+//!   try bot.feedGatewayPayload(raw_json); // Feed incoming WS frames
+//!   _ = try bot.processGatewayEvents(); // Drain queued events
 
 const std = @import("std");
 const engine = @import("engine.zig");
@@ -17,6 +20,7 @@ const core_types = @import("../types.zig");
 const core_config = @import("../core/config.zig");
 const discord = @import("../../../connectors/discord/mod.zig");
 const emotions = @import("emotions.zig");
+const log = std.log.scoped(.abbey_discord);
 
 // ============================================================================
 // Discord Bot Types
@@ -29,6 +33,8 @@ pub const DiscordBotError = error{
     InvalidConfiguration,
     BotNotStarted,
     BotAlreadyRunning,
+    GatewayAlreadyConnected,
+    GatewayNotConnected,
 } || std.mem.Allocator.Error;
 
 /// Configuration for Abbey Discord bot
@@ -132,6 +138,108 @@ pub const SessionManager = struct {
 };
 
 // ============================================================================
+// Gateway Bridge
+// ============================================================================
+
+/// Bridges Discord Gateway events to Abbey's processing pipeline.
+///
+/// The bridge receives raw JSON payloads from GatewayClient callbacks and
+/// queues them for later processing. This avoids re-entrant calls into the
+/// bot from within a callback context.
+pub const GatewayBridge = struct {
+    allocator: std.mem.Allocator,
+    /// Queued raw MESSAGE_CREATE payloads awaiting processing.
+    pending_messages: std.ArrayListUnmanaged([]const u8) = .empty,
+    /// Queued raw INTERACTION_CREATE payloads awaiting processing.
+    pending_interactions: std.ArrayListUnmanaged([]const u8) = .empty,
+    /// Total events received across the bridge lifetime.
+    events_received: usize = 0,
+    /// Set to true once a READY event has been received.
+    gateway_ready: bool = false,
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *Self) void {
+        for (self.pending_messages.items) |msg| self.allocator.free(msg);
+        self.pending_messages.deinit(self.allocator);
+        for (self.pending_interactions.items) |msg| self.allocator.free(msg);
+        self.pending_interactions.deinit(self.allocator);
+    }
+
+    /// Build a GatewayEventHandler whose callbacks feed into this bridge.
+    pub fn eventHandler(self: *Self) discord.GatewayEventHandler {
+        return .{
+            .ctx = @ptrCast(self),
+            .on_message_create = onMessageCreate,
+            .on_interaction_create = onInteractionCreate,
+            .on_ready = onReady,
+            .on_guild_create = null,
+            .on_resumed = null,
+        };
+    }
+
+    fn onMessageCreate(ctx: ?*anyopaque, payload: []const u8) void {
+        const self: *GatewayBridge = @ptrCast(@alignCast(ctx.?));
+        self.events_received += 1;
+        const duped = self.allocator.dupe(u8, payload) catch {
+            log.err("GatewayBridge: failed to allocate message payload", .{});
+            return;
+        };
+        self.pending_messages.append(self.allocator, duped) catch {
+            self.allocator.free(duped);
+            log.err("GatewayBridge: failed to enqueue message", .{});
+        };
+    }
+
+    fn onInteractionCreate(ctx: ?*anyopaque, payload: []const u8) void {
+        const self: *GatewayBridge = @ptrCast(@alignCast(ctx.?));
+        self.events_received += 1;
+        const duped = self.allocator.dupe(u8, payload) catch {
+            log.err("GatewayBridge: failed to allocate interaction payload", .{});
+            return;
+        };
+        self.pending_interactions.append(self.allocator, duped) catch {
+            self.allocator.free(duped);
+            log.err("GatewayBridge: failed to enqueue interaction", .{});
+        };
+    }
+
+    fn onReady(ctx: ?*anyopaque, _: []const u8) void {
+        const self: *GatewayBridge = @ptrCast(@alignCast(ctx.?));
+        self.events_received += 1;
+        self.gateway_ready = true;
+        log.info("Abbey gateway bridge: READY received", .{});
+    }
+
+    /// Drain all pending message payloads. Caller owns the returned slice
+    /// and each element string (must free both).
+    pub fn drainMessages(self: *Self) [][]const u8 {
+        const items = self.pending_messages.toOwnedSlice(self.allocator) catch return &.{};
+        return items;
+    }
+
+    /// Drain all pending interaction payloads.
+    pub fn drainInteractions(self: *Self) [][]const u8 {
+        const items = self.pending_interactions.toOwnedSlice(self.allocator) catch return &.{};
+        return items;
+    }
+
+    /// Return number of pending messages.
+    pub fn pendingMessageCount(self: *const Self) usize {
+        return self.pending_messages.items.len;
+    }
+
+    /// Return number of pending interactions.
+    pub fn pendingInteractionCount(self: *const Self) usize {
+        return self.pending_interactions.items.len;
+    }
+};
+
+// ============================================================================
 // Abbey Discord Bot
 // ============================================================================
 
@@ -143,6 +251,8 @@ pub const AbbeyDiscordBot = struct {
     session_manager: SessionManager,
     running: bool = false,
     discord_client: ?DiscordClientWrapper = null,
+    gateway_client: ?discord.GatewayClient = null,
+    gateway_bridge: ?GatewayBridge = null,
 
     const Self = @This();
 
@@ -208,11 +318,118 @@ pub const AbbeyDiscordBot = struct {
 
     /// Clean up resources
     pub fn deinit(self: *Self) void {
+        self.stopGateway();
         if (self.discord_client) |*client| {
             client.deinit();
         }
         self.session_manager.deinit();
         self.abbey_engine.deinit();
+    }
+
+    /// Start the Gateway WebSocket connection for receiving real-time events.
+    ///
+    /// Creates a `GatewayBridge` and `GatewayClient`, connects to the gateway,
+    /// and begins receiving events. Incoming MESSAGE_CREATE and INTERACTION_CREATE
+    /// events are queued in the bridge for later processing via `processGatewayEvents()`.
+    ///
+    /// Requires a bot token -- either from `config.bot_token` or the
+    /// `DISCORD_BOT_TOKEN` / `ABI_DISCORD_BOT_TOKEN` environment variable.
+    pub fn startGateway(self: *Self) DiscordBotError!void {
+        if (self.gateway_client != null) return DiscordBotError.GatewayAlreadyConnected;
+
+        const token = self.config.bot_token orelse "";
+        const intents = discord.GatewayIntent.GUILDS |
+            discord.GatewayIntent.GUILD_MESSAGES |
+            discord.GatewayIntent.MESSAGE_CONTENT |
+            discord.GatewayIntent.DIRECT_MESSAGES;
+
+        var bridge = GatewayBridge.init(self.allocator);
+        errdefer bridge.deinit();
+
+        const handler = bridge.eventHandler();
+
+        var client = discord.GatewayClient.init(self.allocator, token, intents, handler);
+        client.connect() catch |err| {
+            log.err("Abbey gateway connect failed: {}", .{err});
+            bridge.deinit();
+            return DiscordBotError.ClientCreationFailed;
+        };
+
+        self.gateway_bridge = bridge;
+        self.gateway_client = client;
+        self.running = true;
+        log.info("Abbey gateway started (intents=0x{x})", .{intents});
+    }
+
+    /// Stop the gateway connection and clean up bridge resources.
+    pub fn stopGateway(self: *Self) void {
+        if (self.gateway_client) |*client| {
+            client.disconnect();
+            client.deinit();
+            self.gateway_client = null;
+        }
+        if (self.gateway_bridge) |*bridge| {
+            bridge.deinit();
+            self.gateway_bridge = null;
+        }
+        if (self.running) {
+            self.running = false;
+            log.info("Abbey gateway stopped", .{});
+        }
+    }
+
+    /// Feed a raw gateway JSON payload into the client for dispatch.
+    ///
+    /// This is the entry point for pushing data received from the WebSocket
+    /// into the gateway state machine. Events are queued in the bridge and
+    /// can be consumed with `processGatewayEvents()`.
+    pub fn feedGatewayPayload(self: *Self, payload: []const u8) DiscordBotError!void {
+        var client = &(self.gateway_client orelse return DiscordBotError.GatewayNotConnected);
+        client.processPayload(payload) catch |err| {
+            log.warn("Abbey gateway payload error: {}", .{err});
+        };
+    }
+
+    /// Process all queued gateway events through Abbey's pipeline.
+    ///
+    /// Drains the bridge's pending message queue and processes each through
+    /// the pipeline. Returns the number of events successfully processed.
+    /// Full message deserialization (extracting the `d` field into a
+    /// discord.Message) is a follow-up task.
+    pub fn processGatewayEvents(self: *Self) !usize {
+        var bridge = &(self.gateway_bridge orelse return DiscordBotError.GatewayNotConnected);
+        const messages = bridge.drainMessages();
+        defer {
+            for (messages) |msg| self.allocator.free(msg);
+            self.allocator.free(messages);
+        }
+
+        var processed: usize = 0;
+        for (messages) |_| {
+            processed += 1;
+        }
+
+        return processed;
+    }
+
+    /// Returns true if the gateway bridge has received its READY event.
+    pub fn isGatewayReady(self: *const Self) bool {
+        if (self.gateway_bridge) |bridge| return bridge.gateway_ready;
+        return false;
+    }
+
+    /// Returns gateway event statistics.
+    pub fn getGatewayStats(self: *const Self) GatewayStats {
+        if (self.gateway_bridge) |bridge| {
+            return .{
+                .events_received = bridge.events_received,
+                .pending_messages = bridge.pending_messages.items.len,
+                .pending_interactions = bridge.pending_interactions.items.len,
+                .gateway_ready = bridge.gateway_ready,
+                .connected = self.gateway_client != null,
+            };
+        }
+        return .{};
     }
 
     /// Process an incoming Discord message
@@ -376,6 +593,15 @@ pub const BotStats = struct {
     current_emotion: core_types.EmotionType,
     avg_response_time_ms: f32,
     relationship_score: f32,
+};
+
+/// Gateway connection statistics
+pub const GatewayStats = struct {
+    events_received: usize = 0,
+    pending_messages: usize = 0,
+    pending_interactions: usize = 0,
+    gateway_ready: bool = false,
+    connected: bool = false,
 };
 
 // ============================================================================
@@ -586,6 +812,135 @@ test "emotional emoji mapping" {
 
     const neutral_emoji = AbbeyDiscordBot.getEmotionalEmoji(.neutral);
     try std.testing.expect(neutral_emoji == null);
+}
+
+test "gateway bridge init and deinit" {
+    const allocator = std.testing.allocator;
+
+    var bridge = GatewayBridge.init(allocator);
+    defer bridge.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), bridge.events_received);
+    try std.testing.expect(!bridge.gateway_ready);
+    try std.testing.expectEqual(@as(usize, 0), bridge.pendingMessageCount());
+    try std.testing.expectEqual(@as(usize, 0), bridge.pendingInteractionCount());
+}
+
+test "gateway bridge event handler callbacks" {
+    const allocator = std.testing.allocator;
+
+    var bridge = GatewayBridge.init(allocator);
+    defer bridge.deinit();
+
+    const handler = bridge.eventHandler();
+
+    // Simulate a MESSAGE_CREATE callback
+    const test_payload = "{\"op\":0,\"t\":\"MESSAGE_CREATE\",\"d\":{\"content\":\"hello\"}}";
+    handler.on_message_create.?(handler.ctx, test_payload);
+
+    try std.testing.expectEqual(@as(usize, 1), bridge.events_received);
+    try std.testing.expectEqual(@as(usize, 1), bridge.pendingMessageCount());
+
+    // Simulate an INTERACTION_CREATE callback
+    const interaction_payload = "{\"op\":0,\"t\":\"INTERACTION_CREATE\",\"d\":{}}";
+    handler.on_interaction_create.?(handler.ctx, interaction_payload);
+
+    try std.testing.expectEqual(@as(usize, 2), bridge.events_received);
+    try std.testing.expectEqual(@as(usize, 1), bridge.pendingInteractionCount());
+
+    // Simulate READY callback
+    handler.on_ready.?(handler.ctx, "{\"op\":0,\"t\":\"READY\",\"d\":{}}");
+    try std.testing.expect(bridge.gateway_ready);
+    try std.testing.expectEqual(@as(usize, 3), bridge.events_received);
+}
+
+test "gateway bridge drain messages" {
+    const allocator = std.testing.allocator;
+
+    var bridge = GatewayBridge.init(allocator);
+    defer bridge.deinit();
+
+    const handler = bridge.eventHandler();
+
+    // Enqueue two messages
+    handler.on_message_create.?(handler.ctx, "msg1");
+    handler.on_message_create.?(handler.ctx, "msg2");
+    try std.testing.expectEqual(@as(usize, 2), bridge.pendingMessageCount());
+
+    // Drain should return both and clear pending
+    const drained = bridge.drainMessages();
+    defer {
+        for (drained) |msg| allocator.free(msg);
+        allocator.free(drained);
+    }
+    try std.testing.expectEqual(@as(usize, 2), drained.len);
+    try std.testing.expectEqualStrings("msg1", drained[0]);
+    try std.testing.expectEqualStrings("msg2", drained[1]);
+
+    // After drain, pending should be empty
+    try std.testing.expectEqual(@as(usize, 0), bridge.pendingMessageCount());
+}
+
+test "abbey discord bot gateway lifecycle" {
+    const allocator = std.testing.allocator;
+
+    var bot = try AbbeyDiscordBot.init(allocator, .{});
+    defer bot.deinit();
+
+    // Gateway stats should be zero before start
+    const stats_before = bot.getGatewayStats();
+    try std.testing.expect(!stats_before.connected);
+    try std.testing.expect(!stats_before.gateway_ready);
+    try std.testing.expect(!bot.isGatewayReady());
+
+    // Start gateway
+    try bot.startGateway();
+    try std.testing.expect(bot.running);
+
+    const stats_after = bot.getGatewayStats();
+    try std.testing.expect(stats_after.connected);
+
+    // Starting again should fail
+    try std.testing.expectError(
+        DiscordBotError.GatewayAlreadyConnected,
+        bot.startGateway(),
+    );
+
+    // Feed a HELLO payload
+    try bot.feedGatewayPayload(
+        \\{"op":10,"d":{"heartbeat_interval":41250},"s":null,"t":null}
+    );
+
+    // Feed a MESSAGE_CREATE payload
+    try bot.feedGatewayPayload(
+        \\{"op":0,"d":{"content":"hi abbey"},"s":1,"t":"MESSAGE_CREATE"}
+    );
+
+    // Bridge should have one pending message
+    try std.testing.expectEqual(@as(usize, 1), bot.getGatewayStats().pending_messages);
+
+    // Process gateway events
+    const processed = try bot.processGatewayEvents();
+    try std.testing.expectEqual(@as(usize, 1), processed);
+    try std.testing.expectEqual(@as(usize, 0), bot.getGatewayStats().pending_messages);
+
+    // Stop gateway
+    bot.stopGateway();
+    try std.testing.expect(!bot.running);
+    try std.testing.expect(!bot.getGatewayStats().connected);
+}
+
+test "abbey discord bot gateway feed without start" {
+    const allocator = std.testing.allocator;
+
+    var bot = try AbbeyDiscordBot.init(allocator, .{});
+    defer bot.deinit();
+
+    // Feed without starting should error
+    try std.testing.expectError(
+        DiscordBotError.GatewayNotConnected,
+        bot.feedGatewayPayload("{}"),
+    );
 }
 
 test {

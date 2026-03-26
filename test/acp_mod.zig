@@ -5,6 +5,7 @@ const abi = @import("abi");
 const build_options = @import("build_options");
 
 const acp_tests = @import("integration/acp_test.zig");
+const acp_openapi_tests = @import("integration/acp_openapi_test.zig");
 
 test {
     _ = abi;

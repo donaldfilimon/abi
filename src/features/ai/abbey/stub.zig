@@ -127,6 +127,8 @@ pub const discord_bot = struct {
     pub const DiscordBotError = error{FeatureDisabled};
     pub const SessionManager = struct {};
     pub const BotStats = struct {};
+    pub const GatewayBridge = struct {};
+    pub const GatewayStats = struct {};
     pub const AbbeyCommands = struct {};
 };
 
@@ -268,6 +270,8 @@ pub const DiscordBotConfig = discord_bot.DiscordBotConfig;
 pub const DiscordBotError = discord_bot.DiscordBotError;
 pub const SessionManager = discord_bot.SessionManager;
 pub const BotStats = discord_bot.BotStats;
+pub const GatewayBridge = discord_bot.GatewayBridge;
+pub const GatewayStats = discord_bot.GatewayStats;
 pub const AbbeyCommands = discord_bot.AbbeyCommands;
 pub const TaskProfile = abbey_types.TaskProfile;
 pub const TaskDomain = abbey_types.TaskDomain;

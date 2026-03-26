@@ -16,6 +16,20 @@ pub const TransitionError = types.TransitionError;
 // =============================================================================
 
 pub const server = struct {};
+pub const openapi = struct {
+    pub const ROUTE_TABLE = [0]struct {
+        method: enum { GET, POST },
+        path: []const u8,
+        summary: []const u8,
+        tag: []const u8,
+    }{};
+
+    pub fn generate(allocator: std.mem.Allocator, card: AgentCard) error{ FeatureDisabled, OutOfMemory }![]u8 {
+        _ = allocator;
+        _ = card;
+        return error.FeatureDisabled;
+    }
+};
 
 // =============================================================================
 // Error sets

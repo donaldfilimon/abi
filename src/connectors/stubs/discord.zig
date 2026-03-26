@@ -16,28 +16,39 @@ pub const DiscordError = error{
 pub const Snowflake = []const u8;
 
 // Minimal stub types for code that references them through the connector.
+// Fields must match the real types for any field accessed by route handlers
+// (discord_routes.zig serializers use anytype and access fields directly).
 
 pub const Message = struct {
     id: Snowflake = "0",
     channel_id: Snowflake = "0",
     content: []const u8 = "",
-    author: ?User = null,
+    timestamp: []const u8 = "",
+    author: User = .{},
 };
 
 pub const Channel = struct {
     id: Snowflake = "0",
+    channel_type: u8 = 0,
+    guild_id: ?Snowflake = null,
     name: ?[]const u8 = null,
+    topic: ?[]const u8 = null,
 };
 
 pub const Guild = struct {
     id: Snowflake = "0",
     name: []const u8 = "",
+    icon: ?[]const u8 = null,
+    owner_id: Snowflake = "0",
+    approximate_member_count: u32 = 0,
 };
 
 pub const User = struct {
     id: Snowflake = "0",
     username: []const u8 = "",
     discriminator: []const u8 = "0000",
+    bot: bool = false,
+    avatar: ?[]const u8 = null,
 };
 
 pub const Interaction = struct {
@@ -116,7 +127,7 @@ pub const Client = struct {
         return error.ConnectorsDisabled;
     }
 
-    pub fn executeWebhook(_: *Client, _: Snowflake, _: []const u8, _: []const u8) !Message {
+    pub fn executeWebhook(_: *Client, _: Snowflake, _: []const u8, _: []const u8) !void {
         return error.ConnectorsDisabled;
     }
 
