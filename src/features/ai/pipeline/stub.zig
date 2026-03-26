@@ -6,6 +6,10 @@
 const std = @import("std");
 pub const types = @import("types.zig");
 pub const context = @import("context.zig");
+pub const builder = struct {};
+pub const executor = struct {};
+pub const persistence = struct {};
+pub const steps = struct {};
 
 pub const StepKind = types.StepKind;
 pub const StepConfig = types.StepConfig;
@@ -36,6 +40,10 @@ pub const PipelineBuilder = struct {
 
     pub fn init(allocator: std.mem.Allocator, _: []const u8) Self {
         return .{ .allocator = allocator };
+    }
+
+    pub fn withChain(self: *Self, _: anytype) *Self {
+        return self;
     }
 
     pub fn retrieve(self: *Self, _: types.RetrieveSource, _: RetrieveConfig) *Self {
@@ -101,10 +109,10 @@ pub fn chain(allocator: std.mem.Allocator, session_id: []const u8) PipelineBuild
 
 test "pipeline stub compiles" {
     const allocator = std.testing.allocator;
-    var builder = chain(allocator, "test-session");
-    defer builder.deinit();
+    var pb = chain(allocator, "test-session");
+    defer pb.deinit();
 
-    var p = builder
+    var p = pb
         .retrieve(.wdbx, .{ .k = 5 })
         .template("Hello {context}")
         .route(.adaptive)

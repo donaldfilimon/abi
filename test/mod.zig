@@ -55,6 +55,7 @@ const orchestration_tests = @import("integration/orchestration_test.zig");
 const tasks_tests = @import("integration/tasks_test.zig");
 const inference_async_tests = @import("integration/inference_async_test.zig");
 const inference_e2e_tests = @import("integration/inference_e2e_test.zig");
+const pipeline_tests = @import("integration/pipeline_test.zig");
 
 test {
     std.testing.refAllDecls(@This());

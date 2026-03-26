@@ -282,11 +282,9 @@ pub const AdaptiveModulator = struct {
             try self.profiles.put(self.allocator, owned_id, user_profile);
         }
 
-        // Write-behind: persist modulation state to WDBX (outside lock scope)
-        const snapshot_profile = user_profile;
-        // Note: persistToWdbx is called within the lock but only does a quick
-        // block append — acceptable latency for the durability guarantee.
-        self.persistToWdbx(session_id, snapshot_profile);
+        // Write-behind: persist modulation state to WDBX (within mutex scope).
+        // persistToWdbx only does a quick block append — acceptable latency.
+        self.persistToWdbx(session_id, user_profile);
     }
 
     /// Get a user's preference profile (null if no history).

@@ -13,15 +13,14 @@ const PipelineError = types.PipelineError;
 pub fn execute(pctx: *PipelineContext, _: types.StoreConfig) !void {
     const chain = pctx.chain orelse return;
 
-    // Build a full block config from current pipeline state
-    const embed_text = pctx.generated_response orelse pctx.rendered_prompt orelse pctx.input;
-    const query_embedding = PipelineContext.hashEmbedding(pctx.input);
-    const response_embedding = if (pctx.generated_response) |r|
-        PipelineContext.hashEmbedding(r)
-    else
-        null;
-
-    _ = embed_text;
+    // Build a full block config from current pipeline state.
+    // Embeddings live on this stack frame; addBlock dupes them before return.
+    var query_embedding = PipelineContext.hashEmbedding(pctx.input);
+    var resp_embedding_buf: [4]f32 = undefined;
+    const has_response = pctx.generated_response != null;
+    if (pctx.generated_response) |r| {
+        resp_embedding_buf = PipelineContext.hashEmbedding(r);
+    }
 
     const profile_tag: types.ProfileTag = if (pctx.primary_profile) |pp|
         .{ .primary_profile = pp }
@@ -42,11 +41,9 @@ pub fn execute(pctx: *PipelineContext, _: types.StoreConfig) !void {
         }
     }
 
-    const resp_embed_arr: ?[4]f32 = if (response_embedding) |re| re else null;
-
     const config = types.BlockConfig{
         .query_embedding = &query_embedding,
-        .response_embedding = if (resp_embed_arr != null) &resp_embed_arr.? else null,
+        .response_embedding = if (has_response) &resp_embedding_buf else null,
         .profile_tag = profile_tag,
         .routing_weights = routing_weights,
         .intent = if (!pctx.validation_passed) .safety_critical else .general,

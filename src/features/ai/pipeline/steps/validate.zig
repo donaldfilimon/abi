@@ -38,17 +38,14 @@ pub fn execute(pctx: *PipelineContext, cfg: types.ValidateConfig) !void {
         is_safe = score.isCompliant();
         score_overall = score.overall;
 
-        // Store score in pipeline metadata
-        try pctx.setMetadata("validation_score", try std.fmt.allocPrint(
-            pctx.allocator,
-            "{d:.2}",
-            .{score_overall},
-        ));
-        try pctx.setMetadata("validation_violations", try std.fmt.allocPrint(
-            pctx.allocator,
-            "{d}",
-            .{@as(u32, score.violation_count)},
-        ));
+        // Store score in pipeline metadata (use stack buffers to avoid leak)
+        var score_buf: [16]u8 = undefined;
+        const score_str = std.fmt.bufPrint(&score_buf, "{d:.2}", .{score_overall}) catch "0.00";
+        try pctx.setMetadata("validation_score", score_str);
+
+        var viol_buf: [8]u8 = undefined;
+        const viol_str = std.fmt.bufPrint(&viol_buf, "{d}", .{@as(u32, score.violation_count)}) catch "0";
+        try pctx.setMetadata("validation_violations", viol_str);
     } else {
         // Fallback: simple keyword scan
         const lower = try toLower(pctx.allocator, response);

@@ -49,8 +49,11 @@ pub const PipelineBlockAdapter = struct {
         };
     }
 
-    /// Create a BlockConfig from the current pipeline context state.
-    pub fn toBlockConfig(pctx: *const PipelineContext, kind: StepKind) BlockConfig {
+    /// Record a WDBX block for a pipeline step. Returns the block ID.
+    /// Embedding is computed inline to avoid dangling pointer from stack-local array.
+    pub fn recordStepBlock(pctx: *PipelineContext, kind: StepKind) !u64 {
+        const chain = pctx.chain orelse return 0;
+
         // Generate embedding from the most relevant text at this step
         const embed_text = if (pctx.generated_response) |r|
             r
@@ -59,7 +62,7 @@ pub const PipelineBlockAdapter = struct {
         else
             pctx.input;
 
-        const embedding = PipelineContext.hashEmbedding(embed_text);
+        var embedding = PipelineContext.hashEmbedding(embed_text);
 
         // Build profile tag from routing state
         const profile_tag: ProfileTag = if (pctx.primary_profile) |pp|
@@ -76,15 +79,15 @@ pub const PipelineBlockAdapter = struct {
 
         // Get previous hash from the chain's head block
         var previous_hash: [32]u8 = .{0} ** 32;
-        if (pctx.chain) |chain| {
-            if (chain.current_head) |head_id| {
-                if (chain.blocks.get(head_id)) |head_block| {
+        if (pctx.chain) |c| {
+            if (c.current_head) |head_id| {
+                if (c.blocks.get(head_id)) |head_block| {
                     previous_hash = head_block.hash;
                 }
             }
         }
 
-        return .{
+        const config = BlockConfig{
             .query_embedding = &embedding,
             .profile_tag = profile_tag,
             .routing_weights = routing_weights,
@@ -94,12 +97,6 @@ pub const PipelineBlockAdapter = struct {
             .step_index = pctx.current_step,
             .previous_hash = previous_hash,
         };
-    }
-
-    /// Record a WDBX block for a pipeline step. Returns the block ID.
-    pub fn recordStepBlock(pctx: *PipelineContext, kind: StepKind) !u64 {
-        const chain = pctx.chain orelse return 0;
-        const config = toBlockConfig(pctx, kind);
         return try chain.addBlock(config);
     }
 };

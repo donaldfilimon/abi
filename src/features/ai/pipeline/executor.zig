@@ -58,7 +58,7 @@ pub const Pipeline = struct {
 
     /// Execute the pipeline with the given input.
     pub fn run(self: *Self, input: []const u8) !PipelineResult {
-        const start_ts = std.time.timestamp();
+        const start_ns = std.time.nanoTimestamp();
 
         var pctx = try PipelineContext.init(
             self.allocator,
@@ -94,8 +94,9 @@ pub const Pipeline = struct {
             }
         }
 
-        const end_ts = std.time.timestamp();
-        const elapsed: u64 = @intCast(end_ts - start_ts);
+        const end_ns = std.time.nanoTimestamp();
+        const elapsed_ns = end_ns - start_ns;
+        const elapsed_ms: u64 = @intCast(@divTrunc(@max(elapsed_ns, 0), std.time.ns_per_ms));
 
         // Build result — transfer ownership of response and block_ids
         const response = if (pctx.generated_response) |r|
@@ -114,7 +115,7 @@ pub const Pipeline = struct {
             .pipeline_id = self.pipeline_id,
             .steps_executed = steps_executed,
             .validation_passed = pctx.validation_passed,
-            .elapsed_ms = elapsed * 1000,
+            .elapsed_ms = elapsed_ms,
             .allocator = self.allocator,
         };
     }
