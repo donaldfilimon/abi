@@ -1,9 +1,15 @@
 //! ACP (Agent Communication Protocol) stub.
 //!
 //! Mirrors the full API of mod.zig / server.zig, returning error.FeatureDisabled
-//! for all operations that would perform real work.
+//! for all operations that would perform real work.  Shared pure-data types
+//! are imported from types.zig so that mod and stub stay in sync automatically.
 
 const std = @import("std");
+const types = @import("types.zig");
+
+// Re-export shared types
+pub const TaskStatus = types.TaskStatus;
+pub const TransitionError = types.TransitionError;
 
 // =============================================================================
 // Sub-module namespace (empty — types re-exported at top level)
@@ -12,7 +18,7 @@ const std = @import("std");
 pub const server = struct {};
 
 // =============================================================================
-// Error set
+// Error sets
 // =============================================================================
 
 const AcpError = error{
@@ -23,7 +29,13 @@ const AcpError = error{
     OutOfMemory,
 };
 
-pub const TransitionError = error{InvalidTransition};
+pub const HttpError = std.mem.Allocator.Error || error{
+    InvalidAddress,
+    ListenFailed,
+    ReadFailed,
+    RequestTooLarge,
+    FeatureDisabled,
+};
 
 // =============================================================================
 // AgentCard
@@ -53,46 +65,6 @@ pub const AgentCard = struct {
 };
 
 // =============================================================================
-// TaskStatus
-// =============================================================================
-
-/// Task status in the ACP lifecycle.
-pub const TaskStatus = enum {
-    submitted,
-    working,
-    input_required,
-    completed,
-    failed,
-    canceled,
-
-    pub fn canTransitionTo(self: TaskStatus, target: TaskStatus) bool {
-        if (target == .canceled) return true;
-        return switch (self) {
-            .submitted => target == .working,
-            .working => target == .completed or target == .failed or target == .input_required,
-            .input_required => target == .working,
-            .completed, .failed, .canceled => false,
-        };
-    }
-
-    pub fn transition(self: TaskStatus, target: TaskStatus) TransitionError!TaskStatus {
-        if (self.canTransitionTo(target)) return target;
-        return error.InvalidTransition;
-    }
-
-    pub fn toString(self: TaskStatus) []const u8 {
-        return switch (self) {
-            .submitted => "submitted",
-            .working => "working",
-            .input_required => "input-required",
-            .completed => "completed",
-            .failed => "failed",
-            .canceled => "canceled",
-        };
-    }
-};
-
-// =============================================================================
 // Task
 // =============================================================================
 
@@ -100,12 +72,10 @@ pub const TaskStatus = enum {
 pub const Task = struct {
     id: []const u8,
     status: TaskStatus,
-    messages: std.ArrayListUnmanaged(Message),
+    messages: std.ArrayListUnmanaged(types.Message),
 
-    pub const Message = struct {
-        role: []const u8,
-        content: []const u8,
-    };
+    /// Re-export for callers that access Task.Message.
+    pub const Message = types.Message;
 
     pub fn deinit(self: *Task, allocator: std.mem.Allocator) void {
         _ = self;
@@ -142,18 +112,6 @@ pub const Session = struct {
         _ = allocator;
         return AcpError.FeatureDisabled;
     }
-};
-
-// =============================================================================
-// HttpError
-// =============================================================================
-
-pub const HttpError = std.mem.Allocator.Error || error{
-    InvalidAddress,
-    ListenFailed,
-    ReadFailed,
-    RequestTooLarge,
-    FeatureDisabled,
 };
 
 // =============================================================================

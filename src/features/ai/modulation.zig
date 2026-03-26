@@ -11,12 +11,13 @@
 
 const std = @import("std");
 const foundation = @import("../../foundation/mod.zig");
+const log = foundation.logging;
 const time = foundation.time;
 const types = @import("types.zig");
 
 /// Configuration for the adaptive modulation system.
 pub const ModulationConfig = struct {
-    /// EMA decay factor (0.0 = no history, 1.0 = infinite memory).
+    /// EMA smoothing factor (higher = more responsive to recent data, lower = more smoothing).
     ema_alpha: f32 = 0.3,
     /// Weight given to learned preferences vs rule-based routing (0-1).
     preference_weight: f32 = 0.2,
@@ -229,6 +230,10 @@ pub const AdaptiveModulator = struct {
         if (entry) |e| {
             e.value_ptr.* = user_profile;
         } else {
+            // Evict the least-recently-used session if at capacity.
+            if (self.profiles.count() >= self.config.max_sessions) {
+                evictOldestSession(self);
+            }
             const owned_id = try self.allocator.dupe(u8, session_id);
             try self.profiles.put(self.allocator, owned_id, user_profile);
         }
@@ -248,6 +253,36 @@ pub const AdaptiveModulator = struct {
         if (self.calibration_total == 0) return 0.0;
         return @as(f32, @floatFromInt(self.calibration_hits)) /
             @as(f32, @floatFromInt(self.calibration_total));
+    }
+
+    /// Return the most recent interaction timestamp across all three profiles.
+    fn mostRecentInteraction(profile: UserProfile) i64 {
+        return @max(profile.abbey.last_interaction, @max(profile.aviva.last_interaction, profile.abi.last_interaction));
+    }
+
+    /// Evict the session with the oldest most-recent interaction.
+    /// Caller must hold self.mutex.
+    fn evictOldestSession(self: *Self) void {
+        var oldest_key: ?[]const u8 = null;
+        var oldest_time: i64 = std.math.maxInt(i64);
+
+        var it = self.profiles.iterator();
+        while (it.next()) |kv| {
+            const last = mostRecentInteraction(kv.value_ptr.*);
+            if (last < oldest_time) {
+                oldest_time = last;
+                oldest_key = kv.key_ptr.*;
+            }
+        }
+
+        if (oldest_key) |key| {
+            log.warn("AdaptiveModulator: evicting oldest session (capacity {d} reached)", .{self.config.max_sessions});
+            // Remove the entry and free the owned key.
+            const removed = self.profiles.fetchRemove(key);
+            if (removed) |kv| {
+                self.allocator.free(kv.key);
+            }
+        }
     }
 
     fn defaultPreference() ProfilePreference {
@@ -354,6 +389,36 @@ test "AdaptiveModulator modulate returns copied data not references" {
 
     // The second result should differ because the profile changed
     try std.testing.expect(result2.preference_bias < result1.preference_bias);
+}
+
+test "AdaptiveModulator LRU eviction at capacity" {
+    const allocator = std.testing.allocator;
+    var modulator = try AdaptiveModulator.init(allocator, .{
+        .max_sessions = 3,
+    });
+    defer modulator.deinit();
+
+    // Fill to capacity with three sessions.
+    try modulator.recordInteraction("session-a", .abbey, true);
+    try modulator.recordInteraction("session-b", .aviva, true);
+    try modulator.recordInteraction("session-c", .abi, true);
+
+    try std.testing.expectEqual(@as(usize, 3), modulator.profiles.count());
+
+    // Adding a fourth session should evict one old session to stay at capacity.
+    try modulator.recordInteraction("session-d", .abbey, true);
+
+    // Count must not exceed max_sessions.
+    try std.testing.expectEqual(@as(usize, 3), modulator.profiles.count());
+    // The newly added session must be present.
+    try std.testing.expect(modulator.getProfile("session-d") != null);
+
+    // Exactly one of the original three was evicted.
+    var surviving: u32 = 0;
+    if (modulator.getProfile("session-a") != null) surviving += 1;
+    if (modulator.getProfile("session-b") != null) surviving += 1;
+    if (modulator.getProfile("session-c") != null) surviving += 1;
+    try std.testing.expectEqual(@as(u32, 2), surviving);
 }
 
 test {

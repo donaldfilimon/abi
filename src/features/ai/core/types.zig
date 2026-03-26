@@ -594,3 +594,8 @@ test "instance id generation" {
     // IDs should be different (with very high probability)
     try std.testing.expect(!std.mem.eql(u8, &id1.bytes, &id2.bytes));
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

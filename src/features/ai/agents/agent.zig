@@ -199,3 +199,8 @@ pub const Agent = struct {
         };
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -389,7 +389,7 @@ pub fn combineReasoningChains(
 
     // Add steps from primary chain
     for (chains[primary_index].steps.items) |step| {
-        try combined.addStep(.{
+        try combined.addStep(allocator, .{
             .step_number = combined.stepCount() + 1,
             .title = try allocator.dupe(u8, step.title),
             .explanation = try allocator.dupe(u8, step.explanation),
@@ -500,4 +500,9 @@ test "reasoning chain confidence" {
 
     // Overall confidence should be minimum of steps
     try std.testing.expectApproxEqAbs(@as(f32, 0.8), chain.overall_confidence, 0.01);
+}
+
+
+test {
+    std.testing.refAllDecls(@This());
 }

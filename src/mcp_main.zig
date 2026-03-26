@@ -12,9 +12,28 @@ const build_options = @import("build_options");
 const mcp = @import("protocols/mcp/mod.zig");
 
 pub fn main(init: std.process.Init) !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = init.gpa;
+    const arena = init.arena.allocator();
+    const args = try init.minimal.args.toSlice(arena);
+
+    if (args.len > 1) {
+        const arg = args[1];
+        if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "help")) {
+            const help_text =
+                \\ABI MCP Server — Model Context Protocol stdio interface.
+                \\
+                \\Usage:
+                \\  abi-mcp              Start the JSON-RPC 2.0 stdio server
+                \\  abi-mcp --help       Show this help message
+                \\
+                \\This server exposes ABI framework tools (status, database, AI, ZLS)
+                \\over stdin/stdout for use with MCP-compatible AI clients.
+                \\
+            ;
+            std.debug.print("{s}", .{help_text});
+            return;
+        }
+    }
 
     const version = build_options.package_version;
 

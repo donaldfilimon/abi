@@ -1,5 +1,6 @@
 const std = @import("std");
 const build_flags = @import("flags.zig");
+const linking = @import("linking.zig");
 
 pub const Context = struct {
     b: *std.Build,
@@ -30,6 +31,7 @@ pub fn addSteps(ctx: Context) Steps {
         .name = "abi-typecheck",
         .root_module = typecheck_root_module,
     });
+    linking.linkIfDarwin(typecheck_root, .static_lib, true, true);
 
     const gpu_policy_contract_module = ctx.b.createModule(.{
         .root_source_file = ctx.b.path("src/features/gpu/policy/target_contract.zig"),
@@ -40,6 +42,7 @@ pub fn addSteps(ctx: Context) Steps {
         .name = "abi-gpu-policy-contract",
         .root_module = gpu_policy_contract_module,
     });
+    linking.linkIfDarwin(gpu_policy_contract, .static_lib, true, true);
 
     const typecheck_step = ctx.b.step("typecheck", "Compile-only validation for the requested target");
     typecheck_step.dependOn(&typecheck_root.step);
@@ -108,6 +111,7 @@ pub fn addSteps(ctx: Context) Steps {
             .root_module = cross_mod,
             .linkage = .static,
         });
+        linking.linkIfDarwin(cross_lib, .static_lib, true, false);
         cross_check_step.dependOn(&cross_lib.step);
     }
 

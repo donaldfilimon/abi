@@ -39,3 +39,8 @@ pub const PreparedStep = struct {
         }
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

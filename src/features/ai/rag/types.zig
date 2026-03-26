@@ -105,3 +105,8 @@ pub const RagResponse = struct {
         return self.context.prompt;
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

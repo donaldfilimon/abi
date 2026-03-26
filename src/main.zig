@@ -27,7 +27,35 @@ const cli = @import("cli.zig");
 const os = @import("foundation/os.zig");
 const feature_catalog = root.meta.features;
 
+// ── Shared Constants ────────────────────────────────────────────────────
+
+/// All GPU backend names and their build-time enabled state.
+/// Used by both `printPlatform()` and `runDoctor()`.
+const gpu_backends = .{
+    .{ "metal", build_options.gpu_metal },
+    .{ "cuda", build_options.gpu_cuda },
+    .{ "vulkan", build_options.gpu_vulkan },
+    .{ "webgpu", build_options.gpu_webgpu },
+    .{ "opengl", build_options.gpu_opengl },
+    .{ "opengles", build_options.gpu_opengles },
+    .{ "webgl2", build_options.gpu_webgl2 },
+    .{ "stdgpu", build_options.gpu_stdgpu },
+    .{ "fpga", build_options.gpu_fpga },
+    .{ "tpu", build_options.gpu_tpu },
+};
+
 // ── Helpers ─────────────────────────────────────────────────────────────
+
+fn countEnabledFeatures() struct { enabled: usize, total: usize } {
+    const enabled = comptime blk: {
+        var count: usize = 0;
+        for (feature_catalog.all) |entry| {
+            if (@field(build_options, entry.compile_flag_field)) count += 1;
+        }
+        break :blk count;
+    };
+    return .{ .enabled = enabled, .total = feature_catalog.all.len };
+}
 
 fn printHeader(title: []const u8, subtitle: ?[]const u8) void {
     if (!os.isatty()) return; // Strip non-diagnostic metadata when piped
@@ -48,21 +76,25 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const args = try init.minimal.args.toSlice(arena);
 
-    try dispatch(allocator, args[1..]);
+    const exit_code = dispatch(allocator, args[1..]) catch |err| blk: {
+        std.debug.print("Error: {s}\n", .{@errorName(err)});
+        break :blk 1;
+    };
+    if (exit_code != 0) std.process.exit(exit_code);
 }
 
 // ── Command Dispatch ────────────────────────────────────────────────────
 
-pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
     if (args.len == 0) {
         printStatus();
-        return;
+        return 0;
     }
 
     if (cli.isServeInvocation(args)) {
         const serve_args = if (std.mem.eql(u8, args[0], "acp")) args[2..] else args[1..];
         try cli.runServe(allocator, serve_args);
-        return;
+        return 0;
     }
 
     const cmd = args[0];
@@ -82,7 +114,7 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     } else if (std.mem.eql(u8, cmd, "chat")) {
         if (args.len < 2) {
             std.debug.print("Usage: abi chat <message...>\n", .{});
-            return;
+            return 1;
         }
         try runChat(allocator, args[1..]);
     } else if (std.mem.eql(u8, cmd, "db")) {
@@ -96,7 +128,9 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     } else {
         std.debug.print("Unknown command: {s}\n\n", .{cmd});
         printHelp();
+        return 1;
     }
+    return 0;
 }
 
 // ── Status (no-args) ────────────────────────────────────────────────────
@@ -104,14 +138,7 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 pub fn printStatus() void {
     const version = build_options.package_version;
 
-    // Count enabled features
-    const enabled = comptime blk: {
-        var count: u32 = 0;
-        for (feature_catalog.all) |entry| {
-            if (@field(build_options, entry.compile_flag_field)) count += 1;
-        }
-        break :blk count;
-    };
+    const counts = countEnabledFeatures();
 
     std.debug.print(
         \\ABI Framework v{s}
@@ -129,9 +156,8 @@ pub fn printStatus() void {
         \\  acp serve    Start the ACP HTTP server
         \\  lsp          Start the LSP server
         \\
-    , .{ version, enabled, feature_catalog.feature_count, feature_catalog.feature_count });
+    , .{ version, counts.enabled, counts.total, counts.total });
 
-    // Feature-gated commands
     std.debug.print("  db <cmd>     Vector database operations       ", .{});
     printFeatureTag(build_options.feat_database);
     std.debug.print("  dashboard    Interactive TUI dashboard         ", .{});
@@ -207,7 +233,6 @@ pub fn printHelp() void {
 pub fn printFeatures() void {
     printHeader("ABI Features — Compile-Time Feature Catalog", null);
 
-    // Print all features from the canonical catalog
     inline for (feature_catalog.all) |entry| {
         const enabled = @field(build_options, entry.compile_flag_field);
         const tag: []const u8 = if (enabled) "[+]" else "[-]";
@@ -215,14 +240,8 @@ pub fn printFeatures() void {
         std.debug.print("  {s} {s}{s} — {s}\n", .{ tag, parent_str, entry.feature.name(), entry.description });
     }
 
-    const enabled = comptime blk: {
-        var count: u32 = 0;
-        for (feature_catalog.all) |entry| {
-            if (@field(build_options, entry.compile_flag_field)) count += 1;
-        }
-        break :blk count;
-    };
-    std.debug.print("\n{d}/{d} features enabled.\n", .{ enabled, feature_catalog.feature_count });
+    const counts = countEnabledFeatures();
+    std.debug.print("\n{d}/{d} features enabled.\n", .{ counts.enabled, counts.total });
 }
 
 // ── Platform ────────────────────────────────────────────────────────────
@@ -248,19 +267,10 @@ pub fn printPlatform() void {
         if (platform.supportsThreading()) "supported" else "unavailable",
     });
 
-    // GPU backend info
     std.debug.print("GPU Backends:\n", .{});
-    inline for (.{
-        .{ "metal", build_options.gpu_metal },
-        .{ "cuda", build_options.gpu_cuda },
-        .{ "vulkan", build_options.gpu_vulkan },
-        .{ "webgpu", build_options.gpu_webgpu },
-        .{ "opengl", build_options.gpu_opengl },
-        .{ "stdgpu", build_options.gpu_stdgpu },
-    }) |backend| {
-        if (backend[1]) {
-            std.debug.print("  [+] {s}\n", .{backend[0]});
-        }
+    inline for (gpu_backends) |backend| {
+        const tag: []const u8 = if (backend[1]) "[+]" else "[-]";
+        std.debug.print("  {s} {s}\n", .{ tag, backend[0] });
     }
 
     std.debug.print("\n", .{});
@@ -319,7 +329,7 @@ pub fn printInfo() void {
         \\    Cohere, HuggingFace, Ollama, LM Studio, vLLM, MLX,
         \\    llama.cpp, Codex, OpenCode, Discord, local-scheduler
         \\
-        \\Features: 20 feature directories, 30 in catalog (mod/stub pattern)
+        \\Features: 20 feature directories, 35 in catalog (mod/stub pattern)
         \\GPU backends: Metal, CUDA, Vulkan, WebGPU, OpenGL, stdgpu, FPGA, TPU
         \\Protocols: MCP, LSP, ACP, HA
         \\
@@ -340,58 +350,30 @@ pub fn runDoctor() void {
         \\Version: {s}
         \\
         \\Feature Flags:
-        \\  feat_ai        = {any}
-        \\  feat_gpu       = {any}
-        \\  feat_database  = {any}
-        \\  feat_network   = {any}
-        \\  feat_web       = {any}
-        \\  feat_search    = {any}
-        \\  feat_cache     = {any}
-        \\  feat_auth      = {any}
-        \\  feat_lsp       = {any}
-        \\  feat_mcp       = {any}
-        \\  feat_mobile    = {any}
-        \\  feat_desktop   = {any}
-        \\  feat_tui       = {any}
         \\
-        \\AI Sub-features:
-        \\  feat_llm       = {any}
-        \\  feat_training  = {any}
-        \\  feat_vision    = {any}
-        \\  feat_reasoning = {any}
+    , .{version});
+
+    inline for (feature_catalog.all) |entry| {
+        const enabled = @field(build_options, entry.compile_flag_field);
+        const indent: []const u8 = if (entry.parent != null) "    " else "  ";
+        std.debug.print("{s}{s} = {any}\n", .{ indent, entry.compile_flag_field, enabled });
+    }
+
+    std.debug.print(
         \\
         \\GPU Backends:
-        \\  gpu_metal      = {any}
-        \\  gpu_cuda       = {any}
-        \\  gpu_vulkan     = {any}
-        \\  gpu_stdgpu     = {any}
+        \\
+    , .{});
+
+    inline for (gpu_backends) |backend| {
+        std.debug.print("  gpu_{s} = {any}\n", .{ backend[0], backend[1] });
+    }
+
+    std.debug.print(
         \\
         \\Status: All systems nominal.
         \\
-    , .{
-        version,
-        build_options.feat_ai,
-        build_options.feat_gpu,
-        build_options.feat_database,
-        build_options.feat_network,
-        build_options.feat_web,
-        build_options.feat_search,
-        build_options.feat_cache,
-        build_options.feat_auth,
-        build_options.feat_lsp,
-        build_options.feat_mcp,
-        build_options.feat_mobile,
-        build_options.feat_desktop,
-        build_options.feat_tui,
-        build_options.feat_llm,
-        build_options.feat_training,
-        build_options.feat_vision,
-        build_options.feat_reasoning,
-        build_options.gpu_metal,
-        build_options.gpu_cuda,
-        build_options.gpu_vulkan,
-        build_options.gpu_stdgpu,
-    });
+    , .{});
 }
 
 // ── Chat ────────────────────────────────────────────────────────────────
@@ -443,7 +425,6 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
 
     std.debug.print("\nExecution:\n", .{});
 
-    // Execute inference via the engine's configured backend
     const inference = root.inference;
     var engine = inference.Engine.init(allocator, .{
         .backend = .connector,
@@ -454,8 +435,8 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         .num_heads = 1,
         .head_dim = 4,
         .max_batch_size = 8,
-    }) catch {
-        std.debug.print("  [✓] Route validated. Engine init failed — no inference available.\n", .{});
+    }) catch |err| {
+        std.debug.print("  [✓] Route validated. Engine init failed: {s}\n", .{@errorName(err)});
         return;
     };
     defer engine.deinit();
@@ -468,8 +449,8 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         .top_p = 0.9,
         .top_k = 40,
         .profile_id = @intFromEnum(decision.primary),
-    }) catch {
-        std.debug.print("  [✓] Route validated. Inference generation failed.\n", .{});
+    }) catch |err| {
+        std.debug.print("  [✓] Route validated. Inference generation failed: {s}\n", .{@errorName(err)});
         return;
     };
     defer result.deinit(allocator);

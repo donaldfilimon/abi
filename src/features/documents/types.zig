@@ -7,6 +7,7 @@ const std = @import("std");
 
 /// Errors returned by document parsing operations.
 pub const DocumentsError = error{
+    DocumentsDisabled,
     ParseFailed,
     UnsupportedFormat,
     InvalidInput,

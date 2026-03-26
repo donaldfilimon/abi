@@ -487,3 +487,8 @@ pub fn detectCapabilities() SystemCapabilities {
 pub fn runWarmup(_: []const u8, _: AdaptiveConfig) WarmupResult {
     return .{};
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

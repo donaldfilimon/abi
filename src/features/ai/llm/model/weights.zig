@@ -10,19 +10,19 @@ const tensor_loader = @import("../io/tensor_loader.zig");
 /// Layer weights for a single transformer layer.
 pub const LayerWeights = struct {
     /// Attention weights
-    q_proj: []const f32,
-    k_proj: []const f32,
-    v_proj: []const f32,
-    o_proj: []const f32,
+    q_proj: []f32,
+    k_proj: []f32,
+    v_proj: []f32,
+    o_proj: []f32,
 
     /// FFN weights (SwiGLU)
-    gate_proj: []const f32, // gate
-    up_proj: []const f32, // up
-    down_proj: []const f32,
+    gate_proj: []f32, // gate
+    up_proj: []f32, // up
+    down_proj: []f32,
 
     /// Normalization weights
-    input_norm: []const f32, // attention input norm
-    post_attn_norm: []const f32, // FFN input norm
+    input_norm: []f32, // attention input norm
+    post_attn_norm: []f32, // FFN input norm
 
     /// Whether weights are quantized
     quantized: bool,
@@ -90,15 +90,15 @@ pub const LlamaWeights = struct {
         }
 
         for (self.layers) |layer| {
-            if (layer.q_proj.len > 0) self.allocator.free(@constCast(layer.q_proj));
-            if (layer.k_proj.len > 0) self.allocator.free(@constCast(layer.k_proj));
-            if (layer.v_proj.len > 0) self.allocator.free(@constCast(layer.v_proj));
-            if (layer.o_proj.len > 0) self.allocator.free(@constCast(layer.o_proj));
-            if (layer.gate_proj.len > 0) self.allocator.free(@constCast(layer.gate_proj));
-            if (layer.up_proj.len > 0) self.allocator.free(@constCast(layer.up_proj));
-            if (layer.down_proj.len > 0) self.allocator.free(@constCast(layer.down_proj));
-            if (layer.input_norm.len > 0) self.allocator.free(@constCast(layer.input_norm));
-            if (layer.post_attn_norm.len > 0) self.allocator.free(@constCast(layer.post_attn_norm));
+            if (layer.q_proj.len > 0) self.allocator.free(layer.q_proj);
+            if (layer.k_proj.len > 0) self.allocator.free(layer.k_proj);
+            if (layer.v_proj.len > 0) self.allocator.free(layer.v_proj);
+            if (layer.o_proj.len > 0) self.allocator.free(layer.o_proj);
+            if (layer.gate_proj.len > 0) self.allocator.free(layer.gate_proj);
+            if (layer.up_proj.len > 0) self.allocator.free(layer.up_proj);
+            if (layer.down_proj.len > 0) self.allocator.free(layer.down_proj);
+            if (layer.input_norm.len > 0) self.allocator.free(layer.input_norm);
+            if (layer.post_attn_norm.len > 0) self.allocator.free(layer.post_attn_norm);
         }
 
         self.allocator.free(self.layers);
@@ -116,7 +116,7 @@ pub const LlamaWeights = struct {
         }
 
         if (self.gguf_file) |file| {
-            @constCast(file).deinit();
+            file.deinit();
             self.allocator.destroy(file);
         }
 

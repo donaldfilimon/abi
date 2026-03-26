@@ -2,6 +2,8 @@
 //!
 //! Canonical definitions used by both mod.zig and stub.zig to prevent type drift.
 
+const std = @import("std");
+
 /// Available profile types
 pub const ProfileType = enum {
     /// General-purpose helpful assistant
@@ -93,3 +95,8 @@ pub const PromptFormat = enum {
     /// Raw messages without formatting
     raw,
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

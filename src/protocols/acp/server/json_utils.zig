@@ -1,30 +1,15 @@
 //! JSON utility helpers for the ACP server.
+//!
+//! Delegates to `foundation.utils.json` for shared JSON escaping logic.
 
 const std = @import("std");
+const foundation_json = @import("../../../foundation/utils/json.zig");
 
 /// Escape a string for safe embedding in JSON output.
-pub fn appendEscaped(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), s: []const u8) !void {
-    for (s) |c| {
-        switch (c) {
-            '"' => try buf.appendSlice(allocator, "\\\""),
-            '\\' => try buf.appendSlice(allocator, "\\\\"),
-            '\n' => try buf.appendSlice(allocator, "\\n"),
-            '\r' => try buf.appendSlice(allocator, "\\r"),
-            '\t' => try buf.appendSlice(allocator, "\\t"),
-            else => {
-                if (c < 0x20) {
-                    var hex_buf: [6]u8 = undefined;
-                    const hex = std.fmt.bufPrint(&hex_buf, "\\u{x:0>4}", .{c}) catch {
-                        continue; // skip unprintable character on format error
-                    };
-                    try buf.appendSlice(allocator, hex);
-                } else {
-                    try buf.append(allocator, c);
-                }
-            },
-        }
-    }
-}
+/// Delegates to the canonical foundation implementation which correctly
+/// handles all control characters (the prior inline version silently
+/// dropped characters on format errors).
+pub const appendEscaped = foundation_json.appendJsonEscaped;
 
 test "appendEscaped handles all special chars" {
     const allocator = std.testing.allocator;

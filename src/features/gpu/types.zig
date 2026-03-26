@@ -29,8 +29,17 @@ pub const KernelError = error{
     BackendUnsupported,
 };
 
+/// GPU feature errors visible at the framework level.
+pub const FrameworkError = error{
+    GpuDisabled,
+    NoDeviceAvailable,
+    InvalidConfig,
+    KernelCompilationFailed,
+    KernelExecutionFailed,
+} || MemoryError || KernelError;
+
 /// Unified GPU error type combining memory errors and a disabled sentinel.
-pub const GpuError = MemoryError || error{GpuDisabled};
+pub const GpuError = FrameworkError;
 
 /// Convenience alias for the primary GPU error set.
 pub const Error = GpuError;

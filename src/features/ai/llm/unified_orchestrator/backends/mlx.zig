@@ -17,3 +17,8 @@ pub const interface = BackendInterface{
     .run = run,
     .stream = null,
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

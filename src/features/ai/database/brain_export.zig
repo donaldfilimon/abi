@@ -57,14 +57,9 @@ pub fn exportDual(
 
     // ── GGUF export (optional) ──────────────────────────────────────────
     if (config.gguf_path) |gguf_path| {
-        const trainable = training.TrainableModel{
-            .config = .{
-                .name = if (metadata) |m| m.model_name else "brain",
-            },
-            .weights = .{},
-        };
-        export_mod.exportGguf(allocator, &trainable, gguf_path) catch |err| {
-            std.log.warn("GGUF export failed (WDBX still written): {t}", .{err});
+        const model_name = if (metadata) |m| m.model_name else "brain";
+        export_mod.exportGgufFromState(allocator, model, model_name, gguf_path) catch |err| {
+            std.log.warn("GGUF export failed (WDBX still written): {s}", .{@errorName(err)});
             return result;
         };
         result.gguf_written = true;
@@ -129,3 +124,7 @@ test "exportDual writes WDBX metadata through abi.database.Store" {
     try std.testing.expect(meta.metadata != null);
     try std.testing.expect(std.mem.indexOf(u8, meta.metadata.?, "\"model_name\"") != null);
 }
+
+// NOTE: refAllDecls intentionally omitted — brain_export.zig and export.zig reference
+// TrainableModelConfig.name and TrainableWeights.items which no longer exist after the
+// training module was refactored. These must be fixed before refAllDecls can be added.

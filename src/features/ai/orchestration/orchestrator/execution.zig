@@ -250,3 +250,8 @@ fn calculateEnsembleConfidence(successful: usize, total: usize) f64 {
     if (total == 0) return 0.0;
     return @as(f64, @floatFromInt(successful)) / @as(f64, @floatFromInt(total));
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

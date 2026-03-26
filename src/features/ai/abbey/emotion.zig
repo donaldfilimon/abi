@@ -8,6 +8,16 @@
 //! - Tone suggestion based on detected emotions
 //! - Empathy calibration for response generation
 //! - Emotional trajectory tracking
+//!
+//! NOTE: This file coexists with `emotions.zig` by design.
+//! - `emotion.zig` (this file): The **processor** — `EmotionProcessor` with
+//!   weighted pattern matching, `ToneStyle`, `EmotionalResponse`, trajectory
+//!   tracking, and empathy calibration. Used by the profile pipeline
+//!   (`profile.zig`, `empathy.zig`, `reasoning.zig`).
+//! - `emotions.zig`: The **state + memory** — lightweight `EmotionalState`
+//!   for in-conversation detection, `RelationshipMemory` for long-term
+//!   tracking, `EmotionHelpers`, and `CommunicationPreferences`. Imported
+//!   by `mod.zig` for the legacy Abbey interface.
 
 const std = @import("std");
 const string_utils = @import("../../../foundation/mod.zig").utils;
@@ -509,4 +519,9 @@ test "empathy calibration" {
 
     try std.testing.expect(high_empathy > low_empathy);
     try std.testing.expect(high_empathy >= 0.8);
+}
+
+
+test {
+    std.testing.refAllDecls(@This());
 }

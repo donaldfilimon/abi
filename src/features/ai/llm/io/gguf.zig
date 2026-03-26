@@ -821,3 +821,8 @@ test "tensor info element count" {
     try std.testing.expectEqual(@as(u64, 4 * 8 * 16), info.elementCount());
     try std.testing.expectEqual(@as(u64, 4 * 8 * 16 * 4), info.byteSize());
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

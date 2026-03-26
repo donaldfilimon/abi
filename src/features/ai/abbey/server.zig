@@ -456,13 +456,9 @@ fn buildEmotionalStateJson(allocator: std.mem.Allocator, emotional: @import("emo
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{\"detected\":\"");
-    try json.print(allocator, "{t}", .{emotional.detected});
-    try json.appendSlice(allocator, "\",\"confidence\":");
-    try json.print(allocator, "{d:.4}", .{emotional.confidence});
-    try json.appendSlice(allocator, ",\"valence\":");
-    try json.print(allocator, "{d:.4}", .{emotional.valence});
-    try json.appendSlice(allocator, ",\"arousal\":");
-    try json.print(allocator, "{d:.4}", .{emotional.arousal});
+    try json.print(allocator, "{s}", .{@tagName(emotional.detected)});
+    try json.appendSlice(allocator, "\",\"intensity\":");
+    try json.print(allocator, "{d:.4}", .{emotional.intensity});
     try json.appendSlice(allocator, "}");
 
     return json.toOwnedSlice(allocator);
@@ -719,4 +715,9 @@ test "get query param" {
 
     const missing = getQueryParam(query, "nonexistent");
     try std.testing.expect(missing == null);
+}
+
+
+test {
+    std.testing.refAllDecls(@This());
 }

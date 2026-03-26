@@ -92,3 +92,8 @@ pub const PipelineConfig = struct {
 };
 
 pub const Error = error{ DocumentTooLarge, InvalidFormat, ParseError, OutOfMemory, FeatureDisabled };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

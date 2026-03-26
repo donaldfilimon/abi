@@ -100,3 +100,8 @@ fn elapsedMs(timer: ?time.Timer) u64 {
     else
         0;
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

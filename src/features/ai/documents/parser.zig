@@ -541,3 +541,8 @@ pub const LayoutAnalyzer = struct {
         return stats;
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -8,6 +8,7 @@ const FeatureFlags = build_flags.FeatureFlags;
 const hasBackend = build_flags.hasBackend;
 const addAllBuildOptions = build_flags.addAllBuildOptions;
 const linkDarwinArtifact = build_linking.linkDarwinArtifact;
+const linkIfDarwin = build_linking.linkIfDarwin;
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -171,13 +172,9 @@ pub fn build(b: *std.Build) void {
         .linkage = .static,
     });
     static_lib.root_module.addImport("build_options", build_options_module);
+    linkIfDarwin(static_lib, .static_lib, feat_gpu, gpu_metal);
     b.installArtifact(static_lib);
     b.step("lib", "Build static library").dependOn(&b.addInstallArtifact(static_lib, .{}).step);
-
-    // ── Platform linking ────────────────────────────────────────────────
-    if (target.result.os.tag == .macos) {
-        linkDarwinArtifact(static_lib, .static_lib, feat_gpu, gpu_metal);
-    }
 
     // ── MCP server binary ────────────────────────────────────────────────
     const mcp_exe = b.addExecutable(.{
@@ -189,9 +186,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     mcp_exe.root_module.addImport("build_options", build_options_module);
-    if (target.result.os.tag == .macos) {
-        linkDarwinArtifact(mcp_exe, .executable, feat_gpu, gpu_metal);
-    }
+    linkIfDarwin(mcp_exe, .executable, feat_gpu, gpu_metal);
     b.step("mcp", "Build MCP stdio server").dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
 
     // ── CLI binary ──────────────────────────────────────────────────────
@@ -204,9 +199,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     cli_exe.root_module.addImport("build_options", build_options_module);
-    if (target.result.os.tag == .macos) {
-        linkDarwinArtifact(cli_exe, .executable, feat_gpu, gpu_metal);
-    }
+    linkIfDarwin(cli_exe, .executable, feat_gpu, gpu_metal);
     b.step("cli", "Build ABI command-line interface").dependOn(&b.addInstallArtifact(cli_exe, .{}).step);
 
     _ = build_validation.addSteps(.{

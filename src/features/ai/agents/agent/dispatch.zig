@@ -34,3 +34,8 @@ fn generateLocalResponse(agent: anytype, allocator: std.mem.Allocator) ![]u8 {
         agent.config.temperature,
     });
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

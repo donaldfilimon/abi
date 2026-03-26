@@ -88,21 +88,12 @@ export fn abi_chat(message: [*:0]const u8) ?[*:0]u8 {
     const allocator = std.heap.c_allocator;
     const prompt = std.mem.span(message);
 
-    const formatted = std.fmt.allocPrint(allocator, "ABI FFI received prompt: {s}", .{prompt}) catch |err| {
+    const reply = std.fmt.allocPrintSentinel(allocator, "ABI FFI received prompt: {s}", .{prompt}, 0) catch |err| {
         setLastError("Failed to allocate reply: {s}", .{@errorName(err)});
         return null;
     };
-    defer allocator.free(formatted);
 
-    const c_str = allocator.alloc(u8, formatted.len + 1) catch |err| {
-        setLastError("Failed to allocate c-string: {s}", .{@errorName(err)});
-        return null;
-    };
-
-    @memcpy(c_str[0..formatted.len], formatted);
-    c_str[formatted.len] = 0;
-
-    return @ptrCast(c_str.ptr);
+    return reply.ptr;
 }
 
 /// Free a string returned by the ABI framework.

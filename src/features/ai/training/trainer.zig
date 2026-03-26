@@ -327,3 +327,7 @@ test "saveModelToWdbx writes weights through abi.database.Store" {
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), weights.vector[0], 0.0001);
     try std.testing.expectApproxEqAbs(@as(f32, 3.0), weights.vector[2], 0.0001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

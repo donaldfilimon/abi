@@ -197,3 +197,8 @@ test "codebase indexer dummy test" {
     // Basic test
     try std.testing.expect(true);
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

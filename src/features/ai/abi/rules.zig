@@ -345,3 +345,8 @@ test "RoutingRulesScore getBestProfile" {
     score.requires_moderation = true;
     try std.testing.expect(score.getBestProfile() == .abi);
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

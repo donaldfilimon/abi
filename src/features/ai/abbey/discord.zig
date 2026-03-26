@@ -431,9 +431,7 @@ pub fn handleSlashCommand(
         return buildErrorResponse("Invalid interaction data");
     };
 
-    const command_name = data.name orelse {
-        return buildErrorResponse("Missing command name");
-    };
+    const command_name = data.name;
 
     if (std.mem.eql(u8, command_name, "abbey")) {
         return handleChatCommand(bot, &data);
@@ -450,17 +448,16 @@ pub fn handleSlashCommand(
 
 fn handleChatCommand(bot: *AbbeyDiscordBot, data: *const discord.InteractionData) !discord.InteractionResponse {
     // Extract message from options
-    const options = data.options orelse {
+    const options = data.options;
+    if (options.len == 0) {
         return buildErrorResponse("Missing options");
-    };
+    }
 
     var message_content: ?[]const u8 = null;
     for (options) |opt| {
-        if (opt.name) |name| {
-            if (std.mem.eql(u8, name, "message")) {
-                message_content = opt.value;
-                break;
-            }
+        if (std.mem.eql(u8, opt.name, "message")) {
+            message_content = opt.value;
+            break;
         }
     }
 
@@ -473,7 +470,7 @@ fn handleChatCommand(bot: *AbbeyDiscordBot, data: *const discord.InteractionData
     defer response.deinit(bot.allocator);
 
     return discord.InteractionResponse{
-        .type = .channel_message_with_source,
+        .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
         .data = .{
             .content = response.content,
         },
@@ -483,15 +480,13 @@ fn handleChatCommand(bot: *AbbeyDiscordBot, data: *const discord.InteractionData
 fn handleMoodCommand(bot: *AbbeyDiscordBot) discord.InteractionResponse {
     const emotional = bot.abbey_engine.getEmotionalState();
     var buf: [256]u8 = undefined;
-    const content = std.fmt.bufPrint(&buf, "Current mood: {t} (confidence: {d:.0}%)\nValence: {d:.2}, Arousal: {d:.2}", .{
-        emotional.detected,
-        emotional.confidence * 100,
-        emotional.valence,
-        emotional.arousal,
+    const content = std.fmt.bufPrint(&buf, "Current mood: {s} (intensity: {d:.0}%)", .{
+        @tagName(emotional.detected),
+        emotional.intensity * 100,
     }) catch "Unable to get mood";
 
     return discord.InteractionResponse{
-        .type = .channel_message_with_source,
+        .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
         .data = .{
             .content = content,
         },
@@ -509,7 +504,7 @@ fn handleStatsCommand(bot: *AbbeyDiscordBot) discord.InteractionResponse {
     }) catch "Unable to get stats";
 
     return discord.InteractionResponse{
-        .type = .channel_message_with_source,
+        .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
         .data = .{
             .content = content,
         },
@@ -519,7 +514,7 @@ fn handleStatsCommand(bot: *AbbeyDiscordBot) discord.InteractionResponse {
 fn handleClearCommand(bot: *AbbeyDiscordBot) discord.InteractionResponse {
     bot.abbey_engine.clearConversation();
     return discord.InteractionResponse{
-        .type = .channel_message_with_source,
+        .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
         .data = .{
             .content = "Conversation context cleared! Let's start fresh.",
         },
@@ -528,10 +523,10 @@ fn handleClearCommand(bot: *AbbeyDiscordBot) discord.InteractionResponse {
 
 fn buildErrorResponse(message: []const u8) discord.InteractionResponse {
     return discord.InteractionResponse{
-        .type = .channel_message_with_source,
+        .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
         .data = .{
             .content = message,
-            .flags = discord.MessageFlags.ephemeral,
+            .flags = discord.MessageFlags.EPHEMERAL,
         },
     };
 }
@@ -572,4 +567,8 @@ test "emotional emoji mapping" {
 
     const neutral_emoji = AbbeyDiscordBot.getEmotionalEmoji(.neutral);
     try std.testing.expect(neutral_emoji == null);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

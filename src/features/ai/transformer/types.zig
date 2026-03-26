@@ -3,6 +3,8 @@
 //! Used by both mod.zig and stub.zig to prevent type drift between
 //! enabled and disabled paths.
 
+const std = @import("std");
+
 /// Errors common to both real and stub transformer implementations.
 /// Stubs extend this with `FeatureDisabled` via a separate error set union.
 pub const TransformerError = error{
@@ -40,3 +42,8 @@ pub const TransformerConfig = struct {
         if (self.top_p < 0 or self.top_p > 1.0) return TransformerError.InvalidConfiguration;
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

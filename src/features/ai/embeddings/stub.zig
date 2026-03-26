@@ -51,6 +51,13 @@ pub const EmbeddingModel = struct {
     pub fn cosineSimilarity(_: *EmbeddingModel, _: []const f32, _: []const f32) f32 {
         return 0;
     }
+    pub fn setBackend(_: *EmbeddingModel, _: EmbeddingBackend) void {}
+    pub fn hasBackend(_: *const EmbeddingModel) bool {
+        return false;
+    }
+    pub fn getBackendType(_: *const EmbeddingModel) ?BackendType {
+        return null;
+    }
 };
 
 pub const BatchProcessor = struct {
@@ -92,6 +99,14 @@ pub const Context = struct {
     }
     pub fn cosineSimilarity(_: *Context, _: []const f32, _: []const f32) f32 {
         return 0;
+    }
+    pub fn useOpenAI(_: *Context, _: []const u8) void {}
+    pub fn useOpenAIFromEnv(_: *Context) void {}
+    pub fn hasBackend(_: *const Context) bool {
+        return false;
+    }
+    pub fn getBackendType(_: *const Context) ?BackendType {
+        return null;
     }
 };
 

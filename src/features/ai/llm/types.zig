@@ -724,3 +724,8 @@ pub const Context = struct {
         return error.FeatureDisabled;
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

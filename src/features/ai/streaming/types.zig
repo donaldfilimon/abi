@@ -587,3 +587,8 @@ pub const formats_openai = struct {
         return error.FeatureDisabled;
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

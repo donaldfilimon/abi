@@ -300,7 +300,7 @@ pub const all = [_]Metadata{
     .{
         .feature = .constitution,
         .description = "AI safety principles and guardrails",
-        .compile_flag_field = "feat_ai",
+        .compile_flag_field = "feat_reasoning",
         .parity_spec = .ai,
         .parent = .ai,
         .real_module_path = "features/ai/constitution/mod.zig",

@@ -287,7 +287,7 @@ test "cli: chat message helper handles empty args" {
 // === App Builder Path ===
 
 test "cli: app version returns non-empty string" {
-    const version = abi.app.version();
+    const version = abi.version();
     try std.testing.expect(version.len > 0);
 }
 

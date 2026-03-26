@@ -536,3 +536,8 @@ test "config builder" {
     try std.testing.expectEqual(@as(f32, 0.8), config.behavior.base_temperature);
     try std.testing.expectEqual(LLMConfig.Backend.openai, config.llm.backend);
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

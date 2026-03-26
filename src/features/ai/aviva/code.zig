@@ -593,3 +593,8 @@ test "indent style strings" {
     try std.testing.expectEqual(@as(usize, 2), IndentStyle.spaces_2.getString().len);
     try std.testing.expectEqual(@as(usize, 4), IndentStyle.spaces_4.getString().len);
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -76,3 +76,8 @@ pub const Coordinator = struct {
         return .{};
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

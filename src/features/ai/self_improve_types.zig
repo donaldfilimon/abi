@@ -3,6 +3,8 @@
 //! Used by both self_improve.zig (mod) and self_improve_stub.zig (stub)
 //! to prevent type drift between enabled and disabled paths.
 
+const std = @import("std");
+
 /// Status of a proposed improvement.
 pub const ImprovementStatus = enum {
     proposed,
@@ -60,3 +62,8 @@ pub const PerformanceReport = struct {
     improvement_count: usize,
     trend: Trend,
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

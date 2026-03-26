@@ -5,6 +5,8 @@
 //!
 //! Source of truth: backend.zig and mod.zig definitions.
 
+const std = @import("std");
+
 /// Backend type enumeration.
 pub const BackendType = enum {
     openai,
@@ -69,3 +71,8 @@ pub const EmbeddingConfig = struct {
     /// Model identifier.
     model_id: []const u8 = "default",
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

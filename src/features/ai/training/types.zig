@@ -500,8 +500,8 @@ pub const SequencePacker = struct {
     }
     pub const PackedBatch = struct {
         allocator: std.mem.Allocator,
-        tokens: []u32 = @constCast(&[_]u32{}),
-        attention_mask: []u8 = @constCast(&[_]u8{}),
+        tokens: []u32 = &.{},
+        attention_mask: []u8 = &.{},
         batch_size: u32 = 0,
         seq_len: u32 = 0,
         num_batches: u32 = 0,
@@ -756,3 +756,8 @@ pub const distributed = struct {
 
 pub const DistributedConfig = distributed.DistributedConfig;
 pub const DistributedTrainer = distributed.DistributedTrainer;
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -42,7 +42,7 @@ pub fn dispatchHttpRequest(
     return respondJson(request, "{\"error\":\"not found\"}", .not_found);
 }
 
-pub fn splitPath(target: []const u8) []const u8 {
+fn splitPath(target: []const u8) []const u8 {
     if (std.mem.indexOfScalar(u8, target, '?')) |idx| {
         return target[0..idx];
     }
@@ -80,8 +80,40 @@ fn handleTasksHttpRoute(
         return respondJson(request, json_body, .created);
     }
     if (std.mem.startsWith(u8, path, "/tasks/")) {
-        const id = path["/tasks/".len..];
-        if (id.len == 0) return respondJson(request, "{\"error\":\"not found\"}", .not_found);
+        const remainder = path["/tasks/".len..];
+        if (remainder.len == 0) return respondJson(request, "{\"error\":\"not found\"}", .not_found);
+
+        // Check for /tasks/{id}/status
+        if (std.mem.endsWith(u8, remainder, "/status")) {
+            const id = remainder[0 .. remainder.len - "/status".len];
+            if (request.head.method != .POST) {
+                return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+            }
+            const body = readRequestBody(allocator, request) catch |err| switch (err) {
+                HttpError.RequestTooLarge => return respondJson(request, "{\"error\":\"payload too large\"}", .payload_too_large),
+                HttpError.ReadFailed => return respondJson(request, "{\"error\":\"invalid body\"}", .bad_request),
+                else => return err,
+            };
+            defer allocator.free(body);
+
+            const new_status_str = extractStatus(allocator, body) catch {
+                return respondJson(request, "{\"error\":\"invalid status\"}", .bad_request);
+            };
+            defer allocator.free(new_status_str);
+
+            const new_status = parseStatus(new_status_str) orelse {
+                return respondJson(request, "{\"error\":\"unknown status\"}", .bad_request);
+            };
+
+            acp_server.updateTaskStatus(id, new_status) catch |err| switch (err) {
+                error.TaskNotFound => return respondJson(request, "{\"error\":\"task not found\"}", .not_found),
+                error.InvalidTransition => return respondJson(request, "{\"error\":\"invalid transition\"}", .conflict),
+            };
+
+            return respondJson(request, "{\"ok\":true}", .ok);
+        }
+
+        const id = remainder;
         if (request.head.method != .GET) {
             return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
         }
@@ -127,8 +159,8 @@ fn handleSessionsHttpRoute(
         if (remainder.len == 0) return respondJson(request, "{\"error\":\"not found\"}", .not_found);
 
         // Check for /sessions/{id}/tasks sub-route
-        if (std.mem.indexOf(u8, remainder, "/tasks")) |idx| {
-            const session_id = remainder[0..idx];
+        if (std.mem.endsWith(u8, remainder, "/tasks")) {
+            const session_id = remainder[0 .. remainder.len - "/tasks".len];
             if (request.head.method == .POST) {
                 const body = readRequestBody(allocator, request) catch |err| switch (err) {
                     HttpError.RequestTooLarge => {
@@ -168,7 +200,7 @@ fn handleSessionsHttpRoute(
     return respondJson(request, "{\"error\":\"not found\"}", .not_found);
 }
 
-pub fn extractMessage(allocator: std.mem.Allocator, body: []const u8) ![]const u8 {
+fn extractMessage(allocator: std.mem.Allocator, body: []const u8) ![]const u8 {
     const trimmed = std.mem.trim(u8, body, " \t\r\n");
     if (trimmed.len == 0) return body;
     if (trimmed[0] == '{') {
@@ -183,7 +215,26 @@ pub fn extractMessage(allocator: std.mem.Allocator, body: []const u8) ![]const u
     return body;
 }
 
-pub fn readRequestBody(allocator: std.mem.Allocator, request: *std.http.Server.Request) HttpError![]u8 {
+fn extractStatus(allocator: std.mem.Allocator, body: []const u8) ![]const u8 {
+    const trimmed = std.mem.trim(u8, body, " \t\r\n");
+    if (trimmed.len == 0) return error.EmptyBody;
+    if (trimmed[0] == '{') {
+        var parsed = try std.json.parseFromSlice(std.json.Value, allocator, trimmed, .{});
+        defer parsed.deinit();
+        if (parsed.value == .object) {
+            if (parsed.value.object.get("status")) |v| {
+                if (v == .string) return allocator.dupe(u8, v.string);
+            }
+        }
+    }
+    return allocator.dupe(u8, trimmed);
+}
+
+fn parseStatus(status: []const u8) ?@import("tasks.zig").TaskStatus {
+    return @import("../types.zig").TaskStatus.fromString(status);
+}
+
+fn readRequestBody(allocator: std.mem.Allocator, request: *std.http.Server.Request) HttpError![]u8 {
     var buffer: [4096]u8 = undefined;
     const reader = request.readerExpectContinue(&buffer) catch return HttpError.ReadFailed;
     var list = std.ArrayListUnmanaged(u8).empty;
@@ -194,7 +245,6 @@ pub fn readRequestBody(allocator: std.mem.Allocator, request: *std.http.Server.R
         if (n == 0) break;
         if (list.items.len + n > max_http_body_bytes) return HttpError.RequestTooLarge;
         try list.appendSlice(allocator, chunk[0..n]);
-        if (n < chunk.len) break;
     }
     return list.toOwnedSlice(allocator);
 }

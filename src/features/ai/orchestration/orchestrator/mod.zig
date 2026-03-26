@@ -115,3 +115,8 @@ pub const Orchestrator = struct {
         return registry.listModels(self, allocator);
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

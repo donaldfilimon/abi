@@ -40,9 +40,7 @@ pub fn addSteps(ctx: Context) Steps {
     const test_step = ctx.b.step("test", "Run tests");
 
     const lib_tests = addModuleTests(ctx.b, ctx.target, ctx.optimize, "src/root.zig", ctx.build_options_module);
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const run_lib_tests = ctx.b.addRunArtifact(lib_tests);
     test_step.dependOn(&run_lib_tests.step);
 
@@ -54,18 +52,14 @@ pub fn addSteps(ctx: Context) Steps {
         ctx.abi_module,
         ctx.build_options_module,
     );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const run_integration = ctx.b.addRunArtifact(integration_tests);
     test_step.dependOn(&run_integration.step);
 
     addTuiTests(ctx);
 
     const parity_tests = addParityTests(ctx.b, ctx.target, ctx.optimize, ctx.build_options_module);
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(parity_tests, .parity_test, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(parity_tests, .parity_test, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const run_parity = ctx.b.addRunArtifact(parity_tests);
     const check_parity_step = ctx.b.step("check-parity", "Verify mod/stub declaration parity");
     check_parity_step.dependOn(&run_parity.step);
@@ -82,9 +76,7 @@ pub fn addSteps(ctx: Context) Steps {
         ctx.abi_module,
         ctx.build_options_module,
     );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(mcp_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(mcp_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const mcp_tests_step = ctx.b.step("mcp-tests", "Run MCP integration tests");
     mcp_tests_step.dependOn(&ctx.b.addRunArtifact(mcp_tests).step);
 
@@ -160,11 +152,6 @@ fn addModuleTests(
     });
     test_mod.addImport("build_options", build_options_module);
     const tests = b.addTest(.{ .root_module = test_mod });
-    // macOS 26.4+ (Darwin 25.x): LLD cannot resolve system framework symbols.
-    // Force Apple's native linker for test artifacts.
-    if (target.result.os.tag == .macos) {
-        tests.use_lld = false;
-    }
     return tests;
 }
 
@@ -185,9 +172,6 @@ fn addIntegrationTests(
     integration_mod.addImport("abi", abi_module);
     integration_mod.addImport("build_options", build_options_module);
     const tests = b.addTest(.{ .root_module = integration_mod });
-    if (target.result.os.tag == .macos) {
-        tests.use_lld = false;
-    }
     return tests;
 }
 
@@ -214,10 +198,7 @@ fn addTuiTests(ctx: Context) void {
         }),
     });
     tui_lib_tests.root_module.addImport("build_options", tui_build_options_module);
-    if (ctx.target.result.os.tag == .macos) {
-        tui_lib_tests.use_lld = false;
-        linking.linkDarwinArtifact(tui_lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(tui_lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
 
     const tui_integration_tests = addIntegrationTests(
         ctx.b,
@@ -227,9 +208,7 @@ fn addTuiTests(ctx: Context) void {
         tui_abi_module,
         tui_build_options_module,
     );
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(tui_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(tui_integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
 
     const tui_tests_step = ctx.b.step("tui-tests", "Run TUI tests with feat-tui=true");
     tui_tests_step.dependOn(&ctx.b.addRunArtifact(tui_lib_tests).step);
@@ -241,13 +220,9 @@ fn addTuiTests(ctx: Context) void {
 /// Creates a build step named "{display_name}-tests".
 fn addFeatureTestLane(ctx: Context, comptime name: []const u8, comptime display_name: []const u8) *std.Build.Step {
     const unit_tests = addModuleTests(ctx.b, ctx.target, ctx.optimize, "src/" ++ name ++ "_mod_test.zig", ctx.build_options_module);
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const integration_tests = addIntegrationTests(ctx.b, ctx.target, ctx.optimize, "test/" ++ name ++ "_mod.zig", ctx.abi_module, ctx.build_options_module);
-    if (ctx.target.result.os.tag == .macos) {
-        linking.linkDarwinArtifact(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    }
+    linking.linkIfDarwin(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const step = ctx.b.step(display_name ++ "-tests", "Run " ++ display_name ++ "-focused unit and integration tests");
     step.dependOn(&ctx.b.addRunArtifact(unit_tests).step);
     step.dependOn(&ctx.b.addRunArtifact(integration_tests).step);
@@ -268,8 +243,5 @@ fn addParityTests(
     });
     parity_mod.addImport("build_options", build_options_module);
     const tests = b.addTest(.{ .root_module = parity_mod });
-    if (target.result.os.tag == .macos) {
-        tests.use_lld = false;
-    }
     return tests;
 }

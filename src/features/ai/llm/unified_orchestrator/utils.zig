@@ -26,5 +26,10 @@ pub fn jsonStringify(allocator: std.mem.Allocator) ![]const u8 {
 pub fn runProcess(allocator: std.mem.Allocator, argv: []const []const u8) !std.ArrayListUnmanaged(u8) {
     _ = allocator;
     _ = argv;
-    return .{};
+    return .empty;
+}
+
+
+test {
+    std.testing.refAllDecls(@This());
 }

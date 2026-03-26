@@ -78,10 +78,10 @@ fn deinitResponse(allocator: std.mem.Allocator, response: *connectors.vllm.ChatC
 test "generate rejects non-http plugin kind" {
     const allocator = std.testing.allocator;
     const entry = manifest.PluginEntry{
-        .id = @constCast("native-plugin"),
+        .id = ("native-plugin"),
         .kind = .native,
         .enabled = true,
-        .base_url = @constCast("http://localhost:8080"),
+        .base_url = ("http://localhost:8080"),
     };
 
     const cfg = types.GenerateConfig{
@@ -96,10 +96,10 @@ test "generate rejects non-http plugin kind" {
 test "generate rejects disabled plugin" {
     const allocator = std.testing.allocator;
     const entry = manifest.PluginEntry{
-        .id = @constCast("disabled-plugin"),
+        .id = ("disabled-plugin"),
         .kind = .http,
         .enabled = false,
-        .base_url = @constCast("http://localhost:8080"),
+        .base_url = ("http://localhost:8080"),
     };
 
     const cfg = types.GenerateConfig{
@@ -114,7 +114,7 @@ test "generate rejects disabled plugin" {
 test "generate rejects plugin without base_url" {
     const allocator = std.testing.allocator;
     const entry = manifest.PluginEntry{
-        .id = @constCast("no-url"),
+        .id = ("no-url"),
         .kind = .http,
         .enabled = true,
         .base_url = null,

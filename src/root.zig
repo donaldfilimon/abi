@@ -97,6 +97,7 @@ pub const tui = if (build_options.feat_tui) @import("features/tui/mod.zig") else
 
 // ── Convenience aliases ──────────────────────────────────────────────────
 
+/// Build metadata: package version and feature catalog.
 pub const meta = struct {
     pub const package_version = build_options.package_version;
     pub const features = @import("core/feature_catalog.zig");
@@ -106,37 +107,20 @@ pub const meta = struct {
     }
 };
 
-const FrameworkApp = framework.Framework;
-const FrameworkAppBuilder = framework.FrameworkBuilder;
+/// Framework application type (shorthand for `framework.Framework`).
+pub const App = framework.Framework;
+/// Framework builder type (shorthand for `framework.FrameworkBuilder`).
+pub const AppBuilder = framework.FrameworkBuilder;
 
-pub const app = struct {
-    pub const App = FrameworkApp;
-    pub const AppBuilder = FrameworkAppBuilder;
-    pub const Error = FrameworkApp.Error;
-
-    pub fn builder(allocator: std.mem.Allocator) FrameworkAppBuilder {
-        return FrameworkApp.builder(allocator);
-    }
-
-    pub fn version() []const u8 {
-        return meta.version();
-    }
-};
-
-pub const App = FrameworkApp;
-pub const AppBuilder = FrameworkAppBuilder;
-pub const Gpu = gpu.Gpu;
-pub const GpuBackend = gpu.Backend;
-
+/// Create a framework builder (shorthand for `App.builder(allocator)`).
 pub fn appBuilder(allocator: std.mem.Allocator) AppBuilder {
     return App.builder(allocator);
 }
 
+/// Return the package version string (shorthand for `meta.version()`).
 pub fn version() []const u8 {
     return meta.version();
 }
-
-pub const feature_catalog = meta.features;
 
 test {
     std.testing.refAllDecls(@This());

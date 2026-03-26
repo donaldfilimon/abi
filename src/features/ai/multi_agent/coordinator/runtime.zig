@@ -442,3 +442,8 @@ fn runAgentThread(
         .duration_ns = duration,
     };
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

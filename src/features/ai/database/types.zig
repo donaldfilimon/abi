@@ -3,6 +3,8 @@
 //! These are used by both the real implementation (`mod.zig` / `brain_export.zig`)
 //! and the stub (`stub.zig`), eliminating inline duplication that can drift.
 
+const std = @import("std");
+
 /// Configuration for dual brain export (.wdbx + .gguf).
 pub const BrainExportConfig = struct {
     /// Path for native .wdbx brain file (always written).
@@ -33,3 +35,8 @@ pub const ExportResult = struct {
     wdbx_size_bytes: u64 = 0,
     gguf_size_bytes: u64 = 0,
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
-Zig version is pinned in `.zigversion` (currently `0.16.0-dev.2979+e93834410`). The zig version manager auto-downloads the correct version:
+Zig version is pinned in `.zigversion` (currently `0.16.0-dev.2984+cb7d2b056`). The zig version manager auto-downloads the correct version:
 
 ```bash
 tools/zigup.sh --status    # Print zig path (auto-install if missing)
@@ -32,6 +32,8 @@ tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
 Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
+
+`zigup.sh` also detects system-installed zig from zvm (`~/.zvm/bin/zig`) or brew, preferring those over its own cache when the version matches `.zigversion`. If zvm is installed, `zvm install master` provides both zig and zls.
 
 To make zig and zls available globally, run `tools/zigup.sh --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
 ```bash
@@ -101,7 +103,7 @@ Build with `zig build cli` (or `./build.sh cli`). Binary: `zig-out/bin/abi`.
 abi                    # Smart status (feature count, enabled/disabled tags)
 abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
-abi features           # List all 32 features from catalog with [+]/[-] status
+abi features           # List all 35 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
 abi connectors         # List 16 LLM provider connectors with env vars
 abi info               # Framework architecture summary
@@ -114,6 +116,8 @@ abi help               # Full help reference
 ```
 
 `./build.sh` is a macOS 26.4+ (Darwin 25.x) wrapper that patches Zig's LLD linker incompatibility with the macOS SDK. It passes all arguments through to `zig build` (e.g., `./build.sh test --summary all`, `./build.sh -Dfeat-gpu=false`). The `--link` flag additionally symlinks zig+zls to `~/.local/bin`. On Linux / older macOS, `zig build` works directly.
+
+**Why `build.sh` is required (not optional) on macOS 26.4+:** Zig compiles `build.zig` into a "build runner" binary *before* `build()` runs, using its internal LLD. On Darwin 25.x, LLD can't resolve system symbols from SDK `.tbd` files (arm64e vs arm64 mismatch). Our `use_lld = false` settings only affect artifacts created inside `build()`, not the build runner itself. This is a Zig compiler limitation — `build.sh` works around it by relinking the build runner with Apple's `/usr/bin/ld`.
 
 ### Running Single Tests
 
@@ -148,7 +152,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 20 feature directories under src/features/ (32 features total including AI sub-features in the catalog)
+- `src/features/` — 20 feature directories under src/features/ (35 features total including AI sub-features in the catalog)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction
@@ -197,7 +201,8 @@ The `ai` feature (`src/features/ai/`) contains 33+ sub-directories organized by 
 
 - `abi.meta.package_version` / `abi.meta.version()` — version string from build options
 - `abi.meta.features` — re-exports `src/core/feature_catalog.zig`
-- `abi.app.App` / `abi.app.AppBuilder` / `abi.app.builder(allocator)` — framework lifecycle wrappers around `abi.framework`
+- `abi.App` / `abi.AppBuilder` / `abi.appBuilder(allocator)` — framework lifecycle (shorthand for `abi.framework.Framework` etc.)
+- `abi.version()` — shorthand for `abi.meta.version()`
 
 ### Build Options
 
@@ -308,6 +313,13 @@ Additional specifications:
 - `src/core/feature_catalog.zig` is the canonical source of truth for feature metadata.
 - `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, and `StubContextWithConfig` — reuse these in stubs instead of defining custom lifecycle boilerplate.
 - Integration tests in `test/` must use public API accessors (e.g., `manager.getStatus()`) not direct struct field access. This preserves the consumer-API boundary and thread-safety contract.
+- Use `linkIfDarwin()` from `build/linking.zig` instead of inline macOS checks — 13 callsites consolidated.
+- AI sub-feature stubs under `src/features/ai/*/stub.zig` are domain-specific and intentionally don't use generic `stub_helpers.zig` helpers.
+- For non-trivial tasks: read `tasks/lessons.md` and update `tasks/todo.md` before implementation. Keep `tasks/` for workflow notes only — do not confuse with `src/tasks/`.
+- **Database engine thread safety**: every public `Engine` method must acquire `db_lock` before reading `vectors_array`, `hnsw_index`, `ai_client`, or `cache`.
+- **JSON utilities**: use `foundation/utils/json.zig` for escaping — never reimplement in protocol-specific files (ACP, MCP, etc.).
+- **AI pipeline memory**: string literals in `ProfileResponse.content` crash on `deinit` — always `allocator.dupe()` heap copies before storing.
+- **Abbey emotion files**: `emotion.zig` and `emotions.zig` both exist — `emotions.zig` is canonical; don't import `emotion.zig`.
 
 ### Error Handling Convention
 

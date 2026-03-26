@@ -85,3 +85,8 @@ pub const TrainableModelConfig = struct {
         return total;
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

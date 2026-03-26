@@ -59,3 +59,8 @@ fn rolePrefix(role: types.Message.Role) []const u8 {
         .assistant => "Assistant: ",
     };
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

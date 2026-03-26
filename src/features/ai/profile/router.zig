@@ -114,7 +114,7 @@ pub const MultiProfileRouter = struct {
             std.log.warn("profile: abiBackedRoute failed: {s}", .{@errorName(err)});
             return null;
         };
-        defer @constCast(&abi_decision).deinit(self.allocator);
+        defer abi_decision.deinit(self.allocator);
 
         // Translate ai_types.RoutingDecision → profile types.RoutingDecision
         var weights = RoutingDecision.Weights{};
@@ -269,9 +269,10 @@ pub const MultiProfileRouter = struct {
         if (self.constitution) |c| {
             if (!c.isCompliant(response.content)) {
                 // Response violates ethical principles — return safe fallback
+                const safe_msg = "I cannot provide this response as it may violate safety guidelines. Please rephrase your request.";
                 const safe_response = ProfileResponse{
                     .profile = .abi,
-                    .content = "I cannot provide this response as it may violate safety guidelines. Please rephrase your request.",
+                    .content = try self.allocator.dupe(u8, safe_msg),
                     .confidence = 1.0,
                     .allocator = self.allocator,
                 };

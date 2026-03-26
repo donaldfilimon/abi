@@ -196,3 +196,8 @@ pub const AdamWOptimizer = struct {
         }
     }
 };
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

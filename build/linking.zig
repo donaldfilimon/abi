@@ -15,6 +15,14 @@ pub fn linkDarwinArtifact(
 ) void {
     const b = artifact.step.owner;
 
+    // macOS 26.4+ (Darwin 25.x): LLD cannot resolve system framework symbols
+    // when using .tbd files that only list arm64e. Force Apple's native linker.
+    // Defensive: linkIfDarwin already gates on macOS, but keep this guard in
+    // case linkDarwinArtifact is called directly.
+    if (artifact.root_module.resolved_target.?.result.os.tag == .macos) {
+        artifact.use_lld = false;
+    }
+
     // On macOS 26+ with a patched SDK overlay (--sysroot), add library and framework
     // search paths so zig's linker can find -lobjc, -framework IOKit, etc.
     // -L gets sysroot prepended by zig, so use relative /usr/lib.
@@ -55,6 +63,21 @@ pub fn linkDarwinArtifact(
             }
         },
         .parity_test => {},
+    }
+}
+
+/// Convenience wrapper: calls linkDarwinArtifact only when targeting macOS.
+/// Use this instead of inline `if (target.os.tag == .macos)` checks.
+pub fn linkIfDarwin(
+    artifact: *std.Build.Step.Compile,
+    role: DarwinRole,
+    feat_gpu: bool,
+    gpu_metal: bool,
+) void {
+    if (artifact.root_module.resolved_target) |rt| {
+        if (rt.result.os.tag == .macos) {
+            linkDarwinArtifact(artifact, role, feat_gpu, gpu_metal);
+        }
     }
 }
 

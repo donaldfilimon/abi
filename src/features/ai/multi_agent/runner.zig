@@ -149,3 +149,7 @@ pub const WorkflowRunner = struct {
         return run_finalize.finalizeRun(self, def, &session);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

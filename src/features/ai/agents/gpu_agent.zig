@@ -368,7 +368,7 @@ pub const GpuAgent = struct {
             .gpu_enabled = gpu_available,
             .gpu_coordinator = null,
             .learning_scheduler = null,
-            .response_buffer = .{},
+            .response_buffer = .empty,
             .default_timeout_ms = 30000,
             .enable_learning = true,
         };
@@ -872,6 +872,7 @@ test "gpu agent backends summary" {
     // Should have at least one backend (cpu fallback)
     try std.testing.expect(backends.len >= 1);
 }
+
 
 test {
     std.testing.refAllDecls(@This());

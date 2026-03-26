@@ -52,3 +52,29 @@
 - All public methods on `Engine` must acquire `db_lock` before reading shared state (`vectors_array`, `hnsw_index`, `ai_client`, `cache`).
 - Root cause: `deinit`, `indexWithPolicy`, and `search` read `ai_client` and `cache` outside the lock, creating data races with concurrent `connectAI` calls.
 - Prevention: when adding a new public method to engine.zig, always acquire the lock first.
+
+## Build System
+
+### Lesson 7: Use linkIfDarwin() for macOS Framework Linking
+- Always use `linkIfDarwin()` from `build/linking.zig` instead of inline `if (os.tag == .macos)` checks.
+- The inner macOS check in `linkDarwinArtifact` is defensive — don't remove it even though `linkIfDarwin` gates.
+
+## Stub Patterns
+
+### Lesson 8: AI Sub-Feature Stub Conventions
+- AI sub-feature stubs: check `src/core/stub_helpers.zig` before writing custom init/deinit/isEnabled boilerplate.
+- Complex domain stubs (with rich types like EmbeddingModel) should stay custom — don't force StubFeature on them.
+- Aviva stub should import shared types from `../types.zig` instead of redefining them.
+
+## Protocol Patterns
+
+### Lesson 9: JSON and Error Handling in Protocols
+- JSON escaping: use `foundation/utils/json.zig`, don't reimplement in protocol-specific utils.
+- ACP json_utils.zig had a silent `continue` bug — always propagate or handle format errors explicitly.
+
+## AI Pipeline
+
+### Lesson 10: AI Pipeline Safety
+- String literals in ProfileResponse.content will crash on deinit — always `allocator.dupe()` heap copies.
+- Check for double imports when adding new type references.
+- Abbey has emotion.zig AND emotions.zig — use emotions.zig (the canonical one).

@@ -107,6 +107,15 @@ pub fn addViolation(score: *ConstitutionalScore, rule: ConstitutionalRule, princ
     }
 }
 
+test "code block ratio calculation" {
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), codeBlockRatio("no code here"), 0.01);
+    // Text with a code block should return non-zero ratio
+    const with_code = "before ```\ncode here\n``` after";
+    const ratio = codeBlockRatio(with_code);
+    try std.testing.expect(ratio > 0.0);
+    try std.testing.expect(ratio < 1.0);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

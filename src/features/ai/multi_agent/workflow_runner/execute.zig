@@ -55,3 +55,8 @@ pub fn executeStepAttempts(
 
     return outcome;
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

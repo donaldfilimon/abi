@@ -115,10 +115,10 @@ fn load(allocator: std.mem.Allocator, plugin_entry: manifest.PluginEntry) !Loade
 test "generate rejects non-native plugin kind" {
     const allocator = std.testing.allocator;
     const entry = manifest.PluginEntry{
-        .id = @constCast("http-plugin"),
+        .id = ("http-plugin"),
         .kind = .http,
         .enabled = true,
-        .library_path = @constCast("/nonexistent/lib.dylib"),
+        .library_path = ("/nonexistent/lib.dylib"),
     };
 
     const cfg = types.GenerateConfig{
@@ -133,10 +133,10 @@ test "generate rejects non-native plugin kind" {
 test "generate rejects disabled native plugin" {
     const allocator = std.testing.allocator;
     const entry = manifest.PluginEntry{
-        .id = @constCast("disabled-native"),
+        .id = ("disabled-native"),
         .kind = .native,
         .enabled = false,
-        .library_path = @constCast("/nonexistent/lib.dylib"),
+        .library_path = ("/nonexistent/lib.dylib"),
     };
 
     const cfg = types.GenerateConfig{
@@ -151,7 +151,7 @@ test "generate rejects disabled native plugin" {
 test "generate rejects native plugin without library_path" {
     const allocator = std.testing.allocator;
     const entry = manifest.PluginEntry{
-        .id = @constCast("no-path"),
+        .id = ("no-path"),
         .kind = .native,
         .enabled = true,
         .library_path = null,
@@ -170,10 +170,10 @@ test "generate rejects native plugin without library_path" {
 test "load returns NotAvailable for nonexistent library" {
     const allocator = std.testing.allocator;
     const entry = manifest.PluginEntry{
-        .id = @constCast("missing-lib"),
+        .id = ("missing-lib"),
         .kind = .native,
         .enabled = true,
-        .library_path = @constCast("/nonexistent/path/to/lib.dylib"),
+        .library_path = ("/nonexistent/path/to/lib.dylib"),
     };
 
     const result = load(allocator, entry);

@@ -440,3 +440,8 @@ test "trajectory adaptation" {
 
     try std.testing.expect(escalating_empathy > stable_empathy);
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}

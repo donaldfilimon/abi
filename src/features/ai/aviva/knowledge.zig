@@ -574,3 +574,8 @@ test "format knowledge for response" {
     try std.testing.expect(std.mem.indexOf(u8, formatted, "Source A") != null);
     try std.testing.expect(std.mem.indexOf(u8, formatted, "Source B") != null);
 }
+
+
+test {
+    std.testing.refAllDecls(@This());
+}
