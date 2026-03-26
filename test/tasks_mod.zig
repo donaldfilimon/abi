@@ -1,0 +1,11 @@
+//! Focused tasks integration test root.
+
+const std = @import("std");
+const abi = @import("abi");
+const build_options = @import("build_options");
+
+test {
+    _ = abi;
+    _ = build_options;
+    std.testing.refAllDecls(@This());
+}

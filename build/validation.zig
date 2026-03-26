@@ -33,6 +33,15 @@ pub const Steps = struct {
     storage_tests_step: *std.Build.Step,
     cloud_tests_step: *std.Build.Step,
     cache_tests_step: *std.Build.Step,
+    database_tests_step: *std.Build.Step,
+    connectors_tests_step: *std.Build.Step,
+    lsp_tests_step: *std.Build.Step,
+    acp_tests_step: *std.Build.Step,
+    ha_tests_step: *std.Build.Step,
+    tasks_tests_step: *std.Build.Step,
+    documents_tests_step: *std.Build.Step,
+    compute_tests_step: *std.Build.Step,
+    desktop_tests_step: *std.Build.Step,
     check_step: *std.Build.Step,
 };
 
@@ -98,6 +107,15 @@ pub fn addSteps(ctx: Context) Steps {
     const storage_tests_step = addFeatureTestLane(ctx, "storage", "storage");
     const cloud_tests_step = addFeatureTestLane(ctx, "cloud", "cloud");
     const cache_tests_step = addFeatureTestLane(ctx, "cache", "cache");
+    const database_tests_step = addFeatureTestLane(ctx, "database", "database");
+    const connectors_tests_step = addFeatureTestLane(ctx, "connectors", "connectors");
+    const lsp_tests_step = addFeatureTestLane(ctx, "lsp", "lsp");
+    const acp_tests_step = addFeatureTestLane(ctx, "acp", "acp");
+    const ha_tests_step = addFeatureTestLane(ctx, "ha", "ha");
+    const tasks_tests_step = addFeatureTestLane(ctx, "tasks", "tasks");
+    const documents_tests_step = addFeatureTestLane(ctx, "documents", "documents");
+    const compute_tests_step = addFeatureTestLane(ctx, "compute", "compute");
+    const desktop_tests_step = addFeatureTestLane(ctx, "desktop", "desktop");
 
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     const check_step = ctx.b.step("check", "Run lint + test + parity");
@@ -133,6 +151,15 @@ pub fn addSteps(ctx: Context) Steps {
         .storage_tests_step = storage_tests_step,
         .cloud_tests_step = cloud_tests_step,
         .cache_tests_step = cache_tests_step,
+        .database_tests_step = database_tests_step,
+        .connectors_tests_step = connectors_tests_step,
+        .lsp_tests_step = lsp_tests_step,
+        .acp_tests_step = acp_tests_step,
+        .ha_tests_step = ha_tests_step,
+        .tasks_tests_step = tasks_tests_step,
+        .documents_tests_step = documents_tests_step,
+        .compute_tests_step = compute_tests_step,
+        .desktop_tests_step = desktop_tests_step,
         .check_step = check_step,
     };
 }
