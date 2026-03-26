@@ -5,6 +5,11 @@ const abbey_types = @import("types.zig");
 
 // ── Core Modules (inline stubs) ────────────────────────────────────────────
 
+// Sub-namespace facades (additive)
+pub const cognition = struct {};
+pub const system = struct {};
+pub const pipeline = struct {};
+
 pub const core = struct {
     pub const types = struct {
         pub const InstanceId = abbey_types.InstanceId;

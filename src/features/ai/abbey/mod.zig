@@ -12,6 +12,15 @@
 //! honest opinions, emotional intelligence, and research commitment.
 
 const std = @import("std");
+
+// ============================================================================
+// Sub-namespace facades (additive)
+// ============================================================================
+
+pub const cognition = @import("cognition.zig");
+pub const system = @import("system.zig");
+pub const pipeline = @import("pipeline.zig");
+
 // ============================================================================
 // Core Modules
 // ============================================================================
@@ -546,11 +555,11 @@ test "memory module available" {
 test "advanced cognition available" {
     const allocator = std.testing.allocator;
 
-    var cognition = try createAdvancedCognition(allocator);
-    defer cognition.deinit();
+    var adv_cognition = try createAdvancedCognition(allocator);
+    defer adv_cognition.deinit();
 
     // Process a query
-    const result = try cognition.process("user123", "How does machine learning work?");
+    const result = try adv_cognition.process("user123", "How does machine learning work?");
     try std.testing.expect(result.task_profile.complexity > 0.0);
     try std.testing.expect(result.cognitive_load >= 0.0);
 }
