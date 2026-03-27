@@ -40,3 +40,14 @@ pub fn execute(pctx: *PipelineContext, cfg: types.RetrieveConfig) !void {
         pctx.addFragment(text) catch continue;
     }
 }
+
+test "retrieve with nil chain returns immediately" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "query", "session-1", 1);
+    defer pctx.deinit();
+
+    // chain is null by default — should short-circuit without error
+    try execute(&pctx, .{});
+
+    try std.testing.expectEqual(@as(usize, 0), pctx.context_fragments.items.len);
+}

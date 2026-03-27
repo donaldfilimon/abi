@@ -47,3 +47,69 @@ pub fn execute(pctx: *PipelineContext, cfg: types.TemplateConfig) !void {
     if (pctx.rendered_prompt) |old| pctx.allocator.free(old);
     pctx.rendered_prompt = rendered;
 }
+
+test "template interpolation replaces input variable" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "Hello Abbey", "test-session", 1);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{ .template_str = "You said: {input}" });
+
+    try std.testing.expectEqualStrings("You said: Hello Abbey", pctx.rendered_prompt.?);
+}
+
+test "template interpolation replaces context variable" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "test-session", 2);
+    defer pctx.deinit();
+
+    try pctx.addFragment("fragment one");
+    try pctx.addFragment("fragment two");
+
+    try execute(&pctx, .{ .template_str = "Context: {context}" });
+
+    try std.testing.expectEqualStrings("Context: fragment one\nfragment two", pctx.rendered_prompt.?);
+}
+
+test "template interpolation replaces metadata variable" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "test-session", 3);
+    defer pctx.deinit();
+
+    try pctx.setMetadata("name", "Abbey");
+
+    try execute(&pctx, .{ .template_str = "Hello {name}!" });
+
+    try std.testing.expectEqualStrings("Hello Abbey!", pctx.rendered_prompt.?);
+}
+
+test "template keeps unresolved variables as-is" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "test-session", 4);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{ .template_str = "Hello {unknown}!" });
+
+    try std.testing.expectEqualStrings("Hello {unknown}!", pctx.rendered_prompt.?);
+}
+
+test "template unclosed brace treated as literal" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "test-session", 5);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{ .template_str = "broken {variable" });
+
+    // Unclosed brace: '{' is emitted as literal, rest follows
+    try std.testing.expectEqualStrings("broken {variable", pctx.rendered_prompt.?);
+}
+
+test "template empty string produces empty result" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "test-session", 6);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{ .template_str = "" });
+
+    try std.testing.expectEqualStrings("", pctx.rendered_prompt.?);
+}

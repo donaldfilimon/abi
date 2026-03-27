@@ -56,3 +56,14 @@ pub fn execute(pctx: *PipelineContext, _: types.StoreConfig) !void {
     const block_id = try chain.addBlock(config);
     try pctx.recordBlock(block_id);
 }
+
+test "store with nil chain returns immediately" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hello", "session-1", 1);
+    defer pctx.deinit();
+
+    // chain is null by default — should short-circuit
+    try execute(&pctx, .{});
+
+    try std.testing.expectEqual(@as(usize, 0), pctx.block_ids.items.len);
+}

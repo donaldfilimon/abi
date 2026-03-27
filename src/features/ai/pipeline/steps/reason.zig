@@ -49,3 +49,49 @@ pub fn execute(pctx: *PipelineContext, _: types.ReasonConfig) !void {
     const conf_str = std.fmt.bufPrint(&conf_buf, "{d:.2}", .{confidence}) catch "0.50";
     try pctx.setMetadata("confidence", conf_str);
 }
+
+test "reason sets confidence metadata" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "test input", "session-1", 1);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{});
+
+    // With no routing weights, confidence defaults to 0.5
+    const confidence = pctx.metadata.get("confidence").?;
+    try std.testing.expectEqualStrings("0.5", confidence);
+}
+
+test "reason sets reasoning trace metadata" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hello", "session-2", 2);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{});
+
+    const reasoning = pctx.metadata.get("reasoning").?;
+    try std.testing.expect(std.mem.startsWith(u8, reasoning, "Reasoning trace:"));
+    try std.testing.expect(std.mem.indexOf(u8, reasoning, "Input length: 5 chars") != null);
+    try std.testing.expect(std.mem.indexOf(u8, reasoning, "Context fragments: 0") != null);
+}
+
+test "reason includes routing profile when set" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-3", 3);
+    defer pctx.deinit();
+
+    pctx.primary_profile = .aviva;
+    pctx.routing_weights = .{
+        .abbey_weight = 0.2,
+        .aviva_weight = 0.6,
+        .abi_weight = 0.2,
+    };
+
+    try execute(&pctx, .{});
+
+    const reasoning = pctx.metadata.get("reasoning").?;
+    try std.testing.expect(std.mem.indexOf(u8, reasoning, "Routed to: Aviva") != null);
+
+    const confidence = pctx.metadata.get("confidence").?;
+    try std.testing.expectEqualStrings("0.6", confidence);
+}
