@@ -14,12 +14,14 @@ Guidance for AI coding agents working in this repository.
 | `zig build check` | Full gate (lint + test + parity) |
 | `zig build check-parity` | Verify mod/stub parity |
 
-### Focused Test Lanes
+### Test Lanes
 
 ```bash
+zig build test --summary all                        # All tests
+zig build test -- --test-filter "pattern"          # Single test
 zig build feature-tests messaging-tests agents-tests orchestration-tests
 zig build gateway-tests inference-tests secrets-tests pitr-tests
-zig build mcp-tests cli-tests tui-tests
+zig build mcp-tests cli-tests tui-tests multi-agent-tests
 ```
 
 ---
@@ -79,15 +81,19 @@ zig build mcp-tests cli-tests tui-tests
 
 ---
 
-## Zig 0.16 Gotchas
+## CLI Commands
 
-| Old API | New API |
-|---------|---------|
-| `.{}` for ArrayListUnmanaged | `.empty` |
-| `std.BoundedArray` | `buffer: [N]T = undefined` + `len: usize = 0` |
-| `std.time.milliTimestamp` | `foundation.time.unixMs()` |
-| `std.mem.trimRight` | `std.mem.trimEnd` |
-| `pub fn main() !void` | `pub fn main(init: std.process.Init) !void` |
+```bash
+abi               # Smart status
+abi version       # Version info
+abi doctor        # Diagnostics
+abi features      # List all 35 features
+abi platform      # Platform detection
+abi connectors    # List LLM providers
+abi chat <msg>    # Multi-profile pipeline
+abi db <cmd>      # Vector database ops
+abi dashboard     # Interactive TUI
+```
 
 ---
 
