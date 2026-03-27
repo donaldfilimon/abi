@@ -188,3 +188,7 @@ test "resources/subscribe capability advertised" {
     const out = buf[0..writer.end];
     try std.testing.expect(std.mem.indexOf(u8, out, "\"subscribe\":true") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

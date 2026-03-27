@@ -560,3 +560,5 @@ test "gpu type exports" {
     _ = unified.MatrixDims{ .m = 1, .n = 1, .k = 1 };
     try std.testing.expect(true);
 }
+
+// refAllDecls deferred — stdgpu, diagnostics, profiling, recovery have pre-existing Zig 0.16 API errors

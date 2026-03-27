@@ -109,3 +109,7 @@ pub const PagedKVCache = struct {
 
     pub fn deinit(_: *PagedKVCache) void {}
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

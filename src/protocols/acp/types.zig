@@ -110,3 +110,7 @@ test "valid transition: any state -> canceled" {
 test "invalid transition: submitted -> completed" {
     try std.testing.expectError(error.InvalidTransition, TaskStatus.submitted.transition(.completed));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

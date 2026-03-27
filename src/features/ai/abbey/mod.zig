@@ -605,3 +605,5 @@ test {
     _ = reasoning;
     _ = advanced;
 }
+
+// refAllDecls deferred — abbey_train.zig and config.zig have pre-existing compilation errors

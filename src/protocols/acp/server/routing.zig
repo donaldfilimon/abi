@@ -277,3 +277,7 @@ pub fn respondJson(
         .extra_headers = &headers,
     });
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

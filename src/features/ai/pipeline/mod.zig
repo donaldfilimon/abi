@@ -81,3 +81,7 @@ test "pipeline mod compiles" {
     _ = persistence;
     _ = steps;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

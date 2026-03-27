@@ -68,3 +68,7 @@ test "AdaptiveSearchConfig adaptiveEfForSize" {
     // Very large dataset: ef should be capped at max_ef
     try std.testing.expectEqual(@as(u32, 500), config.adaptiveEfForSize(1_000_000));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

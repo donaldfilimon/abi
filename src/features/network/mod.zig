@@ -528,3 +528,5 @@ test "isInitialized tracks lifecycle" {
     deinit();
     try std.testing.expect(!isInitialized());
 }
+
+// refAllDecls deferred — linking/, raft_transport, scheduler, tcp, unified_memory have pre-existing errors

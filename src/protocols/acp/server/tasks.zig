@@ -206,3 +206,7 @@ test "Task.transitionTo rejects invalid transition" {
     try std.testing.expectEqual(TaskStatus.submitted, task.status);
     try std.testing.expectEqual(@as(usize, 0), task.history.items.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

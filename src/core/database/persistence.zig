@@ -390,3 +390,7 @@ test "Persistence invalid magic" {
 
     try std.testing.expectError(PersistenceError.InvalidMagic, load(allocator, path));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
