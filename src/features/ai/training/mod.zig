@@ -18,39 +18,82 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 
-// ── Sub-namespace facades ────────────────────────────────────────────────
-
+// ── Core Training & Models ───────────────────────────────────────────────
 pub const core_training = @import("core_training.zig");
 pub const models = @import("models.zig");
-pub const data = @import("data.zig");
-pub const checkpointing = @import("checkpointing.zig");
-pub const specialized = @import("specialized.zig");
-
-// ── Sub-module imports ───────────────────────────────────────────────────
-
-pub const checkpoint = @import("checkpoint.zig");
-pub const llm_checkpoint = @import("llm_checkpoint.zig");
-pub const gradient = @import("gradient.zig");
-pub const loss = @import("loss.zig");
 pub const trainable_model = @import("trainable_model.zig");
 pub const llm_trainer = @import("llm_trainer.zig");
-pub const data_loader = @import("data_loader.zig");
-pub const token_dataset = @import("../database/wdbx.zig");
-pub const lora = @import("lora.zig");
-pub const mixed_precision = @import("mixed_precision.zig");
-pub const logging = @import("logging.zig");
-pub const distributed = @import("distributed.zig");
-pub const optimizer_mod = @import("optimizer.zig");
 pub const trainer = @import("trainer.zig");
 pub const training_utils = @import("training_utils.zig");
+pub const optimizer_mod = @import("optimizer.zig");
+pub const gradient = @import("gradient.zig");
+pub const loss = @import("loss.zig");
 
-// ── Distributed Training ─────────────────────────────────────────────────
+// Trainable Model re-exports
+pub const TrainableModel = trainable_model.TrainableModel;
+pub const TrainableModelConfig = trainable_model.TrainableModelConfig;
+pub const TrainableWeights = trainable_model.TrainableWeights;
+pub const TrainableLayerWeights = trainable_model.TrainableLayerWeights;
+pub const ActivationCache = trainable_model.ActivationCache;
+pub const ModelLoadError = trainable_model.LoadError;
 
-pub const DistributedConfig = distributed.DistributedConfig;
-pub const DistributedTrainer = distributed.DistributedTrainer;
+// LLM Trainer re-exports
+pub const LlamaTrainer = llm_trainer.LlamaTrainer;
+pub const LlmTrainingConfig = llm_trainer.LlmTrainingConfig;
+pub const trainLlm = llm_trainer.trainLlm;
+
+// Trainer Functions re-exports
+pub const TrainingResult = trainer.TrainingResult;
+pub const train = trainer.train;
+pub const trainAndReport = trainer.trainAndReport;
+pub const trainWithResult = trainer.trainWithResult;
+pub const calculateLearningRate = trainer.calculateLearningRate;
+pub const clipGradients = trainer.clipGradients;
+pub const saveModelToWdbx = trainer.saveModelToWdbx;
+
+// Optimizer re-exports
+pub const Optimizer = optimizer_mod.Optimizer;
+pub const SgdOptimizer = optimizer_mod.SgdOptimizer;
+pub const AdamOptimizer = optimizer_mod.AdamOptimizer;
+pub const AdamWOptimizer = optimizer_mod.AdamWOptimizer;
+
+// Gradient & Loss re-exports
+pub const GradientAccumulator = gradient.GradientAccumulator;
+pub const GradientError = gradient.GradientError;
+pub const CrossEntropyLoss = loss.CrossEntropyLoss;
+pub const MSELoss = loss.MSELoss;
+pub const FocalLoss = loss.FocalLoss;
+pub const perplexity = loss.perplexity;
+pub const klDivergence = loss.klDivergence;
+
+// ── Data & Datasets ──────────────────────────────────────────────────────
+pub const data = @import("data.zig");
+pub const data_loader = @import("data_loader.zig");
+pub const token_dataset = @import("../database/wdbx.zig");
+
+// Data Loading re-exports
+pub const DataLoader = data_loader.DataLoader;
+pub const TokenizedDataset = data_loader.TokenizedDataset;
+pub const Batch = data_loader.Batch;
+pub const BatchIterator = data_loader.BatchIterator;
+pub const SequencePacker = data_loader.SequencePacker;
+pub const InstructionSample = data_loader.InstructionSample;
+pub const parseInstructionDataset = data_loader.parseInstructionDataset;
+
+// Token Dataset re-exports
+pub const WdbxTokenDataset = token_dataset.WdbxTokenDataset;
+pub const TokenBlock = token_dataset.TokenBlock;
+pub const encodeTokenBlock = token_dataset.encodeTokenBlock;
+pub const decodeTokenBlock = token_dataset.decodeTokenBlock;
+pub const readTokenBinFile = token_dataset.readTokenBinFile;
+pub const writeTokenBinFile = token_dataset.writeTokenBinFile;
 
 // ── Checkpointing ────────────────────────────────────────────────────────
+pub const checkpointing = @import("checkpointing.zig");
+pub const checkpoint = @import("checkpoint.zig");
+pub const llm_checkpoint = @import("llm_checkpoint.zig");
 
+// Checkpoint re-exports
 pub const Checkpoint = checkpoint.Checkpoint;
 pub const CheckpointError = checkpoint.CheckpointError;
 pub const CheckpointStore = checkpoint.CheckpointStore;
@@ -61,65 +104,29 @@ pub const SaveLatestCheckpointError = checkpoint.SaveLatestError;
 pub const loadCheckpoint = checkpoint.loadCheckpoint;
 pub const saveCheckpoint = checkpoint.saveCheckpoint;
 
-// ── LLM Checkpointing ────────────────────────────────────────────────────
-
+// LLM Checkpointing re-exports
 pub const LlmCheckpoint = llm_checkpoint.LlmCheckpoint;
 pub const LlmCheckpointView = llm_checkpoint.LlmCheckpointView;
 pub const LoadLlmCheckpointError = llm_checkpoint.LoadError;
 pub const SaveLlmCheckpointError = llm_checkpoint.SaveError;
 pub const loadLlmCheckpoint = llm_checkpoint.loadLlmCheckpoint;
 pub const saveLlmCheckpoint = llm_checkpoint.saveLlmCheckpoint;
-pub const GradientAccumulator = gradient.GradientAccumulator;
-pub const GradientError = gradient.GradientError;
 
-// ── Loss Functions ───────────────────────────────────────────────────────
+// ── Specialized & Multimodal ─────────────────────────────────────────────
+pub const specialized = @import("specialized.zig");
+pub const lora = @import("lora.zig");
+pub const mixed_precision = @import("mixed_precision.zig");
+pub const self_learning = @import("self_learning.zig");
+pub const vision_trainer = @import("vision_trainer.zig");
+pub const multimodal_trainer = @import("multimodal_trainer.zig");
 
-pub const CrossEntropyLoss = loss.CrossEntropyLoss;
-pub const MSELoss = loss.MSELoss;
-pub const FocalLoss = loss.FocalLoss;
-pub const perplexity = loss.perplexity;
-pub const klDivergence = loss.klDivergence;
-
-// ── Trainable Model ──────────────────────────────────────────────────────
-
-pub const TrainableModel = trainable_model.TrainableModel;
-pub const TrainableModelConfig = trainable_model.TrainableModelConfig;
-pub const TrainableWeights = trainable_model.TrainableWeights;
-pub const TrainableLayerWeights = trainable_model.TrainableLayerWeights;
-pub const ActivationCache = trainable_model.ActivationCache;
-pub const ModelLoadError = trainable_model.LoadError;
-
-// ── LLM Trainer ──────────────────────────────────────────────────────────
-
-pub const LlamaTrainer = llm_trainer.LlamaTrainer;
-pub const LlmTrainingConfig = llm_trainer.LlmTrainingConfig;
-pub const trainLlm = llm_trainer.trainLlm;
-
-// ── Data Loading ─────────────────────────────────────────────────────────
-
-pub const DataLoader = data_loader.DataLoader;
-pub const TokenizedDataset = data_loader.TokenizedDataset;
-pub const Batch = data_loader.Batch;
-pub const BatchIterator = data_loader.BatchIterator;
-pub const SequencePacker = data_loader.SequencePacker;
-pub const InstructionSample = data_loader.InstructionSample;
-pub const parseInstructionDataset = data_loader.parseInstructionDataset;
-pub const WdbxTokenDataset = token_dataset.WdbxTokenDataset;
-pub const TokenBlock = token_dataset.TokenBlock;
-pub const encodeTokenBlock = token_dataset.encodeTokenBlock;
-pub const decodeTokenBlock = token_dataset.decodeTokenBlock;
-pub const readTokenBinFile = token_dataset.readTokenBinFile;
-pub const writeTokenBinFile = token_dataset.writeTokenBinFile;
-
-// ── LoRA ─────────────────────────────────────────────────────────────────
-
+// LoRA re-exports
 pub const LoraAdapter = lora.LoraAdapter;
 pub const LoraConfig = lora.LoraConfig;
 pub const LoraLayerAdapters = lora.LoraLayerAdapters;
 pub const LoraModel = lora.LoraModel;
 
-// ── Mixed Precision ──────────────────────────────────────────────────────
-
+// Mixed Precision re-exports
 pub const MixedPrecisionConfig = mixed_precision.MixedPrecisionConfig;
 pub const MixedPrecisionContext = mixed_precision.MixedPrecisionContext;
 pub const LossScaler = mixed_precision.LossScaler;
@@ -127,15 +134,17 @@ pub const MasterWeights = mixed_precision.MasterWeights;
 pub const fp32ToFp16 = mixed_precision.fp32ToFp16;
 pub const fp16ToFp32 = mixed_precision.fp16ToFp32;
 
-pub const TrainingLogger = logging.TrainingLogger;
-pub const TrainingLogConfig = logging.LoggerConfig;
-pub const TrainingLogMetric = logging.Metric;
-
-// ── Self-Learning ────────────────────────────────────────────────────────
-
-pub const self_learning = @import("self_learning.zig");
+// Self-Learning re-exports
 pub const SelfLearningSystem = self_learning.SelfLearningSystem;
 pub const SelfLearningConfig = self_learning.SelfLearningConfig;
+pub const LearningExperience = self_learning.LearningExperience;
+pub const ExperienceBuffer = self_learning.ExperienceBuffer;
+pub const RewardModel = self_learning.RewardModel;
+pub const SelfLearningVisionTrainer = self_learning.VisionTrainer;
+pub const DocumentTrainer = self_learning.DocumentTrainer;
+pub const ExperienceType = self_learning.ExperienceType;
+pub const FeedbackType = self_learning.FeedbackType;
+pub const DataKind = self_learning.DataKind;
 
 /// Build SelfLearningConfig from system-level TrainingConfig (Zig 0.16).
 /// Flows enable_vision, enable_video, enable_audio, enable_all_modalities from core config.
@@ -153,18 +162,8 @@ pub fn selfLearningConfigFromCore(core_cfg: config_module.TrainingConfig) SelfLe
         .update_frequency = 64,
     };
 }
-pub const LearningExperience = self_learning.LearningExperience;
-pub const ExperienceBuffer = self_learning.ExperienceBuffer;
-pub const RewardModel = self_learning.RewardModel;
-pub const SelfLearningVisionTrainer = self_learning.VisionTrainer;
-pub const DocumentTrainer = self_learning.DocumentTrainer;
-pub const ExperienceType = self_learning.ExperienceType;
-pub const FeedbackType = self_learning.FeedbackType;
-pub const DataKind = self_learning.DataKind;
 
-// ── Vision Transformer Training ──────────────────────────────────────────
-
-pub const vision_trainer = @import("vision_trainer.zig");
+// Vision Transformer Training re-exports
 pub const TrainableViTModel = vision_trainer.TrainableViTModel;
 pub const TrainableViTConfig = vision_trainer.TrainableViTConfig;
 pub const TrainableViTWeights = vision_trainer.TrainableViTWeights;
@@ -172,33 +171,28 @@ pub const TrainableViTLayerWeights = vision_trainer.TrainableViTLayerWeights;
 pub const ViTActivationCache = vision_trainer.ViTActivationCache;
 pub const VisionTrainingError = vision_trainer.VisionTrainingError;
 
-// ── Multimodal (CLIP) Training ───────────────────────────────────────────
-
-pub const multimodal_trainer = @import("multimodal_trainer.zig");
+// Multimodal (CLIP) Training re-exports
 pub const TrainableCLIPModel = multimodal_trainer.TrainableCLIPModel;
 pub const CLIPTrainingConfig = multimodal_trainer.CLIPTrainingConfig;
 pub const TrainableTextEncoderWeights = multimodal_trainer.TrainableTextEncoderWeights;
 pub const TextTransformerLayerWeights = multimodal_trainer.TextTransformerLayerWeights;
 pub const MultimodalTrainingError = multimodal_trainer.MultimodalTrainingError;
 
-// ── Optimizers ───────────────────────────────────────────────────────────
+// ── Logging & Distributed ────────────────────────────────────────────────
+pub const logging = @import("logging.zig");
+pub const distributed = @import("distributed.zig");
 
-pub const Optimizer = optimizer_mod.Optimizer;
-pub const SgdOptimizer = optimizer_mod.SgdOptimizer;
-pub const AdamOptimizer = optimizer_mod.AdamOptimizer;
-pub const AdamWOptimizer = optimizer_mod.AdamWOptimizer;
+// Logging re-exports
+pub const TrainingLogger = logging.TrainingLogger;
+pub const TrainingLogConfig = logging.LoggerConfig;
+pub const TrainingLogMetric = logging.Metric;
 
-// ── Trainer Functions ────────────────────────────────────────────────────
+// Distributed Training re-exports
+pub const DistributedConfig = distributed.DistributedConfig;
+pub const DistributedTrainer = distributed.DistributedTrainer;
 
-pub const TrainingResult = trainer.TrainingResult;
-pub const train = trainer.train;
-pub const trainAndReport = trainer.trainAndReport;
-pub const trainWithResult = trainer.trainWithResult;
-pub const calculateLearningRate = trainer.calculateLearningRate;
-pub const clipGradients = trainer.clipGradients;
-pub const saveModelToWdbx = trainer.saveModelToWdbx;
-
-// ── Core Types ───────────────────────────────────────────────────────────
+// ── Core Types & Config ──────────────────────────────────────────────────
+pub const types = @import("types.zig");
 
 pub const TrainingError = error{
     InvalidConfiguration,
@@ -228,7 +222,7 @@ pub const OptimizerType = enum {
 };
 
 // Re-exported from types.zig — single source of truth for PrecisionMode.
-pub const PrecisionMode = @import("types.zig").PrecisionMode;
+pub const PrecisionMode = types.PrecisionMode;
 
 pub const LearningRateSchedule = enum {
     constant,

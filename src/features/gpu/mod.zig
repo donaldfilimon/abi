@@ -108,47 +108,75 @@ const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;
 const sync = @import("../../foundation/mod.zig").sync;
 
-// ── Sub-namespace facades ────────────────────────────────────────────────
+// ── Core GPU & Unified API ───────────────────────────────────────────────
 pub const core_gpu = @import("core_gpu.zig");
-pub const execution = @import("execution.zig");
-pub const memory_ns = @import("memory_ns.zig");
-pub const advanced = @import("advanced.zig");
-
-// ── Backend and Kernel Core ──────────────────────────────────────────────
-pub const backend = @import("backend.zig");
-pub const kernels = @import("runtime_kernels.zig");
-pub const memory = @import("memory/base.zig");
-pub const backend_shared = @import("backends/shared.zig");
-pub const profiling = @import("profiling.zig");
-
-// ── Performance Optimization ─────────────────────────────────────────────
-pub const occupancy = @import("occupancy.zig");
-pub const fusion = @import("fusion.zig");
-pub const execution_coordinator = @import("execution_coordinator.zig");
-pub const memory_pool_advanced = @import("memory/pool.zig");
-pub const memory_pool_lockfree = @import("memory/lockfree.zig");
-pub const sync_event = @import("sync_event.zig");
-pub const kernel_ring = @import("kernel_ring.zig");
-pub const adaptive_tiling = @import("adaptive_tiling.zig");
-
-// ── std.gpu Integration (Zig 0.16+) ─────────────────────────────────────
-pub const std_gpu = @import("std_gpu.zig");
-pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
-
-// ── Unified API ──────────────────────────────────────────────────────────
 pub const unified = @import("unified.zig");
 pub const unified_buffer = @import("unified_buffer.zig");
 pub const device = @import("device.zig");
+pub const devices = @import("device.zig");
 pub const stream = @import("stream.zig");
 pub const dsl = @import("dsl/mod.zig");
-pub const runtime = @import("runtime/mod.zig");
-pub const devices = @import("device.zig");
-pub const policy = @import("policy/mod.zig");
-pub const multi = @import("multi.zig");
-pub const factory = @import("factory/mod.zig");
 
-// ── Backend Interface and Loaders ────────────────────────────────────────
+// Unified API re-exports
+pub const Gpu = unified.Gpu;
+pub const GpuConfig = unified.GpuConfig;
+pub const GpuDevice = unified.GpuDevice;
+pub const ExecutionResult = unified.ExecutionResult;
+pub const LaunchConfig = unified.LaunchConfig;
+pub const HealthStatus = unified.HealthStatus;
+pub const MemoryInfo = unified.MemoryInfo;
+pub const GpuStats = unified.GpuStats;
+pub const MetricsSummary = unified.MetricsSummary;
+
+pub const UnifiedBuffer = unified_buffer.Buffer;
+pub const BufferOptions = unified_buffer.BufferOptions;
+
+pub const Device = device.Device;
+pub const DeviceType = device.DeviceType;
+
+pub const StreamOptions = stream.StreamOptions;
+pub const Event = stream.Event;
+pub const EventOptions = stream.EventOptions;
+
+pub const KernelBuilder = dsl.KernelBuilder;
+
+// ── Execution & Orchestration ────────────────────────────────────────────
+pub const execution = @import("execution.zig");
+pub const execution_coordinator = @import("execution_coordinator.zig");
+pub const runtime = @import("runtime/mod.zig");
+pub const dispatch = @import("dispatch/mod.zig");
+pub const mega = @import("mega/mod.zig");
+pub const factory = @import("factory/mod.zig");
+pub const policy = @import("policy/mod.zig");
+
+// ── Memory Management ────────────────────────────────────────────────────
+pub const memory_ns = @import("memory_ns.zig");
+pub const memory = @import("memory/base.zig");
+pub const memory_pool_advanced = @import("memory/pool.zig");
+pub const memory_pool_lockfree = @import("memory/lockfree.zig");
+
+pub const BufferFlags = memory.BufferFlags;
+pub const GpuBuffer = memory.GpuBuffer;
+pub const Buffer = GpuBuffer; // Alias for convenience
+pub const MemoryError = memory.MemoryError;
+
+// ── Backends & Hardware ──────────────────────────────────────────────────
+pub const backend = @import("backend.zig");
+pub const backends = @import("backends/mod.zig");
+pub const backend_shared = @import("backends/shared.zig");
+pub const std_gpu = @import("std_gpu.zig");
+pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
+pub const kernels = @import("runtime_kernels.zig");
+pub const builtin_kernels = @import("builtin_kernels.zig");
 pub const interface = @import("interface.zig");
+pub const platform = @import("platform.zig");
+
+pub const Backend = backend.Backend;
+pub const isEnabled = backend.isEnabled;
+pub const Stream = kernels.Stream;
+pub const KernelError = interface.KernelError;
+
+// Backend Loaders
 pub const cuda_loader = if (backend_shared.dynlibSupported)
     @import("backends/cuda/loader.zig")
 else
@@ -173,35 +201,30 @@ else
         }
     };
 
-// ── Platform Detection ───────────────────────────────────────────────────
-pub const platform = @import("platform.zig");
+// ── Performance & Advanced ───────────────────────────────────────────────
+pub const advanced = @import("advanced.zig");
+pub const profiling = @import("profiling.zig");
+pub const occupancy = @import("occupancy.zig");
+pub const fusion = @import("fusion.zig");
+pub const sync_event = @import("sync_event.zig");
+pub const kernel_ring = @import("kernel_ring.zig");
+pub const adaptive_tiling = @import("adaptive_tiling.zig");
 
-// ── Modular Backend Abstraction ──────────────────────────────────────────
-pub const backends = @import("backends/mod.zig");
-pub const dispatch = @import("dispatch/mod.zig");
-pub const builtin_kernels = @import("builtin_kernels.zig");
-
-// ── Recovery and Failover ────────────────────────────────────────────────
+// ── Recovery & Diagnostics ───────────────────────────────────────────────
 pub const recovery = @import("recovery.zig");
 pub const failover = @import("failover.zig");
 pub const failover_types = @import("failover_types.zig");
-
-// ── Diagnostics ──────────────────────────────────────────────────────────
 pub const diagnostics = @import("diagnostics.zig");
 pub const error_handling = @import("error_handling.zig");
 
-// ── Multi-Device ─────────────────────────────────────────────────────────
+// ── Multi-Device & Peer-to-Peer ──────────────────────────────────────────
+pub const multi = @import("multi.zig");
 pub const multi_device = @import("multi_device.zig");
 pub const peer_transfer = @import("peer_transfer/mod.zig");
 
-// ── Mega Orchestration ───────────────────────────────────────────────────
-pub const mega = @import("mega/mod.zig");
-
-// ── AI Training Bridge ───────────────────────────────────────────────────
+// ── AI & Training Bridge ─────────────────────────────────────────────────
 pub const coordinator_ai_ops = @import("coordinator_ai_ops.zig");
 pub const training_bridge = @import("training_bridge.zig");
-
-// ── Gradient Compression ─────────────────────────────────────────────────
 pub const gradient_compression = @import("gradient_compression.zig");
 
 // Include test modules in test builds
@@ -264,46 +287,11 @@ var cuda_backend_init_lock = sync.Mutex{};
 var cuda_backend_initialized = false;
 var cached_gpu_allocator: ?std.mem.Allocator = null;
 
-pub const BufferFlags = memory.BufferFlags;
-pub const GpuBuffer = memory.GpuBuffer;
-pub const Buffer = GpuBuffer; // Alias for convenience
 pub const types = @import("types.zig");
 
-pub const MemoryError = memory.MemoryError;
-pub const KernelError = interface.KernelError;
 pub const GpuError = types.GpuError;
 pub const Error = types.Error;
 pub const BackendSelectionError = types.BackendSelectionError;
-
-pub const MemoryInfo = unified.MemoryInfo;
-pub const GpuStats = unified.GpuStats;
-pub const MetricsSummary = unified.MetricsSummary;
-
-pub const Stream = kernels.Stream;
-
-pub const Backend = backend.Backend;
-pub const isEnabled = backend.isEnabled;
-
-// ── Unified API Exports ──────────────────────────────────────────────────
-
-pub const Gpu = unified.Gpu;
-pub const GpuConfig = unified.GpuConfig;
-pub const GpuDevice = unified.GpuDevice;
-pub const ExecutionResult = unified.ExecutionResult;
-pub const LaunchConfig = unified.LaunchConfig;
-pub const HealthStatus = unified.HealthStatus;
-
-pub const UnifiedBuffer = unified_buffer.Buffer;
-pub const BufferOptions = unified_buffer.BufferOptions;
-
-pub const Device = device.Device;
-pub const DeviceType = device.DeviceType;
-
-pub const StreamOptions = stream.StreamOptions;
-pub const Event = stream.Event;
-pub const EventOptions = stream.EventOptions;
-
-pub const KernelBuilder = dsl.KernelBuilder;
 
 pub fn init(allocator: std.mem.Allocator) GpuError!void {
     if (!backend.moduleEnabled()) return error.GpuDisabled;

@@ -31,118 +31,24 @@ const sync = @import("../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
-// ── Sub-namespace facades ────────────────────────────────────────────────
+// ── Cluster & Consensus ──────────────────────────────────────────────────
 pub const cluster = @import("cluster.zig");
 pub const consensus = @import("consensus.zig");
-pub const rpc = @import("rpc.zig");
-pub const reliability = @import("reliability.zig");
-
-// ── Sub-module imports ───────────────────────────────────────────────────
 pub const registry = @import("registry.zig");
-pub const protocol = @import("protocol.zig");
-pub const scheduler = @import("scheduler.zig");
+pub const raft = @import("raft.zig");
+pub const raft_transport = @import("raft_transport.zig");
+pub const heartbeat = @import("heartbeat.zig");
 pub const ha = @import("ha.zig");
 pub const discovery = @import("discovery.zig");
 pub const loadbalancer = @import("loadbalancer.zig");
-pub const retry = @import("retry.zig");
-pub const rate_limiter = @import("rate_limiter.zig");
-pub const connection_pool = @import("connection_pool.zig");
-pub const raft = @import("raft.zig");
-pub const transport = @import("transport/mod.zig");
-pub const raft_transport = @import("raft_transport.zig");
-pub const circuit_breaker = @import("circuit_breaker.zig");
-pub const heartbeat = @import("heartbeat.zig");
-pub const rpc_protocol = @import("rpc_protocol.zig");
 
-// ── Unified Memory and Linking ───────────────────────────────────────────
-pub const unified_memory = @import("unified_memory/mod.zig");
-pub const linking = @import("linking.zig");
-
-// ── Node Registry ────────────────────────────────────────────────────────
+// Node Registry re-exports
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
 pub const NodeStatus = registry.NodeStatus;
 pub const Node = NodeInfo; // Alias for compatibility
 
-// ── Protocol ─────────────────────────────────────────────────────────────
-pub const TaskEnvelope = protocol.TaskEnvelope;
-pub const ResultEnvelope = protocol.ResultEnvelope;
-pub const ResultStatus = protocol.ResultStatus;
-pub const encodeTask = protocol.encodeTask;
-pub const decodeTask = protocol.decodeTask;
-pub const encodeResult = protocol.encodeResult;
-pub const decodeResult = protocol.decodeResult;
-
-// ── Scheduler ────────────────────────────────────────────────────────────
-pub const TaskScheduler = scheduler.TaskScheduler;
-pub const SchedulerConfig = scheduler.SchedulerConfig;
-pub const SchedulerError = scheduler.SchedulerError;
-pub const TaskPriority = scheduler.TaskPriority;
-pub const TaskState = scheduler.TaskState;
-pub const ComputeNode = scheduler.ComputeNode;
-pub const LoadBalancingStrategy = scheduler.LoadBalancingStrategy;
-pub const SchedulerStats = scheduler.SchedulerStats;
-
-// ── High Availability ────────────────────────────────────────────────────
-pub const HealthCheck = ha.HealthCheck;
-pub const ClusterConfig = ha.ClusterConfig;
-pub const HaError = ha.HaError;
-pub const NodeHealth = ha.NodeHealth;
-pub const ClusterState = ha.ClusterState;
-pub const HealthCheckResult = ha.HealthCheckResult;
-pub const FailoverPolicy = ha.FailoverPolicy;
-
-// ── Service Discovery ────────────────────────────────────────────────────
-pub const ServiceDiscovery = discovery.ServiceDiscovery;
-pub const DiscoveryConfig = discovery.DiscoveryConfig;
-pub const DiscoveryBackend = discovery.DiscoveryBackend;
-pub const ServiceInstance = discovery.ServiceInstance;
-pub const ServiceStatus = discovery.ServiceStatus;
-pub const DiscoveryError = discovery.DiscoveryError;
-pub const generateServiceId = discovery.generateServiceId;
-pub const base64Encode = discovery.base64Encode;
-pub const base64Decode = discovery.base64Decode;
-
-// ── Load Balancer ────────────────────────────────────────────────────────
-pub const LoadBalancer = loadbalancer.LoadBalancer;
-pub const LoadBalancerConfig = loadbalancer.LoadBalancerConfig;
-pub const LoadBalancerStrategy = loadbalancer.LoadBalancerStrategy;
-pub const LoadBalancerError = loadbalancer.LoadBalancerError;
-pub const NodeState = loadbalancer.NodeState;
-pub const NodeStats = loadbalancer.NodeStats;
-
-// ── Retry ────────────────────────────────────────────────────────────────
-pub const RetryConfig = retry.RetryConfig;
-pub const RetryResult = retry.RetryResult;
-pub const RetryError = retry.RetryError;
-pub const RetryStrategy = retry.RetryStrategy;
-pub const RetryExecutor = retry.RetryExecutor;
-pub const RetryableErrors = retry.RetryableErrors;
-pub const BackoffCalculator = retry.BackoffCalculator;
-pub const retryOperation = retry.retry;
-pub const retryWithStrategy = retry.retryWithStrategy;
-
-// ── Rate Limiter ─────────────────────────────────────────────────────────
-pub const RateLimiter = rate_limiter.RateLimiter;
-pub const RateLimiterConfig = rate_limiter.RateLimiterConfig;
-pub const RateLimitAlgorithm = rate_limiter.RateLimitAlgorithm;
-pub const AcquireResult = rate_limiter.AcquireResult;
-pub const TokenBucketLimiter = rate_limiter.TokenBucketLimiter;
-pub const SlidingWindowLimiter = rate_limiter.SlidingWindowLimiter;
-pub const FixedWindowLimiter = rate_limiter.FixedWindowLimiter;
-pub const LimiterStats = rate_limiter.LimiterStats;
-
-// ── Connection Pool ──────────────────────────────────────────────────────
-pub const ConnectionPool = connection_pool.ConnectionPool;
-pub const ConnectionPoolConfig = connection_pool.ConnectionPoolConfig;
-pub const PooledConnection = connection_pool.PooledConnection;
-pub const ConnectionState = connection_pool.ConnectionState;
-pub const ConnectionStats = connection_pool.ConnectionStats;
-pub const HostKey = connection_pool.HostKey;
-pub const PoolStats = connection_pool.PoolStats;
-pub const PoolBuilder = connection_pool.PoolBuilder;
-
-// ── Raft Consensus ───────────────────────────────────────────────────────
+// Raft Consensus re-exports
 pub const RaftNode = raft.RaftNode;
 pub const RaftState = raft.RaftState;
 pub const RaftConfig = raft.RaftConfig;
@@ -156,25 +62,75 @@ pub const AppendEntriesResponse = raft.AppendEntriesResponse;
 pub const PeerState = raft.PeerState;
 pub const createRaftCluster = raft.createCluster;
 pub const FaultInjector = raft.FaultInjector;
-
-// Raft persistence exports
 pub const RaftPersistence = raft.RaftPersistence;
 pub const PersistentState = raft.PersistentState;
-
-// Raft snapshot exports
 pub const RaftSnapshotManager = raft.RaftSnapshotManager;
 pub const SnapshotConfig = raft.SnapshotConfig;
 pub const SnapshotMetadata = raft.SnapshotMetadata;
 pub const SnapshotInfo = raft.SnapshotInfo;
 pub const InstallSnapshotRequest = raft.InstallSnapshotRequest;
 pub const InstallSnapshotResponse = raft.InstallSnapshotResponse;
-
-// Raft membership change exports
 pub const ConfigChangeType = raft.ConfigChangeType;
 pub const ConfigChangeRequest = raft.ConfigChangeRequest;
 pub const applyConfigChange = raft.applyConfigChange;
 
-// ── Transport ────────────────────────────────────────────────────────────
+// Raft Transport re-exports
+pub const RaftTransport = raft_transport.RaftTransport;
+pub const RaftTransportConfig = raft_transport.RaftTransportConfig;
+pub const RaftTransportStats = raft_transport.RaftTransport.RaftTransportStats;
+pub const PeerAddress = raft_transport.PeerAddress;
+
+// High Availability & Heartbeat re-exports
+pub const HealthCheck = ha.HealthCheck;
+pub const ClusterConfig = ha.ClusterConfig;
+pub const HaError = ha.HaError;
+pub const NodeHealth = ha.NodeHealth;
+pub const ClusterState = ha.ClusterState;
+pub const HealthCheckResult = ha.HealthCheckResult;
+pub const FailoverPolicy = ha.FailoverPolicy;
+pub const NodeHealthState = heartbeat.NodeHealthState;
+pub const ClusterHealthState = heartbeat.ClusterHealthState;
+pub const HeartbeatEvent = heartbeat.HeartbeatEvent;
+pub const HeartbeatConfig = heartbeat.HeartbeatConfig;
+pub const HeartbeatStateMachine = heartbeat.HeartbeatStateMachine;
+pub const EventCallback = heartbeat.EventCallback;
+
+// Service Discovery re-exports
+pub const ServiceDiscovery = discovery.ServiceDiscovery;
+pub const DiscoveryConfig = discovery.DiscoveryConfig;
+pub const DiscoveryBackend = discovery.DiscoveryBackend;
+pub const ServiceInstance = discovery.ServiceInstance;
+pub const ServiceStatus = discovery.ServiceStatus;
+pub const DiscoveryError = discovery.DiscoveryError;
+pub const generateServiceId = discovery.generateServiceId;
+pub const base64Encode = discovery.base64Encode;
+pub const base64Decode = discovery.base64Decode;
+
+// Load Balancer re-exports
+pub const LoadBalancer = loadbalancer.LoadBalancer;
+pub const LoadBalancerConfig = loadbalancer.LoadBalancerConfig;
+pub const LoadBalancerStrategy = loadbalancer.LoadBalancerStrategy;
+pub const LoadBalancerError = loadbalancer.LoadBalancerError;
+pub const NodeState = loadbalancer.NodeState;
+pub const NodeStats = loadbalancer.NodeStats;
+
+// ── RPC & Transport ──────────────────────────────────────────────────────
+pub const rpc = @import("rpc.zig");
+pub const protocol = @import("protocol.zig");
+pub const transport = @import("transport/mod.zig");
+pub const connection_pool = @import("connection_pool.zig");
+pub const rpc_protocol = @import("rpc_protocol.zig");
+
+// Protocol re-exports
+pub const TaskEnvelope = protocol.TaskEnvelope;
+pub const ResultEnvelope = protocol.ResultEnvelope;
+pub const ResultStatus = protocol.ResultStatus;
+pub const encodeTask = protocol.encodeTask;
+pub const decodeTask = protocol.decodeTask;
+pub const encodeResult = protocol.encodeResult;
+pub const decodeResult = protocol.decodeResult;
+
+// Transport re-exports
 pub const TcpTransport = transport.TcpTransport;
 pub const TransportConfig = transport.TransportConfig;
 pub const TransportError = transport.TransportError;
@@ -185,13 +141,55 @@ pub const PeerConnection = transport.PeerConnection;
 pub const RpcSerializer = transport.RpcSerializer;
 pub const parseAddress = transport.parseAddress;
 
-// ── Raft Transport ───────────────────────────────────────────────────────
-pub const RaftTransport = raft_transport.RaftTransport;
-pub const RaftTransportConfig = raft_transport.RaftTransportConfig;
-pub const RaftTransportStats = raft_transport.RaftTransport.RaftTransportStats;
-pub const PeerAddress = raft_transport.PeerAddress;
+// Connection Pool re-exports
+pub const ConnectionPool = connection_pool.ConnectionPool;
+pub const ConnectionPoolConfig = connection_pool.ConnectionPoolConfig;
+pub const PooledConnection = connection_pool.PooledConnection;
+pub const ConnectionState = connection_pool.ConnectionState;
+pub const ConnectionStats = connection_pool.ConnectionStats;
+pub const HostKey = connection_pool.HostKey;
+pub const PoolStats = connection_pool.PoolStats;
+pub const PoolBuilder = connection_pool.PoolBuilder;
 
-// ── Circuit Breaker ──────────────────────────────────────────────────────
+// RPC Protocol re-exports
+pub const RpcMessageType = rpc_protocol.MessageType;
+pub const RpcHeader = rpc_protocol.RpcHeader;
+pub const ParsedFrame = rpc_protocol.ParsedFrame;
+pub const RpcError = rpc_protocol.RpcError;
+pub const VectorEntry = rpc_protocol.VectorEntry;
+pub const BlockHeader = rpc_protocol.BlockHeader;
+pub const frameMessage = rpc_protocol.frameMessage;
+pub const parseRpcFrame = rpc_protocol.parseFrame;
+
+// ── Reliability & Fault Tolerance ────────────────────────────────────────
+pub const reliability = @import("reliability.zig");
+pub const retry = @import("retry.zig");
+pub const rate_limiter = @import("rate_limiter.zig");
+pub const circuit_breaker = @import("circuit_breaker.zig");
+pub const failover = @import("failover.zig");
+
+// Retry re-exports
+pub const RetryConfig = retry.RetryConfig;
+pub const RetryResult = retry.RetryResult;
+pub const RetryError = retry.RetryError;
+pub const RetryStrategy = retry.RetryStrategy;
+pub const RetryExecutor = retry.RetryExecutor;
+pub const RetryableErrors = retry.RetryableErrors;
+pub const BackoffCalculator = retry.BackoffCalculator;
+pub const retryOperation = retry.retry;
+pub const retryWithStrategy = retry.retryWithStrategy;
+
+// Rate Limiter re-exports
+pub const RateLimiter = rate_limiter.RateLimiter;
+pub const RateLimiterConfig = rate_limiter.RateLimiterConfig;
+pub const RateLimitAlgorithm = rate_limiter.RateLimitAlgorithm;
+pub const AcquireResult = rate_limiter.AcquireResult;
+pub const TokenBucketLimiter = rate_limiter.TokenBucketLimiter;
+pub const SlidingWindowLimiter = rate_limiter.SlidingWindowLimiter;
+pub const FixedWindowLimiter = rate_limiter.FixedWindowLimiter;
+pub const LimiterStats = rate_limiter.LimiterStats;
+
+// Circuit Breaker re-exports
 pub const CircuitBreaker = circuit_breaker.CircuitBreaker;
 pub const CircuitConfig = circuit_breaker.CircuitConfig;
 pub const CircuitState = circuit_breaker.CircuitState;
@@ -202,14 +200,30 @@ pub const CircuitMetricEntry = circuit_breaker.CircuitMetricEntry;
 pub const NetworkOperationError = circuit_breaker.NetworkOperationError;
 pub const AggregateStats = circuit_breaker.AggregateStats;
 
-// ── Failover ─────────────────────────────────────────────────────────────
-pub const failover = @import("failover.zig");
+// Failover re-exports
 pub const FailoverManager = failover.FailoverManager;
 pub const FailoverConfig = failover.FailoverConfig;
 pub const FailoverState = failover.FailoverState;
 pub const FailoverEvent = failover.FailoverEvent;
 
-// ── Unified Memory ───────────────────────────────────────────────────────
+// ── Distributed Coordination ─────────────────────────────────────────────
+pub const scheduler = @import("scheduler.zig");
+
+// Scheduler re-exports
+pub const TaskScheduler = scheduler.TaskScheduler;
+pub const SchedulerConfig = scheduler.SchedulerConfig;
+pub const SchedulerError = scheduler.SchedulerError;
+pub const TaskPriority = scheduler.TaskPriority;
+pub const TaskState = scheduler.TaskState;
+pub const ComputeNode = scheduler.ComputeNode;
+pub const LoadBalancingStrategy = scheduler.LoadBalancingStrategy;
+pub const SchedulerStats = scheduler.SchedulerStats;
+
+// ── Unified Memory & Fabric ──────────────────────────────────────────────
+pub const unified_memory = @import("unified_memory/mod.zig");
+pub const linking = @import("linking.zig");
+
+// Unified Memory re-exports
 pub const UnifiedMemoryManager = unified_memory.UnifiedMemoryManager;
 pub const UnifiedMemoryConfig = unified_memory.UnifiedMemoryConfig;
 pub const UnifiedMemoryError = unified_memory.UnifiedMemoryError;
@@ -223,7 +237,7 @@ pub const RemotePtr = unified_memory.RemotePtr;
 pub const RemoteSlice = unified_memory.RemoteSlice;
 pub const MemoryNode = unified_memory.MemoryNode;
 
-// ── Linking ──────────────────────────────────────────────────────────────
+// Linking re-exports
 pub const LinkManager = linking.LinkManager;
 pub const Link = linking.Link;
 pub const LinkConfig = linking.LinkConfig;
@@ -243,24 +257,6 @@ pub const InternetTransport = linking.InternetTransport;
 pub const InternetConfig = linking.InternetConfig;
 pub const NatTraversal = linking.NatTraversal;
 pub const QuicConnection = linking.QuicConnection;
-
-// ── Heartbeat FSM ────────────────────────────────────────────────────────
-pub const NodeHealthState = heartbeat.NodeHealthState;
-pub const ClusterHealthState = heartbeat.ClusterHealthState;
-pub const HeartbeatEvent = heartbeat.HeartbeatEvent;
-pub const HeartbeatConfig = heartbeat.HeartbeatConfig;
-pub const HeartbeatStateMachine = heartbeat.HeartbeatStateMachine;
-pub const EventCallback = heartbeat.EventCallback;
-
-// ── RPC Protocol ─────────────────────────────────────────────────────────
-pub const RpcMessageType = rpc_protocol.MessageType;
-pub const RpcHeader = rpc_protocol.RpcHeader;
-pub const ParsedFrame = rpc_protocol.ParsedFrame;
-pub const RpcError = rpc_protocol.RpcError;
-pub const VectorEntry = rpc_protocol.VectorEntry;
-pub const BlockHeader = rpc_protocol.BlockHeader;
-pub const frameMessage = rpc_protocol.frameMessage;
-pub const parseRpcFrame = rpc_protocol.parseFrame;
 
 // ── Shared Types ─────────────────────────────────────────────────────────
 pub const types = @import("types.zig");
