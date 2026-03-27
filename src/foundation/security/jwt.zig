@@ -287,6 +287,7 @@ test "standalone decode with custom claims" {
             allocator.free(entry.value_ptr.*);
         }
         custom.deinit(allocator);
+        custom = .empty; // prevent double-free in the outer defer
     }
     defer allocator.free(token_str);
 

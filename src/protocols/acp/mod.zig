@@ -19,14 +19,6 @@ pub fn isInitialized() bool {
     return build_options.feat_acp;
 }
 
-pub fn isEnabled() bool {
-    return true;
-}
-
-pub fn isInitialized() bool {
-    return true;
-}
-
 test {
     @import("std").testing.refAllDecls(@This());
 }

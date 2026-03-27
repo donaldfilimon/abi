@@ -129,8 +129,7 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
 fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, prompt: []const u8) ![]u8 {
     const parsed = parseModelId(model_id);
     const provider = parsed.provider orelse {
-        // No provider prefix — respond in echo format so tests can detect it
-        return std.fmt.allocPrint(allocator, "[echo/{s}]", .{model_id});
+        return error.UnsupportedProvider;
     };
     const model_name = if (parsed.model.len > 0) parsed.model else null;
 
