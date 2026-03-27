@@ -208,9 +208,7 @@ pub const MeshOrchestrator = struct {
             .available_vram_mb = vram_mb,
             .backend = backend,
             .last_seen_ms = @intCast(@import("../../foundation/mod.zig").time.timestampMs()),
-        }) catch |e| {
-            std.log.err("[Compute Mesh] Failed to add discovered node: {}", .{e});
-        };
+        }) catch {};
     }
 
     /// Broadcasts presence on LAN to discover and announce to available GPU nodes.

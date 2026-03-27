@@ -42,19 +42,13 @@ fn tryLoadWithMissing(
     comptime missing_err: LoaderErrorSet(load_fn),
 ) !?LoaderPayload(load_fn) {
     return load_fn(allocator) catch |err| {
-        if (err == missing_err) {
-            std.log.warn("connector: missing required env var for {s}, provider will be unavailable", .{@typeName(LoaderPayload(load_fn))});
-            return null;
-        }
+        if (err == missing_err) return null;
         return err;
     };
 }
 
 fn tryLoadNullable(allocator: std.mem.Allocator, comptime load_fn: anytype) !?LoaderPayload(load_fn) {
-    return load_fn(allocator) catch |err| {
-        std.log.warn("connector: failed to load config for {s}: {s}, provider will be unavailable", .{ @typeName(LoaderPayload(load_fn)), @errorName(err) });
-        return null;
-    };
+    return load_fn(allocator) catch null;
 }
 
 pub fn loadOpenAI(allocator: std.mem.Allocator) !openai.Config {

@@ -4,20 +4,19 @@
 //! for common LLM interaction patterns like chat, RAG, and tool use.
 
 const std = @import("std");
-const types = @import("types.zig");
 const parser = @import("parser.zig");
 const renderer = @import("renderer.zig");
 const library = @import("library.zig");
 
-pub const ParseError = types.ParseError;
-pub const RenderError = types.RenderError;
-pub const Token = types.Token;
-pub const RenderOptions = types.RenderOptions;
-pub const BuiltinTemplates = types.BuiltinTemplates;
-pub const ChatMessage = types.ChatMessage;
-
 pub const Parser = parser.Parser;
+pub const ParseError = parser.ParseError;
+pub const Token = parser.Token;
+
 pub const Renderer = renderer.Renderer;
+pub const RenderError = renderer.RenderError;
+pub const RenderOptions = renderer.RenderOptions;
+
+pub const BuiltinTemplates = library.BuiltinTemplates;
 pub const getBuiltinTemplate = library.getBuiltinTemplate;
 
 /// A parsed template ready for rendering.
@@ -205,6 +204,11 @@ pub fn formatChatHistory(allocator: std.mem.Allocator, messages: []const ChatMes
     return result.toOwnedSlice(allocator);
 }
 
+pub const ChatMessage = struct {
+    role: []const u8,
+    content: []const u8,
+};
+
 test "template basic rendering" {
     const allocator = std.testing.allocator;
     var template = try Template.init(allocator, "test", "Hello, {{name}}!");
@@ -238,7 +242,6 @@ test "template with default value" {
 }
 
 test {
-    _ = types;
     _ = parser;
     _ = renderer;
     _ = library;

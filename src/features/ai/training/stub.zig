@@ -20,7 +20,10 @@ pub const SaveLatestCheckpointError = types.SaveLatestCheckpointError;
 pub const LoadLlmCheckpointError = types.LoadLlmCheckpointError;
 pub const SaveLlmCheckpointError = types.SaveLlmCheckpointError;
 pub const OptimizerType = types.OptimizerType;
-pub const PrecisionMode = types.PrecisionMode;
+pub const PrecisionMode = enum {
+    f32_full,
+    mixed_f16_f32,
+};
 pub const LearningRateSchedule = types.LearningRateSchedule;
 pub const ExperienceType = types.ExperienceType;
 pub const DataKind = types.DataKind;
@@ -90,20 +93,6 @@ pub const DistributedConfig = types.DistributedConfig;
 pub const DistributedTrainer = types.DistributedTrainer;
 
 // ── Submodule re-exports ───────────────────────────────────────────────────
-
-pub const checkpoint = struct {
-    pub const Checkpoint = types.Checkpoint;
-    pub const CheckpointStore = types.CheckpointStore;
-    pub const CheckpointView = types.CheckpointView;
-};
-pub const llm_checkpoint = struct {
-    pub const LlmCheckpoint = types.LlmCheckpoint;
-    pub const LlmCheckpointView = types.LlmCheckpointView;
-};
-pub const gradient = struct {
-    pub const GradientAccumulator = types.GradientAccumulator;
-};
-pub const training_utils = struct {};
 
 pub const loss = struct {
     pub const CrossEntropyLoss = types.CrossEntropyLoss;

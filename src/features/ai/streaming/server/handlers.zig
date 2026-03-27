@@ -73,7 +73,3 @@ pub fn histogramPercentile(hist: *const observability.Histogram, p: f64) u64 {
 
     return hist.bounds[hist.bounds.len - 1];
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

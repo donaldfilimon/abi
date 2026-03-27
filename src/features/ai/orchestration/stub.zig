@@ -1,7 +1,7 @@
 //! Orchestration stub — disabled at compile time.
 
 const std = @import("std");
-pub const types = @import("types.zig");
+const types = @import("types.zig");
 
 // Re-export types
 pub const OrchestrationError = types.OrchestrationError;
@@ -14,8 +14,6 @@ pub const TaskType = types.TaskType;
 pub const RouteResult = types.RouteResult;
 pub const EnsembleMethod = types.EnsembleMethod;
 pub const EnsembleResult = types.EnsembleResult;
-pub const ModelResponse = types.ModelResponse;
-pub const AggregationMetadata = types.AggregationMetadata;
 pub const FallbackPolicy = types.FallbackPolicy;
 pub const HealthStatus = types.HealthStatus;
 pub const ModelEntry = types.ModelEntry;

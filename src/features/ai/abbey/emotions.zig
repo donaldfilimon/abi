@@ -5,16 +5,6 @@
 //! - Emotional state tracking
 //! - Response tone adjustment
 //! - Relationship memory
-//!
-//! NOTE: This file coexists with `emotion.zig` by design.
-//! - `emotions.zig` (this file): The **state + memory** — lightweight
-//!   `EmotionalState` for in-conversation detection, `RelationshipMemory`
-//!   for long-term tracking, `EmotionHelpers`, and `CommunicationPreferences`.
-//!   Imported by `mod.zig` for the legacy Abbey interface.
-//! - `emotion.zig`: The **processor** — `EmotionProcessor` with weighted
-//!   pattern matching, `ToneStyle`, `EmotionalResponse`, trajectory tracking,
-//!   and empathy calibration. Used by the profile pipeline (`profile.zig`,
-//!   `empathy.zig`, `reasoning.zig`).
 
 const std = @import("std");
 const core_types = @import("../types.zig");
@@ -406,8 +396,4 @@ test "relationship memory" {
     try std.testing.expectEqual(@as(usize, 2), memory.positive_interactions);
     try std.testing.expectEqual(@as(usize, 1), memory.negative_interactions);
     try std.testing.expect(memory.getHealthScore() > 0.5);
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

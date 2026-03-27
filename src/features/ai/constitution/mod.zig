@@ -14,22 +14,18 @@ const std = @import("std");
 pub const principles = @import("principles.zig");
 pub const enforcement = @import("enforcement.zig");
 
-const types = @import("types.zig");
-
-// Re-export key types from canonical types.zig
-pub const Principle = types.Principle;
-pub const Severity = types.Severity;
-pub const ConstraintKind = types.ConstraintKind;
-pub const ConstitutionalRule = types.ConstitutionalRule;
-pub const TrainingGuardrails = types.TrainingGuardrails;
-pub const ConstitutionalScore = types.ConstitutionalScore;
-pub const Violation = types.Violation;
-pub const SafetyScore = types.SafetyScore;
-pub const SafetyViolation = types.SafetyViolation;
-pub const SafetyViolationCategory = types.SafetyViolationCategory;
-pub const BiasScore = types.BiasScore;
-pub const MAX_BIAS_ATTRIBUTES = types.MAX_BIAS_ATTRIBUTES;
-pub const DEFAULT_BIAS_THRESHOLD = types.DEFAULT_BIAS_THRESHOLD;
+// Re-export key types
+pub const Principle = principles.Principle;
+pub const Severity = principles.Severity;
+pub const ConstitutionalRule = principles.ConstitutionalRule;
+pub const TrainingGuardrails = principles.TrainingGuardrails;
+pub const ConstitutionalScore = enforcement.ConstitutionalScore;
+pub const Violation = enforcement.Violation;
+pub const SafetyScore = enforcement.SafetyScore;
+pub const SafetyViolation = enforcement.SafetyViolation;
+pub const BiasScore = enforcement.BiasScore;
+pub const MAX_BIAS_ATTRIBUTES = enforcement.MAX_BIAS_ATTRIBUTES;
+pub const DEFAULT_BIAS_THRESHOLD = enforcement.DEFAULT_BIAS_THRESHOLD;
 
 /// The Constitution engine — stateless, principle-driven evaluation.
 pub const Constitution = struct {
@@ -125,5 +121,8 @@ test "Constitution computeBias delegates to enforcement" {
 test {
     _ = principles;
     _ = enforcement;
+}
+
+test {
     std.testing.refAllDecls(@This());
 }

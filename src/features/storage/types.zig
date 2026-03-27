@@ -6,7 +6,6 @@ pub const StorageBackend = core_config.StorageBackend;
 
 /// Errors returned by storage operations.
 pub const StorageError = error{
-    StorageDisabled,
     FeatureDisabled,
     ObjectNotFound,
     BucketNotFound,

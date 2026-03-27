@@ -193,7 +193,3 @@ pub fn taskToCapability(task_type: types.TaskType) types.Capability {
         .general => .reasoning,
     };
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

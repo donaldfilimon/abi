@@ -115,7 +115,7 @@ pub const AvivaProfile = struct {
     }
 
     /// Shutdown the profile and free resources.
-    /// Note: does NOT free `self` — the caller (ProfileRegistry) owns the allocation.
+    /// Note: does NOT free `self` — the caller (PersonaRegistry) owns the allocation.
     pub fn deinit(self: *Self) void {
         self.knowledge_retriever.deinit();
         self.agent.deinit();

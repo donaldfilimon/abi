@@ -92,19 +92,6 @@ pub fn computePerplexityFromProbs(_: []const f64) PerplexityResult {
     return .{};
 }
 
-// Shared tokenizer stub
-pub const tokenizer = struct {
-    pub fn tokenize(_: std.mem.Allocator, _: []const u8) ![]const []const u8 {
-        return error.FeatureDisabled;
-    }
-    pub fn countTokens(_: []const u8) usize {
-        return 0;
-    }
-};
-pub fn tokenize(_: std.mem.Allocator, _: []const u8) ![]const []const u8 {
-    return error.FeatureDisabled;
-}
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -1,7 +1,6 @@
 //! TUI stub — disabled at compile time.
 
 const std = @import("std");
-
 pub const types = @import("types.zig");
 
 pub const terminal = struct {};
@@ -28,10 +27,10 @@ pub const Context = struct {
     }
 };
 
-// Module-level lifecycle — inline for clarity, no helper needed.
 pub fn isEnabled() bool {
     return false;
 }
+
 pub fn isInitialized() bool {
     return false;
 }

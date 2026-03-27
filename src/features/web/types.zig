@@ -10,10 +10,6 @@ pub const WebError = error{
     /// The web feature is disabled in the build configuration.
     /// Enable with `-Dfeat-web=true`.
     WebDisabled,
-    /// The HTTP request failed.
-    RequestFailed,
-    /// The URL provided is invalid.
-    InvalidUrl,
 };
 
 /// HTTP response structure.

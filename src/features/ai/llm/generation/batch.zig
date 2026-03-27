@@ -110,7 +110,7 @@ pub const BatchGenerator = struct {
         for (self.sequences.items, 0..) |*seq, i| {
             if (seq.finished) continue;
 
-            const logits = logits_batch[i];
+            const logits = @constCast(logits_batch[i]);
             const next_token = samplers[i].sample(logits);
 
             // Check for stop token

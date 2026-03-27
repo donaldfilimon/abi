@@ -676,7 +676,3 @@ pub const ToolRegistry = struct {
         return self.tools.contains(name);
     }
 };
-
-test {
-    std.testing.refAllDecls(@This());
-}

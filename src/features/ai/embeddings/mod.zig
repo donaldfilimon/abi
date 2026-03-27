@@ -29,9 +29,6 @@ const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 const simd = @import("../../../foundation/mod.zig").simd;
 
-// Shared types (canonical definitions)
-pub const types = @import("types.zig");
-
 // Backend system
 pub const backend = @import("backend.zig");
 pub const backends = @import("backends/mod.zig");
@@ -40,7 +37,6 @@ pub const EmbeddingBackend = backend.EmbeddingBackend;
 pub const BackendError = backend.BackendError;
 pub const BackendType = backend.BackendType;
 pub const BackendConfig = backend.BackendConfig;
-pub const EmbeddingConfig = types.EmbeddingConfig;
 
 // SIMD vector size for batch normalization
 const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
@@ -96,7 +92,19 @@ pub const Error = error{
     InvalidInput,
 };
 
-// EmbeddingConfig is re-exported from types.zig above.
+/// Configuration for embedding models.
+pub const EmbeddingConfig = struct {
+    /// Embedding dimension.
+    dimension: usize = 384,
+    /// Maximum sequence length.
+    max_seq_len: usize = 512,
+    /// Batch size for processing.
+    batch_size: usize = 32,
+    /// Normalize embeddings to unit length.
+    normalize: bool = true,
+    /// Model identifier.
+    model_id: []const u8 = "default",
+};
 
 /// Embedding model for text vectorization.
 pub const EmbeddingModel = struct {

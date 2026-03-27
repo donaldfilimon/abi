@@ -8,7 +8,6 @@ const FeatureFlags = build_flags.FeatureFlags;
 const hasBackend = build_flags.hasBackend;
 const addAllBuildOptions = build_flags.addAllBuildOptions;
 const linkDarwinArtifact = build_linking.linkDarwinArtifact;
-const linkIfDarwin = build_linking.linkIfDarwin;
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -61,9 +60,6 @@ pub fn build(b: *std.Build) void {
     const feat_mcp = b.option(bool, "feat-mcp", "Model Context Protocol") orelse true;
     const feat_acp = b.option(bool, "feat-acp", "Agent Communication Protocol") orelse true;
     const feat_ha = b.option(bool, "feat-ha", "High Availability / replication") orelse true;
-    const feat_connectors = b.option(bool, "feat-connectors", "External service connectors") orelse true;
-    const feat_tasks = b.option(bool, "feat-tasks", "Task management") orelse true;
-    const feat_inference = b.option(bool, "feat-inference", "ML inference engine") orelse true;
 
     // GPU backend flags
     const gpu_backend_str = b.option([]const u8, "gpu-backend", "GPU backends: metal,cuda,vulkan,webgpu,opengl,opengles,webgl2,stdgpu,fpga,tpu (comma-separated)");
@@ -127,9 +123,6 @@ pub fn build(b: *std.Build) void {
         .feat_mcp = feat_mcp,
         .feat_acp = feat_acp,
         .feat_ha = feat_ha,
-        .feat_connectors = feat_connectors,
-        .feat_tasks = feat_tasks,
-        .feat_inference = feat_inference,
         .gpu_metal = gpu_metal,
         .gpu_cuda = gpu_cuda,
         .gpu_vulkan = gpu_vulkan,
@@ -172,9 +165,13 @@ pub fn build(b: *std.Build) void {
         .linkage = .static,
     });
     static_lib.root_module.addImport("build_options", build_options_module);
-    linkIfDarwin(static_lib, .static_lib, feat_gpu, gpu_metal);
     b.installArtifact(static_lib);
     b.step("lib", "Build static library").dependOn(&b.addInstallArtifact(static_lib, .{}).step);
+
+    // ── Platform linking ────────────────────────────────────────────────
+    if (target.result.os.tag == .macos) {
+        linkDarwinArtifact(static_lib, .static_lib, feat_gpu, gpu_metal);
+    }
 
     // ── MCP server binary ────────────────────────────────────────────────
     const mcp_exe = b.addExecutable(.{
@@ -186,7 +183,9 @@ pub fn build(b: *std.Build) void {
         }),
     });
     mcp_exe.root_module.addImport("build_options", build_options_module);
-    linkIfDarwin(mcp_exe, .executable, feat_gpu, gpu_metal);
+    if (target.result.os.tag == .macos) {
+        linkDarwinArtifact(mcp_exe, .executable, feat_gpu, gpu_metal);
+    }
     b.step("mcp", "Build MCP stdio server").dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
 
     // ── CLI binary ──────────────────────────────────────────────────────
@@ -199,7 +198,9 @@ pub fn build(b: *std.Build) void {
         }),
     });
     cli_exe.root_module.addImport("build_options", build_options_module);
-    linkIfDarwin(cli_exe, .executable, feat_gpu, gpu_metal);
+    if (target.result.os.tag == .macos) {
+        linkDarwinArtifact(cli_exe, .executable, feat_gpu, gpu_metal);
+    }
     b.step("cli", "Build ABI command-line interface").dependOn(&b.addInstallArtifact(cli_exe, .{}).step);
 
     _ = build_validation.addSteps(.{

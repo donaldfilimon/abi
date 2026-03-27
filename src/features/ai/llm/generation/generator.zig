@@ -95,8 +95,6 @@ pub const Generator = struct {
 
         return .{
             .allocator = allocator,
-            // Type-erasure: constCast needed because *const T cannot @ptrCast
-            // to *anyopaque directly. The thunk restores the original Ptr type.
             .model = @ptrCast(@constCast(model)),
             .forward_fn = &struct {
                 fn forward(m: *anyopaque, token: u32, pos: u32) ForwardError![]f32 {

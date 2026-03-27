@@ -271,7 +271,3 @@ test "database core: stub Context.init returns error" {
     const result = db.Context.init(std.testing.allocator, .{});
     try std.testing.expectError(error.DatabaseDisabled, result);
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

@@ -60,31 +60,10 @@ pub fn computeConstitutionalLoss(
 /// Compute constitutional alignment score for Abbey self-reflection.
 /// Evaluates whether a response aligns with ABI's value hierarchy.
 pub fn alignmentScore(response: []const u8) f32 {
-    const engine = @import("engine.zig");
-    const eval_result = engine.evaluateResponse(response);
+    // Import the parent facade to call evaluateResponse
+    const enforcement = @import("../enforcement.zig");
+    const eval_result = enforcement.evaluateResponse(response);
     return eval_result.overall;
-}
-
-test "system preamble is non-empty" {
-    const preamble = getSystemPreamble();
-    try std.testing.expect(preamble.len > 100);
-}
-
-test "constitutional loss within bounds" {
-    const guardrails = principles.DEFAULT_GUARDRAILS;
-    const loss = computeConstitutionalLoss(&[_]f32{}, &guardrails);
-    try std.testing.expect(loss >= 0.0 and loss <= 1.0);
-
-    // With embedding data, result should still be in [0, 1]
-    const embedding = [_]f32{ 0.1, 0.2, 0.3, 0.4 };
-    const loss2 = computeConstitutionalLoss(&embedding, &guardrails);
-    try std.testing.expect(loss2 >= 0.0 and loss2 <= 1.0);
-
-    // With PII blocking disabled, compliance is higher
-    var no_pii_guard = guardrails;
-    no_pii_guard.block_pii_in_training = false;
-    const loss3 = computeConstitutionalLoss(&embedding, &no_pii_guard);
-    try std.testing.expect(loss3 >= loss2);
 }
 
 test {

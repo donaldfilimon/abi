@@ -14,8 +14,8 @@ pub const Request = struct {
     top_p: f32 = 0.9,
     top_k: u32 = 40,
     profile: []const u8 = "abi",
-    /// Profile for token injection (Abbey=0, Aviva=1, Abi=2, null=none).
-    profile_id: ?u8 = null,
+    /// Persona for token injection (Abbey=0, Aviva=1, Abi=2, null=none).
+    persona_id: ?u8 = null,
     priority: u8 = 128,
     created_at: i64 = 0,
     stream: bool = false,

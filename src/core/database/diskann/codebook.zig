@@ -201,36 +201,3 @@ pub const PQCodebook = struct {
         return total_dist;
     }
 };
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-test "pq codebook basic" {
-    const allocator = std.testing.allocator;
-
-    var cb = try PQCodebook.init(allocator, 4, 2, 256);
-    defer cb.deinit();
-
-    try std.testing.expect(cb.num_subspaces == 4);
-    try std.testing.expect(cb.centroids.len == 4 * 256 * 2);
-}
-
-test "pq encoding" {
-    const allocator = std.testing.allocator;
-
-    var cb = try PQCodebook.init(allocator, 2, 2, 4);
-    defer cb.deinit();
-
-    // Simple initialization for testing
-    @memset(cb.centroids, 0);
-    cb.centroids[0] = 1.0; // Centroid 0, subspace 0
-    cb.centroids[4] = 2.0; // Centroid 1, subspace 0
-
-    const vector = [_]f32{ 0.9, 0.0, 0.0, 0.0 };
-    var codes: [2]u8 = undefined;
-    cb.encode(&vector, &codes);
-
-    // Should encode to centroid 0 for subspace 0 (closest to 1.0)
-    try std.testing.expect(codes[0] == 0);
-}

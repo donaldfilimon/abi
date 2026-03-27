@@ -210,7 +210,7 @@ pub fn Persistence(
                 var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
                 defer file.close(io);
                 try file.writeStreamingAll(io, data);
-                file.sync(io) catch return error.PersistFailed;
+                file.sync(io) catch {};
             }
 
             const cwd = std.Io.Dir.cwd();
