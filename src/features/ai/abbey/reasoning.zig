@@ -13,7 +13,7 @@
 
 const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
-const emotion = @import("emotion.zig");
+const emotion = @import("emotions.zig");
 const core_types = @import("../types.zig");
 
 /// A single step in the reasoning chain.
