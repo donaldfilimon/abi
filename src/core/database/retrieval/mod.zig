@@ -20,3 +20,5 @@ pub const scann = @import("../scann.zig");
 pub const KMeans = clustering.KMeans;
 pub const ScalarQuantizer = quantization.ScalarQuantizer;
 pub const ProductQuantizer = @import("../product_quantizer.zig").ProductQuantizer;
+
+// refAllDecls deferred — re-exports 18 retrieval algorithm modules that may have pre-existing Zig 0.16 API errors

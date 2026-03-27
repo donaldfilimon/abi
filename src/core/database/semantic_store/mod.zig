@@ -289,3 +289,5 @@ test "influence trace captures retrieval metadata" {
     try std.testing.expectEqual(@as(?u64, 42), trace.block_id);
     try std.testing.expectApproxEqAbs(@as(f32, 0.8), trace.weight_inputs.similarity, 0.0001);
 }
+
+// refAllDecls deferred — searchStoreWeighted uses ArrayList.init (Zig 0.16: use .empty)

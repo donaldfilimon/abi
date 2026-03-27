@@ -5,3 +5,9 @@ pub const types = @import("types.zig");
 pub const time = @import("time.zig");
 pub const errors = @import("errors.zig");
 pub const alloc = @import("alloc.zig");
+
+const std = @import("std");
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -18,3 +18,9 @@ pub const WeightInputs = semantic.WeightInputs;
 pub const Lineage = semantic.Lineage;
 pub const InfluenceTrace = semantic.InfluenceTrace;
 pub const RetrievalHit = semantic.RetrievalHit;
+
+const std = @import("std");
+
+test {
+    std.testing.refAllDecls(@This());
+}

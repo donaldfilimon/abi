@@ -125,3 +125,5 @@ test "Backoff utility" {
     backoff.reset();
     try std.testing.expectEqual(@as(usize, 0), backoff.spins);
 }
+
+// refAllDecls deferred — engine, numa, benchmark, steal_policy have conditional compilation with pre-existing errors

@@ -149,3 +149,7 @@ pub fn deinit() void {}
 pub fn isInitialized() bool {
     return false;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

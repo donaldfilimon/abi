@@ -229,6 +229,10 @@ pub fn isInitialized() bool {
     return build_options.feat_database;
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 test "store roundtrip methods mirror legacy handle behavior" {
     if (!build_options.feat_database) return error.SkipZigTest;
 

@@ -8,3 +8,9 @@ pub const compression = @import("compression.zig");
 pub const store = @import("store.zig");
 pub const segment_log = @import("segment_log.zig");
 pub const compaction = @import("compaction.zig");
+
+const std = @import("std");
+
+test {
+    std.testing.refAllDecls(@This());
+}

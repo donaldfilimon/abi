@@ -22,3 +22,9 @@ pub const scann = core_db.scann;
 pub const KMeans = core_db.KMeans;
 pub const ScalarQuantizer = core_db.ScalarQuantizer;
 pub const ProductQuantizer = core_db.ProductQuantizer;
+
+const std = @import("std");
+
+test {
+    std.testing.refAllDecls(@This());
+}
