@@ -29,6 +29,118 @@ const sync = @import("../sync.zig");
 const crypto = std.crypto;
 const csprng = @import("csprng.zig");
 
+const types = @import("jwt/types.zig");
+
+/// Standalone decode (no signature verification). Caller owns returned Token.
+pub fn decode(allocator: std.mem.Allocator, token_str: []const u8) !Token {
+    var parts = std.mem.splitScalar(u8, token_str, '.');
+    const header_b64 = parts.next() orelse return error.InvalidToken;
+    const payload_b64 = parts.next() orelse return error.InvalidToken;
+    const signature_b64 = parts.next() orelse return error.InvalidToken;
+    if (parts.next() != null) return error.InvalidToken;
+
+    const header_json = try base64UrlDecode(allocator, header_b64);
+    defer allocator.free(header_json);
+
+    const payload_json = try base64UrlDecode(allocator, payload_b64);
+    defer allocator.free(payload_json);
+
+    // Parse algorithm from header JSON
+    var alg: Algorithm = .hs256;
+    if (std.mem.indexOf(u8, header_json, "\"alg\"")) |idx| {
+        const start = idx + 6;
+        if (start < header_json.len) {
+            var i = start;
+            while (i < header_json.len and header_json[i] != '"') : (i += 1) {}
+            if (i < header_json.len) {
+                i += 1;
+                const alg_start = i;
+                while (i < header_json.len and header_json[i] != '"') : (i += 1) {}
+                if (Algorithm.fromString(header_json[alg_start..i])) |a| alg = a;
+            }
+        }
+    }
+
+    // Parse claims (standard + custom) from payload JSON
+    var tmp_mgr = JwtManager.init(allocator, "unused", .{});
+    defer tmp_mgr.deinit();
+    var claims = try tmp_mgr.parseClaims(payload_json);
+    // Extract custom (non-standard) string claims
+    const standard_keys = [_][]const u8{ "sub", "iss", "aud", "jti", "exp", "nbf", "iat" };
+    {
+        var pos: usize = 0;
+        while (pos < payload_json.len) {
+            const kq = std.mem.indexOfPos(u8, payload_json, pos, "\"") orelse break;
+            const ks = kq + 1;
+            const ke = std.mem.indexOfPos(u8, payload_json, ks, "\"") orelse break;
+            const key = payload_json[ks..ke];
+            const colon = std.mem.indexOfPos(u8, payload_json, ke + 1, ":") orelse break;
+            var is_std = false;
+            for (standard_keys) |sk| {
+                if (std.mem.eql(u8, key, sk)) {
+                    is_std = true;
+                    break;
+                }
+            }
+            if (!is_std) {
+                if (try tmp_mgr.extractStringClaim(payload_json, key)) |value| {
+                    if (claims.custom == null)
+                        claims.custom = std.StringArrayHashMapUnmanaged([]const u8).empty;
+                    const owned_key = try allocator.dupe(u8, key);
+                    try claims.custom.?.put(allocator, owned_key, value);
+                }
+            }
+            pos = colon + 1;
+        }
+    }
+
+    const signature = try base64UrlDecode(allocator, signature_b64);
+
+    return Token{
+        .raw = try allocator.dupe(u8, token_str),
+        .header = .{ .alg = alg },
+        .claims = claims,
+        .signature = signature,
+        .verified = false,
+    };
+}
+
+/// Standalone verify (HMAC signature check). Caller owns returned Token.
+pub fn verify(allocator: std.mem.Allocator, token_str: []const u8, secret: []const u8) !Token {
+    var mgr = JwtManager.init(allocator, secret, .{ .clock_skew = 0 });
+    defer mgr.deinit();
+    return mgr.verifyToken(token_str);
+}
+
+/// Return true if the token's exp claim has passed (uses wall-clock time).
+pub fn isExpired(token: Token) bool {
+    if (token.claims.exp) |exp| {
+        return types.wallClockSeconds() > exp;
+    }
+    return false;
+}
+
+/// Base64url-encode `data` (no padding). Caller owns result.
+pub fn base64UrlEncode(allocator: std.mem.Allocator, data: []const u8) ![]const u8 {
+    const encoder = std.base64.url_safe_no_pad;
+    const size = encoder.Encoder.calcSize(data.len);
+    const buf = try allocator.alloc(u8, size);
+    _ = encoder.Encoder.encode(buf, data);
+    return buf;
+}
+
+/// Base64url-decode `data`. Caller owns result.
+pub fn base64UrlDecode(allocator: std.mem.Allocator, data: []const u8) ![]const u8 {
+    const decoder = std.base64.url_safe_no_pad;
+    const size = decoder.Decoder.calcSizeForSlice(data) catch return error.InvalidBase64;
+    const buf = try allocator.alloc(u8, size);
+    decoder.Decoder.decode(buf, data) catch {
+        allocator.free(buf);
+        return error.InvalidBase64;
+    };
+    return buf;
+}
+
 /// JWT signing algorithms
 pub const Algorithm = enum {
     /// HMAC with SHA-256
@@ -1026,6 +1138,15 @@ test "standalone decode with custom claims" {
         .exp = types.wallClockSeconds() + 3600,
         .custom = custom,
     });
+    // Free the custom map entries after createToken has serialised them
+    {
+        var it = custom.iterator();
+        while (it.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        custom.deinit(allocator);
+    }
     defer allocator.free(token_str);
 
     var token = try decode(allocator, token_str);

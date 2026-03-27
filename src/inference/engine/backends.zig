@@ -20,15 +20,12 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
     }
     defer self.kv_cache.free(request.id);
 
-    // Try real connector dispatch — fall back to echo on any failure
-    const response_text = dispatchToConnector(self.allocator, self.config.model_id, request.prompt) catch |err| blk: {
-        std.log.debug("Connector dispatch failed ({s}), using echo fallback", .{@errorName(err)});
-        break :blk try std.fmt.allocPrint(
-            self.allocator,
-            "[echo/{s}] Processing: {s}",
-            .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
-        );
-    };
+    // Connector bridge not yet wired — echo the prompt back
+    const response_text = try std.fmt.allocPrint(
+        self.allocator,
+        "[{s}] Processing: {s}",
+        .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
+    );
     errdefer self.allocator.free(response_text);
 
     const end = time_mod.timestampNs();
