@@ -10,7 +10,7 @@ const PipelineContext = ctx_mod.PipelineContext;
 
 pub fn execute(pctx: *PipelineContext, cfg: types.TemplateConfig) !void {
     const template_str = cfg.template_str;
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     defer result.deinit(pctx.allocator);
 
     var i: usize = 0;
