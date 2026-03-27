@@ -56,9 +56,9 @@ pub fn hasBackend(backend_str: ?[]const u8, name: []const u8) bool {
     return false;
 }
 
-pub fn addAllBuildOptions(opts: *std.Build.Step.Options, flags: FeatureFlags) void {
+pub fn addAllBuildOptions(opts: *std.Build.Step.Options, flags: FeatureFlags, package_version: []const u8) void {
     inline for (@typeInfo(FeatureFlags).@"struct".fields) |field| {
         opts.addOption(bool, field.name, @field(flags, field.name));
     }
-    opts.addOption([]const u8, "package_version", "0.1.0");
+    opts.addOption([]const u8, "package_version", package_version);
 }

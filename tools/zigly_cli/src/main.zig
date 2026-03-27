@@ -45,6 +45,10 @@ pub fn main(init: std.process.Init) !void {
         try cli.doList(&config);
     } else if (std.mem.eql(u8, command, "list-remote") or std.mem.eql(u8, command, "lsr")) {
         try cli.doListRemote(&config);
+    } else if (std.mem.eql(u8, command, "unlink") or std.mem.eql(u8, command, "--unlink")) {
+        try cli.doUnlink(&config);
+    } else if (std.mem.eql(u8, command, "check") or std.mem.eql(u8, command, "--check")) {
+        try cli.doCheck(&config);
     } else if (std.mem.eql(u8, command, "clean")) {
         try cli.doClean(&config);
     } else if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help") or std.mem.eql(u8, command, "-h")) {

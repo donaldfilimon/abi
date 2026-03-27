@@ -155,6 +155,9 @@ test "gpu: LaunchConfig type exists" {
     _ = LC;
 }
 
+// Sibling test modules (pulled in via refAllDecls)
+const _policy = @import("gpu_policy_contract_test.zig");
+
 test {
     std.testing.refAllDecls(@This());
 }

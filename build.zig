@@ -79,8 +79,28 @@ pub fn build(b: *std.Build) void {
     const gpu_tpu = feat_gpu and hasBackend(gpu_backend_str, "tpu");
 
     // ── GPU backend validation ──────────────────────────────────────────
-    // Valid combos: metal=macOS only, cuda=not WASM, vulkan=Linux/Windows/Android,
-    // webgpu/webgl2=WASM only, stdgpu=all, fpga/tpu=specialized hardware
+    if (gpu_backend_str) |str| {
+        const valid_backends: []const []const u8 = &.{
+            "metal",    "cuda",   "vulkan", "webgpu", "opengl",
+            "opengles", "webgl2", "stdgpu", "fpga",   "tpu",
+        };
+        var backend_it = std.mem.splitScalar(u8, str, ',');
+        while (backend_it.next()) |part| {
+            const trimmed = std.mem.trim(u8, part, " ");
+            if (trimmed.len == 0) continue;
+            var found = false;
+            for (valid_backends) |vb| {
+                if (std.mem.eql(u8, trimmed, vb)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                std.log.err("Unknown GPU backend '{s}'. Valid: metal, cuda, vulkan, webgpu, opengl, opengles, webgl2, stdgpu, fpga, tpu", .{trimmed});
+                std.process.exit(1);
+            }
+        }
+    }
     if (gpu_metal and gpu_cuda)
         std.log.warn("Both Metal and CUDA enabled — unusual; intended for cross-compilation only", .{});
 
@@ -143,7 +163,11 @@ pub fn build(b: *std.Build) void {
     };
 
     const build_opts = b.addOptions();
-    addAllBuildOptions(build_opts, flags);
+    const pkg_version = comptime blk: {
+        const zon = @import("build.zig.zon");
+        break :blk zon.version;
+    };
+    addAllBuildOptions(build_opts, flags, pkg_version);
 
     const build_options_module = build_opts.createModule();
     _ = build_cross.addSteps(.{
@@ -151,6 +175,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .build_options_module = build_options_module,
+        .package_version = pkg_version,
     });
 
     // ── ABI library module ──────────────────────────────────────────────
@@ -209,6 +234,7 @@ pub fn build(b: *std.Build) void {
         .flags = flags,
         .build_options_module = build_options_module,
         .abi_module = abi_module,
+        .package_version = pkg_version,
     });
 
     // ── Lint / format ───────────────────────────────────────────────────

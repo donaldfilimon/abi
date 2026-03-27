@@ -33,36 +33,18 @@ pub fn linkDarwinArtifact(
         artifact.root_module.addFrameworkPath(.{ .cwd_relative = fw_path });
     }
 
-    // Common libs for all roles except static_lib (which has its own set)
-    if (role != .static_lib) {
-        linkDarwinCommon(artifact, feat_gpu, true);
-    }
+    // Common libs shared by all roles
+    linkDarwinCommon(artifact, feat_gpu);
 
+    // Role-specific extras (Metal frameworks)
     switch (role) {
-        .static_lib => {
-            for ([_][]const u8{ "System", "c" }) |lib| {
-                artifact.root_module.linkSystemLibrary(lib, .{});
-            }
-            if (feat_gpu) {
-                artifact.root_module.linkFramework("Accelerate", .{});
-            }
-            artifact.root_module.linkFramework("IOKit", .{});
-            artifact.root_module.linkSystemLibrary("objc", .{});
+        .static_lib, .test_artifact => {
             if (gpu_metal) {
-                for ([_][]const u8{ "Metal", "MetalPerformanceShaders", "CoreGraphics" }) |framework| {
-                    artifact.root_module.linkFramework(framework, .{});
-                }
+                artifact.root_module.linkFramework("Metal", .{});
+                artifact.root_module.linkFramework("MetalPerformanceShaders", .{});
             }
         },
-        .executable => {},
-        .test_artifact => {
-            if (gpu_metal) {
-                for ([_][]const u8{ "Metal", "MetalPerformanceShaders" }) |framework| {
-                    artifact.root_module.linkFramework(framework, .{});
-                }
-            }
-        },
-        .parity_test => {},
+        .executable, .parity_test => {},
     }
 }
 
@@ -82,10 +64,8 @@ pub fn linkIfDarwin(
 }
 
 /// Shared Darwin framework set for executable, test_artifact, and parity_test roles.
-fn linkDarwinCommon(artifact: *std.Build.Step.Compile, feat_gpu: bool, link_system: bool) void {
-    if (link_system) {
-        artifact.root_module.linkSystemLibrary("System", .{});
-    }
+fn linkDarwinCommon(artifact: *std.Build.Step.Compile, feat_gpu: bool) void {
+    artifact.root_module.linkSystemLibrary("System", .{});
     artifact.root_module.linkSystemLibrary("c", .{});
     artifact.root_module.linkSystemLibrary("objc", .{});
     artifact.root_module.linkFramework("IOKit", .{});

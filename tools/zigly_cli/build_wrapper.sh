@@ -1,8 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
-ZIG2="$(readlink -f "$HOME/.local/bin/zig")"
-if [ -z "$ZIG2" ]; then ZIG2="$HOME/.local/bin/zig"; fi
+# Search for zig in known locations (most-preferred first).
+ZIG2=""
+for candidate in \
+    "$HOME/.local/bin/zig" \
+    "$HOME/.zigly/versions/"*/bin/zig \
+    "$HOME/.zvm/bin/zig" \
+    "$(command -v zig 2>/dev/null || true)"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        ZIG2="$(readlink -f "$candidate" 2>/dev/null || echo "$candidate")"
+        break
+    fi
+done
+if [ -z "$ZIG2" ]; then
+    echo "Error: zig not found. Run 'zigly --install' first." >&2
+    exit 1
+fi
 
 SYSROOT="$(xcrun --show-sdk-path 2>/dev/null || echo "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")"
 MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo "26.4")"

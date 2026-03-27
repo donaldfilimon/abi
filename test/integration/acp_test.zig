@@ -509,6 +509,9 @@ test "acp: full lifecycle -- server, tasks, sessions, linking" {
     try std.testing.expect(std.mem.indexOf(u8, json, "\"streaming\":true") != null);
 }
 
+// Sibling test modules (pulled in via refAllDecls)
+const _openapi = @import("acp_openapi_test.zig");
+
 test {
     std.testing.refAllDecls(@This());
 }

@@ -109,6 +109,10 @@ test "database: routing weights primary profile" {
     try std.testing.expectEqual(ProfileTag.ProfileType.aviva, weights.getPrimaryProfile());
 }
 
+// Sibling test modules (pulled in via refAllDecls)
+const _core = @import("database_core_test.zig");
+const _surface = @import("database_surface_test.zig");
+
 test {
     std.testing.refAllDecls(@This());
 }

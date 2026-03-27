@@ -60,31 +60,39 @@ fi
 
 # ── Helper functions ────────────────────────────────────────────────
 
-build_runner_arch() {
-    local build_bin="$1"
-    local archs
-    local file_out
+# Detect architecture of any Mach-O binary, object, or archive.
+# Tries lipo first (handles fat binaries), falls back to file(1).
+detect_binary_arch() {
+    local bin_path="$1"
+    local archs file_out
 
-    archs="$(lipo -archs "$build_bin" 2>/dev/null || true)"
+    archs="$(lipo -archs "$bin_path" 2>/dev/null || true)"
     if [[ -n "$archs" ]]; then
         set -- $archs
         printf '%s\n' "$1"
         return 0
     fi
 
-    file_out="$(file -b "$build_bin" 2>/dev/null || true)"
+    file_out="$(file -b "$bin_path" 2>/dev/null || true)"
     case "$file_out" in
         *arm64*|*aarch64*) printf 'arm64\n'; return 0 ;;
         *x86_64*) printf 'x86_64\n'; return 0 ;;
     esac
 
+    return 1
+}
+
+build_runner_arch() {
+    local build_bin="$1"
+
+    if detect_binary_arch "$build_bin"; then
+        return 0
+    fi
+
     local build_o="${build_bin}_zcu.o"
     if [[ -f "$build_o" ]]; then
-        file_out="$(file -b "$build_o" 2>/dev/null || true)"
-        case "$file_out" in
-            *arm64*|*aarch64*) printf 'arm64\n'; return 0 ;;
-            *x86_64*) printf 'x86_64\n'; return 0 ;;
-        esac
+        detect_binary_arch "$build_o"
+        return $?
     fi
 
     return 1
@@ -146,14 +154,9 @@ relink_and_run() {
     local obj_file="$1"
     local bin_file="$2"
     local run_args=("${@:3}")
-    local obj_arch
+    local bin_arch
 
-    obj_arch="$(file -b "$obj_file" 2>/dev/null || true)"
-    local bin_arch=""
-    case "$obj_arch" in
-        *arm64*|*aarch64*) bin_arch="arm64" ;;
-        *x86_64*) bin_arch="x86_64" ;;
-    esac
+    bin_arch="$(detect_binary_arch "$obj_file" || true)"
 
     if [[ -z "$bin_arch" ]]; then
         echo "[darwin-wrapper] Could not determine architecture from $obj_file" >&2

@@ -31,7 +31,7 @@ Auto-update checker:
 tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
-Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
+Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
 `zigly` also detects system-installed zig from zvm (`~/.zvm/bin/zig`) or brew, preferring those over its own cache when the version matches `.zigversion`. If zvm is installed, `zvm install master` provides both zig and zls.
 
 To make zig and zls available globally, run `zigly --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
