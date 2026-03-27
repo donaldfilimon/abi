@@ -1,8 +1,8 @@
 const std = @import("std");
 const types = @import("types.zig");
-const time = @import("../../../../foundation/mod.zig").time;
-const sampler_mod = @import("sampler.zig");
-const tokenizer = @import("../tokenizer/mod.zig");
+const time = @import("../../../../../foundation/mod.zig").time;
+const sampler_mod = @import("../sampler.zig");
+const tokenizer = @import("../../tokenizer/mod.zig");
 
 /// Iterator-based streaming response.
 pub const StreamingResponse = struct {
