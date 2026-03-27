@@ -597,10 +597,11 @@ test {
     _ = calibration;
     _ = client;
     _ = custom_framework;
-    // Excluded due to pre-existing API mismatches:
-    // engine — addStep arg count, Confidence type, getOverallConfidence
-    // server — transitive via engine
-    // discord_bot — optional type mismatch on data.options
-    // reasoning — transitive
-    // advanced — transitive via meta_learning.TaskDomain
+    _ = engine;
+    _ = server;
+    // discord_bot excluded: pre-existing memory leak in GatewayBridge test
+    // (pending_messages backing buffer leaked after drainMessages/toOwnedSlice)
+    // _ = discord_bot;
+    _ = reasoning;
+    _ = advanced;
 }

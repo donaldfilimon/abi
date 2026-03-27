@@ -261,25 +261,23 @@ pub const AbbeyEngine = struct {
         const query_analysis = calibration.QueryAnalyzer.analyzeQuery(user_input);
         const initial_confidence = self.assessInitialConfidence(user_input, query_analysis);
 
-        try self.current_reasoning.?.addStep(
+        try self.current_reasoning.?.addStepByType(
+            self.allocator,
             .assessment,
             "Analyzing query complexity and confidence",
-            initial_confidence,
+            initial_confidence.score,
         );
 
         // 6. Determine if research is needed
         const needs_research = self.config.behavior.research_first and
-            initial_confidence.needsResearch();
+            initial_confidence.level.needsResearch();
 
         if (needs_research) {
-            try self.current_reasoning.?.addStep(
+            try self.current_reasoning.?.addStepByType(
+                self.allocator,
                 .research,
                 "Query requires verification or research",
-                .{
-                    .level = .low,
-                    .score = 0.4,
-                    .reasoning = "Insufficient confidence for direct answer",
-                },
+                0.4,
             );
         }
 
@@ -320,9 +318,16 @@ pub const AbbeyEngine = struct {
         self.updateAverageResponseTime(response_time);
 
         // 13. Build response
+        const final_confidence = self.current_reasoning.?.overall_confidence;
         return Response{
             .content = response_content,
-            .confidence = self.current_reasoning.?.overall_confidence,
+            .confidence = .{
+                .level = confidence_level: {
+                    if (final_confidence >= 0.8) break :confidence_level .high else if (final_confidence >= 0.5) break :confidence_level .medium else break :confidence_level .low;
+                },
+                .score = final_confidence,
+                .reasoning = "Calibrated from reasoning chain",
+            },
             .emotional_context = self.emotional_state,
             .reasoning_summary = try self.current_reasoning.?.getSummary(self.allocator),
             .topics = self.topic_tracker.getCurrentTopics(),
