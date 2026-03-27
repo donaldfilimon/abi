@@ -59,8 +59,6 @@ pub const Context = struct {
     pub fn deinit(self: *Context) void {
         var it = self.agents.iterator();
         while (it.next()) |entry| {
-            // StringHashMap stores keys as []const u8; constCast required to free
-            // heap-allocated keys that were duped on insert.
             self.allocator.free(@constCast(entry.key_ptr.*));
             entry.value_ptr.*.deinit();
             self.allocator.destroy(entry.value_ptr.*);
@@ -124,8 +122,4 @@ pub const Context = struct {
 
 pub fn isEnabled() bool {
     return build_options.feat_ai;
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

@@ -4,7 +4,6 @@
 //! import from here so that type definitions are not duplicated.
 
 pub const AuthError = error{
-    AuthDisabled,
     FeatureDisabled,
     InvalidCredentials,
     TokenExpired,

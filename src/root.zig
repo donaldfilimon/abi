@@ -32,13 +32,13 @@ pub const runtime = @import("runtime/mod.zig");
 /// Platform abstraction: OS detection, capabilities, environment.
 pub const platform = @import("platform/mod.zig");
 /// External service connectors: HTTP clients, API adapters.
-pub const connectors = if (build_options.feat_connectors) @import("connectors/mod.zig") else @import("connectors/stub.zig");
+pub const connectors = @import("connectors/mod.zig");
 /// Shared CLI helpers for command dispatch and serve parsing.
 pub const cli = @import("cli.zig");
 /// C-ABI FFI endpoints for linking as a static library (libabi.a).
 pub const ffi = @import("ffi.zig");
 /// Task management: async job queues, scheduling, progress tracking.
-pub const tasks = if (build_options.feat_tasks) @import("tasks/mod.zig") else @import("tasks/stub.zig");
+pub const tasks = @import("tasks/mod.zig");
 /// Model Context Protocol (MCP) server and client implementation.
 pub const mcp = if (build_options.feat_mcp) @import("protocols/mcp/mod.zig") else @import("protocols/mcp/stub.zig");
 /// Language Server Protocol (LSP) implementation.
@@ -48,7 +48,7 @@ pub const acp = if (build_options.feat_acp) @import("protocols/acp/mod.zig") els
 /// High availability: leader election, failover, health monitoring.
 pub const ha = if (build_options.feat_ha) @import("protocols/ha/mod.zig") else @import("protocols/ha/stub.zig");
 /// ML inference: engine, scheduler, sampler, paged KV cache.
-pub const inference = if (build_options.feat_inference) @import("inference/mod.zig") else @import("inference/stub.zig");
+pub const inference = @import("inference/mod.zig");
 
 // ── Features (comptime-gated mod/stub) ───────────────────────────────────
 
@@ -97,7 +97,6 @@ pub const tui = if (build_options.feat_tui) @import("features/tui/mod.zig") else
 
 // ── Convenience aliases ──────────────────────────────────────────────────
 
-/// Build metadata: package version and feature catalog.
 pub const meta = struct {
     pub const package_version = build_options.package_version;
     pub const features = @import("core/feature_catalog.zig");
@@ -107,20 +106,37 @@ pub const meta = struct {
     }
 };
 
-/// Framework application type (shorthand for `framework.Framework`).
-pub const App = framework.Framework;
-/// Framework builder type (shorthand for `framework.FrameworkBuilder`).
-pub const AppBuilder = framework.FrameworkBuilder;
+const FrameworkApp = framework.Framework;
+const FrameworkAppBuilder = framework.FrameworkBuilder;
 
-/// Create a framework builder (shorthand for `App.builder(allocator)`).
+pub const app = struct {
+    pub const App = FrameworkApp;
+    pub const AppBuilder = FrameworkAppBuilder;
+    pub const Error = FrameworkApp.Error;
+
+    pub fn builder(allocator: std.mem.Allocator) FrameworkAppBuilder {
+        return FrameworkApp.builder(allocator);
+    }
+
+    pub fn version() []const u8 {
+        return meta.version();
+    }
+};
+
+pub const App = FrameworkApp;
+pub const AppBuilder = FrameworkAppBuilder;
+pub const Gpu = gpu.Gpu;
+pub const GpuBackend = gpu.Backend;
+
 pub fn appBuilder(allocator: std.mem.Allocator) AppBuilder {
     return App.builder(allocator);
 }
 
-/// Return the package version string (shorthand for `meta.version()`).
 pub fn version() []const u8 {
     return meta.version();
 }
+
+pub const feature_catalog = meta.features;
 
 test {
     std.testing.refAllDecls(@This());

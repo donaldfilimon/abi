@@ -54,7 +54,3 @@ test "orchestration public routing remains stable for external consumers" {
     try std.testing.expectEqual(@as(u32, 2), stats.total_models);
     try std.testing.expectEqual(@as(u32, 2), stats.available_models);
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

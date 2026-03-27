@@ -1,20 +1,37 @@
-//! Vulkan backend implementation facade.
+//! Vulkan backend implementation.
 //!
-//! Re-exports the decomposed Vulkan implementation from sub-modules.
+//! Provides Vulkan-specific kernel compilation, execution, and memory management
+//! using the Vulkan API for cross-platform compute acceleration.
+//!
+//! Type definitions live in `vulkan_types.zig`, tests in `vulkan_test.zig`.
+//! This file contains runtime code: library loading, initialization, and the
+//! VTable backend implementation.
 //!
 //! ## Sub-modules
-//! - `vulkan/backend_impl.zig` — Global library loading and context initialization
-//! - `vulkan/vtable.zig` — VTable implementation (VulkanBackend)
+//! - `vulkan/backend_impl.zig` — VTable backend implementation (VulkanBackend)
 //! - `vulkan/resources.zig` — ShaderCache, CommandPool
 
 const std = @import("std");
+const builtin = @import("builtin");
+const vulkan_caps = @import("vulkan/capabilities.zig");
 
-// Re-export type definitions for build discovery
+// Re-export extracted type definitions for build discovery
 pub const vulkan_types = @import("vulkan_types.zig");
 
-// Type aliases
+// ============================================================================
+// Errors
+// ============================================================================
+
 pub const VulkanError = vulkan_types.VulkanError;
+
+// ============================================================================
+// Re-exported Vulkan Types (from vulkan_types.zig)
+// ============================================================================
+
+// Core result type
 pub const VkResult = vulkan_types.VkResult;
+
+// Handle types
 pub const VkInstance = vulkan_types.VkInstance;
 pub const VkPhysicalDevice = vulkan_types.VkPhysicalDevice;
 pub const VkDevice = vulkan_types.VkDevice;
@@ -32,14 +49,17 @@ pub const VkDescriptorSet = vulkan_types.VkDescriptorSet;
 pub const VkFence = vulkan_types.VkFence;
 pub const VkPipelineCache = vulkan_types.VkPipelineCache;
 
+// Basic types
 pub const VkDeviceSize = vulkan_types.VkDeviceSize;
 pub const VkMemoryPropertyFlags = vulkan_types.VkMemoryPropertyFlags;
 pub const VkBufferUsageFlags = vulkan_types.VkBufferUsageFlags;
 pub const VkShaderStageFlags = vulkan_types.VkShaderStageFlags;
 pub const VkPipelineStageFlags = vulkan_types.VkPipelineStageFlags;
 
+// Enums
 pub const VkPipelineBindPoint = vulkan_types.VkPipelineBindPoint;
 
+// Create info structures
 pub const VkApplicationInfo = vulkan_types.VkApplicationInfo;
 pub const VkInstanceCreateInfo = vulkan_types.VkInstanceCreateInfo;
 pub const VkDeviceQueueCreateInfo = vulkan_types.VkDeviceQueueCreateInfo;
@@ -77,6 +97,7 @@ pub const VkPhysicalDeviceProperties = vulkan_types.VkPhysicalDeviceProperties;
 pub const VkPhysicalDeviceLimits = vulkan_types.VkPhysicalDeviceLimits;
 pub const VkPhysicalDeviceSparseProperties = vulkan_types.VkPhysicalDeviceSparseProperties;
 
+// Function pointer types
 pub const VkCreateInstanceFn = vulkan_types.VkCreateInstanceFn;
 pub const VkDestroyInstanceFn = vulkan_types.VkDestroyInstanceFn;
 pub const VkEnumeratePhysicalDevicesFn = vulkan_types.VkEnumeratePhysicalDevicesFn;
@@ -111,6 +132,7 @@ pub const VkEndCommandBufferFn = vulkan_types.VkEndCommandBufferFn;
 pub const VkCmdBindPipelineFn = vulkan_types.VkCmdBindPipelineFn;
 pub const VkCmdBindDescriptorSetsFn = vulkan_types.VkCmdBindDescriptorSetsFn;
 pub const VkCmdDispatchFn = vulkan_types.VkCmdDispatchFn;
+pub const VkCmdPipelineBarrierFn = vulkan_types.VkCmdPipelineBarrierFn;
 pub const VkCreateDescriptorPoolFn = vulkan_types.VkCreateDescriptorPoolFn;
 pub const VkDestroyDescriptorPoolFn = vulkan_types.VkDestroyDescriptorPoolFn;
 pub const VkAllocateDescriptorSetsFn = vulkan_types.VkAllocateDescriptorSetsFn;
@@ -122,8 +144,16 @@ pub const VkResetFencesFn = vulkan_types.VkResetFencesFn;
 pub const VkWaitForFencesFn = vulkan_types.VkWaitForFencesFn;
 pub const VkQueueSubmitFn = vulkan_types.VkQueueSubmitFn;
 pub const VkQueueWaitIdleFn = vulkan_types.VkQueueWaitIdleFn;
+pub const VkCreatePipelineCacheFn = vulkan_types.VkCreatePipelineCacheFn;
+pub const VkDestroyPipelineCacheFn = vulkan_types.VkDestroyPipelineCacheFn;
+pub const VkGetPipelineCacheDataFn = vulkan_types.VkGetPipelineCacheDataFn;
+pub const VkMergePipelineCachesFn = vulkan_types.VkMergePipelineCachesFn;
+pub const VkResetCommandBufferFn = vulkan_types.VkResetCommandBufferFn;
+pub const VkResetCommandPoolFn = vulkan_types.VkResetCommandPoolFn;
+pub const VkEnumerateInstanceLayerPropertiesFn = vulkan_types.VkEnumerateInstanceLayerPropertiesFn;
 pub const VkCmdPushConstantsFn = vulkan_types.VkCmdPushConstantsFn;
 
+// Constants
 pub const VK_QUEUE_GRAPHICS_BIT = vulkan_types.VK_QUEUE_GRAPHICS_BIT;
 pub const VK_QUEUE_COMPUTE_BIT = vulkan_types.VK_QUEUE_COMPUTE_BIT;
 pub const VK_QUEUE_TRANSFER_BIT = vulkan_types.VK_QUEUE_TRANSFER_BIT;
@@ -138,6 +168,7 @@ pub const VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT = vulkan_types.VK_BUFFER_USAGE_UNIF
 pub const VK_BUFFER_USAGE_STORAGE_BUFFER_BIT = vulkan_types.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 pub const VK_SHADER_STAGE_COMPUTE_BIT = vulkan_types.VK_SHADER_STAGE_COMPUTE_BIT;
 
+// Context and resource structures
 pub const VulkanContext = vulkan_types.VulkanContext;
 pub const VulkanKernel = vulkan_types.VulkanKernel;
 pub const VulkanBuffer = vulkan_types.VulkanBuffer;
@@ -146,34 +177,423 @@ pub const KernelSource = vulkan_types.KernelSource;
 pub const KernelConfig = vulkan_types.KernelConfig;
 
 // ============================================================================
-// Facade re-exports
+// Library Loading and Initialization
 // ============================================================================
 
-pub const backend_impl = @import("vulkan/backend_impl.zig");
-pub const isVulkanAvailable = backend_impl.isVulkanAvailable;
-pub const getDetectedApiVersion = backend_impl.getDetectedApiVersion;
-pub const enumerateDevices = backend_impl.enumerateDevices;
-pub const initVulkanGlobal = backend_impl.initVulkanGlobal;
-pub const deinit = backend_impl.deinit;
-pub const findMemoryType = backend_impl.findMemoryType;
+pub var vulkan_lib: ?std.DynLib = null;
+pub var vulkan_initialized = std.atomic.Value(bool).init(false);
+pub var vulkan_context: ?VulkanContext = null;
+pub var detected_api_version_raw: u32 = vulkan_caps.encodeApiVersion(.{
+    .major = 1,
+    .minor = 0,
+    .patch = 0,
+});
 
-// We re-export these from vtable.zig which expects them
-pub const VulkanBackend = @import("vulkan/vtable.zig").VulkanBackend;
-pub const createVulkanVTable = @import("vulkan/vtable.zig").createVulkanVTable;
+// Global function pointers
+pub var vkCreateInstance: ?VkCreateInstanceFn = null;
+pub var vkDestroyInstance: ?VkDestroyInstanceFn = null;
+pub var vkEnumeratePhysicalDevices: ?VkEnumeratePhysicalDevicesFn = null;
+pub var vkGetPhysicalDeviceProperties: ?VkGetPhysicalDevicePropertiesFn = null;
+pub var vkGetPhysicalDeviceQueueFamilyProperties: ?VkGetPhysicalDeviceQueueFamilyPropertiesFn = null;
+pub var vkGetPhysicalDeviceMemoryProperties: ?VkGetPhysicalDeviceMemoryPropertiesFn = null;
+pub var vkCreateDevice: ?VkCreateDeviceFn = null;
+pub var vkDestroyDevice: ?VkDestroyDeviceFn = null;
+pub var vkGetDeviceQueue: ?VkGetDeviceQueueFn = null;
+pub var vkEnumerateInstanceLayerProperties: ?VkEnumerateInstanceLayerPropertiesFn = null;
 
-// We re-export these from resources.zig
+// Instance function pointers
+pub var vkCreateBuffer: ?VkCreateBufferFn = null;
+pub var vkDestroyBuffer: ?VkDestroyBufferFn = null;
+pub var vkGetBufferMemoryRequirements: ?VkGetBufferMemoryRequirementsFn = null;
+pub var vkAllocateMemory: ?VkAllocateMemoryFn = null;
+pub var vkFreeMemory: ?VkFreeMemoryFn = null;
+pub var vkBindBufferMemory: ?VkBindBufferMemoryFn = null;
+pub var vkMapMemory: ?VkMapMemoryFn = null;
+pub var vkUnmapMemory: ?VkUnmapMemoryFn = null;
+pub var vkCreateShaderModule: ?VkCreateShaderModuleFn = null;
+pub var vkDestroyShaderModule: ?VkDestroyShaderModuleFn = null;
+pub var vkCreateDescriptorSetLayout: ?VkCreateDescriptorSetLayoutFn = null;
+pub var vkDestroyDescriptorSetLayout: ?VkDestroyDescriptorSetLayoutFn = null;
+pub var vkCreatePipelineLayout: ?VkCreatePipelineLayoutFn = null;
+pub var vkDestroyPipelineLayout: ?VkDestroyPipelineLayoutFn = null;
+pub var vkCreateComputePipelines: ?VkCreateComputePipelinesFn = null;
+pub var vkDestroyPipeline: ?VkDestroyPipelineFn = null;
+pub var vkCreateCommandPool: ?VkCreateCommandPoolFn = null;
+pub var vkDestroyCommandPool: ?VkDestroyCommandPoolFn = null;
+pub var vkAllocateCommandBuffers: ?VkAllocateCommandBuffersFn = null;
+pub var vkFreeCommandBuffers: ?VkFreeCommandBuffersFn = null;
+pub var vkBeginCommandBuffer: ?VkBeginCommandBufferFn = null;
+pub var vkEndCommandBuffer: ?VkEndCommandBufferFn = null;
+pub var vkCmdBindPipeline: ?VkCmdBindPipelineFn = null;
+pub var vkCmdBindDescriptorSets: ?VkCmdBindDescriptorSetsFn = null;
+pub var vkCmdDispatch: ?VkCmdDispatchFn = null;
+pub var vkCreateDescriptorPool: ?VkCreateDescriptorPoolFn = null;
+pub var vkDestroyDescriptorPool: ?VkDestroyDescriptorPoolFn = null;
+pub var vkAllocateDescriptorSets: ?VkAllocateDescriptorSetsFn = null;
+pub var vkFreeDescriptorSets: ?VkFreeDescriptorSetsFn = null;
+pub var vkUpdateDescriptorSets: ?VkUpdateDescriptorSetsFn = null;
+pub var vkCreateFence: ?VkCreateFenceFn = null;
+pub var vkDestroyFence: ?VkDestroyFenceFn = null;
+pub var vkResetFences: ?VkResetFencesFn = null;
+pub var vkWaitForFences: ?VkWaitForFencesFn = null;
+pub var vkQueueSubmit: ?VkQueueSubmitFn = null;
+pub var vkQueueWaitIdle: ?VkQueueWaitIdleFn = null;
+pub var vkCmdPushConstants: ?VkCmdPushConstantsFn = null;
+
+fn tryLoadVulkanLibrary() bool {
+    const lib_names = [_][]const u8{
+        "vulkan-1.dll",
+        "libvulkan.so.1",
+        "libvulkan.so",
+        "libvulkan.1.dylib",
+        "libvulkan.dylib",
+    };
+
+    for (lib_names) |name| {
+        if (std.DynLib.open(name)) |lib| {
+            vulkan_lib = lib;
+            return true;
+        } else |_| {}
+    }
+    return false;
+}
+
+fn loadGlobalFunctions() bool {
+    if (vulkan_lib == null) return false;
+    var lib = vulkan_lib.?;
+
+    if (vulkan_caps.queryLoaderApiVersion(&lib)) |api_version| {
+        detected_api_version_raw = api_version;
+    } else {
+        detected_api_version_raw = vulkan_caps.encodeApiVersion(.{
+            .major = 1,
+            .minor = 0,
+            .patch = 0,
+        });
+    }
+
+    vkCreateInstance = lib.lookup(VkCreateInstanceFn, "vkCreateInstance") orelse return false;
+    vkEnumerateInstanceLayerProperties = lib.lookup(VkEnumerateInstanceLayerPropertiesFn, "vkEnumerateInstanceLayerProperties");
+    vkEnumeratePhysicalDevices = lib.lookup(VkEnumeratePhysicalDevicesFn, "vkEnumeratePhysicalDevices");
+    vkGetPhysicalDeviceProperties = lib.lookup(VkGetPhysicalDevicePropertiesFn, "vkGetPhysicalDeviceProperties");
+    vkGetPhysicalDeviceQueueFamilyProperties = lib.lookup(VkGetPhysicalDeviceQueueFamilyPropertiesFn, "vkGetPhysicalDeviceQueueFamilyProperties");
+    vkGetPhysicalDeviceMemoryProperties = lib.lookup(VkGetPhysicalDeviceMemoryPropertiesFn, "vkGetPhysicalDeviceMemoryProperties");
+    vkCreateDevice = lib.lookup(VkCreateDeviceFn, "vkCreateDevice");
+
+    return true;
+}
+
+fn loadInstanceFunctions(instance: VkInstance) bool {
+    _ = instance;
+    if (vulkan_lib == null) return false;
+    var lib = vulkan_lib.?;
+
+    vkDestroyInstance = lib.lookup(VkDestroyInstanceFn, "vkDestroyInstance");
+    vkDestroyDevice = lib.lookup(VkDestroyDeviceFn, "vkDestroyDevice");
+    vkGetDeviceQueue = lib.lookup(VkGetDeviceQueueFn, "vkGetDeviceQueue");
+
+    vkCreateBuffer = lib.lookup(VkCreateBufferFn, "vkCreateBuffer");
+    vkDestroyBuffer = lib.lookup(VkDestroyBufferFn, "vkDestroyBuffer");
+    vkGetBufferMemoryRequirements = lib.lookup(VkGetBufferMemoryRequirementsFn, "vkGetBufferMemoryRequirements");
+    vkAllocateMemory = lib.lookup(VkAllocateMemoryFn, "vkAllocateMemory");
+    vkFreeMemory = lib.lookup(VkFreeMemoryFn, "vkFreeMemory");
+    vkBindBufferMemory = lib.lookup(VkBindBufferMemoryFn, "vkBindBufferMemory");
+    vkMapMemory = lib.lookup(VkMapMemoryFn, "vkMapMemory");
+    vkUnmapMemory = lib.lookup(VkUnmapMemoryFn, "vkUnmapMemory");
+
+    vkCreateShaderModule = lib.lookup(VkCreateShaderModuleFn, "vkCreateShaderModule");
+    vkDestroyShaderModule = lib.lookup(VkDestroyShaderModuleFn, "vkDestroyShaderModule");
+    vkCreateDescriptorSetLayout = lib.lookup(VkCreateDescriptorSetLayoutFn, "vkCreateDescriptorSetLayout");
+    vkDestroyDescriptorSetLayout = lib.lookup(VkDestroyDescriptorSetLayoutFn, "vkDestroyDescriptorSetLayout");
+    vkCreatePipelineLayout = lib.lookup(VkCreatePipelineLayoutFn, "vkCreatePipelineLayout");
+    vkDestroyPipelineLayout = lib.lookup(VkDestroyPipelineLayoutFn, "vkDestroyPipelineLayout");
+    vkCreateComputePipelines = lib.lookup(VkCreateComputePipelinesFn, "vkCreateComputePipelines");
+    vkDestroyPipeline = lib.lookup(VkDestroyPipelineFn, "vkDestroyPipeline");
+
+    vkCreateCommandPool = lib.lookup(VkCreateCommandPoolFn, "vkCreateCommandPool");
+    vkDestroyCommandPool = lib.lookup(VkDestroyCommandPoolFn, "vkDestroyCommandPool");
+    vkAllocateCommandBuffers = lib.lookup(VkAllocateCommandBuffersFn, "vkAllocateCommandBuffers");
+    vkFreeCommandBuffers = lib.lookup(VkFreeCommandBuffersFn, "vkFreeCommandBuffers");
+    vkBeginCommandBuffer = lib.lookup(VkBeginCommandBufferFn, "vkBeginCommandBuffer");
+    vkEndCommandBuffer = lib.lookup(VkEndCommandBufferFn, "vkEndCommandBuffer");
+
+    vkCmdBindPipeline = lib.lookup(VkCmdBindPipelineFn, "vkCmdBindPipeline");
+    vkCmdBindDescriptorSets = lib.lookup(VkCmdBindDescriptorSetsFn, "vkCmdBindDescriptorSets");
+    vkCmdDispatch = lib.lookup(VkCmdDispatchFn, "vkCmdDispatch");
+    vkCmdPushConstants = lib.lookup(VkCmdPushConstantsFn, "vkCmdPushConstants");
+
+    vkCreateDescriptorPool = lib.lookup(VkCreateDescriptorPoolFn, "vkCreateDescriptorPool");
+    vkDestroyDescriptorPool = lib.lookup(VkDestroyDescriptorPoolFn, "vkDestroyDescriptorPool");
+    vkAllocateDescriptorSets = lib.lookup(VkAllocateDescriptorSetsFn, "vkAllocateDescriptorSets");
+    vkFreeDescriptorSets = lib.lookup(VkFreeDescriptorSetsFn, "vkFreeDescriptorSets");
+    vkUpdateDescriptorSets = lib.lookup(VkUpdateDescriptorSetsFn, "vkUpdateDescriptorSets");
+
+    vkCreateFence = lib.lookup(VkCreateFenceFn, "vkCreateFence");
+    vkDestroyFence = lib.lookup(VkDestroyFenceFn, "vkDestroyFence");
+    vkResetFences = lib.lookup(VkResetFencesFn, "vkResetFences");
+    vkWaitForFences = lib.lookup(VkWaitForFencesFn, "vkWaitForFences");
+    vkQueueSubmit = lib.lookup(VkQueueSubmitFn, "vkQueueSubmit");
+    vkQueueWaitIdle = lib.lookup(VkQueueWaitIdleFn, "vkQueueWaitIdle");
+
+    return true;
+}
+
+pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
+    if (vulkan_initialized.load(.acquire)) return;
+
+    if (!tryLoadVulkanLibrary()) {
+        return VulkanError.InitializationFailed;
+    }
+
+    if (!loadGlobalFunctions()) {
+        return VulkanError.InitializationFailed;
+    }
+
+    if (!vulkan_caps.meetsTargetMinimum(builtin.target.os.tag, detected_api_version_raw)) {
+        const detected = vulkan_caps.decodeApiVersion(detected_api_version_raw);
+        const required = vulkan_caps.minimumVersionForTarget(builtin.target.os.tag);
+        std.log.warn(
+            "Vulkan backend requires >= {}.{} for this target (detected {}.{})",
+            .{ required.major, required.minor, detected.major, detected.minor },
+        );
+        return VulkanError.VersionNotSupported;
+    }
+
+    // Create Instance
+    const app_info = VkApplicationInfo{
+        .pApplicationName = "ABI Compute",
+        .apiVersion = detected_api_version_raw,
+    };
+
+    const create_info = VkInstanceCreateInfo{
+        .pApplicationInfo = &app_info,
+        .enabledLayerCount = 0,
+        .enabledExtensionCount = 0,
+    };
+
+    var instance: VkInstance = undefined;
+    const res = vkCreateInstance.?(&create_info, null, &instance);
+    if (res != .success) return VulkanError.InstanceCreationFailed;
+
+    if (!loadInstanceFunctions(instance)) {
+        return VulkanError.InitializationFailed;
+    }
+
+    // Select Physical Device
+    var device_count: u32 = 0;
+    _ = vkEnumeratePhysicalDevices.?(instance, &device_count, null);
+    if (device_count == 0) return VulkanError.PhysicalDeviceNotFound;
+
+    const p_devices = allocator.alloc(VkPhysicalDevice, device_count) catch return error.MemoryAllocationFailed;
+    defer allocator.free(p_devices);
+    _ = vkEnumeratePhysicalDevices.?(instance, &device_count, p_devices.ptr);
+
+    const physical_device = p_devices[0];
+
+    // Find a queue family with compute support
+    var queue_family_count: u32 = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties.?(physical_device, &queue_family_count, null);
+    if (queue_family_count == 0) return VulkanError.QueueFamilyNotFound;
+
+    const queue_props_buf = allocator.alloc(VkQueueFamilyProperties, queue_family_count) catch return error.MemoryAllocationFailed;
+    defer allocator.free(queue_props_buf);
+    vkGetPhysicalDeviceQueueFamilyProperties.?(physical_device, &queue_family_count, queue_props_buf.ptr);
+
+    var queue_family_index: u32 = 0;
+    var found_compute = false;
+    for (queue_props_buf, 0..) |props, i| {
+        if (props.queueFlags & VK_QUEUE_COMPUTE_BIT != 0 and props.queueCount > 0) {
+            queue_family_index = @intCast(i);
+            found_compute = true;
+            break;
+        }
+    }
+    if (!found_compute) return VulkanError.QueueFamilyNotFound;
+
+    // Create Logical Device
+    const queue_priority: f32 = 1.0;
+    const queue_create_info = VkDeviceQueueCreateInfo{
+        .queueFamilyIndex = queue_family_index,
+        .queueCount = 1,
+        .pQueuePriorities = @as([*]const f32, @ptrCast(&queue_priority)),
+    };
+
+    const device_create_info = VkDeviceCreateInfo{
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = @as(?[*]const VkDeviceQueueCreateInfo, @ptrCast(&queue_create_info)),
+    };
+
+    var device: VkDevice = undefined;
+    if (vkCreateDevice.?(physical_device, &device_create_info, null, &device) != .success) {
+        return VulkanError.DeviceCreationFailed;
+    }
+
+    var queue: VkQueue = undefined;
+    vkGetDeviceQueue.?(device, queue_family_index, 0, &queue);
+
+    const pool_info = VkCommandPoolCreateInfo{
+        .queueFamilyIndex = queue_family_index,
+        .flags = 0x00000002, // VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+    };
+    var command_pool: VkCommandPool = undefined;
+    if (vkCreateCommandPool.?(device, &pool_info, null, &command_pool) != .success) {
+        return VulkanError.InitializationFailed;
+    }
+
+    var mem_props: VkPhysicalDeviceMemoryProperties = undefined;
+    vkGetPhysicalDeviceMemoryProperties.?(physical_device, @ptrCast(&mem_props));
+
+    vulkan_context = VulkanContext{
+        .instance = instance,
+        .physical_device = physical_device,
+        .device = device,
+        .compute_queue = queue,
+        .compute_queue_family_index = queue_family_index,
+        .command_pool = command_pool,
+        .allocator = allocator,
+        .memory_properties = mem_props,
+    };
+
+    vulkan_initialized.store(true, .release);
+}
+
+pub fn deinit() void {
+    if (!vulkan_initialized.load(.acquire)) return;
+    const ctx = vulkan_context.?;
+
+    vkDestroyCommandPool.?(ctx.device, ctx.command_pool, null);
+    vkDestroyDevice.?(ctx.device, null);
+    vkDestroyInstance.?(ctx.instance, null);
+
+    vulkan_context = null;
+    vulkan_initialized.store(false, .release);
+    detected_api_version_raw = vulkan_caps.encodeApiVersion(.{
+        .major = 1,
+        .minor = 0,
+        .patch = 0,
+    });
+    if (vulkan_lib != null) {
+        var lib = vulkan_lib.?;
+        lib.close();
+    }
+    vulkan_lib = null;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+pub fn findMemoryType(type_filter: u32, properties: VkMemoryPropertyFlags) VulkanError!u32 {
+    const mem_props = vulkan_context.?.memory_properties;
+    var i: u32 = 0;
+    while (i < mem_props.memoryTypeCount) : (i += 1) {
+        if ((type_filter & (@as(u32, 1) << @intCast(i))) != 0 and
+            (mem_props.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+    return VulkanError.MemoryTypeNotFound;
+}
+
+// ============================================================================
+// Re-exports from sub-modules
+// ============================================================================
+
+const interface = @import("../interface.zig");
+
+/// VTable backend implementation (extracted to vulkan/backend_impl.zig).
+pub const VulkanBackend = @import("vulkan/backend_impl.zig").VulkanBackend;
+
+/// Shader cache for compiled pipelines.
 pub const ShaderCache = @import("vulkan/resources.zig").ShaderCache;
+
+/// Command buffer pool for reuse.
 pub const CommandPool = @import("vulkan/resources.zig").CommandPool;
 
 // ============================================================================
-// Variable proxies (since we cannot export 'pub var' from an inner module)
+// Exports for Factory
 // ============================================================================
-// Note: Some modules directly access `vulkan.vulkan_initialized` or `vulkan.vkCreateBuffer`.
-// We need to provide accessor functions or require them to import backend_impl directly.
-// For now, we will simply rely on the fact that ABI uses createVulkanVTable()
+
+pub const vulkan_vtable = struct {
+    pub fn createVulkanVTable(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
+        const impl = VulkanBackend.init(allocator) catch return interface.BackendError.InitFailed;
+        return interface.createBackend(VulkanBackend, impl);
+    }
+};
+
+pub fn isVulkanAvailable() bool {
+    if (vulkan_lib == null) {
+        _ = tryLoadVulkanLibrary();
+    }
+    if (vulkan_lib == null) return false;
+
+    var lib = vulkan_lib.?;
+    if (vulkan_caps.queryLoaderApiVersion(&lib)) |api_version| {
+        return vulkan_caps.meetsTargetMinimum(builtin.target.os.tag, api_version);
+    }
+    const fallback = vulkan_caps.encodeApiVersion(.{ .major = 1, .minor = 0, .patch = 0 });
+    return vulkan_caps.meetsTargetMinimum(builtin.target.os.tag, fallback);
+}
+
+pub fn getDetectedApiVersion() vulkan_caps.VulkanVersion {
+    return vulkan_caps.decodeApiVersion(detected_api_version_raw);
+}
+
+// ============================================================================
+// Device Enumeration
+// ============================================================================
+
+const Device = @import("../device.zig").Device;
+
+pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
+    if (!tryLoadVulkanLibrary()) {
+        return &[_]Device{};
+    }
+
+    var devices = std.ArrayListUnmanaged(Device).empty;
+    errdefer devices.deinit(allocator);
+
+    if (vulkan_context) |_| {
+        const name = try allocator.dupe(u8, "Vulkan Device");
+        errdefer allocator.free(name);
+
+        try devices.append(allocator, .{
+            .id = 0,
+            .backend = .vulkan,
+            .name = name,
+            .device_type = .discrete,
+            .vendor = .unknown,
+            .total_memory = null,
+            .available_memory = null,
+            .is_emulated = false,
+            .capability = .{
+                .supports_fp16 = true,
+                .supports_int8 = true,
+                .supports_async_transfers = true,
+                .unified_memory = false,
+            },
+            .compute_units = null,
+            .clock_mhz = null,
+            .pci_bus_id = null,
+            .driver_version = null,
+        });
+    }
+
+    return devices.toOwnedSlice(allocator);
+}
+
+/// Creates a Vulkan backend instance wrapped in the VTable interface.
+pub const createVulkanVTable = vulkan_vtable.createVulkanVTable;
+
+// ============================================================================
+// Tests
+// ============================================================================
 
 test {
-    _ = @import("vulkan/backend_impl.zig");
-    _ = @import("vulkan/vtable.zig");
+    _ = @import("vulkan_types.zig");
+    _ = @import("vulkan/capabilities.zig");
     _ = @import("vulkan_test.zig");
+    _ = @import("vulkan/backend_impl.zig");
+    _ = @import("vulkan/resources.zig");
 }

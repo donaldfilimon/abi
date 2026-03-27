@@ -66,8 +66,8 @@ pub const BackendMetrics = struct {
             .requests_failed = .{ .name = backend_name },
             .requests_retried = .{ .name = backend_name },
             .circuit_breaker_opens = .{ .name = backend_name },
-            .token_latency_ms = try Histogram.init(allocator, backend_name, &latency_bounds),
-            .stream_duration_ms = try Histogram.init(allocator, backend_name, &duration_bounds),
+            .token_latency_ms = try Histogram.init(allocator, backend_name, @constCast(&latency_bounds)),
+            .stream_duration_ms = try Histogram.init(allocator, backend_name, @constCast(&duration_bounds)),
             .active_streams = .{ .name = backend_name },
         };
     }

@@ -5,7 +5,6 @@ pub const MessagingConfig = core_config.MessagingConfig;
 
 /// Errors returned by messaging operations.
 pub const MessagingError = error{
-    MessagingDisabled,
     FeatureDisabled,
     ChannelFull,
     ChannelClosed,

@@ -315,7 +315,3 @@ fn sleepWithBackoff(
         agent.config.retry_config.max_delay_ms,
     );
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

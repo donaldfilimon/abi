@@ -581,15 +581,14 @@ test "self-reflection engine" {
 test {
     _ = neural;
     _ = memory;
+    _ = reasoning;
     _ = emotions;
     _ = context;
     _ = calibration;
     _ = client;
+    _ = engine;
+    _ = server;
+    _ = discord_bot;
     _ = custom_framework;
-    // Excluded due to pre-existing API mismatches:
-    // engine — addStep arg count, Confidence type, getOverallConfidence
-    // server — transitive via engine
-    // discord_bot — optional type mismatch on data.options
-    // reasoning — transitive
-    // advanced — transitive via meta_learning.TaskDomain
+    _ = advanced;
 }

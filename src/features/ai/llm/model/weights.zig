@@ -10,19 +10,19 @@ const tensor_loader = @import("../io/tensor_loader.zig");
 /// Layer weights for a single transformer layer.
 pub const LayerWeights = struct {
     /// Attention weights
-    q_proj: []f32,
-    k_proj: []f32,
-    v_proj: []f32,
-    o_proj: []f32,
+    q_proj: []const f32,
+    k_proj: []const f32,
+    v_proj: []const f32,
+    o_proj: []const f32,
 
     /// FFN weights (SwiGLU)
-    gate_proj: []f32, // gate
-    up_proj: []f32, // up
-    down_proj: []f32,
+    gate_proj: []const f32, // gate
+    up_proj: []const f32, // up
+    down_proj: []const f32,
 
     /// Normalization weights
-    input_norm: []f32, // attention input norm
-    post_attn_norm: []f32, // FFN input norm
+    input_norm: []const f32, // attention input norm
+    post_attn_norm: []const f32, // FFN input norm
 
     /// Whether weights are quantized
     quantized: bool,
@@ -46,9 +46,9 @@ pub const LlamaWeights = struct {
     /// Final normalization
     final_norm: []f32,
 
-    /// Profile embeddings: 3 vectors of hidden_dim (Abbey=0, Aviva=1, Abi=2)
+    /// Persona embeddings: 3 vectors of hidden_dim (Abbey=0, Aviva=1, Abi=2)
     /// Added to token embeddings before the first transformer layer.
-    profile_embeddings: [3][]f32 = .{ &[_]f32{}, &[_]f32{}, &[_]f32{} },
+    persona_embeddings: [3][]f32 = .{ &[_]f32{}, &[_]f32{}, &[_]f32{} },
 
     /// Original GGUF file (for quantized weights)
     gguf_file: ?*gguf.GgufFile,
@@ -57,18 +57,18 @@ pub const LlamaWeights = struct {
         const layers = try allocator.alloc(LayerWeights, llama_config.n_layers);
         @memset(layers, std.mem.zeroes(LayerWeights));
 
-        // Initialize profile embeddings with characteristic small biases
-        var profile_embs: [3][]f32 = undefined;
+        // Initialize persona embeddings with characteristic small biases
+        var persona_embs: [3][]f32 = undefined;
         for (0..3) |p| {
             const emb = try allocator.alloc(f32, llama_config.dim);
-            // Deterministic seed per profile for reproducible initialization
-            const seed: u64 = 0x41424900 + @as(u64, p); // "ABI\0" + profile index
+            // Deterministic seed per persona for reproducible initialization
+            const seed: u64 = 0x41424900 + @as(u64, p); // "ABI\0" + persona index
             var prng = std.Random.DefaultPrng.init(seed);
             const rng = prng.random();
             for (emb) |*v| {
                 v.* = (rng.float(f32) - 0.5) * 0.02; // Small random in [-0.01, 0.01]
             }
-            profile_embs[p] = emb;
+            persona_embs[p] = emb;
         }
 
         return .{
@@ -78,7 +78,7 @@ pub const LlamaWeights = struct {
             .layers = layers,
             .output_proj = null,
             .final_norm = &[_]f32{},
-            .profile_embeddings = profile_embs,
+            .persona_embeddings = persona_embs,
             .gguf_file = null,
         };
     }
@@ -90,15 +90,15 @@ pub const LlamaWeights = struct {
         }
 
         for (self.layers) |layer| {
-            if (layer.q_proj.len > 0) self.allocator.free(layer.q_proj);
-            if (layer.k_proj.len > 0) self.allocator.free(layer.k_proj);
-            if (layer.v_proj.len > 0) self.allocator.free(layer.v_proj);
-            if (layer.o_proj.len > 0) self.allocator.free(layer.o_proj);
-            if (layer.gate_proj.len > 0) self.allocator.free(layer.gate_proj);
-            if (layer.up_proj.len > 0) self.allocator.free(layer.up_proj);
-            if (layer.down_proj.len > 0) self.allocator.free(layer.down_proj);
-            if (layer.input_norm.len > 0) self.allocator.free(layer.input_norm);
-            if (layer.post_attn_norm.len > 0) self.allocator.free(layer.post_attn_norm);
+            if (layer.q_proj.len > 0) self.allocator.free(@constCast(layer.q_proj));
+            if (layer.k_proj.len > 0) self.allocator.free(@constCast(layer.k_proj));
+            if (layer.v_proj.len > 0) self.allocator.free(@constCast(layer.v_proj));
+            if (layer.o_proj.len > 0) self.allocator.free(@constCast(layer.o_proj));
+            if (layer.gate_proj.len > 0) self.allocator.free(@constCast(layer.gate_proj));
+            if (layer.up_proj.len > 0) self.allocator.free(@constCast(layer.up_proj));
+            if (layer.down_proj.len > 0) self.allocator.free(@constCast(layer.down_proj));
+            if (layer.input_norm.len > 0) self.allocator.free(@constCast(layer.input_norm));
+            if (layer.post_attn_norm.len > 0) self.allocator.free(@constCast(layer.post_attn_norm));
         }
 
         self.allocator.free(self.layers);
@@ -107,7 +107,7 @@ pub const LlamaWeights = struct {
             self.allocator.free(proj);
         }
 
-        for (&self.profile_embeddings) |emb| {
+        for (&self.persona_embeddings) |emb| {
             if (emb.len > 0) self.allocator.free(emb);
         }
 
@@ -116,7 +116,7 @@ pub const LlamaWeights = struct {
         }
 
         if (self.gguf_file) |file| {
-            file.deinit();
+            @constCast(file).deinit();
             self.allocator.destroy(file);
         }
 

@@ -94,7 +94,7 @@ pub const ExternalBackend = struct {
 
         while (try stream.next(self.allocator)) |token| {
             try result.appendSlice(self.allocator, token.text);
-            self.allocator.free(token.text);
+            self.allocator.free(@constCast(token.text));
             if (token.is_end) break;
         }
 
@@ -364,7 +364,7 @@ test "external backend streaming" {
 
     var token_count: usize = 0;
     while (try stream.next(allocator)) |token| {
-        allocator.free(token.text);
+        allocator.free(@constCast(token.text));
         token_count += 1;
         if (token.is_end) break;
     }

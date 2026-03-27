@@ -1,14 +1,11 @@
 //! Federated learning stub — active when AI feature is disabled.
 
 const std = @import("std");
-const types = @import("types.zig");
 
-pub const NodeInfo = types.NodeInfo;
-pub const CoordinatorError = types.CoordinatorError;
-pub const AggregationStrategy = types.AggregationStrategy;
-pub const ModelUpdateView = types.ModelUpdateView;
-pub const ModelUpdate = types.ModelUpdate;
-pub const CoordinatorConfig = types.CoordinatorConfig;
+pub const NodeInfo = struct {
+    id: []const u8 = "",
+    last_update: i64 = 0,
+};
 
 pub const Registry = struct {
     allocator: std.mem.Allocator,
@@ -35,6 +32,33 @@ pub const Registry = struct {
     }
 };
 
+pub const CoordinatorError = error{ InsufficientUpdates, InvalidUpdate, FeatureDisabled };
+pub const AggregationStrategy = enum { mean, weighted_mean };
+
+pub const ModelUpdateView = struct {
+    node_id: []const u8 = "",
+    step: u64 = 0,
+    weights: []const f32 = &.{},
+    sample_count: u32 = 1,
+};
+
+pub const ModelUpdate = struct {
+    node_id: []const u8 = "",
+    step: u64 = 0,
+    timestamp: u64 = 0,
+    weights: []f32 = &.{},
+    sample_count: u32 = 0,
+
+    pub fn deinit(_: *ModelUpdate, _: std.mem.Allocator) void {}
+};
+
+pub const CoordinatorConfig = struct {
+    min_updates: usize = 1,
+    max_updates: usize = 64,
+    max_staleness_seconds: u64 = 300,
+    strategy: AggregationStrategy = .mean,
+};
+
 pub const Coordinator = struct {
     allocator: std.mem.Allocator,
     registry: Registry,
@@ -44,8 +68,8 @@ pub const Coordinator = struct {
     config: CoordinatorConfig = .{},
     current_step: u64 = 0,
 
-    pub fn init(_: std.mem.Allocator, _: CoordinatorConfig, _: usize) error{FeatureDisabled}!Coordinator {
-        return error.FeatureDisabled;
+    pub fn init(_: std.mem.Allocator, _: CoordinatorConfig, _: usize) CoordinatorError!Coordinator {
+        return CoordinatorError.FeatureDisabled;
     }
     pub fn deinit(_: *Coordinator) void {}
     pub fn registerNode(_: *Coordinator, _: []const u8) !void {
@@ -54,8 +78,8 @@ pub const Coordinator = struct {
     pub fn submitUpdate(_: *Coordinator, _: ModelUpdateView) !void {
         return error.FeatureDisabled;
     }
-    pub fn aggregate(_: *Coordinator) error{FeatureDisabled}![]const f32 {
-        return error.FeatureDisabled;
+    pub fn aggregate(_: *Coordinator) CoordinatorError![]const f32 {
+        return CoordinatorError.FeatureDisabled;
     }
     pub fn globalWeights(_: *const Coordinator) []const f32 {
         return &.{};

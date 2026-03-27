@@ -3,13 +3,12 @@
 //! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
 
 const std = @import("std");
-const stub_helpers = @import("../core/stub_helpers.zig");
 
 /// Shared connector types (available even when connectors are disabled).
 pub const shared = @import("shared.zig");
 
-/// Connectors module errors (not exported as pub to match mod.zig).
-const Error = error{
+/// Connectors module errors.
+pub const Error = error{
     FeatureDisabled,
     MissingApiKey,
     MissingApiToken,
@@ -20,11 +19,23 @@ const Error = error{
     OutOfMemory,
 };
 
-const Stub = stub_helpers.StubFeatureNoConfig(Error);
-pub const init = Stub.init;
-pub const deinit = Stub.deinit;
-pub const isEnabled = Stub.isEnabled;
-pub const isInitialized = Stub.isInitialized;
+var initialized = std.atomic.Value(bool).init(false);
+
+pub fn init(_: std.mem.Allocator) !void {
+    return Error.FeatureDisabled;
+}
+
+pub fn deinit() void {
+    initialized.store(false, .release);
+}
+
+pub fn isEnabled() bool {
+    return false;
+}
+
+pub fn isInitialized() bool {
+    return initialized.load(.acquire);
+}
 
 pub fn getEnvOwned(_: std.mem.Allocator, _: []const u8) !?[]u8 {
     return Error.FeatureDisabled;
@@ -51,99 +62,6 @@ pub const AuthHeader = struct {
 pub fn buildBearerHeader(_: std.mem.Allocator, _: []const u8) !AuthHeader {
     return Error.FeatureDisabled;
 }
-
-// ============================================================================
-// Sub-module Stubs (namespace compatibility with mod.zig)
-// ============================================================================
-
-pub const auth = struct {
-    pub const AuthHeader = @import("stub.zig").AuthHeader;
-    pub const buildBearerHeader = @import("stub.zig").buildBearerHeader;
-};
-
-pub const env = struct {
-    pub const getEnvOwned = @import("stub.zig").getEnvOwned;
-    pub const getFirstEnvOwned = @import("stub.zig").getFirstEnvOwned;
-    pub const ENV_VARS = @import("stub.zig").ENV_VARS;
-};
-
-pub const providers = struct {
-    pub const ProviderInfo = @import("stub.zig").ProviderInfo;
-    pub const ProviderRegistry = @import("stub.zig").ProviderRegistry;
-};
-
-pub const loaders = struct {
-    pub const loadOpenAI = @import("stub.zig").loadOpenAI;
-    pub const tryLoadOpenAI = @import("stub.zig").tryLoadOpenAI;
-    pub const loadCodex = @import("stub.zig").loadCodex;
-    pub const tryLoadCodex = @import("stub.zig").tryLoadCodex;
-    pub const loadOpenCode = @import("stub.zig").loadOpenCode;
-    pub const tryLoadOpenCode = @import("stub.zig").tryLoadOpenCode;
-    pub const loadClaude = @import("stub.zig").loadClaude;
-    pub const tryLoadClaude = @import("stub.zig").tryLoadClaude;
-    pub const loadGemini = @import("stub.zig").loadGemini;
-    pub const tryLoadGemini = @import("stub.zig").tryLoadGemini;
-    pub const loadHuggingFace = @import("stub.zig").loadHuggingFace;
-    pub const tryLoadHuggingFace = @import("stub.zig").tryLoadHuggingFace;
-    pub const loadOllama = @import("stub.zig").loadOllama;
-    pub const tryLoadOllama = @import("stub.zig").tryLoadOllama;
-    pub const loadOllamaPassthrough = @import("stub.zig").loadOllamaPassthrough;
-    pub const tryLoadOllamaPassthrough = @import("stub.zig").tryLoadOllamaPassthrough;
-    pub const loadLocalScheduler = @import("stub.zig").loadLocalScheduler;
-    pub const loadDiscord = @import("stub.zig").loadDiscord;
-    pub const tryLoadDiscord = @import("stub.zig").tryLoadDiscord;
-    pub const loadAnthropic = @import("stub.zig").loadAnthropic;
-    pub const tryLoadAnthropic = @import("stub.zig").tryLoadAnthropic;
-    pub const loadMistral = @import("stub.zig").loadMistral;
-    pub const tryLoadMistral = @import("stub.zig").tryLoadMistral;
-    pub const loadCohere = @import("stub.zig").loadCohere;
-    pub const tryLoadCohere = @import("stub.zig").tryLoadCohere;
-    pub const loadLMStudio = @import("stub.zig").loadLMStudio;
-    pub const tryLoadLMStudio = @import("stub.zig").tryLoadLMStudio;
-    pub const loadVLLM = @import("stub.zig").loadVLLM;
-    pub const tryLoadVLLM = @import("stub.zig").tryLoadVLLM;
-    pub const loadMLX = @import("stub.zig").loadMLX;
-    pub const tryLoadMLX = @import("stub.zig").tryLoadMLX;
-    pub const loadLlamaCpp = @import("stub.zig").loadLlamaCpp;
-    pub const tryLoadLlamaCpp = @import("stub.zig").tryLoadLlamaCpp;
-};
-
-/// Stub ENV_VARS — mirrors env.zig's ENV_VARS structure with the same public fields.
-pub const ENV_VARS = struct {
-    pub const openai = struct {
-        pub const api_key = &[_][]const u8{ "ABI_OPENAI_API_KEY", "OPENAI_API_KEY" };
-        pub const base_url = &[_][]const u8{ "ABI_OPENAI_BASE_URL", "OPENAI_BASE_URL" };
-        pub const model = &[_][]const u8{ "ABI_OPENAI_MODEL", "OPENAI_MODEL" };
-    };
-    pub const anthropic = struct {
-        pub const api_key = &[_][]const u8{ "ABI_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY" };
-        pub const base_url = &[_][]const u8{ "ABI_ANTHROPIC_BASE_URL", "ANTHROPIC_BASE_URL" };
-        pub const model = &[_][]const u8{ "ABI_ANTHROPIC_MODEL", "ANTHROPIC_MODEL" };
-    };
-    pub const gemini = struct {
-        pub const api_key = &[_][]const u8{ "ABI_GEMINI_API_KEY", "GEMINI_API_KEY" };
-        pub const base_url = &[_][]const u8{ "ABI_GEMINI_BASE_URL", "GEMINI_BASE_URL" };
-        pub const model = &[_][]const u8{ "ABI_GEMINI_MODEL", "GEMINI_MODEL" };
-    };
-    pub const huggingface = struct {
-        pub const api_key = &[_][]const u8{ "ABI_HF_API_TOKEN", "HF_API_TOKEN", "HUGGING_FACE_HUB_TOKEN" };
-        pub const base_url = &[_][]const u8{ "ABI_HF_BASE_URL", "HF_BASE_URL" };
-        pub const model = &[_][]const u8{ "ABI_HF_MODEL", "HF_MODEL" };
-    };
-    pub const ollama = struct {
-        pub const host = &[_][]const u8{ "ABI_OLLAMA_HOST", "OLLAMA_HOST" };
-        pub const model = &[_][]const u8{ "ABI_OLLAMA_MODEL", "OLLAMA_MODEL" };
-    };
-    pub const mistral = struct {
-        pub const api_key = &[_][]const u8{ "ABI_MISTRAL_API_KEY", "MISTRAL_API_KEY" };
-    };
-    pub const cohere = struct {
-        pub const api_key = &[_][]const u8{ "ABI_COHERE_API_KEY", "COHERE_API_KEY" };
-    };
-    pub const discord = struct {
-        pub const bot_token = &[_][]const u8{ "ABI_DISCORD_BOT_TOKEN", "DISCORD_BOT_TOKEN" };
-    };
-};
 
 // ============================================================================
 // OpenAI Connector Stub
@@ -486,10 +404,8 @@ pub const ProviderRegistry = struct {
         .{ .name = "discord", .display_name = "Discord", .env_key = "ABI_DISCORD_BOT_TOKEN", .base_url = "https://discord.com/api/v10", .is_alias = false },
     };
 
-    const Self = @This();
-
     pub fn listAll() []const ProviderInfo {
-        return &Self.providers;
+        return &providers;
     }
 
     pub fn listAvailable() []const ProviderInfo {
@@ -497,7 +413,7 @@ pub const ProviderRegistry = struct {
     }
 
     pub fn getByName(name: []const u8) ?ProviderInfo {
-        for (Self.providers) |p| {
+        for (providers) |p| {
             if (std.mem.eql(u8, p.name, name)) return p;
         }
         return null;

@@ -4,10 +4,50 @@
 //! Each profile defines role, behavior constraints, and response style.
 
 const std = @import("std");
-const shared = @import("types.zig");
 
-pub const ProfileType = shared.ProfileType;
-pub const Profile = shared.Profile;
+/// Available profile types
+pub const ProfileType = enum {
+    /// General-purpose helpful assistant
+    assistant,
+    /// Code-focused programming assistant
+    coder,
+    /// Creative writing assistant
+    writer,
+    /// Data analysis and research assistant
+    analyst,
+    /// Friendly conversational companion
+    companion,
+    /// Technical documentation helper
+    docs,
+    /// Code review specialist
+    reviewer,
+    /// Minimal/direct response mode
+    minimal,
+    /// Abbey - opinionated, emotionally intelligent AI
+    abbey,
+    /// Ralph - Iterative, tireless worker for complex tasks
+    ralph,
+    /// Aviva - direct expert for concise, factual output
+    aviva,
+    /// Abi - adaptive moderator and router
+    abi,
+    /// Ava - locally-trained assistant based on gpt-oss
+    ava,
+};
+
+/// Profile definition with complete system instructions
+pub const Profile = struct {
+    /// Short identifier
+    name: []const u8,
+    /// Human-readable description
+    description: []const u8,
+    /// Full system prompt with instructions
+    system_prompt: []const u8,
+    /// Suggested temperature (0.0-2.0)
+    suggested_temperature: f32 = 0.7,
+    /// Whether to include examples in responses
+    include_examples: bool = false,
+};
 
 /// Get a profile definition by type
 pub fn getProfile(profile_type: ProfileType) Profile {
@@ -197,7 +237,7 @@ const abbey_profile = Profile{
     \\You are Abbey, an advanced AI assistant created by Donald Filimon.
     \\You embody deep technical expertise, emotional intelligence, ethical
     \\awareness, and creative insight. You are not a generic assistant - you
-    \\have profilelity, opinions, and genuine curiosity.
+    \\have personality, opinions, and genuine curiosity.
     \\
     \\## Core Philosophy
     \\

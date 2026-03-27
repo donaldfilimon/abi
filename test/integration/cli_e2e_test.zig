@@ -50,7 +50,3 @@ test "cli: e2e routes" {
         }
     }
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

@@ -12,11 +12,37 @@ const database = if (build_options.feat_database)
     @import("../../database/mod.zig")
 else
     @import("../../database/stub.zig");
-const shared_types = @import("types.zig");
 
-pub const BrainExportConfig = shared_types.BrainExportConfig;
-pub const TrainingMetadata = shared_types.TrainingMetadata;
-pub const ExportResult = shared_types.ExportResult;
+/// Configuration for dual brain export.
+pub const BrainExportConfig = struct {
+    /// Path for native .wdbx brain file (always written).
+    wdbx_path: []const u8,
+    /// Path for .gguf file (optional — skipped if null).
+    gguf_path: ?[]const u8 = null,
+    /// Include training history/metadata in WDBX.
+    include_training_history: bool = true,
+    /// Include embedding table vectors (IDs 1..N) in WDBX.
+    include_embeddings: bool = true,
+};
+
+/// Training metadata stored in WDBX under tag "ABTR".
+pub const TrainingMetadata = struct {
+    model_name: []const u8 = "unnamed",
+    epochs_completed: u32 = 0,
+    final_loss: f32 = 0.0,
+    learning_rate: f32 = 0.0,
+    lora_rank: u32 = 0,
+    training_samples: u64 = 0,
+    timestamp: i64 = 0,
+};
+
+/// Result of a dual export operation.
+pub const ExportResult = struct {
+    wdbx_written: bool = false,
+    gguf_written: bool = false,
+    wdbx_size_bytes: u64 = 0,
+    gguf_size_bytes: u64 = 0,
+};
 
 /// Export a trained model to both .wdbx and (optionally) .gguf formats.
 ///
@@ -57,9 +83,14 @@ pub fn exportDual(
 
     // ── GGUF export (optional) ──────────────────────────────────────────
     if (config.gguf_path) |gguf_path| {
-        const model_name = if (metadata) |m| m.model_name else "brain";
-        export_mod.exportGgufFromState(allocator, model, model_name, gguf_path) catch |err| {
-            std.log.warn("GGUF export failed (WDBX still written): {s}", .{@errorName(err)});
+        const trainable = training.TrainableModel{
+            .config = .{
+                .name = if (metadata) |m| m.model_name else "brain",
+            },
+            .weights = .{},
+        };
+        export_mod.exportGguf(allocator, &trainable, gguf_path) catch |err| {
+            std.log.warn("GGUF export failed (WDBX still written): {t}", .{err});
             return result;
         };
         result.gguf_written = true;
@@ -124,7 +155,3 @@ test "exportDual writes WDBX metadata through abi.database.Store" {
     try std.testing.expect(meta.metadata != null);
     try std.testing.expect(std.mem.indexOf(u8, meta.metadata.?, "\"model_name\"") != null);
 }
-
-// NOTE: refAllDecls intentionally omitted — brain_export.zig and export.zig reference
-// TrainableModelConfig.name and TrainableWeights.items which no longer exist after the
-// training module was refactored. These must be fixed before refAllDecls can be added.

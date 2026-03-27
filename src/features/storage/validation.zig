@@ -4,13 +4,10 @@
 
 const std = @import("std");
 
-/// Maximum allowed key length (prevents DoS from unbounded key sizes).
-const max_key_length = 4096;
-
 /// Validate a storage key for safety. Rejects empty keys, absolute paths,
 /// path traversal (`..`), and overly long keys.
 pub fn isValidKey(key: []const u8) bool {
-    if (key.len == 0 or key.len > max_key_length) return false;
+    if (key.len == 0 or key.len > 4096) return false;
     // Reject absolute paths
     if (key[0] == '/') return false;
     // Reject path traversal

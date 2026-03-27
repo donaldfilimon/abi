@@ -132,7 +132,7 @@ pub const ToolAugmentedAgent = struct {
             .io_val = io_val,
             .config = config,
             .confirmation_callback = null,
-            .tool_call_log = .empty,
+            .tool_call_log = .{},
             .tool_descriptions = null,
         };
     }

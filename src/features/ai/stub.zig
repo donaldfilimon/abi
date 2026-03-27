@@ -38,14 +38,12 @@ pub const coordination = @import("coordination/stub.zig");
 pub const models = @import("models/stub.zig");
 pub const transformer = @import("transformer/stub.zig");
 pub const federated = @import("federated/stub.zig");
-pub const feedback = @import("feedback/stub.zig");
-pub const compliance = @import("compliance/stub.zig");
 pub const tool_agent = tools;
 pub const discovery = explore;
 pub const jumpstart = @import("context_engine/jumpstart.zig");
-pub const context_engine = @import("context_engine/stub.zig");
-pub const self_improve = @import("self_improve_stub.zig");
-pub const profile = @import("profile/stub.zig");
+pub const context_engine = @import("context_engine/mod.zig");
+pub const self_improve = @import("self_improve.zig");
+pub const persona = @import("persona/stub.zig");
 pub const deep_research = struct {
     pub const DeepResearcher = struct {
         allocator: std.mem.Allocator,

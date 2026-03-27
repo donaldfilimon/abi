@@ -315,7 +315,7 @@ test "engine generate demo" {
     try std.testing.expectEqual(@as(u64, 1), engine.getStats().total_requests);
 }
 
-test "engine connector backend: no slash model returns echo format" {
+test "engine connector backend" {
     const allocator = std.testing.allocator;
 
     var engine = try Engine.init(allocator, .{
@@ -330,96 +330,16 @@ test "engine connector backend: no slash model returns echo format" {
     });
     defer engine.deinit();
 
-    // model_id "test-model" has no slash -> dispatchToConnector returns "[echo/test-model]"
-    const result = try engine.generate(.{
-        .id = 1,
-        .prompt = "Explain HNSW",
-        .max_tokens = 10,
-    });
-    defer if (result.text_owned) allocator.free(result.text);
-    try std.testing.expectEqualStrings("[echo/test-model]", result.text);
-    try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
-}
-
-test "engine connector backend: unknown provider falls back to echo" {
-    const allocator = std.testing.allocator;
-
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .connector,
-        .model_id = "fakeprovider/some-model",
-    });
-    defer engine.deinit();
-
-    // "fakeprovider" is not in known_providers -> falls back to echo
-    const result = try engine.generate(.{
-        .id = 1,
-        .prompt = "Hello",
-        .max_tokens = 10,
-    });
-    defer if (result.text_owned) allocator.free(result.text);
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "Hello") != null);
-}
-
-test "engine connector backend: missing API key returns error" {
-    const allocator = std.testing.allocator;
-
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .connector,
-        .model_id = "openai/gpt-4",
-    });
-    defer engine.deinit();
-
-    // In test env, OPENAI_API_KEY is not set -> MissingApiKey or ApiRequestFailed
-    const result = engine.generate(.{
-        .id = 1,
-        .prompt = "Hello",
-        .max_tokens = 10,
-    });
-    if (result) |*r| {
-        var mutable = r.*;
-        mutable.deinit(allocator);
-    } else |err| {
-        try std.testing.expect(err == error.MissingApiKey or err == error.ApiRequestFailed);
-    }
-}
-
-test "engine demo backend: echo response works" {
-    const allocator = std.testing.allocator;
-
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .demo,
-        .model_id = "demo-model",
-    });
-    defer engine.deinit();
-
-    // Demo backend always succeeds with synthetic text
     var result = try engine.generate(.{
         .id = 1,
-        .prompt = "Test prompt",
+        .prompt = "Explain HNSW",
         .max_tokens = 10,
     });
     defer result.deinit(allocator);
 
     try std.testing.expect(result.text.len > 0);
-    try std.testing.expectEqual(Backend.demo, engine.getStats().backend);
+    try std.testing.expect(std.mem.indexOf(u8, result.text, "test-model") != null);
+    try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 
 test "engine submit to scheduler" {

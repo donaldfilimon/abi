@@ -347,10 +347,8 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
             return .{ .map = self, .index = 0 };
         }
 
-        /// Insert without capacity check — only used during rehash.
-        /// Returns error.CapacityInvariantViolated if probing is exhausted
-        /// (indicates a bug in capacity calculation).
-        fn insertUnchecked(self: *Self, key: K, value: V) error{CapacityInvariantViolated}!void {
+        /// Insert without capacity check — only used during rehash
+        fn insertUnchecked(self: *Self, key: K, value: V) void {
             const hash = self.hashKey(key);
             const target_h2 = h2(hash);
             var group_idx = @as(usize, @truncate(hash)) & (self.capacity - 1);
@@ -378,9 +376,10 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
                 group_idx = group_idx & ~@as(usize, group_width - 1);
             }
 
-            // If we exhaust probing, the capacity calculation in ensureCapacity
-            // is wrong — report as an error so callers can handle it gracefully.
-            return error.CapacityInvariantViolated; // was @panic("swiss_map: insertUnchecked exhausted probing â capacity invariant violated");
+            // Safety: insertUnchecked is only called from rehash() with a
+            // freshly-allocated table sized to fit all entries. If we exhaust
+            // probing, the capacity calculation in ensureCapacity is wrong.
+            @panic("swiss_map: insertUnchecked exhausted probing â capacity invariant violated");
         }
 
         // ── Capacity Management ──────────────────────────────────
@@ -419,7 +418,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
             if (old_capacity > 0) {
                 for (0..old_capacity) |i| {
                     if (!isEmptyOrDeleted(old_ctrl[i])) {
-                        try self.insertUnchecked(old_keys[i], old_values[i]);
+                        self.insertUnchecked(old_keys[i], old_values[i]);
                     }
                 }
 

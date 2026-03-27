@@ -368,7 +368,7 @@ pub const GpuAgent = struct {
             .gpu_enabled = gpu_available,
             .gpu_coordinator = null,
             .learning_scheduler = null,
-            .response_buffer = .empty,
+            .response_buffer = .{},
             .default_timeout_ms = 30000,
             .enable_learning = true,
         };

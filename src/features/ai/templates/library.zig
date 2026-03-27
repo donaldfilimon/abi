@@ -4,9 +4,34 @@
 //! code generation, and other common use cases.
 
 const std = @import("std");
-const types = @import("types.zig");
 
-pub const BuiltinTemplates = types.BuiltinTemplates;
+/// Available built-in templates.
+pub const BuiltinTemplates = enum {
+    /// Basic system message template.
+    system_message,
+    /// Chat completion with system, context, and user message.
+    chat_completion,
+    /// RAG context injection template.
+    rag_context,
+    /// Tool/function calling prompt.
+    tool_prompt,
+    /// Code generation prompt.
+    code_generation,
+    /// Code review prompt.
+    code_review,
+    /// Text summarization prompt.
+    summarization,
+    /// Question answering prompt.
+    question_answer,
+    /// Translation prompt.
+    translation,
+    /// JSON extraction prompt.
+    json_extraction,
+    /// Classification prompt.
+    classification,
+    /// Conversation continuation.
+    conversation,
+};
 
 pub const TemplateInfo = struct {
     name: []const u8,

@@ -6,7 +6,7 @@
 //!
 //! ## Features
 //! - Custom naming (not tied to "Abbey")
-//! - Seed prompts for profilelity definition
+//! - Seed prompts for personality definition
 //! - System prompt customization
 //! - Profile templates with temperature presets
 //! - Full access to Abbey's neural, memory, and reasoning systems
@@ -38,7 +38,7 @@ const client = @import("client.zig");
 // Seed Prompt Templates
 // ============================================================================
 
-/// Pre-defined profilelity templates with seed prompts
+/// Pre-defined personality templates with seed prompts
 pub const ProfileTemplate = enum {
     /// Helpful general assistant
     assistant,
@@ -270,7 +270,7 @@ pub const CustomAIConfig = struct {
     /// Version string
     version: []const u8 = "1.0.0",
 
-    /// Seed prompt defining core profilelity and behavior
+    /// Seed prompt defining core personality and behavior
     seed_prompt: []const u8 = "",
 
     /// Additional system instructions (appended to seed prompt)
@@ -607,7 +607,7 @@ pub const Builder = struct {
         return self;
     }
 
-    /// Set the seed prompt (core profilelity definition)
+    /// Set the seed prompt (core personality definition)
     pub fn seedPrompt(self: *Builder, prompt: []const u8) *Builder {
         self.config.seed_prompt = prompt;
         self.config.profile = .custom;

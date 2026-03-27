@@ -7,7 +7,6 @@ const std = @import("std");
 
 /// Errors returned by desktop integration operations.
 pub const DesktopError = error{
-    DesktopDisabled,
     PlatformUnsupported,
     IntegrationFailed,
     OutOfMemory,
