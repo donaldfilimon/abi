@@ -301,27 +301,37 @@ pub fn printPlatform() void {
 pub fn printConnectors() void {
     printHeader("ABI Connectors — LLM Provider Adapters", null);
 
-    std.debug.print(
-        \\Available connectors (primary env var → provider):
-        \\
-        \\  ABI_OPENAI_API_KEY      → OpenAI (GPT-4, GPT-3.5)
-        \\  ABI_ANTHROPIC_API_KEY   → Anthropic (Claude)
-        \\  ABI_GEMINI_API_KEY      → Google Gemini
-        \\  ABI_MISTRAL_API_KEY     → Mistral AI
-        \\  ABI_COHERE_API_KEY      → Cohere (Chat, Embed, Rerank)
-        \\  ABI_HF_API_TOKEN        → HuggingFace Inference API
-        \\  ABI_OLLAMA_HOST         → Ollama (local, default: localhost:11434)
-        \\  ABI_LM_STUDIO_HOST      → LM Studio (local, OpenAI-compatible)
-        \\  ABI_VLLM_HOST           → vLLM (local, high-throughput)
-        \\  ABI_MLX_HOST            → MLX (Apple Silicon optimized)
-        \\  ABI_LLAMA_CPP_HOST      → llama.cpp server
-        \\  ABI_DISCORD_BOT_TOKEN   → Discord bot integration
-        \\
-        \\Legacy env vars (e.g. OPENAI_API_KEY) are supported as fallbacks.
-        \\Connector status: always available (not feature-gated).
-        \\Set the env var to enable a provider. Use 'abi chat' to test routing.
-        \\
-    , .{});
+    const connectors = [_]struct { env: [:0]const u8, fallback: ?[:0]const u8, name: []const u8 }{
+        .{ .env = "ABI_OPENAI_API_KEY", .fallback = "OPENAI_API_KEY", .name = "OpenAI (GPT-4, GPT-3.5)" },
+        .{ .env = "ABI_ANTHROPIC_API_KEY", .fallback = "ANTHROPIC_API_KEY", .name = "Anthropic (Claude)" },
+        .{ .env = "ABI_GEMINI_API_KEY", .fallback = "GEMINI_API_KEY", .name = "Google Gemini" },
+        .{ .env = "ABI_MISTRAL_API_KEY", .fallback = "MISTRAL_API_KEY", .name = "Mistral AI" },
+        .{ .env = "ABI_COHERE_API_KEY", .fallback = "COHERE_API_KEY", .name = "Cohere (Chat, Embed, Rerank)" },
+        .{ .env = "ABI_HF_API_TOKEN", .fallback = "HF_API_TOKEN", .name = "HuggingFace Inference API" },
+        .{ .env = "ABI_OLLAMA_HOST", .fallback = "OLLAMA_HOST", .name = "Ollama (local)" },
+        .{ .env = "ABI_LM_STUDIO_HOST", .fallback = null, .name = "LM Studio (local, OpenAI-compat)" },
+        .{ .env = "ABI_VLLM_HOST", .fallback = null, .name = "vLLM (local, high-throughput)" },
+        .{ .env = "ABI_MLX_HOST", .fallback = null, .name = "MLX (Apple Silicon)" },
+        .{ .env = "ABI_LLAMA_CPP_HOST", .fallback = null, .name = "llama.cpp server" },
+        .{ .env = "ABI_DISCORD_BOT_TOKEN", .fallback = "DISCORD_BOT_TOKEN", .name = "Discord bot integration" },
+    };
+
+    var configured: u32 = 0;
+    for (connectors) |c| {
+        const has_primary = std.c.getenv(c.env.ptr) != null;
+        const has_fallback = if (c.fallback) |fb| std.c.getenv(fb.ptr) != null else false;
+        const is_set = has_primary or has_fallback;
+        if (is_set) configured += 1;
+        const tag = if (is_set) "\x1b[32m[configured]\x1b[0m" else "\x1b[90m[not set]\x1b[0m";
+        std.debug.print("  {s: <24} {s} {s}\n", .{ c.env, tag, c.name });
+    }
+
+    std.debug.print("\n  {d}/12 providers configured", .{configured});
+    if (configured == 0) {
+        std.debug.print(" — set env vars to enable providers", .{});
+    }
+    std.debug.print("\n  Legacy env vars (e.g. OPENAI_API_KEY) are supported as fallbacks.\n", .{});
+    std.debug.print("  Use 'abi chat' to test routing.\n\n", .{});
 }
 
 // ── Info ────────────────────────────────────────────────────────────────

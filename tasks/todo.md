@@ -145,12 +145,12 @@
 - `./build.sh test --summary all --test-filter connectors` is not supported by this build wrapper, so the standard test gate was used instead.
 
 ## 17. Codebase Improvement Roadmap vNext
-- [ ] Audit previously completed roadmap items against the current tree and rewrite stale status entries before starting another large refactor wave.
-- [ ] Normalize the feature model: resolve `feat_profiling` vs observability naming drift and decide whether `pages` stays a standalone feature or folds into observability.
-- [ ] Decompose `build.zig` into focused build helpers for flags, linking, target matrices, and validation steps.
-- [ ] Break down oversized mixed-responsibility modules in AI, GPU, inference, gateway, protocols, and security into smaller entrypoints and internal helpers.
-- [ ] Expand targeted build/test lanes so domain refactors can be validated without always paying the cost of the full-suite path.
-- [ ] Clean repo hygiene drift (`.DS_Store`, generated artifacts, doc/build contract mismatches) and automate checks where feasible.
+- [x] Audit previously completed roadmap items against the current tree and rewrite stale status entries before starting another large refactor wave. *(Done in §18)*
+- [x] Normalize the feature model: resolve `feat_profiling` vs observability naming drift and decide whether `pages` stays a standalone feature or folds into observability. *(Done in §18)*
+- [x] Decompose `build.zig` into focused build helpers for flags, linking, target matrices, and validation steps. *(Done in §19, §21)*
+- [x] Break down oversized mixed-responsibility modules in AI, GPU, inference, gateway, protocols, and security into smaller entrypoints and internal helpers. *(Done in §22-29)*
+- [x] Expand targeted build/test lanes so domain refactors can be validated without always paying the cost of the full-suite path. *(Done in §21-29: 27 focused test lanes)*
+- [x] Clean repo hygiene drift (`.DS_Store`, generated artifacts, doc/build contract mismatches) and automate checks where feasible. *(Done in §18)*
 
 ### Notes
 - Requested on March 24, 2026 as a planning-only pass; no code changes should be made under this section until the audit item is closed.
@@ -188,11 +188,11 @@
 - Validation passed with `$(./tools/zigly --status) fmt --check build.zig build/flags.zig`, `./build.sh --help`, `./build.sh typecheck`, `./build.sh full-check`, and `git diff --check`.
 
 ## 20. Wave 2 Next-Step Plan
-- [ ] Extract repeated Darwin/native linking blocks from `build.zig` into a focused helper such as `build/linking.zig`, shared by the library, executables, and test roots without changing step names.
-- [ ] Extract validation-step construction from `build.zig` into a helper such as `build/validation.zig`, covering `test`, `tui-tests`, `check-parity`, `feature-tests`, `typecheck`, and the alias wiring while preserving the current command contract.
-- [ ] Extract the cross-target feature matrix and compile-only object setup into a helper such as `build/cross.zig` or `build/targets.zig`, keeping the current compile-only semantics and platform policy comments intact.
-- [ ] Add one or two truthful targeted lanes for the first post-build refactor target so medium-sized module splits do not require the full-suite path on every edit.
-- [ ] After the build helpers and narrower lanes land, start the first runtime module decomposition on a bounded hotspot with clear seams, preferring `src/protocols/mcp/server.zig`, `src/inference/engine.zig`, or `src/features/gateway/mod.zig` before larger AI/GPU codegen surfaces.
+- [x] Extract repeated Darwin/native linking blocks from `build.zig` into a focused helper such as `build/linking.zig`, shared by the library, executables, and test roots without changing step names. *(Done in §21)*
+- [x] Extract validation-step construction from `build.zig` into a helper such as `build/validation.zig`, covering `test`, `tui-tests`, `check-parity`, `feature-tests`, `typecheck`, and the alias wiring while preserving the current command contract. *(Done in §21)*
+- [x] Extract the cross-target feature matrix and compile-only object setup into a helper such as `build/cross.zig` or `build/targets.zig`, keeping the current compile-only semantics and platform policy comments intact. *(Done in §21)*
+- [x] Add one or two truthful targeted lanes for the first post-build refactor target so medium-sized module splits do not require the full-suite path on every edit. *(Done in §21-29: 27 lanes)*
+- [x] After the build helpers and narrower lanes land, start the first runtime module decomposition on a bounded hotspot with clear seams, preferring `src/protocols/mcp/server.zig`, `src/inference/engine.zig`, or `src/features/gateway/mod.zig` before larger AI/GPU codegen surfaces. *(Done in §21-29)*
 
 ### Notes
 - Planned on March 24, 2026 after the `build/flags.zig` extraction; this is a planning-only update with no source changes beyond the roadmap.
@@ -240,10 +240,10 @@
 - [x] Split `src/inference/engine.zig` into a public facade backed by `engine/types.zig`, `engine/backends.zig`, and `engine/async.zig` without changing the `abi.inference` public surface.
 
 ## 24. Wave 3C Multi-Agent Coordinator Surface Split
-- [ ] Move the canonical shared public multi-agent types into `src/features/ai/multi_agent/types.zig`, including coordinator and runner-facing types that `mod.zig` currently owns directly.
-- [ ] Extract coordinator runtime behavior from `src/features/ai/multi_agent/mod.zig` into a new `src/features/ai/multi_agent/coordinator/` helper set while keeping imports relative within `src/`.
-- [ ] Reduce `src/features/ai/multi_agent/mod.zig` and `src/features/ai/multi_agent/stub.zig` to thin facades/re-exports that preserve the existing `abi.ai.multi_agent` source surface.
-- [ ] Validate with targeted formatting/parity/typecheck commands and record residual risk without editing `runner.zig` or adding tests.
+- [x] Move the canonical shared public multi-agent types into `src/features/ai/multi_agent/types.zig`, including coordinator and runner-facing types that `mod.zig` currently owns directly. *(Done in §29)*
+- [x] Extract coordinator runtime behavior from `src/features/ai/multi_agent/mod.zig` into a new `src/features/ai/multi_agent/coordinator/` helper set while keeping imports relative within `src/`. *(Done in §29)*
+- [x] Reduce `src/features/ai/multi_agent/mod.zig` and `src/features/ai/multi_agent/stub.zig` to thin facades/re-exports that preserve the existing `abi.ai.multi_agent` source surface. *(Done in §29)*
+- [x] Validate with targeted formatting/parity/typecheck commands and record residual risk without editing `runner.zig` or adding tests. *(Done in §29)*
 
 ### Notes
 - Opened on March 24, 2026 in `/Users/donaldfilimon/abi` with `git status --short` showing only the unrelated untracked `.claude/worktrees/` path before implementation.
