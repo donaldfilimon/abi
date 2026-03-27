@@ -44,7 +44,6 @@ export PATH="$HOME/.local/bin:$PATH"
 ```bash
 zigly --bootstrap         # Install zig + zls, symlink, verify
 ./build.sh test -Dfeat-gpu=false --summary all  # macOS 26.4+
-```
 # or: zig build test --summary all               # Linux / older macOS
 ```
 
@@ -125,7 +124,8 @@ abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
 abi features           # List all 35 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
-abi connectors         # List 12 LLM provider connectors with env vars
+abi connectors         # List 12 LLM provider connectors with [configured]/[not set] env var status
+abi search <sub>       # Full-text search (create, index, query, delete, stats)
 abi info               # Framework architecture summary
 abi chat <message...>  # Route through multi-profile pipeline
 abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
@@ -369,6 +369,21 @@ Additional specifications:
 - **AI pipeline memory**: string literals in `ProfileResponse.content` crash on `deinit` — always `allocator.dupe()` heap copies before storing.
 - **Abbey emotion files**: `emotion.zig` and `emotions.zig` both exist — `emotions.zig` is canonical; don't import `emotion.zig`.
 
+### refAllDecls Convention
+
+Most files end with `test { std.testing.refAllDecls(@This()); }` to ensure all public declarations compile. When adding this to a module that re-exports sub-modules, test first — if any sub-module has pre-existing compilation errors, the `refAllDecls` will fail the entire build. In that case, replace with a deferred comment:
+```zig
+// refAllDecls deferred — sub_module.zig has pre-existing Zig 0.16 API errors
+```
+
+**Files with known pre-existing sub-module errors** (refAllDecls deferred):
+- `features/ai/abbey/mod.zig` — abbey_train.zig, config.zig
+- `features/cloud/mod.zig` — aws_lambda, azure_functions, gcp_functions (`.writer` API)
+- `features/gpu/mod.zig` — stdgpu, diagnostics, profiling, recovery
+- `features/network/mod.zig` — linking/, raft_transport, scheduler, tcp, unified_memory
+- `features/web/mod.zig` — middleware/auth, profile_routes, server/
+- `foundation/utils.zig` — memory/stack.zig, memory/thread_cache.zig
+
 ### Error Handling Convention
 
 - `@compileError` — compile-time contract violations only (e.g., `target_contract.zig` policy enforcement)
@@ -391,6 +406,8 @@ Additional specifications:
 - `foundation.time.timestampSec()` is monotonic from process start — returns 0 in the first second. Use `std.posix.system.clock_gettime(.REALTIME, ...)` for wall-clock timestamps in persisted data.
 - `std.process.getEnvVarOwned` removed: use `b.graph.environ_map.get("KEY")` in build.zig
 - `std.mem.trimRight` renamed to `std.mem.trimEnd` in Zig 0.16
+- Runtime env var access: use `std.c.getenv(name.ptr)` which returns `?[*:0]const u8` (no allocator needed). Works at runtime, not comptime.
+- Signal handlers: use `std.posix.Sigaction` with `callconv(.c)` handler functions. Signal type is `std.posix.SIG` (not `c_int`). Mask with `std.posix.sigemptyset()`. See `src/foundation/signal.zig` for patterns.
 
 ## Available Agents
 
