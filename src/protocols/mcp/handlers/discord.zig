@@ -477,6 +477,83 @@ pub fn handleDiscordRegisterCommand(
     try out.appendSlice(allocator, "\"}");
 }
 
+// ── List Commands ──
+
+pub fn handleDiscordListCommands(
+    allocator: std.mem.Allocator,
+    params: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    var client = try withClient(allocator, out) orelse return;
+    defer client.deinit();
+
+    const app_id = if (params) |p| getStringParam(p, "application_id") else null;
+    const id = app_id orelse {
+        try appendError(allocator, out, "application_id required");
+        return;
+    };
+
+    const cmds = client.getGlobalApplicationCommands(id) catch {
+        try appendError(allocator, out, "failed to list commands");
+        return;
+    };
+
+    try out.appendSlice(allocator, "[");
+    for (cmds, 0..) |*cmd, i| {
+        if (i > 0) try out.appendSlice(allocator, ",");
+        try out.appendSlice(allocator, "{\"id\":\"");
+        try json_utils.appendJsonEscaped(allocator, out, cmd.id);
+        try out.appendSlice(allocator, "\",\"name\":\"");
+        try json_utils.appendJsonEscaped(allocator, out, cmd.name);
+        try out.appendSlice(allocator, "\",\"description\":\"");
+        try json_utils.appendJsonEscaped(allocator, out, cmd.description);
+        try out.appendSlice(allocator, "\"}");
+    }
+    try out.appendSlice(allocator, "]");
+}
+
+// ── Delete Command ──
+
+pub fn handleDiscordDeleteCommand(
+    allocator: std.mem.Allocator,
+    params: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    var client = try withClient(allocator, out) orelse return;
+    defer client.deinit();
+
+    const app_id = try requireString(params, "application_id");
+    const cmd_id = try requireString(params, "command_id");
+
+    client.deleteGlobalApplicationCommand(app_id, cmd_id) catch {
+        try appendError(allocator, out, "failed to delete command");
+        return;
+    };
+
+    try out.appendSlice(allocator, "{\"ok\":true}");
+}
+
+// ── Get Message ──
+
+pub fn handleDiscordGetMessage(
+    allocator: std.mem.Allocator,
+    params: ?std.json.ObjectMap,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    var client = try withClient(allocator, out) orelse return;
+    defer client.deinit();
+
+    const channel_id = try requireString(params, "channel_id");
+    const message_id = try requireString(params, "message_id");
+
+    const msg = client.getMessage(channel_id, message_id) catch {
+        try appendError(allocator, out, "failed to get message");
+        return;
+    };
+
+    try serializeMessage(allocator, out, &msg);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

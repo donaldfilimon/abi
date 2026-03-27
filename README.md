@@ -163,7 +163,7 @@ tools/crossbuild.sh        # Cross-compile for linux, wasi, x86_64 targets
 tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
-Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
+Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
 
 ## Toolchain
 

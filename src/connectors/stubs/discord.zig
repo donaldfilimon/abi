@@ -182,6 +182,18 @@ pub const Client = struct {
     pub fn createGlobalApplicationCommand(_: *Client, _: Snowflake, _: []const u8, _: []const u8, _: []const ApplicationCommandOption) !ApplicationCommand {
         return error.ConnectorsDisabled;
     }
+
+    pub fn getGlobalApplicationCommands(_: *Client, _: Snowflake) ![]ApplicationCommand {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn deleteGlobalApplicationCommand(_: *Client, _: Snowflake, _: Snowflake) !void {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn getMessage(_: *Client, _: Snowflake, _: Snowflake) !Message {
+        return error.ConnectorsDisabled;
+    }
 };
 
 pub fn loadFromEnv(_: std.mem.Allocator) !Config {

@@ -171,6 +171,15 @@ pub fn createDiscordServer(allocator: std.mem.Allocator, version: []const u8) !S
         .{ .name = "discord_register_command", .desc = "Register a global slash command for the bot", .schema =
         \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"},"name":{"type":"string","description":"Command name (lowercase, 1-32 chars)"},"description":{"type":"string","description":"Command description (1-100 chars)"}},"required":["application_id","name","description"]}
         , .handler = discord_handlers.handleDiscordRegisterCommand },
+        .{ .name = "discord_list_commands", .desc = "List all registered global slash commands", .schema =
+        \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"}},"required":["application_id"]}
+        , .handler = discord_handlers.handleDiscordListCommands },
+        .{ .name = "discord_delete_command", .desc = "Delete a global slash command by ID", .schema =
+        \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"},"command_id":{"type":"string","description":"Command ID to delete"}},"required":["application_id","command_id"]}
+        , .handler = discord_handlers.handleDiscordDeleteCommand },
+        .{ .name = "discord_get_message", .desc = "Get a specific Discord message by ID", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"}},"required":["channel_id","message_id"]}
+        , .handler = discord_handlers.handleDiscordGetMessage },
     };
 
     inline for (tools) |t| {
@@ -354,15 +363,18 @@ test "createCombinedServer registers database and ZLS tools" {
     try std.testing.expect(saw_discord_get_bot);
 }
 
-test "createDiscordServer registers 16 tools" {
+test "createDiscordServer registers 19 tools" {
     const allocator = std.testing.allocator;
     var server = try createDiscordServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 16), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 19), server.tools.items.len);
     try std.testing.expectEqualStrings("discord_send_message", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("discord_get_bot", server.tools.items[11].def.name);
     try std.testing.expectEqualStrings("discord_register_command", server.tools.items[15].def.name);
+    try std.testing.expectEqualStrings("discord_list_commands", server.tools.items[16].def.name);
+    try std.testing.expectEqualStrings("discord_delete_command", server.tools.items[17].def.name);
+    try std.testing.expectEqualStrings("discord_get_message", server.tools.items[18].def.name);
 }
 
 test "createStatusServer registers 6 tools" {
