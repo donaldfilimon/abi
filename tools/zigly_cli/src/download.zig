@@ -21,7 +21,7 @@ pub fn downloadFile(allocator: std.mem.Allocator, io: std.Io, url: []const u8, o
     var child = try std.process.spawn(io, .{
         .argv = child_args.items,
     });
-    
+
     const term = try child.wait(io);
     switch (term) {
         .exited => |code| {

@@ -101,6 +101,8 @@ pub fn build(b: *std.Build) void {
         if (feat_explore) std.log.warn("feat_explore requires feat_ai — explore will be stubbed", .{});
         if (feat_reasoning) std.log.warn("feat_reasoning requires feat_ai — reasoning will be stubbed", .{});
     }
+    if (feat_ai and !feat_connectors)
+        std.log.warn("feat_ai requires feat_connectors — AI connector imports will fail", .{});
     if (feat_mcp and !feat_database)
         std.log.info("feat_mcp benefits from feat_database for DB tools", .{});
 

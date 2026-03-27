@@ -15,6 +15,7 @@
 //!   abi serve             Start the ACP HTTP server
 //!   abi acp serve         Start the ACP HTTP server
 //!   abi db <subcommand>   Vector database operations
+//!   abi search <cmd>      Full-text search (create, index, query, delete, stats)
 //!   abi dashboard         Launch interactive TUI dashboard
 //!   abi help              Show this help message
 
@@ -133,6 +134,8 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
         try runChat(allocator, args[1..]);
     } else if (std.mem.eql(u8, cmd, "db")) {
         try runDb(allocator, args[1..]);
+    } else if (std.mem.eql(u8, cmd, "search")) {
+        try runSearch(allocator, args[1..]);
     } else if (std.mem.eql(u8, cmd, "lsp")) {
         try runLsp(allocator);
     } else if (std.mem.eql(u8, cmd, "dashboard")) {
@@ -174,6 +177,8 @@ pub fn printStatus() void {
 
     std.debug.print("  db <cmd>     Vector database operations       ", .{});
     printFeatureTag(build_options.feat_database);
+    std.debug.print("  search <cmd> Full-text search                 ", .{});
+    printFeatureTag(build_options.feat_search);
     std.debug.print("  dashboard    Interactive TUI dashboard         ", .{});
     printFeatureTag(build_options.feat_tui);
 
@@ -225,6 +230,7 @@ pub fn printHelp() void {
         \\AI & Data:
         \\  chat <message...>  Route a message through the profile pipeline
         \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
+        \\  search <cmd> Full-text search (create, index, query, delete, stats)
         \\  serve        Start the ACP HTTP server
         \\  acp serve    Start the ACP HTTP server
         \\  lsp          Start the Language Server Protocol (LSP) server
@@ -498,6 +504,141 @@ pub fn runDb(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     } else {
         std.debug.print("Database is disabled. Rebuild with -Dfeat-database=true\n", .{});
     }
+}
+
+// ── Search ──────────────────────────────────────────────────────────────
+
+pub fn runSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    const search = root.search;
+    if (!comptime build_options.feat_search) {
+        std.debug.print("Search is disabled. Rebuild with -Dfeat-search=true\n", .{});
+        return;
+    }
+
+    search.init(allocator, .{}) catch |err| {
+        std.debug.print("Failed to initialize search: {s}\n", .{@errorName(err)});
+        return;
+    };
+    defer search.deinit();
+
+    if (args.len == 0) {
+        printSearchHelp();
+        return;
+    }
+
+    const subcmd = args[0];
+    if (std.mem.eql(u8, subcmd, "create")) {
+        if (args.len < 2) {
+            std.debug.print("Usage: abi search create <index_name>\n", .{});
+            return;
+        }
+        _ = search.createIndex(allocator, args[1]) catch |err| {
+            std.debug.print("Error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        std.debug.print("Index '{s}' created.\n", .{args[1]});
+    } else if (std.mem.eql(u8, subcmd, "index")) {
+        if (args.len < 4) {
+            std.debug.print("Usage: abi search index <index_name> <doc_id> <content...>\n", .{});
+            return;
+        }
+        // Join remaining args as content
+        var content_buf: [4096]u8 = undefined;
+        var content_len: usize = 0;
+        for (args[3..]) |arg| {
+            if (content_len > 0 and content_len < content_buf.len) {
+                content_buf[content_len] = ' ';
+                content_len += 1;
+            }
+            const copy_len = @min(arg.len, content_buf.len - content_len);
+            @memcpy(content_buf[content_len..][0..copy_len], arg[0..copy_len]);
+            content_len += copy_len;
+        }
+        search.indexDocument(args[1], args[2], content_buf[0..content_len]) catch |err| {
+            std.debug.print("Error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        std.debug.print("Document '{s}' indexed in '{s}'.\n", .{ args[2], args[1] });
+    } else if (std.mem.eql(u8, subcmd, "query")) {
+        if (args.len < 3) {
+            std.debug.print("Usage: abi search query <index_name> <query_text...>\n", .{});
+            return;
+        }
+        var query_buf: [2048]u8 = undefined;
+        var query_len: usize = 0;
+        for (args[2..]) |arg| {
+            if (query_len > 0 and query_len < query_buf.len) {
+                query_buf[query_len] = ' ';
+                query_len += 1;
+            }
+            const copy_len = @min(arg.len, query_buf.len - query_len);
+            @memcpy(query_buf[query_len..][0..copy_len], arg[0..copy_len]);
+            query_len += copy_len;
+        }
+        const results = search.query(allocator, args[1], query_buf[0..query_len]) catch |err| {
+            std.debug.print("Error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        defer allocator.free(results);
+        if (results.len == 0) {
+            std.debug.print("No results found.\n", .{});
+        } else {
+            for (results, 0..) |result, i| {
+                std.debug.print("{d}. [{d:.3}] {s}", .{ i + 1, result.score, result.doc_id });
+                if (result.snippet.len > 0) {
+                    std.debug.print(" — {s}", .{result.snippet});
+                }
+                std.debug.print("\n", .{});
+            }
+        }
+    } else if (std.mem.eql(u8, subcmd, "delete")) {
+        if (args.len < 2) {
+            std.debug.print("Usage: abi search delete <index_name> [doc_id]\n", .{});
+            return;
+        }
+        if (args.len >= 3) {
+            const removed = search.deleteDocument(args[1], args[2]) catch |err| {
+                std.debug.print("Error: {s}\n", .{@errorName(err)});
+                return;
+            };
+            if (removed) {
+                std.debug.print("Document '{s}' deleted from '{s}'.\n", .{ args[2], args[1] });
+            } else {
+                std.debug.print("Document '{s}' not found in '{s}'.\n", .{ args[2], args[1] });
+            }
+        } else {
+            search.deleteIndex(args[1]) catch |err| {
+                std.debug.print("Error: {s}\n", .{@errorName(err)});
+                return;
+            };
+            std.debug.print("Index '{s}' deleted.\n", .{args[1]});
+        }
+    } else if (std.mem.eql(u8, subcmd, "stats")) {
+        const s = search.stats();
+        std.debug.print("Search Statistics:\n  Indexes: {d}\n  Documents: {d}\n  Terms: {d}\n", .{
+            s.total_indexes, s.total_documents, s.total_terms,
+        });
+    } else if (std.mem.eql(u8, subcmd, "help")) {
+        printSearchHelp();
+    } else {
+        std.debug.print("Unknown search command: {s}\n", .{subcmd});
+        printSearchHelp();
+    }
+}
+
+fn printSearchHelp() void {
+    std.debug.print(
+        \\Usage: abi search <command> [args]
+        \\
+        \\Commands:
+        \\  create <index>                  Create a new search index
+        \\  index <index> <doc_id> <text>   Add/update document in index
+        \\  query <index> <query_text>      BM25 full-text search
+        \\  delete <index> [doc_id]         Delete index or document
+        \\  stats                           Show search index statistics
+        \\  help                            Show this help
+        \\
+    , .{});
 }
 
 // ── LSP ─────────────────────────────────────────────────────────────────

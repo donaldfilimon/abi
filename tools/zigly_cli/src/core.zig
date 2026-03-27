@@ -22,13 +22,13 @@ pub const Config = struct {
 pub fn initConfig(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !Config {
     const home = environ_map.get("HOME") orelse return error.NoHomeDir;
     const zigly_dir = try std.fs.path.join(allocator, &[_][]const u8{ home, ".zigly" });
-    
+
     // Create base directories
     try std.Io.Dir.cwd().createDirPath(io, zigly_dir);
     const tmp_dir = try std.fs.path.join(allocator, &[_][]const u8{ zigly_dir, "tmp" });
     defer allocator.free(tmp_dir);
     try std.Io.Dir.cwd().createDirPath(io, tmp_dir);
-    
+
     const versions_dir = try std.fs.path.join(allocator, &[_][]const u8{ zigly_dir, "versions" });
     defer allocator.free(versions_dir);
     try std.Io.Dir.cwd().createDirPath(io, versions_dir);

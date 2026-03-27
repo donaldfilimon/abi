@@ -125,6 +125,6 @@ test "exportDual writes WDBX metadata through abi.database.Store" {
     try std.testing.expect(std.mem.indexOf(u8, meta.metadata.?, "\"model_name\"") != null);
 }
 
-// NOTE: refAllDecls intentionally omitted — brain_export.zig and export.zig reference
-// TrainableModelConfig.name and TrainableWeights.items which no longer exist after the
-// training module was refactored. These must be fixed before refAllDecls can be added.
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -19,7 +19,7 @@ pub fn extractTarball(allocator: std.mem.Allocator, io: std.Io, tarball_path: []
     var child = try std.process.spawn(io, .{
         .argv = child_args.items,
     });
-    
+
     const term = try child.wait(io);
     switch (term) {
         .exited => |code| {
