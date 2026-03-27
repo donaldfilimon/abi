@@ -20,7 +20,6 @@ pub fn build(b: *std.Build) void {
     const feat_database = b.option(bool, "feat-database", "Vector database") orelse true;
     const feat_network = b.option(bool, "feat-network", "Networking / Raft") orelse true;
     const feat_observability_opt = b.option(bool, "feat-observability", "Observability (metrics, tracing, profiling)");
-    const feat_profiling_opt = b.option(bool, "feat-profiling", "Deprecated alias for feat-observability");
     const feat_web = b.option(bool, "feat-web", "Web framework") orelse true;
     const feat_pages = b.option(bool, "feat-pages", "Dashboard pages") orelse true;
     const feat_analytics = b.option(bool, "feat-analytics", "Analytics") orelse true;
@@ -37,17 +36,7 @@ pub fn build(b: *std.Build) void {
     const feat_documents = b.option(bool, "feat-documents", "Document processing") orelse true;
     const feat_desktop = b.option(bool, "feat-desktop", "Desktop integration") orelse true;
     const feat_tui = b.option(bool, "feat-tui", "Terminal user interface") orelse false;
-    if (feat_observability_opt != null and feat_profiling_opt != null and feat_observability_opt.? != feat_profiling_opt.?) {
-        std.log.err("Conflicting feature flags: -Dfeat-observability={} and -Dfeat-profiling={}", .{
-            feat_observability_opt.?,
-            feat_profiling_opt.?,
-        });
-        std.process.exit(1);
-    }
-    const feat_observability = feat_observability_opt orelse feat_profiling_opt orelse true;
-    if (feat_profiling_opt != null and feat_observability_opt == null) {
-        std.log.warn("feat-profiling is deprecated; use feat-observability", .{});
-    }
+    const feat_observability = feat_observability_opt orelse true;
 
     // AI sub-feature flags
     const feat_llm = b.option(bool, "feat-llm", "LLM inference") orelse feat_ai;
