@@ -68,6 +68,12 @@ pub fn handleMessage(self: anytype, line: []const u8, writer: anytype) !void {
     } else if (std.mem.eql(u8, method, "resources/read")) {
         if (!checkAuth(self, params, writer, id)) return;
         try resources.handleResourcesRead(self, writer, id, params);
+    } else if (std.mem.eql(u8, method, "resources/subscribe")) {
+        if (!checkAuth(self, params, writer, id)) return;
+        try handleResourceSubscribe(self, writer, id, params);
+    } else if (std.mem.eql(u8, method, "resources/unsubscribe")) {
+        if (!checkAuth(self, params, writer, id)) return;
+        try handleResourceUnsubscribe(self, writer, id, params);
     } else if (std.mem.eql(u8, method, "ping")) {
         try handlePing(writer, id);
     } else {
@@ -84,7 +90,7 @@ pub fn handleInitialize(self: anytype, writer: anytype, id: ?types.RequestId) !v
     try buf.appendSlice(self.allocator, types.PROTOCOL_VERSION);
     try buf.appendSlice(self.allocator, "\",\"capabilities\":{\"tools\":{\"listChanged\":false}");
     if (self.resources.items.len > 0) {
-        try buf.appendSlice(self.allocator, ",\"resources\":{\"subscribe\":false,\"listChanged\":false}");
+        try buf.appendSlice(self.allocator, ",\"resources\":{\"subscribe\":true,\"listChanged\":false}");
     }
     try buf.appendSlice(self.allocator, "}");
     try buf.appendSlice(self.allocator, ",\"serverInfo\":{\"name\":\"");
@@ -115,4 +121,70 @@ fn checkAuth(self: anytype, params: ?std.json.ObjectMap, writer: anytype, id: ?t
     }
     types.writeError(writer, id, types.ErrorCode.unauthorized, "Unauthorized") catch {};
     return false;
+}
+
+fn extractUri(params: ?std.json.ObjectMap) ?[]const u8 {
+    const p = params orelse return null;
+    const v = p.get("uri") orelse return null;
+    return if (v == .string) v.string else null;
+}
+
+fn handleResourceSubscribe(self: anytype, writer: anytype, id: ?types.RequestId, params: ?std.json.ObjectMap) !void {
+    const rid = id orelse return;
+    const uri = extractUri(params) orelse {
+        try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Missing uri parameter");
+        return;
+    };
+    _ = try self.subscribeResource(uri);
+    try types.writeResponse(writer, rid, "{}");
+}
+
+fn handleResourceUnsubscribe(self: anytype, writer: anytype, id: ?types.RequestId, params: ?std.json.ObjectMap) !void {
+    const rid = id orelse return;
+    const uri = extractUri(params) orelse {
+        try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Missing uri parameter");
+        return;
+    };
+    _ = self.unsubscribeResource(uri);
+    try types.writeResponse(writer, rid, "{}");
+}
+
+test "resources/subscribe round-trip" {
+    const lifecycle = @import("lifecycle.zig");
+    var server = lifecycle.Server.init(std.testing.allocator, "test", "0.1");
+    defer server.deinit();
+
+    // Subscribe
+    var buf: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buf);
+    const req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"resources/subscribe\",\"params\":{\"uri\":\"abi://status\"}}";
+    try handleMessage(&server, req, &writer);
+    const out = buf[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, out, "\"result\":{}") != null);
+    try std.testing.expect(server.isSubscribed("abi://status"));
+
+    // Unsubscribe
+    writer = std.Io.Writer.fixed(&buf);
+    const req2 = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/unsubscribe\",\"params\":{\"uri\":\"abi://status\"}}";
+    try handleMessage(&server, req2, &writer);
+    try std.testing.expect(!server.isSubscribed("abi://status"));
+}
+
+fn testResourceHandler(_: std.mem.Allocator, _: []const u8, _: *std.ArrayListUnmanaged(u8)) anyerror!void {}
+
+test "resources/subscribe capability advertised" {
+    const lifecycle = @import("lifecycle.zig");
+    var server = lifecycle.Server.init(std.testing.allocator, "test", "0.1");
+    defer server.deinit();
+    try server.addResource(.{
+        .def = .{ .uri = "abi://test", .name = "test", .description = "test resource" },
+        .handler = &testResourceHandler,
+    });
+
+    var buf: [1024]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buf);
+    const req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+    try handleMessage(&server, req, &writer);
+    const out = buf[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, out, "\"subscribe\":true") != null);
 }

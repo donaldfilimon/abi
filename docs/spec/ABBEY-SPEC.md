@@ -4,7 +4,7 @@
 > ethics, benchmarks, implementation, and visual assets.
 >
 > Research conducted by: M | Date: January 4, 2025
-> Implementation: Zig 0.16 (ABI Framework) | Updated: March 24, 2026
+> Implementation: Zig 0.16 (ABI Framework) | Updated: March 26, 2026
 
 ---
 
@@ -384,9 +384,9 @@ Scale_up if L_current > L_threshold
 ### 8.1 Codebase
 
 - **Language:** Zig 0.16.0-dev.2962+08416b44f
-- **Size:** 360K LOC across 1,126 .zig files
-- **Tests:** 3,265 unit + integration tests (4 skipped)
-- **Features:** 30 comptime-gated features in the catalog
+- **Size:** 360K+ LOC across 1,126+ .zig files
+- **Tests:** 3,265+ unit + integration tests (27 focused test lanes)
+- **Features:** 35 comptime-gated features in the catalog
 - **Package:** `@import("abi")` — single module, comptime-gated features (mod/stub pattern)
 - **Build:** `./build.sh` (macOS 26.4+) or `zig build` (Linux)
 - **Cross-compilation:** linux-aarch64, linux-x86_64, wasm32-wasi, x86_64-macos
@@ -424,7 +424,7 @@ All pipeline steps wired end-to-end:
 | CLI (`abi`) | 12 commands: status, version, doctor, features, platform, connectors, info, chat, db, serve, dashboard, help | Implemented |
 | MCP Server (`abi-mcp`) | JSON-RPC 2.0 stdio server for Claude Desktop, Cursor, and other MCP clients | Implemented |
 | ACP Server | HTTP server for Agent Communication Protocol (default 127.0.0.1:8080) | Implemented |
-| Feature flags | 30 comptime flags with mod/stub parity enforcement | Implemented |
+| Feature flags | 35 comptime flags with mod/stub parity enforcement | Implemented |
 | Cross-compilation | 4 targets verified in CI: aarch64-linux, x86_64-linux, wasm32-wasi, x86_64-macos | Implemented |
 | Build wrapper | `./build.sh` auto-relinks with Apple ld on macOS 26.4+ (Darwin 25.x) | Implemented |
 | Parity checker | `zig build check-parity` validates mod/stub declaration name parity | Implemented |
@@ -447,25 +447,60 @@ Key spec claims and their actual status:
 | Profile token injection (Z = Embed) | **Implemented** | `llm/model/llama.zig` — additive profile embeddings injected before first layer; `setProfile(id)` API |
 | Benchmark numbers (110ms, 90 req/s) | **Aspirational** | No production inference benchmark; demo/connector backends only |
 | RLHF training pipeline | **Partial** | `abbey_train.zig` has LoRA fine-tuning config; no RLHF reward model |
-| Mixed-precision training | **Partial** | Quantization types (Q4_0, Q8_0) exist; no FP16/BF16 training loop |
+| Mixed-precision training | **Partial** | Quantization types (Q4_0, Q8_0, Q4_K_M, Q5_K_M) exist; no FP16/BF16 training loop |
+| Streaming server decomposition | **Implemented** | Componentized streaming server module with proper sub-namespace facades |
+| GPU device decomposition | **Implemented** | GPU module refactored with sub-namespace grouping facades |
+| LLM trainer decomposition | **Implemented** | AI training module refactored with sub-namespace grouping facades |
+| Abbey AI refactoring | **Implemented** | Abbey module decomposed with sub-namespace facades; emotion.zig import fixes applied |
+| Pipeline step unit tests | **Implemented** | All 10 pipeline steps (retrieve, template, route, modulate, generate, validate, store, reason, transform, filter) have dedicated tests |
+| Multi-agent decomposition | **Implemented** | Wave 5C multi-agent refactoring completed with step test configuration |
+| Connector dispatch (12 providers) | **Implemented** | Codex routing fix, Anthropic API corrections; 12-provider dispatch via `inference/engine/backends.zig` |
+| Q4_K_M/Q5_K_M dequantization | **Implemented** | K-quant dequantization kernels for Q4_K_M and Q5_K_M formats |
+| Network module decomposition | **Implemented** | Network module refactored with sub-namespace grouping facades |
+| Foundation security componentization | **Implemented** | Password hashing componentized into proper structure under `foundation/security/` |
 
 ---
 
 ## Part IX: Future Roadmap
 
-### 9.1 Near-Term (Infrastructure)
+### 9.1 Completed (Waves 1-3)
+- ✓ **MCP resource subscriptions**: Subscribe/unsubscribe and notification support implemented in server
+- ✓ **Pipeline step unit tests**: All 10 pipeline steps have dedicated test coverage
+- ✓ **Q4_K_M/Q5_K_M dequantization**: K-quant dequantization kernels implemented
+- ✓ **Connector dispatch fixes**: Codex routing and Anthropic API corrections applied
+- ✓ **Emotion.zig import fixes**: Canonical `emotions.zig` enforced, stale `emotion.zig` imports resolved
+- ✓ **LLM client pipeline wiring**: Pipeline steps wired to real subsystems with engine delegation
+- ✓ **Abbey AI refactoring**: Sub-namespace grouping facades for abbey module
+- ✓ **GPU device decomposition**: Sub-namespace grouping facades for GPU module
+- ✓ **LLM trainer decomposition**: Sub-namespace grouping facades for AI training module
+- ✓ **Streaming server decomposition**: Componentized streaming server module
+- ✓ **Network module decomposition**: Sub-namespace grouping facades for network module
+- ✓ **Multi-agent decomposition**: Wave 5C multi-agent refactoring with step test configuration
+- ✓ **Foundation security componentization**: Password hashing structure under `foundation/security/`
+- ✓ **Discord gateway bridge**: ACP routes, rich responses, OpenAPI 3.1.0 spec integration
+- ✓ **Pipeline DSL (Abbey Dynamic Model)**: Composable chainable pipeline with WDBX universal persistence
+- ✓ **WDBX pipeline lineage**: Dead code removal, consolidated embeddings, lineage tracking
+- ✓ **Zigly toolchain migration**: Self-building hybrid bash/native CLI with native download and extraction
+- ✓ **27 focused test lanes**: Feature-specific test steps wired in build/validation.zig
+
+### 9.2 Near-Term (Infrastructure)
 - **Local inference backend**: Engine wired to LLaMA pipeline (GGUF load → tokenize → forward → sample → decode); needs end-to-end testing with real model files
 - **HA cluster deployment**: Real network replication between nodes (currently single-node with queue stubs)
 - **PITR persistent log**: Crash-safe with atomic writes (tmp+fsync+rename), checkpoint persistence, and startup recovery hook in HaManager
-- **Vision module**: Platform screen capture stubs with error types (macOS: CoreGraphics implemented; Linux/Windows: documented stubs ready for implementation)
-- **MCP resource subscriptions**: Subscribe/unsubscribe and notification support implemented in server
+- **Feature gates for inference/tasks/connectors**: Comptime gating refinements for new protocol modules
+- **Discord REST decomposition**: Break apart monolithic Discord connector into REST, gateway, and interaction sub-modules
+- **Vision module decompositions**: Multimodal and ViT sub-module extraction from vision feature
+- **CLI chat real output wiring**: Connect `abi chat` to live inference engine output (currently demo backend)
+- **Expanded feature test coverage**: Add integration tests for remaining untested feature combinations
+- **Connector error handling improvements**: Structured error types for provider-specific failures
+- **Constitution audit logging**: Persistent audit trail for constitution validation decisions
 
-### 9.2 Medium-Term (Capabilities)
+### 9.3 Medium-Term (Capabilities)
 - **Profile token injection**: Actual embedding injection (`Z = Embed(ProfileID) ⊕ Embed(UserInput)`) in the transformer forward pass
 - **RLHF reward model**: Complete the training pipeline (LoRA config exists; reward model + PPO missing)
 - **Production benchmarking**: Validate Part VII targets with real inference workloads
 
-### 9.3 Long-Term (Expansion)
+### 9.4 Long-Term (Expansion)
 - **Expanded profiles**: Healthcare, legal, finance, creative arts specializations
 - **Multimodal integration**: Text, voice, image processing with shared embedding space
 - **User-specific profile tokens**: Adaptive learning algorithms per user identity

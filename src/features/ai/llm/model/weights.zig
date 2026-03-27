@@ -264,6 +264,12 @@ pub const LlamaWeights = struct {
             .q8_0 => {
                 try tensor_loader.dequantizeQ8_0(data, result);
             },
+            .q4_k => {
+                try tensor_loader.dequantizeQ4_K(data, result);
+            },
+            .q5_k => {
+                try tensor_loader.dequantizeQ5_K(data, result);
+            },
             .q6_k => {
                 try tensor_loader.dequantizeQ6_K(data, result);
             },
