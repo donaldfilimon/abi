@@ -12,6 +12,7 @@
 //! ## Exposed Tools
 //! - `db_*` — Database tools
 //! - `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
+//! - `discord_*` — Discord REST API tools (messages, channels, guilds, etc.)
 
 pub const types = @import("types.zig");
 pub const Server = @import("server.zig").Server;
@@ -28,11 +29,13 @@ const factories = @import("factories.zig");
 pub const createStatusServer = factories.createStatusServer;
 pub const createCombinedServer = factories.createCombinedServer;
 pub const createDatabaseServer = factories.createDatabaseServer;
+pub const createDiscordServer = factories.createDiscordServer;
 
 // Sub-modules for direct access to handlers
 pub const handlers = struct {
     pub const status = @import("handlers/status.zig");
     pub const database = @import("handlers/database.zig");
+    pub const discord = @import("handlers/discord.zig");
 };
 
 test {

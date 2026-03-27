@@ -83,6 +83,18 @@ pub const ApplicationCommandOption = struct {
     required: bool = false,
 };
 
+pub const Embed = struct {
+    title: ?[]const u8 = null,
+    description: ?[]const u8 = null,
+    color: ?u32 = null,
+};
+
+pub const GuildMember = struct {
+    user: ?User = null,
+    nick: ?[]const u8 = null,
+    joined_at: []const u8 = "",
+};
+
 pub const Config = struct {
     bot_token: []u8,
     client_id: ?[]u8 = null,
@@ -115,7 +127,7 @@ pub const Client = struct {
         return error.ConnectorsDisabled;
     }
 
-    pub fn getChannelMessages(_: *Client, _: Snowflake, _: ?u32) ![]Message {
+    pub fn getChannelMessages(_: *Client, _: Snowflake, _: ?u8) ![]Message {
         return error.ConnectorsDisabled;
     }
 
@@ -136,6 +148,38 @@ pub const Client = struct {
     }
 
     pub fn getCurrentUserGuilds(_: *Client) ![]Guild {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn editMessage(_: *Client, _: Snowflake, _: Snowflake, _: []const u8) !Message {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn deleteMessage(_: *Client, _: Snowflake, _: Snowflake) !void {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn getGuild(_: *Client, _: Snowflake) !Guild {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn getGuildChannels(_: *Client, _: Snowflake) ![]Channel {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn getGuildMember(_: *Client, _: Snowflake, _: Snowflake) !GuildMember {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn createDM(_: *Client, _: Snowflake) !Channel {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn createMessageWithEmbed(_: *Client, _: Snowflake, _: ?[]const u8, _: Embed) !Message {
+        return error.ConnectorsDisabled;
+    }
+
+    pub fn createGlobalApplicationCommand(_: *Client, _: Snowflake, _: []const u8, _: []const u8, _: ?[]const ApplicationCommandOption) !ApplicationCommand {
         return error.ConnectorsDisabled;
     }
 };

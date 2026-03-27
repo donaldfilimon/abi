@@ -9,6 +9,7 @@ const zls_bridge = @import("zls_bridge.zig");
 const status = @import("handlers/status.zig");
 const database = @import("handlers/database.zig");
 const ai = @import("handlers/ai.zig");
+const discord_handlers = @import("handlers/discord.zig");
 
 /// Create an MCP server pre-configured with status/diagnostics tools
 pub fn createStatusServer(allocator: std.mem.Allocator, version: []const u8) !Server {
@@ -90,7 +91,7 @@ fn mergeServerTools(dst: *Server, src_server: *Server) !void {
     }
 }
 
-/// Create an MCP server pre-configured with all tools (status + database + ZLS)
+/// Create an MCP server pre-configured with all tools (status + database + ZLS + Discord)
 pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !Server {
     var server = Server.init(allocator, "abi-full", version);
 
@@ -108,6 +109,80 @@ pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !
     var zls_server = try zls_bridge.createZlsServer(allocator, version);
     defer zls_server.deinit();
     try mergeServerTools(&server, &zls_server);
+
+    // Unpack Discord tools
+    var discord_server = try createDiscordServer(allocator, version);
+    defer discord_server.deinit();
+    try mergeServerTools(&server, &discord_server);
+
+    return server;
+}
+
+/// Create an MCP server pre-configured with Discord REST API tools
+pub fn createDiscordServer(allocator: std.mem.Allocator, version: []const u8) !Server {
+    var server = Server.init(allocator, "abi-discord", version);
+
+    const tools = [_]struct { name: []const u8, desc: []const u8, schema: []const u8, handler: @TypeOf(discord_handlers.handleDiscordSendMessage) }{
+        .{ .name = "discord_send_message", .desc = "Send a message to a Discord channel", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"content":{"type":"string","description":"Message content"}},"required":["channel_id","content"]}
+        , .handler = discord_handlers.handleDiscordSendMessage },
+        .{ .name = "discord_send_embed", .desc = "Send a rich embed message to a Discord channel", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"title":{"type":"string","description":"Embed title"},"description":{"type":"string","description":"Embed description"},"content":{"type":"string","description":"Optional text content"},"color":{"type":"integer","description":"Embed color (decimal)"}},"required":["channel_id","title"]}
+        , .handler = discord_handlers.handleDiscordSendEmbed },
+        .{ .name = "discord_edit_message", .desc = "Edit an existing Discord message", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"},"content":{"type":"string","description":"New content"}},"required":["channel_id","message_id","content"]}
+        , .handler = discord_handlers.handleDiscordEditMessage },
+        .{ .name = "discord_delete_message", .desc = "Delete a Discord message", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"}},"required":["channel_id","message_id"]}
+        , .handler = discord_handlers.handleDiscordDeleteMessage },
+        .{ .name = "discord_get_messages", .desc = "Get recent messages from a Discord channel", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"limit":{"type":"integer","description":"Max messages (1-100, default 50)","default":50}},"required":["channel_id"]}
+        , .handler = discord_handlers.handleDiscordGetMessages },
+        .{ .name = "discord_get_channel", .desc = "Get Discord channel details", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"}},"required":["channel_id"]}
+        , .handler = discord_handlers.handleDiscordGetChannel },
+        .{ .name = "discord_react", .desc = "Add a reaction to a Discord message", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"},"emoji":{"type":"string","description":"Emoji (e.g. %F0%9F%91%8D or custom:name:id)"}},"required":["channel_id","message_id","emoji"]}
+        , .handler = discord_handlers.handleDiscordReact },
+        .{ .name = "discord_typing", .desc = "Show typing indicator in a Discord channel", .schema =
+        \\{"type":"object","properties":{"channel_id":{"type":"string"}},"required":["channel_id"]}
+        , .handler = discord_handlers.handleDiscordTyping },
+        .{ .name = "discord_get_guild", .desc = "Get Discord server (guild) details", .schema =
+        \\{"type":"object","properties":{"guild_id":{"type":"string","description":"Discord guild/server ID"}},"required":["guild_id"]}
+        , .handler = discord_handlers.handleDiscordGetGuild },
+        .{ .name = "discord_get_guild_channels", .desc = "List all channels in a Discord server", .schema =
+        \\{"type":"object","properties":{"guild_id":{"type":"string","description":"Discord guild/server ID"}},"required":["guild_id"]}
+        , .handler = discord_handlers.handleDiscordGetGuildChannels },
+        .{ .name = "discord_list_guilds", .desc = "List all Discord servers the bot is in", .schema =
+        \\{"type":"object","properties":{},"required":[]}
+        , .handler = discord_handlers.handleDiscordListGuilds },
+        .{ .name = "discord_get_bot", .desc = "Get the bot's own Discord user info", .schema =
+        \\{"type":"object","properties":{},"required":[]}
+        , .handler = discord_handlers.handleDiscordGetBot },
+        .{ .name = "discord_create_dm", .desc = "Open a DM channel with a Discord user", .schema =
+        \\{"type":"object","properties":{"user_id":{"type":"string","description":"Discord user ID"}},"required":["user_id"]}
+        , .handler = discord_handlers.handleDiscordCreateDM },
+        .{ .name = "discord_execute_webhook", .desc = "Execute a Discord webhook", .schema =
+        \\{"type":"object","properties":{"webhook_id":{"type":"string"},"token":{"type":"string"},"content":{"type":"string"}},"required":["webhook_id","token","content"]}
+        , .handler = discord_handlers.handleDiscordExecuteWebhook },
+        .{ .name = "discord_get_member", .desc = "Get a member's details in a Discord server", .schema =
+        \\{"type":"object","properties":{"guild_id":{"type":"string"},"user_id":{"type":"string"}},"required":["guild_id","user_id"]}
+        , .handler = discord_handlers.handleDiscordGetMember },
+        .{ .name = "discord_register_command", .desc = "Register a global slash command for the bot", .schema =
+        \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"},"name":{"type":"string","description":"Command name (lowercase, 1-32 chars)"},"description":{"type":"string","description":"Command description (1-100 chars)"}},"required":["application_id","name","description"]}
+        , .handler = discord_handlers.handleDiscordRegisterCommand },
+    };
+
+    inline for (tools) |t| {
+        try server.addTool(.{
+            .def = .{
+                .name = t.name,
+                .description = t.desc,
+                .input_schema = t.schema,
+            },
+            .handler = t.handler,
+        });
+    }
 
     return server;
 }
@@ -252,6 +327,8 @@ test "createCombinedServer registers database and ZLS tools" {
     var saw_abi_features = false;
     var saw_abi_version = false;
     var saw_hardware_status = false;
+    var saw_discord_send = false;
+    var saw_discord_get_bot = false;
     for (server.tools.items) |tool| {
         if (std.mem.eql(u8, tool.def.name, "abi_chat")) saw_abi_chat = true;
         if (std.mem.eql(u8, tool.def.name, "db_query")) saw_db_query = true;
@@ -261,6 +338,8 @@ test "createCombinedServer registers database and ZLS tools" {
         if (std.mem.eql(u8, tool.def.name, "abi_features")) saw_abi_features = true;
         if (std.mem.eql(u8, tool.def.name, "abi_version")) saw_abi_version = true;
         if (std.mem.eql(u8, tool.def.name, "hardware_status")) saw_hardware_status = true;
+        if (std.mem.eql(u8, tool.def.name, "discord_send_message")) saw_discord_send = true;
+        if (std.mem.eql(u8, tool.def.name, "discord_get_bot")) saw_discord_get_bot = true;
     }
 
     try std.testing.expect(saw_abi_chat);
@@ -271,6 +350,19 @@ test "createCombinedServer registers database and ZLS tools" {
     try std.testing.expect(saw_abi_features);
     try std.testing.expect(saw_abi_version);
     try std.testing.expect(saw_hardware_status);
+    try std.testing.expect(saw_discord_send);
+    try std.testing.expect(saw_discord_get_bot);
+}
+
+test "createDiscordServer registers 16 tools" {
+    const allocator = std.testing.allocator;
+    var server = try createDiscordServer(allocator, "0.4.0");
+    defer server.deinit();
+
+    try std.testing.expectEqual(@as(usize, 16), server.tools.items.len);
+    try std.testing.expectEqualStrings("discord_send_message", server.tools.items[0].def.name);
+    try std.testing.expectEqualStrings("discord_get_bot", server.tools.items[11].def.name);
+    try std.testing.expectEqualStrings("discord_register_command", server.tools.items[15].def.name);
 }
 
 test "createStatusServer registers 6 tools" {

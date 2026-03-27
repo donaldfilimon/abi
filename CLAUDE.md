@@ -53,7 +53,10 @@ This repository includes a Claude Code plugin at `zig-abi-plugin/` providing:
 - Build troubleshooting skill for linker errors and platform issues
 - Zig 0.16 patterns skill for API guidance
 - Feature scaffolding skill for new modules
-- Pre/post tool hooks for validation
+- Cross-check and Pipeline DSL skills
+- Pre/post tool hooks for import validation and parity checking
+- MCP server integration (`abi-mcp` bundled via `.mcp.json`)
+- 4 specialized agents (build-troubleshooter, feature-scaffolder, parity-checker, pipeline-auditor)
 
 Install with: `claude --plugin-dir zig-abi-plugin`
 
@@ -124,7 +127,7 @@ abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
 abi features           # List all 35 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
-abi connectors         # List 12 LLM provider connectors with [configured]/[not set] env var status
+abi connectors         # List 16 LLM provider connectors with [configured]/[not set] env var status
 abi search <sub>       # Full-text search (create, index, query, delete, stats)
 abi info               # Framework architecture summary
 abi chat <message...>  # Route through multi-profile pipeline
@@ -276,9 +279,11 @@ To add a new focused test lane:
 4. Add the new step name to the `Steps` struct and return it from `addSteps()`
 5. Document the `zig build <name>-tests` command in the Build Commands section above
 
+**Known pre-existing test failures**: inference engine connector backend tests (2 failures in `src/inference/engine.zig`) and auth integration tests (1 failure, 3 leaks in `test/auth_mod.zig`) fail consistently — not regressions. MCP integration tests have compilation errors in `test/integration/mcp_test.zig`.
+
 ### MCP Server
 
-`zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`.
+`zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`. The MCP server is configured in `.mcp.json` (project root) for Claude Code integration and `zig-abi-plugin/.mcp.json` for plugin portability. After rebuilding (`zig build mcp`), restart Claude Code to pick up the new binary.
 
 ### Multi-Profile Pipeline (Abbey-Aviva-Abi)
 
@@ -321,6 +326,8 @@ The router also exposes `routeAndExecutePipeline()` which builds the standard pi
 
 `abi serve` (or `abi acp serve`) starts an HTTP server on `127.0.0.1:8080` exposing the Agent Communication Protocol. Entry: `src/protocols/acp/server/mod.zig`. Gated by `feat_acp`. The server wires together task management (`src/protocols/acp/server/tasks.zig`) with the ACP protocol layer.
 
+ACP endpoints: `/.well-known/agent.json` (agent card), `/health`, `/status`, `/tasks/send`, `/tasks/{id}`, `/tasks/{id}/status`, `/sessions`, `/sessions/{id}`, `/openapi.json`, `/discord/*`. CORS enabled on all responses. Request logging via `std.log.info`.
+
 The ACP server also includes:
 - **Discord gateway bridge** (`server/discord_routes.zig`) — routes Discord interactions through ACP
 - **OpenAPI 3.1.0 spec** (`server/openapi.zig`) — auto-generated API documentation
@@ -333,7 +340,7 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - `connector` — resolves provider from `model_id` ("provider/model" format), loads config from env vars, delegates to connector clients (`src/inference/engine/backends.zig`)
 - `local` — built-in transformer forward pass (integration point for GGUF loading)
 
-The connector backend dispatches to 12 providers (openai, anthropic, ollama, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp, codex). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
+The connector backend dispatches to 16 providers (openai, anthropic, claude, ollama, ollama_passthrough, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp, codex, opencode, discord). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
 
 The `abi chat` CLI command wires the profile router to the inference engine: routing decision → `Engine.generate()` → connector dispatch → response.
 
