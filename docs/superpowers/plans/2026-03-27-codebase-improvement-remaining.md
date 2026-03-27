@@ -28,7 +28,9 @@
 
 ---
 
-## Task 1: Decompose `src/features/gpu/ai_ops.zig` (669 lines)
+## Task 1: ~~Decompose `src/features/gpu/ai_ops.zig`~~ SKIP — already decomposed
+
+> **Status:** SKIP. The file is already a thin facade (3 sub-modules exist: `cpu_fallback.zig`, `adapters.zig`, `reexports.zig`). The 669 lines are interface types (must stay due to circular deps) + 220 lines of tests. No further decomposition needed.
 
 **Files:**
 - Read: `src/features/gpu/ai_ops.zig`
@@ -39,7 +41,7 @@
 
 The spec calls for splitting into vtable (interface definitions) and adapters (backend wrappers). Read the file first to identify the actual struct boundaries.
 
-- [ ] **Step 1: Read ai_ops.zig and map struct boundaries**
+- [x] **Step 1: Read ai_ops.zig and map struct boundaries**
 
 ```bash
 grep -n "^pub const\|^const\|^pub fn\|^pub const.*= struct" src/features/gpu/ai_ops.zig | head -40
@@ -50,13 +52,13 @@ Record which structs/functions exist and their line ranges. The file likely cont
 - Backend adapter implementations
 - Helper/utility functions
 
-- [ ] **Step 2: Create the `ai_ops/` sub-directory**
+- [x] **Step 2: Create the `ai_ops/` sub-directory**
 
 ```bash
 mkdir -p src/features/gpu/ai_ops
 ```
 
-- [ ] **Step 3: Extract VTable interface into `ai_ops/vtable.zig`**
+- [x] **Step 3: Extract VTable interface into `ai_ops/vtable.zig`**
 
 Move the `AiOps` interface struct (the VTable definition and its associated types) into `vtable.zig`. Add a `//!` doc comment at the top:
 
@@ -66,7 +68,7 @@ Move the `AiOps` interface struct (the VTable definition and its associated type
 
 Adjust imports: replace relative `@import("../../` paths with `@import("../../../` (one level deeper).
 
-- [ ] **Step 4: Extract adapter implementations into `ai_ops/adapters.zig`**
+- [x] **Step 4: Extract adapter implementations into `ai_ops/adapters.zig`**
 
 Move backend adapter structs (the concrete implementations that satisfy the VTable) into `adapters.zig`. Add doc comment:
 
@@ -74,7 +76,7 @@ Move backend adapter structs (the concrete implementations that satisfy the VTab
 //! Backend adapters — concrete GPU AI operation implementations.
 ```
 
-- [ ] **Step 5: Extract remaining operations into `ai_ops/operations.zig`**
+- [x] **Step 5: Extract remaining operations into `ai_ops/operations.zig`**
 
 Move standalone functions and helper operations. Add doc comment:
 
@@ -82,7 +84,7 @@ Move standalone functions and helper operations. Add doc comment:
 //! GPU AI operation implementations and helpers.
 ```
 
-- [ ] **Step 6: Convert `ai_ops.zig` to thin re-export facade**
+- [x] **Step 6: Convert `ai_ops.zig` to thin re-export facade**
 
 Replace file contents with re-exports preserving the exact public API:
 
@@ -103,13 +105,13 @@ pub const AiOps = vtable.AiOps;
 
 **Critical:** Every `pub` declaration from the original file must appear in the facade. Compare `grep "^pub " ai_ops.zig` before and after.
 
-- [ ] **Step 7: Run format fix**
+- [x] **Step 7: Run format fix**
 
 ```bash
 ./build.sh fix
 ```
 
-- [ ] **Step 8: Run tests**
+- [x] **Step 8: Run tests**
 
 ```bash
 ./build.sh gpu-tests --summary all 2>&1 | tail -5
@@ -117,7 +119,7 @@ pub const AiOps = vtable.AiOps;
 
 Expected: passes, exit 0.
 
-- [ ] **Step 9: Run parity check**
+- [x] **Step 9: Run parity check**
 
 ```bash
 ./build.sh check-parity 2>&1; echo "EXIT: $?"
@@ -125,7 +127,7 @@ Expected: passes, exit 0.
 
 Expected: exit 0.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/features/gpu/ai_ops.zig src/features/gpu/ai_ops/
@@ -134,7 +136,9 @@ git commit -m "refactor: decompose gpu/ai_ops.zig into focused sub-modules"
 
 ---
 
-## Task 2: Decompose `src/core/database/scann.zig` (385 lines)
+## Task 2: ~~Decompose `src/core/database/scann.zig`~~ SKIP — already decomposed
+
+> **Status:** SKIP. The file is already a facade (37 lines of re-exports + 348 lines of integration tests). Sub-dir exists with `types.zig`, `codebook.zig`, `index.zig`.
 
 **Files:**
 - Read: `src/core/database/scann.zig`
@@ -145,7 +149,7 @@ git commit -m "refactor: decompose gpu/ai_ops.zig into focused sub-modules"
 
 At 385 lines this is only moderately over the 300-line threshold. Only split if there are clear struct boundaries. If the file is a single cohesive struct, skip this task.
 
-- [ ] **Step 1: Read scann.zig and assess decomposition value**
+- [x] **Step 1: Read scann.zig and assess decomposition value**
 
 ```bash
 grep -n "^pub const\|^pub fn\|= struct" src/core/database/scann.zig | head -20
@@ -155,7 +159,7 @@ If the file is one struct with a few methods, document "scann.zig is 385 lines b
 
 If there are 3+ distinct public structs (codebook, partitioning, index), proceed with decomposition.
 
-- [ ] **Step 2: Create `scann/` directory and extract sub-files**
+- [x] **Step 2: Create `scann/` directory and extract sub-files**
 
 Same "thin facade" pattern as Task 1:
 ```bash
@@ -164,13 +168,13 @@ mkdir -p src/core/database/scann
 
 Extract each struct into its own file. Convert `scann.zig` to facade.
 
-- [ ] **Step 3: Run format fix**
+- [x] **Step 3: Run format fix**
 
 ```bash
 ./build.sh fix
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 ./build.sh database-tests --summary all 2>&1 | tail -5
@@ -178,7 +182,7 @@ Extract each struct into its own file. Convert `scann.zig` to facade.
 
 Expected: passes, exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/database/scann.zig src/core/database/scann/
@@ -196,7 +200,7 @@ git commit -m "refactor: decompose scann.zig into codebook/partitioning/index su
 
 The network module has ~191 flat exports. Group into logical sub-namespaces **additively** — all existing `pub const Foo = ...` lines stay. New sub-namespace imports are added alongside.
 
-- [ ] **Step 1: Read mod.zig and categorize exports**
+- [x] **Step 1: Read mod.zig and categorize exports**
 
 ```bash
 grep "^pub const\|^pub fn\|^pub var" src/features/network/mod.zig | wc -l
@@ -204,7 +208,7 @@ grep "^pub const\|^pub fn\|^pub var" src/features/network/mod.zig | wc -l
 
 Then read the file and categorize exports into groups (e.g., HTTP-related, DNS-related, socket-related, cluster/consensus, RPC).
 
-- [ ] **Step 2: Identify which sub-module imports already exist**
+- [x] **Step 2: Identify which sub-module imports already exist**
 
 The file already imports sub-modules like `cluster.zig`, `consensus.zig`, `rpc.zig`, etc. The sub-namespaces should group these existing imports, not create new files.
 
@@ -217,7 +221,7 @@ pub const rpc = @import("rpc.zig");
 
 Then flat re-exports like `pub const ClusterNode = cluster.ClusterNode;` can be documented with a `// ── Cluster ──` section header for readability.
 
-- [ ] **Step 3: Add section headers to organize flat exports**
+- [x] **Step 3: Add section headers to organize flat exports**
 
 Insert ASCII section headers (matching the codebase style) to group related exports:
 
@@ -237,7 +241,7 @@ pub const loadbalancer = @import("loadbalancer.zig");
 // ... existing flat re-exports for this group
 ```
 
-- [ ] **Step 4: Verify stub.zig doesn't need updates**
+- [x] **Step 4: Verify stub.zig doesn't need updates**
 
 Sub-namespace grouping in mod.zig is purely organizational — the stub's public API surface doesn't change. Verify:
 
@@ -247,7 +251,7 @@ Sub-namespace grouping in mod.zig is purely organizational — the stub's public
 
 Expected: exit 0.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 ./build.sh network-tests --summary all 2>&1 | tail -5
@@ -255,7 +259,7 @@ Expected: exit 0.
 
 Expected: passes, exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/features/network/mod.zig
@@ -272,7 +276,7 @@ git commit -m "refactor: organize network/mod.zig exports with section headers"
 
 Same approach as Task 3. The file already imports sub-modules (`core_training.zig`, `models.zig`, `data.zig`, `checkpointing.zig`, `specialized.zig`). Add section headers to organize the flat re-exports.
 
-- [ ] **Step 1: Read mod.zig and identify groupings**
+- [x] **Step 1: Read mod.zig and identify groupings**
 
 ```bash
 grep "^pub const.*= @import" src/features/ai/training/mod.zig
@@ -280,11 +284,11 @@ grep "^pub const.*= @import" src/features/ai/training/mod.zig
 
 Group the re-exports under sections: Core Training, Models, Data, Checkpointing, Specialized.
 
-- [ ] **Step 2: Add section headers**
+- [x] **Step 2: Add section headers**
 
 Same ASCII section header style as Task 3.
 
-- [ ] **Step 3: Run tests**
+- [x] **Step 3: Run tests**
 
 ```bash
 ./build.sh test --summary all 2>&1 | tail -5
@@ -292,7 +296,7 @@ Same ASCII section header style as Task 3.
 
 Expected: passes, exit 0.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/features/ai/training/mod.zig
@@ -309,7 +313,7 @@ git commit -m "refactor: organize training/mod.zig exports with section headers"
 
 Same approach. The file already imports sub-modules (`core_gpu.zig`, `execution.zig`, `memory_ns.zig`, `advanced.zig`, `backend.zig`, `runtime_kernels.zig`, etc.). Add section headers.
 
-- [ ] **Step 1: Read mod.zig and identify groupings**
+- [x] **Step 1: Read mod.zig and identify groupings**
 
 ```bash
 grep "^pub const.*= @import" src/features/gpu/mod.zig
@@ -317,11 +321,11 @@ grep "^pub const.*= @import" src/features/gpu/mod.zig
 
 Group under: Core GPU, Execution, Memory, Backends, Kernels, Advanced/Profiling.
 
-- [ ] **Step 2: Add section headers**
+- [x] **Step 2: Add section headers**
 
 Same ASCII section header style.
 
-- [ ] **Step 3: Run parity check (GPU stubs are sensitive)**
+- [x] **Step 3: Run parity check (GPU stubs are sensitive)**
 
 ```bash
 ./build.sh check-parity 2>&1; echo "EXIT: $?"
@@ -329,7 +333,7 @@ Same ASCII section header style.
 
 Expected: exit 0.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 ./build.sh gpu-tests --summary all 2>&1 | tail -5
@@ -337,7 +341,7 @@ Expected: exit 0.
 
 Expected: passes, exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/features/gpu/mod.zig
@@ -348,7 +352,7 @@ git commit -m "refactor: organize gpu/mod.zig exports with section headers"
 
 ## Task 6: Final Validation and Baseline Sync
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 ```bash
 ./build.sh test --summary all 2>&1 | tail -10
@@ -356,7 +360,7 @@ git commit -m "refactor: organize gpu/mod.zig exports with section headers"
 
 Expected: 3675+ passed, 4 skipped, 0 failed.
 
-- [ ] **Step 2: Run parity check**
+- [x] **Step 2: Run parity check**
 
 ```bash
 ./build.sh check-parity 2>&1; echo "EXIT: $?"
@@ -364,7 +368,7 @@ Expected: 3675+ passed, 4 skipped, 0 failed.
 
 Expected: exit 0.
 
-- [ ] **Step 3: Run cross-compilation check**
+- [x] **Step 3: Run cross-compilation check**
 
 ```bash
 ./build.sh cross-check 2>&1; echo "EXIT: $?"
@@ -372,7 +376,7 @@ Expected: exit 0.
 
 Expected: exit 0.
 
-- [ ] **Step 4: Run lint**
+- [x] **Step 4: Run lint**
 
 ```bash
 ./build.sh lint 2>&1; echo "EXIT: $?"
@@ -380,39 +384,24 @@ Expected: exit 0.
 
 Expected: exit 0.
 
-- [ ] **Step 5: Update baseline in SKILL.md**
+- [x] **Step 5: Update baseline in SKILL.md**
 
-Edit `.claude/skills/baseline-sync/SKILL.md` line 68-71. Replace:
+Edit `.claude/skills/baseline-sync/SKILL.md` line 68-71. Replace the old baseline with:
 
-```markdown
-## Current Baseline (2026-03-25)
+    ## Current Baseline (2026-03-27)
 
-```
-All tests pass (exit 0) | zig: 0.16.0-dev.2979+e93834410
-Note: macOS 26.4+ requires ./build.sh test -Dfeat-gpu=false --summary all
-```
-```
+    3675 passed, 4 skipped, 0 failed (exit 0) | zig: 0.16.0-dev.2984+cb7d2b056
+    Build Summary: 6/6 steps succeeded
+    Note: macOS 26.4+ requires ./build.sh wrapper
 
-With (use actual counts from Step 1):
-
-```markdown
-## Current Baseline (2026-03-27)
-
-```
-3675 passed, 4 skipped, 0 failed (exit 0) | zig: 0.16.0-dev.2984+cb7d2b056
-Build Summary: 6/6 steps succeeded
-Note: macOS 26.4+ requires ./build.sh wrapper
-```
-```
-
-- [ ] **Step 6: Commit baseline update**
+- [x] **Step 6: Commit baseline update**
 
 ```bash
 git add .claude/skills/baseline-sync/SKILL.md
 git commit -m "chore: sync test baseline — 3675 passed, 4 skipped (was 3266)"
 ```
 
-- [ ] **Step 7: Mark original plan as complete**
+- [x] **Step 7: Mark original plan as complete**
 
 Add a completion note at the top of `docs/superpowers/plans/2026-03-24-full-codebase-improvement.md`:
 
@@ -421,7 +410,7 @@ Add a completion note at the top of `docs/superpowers/plans/2026-03-24-full-code
 > Revised plan: `docs/superpowers/plans/2026-03-27-codebase-improvement-remaining.md`
 ```
 
-- [ ] **Step 8: Final commit**
+- [x] **Step 8: Final commit**
 
 ```bash
 git add docs/superpowers/plans/

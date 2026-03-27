@@ -385,7 +385,7 @@ Scale_up if L_current > L_threshold
 
 - **Language:** Zig 0.16.0-dev.2984+cb7d2b056
 - **Size:** 360K+ LOC across 1,126+ .zig files
-- **Tests:** 3,265+ unit + integration tests (27 focused test lanes)
+- **Tests:** 3,675+ unit + integration tests (27 focused test lanes)
 - **Features:** 35 comptime-gated features in the catalog
 - **Package:** `@import("abi")` — single module, comptime-gated features (mod/stub pattern)
 - **Build:** `./build.sh` (macOS 26.4+) or `zig build` (Linux)
