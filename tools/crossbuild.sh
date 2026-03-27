@@ -22,7 +22,7 @@ set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ZIGUP="$SCRIPT_DIR/zigup.sh"
+ZIGLY="$SCRIPT_DIR/zigly"
 OUT_BASE="$REPO_ROOT/zig-out"
 
 OPTIMIZE="Debug"
@@ -103,7 +103,7 @@ if [ "$PLATFORM" = "clean" ]; then
 fi
 
 # Resolve zig
-ZIG="$("$ZIGUP" --status)"
+ZIG="$("$ZIGLY" --status)"
 ZIG_LIB="$(dirname "$(dirname "$ZIG")")/lib"
 
 log "Using zig: $ZIG"

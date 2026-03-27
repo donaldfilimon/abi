@@ -85,15 +85,18 @@ pub const Terminal = struct {
         self.raw_mode_active = false;
     }
 
+    // VT100 standard terminal dimensions used as fallback.
+    const default_width: u16 = 80;
+    const default_height: u16 = 24;
+
+    // ioctl request code for TIOCGWINSZ (get window size).
+    const tiocgwinsz = if (builtin.os.tag == .macos) 0x40087468 else 0x5413;
+
     /// Get the terminal size via ioctl.
     pub fn getSize(self: *const Terminal) !TerminalSize {
         if (comptime !is_posix) {
-            return .{ .width = 80, .height = 24 };
+            return .{ .width = default_width, .height = default_height };
         }
-        const TIOCGWINSZ = 0x5413;
-        const macos_TIOCGWINSZ = 0x40087468;
-
-        const ioctl_val = if (builtin.os.tag == .macos) macos_TIOCGWINSZ else TIOCGWINSZ;
 
         const Winsize = extern struct {
             ws_row: u16,
@@ -102,13 +105,13 @@ pub const Terminal = struct {
             ws_ypixel: u16,
         };
         var ws: Winsize = undefined;
-        const result = std.posix.system.ioctl(self.fd, ioctl_val, @intFromPtr(&ws));
+        const result = std.posix.system.ioctl(self.fd, tiocgwinsz, @intFromPtr(&ws));
         if (result != 0) {
-            return .{ .width = 80, .height = 24 }; // fallback
+            return .{ .width = default_width, .height = default_height };
         }
         return .{
-            .width = if (ws.ws_col > 0) ws.ws_col else 80,
-            .height = if (ws.ws_row > 0) ws.ws_row else 24,
+            .width = if (ws.ws_col > 0) ws.ws_col else default_width,
+            .height = if (ws.ws_row > 0) ws.ws_row else default_height,
         };
     }
 

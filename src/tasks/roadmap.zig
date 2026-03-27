@@ -4,8 +4,13 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-const persistence = @import("persistence.zig");
 const time_utils = @import("../foundation/mod.zig").utils;
+
+fn dupeString(allocator: std.mem.Allocator, strings: *std.ArrayListUnmanaged([]u8), s: []const u8) ![]const u8 {
+    const duped = try allocator.dupe(u8, s);
+    try strings.append(allocator, duped);
+    return duped;
+}
 
 pub const catalog = @import("roadmap_catalog.zig");
 
@@ -64,8 +69,8 @@ pub fn importAll(
             });
             defer allocator.free(description);
 
-            const owned_title = try persistence.dupeString(allocator, strings, roadmap_entry.title);
-            const owned_desc = try persistence.dupeString(allocator, strings, description);
+            const owned_title = try dupeString(allocator, strings, roadmap_entry.title);
+            const owned_desc = try dupeString(allocator, strings, description);
 
             const task = types.Task{
                 .id = id,
@@ -134,8 +139,8 @@ test "importAll keeps dedupe-by-title behavior" {
     const first_non_done = maybe_first_non_done orelse return error.TestFailed;
 
     const now = time_utils.unixSeconds();
-    const pre_title = try persistence.dupeString(std.testing.allocator, &strings, first_non_done.title);
-    const pre_desc = try persistence.dupeString(std.testing.allocator, &strings, "pre-existing");
+    const pre_title = try dupeString(std.testing.allocator, &strings, first_non_done.title);
+    const pre_desc = try dupeString(std.testing.allocator, &strings, "pre-existing");
     try tasks_map.put(std.testing.allocator, 99, .{
         .id = 99,
         .title = pre_title,

@@ -125,8 +125,5 @@ test "Constitution computeBias delegates to enforcement" {
 test {
     _ = principles;
     _ = enforcement;
-}
-
-test {
     std.testing.refAllDecls(@This());
 }

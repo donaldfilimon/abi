@@ -5,6 +5,5 @@ const secrets = @import("foundation/security/secrets.zig");
 const secrets_tests = @import("foundation/security/secrets/tests.zig");
 
 test {
-    _ = secrets;
     std.testing.refAllDecls(secrets_tests);
 }

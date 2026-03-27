@@ -104,3 +104,7 @@ pub fn handleResourcesRead(
 
     try types.writeError(writer, rid, types.ErrorCode.invalid_params, "Resource not found");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

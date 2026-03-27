@@ -43,24 +43,27 @@ pub const Renderer = struct {
                         continue;
                     };
 
-                    // Apply filters
-                    var processed = value;
-                    var owned = false;
+                    // Apply filters — each filter allocates; track ownership via nullable []u8.
+                    var owned_buf: ?[]u8 = null;
+                    var processed: []const u8 = value;
 
                     for (v.filters) |filter| {
-                        const new_value = self.applyFilter(processed, filter) catch return RenderError.OutOfMemory;
-                        if (owned) {
-                            self.allocator.free(@constCast(processed));
-                        }
+                        const new_value = self.applyFilter(processed, filter) catch {
+                            if (owned_buf) |b| self.allocator.free(b);
+                            return RenderError.OutOfMemory;
+                        };
+                        if (owned_buf) |b| self.allocator.free(b);
+                        owned_buf = new_value;
                         processed = new_value;
-                        owned = true;
                     }
 
                     if (self.options.auto_escape_html) {
-                        const escaped = self.escapeHtml(processed) catch return RenderError.OutOfMemory;
-                        if (owned) {
-                            self.allocator.free(@constCast(processed));
-                        }
+                        const escaped = self.escapeHtml(processed) catch {
+                            if (owned_buf) |b| self.allocator.free(b);
+                            return RenderError.OutOfMemory;
+                        };
+                        if (owned_buf) |b| self.allocator.free(b);
+                        owned_buf = null;
                         result.appendSlice(self.allocator, escaped) catch {
                             self.allocator.free(escaped);
                             return RenderError.OutOfMemory;
@@ -68,12 +71,10 @@ pub const Renderer = struct {
                         self.allocator.free(escaped);
                     } else {
                         result.appendSlice(self.allocator, processed) catch {
-                            if (owned) self.allocator.free(@constCast(processed));
+                            if (owned_buf) |b| self.allocator.free(b);
                             return RenderError.OutOfMemory;
                         };
-                        if (owned) {
-                            self.allocator.free(@constCast(processed));
-                        }
+                        if (owned_buf) |b| self.allocator.free(b);
                     }
                 },
             }
@@ -152,7 +153,7 @@ pub const Renderer = struct {
         return null;
     }
 
-    fn applyFilter(self: *Renderer, value: []const u8, filter: Token.Filter) ![]const u8 {
+    fn applyFilter(self: *Renderer, value: []const u8, filter: Token.Filter) ![]u8 {
         return switch (filter) {
             .upper => try self.toUpper(value),
             .lower => try self.toLower(value),
@@ -162,15 +163,15 @@ pub const Renderer = struct {
         };
     }
 
-    fn toUpper(self: *Renderer, value: []const u8) ![]const u8 {
+    fn toUpper(self: *Renderer, value: []const u8) ![]u8 {
         return string_utils.string.toUpperAscii(self.allocator, value);
     }
 
-    fn toLower(self: *Renderer, value: []const u8) ![]const u8 {
+    fn toLower(self: *Renderer, value: []const u8) ![]u8 {
         return string_utils.string.toLowerAscii(self.allocator, value);
     }
 
-    fn escapeHtml(self: *Renderer, value: []const u8) ![]const u8 {
+    fn escapeHtml(self: *Renderer, value: []const u8) ![]u8 {
         var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
@@ -188,7 +189,7 @@ pub const Renderer = struct {
         return result.toOwnedSlice(self.allocator);
     }
 
-    fn escapeJson(self: *Renderer, value: []const u8) ![]const u8 {
+    fn escapeJson(self: *Renderer, value: []const u8) ![]u8 {
         return json_utils.escapeJsonContent(self.allocator, value);
     }
 };

@@ -91,6 +91,27 @@ pub const DistributedTrainer = types.DistributedTrainer;
 
 // ── Submodule re-exports ───────────────────────────────────────────────────
 
+// Sub-namespace facades (additive)
+pub const core_training = struct {};
+pub const models = struct {};
+pub const data = struct {};
+pub const checkpointing = struct {};
+pub const specialized = struct {};
+
+pub const checkpoint = struct {
+    pub const Checkpoint = types.Checkpoint;
+    pub const CheckpointStore = types.CheckpointStore;
+    pub const CheckpointView = types.CheckpointView;
+};
+pub const llm_checkpoint = struct {
+    pub const LlmCheckpoint = types.LlmCheckpoint;
+    pub const LlmCheckpointView = types.LlmCheckpointView;
+};
+pub const gradient = struct {
+    pub const GradientAccumulator = types.GradientAccumulator;
+};
+pub const training_utils = struct {};
+
 pub const loss = struct {
     pub const CrossEntropyLoss = types.CrossEntropyLoss;
     pub const MSELoss = types.MSELoss;

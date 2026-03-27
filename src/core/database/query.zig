@@ -43,3 +43,7 @@ pub const QueryEngine = struct {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

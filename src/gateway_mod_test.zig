@@ -4,6 +4,5 @@ const std = @import("std");
 const gateway = @import("features/gateway/mod.zig");
 
 test {
-    _ = gateway;
     std.testing.refAllDecls(gateway);
 }

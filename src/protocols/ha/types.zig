@@ -73,3 +73,7 @@ pub const HaStatus = struct {
         });
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

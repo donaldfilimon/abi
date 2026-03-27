@@ -104,6 +104,13 @@ pub const OAuth2Token = types.OAuth2Token;
 pub const GatewayBotInfo = types.GatewayBotInfo;
 pub const SessionStartLimit = types.SessionStartLimit;
 
+// Re-export gateway
+pub const gateway_types = @import("gateway_types.zig");
+pub const gateway = @import("gateway.zig");
+pub const GatewayClient = gateway.GatewayClient;
+pub const GatewayEventHandler = gateway_types.GatewayEventHandler;
+pub const GatewayState = gateway_types.GatewayState;
+
 // Re-export REST client
 pub const Config = rest.Config;
 pub const Client = rest.Client;

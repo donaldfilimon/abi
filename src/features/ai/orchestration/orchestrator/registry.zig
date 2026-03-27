@@ -101,3 +101,7 @@ pub fn listModels(self: anytype, allocator: std.mem.Allocator) ![][]const u8 {
 
     return ids.toOwnedSlice(allocator);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

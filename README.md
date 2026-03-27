@@ -28,8 +28,8 @@ Use `./build.sh` which auto-relinks with Apple's native linker. To install and s
 the correct Zig version:
 
 ```bash
-tools/zigup.sh --status     # Auto-install if missing
-tools/zigup.sh --link       # Symlink to ~/.local/bin
+tools/zigly --status     # Auto-install if missing
+tools/zigly --link       # Symlink to ~/.local/bin
 ```
 
 ## Build commands
@@ -74,7 +74,7 @@ The binary lands at `zig-out/bin/abi`. Entry point: `src/main.zig`.
 abi                # Smart status (feature count + available commands)
 abi version        # Print version and build info
 abi doctor         # Run diagnostics (all feature flags + GPU backends)
-abi features       # List all 32 features with [+]/[-] status
+abi features       # List all 35 features with [+]/[-] status
 abi platform       # Show platform detection (OS, arch, CPU, GPU)
 abi connectors     # List 16 LLM provider connectors
 abi info           # Framework architecture summary
@@ -131,7 +131,7 @@ abi/
 ├── src/                  # Framework source (single "abi" module)
 │   ├── root.zig          # Public package entrypoint (@import("abi"))
 │   ├── core/             # Always-on framework internals
-│   ├── features/         # 20 feature directories (32 features including AI sub-features)
+│   ├── features/         # 20 feature directories (35 features including AI sub-features)
 │   ├── foundation/       # Shared utilities: logging, security, time, SIMD, sync
 │   ├── runtime/          # Task scheduling, event loops, concurrency
 │   ├── platform/         # OS detection, capabilities, environment
@@ -141,7 +141,7 @@ abi/
 │   └── inference/        # ML inference: engine, scheduler, sampler, KV cache
 ├── build.zig             # Self-contained build root
 ├── build.zig.zon         # Package manifest
-└── tools/                # zigup.sh, crossbuild.sh, auto_update.sh
+└── tools/                # zigly, crossbuild.sh, auto_update.sh
 ```
 
 Each feature under `src/features/<name>/` follows the **mod/stub contract**:
@@ -152,13 +152,13 @@ regardless of which features are enabled.
 ## Tools
 
 ```bash
-tools/zigup.sh --status    # Print zig path (auto-install if missing)
-tools/zigup.sh --install   # Force re-download zig + ZLS
-tools/zigup.sh --link      # Symlink zig + zls into ~/.local/bin
-tools/zigup.sh --unlink    # Remove symlinks from local bin
-tools/zigup.sh --update    # Check for newer zig and update if available
-tools/zigup.sh --check     # Report if update available (no download)
-tools/zigup.sh --clean     # Remove all cached versions
+tools/zigly --status    # Print zig path (auto-install if missing)
+tools/zigly --install   # Force re-download zig + ZLS
+tools/zigly --link      # Symlink zig + zls into ~/.local/bin
+tools/zigly --unlink    # Remove symlinks from local bin
+tools/zigly --update    # Check for newer zig and update if available
+tools/zigly --check     # Report if update available (no download)
+tools/zigly --clean     # Remove all cached versions
 tools/crossbuild.sh        # Cross-compile for linux, wasi, x86_64 targets
 tools/auto_update.sh       # Check and apply updates for zig + zls
 ```

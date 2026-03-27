@@ -23,9 +23,8 @@ pub const SamplingParams = sampler.SamplingParams;
 pub const PagedKVCache = kv_cache.PagedKVCache;
 pub const PagedKVCacheConfig = kv_cache.Config;
 
+const std = @import("std");
+
 test {
-    _ = engine;
-    _ = scheduler;
-    _ = sampler;
-    _ = kv_cache;
+    std.testing.refAllDecls(@This());
 }

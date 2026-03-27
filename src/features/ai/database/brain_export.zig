@@ -57,14 +57,9 @@ pub fn exportDual(
 
     // ── GGUF export (optional) ──────────────────────────────────────────
     if (config.gguf_path) |gguf_path| {
-        const trainable = training.TrainableModel{
-            .config = .{
-                .name = if (metadata) |m| m.model_name else "brain",
-            },
-            .weights = .{},
-        };
-        export_mod.exportGguf(allocator, &trainable, gguf_path) catch |err| {
-            std.log.warn("GGUF export failed (WDBX still written): {t}", .{err});
+        const model_name = if (metadata) |m| m.model_name else "brain";
+        export_mod.exportGgufFromState(allocator, model, model_name, gguf_path) catch |err| {
+            std.log.warn("GGUF export failed (WDBX still written): {s}", .{@errorName(err)});
             return result;
         };
         result.gguf_written = true;
@@ -128,4 +123,8 @@ test "exportDual writes WDBX metadata through abi.database.Store" {
     const meta = store.get(1) orelse return error.TestUnexpectedResult;
     try std.testing.expect(meta.metadata != null);
     try std.testing.expect(std.mem.indexOf(u8, meta.metadata.?, "\"model_name\"") != null);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

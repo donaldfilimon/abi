@@ -4,57 +4,153 @@ Guidance for AI coding agents working in this repository.
 
 ## Quick Reference
 
-- **Language**: Zig 0.16 (pinned in `.zigversion`)
-- **Build**: `zig build` (Linux) or `./build.sh` (macOS 26.4+)
-- **Test**: `zig build test --summary all` or `./build.sh test --summary all`
-- **Lint**: `zig build lint` / **Fix**: `zig build fix`
-- **Parity check**: `zig build check-parity`
-- **Validation gates**: `zig build feature-tests`, `mcp-tests`, `messaging-tests`, `secrets-tests`, `pitr-tests`, `agents-tests`, `multi-agent-tests`, `orchestration-tests`, `gateway-tests`, `inference-tests`, `cli-tests`, `tui-tests`, `typecheck` (compile-only), `validate-flags`, `full-check`, `verify-all`
-- **Full gate**: `zig build check` (lint + test + parity)
-- **CLI**: `zig build cli` produces `zig-out/bin/abi`
-- **MCP server**: `zig build mcp` produces `zig-out/bin/abi-mcp`
+| Command | Description |
+|---------|-------------|
+| `./build.sh` | Build (macOS 26.4+) |
+| `zig build test --summary all` | All tests |
+| `zig build test -- --test-filter "pattern"` | Single test |
+| `zig build lint` | Check formatting |
+| `zig build fix` | Auto-format |
+| `zig build check` | Full gate (lint + test + parity) |
+| `zig build check-parity` | Verify mod/stub parity |
+
+### Focused Test Lanes
+
+```bash
+zig build feature-tests messaging-tests agents-tests orchestration-tests
+zig build gateway-tests inference-tests secrets-tests pitr-tests
+zig build mcp-tests cli-tests tui-tests
+```
+
+---
 
 ## Critical Rules
 
-1. Never use `@import("abi")` from within `src/` — causes circular import error.
-2. Cross-feature imports must use comptime gates: `if (build_options.feat_X) mod else stub`.
-3. Use `.empty` not `.{}` for `ArrayListUnmanaged` / `HashMapUnmanaged` init (Zig 0.16).
-4. Both `mod.zig` and `stub.zig` must be updated together — run `zig build check-parity`.
-5. Use `foundation.time.unixMs()` not `std.time.milliTimestamp` (removed in 0.16).
-6. Use `foundation.sync.Mutex` not `std.Thread.Mutex` (may be unavailable).
-7. Never run `zig fmt .` at root — use `zig build fix` (scoped to `src/`, `build.zig`, `build/`, and `test/`).
-8. All path imports require explicit `.zig` extensions.
-9. `var` vs `const`: compiler enforces const for never-mutated locals.
-10. On macOS 26.4+, use `./build.sh` instead of `zig build` (LLD linker issue).
+1. **Never use `@import("abi")` from `src/`** — causes circular import
+2. **Cross-feature imports**: use comptime gates `if (build_options.feat_X) mod else stub`
+3. **Mod/stub parity**: update both together, run `zig build check-parity`
+4. Use `.empty` not `.{}` for `ArrayListUnmanaged`/`HashMapUnmanaged` init
+5. Use `foundation.time.unixMs()` not `std.time.milliTimestamp`
+6. Use `foundation.sync.Mutex` not `std.Thread.Mutex`
+7. On macOS 26.4+, use `./build.sh` not `zig build`
+8. All path imports need explicit `.zig` extensions
+
+---
 
 ## Architecture
 
-- **Entrypoint**: `src/root.zig` re-exports all domains as `abi.<domain>`
-- **Features**: 20 directories under `src/features/`, 32 features total (including AI sub-features)
-- **Mod/Stub pattern**: each feature has `mod.zig` (real), `stub.zig` (no-op), `types.zig` (shared)
-- **Comptime gating** in `root.zig`: `if (build_options.feat_gpu) mod else stub`
-- **Core**: `src/core/` (config, errors, registry, feature catalog)
-- **Foundation**: `src/foundation/` (logging, security, time, SIMD, sync)
-- **Runtime**: `src/runtime/` (task scheduling, event loops)
-- **Connectors**: `src/connectors/` (OpenAI, Anthropic, Discord, etc.)
-- **Protocols**: `src/protocols/` (mcp/, lsp/, acp/, ha/) — all comptime-gated via `feat_mcp`, `feat_lsp`, `feat_acp`, `feat_ha`
-- **Inference**: `src/inference/` (multi-backend ML engine)
-- **Feature catalog**: `src/core/feature_catalog.zig` (canonical feature metadata)
-- **Stub helpers**: `src/core/stub_helpers.zig` (reuse `StubFeature`, `StubContext` in stubs)
+- **Entrypoint**: `src/root.zig` re-exports domains as `abi.<domain>`
+- **Features**: 20 dirs under `src/features/`, mod/stub/types pattern
+- **Comptime gating**: `root.zig` uses `if (build_options.feat_X) mod else stub`
+- **Core/Foundation/Runtime**: config, logging, task scheduling
+- **Connectors**: OpenAI, Anthropic, Discord, etc.
+- **Protocols**: MCP, LSP, ACP, HA — all comptime-gated
 
-## Testing
+---
 
-- **Unit tests**: `src/root.zig` uses `refAllDecls` to walk all `test` blocks in `src/`
-- **Integration tests**: `test/mod.zig` imports `@import("abi")` as external consumer
-- Add new integration tests by importing them from `test/mod.zig`
-- Both suites link macOS frameworks: System, IOKit, Accelerate, Metal, objc
+## Code Style
 
-## Feature Flags
+### Naming
+- camelCase: functions/methods
+- PascalCase: types/structs/enums
+- SCREAMING_SNAKE_CASE: constants
+- One main type per file named after filename (e.g., `bar.zig` → `Bar`)
 
-All features default to enabled except `feat-mobile` and `feat-tui`. Disable with `-Dfeat-<name>=false`. GPU backends: `-Dgpu-backend=metal` or `-Dgpu-backend=cuda,vulkan`.
+### Formatting
+- 4-space indentation, no tabs, ~80 char line width
 
-## Import Rules
+### Comments
+- Doc comments (`//!`, `///`) for public API only
+- No inline comments unless implementation is non-obvious
 
-- **Within `src/`**: relative imports only (`@import("../../foundation/mod.zig")`)
-- **From `test/`**: use `@import("abi")` and `@import("build_options")`
-- **Cross-feature**: comptime gate, never import another feature's `mod.zig` directly
+### Error Handling
+- Prefer error unions (`!`) for recoverable failures
+- Use `error.FeatureDisabled` in stubs
+- `@panic` only in CLI entry points and tests
+
+### Memory
+- Always pair allocation/deallocation with `defer`
+- Use arena allocators for temporary parsing
+- String literals in structs with `deinit()` → always `allocator.dupe()`
+
+### Testing
+- `test {}` blocks: include `std.testing.refAllDecls(@This())`
+- Integration tests in `test/mod.zig` import `@import("abi")`
+
+---
+
+## Zig 0.16 Gotchas
+
+| Old API | New API |
+|---------|---------|
+| `.{}` for ArrayListUnmanaged | `.empty` |
+| `std.BoundedArray` | `buffer: [N]T = undefined` + `len: usize = 0` |
+| `std.time.milliTimestamp` | `foundation.time.unixMs()` |
+| `std.mem.trimRight` | `std.mem.trimEnd` |
+| `pub fn main() !void` | `pub fn main(init: std.process.Init) !void` |
+
+---
+
+## Imports
+
+- **Never use `@import("abi")` from `src/`** — causes circular import
+- Use relative imports within src: `@import("../../foundation/mod.zig")`
+- Use `@import("abi")` from `test/` only
+- All path imports need explicit `.zig` extensions
+
+---
+
+## Common Patterns
+
+### Feature Gate
+```zig
+pub const my_feature = if (build_options.feat_X)
+    @import("features/my_feature/mod.zig")
+else
+    @import("features/my_feature/stub.zig");
+```
+
+### String Ownership
+```zig
+// WRONG: crashes on deinit
+const response = ProfileResponse{ .content = "Hello", ... };
+
+// CORRECT
+const response = ProfileResponse{
+    .content = try allocator.dupe(u8, "Hello"),
+    ...
+};
+```
+
+### GPU VTable
+```zig
+pub const AiOps = struct {
+    ptr: *anyopaque,
+    vtable: *const VTable,
+    pub const VTable = struct {
+        sgemm: *const fn (ctx: *anyopaque, ...) AiOpsError!void,
+        deinit: *const fn (ctx: *anyopaque) void,
+    },
+    pub fn sgemm(self: AiOps, ...) AiOpsError!void {
+        return self.vtable.sgemm(self.ptr, ...);
+    }
+};
+```
+
+---
+
+## Important Safety Notes
+
+- **Thread safety**: every `Engine` public method must acquire `db_lock` before reading vectors/index/client
+- **JSON escaping**: use `foundation/utils/json.zig`, never reimplement
+- **Emotion files**: use `emotions.zig`, not `emotion.zig`
+- **Platform-gated externs**: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`
+- **Wall-clock vs monotonic**: `timestampSec()` is monotonic; use `clock_gettime(.REALTIME)` for persisted data
+
+---
+
+## Module Decomposition
+
+- Split files >300 lines into sub-modules
+- Keep parent as thin re-export layer (see `src/features/gpu/ai_ops.zig`)
+- Define shared types in `types.zig` to avoid circular deps

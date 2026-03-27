@@ -323,3 +323,7 @@ fn saveDatabaseV2Impl(
     // 6. Write footer
     try writeFooterV2(&file, io, hdr.header_checksum, &state);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

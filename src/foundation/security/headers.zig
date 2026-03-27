@@ -327,7 +327,7 @@ pub const SecurityHeaders = struct {
 
         // Generate 16 random bytes
         var random_bytes: [16]u8 = undefined;
-        csprng.fillRandom(&random_bytes) catch unreachable;
+        try csprng.fillRandom(&random_bytes);
 
         // Encode as base64
         const encoder = std.base64.standard.Encoder;

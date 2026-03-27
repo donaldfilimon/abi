@@ -39,7 +39,7 @@ pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) ![]u32 {
 pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) !void {
     return error.FeatureDisabled;
 }
-pub fn exportGguf(_: std.mem.Allocator, _: anytype, _: []const u8) !void {
+pub fn exportGgufFromState(_: std.mem.Allocator, _: anytype, _: []const u8, _: []const u8) !void {
     return error.FeatureDisabled;
 }
 
@@ -66,14 +66,14 @@ pub const convert = struct {
 };
 
 pub const export_mod = struct {
-    pub const exportGguf_ = exportGguf;
+    pub const exportGgufFromState_ = exportGgufFromState;
 };
 
 pub const brain_export = struct {
     pub const BrainExportConfig_ = BrainExportConfig;
     pub const TrainingMetadata_ = TrainingMetadata;
     pub const ExportResult_ = ExportResult;
-    pub const exportDual_ = @import("stub.zig").exportDual;
+    pub const exportDual_ = exportDual;
 };
 
 test {

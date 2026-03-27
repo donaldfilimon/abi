@@ -58,12 +58,6 @@ pub const ContextChunk = struct {
     title: []const u8,
 };
 
-/// Cached embedding entry.
-pub const CacheEntry = struct {
-    text_hash: u64,
-    vector: []f32,
-};
-
 /// WDBX Fusion engine for RAG and embedding caching.
 pub const WdbxFusion = struct {
     allocator: std.mem.Allocator,

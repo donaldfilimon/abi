@@ -55,3 +55,7 @@ pub const CoordinatorConfig = struct {
     max_staleness_seconds: u64 = 300,
     strategy: AggregationStrategy = .mean,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

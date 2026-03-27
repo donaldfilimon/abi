@@ -1,18 +1,32 @@
 //! Abbey Emotional Intelligence Module
 //!
-//! Provides emotional context awareness:
+//! Canonical import for all emotion-related types. Provides:
 //! - Emotion detection from text
-//! - Emotional state tracking
+//! - Emotional state tracking and relationship memory
 //! - Response tone adjustment
-//! - Relationship memory
+//! - Emotion processing (EmotionProcessor, EmotionalResponse)
+//! - Trajectory tracking
+//!
+//! Re-exports processor types from `emotion.zig` so that all Abbey files
+//! can use a single `@import("emotions.zig")` entry point.
 
 const std = @import("std");
 const core_types = @import("../types.zig");
 const platform_time = @import("../../../foundation/mod.zig").time;
+const emotion_processor = @import("emotion.zig");
 
 // Re-export the canonical EmotionType from core types
 // This ensures type consistency across the AI module
 pub const EmotionType = core_types.EmotionType;
+
+// Re-export processor types from emotion.zig so all Abbey files
+// can use emotions.zig as the single canonical import
+pub const EmotionalResponse = emotion_processor.EmotionalResponse;
+pub const EmotionProcessor = emotion_processor.EmotionProcessor;
+pub const ToneStyle = emotion_processor.ToneStyle;
+pub const EmotionConfig = emotion_processor.EmotionConfig;
+pub const TrajectoryDirection = emotion_processor.TrajectoryDirection;
+pub const EmotionTrajectory = emotion_processor.EmotionTrajectory;
 
 // Platform-aware time function (works on WASM)
 fn getTimestamp() i64 {
@@ -396,4 +410,8 @@ test "relationship memory" {
     try std.testing.expectEqual(@as(usize, 2), memory.positive_interactions);
     try std.testing.expectEqual(@as(usize, 1), memory.negative_interactions);
     try std.testing.expect(memory.getHealthScore() > 0.5);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

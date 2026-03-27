@@ -12,9 +12,27 @@ pub const getTimestampMs = core_types.getTimestampMs;
 pub const getTimestampSec = core_types.getTimestampSec;
 pub const ConfidenceLevel = core_types.ConfidenceLevel;
 pub const Confidence = core_types.Confidence;
+pub const InstanceId = core_types.InstanceId;
 pub const SessionId = core_types.SessionId;
+pub const Role = core_types.Role;
+pub const TrustLevel = core_types.TrustLevel;
 pub const Relationship = core_types.Relationship;
 pub const Message = core_types.Message;
+pub const Topic = core_types.Topic;
+pub const Response = core_types.Response;
+pub const AbbeyError = core_types.AbbeyError;
+
+/// AI feature errors visible at the framework level.
+pub const FrameworkError = error{
+    AiDisabled,
+    LlmDisabled,
+    EmbeddingsDisabled,
+    AgentsDisabled,
+    ReasoningDisabled,
+    TrainingDisabled,
+    ModelNotFound,
+    InferenceFailed,
+} || AbbeyError;
 
 /// Available profile types in the system.
 pub const ProfileType = enum {
@@ -223,3 +241,7 @@ pub const ProfileInterface = struct {
         return self.vtable.getType(self.ptr);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

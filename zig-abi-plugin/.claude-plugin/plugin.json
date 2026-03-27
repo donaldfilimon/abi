@@ -1,17 +1,24 @@
 {
   "name": "zig-abi",
-  "version": "0.10.0",
-  "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, cross-platform builds, code review heuristics, and real-time verification for the ABI Zig codebase.",
+  "version": "0.11.0",
+  "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, pipeline DSL guidance, cross-platform builds, code review heuristics, and real-time verification for the ABI Zig codebase.",
   "author": {
     "name": "Donald Filimon"
   },
-  "keywords": ["zig", "abi", "mcp", "build", "validation", "feature-gating", "cross-platform"],
+  "keywords": ["zig", "abi", "mcp", "build", "validation", "feature-gating", "cross-platform", "pipeline", "wdbx"],
   "license": "MIT",
   "homepage": "https://github.com/donaldfilimon/abi",
   "skills": [
     "skills/build-troubleshooting/SKILL.md",
     "skills/zig-016-patterns/SKILL.md",
     "skills/feature-scaffolding/SKILL.md",
-    "skills/cross-check/SKILL.md"
+    "skills/cross-check/SKILL.md",
+    "skills/pipeline-dsl/SKILL.md"
+  ],
+  "agents": [
+    "agents/build-troubleshooter.md",
+    "agents/feature-scaffolder.md",
+    "agents/parity-checker.md",
+    "agents/pipeline-auditor.md"
   ]
 }

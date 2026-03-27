@@ -11,7 +11,7 @@
 //! - Response prefix and suffix injection
 
 const std = @import("std");
-const emotion = @import("emotion.zig");
+const emotion = @import("emotions.zig");
 const core_types = @import("../types.zig");
 
 /// Empathy template for specific emotions.
@@ -439,4 +439,8 @@ test "trajectory adaptation" {
     const stable_empathy = adaptToTrajectory(stable, 0.7);
 
     try std.testing.expect(escalating_empathy > stable_empathy);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

@@ -767,3 +767,7 @@ test {
     _ = @import("database_diagnostics.zig");
     _ = @import("database_test.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

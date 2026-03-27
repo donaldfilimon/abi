@@ -702,3 +702,7 @@ test "replace_by_id updates an existing vector in place" {
     try std.testing.expectEqualStrings("doc-1", results[0].id);
     try std.testing.expectEqualStrings("after", results[0].metadata.text);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -7,7 +7,12 @@
 //! `memory`, `storage`, `distributed`, and `retrieval` namespaces.
 //! This file covers only the feature-level error set.
 
-pub const DatabaseFeatureError = error{
+pub const FrameworkError = error{
     DatabaseDisabled,
-    FeatureDisabled,
+    ConnectionFailed,
+    QueryFailed,
+    IndexError,
+    StorageError,
 };
+
+pub const DatabaseFeatureError = FrameworkError;

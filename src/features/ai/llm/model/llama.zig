@@ -89,7 +89,7 @@ pub const LlamaModel = struct {
         self.allocator.free(self.layers);
 
         self.kv_cache.deinit();
-        @constCast(&self.rope_cache).deinit();
+        self.rope_cache.deinit();
         self.weights.deinit();
 
         if (self.tokenizer) |*t| {

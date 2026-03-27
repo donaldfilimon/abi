@@ -247,3 +247,5 @@ test "HttpMethod parsing" {
     try std.testing.expectEqual(HttpMethod.POST, HttpMethod.fromString("POST").?);
     try std.testing.expect(HttpMethod.fromString("INVALID") == null);
 }
+
+// refAllDecls deferred — aws_lambda, azure_functions, gcp_functions have pre-existing Zig 0.16 API errors

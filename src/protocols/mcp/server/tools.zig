@@ -95,3 +95,7 @@ pub fn handleToolsCall(
 
     try types.writeError(writer, rid, types.ErrorCode.method_not_found, "Unknown tool");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

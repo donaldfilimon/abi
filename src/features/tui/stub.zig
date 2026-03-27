@@ -1,7 +1,6 @@
 //! TUI stub — disabled at compile time.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
 
 pub const types = @import("types.zig");
 
@@ -29,10 +28,13 @@ pub const Context = struct {
     }
 };
 
-// Module-level lifecycle uses canonical StubFeatureNoConfig helper.
-const Stub = stub_helpers.StubFeatureNoConfig(TuiError);
-pub const isEnabled = Stub.isEnabled;
-pub const isInitialized = Stub.isInitialized;
+// Module-level lifecycle — inline for clarity, no helper needed.
+pub fn isEnabled() bool {
+    return false;
+}
+pub fn isInitialized() bool {
+    return false;
+}
 
 test {
     std.testing.refAllDecls(@This());

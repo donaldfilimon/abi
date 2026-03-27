@@ -656,7 +656,7 @@ test "ai: ConversationMemory records interaction" {
         .allocator = std.testing.allocator,
     };
 
-    const id = try mem.recordInteraction(decision, "How do I sort?", response);
+    const id = try mem.recordInteraction(decision, "How do I sort?", response, null);
     try std.testing.expect(id > 0);
     try std.testing.expectEqual(@as(u64, 1), mem.getInteractionCount());
 }

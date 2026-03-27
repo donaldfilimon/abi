@@ -400,6 +400,35 @@ pub const Framework = struct {
     pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) RegistryError![]Feature {
         return self.registry.listFeatures(allocator);
     }
+
+    /// Get a feature context by its enum member.
+    pub fn get(self: *Framework, comptime feature: Feature) Error!fi.FeatureContext(feature) {
+        if (!self.isEnabled(feature)) return error.FeatureDisabled;
+
+        return switch (feature) {
+            .gpu => self.gpu.?,
+            .ai => self.ai.?,
+            .database => self.database.?,
+            .network => self.network.?,
+            .observability => self.observability.?,
+            .web => self.web.?,
+            .cloud => self.cloud.?,
+            .analytics => self.analytics.?,
+            .auth => self.auth.?,
+            .messaging => self.messaging.?,
+            .cache => self.cache.?,
+            .storage => self.storage.?,
+            .search => self.search.?,
+            .gateway => self.gateway.?,
+            .pages => self.pages.?,
+            .benchmarks => self.benchmarks.?,
+            .mobile => self.mobile.?,
+            .compute => self.compute.?,
+            .documents => self.documents.?,
+            .desktop => self.desktop.?,
+            else => @compileError("Feature context retrieval not implemented for " ++ @tagName(feature)),
+        };
+    }
 };
 
 /// Fluent builder for Framework initialization.

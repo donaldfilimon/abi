@@ -110,13 +110,13 @@ fn computeBleuFromTokens(
         var total: f64 = 0;
 
         // Get hypothesis n-grams
-        const hyp_ngrams = try getNgrams(allocator, hyp_tokens, ngram_size);
+        var hyp_ngrams = try getNgrams(allocator, hyp_tokens, ngram_size);
         defer {
             var iter = hyp_ngrams.iterator();
             while (iter.next()) |entry| {
                 allocator.free(entry.key_ptr.*);
             }
-            @constCast(&hyp_ngrams).deinit(allocator);
+            hyp_ngrams.deinit(allocator);
         }
 
         // Precompute reference n-gram maps once per n-gram order (avoid O(H*R) recomputation)
@@ -130,7 +130,7 @@ fn computeBleuFromTokens(
             while (ref_iter.next()) |ref_entry| {
                 allocator.free(ref_entry.key_ptr.*);
             }
-            @constCast(&ref_ngram_maps[ri]).deinit(allocator);
+            ref_ngram_maps[ri].deinit(allocator);
         };
 
         // Count matches against precomputed reference maps

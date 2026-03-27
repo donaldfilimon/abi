@@ -417,3 +417,7 @@ test "condition signal unblocks waiter" {
     m.unlock();
     try std.testing.expectError(error.Timeout, result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

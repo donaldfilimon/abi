@@ -128,6 +128,9 @@ test "lsp: types sub-module is accessible" {
     _ = t;
 }
 
+// Sibling test modules (pulled in via refAllDecls)
+const _protocol = @import("lsp_protocol_test.zig");
+
 test {
     std.testing.refAllDecls(@This());
 }

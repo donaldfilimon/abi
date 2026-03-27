@@ -5,6 +5,8 @@
 //!
 //! Source of truth: principles.zig and enforcement/common.zig definitions.
 
+const std = @import("std");
+
 /// Severity level for a constitutional principle.
 pub const Severity = enum {
     advisory, // Suggest compliance; allow override
@@ -146,3 +148,25 @@ pub const BiasScore = struct {
         return @as(f32, @floatFromInt(self.flagged_count)) / @as(f32, @floatFromInt(self.attribute_count));
     }
 };
+
+test "safety score struct operations" {
+    var score = SafetyScore{
+        .is_safe = true,
+        .score = 1.0,
+        .violations = [_]?SafetyViolation{null} ** SafetyScore.MAX_SAFETY_VIOLATIONS,
+        .violation_count = 0,
+    };
+
+    score.addViolation(.{
+        .category = .shell_injection,
+        .severity = 0.8,
+        .description = "test violation",
+    });
+
+    try std.testing.expectEqual(@as(u8, 1), score.violation_count);
+    try std.testing.expect(score.violations[0] != null);
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

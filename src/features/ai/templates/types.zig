@@ -5,6 +5,8 @@
 //!
 //! Source of truth: parser.zig and renderer.zig definitions.
 
+const std = @import("std");
+
 /// Errors produced during template parsing.
 pub const ParseError = error{
     UnterminatedVariable,
@@ -85,3 +87,7 @@ pub const ChatMessage = struct {
     role: []const u8,
     content: []const u8,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

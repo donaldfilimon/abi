@@ -5,6 +5,8 @@
 //!
 //! Source of truth: engine.zig StepType definition.
 
+const std = @import("std");
+
 /// Type of reasoning step
 pub const StepType = enum {
     /// Initial assessment of the query
@@ -50,3 +52,7 @@ pub const StepType = enum {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

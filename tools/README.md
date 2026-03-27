@@ -2,7 +2,7 @@
 
 Helper scripts for managing the Zig toolchain and build environment.
 
-## zigup.sh -- Zig Version Manager
+## zigly -- Zig Version Manager
 
 Reads `.zigversion` from the repo root, downloads the matching Zig compiler and ZLS language server to `~/.cache/abi-zig/<version>/`, and optionally symlinks them onto your PATH.
 
@@ -10,7 +10,7 @@ Reads `.zigversion` from the repo root, downloads the matching Zig compiler and 
 
 ```bash
 # One-command project setup (recommended for new contributors)
-tools/zigup.sh --bootstrap
+tools/zigly --bootstrap
 ```
 
 This checks prerequisites, downloads zig + zls, symlinks them to `~/.local/bin`, verifies the installation, and prints platform-specific build instructions.

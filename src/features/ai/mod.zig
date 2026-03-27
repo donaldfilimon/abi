@@ -42,6 +42,7 @@ pub const prompts = if (build_options.feat_ai) @import("prompts/mod.zig") else @
 pub const memory = if (build_options.feat_ai) @import("memory/mod.zig") else @import("memory/stub.zig");
 pub const reasoning = if (build_options.feat_reasoning) @import("reasoning/mod.zig") else @import("reasoning/stub.zig");
 pub const constitution = if (build_options.feat_reasoning) @import("constitution/mod.zig") else @import("constitution/stub.zig");
+pub const pipeline = if (build_options.feat_reasoning) @import("pipeline/mod.zig") else @import("pipeline/stub.zig");
 pub const eval = if (build_options.feat_reasoning) @import("eval/mod.zig") else @import("eval/stub.zig");
 pub const rag = if (build_options.feat_reasoning) @import("rag/mod.zig") else @import("rag/stub.zig");
 pub const templates = if (build_options.feat_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
@@ -54,6 +55,8 @@ pub const coordination = if (build_options.feat_ai) @import("coordination/mod.zi
 pub const models = if (build_options.feat_ai) @import("models/mod.zig") else @import("models/stub.zig");
 pub const transformer = if (build_options.feat_ai) @import("transformer/mod.zig") else @import("transformer/stub.zig");
 pub const federated = if (build_options.feat_ai) @import("federated/mod.zig") else @import("federated/stub.zig");
+pub const feedback = if (build_options.feat_ai) @import("feedback/mod.zig") else @import("feedback/stub.zig");
+pub const compliance = if (build_options.feat_ai) @import("compliance/mod.zig") else @import("compliance/stub.zig");
 
 /// Multi-profile orchestration: registry, router, collaboration bus.
 pub const profile = if (build_options.feat_ai) @import("profile/mod.zig") else @import("profile/stub.zig");

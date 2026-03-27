@@ -4,6 +4,5 @@ const std = @import("std");
 const network = @import("features/network/mod.zig");
 
 test {
-    _ = network;
     std.testing.refAllDecls(network);
 }

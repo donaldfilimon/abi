@@ -183,7 +183,7 @@ pub const TlsConnection = struct {
 
     fn performClientHandshake(self: *TlsConnection) !void {
         // Generate client random
-        csprng.fillRandom(&self.client_random) catch unreachable;
+        try csprng.fillRandom(&self.client_random);
 
         // Send ClientHello
         self.handshake_state = .client_hello_sent;
@@ -209,7 +209,7 @@ pub const TlsConnection = struct {
 
     fn performServerHandshake(self: *TlsConnection) !void {
         // Generate server random
-        csprng.fillRandom(&self.server_random) catch unreachable;
+        try csprng.fillRandom(&self.server_random);
 
         // Receive ClientHello
         try self.receiveClientHello();
@@ -232,6 +232,9 @@ pub const TlsConnection = struct {
         self.negotiated_cipher = "TLS_AES_256_GCM_SHA384";
     }
 
+    /// NOTE: TLS handshake is simulated — not production-ready.
+    /// All handshake functions below allocate buffers to exercise the
+    /// allocator path but do not perform real TLS wire-protocol I/O.
     fn sendClientHello(self: *TlsConnection) !void {
         // TLS handshake not yet fully implemented - currently simulated
         // Requirements for real ClientHello:

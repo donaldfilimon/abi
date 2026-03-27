@@ -369,3 +369,5 @@ test "freeResponse releases body memory" {
     freeResponse(std.testing.allocator, response);
     // No leak = test passes (testing.allocator detects leaks)
 }
+
+// refAllDecls deferred — middleware/auth, profile_routes, server/ have pre-existing Zig 0.16 API errors

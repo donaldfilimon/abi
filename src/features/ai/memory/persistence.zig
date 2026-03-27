@@ -395,18 +395,7 @@ fn deserializeSession(allocator: std.mem.Allocator, json_content: []const u8) !S
     };
 }
 
-fn appendEscaped(allocator: std.mem.Allocator, list: *std.ArrayListUnmanaged(u8), str: []const u8) !void {
-    for (str) |c| {
-        switch (c) {
-            '"' => try list.appendSlice(allocator, "\\\""),
-            '\\' => try list.appendSlice(allocator, "\\\\"),
-            '\n' => try list.appendSlice(allocator, "\\n"),
-            '\r' => try list.appendSlice(allocator, "\\r"),
-            '\t' => try list.appendSlice(allocator, "\\t"),
-            else => try list.append(allocator, c),
-        }
-    }
-}
+const appendEscaped = @import("../../../foundation/utils/json.zig").appendJsonEscaped;
 
 fn memoryTypeToString(mt: MemoryType) []const u8 {
     return switch (mt) {

@@ -43,3 +43,7 @@ pub const Orchestrator = struct {
         return entry.iface.run(self.allocator, request);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

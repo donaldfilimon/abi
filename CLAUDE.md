@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
-Zig version is pinned in `.zigversion`. The zig version manager auto-downloads the correct version:
+Zig version is pinned in `.zigversion` (currently `0.16.0-dev.2984+cb7d2b056`). The zig version manager auto-downloads the correct version:
 
 ```bash
-tools/zigup.sh --status    # Print zig path (auto-install if missing)
-tools/zigup.sh --link      # Symlink zig + zls into ~/.local/bin
-tools/zigup.sh --bootstrap # One-command project setup (install, link, verify)
-tools/zigup.sh --doctor    # Toolchain health check (versions, PATH, platform)
+zigly --status    # Print zig path (auto-install if missing)
+zigly --link      # Symlink zig + zls into ~/.local/bin
+zigly --bootstrap # One-command project setup (install, link, verify)
+zigly --doctor    # Toolchain health check (versions, PATH, platform)
 # Also: --install, --unlink, --update, --check, --clean
 ```
 
@@ -31,11 +31,21 @@ Auto-update checker:
 tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
-Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
+Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
+`zigly` also detects system-installed zig from zvm (`~/.zvm/bin/zig`) or brew, preferring those over its own cache when the version matches `.zigversion`. If zvm is installed, `zvm install master` provides both zig and zls.
 
-To make zig and zls available globally, run `tools/zigup.sh --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
+To make zig and zls available globally, run `zigly --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Quick Verify (fresh clone)
+
+```bash
+zigly --bootstrap         # Install zig + zls, symlink, verify
+./build.sh test -Dfeat-gpu=false --summary all  # macOS 26.4+
+```
+# or: zig build test --summary all               # Linux / older macOS
 ```
 
 ### Claude Code Plugin
@@ -62,16 +72,36 @@ zig build fix                      # Auto-format in place
 zig build check-parity             # Verify mod/stub declaration parity
 zig build feature-tests            # Run feature integration and parity tests
 zig build mcp-tests                # Run MCP integration tests
-zig build messaging-tests          # Run messaging unit + integration tests
-zig build secrets-tests            # Run secrets unit + integration tests
-zig build pitr-tests               # Run PITR unit + integration tests
-zig build agents-tests             # Run agents unit + integration tests
-zig build multi-agent-tests        # Run multi-agent unit + integration tests
-zig build orchestration-tests      # Run orchestration unit + integration tests
-zig build gateway-tests            # Run gateway unit + integration tests
-zig build inference-tests          # Run inference unit + integration tests
 zig build cli-tests                # Run CLI tests
 zig build tui-tests                # Run TUI tests
+# Focused feature test lanes (27 total — each runs unit + integration tests):
+zig build acp-tests                # ACP protocol tests
+zig build agents-tests             # Agents tests
+zig build auth-tests               # Auth tests
+zig build cache-tests              # Cache tests
+zig build cloud-tests              # Cloud tests
+zig build compute-tests            # Compute tests
+zig build connectors-tests         # Connectors tests
+zig build database-tests           # Database tests
+zig build desktop-tests            # Desktop tests
+zig build documents-tests          # Documents tests
+zig build gateway-tests            # Gateway tests
+zig build gpu-tests                # GPU tests
+zig build ha-tests                 # HA protocol tests
+zig build inference-tests          # Inference tests
+zig build lsp-tests                # LSP protocol tests
+zig build messaging-tests          # Messaging tests
+zig build multi-agent-tests        # Multi-agent tests
+zig build network-tests            # Network tests
+zig build observability-tests      # Observability tests
+zig build orchestration-tests      # Orchestration tests
+zig build pipeline-tests           # Pipeline DSL tests
+zig build pitr-tests               # PITR tests
+zig build search-tests             # Search tests
+zig build secrets-tests            # Secrets tests
+zig build storage-tests            # Storage tests
+zig build tasks-tests              # Tasks tests
+zig build web-tests                # Web tests
 zig build typecheck                # Compile-only validation for the current/selected target
 zig build validate-flags           # Validate feature flags
 zig build full-check               # Run full check
@@ -81,11 +111,6 @@ zig build lib                      # Build static library artifact
 zig build mcp                      # Build MCP stdio server (zig-out/bin/abi-mcp)
 zig build cli                      # Build ABI CLI binary (zig-out/bin/abi)
 zig build doctor                   # Report build configuration and diagnostics
-```
-
-```bash
-# macOS 26.4+ test workaround (LLD cannot resolve Accelerate framework):
-./build.sh test -Dfeat-gpu=false --summary all
 ```
 
 Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
@@ -98,9 +123,9 @@ Build with `zig build cli` (or `./build.sh cli`). Binary: `zig-out/bin/abi`.
 abi                    # Smart status (feature count, enabled/disabled tags)
 abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
-abi features           # List all 32 features from catalog with [+]/[-] status
+abi features           # List all 35 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
-abi connectors         # List 16 LLM provider connectors with env vars
+abi connectors         # List 12 LLM provider connectors with env vars
 abi info               # Framework architecture summary
 abi chat <message...>  # Route through multi-profile pipeline
 abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
@@ -110,28 +135,21 @@ abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)
 abi help               # Full help reference
 ```
 
-On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binaries. Use `./build.sh` which auto-relinks with Apple's native linker. This applies to **all** build steps including tests: `./build.sh test --summary all`. The wrapper also auto-retries with `-Dfeat-gpu=false` when Accelerate framework symbols fail to resolve. On Linux / older macOS, `zig build` works directly.
+`./build.sh` is a macOS 26.4+ (Darwin 25.x) wrapper that patches Zig's LLD linker incompatibility with the macOS SDK. It passes all arguments through to `zig build` (e.g., `./build.sh test --summary all`, `./build.sh -Dfeat-gpu=false`). The `--link` flag additionally symlinks zig+zls to `~/.local/bin`. On Linux / older macOS, `zig build` works directly.
+
+**Why `build.sh` is required (not optional) on macOS 26.4+:** Zig compiles `build.zig` into a "build runner" binary *before* `build()` runs, using its internal LLD. On Darwin 25.x, LLD can't resolve system symbols from SDK `.tbd` files (arm64e vs arm64 mismatch). Our `use_lld = false` settings only affect artifacts created inside `build()`, not the build runner itself. This is a Zig compiler limitation — `build.sh` works around it by relinking the build runner with Apple's `/usr/bin/ld`.
 
 ### Running Single Tests
-
-To run a specific test or subset of tests:
 
 ```bash
 # Run a specific test by name pattern
 zig build test --summary all -- --test-filter "test_name_pattern"
 
-# Run focused test lane for a specific feature
-zig build messaging-tests      # messaging unit + integration tests
-zig build secrets-tests          # secrets unit + integration tests
-zig build pitr-tests             # PITR unit + integration tests
-zig build agents-tests           # agents unit + integration tests
-zig build multi-agent-tests      # multi-agent unit + integration tests
-zig build orchestration-tests    # orchestration unit + integration tests
-zig build gateway-tests          # gateway unit + integration tests
-zig build inference-tests        # inference unit + integration tests
-zig build cli-tests              # CLI tests
-zig build tui-tests              # TUI tests
+# On macOS 26.4+:
+./build.sh test --summary all -- --test-filter "test_name_pattern"
 ```
+
+Focused test lanes (e.g., `zig build messaging-tests`) are listed in Build Commands above.
 
 ### Feature Flags
 
@@ -146,7 +164,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 - `build/flags.zig` — `FeatureFlags` struct, `hasBackend()`, `addAllBuildOptions()`
 - `build/cross.zig` — cross-compilation targets (typecheck, cross-check steps)
 - `build/linking.zig` — `linkDarwinArtifact()` for macOS framework linking
-- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring. Uses `addFeatureTestLane()` helper for feature-specific test steps (messaging, secrets, pitr, agents, multi_agent, orchestration, gateway, inference)
+- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring. Uses `addFeatureTestLane()` helper for all 26 feature-specific test steps
 
 ## Architecture
 
@@ -154,7 +172,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 20 feature directories under src/features/ (32 features total including AI sub-features in the catalog)
+- `src/features/` — 20 feature directories under src/features/ (35 features total including AI sub-features in the catalog)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction
@@ -197,13 +215,15 @@ The `ai` feature (`src/features/ai/`) contains 33+ sub-directories organized by 
 - **Agents:** `agents/`, `tools/`, `multi_agent/`, `coordination/`, `orchestration/`
 - **Learning:** `training/`, `memory/`, `federated/`
 - **Support:** `templates/`, `prompts/`, `documents/`, `profiles/`, `context_engine/`
+- **Pipeline:** `pipeline/` (composable prompt DSL with WDBX-backed steps)
 - **Standalone:** `modulation.zig` (EMA preference learning), `self_improve.zig`, `profile/` (router pipeline)
 
 ### Convenience Aliases in root.zig
 
 - `abi.meta.package_version` / `abi.meta.version()` — version string from build options
 - `abi.meta.features` — re-exports `src/core/feature_catalog.zig`
-- `abi.app.App` / `abi.app.AppBuilder` / `abi.app.builder(allocator)` — framework lifecycle wrappers around `abi.framework`
+- `abi.App` / `abi.AppBuilder` / `abi.appBuilder(allocator)` — framework lifecycle (shorthand for `abi.framework.Framework` etc.)
+- `abi.version()` — shorthand for `abi.meta.version()`
 
 ### Build Options
 
@@ -245,7 +265,7 @@ To add a new integration test:
 
 #### Focused Test Lanes
 
-Eight `src/*_mod_test.zig` files (agents, gateway, inference, messaging, multi_agent, orchestration, pitr, secrets) are **test anchor** files. (Note: `multi_agent` lane was wired in `build/validation.zig` — create the anchor files if missing.) They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
+27 `src/*_mod_test.zig` files (acp, agents, auth, cache, cloud, compute, connectors, database, desktop, documents, gateway, gpu, ha, inference, lsp, messaging, multi_agent, network, observability, orchestration, pipeline, pitr, search, secrets, storage, tasks, web) are **test anchor** files. They sit at `src/` root so relative imports like `@import("features/messaging/mod.zig")` resolve correctly. Each anchor imports the feature's module and test file, then `refAllDecls` walks them. Corresponding `test/*_mod.zig` files (e.g., `test/messaging_mod.zig`) serve as integration test entry points for the same lane.
 
 `build/validation.zig` wires each pair into a focused build step via `addModuleTests()` (unit, from `src/`) and `addIntegrationTests()` (integration, from `test/`). Both are combined under a single step like `zig build messaging-tests`.
 
@@ -275,9 +295,36 @@ User Input → Abi Analysis (sentiment + policy + rules)
 
 Key files: `profile/router.zig` (orchestration), `profile/memory.zig` (WDBX storage), `abi/mod.zig` (routing), `modulation.zig` (preference learning), `constitution/mod.zig` (ethical enforcement).
 
+### Abbey Dynamic Model (Pipeline DSL)
+
+The pipeline DSL (`src/features/ai/pipeline/`) provides a composable, chainable alternative to the procedural router pipeline. Each step is a typed operation backed by WDBX blocks:
+```zig
+var builder = abi.ai.pipeline.chain(allocator, "session-123");
+var p = builder
+    .withChain(&wdbx_chain)
+    .retrieve(.wdbx, .{ .k = 5 })
+    .template("Given {context}, respond to: {input}")
+    .route(.adaptive)
+    .modulate()
+    .generate(.{})
+    .validate(.constitution)
+    .store(.wdbx)
+    .build();
+const result = try p.run("Hello Abbey!");
+```
+
+Key files: `pipeline/mod.zig` (entry), `pipeline/builder.zig` (DSL), `pipeline/executor.zig` (runner), `pipeline/context.zig` (state), `pipeline/persistence.zig` (WDBX adapter), `pipeline/steps/` (10 step implementations). Gated by `feat_reasoning`. Focused test lane: `zig build pipeline-tests`.
+
+The router also exposes `routeAndExecutePipeline()` which builds the standard pipeline and runs it. `AdaptiveModulator.attachWdbx()` enables write-behind persistence of modulation state to WDBX.
+
 ### ACP HTTP Server
 
 `abi serve` (or `abi acp serve`) starts an HTTP server on `127.0.0.1:8080` exposing the Agent Communication Protocol. Entry: `src/protocols/acp/server/mod.zig`. Gated by `feat_acp`. The server wires together task management (`src/protocols/acp/server/tasks.zig`) with the ACP protocol layer.
+
+The ACP server also includes:
+- **Discord gateway bridge** (`server/discord_routes.zig`) — routes Discord interactions through ACP
+- **OpenAPI 3.1.0 spec** (`server/openapi.zig`) — auto-generated API documentation
+- **Rich route responses** (`server/routing.zig`) — structured JSON responses with metadata
 
 ### Inference Engine
 
@@ -314,6 +361,13 @@ Additional specifications:
 - `src/core/feature_catalog.zig` is the canonical source of truth for feature metadata.
 - `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, and `StubContextWithConfig` — reuse these in stubs instead of defining custom lifecycle boilerplate.
 - Integration tests in `test/` must use public API accessors (e.g., `manager.getStatus()`) not direct struct field access. This preserves the consumer-API boundary and thread-safety contract.
+- Use `linkIfDarwin()` from `build/linking.zig` instead of inline macOS checks — 13 callsites consolidated.
+- AI sub-feature stubs under `src/features/ai/*/stub.zig` are domain-specific and intentionally don't use generic `stub_helpers.zig` helpers.
+- For non-trivial tasks: read `tasks/lessons.md` and update `tasks/todo.md` before implementation. Keep `tasks/` for workflow notes only — do not confuse with `src/tasks/`.
+- **Database engine thread safety**: every public `Engine` method must acquire `db_lock` before reading `vectors_array`, `hnsw_index`, `ai_client`, or `cache`.
+- **JSON utilities**: use `foundation/utils/json.zig` for escaping — never reimplement in protocol-specific files (ACP, MCP, etc.).
+- **AI pipeline memory**: string literals in `ProfileResponse.content` crash on `deinit` — always `allocator.dupe()` heap copies before storing.
+- **Abbey emotion files**: `emotion.zig` and `emotions.zig` both exist — `emotions.zig` is canonical; don't import `emotion.zig`.
 
 ### Error Handling Convention
 
@@ -352,6 +406,26 @@ The repository includes 8 specialized agents in `.claude/agents/`:
 - **abbey-aviva-abi-architect** — Multi-persona AI pipeline expert (profile routing, persona modulation, constitution validation, WDBX memory)
 
 Invoke these agents via the `Agent` tool with `subagent_type: "<agent-name>"`.
+
+## Available Skills
+
+The repository includes 6 skills in `.claude/skills/`:
+
+- **lessons-review** — Reviews `tasks/lessons.md` for recurring pitfalls before starting work (Zig 0.16 API changes, mod/stub parity, macOS linker, thread safety)
+- **stub-audit** — Verifies AI sub-feature stubs match their `mod.zig` public API and use `stub_helpers.zig` appropriately
+- **cross-check** — Runs cross-compilation verification for linux, wasi, x86_64 targets; validates comptime feature gating
+- **baseline-sync** — Tracks test pass/skip counts from test runs and reports drift from previous baselines
+- **full-check** — One-command full validation gate: lint, parity, tests, feature-tests, cross-check
+- **pre-commit-check** — Run lint + parity check before committing; catches 80% of CI failures locally
+
+## Code Style
+
+- Functions and variables: `camelCase`
+- Types and structs: `PascalCase`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Enum variants: `snake_case`
+- Doc comments (`///`) on public API only — not on internal helpers
+- GPU backends use a VTable pattern for backend-agnostic dispatch (see `src/features/gpu/`)
 
 ## Skill Overrides
 

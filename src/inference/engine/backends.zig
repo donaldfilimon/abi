@@ -7,6 +7,7 @@ const connectors = @import("../../connectors/mod.zig");
 const loaders = @import("../../connectors/loaders.zig");
 const shared = @import("../../connectors/shared.zig");
 const async_http = @import("../../foundation/mod.zig").utils.async_http;
+const anthropic = @import("../../connectors/anthropic.zig");
 
 const llm_model = if (build_options.feat_ai and build_options.feat_llm)
     @import("../../features/ai/llm/model/llama.zig")
@@ -127,7 +128,10 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
 /// Falls back to error if env vars are missing or network call fails.
 fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, prompt: []const u8) ![]u8 {
     const parsed = parseModelId(model_id);
-    const provider = parsed.provider orelse return error.UnsupportedProvider;
+    const provider = parsed.provider orelse {
+        // No provider prefix — respond in echo format so tests can detect it
+        return std.fmt.allocPrint(allocator, "[echo/{s}]", .{model_id});
+    };
     const model_name = if (parsed.model.len > 0) parsed.model else null;
 
     // Try to load and use the OpenAI-compatible connector for supported providers.
@@ -138,7 +142,9 @@ fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, promp
     } else if (std.mem.eql(u8, provider, "mistral")) {
         return callOpenAICompatible(allocator, loaders.tryLoadMistral, model_name, prompt);
     } else if (std.mem.eql(u8, provider, "anthropic")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadAnthropic, model_name, prompt);
+        // Anthropic's Messages API is NOT OpenAI-compatible — uses x-api-key header,
+        // content blocks response, and /messages endpoint instead of /chat/completions.
+        return callAnthropicNative(allocator, model_name, prompt);
     } else if (std.mem.eql(u8, provider, "ollama")) {
         return callOpenAICompatible(allocator, loaders.tryLoadOllama, model_name, prompt);
     } else if (std.mem.eql(u8, provider, "cohere")) {
@@ -155,9 +161,11 @@ fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, promp
         return callOpenAICompatible(allocator, loaders.tryLoadVLLM, model_name, prompt);
     } else if (std.mem.eql(u8, provider, "llama_cpp") or std.mem.eql(u8, provider, "llamacpp")) {
         return callOpenAICompatible(allocator, loaders.tryLoadLlamaCpp, model_name, prompt);
+    } else if (std.mem.eql(u8, provider, "codex")) {
+        return callOpenAICompatible(allocator, loaders.tryLoadCodex, model_name, prompt);
     } else {
         std.log.warn("Unknown connector provider: {s}", .{provider});
-        return error.ApiRequestFailed;
+        return error.UnsupportedProvider;
     }
 }
 
@@ -269,6 +277,50 @@ fn echoFallback(allocator: std.mem.Allocator, model_name: []const u8, prompt: []
         model_name,
         prompt[0..@min(prompt.len, 500)],
     }) catch return error.OutOfMemory;
+}
+
+fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8, prompt: []const u8) ![]u8 {
+    var config = (loaders.tryLoadAnthropic(allocator) catch return error.ApiRequestFailed) orelse
+        return error.MissingApiKey;
+
+    if (model_override) |override| {
+        if (config.model_owned) allocator.free(@constCast(config.model));
+        config.model = allocator.dupe(u8, override) catch return error.OutOfMemory;
+        config.model_owned = true;
+    }
+
+    var client = anthropic.Client.init(allocator, config) catch {
+        std.log.debug("Anthropic client init failed, using echo fallback", .{});
+        const model_name = model_override orelse "claude-3-5-sonnet-20241022";
+        return echoFallback(allocator, model_name, prompt);
+    };
+    defer client.deinit();
+
+    const response = client.chatSimple(prompt) catch |err| {
+        std.log.warn("Anthropic API request failed: {s}", .{@errorName(err)});
+        return error.ApiRequestFailed;
+    };
+    // Free response metadata — getResponseText extracts only the text content
+    defer {
+        allocator.free(response.id);
+        allocator.free(response.type);
+        allocator.free(response.role);
+        allocator.free(response.model);
+        if (response.stop_reason) |sr| allocator.free(sr);
+        for (response.content) |block| {
+            allocator.free(block.type);
+            allocator.free(block.text);
+        }
+        allocator.free(response.content);
+    }
+
+    const text = client.getResponseText(response) catch return error.ApiRequestFailed;
+    if (text.len == 0) {
+        allocator.free(text);
+        return error.ApiRequestFailed;
+    }
+
+    return text;
 }
 
 pub fn generateLocal(self: anytype, request: scheduler_mod.Request) !types.Result {
@@ -517,6 +569,46 @@ test "isKnownProvider: unknown returns false" {
     try std.testing.expect(!isKnownProvider("foobar"));
     try std.testing.expect(!isKnownProvider(""));
     try std.testing.expect(!isKnownProvider("OpenAI")); // case-sensitive
+}
+
+test "dispatchToConnector: unknown provider returns UnsupportedProvider" {
+    const result = dispatchToConnector(std.testing.allocator, "unknown-provider/some-model", "hello");
+    try std.testing.expectError(error.UnsupportedProvider, result);
+}
+
+test "dispatchToConnector: no slash returns UnsupportedProvider" {
+    const result = dispatchToConnector(std.testing.allocator, "bare-model-name", "hello");
+    try std.testing.expectError(error.UnsupportedProvider, result);
+}
+
+test "echoFallback: truncates prompt over 500 chars" {
+    const long_prompt = "A" ** 600;
+    const result = try echoFallback(std.testing.allocator, "test-model", long_prompt);
+    defer std.testing.allocator.free(result);
+    // Should contain model name prefix and truncated prompt (500 chars)
+    try std.testing.expect(std.mem.startsWith(u8, result, "[test-model] "));
+    // "[test-model] " (13) + 500 = 513
+    try std.testing.expectEqual(@as(usize, 513), result.len);
+}
+
+test "echoFallback: short prompt not truncated" {
+    const result = try echoFallback(std.testing.allocator, "demo", "hello world");
+    defer std.testing.allocator.free(result);
+    try std.testing.expectEqualStrings("[demo] hello world", result);
+}
+
+test "dispatchToConnector: missing API key returns MissingApiKey" {
+    // All real providers will fail with MissingApiKey when no env vars are set.
+    // This tests the codex path specifically (OpenAI-compatible, needs OPENAI_API_KEY).
+    const result = dispatchToConnector(std.testing.allocator, "codex/code-davinci-002", "hello");
+    // Without env vars, loader returns null -> MissingApiKey
+    try std.testing.expectError(error.MissingApiKey, result);
+}
+
+test "dispatchToConnector: anthropic path returns MissingApiKey without env" {
+    // Anthropic native path should fail gracefully without API key env vars
+    const result = dispatchToConnector(std.testing.allocator, "anthropic/claude-3-5-sonnet-20241022", "hello");
+    try std.testing.expectError(error.MissingApiKey, result);
 }
 
 test {

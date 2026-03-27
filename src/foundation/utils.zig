@@ -321,3 +321,5 @@ test "Time helpers" {
     // On first call, elapsed time from app start might be 0
     try std.testing.expect(s >= 0);
 }
+
+// refAllDecls deferred — memory/stack.zig and memory/thread_cache.zig have pre-existing Zig 0.16 errors

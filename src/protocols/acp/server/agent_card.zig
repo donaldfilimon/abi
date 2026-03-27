@@ -93,3 +93,7 @@ test "AgentCard toJson includes new capabilities" {
     try std.testing.expect(std.mem.indexOf(u8, json, "\"stateTransitionHistory\":true") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"extensions\":false") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

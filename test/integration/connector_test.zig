@@ -656,6 +656,9 @@ test "connectors: shared mapHttpStatus maps correctly" {
     try std.testing.expectEqual(connectors.shared.ConnectorError.ApiRequestFailed, connectors.shared.mapHttpStatus(400));
 }
 
+// Sibling test modules (pulled in via refAllDecls)
+const _errors = @import("connector_errors_test.zig");
+
 test {
     std.testing.refAllDecls(@This());
 }

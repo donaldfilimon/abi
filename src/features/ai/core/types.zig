@@ -104,6 +104,12 @@ pub const InstanceId = struct {
         }
         return result;
     }
+
+    pub fn formatNumber(self: InstanceId, writer: anytype, options: anytype) !void {
+        _ = options;
+        const hex = self.toHex();
+        try writer.writeAll(&hex);
+    }
 };
 
 /// Session identifier for conversation continuity
@@ -593,4 +599,8 @@ test "instance id generation" {
     const id2 = InstanceId.generate();
     // IDs should be different (with very high probability)
     try std.testing.expect(!std.mem.eql(u8, &id1.bytes, &id2.bytes));
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

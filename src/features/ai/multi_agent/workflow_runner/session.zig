@@ -95,8 +95,13 @@ pub const RunSession = struct {
 };
 
 fn elapsedMs(timer: ?time.Timer) u64 {
-    return if (timer) |*resolved|
-        resolved.read() / std.time.ns_per_ms
-    else
-        0;
+    if (timer) |resolved| {
+        var t = resolved;
+        return t.read() / std.time.ns_per_ms;
+    }
+    return 0;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

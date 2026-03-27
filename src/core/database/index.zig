@@ -951,3 +951,7 @@ test "index manager save and load" {
     defer allocator.free(results);
     try std.testing.expect(results.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

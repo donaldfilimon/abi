@@ -380,3 +380,7 @@ pub fn Providers(comptime Manager: type) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

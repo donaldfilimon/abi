@@ -65,11 +65,12 @@ pub const WarmupResult = discovery.WarmupResult;
 pub const detectCapabilities = discovery.detectCapabilities;
 pub const runWarmup = discovery.runWarmup;
 
-// Core types
-pub const Confidence = core.Confidence;
-pub const ConfidenceLevel = core.ConfidenceLevel;
-pub const EmotionalState = core.EmotionalState;
-pub const EmotionType = core.EmotionType;
+// Core AI types
+const ai_core_types = @import("../core/types.zig");
+pub const Confidence = ai_core_types.Confidence;
+pub const ConfidenceLevel = ai_core_types.ConfidenceLevel;
+pub const EmotionalState = ai_core_types.EmotionalState;
+pub const EmotionType = ai_core_types.EmotionType;
 
 // ============================================================================
 // Error
@@ -185,4 +186,8 @@ test "ai_core type re-exports are distinct types" {
     try std.testing.expect(@TypeOf(MultiAgentCoordinator) != void);
     try std.testing.expect(@TypeOf(Profile) != void);
     try std.testing.expect(@TypeOf(ProfileType) != void);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

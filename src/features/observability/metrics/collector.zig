@@ -84,7 +84,7 @@ pub const Histogram = struct {
     bounds: []u64,
     mutex: Mutex = .{},
 
-    pub fn init(allocator: std.mem.Allocator, name: []const u8, bounds: []u64) !Histogram {
+    pub fn init(allocator: std.mem.Allocator, name: []const u8, bounds: []const u64) !Histogram {
         const bucket_copy = try allocator.alloc(u64, bounds.len + 1);
         errdefer allocator.free(bucket_copy);
         const bound_copy = try allocator.alloc(u64, bounds.len);

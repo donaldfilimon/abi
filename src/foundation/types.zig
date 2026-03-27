@@ -148,3 +148,7 @@ test "confidence level from score" {
     try std.testing.expectEqual(ConfidenceLevel.certain, ConfidenceLevel.fromScore(0.98));
     try std.testing.expectEqual(ConfidenceLevel.unknown, ConfidenceLevel.fromScore(0.1));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -68,3 +68,7 @@ test "Session toJson" {
     try std.testing.expect(std.mem.indexOf(u8, json, "session-1") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "test-meta") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

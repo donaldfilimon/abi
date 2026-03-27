@@ -2,6 +2,7 @@
 
 const std = @import("std");
 pub const types = @import("types.zig");
+const pipeline_types = @import("../pipeline/types.zig");
 
 pub const ProfileId = types.ProfileId;
 pub const ProfileState = types.ProfileState;
@@ -91,6 +92,9 @@ pub const ProfileBus = struct {
 pub const ConversationMemory = struct {
     pub fn init(_: std.mem.Allocator) ConversationMemory {
         return .{};
+    }
+    pub fn asStoreStep(_: *const ConversationMemory) pipeline_types.StoreConfig {
+        return .{ .target = .wdbx };
     }
     pub fn deinit(_: *ConversationMemory) void {}
 };
