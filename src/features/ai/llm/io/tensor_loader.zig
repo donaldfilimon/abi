@@ -46,6 +46,8 @@ pub const TensorLoader = struct {
             },
             .q4_0 => try dequantizeQ4_0(data, result),
             .q8_0 => try dequantizeQ8_0(data, result),
+            .q4_k => try dequantizeQ4_K(data, result),
+            .q5_k => try dequantizeQ5_K(data, result),
             .q6_k => try dequantizeQ6_K(data, result),
             .mxfp4 => try dequantizeMXFP4(data, result),
             else => return error.UnsupportedQuantization,
@@ -102,6 +104,25 @@ pub const MXFP4Block = extern struct {
     qs: [16]u8,
 };
 
+/// Q4_K block: 256 values with 4-bit quants, 6-bit scales, and f16 d/dmin
+/// Layout (144 bytes): d(f16) + dmin(f16) + scales(12 bytes) + quants(128 bytes)
+pub const Q4_KBlock = extern struct {
+    d: f16, // super-block scale
+    dmin: f16, // super-block min
+    scales: [12]u8, // 6-bit scale values, packed
+    quants: [128]u8, // 4-bit quantized values (256 values packed as nibbles)
+};
+
+/// Q5_K block: 256 values with 5-bit quants, 6-bit scales, and f16 d/dmin
+/// Layout (176 bytes): d(f16) + dmin(f16) + scales(12 bytes) + qh(32 bytes) + quants(128 bytes)
+pub const Q5_KBlock = extern struct {
+    d: f16, // super-block scale
+    dmin: f16, // super-block min
+    scales: [12]u8, // 6-bit scale values, packed
+    qh: [32]u8, // high bits for 5th bit
+    quants: [128]u8, // low 4-bit quantized values (256 values packed as nibbles)
+};
+
 /// Q6_K block: 256 values with per-16 scale and a global scale
 pub const Q6_KBlock = extern struct {
     ql: [128]u8, // low 4 bits
@@ -156,6 +177,108 @@ pub fn dequantizeQ8_0(data: []const u8, output: []f32) !void {
 
         for (0..32) |i| {
             output[base + i] = @as(f32, @floatFromInt(block.quants[i])) * scale;
+        }
+    }
+}
+
+// Decode 6-bit scale and min for sub-block j (0..7) from the packed 12-byte
+// scales field shared by Q4_K and Q5_K blocks. Encoding matches llama.cpp
+// get_scale_min_k4().
+fn decodeQ4KScales(scales_raw: [12]u8, j: usize) struct { scale: u8, min: u8 } {
+    if (j < 4) {
+        return .{
+            .scale = scales_raw[j] & 0x3F,
+            .min = scales_raw[j + 4] & 0x3F,
+        };
+    } else {
+        const idx = j - 4;
+        return .{
+            .scale = (scales_raw[idx] >> 6) | ((scales_raw[idx + 8] & 0x0F) << 2),
+            .min = (scales_raw[idx + 4] >> 6) | ((scales_raw[idx + 8] >> 4) << 2),
+        };
+    }
+}
+
+/// Dequantize Q4_K data to f32 (Q4_K_M format — the most common GGUF 4-bit quantization).
+/// Each super-block contains 256 elements in 8 sub-blocks of 32.
+/// Reference: llama.cpp dequantize_row_q4_K
+pub fn dequantizeQ4_K(data: []const u8, output: []f32) !void {
+    const block_size = 256;
+    const bytes_per_block = @sizeOf(Q4_KBlock);
+    const num_blocks = data.len / bytes_per_block;
+
+    if (output.len < num_blocks * block_size) {
+        return error.ShapeMismatch;
+    }
+
+    const blocks: []const Q4_KBlock = @alignCast(std.mem.bytesAsSlice(Q4_KBlock, data[0 .. num_blocks * bytes_per_block]));
+
+    for (blocks, 0..) |block, block_idx| {
+        const d: f32 = @floatCast(block.d);
+        const dmin: f32 = @floatCast(block.dmin);
+        const base = block_idx * block_size;
+
+        // 8 sub-blocks of 32 elements each
+        for (0..8) |j| {
+            const sm = decodeQ4KScales(block.scales, j);
+            const scale: f32 = d * @as(f32, @floatFromInt(sm.scale));
+            const min: f32 = dmin * @as(f32, @floatFromInt(sm.min));
+            const sub_base = base + j * 32;
+            const q_offset = j * 16; // 32 values packed as 16 bytes of nibbles
+
+            for (0..16) |i| {
+                const byte = block.quants[q_offset + i];
+                const lo: f32 = @floatFromInt(byte & 0xF);
+                const hi: f32 = @floatFromInt(byte >> 4);
+
+                output[sub_base + i] = lo * scale - min;
+                output[sub_base + i + 16] = hi * scale - min;
+            }
+        }
+    }
+}
+
+/// Dequantize Q5_K data to f32 (Q5_K_M format — 5-bit quantization with min).
+/// Same structure as Q4_K but with an additional high-bit array for the 5th bit.
+/// Reference: llama.cpp dequantize_row_q5_K
+pub fn dequantizeQ5_K(data: []const u8, output: []f32) !void {
+    const block_size = 256;
+    const bytes_per_block = @sizeOf(Q5_KBlock);
+    const num_blocks = data.len / bytes_per_block;
+
+    if (output.len < num_blocks * block_size) {
+        return error.ShapeMismatch;
+    }
+
+    const blocks: []const Q5_KBlock = @alignCast(std.mem.bytesAsSlice(Q5_KBlock, data[0 .. num_blocks * bytes_per_block]));
+
+    for (blocks, 0..) |block, block_idx| {
+        const d: f32 = @floatCast(block.d);
+        const dmin: f32 = @floatCast(block.dmin);
+        const base = block_idx * block_size;
+
+        // 8 sub-blocks of 32 elements each
+        for (0..8) |j| {
+            const sm = decodeQ4KScales(block.scales, j);
+            const scale: f32 = d * @as(f32, @floatFromInt(sm.scale));
+            const min: f32 = dmin * @as(f32, @floatFromInt(sm.min));
+            const sub_base = base + j * 32;
+            const q_offset = j * 16;
+
+            for (0..16) |i| {
+                const byte = block.quants[q_offset + i];
+                const qh_byte = block.qh[j * 4 + i / 4];
+                const bit_lo = (qh_byte >> @intCast((i % 4) * 2)) & 1;
+                const bit_hi = (qh_byte >> @intCast((i % 4) * 2 + 1)) & 1;
+
+                const lo_4: u8 = byte & 0xF;
+                const hi_4: u8 = byte >> 4;
+                const lo_5: f32 = @floatFromInt(lo_4 | (@as(u8, bit_lo) << 4));
+                const hi_5: f32 = @floatFromInt(hi_4 | (@as(u8, bit_hi) << 4));
+
+                output[sub_base + i] = lo_5 * scale - min;
+                output[sub_base + i + 16] = hi_5 * scale - min;
+            }
         }
     }
 }
@@ -335,6 +458,105 @@ test "mxfp4 dequantization" {
 
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), output[0], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 2.0), output[16], 0.001);
+}
+
+test "q4_k dequantization" {
+    var block_data: [@sizeOf(Q4_KBlock)]u8 = undefined;
+    const block: *Q4_KBlock = @ptrCast(@alignCast(&block_data));
+
+    block.d = @as(f16, 1.0);
+    block.dmin = @as(f16, 0.0); // zero min for simple verification
+    // Set all scales to encode (scale=1, min=0) for first 4 sub-blocks
+    @memset(block.scales[0..], 0);
+    block.scales[0] = 1; // sub-block 0: scale=1
+    // All quants = 0x32 -> lo nibble=2, hi nibble=3
+    @memset(block.quants[0..], 0x32);
+
+    var output: [256]f32 = undefined;
+    try dequantizeQ4_K(&block_data, &output);
+
+    // Sub-block 0 has scale=1*1=1, min=0*0=0
+    // output[0] = 2 * 1 - 0 = 2.0
+    // output[16] = 3 * 1 - 0 = 3.0
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), output[0], 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), output[16], 0.01);
+}
+
+test "q4_k dequantization with min" {
+    var block_data: [@sizeOf(Q4_KBlock)]u8 = undefined;
+    const block: *Q4_KBlock = @ptrCast(@alignCast(&block_data));
+
+    block.d = @as(f16, 2.0);
+    block.dmin = @as(f16, 0.5);
+    @memset(block.scales[0..], 0);
+    // Sub-block 0: scale=1 in low 6 bits of scales[0], min=2 in low 6 bits of scales[4]
+    block.scales[0] = 1;
+    block.scales[4] = 2;
+    // quants: lo=5, hi=10 -> 0xA5
+    @memset(block.quants[0..], 0xA5);
+
+    var output: [256]f32 = undefined;
+    try dequantizeQ4_K(&block_data, &output);
+
+    // Sub-block 0: scale = 2.0 * 1 = 2.0, min = 0.5 * 2 = 1.0
+    // output[0] = 5 * 2.0 - 1.0 = 9.0
+    // output[16] = 10 * 2.0 - 1.0 = 19.0
+    try std.testing.expectApproxEqAbs(@as(f32, 9.0), output[0], 0.1);
+    try std.testing.expectApproxEqAbs(@as(f32, 19.0), output[16], 0.1);
+}
+
+test "q5_k dequantization" {
+    var block_data: [@sizeOf(Q5_KBlock)]u8 = undefined;
+    const block: *Q5_KBlock = @ptrCast(@alignCast(&block_data));
+
+    block.d = @as(f16, 1.0);
+    block.dmin = @as(f16, 0.0);
+    @memset(block.scales[0..], 0);
+    block.scales[0] = 1; // sub-block 0: scale=1
+    // All quants = 0x32 -> lo=2, hi=3
+    @memset(block.quants[0..], 0x32);
+    // All high bits zero -> 5th bit is 0 for all values
+    @memset(block.qh[0..], 0);
+
+    var output: [256]f32 = undefined;
+    try dequantizeQ5_K(&block_data, &output);
+
+    // With qh=0, result matches Q4_K: lo=2, hi=3
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), output[0], 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), output[16], 0.01);
+}
+
+test "q5_k dequantization with high bits" {
+    var block_data: [@sizeOf(Q5_KBlock)]u8 = undefined;
+    const block: *Q5_KBlock = @ptrCast(@alignCast(&block_data));
+
+    block.d = @as(f16, 1.0);
+    block.dmin = @as(f16, 0.0);
+    @memset(block.scales[0..], 0);
+    block.scales[0] = 1; // sub-block 0: scale=1
+    // quants: lo=3, hi=7 -> 0x73
+    @memset(block.quants[0..], 0x73);
+    @memset(block.qh[0..], 0);
+    // Set high bit for element 0 (lo): bit position 0 of qh[0]
+    block.qh[0] = 0x01; // bit 0 set -> element 0 lo gets +16
+
+    var output: [256]f32 = undefined;
+    try dequantizeQ5_K(&block_data, &output);
+
+    // Element 0: lo_4=3, bit_lo=1 -> lo_5 = 3 | (1<<4) = 19
+    // scale = 1*1 = 1, min = 0
+    // output[0] = 19 * 1 - 0 = 19.0
+    try std.testing.expectApproxEqAbs(@as(f32, 19.0), output[0], 0.01);
+    // Element 1: lo_4=3, qh[0] bit 2 = 0 -> lo_5 = 3
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), output[1], 0.01);
+}
+
+test "q4_k block size matches gguf spec" {
+    try std.testing.expectEqual(@as(usize, 144), @sizeOf(Q4_KBlock));
+}
+
+test "q5_k block size matches gguf spec" {
+    try std.testing.expectEqual(@as(usize, 176), @sizeOf(Q5_KBlock));
 }
 
 test {

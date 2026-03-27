@@ -41,3 +41,54 @@ pub fn execute(pctx: *PipelineContext, _: types.ModulateConfig) !void {
         pctx.primary_profile = .abi;
     }
 }
+
+test "modulate skips when no routing weights" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-1", 1);
+    defer pctx.deinit();
+
+    // routing_weights is null — should return immediately
+    try execute(&pctx, .{});
+
+    try std.testing.expect(pctx.routing_weights == null);
+}
+
+test "modulate applies abbey preference bias" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-2", 2);
+    defer pctx.deinit();
+
+    pctx.routing_weights = .{
+        .abbey_weight = 0.33,
+        .aviva_weight = 0.33,
+        .abi_weight = 0.34,
+    };
+    pctx.primary_profile = .abi;
+
+    try execute(&pctx, .{});
+
+    const weights = pctx.routing_weights.?;
+    // Abbey should have gained from the bias
+    try std.testing.expect(weights.abbey_weight > 0.33);
+    // Weights should still be normalized
+    const total = weights.abbey_weight + weights.aviva_weight + weights.abi_weight;
+    try std.testing.expect(@abs(total - 1.0) < 0.01);
+}
+
+test "modulate re-derives primary profile" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-3", 3);
+    defer pctx.deinit();
+
+    // Give Abbey the highest weight before modulation — should stay Abbey after bias
+    pctx.routing_weights = .{
+        .abbey_weight = 0.5,
+        .aviva_weight = 0.3,
+        .abi_weight = 0.2,
+    };
+    pctx.primary_profile = .abbey;
+
+    try execute(&pctx, .{});
+
+    try std.testing.expectEqual(types.ProfileTag.ProfileType.abbey, pctx.primary_profile.?);
+}

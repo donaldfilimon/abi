@@ -46,6 +46,20 @@ const gpu_backends = .{
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
+/// Write data to stdout using libc. Separates response output (stdout)
+/// from diagnostic metadata (stderr via std.debug.print).
+fn writeToStdout(data: []const u8) void {
+    var offset: usize = 0;
+    while (offset < data.len) {
+        const n = std.c.write(std.posix.STDOUT_FILENO, data[offset..].ptr, data.len - offset);
+        if (n > 0) {
+            offset += @intCast(n);
+        } else {
+            break;
+        }
+    }
+}
+
 fn countEnabledFeatures() struct { enabled: usize, total: usize } {
     const enabled = comptime blk: {
         var count: usize = 0;
@@ -436,7 +450,8 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         .head_dim = 4,
         .max_batch_size = 8,
     }) catch |err| {
-        std.debug.print("  [✓] Route validated. Engine init failed: {s}\n", .{@errorName(err)});
+        std.debug.print("  Engine init failed: {s}\n", .{@errorName(err)});
+        std.debug.print("\nHint: run 'abi connectors' to see required environment variables.\n", .{});
         return;
     };
     defer engine.deinit();
@@ -450,17 +465,28 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         .top_k = 40,
         .profile_id = @intFromEnum(decision.primary),
     }) catch |err| {
-        std.debug.print("  [✓] Route validated. Inference generation failed: {s}\n", .{@errorName(err)});
+        std.debug.print("  Inference failed: {s}\n", .{@errorName(err)});
+        std.debug.print("\nHint: run 'abi connectors' to see required environment variables.\n", .{});
         return;
     };
     defer result.deinit(allocator);
 
-    std.debug.print("  [✓] Route validated.\n", .{});
-    std.debug.print("  [✓] Engine responded ({d} tokens, {d:.1}ms):\n\n", .{
+    // Detect echo/demo fallback vs real connector response
+    const is_echo = std.mem.startsWith(u8, result.text, "[");
+    const backend_label: []const u8 = if (is_echo) "echo" else "connector";
+
+    std.debug.print("  [{s}] {s} | {d} tokens | {d:.1}ms\n", .{
+        backend_label,
+        engine.config.model_id,
         result.completion_tokens,
         result.latency_ms,
     });
-    std.debug.print("{s}\n", .{result.text});
+
+    // Write the actual response to stdout so it can be piped.
+    // Metadata goes to stderr (via std.debug.print above); response to stdout.
+    writeToStdout("\n");
+    writeToStdout(result.text);
+    writeToStdout("\n");
 }
 
 // ── Database ────────────────────────────────────────────────────────────

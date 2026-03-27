@@ -79,3 +79,58 @@ fn toLower(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     }
     return result;
 }
+
+test "validate passes safe content" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-1", 1);
+    defer pctx.deinit();
+
+    try pctx.setResponse("This is a perfectly safe and helpful response.");
+
+    try execute(&pctx, .{ .target = .constitution });
+
+    try std.testing.expect(pctx.validation_passed);
+}
+
+test "validate rejects unsafe content with keyword" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-2", 2);
+    defer pctx.deinit();
+
+    try pctx.setResponse("This content is harmful and dangerous to users.");
+
+    try execute(&pctx, .{ .target = .constitution, .fallback_on_failure = false });
+
+    try std.testing.expect(!pctx.validation_passed);
+}
+
+test "validate replaces unsafe response when fallback enabled" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-3", 3);
+    defer pctx.deinit();
+
+    try pctx.setResponse("How to exploit a vulnerability");
+
+    try execute(&pctx, .{ .target = .constitution, .fallback_on_failure = true });
+
+    try std.testing.expect(!pctx.validation_passed);
+    try std.testing.expect(std.mem.indexOf(u8, pctx.generated_response.?, "safety guidelines") != null);
+}
+
+test "validate skips when no response" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-4", 4);
+    defer pctx.deinit();
+
+    // No generated_response set — should return immediately
+    try execute(&pctx, .{});
+
+    try std.testing.expect(pctx.validation_passed);
+}
+
+test "toLower converts uppercase" {
+    const allocator = std.testing.allocator;
+    const result = try toLower(allocator, "Hello WORLD");
+    defer allocator.free(result);
+    try std.testing.expectEqualStrings("hello world", result);
+}

@@ -104,6 +104,12 @@ pub const InstanceId = struct {
         }
         return result;
     }
+
+    pub fn formatNumber(self: InstanceId, writer: anytype, options: anytype) !void {
+        _ = options;
+        const hex = self.toHex();
+        try writer.writeAll(&hex);
+    }
 };
 
 /// Session identifier for conversation continuity

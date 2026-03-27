@@ -11,6 +11,12 @@
 //! 3. **Transformer Encoder**: Standard transformer encoder blocks with multi-head attention
 //! 4. **Classification Head**: Optional MLP head for classification/embedding extraction
 //!
+//! ## Submodules
+//!
+//! - `embedding` — Patch embedding and position encoding
+//! - `attention` — Multi-head self-attention
+//! - `layers` — Transformer blocks, MLP, layer norm, activation functions
+//!
 //! ## Usage
 //!
 //! ```zig
@@ -28,7 +34,21 @@
 //! ```
 
 const std = @import("std");
-const math = std.math;
+
+// Submodule re-exports
+pub const embedding = @import("vit/embedding.zig");
+pub const attention = @import("vit/attention.zig");
+pub const layers = @import("vit/layers.zig");
+
+// Type re-exports for backward compatibility
+pub const PatchEmbedding = embedding.PatchEmbedding;
+pub const MultiHeadAttention = attention.MultiHeadAttention;
+pub const softmax = attention.softmax;
+pub const TransformerBlock = layers.TransformerBlock;
+pub const MLP = layers.MLP;
+pub const LayerNorm = layers.LayerNorm;
+pub const gelu = layers.gelu;
+pub const geluSlice = layers.geluSlice;
 
 // ============================================================================
 // Configuration
@@ -151,612 +171,6 @@ pub const ViTConfig = struct {
 };
 
 // ============================================================================
-// Activation Functions
-// ============================================================================
-
-/// GELU activation function (Gaussian Error Linear Unit)
-pub fn gelu(x: f32) f32 {
-    // Approximate GELU: x * 0.5 * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
-    const sqrt_2_over_pi: f32 = 0.7978845608;
-    const coeff: f32 = 0.044715;
-    const inner = sqrt_2_over_pi * (x + coeff * x * x * x);
-    return 0.5 * x * (1.0 + math.tanh(inner));
-}
-
-/// Apply GELU activation to a slice
-pub fn geluSlice(data: []f32) void {
-    for (data) |*v| {
-        v.* = gelu(v.*);
-    }
-}
-
-/// Softmax over a slice (in-place)
-pub fn softmax(data: []f32) void {
-    if (data.len == 0) return;
-
-    // Find max for numerical stability
-    var max_val: f32 = data[0];
-    for (data[1..]) |v| {
-        if (v > max_val) max_val = v;
-    }
-
-    // Compute exp and sum
-    var sum: f32 = 0.0;
-    for (data) |*v| {
-        v.* = @exp(v.* - max_val);
-        sum += v.*;
-    }
-
-    // Normalize
-    if (sum > 0.0) {
-        for (data) |*v| {
-            v.* /= sum;
-        }
-    }
-}
-
-// ============================================================================
-// Patch Embedding Layer
-// ============================================================================
-
-/// Patch embedding layer that converts image patches to embeddings
-pub const PatchEmbedding = struct {
-    allocator: std.mem.Allocator,
-    config: ViTConfig,
-
-    /// Projection weights [hidden_size, patch_size * patch_size * in_channels]
-    proj_weights: []f32,
-
-    /// Projection bias [hidden_size]
-    proj_bias: []f32,
-
-    /// Class token embedding [hidden_size]
-    cls_token: ?[]f32,
-
-    /// Position embeddings [seq_length, hidden_size]
-    pos_embed: []f32,
-
-    pub fn init(allocator: std.mem.Allocator, config: ViTConfig) !PatchEmbedding {
-        const patch_dim = config.patch_size * config.patch_size * config.in_channels;
-        const hidden = config.hidden_size;
-        const seq_len = config.seqLength();
-
-        // Allocate projection weights and bias
-        const proj_weights = try allocator.alloc(f32, hidden * patch_dim);
-        const proj_bias = try allocator.alloc(f32, hidden);
-
-        // Initialize with Xavier/Glorot
-        const scale = @sqrt(2.0 / @as(f32, @floatFromInt(patch_dim + hidden)));
-        var prng = std.Random.DefaultPrng.init(42);
-        for (proj_weights) |*w| {
-            w.* = (prng.random().float(f32) * 2.0 - 1.0) * scale;
-        }
-        @memset(proj_bias, 0.0);
-
-        // Allocate class token if needed
-        const cls_token = if (config.use_class_token) blk: {
-            const token = try allocator.alloc(f32, hidden);
-            for (token) |*t| {
-                t.* = (prng.random().float(f32) * 2.0 - 1.0) * 0.02;
-            }
-            break :blk token;
-        } else null;
-
-        // Allocate position embeddings
-        const pos_embed = try allocator.alloc(f32, seq_len * hidden);
-        for (pos_embed) |*p| {
-            p.* = (prng.random().float(f32) * 2.0 - 1.0) * 0.02;
-        }
-
-        return .{
-            .allocator = allocator,
-            .config = config,
-            .proj_weights = proj_weights,
-            .proj_bias = proj_bias,
-            .cls_token = cls_token,
-            .pos_embed = pos_embed,
-        };
-    }
-
-    pub fn deinit(self: *PatchEmbedding) void {
-        self.allocator.free(self.proj_weights);
-        self.allocator.free(self.proj_bias);
-        if (self.cls_token) |tok| self.allocator.free(tok);
-        self.allocator.free(self.pos_embed);
-    }
-
-    /// Forward pass: [batch, channels, height, width] -> [batch, seq_len, hidden]
-    /// For simplicity, we process one image at a time here
-    pub fn forward(self: *const PatchEmbedding, image: []const f32) ![]f32 {
-        const cfg = self.config;
-        const seq_len = cfg.seqLength();
-        const hidden = cfg.hidden_size;
-        const patch_dim = cfg.patch_size * cfg.patch_size * cfg.in_channels;
-        const patches_per_side = cfg.image_size / cfg.patch_size;
-
-        // Allocate output
-        const output = try self.allocator.alloc(f32, seq_len * hidden);
-        errdefer self.allocator.free(output);
-
-        // Start index (after class token if present)
-        var out_idx: usize = 0;
-
-        // Add class token if present
-        if (self.cls_token) |cls| {
-            @memcpy(output[0..hidden], cls);
-            out_idx = hidden;
-        }
-
-        // Extract and project each patch
-        for (0..patches_per_side) |py| {
-            for (0..patches_per_side) |px| {
-                // Extract patch
-                var patch: [16 * 16 * 3]f32 = undefined; // Max patch size
-                var patch_idx: usize = 0;
-
-                for (0..cfg.in_channels) |c| {
-                    for (0..cfg.patch_size) |dy| {
-                        for (0..cfg.patch_size) |dx| {
-                            const y = py * cfg.patch_size + dy;
-                            const x = px * cfg.patch_size + dx;
-                            const img_idx = c * cfg.image_size * cfg.image_size + y * cfg.image_size + x;
-                            if (img_idx < image.len and patch_idx < patch_dim) {
-                                patch[patch_idx] = image[img_idx];
-                            }
-                            patch_idx += 1;
-                        }
-                    }
-                }
-
-                // Project patch to hidden dimension
-                for (0..hidden) |h| {
-                    var sum: f32 = self.proj_bias[h];
-                    for (0..patch_dim) |p| {
-                        sum += patch[p] * self.proj_weights[h * patch_dim + p];
-                    }
-                    output[out_idx + h] = sum;
-                }
-                out_idx += hidden;
-            }
-        }
-
-        // Add position embeddings
-        for (0..seq_len * hidden) |i| {
-            output[i] += self.pos_embed[i];
-        }
-
-        return output;
-    }
-};
-
-// ============================================================================
-// Multi-Head Self-Attention
-// ============================================================================
-
-/// Multi-head self-attention layer
-pub const MultiHeadAttention = struct {
-    allocator: std.mem.Allocator,
-    hidden_size: u32,
-    num_heads: u32,
-    head_dim: u32,
-
-    /// Query projection [hidden_size, hidden_size]
-    wq: []f32,
-    /// Key projection [hidden_size, hidden_size]
-    wk: []f32,
-    /// Value projection [hidden_size, hidden_size]
-    wv: []f32,
-    /// Output projection [hidden_size, hidden_size]
-    wo: []f32,
-
-    /// Biases
-    bq: []f32,
-    bk: []f32,
-    bv: []f32,
-    bo: []f32,
-
-    pub fn init(allocator: std.mem.Allocator, hidden_size: u32, num_heads: u32) !MultiHeadAttention {
-        const head_dim = hidden_size / num_heads;
-        const size = hidden_size * hidden_size;
-
-        const wq = try allocator.alloc(f32, size);
-        const wk = try allocator.alloc(f32, size);
-        const wv = try allocator.alloc(f32, size);
-        const wo = try allocator.alloc(f32, size);
-
-        const bq = try allocator.alloc(f32, hidden_size);
-        const bk = try allocator.alloc(f32, hidden_size);
-        const bv = try allocator.alloc(f32, hidden_size);
-        const bo = try allocator.alloc(f32, hidden_size);
-
-        // Xavier initialization
-        const scale = @sqrt(2.0 / @as(f32, @floatFromInt(hidden_size * 2)));
-        var prng = std.Random.DefaultPrng.init(123);
-
-        for (wq) |*w| w.* = (prng.random().float(f32) * 2.0 - 1.0) * scale;
-        for (wk) |*w| w.* = (prng.random().float(f32) * 2.0 - 1.0) * scale;
-        for (wv) |*w| w.* = (prng.random().float(f32) * 2.0 - 1.0) * scale;
-        for (wo) |*w| w.* = (prng.random().float(f32) * 2.0 - 1.0) * scale;
-
-        @memset(bq, 0.0);
-        @memset(bk, 0.0);
-        @memset(bv, 0.0);
-        @memset(bo, 0.0);
-
-        return .{
-            .allocator = allocator,
-            .hidden_size = hidden_size,
-            .num_heads = num_heads,
-            .head_dim = head_dim,
-            .wq = wq,
-            .wk = wk,
-            .wv = wv,
-            .wo = wo,
-            .bq = bq,
-            .bk = bk,
-            .bv = bv,
-            .bo = bo,
-        };
-    }
-
-    pub fn deinit(self: *MultiHeadAttention) void {
-        self.allocator.free(self.wq);
-        self.allocator.free(self.wk);
-        self.allocator.free(self.wv);
-        self.allocator.free(self.wo);
-        self.allocator.free(self.bq);
-        self.allocator.free(self.bk);
-        self.allocator.free(self.bv);
-        self.allocator.free(self.bo);
-    }
-
-    /// Forward pass: [seq_len, hidden] -> [seq_len, hidden]
-    pub fn forward(self: *const MultiHeadAttention, x: []const f32, seq_len: usize) ![]f32 {
-        const hidden = self.hidden_size;
-        const num_heads = self.num_heads;
-        const head_dim = self.head_dim;
-
-        // Allocate Q, K, V
-        const q = try self.allocator.alloc(f32, seq_len * hidden);
-        defer self.allocator.free(q);
-        const k = try self.allocator.alloc(f32, seq_len * hidden);
-        defer self.allocator.free(k);
-        const v = try self.allocator.alloc(f32, seq_len * hidden);
-        defer self.allocator.free(v);
-
-        // Linear projections
-        for (0..seq_len) |s| {
-            for (0..hidden) |h| {
-                var q_sum: f32 = self.bq[h];
-                var k_sum: f32 = self.bk[h];
-                var v_sum: f32 = self.bv[h];
-
-                for (0..hidden) |i| {
-                    const x_val = x[s * hidden + i];
-                    q_sum += x_val * self.wq[h * hidden + i];
-                    k_sum += x_val * self.wk[h * hidden + i];
-                    v_sum += x_val * self.wv[h * hidden + i];
-                }
-
-                q[s * hidden + h] = q_sum;
-                k[s * hidden + h] = k_sum;
-                v[s * hidden + h] = v_sum;
-            }
-        }
-
-        // Allocate attention output
-        const attn_out = try self.allocator.alloc(f32, seq_len * hidden);
-        errdefer self.allocator.free(attn_out);
-        @memset(attn_out, 0.0);
-
-        // Compute attention for each head
-        const scale: f32 = 1.0 / @sqrt(@as(f32, @floatFromInt(head_dim)));
-
-        // Temporary attention scores
-        const scores = try self.allocator.alloc(f32, seq_len);
-        defer self.allocator.free(scores);
-
-        for (0..num_heads) |head| {
-            const offset = head * head_dim;
-
-            for (0..seq_len) |i| {
-                // Compute attention scores for position i
-                for (0..seq_len) |j| {
-                    var dot: f32 = 0.0;
-                    for (0..head_dim) |d| {
-                        dot += q[i * hidden + offset + d] * k[j * hidden + offset + d];
-                    }
-                    scores[j] = dot * scale;
-                }
-
-                // Softmax
-                softmax(scores);
-
-                // Weighted sum of values
-                for (0..head_dim) |d| {
-                    var sum: f32 = 0.0;
-                    for (0..seq_len) |j| {
-                        sum += scores[j] * v[j * hidden + offset + d];
-                    }
-                    attn_out[i * hidden + offset + d] = sum;
-                }
-            }
-        }
-
-        // Output projection
-        const output = try self.allocator.alloc(f32, seq_len * hidden);
-        for (0..seq_len) |s| {
-            for (0..hidden) |h| {
-                var sum: f32 = self.bo[h];
-                for (0..hidden) |i| {
-                    sum += attn_out[s * hidden + i] * self.wo[h * hidden + i];
-                }
-                output[s * hidden + h] = sum;
-            }
-        }
-
-        self.allocator.free(attn_out);
-        return output;
-    }
-};
-
-// ============================================================================
-// Feed-Forward Network (MLP)
-// ============================================================================
-
-/// MLP block used in transformer
-pub const MLP = struct {
-    allocator: std.mem.Allocator,
-    hidden_size: u32,
-    mlp_dim: u32,
-    use_gelu: bool,
-
-    /// First linear [mlp_dim, hidden_size]
-    w1: []f32,
-    b1: []f32,
-
-    /// Second linear [hidden_size, mlp_dim]
-    w2: []f32,
-    b2: []f32,
-
-    pub fn init(allocator: std.mem.Allocator, hidden_size: u32, mlp_dim: u32, use_gelu_act: bool) !MLP {
-        const w1 = try allocator.alloc(f32, mlp_dim * hidden_size);
-        const b1 = try allocator.alloc(f32, mlp_dim);
-        const w2 = try allocator.alloc(f32, hidden_size * mlp_dim);
-        const b2 = try allocator.alloc(f32, hidden_size);
-
-        // Xavier initialization
-        const scale1 = @sqrt(2.0 / @as(f32, @floatFromInt(hidden_size + mlp_dim)));
-        const scale2 = @sqrt(2.0 / @as(f32, @floatFromInt(mlp_dim + hidden_size)));
-        var prng = std.Random.DefaultPrng.init(456);
-
-        for (w1) |*w| w.* = (prng.random().float(f32) * 2.0 - 1.0) * scale1;
-        for (w2) |*w| w.* = (prng.random().float(f32) * 2.0 - 1.0) * scale2;
-
-        @memset(b1, 0.0);
-        @memset(b2, 0.0);
-
-        return .{
-            .allocator = allocator,
-            .hidden_size = hidden_size,
-            .mlp_dim = mlp_dim,
-            .use_gelu = use_gelu_act,
-            .w1 = w1,
-            .b1 = b1,
-            .w2 = w2,
-            .b2 = b2,
-        };
-    }
-
-    pub fn deinit(self: *MLP) void {
-        self.allocator.free(self.w1);
-        self.allocator.free(self.b1);
-        self.allocator.free(self.w2);
-        self.allocator.free(self.b2);
-    }
-
-    /// Forward pass: [seq_len, hidden] -> [seq_len, hidden]
-    pub fn forward(self: *const MLP, x: []const f32, seq_len: usize) ![]f32 {
-        const hidden = self.hidden_size;
-        const mlp_dim = self.mlp_dim;
-
-        // First linear + activation
-        const intermediate = try self.allocator.alloc(f32, seq_len * mlp_dim);
-        defer self.allocator.free(intermediate);
-
-        for (0..seq_len) |s| {
-            for (0..mlp_dim) |m| {
-                var sum: f32 = self.b1[m];
-                for (0..hidden) |h| {
-                    sum += x[s * hidden + h] * self.w1[m * hidden + h];
-                }
-                intermediate[s * mlp_dim + m] = if (self.use_gelu) gelu(sum) else @max(sum, 0.0);
-            }
-        }
-
-        // Second linear
-        const output = try self.allocator.alloc(f32, seq_len * hidden);
-        for (0..seq_len) |s| {
-            for (0..hidden) |h| {
-                var sum: f32 = self.b2[h];
-                for (0..mlp_dim) |m| {
-                    sum += intermediate[s * mlp_dim + m] * self.w2[h * mlp_dim + m];
-                }
-                output[s * hidden + h] = sum;
-            }
-        }
-
-        return output;
-    }
-};
-
-// ============================================================================
-// Layer Normalization
-// ============================================================================
-
-/// Layer normalization
-pub const LayerNorm = struct {
-    allocator: std.mem.Allocator,
-    hidden_size: u32,
-    eps: f32,
-
-    /// Scale parameter (gamma)
-    gamma: []f32,
-    /// Shift parameter (beta)
-    beta: []f32,
-
-    pub fn init(allocator: std.mem.Allocator, hidden_size: u32, eps: f32) !LayerNorm {
-        const gamma = try allocator.alloc(f32, hidden_size);
-        const beta = try allocator.alloc(f32, hidden_size);
-
-        // Initialize gamma to 1, beta to 0
-        for (gamma) |*g| g.* = 1.0;
-        @memset(beta, 0.0);
-
-        return .{
-            .allocator = allocator,
-            .hidden_size = hidden_size,
-            .eps = eps,
-            .gamma = gamma,
-            .beta = beta,
-        };
-    }
-
-    pub fn deinit(self: *LayerNorm) void {
-        self.allocator.free(self.gamma);
-        self.allocator.free(self.beta);
-    }
-
-    /// Forward pass: normalizes the last dimension
-    pub fn forward(self: *const LayerNorm, x: []const f32, seq_len: usize) ![]f32 {
-        const hidden = self.hidden_size;
-        const output = try self.allocator.alloc(f32, seq_len * hidden);
-
-        for (0..seq_len) |s| {
-            // Compute mean
-            var mean: f32 = 0.0;
-            for (0..hidden) |h| {
-                mean += x[s * hidden + h];
-            }
-            mean /= @floatFromInt(hidden);
-
-            // Compute variance
-            var variance: f32 = 0.0;
-            for (0..hidden) |h| {
-                const diff = x[s * hidden + h] - mean;
-                variance += diff * diff;
-            }
-            variance /= @floatFromInt(hidden);
-
-            // Normalize
-            const std_dev = @sqrt(variance + self.eps);
-            for (0..hidden) |h| {
-                const normalized = (x[s * hidden + h] - mean) / std_dev;
-                output[s * hidden + h] = normalized * self.gamma[h] + self.beta[h];
-            }
-        }
-
-        return output;
-    }
-};
-
-// ============================================================================
-// Transformer Encoder Block
-// ============================================================================
-
-/// Single transformer encoder block
-pub const TransformerBlock = struct {
-    allocator: std.mem.Allocator,
-    hidden_size: u32,
-    pre_norm: bool,
-
-    attention: MultiHeadAttention,
-    mlp: MLP,
-    norm1: LayerNorm,
-    norm2: LayerNorm,
-
-    pub fn init(allocator: std.mem.Allocator, config: ViTConfig) !TransformerBlock {
-        return .{
-            .allocator = allocator,
-            .hidden_size = config.hidden_size,
-            .pre_norm = config.pre_norm,
-            .attention = try MultiHeadAttention.init(allocator, config.hidden_size, config.num_heads),
-            .mlp = try MLP.init(allocator, config.hidden_size, config.mlp_dim, config.use_gelu),
-            .norm1 = try LayerNorm.init(allocator, config.hidden_size, config.layer_norm_eps),
-            .norm2 = try LayerNorm.init(allocator, config.hidden_size, config.layer_norm_eps),
-        };
-    }
-
-    pub fn deinit(self: *TransformerBlock) void {
-        self.attention.deinit();
-        self.mlp.deinit();
-        self.norm1.deinit();
-        self.norm2.deinit();
-    }
-
-    /// Forward pass with residual connections
-    pub fn forward(self: *const TransformerBlock, x: []const f32, seq_len: usize) ![]f32 {
-        const hidden = self.hidden_size;
-
-        if (self.pre_norm) {
-            // Pre-norm: norm -> attention -> residual -> norm -> mlp -> residual
-            const normed1 = try self.norm1.forward(x, seq_len);
-            defer self.allocator.free(normed1);
-
-            const attn_out = try self.attention.forward(normed1, seq_len);
-            defer self.allocator.free(attn_out);
-
-            // Add residual
-            const residual1 = try self.allocator.alloc(f32, seq_len * hidden);
-            for (0..seq_len * hidden) |i| {
-                residual1[i] = x[i] + attn_out[i];
-            }
-
-            const normed2 = try self.norm2.forward(residual1, seq_len);
-            defer self.allocator.free(normed2);
-
-            const mlp_out = try self.mlp.forward(normed2, seq_len);
-            defer self.allocator.free(mlp_out);
-
-            // Add residual
-            for (0..seq_len * hidden) |i| {
-                residual1[i] = residual1[i] + mlp_out[i];
-            }
-
-            return residual1;
-        } else {
-            // Post-norm: attention -> residual -> norm -> mlp -> residual -> norm
-            const attn_out = try self.attention.forward(x, seq_len);
-            defer self.allocator.free(attn_out);
-
-            // Add residual and norm
-            const residual1 = try self.allocator.alloc(f32, seq_len * hidden);
-            for (0..seq_len * hidden) |i| {
-                residual1[i] = x[i] + attn_out[i];
-            }
-
-            const normed1 = try self.norm1.forward(residual1, seq_len);
-            self.allocator.free(residual1);
-            defer self.allocator.free(normed1);
-
-            const mlp_out = try self.mlp.forward(normed1, seq_len);
-            defer self.allocator.free(mlp_out);
-
-            // Add residual and norm
-            const residual2 = try self.allocator.alloc(f32, seq_len * hidden);
-            for (0..seq_len * hidden) |i| {
-                residual2[i] = normed1[i] + mlp_out[i];
-            }
-
-            const output = try self.norm2.forward(residual2, seq_len);
-            self.allocator.free(residual2);
-
-            return output;
-        }
-    }
-};
-
-// ============================================================================
 // Vision Transformer Model
 // ============================================================================
 
@@ -797,6 +211,7 @@ pub const VisionTransformer = struct {
         // Classification head
         var cls_head: ?[]f32 = null;
         var cls_bias: ?[]f32 = null;
+
         if (config.num_classes > 0) {
             cls_head = try allocator.alloc(f32, config.num_classes * config.hidden_size);
             cls_bias = try allocator.alloc(f32, config.num_classes);
@@ -852,35 +267,35 @@ pub const VisionTransformer = struct {
 
         // Extract class token embedding or pool
         const hidden = self.config.hidden_size;
-        const embedding = try self.allocator.alloc(f32, hidden);
+        const result_embedding = try self.allocator.alloc(f32, hidden);
 
         if (self.config.use_class_token) {
             // Use class token (first position)
-            @memcpy(embedding, normed[0..hidden]);
+            @memcpy(result_embedding, normed[0..hidden]);
         } else {
             // Global average pooling
-            @memset(embedding, 0.0);
+            @memset(result_embedding, 0.0);
             for (0..seq_len) |s| {
                 for (0..hidden) |h| {
-                    embedding[h] += normed[s * hidden + h];
+                    result_embedding[h] += normed[s * hidden + h];
                 }
             }
-            for (embedding) |*e| {
+            for (result_embedding) |*e| {
                 e.* /= @floatFromInt(seq_len);
             }
         }
 
         self.allocator.free(normed);
-        return embedding;
+        return result_embedding;
     }
 
     /// Forward pass with classification
     /// Returns logits if num_classes > 0, otherwise returns embedding
     pub fn classify(self: *const VisionTransformer, image: []const f32) ![]f32 {
-        const embedding = try self.forward(image);
+        const result_embedding = try self.forward(image);
 
         if (self.cls_head) |head| {
-            defer self.allocator.free(embedding);
+            defer self.allocator.free(result_embedding);
 
             const num_classes = self.config.num_classes;
             const hidden = self.config.hidden_size;
@@ -889,7 +304,7 @@ pub const VisionTransformer = struct {
             for (0..num_classes) |c| {
                 var sum: f32 = self.cls_bias.?[c];
                 for (0..hidden) |h| {
-                    sum += embedding[h] * head[c * hidden + h];
+                    sum += result_embedding[h] * head[c * hidden + h];
                 }
                 logits[c] = sum;
             }
@@ -897,7 +312,7 @@ pub const VisionTransformer = struct {
             return logits;
         }
 
-        return embedding;
+        return result_embedding;
     }
 
     /// Get number of parameters
@@ -945,15 +360,15 @@ pub const VisionTransformer = struct {
 // ============================================================================
 
 test "ViTConfig presets" {
-    const base = ViTConfig.base(224, 16);
-    try std.testing.expectEqual(@as(u32, 768), base.hidden_size);
-    try std.testing.expectEqual(@as(u32, 12), base.num_layers);
-    try std.testing.expectEqual(@as(u32, 196), base.numPatches());
-    try std.testing.expectEqual(@as(u32, 197), base.seqLength());
+    const base_cfg = ViTConfig.base(224, 16);
+    try std.testing.expectEqual(@as(u32, 768), base_cfg.hidden_size);
+    try std.testing.expectEqual(@as(u32, 12), base_cfg.num_layers);
+    try std.testing.expectEqual(@as(u32, 196), base_cfg.numPatches());
+    try std.testing.expectEqual(@as(u32, 197), base_cfg.seqLength());
 
-    const large = ViTConfig.large(224, 16);
-    try std.testing.expectEqual(@as(u32, 1024), large.hidden_size);
-    try std.testing.expectEqual(@as(u32, 24), large.num_layers);
+    const large_cfg = ViTConfig.large(224, 16);
+    try std.testing.expectEqual(@as(u32, 1024), large_cfg.hidden_size);
+    try std.testing.expectEqual(@as(u32, 24), large_cfg.num_layers);
 }
 
 test "gelu activation" {
@@ -1011,8 +426,8 @@ test "VisionTransformer tiny init and forward" {
         .mlp_dim = 128,
     };
 
-    var vit = try VisionTransformer.init(allocator, config);
-    defer vit.deinit();
+    var vit_model = try VisionTransformer.init(allocator, config);
+    defer vit_model.deinit();
 
     // Create dummy image
     const img_size = config.in_channels * config.image_size * config.image_size;
@@ -1021,20 +436,20 @@ test "VisionTransformer tiny init and forward" {
     for (image) |*p| p.* = 0.5;
 
     // Forward pass
-    const embedding = try vit.forward(image);
-    defer allocator.free(embedding);
+    const result_embedding = try vit_model.forward(image);
+    defer allocator.free(result_embedding);
 
-    try std.testing.expectEqual(@as(usize, config.hidden_size), embedding.len);
+    try std.testing.expectEqual(@as(usize, config.hidden_size), result_embedding.len);
 }
 
 test "VisionTransformer parameter count" {
     const config = ViTConfig.base(224, 16);
     const allocator = std.testing.allocator;
 
-    var vit = try VisionTransformer.init(allocator, config);
-    defer vit.deinit();
+    var vit_model = try VisionTransformer.init(allocator, config);
+    defer vit_model.deinit();
 
-    const params = vit.numParams();
+    const params = vit_model.numParams();
     // ViT-Base should have ~86M parameters
     try std.testing.expect(params > 80_000_000 and params < 90_000_000);
 }

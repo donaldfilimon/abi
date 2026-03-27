@@ -72,3 +72,53 @@ fn toLower(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     }
     return result;
 }
+
+test "route sets routing weights and primary profile" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "help me understand why", "session-1", 1);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{});
+
+    try std.testing.expect(pctx.routing_weights != null);
+    try std.testing.expect(pctx.primary_profile != null);
+
+    // "help me", "understand", "why" are Abbey keywords — she should win
+    try std.testing.expectEqual(types.ProfileTag.ProfileType.abbey, pctx.primary_profile.?);
+
+    const weights = pctx.routing_weights.?;
+    try std.testing.expect(weights.abbey_weight > weights.aviva_weight);
+    try std.testing.expect(weights.abbey_weight > weights.abi_weight);
+}
+
+test "route selects aviva for code-related input" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "debug this function and fix the compile error", "session-2", 2);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{});
+
+    try std.testing.expectEqual(types.ProfileTag.ProfileType.aviva, pctx.primary_profile.?);
+}
+
+test "route selects abi for policy-related input" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "comply with privacy policy and moderate", "session-3", 3);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{});
+
+    try std.testing.expectEqual(types.ProfileTag.ProfileType.abi, pctx.primary_profile.?);
+}
+
+test "route weights sum to approximately one" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "generic neutral input", "session-4", 4);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{});
+
+    const weights = pctx.routing_weights.?;
+    const total = weights.abbey_weight + weights.aviva_weight + weights.abi_weight;
+    try std.testing.expect(@abs(total - 1.0) < 0.01);
+}
