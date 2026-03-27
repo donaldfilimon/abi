@@ -23,9 +23,29 @@ pub fn dispatchHttpRequest(
     const target = request.head.target;
     const path = splitPath(target);
 
+    std.log.info("{s} {s}", .{ @tagName(request.head.method), path });
+
+    // Handle CORS preflight
+    if (request.head.method == .OPTIONS) {
+        return respondCors(request);
+    }
+
+    if (std.mem.eql(u8, path, "/health")) {
+        return respondJson(request, "{\"status\":\"ok\"}", .ok);
+    }
+
+    if (std.mem.eql(u8, path, "/status")) {
+        if (request.head.method != .GET) {
+            return respondJson(request, "{\"error\":\"method_not_allowed\",\"message\":\"use GET\"}", .method_not_allowed);
+        }
+        const body = try acp_server.statusJson(allocator);
+        defer allocator.free(body);
+        return respondJson(request, body, .ok);
+    }
+
     if (std.mem.eql(u8, path, "/.well-known/agent.json")) {
         if (request.head.method != .GET) {
-            return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+            return respondJson(request, "{\"error\":\"method_not_allowed\",\"message\":\"use GET\"}", .method_not_allowed);
         }
         const body = try card.toJson(allocator);
         defer allocator.free(body);
@@ -46,15 +66,15 @@ pub fn dispatchHttpRequest(
 
     if (std.mem.eql(u8, path, "/openapi.json")) {
         if (request.head.method != .GET) {
-            return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+            return respondJson(request, "{\"error\":\"method_not_allowed\",\"message\":\"use GET\"}", .method_not_allowed);
         }
         const spec = acp_server.getOrBuildOpenApiSpec() catch {
-            return respondJson(request, "{\"error\":\"spec generation failed\"}", .internal_server_error);
+            return respondJson(request, "{\"error\":\"internal_error\",\"message\":\"spec generation failed\"}", .internal_server_error);
         };
         return respondJson(request, spec, .ok);
     }
 
-    return respondJson(request, "{\"error\":\"not found\"}", .not_found);
+    return respondJson(request, "{\"error\":\"not_found\",\"message\":\"unknown route\"}", .not_found);
 }
 
 fn splitPath(target: []const u8) []const u8 {
@@ -271,9 +291,23 @@ pub fn respondJson(
 ) !void {
     const headers = [_]std.http.Header{
         .{ .name = "content-type", .value = "application/json" },
+        .{ .name = "access-control-allow-origin", .value = "*" },
     };
     try request.respond(body, .{
         .status = status,
+        .extra_headers = &headers,
+    });
+}
+
+fn respondCors(request: *std.http.Server.Request) !void {
+    const headers = [_]std.http.Header{
+        .{ .name = "access-control-allow-origin", .value = "*" },
+        .{ .name = "access-control-allow-methods", .value = "GET, POST, OPTIONS" },
+        .{ .name = "access-control-allow-headers", .value = "content-type, authorization" },
+        .{ .name = "access-control-max-age", .value = "86400" },
+    };
+    try request.respond("", .{
+        .status = .no_content,
         .extra_headers = &headers,
     });
 }
