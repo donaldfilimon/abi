@@ -164,7 +164,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 - `build/flags.zig` — `FeatureFlags` struct, `hasBackend()`, `addAllBuildOptions()`
 - `build/cross.zig` — cross-compilation targets (typecheck, cross-check steps)
 - `build/linking.zig` — `linkDarwinArtifact()` for macOS framework linking
-- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring. Uses `addFeatureTestLane()` helper for all 26 feature-specific test steps
+- `build/validation.zig` — test, parity, feature-test, and MCP-test step wiring. Uses `addFeatureTestLane()` helper for all 27 feature-specific test steps
 
 ## Architecture
 

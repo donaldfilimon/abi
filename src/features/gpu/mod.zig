@@ -108,24 +108,20 @@ const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;
 const sync = @import("../../foundation/mod.zig").sync;
 
-// ============================================================================
-// Sub-namespace facades (additive)
-// ============================================================================
+// ── Sub-namespace facades ────────────────────────────────────────────────
 pub const core_gpu = @import("core_gpu.zig");
 pub const execution = @import("execution.zig");
 pub const memory_ns = @import("memory_ns.zig");
 pub const advanced = @import("advanced.zig");
 
-// ============================================================================
-// Internal and Flat Exports
-// ============================================================================
+// ── Backend and Kernel Core ──────────────────────────────────────────────
 pub const backend = @import("backend.zig");
 pub const kernels = @import("runtime_kernels.zig");
 pub const memory = @import("memory/base.zig");
 pub const backend_shared = @import("backends/shared.zig");
 pub const profiling = @import("profiling.zig");
 
-// Performance optimization modules
+// ── Performance Optimization ─────────────────────────────────────────────
 pub const occupancy = @import("occupancy.zig");
 pub const fusion = @import("fusion.zig");
 pub const execution_coordinator = @import("execution_coordinator.zig");
@@ -135,11 +131,11 @@ pub const sync_event = @import("sync_event.zig");
 pub const kernel_ring = @import("kernel_ring.zig");
 pub const adaptive_tiling = @import("adaptive_tiling.zig");
 
-// std.gpu integration (Zig 0.16+ native GPU support)
+// ── std.gpu Integration (Zig 0.16+) ─────────────────────────────────────
 pub const std_gpu = @import("std_gpu.zig");
 pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
 
-// Unified API modules
+// ── Unified API ──────────────────────────────────────────────────────────
 pub const unified = @import("unified.zig");
 pub const unified_buffer = @import("unified_buffer.zig");
 pub const device = @import("device.zig");
@@ -151,7 +147,7 @@ pub const policy = @import("policy/mod.zig");
 pub const multi = @import("multi.zig");
 pub const factory = @import("factory/mod.zig");
 
-// Backend interface and loaders
+// ── Backend Interface and Loaders ────────────────────────────────────────
 pub const interface = @import("interface.zig");
 pub const cuda_loader = if (backend_shared.dynlibSupported)
     @import("backends/cuda/loader.zig")
@@ -177,35 +173,35 @@ else
         }
     };
 
-// Platform detection
+// ── Platform Detection ───────────────────────────────────────────────────
 pub const platform = @import("platform.zig");
 
-// Modular backend abstraction layer
+// ── Modular Backend Abstraction ──────────────────────────────────────────
 pub const backends = @import("backends/mod.zig");
 pub const dispatch = @import("dispatch/mod.zig");
 pub const builtin_kernels = @import("builtin_kernels.zig");
 
-// Recovery and failover
+// ── Recovery and Failover ────────────────────────────────────────────────
 pub const recovery = @import("recovery.zig");
 pub const failover = @import("failover.zig");
 pub const failover_types = @import("failover_types.zig");
 
-// Diagnostics and error handling
+// ── Diagnostics ──────────────────────────────────────────────────────────
 pub const diagnostics = @import("diagnostics.zig");
 pub const error_handling = @import("error_handling.zig");
 
-// Multi-device and peer transfer
+// ── Multi-Device ─────────────────────────────────────────────────────────
 pub const multi_device = @import("multi_device.zig");
 pub const peer_transfer = @import("peer_transfer/mod.zig");
 
-// Mega GPU orchestration (cross-backend coordinator)
+// ── Mega Orchestration ───────────────────────────────────────────────────
 pub const mega = @import("mega/mod.zig");
 
-// AI training bridge (GPU-accelerated training ops with CPU fallback)
+// ── AI Training Bridge ───────────────────────────────────────────────────
 pub const coordinator_ai_ops = @import("coordinator_ai_ops.zig");
 pub const training_bridge = @import("training_bridge.zig");
 
-// Gradient compression for distributed training
+// ── Gradient Compression ─────────────────────────────────────────────────
 pub const gradient_compression = @import("gradient_compression.zig");
 
 // Include test modules in test builds
@@ -288,9 +284,7 @@ pub const Stream = kernels.Stream;
 pub const Backend = backend.Backend;
 pub const isEnabled = backend.isEnabled;
 
-// ============================================================================
-// Unified API Exports (essential shared types only)
-// ============================================================================
+// ── Unified API Exports ──────────────────────────────────────────────────
 
 pub const Gpu = unified.Gpu;
 pub const GpuConfig = unified.GpuConfig;
@@ -383,9 +377,7 @@ pub fn isInitialized() bool {
     return gpu_lifecycle.isInitialized();
 }
 
-// ============================================================================
-// Context - Framework Integration
-// ============================================================================
+// ── Framework Integration ────────────────────────────────────────────────
 
 const config_module = @import("../../core/config/mod.zig");
 
@@ -512,9 +504,7 @@ pub const Context = struct {
     }
 };
 
-// ============================================================================
-// Inline Tests
-// ============================================================================
+// ── Tests ────────────────────────────────────────────────────────────────
 
 test "gpu module enabled status" {
     try std.testing.expect(backend.moduleEnabled());

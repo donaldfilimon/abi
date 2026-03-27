@@ -31,13 +31,13 @@ const sync = @import("../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
-// New sub-namespace re-exports (additive)
+// ── Sub-namespace facades ────────────────────────────────────────────────
 pub const cluster = @import("cluster.zig");
 pub const consensus = @import("consensus.zig");
 pub const rpc = @import("rpc.zig");
 pub const reliability = @import("reliability.zig");
 
-// Internal module imports
+// ── Sub-module imports ───────────────────────────────────────────────────
 pub const registry = @import("registry.zig");
 pub const protocol = @import("protocol.zig");
 pub const scheduler = @import("scheduler.zig");
@@ -54,21 +54,17 @@ pub const circuit_breaker = @import("circuit_breaker.zig");
 pub const heartbeat = @import("heartbeat.zig");
 pub const rpc_protocol = @import("rpc_protocol.zig");
 
-// Unified Memory and Linking modules
+// ── Unified Memory and Linking ───────────────────────────────────────────
 pub const unified_memory = @import("unified_memory/mod.zig");
 pub const linking = @import("linking.zig");
 
-// ============================================================================
-// Node Registry exports
-// ============================================================================
+// ── Node Registry ────────────────────────────────────────────────────────
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
 pub const NodeStatus = registry.NodeStatus;
 pub const Node = NodeInfo; // Alias for compatibility
 
-// ============================================================================
-// Protocol exports
-// ============================================================================
+// ── Protocol ─────────────────────────────────────────────────────────────
 pub const TaskEnvelope = protocol.TaskEnvelope;
 pub const ResultEnvelope = protocol.ResultEnvelope;
 pub const ResultStatus = protocol.ResultStatus;
@@ -77,9 +73,7 @@ pub const decodeTask = protocol.decodeTask;
 pub const encodeResult = protocol.encodeResult;
 pub const decodeResult = protocol.decodeResult;
 
-// ============================================================================
-// Scheduler exports
-// ============================================================================
+// ── Scheduler ────────────────────────────────────────────────────────────
 pub const TaskScheduler = scheduler.TaskScheduler;
 pub const SchedulerConfig = scheduler.SchedulerConfig;
 pub const SchedulerError = scheduler.SchedulerError;
@@ -89,9 +83,7 @@ pub const ComputeNode = scheduler.ComputeNode;
 pub const LoadBalancingStrategy = scheduler.LoadBalancingStrategy;
 pub const SchedulerStats = scheduler.SchedulerStats;
 
-// ============================================================================
-// High Availability exports
-// ============================================================================
+// ── High Availability ────────────────────────────────────────────────────
 pub const HealthCheck = ha.HealthCheck;
 pub const ClusterConfig = ha.ClusterConfig;
 pub const HaError = ha.HaError;
@@ -100,9 +92,7 @@ pub const ClusterState = ha.ClusterState;
 pub const HealthCheckResult = ha.HealthCheckResult;
 pub const FailoverPolicy = ha.FailoverPolicy;
 
-// ============================================================================
-// Service Discovery exports
-// ============================================================================
+// ── Service Discovery ────────────────────────────────────────────────────
 pub const ServiceDiscovery = discovery.ServiceDiscovery;
 pub const DiscoveryConfig = discovery.DiscoveryConfig;
 pub const DiscoveryBackend = discovery.DiscoveryBackend;
@@ -113,9 +103,7 @@ pub const generateServiceId = discovery.generateServiceId;
 pub const base64Encode = discovery.base64Encode;
 pub const base64Decode = discovery.base64Decode;
 
-// ============================================================================
-// Load Balancer exports
-// ============================================================================
+// ── Load Balancer ────────────────────────────────────────────────────────
 pub const LoadBalancer = loadbalancer.LoadBalancer;
 pub const LoadBalancerConfig = loadbalancer.LoadBalancerConfig;
 pub const LoadBalancerStrategy = loadbalancer.LoadBalancerStrategy;
@@ -123,9 +111,7 @@ pub const LoadBalancerError = loadbalancer.LoadBalancerError;
 pub const NodeState = loadbalancer.NodeState;
 pub const NodeStats = loadbalancer.NodeStats;
 
-// ============================================================================
-// Retry exports
-// ============================================================================
+// ── Retry ────────────────────────────────────────────────────────────────
 pub const RetryConfig = retry.RetryConfig;
 pub const RetryResult = retry.RetryResult;
 pub const RetryError = retry.RetryError;
@@ -136,9 +122,7 @@ pub const BackoffCalculator = retry.BackoffCalculator;
 pub const retryOperation = retry.retry;
 pub const retryWithStrategy = retry.retryWithStrategy;
 
-// ============================================================================
-// Rate Limiter exports
-// ============================================================================
+// ── Rate Limiter ─────────────────────────────────────────────────────────
 pub const RateLimiter = rate_limiter.RateLimiter;
 pub const RateLimiterConfig = rate_limiter.RateLimiterConfig;
 pub const RateLimitAlgorithm = rate_limiter.RateLimitAlgorithm;
@@ -148,9 +132,7 @@ pub const SlidingWindowLimiter = rate_limiter.SlidingWindowLimiter;
 pub const FixedWindowLimiter = rate_limiter.FixedWindowLimiter;
 pub const LimiterStats = rate_limiter.LimiterStats;
 
-// ============================================================================
-// Connection Pool exports
-// ============================================================================
+// ── Connection Pool ──────────────────────────────────────────────────────
 pub const ConnectionPool = connection_pool.ConnectionPool;
 pub const ConnectionPoolConfig = connection_pool.ConnectionPoolConfig;
 pub const PooledConnection = connection_pool.PooledConnection;
@@ -160,9 +142,7 @@ pub const HostKey = connection_pool.HostKey;
 pub const PoolStats = connection_pool.PoolStats;
 pub const PoolBuilder = connection_pool.PoolBuilder;
 
-// ============================================================================
-// Raft consensus exports
-// ============================================================================
+// ── Raft Consensus ───────────────────────────────────────────────────────
 pub const RaftNode = raft.RaftNode;
 pub const RaftState = raft.RaftState;
 pub const RaftConfig = raft.RaftConfig;
@@ -194,9 +174,7 @@ pub const ConfigChangeType = raft.ConfigChangeType;
 pub const ConfigChangeRequest = raft.ConfigChangeRequest;
 pub const applyConfigChange = raft.applyConfigChange;
 
-// ============================================================================
-// Transport exports
-// ============================================================================
+// ── Transport ────────────────────────────────────────────────────────────
 pub const TcpTransport = transport.TcpTransport;
 pub const TransportConfig = transport.TransportConfig;
 pub const TransportError = transport.TransportError;
@@ -207,17 +185,13 @@ pub const PeerConnection = transport.PeerConnection;
 pub const RpcSerializer = transport.RpcSerializer;
 pub const parseAddress = transport.parseAddress;
 
-// ============================================================================
-// Raft Transport exports
-// ============================================================================
+// ── Raft Transport ───────────────────────────────────────────────────────
 pub const RaftTransport = raft_transport.RaftTransport;
 pub const RaftTransportConfig = raft_transport.RaftTransportConfig;
 pub const RaftTransportStats = raft_transport.RaftTransport.RaftTransportStats;
 pub const PeerAddress = raft_transport.PeerAddress;
 
-// ============================================================================
-// Circuit Breaker exports
-// ============================================================================
+// ── Circuit Breaker ──────────────────────────────────────────────────────
 pub const CircuitBreaker = circuit_breaker.CircuitBreaker;
 pub const CircuitConfig = circuit_breaker.CircuitConfig;
 pub const CircuitState = circuit_breaker.CircuitState;
@@ -228,18 +202,14 @@ pub const CircuitMetricEntry = circuit_breaker.CircuitMetricEntry;
 pub const NetworkOperationError = circuit_breaker.NetworkOperationError;
 pub const AggregateStats = circuit_breaker.AggregateStats;
 
-// ============================================================================
-// Failover Manager exports
-// ============================================================================
+// ── Failover ─────────────────────────────────────────────────────────────
 pub const failover = @import("failover.zig");
 pub const FailoverManager = failover.FailoverManager;
 pub const FailoverConfig = failover.FailoverConfig;
 pub const FailoverState = failover.FailoverState;
 pub const FailoverEvent = failover.FailoverEvent;
 
-// ============================================================================
-// Unified Memory exports
-// ============================================================================
+// ── Unified Memory ───────────────────────────────────────────────────────
 pub const UnifiedMemoryManager = unified_memory.UnifiedMemoryManager;
 pub const UnifiedMemoryConfig = unified_memory.UnifiedMemoryConfig;
 pub const UnifiedMemoryError = unified_memory.UnifiedMemoryError;
@@ -253,9 +223,7 @@ pub const RemotePtr = unified_memory.RemotePtr;
 pub const RemoteSlice = unified_memory.RemoteSlice;
 pub const MemoryNode = unified_memory.MemoryNode;
 
-// ============================================================================
-// Linking exports
-// ============================================================================
+// ── Linking ──────────────────────────────────────────────────────────────
 pub const LinkManager = linking.LinkManager;
 pub const Link = linking.Link;
 pub const LinkConfig = linking.LinkConfig;
@@ -276,9 +244,7 @@ pub const InternetConfig = linking.InternetConfig;
 pub const NatTraversal = linking.NatTraversal;
 pub const QuicConnection = linking.QuicConnection;
 
-// ============================================================================
-// Heartbeat FSM exports
-// ============================================================================
+// ── Heartbeat FSM ────────────────────────────────────────────────────────
 pub const NodeHealthState = heartbeat.NodeHealthState;
 pub const ClusterHealthState = heartbeat.ClusterHealthState;
 pub const HeartbeatEvent = heartbeat.HeartbeatEvent;
@@ -286,9 +252,7 @@ pub const HeartbeatConfig = heartbeat.HeartbeatConfig;
 pub const HeartbeatStateMachine = heartbeat.HeartbeatStateMachine;
 pub const EventCallback = heartbeat.EventCallback;
 
-// ============================================================================
-// RPC Protocol exports
-// ============================================================================
+// ── RPC Protocol ─────────────────────────────────────────────────────────
 pub const RpcMessageType = rpc_protocol.MessageType;
 pub const RpcHeader = rpc_protocol.RpcHeader;
 pub const ParsedFrame = rpc_protocol.ParsedFrame;
@@ -298,9 +262,7 @@ pub const BlockHeader = rpc_protocol.BlockHeader;
 pub const frameMessage = rpc_protocol.frameMessage;
 pub const parseRpcFrame = rpc_protocol.parseFrame;
 
-// ============================================================================
-// Shared types (from types.zig)
-// ============================================================================
+// ── Shared Types ─────────────────────────────────────────────────────────
 pub const types = @import("types.zig");
 pub const NetworkError = types.NetworkError;
 pub const Error = types.Error;
@@ -331,9 +293,7 @@ pub const NetworkState = struct {
     }
 };
 
-// ============================================================================
-// Context - Framework integration
-// ============================================================================
+// ── Framework Integration ────────────────────────────────────────────────
 
 /// Network context for Framework integration.
 pub const Context = struct {
@@ -398,9 +358,7 @@ pub const Context = struct {
     }
 };
 
-// ============================================================================
-// Module state
-// ============================================================================
+// ── Module Lifecycle ─────────────────────────────────────────────────────
 var state_mutex = sync.Mutex{};
 var default_state: ?NetworkState = null;
 var initialized = std.atomic.Value(bool).init(false);
@@ -466,9 +424,7 @@ pub fn defaultConfig() ?NetworkConfig {
     return null;
 }
 
-// ============================================================================
-// Tests
-// ============================================================================
+// ── Tests ────────────────────────────────────────────────────────────────
 test "network state tracks nodes" {
     var state = try NetworkState.init(std.testing.allocator, .{ .cluster_id = "test" });
     defer state.deinit();

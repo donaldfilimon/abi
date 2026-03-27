@@ -18,9 +18,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 
-// ============================================================================
-// Sub-namespace facades (additive)
-// ============================================================================
+// ── Sub-namespace facades ────────────────────────────────────────────────
 
 pub const core_training = @import("core_training.zig");
 pub const models = @import("models.zig");
@@ -28,9 +26,7 @@ pub const data = @import("data.zig");
 pub const checkpointing = @import("checkpointing.zig");
 pub const specialized = @import("specialized.zig");
 
-// ============================================================================
-// Sub-module imports
-// ============================================================================
+// ── Sub-module imports ───────────────────────────────────────────────────
 
 pub const checkpoint = @import("checkpoint.zig");
 pub const llm_checkpoint = @import("llm_checkpoint.zig");
@@ -48,16 +44,12 @@ pub const optimizer_mod = @import("optimizer.zig");
 pub const trainer = @import("trainer.zig");
 pub const training_utils = @import("training_utils.zig");
 
-// ============================================================================
-// Distributed training exports
-// ============================================================================
+// ── Distributed Training ─────────────────────────────────────────────────
 
 pub const DistributedConfig = distributed.DistributedConfig;
 pub const DistributedTrainer = distributed.DistributedTrainer;
 
-// ============================================================================
-// Checkpoint exports
-// ============================================================================
+// ── Checkpointing ────────────────────────────────────────────────────────
 
 pub const Checkpoint = checkpoint.Checkpoint;
 pub const CheckpointError = checkpoint.CheckpointError;
@@ -69,9 +61,7 @@ pub const SaveLatestCheckpointError = checkpoint.SaveLatestError;
 pub const loadCheckpoint = checkpoint.loadCheckpoint;
 pub const saveCheckpoint = checkpoint.saveCheckpoint;
 
-// ============================================================================
-// LLM checkpoint exports
-// ============================================================================
+// ── LLM Checkpointing ────────────────────────────────────────────────────
 
 pub const LlmCheckpoint = llm_checkpoint.LlmCheckpoint;
 pub const LlmCheckpointView = llm_checkpoint.LlmCheckpointView;
@@ -82,9 +72,7 @@ pub const saveLlmCheckpoint = llm_checkpoint.saveLlmCheckpoint;
 pub const GradientAccumulator = gradient.GradientAccumulator;
 pub const GradientError = gradient.GradientError;
 
-// ============================================================================
-// Loss function exports
-// ============================================================================
+// ── Loss Functions ───────────────────────────────────────────────────────
 
 pub const CrossEntropyLoss = loss.CrossEntropyLoss;
 pub const MSELoss = loss.MSELoss;
@@ -92,9 +80,7 @@ pub const FocalLoss = loss.FocalLoss;
 pub const perplexity = loss.perplexity;
 pub const klDivergence = loss.klDivergence;
 
-// ============================================================================
-// Trainable model exports
-// ============================================================================
+// ── Trainable Model ──────────────────────────────────────────────────────
 
 pub const TrainableModel = trainable_model.TrainableModel;
 pub const TrainableModelConfig = trainable_model.TrainableModelConfig;
@@ -103,17 +89,13 @@ pub const TrainableLayerWeights = trainable_model.TrainableLayerWeights;
 pub const ActivationCache = trainable_model.ActivationCache;
 pub const ModelLoadError = trainable_model.LoadError;
 
-// ============================================================================
-// LLM trainer exports
-// ============================================================================
+// ── LLM Trainer ──────────────────────────────────────────────────────────
 
 pub const LlamaTrainer = llm_trainer.LlamaTrainer;
 pub const LlmTrainingConfig = llm_trainer.LlmTrainingConfig;
 pub const trainLlm = llm_trainer.trainLlm;
 
-// ============================================================================
-// Data loader exports
-// ============================================================================
+// ── Data Loading ─────────────────────────────────────────────────────────
 
 pub const DataLoader = data_loader.DataLoader;
 pub const TokenizedDataset = data_loader.TokenizedDataset;
@@ -129,18 +111,14 @@ pub const decodeTokenBlock = token_dataset.decodeTokenBlock;
 pub const readTokenBinFile = token_dataset.readTokenBinFile;
 pub const writeTokenBinFile = token_dataset.writeTokenBinFile;
 
-// ============================================================================
-// LoRA exports
-// ============================================================================
+// ── LoRA ─────────────────────────────────────────────────────────────────
 
 pub const LoraAdapter = lora.LoraAdapter;
 pub const LoraConfig = lora.LoraConfig;
 pub const LoraLayerAdapters = lora.LoraLayerAdapters;
 pub const LoraModel = lora.LoraModel;
 
-// ============================================================================
-// Mixed precision exports
-// ============================================================================
+// ── Mixed Precision ──────────────────────────────────────────────────────
 
 pub const MixedPrecisionConfig = mixed_precision.MixedPrecisionConfig;
 pub const MixedPrecisionContext = mixed_precision.MixedPrecisionContext;
@@ -153,9 +131,7 @@ pub const TrainingLogger = logging.TrainingLogger;
 pub const TrainingLogConfig = logging.LoggerConfig;
 pub const TrainingLogMetric = logging.Metric;
 
-// ============================================================================
-// Self-learning exports
-// ============================================================================
+// ── Self-Learning ────────────────────────────────────────────────────────
 
 pub const self_learning = @import("self_learning.zig");
 pub const SelfLearningSystem = self_learning.SelfLearningSystem;
@@ -186,9 +162,7 @@ pub const ExperienceType = self_learning.ExperienceType;
 pub const FeedbackType = self_learning.FeedbackType;
 pub const DataKind = self_learning.DataKind;
 
-// ============================================================================
-// Vision Transformer training exports
-// ============================================================================
+// ── Vision Transformer Training ──────────────────────────────────────────
 
 pub const vision_trainer = @import("vision_trainer.zig");
 pub const TrainableViTModel = vision_trainer.TrainableViTModel;
@@ -198,9 +172,7 @@ pub const TrainableViTLayerWeights = vision_trainer.TrainableViTLayerWeights;
 pub const ViTActivationCache = vision_trainer.ViTActivationCache;
 pub const VisionTrainingError = vision_trainer.VisionTrainingError;
 
-// ============================================================================
-// Multimodal (CLIP-style) training exports
-// ============================================================================
+// ── Multimodal (CLIP) Training ───────────────────────────────────────────
 
 pub const multimodal_trainer = @import("multimodal_trainer.zig");
 pub const TrainableCLIPModel = multimodal_trainer.TrainableCLIPModel;
@@ -209,18 +181,14 @@ pub const TrainableTextEncoderWeights = multimodal_trainer.TrainableTextEncoderW
 pub const TextTransformerLayerWeights = multimodal_trainer.TextTransformerLayerWeights;
 pub const MultimodalTrainingError = multimodal_trainer.MultimodalTrainingError;
 
-// ============================================================================
-// Optimizer re-exports
-// ============================================================================
+// ── Optimizers ───────────────────────────────────────────────────────────
 
 pub const Optimizer = optimizer_mod.Optimizer;
 pub const SgdOptimizer = optimizer_mod.SgdOptimizer;
 pub const AdamOptimizer = optimizer_mod.AdamOptimizer;
 pub const AdamWOptimizer = optimizer_mod.AdamWOptimizer;
 
-// ============================================================================
-// Trainer re-exports
-// ============================================================================
+// ── Trainer Functions ────────────────────────────────────────────────────
 
 pub const TrainingResult = trainer.TrainingResult;
 pub const train = trainer.train;
@@ -230,9 +198,7 @@ pub const calculateLearningRate = trainer.calculateLearningRate;
 pub const clipGradients = trainer.clipGradients;
 pub const saveModelToWdbx = trainer.saveModelToWdbx;
 
-// ============================================================================
-// Core Types (kept in mod.zig — used by optimizer.zig and trainer.zig)
-// ============================================================================
+// ── Core Types ───────────────────────────────────────────────────────────
 
 pub const TrainingError = error{
     InvalidConfiguration,
@@ -454,9 +420,7 @@ pub fn isEnabled() bool {
     return build_options.feat_training;
 }
 
-// ============================================================================
-// Tests
-// ============================================================================
+// ── Tests ────────────────────────────────────────────────────────────────
 
 // Test discovery for extracted test files
 test {
