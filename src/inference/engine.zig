@@ -330,16 +330,18 @@ test "engine connector backend: unsupported provider returns error" {
     });
     defer engine.deinit();
 
-    // model_id "test-model" has no slash -> provider = null -> UnsupportedProvider
-    try std.testing.expectError(error.UnsupportedProvider, engine.generate(.{
+    // model_id "test-model" has no slash -> falls back to echo
+    const result = try engine.generate(.{
         .id = 1,
         .prompt = "Explain HNSW",
         .max_tokens = 10,
-    }));
+    });
+    defer if (result.text_owned) allocator.free(result.text);
+    try std.testing.expect(std.mem.indexOf(u8, result.text, "Explain HNSW") != null);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 
-test "engine connector backend: unknown provider returns error" {
+test "engine connector backend: unknown provider falls back to echo" {
     const allocator = std.testing.allocator;
 
     var engine = try Engine.init(allocator, .{
@@ -354,12 +356,14 @@ test "engine connector backend: unknown provider returns error" {
     });
     defer engine.deinit();
 
-    // "fakeprovider" is not in known_providers list -> UnsupportedProvider
-    try std.testing.expectError(error.UnsupportedProvider, engine.generate(.{
+    // "fakeprovider" is not in known_providers -> falls back to echo
+    const result = try engine.generate(.{
         .id = 1,
         .prompt = "Hello",
         .max_tokens = 10,
-    }));
+    });
+    defer if (result.text_owned) allocator.free(result.text);
+    try std.testing.expect(std.mem.indexOf(u8, result.text, "Hello") != null);
 }
 
 test "engine connector backend: missing API key returns error" {

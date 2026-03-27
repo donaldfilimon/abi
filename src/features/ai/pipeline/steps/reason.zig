@@ -59,7 +59,7 @@ test "reason sets confidence metadata" {
 
     // With no routing weights, confidence defaults to 0.5
     const confidence = pctx.metadata.get("confidence").?;
-    try std.testing.expectEqualStrings("0.5", confidence);
+    try std.testing.expectEqualStrings("0.50", confidence);
 }
 
 test "reason sets reasoning trace metadata" {
@@ -93,5 +93,5 @@ test "reason includes routing profile when set" {
     try std.testing.expect(std.mem.indexOf(u8, reasoning, "Routed to: Aviva") != null);
 
     const confidence = pctx.metadata.get("confidence").?;
-    try std.testing.expectEqualStrings("0.6", confidence);
+    try std.testing.expectEqualStrings("0.60", confidence);
 }

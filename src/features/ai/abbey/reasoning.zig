@@ -167,23 +167,6 @@ pub const ReasoningChain = struct {
         return false;
     }
 
-    /// Convenience: add a step by type, title, and confidence score.
-    pub fn addStepByType(
-        self: *Self,
-        allocator: std.mem.Allocator,
-        reasoning_type: ReasoningType,
-        title: []const u8,
-        confidence: f32,
-    ) !void {
-        try self.addStep(allocator, .{
-            .step_number = self.steps.items.len + 1,
-            .title = title,
-            .explanation = title,
-            .confidence = confidence,
-            .reasoning_type = reasoning_type,
-        });
-    }
-
     /// Finalize the reasoning chain (marks it complete).
     pub fn finalize(self: *Self) !void {
         if (self.steps.items.len > 0 and self.conclusion == null) {
