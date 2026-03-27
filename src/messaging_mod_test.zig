@@ -5,6 +5,5 @@ const messaging = @import("features/messaging/mod.zig");
 const messaging_tests = @import("features/messaging/tests.zig");
 
 test {
-    _ = messaging;
     std.testing.refAllDecls(messaging_tests);
 }

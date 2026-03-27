@@ -13,7 +13,7 @@
 
 const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
-const emotion = @import("emotion.zig");
+const emotion = @import("emotions.zig");
 const core_types = @import("../types.zig");
 
 /// A single step in the reasoning chain.
@@ -38,6 +38,10 @@ pub const ReasoningStep = struct {
 
 /// Types of reasoning approaches.
 pub const ReasoningType = enum {
+    /// Initial query assessment.
+    assessment,
+    /// Research or verification needed.
+    research,
     /// Breaking down complex problems.
     decomposition,
     /// Drawing from similar cases.
@@ -61,6 +65,8 @@ pub const ReasoningType = enum {
 
     pub fn getDescription(self: ReasoningType) []const u8 {
         return switch (self) {
+            .assessment => "Assessing query complexity",
+            .research => "Researching and verifying",
             .decomposition => "Breaking down the problem",
             .analogy => "Drawing from similar situations",
             .deduction => "Following logical implications",
@@ -135,12 +141,61 @@ pub const ReasoningChain = struct {
         return self.steps.items.len;
     }
 
+    /// Convenience: add a step by specifying only the reasoning type, title, explanation, and confidence.
+    pub fn addStepByType(
+        self: *Self,
+        allocator: std.mem.Allocator,
+        reasoning_type: ReasoningType,
+        title: []const u8,
+        explanation: []const u8,
+        confidence: f32,
+    ) !void {
+        try self.addStep(allocator, .{
+            .step_number = self.stepCount() + 1,
+            .title = try allocator.dupe(u8, title),
+            .explanation = try allocator.dupe(u8, explanation),
+            .confidence = confidence,
+            .reasoning_type = reasoning_type,
+        });
+    }
+
     /// Check if any step needs validation.
     pub fn needsValidation(self: *const Self) bool {
         for (self.steps.items) |step| {
             if (step.needs_validation) return true;
         }
         return false;
+    }
+
+    /// Finalize the reasoning chain (marks it complete).
+    pub fn finalize(self: *Self) !void {
+        if (self.steps.items.len > 0 and self.conclusion == null) {
+            // Auto-generate a brief conclusion from the last step
+            const last = self.steps.items[self.steps.items.len - 1];
+            self.conclusion = last.title;
+        }
+    }
+
+    /// Get a summary of the reasoning chain. Caller owns returned slice.
+    pub fn getSummary(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(allocator);
+
+        try result.print(allocator, "Query: {s}\nSteps: {d}\n", .{ self.query, self.steps.items.len });
+        for (self.steps.items) |step| {
+            try result.print(allocator, "  {d}. [{s}] {s} ({d:.0}%)\n", .{
+                step.step_number,
+                step.reasoning_type.getDescription(),
+                step.title,
+                step.confidence * 100,
+            });
+        }
+        if (self.conclusion) |c| {
+            try result.print(allocator, "Conclusion: {s}\n", .{c});
+        }
+        try result.print(allocator, "Overall confidence: {d:.0}%\n", .{self.overall_confidence * 100});
+
+        return result.toOwnedSlice(allocator);
     }
 };
 
@@ -389,7 +444,7 @@ pub fn combineReasoningChains(
 
     // Add steps from primary chain
     for (chains[primary_index].steps.items) |step| {
-        try combined.addStep(.{
+        try combined.addStep(allocator, .{
             .step_number = combined.stepCount() + 1,
             .title = try allocator.dupe(u8, step.title),
             .explanation = try allocator.dupe(u8, step.explanation),
@@ -500,4 +555,84 @@ test "reasoning chain confidence" {
 
     // Overall confidence should be minimum of steps
     try std.testing.expectApproxEqAbs(@as(f32, 0.8), chain.overall_confidence, 0.01);
+}
+
+test "ReasoningChain confidence product" {
+    var chain = ReasoningChain.init(std.testing.allocator, "test confidence");
+    defer chain.deinit(std.testing.allocator);
+
+    try chain.addStep(std.testing.allocator, .{
+        .step_number = 1,
+        .title = try std.testing.allocator.dupe(u8, "High confidence step"),
+        .explanation = try std.testing.allocator.dupe(u8, "First step"),
+        .confidence = 0.8,
+        .reasoning_type = .decomposition,
+    });
+
+    try chain.addStep(std.testing.allocator, .{
+        .step_number = 2,
+        .title = try std.testing.allocator.dupe(u8, "Lower confidence step"),
+        .explanation = try std.testing.allocator.dupe(u8, "Second step"),
+        .confidence = 0.6,
+        .reasoning_type = .synthesis,
+    });
+
+    // Overall confidence uses min semantics
+    try std.testing.expectApproxEqAbs(@as(f32, 0.6), chain.overall_confidence, 0.01);
+}
+
+test "ReasoningChain needsValidation" {
+    var chain = ReasoningChain.init(std.testing.allocator, "test validation");
+    defer chain.deinit(std.testing.allocator);
+
+    // No steps => no validation needed
+    try std.testing.expect(!chain.needsValidation());
+
+    // Add a step without validation
+    try chain.addStep(std.testing.allocator, .{
+        .step_number = 1,
+        .title = try std.testing.allocator.dupe(u8, "Normal step"),
+        .explanation = try std.testing.allocator.dupe(u8, "No validation"),
+        .confidence = 0.9,
+        .reasoning_type = .deduction,
+        .needs_validation = false,
+    });
+    try std.testing.expect(!chain.needsValidation());
+
+    // Add a step that needs validation
+    try chain.addStep(std.testing.allocator, .{
+        .step_number = 2,
+        .title = try std.testing.allocator.dupe(u8, "Uncertain step"),
+        .explanation = try std.testing.allocator.dupe(u8, "Needs user check"),
+        .confidence = 0.5,
+        .reasoning_type = .hypothesis_testing,
+        .needs_validation = true,
+    });
+    try std.testing.expect(chain.needsValidation());
+}
+
+test "addStepByType convenience" {
+    var chain = ReasoningChain.init(std.testing.allocator, "test convenience");
+    defer chain.deinit(std.testing.allocator);
+
+    try chain.addStepByType(
+        std.testing.allocator,
+        .analogy,
+        "Draw analogy",
+        "Comparing to similar case",
+        0.85,
+    );
+
+    try std.testing.expectEqual(@as(usize, 1), chain.stepCount());
+
+    const step = chain.steps.items[0];
+    try std.testing.expectEqual(ReasoningType.analogy, step.reasoning_type);
+    try std.testing.expectEqual(@as(usize, 1), step.step_number);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.85), step.confidence, 0.01);
+    try std.testing.expectEqualStrings("Draw analogy", step.title);
+    try std.testing.expectEqualStrings("Comparing to similar case", step.explanation);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

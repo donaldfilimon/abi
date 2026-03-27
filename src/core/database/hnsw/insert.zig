@@ -337,3 +337,7 @@ pub fn computeNodeDistance(
 
     return dist;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

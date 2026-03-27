@@ -4,6 +4,7 @@
 //! status in a live terminal UI. Data sourced from build_options.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const build_options = @import("build_options");
 const types = @import("../types.zig");
 const terminal_mod = @import("../terminal.zig");
@@ -18,6 +19,23 @@ const Key = types.Key;
 const Rect = types.Rect;
 const Screen = render_mod.Screen;
 const Terminal = terminal_mod.Terminal;
+
+// SIGWINCH handling for terminal resize detection
+var sigwinch_received: bool = false;
+
+fn installSigwinchHandler() void {
+    if (comptime builtin.os.tag == .windows) return;
+    const act: std.posix.Sigaction = .{
+        .handler = .{ .handler = sigwinchHandler },
+        .mask = std.posix.sigemptyset(),
+        .flags = 0,
+    };
+    std.posix.sigaction(std.posix.SIG.WINCH, &act, null);
+}
+
+fn sigwinchHandler(_: std.posix.SIG) callconv(.c) void {
+    sigwinch_received = true;
+}
 
 const green_style = Style{ .fg = .green, .bold = true };
 const red_style = Style{ .fg = .red };
@@ -111,14 +129,18 @@ pub fn hasVisibleCell(cells: []const types.Cell) bool {
     return false;
 }
 
-/// Get all feature flags from build_options.
-fn getFeatureFlags() [20]FlagEntry {
+/// Get all feature flags from build_options (33 distinct flags; catalog features
+/// without own flags — embeddings, agents, profiles, constitution — inherit feat_ai).
+fn getFeatureFlags() [33]FlagEntry {
     return .{
+        // Core features
         .{ .name = "ai", .enabled = build_options.feat_ai },
         .{ .name = "gpu", .enabled = build_options.feat_gpu },
         .{ .name = "database", .enabled = build_options.feat_database },
         .{ .name = "network", .enabled = build_options.feat_network },
+        .{ .name = "observability", .enabled = build_options.feat_observability },
         .{ .name = "web", .enabled = build_options.feat_web },
+        .{ .name = "pages", .enabled = build_options.feat_pages },
         .{ .name = "search", .enabled = build_options.feat_search },
         .{ .name = "cache", .enabled = build_options.feat_cache },
         .{ .name = "auth", .enabled = build_options.feat_auth },
@@ -132,17 +154,37 @@ fn getFeatureFlags() [20]FlagEntry {
         .{ .name = "desktop", .enabled = build_options.feat_desktop },
         .{ .name = "mobile", .enabled = build_options.feat_mobile },
         .{ .name = "benchmarks", .enabled = build_options.feat_benchmarks },
+        // AI sub-features
+        .{ .name = "llm", .enabled = build_options.feat_llm },
+        .{ .name = "training", .enabled = build_options.feat_training },
+        .{ .name = "vision", .enabled = build_options.feat_vision },
+        .{ .name = "explore", .enabled = build_options.feat_explore },
+        .{ .name = "reasoning", .enabled = build_options.feat_reasoning },
+        // Protocols
         .{ .name = "lsp", .enabled = build_options.feat_lsp },
         .{ .name = "mcp", .enabled = build_options.feat_mcp },
+        .{ .name = "acp", .enabled = build_options.feat_acp },
+        .{ .name = "ha", .enabled = build_options.feat_ha },
+        // Standalone modules
+        .{ .name = "connectors", .enabled = build_options.feat_connectors },
+        .{ .name = "tasks", .enabled = build_options.feat_tasks },
+        .{ .name = "inference", .enabled = build_options.feat_inference },
+        .{ .name = "tui", .enabled = build_options.feat_tui },
     };
 }
 
-fn getGpuFlags() [4]FlagEntry {
+fn getGpuFlags() [10]FlagEntry {
     return .{
         .{ .name = "metal", .enabled = build_options.gpu_metal },
         .{ .name = "cuda", .enabled = build_options.gpu_cuda },
         .{ .name = "vulkan", .enabled = build_options.gpu_vulkan },
+        .{ .name = "webgpu", .enabled = build_options.gpu_webgpu },
+        .{ .name = "opengl", .enabled = build_options.gpu_opengl },
+        .{ .name = "opengles", .enabled = build_options.gpu_opengles },
+        .{ .name = "webgl2", .enabled = build_options.gpu_webgl2 },
         .{ .name = "stdgpu", .enabled = build_options.gpu_stdgpu },
+        .{ .name = "fpga", .enabled = build_options.gpu_fpga },
+        .{ .name = "tpu", .enabled = build_options.gpu_tpu },
     };
 }
 
@@ -285,20 +327,30 @@ pub fn run(allocator: std.mem.Allocator) !void {
 
     var app_state = AppState{};
 
+    // Install SIGWINCH handler for terminal resize detection
+    installSigwinchHandler();
+
     // Initial render
     renderDashboard(&screen, &app_state);
     try flushScreenToFd(&screen, stdout_fd);
 
     var event_reader = events_mod.EventReader.init();
 
-    // Event loop
+    // Event loop — readEvent uses VMIN=0/VTIME=1 (100ms non-blocking poll)
     while (true) {
+        // Handle terminal resize
+        if (sigwinch_received) {
+            sigwinch_received = false;
+            const new_size = try term.getSize();
+            screen.deinit();
+            screen = try Screen.init(allocator, new_size.width, new_size.height);
+        }
+
         if (event_reader.readEvent() catch null) |event| {
             const action = handleKey(&app_state, event.key);
             if (action == .quit) break;
         }
 
-        // Re-render on any key
         renderDashboard(&screen, &app_state);
         try flushScreenToFd(&screen, stdout_fd);
     }
@@ -318,14 +370,14 @@ pub fn run(allocator: std.mem.Allocator) !void {
 // Tests
 // =============================================================================
 
-test "getFeatureFlags returns 20 entries" {
+test "getFeatureFlags returns 33 entries" {
     const flags = getFeatureFlags();
-    try std.testing.expectEqual(@as(usize, 20), flags.len);
+    try std.testing.expectEqual(@as(usize, 33), flags.len);
 }
 
-test "getGpuFlags returns 4 entries" {
+test "getGpuFlags returns 10 entries" {
     const flags = getGpuFlags();
-    try std.testing.expectEqual(@as(usize, 4), flags.len);
+    try std.testing.expectEqual(@as(usize, 10), flags.len);
 }
 
 test "renderDashboard does not crash" {

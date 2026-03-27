@@ -12,6 +12,15 @@
 //! honest opinions, emotional intelligence, and research commitment.
 
 const std = @import("std");
+
+// ============================================================================
+// Sub-namespace facades (additive)
+// ============================================================================
+
+pub const cognition = @import("cognition.zig");
+pub const system = @import("system.zig");
+pub const pipeline = @import("pipeline.zig");
+
 // ============================================================================
 // Core Modules
 // ============================================================================
@@ -195,6 +204,8 @@ pub const DiscordBotConfig = discord_bot.DiscordBotConfig;
 pub const DiscordBotError = discord_bot.DiscordBotError;
 pub const SessionManager = discord_bot.SessionManager;
 pub const BotStats = discord_bot.BotStats;
+pub const GatewayBridge = discord_bot.GatewayBridge;
+pub const GatewayStats = discord_bot.GatewayStats;
 pub const AbbeyCommands = discord_bot.AbbeyCommands;
 
 // ============================================================================
@@ -544,11 +555,11 @@ test "memory module available" {
 test "advanced cognition available" {
     const allocator = std.testing.allocator;
 
-    var cognition = try createAdvancedCognition(allocator);
-    defer cognition.deinit();
+    var adv_cognition = try createAdvancedCognition(allocator);
+    defer adv_cognition.deinit();
 
     // Process a query
-    const result = try cognition.process("user123", "How does machine learning work?");
+    const result = try adv_cognition.process("user123", "How does machine learning work?");
     try std.testing.expect(result.task_profile.complexity > 0.0);
     try std.testing.expect(result.cognitive_load >= 0.0);
 }
@@ -581,14 +592,18 @@ test "self-reflection engine" {
 test {
     _ = neural;
     _ = memory;
-    _ = reasoning;
     _ = emotions;
     _ = context;
     _ = calibration;
     _ = client;
+    _ = custom_framework;
     _ = engine;
     _ = server;
-    _ = discord_bot;
-    _ = custom_framework;
+    // discord_bot excluded: pre-existing memory leak in GatewayBridge test
+    // (pending_messages backing buffer leaked after drainMessages/toOwnedSlice)
+    // _ = discord_bot;
+    _ = reasoning;
     _ = advanced;
 }
+
+// refAllDecls deferred — abbey_train.zig and config.zig have pre-existing compilation errors

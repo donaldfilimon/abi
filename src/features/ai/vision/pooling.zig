@@ -592,3 +592,7 @@ test "maxpool2d backward" {
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), input_grad[7], 0.001); // position of 8
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), input_grad[0], 0.001); // not a max
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

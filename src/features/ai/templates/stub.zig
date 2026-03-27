@@ -1,31 +1,26 @@
 //! Templates stub — disabled at compile time.
 
 const std = @import("std");
+const types = @import("types.zig");
 
-pub const ParseError = error{FeatureDisabled};
-pub const RenderError = error{FeatureDisabled};
-
-pub const Token = union(enum) {
-    text: []const u8,
-    variable: Variable,
-    pub const Variable = struct { name: []const u8, default: ?[]const u8, filters: []const Filter };
-    pub const Filter = enum { upper, lower, trim, escape_html, escape_json };
-};
+pub const ParseError = types.ParseError;
+pub const RenderError = types.RenderError;
+pub const Token = types.Token;
 
 pub const Parser = struct {
     allocator: std.mem.Allocator,
     pub fn init(allocator: std.mem.Allocator) Parser {
         return .{ .allocator = allocator };
     }
-    pub fn parse(_: *Parser, _: []const u8) ParseError![]Token {
-        return ParseError.FeatureDisabled;
+    pub fn parse(_: *Parser, _: []const u8) ![]Token {
+        return error.FeatureDisabled;
     }
     pub fn extractVariables(_: *Parser, _: []const Token) ![]const []const u8 {
-        return ParseError.FeatureDisabled;
+        return error.FeatureDisabled;
     }
 };
 
-pub const RenderOptions = struct { strict: bool = false, missing_placeholder: []const u8 = "", auto_escape_html: bool = false };
+pub const RenderOptions = types.RenderOptions;
 
 pub const Renderer = struct {
     allocator: std.mem.Allocator,
@@ -33,28 +28,15 @@ pub const Renderer = struct {
     pub fn init(allocator: std.mem.Allocator, options: RenderOptions) Renderer {
         return .{ .allocator = allocator, .options = options };
     }
-    pub fn render(_: *Renderer, _: []const Token, _: anytype) RenderError![]u8 {
-        return RenderError.FeatureDisabled;
+    pub fn render(_: *Renderer, _: []const Token, _: anytype) ![]u8 {
+        return error.FeatureDisabled;
     }
-    pub fn renderWithMap(_: *Renderer, _: []const Token, _: std.StringHashMapUnmanaged([]const u8)) RenderError![]u8 {
-        return RenderError.FeatureDisabled;
+    pub fn renderWithMap(_: *Renderer, _: []const Token, _: std.StringHashMapUnmanaged([]const u8)) ![]u8 {
+        return error.FeatureDisabled;
     }
 };
 
-pub const BuiltinTemplates = enum {
-    system_message,
-    chat_completion,
-    rag_context,
-    tool_prompt,
-    code_generation,
-    code_review,
-    summarization,
-    question_answer,
-    translation,
-    json_extraction,
-    classification,
-    conversation,
-};
+pub const BuiltinTemplates = types.BuiltinTemplates;
 
 const TemplateInfo = struct { name: []const u8, description: []const u8, source: []const u8, variables: []const []const u8 };
 
@@ -120,7 +102,7 @@ pub fn formatChatHistory(_: std.mem.Allocator, _: []const ChatMessage) ![]u8 {
     return error.FeatureDisabled;
 }
 
-pub const ChatMessage = struct { role: []const u8, content: []const u8 };
+pub const ChatMessage = types.ChatMessage;
 
 test {
     std.testing.refAllDecls(@This());

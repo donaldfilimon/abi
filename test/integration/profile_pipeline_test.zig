@@ -104,12 +104,12 @@ test "pipeline: WDBX memory stores routing decisions" {
     };
 
     // Record first interaction
-    const id1 = try mem.recordInteraction(decision, "How do I sort an array?", response);
+    const id1 = try mem.recordInteraction(decision, "How do I sort an array?", response, null);
     try std.testing.expect(id1 > 0);
     try std.testing.expectEqual(@as(u64, 1), mem.getInteractionCount());
 
     // Record second interaction
-    const id2 = try mem.recordInteraction(decision, "What about in reverse?", response);
+    const id2 = try mem.recordInteraction(decision, "What about in reverse?", response, null);
     try std.testing.expect(id2 != id1);
     try std.testing.expectEqual(@as(u64, 2), mem.getInteractionCount());
 

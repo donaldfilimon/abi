@@ -14,6 +14,9 @@ const platform_time = @import("../../../foundation/mod.zig").time;
 pub const ConfidenceLevel = core_types.ConfidenceLevel;
 pub const Confidence = core_types.Confidence;
 
+// Re-export canonical StepType from shared types
+pub const StepType = @import("types.zig").StepType;
+
 // Platform-aware time function (works on WASM)
 fn getTimestampNs() i128 {
     return @intCast(platform_time.timestampNs());
@@ -27,52 +30,6 @@ pub fn confidenceToDisplayString(conf: Confidence, allocator: std.mem.Allocator)
         conf.reasoning,
     });
 }
-
-/// Type of reasoning step
-pub const StepType = enum {
-    /// Initial assessment of the query
-    assessment,
-    /// Breaking down the problem
-    decomposition,
-    /// Retrieving relevant information
-    retrieval,
-    /// Analyzing retrieved information
-    analysis,
-    /// Synthesizing conclusions
-    synthesis,
-    /// Indicating research is needed
-    research,
-    /// Validating the response
-    validation,
-    /// Formulating the final response
-    response,
-
-    pub fn toString(self: StepType) []const u8 {
-        return switch (self) {
-            .assessment => "Assessment",
-            .decomposition => "Decomposition",
-            .retrieval => "Retrieval",
-            .analysis => "Analysis",
-            .synthesis => "Synthesis",
-            .research => "Research Needed",
-            .validation => "Validation",
-            .response => "Response Formation",
-        };
-    }
-
-    pub fn getEmoji(self: StepType) []const u8 {
-        return switch (self) {
-            .assessment => "[?]",
-            .decomposition => "[/]",
-            .retrieval => "[>]",
-            .analysis => "[~]",
-            .synthesis => "[+]",
-            .research => "[!]",
-            .validation => "[v]",
-            .response => "[=]",
-        };
-    }
-};
 
 /// A single reasoning step
 pub const ReasoningStep = struct {

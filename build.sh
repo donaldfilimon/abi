@@ -13,6 +13,9 @@ set -euo pipefail
 # with Apple's native /usr/bin/ld since it links BEFORE build.zig runs.
 #
 # Usage: ./build.sh [--link] [zig build args...]
+#        ./build.sh std                — run zig std (std library check)
+#        ./build.sh test               — run zig test src/root.zig directly
+#        ./build.sh run <file.zig>     — run zig run <file.zig>
 # Example: ./build.sh test --summary all
 #          ./build.sh --link lib
 #          ./build.sh -Dfeat-gpu=false
@@ -31,8 +34,8 @@ for arg in "$@"; do
 done
 set -- $ARGS
 
-# Resolve zig via zigup.sh (auto-downloads if missing)
-ZIG2="$("$SCRIPT_DIR/tools/zigup.sh" --status)"
+# Resolve zig via zigly (auto-downloads if missing)
+ZIG2="$("$SCRIPT_DIR/tools/zigly" --status)"
 ZIG_LIB="$(dirname "$(dirname "$ZIG2")")/lib"
 
 SYSROOT="$(xcrun --show-sdk-path 2>/dev/null || echo "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")"
@@ -57,31 +60,39 @@ fi
 
 # ── Helper functions ────────────────────────────────────────────────
 
-build_runner_arch() {
-    local build_bin="$1"
-    local archs
-    local file_out
+# Detect architecture of any Mach-O binary, object, or archive.
+# Tries lipo first (handles fat binaries), falls back to file(1).
+detect_binary_arch() {
+    local bin_path="$1"
+    local archs file_out
 
-    archs="$(lipo -archs "$build_bin" 2>/dev/null || true)"
+    archs="$(lipo -archs "$bin_path" 2>/dev/null || true)"
     if [[ -n "$archs" ]]; then
         set -- $archs
         printf '%s\n' "$1"
         return 0
     fi
 
-    file_out="$(file -b "$build_bin" 2>/dev/null || true)"
+    file_out="$(file -b "$bin_path" 2>/dev/null || true)"
     case "$file_out" in
         *arm64*|*aarch64*) printf 'arm64\n'; return 0 ;;
         *x86_64*) printf 'x86_64\n'; return 0 ;;
     esac
 
+    return 1
+}
+
+build_runner_arch() {
+    local build_bin="$1"
+
+    if detect_binary_arch "$build_bin"; then
+        return 0
+    fi
+
     local build_o="${build_bin}_zcu.o"
     if [[ -f "$build_o" ]]; then
-        file_out="$(file -b "$build_o" 2>/dev/null || true)"
-        case "$file_out" in
-            *arm64*|*aarch64*) printf 'arm64\n'; return 0 ;;
-            *x86_64*) printf 'x86_64\n'; return 0 ;;
-        esac
+        detect_binary_arch "$build_o"
+        return $?
     fi
 
     return 1
@@ -135,10 +146,134 @@ run_build() {
     return 1
 }
 
+# ── Direct zig subcommand handler (std, test, run) ──────────────────
+# These bypass build.zig entirely and need the same LLD workaround:
+# compile the object, then relink with Apple's /usr/bin/ld.
+
+relink_and_run() {
+    local obj_file="$1"
+    local bin_file="$2"
+    local run_args=("${@:3}")
+    local bin_arch
+
+    bin_arch="$(detect_binary_arch "$obj_file" || true)"
+
+    if [[ -z "$bin_arch" ]]; then
+        echo "[darwin-wrapper] Could not determine architecture from $obj_file" >&2
+        return 1
+    fi
+
+    local crt
+    crt="$(find_host_compiler_rt "$bin_arch" || true)"
+    if [[ -z "$crt" || ! -f "$crt" ]]; then
+        echo "[darwin-wrapper] No host-compatible libcompiler_rt.a found for $bin_arch" >&2
+        return 1
+    fi
+
+    echo "[darwin-wrapper] Relinking $bin_file with Apple ld ($bin_arch)..." >&2
+    /usr/bin/ld -dynamic -platform_version macos "$MACOS_VER" "$MACOS_VER" \
+        -syslibroot "$SYSROOT" -e _main -o "$bin_file" "$obj_file" "$crt" "$SYSROOT/usr/lib/libSystem.B.tbd" "$SYSROOT/usr/lib/libc++.tbd" 2>&1
+
+    if [[ ! -x "$bin_file" ]]; then
+        echo "[darwin-wrapper] Relink failed: $bin_file not executable" >&2
+        return 1
+    fi
+
+    echo "[darwin-wrapper] Relinked. Running $bin_file ..." >&2
+    "$bin_file" "${run_args[@]+"${run_args[@]}"}"
+    return $?
+}
+
+# Extract object file path from zig linker error output (first "referenced by" line)
+parse_obj_from_errors() {
+    grep "referenced by" "$1" 2>/dev/null | head -1 | sed -E 's/.*referenced by ([^:]+):.*/\1/'
+}
+
+direct_zig_cmd() {
+    local cmd="$1"
+    shift
+
+    # Run zig command — expected to fail at link step
+    set +e
+    "$ZIG2" "$cmd" \
+        --zig-lib-dir "$ZIG_LIB" \
+        --global-cache-dir "$HOME/.cache/zig" \
+        --cache-dir .zig-cache \
+        $SYSROOT_ARGS \
+        "$@" \
+        2>"$STDERR_FILE"
+    local zig_rc=$?
+    set -e
+
+    # If it succeeded (unlikely on macOS 26+), we're done
+    if [ $zig_rc -eq 0 ]; then
+        cat "$STDERR_FILE" >&2
+        return 0
+    fi
+
+    # Check if failure is due to undefined symbols (expected LLD issue)
+    if ! grep -q "undefined symbol:" "$STDERR_FILE" 2>/dev/null; then
+        # Not a linker error — report original error
+        cat "$STDERR_FILE" >&2
+        return $zig_rc
+    fi
+
+    # Parse the object file from the error output
+    local obj_file
+    obj_file="$(parse_obj_from_errors "$STDERR_FILE")"
+
+    if [[ -z "$obj_file" || ! -f "$obj_file" ]]; then
+        echo "[darwin-wrapper] Could not find object file from linker errors" >&2
+        cat "$STDERR_FILE" >&2
+        return 1
+    fi
+
+    # Derive the binary path (strip _zcu.o suffix)
+    local bin_file="${obj_file%_zcu.o}"
+
+    # Build run arguments: pass zig lib dir for std/test to locate test harness
+    local run_args=()
+    case "$cmd" in
+        std)  run_args+=("$ZIG_LIB") ;; # std test suite needs zig lib dir
+        test) run_args+=("$ZIG_LIB") ;; # test runner needs zig lib dir
+        run)  ;; # user program, no extra args
+    esac
+
+    relink_and_run "$obj_file" "$bin_file" "${run_args[@]+"${run_args[@]}"}"
+}
+
+# ── Detect direct zig subcommands ───────────────────────────────────
+FIRST_ARG="${1:-}"
+case "$FIRST_ARG" in
+    std)
+        shift
+        direct_zig_cmd "std" "$@"
+        exit $?
+        ;;
+    test)
+        # Only route to direct zig test when no additional args
+        # "./build.sh test" → zig test, "./build.sh test --summary all" → zig build test
+        if [ $# -eq 1 ]; then
+            shift
+            direct_zig_cmd "test" "src/root.zig"
+            exit $?
+        fi
+        ;;
+    run)
+        # Only route to direct zig run if a file arg follows
+        SECOND_ARG="${2:-}"
+        if [[ -n "$SECOND_ARG" && "$SECOND_ARG" != -* ]]; then
+            shift
+            direct_zig_cmd "run" "$@"
+            exit $?
+        fi
+        ;;
+esac
+
 # ── Try direct build first ──────────────────────────────────────────
 if run_build "$@"; then
     if [ "$AUTO_LINK" = true ]; then
-        "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+        "$SCRIPT_DIR/tools/zigly" --link 2>&1 || true
     fi
     exit 0
 fi
@@ -171,16 +306,18 @@ if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
 
     LD_ARGS=(-dynamic -platform_version macos "$MACOS_VER" "$MACOS_VER" -syslibroot "$SYSROOT" -e _main -o "$BUILD_BIN" "$BUILD_O")
     LD_ARGS+=("$CRT")
-    LD_ARGS+=(-lSystem)
+    LD_ARGS+=("$SYSROOT/usr/lib/libSystem.B.tbd" "$SYSROOT/usr/lib/libc++.tbd")
 
     /usr/bin/ld "${LD_ARGS[@]}" 2>&1
 
     if [[ -x "$BUILD_BIN" ]]; then
         echo "[darwin-wrapper] Build runner relinked. Running build..." >&2
         if "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" $SYSROOT_ARGS "$@" 2>"$TEST_STDERR"; then
+            # Show build output (zig writes to stderr)
+            cat "$TEST_STDERR" >&2
             rm -f "$TEST_STDERR"
             if [ "$AUTO_LINK" = true ]; then
-                "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+                "$SCRIPT_DIR/tools/zigly" --link 2>&1 || true
             fi
             exit 0
         fi
@@ -193,7 +330,7 @@ if [[ -n "$BUILD_O" && -f "$BUILD_O" ]]; then
             "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "${HOME}/.cache/zig" $SYSROOT_ARGS -Dfeat-gpu=false "$@"
             EXIT_CODE=$?
             if [ "$AUTO_LINK" = true ]; then
-                "$SCRIPT_DIR/tools/zigup.sh" --link 2>&1 || true
+                "$SCRIPT_DIR/tools/zigly" --link 2>&1 || true
             fi
             exit $EXIT_CODE
         fi

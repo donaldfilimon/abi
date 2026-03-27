@@ -65,3 +65,7 @@ pub fn matchesPattern(name: []const u8, pattern: []const u8) bool {
 
     return std.mem.eql(u8, name, pattern);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

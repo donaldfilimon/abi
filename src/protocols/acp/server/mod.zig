@@ -19,6 +19,8 @@ pub const tasks = @import("tasks.zig");
 pub const sessions = @import("sessions.zig");
 pub const routing = @import("routing.zig");
 pub const json_utils = @import("json_utils.zig");
+pub const discord_routes = @import("discord_routes.zig");
+pub const openapi = @import("openapi.zig");
 
 pub const AgentCard = agent_card.AgentCard;
 pub const TaskStatus = tasks.TaskStatus;
@@ -35,6 +37,7 @@ pub const Server = struct {
     sessions_map: std.StringHashMapUnmanaged(Session),
     next_task_id: u64,
     next_session_id: u64,
+    openapi_spec: ?[]u8 = null,
 
     pub fn init(allocator: std.mem.Allocator, card: AgentCard) Server {
         return .{
@@ -45,6 +48,13 @@ pub const Server = struct {
             .next_task_id = 1,
             .next_session_id = 1,
         };
+    }
+
+    /// Lazily generate and cache the OpenAPI spec.
+    pub fn getOrBuildOpenApiSpec(self: *Server) ![]const u8 {
+        if (self.openapi_spec) |spec| return spec;
+        self.openapi_spec = try openapi.generate(self.allocator, self.card);
+        return self.openapi_spec.?;
     }
 
     pub fn deinit(self: *Server) void {
@@ -61,12 +71,14 @@ pub const Server = struct {
             session.deinit(self.allocator);
         }
         self.sessions_map.deinit(self.allocator);
+        if (self.openapi_spec) |spec| self.allocator.free(spec);
     }
 
     /// Create a new task from a message
     pub fn createTask(self: *Server, message: []const u8) ![]const u8 {
         var id_buf: [32]u8 = undefined;
-        const id_str = std.fmt.bufPrint(&id_buf, "task-{d}", .{self.next_task_id}) catch "task-0";
+        const id_str = std.fmt.bufPrint(&id_buf, "task-{d}", .{self.next_task_id}) catch
+            return error.OutOfMemory;
         self.next_task_id += 1;
 
         const id = try self.allocator.dupe(u8, id_str);

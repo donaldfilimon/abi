@@ -1,40 +1,17 @@
 //! Stubbed AI-local neural ingestion adapter.
+//!
+//! Types are imported from the always-on core database engine so they stay
+//! in sync with the real `neural_store.zig` adapter. Only the `Engine`
+//! struct and persistence functions are stubbed out.
 
 const std = @import("std");
+const neural = @import("../../../core/database/neural.zig");
 
-pub const Metadata = struct {
-    text: []const u8 = "",
-    category: ?[]const u8 = null,
-    tags: []const []const u8 = &.{},
-    score: f32 = 1.0,
-    extra: ?[]const u8 = null,
-};
-
-pub const SearchOptions = struct {
-    k: usize = 10,
-};
-
-pub const SearchResult = struct {
-    id: []const u8 = "",
-    similarity: f32 = 0.0,
-    distance: f32 = 0.0,
-    metadata: Metadata = .{},
-    vector: []const f32 = &.{},
-};
-
-pub const WritePolicy = enum {
-    allow_duplicate,
-    skip_if_same_content,
-    replace_by_id,
-};
-
-pub const EngineVector = struct {
-    id: []const u8 = "",
-    vec: []const f32 = &.{},
-    metadata: Metadata = .{},
-    content_fingerprint: ?u64 = null,
-    access_score: f32 = 1.0,
-};
+pub const Metadata = neural.Metadata;
+pub const SearchOptions = neural.SearchOptions;
+pub const SearchResult = neural.SearchResult;
+pub const WritePolicy = neural.WritePolicy;
+pub const EngineVector = neural.EngineVector;
 
 pub const Engine = struct {
     pub fn init(_: std.mem.Allocator, _: anytype) !Engine {
@@ -55,4 +32,8 @@ pub fn save(_: *Engine, _: []const u8) !void {
 
 pub fn load(_: std.mem.Allocator, _: []const u8) !Engine {
     return error.FeatureDisabled;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

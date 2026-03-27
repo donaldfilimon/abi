@@ -24,6 +24,8 @@ const ai_types = @import("../types.zig");
 const abi_mod = @import("../abi/mod.zig");
 const modulation_mod = @import("../modulation.zig");
 const constitution_mod = @import("../constitution/mod.zig");
+const build_options = @import("build_options");
+const pipeline_mod = if (build_options.feat_reasoning) @import("../pipeline/mod.zig") else @import("../pipeline/stub.zig");
 
 /// Multi-profile router that wraps AbiRouter for intelligent dispatch.
 ///
@@ -114,7 +116,7 @@ pub const MultiProfileRouter = struct {
             std.log.warn("profile: abiBackedRoute failed: {s}", .{@errorName(err)});
             return null;
         };
-        defer @constCast(&abi_decision).deinit(self.allocator);
+        defer abi_decision.deinit(self.allocator);
 
         // Translate ai_types.RoutingDecision → profile types.RoutingDecision
         var weights = RoutingDecision.Weights{};
@@ -269,16 +271,17 @@ pub const MultiProfileRouter = struct {
         if (self.constitution) |c| {
             if (!c.isCompliant(response.content)) {
                 // Response violates ethical principles — return safe fallback
+                const safe_msg = "I cannot provide this response as it may violate safety guidelines. Please rephrase your request.";
                 const safe_response = ProfileResponse{
                     .profile = .abi,
-                    .content = "I cannot provide this response as it may violate safety guidelines. Please rephrase your request.",
+                    .content = try self.allocator.dupe(u8, safe_msg),
                     .confidence = 1.0,
                     .allocator = self.allocator,
                 };
 
                 // Store the blocked interaction in memory
                 if (self.memory) |*mem| {
-                    mem.recordInteraction(decision, input, safe_response) catch |err| {
+                    mem.recordInteraction(decision, input, safe_response, null) catch |err| {
                         std.log.warn("profile: failed to record blocked interaction: {s}", .{@errorName(err)});
                     };
                 }
@@ -289,7 +292,7 @@ pub const MultiProfileRouter = struct {
 
         // Store interaction in WDBX memory (best-effort, don't fail the response)
         if (self.memory) |*mem| {
-            mem.recordInteraction(decision, input, response) catch |err| {
+            mem.recordInteraction(decision, input, response, null) catch |err| {
                 std.log.warn("profile: failed to record memory interaction: {s}", .{@errorName(err)});
             };
         }
@@ -307,6 +310,33 @@ pub const MultiProfileRouter = struct {
         }
 
         return response;
+    }
+
+    /// Execute the full pipeline using the Abbey Dynamic Model DSL.
+    /// Equivalent to routeAndExecute but expressed as a composable pipeline
+    /// with every step recorded as a WDBX block.
+    pub fn routeAndExecutePipeline(self: *Self, input: []const u8) !pipeline_mod.PipelineResult {
+        const session_id = if (self.memory) |m| m.chain.session_id else "default";
+        var builder = pipeline_mod.chain(self.allocator, session_id);
+        defer builder.deinit();
+
+        // Wire up the WDBX chain from memory if available
+        if (self.memory) |*mem| {
+            _ = builder.withChain(&mem.chain);
+        }
+
+        var p = builder
+            .retrieve(.wdbx, .{ .k = 5 })
+            .template("Given {context}, respond to: {input}")
+            .route(.adaptive)
+            .modulate()
+            .generate(.{})
+            .validate(.constitution)
+            .store(.wdbx)
+            .build();
+        defer p.deinit();
+
+        return p.run(input);
     }
 
     fn executeSingle(self: *Self, profile_id: ProfileId, input: []const u8) ProfileError!ProfileResponse {

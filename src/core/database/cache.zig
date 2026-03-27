@@ -246,3 +246,7 @@ test "Cache lock contention get and put" {
     try std.testing.expect(cache.map.count() <= cache.capacity);
     try std.testing.expect(cache.map.count() > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

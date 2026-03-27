@@ -168,3 +168,7 @@ pub const RunError = error{
     Escalated,
     OutOfMemory,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

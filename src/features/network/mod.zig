@@ -31,6 +31,12 @@ const sync = @import("../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
+// New sub-namespace re-exports (additive)
+pub const cluster = @import("cluster.zig");
+pub const consensus = @import("consensus.zig");
+pub const rpc = @import("rpc.zig");
+pub const reliability = @import("reliability.zig");
+
 // Internal module imports
 pub const registry = @import("registry.zig");
 pub const protocol = @import("protocol.zig");
@@ -522,3 +528,5 @@ test "isInitialized tracks lifecycle" {
     deinit();
     try std.testing.expect(!isInitialized());
 }
+
+// refAllDecls deferred — linking/, raft_transport, scheduler, tcp, unified_memory have pre-existing errors

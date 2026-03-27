@@ -6,6 +6,7 @@ pub const EvictionPolicy = core_config.EvictionPolicy;
 
 /// Errors returned by cache operations.
 pub const CacheError = error{
+    CacheDisabled,
     FeatureDisabled,
     CacheFull,
     KeyNotFound,

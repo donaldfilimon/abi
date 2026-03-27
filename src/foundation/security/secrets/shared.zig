@@ -142,3 +142,7 @@ pub const SecureString = struct {
         return self.data;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

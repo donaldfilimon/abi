@@ -10,50 +10,11 @@ const std = @import("std");
 const json_utils = @import("json_utils.zig");
 const appendEscaped = json_utils.appendEscaped;
 const foundation_time = @import("../../../foundation/time.zig");
+const types = @import("../types.zig");
 
-/// Error returned when a task state transition is not allowed.
-pub const TransitionError = error{InvalidTransition};
-
-/// Task status in the ACP lifecycle
-pub const TaskStatus = enum {
-    submitted,
-    working,
-    input_required,
-    completed,
-    failed,
-    canceled,
-
-    /// Returns whether transitioning from `self` to `target` is allowed.
-    pub fn canTransitionTo(self: TaskStatus, target: TaskStatus) bool {
-        // Any state can transition to canceled.
-        if (target == .canceled) return true;
-
-        return switch (self) {
-            .submitted => target == .working,
-            .working => target == .completed or target == .failed or target == .input_required,
-            .input_required => target == .working,
-            // Terminal states: completed, failed, canceled cannot transition (except to canceled, handled above).
-            .completed, .failed, .canceled => false,
-        };
-    }
-
-    /// Attempt a state transition. Returns the new status or error.InvalidTransition.
-    pub fn transition(self: TaskStatus, target: TaskStatus) TransitionError!TaskStatus {
-        if (self.canTransitionTo(target)) return target;
-        return error.InvalidTransition;
-    }
-
-    pub fn toString(self: TaskStatus) []const u8 {
-        return switch (self) {
-            .submitted => "submitted",
-            .working => "working",
-            .input_required => "input-required",
-            .completed => "completed",
-            .failed => "failed",
-            .canceled => "canceled",
-        };
-    }
-};
+// Re-export shared types so existing importers are unaffected.
+pub const TransitionError = types.TransitionError;
+pub const TaskStatus = types.TaskStatus;
 
 /// Record of a single state transition with wall-clock timestamp.
 pub const StateChange = struct {
@@ -74,10 +35,8 @@ pub const Task = struct {
     /// History of state transitions.
     history: std.ArrayListUnmanaged(StateChange),
 
-    pub const Message = struct {
-        role: []const u8,
-        content: []const u8,
-    };
+    /// Re-export shared Message type so existing `Task.Message` access works.
+    pub const Message = types.Message;
 
     /// Transition task to a new status, enforcing the state machine.
     /// Records the transition in history and updates the timestamp.
@@ -246,4 +205,8 @@ test "Task.transitionTo rejects invalid transition" {
     // Status should remain unchanged after rejected transition
     try std.testing.expectEqual(TaskStatus.submitted, task.status);
     try std.testing.expectEqual(@as(usize, 0), task.history.items.len);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

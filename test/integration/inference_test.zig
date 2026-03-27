@@ -170,6 +170,9 @@ test "inference: KV cache rejects allocation when full" {
     try std.testing.expect(!ok2);
 }
 
+// Sibling test modules (pulled in via refAllDecls)
+const _async = @import("inference_async_test.zig");
+
 test {
     std.testing.refAllDecls(@This());
 }

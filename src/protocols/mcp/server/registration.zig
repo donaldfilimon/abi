@@ -31,3 +31,7 @@ pub const RegisteredResource = struct {
     def: types.ResourceDef,
     handler: ResourceHandler,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

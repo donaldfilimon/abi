@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+
+# This script is a lightweight wrapper that transparently compiles and runs
+# the native zigly CLI manager so that you always have the fastest execution
+# speed and the compiled version is managed locally automatically.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ZIGLY_CLI_DIR="$SCRIPT_DIR/zigly_cli"
+ZIGLY_BIN="$ZIGLY_CLI_DIR/zig-out/bin/zigly"
+
+# Ensure the native binary is built
+if [ ! -f "$ZIGLY_BIN" ]; then
+    echo "==> Bootstrapping native zigly manager..." >&2
+    cd "$ZIGLY_CLI_DIR"
+    ./build_wrapper.sh >/dev/null 2>&1 || {
+        echo "==> ERROR: Failed to bootstrap the native Zigly manager." >&2
+        cat target_err.log >&2 2>/dev/null || true
+        exit 1
+    }
+    cd - >/dev/null
+fi
+
+if [ -x "$ZIGLY_BIN" ]; then
+    exec "$ZIGLY_BIN" "$@"
+else
+    echo "==> ERROR: Native binary could not be found or executed." >&2
+    exit 1
+fi

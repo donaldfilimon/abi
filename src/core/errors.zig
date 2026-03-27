@@ -15,115 +15,67 @@ pub const LifecycleError = error{
     EngineCreationFailed,
 };
 
+// ── Feature Framework Errors ─────────────────────────────────────────────
+
 /// GPU feature errors visible at the framework level.
-pub const GpuFrameworkError = error{
-    GpuDisabled,
-    NoDeviceAvailable,
-    InvalidConfig,
-    KernelCompilationFailed,
-    KernelExecutionFailed,
-};
+pub const GpuFrameworkError = @import("../features/gpu/types.zig").FrameworkError;
 
 /// AI feature errors visible at the framework level.
-pub const AiFrameworkError = error{
-    AiDisabled,
-    LlmDisabled,
-    EmbeddingsDisabled,
-    AgentsDisabled,
-    ReasoningDisabled,
-    TrainingDisabled,
-    ModelNotFound,
-    InferenceFailed,
-};
+pub const AiFrameworkError = @import("../features/ai/types.zig").FrameworkError;
 
 /// Database feature errors visible at the framework level.
-pub const DatabaseFrameworkError = error{
-    DatabaseDisabled,
-    ConnectionFailed,
-    QueryFailed,
-    IndexError,
-    StorageError,
-};
+pub const DatabaseFrameworkError = @import("../features/database/types.zig").FrameworkError;
 
 /// Network feature errors visible at the framework level.
-pub const NetworkFrameworkError = error{
-    NetworkDisabled,
-    NodeNotFound,
-    ConsensusFailed,
-    Timeout,
-};
+pub const NetworkFrameworkError = @import("../features/network/types.zig").Error;
 
 /// Observability feature errors visible at the framework level.
-pub const ObservabilityFrameworkError = error{
-    ObservabilityDisabled,
-    MetricsError,
-    TracingError,
-    ExportFailed,
-};
+pub const ObservabilityFrameworkError = @import("../features/observability/types.zig").Error;
 
 /// Web feature errors visible at the framework level.
-pub const WebFrameworkError = error{
-    WebDisabled,
-    RequestFailed,
-    InvalidUrl,
-};
+pub const WebFrameworkError = @import("../features/web/types.zig").WebError;
+
+/// Dashboard pages feature errors visible at the framework level.
+pub const PagesFrameworkError = @import("../features/observability/pages/types.zig").PagesError;
 
 /// Cloud feature errors visible at the framework level.
-pub const CloudFrameworkError = error{
-    CloudDisabled,
-    UnsupportedProvider,
-    InvalidEvent,
-    EventParseFailed,
-    ResponseSerializeFailed,
-    HandlerFailed,
-    TimeoutExceeded,
-    ProviderError,
-};
+pub const CloudFrameworkError = @import("../features/cloud/types.zig").CloudError;
 
 /// Analytics feature errors visible at the framework level.
-pub const AnalyticsFrameworkError = error{
-    AnalyticsDisabled,
-    BufferFull,
-    FlushFailed,
-};
+pub const AnalyticsFrameworkError = @import("../features/analytics/types.zig").AnalyticsError;
 
 /// Auth feature errors visible at the framework level.
-pub const AuthFrameworkError = error{
-    AuthDisabled,
-    InvalidCredentials,
-    TokenExpired,
-    Unauthorized,
-};
+pub const AuthFrameworkError = @import("../features/auth/types.zig").AuthError;
 
 /// Messaging feature errors visible at the framework level.
-pub const MessagingFrameworkError = error{
-    MessagingDisabled,
-    ChannelFull,
-    ChannelClosed,
-};
+pub const MessagingFrameworkError = @import("../features/messaging/types.zig").MessagingError;
 
 /// Cache feature errors visible at the framework level.
-pub const CacheFrameworkError = error{
-    CacheDisabled,
-    CacheFull,
-    KeyNotFound,
-};
+pub const CacheFrameworkError = @import("../features/cache/types.zig").CacheError;
 
 /// Storage feature errors visible at the framework level.
-pub const StorageFrameworkError = error{
-    StorageDisabled,
-    ObjectNotFound,
-    BucketNotFound,
-    StorageFull,
-};
+pub const StorageFrameworkError = @import("../features/storage/types.zig").StorageError;
 
 /// Search feature errors visible at the framework level.
-pub const SearchFrameworkError = error{
-    SearchDisabled,
-    IndexNotFound,
-    InvalidQuery,
-    IndexCorrupted,
-};
+pub const SearchFrameworkError = @import("../features/search/types.zig").SearchError;
+
+/// Mobile feature errors visible at the framework level.
+pub const MobileFrameworkError = @import("../features/mobile/types.zig").MobileError;
+
+/// API Gateway feature errors visible at the framework level.
+pub const GatewayFrameworkError = @import("../features/gateway/types.zig").GatewayError;
+
+/// Benchmarks feature errors visible at the framework level.
+pub const BenchmarksFrameworkError = @import("../features/benchmarks/types.zig").BenchmarksError;
+
+/// Compute feature errors visible at the framework level.
+pub const ComputeFrameworkError = @import("../features/compute/types.zig").ComputeError;
+
+/// Documents feature errors visible at the framework level.
+pub const DocumentsFrameworkError = @import("../features/documents/types.zig").DocumentsError;
+
+/// Desktop feature errors visible at the framework level.
+pub const DesktopFrameworkError = @import("../features/desktop/types.zig").DesktopError;
 
 /// All feature errors combined.
 pub const AllFeatureErrors = GpuFrameworkError ||
@@ -132,13 +84,20 @@ pub const AllFeatureErrors = GpuFrameworkError ||
     NetworkFrameworkError ||
     ObservabilityFrameworkError ||
     WebFrameworkError ||
+    PagesFrameworkError ||
     CloudFrameworkError ||
     AnalyticsFrameworkError ||
     AuthFrameworkError ||
     MessagingFrameworkError ||
     CacheFrameworkError ||
     StorageFrameworkError ||
-    SearchFrameworkError;
+    SearchFrameworkError ||
+    MobileFrameworkError ||
+    GatewayFrameworkError ||
+    BenchmarksFrameworkError ||
+    ComputeFrameworkError ||
+    DocumentsFrameworkError ||
+    DesktopFrameworkError;
 
 /// The complete Framework error set.
 /// Composes lifecycle errors, all feature errors, and infrastructure errors.

@@ -33,6 +33,12 @@ pub const Error = types.Error;
 pub const NetworkError = types.NetworkError;
 pub const NetworkConfig = types.NetworkConfig;
 
+// --- Sub-namespace namespace stubs ---
+pub const cluster = struct {};
+pub const consensus = struct {};
+pub const rpc = struct {};
+pub const reliability = struct {};
+
 // --- Core Types ---
 pub const NetworkState = stub_types.NetworkState;
 pub const Node = stub_types.Node;

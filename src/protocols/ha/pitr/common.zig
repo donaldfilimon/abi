@@ -35,3 +35,7 @@ pub fn Helpers(comptime Operation: type) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -3,19 +3,21 @@
 const std = @import("std");
 const config_module = @import("../../../core/config/mod.zig");
 
-pub const Error = error{ FeatureDisabled, ModelNotFound, EmbeddingFailed, InvalidInput };
+// Shared types (canonical definitions from types.zig).
+pub const types = @import("types.zig");
+pub const BackendType = types.BackendType;
+pub const BackendError = types.BackendError;
+pub const BackendConfig = types.BackendConfig;
+pub const EmbeddingConfig = types.EmbeddingConfig;
 
-// Backend types
-pub const BackendType = enum { openai, huggingface, ollama, local };
-pub const BackendError = error{ MissingCredentials, RequestFailed, InvalidResponse, RateLimitExceeded, OutOfMemory, FeatureDisabled };
-pub const BackendConfig = struct {};
+pub const Error = error{ FeatureDisabled, ModelNotFound, EmbeddingFailed, InvalidInput };
 pub const EmbeddingBackend = struct {
     backend_type: BackendType = .local,
     pub fn embed(_: EmbeddingBackend, _: std.mem.Allocator, _: []const u8, _: usize) BackendError![]f32 {
-        return BackendError.FeatureDisabled;
+        return BackendError.BackendNotAvailable;
     }
     pub fn embedBatch(_: EmbeddingBackend, _: std.mem.Allocator, _: []const []const u8, _: usize) BackendError![][]f32 {
-        return BackendError.FeatureDisabled;
+        return BackendError.BackendNotAvailable;
     }
     pub fn deinit(_: EmbeddingBackend) void {}
 };
@@ -33,13 +35,7 @@ pub fn normalizeEmbedding(_: []f32) void {}
 pub fn normalizeEmbeddingBatch(_: [][]f32) void {}
 pub fn normalizeEmbeddingBatchWithNorms(_: [][]f32, _: ?[]f32) void {}
 
-pub const EmbeddingConfig = struct {
-    dimension: usize = 384,
-    max_seq_len: usize = 512,
-    batch_size: usize = 32,
-    normalize: bool = true,
-    model_id: []const u8 = "default",
-};
+// EmbeddingConfig is re-exported from types.zig above.
 
 pub const EmbeddingModel = struct {
     pub fn init(_: std.mem.Allocator, _: EmbeddingConfig) EmbeddingModel {
@@ -54,6 +50,13 @@ pub const EmbeddingModel = struct {
     }
     pub fn cosineSimilarity(_: *EmbeddingModel, _: []const f32, _: []const f32) f32 {
         return 0;
+    }
+    pub fn setBackend(_: *EmbeddingModel, _: EmbeddingBackend) void {}
+    pub fn hasBackend(_: *const EmbeddingModel) bool {
+        return false;
+    }
+    pub fn getBackendType(_: *const EmbeddingModel) ?BackendType {
+        return null;
     }
 };
 
@@ -96,6 +99,14 @@ pub const Context = struct {
     }
     pub fn cosineSimilarity(_: *Context, _: []const f32, _: []const f32) f32 {
         return 0;
+    }
+    pub fn useOpenAI(_: *Context, _: []const u8) void {}
+    pub fn useOpenAIFromEnv(_: *Context) void {}
+    pub fn hasBackend(_: *const Context) bool {
+        return false;
+    }
+    pub fn getBackendType(_: *const Context) ?BackendType {
+        return null;
     }
 };
 

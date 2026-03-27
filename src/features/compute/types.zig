@@ -7,6 +7,7 @@ const std = @import("std");
 
 /// Errors returned by compute operations.
 pub const ComputeError = error{
+    ComputeDisabled,
     MeshUnavailable,
     NodeUnreachable,
     TaskFailed,

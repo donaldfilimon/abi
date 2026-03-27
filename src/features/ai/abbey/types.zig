@@ -317,3 +317,7 @@ pub fn stubTimestampSec() i64 {
 pub fn stubLoadFromEnvironment() !AbbeyConfig {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -5,16 +5,19 @@
 //! - Training: Constitutional loss term for RLHF reward model
 //! - Post-generation: Response validation against principles
 //! - Reflection: Constitutional alignment scoring for Abbey
+//! - Audit: Structured audit logging for all constitution checks
 //!
 //! Safety heuristics use pattern-based detection with context-aware scoring.
 //! Patterns found inside code blocks (``` fenced) are weighted lower to
 //! reduce false positives when discussing code legitimately.
 //!
 //! Implementation is decomposed into per-principle validator modules under
-//! `enforcement/`. This file is a thin re-export facade.
+//! `enforcement/`. This file is a thin re-export facade plus the audit
+//! logging subsystem.
 
 const std = @import("std");
-const principles = @import("principles.zig");
+const foundation_time = @import("../../../foundation/time.zig");
+const logging = @import("../../../foundation/logging.zig");
 
 // -- Sub-modules (one per constitutional principle) --
 pub const common = @import("enforcement/common.zig");
@@ -24,6 +27,7 @@ pub const privacy = @import("enforcement/privacy.zig");
 pub const fairness = @import("enforcement/fairness.zig");
 pub const autonomy = @import("enforcement/autonomy.zig");
 pub const transparency = @import("enforcement/transparency.zig");
+pub const engine = @import("enforcement/engine.zig");
 
 // -- Re-exported types (preserve public surface) --
 pub const ConstitutionalScore = common.ConstitutionalScore;
@@ -40,422 +44,225 @@ pub const computeConstitutionalLoss = transparency.computeConstitutionalLoss;
 pub const alignmentScore = transparency.alignmentScore;
 pub const computeBias = fairness.computeBias;
 
+// Re-export core evaluation functions from the engine
+pub const evaluateResponse = engine.evaluateResponse;
+pub const evaluateSafety = engine.evaluateSafety;
+pub const checkForbiddenPattern = engine.checkForbiddenPattern;
+
 // ============================================================================
-// Post-Generation: Response Validation
+// Audit Logging
 // ============================================================================
 
-/// Evaluate a response against all constitutional principles.
-/// Returns a score with any detected violations.
-/// Also runs enhanced pattern-based safety checks as an additional layer.
-pub fn evaluateResponse(response: []const u8) ConstitutionalScore {
-    var score = ConstitutionalScore{
-        .overall = 1.0,
-        .violations = [_]?Violation{null} ** 16,
-        .violation_count = 0,
-        .highest_severity = null,
-        .safety_score = null,
-    };
+/// Maximum number of audit records retained in the bounded buffer.
+pub const MAX_AUDIT_RECORDS = 256;
 
-    // Check each principle's rules against the response
-    for (&principles.ALL_PRINCIPLES) |principle| {
-        for (principle.rules) |rule| {
-            if (rule.constraint == .forbid) {
-                if (checkForbiddenPattern(response, rule)) {
-                    common.addViolation(&score, rule, principle);
-                }
-            }
+/// Maximum length for content snippets stored in audit records.
+const MAX_SNIPPET_LEN = 128;
+
+/// Maximum length for violation reason strings stored in audit records.
+const MAX_REASON_LEN = 256;
+
+/// A structured audit record emitted for every constitution check.
+pub const AuditRecord = struct {
+    /// Monotonic timestamp in milliseconds (from foundation.time).
+    timestamp: u64,
+    /// Index of the principle that was evaluated (0-5 for the 6 principles,
+    /// or 255 for aggregate / safety-layer checks).
+    principle_id: u8,
+    /// Human-readable reason for the violation, or "compliant" if none.
+    violation_reason: [MAX_REASON_LEN]u8,
+    violation_reason_len: u8,
+    /// A short snippet of the content that was evaluated.
+    content_snippet: [MAX_SNIPPET_LEN]u8,
+    content_snippet_len: u8,
+    /// The overall compliance score (0.0 = total violation, 1.0 = fully compliant).
+    score: f32,
+
+    /// Return the violation reason as a slice.
+    pub fn getViolationReason(self: *const AuditRecord) []const u8 {
+        return self.violation_reason[0..self.violation_reason_len];
+    }
+
+    /// Return the content snippet as a slice.
+    pub fn getContentSnippet(self: *const AuditRecord) []const u8 {
+        return self.content_snippet[0..self.content_snippet_len];
+    }
+};
+
+/// Thread-safe bounded ring buffer of audit records.
+pub const AuditLog = struct {
+    records: [MAX_AUDIT_RECORDS]AuditRecord = undefined,
+    /// Number of records currently stored (saturates at MAX_AUDIT_RECORDS).
+    count: usize = 0,
+    /// Write cursor — wraps around when the buffer is full.
+    write_pos: usize = 0,
+
+    /// Return all stored audit records.
+    /// When the buffer is not yet full, returns records[0..count].
+    /// When full, returns the entire backing array (ring buffer).
+    pub fn getAuditLog(self: *const AuditLog) []const AuditRecord {
+        if (self.count < MAX_AUDIT_RECORDS) {
+            return self.records[0..self.count];
+        }
+        return self.records[0..MAX_AUDIT_RECORDS];
+    }
+
+    /// Append a new audit record, overwriting the oldest when full.
+    pub fn record(self: *AuditLog, entry: AuditRecord) void {
+        self.records[self.write_pos] = entry;
+        self.write_pos = (self.write_pos + 1) % MAX_AUDIT_RECORDS;
+        if (self.count < MAX_AUDIT_RECORDS) {
+            self.count += 1;
         }
     }
 
-    // Enhanced pattern-based safety layer
-    const safety_result = evaluateSafety(response);
-    score.safety_score = safety_result;
-
-    // If the safety layer found violations, fold them into the overall score
-    if (safety_result.violation_count > 0) {
-        // Merge safety penalty into overall score
-        const safety_penalty = 1.0 - safety_result.score;
-        score.overall = @max(0.0, score.overall - safety_penalty * 0.5);
-
-        // If safety check found critical issues and we had no principle violations,
-        // still mark as non-compliant by adding a synthetic violation
-        if (!safety_result.is_safe and score.violation_count == 0) {
-            if (score.violation_count < 16) {
-                score.violations[score.violation_count] = .{
-                    .rule_id = "safety-pattern-check",
-                    .principle_name = "safety",
-                    .severity = .critical,
-                    .confidence = 1.0 - safety_result.score,
-                };
-                score.violation_count += 1;
-                score.highest_severity = .critical;
-            }
-        }
+    /// Reset the log, discarding all records.
+    pub fn reset(self: *AuditLog) void {
+        self.count = 0;
+        self.write_pos = 0;
     }
+};
 
-    // Compute overall score from violations
-    if (score.violation_count > 0) {
-        var penalty: f32 = 0;
-        for (score.violations[0..score.violation_count]) |v| {
-            if (v) |violation| {
-                penalty += violation.severity.weight() * violation.confidence;
-            }
-        }
-        score.overall = @max(0.0, 1.0 - penalty / @as(f32, @floatFromInt(score.violation_count)));
-    }
+/// Module-level audit log instance.
+var audit_log: AuditLog = .{};
 
-    return score;
+/// Retrieve the global audit log (read-only view).
+pub fn getAuditLog() []const AuditRecord {
+    return audit_log.getAuditLog();
 }
 
-/// Run standalone safety evaluation on text. Can be called independently
-/// from the full constitutional evaluation for lightweight checks.
-pub fn evaluateSafety(text: []const u8) SafetyScore {
-    var score = SafetyScore{
-        .is_safe = true,
-        .score = 1.0,
-        .violations = [_]?SafetyViolation{null} ** SafetyScore.MAX_SAFETY_VIOLATIONS,
-        .violation_count = 0,
+/// Reset the global audit log.
+pub fn resetAuditLog() void {
+    audit_log.reset();
+}
+
+/// Build an `AuditRecord` from an evaluated `ConstitutionalScore` and the
+/// content that was checked, then append it to the global audit log and
+/// emit a structured log line via the foundation logging system.
+pub fn emitAuditRecord(content: []const u8, score: ConstitutionalScore) AuditRecord {
+    var rec: AuditRecord = .{
+        .timestamp = foundation_time.timestampMs(),
+        .principle_id = 255,
+        .violation_reason = undefined,
+        .violation_reason_len = 0,
+        .content_snippet = undefined,
+        .content_snippet_len = 0,
+        .score = score.overall,
     };
 
-    // Compute how much of the text is inside code blocks.
-    // Patterns inside code blocks are weighted lower (0.3x) vs plain text (1.0x).
-    const code_ratio = common.codeBlockRatio(text);
-    const context_weight: f32 = 1.0 - (code_ratio * 0.7);
+    // Fill content snippet (truncate to MAX_SNIPPET_LEN).
+    const snippet_len: u8 = @intCast(@min(content.len, MAX_SNIPPET_LEN));
+    @memcpy(rec.content_snippet[0..snippet_len], content[0..snippet_len]);
+    rec.content_snippet_len = snippet_len;
 
-    // --- Principle 1: Safety ---
-    safety.checkShellInjection(text, &score, context_weight);
-    safety.checkSqlInjection(text, &score, context_weight);
-    safety.checkPathTraversal(text, &score, context_weight);
-
-    // --- Principle 3: Privacy ---
-    privacy.checkCredentialExposure(text, &score, context_weight);
-    privacy.checkPiiExposure(text, &score, context_weight);
-
-    // Compute final score from accumulated violations
-    var total_severity: f32 = 0;
-    for (score.violations[0..score.violation_count]) |v| {
-        if (v) |violation| {
-            total_severity += violation.severity;
+    // Fill violation reason.
+    if (score.violation_count == 0) {
+        const reason = "compliant";
+        @memcpy(rec.violation_reason[0..reason.len], reason);
+        rec.violation_reason_len = reason.len;
+    } else {
+        // Use the first violation's details.
+        if (score.violations[0]) |v| {
+            rec.principle_id = principleNameToId(v.principle_name);
+            const reason = v.rule_id;
+            const rlen: u8 = @intCast(@min(reason.len, MAX_REASON_LEN));
+            @memcpy(rec.violation_reason[0..rlen], reason[0..rlen]);
+            rec.violation_reason_len = rlen;
         }
     }
 
-    if (score.violation_count > 0) {
-        score.score = @max(0.0, 1.0 - total_severity / @as(f32, @floatFromInt(score.violation_count)));
-    }
-    score.is_safe = score.score >= SafetyScore.safety_threshold;
+    // Append to bounded buffer.
+    audit_log.record(rec);
 
-    return score;
+    // Emit structured log.
+    if (score.violation_count > 0) {
+        logging.warn("constitution audit: score={d:.2} violations={d} principle={s}", .{
+            score.overall,
+            score.violation_count,
+            rec.violation_reason[0..rec.violation_reason_len],
+        });
+    } else {
+        logging.info("constitution audit: score={d:.2} compliant", .{score.overall});
+    }
+
+    return rec;
 }
 
-// ============================================================================
-// Legacy pattern checkers (preserved for backward compat with principle rules)
-// ============================================================================
+/// Convenience: evaluate content and emit an audit record in one call.
+pub fn evaluateAndAudit(content: []const u8) struct { score: ConstitutionalScore, audit: AuditRecord } {
+    const score = engine.evaluateResponse(content);
+    const rec = emitAuditRecord(content, score);
+    return .{ .score = score, .audit = rec };
+}
 
-/// Check for patterns that indicate a forbidden rule violation.
-fn checkForbiddenPattern(response: []const u8, rule: principles.ConstitutionalRule) bool {
-    // Structural pattern matching — checks for high-confidence indicators
-    if (std.mem.indexOf(u8, rule.id, "pii") != null) {
-        return privacy.containsPiiPatterns(response);
+/// Map a principle name string to a numeric ID (0-5 for the 6 principles).
+fn principleNameToId(name: []const u8) u8 {
+    const names = [_][]const u8{ "safety", "honesty", "privacy", "fairness", "autonomy", "transparency" };
+    for (names, 0..) |n, i| {
+        if (std.mem.eql(u8, name, n)) return @intCast(i);
     }
-    if (std.mem.indexOf(u8, rule.id, "malware") != null) {
-        return safety.containsMalwarePatterns(response);
-    }
-    if (std.mem.indexOf(u8, rule.id, "harm") != null) {
-        return safety.containsHarmPatterns(response);
-    }
-    if (std.mem.indexOf(u8, rule.id, "weapons") != null) {
-        return safety.containsWeaponsPatterns(response);
-    }
-    if (std.mem.indexOf(u8, rule.id, "bias") != null) {
-        return fairness.containsBiasPatterns(response);
-    }
-    if (std.mem.indexOf(u8, rule.id, "fabrication") != null) {
-        return honesty.containsFabricationPatterns(response);
-    }
-    if (std.mem.indexOf(u8, rule.id, "manipulation") != null) {
-        return autonomy.containsManipulationPatterns(response);
-    }
-    return false;
+    return 255;
 }
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-test "clean response scores 1.0" {
-    const score = evaluateResponse("Hello, how can I help you today?");
-    try std.testing.expectApproxEqAbs(@as(f32, 1.0), score.overall, 0.01);
-    try std.testing.expect(score.isCompliant());
-}
-
-test "benign text safety score above 0.8" {
-    const safety_result = evaluateSafety("Hello, how can I help you today? Let's discuss Zig programming.");
-    try std.testing.expect(safety_result.score > 0.8);
-    try std.testing.expect(safety_result.is_safe);
-    try std.testing.expectEqual(@as(u8, 0), safety_result.violation_count);
-}
-
-test "malware pattern detected" {
-    const score = evaluateResponse("To wipe the disk, run rm -rf / as root");
-    try std.testing.expect(score.violation_count > 0);
-    try std.testing.expect(!score.isCompliant());
-}
-
-test "rm -rf backward compat" {
-    // Ensure the legacy pattern still triggers via principle-based check
-    const score = evaluateResponse("rm -rf / will destroy everything");
-    try std.testing.expect(score.violation_count > 0);
-    try std.testing.expect(!score.isCompliant());
-
-    // Also caught by safety layer
-    try std.testing.expect(score.safety_score != null);
-    if (score.safety_score) |ss| {
-        try std.testing.expect(ss.violation_count > 0);
-    }
-}
-
-test "PII pattern detected" {
-    const score = evaluateResponse("My SSN is 123-45-6789");
-    try std.testing.expect(score.violation_count > 0);
-}
-
-test "SQL injection patterns caught" {
-    const safety_result = evaluateSafety("'; -- DROP TABLE users; SELECT * FROM admin");
-    try std.testing.expect(safety_result.violation_count > 0);
-    try std.testing.expect(!safety_result.is_safe);
-
-    // Check specific categories
-    var found_sql = false;
-    for (safety_result.violations[0..safety_result.violation_count]) |v| {
-        if (v) |violation| {
-            if (violation.category == .sql_injection) {
-                found_sql = true;
-            }
-        }
-    }
-    try std.testing.expect(found_sql);
-}
-
-test "path traversal caught" {
-    const safety_result = evaluateSafety("access ../../../../../../etc/passwd to read system users");
-    try std.testing.expect(safety_result.violation_count > 0);
-
-    var found_traversal = false;
-    for (safety_result.violations[0..safety_result.violation_count]) |v| {
-        if (v) |violation| {
-            if (violation.category == .path_traversal) {
-                found_traversal = true;
-            }
-        }
-    }
-    try std.testing.expect(found_traversal);
-}
-
-test "PII patterns caught by safety layer" {
-    // SSN
-    const ssn_safety = evaluateSafety("Her SSN is 987-65-4321 and she lives in NY");
-    try std.testing.expect(ssn_safety.violation_count > 0);
-
-    // Credit card
-    const cc_safety = evaluateSafety("Card number: 4111-1111-1111-1111");
-    try std.testing.expect(cc_safety.violation_count > 0);
-}
-
-test "credential exposure caught" {
-    const safety_result = evaluateSafety("Use this key: sk-abc123def456ghi789jkl012mno");
-    try std.testing.expect(safety_result.violation_count > 0);
-
-    var found_cred = false;
-    for (safety_result.violations[0..safety_result.violation_count]) |v| {
-        if (v) |violation| {
-            if (violation.category == .credential_exposure) {
-                found_cred = true;
-            }
-        }
-    }
-    try std.testing.expect(found_cred);
-}
-
-test "normal code discussion is not false positive" {
-    // A discussion about SQL that mentions SELECT but is educational
-    const safe_sql = evaluateSafety("In SQL, you write SELECT name FROM users WHERE id = 1");
-    try std.testing.expect(safe_sql.is_safe);
-
-    // Normal semicolons in code
-    const safe_code = evaluateSafety("const x = 42; const y = x + 1; return y;");
-    try std.testing.expect(safe_code.is_safe);
-    try std.testing.expectEqual(@as(u8, 0), safe_code.violation_count);
-
-    // Single relative path reference is fine
-    const safe_path = evaluateSafety("import the module from ../utils/helper.zig");
-    try std.testing.expect(safe_path.is_safe);
-}
-
-test "code block context reduces severity" {
-    // Same SQL injection pattern but wrapped in code block gets lower weight
-    const plain = evaluateSafety("Try this: '; -- DROP TABLE users");
-    const in_code = evaluateSafety("Example of SQL injection:\n```sql\n'; -- DROP TABLE users\n```\nNever do this.");
-
-    // Both should detect violations but code block version should have higher score
-    try std.testing.expect(plain.violation_count > 0);
-    try std.testing.expect(in_code.violation_count > 0);
-    try std.testing.expect(in_code.score >= plain.score);
-}
-
-test "placeholder credentials not flagged" {
-    const safety_result = evaluateSafety("Set your API_KEY=<your-key-here> in the env file");
-    // Should not flag credential exposure for placeholder values
-    var found_cred = false;
-    for (safety_result.violations[0..safety_result.violation_count]) |v| {
-        if (v) |violation| {
-            if (violation.category == .credential_exposure) {
-                found_cred = true;
-            }
-        }
-    }
-    try std.testing.expect(!found_cred);
-}
-
-test "system preamble is non-empty" {
-    const preamble = getSystemPreamble();
-    try std.testing.expect(preamble.len > 100);
-}
-
-test "constitutional loss within bounds" {
-    const guardrails = principles.DEFAULT_GUARDRAILS;
-    const loss = computeConstitutionalLoss(&[_]f32{}, &guardrails);
-    try std.testing.expect(loss >= 0.0 and loss <= 1.0);
-
-    // With embedding data, result should still be in [0, 1]
-    const embedding = [_]f32{ 0.1, 0.2, 0.3, 0.4 };
-    const loss2 = computeConstitutionalLoss(&embedding, &guardrails);
-    try std.testing.expect(loss2 >= 0.0 and loss2 <= 1.0);
-
-    // With PII blocking disabled, compliance is higher
-    var no_pii_guard = guardrails;
-    no_pii_guard.block_pii_in_training = false;
-    const loss3 = computeConstitutionalLoss(&embedding, &no_pii_guard);
-    try std.testing.expect(loss3 >= loss2);
-}
-
-test "safety score struct operations" {
-    var score = SafetyScore{
-        .is_safe = true,
-        .score = 1.0,
-        .violations = [_]?SafetyViolation{null} ** SafetyScore.MAX_SAFETY_VIOLATIONS,
-        .violation_count = 0,
-    };
-
-    score.addViolation(.{
-        .category = .shell_injection,
-        .severity = 0.8,
-        .description = "test violation",
-    });
-
-    try std.testing.expectEqual(@as(u8, 1), score.violation_count);
-    try std.testing.expect(score.violations[0] != null);
-}
-
-test "code block ratio calculation" {
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), common.codeBlockRatio("no code here"), 0.01);
-    // Text with a code block should return non-zero ratio
-    const with_code = "before ```\ncode here\n``` after";
-    const ratio = common.codeBlockRatio(with_code);
-    try std.testing.expect(ratio > 0.0);
-    try std.testing.expect(ratio < 1.0);
-}
-
-// ============================================================================
-// Bias Quantification Tests
-// ============================================================================
-
-test "computeBias empty measurements" {
-    const result = computeBias(&[_]f32{}, DEFAULT_BIAS_THRESHOLD);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result.mean_abs_bias, 0.001);
-    try std.testing.expectEqual(@as(usize, 0), result.attribute_count);
-    try std.testing.expectEqual(@as(usize, 0), result.flagged_count);
-    try std.testing.expect(result.is_acceptable);
-}
-
-test "computeBias single zero measurement" {
-    const measurements = [_]f32{0.0};
-    const result = computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result.mean_abs_bias, 0.001);
-    try std.testing.expectEqual(@as(usize, 1), result.attribute_count);
-    try std.testing.expectEqual(@as(usize, 0), result.flagged_count);
-    try std.testing.expect(result.is_acceptable);
-}
-
-test "computeBias spec formula B = (1/n) * sum|Bi|" {
-    // Manual: |0.05| + |-0.2| + |0.08| + |0.15| = 0.48; B = 0.48/4 = 0.12
-    const measurements = [_]f32{ 0.05, -0.2, 0.08, 0.15 };
-    const result = computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.12), result.mean_abs_bias, 0.001);
-    try std.testing.expectEqual(@as(usize, 4), result.attribute_count);
-}
-
-test "computeBias flags attributes above threshold" {
-    const measurements = [_]f32{ 0.05, -0.2, 0.08, 0.15 };
-    const result = computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
-    // |0.05| = 0.05 <= 0.1 -> not flagged
-    try std.testing.expect(!result.attribute_flags[0]);
-    // |-0.2| = 0.2 > 0.1 -> flagged
-    try std.testing.expect(result.attribute_flags[1]);
-    // |0.08| = 0.08 <= 0.1 -> not flagged
-    try std.testing.expect(!result.attribute_flags[2]);
-    // |0.15| = 0.15 > 0.1 -> flagged
-    try std.testing.expect(result.attribute_flags[3]);
-    try std.testing.expectEqual(@as(usize, 2), result.flagged_count);
-}
-
-test "computeBias is_acceptable when mean below threshold" {
-    // All low bias: |0.02| + |0.03| + |0.01| = 0.06; B = 0.02
-    const measurements = [_]f32{ 0.02, -0.03, 0.01 };
-    const result = computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
-    try std.testing.expect(result.is_acceptable);
-    try std.testing.expectEqual(@as(usize, 0), result.flagged_count);
-}
-
-test "computeBias not acceptable when mean exceeds threshold" {
-    // High bias: |0.5| + |0.6| + |0.7| = 1.8; B = 0.6
-    const measurements = [_]f32{ 0.5, -0.6, 0.7 };
-    const result = computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
-    try std.testing.expect(!result.is_acceptable);
-    try std.testing.expectEqual(@as(usize, 3), result.flagged_count);
-}
-
-test "computeBias negative values handled by absolute value" {
-    // Symmetric: should produce same mean_abs_bias
-    const positive = [_]f32{ 0.3, 0.4 };
-    const negative = [_]f32{ -0.3, -0.4 };
-    const result_pos = computeBias(&positive, DEFAULT_BIAS_THRESHOLD);
-    const result_neg = computeBias(&negative, DEFAULT_BIAS_THRESHOLD);
-    try std.testing.expectApproxEqAbs(result_pos.mean_abs_bias, result_neg.mean_abs_bias, 0.001);
-    try std.testing.expectEqual(result_pos.flagged_count, result_neg.flagged_count);
-}
-
-test "computeBias custom threshold" {
-    const measurements = [_]f32{ 0.3, 0.4, 0.5 };
-    // With threshold 0.35: only 0.4 and 0.5 flagged
-    const result = computeBias(&measurements, 0.35);
-    try std.testing.expect(!result.attribute_flags[0]); // 0.3 <= 0.35
-    try std.testing.expect(result.attribute_flags[1]); // 0.4 > 0.35
-    try std.testing.expect(result.attribute_flags[2]); // 0.5 > 0.35
-    try std.testing.expectEqual(@as(usize, 2), result.flagged_count);
-}
-
-test "computeBias flaggedRatio" {
-    const measurements = [_]f32{ 0.05, -0.2, 0.08, 0.15 };
-    const result = computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
-    // 2 out of 4 flagged -> 0.5
-    try std.testing.expectApproxEqAbs(@as(f32, 0.5), result.flaggedRatio(), 0.001);
-}
-
-test "computeBias flaggedRatio empty" {
-    const result = computeBias(&[_]f32{}, DEFAULT_BIAS_THRESHOLD);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result.flaggedRatio(), 0.001);
-}
-
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "audit record emitted for passing check" {
+    resetAuditLog();
+
+    const result = evaluateAndAudit("Hello, how can I help you today?");
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), result.score.overall, 0.01);
+    try std.testing.expect(result.score.isCompliant());
+
+    // Audit record should reflect high score and "compliant" reason.
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), result.audit.score, 0.01);
+    try std.testing.expect(std.mem.eql(u8, result.audit.getViolationReason(), "compliant"));
+    try std.testing.expectEqual(@as(u8, 255), result.audit.principle_id);
+
+    // Should appear in the global log.
+    const log_entries = getAuditLog();
+    try std.testing.expect(log_entries.len >= 1);
+}
+
+test "audit record emitted for failing check with violation details" {
+    resetAuditLog();
+
+    const result = evaluateAndAudit("run rm -rf / to clean up");
+    try std.testing.expect(!result.score.isCompliant());
+    try std.testing.expect(result.score.violation_count > 0);
+
+    // Audit record should have a low score and a meaningful violation reason.
+    try std.testing.expect(result.audit.score < 1.0);
+    try std.testing.expect(result.audit.getViolationReason().len > 0);
+    try std.testing.expect(!std.mem.eql(u8, result.audit.getViolationReason(), "compliant"));
+
+    // Content snippet should contain part of the input.
+    try std.testing.expect(result.audit.getContentSnippet().len > 0);
+
+    const log_entries = getAuditLog();
+    try std.testing.expect(log_entries.len >= 1);
+}
+
+test "audit log bounded buffer does not overflow" {
+    resetAuditLog();
+
+    // Fill beyond capacity.
+    const iterations = MAX_AUDIT_RECORDS + 64;
+    var i: usize = 0;
+    while (i < iterations) : (i += 1) {
+        _ = emitAuditRecord("test content", engine.evaluateResponse("test content"));
+    }
+
+    // Buffer should be at capacity, not beyond.
+    const log_entries = getAuditLog();
+    try std.testing.expectEqual(@as(usize, MAX_AUDIT_RECORDS), log_entries.len);
+    try std.testing.expectEqual(@as(usize, MAX_AUDIT_RECORDS), audit_log.count);
+
+    // write_pos should have wrapped around.
+    try std.testing.expectEqual(@as(usize, 64), audit_log.write_pos);
 }

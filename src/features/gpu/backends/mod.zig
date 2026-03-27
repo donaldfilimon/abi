@@ -23,3 +23,7 @@ pub const opengles = @import("opengles.zig");
 pub const gl = @import("gl/mod.zig");
 pub const directml = @import("directml/mod.zig");
 const std = @import("std");
+
+test {
+    std.testing.refAllDecls(@This());
+}

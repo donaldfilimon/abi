@@ -42,6 +42,7 @@ const training_tests = @import("integration/training_test.zig");
 const benchmarks_tests = @import("integration/benchmarks_test.zig");
 const ha_tests = @import("integration/ha_test.zig");
 const acp_tests = @import("integration/acp_test.zig");
+const acp_openapi_tests = @import("integration/acp_openapi_test.zig");
 const plugin_registry_tests = @import("integration/plugin_registry_test.zig");
 const database_core_tests = @import("integration/database_core_test.zig");
 const ai_tests = @import("integration/ai_test.zig");
@@ -52,8 +53,10 @@ const agents_tests = @import("integration/agents_test.zig");
 const secrets_tests = @import("integration/secrets_test.zig");
 const pitr_tests = @import("integration/pitr_test.zig");
 const orchestration_tests = @import("integration/orchestration_test.zig");
+const tasks_tests = @import("integration/tasks_test.zig");
 const inference_async_tests = @import("integration/inference_async_test.zig");
 const inference_e2e_tests = @import("integration/inference_e2e_test.zig");
+const pipeline_tests = @import("integration/pipeline_test.zig");
 
 test {
     std.testing.refAllDecls(@This());

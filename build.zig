@@ -8,6 +8,7 @@ const FeatureFlags = build_flags.FeatureFlags;
 const hasBackend = build_flags.hasBackend;
 const addAllBuildOptions = build_flags.addAllBuildOptions;
 const linkDarwinArtifact = build_linking.linkDarwinArtifact;
+const linkIfDarwin = build_linking.linkIfDarwin;
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -19,7 +20,6 @@ pub fn build(b: *std.Build) void {
     const feat_database = b.option(bool, "feat-database", "Vector database") orelse true;
     const feat_network = b.option(bool, "feat-network", "Networking / Raft") orelse true;
     const feat_observability_opt = b.option(bool, "feat-observability", "Observability (metrics, tracing, profiling)");
-    const feat_profiling_opt = b.option(bool, "feat-profiling", "Deprecated alias for feat-observability");
     const feat_web = b.option(bool, "feat-web", "Web framework") orelse true;
     const feat_pages = b.option(bool, "feat-pages", "Dashboard pages") orelse true;
     const feat_analytics = b.option(bool, "feat-analytics", "Analytics") orelse true;
@@ -36,17 +36,7 @@ pub fn build(b: *std.Build) void {
     const feat_documents = b.option(bool, "feat-documents", "Document processing") orelse true;
     const feat_desktop = b.option(bool, "feat-desktop", "Desktop integration") orelse true;
     const feat_tui = b.option(bool, "feat-tui", "Terminal user interface") orelse false;
-    if (feat_observability_opt != null and feat_profiling_opt != null and feat_observability_opt.? != feat_profiling_opt.?) {
-        std.log.err("Conflicting feature flags: -Dfeat-observability={} and -Dfeat-profiling={}", .{
-            feat_observability_opt.?,
-            feat_profiling_opt.?,
-        });
-        std.process.exit(1);
-    }
-    const feat_observability = feat_observability_opt orelse feat_profiling_opt orelse true;
-    if (feat_profiling_opt != null and feat_observability_opt == null) {
-        std.log.warn("feat-profiling is deprecated; use feat-observability", .{});
-    }
+    const feat_observability = feat_observability_opt orelse true;
 
     // AI sub-feature flags
     const feat_llm = b.option(bool, "feat-llm", "LLM inference") orelse feat_ai;
@@ -78,8 +68,28 @@ pub fn build(b: *std.Build) void {
     const gpu_tpu = feat_gpu and hasBackend(gpu_backend_str, "tpu");
 
     // ── GPU backend validation ──────────────────────────────────────────
-    // Valid combos: metal=macOS only, cuda=not WASM, vulkan=Linux/Windows/Android,
-    // webgpu/webgl2=WASM only, stdgpu=all, fpga/tpu=specialized hardware
+    if (gpu_backend_str) |str| {
+        const valid_backends: []const []const u8 = &.{
+            "metal",    "cuda",   "vulkan", "webgpu", "opengl",
+            "opengles", "webgl2", "stdgpu", "fpga",   "tpu",
+        };
+        var backend_it = std.mem.splitScalar(u8, str, ',');
+        while (backend_it.next()) |part| {
+            const trimmed = std.mem.trim(u8, part, " ");
+            if (trimmed.len == 0) continue;
+            var found = false;
+            for (valid_backends) |vb| {
+                if (std.mem.eql(u8, trimmed, vb)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                std.log.err("Unknown GPU backend '{s}'. Valid: metal, cuda, vulkan, webgpu, opengl, opengles, webgl2, stdgpu, fpga, tpu", .{trimmed});
+                std.process.exit(1);
+            }
+        }
+    }
     if (gpu_metal and gpu_cuda)
         std.log.warn("Both Metal and CUDA enabled — unusual; intended for cross-compilation only", .{});
 
@@ -91,6 +101,8 @@ pub fn build(b: *std.Build) void {
         if (feat_explore) std.log.warn("feat_explore requires feat_ai — explore will be stubbed", .{});
         if (feat_reasoning) std.log.warn("feat_reasoning requires feat_ai — reasoning will be stubbed", .{});
     }
+    if (feat_ai and !feat_connectors)
+        std.log.warn("feat_ai requires feat_connectors — AI connector imports will fail", .{});
     if (feat_mcp and !feat_database)
         std.log.info("feat_mcp benefits from feat_database for DB tools", .{});
 
@@ -142,7 +154,11 @@ pub fn build(b: *std.Build) void {
     };
 
     const build_opts = b.addOptions();
-    addAllBuildOptions(build_opts, flags);
+    const pkg_version = comptime blk: {
+        const zon = @import("build.zig.zon");
+        break :blk zon.version;
+    };
+    addAllBuildOptions(build_opts, flags, pkg_version);
 
     const build_options_module = build_opts.createModule();
     _ = build_cross.addSteps(.{
@@ -150,6 +166,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .build_options_module = build_options_module,
+        .package_version = pkg_version,
     });
 
     // ── ABI library module ──────────────────────────────────────────────
@@ -171,13 +188,9 @@ pub fn build(b: *std.Build) void {
         .linkage = .static,
     });
     static_lib.root_module.addImport("build_options", build_options_module);
+    linkIfDarwin(static_lib, .static_lib, feat_gpu, gpu_metal);
     b.installArtifact(static_lib);
     b.step("lib", "Build static library").dependOn(&b.addInstallArtifact(static_lib, .{}).step);
-
-    // ── Platform linking ────────────────────────────────────────────────
-    if (target.result.os.tag == .macos) {
-        linkDarwinArtifact(static_lib, .static_lib, feat_gpu, gpu_metal);
-    }
 
     // ── MCP server binary ────────────────────────────────────────────────
     const mcp_exe = b.addExecutable(.{
@@ -189,9 +202,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     mcp_exe.root_module.addImport("build_options", build_options_module);
-    if (target.result.os.tag == .macos) {
-        linkDarwinArtifact(mcp_exe, .executable, feat_gpu, gpu_metal);
-    }
+    linkIfDarwin(mcp_exe, .executable, feat_gpu, gpu_metal);
     b.step("mcp", "Build MCP stdio server").dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
 
     // ── CLI binary ──────────────────────────────────────────────────────
@@ -204,9 +215,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     cli_exe.root_module.addImport("build_options", build_options_module);
-    if (target.result.os.tag == .macos) {
-        linkDarwinArtifact(cli_exe, .executable, feat_gpu, gpu_metal);
-    }
+    linkIfDarwin(cli_exe, .executable, feat_gpu, gpu_metal);
     b.step("cli", "Build ABI command-line interface").dependOn(&b.addInstallArtifact(cli_exe, .{}).step);
 
     _ = build_validation.addSteps(.{
@@ -216,6 +225,7 @@ pub fn build(b: *std.Build) void {
         .flags = flags,
         .build_options_module = build_options_module,
         .abi_module = abi_module,
+        .package_version = pkg_version,
     });
 
     // ── Lint / format ───────────────────────────────────────────────────

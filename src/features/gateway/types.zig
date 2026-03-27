@@ -11,6 +11,7 @@ pub const CircuitBreakerConfig = core_config.CircuitBreakerConfig;
 pub const CircuitBreakerState = core_config.CircuitBreakerState;
 
 pub const GatewayError = error{
+    GatewayDisabled,
     FeatureDisabled,
     RouteNotFound,
     RateLimitExceeded,

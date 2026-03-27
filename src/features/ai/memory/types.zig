@@ -152,3 +152,7 @@ pub const SessionConfig = struct {
     model: []const u8 = "default",
     system_prompt: ?[]const u8 = null,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

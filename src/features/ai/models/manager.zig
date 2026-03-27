@@ -447,3 +447,7 @@ test "remove model deletes file" {
     _ = try manager.addModel(test_file, 3, null);
     try manager.removeModel("test_manager_remove_model");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

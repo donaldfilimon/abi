@@ -153,3 +153,7 @@ pub fn Capture(
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

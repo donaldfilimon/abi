@@ -64,11 +64,12 @@ pub const Context = struct {
     }
 };
 
-const _stub = stub_helpers.StubFeature(MobileConfig, MobileError);
-pub const init = _stub.init;
-pub const deinit = _stub.deinit;
-pub const isEnabled = _stub.isEnabled;
-pub const isInitialized = _stub.isInitialized;
+// Module-level lifecycle — delegate to StubFeature helpers (Context above is custom).
+const _Stub = stub_helpers.StubFeature(MobileConfig, MobileError);
+pub const init = _Stub.init;
+pub const deinit = _Stub.deinit;
+pub const isEnabled = _Stub.isEnabled;
+pub const isInitialized = _Stub.isInitialized;
 pub fn getLifecycleState() LifecycleState {
     return .terminated;
 }

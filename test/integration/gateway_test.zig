@@ -175,6 +175,9 @@ test "gateway: checkCircuitBreaker returns bool" {
     try std.testing.expect(open == true or open == false);
 }
 
+// Sibling test modules (pulled in via refAllDecls)
+const _runtime = @import("gateway_runtime_test.zig");
+
 test {
     std.testing.refAllDecls(@This());
 }

@@ -203,72 +203,23 @@ pub const RoadmapItem = struct {
 // Sub-module Stubs (namespace compatibility)
 // ============================================================================
 
+const Self = @This();
+
 pub const types = struct {
-    pub const Task = @import("stub.zig").Task;
-    pub const Priority = @import("stub.zig").Priority;
-    pub const Status = @import("stub.zig").Status;
-    pub const Category = @import("stub.zig").Category;
-    pub const Filter = @import("stub.zig").Filter;
-    pub const SortBy = @import("stub.zig").SortBy;
-    pub const Stats = @import("stub.zig").Stats;
-    pub const ManagerConfig = @import("stub.zig").ManagerConfig;
-    pub const AddOptions = @import("stub.zig").AddOptions;
-    pub const ManagerError = @import("stub.zig").ManagerError;
-};
-
-pub const persistence = struct {
-    pub fn save(_: std.mem.Allocator, _: []const u8, _: anytype, _: u64) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn load(_: std.mem.Allocator, _: []const u8, _: anytype, _: *u64, _: anytype) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-};
-
-pub const querying = struct {
-    pub fn list(_: anytype, _: std.mem.Allocator, _: Filter) ManagerError![]Task {
-        return error.FeatureDisabled;
-    }
-    pub fn getStats(_: anytype) Stats {
-        return .{};
-    }
-};
-
-pub const lifecycle = struct {
-    pub fn add(_: std.mem.Allocator, _: anytype, _: anytype, _: *u64, _: []const u8, _: AddOptions) ManagerError!u64 {
-        return error.FeatureDisabled;
-    }
-    pub fn get(_: anytype, _: u64) ?Task {
-        return null;
-    }
-    pub fn setStatus(_: anytype, _: u64, _: Status) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn delete(_: anytype, _: u64) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn setDueDate(_: anytype, _: u64, _: ?i64) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn setBlockedBy(_: anytype, _: u64, _: ?u64) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn setPriority(_: anytype, _: u64, _: Priority) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn setCategory(_: anytype, _: u64, _: Category) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn setTitle(_: std.mem.Allocator, _: anytype, _: anytype, _: u64, _: []const u8) ManagerError!void {
-        return error.FeatureDisabled;
-    }
-    pub fn setDescription(_: std.mem.Allocator, _: anytype, _: anytype, _: u64, _: ?[]const u8) ManagerError!void {
-        return error.FeatureDisabled;
-    }
+    pub const Task = Self.Task;
+    pub const Priority = Self.Priority;
+    pub const Status = Self.Status;
+    pub const Category = Self.Category;
+    pub const Filter = Self.Filter;
+    pub const SortBy = Self.SortBy;
+    pub const Stats = Self.Stats;
+    pub const ManagerConfig = Self.ManagerConfig;
+    pub const AddOptions = Self.AddOptions;
+    pub const ManagerError = Self.ManagerError;
 };
 
 pub const roadmap = struct {
-    pub const RoadmapItem = @import("stub.zig").RoadmapItem;
+    pub const RoadmapItem = Self.RoadmapItem;
 
     pub const catalog = struct {};
 

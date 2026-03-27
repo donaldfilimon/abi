@@ -489,3 +489,7 @@ test "temp path detection" {
     defer allocator.free(tmp);
     try std.testing.expect(tmp.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -147,6 +147,26 @@ const WebGpuBuffer = struct {
     allocator: std.mem.Allocator,
 };
 
+// Async callback for adapter request — sets status and stores adapter handle.
+fn adapterRequestCallback(status: u32, adapter: ?*anyopaque, _: ?[*:0]const u8, _: ?*anyopaque) callconv(.C) void {
+    if (status == 0 and adapter != null) { // WGPURequestAdapterStatus_Success = 0
+        webgpu_adapter = adapter;
+        adapter_callback_status = .success;
+    } else {
+        adapter_callback_status = .failed;
+    }
+}
+
+// Async callback for device request — sets status and stores device handle.
+fn deviceRequestCallback(status: u32, device: ?*anyopaque, _: ?[*:0]const u8, _: ?*anyopaque) callconv(.C) void {
+    if (status == 0 and device != null) { // WGPURequestDeviceStatus_Success = 0
+        webgpu_device = device;
+        device_callback_status = .success;
+    } else {
+        device_callback_status = .failed;
+    }
+}
+
 pub fn init() !void {
     if (webgpu_initialized) return;
 
@@ -171,22 +191,34 @@ pub fn init() !void {
         return WebGpuError.InitializationFailed;
     }
 
-    // Request adapter (simplified)
-    _ = wgpuInstanceRequestAdapter orelse return WebGpuError.AdapterNotFound;
-    // This would be asynchronous in real WebGPU, but simplified here
-    const adapter = instance; // Placeholder
+    // Request adapter via callback
+    const request_adapter_fn = wgpuInstanceRequestAdapter orelse return WebGpuError.AdapterNotFound;
+    adapter_callback_status = .pending;
+    request_adapter_fn(instance, null, &adapterRequestCallback, null);
+    // Poll until callback fires (synchronous wait for init)
+    var adapter_polls: u32 = 0;
+    while (adapter_callback_status == .pending and adapter_polls < 1000) : (adapter_polls += 1) {}
+    if (adapter_callback_status != .success or webgpu_adapter == null) {
+        return WebGpuError.AdapterNotFound;
+    }
+    const adapter = webgpu_adapter.?;
 
-    // Request device (simplified)
-    _ = wgpuAdapterRequestDevice orelse return WebGpuError.DeviceNotFound;
-    const device = adapter; // Placeholder
+    // Request device via callback
+    const request_device_fn = wgpuAdapterRequestDevice orelse return WebGpuError.DeviceNotFound;
+    device_callback_status = .pending;
+    request_device_fn(adapter, null, &deviceRequestCallback, null);
+    var device_polls: u32 = 0;
+    while (device_callback_status == .pending and device_polls < 1000) : (device_polls += 1) {}
+    if (device_callback_status != .success or webgpu_device == null) {
+        return WebGpuError.DeviceNotFound;
+    }
+    const device = webgpu_device.?;
 
     // Get queue
     const get_queue_fn = wgpuDeviceGetQueue orelse return WebGpuError.InitializationFailed;
     const queue = get_queue_fn(device);
 
     webgpu_instance = instance;
-    webgpu_adapter = adapter;
-    webgpu_device = device;
     webgpu_queue = queue;
     webgpu_initialized = true;
 }
@@ -216,10 +248,17 @@ pub fn compileKernel(
 
     const device = webgpu_device.?;
 
-    // Create shader module from WGSL source
+    // Create shader module from WGSL source via proper descriptor chain
     const create_shader_fn = wgpuDeviceCreateShaderModule orelse return types.KernelError.CompilationFailed;
-    // Would need to create shader module descriptor with WGSL source
-    const shader_module = create_shader_fn(device, @ptrCast(@constCast(&source.source)));
+    const wgsl_desc = WGPUShaderModuleWGSLDescriptor{
+        .chain = .{ .sType = 6, .next = null }, // WGPUSType_ShaderModuleWGSLDescriptor
+        .code = source.source.ptr,
+    };
+    const shader_desc = WGPUShaderModuleDescriptor{
+        .nextInChain = @ptrCast(&wgsl_desc.chain),
+        .label = null,
+    };
+    const shader_module = create_shader_fn(device, @ptrCast(&shader_desc));
     if (shader_module == null) {
         return types.KernelError.CompilationFailed;
     }

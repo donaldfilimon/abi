@@ -252,3 +252,7 @@ test "database module exports stable compatibility surfaces" {
     _ = batch.ImportFormat;
     _ = neural.Engine;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

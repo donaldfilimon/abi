@@ -207,7 +207,6 @@ pub const wdbx_fusion = struct {
     pub const WdbxFusion = types.WdbxFusion;
     pub const FusionConfig = types.FusionConfig;
     pub const ContextChunk = types.ContextChunk;
-    pub const CacheEntry = types.CacheEntry;
 };
 
 // ── Free functions ─────────────────────────────────────────────────────────

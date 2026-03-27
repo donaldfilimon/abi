@@ -1,11 +1,13 @@
 const std = @import("std");
 const build_flags = @import("flags.zig");
+const linking = @import("linking.zig");
 
 pub const Context = struct {
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     build_options_module: *std.Build.Module,
+    package_version: []const u8 = "0.1.0",
 };
 
 pub const Steps = struct {
@@ -30,6 +32,7 @@ pub fn addSteps(ctx: Context) Steps {
         .name = "abi-typecheck",
         .root_module = typecheck_root_module,
     });
+    linking.linkIfDarwin(typecheck_root, .static_lib, true, true);
 
     const gpu_policy_contract_module = ctx.b.createModule(.{
         .root_source_file = ctx.b.path("src/features/gpu/policy/target_contract.zig"),
@@ -40,6 +43,7 @@ pub fn addSteps(ctx: Context) Steps {
         .name = "abi-gpu-policy-contract",
         .root_module = gpu_policy_contract_module,
     });
+    linking.linkIfDarwin(gpu_policy_contract, .static_lib, true, true);
 
     const typecheck_step = ctx.b.step("typecheck", "Compile-only validation for the requested target");
     typecheck_step.dependOn(&typecheck_root.step);
@@ -101,13 +105,14 @@ pub fn addSteps(ctx: Context) Steps {
             .target = ctx.b.resolveTargetQuery(.{ .cpu_arch = ct.arch, .os_tag = ct.os }),
             .optimize = ctx.optimize,
         });
-        cross_mod.addImport("build_options", crossBuildOptions(ctx.b, ct).createModule());
+        cross_mod.addImport("build_options", crossBuildOptions(ctx.b, ct, ctx.package_version).createModule());
 
         const cross_lib = ctx.b.addLibrary(.{
             .name = "cross-" ++ ct.name,
             .root_module = cross_mod,
             .linkage = .static,
         });
+        linking.linkIfDarwin(cross_lib, .static_lib, true, false);
         cross_check_step.dependOn(&cross_lib.step);
     }
 
@@ -117,45 +122,69 @@ pub fn addSteps(ctx: Context) Steps {
     };
 }
 
-fn crossBuildOptions(b: *std.Build, ct: CrossTarget) *std.Build.Step.Options {
-    const is_wasm = ct.os == .wasi;
-    const is_linux = ct.os == .linux;
+/// Platform capabilities — single source of truth for what each OS supports.
+/// Feature flags are derived from these capabilities, not from ad-hoc
+/// `!is_wasm` / `!is_linux` expressions scattered across the flag list.
+const PlatformCaps = struct {
+    has_posix: bool, // filesystem, threads, sockets (everything except WASM)
+    has_desktop: bool, // macOS-only NSStatusItem, native menus
+    has_gpu_hw: bool, // can load GPU drivers (not WASM)
+};
+
+fn platformCaps(os: std.Target.Os.Tag) PlatformCaps {
+    const is_wasm = os == .wasi;
+    return .{
+        .has_posix = !is_wasm,
+        .has_desktop = os == .macos,
+        .has_gpu_hw = !is_wasm,
+    };
+}
+
+fn crossBuildOptions(b: *std.Build, ct: CrossTarget, package_version: []const u8) *std.Build.Step.Options {
+    const caps = platformCaps(ct.os);
     const cross_opts = b.addOptions();
 
     build_flags.addAllBuildOptions(cross_opts, .{
-        .feat_gpu = !is_wasm,
+        // ── Features requiring POSIX (filesystem, threads, sockets) ──
+        .feat_gpu = caps.has_gpu_hw,
+        .feat_database = caps.has_posix,
+        .feat_network = caps.has_posix,
+        .feat_observability = caps.has_posix,
+        .feat_web = caps.has_posix,
+        .feat_pages = caps.has_posix,
+        .feat_cloud = caps.has_posix,
+        .feat_storage = caps.has_posix,
+        .feat_compute = caps.has_posix,
+        .feat_tui = caps.has_posix,
+        .feat_lsp = caps.has_posix,
+        .feat_mcp = caps.has_posix,
+        .feat_acp = caps.has_posix,
+        .feat_ha = caps.has_posix,
+
+        // ── Platform-specific ───────────────────────────────────────
+        .feat_desktop = caps.has_desktop,
+        .feat_mobile = false, // opt-in only for iOS cross-builds
+
+        // ── Portable (work everywhere including WASM) ───────────────
         .feat_ai = true,
-        .feat_database = !is_wasm,
-        .feat_network = !is_wasm,
-        .feat_observability = !is_wasm,
-        .feat_web = !is_wasm,
-        .feat_pages = !is_wasm,
         .feat_analytics = true,
-        .feat_cloud = !is_wasm,
         .feat_auth = true,
         .feat_messaging = true,
         .feat_cache = true,
-        .feat_storage = !is_wasm,
         .feat_search = true,
-        .feat_mobile = false,
         .feat_gateway = true,
         .feat_benchmarks = true,
-        .feat_compute = !is_wasm,
         .feat_documents = true,
-        .feat_desktop = !is_wasm and !is_linux,
-        .feat_tui = !is_wasm,
         .feat_llm = true,
         .feat_training = true,
         .feat_vision = true,
         .feat_explore = true,
         .feat_reasoning = true,
-        .feat_lsp = !is_wasm,
-        .feat_mcp = !is_wasm,
-        .feat_acp = !is_wasm,
-        .feat_ha = !is_wasm,
         .feat_connectors = true,
         .feat_tasks = true,
         .feat_inference = true,
+
+        // ── GPU backends (none enabled in cross-builds; host-specific) ──
         .gpu_metal = false,
         .gpu_cuda = false,
         .gpu_vulkan = false,
@@ -163,10 +192,10 @@ fn crossBuildOptions(b: *std.Build, ct: CrossTarget) *std.Build.Step.Options {
         .gpu_opengl = false,
         .gpu_opengles = false,
         .gpu_webgl2 = false,
-        .gpu_stdgpu = !is_wasm,
+        .gpu_stdgpu = caps.has_gpu_hw,
         .gpu_fpga = false,
         .gpu_tpu = false,
-    });
+    }, package_version);
 
     return cross_opts;
 }

@@ -33,3 +33,7 @@ pub const RpcServer = struct {
         std.debug.print("Executing operator command: {s}\n", .{command});
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

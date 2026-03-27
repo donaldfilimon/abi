@@ -20,6 +20,7 @@ pub const tasks = server_mod.tasks;
 pub const sessions = server_mod.sessions;
 pub const routing = server_mod.routing;
 pub const json_utils = server_mod.json_utils;
+pub const openapi = server_mod.openapi;
 
 test {
     @import("std").testing.refAllDecls(@This());

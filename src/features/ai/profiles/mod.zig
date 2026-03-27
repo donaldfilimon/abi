@@ -15,11 +15,6 @@ else
 const types = @import("../types.zig");
 const registry = @import("../registry.zig");
 const abi = @import("../abi/mod.zig");
-const abbey = @import("../abbey/profile.zig");
-const aviva = @import("../aviva/mod.zig");
-const generic = @import("../generic.zig");
-const health = @import("../health.zig");
-const loadbalancer = @import("../loadbalancer.zig");
 
 pub const BehaviorProfile = enum {
     collaborative,
@@ -138,7 +133,7 @@ pub fn ProfileSystem(comptime Config: type) type {
                 pref
             else blk: {
                 var decision = try self.router.route(request);
-                defer @constCast(&decision).deinit(self.allocator);
+                defer decision.deinit(self.allocator);
 
                 // Safety violation — refuse immediately.
                 if (!decision.policy_flags.is_safe) {
@@ -240,4 +235,8 @@ test "behavior profiles normalize branded profiles" {
     try std.testing.expectEqual(BehaviorProfile.direct, fromLegacyProfile(.aviva));
     try std.testing.expectEqual(BehaviorProfile.governance, fromLegacyProfile(.abi));
     try std.testing.expectEqual(BehaviorProfile.iterative, fromLegacyProfile(.ralph));
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

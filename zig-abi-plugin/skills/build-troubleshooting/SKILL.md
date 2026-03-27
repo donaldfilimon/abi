@@ -40,8 +40,8 @@ Use `./build.sh` which auto-relinks with Apple ld + compiler_rt on macOS 26.4+:
 
 Ensure zig is installed via the version manager:
 ```bash
-tools/zigup.sh --status    # Auto-install if missing
-tools/zigup.sh --link      # Symlink to ~/.local/bin
+zigly --status    # Auto-install if missing
+zigly --link      # Symlink to ~/.local/bin
 ```
 
 Never set `use_lld = true` on macOS. LLD has zero Mach-O support.
@@ -74,7 +74,7 @@ Build output shows a version mismatch warning, or only format-check steps (`lint
 
 Install the exact pinned Zig version and ensure it is first on PATH. Do not attempt to use a different Zig version with this codebase. The build system, API patterns, and all source code are tuned to the exact pinned dev build.
 
-If upgrading the pin, update all of these atomically: `.zigversion`, `build.zig.zon`, and CI configuration (`.github/workflows/ci.yml`). Run `tools/zigup.sh --install` to re-download the new version.
+If upgrading the pin, update all of these atomically: `.zigversion`, `build.zig.zon`, and CI configuration (`.github/workflows/ci.yml`). Run `zigly --install` to re-download the new version.
 
 ## Feature Flag Validation Errors
 
@@ -262,6 +262,6 @@ When a build failure does not match any symptom above:
 
 1. Run `zig build doctor` to inspect the build configuration.
 2. Check `.zigversion` for version pin consistency.
-3. Run `tools/zigup.sh --status` to verify zig installation.
+3. Run `zigly --status` to verify zig installation.
 4. Check `build.zig` for the full flag list (all flags defined inline).
 5. Check `src/core/feature_catalog.zig` for feature metadata.

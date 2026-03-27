@@ -8,6 +8,10 @@ zig-cache/
 zig-out/
 exe/
 docs_html/
+# Root-level build artifacts (stray from manual builds)
+/test.db
+/target_contract.o
+/libcontext_init.a
 # build/ contains source .zig files — only ignore non-Zig artifacts
 build/*
 !build/*.zig

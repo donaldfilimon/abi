@@ -94,3 +94,7 @@ pub fn commitStepOutcome(
         .duration_ns = outcome.duration_ms * std.time.ns_per_ms,
     });
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

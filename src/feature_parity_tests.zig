@@ -4,9 +4,15 @@
 //! declarations as its mod.zig. This catches parity drift at compile time
 //! rather than at runtime when a feature flag is disabled.
 //!
+//! Tier 1: Catalog features — maps Feature enum → mod/stub types via
+//!         exhaustive switch. Adding a Feature enum variant without a
+//!         switch case is a compile error.
+//! Tier 2: AI sub-features not yet in the catalog are listed separately.
+//!
 //! Run via: `zig build check-parity`
 
 const std = @import("std");
+const catalog = @import("core/feature_catalog.zig");
 
 /// Compare public declaration names between two module types.
 /// Returns a list of names present in `expected` but missing from `actual`.
@@ -52,39 +58,127 @@ fn assertParity(comptime name: []const u8, comptime Mod: type, comptime Stub: ty
     }
 }
 
-// ── Feature parity assertions ────────────────────────────────────────────
-// Each comptime call verifies that mod.zig and stub.zig export matching
-// public API surfaces. A compile error here means the stub has drifted.
+// ── Catalog feature imports ──────────────────────────────────────────────
+// Exhaustive switch on Feature enum: adding a new variant without a case
+// here is a compile error. @import requires string literals, so we map
+// each enum variant to its mod/stub types explicitly.
+
+fn catalogMod(comptime feature: catalog.Feature) type {
+    return switch (feature) {
+        .gpu => @import("features/gpu/mod.zig"),
+        .ai => @import("features/ai/mod.zig"),
+        .llm => @import("features/ai/llm/mod.zig"),
+        .embeddings => @import("features/ai/embeddings/mod.zig"),
+        .agents => @import("features/ai/agents/mod.zig"),
+        .training => @import("features/ai/training/mod.zig"),
+        .database => @import("features/database/mod.zig"),
+        .network => @import("features/network/mod.zig"),
+        .observability => @import("features/observability/mod.zig"),
+        .web => @import("features/web/mod.zig"),
+        .profiles => @import("features/ai/profile/mod.zig"),
+        .cloud => @import("features/cloud/mod.zig"),
+        .analytics => @import("features/analytics/mod.zig"),
+        .auth => @import("features/auth/mod.zig"),
+        .messaging => @import("features/messaging/mod.zig"),
+        .cache => @import("features/cache/mod.zig"),
+        .storage => @import("features/storage/mod.zig"),
+        .search => @import("features/search/mod.zig"),
+        .mobile => @import("features/mobile/mod.zig"),
+        .gateway => @import("features/gateway/mod.zig"),
+        .pages => @import("features/observability/pages/mod.zig"),
+        .benchmarks => @import("features/benchmarks/mod.zig"),
+        .reasoning => @import("features/ai/reasoning/mod.zig"),
+        .constitution => @import("features/ai/constitution/mod.zig"),
+        .compute => @import("features/compute/mod.zig"),
+        .documents => @import("features/documents/mod.zig"),
+        .desktop => @import("features/desktop/mod.zig"),
+        .tui => @import("features/tui/mod.zig"),
+        .lsp => @import("protocols/lsp/mod.zig"),
+        .mcp => @import("protocols/mcp/mod.zig"),
+        .acp => @import("protocols/acp/mod.zig"),
+        .ha => @import("protocols/ha/mod.zig"),
+        .connectors => @import("connectors/mod.zig"),
+        .tasks => @import("tasks/mod.zig"),
+        .inference => @import("inference/mod.zig"),
+    };
+}
+
+fn catalogStub(comptime feature: catalog.Feature) type {
+    return switch (feature) {
+        .gpu => @import("features/gpu/stub.zig"),
+        .ai => @import("features/ai/stub.zig"),
+        .llm => @import("features/ai/llm/stub.zig"),
+        .embeddings => @import("features/ai/embeddings/stub.zig"),
+        .agents => @import("features/ai/agents/stub.zig"),
+        .training => @import("features/ai/training/stub.zig"),
+        .database => @import("features/database/stub.zig"),
+        .network => @import("features/network/stub.zig"),
+        .observability => @import("features/observability/stub.zig"),
+        .web => @import("features/web/stub.zig"),
+        .profiles => @import("features/ai/profile/stub.zig"),
+        .cloud => @import("features/cloud/stub.zig"),
+        .analytics => @import("features/analytics/stub.zig"),
+        .auth => @import("features/auth/stub.zig"),
+        .messaging => @import("features/messaging/stub.zig"),
+        .cache => @import("features/cache/stub.zig"),
+        .storage => @import("features/storage/stub.zig"),
+        .search => @import("features/search/stub.zig"),
+        .mobile => @import("features/mobile/stub.zig"),
+        .gateway => @import("features/gateway/stub.zig"),
+        .pages => @import("features/observability/pages/stub.zig"),
+        .benchmarks => @import("features/benchmarks/stub.zig"),
+        .reasoning => @import("features/ai/reasoning/stub.zig"),
+        .constitution => @import("features/ai/constitution/stub.zig"),
+        .compute => @import("features/compute/stub.zig"),
+        .documents => @import("features/documents/stub.zig"),
+        .desktop => @import("features/desktop/stub.zig"),
+        .tui => @import("features/tui/stub.zig"),
+        .lsp => @import("protocols/lsp/stub.zig"),
+        .mcp => @import("protocols/mcp/stub.zig"),
+        .acp => @import("protocols/acp/stub.zig"),
+        .ha => @import("protocols/ha/stub.zig"),
+        .connectors => @import("connectors/stub.zig"),
+        .tasks => @import("tasks/stub.zig"),
+        .inference => @import("inference/stub.zig"),
+    };
+}
+
+// ── Parity assertions ────────────────────────────────────────────────────
 
 comptime {
-    assertParity("ai", @import("features/ai/mod.zig"), @import("features/ai/stub.zig"));
-    assertParity("analytics", @import("features/analytics/mod.zig"), @import("features/analytics/stub.zig"));
-    assertParity("auth", @import("features/auth/mod.zig"), @import("features/auth/stub.zig"));
-    assertParity("benchmarks", @import("features/benchmarks/mod.zig"), @import("features/benchmarks/stub.zig"));
-    assertParity("cache", @import("features/cache/mod.zig"), @import("features/cache/stub.zig"));
-    assertParity("cloud", @import("features/cloud/mod.zig"), @import("features/cloud/stub.zig"));
-    assertParity("compute", @import("features/compute/mod.zig"), @import("features/compute/stub.zig"));
-    assertParity("database", @import("features/database/mod.zig"), @import("features/database/stub.zig"));
-    assertParity("desktop", @import("features/desktop/mod.zig"), @import("features/desktop/stub.zig"));
-    assertParity("documents", @import("features/documents/mod.zig"), @import("features/documents/stub.zig"));
-    assertParity("gateway", @import("features/gateway/mod.zig"), @import("features/gateway/stub.zig"));
-    assertParity("gpu", @import("features/gpu/mod.zig"), @import("features/gpu/stub.zig"));
-    assertParity("messaging", @import("features/messaging/mod.zig"), @import("features/messaging/stub.zig"));
-    assertParity("mobile", @import("features/mobile/mod.zig"), @import("features/mobile/stub.zig"));
-    assertParity("network", @import("features/network/mod.zig"), @import("features/network/stub.zig"));
-    assertParity("observability", @import("features/observability/mod.zig"), @import("features/observability/stub.zig"));
-    assertParity("pages", @import("features/observability/pages/mod.zig"), @import("features/observability/pages/stub.zig"));
-    assertParity("search", @import("features/search/mod.zig"), @import("features/search/stub.zig"));
-    assertParity("storage", @import("features/storage/mod.zig"), @import("features/storage/stub.zig"));
-    assertParity("tui", @import("features/tui/mod.zig"), @import("features/tui/stub.zig"));
-    assertParity("web", @import("features/web/mod.zig"), @import("features/web/stub.zig"));
-    assertParity("lsp", @import("protocols/lsp/mod.zig"), @import("protocols/lsp/stub.zig"));
-    assertParity("mcp", @import("protocols/mcp/mod.zig"), @import("protocols/mcp/stub.zig"));
-    assertParity("acp", @import("protocols/acp/mod.zig"), @import("protocols/acp/stub.zig"));
-    assertParity("ha", @import("protocols/ha/mod.zig"), @import("protocols/ha/stub.zig"));
-    assertParity("connectors", @import("connectors/mod.zig"), @import("connectors/stub.zig"));
-    assertParity("tasks", @import("tasks/mod.zig"), @import("tasks/stub.zig"));
-    assertParity("inference", @import("inference/mod.zig"), @import("inference/stub.zig"));
+    // Tier 1: All catalog features (35 entries).
+    // The exhaustive switch in catalogMod/catalogStub ensures new Feature
+    // enum variants get a compile error until their import is added.
+    for (catalog.all) |entry| {
+        assertParity(@tagName(entry.feature), catalogMod(entry.feature), catalogStub(entry.feature));
+    }
+
+    // Tier 2: AI sub-features not yet in the catalog (24 entries).
+    // Note: ai/aviva lacks stub.zig — skip until stub is created.
+    assertParity("ai/abi", @import("features/ai/abi/mod.zig"), @import("features/ai/abi/stub.zig"));
+    assertParity("ai/abbey", @import("features/ai/abbey/mod.zig"), @import("features/ai/abbey/stub.zig"));
+    assertParity("ai/compliance", @import("features/ai/compliance/mod.zig"), @import("features/ai/compliance/stub.zig"));
+    assertParity("ai/context_engine", @import("features/ai/context_engine/mod.zig"), @import("features/ai/context_engine/stub.zig"));
+    assertParity("ai/coordination", @import("features/ai/coordination/mod.zig"), @import("features/ai/coordination/stub.zig"));
+    assertParity("ai/core", @import("features/ai/core/mod.zig"), @import("features/ai/core/stub.zig"));
+    assertParity("ai/database", @import("features/ai/database/mod.zig"), @import("features/ai/database/stub.zig"));
+    assertParity("ai/documents", @import("features/ai/documents/mod.zig"), @import("features/ai/documents/stub.zig"));
+    assertParity("ai/eval", @import("features/ai/eval/mod.zig"), @import("features/ai/eval/stub.zig"));
+    assertParity("ai/explore", @import("features/ai/explore/mod.zig"), @import("features/ai/explore/stub.zig"));
+    assertParity("ai/feedback", @import("features/ai/feedback/mod.zig"), @import("features/ai/feedback/stub.zig"));
+    assertParity("ai/federated", @import("features/ai/federated/mod.zig"), @import("features/ai/federated/stub.zig"));
+    assertParity("ai/memory", @import("features/ai/memory/mod.zig"), @import("features/ai/memory/stub.zig"));
+    assertParity("ai/models", @import("features/ai/models/mod.zig"), @import("features/ai/models/stub.zig"));
+    assertParity("ai/multi_agent", @import("features/ai/multi_agent/mod.zig"), @import("features/ai/multi_agent/stub.zig"));
+    assertParity("ai/orchestration", @import("features/ai/orchestration/mod.zig"), @import("features/ai/orchestration/stub.zig"));
+    assertParity("ai/profiles", @import("features/ai/profiles/mod.zig"), @import("features/ai/profiles/stub.zig"));
+    assertParity("ai/prompts", @import("features/ai/prompts/mod.zig"), @import("features/ai/prompts/stub.zig"));
+    assertParity("ai/rag", @import("features/ai/rag/mod.zig"), @import("features/ai/rag/stub.zig"));
+    assertParity("ai/streaming", @import("features/ai/streaming/mod.zig"), @import("features/ai/streaming/stub.zig"));
+    assertParity("ai/templates", @import("features/ai/templates/mod.zig"), @import("features/ai/templates/stub.zig"));
+    assertParity("ai/tools", @import("features/ai/tools/mod.zig"), @import("features/ai/tools/stub.zig"));
+    assertParity("ai/transformer", @import("features/ai/transformer/mod.zig"), @import("features/ai/transformer/stub.zig"));
+    assertParity("ai/vision", @import("features/ai/vision/mod.zig"), @import("features/ai/vision/stub.zig"));
 }
 
 test "mod/stub parity check compiled successfully" {

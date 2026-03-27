@@ -31,3 +31,7 @@ pub const VectorIndex = struct {
         try self.embeddings.appendSlice(self.allocator, vector);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

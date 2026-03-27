@@ -153,3 +153,7 @@ pub fn Recovery(
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

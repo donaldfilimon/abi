@@ -12,7 +12,7 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ZIGVERSION_FILE="$REPO_ROOT/.zigversion"
-ZIGUP="$SCRIPT_DIR/zigup.sh"
+ZIGLY="$SCRIPT_DIR/zigly"
 DOWNLOAD_INDEX="https://ziglang.org/download/index.json"
 
 usage() {
@@ -52,37 +52,40 @@ detect_arch() {
     esac
 }
 
-fetch_json_field() {
-    # $1 = URL, $2 = field path
-    if command -v python3 >/dev/null 2>&1; then
-        curl -fsSL "$1" 2>/dev/null | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-keys='$2'.split('.')
-v=d
-for k in keys:
-    if k.isdigit(): v=v[int(k)]
-    else: v=v[k]
-print(v)
-" 2>/dev/null || true
-    else
-        echo ""
+## JSON field extraction — no Python3 required.
+## Parses the zig download index using grep/sed. The index structure is flat
+## enough that we can extract "version" and "tarball" with line-based matching.
+_INDEX_CACHE=""
+
+fetch_index() {
+    if [ -z "$_INDEX_CACHE" ]; then
+        _INDEX_CACHE="$(curl -fsSL "$DOWNLOAD_INDEX" 2>/dev/null)" || true
     fi
 }
 
+# Extract a quoted string value for a given key from the cached index JSON.
+# Works for simple "key": "value" pairs (covers version and tarball fields).
+json_string_value() {
+    local key="$1"
+    printf '%s\n' "$_INDEX_CACHE" | grep "\"${key}\"" | head -1 | sed -E 's/.*"'"${key}"'"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/'
+}
+
 get_latest_version() {
-    # Fetch the latest master version string from zig download index
-    LATEST_VERSION="$(fetch_json_field "$DOWNLOAD_INDEX" "master.version")"
+    fetch_index
+    LATEST_VERSION="$(json_string_value "version")"
     if [ -z "$LATEST_VERSION" ]; then
         err "Could not fetch latest version from $DOWNLOAD_INDEX"
     fi
 }
 
 get_latest_tarball_url() {
+    fetch_index
     os="$(detect_os)"
     arch="$(detect_arch)"
     platform="${arch}-${os}"
-    LATEST_URL="$(fetch_json_field "$DOWNLOAD_INDEX" "master.${platform}.tarball")"
+    # The tarball URL appears inside the platform-specific block; grep for it
+    # after narrowing to lines near the platform key.
+    LATEST_URL="$(printf '%s\n' "$_INDEX_CACHE" | sed -n "/\"${platform}\"/,/}/p" | grep '"tarball"' | head -1 | sed -E 's/.*"tarball"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
 }
 
 # Compare version strings. Returns 0 if $1 != $2
@@ -127,7 +130,7 @@ do_update() {
 
     # Force reinstall zig
     log "Installing zig $LATEST_VERSION ..."
-    "$ZIGUP" --install || {
+    "$ZIGLY" --install || {
         log "Install failed, reverting .zigversion"
         mv "${ZIGVERSION_FILE}.bak" "$ZIGVERSION_FILE"
         err "zig install failed for $LATEST_VERSION"
@@ -135,7 +138,7 @@ do_update() {
 
     # Run build check
     log "Running 'zig build check' to verify ..."
-    ZIG="$("$ZIGUP" --status)"
+    ZIG="$("$ZIGLY" --status)"
     ZIG_LIB="$(dirname "$(dirname "$ZIG")")/lib"
     if "$ZIG" build check --zig-lib-dir "$ZIG_LIB" --global-cache-dir "$HOME/.cache/zig" --cache-dir .zig-cache 2>&1; then
         log "Check passed!"
@@ -144,7 +147,7 @@ do_update() {
     else
         log "Check failed! Reverting to $CURRENT_VERSION"
         mv "${ZIGVERSION_FILE}.bak" "$ZIGVERSION_FILE"
-        "$ZIGUP" --install
+        "$ZIGLY" --install
         err "Build check failed with zig $LATEST_VERSION, reverted to $CURRENT_VERSION"
     fi
 }

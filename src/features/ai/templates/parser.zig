@@ -4,35 +4,10 @@
 //! using {{variable|default}} format.
 
 const std = @import("std");
+const types = @import("types.zig");
 
-pub const ParseError = error{
-    UnterminatedVariable,
-    EmptyVariableName,
-    InvalidSyntax,
-    OutOfMemory,
-};
-
-/// Token types produced by parsing.
-pub const Token = union(enum) {
-    /// Literal text segment.
-    text: []const u8,
-    /// Variable placeholder with optional default.
-    variable: Variable,
-
-    pub const Variable = struct {
-        name: []const u8,
-        default: ?[]const u8,
-        filters: []const Filter,
-    };
-
-    pub const Filter = enum {
-        upper,
-        lower,
-        trim,
-        escape_html,
-        escape_json,
-    };
-};
+pub const ParseError = types.ParseError;
+pub const Token = types.Token;
 
 pub const Parser = struct {
     allocator: std.mem.Allocator,

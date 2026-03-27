@@ -318,7 +318,6 @@ pub const block_chain = struct {
         hash: [32]u8 = .{0} ** 32,
         previous_hash: [32]u8 = .{0} ** 32,
         parent_block_id: ?u64 = null,
-        skip_pointer: ?u64 = null,
 
         pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
     };
@@ -331,8 +330,6 @@ pub const block_chain = struct {
         risk_score: f32 = 0.0,
         policy_flags: PolicyFlags = .{},
         parent_block_id: ?u64 = null,
-        skip_pointer: ?u64 = null,
-        summary_pointer: ?u64 = null,
         previous_hash: [32]u8 = .{0} ** 32,
     };
     pub const BlockChainConfig = struct {};

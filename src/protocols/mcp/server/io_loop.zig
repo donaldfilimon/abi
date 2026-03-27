@@ -58,3 +58,7 @@ pub fn run(self: anytype, io: std.Io) !void {
 pub fn runInfo(self: anytype) void {
     std.log.info("MCP server ready ({d} tools registered). Use run(io) with I/O backend.", .{self.tools.items.len});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -14,8 +14,12 @@ pub const tokenBinToWdbx = convert.tokenBinToWdbx;
 pub const wdbxToTokenBin = convert.wdbxToTokenBin;
 pub const readTokenBinFile = convert.readTokenBinFile;
 pub const writeTokenBinFile = convert.writeTokenBinFile;
-pub const exportGguf = export_mod.exportGguf;
+pub const exportGgufFromState = export_mod.exportGgufFromState;
 pub const BrainExportConfig = brain_export.BrainExportConfig;
 pub const TrainingMetadata = brain_export.TrainingMetadata;
 pub const ExportResult = brain_export.ExportResult;
 pub const exportDual = brain_export.exportDual;
+
+test {
+    std.testing.refAllDecls(@This());
+}
