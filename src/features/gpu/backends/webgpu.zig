@@ -197,7 +197,9 @@ pub fn init() !void {
     request_adapter_fn(instance, null, &adapterRequestCallback, null);
     // Poll until callback fires (synchronous wait for init)
     var adapter_polls: u32 = 0;
-    while (adapter_callback_status == .pending and adapter_polls < 1000) : (adapter_polls += 1) {}
+    while (adapter_callback_status == .pending and adapter_polls < 1000) : (adapter_polls += 1) {
+        std.atomic.spinLoopHint();
+    }
     if (adapter_callback_status != .success or webgpu_adapter == null) {
         return WebGpuError.AdapterNotFound;
     }
@@ -208,7 +210,9 @@ pub fn init() !void {
     device_callback_status = .pending;
     request_device_fn(adapter, null, &deviceRequestCallback, null);
     var device_polls: u32 = 0;
-    while (device_callback_status == .pending and device_polls < 1000) : (device_polls += 1) {}
+    while (device_callback_status == .pending and device_polls < 1000) : (device_polls += 1) {
+        std.atomic.spinLoopHint();
+    }
     if (device_callback_status != .success or webgpu_device == null) {
         return WebGpuError.DeviceNotFound;
     }

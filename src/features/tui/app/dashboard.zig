@@ -21,7 +21,7 @@ const Screen = render_mod.Screen;
 const Terminal = terminal_mod.Terminal;
 
 // SIGWINCH handling for terminal resize detection
-var sigwinch_received: bool = false;
+var sigwinch_received: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
 
 fn installSigwinchHandler() void {
     if (comptime builtin.os.tag == .windows) return;
@@ -34,7 +34,7 @@ fn installSigwinchHandler() void {
 }
 
 fn sigwinchHandler(_: std.posix.SIG) callconv(.c) void {
-    sigwinch_received = true;
+    sigwinch_received.store(true, .release);
 }
 
 const green_style = Style{ .fg = .green, .bold = true };
@@ -339,8 +339,7 @@ pub fn run(allocator: std.mem.Allocator) !void {
     // Event loop — readEvent uses VMIN=0/VTIME=1 (100ms non-blocking poll)
     while (true) {
         // Handle terminal resize
-        if (sigwinch_received) {
-            sigwinch_received = false;
+        if (sigwinch_received.swap(false, .acquire)) {
             const new_size = try term.getSize();
             screen.deinit();
             screen = try Screen.init(allocator, new_size.width, new_size.height);

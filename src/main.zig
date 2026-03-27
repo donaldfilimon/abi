@@ -564,6 +564,9 @@ pub fn runSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
             @memcpy(content_buf[content_len..][0..copy_len], arg[0..copy_len]);
             content_len += copy_len;
         }
+        if (content_len >= content_buf.len) {
+            std.debug.print("Warning: content truncated to {d} bytes\n", .{content_buf.len});
+        }
         search.indexDocument(args[1], args[2], content_buf[0..content_len]) catch |err| {
             std.debug.print("Error: {s}\n", .{@errorName(err)});
             return;
@@ -584,6 +587,9 @@ pub fn runSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
             const copy_len = @min(arg.len, query_buf.len - query_len);
             @memcpy(query_buf[query_len..][0..copy_len], arg[0..copy_len]);
             query_len += copy_len;
+        }
+        if (query_len >= query_buf.len) {
+            std.debug.print("Warning: query truncated to {d} bytes\n", .{query_buf.len});
         }
         const results = search.query(allocator, args[1], query_buf[0..query_len]) catch |err| {
             std.debug.print("Error: {s}\n", .{@errorName(err)});

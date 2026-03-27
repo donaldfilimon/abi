@@ -36,7 +36,6 @@ git add src/features/gpu/policy/target_contract.zig
 - [ ] **Step 3: Update .gitignore**
 
 Add these lines near the existing build artifacts section (around line 8):
-
 ```gitignore
 # Root-level build artifacts (stray from manual builds)
 /test.db
