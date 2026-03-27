@@ -9,13 +9,6 @@
 const std = @import("std");
 const vit = @import("../vision/vit.zig");
 const mixed_precision = @import("mixed_precision.zig");
-const training_utils = @import("training_utils.zig");
-
-const initializeXavier = training_utils.initializeXavier;
-const initializePositional = training_utils.initializePositional;
-const layerNorm = training_utils.layerNorm;
-const scaleSlice = training_utils.scaleSlice;
-const applyUpdate = training_utils.applyUpdate;
 
 /// Error types for vision training.
 pub const VisionTrainingError = error{
@@ -983,6 +976,74 @@ pub const ViTLayerCache = struct {
 };
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Xavier initialization.
+fn initializeXavier(data: []f32) void {
+    const scale = @sqrt(2.0 / @as(f32, @floatFromInt(data.len)));
+    var rng = std.Random.DefaultPrng.init(0x12345678);
+    for (data) |*val| {
+        val.* = (rng.random().float(f32) * 2.0 - 1.0) * scale;
+    }
+}
+
+/// Sinusoidal position embedding initialization.
+fn initializePositional(data: []f32, seq_len: u32, hidden: u32) void {
+    for (0..seq_len) |pos| {
+        for (0..hidden) |i| {
+            const position = @as(f32, @floatFromInt(pos));
+            const div_term = @exp(-@as(f32, @floatFromInt(i)) * @log(@as(f32, 10000.0)) / @as(f32, @floatFromInt(hidden)));
+
+            if (i % 2 == 0) {
+                data[pos * hidden + i] = @sin(position * div_term);
+            } else {
+                data[pos * hidden + i] = @cos(position * div_term);
+            }
+        }
+    }
+}
+
+/// In-place layer normalization.
+fn layerNorm(data: []f32, weight: []const f32, bias: []const f32) void {
+    const dim = data.len;
+    const dim_f = @as(f32, @floatFromInt(dim));
+
+    // Compute mean
+    var mean: f32 = 0;
+    for (data) |v| mean += v;
+    mean /= dim_f;
+
+    // Compute variance
+    var variance: f32 = 0;
+    for (data) |v| {
+        const diff = v - mean;
+        variance += diff * diff;
+    }
+    variance /= dim_f;
+
+    // Normalize
+    const inv_std = 1.0 / @sqrt(variance + 1e-6);
+    for (0..dim) |i| {
+        data[i] = (data[i] - mean) * inv_std * weight[i] + bias[i];
+    }
+}
+
+/// Scale a slice by a factor.
+fn scaleSlice(data: []f32, scale: f32) void {
+    for (data) |*v| {
+        v.* *= scale;
+    }
+}
+
+/// Apply gradient update: weight -= learning_rate * gradient
+fn applyUpdate(weights: []f32, gradients: []const f32, learning_rate: f32) void {
+    for (weights, gradients) |*w, g| {
+        w.* -= learning_rate * g;
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -1037,7 +1098,21 @@ test "trainable vit model init/deinit" {
     try std.testing.expect(model.activations != null);
 }
 
+test "layer norm" {
+    var data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const weight = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
+    const bias = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
+
+    layerNorm(&data, &weight, &bias);
+
+    // After normalization, mean should be ~0 and variance ~1
+    var mean: f32 = 0;
+    for (data) |v| mean += v;
+    mean /= 4.0;
+
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), mean, 0.001);
+}
+
 test {
-    _ = training_utils;
     std.testing.refAllDecls(@This());
 }

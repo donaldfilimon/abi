@@ -1,6 +1,6 @@
 //! Privacy Principle Validator (Principle 3)
 //!
-//! Protect profilel information; never expose PII.
+//! Protect personal information; never expose PII.
 //! Detects credential exposure, SSN/credit card patterns, and email+password pairs.
 
 const std = @import("std");

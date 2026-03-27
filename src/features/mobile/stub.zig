@@ -4,12 +4,6 @@ const std = @import("std");
 const stub_helpers = @import("../../core/stub_helpers.zig");
 pub const types = @import("types.zig");
 
-// Submodule stubs — empty structs matching mod.zig's public surface
-pub const sensors = struct {};
-pub const notifications = struct {};
-pub const permissions = struct {};
-pub const device = struct {};
-
 pub const MobileConfig = types.MobileConfig;
 pub const MobilePlatform = types.MobilePlatform;
 pub const MobileError = types.MobileError;
@@ -64,12 +58,11 @@ pub const Context = struct {
     }
 };
 
-// Module-level lifecycle — delegate to StubFeature helpers (Context above is custom).
-const _Stub = stub_helpers.StubFeature(MobileConfig, MobileError);
-pub const init = _Stub.init;
-pub const deinit = _Stub.deinit;
-pub const isEnabled = _Stub.isEnabled;
-pub const isInitialized = _Stub.isInitialized;
+const _stub = stub_helpers.StubFeature(MobileConfig, MobileError);
+pub const init = _stub.init;
+pub const deinit = _stub.deinit;
+pub const isEnabled = _stub.isEnabled;
+pub const isInitialized = _stub.isInitialized;
 pub fn getLifecycleState() LifecycleState {
     return .terminated;
 }

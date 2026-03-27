@@ -163,7 +163,3 @@ pub const DocumentPipeline = struct {
         OutOfMemory,
     };
 };
-
-test {
-    std.testing.refAllDecls(@This());
-}

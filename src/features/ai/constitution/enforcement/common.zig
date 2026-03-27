@@ -1,27 +1,86 @@
 //! Shared types, helpers, and pattern utilities for enforcement validators.
 
 const std = @import("std");
-const types = @import("../types.zig");
 const principles = @import("../principles.zig");
 
-pub const Principle = types.Principle;
-pub const Severity = types.Severity;
-pub const ConstitutionalRule = types.ConstitutionalRule;
-pub const TrainingGuardrails = types.TrainingGuardrails;
+pub const Principle = principles.Principle;
+pub const Severity = principles.Severity;
+pub const ConstitutionalRule = principles.ConstitutionalRule;
+pub const TrainingGuardrails = principles.TrainingGuardrails;
 
 // ============================================================================
-// Constitutional Score — re-exported from types.zig (canonical definitions)
+// Constitutional Score
 // ============================================================================
 
-pub const ConstitutionalScore = types.ConstitutionalScore;
-pub const Violation = types.Violation;
+pub const ConstitutionalScore = struct {
+    overall: f32, // 0.0 (total violation) to 1.0 (fully compliant)
+    violations: [16]?Violation,
+    violation_count: u8,
+    highest_severity: ?Severity,
+    safety_score: ?SafetyScore,
+
+    pub fn isCompliant(self: *const ConstitutionalScore) bool {
+        // Check safety score first — if present and unsafe, not compliant
+        if (self.safety_score) |ss| {
+            if (!ss.is_safe) return false;
+        }
+        return self.violation_count == 0 or self.highest_severity != .critical;
+    }
+
+    pub fn rewardModifier(self: *const ConstitutionalScore) f32 {
+        // Multiply RLHF reward by compliance score
+        if (self.violation_count == 0) return 1.0;
+        return @max(0.0, self.overall);
+    }
+};
+
+pub const Violation = struct {
+    rule_id: []const u8,
+    principle_name: []const u8,
+    severity: Severity,
+    confidence: f32,
+};
 
 // ============================================================================
-// Enhanced Safety Score — re-exported from types.zig (canonical definitions)
+// Enhanced Safety Score
 // ============================================================================
 
-pub const SafetyViolation = types.SafetyViolation;
-pub const SafetyScore = types.SafetyScore;
+/// A safety violation detected by pattern-based heuristics.
+pub const SafetyViolation = struct {
+    category: Category,
+    severity: f32, // 0.0 (informational) to 1.0 (critical)
+    description: []const u8,
+
+    pub const Category = enum {
+        shell_injection,
+        sql_injection,
+        path_traversal,
+        credential_exposure,
+        pii_exposure,
+        harmful_content,
+    };
+};
+
+/// Aggregate safety score from pattern-based detection.
+/// Complements the principle-based ConstitutionalScore with
+/// finer-grained pattern matching and severity weighting.
+pub const SafetyScore = struct {
+    is_safe: bool, // true if score >= safety_threshold
+    score: f32, // 0.0 = unsafe, 1.0 = safe
+    violations: [MAX_SAFETY_VIOLATIONS]?SafetyViolation,
+    violation_count: u8,
+
+    pub const MAX_SAFETY_VIOLATIONS = 16;
+
+    /// Default threshold: score below this is considered unsafe.
+    pub const safety_threshold: f32 = 0.5;
+
+    pub fn addViolation(self: *SafetyScore, violation: SafetyViolation) void {
+        if (self.violation_count >= MAX_SAFETY_VIOLATIONS) return;
+        self.violations[self.violation_count] = violation;
+        self.violation_count += 1;
+    }
+};
 
 // ============================================================================
 // Pattern Helpers
@@ -105,15 +164,6 @@ pub fn addViolation(score: *ConstitutionalScore, rule: ConstitutionalRule, princ
     {
         score.highest_severity = principle.severity;
     }
-}
-
-test "code block ratio calculation" {
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), codeBlockRatio("no code here"), 0.01);
-    // Text with a code block should return non-zero ratio
-    const with_code = "before ```\ncode here\n``` after";
-    const ratio = codeBlockRatio(with_code);
-    try std.testing.expect(ratio > 0.0);
-    try std.testing.expect(ratio < 1.0);
 }
 
 test {

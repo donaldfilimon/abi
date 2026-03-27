@@ -7,7 +7,6 @@ pub const MobileConfig = mobile_config.MobileConfig;
 pub const MobilePlatform = mobile_config.MobileConfig.Platform;
 
 pub const MobileError = error{
-    MobileDisabled,
     FeatureDisabled,
     PlatformNotSupported,
     SensorUnavailable,

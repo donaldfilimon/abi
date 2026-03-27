@@ -202,7 +202,7 @@ pub const AbbeyEngine = struct {
 
         // 4. Begin reasoning chain
         if (self.current_reasoning) |*old| {
-            old.deinit(self.allocator);
+            old.deinit();
         }
         self.current_reasoning = reasoning.ReasoningChain.init(self.allocator, user_input);
 
@@ -271,7 +271,7 @@ pub const AbbeyEngine = struct {
         // 13. Build response
         return Response{
             .content = response_content,
-            .confidence = self.current_reasoning.?.overall_confidence,
+            .confidence = self.current_reasoning.?.getOverallConfidence(),
             .emotional_context = self.emotional_state,
             .reasoning_summary = try self.current_reasoning.?.getSummary(self.allocator),
             .topics = self.topic_tracker.getCurrentTopics(),
@@ -414,7 +414,7 @@ pub const AbbeyEngine = struct {
         self: *Self,
         query: []const u8,
         analysis: calibration.QueryAnalyzer.QueryAnalysis,
-    ) core_types.Confidence {
+    ) reasoning.Confidence {
         // Build evidence
         var evidence_buf: [8]calibration.Evidence = undefined;
         var evidence_count: usize = 0;
@@ -524,8 +524,8 @@ pub const AbbeyEngine = struct {
 
         // Record for calibration
         if (self.current_reasoning) |*chain| {
-            const conf = chain.overall_confidence;
-            try self.calibrator.recordPrediction(conf, positive);
+            const conf = chain.getOverallConfidence();
+            try self.calibrator.recordPrediction(conf.score, positive);
         }
 
         // Update online learner if available
@@ -667,7 +667,7 @@ pub const AbbeyEngine = struct {
 
 pub const Response = struct {
     content: []const u8,
-    confidence: core_types.Confidence,
+    confidence: reasoning.Confidence,
     emotional_context: emotions.EmotionalState,
     reasoning_summary: ?[]const u8,
     topics: []const []const u8,
@@ -738,8 +738,4 @@ test "abbey engine stats" {
     const stats = engine.getStats();
     try std.testing.expectEqual(@as(usize, 0), stats.total_queries);
     try std.testing.expectEqualStrings("echo", stats.llm_backend);
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

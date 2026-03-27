@@ -1,6 +1,6 @@
-# Abbey — Multi-Layer, Multi-Profile AI System Specification
+# Abbey — Multi-Layer, Multi-Persona AI System Specification
 
-> Comprehensive specification covering architecture, profiles, behavior, mathematics,
+> Comprehensive specification covering architecture, personas, behavior, mathematics,
 > ethics, benchmarks, implementation, and visual assets.
 >
 > Research conducted by: M | Date: January 4, 2025
@@ -10,7 +10,7 @@
 
 ## Part I: Executive Summary
 
-Abbey is a pioneering AI system that integrates multiple specialized profiles with a
+Abbey is a pioneering AI system that integrates multiple specialized personas with a
 high-performance distributed database (WDBX) to deliver adaptive, scalable, and
 ethically aligned assistance across diverse use cases.
 
@@ -18,9 +18,9 @@ ethically aligned assistance across diverse use cases.
 
 ### Key Features
 
-- **Multi-Profile Structure**: Abbey (empathetic polymath), Aviva (direct expert), Abi (adaptive moderator)
+- **Multi-Persona Structure**: Abbey (empathetic polymath), Aviva (direct expert), Abi (adaptive moderator)
 - **WDBX Distributed Database**: High-throughput, low-latency data handling with optimized sharding and block chaining
-- **Transformer-Based Core**: Multi-head attention, profile token injection (planned), quantized inference (Q4/Q8)
+- **Transformer-Based Core**: Multi-head attention, persona token injection (planned), quantized inference (Q4/Q8)
 - **Ethical & Privacy Safeguards**: Real-time content filtering, bias detection, data anonymization, regulatory compliance
 
 ### Capabilities
@@ -41,21 +41,21 @@ ethically aligned assistance across diverse use cases.
 
 ## Part II: System Architecture
 
-### 2.1 Profile Stack
+### 2.1 Persona Stack
 
-| Profile | Role | Color Code |
+| Persona | Role | Color Code |
 |---------|------|-----------|
 | **Abbey** | Empathetic Polymath — emotional intelligence + technical depth | Teal (#00B3A1) |
 | **Aviva** | Direct Expert — concise, factual, high-efficiency | Purple (#7B4FFF) |
-| **Abi** | Adaptive Moderator — routing, policy, profile blending | Orange (#FF8C42) |
+| **Abi** | Adaptive Moderator — routing, policy, persona blending | Orange (#FF8C42) |
 
 ### 2.2 Pipeline Flow
 
 ```
 User Input → Abi (Context + Policy + Intent Analysis)
   → Adaptive Modulation (EMA preference learning)
-  → Profile Selection or Blend (single / parallel / consensus)
-  → Transformer Core (Profile Token Injection — planned)
+  → Persona Selection or Blend (single / parallel / consensus)
+  → Transformer Core (Persona Token Injection — planned)
   → WDBX Retrieval + Reasoning
   → Constitution Validation (6 principles)
   → WDBX Memory Storage (block chain)
@@ -103,26 +103,26 @@ version current when their transaction began. No read-locks required.
 
 ### 2.4 Transformer Core
 
-Multi-head attention with profile token injection:
+Multi-head attention with persona token injection:
 ```
 MultiHead(Q,K,V) = Concat(head₁, head₂, ..., headₕ)Wᵒ
 headᵢ = Attention(QWᵢᵠ, KWᵢᵏ, VWᵢᵛ)
 Attention(Q,K,V) = softmax(QKᵀ / √dₖ)V
 ```
 
-Profile embedding injection:
+Persona embedding injection:
 ```
-Z = Embed(ProfileID) ⊕ Embed(UserInput)
+Z = Embed(PersonaID) ⊕ Embed(UserInput)
 R = Transformer(Z)
 ```
 
 ---
 
-## Part III: Profile Definitions
+## Part III: Persona Definitions
 
 ### 3.1 Abbey — The Empathetic Polymath
 
-**Role:** Primary interaction profile combining emotional intelligence with deep technical capability.
+**Role:** Primary interaction persona combining emotional intelligence with deep technical capability.
 
 **Behavior:**
 - Acknowledges user emotional state when present
@@ -163,29 +163,29 @@ L_Aviva = μ₁ · L_factual + μ₂ · L_conciseness + L_NLL
 
 ### 3.3 Abi — The Adaptive Moderator
 
-**Role:** Routing, policy enforcement, and profile blending.
+**Role:** Routing, policy enforcement, and persona blending.
 
 **Behavior:**
 - Detects intent, sentiment, and complexity
-- Selects or blends profiles dynamically
+- Selects or blends personas dynamically
 - Applies safety and ethical constraints
 
 **Routing Algorithm:**
 ```
 P* = argmax_P P(P | I, C)
 ```
-Where P = Profile, I = User Input, C = Conversation Context.
+Where P = Persona, I = User Input, C = Conversation Context.
 
-**Dynamic Profile Blending (3-way weighted):**
+**Dynamic Persona Blending (3-way weighted):**
 ```
 R_final = w_abbey · R_Abbey + w_aviva · R_Aviva + w_abi · R_Abi
 where w_abbey + w_aviva + w_abi ≈ 1.0
 ```
-- Primary profile selected by highest weight
+- Primary persona selected by highest weight
 - w_primary > 0.9 → route purely to primary (single strategy)
 - w_primary ∈ [0.5, 0.9] → blend with secondary (parallel strategy)
 - No clear primary → consensus strategy (all three contribute)
-- Routing decision includes: primary profile, weights, strategy, confidence, reason
+- Routing decision includes: primary persona, weights, strategy, confidence, reason
 
 **Loss Function:**
 ```
@@ -337,7 +337,7 @@ Scale_up if L_current > L_threshold
 
 > **Note:** The following benchmarks are **design targets** based on architectural analysis.
 > Production benchmarking requires deploying the local inference backend with trained
-> profile models, which is not yet complete (inference engine currently runs in
+> persona models, which is not yet complete (inference engine currently runs in
 > demo/connector mode). Competitor numbers reflect publicly reported figures as of
 > January 2025.
 
@@ -396,7 +396,7 @@ Scale_up if L_current > L_threshold
 
 | Feature | LOC | Status |
 |---------|-----|--------|
-| AI (total) | 124K | Full (47 sub-modules, profile pipeline, constitution, compliance) |
+| AI (total) | 124K | Full (47 sub-modules, persona pipeline, constitution, compliance) |
 | GPU | 80K | Full (Metal, CUDA, Vulkan, WebGPU, stdgpu, FPGA, OpenGL) |
 | Database/WDBX | 36K | Full (HNSW, DiskANN, ScaNN, PQ, hybrid, block chain, MVCC) |
 | Foundation | 30K | Full (tensor, matrix, SIMD, security, TLS, time, sync) |
@@ -440,11 +440,11 @@ Key spec claims and their actual status:
 | Constitution enforcement (6 principles) | **Implemented** | `src/features/ai/constitution/mod.zig` — `evaluate()`, `isCompliant()`, `getSystemPreamble()` |
 | `constitutionalLoss(embedding)` | **Implemented** | `src/features/ai/constitution/enforcement.zig` |
 | `alignmentScore()` | **Implemented** | `src/features/ai/constitution/enforcement.zig`, `mod.zig` |
-| Profile routing (Abi → Abbey/Aviva) | **Implemented** | `src/features/ai/profile/router.zig` — 3-way weights, not simple α blend |
-| Adaptive modulation (EMA learning) | **Implemented** | `src/features/ai/profile/modulation.zig` |
-| WDBX block chain memory | **Implemented** | `src/core/database/block_chain.zig`, `profile/memory.zig` |
+| Persona routing (Abi → Abbey/Aviva) | **Implemented** | `src/features/ai/persona/router.zig` — 3-way weights, not simple α blend |
+| Adaptive modulation (EMA learning) | **Implemented** | `src/features/ai/persona/modulation.zig` |
+| WDBX block chain memory | **Implemented** | `src/core/database/block_chain.zig`, `persona/memory.zig` |
 | Bias quantification formula | **Implemented** | `src/features/ai/constitution/enforcement.zig` — `computeBias()` with `BiasScore` struct |
-| Profile token injection (Z = Embed) | **Implemented** | `llm/model/llama.zig` — additive profile embeddings injected before first layer; `setProfile(id)` API |
+| Persona token injection (Z = Embed) | **Implemented** | `llm/model/llama.zig` — additive persona embeddings injected before first layer; `setPersona(id)` API |
 | Benchmark numbers (110ms, 90 req/s) | **Aspirational** | No production inference benchmark; demo/connector backends only |
 | RLHF training pipeline | **Partial** | `abbey_train.zig` has LoRA fine-tuning config; no RLHF reward model |
 | Mixed-precision training | **Partial** | Quantization types (Q4_0, Q8_0) exist; no FP16/BF16 training loop |
@@ -461,14 +461,14 @@ Key spec claims and their actual status:
 - **MCP resource subscriptions**: Subscribe/unsubscribe and notification support implemented in server
 
 ### 9.2 Medium-Term (Capabilities)
-- **Profile token injection**: Actual embedding injection (`Z = Embed(ProfileID) ⊕ Embed(UserInput)`) in the transformer forward pass
+- **Persona token injection**: Actual embedding injection (`Z = Embed(PersonaID) ⊕ Embed(UserInput)`) in the transformer forward pass
 - **RLHF reward model**: Complete the training pipeline (LoRA config exists; reward model + PPO missing)
 - **Production benchmarking**: Validate Part VII targets with real inference workloads
 
 ### 9.3 Long-Term (Expansion)
-- **Expanded profiles**: Healthcare, legal, finance, creative arts specializations
+- **Expanded personas**: Healthcare, legal, finance, creative arts specializations
 - **Multimodal integration**: Text, voice, image processing with shared embedding space
-- **User-specific profile tokens**: Adaptive learning algorithms per user identity
+- **User-specific persona tokens**: Adaptive learning algorithms per user identity
 - **Global accessibility**: Multi-language support and social good initiatives
 
 ---
@@ -481,7 +481,7 @@ Key spec claims and their actual status:
 
 **Sections:**
 1. Title Banner — Deep navy, title in white 80pt, tagline in gold 40pt
-2. Architecture Diagram — Flow: User → Abi → Abbey/Aviva → WDBX with color-coded profiles
+2. Architecture Diagram — Flow: User → Abi → Abbey/Aviva → WDBX with color-coded personas
 3. Key Features — 4 bullet highlights with vector icons
 4. Capabilities Panel — 5 horizontal icons (code, empathy, knowledge, moderation, creativity)
 5. Performance Benchmarks — Bar charts: latency, throughput vs competitors
@@ -494,8 +494,8 @@ Key spec claims and their actual status:
 
 Front:
 1. Cover — Title, tagline, abstract gradient
-2. Inside Flap — Overview of multi-profile structure
-3. Inside Panel — Architecture diagram with profile colors
+2. Inside Flap — Overview of multi-persona structure
+3. Inside Panel — Architecture diagram with persona colors
 
 Back:
 4. Inside Middle — Key features & capabilities with icons

@@ -56,7 +56,7 @@ pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "connectors", .description = "List available LLM provider connectors", .section = .diagnostics },
     .{ .usage = "info", .description = "Show framework architecture summary", .section = .diagnostics },
     .{ .usage = "help", .description = "Show detailed help", .section = .diagnostics },
-    .{ .usage = "chat <message...>", .description = "Route a message through the profile pipeline", .section = .ai_data },
+    .{ .usage = "chat <message...>", .description = "Route a message through the persona pipeline", .section = .ai_data },
     .{
         .usage = "db <cmd>",
         .description = "Vector database operations (add, query, stats, optimize, backup, restore, serve)",
@@ -254,7 +254,7 @@ fn writeHelpSection(writer: anytype, title: []const u8, section: HelpSection) !v
 pub fn writeHelp(writer: anytype) !void {
     var out = writer;
     try out.writeAll(
-        \\ABI - Multi-Profile AI Framework with WDBX
+        \\ABI - Multi-Persona AI Framework with WDBX
         \\
         \\Usage: abi <command> [args]
         \\
@@ -315,7 +315,7 @@ pub fn wantsServeHelp(args: []const [:0]const u8) bool {
 
 pub fn writeChatPipelineReport(writer: anytype, options: RenderOptions, report: ChatPipelineReport) !void {
     var out = writer;
-    try writeOptionalHeader(out, "ABI Chat - Profile Pipeline", null, options);
+    try writeOptionalHeader(out, "ABI Chat - Persona Pipeline", null, options);
     try out.print(
         \\Input: {s}
         \\

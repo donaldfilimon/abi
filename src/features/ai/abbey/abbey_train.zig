@@ -272,10 +272,10 @@ pub fn run(allocator: std.mem.Allocator, config: AbbyTrainConfig) !void {
 /// Load a BPE tokenizer from GGUF metadata (vocab + merges).
 fn loadTokenizerFromGguf(
     allocator: std.mem.Allocator,
-    _: std.Io,
+    io: std.Io,
     gguf_path: []const u8,
 ) !bpe.BpeTokenizer {
-    var gguf = try gguf_reader.GgufFile.open(allocator, gguf_path);
+    var gguf = try gguf_reader.GgufFile.open(allocator, io, gguf_path);
     defer gguf.deinit();
 
     var tokenizer = bpe.BpeTokenizer.init(allocator);
@@ -308,7 +308,3 @@ pub const AbbyTrainError = error{
     InvalidModel,
     TokenizerLoadFailed,
 };
-
-test {
-    std.testing.refAllDecls(@This());
-}

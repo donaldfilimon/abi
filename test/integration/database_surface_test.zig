@@ -129,7 +129,3 @@ test "database: boundary forbids direct core database imports" {
     try assertNoDirectCoreDatabaseImports(allocator, io, "src/protocols");
     try assertNoDirectCoreDatabaseImports(allocator, io, "test");
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

@@ -22,7 +22,7 @@ pub const self_reflection = @import("self_reflection.zig");
 // ============================================================================
 
 pub const TaskProfile = meta_learning.TaskProfile;
-pub const TaskDomain = meta_learning.TaskProfile.TaskDomain;
+pub const TaskDomain = meta_learning.TaskDomain;
 pub const LearningStrategy = meta_learning.LearningStrategy;
 pub const MetaLearner = meta_learning.MetaLearner;
 pub const FewShotLearner = meta_learning.FewShotLearner;

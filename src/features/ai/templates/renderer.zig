@@ -4,14 +4,25 @@
 //! strict mode that errors on missing variables.
 
 const std = @import("std");
-const types = @import("types.zig");
-const Token = types.Token;
 const parser = @import("parser.zig");
+const Token = parser.Token;
 const string_utils = @import("../../../foundation/mod.zig").utils;
 const json_utils = @import("../../../foundation/mod.zig").utils.json;
 
-pub const RenderError = types.RenderError;
-pub const RenderOptions = types.RenderOptions;
+pub const RenderError = error{
+    MissingVariable,
+    InvalidValueType,
+    OutOfMemory,
+};
+
+pub const RenderOptions = struct {
+    /// Error on missing variables (otherwise use empty string).
+    strict: bool = false,
+    /// String to use for missing variables when not strict.
+    missing_placeholder: []const u8 = "",
+    /// Automatically escape HTML entities.
+    auto_escape_html: bool = false,
+};
 
 pub const Renderer = struct {
     allocator: std.mem.Allocator,
@@ -43,27 +54,24 @@ pub const Renderer = struct {
                         continue;
                     };
 
-                    // Apply filters — each filter allocates; track ownership via nullable []u8.
-                    var owned_buf: ?[]u8 = null;
-                    var processed: []const u8 = value;
+                    // Apply filters
+                    var processed = value;
+                    var owned = false;
 
                     for (v.filters) |filter| {
-                        const new_value = self.applyFilter(processed, filter) catch {
-                            if (owned_buf) |b| self.allocator.free(b);
-                            return RenderError.OutOfMemory;
-                        };
-                        if (owned_buf) |b| self.allocator.free(b);
-                        owned_buf = new_value;
+                        const new_value = self.applyFilter(processed, filter) catch return RenderError.OutOfMemory;
+                        if (owned) {
+                            self.allocator.free(@constCast(processed));
+                        }
                         processed = new_value;
+                        owned = true;
                     }
 
                     if (self.options.auto_escape_html) {
-                        const escaped = self.escapeHtml(processed) catch {
-                            if (owned_buf) |b| self.allocator.free(b);
-                            return RenderError.OutOfMemory;
-                        };
-                        if (owned_buf) |b| self.allocator.free(b);
-                        owned_buf = null;
+                        const escaped = self.escapeHtml(processed) catch return RenderError.OutOfMemory;
+                        if (owned) {
+                            self.allocator.free(@constCast(processed));
+                        }
                         result.appendSlice(self.allocator, escaped) catch {
                             self.allocator.free(escaped);
                             return RenderError.OutOfMemory;
@@ -71,10 +79,12 @@ pub const Renderer = struct {
                         self.allocator.free(escaped);
                     } else {
                         result.appendSlice(self.allocator, processed) catch {
-                            if (owned_buf) |b| self.allocator.free(b);
+                            if (owned) self.allocator.free(@constCast(processed));
                             return RenderError.OutOfMemory;
                         };
-                        if (owned_buf) |b| self.allocator.free(b);
+                        if (owned) {
+                            self.allocator.free(@constCast(processed));
+                        }
                     }
                 },
             }
@@ -153,7 +163,7 @@ pub const Renderer = struct {
         return null;
     }
 
-    fn applyFilter(self: *Renderer, value: []const u8, filter: Token.Filter) ![]u8 {
+    fn applyFilter(self: *Renderer, value: []const u8, filter: Token.Filter) ![]const u8 {
         return switch (filter) {
             .upper => try self.toUpper(value),
             .lower => try self.toLower(value),
@@ -163,15 +173,15 @@ pub const Renderer = struct {
         };
     }
 
-    fn toUpper(self: *Renderer, value: []const u8) ![]u8 {
+    fn toUpper(self: *Renderer, value: []const u8) ![]const u8 {
         return string_utils.string.toUpperAscii(self.allocator, value);
     }
 
-    fn toLower(self: *Renderer, value: []const u8) ![]u8 {
+    fn toLower(self: *Renderer, value: []const u8) ![]const u8 {
         return string_utils.string.toLowerAscii(self.allocator, value);
     }
 
-    fn escapeHtml(self: *Renderer, value: []const u8) ![]u8 {
+    fn escapeHtml(self: *Renderer, value: []const u8) ![]const u8 {
         var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
@@ -189,7 +199,7 @@ pub const Renderer = struct {
         return result.toOwnedSlice(self.allocator);
     }
 
-    fn escapeJson(self: *Renderer, value: []const u8) ![]u8 {
+    fn escapeJson(self: *Renderer, value: []const u8) ![]const u8 {
         return json_utils.escapeJsonContent(self.allocator, value);
     }
 };

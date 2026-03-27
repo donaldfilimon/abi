@@ -13,6 +13,7 @@
 const std = @import("std");
 const types = @import("../types.zig");
 const config = @import("../config.zig");
+const core_types = @import("../types.zig");
 const sentiment_mod = @import("sentiment.zig");
 const policy_mod = @import("policy.zig");
 const rules_mod = @import("rules.zig");
@@ -59,7 +60,7 @@ pub const AbiRouter = struct {
     }
 
     /// Shutdown the router and free resources.
-    /// Note: does NOT free `self` — the caller (ProfileRegistry) owns the allocation.
+    /// Note: does NOT free `self` — the caller (PersonaRegistry) owns the allocation.
     pub fn deinit(self: *Self) void {
         self.rules_engine.deinit();
         self.policy_checker.deinit();
@@ -205,8 +206,8 @@ pub const AbiProfile = struct {
 
     /// Abi as a profile typically just handles routing/meta-talk or refusals.
     pub fn process(self: *Self, request: types.ProfileRequest) !types.ProfileResponse {
-        var decision = try self.router.route(request);
-        defer decision.deinit(self.router.allocator);
+        const decision = try self.router.route(request);
+        defer @constCast(&decision).deinit(self.router.allocator);
 
         if (!decision.policy_flags.is_safe) {
             return types.ProfileResponse{
@@ -264,7 +265,7 @@ test "AbiRouter routing decision" {
     };
 
     var decision = try router.route(request);
-    defer decision.deinit(allocator);
+    defer @constCast(&decision).deinit(allocator);
 
     // Should route to Abbey for empathetic support
     try std.testing.expect(decision.selected_profile == .abbey);
@@ -283,7 +284,7 @@ test "AbiRouter technical routing" {
     };
 
     var decision = try router.route(request);
-    defer decision.deinit(allocator);
+    defer @constCast(&decision).deinit(allocator);
 
     // Should route to Aviva for technical query
     try std.testing.expect(decision.selected_profile == .aviva);
@@ -301,7 +302,7 @@ test "AbiRouter policy violation" {
     };
 
     var decision = try router.route(request);
-    defer decision.deinit(allocator);
+    defer @constCast(&decision).deinit(allocator);
 
     // Should route to Abi for policy violation
     try std.testing.expect(decision.selected_profile == .abi);

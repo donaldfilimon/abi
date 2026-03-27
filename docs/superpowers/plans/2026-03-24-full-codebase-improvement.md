@@ -310,13 +310,13 @@ git commit -m "fix(parity): align ai/agents stub with mod exports"
 
 ---
 
-### Task 11: Fix Parity — Medium Deltas (llm, embeddings, training, profile)
+### Task 11: Fix Parity — Medium Deltas (llm, embeddings, training, persona)
 
 **Files:**
 - Modify: `src/features/ai/llm/stub.zig`
 - Modify: `src/features/ai/embeddings/stub.zig`
 - Modify: `src/features/ai/training/stub.zig`
-- Modify: `src/features/ai/profile/stub.zig`
+- Modify: `src/features/ai/persona/stub.zig`
 
 Same approach as Task 10. For each:
 

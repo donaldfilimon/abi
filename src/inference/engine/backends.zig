@@ -3,10 +3,6 @@ const build_options = @import("build_options");
 const scheduler_mod = @import("../scheduler.zig");
 const types = @import("types.zig");
 const time_mod = @import("../../foundation/time.zig");
-const connectors = @import("../../connectors/mod.zig");
-const loaders = @import("../../connectors/loaders.zig");
-const shared = @import("../../connectors/shared.zig");
-const async_http = @import("../../foundation/mod.zig").utils.async_http;
 
 const llm_model = if (build_options.feat_ai and build_options.feat_llm)
     @import("../../features/ai/llm/model/llama.zig")
@@ -15,63 +11,7 @@ else
         pub const LlamaModel = void;
     };
 
-/// Known provider identifiers for model ID resolution.
-pub const known_providers = [_][]const u8{
-    "openai",
-    "anthropic",
-    "ollama",
-    "mistral",
-    "cohere",
-    "gemini",
-    "mlx",
-    "huggingface",
-    "lm_studio",
-    "vllm",
-    "llama_cpp",
-    "codex",
-};
-
-/// Parsed model identifier — splits "provider/model" into components.
-pub const ModelId = struct {
-    /// Provider name (e.g. "openai"), or null if no slash separator found.
-    provider: ?[]const u8,
-    /// Model name (e.g. "gpt-4"), or the entire input if no slash found.
-    model: []const u8,
-    /// Whether the resolved provider is in the known_providers list.
-    is_known_provider: bool,
-};
-
-/// Parse a model ID string in "provider/model" format.
-pub fn parseModelId(model_id: []const u8) ModelId {
-    const slash_pos = std.mem.indexOfScalar(u8, model_id, '/');
-    if (slash_pos) |pos| {
-        const provider = model_id[0..pos];
-        const model = if (pos + 1 < model_id.len) model_id[pos + 1 ..] else "";
-        return .{
-            .provider = provider,
-            .model = model,
-            .is_known_provider = isKnownProvider(provider),
-        };
-    }
-    return .{
-        .provider = null,
-        .model = model_id,
-        .is_known_provider = false,
-    };
-}
-
-/// Check whether a provider name is in the known_providers list.
-pub fn isKnownProvider(name: []const u8) bool {
-    for (known_providers) |p| {
-        if (std.mem.eql(u8, name, p)) return true;
-    }
-    return false;
-}
-
-/// Try to generate via a real LLM connector. Falls back to echo on failure.
 pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.Result {
-    std.log.warn("inference: connector backend using echo mode for model '{s}' — connector bridge not yet wired to external providers", .{self.config.model_id});
-
     const start = time_mod.timestampNs();
 
     const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
@@ -85,7 +25,7 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
         std.log.debug("Connector dispatch failed ({s}), using echo fallback", .{@errorName(err)});
         break :blk try std.fmt.allocPrint(
             self.allocator,
-            "[{s}] Processing: {s}",
+            "[echo/{s}] Processing: {s}",
             .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
         );
     };
@@ -115,162 +55,6 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
     };
 }
 
-/// Dispatch a prompt to a real LLM provider connector based on model_id.
-/// Returns the response text (caller-owned) or an error.
-///
-/// Provider resolution order:
-/// 1. Parse model_id as "provider/model" (e.g., "openai/gpt-4")
-/// 2. Load provider config from environment variables
-/// 3. Create client and make chat completion call
-/// 4. Return response text (caller owns the allocation)
-///
-/// Falls back to error if env vars are missing or network call fails.
-fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, prompt: []const u8) ![]u8 {
-    const parsed = parseModelId(model_id);
-    const provider = parsed.provider orelse return error.UnsupportedProvider;
-    const model_name = if (parsed.model.len > 0) parsed.model else null;
-
-    // Try to load and use the OpenAI-compatible connector for supported providers.
-    // OpenAI-compatible providers (OpenAI, Mistral, LM Studio, vLLM) all share
-    // the same chat completions API shape, so we use the OpenAI client for them.
-    if (std.mem.eql(u8, provider, "openai")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadOpenAI, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "mistral")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadMistral, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "anthropic")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadAnthropic, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "ollama")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadOllama, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "cohere")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadCohere, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "gemini")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadGemini, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "mlx")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadMLX, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "huggingface")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadHuggingFace, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "lm_studio") or std.mem.eql(u8, provider, "lmstudio")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadLMStudio, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "vllm")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadVLLM, model_name, prompt);
-    } else if (std.mem.eql(u8, provider, "llama_cpp") or std.mem.eql(u8, provider, "llamacpp")) {
-        return callOpenAICompatible(allocator, loaders.tryLoadLlamaCpp, model_name, prompt);
-    } else {
-        std.log.warn("Unknown connector provider: {s}", .{provider});
-        return error.ApiRequestFailed;
-    }
-}
-
-/// Generic connector call that loads config from env, creates an HTTP client,
-/// makes a chat completion request, and returns the response text.
-///
-/// Uses comptime type inspection to handle two config shapes:
-/// - OpenAI-style: `api_key: []u8` + `base_url: []u8` (openai, mistral, anthropic, cohere, etc.)
-/// - OpenAICompat-style: `host: []u8` + `api_key: ?[]u8` (lm_studio, vllm, llama_cpp, ollama, mlx)
-///
-/// Falls back to a formatted echo string if the HTTP client cannot be
-/// initialized (e.g., async I/O layer unavailable in the test environment).
-fn callOpenAICompatible(
-    allocator: std.mem.Allocator,
-    comptime loader_fn: anytype,
-    model_override: ?[]const u8,
-    prompt: []const u8,
-) ![]u8 {
-    // Load config from environment variables
-    var config = (loader_fn(allocator) catch return error.ApiRequestFailed) orelse
-        return error.MissingApiKey;
-    defer config.deinit(allocator);
-
-    const ConfigType = @TypeOf(config);
-
-    // Resolve model name: prefer override, then config default
-    const model_name = model_override orelse config.model;
-
-    // Build the chat completions URL based on config shape.
-    // OpenAI-style uses "{base_url}/chat/completions" (base_url already includes /v1).
-    // Host-style uses "{host}/v1/chat/completions".
-    const url = if (comptime @hasField(ConfigType, "base_url"))
-        std.fmt.allocPrint(allocator, "{s}/chat/completions", .{config.base_url}) catch return error.OutOfMemory
-    else if (comptime @hasField(ConfigType, "host"))
-        std.fmt.allocPrint(allocator, "{s}/v1/chat/completions", .{config.host}) catch return error.OutOfMemory
-    else
-        @compileError("callOpenAICompatible: config must have base_url or host field");
-    defer allocator.free(url);
-
-    // Resolve the API key from whichever field the config uses.
-    // OpenAI/Mistral/Anthropic/Cohere/Gemini: api_key: []u8 (required)
-    // HuggingFace: api_token: []u8 (required, different name)
-    // LM Studio/vLLM/llama_cpp/MLX: api_key: ?[]u8 (optional)
-    // Ollama: no api_key field at all
-    const api_key: ?[]const u8 = if (comptime @hasField(ConfigType, "api_key"))
-        // Works for both []u8 (coerces to ?[]const u8) and ?[]u8
-        config.api_key
-    else if (comptime @hasField(ConfigType, "api_token"))
-        config.api_token // HuggingFace uses api_token
-    else
-        null;
-
-    // Encode the chat request using the shared OpenAI-compatible format.
-    const messages = [_]shared.ChatMessage{
-        .{ .role = "user", .content = prompt },
-    };
-    const json_body = shared.openaiCompatEncodeChatRequest(allocator, .{
-        .model = model_name,
-        .messages = &messages,
-    }) catch return error.OutOfMemory;
-    defer allocator.free(json_body);
-
-    // Initialize the async HTTP client. May fail in test or constrained
-    // environments — fall back to echo on failure.
-    var http = async_http.AsyncHttpClient.init(allocator) catch {
-        std.log.debug("async_http init failed, using echo fallback", .{});
-        return echoFallback(allocator, model_name, prompt);
-    };
-    defer http.deinit();
-
-    // Build and send the HTTP request.
-    var http_req = async_http.HttpRequest.init(allocator, .post, url) catch
-        return error.ApiRequestFailed;
-    defer http_req.deinit();
-
-    if (api_key) |key| {
-        http_req.setBearerToken(key) catch return error.ApiRequestFailed;
-    }
-    http_req.setJsonBody(json_body) catch return error.ApiRequestFailed;
-
-    var http_res = http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS) catch |err| {
-        std.log.warn("HTTP request failed: {s}", .{@errorName(err)});
-        return error.ApiRequestFailed;
-    };
-    defer http_res.deinit();
-
-    if (!http_res.isSuccess()) {
-        std.log.warn("HTTP {d} from connector", .{http_res.status_code});
-        if (http_res.status_code == 429) return error.ApiRequestFailed;
-        return error.ApiRequestFailed;
-    }
-
-    // Decode the OpenAI-compatible chat response.
-    var response = shared.openaiCompatDecodeChatResponse(allocator, http_res.body) catch |err| {
-        std.log.warn("Response decode failed: {s}", .{@errorName(err)});
-        return error.ApiRequestFailed;
-    };
-    defer shared.openaiCompatDeinitChatResponse(allocator, &response);
-
-    if (response.choices.len == 0) return error.ApiRequestFailed;
-
-    // Dupe the content so caller owns it — original is freed by deinitChatResponse.
-    return allocator.dupe(u8, response.choices[0].message.content) catch return error.OutOfMemory;
-}
-
-/// Format an echo fallback string when HTTP is unavailable.
-fn echoFallback(allocator: std.mem.Allocator, model_name: []const u8, prompt: []const u8) ![]u8 {
-    return std.fmt.allocPrint(allocator, "[{s}] {s}", .{
-        model_name,
-        prompt[0..@min(prompt.len, 500)],
-    }) catch return error.OutOfMemory;
-}
-
 pub fn generateLocal(self: anytype, request: scheduler_mod.Request) !types.Result {
     if (comptime !(build_options.feat_ai and build_options.feat_llm)) {
         return generateDemo(self, request);
@@ -279,7 +63,7 @@ pub fn generateLocal(self: anytype, request: scheduler_mod.Request) !types.Resul
     const model_opaque = self.local_model orelse return generateDemo(self, request);
     const model: *llm_model.LlamaModel = @ptrCast(@alignCast(model_opaque));
 
-    model.setProfile(request.profile_id);
+    model.setPersona(request.persona_id);
 
     const start = time_mod.timestampNs();
 
@@ -447,76 +231,6 @@ pub fn generateDemo(self: anytype, request: scheduler_mod.Request) !types.Result
         .ttft_ms = latency / @as(f32, @floatFromInt(@max(actual_count, 1))),
         .tokens_per_second = tps,
     };
-}
-
-test "parseModelId: provider/model format" {
-    const result = parseModelId("openai/gpt-4");
-    try std.testing.expectEqualStrings("openai", result.provider.?);
-    try std.testing.expectEqualStrings("gpt-4", result.model);
-    try std.testing.expect(result.is_known_provider);
-}
-
-test "parseModelId: no slash returns null provider" {
-    const result = parseModelId("ollama");
-    try std.testing.expect(result.provider == null);
-    try std.testing.expectEqualStrings("ollama", result.model);
-    try std.testing.expect(!result.is_known_provider);
-}
-
-test "parseModelId: lm_studio with underscore" {
-    const result = parseModelId("lm_studio/phi-3");
-    try std.testing.expectEqualStrings("lm_studio", result.provider.?);
-    try std.testing.expectEqualStrings("phi-3", result.model);
-    try std.testing.expect(result.is_known_provider);
-}
-
-test "parseModelId: empty string" {
-    const result = parseModelId("");
-    try std.testing.expect(result.provider == null);
-    try std.testing.expectEqualStrings("", result.model);
-    try std.testing.expect(!result.is_known_provider);
-}
-
-test "parseModelId: unknown provider" {
-    const result = parseModelId("custom-provider/my-model");
-    try std.testing.expectEqualStrings("custom-provider", result.provider.?);
-    try std.testing.expectEqualStrings("my-model", result.model);
-    try std.testing.expect(!result.is_known_provider);
-}
-
-test "parseModelId: trailing slash gives empty model" {
-    const result = parseModelId("openai/");
-    try std.testing.expectEqualStrings("openai", result.provider.?);
-    try std.testing.expectEqualStrings("", result.model);
-    try std.testing.expect(result.is_known_provider);
-}
-
-test "parseModelId: multiple slashes uses first" {
-    const result = parseModelId("anthropic/claude-3/sonnet");
-    try std.testing.expectEqualStrings("anthropic", result.provider.?);
-    try std.testing.expectEqualStrings("claude-3/sonnet", result.model);
-    try std.testing.expect(result.is_known_provider);
-}
-
-test "isKnownProvider: all known providers" {
-    try std.testing.expect(isKnownProvider("openai"));
-    try std.testing.expect(isKnownProvider("anthropic"));
-    try std.testing.expect(isKnownProvider("ollama"));
-    try std.testing.expect(isKnownProvider("mistral"));
-    try std.testing.expect(isKnownProvider("cohere"));
-    try std.testing.expect(isKnownProvider("gemini"));
-    try std.testing.expect(isKnownProvider("mlx"));
-    try std.testing.expect(isKnownProvider("huggingface"));
-    try std.testing.expect(isKnownProvider("lm_studio"));
-    try std.testing.expect(isKnownProvider("vllm"));
-    try std.testing.expect(isKnownProvider("llama_cpp"));
-    try std.testing.expect(isKnownProvider("codex"));
-}
-
-test "isKnownProvider: unknown returns false" {
-    try std.testing.expect(!isKnownProvider("foobar"));
-    try std.testing.expect(!isKnownProvider(""));
-    try std.testing.expect(!isKnownProvider("OpenAI")); // case-sensitive
 }
 
 test {

@@ -1,7 +1,6 @@
 //! Documents stub — disabled at compile time.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
 pub const types = @import("types.zig");
 
 pub const html = struct {
@@ -72,9 +71,13 @@ pub const Context = struct {
     }
 };
 
-const _stub = stub_helpers.StubFeatureNoConfig(DocumentsError);
-pub const isEnabled = _stub.isEnabled;
-pub const isInitialized = _stub.isInitialized;
+pub fn isEnabled() bool {
+    return false;
+}
+
+pub fn isInitialized() bool {
+    return false;
+}
 
 test {
     std.testing.refAllDecls(@This());

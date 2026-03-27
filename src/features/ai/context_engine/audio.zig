@@ -5,7 +5,7 @@
 //! data into discrete `AudioChunk` structures for the Context Engine.
 
 const std = @import("std");
-const context_types = @import("types.zig");
+const context_engine = @import("mod.zig");
 const sync = @import("../../../foundation/mod.zig").sync;
 const abi_time = @import("../../../foundation/mod.zig").time;
 
@@ -134,7 +134,7 @@ pub const AudioStreamer = struct {
 
     /// Pulls non-blocking bytes from the active stream and measures raw RMS energy.
     /// If energy exceeds the threshold, it flushes the buffer into an AudioChunk.
-    pub fn flushVoiceActivity(self: *AudioStreamer) !?context_types.AudioChunk {
+    pub fn flushVoiceActivity(self: *AudioStreamer) !?context_engine.AudioChunk {
         if (!self.is_listening) return null;
 
         const child = &self.recorder_process.?;
@@ -171,7 +171,7 @@ pub const AudioStreamer = struct {
                 const audio_data = try self.allocator.dupe(u8, self.voice_buffer.items);
                 self.voice_buffer.clearRetainingCapacity();
 
-                return context_types.AudioChunk{
+                return context_engine.AudioChunk{
                     .sample_rate = 16000,
                     .channels = 1,
                     .data = audio_data,

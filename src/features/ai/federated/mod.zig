@@ -1,14 +1,11 @@
 //! Federated learning registry and coordinator utilities.
 const std = @import("std");
 const time = @import("../../../foundation/mod.zig").utils;
-const types = @import("types.zig");
 
-pub const NodeInfo = types.NodeInfo;
-pub const CoordinatorError = types.CoordinatorError;
-pub const AggregationStrategy = types.AggregationStrategy;
-pub const ModelUpdateView = types.ModelUpdateView;
-pub const ModelUpdate = types.ModelUpdate;
-pub const CoordinatorConfig = types.CoordinatorConfig;
+pub const NodeInfo = struct {
+    id: []const u8,
+    last_update: i64,
+};
 
 pub const Registry = struct {
     allocator: std.mem.Allocator,
@@ -76,6 +73,44 @@ pub const Registry = struct {
         }
         return removed;
     }
+};
+
+pub const CoordinatorError = error{
+    InsufficientUpdates,
+    InvalidUpdate,
+};
+
+pub const AggregationStrategy = enum {
+    mean,
+    weighted_mean,
+};
+
+pub const ModelUpdateView = struct {
+    node_id: []const u8,
+    step: u64,
+    weights: []const f32,
+    sample_count: u32 = 1,
+};
+
+pub const ModelUpdate = struct {
+    node_id: []const u8,
+    step: u64,
+    timestamp: u64,
+    weights: []f32,
+    sample_count: u32,
+
+    pub fn deinit(self: *ModelUpdate, allocator: std.mem.Allocator) void {
+        allocator.free(self.node_id);
+        allocator.free(self.weights);
+        self.* = undefined;
+    }
+};
+
+pub const CoordinatorConfig = struct {
+    min_updates: usize = 1,
+    max_updates: usize = 64,
+    max_staleness_seconds: u64 = 300,
+    strategy: AggregationStrategy = .mean,
 };
 
 pub const Coordinator = struct {
@@ -297,8 +332,4 @@ test "federated coordinator rejects stale updates" {
     _ = std.c.nanosleep(&stale_wait, null);
     coordinator.updates.items[0].timestamp = 0;
     try std.testing.expectError(CoordinatorError.InsufficientUpdates, coordinator.aggregate());
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

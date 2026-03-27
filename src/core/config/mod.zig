@@ -148,19 +148,13 @@ pub const Config = struct {
             .gateway => self.gateway != null,
             .pages => self.pages != null,
             .benchmarks => self.benchmarks != null,
-            .reasoning => if (self.ai) |_| build_options.feat_reasoning else false,
+            .reasoning => self.ai != null and build_options.feat_reasoning,
             .constitution => self.ai != null,
             .compute => build_options.feat_compute,
             .documents => build_options.feat_documents,
             .desktop => build_options.feat_desktop,
-            .tui => build_options.feat_tui,
             .lsp => self.lsp != null,
             .mcp => build_options.feat_mcp,
-            .acp => build_options.feat_acp,
-            .ha => build_options.feat_ha,
-            .connectors => build_options.feat_connectors,
-            .tasks => build_options.feat_tasks,
-            .inference => build_options.feat_inference,
         };
     }
 
@@ -298,14 +292,46 @@ pub const ConfigError = error{
     ConflictingConfig,
 };
 
+const FeatureValidation = struct {
+    is_enabled_in_config: bool,
+    is_enabled_at_build: bool,
+};
+
 /// Validate configuration against compile-time constraints.
 pub fn validate(cfg: Config) ConfigError!void {
     if (cfg.plugins.paths.len > 0 and !cfg.plugins.allow_untrusted) {
         return ConfigError.InvalidConfig;
     }
 
-    inline for (feature_catalog.all) |entry| {
-        if (cfg.isEnabled(entry.feature) and !@field(build_options, entry.compile_flag_field)) {
+    const validations = [_]FeatureValidation{
+        .{ .is_enabled_in_config = cfg.gpu != null, .is_enabled_at_build = build_options.feat_gpu },
+        .{ .is_enabled_in_config = cfg.ai != null, .is_enabled_at_build = build_options.feat_ai },
+        .{ .is_enabled_in_config = cfg.database != null, .is_enabled_at_build = build_options.feat_database },
+        .{ .is_enabled_in_config = cfg.network != null, .is_enabled_at_build = build_options.feat_network },
+        .{ .is_enabled_in_config = cfg.web != null, .is_enabled_at_build = build_options.feat_web },
+        .{ .is_enabled_in_config = cfg.cloud != null, .is_enabled_at_build = build_options.feat_cloud },
+        .{ .is_enabled_in_config = cfg.analytics != null, .is_enabled_at_build = build_options.feat_analytics },
+        .{ .is_enabled_in_config = cfg.observability != null, .is_enabled_at_build = build_options.feat_observability },
+        .{ .is_enabled_in_config = cfg.auth != null, .is_enabled_at_build = build_options.feat_auth },
+        .{ .is_enabled_in_config = cfg.messaging != null, .is_enabled_at_build = build_options.feat_messaging },
+        .{ .is_enabled_in_config = cfg.cache != null, .is_enabled_at_build = build_options.feat_cache },
+        .{ .is_enabled_in_config = cfg.storage != null, .is_enabled_at_build = build_options.feat_storage },
+        .{ .is_enabled_in_config = cfg.search != null, .is_enabled_at_build = build_options.feat_search },
+        .{ .is_enabled_in_config = cfg.mobile != null, .is_enabled_at_build = build_options.feat_mobile },
+        .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.feat_gateway },
+        .{ .is_enabled_in_config = cfg.pages != null, .is_enabled_at_build = build_options.feat_pages },
+        .{ .is_enabled_in_config = cfg.benchmarks != null, .is_enabled_at_build = build_options.feat_benchmarks },
+        .{ .is_enabled_in_config = cfg.lsp != null, .is_enabled_at_build = build_options.feat_lsp },
+    };
+    inline for (validations) |entry| {
+        if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {
+            return ConfigError.FeatureDisabled;
+        }
+    }
+
+    // LLM is nested under AI and has its own compile-time flag.
+    if (cfg.ai) |ai| {
+        if (ai.llm != null and !build_options.feat_llm) {
             return ConfigError.FeatureDisabled;
         }
     }

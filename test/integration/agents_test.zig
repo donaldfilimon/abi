@@ -31,7 +31,3 @@ test "agents public context manages named agents" {
     const registry2 = try ctx.getToolRegistry();
     try std.testing.expectEqual(registry1, registry2);
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

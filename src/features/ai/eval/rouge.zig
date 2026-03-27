@@ -91,22 +91,22 @@ pub fn computeRougeN(
     }
 
     // Get n-grams
-    var hyp_ngrams = try getNgrams(allocator, hyp_tokens, n);
+    const hyp_ngrams = try getNgrams(allocator, hyp_tokens, n);
     defer {
         var iter = hyp_ngrams.iterator();
         while (iter.next()) |entry| {
             allocator.free(entry.key_ptr.*);
         }
-        hyp_ngrams.deinit(allocator);
+        @constCast(&hyp_ngrams).deinit(allocator);
     }
 
-    var ref_ngrams = try getNgrams(allocator, ref_tokens, n);
+    const ref_ngrams = try getNgrams(allocator, ref_tokens, n);
     defer {
         var iter = ref_ngrams.iterator();
         while (iter.next()) |entry| {
             allocator.free(entry.key_ptr.*);
         }
-        ref_ngrams.deinit(allocator);
+        @constCast(&ref_ngrams).deinit(allocator);
     }
 
     // Count overlapping n-grams
