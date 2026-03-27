@@ -265,14 +265,6 @@ test "standalone decode with custom claims" {
 
     var custom = std.StringArrayHashMapUnmanaged([]const u8).empty;
     try custom.put(allocator, try allocator.dupe(u8, "role"), try allocator.dupe(u8, "admin"));
-    defer {
-        var it = custom.iterator();
-        while (it.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        custom.deinit(allocator);
-    }
 
     const token_str = try manager.createToken(.{
         .sub = "charlie",
