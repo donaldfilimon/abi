@@ -242,3 +242,7 @@ pub const PasswordError = error{
     InvalidOptions,
     OutOfMemory,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

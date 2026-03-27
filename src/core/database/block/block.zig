@@ -7,3 +7,7 @@ pub const StoredBlock = struct {
     header: header.BlockHeader,
     payload: []const u8,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

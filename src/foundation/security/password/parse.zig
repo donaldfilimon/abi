@@ -175,3 +175,7 @@ pub fn detectAlgorithm(encoded: []const u8) ?types.Algorithm {
     if (std.mem.startsWith(u8, encoded, "$blake3$")) return .blake3_kdf;
     return null;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

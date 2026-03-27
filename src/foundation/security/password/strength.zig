@@ -195,3 +195,7 @@ test "repeated chars detection" {
     try std.testing.expect(!hasRepeatedChars("aba"));
     try std.testing.expect(!hasRepeatedChars("121"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -126,3 +126,7 @@ test "pipeline stub compiles" {
     const result = p.run("test input");
     try std.testing.expectError(PipelineError.FeatureDisabled, result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

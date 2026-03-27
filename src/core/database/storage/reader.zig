@@ -262,3 +262,7 @@ pub fn writeFileBytesForTest(allocator: std.mem.Allocator, path: []const u8, byt
     defer file.close(io);
     try file.writeStreamingAll(io, bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

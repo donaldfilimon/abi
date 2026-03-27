@@ -221,3 +221,7 @@ pub fn Persistence(
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

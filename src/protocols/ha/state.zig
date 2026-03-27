@@ -209,3 +209,7 @@ pub const HaManager = struct {
         return platform_time.getUniqueId();
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

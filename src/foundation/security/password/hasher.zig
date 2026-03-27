@@ -444,3 +444,7 @@ test "password generation" {
     try std.testing.expect(has_digit);
     try std.testing.expect(has_special);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

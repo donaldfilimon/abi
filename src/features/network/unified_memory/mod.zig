@@ -709,3 +709,7 @@ test "unified memory config presets" {
     try std.testing.expect(internet_config.encrypt_transfers);
     try std.testing.expect(internet_config.compress_transfers);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

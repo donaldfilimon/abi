@@ -127,3 +127,7 @@ pub fn Persistence(comptime Manager: type) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
