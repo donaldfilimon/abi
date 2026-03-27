@@ -83,7 +83,7 @@ pub const ChatPipelineReport = struct {
     abbey_pct: f32,
     aviva_pct: f32,
     abi_pct: f32,
-    execution_summary: []const u8 = "  Route validated. Engine would execute here.\n",
+    execution_summary: []const u8 = "",
 };
 
 pub fn joinChatMessage(allocator: std.mem.Allocator, message_args: []const [:0]const u8) ![]u8 {

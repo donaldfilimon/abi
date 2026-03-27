@@ -13,13 +13,15 @@ const PipelineError = types.PipelineError;
 pub fn execute(pctx: *PipelineContext, cfg: types.RetrieveConfig) !void {
     const chain = pctx.chain orelse return;
 
-    // Traverse backward through the chain to get recent blocks
-    const blocks = chain.traverseBackward(cfg.k) catch {
+    // Traverse backward through the chain to get recent block IDs
+    const block_ids = chain.traverseBackward(cfg.k) catch {
         return;
     };
-    defer pctx.allocator.free(blocks);
+    defer pctx.allocator.free(block_ids);
 
-    for (blocks) |block| {
+    for (block_ids) |block_id| {
+        const block = chain.getBlock(block_id) orelse continue;
+
         // Build a text representation of the block's content
         var buf: [256]u8 = undefined;
         const profile_name = switch (block.profile_tag.primary_profile) {
@@ -39,4 +41,15 @@ pub fn execute(pctx: *PipelineContext, cfg: types.RetrieveConfig) !void {
 
         pctx.addFragment(text) catch continue;
     }
+}
+
+test "retrieve with nil chain returns immediately" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "query", "session-1", 1);
+    defer pctx.deinit();
+
+    // chain is null by default — should short-circuit without error
+    try execute(&pctx, .{});
+
+    try std.testing.expectEqual(@as(usize, 0), pctx.context_fragments.items.len);
 }

@@ -12,8 +12,9 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-    
+
     exe.root_module.link_libc = true;
+
 
     b.installArtifact(exe);
 

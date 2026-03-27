@@ -19,3 +19,37 @@ pub fn execute(pctx: *PipelineContext, cfg: types.FilterConfig) !void {
         return PipelineError.FilterHalted;
     }
 }
+
+fn alwaysTrue(_: *const anyopaque) bool {
+    return true;
+}
+
+fn alwaysFalse(_: *const anyopaque) bool {
+    return false;
+}
+
+test "filter passes when predicate returns true" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-1", 1);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{ .predicate = &alwaysTrue, .halt_on_false = true });
+}
+
+test "filter halts when predicate returns false and halt_on_false set" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-2", 2);
+    defer pctx.deinit();
+
+    const result = execute(&pctx, .{ .predicate = &alwaysFalse, .halt_on_false = true });
+    try std.testing.expectError(PipelineError.FilterHalted, result);
+}
+
+test "filter does not halt when halt_on_false is false" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hi", "session-3", 3);
+    defer pctx.deinit();
+
+    // Should not error even though predicate returns false
+    try execute(&pctx, .{ .predicate = &alwaysFalse, .halt_on_false = false });
+}

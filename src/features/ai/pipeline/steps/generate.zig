@@ -73,3 +73,65 @@ fn truncate(text: []const u8, max_len: usize) []const u8 {
     if (text.len <= max_len) return text;
     return text[0..max_len];
 }
+
+test "generate demo mode produces echo response" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "What is Zig?", "session-1", 1);
+    defer pctx.deinit();
+
+    // No llm_client set — falls through to demo mode
+    try execute(&pctx, .{});
+
+    const response = pctx.generated_response.?;
+    // Default profile is Abbey when primary_profile is null
+    try std.testing.expect(std.mem.startsWith(u8, response, "[Abbey]"));
+    try std.testing.expect(std.mem.indexOf(u8, response, "What is Zig?") != null);
+}
+
+test "generate uses rendered prompt when available" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "raw input", "session-2", 2);
+    defer pctx.deinit();
+
+    try pctx.setPrompt("Rendered: please answer");
+
+    try execute(&pctx, .{});
+
+    const response = pctx.generated_response.?;
+    try std.testing.expect(std.mem.indexOf(u8, response, "Rendered: please answer") != null);
+}
+
+test "generate uses correct profile name" {
+    const allocator = std.testing.allocator;
+    var pctx = try PipelineContext.init(allocator, "hello", "session-3", 3);
+    defer pctx.deinit();
+
+    pctx.primary_profile = .aviva;
+
+    try execute(&pctx, .{});
+
+    const response = pctx.generated_response.?;
+    try std.testing.expect(std.mem.startsWith(u8, response, "[Aviva]"));
+}
+
+test "generate truncates long prompts in demo response" {
+    const allocator = std.testing.allocator;
+    // Create a prompt longer than 100 chars
+    const long_input = "a" ** 150;
+    var pctx = try PipelineContext.init(allocator, long_input, "session-4", 4);
+    defer pctx.deinit();
+
+    try execute(&pctx, .{});
+
+    const response = pctx.generated_response.?;
+    // The truncated portion should be at most 100 chars of 'a'
+    try std.testing.expect(response.len > 0);
+    // Full 150-char input should NOT appear in the response
+    try std.testing.expect(std.mem.indexOf(u8, response, long_input) == null);
+}
+
+test "truncate helper" {
+    try std.testing.expectEqualStrings("hello", truncate("hello", 10));
+    try std.testing.expectEqualStrings("hel", truncate("hello", 3));
+    try std.testing.expectEqualStrings("", truncate("", 5));
+}
