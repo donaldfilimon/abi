@@ -1,5 +1,43 @@
 # Codebase Improvement Plan
 
+## 0G. Review Follow-Up: DiskANN Surface + Abbey Gateway Cleanup
+- [x] Restore the `abi.database.retrieval.diskann` export in the real retrieval facade.
+- [x] Remove the overlapping gateway bridge destroy path in Abbey startup.
+- [x] Validate with the targeted database and Abbey gateway tests, then rerun `check-parity`.
+
+### Notes
+- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` as a follow-up to the live regression repair plan.
+- Completed on April 4, 2026 by restoring the real `diskann` export, keeping the real/stub retrieval surfaces aligned, fixing Abbey gateway bridge ownership so startup cleanup runs exactly once, and migrating the remaining DiskANN/block temp-file paths off removed `std.posix.unlink` calls.
+- Validation passed with:
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "diskann"`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "gateway bridge init and deinit"`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "abbey discord bot gateway lifecycle"`
+  - `~/.zvm/bin/zig build check-parity`
+- Residual limitation: the repo-local `./build.sh` / zigly wrapper is still known to fail in this checkout with `Undefined error: 0`, so the verification above used the pinned `~/.zvm/bin/zig` fallback.
+
+## 0F. Review Follow-Up: Dashboard + Profile Router Regression Repair
+- [x] Wave 1: restore the `abi.tui.dashboard` helper surface after the dashboard split.
+- [x] Wave 1: fix `MultiProfileRouter.executeParallel()` error mapping, join ordering, and response ownership cleanup without widening the public contract.
+- [x] Wave 1: add router coverage for the extracted parallel response-selection helper.
+- [x] Wave 2: restore deferred `refAllDecls` handling in `src/runtime/engine/mod.zig`.
+- [x] Wave 2: restore deferred `refAllDecls` handling in `src/features/core/database/memory/mod.zig`.
+- [x] Validate with targeted fmt/typecheck/TUI/profile gates first, then broaden if the wrapper environment permits.
+
+### Notes
+- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` against an already-dirty worktree; this follow-up must stay confined to the review finding files plus `tasks/todo.md`.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Completed on April 4, 2026 by restoring the dashboard facade helpers (`computeLayout`, `handleKey`, `hasVisibleCell`, `containsText`), fixing the decomposed dashboard view import paths that blocked TUI compilation, tightening `MultiProfileRouter.executeParallel()` to keep `ProfileError`-only failures with single-join ownership cleanup, adding focused helper tests, and reinstating the deferred `refAllDecls` comments in the two known-broken modules.
+- Validation outcome:
+  - `~/.zvm/bin/zig fmt --check src/features/tui/app/dashboard.zig src/features/tui/app/dashboard/view_overview.zig src/features/tui/app/dashboard/view_features.zig src/features/tui/app/dashboard/view_runtime.zig src/features/ai/profile/router.zig src/runtime/engine/mod.zig src/features/core/database/memory/mod.zig`
+  - `./tools/zigly --status` failed with `/Users/donaldfilimon/abi/tools/zigly_cli/zig-out/bin/zigly: Undefined error: 0`
+  - `./build.sh typecheck --summary all` failed for the same zigly-wrapper reason, so the existing pinned Zig was used as fallback evidence only
+  - `~/.zvm/bin/zig build typecheck --summary all`
+  - `~/.zvm/bin/zig build tui-tests --summary all`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "profile"`
+  - `~/.zvm/bin/zig build test --summary all`
+  - `git diff --check -- tasks/todo.md src/features/tui/app/dashboard.zig src/features/tui/app/dashboard/view_overview.zig src/features/tui/app/dashboard/view_features.zig src/features/tui/app/dashboard/view_runtime.zig src/features/ai/profile/router.zig src/runtime/engine/mod.zig src/features/core/database/memory/mod.zig`
+- Residual limitation: the repo-local `./build.sh` path remains blocked by the current zigly binary state, so this follow-up is validated with direct `~/.zvm/bin/zig build ...` fallback rather than the preferred Darwin wrapper.
+
 ## 0E. ZVM-First Toolchain Alignment + Zig Pin Bump
 - [x] Bump `.zigversion` to `0.16.0-dev.3070+b22eb176b`.
 - [x] Make `tools/zigly` resolve/install the pinned Zig through ZVM first when ZVM is present.
@@ -534,3 +572,42 @@
 - Internal cleanup was limited to the 13 stale `core/...` imports in `src/features/core/database/**`, switching them to direct local paths like `../mod.zig` and `../config/mod.zig` instead of adding nested compatibility shims.
 - Validation passed with `zig fmt --check src/core src/features/core/database`, `./build.sh typecheck --summary all`, `./build.sh check-parity`, and `git diff --check`.
 - Residual risk: the bridge is filesystem-level compatibility, so a future cleanup wave should decide whether to keep symlinks or complete the migration to direct `src/features/core/**` imports before broadening the validation surface further.
+
+## 31. Documentation Count Sync + Cleanup
+- [x] Sync `README.md` and `GEMINI.md` with the current `src/features/` layout count and feature catalog count.
+- [x] Audit the remaining docs and plan files for stale `20 feature directories`, `35 features total`, or other hardcoded count strings and update or mark them as historical context.
+- [x] Prefer derived count sources from `src/core/feature_catalog.zig` for any user-facing feature inventory text that still hardcodes counts.
+- [x] Re-run grep-based verification across `AGENTS.md`, `CLAUDE.md`, `README.md`, `GEMINI.md`, and `docs/superpowers/` to confirm the count drift is gone.
+
+### Notes
+- Completed after updating `README.md`, `GEMINI.md`, `docs/superpowers/specs/2026-03-24-full-codebase-improvement-design.md`, `docs/superpowers/plans/2026-03-24-full-codebase-improvement.md`, and `docs/superpowers/plans/2026-03-27-codebase-improvement-remaining.md` to match the current repository counts.
+- `docs/onboarding.md` was also updated locally, but it is still ignored by `.gitignore` and needs allowlist work before it can be tracked.
+- The current repository now documents 21 `src/features/` directories and 60 catalog features consistently across the tracked user-facing docs and the supporting planning/spec artifacts.
+- Keep the unrelated dirty worktree changes out of scope for this wave.
+- Verification command to re-run when needed: `rg -n "20 feature directories|35 features total|30 features" AGENTS.md CLAUDE.md README.md GEMINI.md docs/onboarding.md docs/superpowers`, then `git diff --check`.
+
+## 32. Docs Allowlist + Onboarding Tracking
+- [x] Add `!/docs/onboarding.md` to the markdown allowlist in `.gitignore` so the onboarding guide can be tracked.
+- [x] Decide whether `docs/onboarding.md` should remain the canonical newcomer guide or be replaced by a shorter pointer from `docs/README.md` / `docs/STRUCTURE.md`.
+- [x] Re-run `git check-ignore -v docs/onboarding.md` and `git status --short docs` to confirm the onboarding file is no longer ignored.
+- [x] Re-run the docs count grep sweep across `docs/` after onboarding is tracked.
+
+### Notes
+- `docs/onboarding.md` added to allowlist and verified with `git check-ignore`.
+- Decision: `docs/onboarding.md` remains the canonical newcomer guide.
+- Docs count sweep across `AGENTS.md`, `CLAUDE.md`, `README.md`, `GEMINI.md`, and `docs/superpowers/` confirmed no count drift remains (all match 21 directories / 60 features).
+- The onboarding guide is the only Markdown file in `docs/` that is currently ignored, so the next step is to make an explicit tracking decision instead of leaving it as a local-only edit.
+- Historical review/spec docs under `docs/review/` and `docs/spec/` can keep their archival counts unless we intentionally restate them as live documentation.
+- Keep the unrelated dirty worktree changes out of scope for this wave.
+
+## 33. TUI Live Metrics Panel
+- [x] Add a live metrics section to the TUI dashboard overview so the shell exposes runtime health instead of only static catalog data.
+- [x] Render at least one live gauge or counter derived from current feature/runtime enablement, and keep it resize-safe in compact/medium layouts.
+- [x] Add integration coverage for the new metrics surface and verify the TUI lane still passes.
+- [x] Keep the dashboard backwards compatible for existing overview/features/runtime navigation.
+
+### Notes
+- Completed by adding a METRICS overview section with live feature-coverage and runtime-surface gauges in `src/features/tui/app/dashboard.zig`.
+- The TUI lane passed after the change with `./build.sh tui-tests --summary all`, and `git diff --check` remained clean.
+- This fills the most concrete, low-risk part of the TUI live-metrics gap without changing chat/database/log-viewer behavior yet.
+- Keep the unrelated dirty worktree changes out of scope for this wave.

@@ -116,8 +116,14 @@ pub const CompactionJob = struct {
             const tmp_path = try std.fmt.allocPrint(allocator, "{s}.tmp", .{seg.path});
             defer allocator.free(tmp_path);
 
+            var io_backend = std.Io.Threaded.init(allocator, .{
+                .environ = std.process.Environ.empty,
+            });
+            defer io_backend.deinit();
+            const io = io_backend.io();
+
             // Clean up any stale temp file.
-            std.posix.unlink(tmp_path) catch {};
+            defer std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
 
             var new_log = try segment_log.SegmentLog.init(allocator, tmp_path, 0);
             defer new_log.deinit();
@@ -137,7 +143,7 @@ pub const CompactionJob = struct {
             }
 
             // Atomic rename tmp -> original.
-            std.posix.rename(tmp_path, seg.path) catch {
+            std.Io.Dir.rename(std.Io.Dir.cwd(), tmp_path, std.Io.Dir.cwd(), seg.path, io) catch {
                 self.status = .failed;
                 return;
             };

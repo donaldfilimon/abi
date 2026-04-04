@@ -4,7 +4,6 @@
 //! Supports both read-only and read-write modes.
 
 const std = @import("std");
-const builtin = @import("builtin");
 const unified = @import("unified.zig");
 
 pub const MmapError = error{
@@ -17,147 +16,62 @@ pub const MmapError = error{
 
 /// Memory-mapped file handle
 pub const MappedFile = struct {
-    data: []align(std.heap.page_size_min) u8,
+    io_backend: std.Io.Threaded,
+    mmap: std.Io.File.MemoryMap,
     size: usize,
     read_only: bool,
 
     /// Open file with memory mapping (read-only)
     pub fn open(allocator: std.mem.Allocator, path: []const u8) MmapError!MappedFile {
-        _ = allocator;
-        return openInternal(path, true);
+        return openInternal(allocator, path, true);
     }
 
     /// Open file with memory mapping (read-write)
     pub fn openReadWrite(allocator: std.mem.Allocator, path: []const u8) MmapError!MappedFile {
-        _ = allocator;
-        return openInternal(path, false);
+        return openInternal(allocator, path, false);
     }
 
-    fn openInternal(path: []const u8, read_only: bool) MmapError!MappedFile {
-        if (builtin.os.tag == .windows) {
-            return openWindows(path, read_only);
-        } else {
-            return openPosix(path, read_only);
-        }
-    }
+    fn openInternal(allocator: std.mem.Allocator, path: []const u8, read_only: bool) MmapError!MappedFile {
+        if (path.len >= std.fs.max_path_bytes) return error.InvalidFile;
 
-    fn openWindows(path: []const u8, read_only: bool) MmapError!MappedFile {
-        // Windows implementation using kernel32
-        const windows = std.os.windows;
+        var io_backend = std.Io.Threaded.init(allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        errdefer io_backend.deinit();
+        const io = io_backend.io();
 
-        // Convert path to null-terminated
-        var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
-        if (path.len >= path_buf.len) return error.InvalidFile;
-        @memcpy(path_buf[0..path.len], path);
-        path_buf[path.len] = 0;
-
-        // Open file
-        const access = if (read_only)
-            windows.GENERIC_READ
-        else
-            windows.GENERIC_READ | windows.GENERIC_WRITE;
-
-        const share = windows.FILE_SHARE_READ;
-        const creation = windows.OPEN_EXISTING;
-
-        const file_handle = windows.kernel32.CreateFileA(
-            @ptrCast(&path_buf),
-            access,
-            share,
-            null,
-            creation,
-            windows.FILE_ATTRIBUTE_NORMAL,
-            null,
-        );
-
-        if (file_handle == windows.INVALID_HANDLE_VALUE) {
-            return error.FileNotFound;
-        }
-        errdefer _ = windows.kernel32.CloseHandle(file_handle);
-
-        // Get file size
-        var file_size: windows.LARGE_INTEGER = undefined;
-        if (windows.kernel32.GetFileSizeEx(file_handle, &file_size) == 0) {
-            return error.InvalidFile;
-        }
-        const size: usize = @intCast(file_size);
-
-        if (size == 0) {
-            _ = windows.kernel32.CloseHandle(file_handle);
-            return error.InvalidFile;
-        }
-
-        // Create file mapping
-        const protect: windows.DWORD = if (read_only) windows.PAGE_READONLY else windows.PAGE_READWRITE;
-        const mapping_handle = windows.kernel32.CreateFileMappingA(
-            file_handle,
-            null,
-            protect,
-            0,
-            0,
-            null,
-        );
-
-        if (mapping_handle == null) {
-            return error.MmapFailed;
-        }
-        errdefer _ = windows.kernel32.CloseHandle(mapping_handle);
-
-        // Map view
-        const map_access: windows.DWORD = if (read_only) windows.FILE_MAP_READ else windows.FILE_MAP_ALL_ACCESS;
-        const ptr = windows.kernel32.MapViewOfFile(
-            mapping_handle,
-            map_access,
-            0,
-            0,
-            0,
-        );
-
-        if (ptr == null) {
-            return error.MmapFailed;
-        }
-
-        // Close handles (mapping stays valid until UnmapViewOfFile)
-        _ = windows.kernel32.CloseHandle(mapping_handle);
-        _ = windows.kernel32.CloseHandle(file_handle);
-
-        const data: []align(std.heap.page_size_min) u8 = @alignCast(@as([*]u8, @ptrCast(ptr))[0..size]);
-
-        return .{
-            .data = data,
-            .size = size,
-            .read_only = read_only,
+        var file = std.Io.Dir.cwd().openFile(io, path, .{
+            .mode = if (read_only) .read_only else .read_write,
+            .allow_directory = false,
+        }) catch |err| switch (err) {
+            error.FileNotFound => return error.FileNotFound,
+            error.AccessDenied, error.PermissionDenied => return error.AccessDenied,
+            error.IsDir, error.NotDir => return error.InvalidFile,
+            else => return error.MmapFailed,
         };
-    }
+        errdefer file.close(io);
 
-    fn openPosix(path: []const u8, read_only: bool) MmapError!MappedFile {
-        // POSIX implementation — convert path to null-terminated for openatZ
-        var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
-        if (path.len >= path_buf.len) return error.InvalidFile;
-        @memcpy(path_buf[0..path.len], path);
-        path_buf[path.len] = 0;
-        const path_z: [:0]const u8 = path_buf[0..path.len :0];
+        const stat = file.stat(io) catch |err| switch (err) {
+            error.AccessDenied, error.PermissionDenied => return error.AccessDenied,
+            else => return error.InvalidFile,
+        };
+        if (stat.kind != .file) return error.InvalidFile;
 
-        const flags: std.posix.O = if (read_only) .{ .ACCMODE = .RDONLY } else .{ .ACCMODE = .RDWR };
-        const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, flags, 0) catch return error.FileNotFound;
-        errdefer _ = std.posix.system.close(fd);
+        const size = std.math.cast(usize, stat.size) orelse return error.InvalidFile;
+        if (size == 0) return error.InvalidFile;
 
-        const stat = std.posix.fstat(fd) catch return error.InvalidFile;
-        const size: usize = @intCast(stat.size);
-
-        if (size == 0) {
-            _ = std.posix.system.close(fd);
-            return error.InvalidFile;
-        }
-
-        const prot: std.posix.system.vm_prot_t = if (read_only) .{ .READ = true } else .{ .READ = true, .WRITE = true };
-
-        const ptr = std.posix.mmap(null, size, prot, .{ .TYPE = .SHARED }, fd, 0) catch return error.MmapFailed;
-
-        _ = std.posix.system.close(fd);
+        const mmap = file.createMemoryMap(io, .{
+            .len = size,
+            .protection = if (read_only) .{ .read = true } else .{ .read = true, .write = true },
+        }) catch |err| switch (err) {
+            error.AccessDenied, error.PermissionDenied => return error.AccessDenied,
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return error.MmapFailed,
+        };
 
         return .{
-            .data = ptr,
+            .io_backend = io_backend,
+            .mmap = mmap,
             .size = size,
             .read_only = read_only,
         };
@@ -165,36 +79,33 @@ pub const MappedFile = struct {
 
     /// Close memory mapping
     pub fn close(self: *MappedFile) void {
-        if (builtin.os.tag == .windows) {
-            _ = std.os.windows.kernel32.UnmapViewOfFile(@ptrCast(self.data.ptr));
-        } else {
-            std.posix.munmap(self.data);
-        }
+        self.sync();
+        const io = self.io_backend.io();
+        const file = self.mmap.file;
+        file.close(io);
+        self.mmap.destroy(io);
+        self.io_backend.deinit();
         self.* = undefined;
     }
 
     /// Get data as bytes
     pub fn bytes(self: *const MappedFile) []const u8 {
-        return self.data[0..self.size];
+        return self.mmap.memory[0..self.size];
     }
 
     /// Get mutable data (fails if read-only)
     pub fn bytesMut(self: *MappedFile) MmapError![]u8 {
         if (self.read_only) return error.AccessDenied;
-        return self.data[0..self.size];
+        return self.mmap.memory[0..self.size];
     }
 
     /// Sync changes to disk
     pub fn sync(self: *MappedFile) void {
         if (self.read_only) return;
-
-        if (builtin.os.tag == .windows) {
-            _ = std.os.windows.kernel32.FlushViewOfFile(@ptrCast(self.data.ptr), self.size);
-        } else {
-            std.posix.msync(self.data, .{ .SYNC = true }) catch |err| {
-                std.log.warn("Memory-mapped file sync failed: {t}", .{err});
-            };
-        }
+        const io = self.io_backend.io();
+        self.mmap.write(io) catch |err| {
+            std.log.warn("Memory-mapped file sync failed: {t}", .{err});
+        };
     }
 
     /// Load as unified format (zero-copy)
@@ -205,117 +116,43 @@ pub const MappedFile = struct {
 
 /// Create a memory-mapped file of given size
 pub fn createMapped(allocator: std.mem.Allocator, path: []const u8, size: usize) MmapError!MappedFile {
-    _ = allocator;
+    if (size == 0) return error.InvalidFile;
+    if (path.len >= std.fs.max_path_bytes) return error.InvalidFile;
 
-    if (builtin.os.tag == .windows) {
-        return createWindows(path, size);
-    } else {
-        return createPosix(path, size);
-    }
-}
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    errdefer io_backend.deinit();
+    const io = io_backend.io();
 
-fn createWindows(path: []const u8, size: usize) MmapError!MappedFile {
-    const windows = std.os.windows;
-
-    var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
-    if (path.len >= path_buf.len) return error.InvalidFile;
-    @memcpy(path_buf[0..path.len], path);
-    path_buf[path.len] = 0;
-
-    // Create file
-    const file_handle = windows.kernel32.CreateFileA(
-        @ptrCast(&path_buf),
-        windows.GENERIC_READ | windows.GENERIC_WRITE,
-        0,
-        null,
-        windows.CREATE_ALWAYS,
-        windows.FILE_ATTRIBUTE_NORMAL,
-        null,
-    );
-
-    if (file_handle == windows.INVALID_HANDLE_VALUE) {
-        return error.AccessDenied;
-    }
-    errdefer _ = windows.kernel32.CloseHandle(file_handle);
-
-    // Set file size
-    const distance: windows.LARGE_INTEGER = @intCast(size);
-    if (windows.kernel32.SetFilePointerEx(file_handle, distance, null, windows.FILE_BEGIN) == 0) {
-        return error.MmapFailed;
-    }
-    if (windows.kernel32.SetEndOfFile(file_handle) == 0) {
-        return error.MmapFailed;
-    }
-
-    // Create mapping
-    const mapping_handle = windows.kernel32.CreateFileMappingA(
-        file_handle,
-        null,
-        windows.PAGE_READWRITE,
-        0,
-        0,
-        null,
-    );
-
-    if (mapping_handle == null) {
-        return error.MmapFailed;
-    }
-    errdefer _ = windows.kernel32.CloseHandle(mapping_handle);
-
-    const ptr = windows.kernel32.MapViewOfFile(
-        mapping_handle,
-        windows.FILE_MAP_ALL_ACCESS,
-        0,
-        0,
-        0,
-    );
-
-    if (ptr == null) {
-        return error.MmapFailed;
-    }
-
-    _ = windows.kernel32.CloseHandle(mapping_handle);
-    _ = windows.kernel32.CloseHandle(file_handle);
-
-    const data: []align(std.heap.page_size_min) u8 = @alignCast(@as([*]u8, @ptrCast(ptr))[0..size]);
-
-    return .{
-        .data = data,
-        .size = size,
-        .read_only = false,
+    var file = std.Io.Dir.cwd().createFile(io, path, .{
+        .truncate = true,
+        .read = true,
+    }) catch |err| switch (err) {
+        error.FileNotFound => return error.FileNotFound,
+        error.AccessDenied, error.PermissionDenied => return error.AccessDenied,
+        error.IsDir, error.NotDir => return error.InvalidFile,
+        else => return error.MmapFailed,
     };
-}
+    errdefer file.close(io);
 
-fn createPosix(path: []const u8, size: usize) MmapError!MappedFile {
-    // Convert path to null-terminated for openatZ
-    var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
-    if (path.len >= path_buf.len) return error.InvalidFile;
-    @memcpy(path_buf[0..path.len], path);
-    path_buf[path.len] = 0;
-    const path_z: [:0]const u8 = path_buf[0..path.len :0];
+    file.setLength(io, @intCast(size)) catch |err| switch (err) {
+        error.AccessDenied, error.PermissionDenied => return error.AccessDenied,
+        else => return error.MmapFailed,
+    };
 
-    const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, .{
-        .ACCMODE = .RDWR,
-        .CREAT = true,
-        .TRUNC = true,
-    }, 0o644) catch return error.AccessDenied;
-    errdefer _ = std.posix.system.close(fd);
-
-    if (std.posix.system.ftruncate(fd, @intCast(size)) != 0) return error.MmapFailed;
-
-    const ptr = std.posix.mmap(
-        null,
-        size,
-        .{ .READ = true, .WRITE = true },
-        .{ .TYPE = .SHARED },
-        fd,
-        0,
-    ) catch return error.MmapFailed;
-
-    _ = std.posix.system.close(fd);
+    const mmap = file.createMemoryMap(io, .{
+        .len = size,
+        .protection = .{ .read = true, .write = true },
+    }) catch |err| switch (err) {
+        error.AccessDenied, error.PermissionDenied => return error.AccessDenied,
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return error.MmapFailed,
+    };
 
     return .{
-        .data = ptr,
+        .io_backend = io_backend,
+        .mmap = mmap,
         .size = size,
         .read_only = false,
     };

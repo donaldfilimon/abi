@@ -14,8 +14,8 @@ const PQCodebook = codebook_mod.PQCodebook;
 const PersistError = types.PersistError;
 const computeL2DistanceSquared = types.computeL2DistanceSquared;
 const alignToSector = types.alignToSector;
-const writeAllFd = types.writeAllFd;
-const writePadding = types.writePadding;
+const writeAllFile = types.writeAllFile;
+const writePaddingFile = types.writePaddingFile;
 const DISKANN_MAGIC = types.DISKANN_MAGIC;
 const DISKANN_FORMAT_VERSION = types.DISKANN_FORMAT_VERSION;
 const DISKANN_HEADER_SIZE = types.DISKANN_HEADER_SIZE;
@@ -215,21 +215,22 @@ pub const DiskANNIndex = struct {
 
     /// Greedy search to find nearest neighbors
     fn greedySearch(self: *DiskANNIndex, query: []const f32, list_size: u32) ![]SearchCandidate {
-        var candidates = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).init(self.allocator, {});
-        defer candidates.deinit();
+        var candidates = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).initContext({});
+        try candidates.ensureTotalCapacity(self.allocator, list_size);
+        defer candidates.deinit(self.allocator);
 
         var visited: std.AutoHashMapUnmanaged(u32, void) = .empty;
         defer visited.deinit(self.allocator);
 
         // Start from entry point
         const entry_dist = computeL2DistanceSquared(query, self.vectors.items[self.entry_point]);
-        try candidates.add(.{ .id = self.entry_point, .distance = entry_dist });
+        try candidates.push(self.allocator, .{ .id = self.entry_point, .distance = entry_dist });
         try visited.put(self.allocator, self.entry_point, {});
 
         var result_list = std.ArrayListUnmanaged(SearchCandidate).empty;
 
         while (candidates.count() > 0) {
-            const current = candidates.remove();
+            const current = candidates.pop() orelse break;
 
             // Add to results
             try result_list.append(self.allocator, current);
@@ -243,11 +244,11 @@ pub const DiskANNIndex = struct {
 
                 if (neighbor_id >= self.vectors.items.len) continue;
                 const neighbor_dist = computeL2DistanceSquared(query, self.vectors.items[neighbor_id]);
-                try candidates.add(.{ .id = neighbor_id, .distance = neighbor_dist });
+                try candidates.push(self.allocator, .{ .id = neighbor_id, .distance = neighbor_dist });
 
                 // Maintain list size
                 while (candidates.count() > list_size * 2) {
-                    _ = candidates.removeOrNull();
+                    _ = candidates.pop();
                 }
             }
         }
@@ -352,15 +353,16 @@ pub const DiskANNIndex = struct {
         _ = query;
         const beam_width = self.config.beam_width;
 
-        var candidates = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).init(self.allocator, {});
-        defer candidates.deinit();
+        var candidates = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).initContext({});
+        try candidates.ensureTotalCapacity(self.allocator, list_size);
+        defer candidates.deinit(self.allocator);
 
         var visited: std.AutoHashMapUnmanaged(u32, void) = .empty;
         defer visited.deinit(self.allocator);
 
         // Start from entry point using PQ distance
         const entry_dist = self.codebook.?.computeAsymmetricDistance(self.pq_codes.items[self.entry_point]);
-        try candidates.add(.{ .id = self.entry_point, .distance = entry_dist });
+        try candidates.push(self.allocator, .{ .id = self.entry_point, .distance = entry_dist });
         try visited.put(self.allocator, self.entry_point, {});
 
         var result_list = std.ArrayListUnmanaged(SearchCandidate).empty;
@@ -372,7 +374,7 @@ pub const DiskANNIndex = struct {
 
             // Pop up to beam_width candidates to expand in parallel
             while (candidates.count() > 0 and unexpanded.items.len < beam_width) {
-                const current = candidates.remove();
+                const current = candidates.pop() orelse break;
                 try unexpanded.append(self.allocator, current);
 
                 try result_list.append(self.allocator, current);
@@ -392,10 +394,10 @@ pub const DiskANNIndex = struct {
                     if (neighbor_id >= self.pq_codes.items.len) continue;
 
                     const neighbor_dist = self.codebook.?.computeAsymmetricDistance(self.pq_codes.items[neighbor_id]);
-                    try candidates.add(.{ .id = neighbor_id, .distance = neighbor_dist });
+                    try candidates.push(self.allocator, .{ .id = neighbor_id, .distance = neighbor_dist });
 
                     while (candidates.count() > list_size * 2) {
-                        _ = candidates.removeOrNull();
+                        _ = candidates.pop();
                     }
                 }
             }
@@ -433,20 +435,14 @@ pub const DiskANNIndex = struct {
         const cb = self.codebook orelse return error.NotBuilt;
 
         const sector = self.config.sector_size;
+        var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        const io = io_backend.io();
 
-        // Open file for writing
-        var path_buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
-        if (path.len >= path_buf.len) return error.OpenFailed;
-        @memcpy(path_buf[0..path.len], path);
-        path_buf[path.len] = 0;
-        const path_z: [:0]const u8 = path_buf[0..path.len :0];
-
-        const fd = std.posix.openatZ(std.posix.AT.FDCWD, path_z, .{
-            .ACCMODE = .WRONLY,
-            .CREAT = true,
-            .TRUNC = true,
-        }, 0o644) catch return error.OpenFailed;
-        defer std.posix.close(fd);
+        var file = std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true }) catch return error.OpenFailed;
+        defer file.close(io);
 
         // --- Write header (sector-aligned) ---
         var header_buf: [4096]u8 = [_]u8{0} ** 4096;
@@ -467,18 +463,18 @@ pub const DiskANNIndex = struct {
         // medoid_id
         std.mem.writeInt(u32, header_buf[28..32], self.entry_point, .little);
 
-        writeAllFd(fd, header_buf[0..sector]) catch return error.WriteFailed;
+        try writeAllFile(file, io, header_buf[0..sector]);
 
         // --- Write PQ Codebook section (sector-aligned) ---
         const centroid_bytes = cb.centroids.len * @sizeOf(f32);
         const centroid_aligned = alignToSector(centroid_bytes, sector);
         const centroid_raw: [*]const u8 = @ptrCast(cb.centroids.ptr);
-        writeAllFd(fd, centroid_raw[0..centroid_bytes]) catch return error.WriteFailed;
+        try writeAllFile(file, io, centroid_raw[0..centroid_bytes]);
 
         // Write padding to sector alignment
         const centroid_pad = centroid_aligned - centroid_bytes;
         if (centroid_pad > 0) {
-            writePadding(fd, centroid_pad) catch return error.WriteFailed;
+            try writePaddingFile(file, io, centroid_pad);
         }
 
         // --- Write Graph section (sector-aligned per node) ---
@@ -488,25 +484,25 @@ pub const DiskANNIndex = struct {
 
             // Write degree
             const degree_bytes = std.mem.toBytes(std.mem.nativeToLittle(u32, degree));
-            writeAllFd(fd, &degree_bytes) catch return error.WriteFailed;
+            try writeAllFile(file, io, &degree_bytes);
 
             // Write neighbor IDs
             if (degree > 0) {
                 const neighbors_raw: [*]const u8 = @ptrCast(adj.items.ptr);
-                writeAllFd(fd, neighbors_raw[0 .. degree * @sizeOf(u32)]) catch return error.WriteFailed;
+                try writeAllFile(file, io, neighbors_raw[0 .. degree * @sizeOf(u32)]);
             }
 
             // Pad to sector_size
             const node_data_size = @sizeOf(u32) + degree * @sizeOf(u32);
             const remainder = node_data_size % sector;
             if (remainder != 0) {
-                writePadding(fd, sector - remainder) catch return error.WriteFailed;
+                try writePaddingFile(file, io, sector - remainder);
             }
         }
 
         // --- Write PQ Codes section ---
         for (0..self.num_vectors) |i| {
-            writeAllFd(fd, self.pq_codes.items[i]) catch return error.WriteFailed;
+            try writeAllFile(file, io, self.pq_codes.items[i]);
         }
     }
 
@@ -699,6 +695,7 @@ test "diskann index basic" {
         .build_list_size = 10,
         .search_list_size = 10,
         .pq_subspaces = 2,
+        .pq_bits = 2,
     };
 
     var idx = try DiskANNIndex.init(allocator, config);
@@ -728,6 +725,7 @@ test "diskann search" {
         .build_list_size = 10,
         .search_list_size = 10,
         .pq_subspaces = 2,
+        .pq_bits = 2,
     };
 
     var idx = try DiskANNIndex.init(allocator, config);
@@ -761,6 +759,7 @@ test "diskann save and load round-trip" {
         .build_list_size = 10,
         .search_list_size = 10,
         .pq_subspaces = 2,
+        .pq_bits = 2,
     };
 
     // Build an index
@@ -778,6 +777,12 @@ test "diskann save and load round-trip" {
 
     // Save to a temp file
     const tmp_path = "/tmp/diskann_test_roundtrip.dann";
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+    defer std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
     try idx.save(tmp_path);
 
     // Load it back
@@ -812,9 +817,6 @@ test "diskann save and load round-trip" {
     for (orig_cb.centroids, loaded_cb.centroids) |a, b| {
         try std.testing.expectApproxEqAbs(a, b, 1e-6);
     }
-
-    // Clean up temp file
-    std.posix.unlink(tmp_path) catch {};
 }
 
 test "diskann save rejects unbuilt index" {
@@ -831,19 +833,21 @@ test "diskann load rejects invalid magic" {
 
     // Write a file with bad magic
     const tmp_path = "/tmp/diskann_test_badmagic.dann";
-    const fd = std.posix.openatZ(std.posix.AT.FDCWD, tmp_path, .{
-        .ACCMODE = .WRONLY,
-        .CREAT = true,
-        .TRUNC = true,
-    }, 0o644) catch return;
-    defer std.posix.close(fd);
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
+    defer file.close(io);
 
     var buf: [4096]u8 = [_]u8{0} ** 4096;
     @memcpy(buf[0..4], "NOPE");
-    _ = std.posix.write(fd, &buf) catch return;
+    try file.writeStreamingAll(io, &buf);
 
     const result = DiskANNIndex.load(allocator, tmp_path);
     try std.testing.expectError(error.InvalidMagic, result);
 
-    std.posix.unlink(tmp_path) catch {};
+    std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
 }

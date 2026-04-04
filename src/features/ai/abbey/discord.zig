@@ -217,14 +217,28 @@ pub const GatewayBridge = struct {
 
     /// Drain all pending message payloads. Caller owns the returned slice
     /// and each element string (must free both).
-    pub fn drainMessages(self: *Self) [][]const u8 {
-        const items = self.pending_messages.toOwnedSlice(self.allocator) catch return &.{};
+    /// Returns Allocator.Error if the slice allocation fails.
+    pub fn drainMessages(self: *Self) DiscordBotError![][]const u8 {
+        const items = self.pending_messages.toOwnedSlice(self.allocator) catch |err| {
+            // On OOM, free all pending messages to avoid leak
+            for (self.pending_messages.items) |msg| self.allocator.free(msg);
+            self.pending_messages.deinit(self.allocator);
+            self.pending_messages = .empty;
+            return err;
+        };
         return items;
     }
 
     /// Drain all pending interaction payloads.
-    pub fn drainInteractions(self: *Self) [][]const u8 {
-        const items = self.pending_interactions.toOwnedSlice(self.allocator) catch return &.{};
+    /// Returns Allocator.Error if the slice allocation fails.
+    pub fn drainInteractions(self: *Self) DiscordBotError![][]const u8 {
+        const items = self.pending_interactions.toOwnedSlice(self.allocator) catch |err| {
+            // On OOM, free all pending interactions to avoid leak
+            for (self.pending_interactions.items) |msg| self.allocator.free(msg);
+            self.pending_interactions.deinit(self.allocator);
+            self.pending_interactions = .empty;
+            return err;
+        };
         return items;
     }
 
@@ -252,7 +266,7 @@ pub const AbbeyDiscordBot = struct {
     running: bool = false,
     discord_client: ?DiscordClientWrapper = null,
     gateway_client: ?discord.GatewayClient = null,
-    gateway_bridge: ?GatewayBridge = null,
+    gateway_bridge: ?*GatewayBridge = null,
 
     const Self = @This();
 
@@ -343,15 +357,18 @@ pub const AbbeyDiscordBot = struct {
             discord.GatewayIntent.MESSAGE_CONTENT |
             discord.GatewayIntent.DIRECT_MESSAGES;
 
-        var bridge = GatewayBridge.init(self.allocator);
-        errdefer bridge.deinit();
+        var bridge = try self.allocator.create(GatewayBridge);
+        bridge.* = GatewayBridge.init(self.allocator);
+        errdefer {
+            bridge.deinit();
+            self.allocator.destroy(bridge);
+        }
 
         const handler = bridge.eventHandler();
 
         var client = discord.GatewayClient.init(self.allocator, token, intents, handler);
         client.connect() catch |err| {
             log.err("Abbey gateway connect failed: {}", .{err});
-            bridge.deinit();
             return DiscordBotError.ClientCreationFailed;
         };
 
@@ -368,8 +385,9 @@ pub const AbbeyDiscordBot = struct {
             client.deinit();
             self.gateway_client = null;
         }
-        if (self.gateway_bridge) |*bridge| {
+        if (self.gateway_bridge) |bridge| {
             bridge.deinit();
+            self.allocator.destroy(bridge);
             self.gateway_bridge = null;
         }
         if (self.running) {
@@ -397,8 +415,8 @@ pub const AbbeyDiscordBot = struct {
     /// Full message deserialization (extracting the `d` field into a
     /// discord.Message) is a follow-up task.
     pub fn processGatewayEvents(self: *Self) !usize {
-        var bridge = &(self.gateway_bridge orelse return DiscordBotError.GatewayNotConnected);
-        const messages = bridge.drainMessages();
+        const bridge = self.gateway_bridge orelse return DiscordBotError.GatewayNotConnected;
+        const messages = try bridge.drainMessages();
         defer {
             for (messages) |msg| self.allocator.free(msg);
             self.allocator.free(messages);
@@ -868,7 +886,7 @@ test "gateway bridge drain messages" {
     try std.testing.expectEqual(@as(usize, 2), bridge.pendingMessageCount());
 
     // Drain should return both and clear pending
-    const drained = bridge.drainMessages();
+    const drained = try bridge.drainMessages();
     defer {
         for (drained) |msg| allocator.free(msg);
         allocator.free(drained);

@@ -109,23 +109,18 @@ pub fn alignToSector(size: usize, sector: u32) usize {
     return ((size + s - 1) / s) * s;
 }
 
-/// Write all bytes to a file descriptor, handling partial writes.
-pub fn writeAllFd(fd: std.posix.fd_t, buf: []const u8) !void {
-    var written: usize = 0;
-    while (written < buf.len) {
-        const n = std.posix.write(fd, buf[written..]) catch return error.WriteFailed;
-        if (n == 0) return error.WriteFailed;
-        written += n;
-    }
+/// Write all bytes to a file using the current Zig 0.16 I/O API.
+pub fn writeAllFile(file: std.Io.File, io: std.Io, buf: []const u8) PersistError!void {
+    file.writeStreamingAll(io, buf) catch return error.WriteFailed;
 }
 
 /// Write zero-padding of the given length.
-pub fn writePadding(fd: std.posix.fd_t, len: usize) !void {
+pub fn writePaddingFile(file: std.Io.File, io: std.Io, len: usize) PersistError!void {
     const zeros = [_]u8{0} ** 4096;
     var remaining = len;
     while (remaining > 0) {
         const chunk = @min(remaining, zeros.len);
-        writeAllFd(fd, zeros[0..chunk]) catch return error.WriteFailed;
+        file.writeStreamingAll(io, zeros[0..chunk]) catch return error.WriteFailed;
         remaining -= chunk;
     }
 }

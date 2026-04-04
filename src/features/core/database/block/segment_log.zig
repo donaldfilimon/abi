@@ -117,8 +117,14 @@ test "SegmentLog append and read back" {
     // Use a temp file path.
     const tmp_path = "/tmp/abi_segment_log_test.seg";
 
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     // Clean up any leftover file from a previous run.
-    std.posix.unlink(tmp_path) catch {};
+    defer std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
 
     var log = try SegmentLog.init(allocator, tmp_path, 0);
     defer log.deinit();
@@ -174,5 +180,4 @@ test "SegmentLog append and read back" {
     try std.testing.expectEqual(@as(u32, 2), rb2.header.version);
 
     // Cleanup.
-    std.posix.unlink(tmp_path) catch {};
 }

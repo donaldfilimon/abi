@@ -1,5 +1,7 @@
 //! Retrieval algorithms and format helpers exposed under `abi.database`.
 
+const std = @import("std");
+
 pub const hnsw = @import("../hnsw/mod.zig");
 pub const distance = @import("../distance.zig");
 pub const simd = @import("../simd.zig");
@@ -21,4 +23,24 @@ pub const KMeans = clustering.KMeans;
 pub const ScalarQuantizer = quantization.ScalarQuantizer;
 pub const ProductQuantizer = @import("../product_quantizer.zig").ProductQuantizer;
 
-// refAllDecls deferred — re-exports 18 retrieval algorithm modules that may have pre-existing Zig 0.16 API errors
+test {
+    _ = hnsw;
+    _ = distance;
+    _ = simd;
+    _ = quantize;
+    _ = batch;
+    _ = fulltext;
+    _ = hybrid;
+    _ = filter;
+    _ = clustering;
+    _ = formats;
+    _ = index;
+    _ = quantization;
+    _ = parallel_hnsw;
+    _ = parallel_search;
+    _ = diskann;
+    _ = scann;
+    _ = KMeans;
+    _ = ScalarQuantizer;
+    _ = ProductQuantizer;
+}

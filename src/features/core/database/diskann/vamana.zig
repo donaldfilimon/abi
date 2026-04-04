@@ -244,19 +244,20 @@ pub const VamanaIndex = struct {
         defer visited.deinit(self.allocator);
 
         // Min-heap for frontier expansion
-        var frontier = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).init(self.allocator, {});
-        defer frontier.deinit();
+        var frontier = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).initContext({});
+        try frontier.ensureTotalCapacity(self.allocator, list_size);
+        defer frontier.deinit(self.allocator);
 
         // Result list kept sorted by distance
         var result = std.ArrayListUnmanaged(SearchCandidate).empty;
         defer result.deinit(self.allocator);
 
         const entry_dist = computeL2DistanceSquared(query, self.vectors.items[self.entry_point]);
-        try frontier.add(.{ .id = self.entry_point, .distance = entry_dist });
+        try frontier.push(self.allocator, .{ .id = self.entry_point, .distance = entry_dist });
         try visited.put(self.allocator, self.entry_point, {});
 
         while (frontier.count() > 0) {
-            const current = frontier.remove();
+            const current = frontier.pop() orelse break;
 
             try result.append(self.allocator, current);
 
@@ -281,7 +282,7 @@ pub const VamanaIndex = struct {
                     if (visited.contains(nbr_id)) continue;
                     try visited.put(self.allocator, nbr_id, {});
                     const nbr_dist = computeL2DistanceSquared(query, self.vectors.items[nbr_id]);
-                    try frontier.add(.{ .id = nbr_id, .distance = nbr_dist });
+                    try frontier.push(self.allocator, .{ .id = nbr_id, .distance = nbr_dist });
                 }
             }
         }
