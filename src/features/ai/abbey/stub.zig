@@ -3,32 +3,14 @@
 const std = @import("std");
 const abbey_types = @import("types.zig");
 
-// ── Core Modules (inline stubs) ────────────────────────────────────────────
+// ── Sub-namespace facades ──────────────────────────────────────────────────
 
-// Sub-namespace facades (additive)
 pub const cognition = struct {};
 pub const system = struct {};
 pub const pipeline = struct {};
 
 pub const core = struct {
-    pub const types = struct {
-        pub const InstanceId = abbey_types.InstanceId;
-        pub const SessionId = abbey_types.SessionId;
-        pub const ConfidenceLevel = abbey_types.ConfidenceLevel;
-        pub const Confidence = abbey_types.Confidence;
-        pub const EmotionType = abbey_types.EmotionType;
-        pub const EmotionalState = abbey_types.EmotionalState;
-        pub const Role = abbey_types.Role;
-        pub const Message = abbey_types.Message;
-        pub const TrustLevel = abbey_types.TrustLevel;
-        pub const Relationship = abbey_types.Relationship;
-        pub const Topic = abbey_types.Topic;
-        pub const Response = abbey_types.Response;
-        pub const AbbeyError = abbey_types.AbbeyError;
-        pub const getTimestampNs = abbey_types.stubTimestampNs;
-        pub const getTimestampMs = abbey_types.stubTimestampMs;
-        pub const getTimestampSec = abbey_types.stubTimestampSec;
-    };
+    pub const types = abbey_types;
     pub const config = struct {
         pub const AbbeyConfig = abbey_types.AbbeyConfig;
         pub const BehaviorConfig = abbey_types.BehaviorConfig;
@@ -43,6 +25,8 @@ pub const core = struct {
         pub const loadFromEnvironment = abbey_types.stubLoadFromEnvironment;
     };
 };
+
+// ── Sub-module stubs ───────────────────────────────────────────────────────
 
 pub const neural = struct {
     pub const Tensor = abbey_types.Tensor;
@@ -183,11 +167,7 @@ pub const advanced = struct {
     pub const IntentionTracker = abbey_types.IntentionTracker;
     pub const EmotionalModel = abbey_types.EmotionalModel;
     pub const TheoryOfMind = abbey_types.TheoryOfMind;
-    pub const ProblemDecomposition = abbey_types.ProblemDecomposition;
-    pub const SubProblem = abbey_types.SubProblem;
-    pub const ExecutionPlan = abbey_types.ExecutionPlan;
     pub const ProblemDecomposer = abbey_types.ProblemDecomposer;
-    pub const CounterfactualReasoner = abbey_types.CounterfactualReasoner;
     pub const SelfEvaluation = abbey_types.SelfEvaluation;
     pub const UncertaintyArea = abbey_types.UncertaintyArea;
     pub const DetectedBias = abbey_types.DetectedBias;
@@ -198,8 +178,9 @@ pub const advanced = struct {
     pub const CognitiveState = abbey_types.CognitiveState;
 };
 
-// ── Top-level type re-exports ──────────────────────────────────────────────
+// ── Top-level type re-exports (matching mod.zig surface) ───────────────────
 
+// Core types
 pub const InstanceId = abbey_types.InstanceId;
 pub const SessionId = abbey_types.SessionId;
 pub const ConfidenceLevel = abbey_types.ConfidenceLevel;
@@ -213,6 +194,8 @@ pub const Relationship = abbey_types.Relationship;
 pub const Topic = abbey_types.Topic;
 pub const Response = abbey_types.Response;
 pub const AbbeyError = abbey_types.AbbeyError;
+
+// Config types
 pub const AbbeyConfig = abbey_types.AbbeyConfig;
 pub const BehaviorConfig = abbey_types.BehaviorConfig;
 pub const MemoryConfig = abbey_types.MemoryConfig;
@@ -223,6 +206,8 @@ pub const LLMConfig = abbey_types.LLMConfig;
 pub const ServerConfig = abbey_types.ServerConfig;
 pub const DiscordConfig = abbey_types.DiscordConfig;
 pub const ConfigBuilder = abbey_types.ConfigBuilder;
+
+// Neural types
 pub const Tensor = abbey_types.Tensor;
 pub const F32Tensor = abbey_types.Tensor;
 pub const LinearLayer = neural.LinearLayer;
@@ -235,6 +220,8 @@ pub const AdaptiveAttention = neural.AdaptiveAttention;
 pub const OnlineLearner = neural.OnlineLearner;
 pub const ReplayBuffer = neural.ReplayBuffer;
 pub const AdamOptimizer = neural.AdamOptimizer;
+
+// Memory types
 pub const Episode = memory.Episode;
 pub const EpisodicMemory = memory.EpisodicMemory;
 pub const Knowledge = memory.Knowledge;
@@ -243,16 +230,22 @@ pub const WorkingItem = memory.WorkingItem;
 pub const WorkingMemory = abbey_types.WorkingMemory;
 pub const MemoryManager = abbey_types.MemoryManager;
 pub const MemoryStats = abbey_types.MemoryManager.MemoryStats;
+
+// Reasoning types
 pub const ReasoningChain = abbey_types.ReasoningChain;
 pub const ReasoningStep = abbey_types.ReasoningStep;
 pub const StepType = abbey_types.StepType;
 pub const ConversationContext = abbey_types.ConversationContext;
 pub const TopicTracker = abbey_types.TopicTracker;
 pub const ContextWindow = context.ContextWindow;
+
+// Calibration types
 pub const Evidence = calibration.Evidence;
 pub const CalibrationResult = calibration.CalibrationResult;
 pub const ConfidenceCalibrator = calibration.ConfidenceCalibrator;
 pub const QueryAnalyzer = calibration.QueryAnalyzer;
+
+// Client types
 pub const ChatMessage = client.ChatMessage;
 pub const CompletionRequest = client.CompletionRequest;
 pub const CompletionResponse = client.CompletionResponse;
@@ -262,14 +255,20 @@ pub const EchoBackend = client.EchoBackend;
 pub const createClient = client.createClient;
 pub const ClientWrapper = client.ClientWrapper;
 pub const RetryHandler = client.RetryHandler;
+
+// Engine types
 pub const AbbeyEngine = abbey_types.AbbeyEngine;
 pub const EngineResponse = engine.Response;
 pub const EngineStats = engine.EngineStats;
+
+// Server types
 pub const HttpServerConfig = server.ServerConfig;
 pub const AbbeyServerConfig = server.AbbeyServerConfig;
 pub const ServerError = server.ServerError;
 pub const serveHttp = server.serve;
 pub const serveHttpWithConfig = server.serveWithConfig;
+
+// Discord types
 pub const AbbeyDiscordBot = discord_bot.AbbeyDiscordBot;
 pub const DiscordBotConfig = discord_bot.DiscordBotConfig;
 pub const DiscordBotError = discord_bot.DiscordBotError;
@@ -278,6 +277,8 @@ pub const BotStats = discord_bot.BotStats;
 pub const GatewayBridge = discord_bot.GatewayBridge;
 pub const GatewayStats = discord_bot.GatewayStats;
 pub const AbbeyCommands = discord_bot.AbbeyCommands;
+
+// Advanced types
 pub const TaskProfile = abbey_types.TaskProfile;
 pub const TaskDomain = abbey_types.TaskDomain;
 pub const LearningStrategy = abbey_types.LearningStrategy;
@@ -290,11 +291,7 @@ pub const KnowledgeState = abbey_types.KnowledgeState;
 pub const IntentionTracker = abbey_types.IntentionTracker;
 pub const EmotionalModel = abbey_types.EmotionalModel;
 pub const TheoryOfMind = abbey_types.TheoryOfMind;
-pub const ProblemDecomposition = abbey_types.ProblemDecomposition;
-pub const SubProblem = abbey_types.SubProblem;
-pub const ExecutionPlan = abbey_types.ExecutionPlan;
 pub const ProblemDecomposer = abbey_types.ProblemDecomposer;
-pub const CounterfactualReasoner = abbey_types.CounterfactualReasoner;
 pub const SelfEvaluation = abbey_types.SelfEvaluation;
 pub const UncertaintyArea = abbey_types.UncertaintyArea;
 pub const DetectedBias = abbey_types.DetectedBias;
@@ -303,6 +300,8 @@ pub const SelfReflectionEngine = abbey_types.SelfReflectionEngine;
 pub const AdvancedCognition = abbey_types.AdvancedCognition;
 pub const CognitiveResult = abbey_types.CognitiveResult;
 pub const CognitiveState = abbey_types.CognitiveState;
+
+// Custom AI types
 pub const CustomAI = custom_framework.CustomAI;
 pub const CustomAIConfig = custom_framework.CustomAIConfig;
 pub const ProfileTemplate = custom_framework.ProfileTemplate;
@@ -318,9 +317,13 @@ pub const createWriter = custom_framework.createWriter;
 pub const createCompanion = custom_framework.createCompanion;
 pub const createOpinionated = custom_framework.createOpinionated;
 pub const Stats = custom_framework.Stats;
+
+// Legacy types
 pub const Abbey = abbey_types.Abbey;
 pub const LegacyResponse = abbey_types.LegacyResponse;
 pub const LegacyStats = abbey_types.LegacyStats;
+
+// Training stub
 pub const abbey_train = struct {
     pub const AbbyTrainConfig = struct {
         base_gguf_path: []const u8 = "",
@@ -336,18 +339,13 @@ pub const abbey_train = struct {
         lora_dropout: f32 = 0.05,
         save_adapter_path: ?[]const u8 = null,
     };
-
-    pub const AbbyTrainError = error{
-        NoTrainingData,
-        InvalidModel,
-        TokenizerLoadFailed,
-        FeatureDisabled,
-    };
-
+    pub const AbbyTrainError = error{ NoTrainingData, InvalidModel, TokenizerLoadFailed, FeatureDisabled };
     pub fn run(_: std.mem.Allocator, _: AbbyTrainConfig) AbbyTrainError!void {
         return error.FeatureDisabled;
     }
 };
+
+// Ralph stubs
 pub const ralph_swarm = struct {
     pub const ParallelRalphContext = struct {
         allocator: std.mem.Allocator,
@@ -378,6 +376,9 @@ pub fn createAdvancedCognition(_: std.mem.Allocator) !abbey_types.AdvancedCognit
 pub fn createAdvancedCognitionWithConfig(_: std.mem.Allocator, _: abbey_types.AdvancedCognition.Config) !abbey_types.AdvancedCognition {
     return error.FeatureDisabled;
 }
+
+pub const reexports = struct {};
+pub const convenience = struct {};
 
 test {
     std.testing.refAllDecls(@This());

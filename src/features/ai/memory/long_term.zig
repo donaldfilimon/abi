@@ -5,8 +5,9 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const time = @import("../../../foundation/mod.zig").utils;
-const simd = @import("../../../foundation/mod.zig").simd;
+const foundation = @import("../../../foundation/mod.zig");
+const time = foundation.time;
+const simd = foundation.simd;
 const mod = @import("mod.zig");
 const db_mod = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
 const memory_db = db_mod.memory;

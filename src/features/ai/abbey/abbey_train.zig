@@ -58,23 +58,21 @@ fn formatInstructionPrompt(
     var buf = std.ArrayListUnmanaged(u8).empty;
     errdefer buf.deinit(allocator);
 
-    const writer = buf.writer(allocator);
-
-    try writer.writeAll("### Instruction:\n");
-    try writer.writeAll(sample.instruction);
-    try writer.writeAll("\n");
+    try buf.appendSlice(allocator, "### Instruction:\n");
+    try buf.appendSlice(allocator, sample.instruction);
+    try buf.appendSlice(allocator, "\n");
 
     if (sample.input) |input| {
         if (input.len > 0) {
-            try writer.writeAll("### Input:\n");
-            try writer.writeAll(input);
-            try writer.writeAll("\n");
+            try buf.appendSlice(allocator, "### Input:\n");
+            try buf.appendSlice(allocator, input);
+            try buf.appendSlice(allocator, "\n");
         }
     }
 
-    try writer.writeAll("### Response:\n");
-    try writer.writeAll(sample.output);
-    try writer.writeAll("\n");
+    try buf.appendSlice(allocator, "### Response:\n");
+    try buf.appendSlice(allocator, sample.output);
+    try buf.appendSlice(allocator, "\n");
 
     return buf.toOwnedSlice(allocator);
 }
@@ -282,8 +280,21 @@ fn loadTokenizerFromGguf(
     errdefer tokenizer.deinit();
 
     // Load vocab tokens
-    if (gguf.getTokensArray()) |tokens_data| {
-        try tokenizer.loadVocab(tokens_data);
+    if (gguf.getMetadata("tokenizer.ggml.tokens")) |tokens_val| {
+        if (tokens_val == .array) {
+            const tokens_data = tokens_val.array;
+            var tokens = std.ArrayListUnmanaged([]const u8).empty;
+            defer tokens.deinit(allocator);
+
+            if (tokens_data.stringArrayIterator()) |iter| {
+                var it = iter;
+                while (it.next()) |token| {
+                    try tokens.append(allocator, token);
+                }
+            }
+
+            try tokenizer.loadVocab(tokens.items);
+        }
     }
 
     // Load merges
@@ -292,11 +303,11 @@ fn loadTokenizerFromGguf(
     }
 
     // Load special token IDs
-    if (gguf.getMetadataValue("tokenizer.ggml.bos_token_id")) |bos| {
-        tokenizer.special.bos_id = @intCast(bos.uint32);
+    if (gguf.getMetadata("tokenizer.ggml.bos_token_id")) |bos| {
+        if (bos.asU32()) |bos_id| tokenizer.special.bos_id = bos_id;
     }
-    if (gguf.getMetadataValue("tokenizer.ggml.eos_token_id")) |eos| {
-        tokenizer.special.eos_id = @intCast(eos.uint32);
+    if (gguf.getMetadata("tokenizer.ggml.eos_token_id")) |eos| {
+        if (eos.asU32()) |eos_id| tokenizer.special.eos_id = eos_id;
     }
 
     return tokenizer;

@@ -1,7 +1,7 @@
 //! LLM Stub Module — disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 const types = @import("types.zig");
 
 // ── Re-exported types ──────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 const std = @import("std");
 const client = @import("client.zig");
 
-// Inline from core/config/lsp.zig to avoid cross-directory import.
+// Inline from features/core/config/lsp.zig to avoid cross-directory import.
 pub const Config = client.Config;
 pub const Client = client.Client;
 pub const Response = client.Response;

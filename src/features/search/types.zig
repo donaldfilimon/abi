@@ -1,5 +1,5 @@
 const std = @import("std");
-const core_config = @import("../../core/config/content.zig");
+const core_config = @import("../core/config/content.zig");
 
 pub const SearchConfig = core_config.SearchConfig;
 

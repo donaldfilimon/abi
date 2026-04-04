@@ -75,7 +75,7 @@ pub fn execute(pctx: *PipelineContext, cfg: types.ValidateConfig) !void {
 fn toLower(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     const result = try allocator.alloc(u8, text.len);
     for (text, 0..) |c, i| {
-        result[i] = if (c >= 'A' and c <= 'Z') c + 32 else c;
+        result[i] = std.ascii.toLower(c);
     }
     return result;
 }

@@ -155,8 +155,8 @@ pub fn compileZigToSpirv(
     const cwd = Io.Dir.cwd();
     cwd.writeFile(io, .{ .sub_path = src_name, .data = source }) catch
         return error.CompilationFailed;
-    defer cwd.deleteFile(io, src_name) catch {};
-    defer cwd.deleteFile(io, spv_name) catch {};
+    defer cwd.deleteFile(io, src_name) catch |err| std.log.warn("spirv: failed to delete temp src {s}: {}", .{ src_name, err });
+    defer cwd.deleteFile(io, spv_name) catch |err| std.log.warn("spirv: failed to delete temp spv {s}: {}", .{ spv_name, err });
 
     // Spawn the compiler.
     const argv = [_][]const u8{

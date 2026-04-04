@@ -1,5 +1,17 @@
-//! Central registry for Multi-Profile AI Assistants.
-//! Manages registration, discovery, and lifecycle of all AI profiles.
+//! Generic Profile Registry — Multi-Profile AI Assistants.
+//!
+//! Manages registration, discovery, and lifecycle of ALL AI profiles
+//! (13 types: assistant, coder, writer, analyst, companion, docs,
+//! reviewer, minimal, abbey, aviva, abi, ralph, ava).
+//!
+//! This is the GENERIC registry used by the broader AI system for
+//! dynamic profile management. It uses `types.ProfileType` (13 variants).
+//!
+//! NOTE: This is DISTINCT from `profile/registry.zig` which manages
+//! only the Abbey-Aviva-Abi triad with `ProfileId` (3 variants).
+//! The two registries serve different layers:
+//!   - This registry: generic profile management (routing, discovery)
+//!   - profile/registry.zig: concrete Abbey/Aviva/Abi lifecycle
 
 const std = @import("std");
 const types = @import("types.zig");

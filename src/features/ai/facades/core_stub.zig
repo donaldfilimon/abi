@@ -1,7 +1,7 @@
 //! AI Core Stub Module — disabled when AI core is off.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 
 pub const Error = error{ AiDisabled, AgentsDisabled, ModelNotFound, InvalidConfig };
 

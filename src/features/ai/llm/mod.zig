@@ -25,7 +25,7 @@ const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
 const connectors = @import("../../../connectors/mod.zig");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 
 pub const io = @import("io/mod.zig");
 pub const tensor = @import("tensor/mod.zig");

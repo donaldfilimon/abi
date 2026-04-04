@@ -92,6 +92,10 @@ pub const RoutingDecision = struct {
 };
 
 /// A response produced by a profile.
+///
+/// MEMORY OWNERSHIP: `content` is ALWAYS owned by this struct.
+/// The creator MUST have allocated it with the same `allocator` provided here.
+/// Call `deinit()` to free the content when done.
 pub const ProfileResponse = struct {
     profile: ProfileId,
     content: []const u8,

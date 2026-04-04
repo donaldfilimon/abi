@@ -1,7 +1,7 @@
 //! Compute stub — disabled at compile time.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
+const stub_helpers = @import("../core/stub_helpers.zig");
 pub const types = @import("types.zig");
 
 pub const mesh = struct {

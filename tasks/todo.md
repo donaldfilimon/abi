@@ -219,6 +219,25 @@
 - [x] Document the canonical gate in `tools/README.md`.
 - [x] Validate with `./build.sh feature-tests` and `./build.sh test --summary all`.
 
+## 10. In-Flight Refactor Wave: Abbey / TUI / MCP Extraction
+- [x] Finish wiring the extracted Abbey helpers through the `src/features/ai/abbey` facade and keep parity with the stub surface.
+- [x] Finish the TUI dashboard split so the parent wrapper stays thin and the new view/state modules stay covered by tests.
+- [x] Finish the MCP transport framing extraction and keep the public stdio/SSE transport contract unchanged.
+- [x] Validate the refactor wave with parity, typecheck, and the impacted agents, TUI, Abbey/profile, and MCP lanes.
+
+### Notes
+- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` as the follow-up cleanup after the `src/` canonicalization pass.
+- Completed on April 4, 2026 by wiring the Abbey convenience/re-export split, keeping the TUI dashboard facade thin around the extracted `dashboard/` modules, and moving MCP framing into `src/protocols/mcp/transport/framing.zig`.
+- Validation passed with:
+  - `~/.zvm/bin/zig build check-parity`
+  - `~/.zvm/bin/zig build typecheck --summary all`
+  - `~/.zvm/bin/zig build agents-tests --summary all`
+  - `~/.zvm/bin/zig build tui-tests --summary all`
+  - `~/.zvm/bin/zig build mcp-tests --summary all`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "abbey"`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "profile"`
+- Residual limitation: the repo-local `./build.sh` / zigly wrapper still fails in this checkout with `Undefined error: 0`, so the pinned `~/.zvm/bin/zig` toolchain remains the authoritative validation path here.
+
 ### Notes
 - The multi-CLI consensus helper is unavailable in this checkout, so this task proceeded with the ABI best-effort fallback.
 - The ABI review prep helper remains blocked because this checkout still lacks `src/abi.zig`, matching the startup limitation recorded in `tasks/lessons.md`.

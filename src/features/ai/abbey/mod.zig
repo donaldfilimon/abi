@@ -31,277 +31,158 @@ pub const core = struct {
 };
 
 // ============================================================================
-// Neural Module (Tensors, Layers, Attention, Learning)
+// Module Re-exports
 // ============================================================================
 
 pub const neural = @import("neural/mod.zig");
-
-// ============================================================================
-// Memory Module (Episodic, Semantic, Working)
-// ============================================================================
-
 pub const memory = @import("memory/mod.zig");
-
-// ============================================================================
-// Legacy Modules (Original Abbey components)
-// ============================================================================
-
 pub const reasoning = @import("reasoning.zig");
 pub const emotions = @import("emotions.zig");
 pub const context = @import("context.zig");
-
-// ============================================================================
-// New Advanced Modules
-// ============================================================================
-
 pub const calibration = @import("calibration.zig");
 pub const client = @import("client.zig");
 pub const engine = @import("engine.zig");
 pub const server = @import("server.zig");
 pub const discord_bot = @import("discord.zig");
-/// Multi-Ralph coordination: lock-free message bus for communication between Ralph loops.
 pub const ralph_multi = @import("ralph_multi.zig");
-/// Multi-agent swarm: parallel Ralph workers via ThreadPool + RalphBus (Zig-native, fast).
 pub const ralph_swarm = @import("ralph_swarm.zig");
-
-// ============================================================================
-// Fine-Tuning Pipeline (Alpaca JSONL → LoRA → GGUF)
-// ============================================================================
-
 pub const abbey_train = @import("abbey_train.zig");
-
-// ============================================================================
-// Customizable AI Framework
-// ============================================================================
-
 pub const custom_framework = @import("custom_framework.zig");
-
-// ============================================================================
-// Advanced Cognitive Modules
-// ============================================================================
-
 pub const advanced = @import("advanced.zig");
 
 // ============================================================================
-// Type Re-exports (Core)
+// Type Re-exports (delegated to reexports.zig)
 // ============================================================================
 
-// Core types
-pub const InstanceId = core.types.InstanceId;
-pub const SessionId = core.types.SessionId;
-pub const ConfidenceLevel = core.types.ConfidenceLevel;
-pub const Confidence = core.types.Confidence;
-pub const EmotionType = core.types.EmotionType;
-pub const EmotionalState = core.types.EmotionalState;
-pub const Role = core.types.Role;
-pub const Message = core.types.Message;
-pub const TrustLevel = core.types.TrustLevel;
-pub const Relationship = core.types.Relationship;
-pub const Topic = core.types.Topic;
-pub const Response = core.types.Response;
-pub const AbbeyError = core.types.AbbeyError;
+pub const reexports = @import("reexports.zig");
 
-// Configuration
-pub const AbbeyConfig = core.config.AbbeyConfig;
-pub const BehaviorConfig = core.config.BehaviorConfig;
-pub const MemoryConfig = core.config.MemoryConfig;
-pub const ReasoningConfig = core.config.ReasoningConfig;
-pub const EmotionConfig = core.config.EmotionConfig;
-pub const LearningConfig = core.config.LearningConfig;
-pub const LLMConfig = core.config.LLMConfig;
-pub const ServerConfig = core.config.ServerConfig;
-pub const DiscordConfig = core.config.DiscordConfig;
-pub const ConfigBuilder = core.config.ConfigBuilder;
-
-// ============================================================================
-// Type Re-exports (Neural)
-// ============================================================================
-
-pub const Tensor = neural.Tensor;
-pub const F32Tensor = neural.F32Tensor;
-pub const LinearLayer = neural.LinearLayer;
-pub const EmbeddingLayer = neural.EmbeddingLayer;
-pub const LayerNorm = neural.LayerNorm;
-pub const MultiHeadAttention = neural.MultiHeadAttention;
-pub const SelfAttention = neural.SelfAttention;
-pub const CrossAttention = neural.CrossAttention;
-pub const AdaptiveAttention = neural.AdaptiveAttention;
-pub const OnlineLearner = neural.OnlineLearner;
-pub const ReplayBuffer = neural.ReplayBuffer;
-pub const AdamOptimizer = neural.AdamOptimizer;
-
-// ============================================================================
-// Type Re-exports (Memory)
-// ============================================================================
-
-pub const Episode = memory.Episode;
-pub const EpisodicMemory = memory.EpisodicMemory;
-pub const Knowledge = memory.Knowledge;
-pub const SemanticMemory = memory.SemanticMemory;
-pub const WorkingItem = memory.WorkingItem;
-pub const WorkingMemory = memory.WorkingMemory;
-pub const MemoryManager = memory.MemoryManager;
-pub const MemoryStats = memory.MemoryManager.MemoryStats;
-
-// ============================================================================
-// Type Re-exports (Legacy)
-// ============================================================================
-
-pub const ReasoningChain = reasoning.ReasoningChain;
-pub const ReasoningStep = reasoning.ReasoningStep;
-pub const StepType = reasoning.StepType;
-pub const ConversationContext = context.ConversationContext;
-pub const TopicTracker = context.TopicTracker;
-pub const ContextWindow = context.ContextWindow;
-
-// ============================================================================
-// Type Re-exports (Calibration)
-// ============================================================================
-
-pub const Evidence = calibration.Evidence;
-pub const CalibrationResult = calibration.CalibrationResult;
-pub const ConfidenceCalibrator = calibration.ConfidenceCalibrator;
-pub const QueryAnalyzer = calibration.QueryAnalyzer;
-
-// ============================================================================
-// Type Re-exports (Client)
-// ============================================================================
-
-pub const ChatMessage = client.ChatMessage;
-pub const CompletionRequest = client.CompletionRequest;
-pub const CompletionResponse = client.CompletionResponse;
-pub const StreamChunk = client.StreamChunk;
-pub const LLMClient = client.LLMClient;
-pub const EchoBackend = client.EchoBackend;
-pub const createClient = client.createClient;
-pub const ClientWrapper = client.ClientWrapper;
-pub const RetryHandler = client.RetryHandler;
-
-// ============================================================================
-// Type Re-exports (Engine)
-// ============================================================================
-
-pub const AbbeyEngine = engine.AbbeyEngine;
-pub const EngineResponse = engine.Response;
-pub const EngineStats = engine.EngineStats;
-
-// ============================================================================
-// Type Re-exports (Server)
-// ============================================================================
-
-pub const HttpServerConfig = server.ServerConfig;
-pub const AbbeyServerConfig = server.AbbeyServerConfig;
-pub const ServerError = server.ServerError;
-pub const serveHttp = server.serve;
-pub const serveHttpWithConfig = server.serveWithConfig;
-
-// ============================================================================
-// Type Re-exports (Discord Bot)
-// ============================================================================
-
-pub const AbbeyDiscordBot = discord_bot.AbbeyDiscordBot;
-pub const DiscordBotConfig = discord_bot.DiscordBotConfig;
-pub const DiscordBotError = discord_bot.DiscordBotError;
-pub const SessionManager = discord_bot.SessionManager;
-pub const BotStats = discord_bot.BotStats;
-pub const GatewayBridge = discord_bot.GatewayBridge;
-pub const GatewayStats = discord_bot.GatewayStats;
-pub const AbbeyCommands = discord_bot.AbbeyCommands;
+// Re-export all types from reexports.zig
+pub const InstanceId = reexports.InstanceId;
+pub const SessionId = reexports.SessionId;
+pub const ConfidenceLevel = reexports.ConfidenceLevel;
+pub const Confidence = reexports.Confidence;
+pub const EmotionType = reexports.EmotionType;
+pub const EmotionalState = reexports.EmotionalState;
+pub const Role = reexports.Role;
+pub const Message = reexports.Message;
+pub const TrustLevel = reexports.TrustLevel;
+pub const Relationship = reexports.Relationship;
+pub const Topic = reexports.Topic;
+pub const Response = reexports.Response;
+pub const AbbeyError = reexports.AbbeyError;
+pub const AbbeyConfig = reexports.AbbeyConfig;
+pub const BehaviorConfig = reexports.BehaviorConfig;
+pub const MemoryConfig = reexports.MemoryConfig;
+pub const ReasoningConfig = reexports.ReasoningConfig;
+pub const EmotionConfig = reexports.EmotionConfig;
+pub const LearningConfig = reexports.LearningConfig;
+pub const LLMConfig = reexports.LLMConfig;
+pub const ServerConfig = reexports.ServerConfig;
+pub const DiscordConfig = reexports.DiscordConfig;
+pub const ConfigBuilder = reexports.ConfigBuilder;
+pub const Tensor = reexports.Tensor;
+pub const F32Tensor = reexports.F32Tensor;
+pub const LinearLayer = reexports.LinearLayer;
+pub const EmbeddingLayer = reexports.EmbeddingLayer;
+pub const LayerNorm = reexports.LayerNorm;
+pub const MultiHeadAttention = reexports.MultiHeadAttention;
+pub const SelfAttention = reexports.SelfAttention;
+pub const CrossAttention = reexports.CrossAttention;
+pub const AdaptiveAttention = reexports.AdaptiveAttention;
+pub const OnlineLearner = reexports.OnlineLearner;
+pub const ReplayBuffer = reexports.ReplayBuffer;
+pub const AdamOptimizer = reexports.AdamOptimizer;
+pub const Episode = reexports.Episode;
+pub const EpisodicMemory = reexports.EpisodicMemory;
+pub const Knowledge = reexports.Knowledge;
+pub const SemanticMemory = reexports.SemanticMemory;
+pub const WorkingItem = reexports.WorkingItem;
+pub const WorkingMemory = reexports.WorkingMemory;
+pub const MemoryManager = reexports.MemoryManager;
+pub const MemoryStats = reexports.MemoryStats;
+pub const ReasoningChain = reexports.ReasoningChain;
+pub const ReasoningStep = reexports.ReasoningStep;
+pub const StepType = reexports.StepType;
+pub const ConversationContext = reexports.ConversationContext;
+pub const TopicTracker = reexports.TopicTracker;
+pub const ContextWindow = reexports.ContextWindow;
+pub const Evidence = reexports.Evidence;
+pub const CalibrationResult = reexports.CalibrationResult;
+pub const ConfidenceCalibrator = reexports.ConfidenceCalibrator;
+pub const QueryAnalyzer = reexports.QueryAnalyzer;
+pub const ChatMessage = reexports.ChatMessage;
+pub const CompletionRequest = reexports.CompletionRequest;
+pub const CompletionResponse = reexports.CompletionResponse;
+pub const StreamChunk = reexports.StreamChunk;
+pub const LLMClient = reexports.LLMClient;
+pub const EchoBackend = reexports.EchoBackend;
+pub const createClient = reexports.createClient;
+pub const ClientWrapper = reexports.ClientWrapper;
+pub const RetryHandler = reexports.RetryHandler;
+pub const AbbeyEngine = reexports.AbbeyEngine;
+pub const EngineResponse = reexports.EngineResponse;
+pub const EngineStats = reexports.EngineStats;
+pub const HttpServerConfig = reexports.HttpServerConfig;
+pub const AbbeyServerConfig = reexports.AbbeyServerConfig;
+pub const ServerError = reexports.ServerError;
+pub const serveHttp = reexports.serveHttp;
+pub const serveHttpWithConfig = reexports.serveHttpWithConfig;
+pub const AbbeyDiscordBot = reexports.AbbeyDiscordBot;
+pub const DiscordBotConfig = reexports.DiscordBotConfig;
+pub const DiscordBotError = reexports.DiscordBotError;
+pub const SessionManager = reexports.SessionManager;
+pub const BotStats = reexports.BotStats;
+pub const GatewayBridge = reexports.GatewayBridge;
+pub const GatewayStats = reexports.GatewayStats;
+pub const AbbeyCommands = reexports.AbbeyCommands;
+pub const TaskProfile = reexports.TaskProfile;
+pub const TaskDomain = reexports.TaskDomain;
+pub const LearningStrategy = reexports.LearningStrategy;
+pub const MetaLearner = reexports.MetaLearner;
+pub const FewShotLearner = reexports.FewShotLearner;
+pub const CurriculumScheduler = reexports.CurriculumScheduler;
+pub const MentalModel = reexports.MentalModel;
+pub const BeliefSystem = reexports.BeliefSystem;
+pub const KnowledgeState = reexports.KnowledgeState;
+pub const IntentionTracker = reexports.IntentionTracker;
+pub const EmotionalModel = reexports.EmotionalModel;
+pub const TheoryOfMind = reexports.TheoryOfMind;
+pub const ProblemDecomposer = reexports.ProblemDecomposer;
+pub const SelfEvaluation = reexports.SelfEvaluation;
+pub const UncertaintyArea = reexports.UncertaintyArea;
+pub const DetectedBias = reexports.DetectedBias;
+pub const ReasoningQuality = reexports.ReasoningQuality;
+pub const SelfReflectionEngine = reexports.SelfReflectionEngine;
+pub const AdvancedCognition = reexports.AdvancedCognition;
+pub const CognitiveResult = reexports.CognitiveResult;
+pub const CognitiveState = reexports.CognitiveState;
+pub const CustomAI = reexports.CustomAI;
+pub const CustomAIConfig = reexports.CustomAIConfig;
+pub const ProfileTemplate = reexports.ProfileTemplate;
+pub const CustomAIBuilder = reexports.CustomAIBuilder;
+pub const CustomAIResponse = reexports.CustomAIResponse;
+pub const CustomAIStats = reexports.CustomAIStats;
+pub const Stats = reexports.Stats;
+pub const createCustomAI = reexports.createCustomAI;
+pub const createFromProfile = reexports.createFromProfile;
+pub const createWithSeedPrompt = reexports.createWithSeedPrompt;
+pub const createResearcher = reexports.createResearcher;
+pub const createCoder = reexports.createCoder;
+pub const createWriter = reexports.createWriter;
+pub const createCompanion = reexports.createCompanion;
+pub const createOpinionated = reexports.createOpinionated;
 
 // ============================================================================
-// Type Re-exports (Advanced Cognitive)
+// Convenience Functions (delegated to convenience.zig)
 // ============================================================================
 
-// Meta-Learning
-pub const TaskProfile = advanced.TaskProfile;
-pub const TaskDomain = advanced.TaskDomain;
-pub const LearningStrategy = advanced.LearningStrategy;
-pub const MetaLearner = advanced.MetaLearner;
-pub const FewShotLearner = advanced.FewShotLearner;
-pub const CurriculumScheduler = advanced.CurriculumScheduler;
+pub const convenience = @import("convenience.zig");
 
-// Theory of Mind
-pub const MentalModel = advanced.MentalModel;
-pub const BeliefSystem = advanced.BeliefSystem;
-pub const KnowledgeState = advanced.KnowledgeState;
-pub const IntentionTracker = advanced.IntentionTracker;
-pub const EmotionalModel = advanced.EmotionalModel;
-pub const TheoryOfMind = advanced.TheoryOfMind;
-
-// Compositional Reasoning
-pub const ProblemDecomposition = advanced.ProblemDecomposition;
-pub const SubProblem = advanced.SubProblem;
-pub const ExecutionPlan = advanced.ExecutionPlan;
-pub const ProblemDecomposer = advanced.ProblemDecomposer;
-pub const CounterfactualReasoner = advanced.CounterfactualReasoner;
-
-// Self-Reflection
-pub const SelfEvaluation = advanced.SelfEvaluation;
-pub const UncertaintyArea = advanced.UncertaintyArea;
-pub const DetectedBias = advanced.DetectedBias;
-pub const ReasoningQuality = advanced.ReasoningQuality;
-pub const SelfReflectionEngine = advanced.SelfReflectionEngine;
-
-// Integrated System
-pub const AdvancedCognition = advanced.AdvancedCognition;
-pub const CognitiveResult = advanced.CognitiveResult;
-pub const CognitiveState = advanced.CognitiveState;
-
-// ============================================================================
-// Type Re-exports (Custom Framework)
-// ============================================================================
-
-pub const CustomAI = custom_framework.CustomAI;
-pub const CustomAIConfig = custom_framework.CustomAIConfig;
-pub const ProfileTemplate = custom_framework.ProfileTemplate;
-pub const CustomAIBuilder = custom_framework.Builder;
-pub const CustomAIResponse = custom_framework.Response;
-pub const CustomAIStats = custom_framework.Stats;
-
-// Alias used by ai/mod.zig: `abbey.Stats`
-pub const Stats = custom_framework.Stats;
-
-// Factory functions
-pub const createCustomAI = custom_framework.create;
-pub const createFromProfile = custom_framework.createFromProfile;
-pub const createWithSeedPrompt = custom_framework.createWithSeedPrompt;
-pub const createResearcher = custom_framework.createResearcher;
-pub const createCoder = custom_framework.createCoder;
-pub const createWriter = custom_framework.createWriter;
-pub const createCompanion = custom_framework.createCompanion;
-pub const createOpinionated = custom_framework.createOpinionated;
-
-// ============================================================================
-// Convenience Aliases
-// ============================================================================
-
-/// Create a new Abbey engine with default configuration
-pub fn createEngine(allocator: std.mem.Allocator) !AbbeyEngine {
-    return AbbeyEngine.init(allocator, .{});
-}
-
-/// Create an Abbey engine with custom configuration
-pub fn createEngineWithConfig(allocator: std.mem.Allocator, config: AbbeyConfig) !AbbeyEngine {
-    return AbbeyEngine.init(allocator, config);
-}
-
-/// Create configuration using builder pattern
-pub fn builder() ConfigBuilder {
-    return ConfigBuilder.init();
-}
-
-/// Create an advanced cognition system with default configuration
-pub fn createAdvancedCognition(allocator: std.mem.Allocator) !AdvancedCognition {
-    return AdvancedCognition.init(allocator, .{});
-}
-
-/// Create an advanced cognition system with custom configuration
-pub fn createAdvancedCognitionWithConfig(
-    allocator: std.mem.Allocator,
-    config: AdvancedCognition.Config,
-) !AdvancedCognition {
-    return AdvancedCognition.init(allocator, config);
-}
+pub const createEngine = convenience.createEngine;
+pub const createEngineWithConfig = convenience.createEngineWithConfig;
+pub const builder = convenience.builder;
+pub const createAdvancedCognition = convenience.createAdvancedCognition;
+pub const createAdvancedCognitionWithConfig = convenience.createAdvancedCognitionWithConfig;
 
 // ============================================================================
 // Legacy Abbey Implementation (Kept for backwards compatibility)
@@ -590,20 +471,23 @@ test "self-reflection engine" {
 }
 
 test {
-    _ = neural;
-    _ = memory;
-    _ = emotions;
-    _ = context;
-    _ = calibration;
-    _ = client;
-    _ = custom_framework;
-    _ = engine;
-    _ = server;
-    // discord_bot excluded: pre-existing memory leak in GatewayBridge test
-    // (pending_messages backing buffer leaked after drainMessages/toOwnedSlice)
-    // _ = discord_bot;
-    _ = reasoning;
-    _ = advanced;
+    _ = @import("cognition.zig");
+    _ = @import("system.zig");
+    _ = @import("pipeline.zig");
+    _ = @import("neural/mod.zig");
+    _ = @import("memory/mod.zig");
+    _ = @import("reasoning.zig");
+    _ = @import("emotions.zig");
+    _ = @import("context.zig");
+    _ = @import("calibration.zig");
+    _ = @import("client.zig");
+    _ = @import("engine.zig");
+    _ = @import("server.zig");
+    _ = @import("discord.zig");
+    _ = @import("ralph_multi.zig");
+    _ = @import("ralph_swarm.zig");
+    _ = @import("custom_framework.zig");
+    _ = @import("advanced.zig");
+    // abbey_train.zig excluded: pre-existing API mismatch with TrainableModel.state
+    // config.zig excluded: re-exports from core/config.zig which has its own tests
 }
-
-// refAllDecls deferred — abbey_train.zig and config.zig have pre-existing compilation errors

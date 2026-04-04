@@ -16,7 +16,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const framework_config = @import("../../core/config/mod.zig");
+const framework_config = @import("../core/config/mod.zig");
 const core_facade = @import("facades/core.zig");
 
 var initialized = std.atomic.Value(bool).init(false);

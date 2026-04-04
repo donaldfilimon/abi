@@ -86,7 +86,7 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
         std.log.debug("Connector dispatch failed ({s}), using echo fallback", .{@errorName(err)});
         break :blk try std.fmt.allocPrint(
             self.allocator,
-            "[{s}] Processing: {s}",
+            "[echo/{s}] Processing: {s}",
             .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
         );
     };

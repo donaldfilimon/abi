@@ -1,12 +1,16 @@
-//! MCP Stdio Transport — reads JSON-RPC messages from stdin, writes to stdout.
+//! MCP Stdio Transport — reads framed JSON-RPC messages from stdin, writes to stdout.
 //!
-//! Extracted from the original io_loop to support the transport abstraction.
+//! MCP stdio uses `Content-Length` framing, matching the LSP transport style.
 //! This is the default transport for CLI usage with Claude Desktop, Cursor, etc.
 
 const std = @import("std");
 const types = @import("../types.zig");
+const framing = @import("framing.zig");
 
 /// Configuration for the stdio transport.
+///
+/// The transport currently uses fixed internal buffers, but this type stays
+/// part of the public surface for compatibility with the stub module.
 pub const Config = struct {
     /// Read buffer size for stdin.
     read_buf_size: usize = 65536,
@@ -14,8 +18,26 @@ pub const Config = struct {
     write_buf_size: usize = 65536,
 };
 
-/// Run the stdio transport loop: read newline-delimited JSON-RPC from stdin,
-/// dispatch via `server.processMessage`, write responses to stdout.
+/// Maximum message size accepted by the stdio transport.
+const MAX_MESSAGE_SIZE: usize = 4 * 1024 * 1024;
+
+fn writeFramedError(
+    allocator: std.mem.Allocator,
+    writer: anytype,
+    code: i32,
+    message: []const u8,
+) !void {
+    var payload_writer: std.Io.Writer.Allocating = .init(allocator);
+    errdefer payload_writer.deinit();
+
+    try types.writeError(&payload_writer.writer, null, code, message);
+    const payload = try payload_writer.toOwnedSlice();
+    defer allocator.free(payload);
+
+    try framing.writeMessage(writer, payload);
+}
+
+/// Run the stdio transport loop using MCP Content-Length framing.
 pub fn run(server: anytype, io: std.Io) !void {
     std.log.info("MCP stdio transport ready ({d} tools registered)", .{server.tools.items.len});
 
@@ -28,45 +50,90 @@ pub fn run(server: anytype, io: std.Io) !void {
     var writer = stdout_file.writer(io, &write_buf);
 
     while (true) {
-        const line_opt = reader.interface.takeDelimiter('\n') catch |err| switch (err) {
-            error.StreamTooLong => {
-                try types.writeError(
+        const message_opt = framing.readMessageAlloc(server.allocator, &reader.interface, MAX_MESSAGE_SIZE) catch |err| switch (err) {
+            error.StreamTooLong, error.PayloadTooLarge => {
+                std.log.warn("MCP stdio: rejecting oversized message", .{});
+                writeFramedError(
+                    server.allocator,
                     &writer.interface,
-                    null,
                     types.ErrorCode.parse_error,
                     "Message too large",
-                );
-                try writer.flush();
+                ) catch |write_err| {
+                    std.log.err("MCP stdio: failed to write size error: {t}", .{write_err});
+                    break;
+                };
+                writer.flush() catch |flush_err| {
+                    std.log.err("MCP stdio: flush error after size error: {t}", .{flush_err});
+                    break;
+                };
                 continue;
             },
-            else => break,
+            error.MissingContentLength, error.InvalidContentLength => {
+                std.log.warn("MCP stdio: invalid framed message: {t}", .{err});
+                writeFramedError(
+                    server.allocator,
+                    &writer.interface,
+                    types.ErrorCode.parse_error,
+                    "Parse error",
+                ) catch |write_err| {
+                    std.log.err("MCP stdio: failed to write parse error: {t}", .{write_err});
+                    break;
+                };
+                writer.flush() catch |flush_err| {
+                    std.log.err("MCP stdio: flush error after parse error: {t}", .{flush_err});
+                    break;
+                };
+                continue;
+            },
+            else => |e| {
+                std.log.err("MCP stdio: read error: {t}", .{e});
+                break;
+            },
         };
 
-        const line = line_opt orelse break;
-        const trimmed = std.mem.trim(u8, line, " \t\r\n");
-        if (trimmed.len == 0) continue;
+        const message = message_opt orelse break;
+        defer server.allocator.free(message);
 
-        server.processMessage(trimmed, &writer.interface) catch |err| {
-            std.log.err("Error handling message: {t}", .{err});
-            types.writeError(
+        var response_writer: std.Io.Writer.Allocating = .init(server.allocator);
+        const processed = server.processMessage(message, &response_writer.writer);
+        if (processed) |_| {
+            const response = response_writer.toOwnedSlice() catch |err| {
+                response_writer.deinit();
+                return err;
+            };
+            defer server.allocator.free(response);
+
+            if (response.len > 0) {
+                framing.writeMessage(&writer.interface, response) catch |err| {
+                    std.log.err("MCP stdio: failed to frame response: {t}", .{err});
+                    break;
+                };
+                writer.flush() catch |err| {
+                    std.log.err("MCP stdio: flush error, closing connection: {t}", .{err});
+                    break;
+                };
+            }
+        } else |err| {
+            response_writer.deinit();
+            std.log.err("MCP stdio: message handling error: {t}", .{err});
+            writeFramedError(
+                server.allocator,
                 &writer.interface,
-                null,
                 types.ErrorCode.internal_error,
                 "Internal error",
             ) catch |write_err| {
-                std.log.err("MCP: failed to write error response: {t}", .{write_err});
+                std.log.err("MCP stdio: failed to write internal error response: {t}", .{write_err});
                 break;
             };
-        };
-
-        writer.flush() catch |flush_err| {
-            std.log.err("MCP: flush error, closing connection: {t}", .{flush_err});
-            break;
-        };
+            writer.flush() catch |flush_err| {
+                std.log.err("MCP stdio: flush error after internal error: {t}", .{flush_err});
+                break;
+            };
+        }
     }
 
     writer.flush() catch |err| {
-        std.log.warn("MCP: final flush failed: {t}", .{err});
+        std.log.warn("MCP stdio: final flush failed: {t}", .{err});
     };
 }
 

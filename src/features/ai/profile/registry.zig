@@ -1,7 +1,13 @@
 //! ProfileRegistry: factory and lifecycle manager for Abbey, Aviva, and Abi.
 //!
-//! Wraps the three profile implementations into a unified interface for
-//! instantiation, activation, suspension, and teardown.
+//! This registry manages ONLY the Abbey-Aviva-Abi triad (ProfileId: 3 variants).
+//! It is DISTINCT from `registry.zig` which is a generic registry for ALL
+//! 13 profile types (ProfileType: 13 variants).
+//!
+//! This registry handles:
+//!   - Concrete profile engine initialization
+//!   - Instance lifecycle (active, idle, suspended)
+//!   - Direct message processing through profile engines
 
 const std = @import("std");
 const types = @import("types.zig");

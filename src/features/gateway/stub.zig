@@ -4,8 +4,8 @@
 //! Types are shared with the real module via types.zig.
 
 const std = @import("std");
-const core_config = @import("../../core/config/gateway.zig");
-const stub_context = @import("../../core/stub_helpers.zig");
+const core_config = @import("../core/config/gateway.zig");
+const stub_context = @import("../core/stub_helpers.zig");
 pub const gateway_types = @import("types.zig");
 
 // Config re-exports (from shared types.zig — same source as mod.zig)

@@ -296,13 +296,16 @@ fn readBody(allocator: std.mem.Allocator, request: *std.http.Server.Request) ?[]
     return routing.readRequestBody(allocator, request) catch |err| {
         switch (err) {
             routing.HttpError.RequestTooLarge => {
-                respondJson(request, "{\"error\":\"payload too large\"}", .payload_too_large) catch {};
+                respondJson(request, "{\"error\":\"payload too large\"}", .payload_too_large) catch |e|
+                    std.log.warn("failed to send payload too large response: {}", .{e});
             },
             routing.HttpError.ReadFailed => {
-                respondJson(request, "{\"error\":\"invalid body\"}", .bad_request) catch {};
+                respondJson(request, "{\"error\":\"invalid body\"}", .bad_request) catch |e|
+                    std.log.warn("failed to send invalid body response: {}", .{e});
             },
             else => {
-                respondJson(request, "{\"error\":\"internal error\"}", .internal_server_error) catch {};
+                respondJson(request, "{\"error\":\"internal error\"}", .internal_server_error) catch |e|
+                    std.log.warn("failed to send internal error response: {}", .{e});
             },
         }
         return null;

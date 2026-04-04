@@ -4,8 +4,8 @@
 //! Build with `-Dfeat-observability=true` for the real implementation.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
-const config_module = @import("../../core/config/mod.zig");
+const stub_helpers = @import("../core/stub_helpers.zig");
+const config_module = @import("../core/config/mod.zig");
 
 // --- Shared types (from types.zig) ---
 pub const types = @import("types.zig");

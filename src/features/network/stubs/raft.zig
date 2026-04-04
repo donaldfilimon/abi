@@ -9,7 +9,7 @@ pub const RaftNode = struct {
     last_applied: u64 = 0,
     state: RaftState = .follower,
     leader_id: ?[]const u8 = null,
-    peers: std.StringHashMapUnmanaged(PeerState) = .{},
+    peers: std.StringHashMapUnmanaged(PeerState) = .empty,
     log: std.ArrayListUnmanaged(LogEntry) = .empty,
 
     pub fn init(allocator: std.mem.Allocator, node_id: []const u8, config: RaftConfig) !@This() {

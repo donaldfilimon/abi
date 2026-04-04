@@ -4,8 +4,8 @@
 //! Build with `-Dfeat-network=true` for the real implementation.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
-const config_module = @import("../../core/config/mod.zig");
+const stub_helpers = @import("../core/stub_helpers.zig");
+const config_module = @import("../core/config/mod.zig");
 
 // --- Local Stubs Imports ---
 const stub_types = @import("stubs/types.zig");

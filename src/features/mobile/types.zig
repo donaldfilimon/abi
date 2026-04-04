@@ -1,7 +1,7 @@
 //! Shared types for the mobile feature (mod + stub).
 
 const std = @import("std");
-const mobile_config = @import("../../core/config/platform.zig");
+const mobile_config = @import("../core/config/platform.zig");
 
 pub const MobileConfig = mobile_config.MobileConfig;
 pub const MobilePlatform = mobile_config.MobileConfig.Platform;

@@ -26,7 +26,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 const simd = @import("../../../foundation/mod.zig").simd;
 
 // Shared types (canonical definitions)

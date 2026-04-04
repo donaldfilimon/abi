@@ -1,7 +1,7 @@
 //! Mobile Stub Module — no-op when mobile is disabled (default).
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
+const stub_helpers = @import("../core/stub_helpers.zig");
 pub const types = @import("types.zig");
 
 // Submodule stubs — empty structs matching mod.zig's public surface

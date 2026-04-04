@@ -231,6 +231,14 @@ pub const GgufMetadataValue = union(GgufMetadataValueType) {
         element_type: GgufMetadataValueType,
         data: []const u8,
         count: u64,
+
+        pub fn stringArrayIterator(self: ArrayValue) ?StringArrayIterator {
+            if (self.element_type != .string) return null;
+            return .{
+                .data = self.data,
+                .count = self.count,
+            };
+        }
     };
 
     pub const StringArrayIterator = struct {
@@ -251,14 +259,6 @@ pub const GgufMetadataValue = union(GgufMetadataValueType) {
             return slice;
         }
     };
-
-    pub fn stringArrayIterator(self: ArrayValue) ?StringArrayIterator {
-        if (self.element_type != .string) return null;
-        return .{
-            .data = self.data,
-            .count = self.count,
-        };
-    }
 
     pub fn asU32(self: GgufMetadataValue) ?u32 {
         return switch (self) {
@@ -691,7 +691,7 @@ pub const GgufFile = struct {
                 std.log.info(fmt, args);
             }
         };
-        self.printSummary(LogWriter{}) catch {};
+        self.printSummary(LogWriter{}) catch |err| std.log.warn("GGUF: failed to print summary: {}", .{err});
     }
 };
 

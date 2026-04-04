@@ -1,12 +1,13 @@
 //! MCP (Model Context Protocol) Service
 //!
-//! Provides a JSON-RPC 2.0 server over stdio for exposing ABI framework
-//! tools to MCP-compatible AI clients (Claude Desktop, Cursor, etc.).
+//! Provides a Content-Length framed JSON-RPC 2.0 server over stdio for
+//! exposing ABI framework tools to MCP-compatible AI clients (Claude Desktop,
+//! Cursor, etc.).
 //!
 //! ## Usage
 //! ```bash
 //! abi mcp serve                          # Start MCP server (stdio)
-//! echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' | abi mcp serve
+//! # Use an MCP client or send Content-Length framed JSON-RPC messages
 //! ```
 //!
 //! ## Exposed Tools

@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 
 // ============================================================================
 // Sub-module re-exports (from features/ai/)
@@ -22,7 +22,7 @@ pub const tools = @import("../tools/mod.zig");
 pub const prompts = @import("../prompts/mod.zig");
 pub const memory = @import("../memory/mod.zig");
 pub const multi_agent = @import("../multi_agent/mod.zig");
-pub const core = @import("../../../core/mod.zig");
+pub const core = @import("../../core/mod.zig");
 pub const gpu_agent = @import("../agents/gpu_agent.zig");
 pub const discovery = @import("../explore/discovery.zig");
 pub const models = @import("../models/mod.zig");

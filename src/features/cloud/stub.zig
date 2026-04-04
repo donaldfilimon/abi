@@ -1,7 +1,7 @@
 //! Cloud Functions stub — disabled at compile time.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
+const stub_helpers = @import("../core/stub_helpers.zig");
 
 // --- Local Stubs Imports ---
 

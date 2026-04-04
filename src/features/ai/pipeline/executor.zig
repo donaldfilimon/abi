@@ -98,7 +98,7 @@ pub const Pipeline = struct {
                         step.kind,
                     ) catch 0;
                     if (block_id > 0) {
-                        pctx.recordBlock(block_id) catch {};
+                        pctx.recordBlock(block_id) catch |err| std.log.warn("failed to record block: {}", .{err});
                     }
                 }
                 steps_executed += 1;

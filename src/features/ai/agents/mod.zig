@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 const features_agent = @import("agent.zig");
 const features_tools = @import("../tools/mod.zig");
 

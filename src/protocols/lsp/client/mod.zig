@@ -13,8 +13,8 @@ pub const transport = @import("transport.zig");
 pub const requests = @import("requests.zig");
 pub const notifications = @import("notifications.zig");
 
-// Inline LspConfig to avoid cross-directory import to ../../core/config/.
-// Canonical definition: src/core/config/lsp.zig — keep in sync.
+// Inline LspConfig to avoid cross-directory import to ../../features/core/config/.
+// Canonical definition: src/features/core/config/lsp.zig — keep in sync.
 pub const Config = struct {
     zls_path: []const u8 = "zls",
     zig_exe_path: ?[]const u8 = null,

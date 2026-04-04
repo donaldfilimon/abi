@@ -1,5 +1,5 @@
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 
 pub const llm_trainer = @import("llm_trainer.zig");
 pub const self_learning = @import("self_learning.zig");

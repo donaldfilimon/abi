@@ -1,11 +1,12 @@
 //! ABI MCP Server — Standalone stdio entry point.
 //!
 //! Launches the ABI MCP server with database + ZLS tools exposed via
-//! JSON-RPC 2.0 over stdin/stdout for use with Claude Desktop, Cursor, etc.
+//! MCP Content-Length framed JSON-RPC over stdin/stdout for Claude Desktop,
+//! Cursor, and other MCP clients.
 //!
 //! Usage:
 //!   zig-out/bin/abi-mcp              # Start stdio server
-//!   echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' | zig-out/bin/abi-mcp
+//!   # Use an MCP client or send Content-Length framed JSON-RPC messages
 
 const std = @import("std");
 const build_options = @import("build_options");

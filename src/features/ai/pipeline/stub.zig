@@ -86,7 +86,7 @@ pub const PipelineBuilder = struct {
         return self;
     }
 
-    pub fn build(self: *Self) Pipeline {
+    pub fn build(self: *Self) !Pipeline {
         return .{ .allocator = self.allocator };
     }
 
@@ -112,15 +112,16 @@ test "pipeline stub compiles" {
     var pb = chain(allocator, "test-session");
     defer pb.deinit();
 
-    var p = pb
+    _ = pb
         .retrieve(.wdbx, .{ .k = 5 })
         .template("Hello {context}")
         .route(.adaptive)
         .modulate()
         .generate(.{})
         .validate(.constitution)
-        .store(.wdbx)
-        .build();
+        .store(.wdbx);
+
+    var p = try pb.build();
     defer p.deinit();
 
     const result = p.run("test input");

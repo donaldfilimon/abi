@@ -96,7 +96,7 @@ pub const LocalBackend = struct {
         const base_dir = self.openBaseDir() orelse return;
         defer base_dir.close(io);
 
-        base_dir.deleteFile(io, key) catch {};
+        base_dir.deleteFile(io, key) catch |err| std.log.warn("Storage: failed to delete file '{s}': {}", .{ key, err });
     }
 
     /// Check whether a file exists on disk at `{base_path}/{key}`.

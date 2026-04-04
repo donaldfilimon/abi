@@ -1,7 +1,7 @@
 //! MCP Transport Layer
 //!
 //! Provides a unified transport interface for the MCP server. Supports:
-//! - **stdio** — newline-delimited JSON-RPC over stdin/stdout (default, for CLI)
+//! - **stdio** — Content-Length framed JSON-RPC over stdin/stdout (default, for CLI/MCP)
 //! - **sse** — Server-Sent Events over HTTP (for browser/web clients)
 //!
 //! ## Usage

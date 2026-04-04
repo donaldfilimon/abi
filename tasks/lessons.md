@@ -167,3 +167,22 @@
   - `@import("../time.zig")` becomes `@import("../../time.zig")` when moving into a sub-directory
   - `@import("../csprng.zig")` becomes `@import("../csprng.zig")` when staying at the same level
 - Always verify with `./build.sh typecheck` after extraction.
+
+## Documentation Sync
+
+### Lesson 24: Keep Feature Count Docs Derived and Synchronized
+- Treat `src/core/feature_catalog.zig` as the canonical source for feature counts used in user-facing docs and planning notes.
+- When feature or directory counts change, update every relevant `.md` file in one pass so README, CLI docs, and planning/spec artifacts do not drift.
+- Prefer explicit count derivation over stale hardcoded values; if a doc must preserve historical context, label it clearly as historical.
+- After doc count edits, run a grep sweep for the old count strings and finish with `git diff --check`.
+
+### Lesson 25: Markdown Allowlist Controls Tracking
+- New Markdown files under `docs/` are ignored unless they are explicitly allowlisted in `.gitignore`.
+- Before treating a docs edit as complete, confirm `git check-ignore -v <path>` does not match the new file.
+- If a doc is intended to be part of the repository, add the allowlist entry in the same workflow slice as the content update.
+- Keep archival docs separate from live guides so ignored local notes do not masquerade as tracked repository documentation.
+
+### Lesson 26: Preserve Helper Surfaces During Facade Splits
+- When a large module is decomposed into submodules, keep any helper functions that integration tests or external call sites import on the parent facade until those consumers are updated in the same change.
+- Re-exporting the helper surface is acceptable if the split is purely structural; dropping it without a call-site migration turns a refactor into a behavior regression.
+- Verify the parent facade still compiles under the public test lane before considering the split complete.

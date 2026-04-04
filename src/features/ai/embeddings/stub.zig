@@ -1,7 +1,7 @@
 //! Embeddings Stub Module — disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 
 // Shared types (canonical definitions from types.zig).
 pub const types = @import("types.zig");

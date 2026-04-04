@@ -114,13 +114,15 @@ pub const PdfParser = struct {
                 // Attempt zlib decompression
                 if (self.decompressFlate(stream_data)) |decompressed| {
                     defer self.allocator.free(decompressed);
-                    extractTextOperators(self.allocator, decompressed, text_buf) catch {};
+                    extractTextOperators(self.allocator, decompressed, text_buf) catch |err|
+                        std.log.warn("failed to extract text from flate stream: {}", .{err});
                 } else |_| {
                     // Decompression failed; skip this stream
                 }
             } else {
                 // Uncompressed stream: extract text operators directly
-                extractTextOperators(self.allocator, stream_data, text_buf) catch {};
+                extractTextOperators(self.allocator, stream_data, text_buf) catch |err|
+                    std.log.warn("failed to extract text from uncompressed stream: {}", .{err});
             }
 
             pos = stream_end + "endstream".len;
@@ -158,7 +160,8 @@ fn extractTextOperators(
         const text_block = data[bt_pos + 2 .. et_pos];
 
         // Extract strings from Tj and TJ operators within this text block
-        extractTjStrings(allocator, text_block, text_buf) catch {};
+        extractTjStrings(allocator, text_block, text_buf) catch |err|
+            std.log.warn("failed to extract TJ strings: {}", .{err});
 
         pos = et_pos + 2;
     }

@@ -1,7 +1,7 @@
 //! Type definitions for Training stub module.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 const vision = @import("../vision/stub.zig");
 
 // ── Errors ─────────────────────────────────────────────────────────────────

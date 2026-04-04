@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const core_types = @import("../core/types.zig");
-const ai_config = @import("../../../core/config/ai.zig");
+const ai_config = @import("../../core/config/ai.zig");
 
 // Import canonical types from core (shared with mod/engine)
 pub const ConfidenceLevel = core_types.ConfidenceLevel;
@@ -67,7 +67,8 @@ pub const ReasoningChain = struct {
 
     pub fn getOverallConfidence(self: *ReasoningChain) Confidence {
         if (!self.finalized) {
-            self.finalize() catch {};
+            self.finalize() catch |err|
+                std.log.warn("failed to finalize reasoning chain: {}", .{err});
         }
         return self.getConfidence();
     }

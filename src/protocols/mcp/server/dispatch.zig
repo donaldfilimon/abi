@@ -119,7 +119,7 @@ fn checkAuth(self: anytype, params: ?std.json.ObjectMap, writer: anytype, id: ?t
             }
         }
     }
-    types.writeError(writer, id, types.ErrorCode.unauthorized, "Unauthorized") catch {};
+    types.writeError(writer, id, types.ErrorCode.unauthorized, "Unauthorized") catch |err| std.log.warn("failed to write auth error: {}", .{err});
     return false;
 }
 

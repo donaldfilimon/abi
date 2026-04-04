@@ -157,7 +157,7 @@ pub const AdaptiveModulator = struct {
             .intent = .general,
             .pipeline_step = .modulate,
         };
-        _ = wdbx.addBlock(config) catch {};
+        _ = wdbx.addBlock(config) catch |err| log.warn("failed to persist modulation state: {}", .{err});
     }
 
     /// Modulate a routing score based on user preference history.

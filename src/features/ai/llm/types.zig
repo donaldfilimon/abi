@@ -702,7 +702,7 @@ pub const providers = struct {
 // ── Context ────────────────────────────────────────────────────────────────
 
 pub const Context = struct {
-    pub fn init(_: std.mem.Allocator, _: @import("../../../core/config/mod.zig").LlmConfig) error{FeatureDisabled}!*Context {
+    pub fn init(_: std.mem.Allocator, _: @import("../../core/config/mod.zig").LlmConfig) error{FeatureDisabled}!*Context {
         return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}

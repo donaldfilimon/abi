@@ -1,5 +1,5 @@
 const std = @import("std");
-const core_config = @import("../../core/config/platform.zig");
+const core_config = @import("../core/config/platform.zig");
 
 pub const StorageConfig = core_config.StorageConfig;
 pub const StorageBackend = core_config.StorageBackend;

@@ -28,6 +28,7 @@ pub const PipelineBuilder = struct {
     session_id_owned: bool = false,
     steps: std.ArrayListUnmanaged(Step),
     wdbx_chain: ?*BlockChain = null,
+    build_error: ?anyerror = null,
 
     const Self = @This();
 
@@ -129,8 +130,22 @@ pub const PipelineBuilder = struct {
     }
 
     /// Build the pipeline. Consumes the step list.
-    pub fn build(self: *Self) @import("executor.zig").Pipeline {
-        const steps = self.steps.toOwnedSlice(self.allocator) catch blk: {
+    /// Returns an error if any step addition failed (e.g., OOM).
+    pub fn build(self: *Self) !@import("executor.zig").Pipeline {
+        if (self.build_error) |err| {
+            // Clean up any partially-added steps
+            for (self.steps.items) |step| {
+                switch (step.config) {
+                    .template => |cfg| self.allocator.free(cfg.template_str),
+                    else => {},
+                }
+            }
+            self.steps.deinit(self.allocator);
+            self.steps = .empty;
+            return err;
+        }
+
+        const steps = self.steps.toOwnedSlice(self.allocator) catch |err| {
             // OOM: free owned step data before clearing to avoid leaks
             for (self.steps.items) |step| {
                 switch (step.config) {
@@ -140,7 +155,7 @@ pub const PipelineBuilder = struct {
             }
             self.steps.deinit(self.allocator);
             self.steps = .empty;
-            break :blk &.{};
+            return err;
         };
         self.steps = .empty;
 
@@ -153,6 +168,9 @@ pub const PipelineBuilder = struct {
     }
 
     fn appendStep(self: *Self, step: Step) void {
-        self.steps.append(self.allocator, step) catch {};
+        if (self.build_error) |_| return;
+        self.steps.append(self.allocator, step) catch |err| {
+            self.build_error = err;
+        };
     }
 };

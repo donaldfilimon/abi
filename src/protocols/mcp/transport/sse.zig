@@ -222,14 +222,16 @@ fn handleConnection(
         } else if (std.mem.eql(u8, path, "/message")) {
             handlePostMessage(server, &request, collector) catch |err| {
                 std.log.err("MCP SSE: message handling error: {t}", .{err});
-                respondText(&request, "Internal Server Error", .internal_server_error) catch {};
+                respondText(&request, "Internal Server Error", .internal_server_error) catch |err2|
+                    std.log.warn("MCP SSE: failed to send error response: {}", .{err2});
             };
         } else if (std.mem.eql(u8, path, "/health")) {
             handleHealthCheck(&request) catch |err| {
                 std.log.err("MCP SSE: health check error: {t}", .{err});
             };
         } else {
-            respondText(&request, "Not Found", .not_found) catch {};
+            respondText(&request, "Not Found", .not_found) catch |err|
+                std.log.warn("MCP SSE: failed to send not found response: {}", .{err});
         }
     }
 }

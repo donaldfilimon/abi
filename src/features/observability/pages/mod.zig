@@ -10,7 +10,7 @@
 //! - RwLock for concurrent page lookups
 
 const std = @import("std");
-const core_config = @import("../../../core/config/content.zig");
+const core_config = @import("../../core/config/content.zig");
 const sync = @import("../../../foundation/mod.zig").sync;
 const radix = @import("../../../foundation/mod.zig").utils.radix_tree;
 

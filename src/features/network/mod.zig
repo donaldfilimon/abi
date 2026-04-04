@@ -29,7 +29,7 @@ const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;
 const sync = @import("../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
-const config_module = @import("../../core/config/mod.zig");
+const config_module = @import("../core/config/mod.zig");
 
 // ── Cluster & Consensus ──────────────────────────────────────────────────
 pub const cluster = @import("cluster.zig");

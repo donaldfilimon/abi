@@ -367,7 +367,7 @@ pub fn isInitialized() bool {
 
 // ── Framework Integration ────────────────────────────────────────────────
 
-const config_module = @import("../../core/config/mod.zig");
+const config_module = @import("../core/config/mod.zig");
 
 /// GPU Context for Framework integration.
 ///

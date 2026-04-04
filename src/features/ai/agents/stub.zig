@@ -1,7 +1,7 @@
 //! Agents Stub Module — disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 const shared_types = @import("types.zig");
 
 pub const types = shared_types;

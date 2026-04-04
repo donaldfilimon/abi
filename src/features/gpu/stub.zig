@@ -1,8 +1,8 @@
 //! GPU Stub Module — API-compatible no-ops when GPU is disabled at compile time.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
-const config_module = @import("../../core/config/mod.zig");
+const stub_helpers = @import("../core/stub_helpers.zig");
+const config_module = @import("../core/config/mod.zig");
 
 // ── Shared types (re-exported) ─────────────────────────────────────────────
 

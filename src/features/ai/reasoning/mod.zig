@@ -9,7 +9,7 @@
 //! - **Confidence**: Integration with core confidence scoring.
 
 const std = @import("std");
-const ai_config = @import("../../../core/config/ai.zig");
+const ai_config = @import("../../core/config/ai.zig");
 pub const engine = @import("engine.zig");
 
 // Re-export core types

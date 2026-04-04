@@ -125,7 +125,7 @@ pub const AudioStreamer = struct {
         if (!self.is_listening) return;
         if (self.recorder_process) |*child| {
             child.kill(self.io.*);
-            _ = child.wait(self.io.*) catch {};
+            _ = child.wait(self.io.*) catch |err| std.log.warn("Audio: failed to wait for recorder process: {}", .{err});
             self.recorder_process = null;
         }
         self.is_listening = false;

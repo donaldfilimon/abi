@@ -3,7 +3,7 @@
 //! API-compatible no-op implementations when cache is disabled.
 
 const std = @import("std");
-const stub_context = @import("../../core/stub_helpers.zig");
+const stub_context = @import("../core/stub_helpers.zig");
 pub const types = @import("types.zig");
 
 pub const CacheConfig = types.CacheConfig;

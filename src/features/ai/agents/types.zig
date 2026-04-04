@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const retry = @import("../../../foundation/mod.zig").utils.http_retry;
-const config_module = @import("../../../core/config/mod.zig");
+const config_module = @import("../../core/config/mod.zig");
 const provider_types = @import("../llm/providers/types.zig");
 
 pub const Error = error{

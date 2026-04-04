@@ -61,7 +61,9 @@ pub const RuntimeBridge = struct {
         file.close(self.io.*);
 
         // Ensure we cleanup the temp script
-        defer std.Io.Dir.cwd().deleteFile(self.io.*, tmp_file_name) catch {};
+        defer std.Io.Dir.cwd().deleteFile(self.io.*, tmp_file_name) catch |err| {
+            std.log.warn("[Runtime Bridge] failed to delete temp script {s}: {}", .{ tmp_file_name, err });
+        };
 
         std.log.info("[Runtime Bridge] Executing {s} script via {s}...", .{ ext, bin_name });
 

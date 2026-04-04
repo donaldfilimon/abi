@@ -27,6 +27,52 @@ const constitution_mod = @import("../constitution/mod.zig");
 const build_options = @import("build_options");
 const pipeline_mod = if (build_options.feat_reasoning) @import("../pipeline/mod.zig") else @import("../pipeline/stub.zig");
 
+const ParallelResult = struct {
+    response: ?ProfileResponse = null,
+    err: ?ProfileError = null,
+};
+
+fn runProfileInThread(registry: *ProfileRegistry, profile_id: ProfileId, input: []const u8, out: *ParallelResult) void {
+    out.response = registry.getProfile(profile_id).process(input) catch |err| {
+        out.err = err;
+        return;
+    };
+}
+
+fn cleanupParallelResult(result: *ParallelResult) void {
+    var response = takeParallelResponse(result);
+    if (response) |*owned| owned.deinit();
+    result.err = null;
+}
+
+fn takeParallelResponse(result: *ParallelResult) ?ProfileResponse {
+    const response = result.response orelse return null;
+    result.response = null;
+    return response;
+}
+
+fn mapParallelSpawnError(err: anyerror) ProfileError {
+    return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        else => error.ProfileFailed,
+    };
+}
+
+fn selectParallelResponse(primary: *ParallelResult, fallback: *ParallelResult) ProfileError!ProfileResponse {
+    if (takeParallelResponse(primary)) |response| {
+        cleanupParallelResult(fallback);
+        return response;
+    }
+
+    if (takeParallelResponse(fallback)) |response| {
+        return response;
+    }
+
+    if (primary.err) |err| return err;
+    if (fallback.err) |err| return err;
+    return error.ProfileFailed;
+}
+
 /// Multi-profile router that wraps AbiRouter for intelligent dispatch.
 ///
 /// Implements the full Abbey-Aviva-Abi pipeline:
@@ -325,7 +371,7 @@ pub const MultiProfileRouter = struct {
             _ = builder.withChain(&mem.chain);
         }
 
-        var p = builder
+        var p = try builder
             .retrieve(.wdbx, .{ .k = 5 })
             .template("Given {context}, respond to: {input}")
             .route(.adaptive)
@@ -345,18 +391,39 @@ pub const MultiProfileRouter = struct {
     }
 
     fn executeParallel(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
-        // Try primary first, fall back to next highest weight
-        const primary_result = self.executeSingle(decision.primary, input);
-        if (primary_result) |_| return primary_result else |_| {
-            // Determine fallback profile
-            const fallback: ProfileId = if (decision.primary != .abbey and decision.weights.abbey > 0)
-                .abbey
-            else if (decision.primary != .aviva and decision.weights.aviva > 0)
-                .aviva
-            else
-                .abi;
-            return self.executeSingle(fallback, input);
-        }
+        // Determine fallback profile
+        const fallback: ProfileId = if (decision.primary != .abbey and decision.weights.abbey > 0)
+            .abbey
+        else if (decision.primary != .aviva and decision.weights.aviva > 0)
+            .aviva
+        else
+            .abi;
+
+        var primary_res = ParallelResult{};
+        var fallback_res = ParallelResult{};
+
+        var primary_thread = std.Thread.spawn(
+            .{},
+            runProfileInThread,
+            .{ self.registry, decision.primary, input, &primary_res },
+        ) catch |err| {
+            return mapParallelSpawnError(err);
+        };
+
+        var fallback_thread = std.Thread.spawn(
+            .{},
+            runProfileInThread,
+            .{ self.registry, fallback, input, &fallback_res },
+        ) catch |err| {
+            primary_thread.join();
+            defer cleanupParallelResult(&primary_res);
+            return mapParallelSpawnError(err);
+        };
+
+        primary_thread.join();
+        fallback_thread.join();
+
+        return selectParallelResponse(&primary_res, &fallback_res);
     }
 
     /// Execute consensus routing: run two profiles and blend results.
@@ -527,6 +594,41 @@ test "abiBackedRoute failure falls back to heuristic" {
     try std.testing.expect(decision.reason.len > 0);
     // "implement" keyword should trigger Aviva routing
     try std.testing.expectEqual(ProfileId.aviva, decision.primary);
+}
+
+test "parallel response selection prefers primary and frees fallback response" {
+    const allocator = std.testing.allocator;
+
+    var primary = ParallelResult{
+        .response = .{
+            .profile = .abbey,
+            .content = try allocator.dupe(u8, "primary response"),
+            .confidence = 0.9,
+            .allocator = allocator,
+        },
+    };
+    var fallback = ParallelResult{
+        .response = .{
+            .profile = .aviva,
+            .content = try allocator.dupe(u8, "fallback response"),
+            .confidence = 0.6,
+            .allocator = allocator,
+        },
+    };
+
+    var selected = try selectParallelResponse(&primary, &fallback);
+    defer selected.deinit();
+
+    try std.testing.expectEqualStrings("primary response", selected.content);
+    try std.testing.expect(primary.response == null);
+    try std.testing.expect(fallback.response == null);
+}
+
+test "parallel response selection prefers primary error" {
+    var primary = ParallelResult{ .err = error.ProfileFailed };
+    var fallback = ParallelResult{ .err = error.Timeout };
+
+    try std.testing.expectError(error.ProfileFailed, selectParallelResponse(&primary, &fallback));
 }
 
 test {

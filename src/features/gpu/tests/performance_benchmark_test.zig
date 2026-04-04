@@ -27,7 +27,10 @@ fn measurePerformance(test_fn: anytype, iterations: usize) !BenchmarkResult {
     var timer = try time.Timer.start();
 
     for (0..iterations) |_| {
-        test_fn() catch {};
+        test_fn() catch |err| {
+            std.log.warn("benchmark function failed: {}", .{err});
+            break;
+        };
     }
 
     const duration_ns = timer.lap();

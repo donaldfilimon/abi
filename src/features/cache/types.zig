@@ -1,5 +1,5 @@
 const std = @import("std");
-const core_config = @import("../../core/config/platform.zig");
+const core_config = @import("../core/config/platform.zig");
 
 pub const CacheConfig = core_config.CacheConfig;
 pub const EvictionPolicy = core_config.EvictionPolicy;

@@ -1,7 +1,7 @@
 //! Shared types for the benchmarks feature (mod + stub).
 
 const std = @import("std");
-const core_config = @import("../../core/config/benchmarks.zig");
+const core_config = @import("../core/config/benchmarks.zig");
 
 pub const Config = core_config.BenchmarksConfig;
 

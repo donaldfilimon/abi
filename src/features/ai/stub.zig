@@ -1,8 +1,8 @@
 //! AI feature stub facade used when `feat_ai` is disabled.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
-const framework_config = @import("../../core/config/mod.zig");
+const stub_helpers = @import("../core/stub_helpers.zig");
+const framework_config = @import("../core/config/mod.zig");
 const core_facade = @import("facades/core_stub.zig");
 
 pub const Error = core_facade.Error;

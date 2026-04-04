@@ -5,7 +5,7 @@
 //! struct and persistence functions are stubbed out.
 
 const std = @import("std");
-const neural = @import("../../../core/database/neural.zig");
+const neural = @import("../../core/database/neural.zig");
 
 pub const Metadata = neural.Metadata;
 pub const SearchOptions = neural.SearchOptions;
