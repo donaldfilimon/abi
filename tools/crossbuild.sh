@@ -104,7 +104,24 @@ fi
 
 # Resolve zig
 ZIG="$("$ZIGLY" --status)"
-ZIG_LIB="$(dirname "$(dirname "$ZIG")")/lib"
+
+resolve_zig_lib_dir() {
+    local zig_bin="$1"
+    local zig_real bin_dir candidate fallback
+
+    zig_real="$(readlink -f "$zig_bin" 2>/dev/null || echo "$zig_bin")"
+    bin_dir="$(dirname "$zig_real")"
+    candidate="$bin_dir/lib"
+    if [ -d "$candidate" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+
+    fallback="$(dirname "$bin_dir")/lib"
+    printf '%s\n' "$fallback"
+}
+
+ZIG_LIB="$(resolve_zig_lib_dir "$ZIG")"
 
 log "Using zig: $ZIG"
 

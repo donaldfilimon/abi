@@ -9,13 +9,27 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ZIGLY_CLI_DIR="$SCRIPT_DIR/zigly_cli"
 ZIGLY_BIN="$ZIGLY_CLI_DIR/zig-out/bin/zigly"
 
-# Ensure the native binary is built
-if [ ! -f "$ZIGLY_BIN" ]; then
+needs_bootstrap=false
+if [ ! -x "$ZIGLY_BIN" ]; then
+    needs_bootstrap=true
+elif [ "$ZIGLY_CLI_DIR/build.zig" -nt "$ZIGLY_BIN" ] || [ "$ZIGLY_CLI_DIR/build_wrapper.sh" -nt "$ZIGLY_BIN" ]; then
+    needs_bootstrap=true
+else
+    while IFS= read -r source_file; do
+        if [ "$source_file" -nt "$ZIGLY_BIN" ]; then
+            needs_bootstrap=true
+            break
+        fi
+    done < <(find "$ZIGLY_CLI_DIR/src" -type f -name '*.zig' | sort)
+fi
+
+# Ensure the native binary is built and fresh
+if [ "$needs_bootstrap" = true ]; then
     echo "==> Bootstrapping native zigly manager..." >&2
     cd "$ZIGLY_CLI_DIR"
     ./build_wrapper.sh >/dev/null 2>&1 || {
         echo "==> ERROR: Failed to bootstrap the native Zigly manager." >&2
-        cat target_err.log >&2 2>/dev/null || true
+        cat manual_build_err.log >&2 2>/dev/null || true
         exit 1
     }
     cd - >/dev/null

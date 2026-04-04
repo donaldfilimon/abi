@@ -161,6 +161,20 @@ pub const Server = struct {
         return self.sessions_map.count();
     }
 
+    /// Return a JSON status summary (task/session counts, version).
+    pub fn statusJson(self: *const Server, allocator: std.mem.Allocator) ![]const u8 {
+        const build_options = @import("build_options");
+        var buf: [512]u8 = undefined;
+        const json = std.fmt.bufPrint(&buf,
+            \\{{"status":"ok","version":"{s}","tasks":{d},"sessions":{d}}}
+        , .{
+            build_options.package_version,
+            self.tasks_map.count(),
+            self.sessions_map.count(),
+        }) catch return error.OutOfMemory;
+        return allocator.dupe(u8, json);
+    }
+
     /// Add a task to a session
     pub fn addTaskToSession(self: *Server, session_id: []const u8, task_id: []const u8) !void {
         const session = self.sessions_map.getPtr(session_id) orelse return error.SessionNotFound;

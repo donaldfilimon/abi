@@ -15,6 +15,7 @@ fn requireRealTui() !void {
 
 /// Re-export dashboard's hasVisibleCell for use in tests.
 const hasVisibleCell = abi.tui.dashboard.hasVisibleCell;
+const containsText = abi.tui.dashboard.containsText;
 
 // === Module Availability ===
 
@@ -192,45 +193,138 @@ test "tui: Screen resize and rect contract" {
     try std.testing.expectEqual(@as(u21, ' '), screen.back[0].char);
 }
 
-// === Dashboard Render Smoke ===
+// === Dashboard Diagnostics Shell ===
 
-test "tui: dashboard render smoke on standard and compact screens" {
+test "tui: dashboard layout modes are resize aware" {
+    try requireRealTui();
+
+    const Rect = abi.tui.types.Rect;
+    const dashboard = abi.tui.dashboard;
+
+    try std.testing.expectEqual(dashboard.LayoutMode.wide, dashboard.computeLayout(Rect{ .x = 0, .y = 0, .width = 120, .height = 32 }).mode);
+    try std.testing.expectEqual(dashboard.LayoutMode.medium, dashboard.computeLayout(Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }).mode);
+    try std.testing.expectEqual(dashboard.LayoutMode.compact, dashboard.computeLayout(Rect{ .x = 0, .y = 0, .width = 40, .height = 12 }).mode);
+    try std.testing.expectEqual(dashboard.LayoutMode.compact, dashboard.computeLayout(Rect{ .x = 0, .y = 0, .width = 20, .height = 8 }).mode);
+    try std.testing.expectEqual(dashboard.LayoutMode.minimal, dashboard.computeLayout(Rect{ .x = 0, .y = 0, .width = 17, .height = 6 }).mode);
+}
+
+test "tui: dashboard navigation and help overlay transitions" {
+    try requireRealTui();
+
+    const Key = abi.tui.types.Key;
+    const dashboard = abi.tui.dashboard;
+
+    var state: dashboard.AppState = .{};
+    try std.testing.expectEqual(dashboard.FocusRegion.nav, state.focused_region);
+
+    try std.testing.expectEqual(dashboard.DashboardAction.none, dashboard.handleKey(&state, .tab));
+    try std.testing.expectEqual(dashboard.FocusRegion.detail, state.focused_region);
+
+    state.focused_region = .nav;
+    try std.testing.expectEqual(dashboard.DashboardAction.none, dashboard.handleKey(&state, .down));
+    try std.testing.expectEqual(@as(usize, 1), state.nav_index);
+
+    try std.testing.expectEqual(dashboard.DashboardAction.none, dashboard.handleKey(&state, .enter));
+    try std.testing.expectEqual(dashboard.View.features, state.current_view);
+    try std.testing.expectEqual(dashboard.FocusRegion.detail, state.focused_region);
+
+    try std.testing.expectEqual(dashboard.DashboardAction.none, dashboard.handleKey(&state, Key{ .char = '?' }));
+    try std.testing.expect(state.help_visible);
+
+    try std.testing.expectEqual(dashboard.DashboardAction.none, dashboard.handleKey(&state, .escape));
+    try std.testing.expect(!state.help_visible);
+
+    try std.testing.expectEqual(dashboard.DashboardAction.none, dashboard.handleKey(&state, Key{ .char = 'g' }));
+    try std.testing.expectEqual(dashboard.View.overview, state.current_view);
+    try std.testing.expectEqual(dashboard.FocusRegion.nav, state.focused_region);
+}
+
+test "tui: dashboard features view tracks canonical catalog" {
     try requireRealTui();
 
     const Screen = abi.tui.render.Screen;
+    const dashboard = abi.tui.dashboard;
 
-    // Standard 80x24 terminal
-    {
-        var screen = try Screen.init(std.testing.allocator, 80, 24);
-        defer screen.deinit();
-        var state: abi.tui.dashboard.AppState = .{};
-        abi.tui.dashboard.renderDashboard(&screen, &state);
+    var screen = try Screen.init(std.testing.allocator, 120, 40);
+    defer screen.deinit();
 
-        // Dashboard must have written visible content
-        try std.testing.expect(hasVisibleCell(&screen));
-    }
+    var state: dashboard.AppState = .{
+        .current_view = .features,
+        .focused_region = .detail,
+        .nav_index = 1,
+        .selected_row = abi.meta.features.feature_count - 1,
+    };
+    dashboard.renderDashboard(&screen, &state);
 
-    // Compact 20x8 terminal — dashboard should not crash
+    try std.testing.expect(hasVisibleCell(screen.back));
+    try std.testing.expect(containsText(screen.back, "ABI DIAGNOSTIC SHELL"));
+    try std.testing.expect(containsText(screen.back, "feat_inference"));
+    try std.testing.expect(containsText(screen.back, "inference"));
+}
+
+test "tui: dashboard compact and minimal modes render usable diagnostics" {
+    try requireRealTui();
+
+    const Screen = abi.tui.render.Screen;
+    const dashboard = abi.tui.dashboard;
+
     {
         var screen = try Screen.init(std.testing.allocator, 20, 8);
         defer screen.deinit();
-        var state: abi.tui.dashboard.AppState = .{};
-        abi.tui.dashboard.renderDashboard(&screen, &state);
 
-        // Even on a small screen, something should render
-        try std.testing.expect(hasVisibleCell(&screen));
+        var state: dashboard.AppState = .{
+            .current_view = .features,
+            .focused_region = .detail,
+            .nav_index = 1,
+        };
+        dashboard.renderDashboard(&screen, &state);
+
+        try std.testing.expect(hasVisibleCell(screen.back));
+        try std.testing.expect(containsText(screen.back, "FEAT"));
     }
 
-    // Tiny 12x5 terminal — extreme edge case, must not crash
     {
-        var screen = try Screen.init(std.testing.allocator, 12, 5);
+        var screen = try Screen.init(std.testing.allocator, 17, 6);
         defer screen.deinit();
-        var state: abi.tui.dashboard.AppState = .{};
-        abi.tui.dashboard.renderDashboard(&screen, &state);
 
-        // At minimum the screen should still function
-        try std.testing.expect(screen.width == 12 and screen.height == 5);
+        var state: dashboard.AppState = .{};
+        dashboard.renderDashboard(&screen, &state);
+
+        try std.testing.expect(hasVisibleCell(screen.back));
+        try std.testing.expect(containsText(screen.back, "grow terminal"));
     }
+}
+
+test "tui: dashboard resize preserves valid state and render" {
+    try requireRealTui();
+
+    const Screen = abi.tui.render.Screen;
+    const dashboard = abi.tui.dashboard;
+
+    var screen = try Screen.init(std.testing.allocator, 80, 24);
+    defer screen.deinit();
+
+    var state: dashboard.AppState = .{
+        .current_view = .runtime,
+        .focused_region = .detail,
+        .nav_index = 2,
+        .selected_row = 17,
+        .detail_scroll = 4,
+    };
+
+    dashboard.renderDashboard(&screen, &state);
+    try std.testing.expect(hasVisibleCell(screen.back));
+    try std.testing.expect(containsText(screen.back, "Runtime"));
+
+    try screen.resize(40, 12);
+    dashboard.renderDashboard(&screen, &state);
+    try std.testing.expect(hasVisibleCell(screen.back));
+    try std.testing.expectEqual(dashboard.LayoutMode.compact, dashboard.computeLayout(screen.rect()).mode);
+
+    try screen.resize(17, 6);
+    dashboard.renderDashboard(&screen, &state);
+    try std.testing.expect(hasVisibleCell(screen.back));
+    try std.testing.expect(containsText(screen.back, "grow terminal"));
 }
 
 test {

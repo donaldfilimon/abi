@@ -1,60 +1,48 @@
 #!/bin/bash
 set -euo pipefail
 
-# Search for zig in known locations (most-preferred first).
-ZIG2=""
-for candidate in \
-    "$HOME/.local/bin/zig" \
-    "$HOME/.zigly/versions/"*/bin/zig \
-    "$HOME/.zvm/bin/zig" \
-    "$(command -v zig 2>/dev/null || true)"; do
-    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
-        ZIG2="$(readlink -f "$candidate" 2>/dev/null || echo "$candidate")"
-        break
-    fi
-done
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+resolve_zig() {
+    local candidate
+    for candidate in \
+        "$HOME/.zvm/bin/zig" \
+        "$HOME/.local/bin/zig" \
+        "$HOME/.zigly/versions/"*/bin/zig \
+        "$(command -v zig 2>/dev/null || true)"; do
+        if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+            readlink -f "$candidate" 2>/dev/null || echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+ZIG2="$(resolve_zig || true)"
 if [ -z "$ZIG2" ]; then
-    echo "Error: zig not found. Run 'zigly --install' first." >&2
+    echo "Error: zig not found. Run 'tools/zigly --install' first." >&2
     exit 1
 fi
 
-SYSROOT="$(xcrun --show-sdk-path 2>/dev/null || echo "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")"
-MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo "26.4")"
-ZIG_LIB="$(dirname "$(dirname "$ZIG2")")/lib"
-
 echo "ZIG2 is: $ZIG2"
-echo "ZIG_LIB is: $ZIG_LIB"
 
-# Compile build.zig to object
-"$ZIG2" build -Dtarget=aarch64-macos-gnu 2>build_err.log || true
+rm -rf zig-out/bin/zigly zigly manual_build_err.log
+mkdir -p zig-out/bin
 
-OBJ="$(ls -t .zig-cache/o/*/build_zcu.o 2>/dev/null | head -1)"
-if [ -n "$OBJ" ] && [ -f "$OBJ" ]; then
-    BUILD_BIN="${OBJ%_zcu.o}"
-    CRT="$(ls -t "$HOME/.cache/zig/o/"*/libcompiler_rt.a 2>/dev/null | head -1)"
-    
-    echo "Relinking build runner..."
-    /usr/bin/ld -dynamic -platform_version macos "$MACOS_VER" "$MACOS_VER" \
-        -syslibroot "$SYSROOT" -e _main -o "$BUILD_BIN" "$OBJ" "$CRT" "$SYSROOT/usr/lib/libSystem.B.tbd" "$SYSROOT/usr/lib/libc++.tbd"
-    
-    if [ -x "$BUILD_BIN" ]; then
-        echo "Running relinked build runner..."
-        "$BUILD_BIN" "$ZIG2" "$ZIG_LIB" "$(pwd)" ".zig-cache" "$HOME/.cache/zig" 2>target_err.log || true
-        
-        # Now relink the actual zigly_cli binary
-        TARGET_OBJ="$(ls -t .zig-cache/o/*/zigly_zcu.o 2>/dev/null | head -1)"
-        if [ -n "$TARGET_OBJ" ] && [ -f "$TARGET_OBJ" ]; then
-            TARGET_BIN="${TARGET_OBJ%_zcu.o}"
-            echo "Relinking zigly native..."
-            /usr/bin/ld -dynamic -platform_version macos "$MACOS_VER" "$MACOS_VER" \
-                -syslibroot "$SYSROOT" -e _main -o "$TARGET_BIN" "$TARGET_OBJ" "$CRT" "$SYSROOT/usr/lib/libSystem.B.tbd" "$SYSROOT/usr/lib/libc++.tbd"
-            
-            mkdir -p zig-out/bin
-            cp "$TARGET_BIN" zig-out/bin/zigly
-            echo "Success! Binary is at zig-out/bin/zigly"
-        else
-            echo "Failed to find zigly object file"
-            cat target_err.log
-        fi
-    fi
+"$ZIG2" build-exe src/main.zig \
+    -lc \
+    -O ReleaseSafe \
+    --name zigly \
+    --cache-dir .zig-cache \
+    --global-cache-dir "$HOME/.cache/zig" \
+    2>manual_build_err.log
+
+if [ ! -x zigly ]; then
+    echo "Failed to build zigly native helper" >&2
+    cat manual_build_err.log >&2
+    exit 1
 fi
+
+mv zigly zig-out/bin/zigly
+echo "Success! Binary is at zig-out/bin/zigly"

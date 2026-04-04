@@ -1,5 +1,7 @@
 # Codebase Improvement — Remaining Work Implementation Plan
 
+> **Status (2026-03-27):** COMPLETE. All sub-namespace facades added, inference bug fixed, and baseline synchronized to 3677 passed.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Complete the remaining 20% of the full codebase improvement plan (2026-03-24) — two file decompositions, sub-namespace facades for large modules, and baseline sync.

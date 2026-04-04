@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "abi-mcp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/../zig-out/bin/abi-mcp",
+      "args": []
+    }
+  }
+}

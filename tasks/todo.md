@@ -1,5 +1,130 @@
 # Codebase Improvement Plan
 
+## 0E. ZVM-First Toolchain Alignment + Zig Pin Bump
+- [x] Bump `.zigversion` to `0.16.0-dev.3070+b22eb176b`.
+- [x] Make `tools/zigly` resolve/install the pinned Zig through ZVM first when ZVM is present.
+- [x] Align internal Zig path helpers and auto-update flow with the same ZVM-first resolution order.
+- [x] Refresh toolchain docs/comments to describe the ZVM-first contract and the new pin.
+- [x] Validate the new pin and resolver behavior with ZVM checks plus repo build gates.
+
+### Notes
+- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a clean tracked worktree on `main`; this wave is toolchain-focused and should avoid unrelated repo cleanup.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Current drift: `.zigversion` still pins `0.16.0-dev.2984+cb7d2b056`, `build.sh` resolves Zig through `tools/zigly --status`, `tools/zigly_cli/src/cli.zig` only returns the zigly cache path, and `src/foundation/utils/zig_toolchain.zig` still prefers the legacy `~/.cache/abi-zig` path plus `~/.zvm/master/zig`.
+- Environment note before implementation: `zvm v0.8.14` rejects the explicit snapshot `0.16.0-dev.3070+b22eb176b` as unsupported, but `zvm install master` / `zvm use master` does expose `~/.zvm/bin/zig` at that exact version. `~/.zvm/versions-zls.json` was also permission-blocked until it was removed from the user-writable directory.
+- Completed on April 3, 2026 with `.zigversion` pinned to `0.16.0-dev.3070+b22eb176b`, `tools/zigly --status` returning `/Users/donaldfilimon/.zvm/bin/zig`, and the native `zigly` bootstrap updated to rebuild when its sources change.
+- `tools/zigly_cli/src/cli.zig`, `src/foundation/utils/zig_toolchain.zig`, `build.sh`, `tools/crossbuild.sh`, and `tools/auto_update.sh` now agree on the ZVM-first lookup order: use `~/.zvm/bin/zig` when its reported version matches `.zigversion`, otherwise fall back to the pinned zigly cache.
+- Validation passed with:
+  - `zig fmt --check src/foundation/utils/zig_toolchain.zig tools/zigly_cli/build.zig tools/zigly_cli/src/cli.zig tools/zigly_cli/src/core.zig`
+  - `~/.zvm/bin/zig test tools/zigly_cli/src/cli.zig -lc`
+  - `~/.zvm/bin/zig test tools/zigly_cli/src/core.zig`
+  - `tools/auto_update.sh --check` (reported `Already up to date.` on `0.16.0-dev.3070+b22eb176b`)
+  - `./tools/zigly --status`
+  - `./tools/zigly --install`
+  - `zvm use --sync`
+  - `zig version`
+  - `~/.zvm/bin/zig version`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh check --summary all`
+- Residual environment caveat: `zvm v0.8.14` still needs the `master` alias fallback to reach this exact snapshot, and the active ZVM `zls` remains `0.16.0-dev.296+ef64fa01` even while `zig` is aligned to `0.16.0-dev.3070+b22eb176b`.
+
+## 0D. Merge Attached Workspaces Into `main`
+- [x] Add a short merge/cleanup checklist here before mutating git history.
+- [x] Exclude accidental `.claude/worktrees/*` index entries from the consolidation commit.
+- [x] Commit the dirty root `main` workspace as one intentional consolidation commit.
+- [x] Cherry-pick `f6c3abe080b9c77e1ce90d496e44efcf5d3489fa` from `worktree-agent-aea73b27` onto `main`.
+- [x] Validate the integrated `main` workspace with parity, CLI, TUI, and full-check gates.
+- [x] Remove attached worktrees and delete their local branches once validation passes.
+
+### Notes
+- Opened on April 3, 2026 in `/Users/donaldfilimon/abi`, which is already checked out on `main`; this wave is about integrating attached worktree history and cleaning up the local workspace topology without rebasing or resetting against `origin/main`.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Current git topology shows two attached worktrees under `.claude/worktrees/`: `worktree-agent-ad29d5e3` has no unique commits versus `main`, while `worktree-agent-aea73b27` contributes one unique inference fix commit on `src/inference/engine/backends.zig`.
+- The root `main` workspace is intentionally dirty and includes prior staged/unstaged repo changes plus accidental staged `.claude/worktrees/*` entries that must stay out of the consolidation commit.
+- Completed on April 3, 2026 with root consolidation commit `2f45c45` (`chore: consolidate local main workspace`) followed by cherry-picked inference fix `de77cc1` on `main`.
+- The cherry-pick hit a content conflict in `src/inference/engine/backends.zig`; it was resolved by keeping the new `error.UnsupportedProvider` behavior for bare model IDs and then updating the stale local test to assert that contract instead of the old echo fallback.
+- Attached worktrees `/Users/donaldfilimon/abi/.claude/worktrees/agent-ad29d5e3` and `/Users/donaldfilimon/abi/.claude/worktrees/agent-aea73b27` were removed, and the now-obsolete local branches `worktree-agent-ad29d5e3` and `worktree-agent-aea73b27` were deleted after validation.
+- Validation passed with:
+  - `./build.sh test --summary all -- --test-filter "dispatchToConnector: no slash returns UnsupportedProvider"`
+  - `./build.sh check-parity --summary all`
+  - `./build.sh cli-tests --summary all`
+  - `./build.sh tui-tests --summary all`
+  - `./build.sh check --summary all`
+
+## 0C. Dashboard Surface Alignment Wave
+- [x] Make the shared CLI renderers authoritative for status/help so `src/main.zig` stops duplicating dashboard/help copy.
+- [x] Update dashboard wording across CLI/docs to describe the developer diagnostics shell and its overview/features/runtime views.
+- [x] Add a short fallback note everywhere user-facing that non-interactive dashboard runs point to `abi doctor`.
+- [x] Tighten CLI/help tests around the shared dashboard contract and descriptor alignment.
+- [x] Validate the CLI/docs alignment wave with targeted fmt, typecheck, cli-tests, and real CLI invocations.
+
+### Notes
+- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` on top of the already-validated TUI shell rewrite from §0B; this wave should not reopen dashboard layout or interaction behavior unless the shared CLI contract exposes a regression.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Current drift: `src/cli.zig` already owns `writeStatus()` / `writeHelp()`, but `src/main.zig` still hardcodes separate status/help text while README/AGENTS/CLAUDE continue to describe `abi dashboard` generically as an interactive TUI.
+- Completed on April 3, 2026 by routing `printStatus()` / `printHelp()` through the shared CLI writers, centralizing the dashboard wording in `src/cli.zig`, and updating README/AGENTS/CLAUDE to describe `abi dashboard` as the developer diagnostics shell with overview/features/runtime views plus the `abi doctor` fallback note.
+- Validation passed with:
+  - `zig fmt --check src/cli.zig src/main.zig test/integration/cli_test.zig`
+  - `git diff --check -- src/cli.zig src/main.zig README.md AGENTS.md CLAUDE.md test/integration/cli_test.zig tasks/todo.md`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh cli-tests --summary all`
+  - `./build.sh cli --summary all`
+  - `./zig-out/bin/abi dashboard` → `TUI is disabled. Rebuild with -Dfeat-tui=true`
+  - `./build.sh -Dfeat-tui=true cli --summary all`
+  - `./zig-out/bin/abi`
+  - `./zig-out/bin/abi help`
+  - `./zig-out/bin/abi dashboard` → `TUI dashboard requires an interactive terminal.` / `Use 'abi doctor' for non-interactive diagnostics.`
+
+## 0B. TUI Diagnostic Shell Rethink
+- [x] Replace the static two-panel dashboard with a mode-aware developer diagnostics shell.
+- [x] Drive the features view from `src/core/feature_catalog.zig` instead of a hand-maintained flag list.
+- [x] Add resize-aware layout breakpoints plus nav/detail/help interaction state.
+- [x] Expand TUI tests from smoke coverage to layout, navigation, and catalog-alignment assertions.
+- [x] Validate with targeted TUI gates first, then the broader dashboard/TUI lanes, and record outcomes here.
+
+### Notes
+- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a dirty worktree containing large unrelated staged changes, especially the out-of-scope `src/features/core/**` migration; this TUI slice must avoid touching those files.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- The current dashboard implementation in `src/features/tui/app/dashboard.zig` still renders a fixed two-column split using a handwritten 33-flag inventory and only smoke-level interaction coverage.
+- Completed on April 3, 2026 with `src/features/tui/app/dashboard.zig` rewritten around `View`/`FocusRegion` state, catalog-driven feature rendering, runtime/service diagnostics, compact/minimal breakpoints, and a help overlay while keeping the existing `abi dashboard` entrypoint and non-interactive fallback text.
+- The public integration lane in `test/integration/tui_test.zig` now asserts layout modes, navigation/help transitions, catalog alignment against `abi.meta.features.feature_count`, compact/minimal rendering, and resize-safe redraws instead of only checking that the dashboard does not crash.
+- Validation passed with:
+  - `zig fmt --check src/features/tui/app/dashboard.zig test/integration/tui_test.zig`
+  - `git diff --check -- src/features/tui/app/dashboard.zig test/integration/tui_test.zig tasks/todo.md`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh -Dfeat-tui=true test --summary all -- --test-filter "tui:"`
+  - `./build.sh dashboard-smoke --summary all`
+  - `./build.sh tui-tests --summary all`
+  - `./build.sh -Dfeat-tui=true cli --summary all`
+  - `./zig-out/bin/abi dashboard` (non-interactive fallback verified: `TUI dashboard requires an interactive terminal.` / `Use 'abi doctor' for non-interactive diagnostics.`)
+- Environment note:
+  - `./tools/zigly --status fmt --check ...` is currently unusable in this checkout because it tries to download a missing Zig fmt tarball and exits with `curl: (22) ... 404`, so local `zig fmt --check` was used instead.
+
+## 0. AI Feature Graph Expansion + ZVM Pin Sync
+- [x] Expand `src/core/feature_catalog.zig` to cover the full public `abi.ai` graph, including distinct `profile` and `profiles` entries.
+- [x] Move public AI module parity coverage into `src/feature_parity_tests.zig` Tier 1 and leave only non-`abi.ai` internal modules in the manual appendix.
+- [x] Remove the handwritten `src/core/registry/stub.zig` feature enum drift by aliasing the canonical catalog-backed `Feature` type and updating parent tests.
+- [x] Update CLI/docs/tests to reflect the expanded catalog count and prefer derived expectations over hardcoded literals.
+- [x] Sync ZVM to `.zigversion`, run targeted validation, and record outcomes plus residual risk here.
+
+### Notes
+- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a dirty staged worktree that already contains a large out-of-scope `src/features/core/**` migration; this slice must not modify or depend on that staged tree.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- The ABI review prep helper remains blocked because this checkout still lacks `src/abi.zig`; direct repo inspection is the source of truth for this slice.
+- Validation passed with:
+  - `zig fmt --check src/core/config/mod.zig src/core/feature_catalog.zig src/core/registry/stub.zig src/core/registry/types.zig src/core/registry/mod.zig src/feature_parity_tests.zig src/main.zig test/integration/cli_test.zig`
+  - `./build.sh check-parity --summary all`
+  - `./build.sh cli-tests --summary all`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh test --summary all`
+- ZVM outcome:
+  - `.zigversion` pins `0.16.0-dev.2984+cb7d2b056`
+  - `zvm install 0.16.0-dev.2984+cb7d2b056` failed in `zvm v0.8.14` with `unsupported Zig version`
+  - `zvm use --sync` was a no-op until `~/.zvm/bin` was repointed to a local compatibility install assembled from `~/.zigly/versions/0.16.0-dev.2984+cb7d2b056`
+  - Final verification: `zig version` now reports `0.16.0-dev.2984+cb7d2b056`, and `zvm list` shows both `0.16.0-dev.2984+cb7d2b056` and `master`
+- Residual risk:
+  - `~/.zvm/versions-zls.json` is root-owned in this environment, which breaks `zvm list --all` metadata refreshes and likely contributed to the native `zvm install` limitation for older dev snapshots.
+
 ## 1. Architectural Inconsistencies
 - [x] Rename `feat_profiling` to `feat_observability` in `src/core/feature_catalog.zig` and `src/root.zig`.
 - [x] Move nested features like `pages` to their own top-level directories or clarify their sub-feature status.
@@ -395,3 +520,17 @@
 - Validation passed with `./build.sh typecheck --summary all`, `./build.sh test --summary all` (3496/3500 passed, 4 skipped), and `./build.sh full-check --summary all` (3742/3746 passed, 4 skipped).
 - Remaining large files for future decomposition waves: `ai/streaming/server/mod.zig` (1105 lines), `security/password.zig` (1125 lines), `gpu/device.zig` (1002 lines), `ai/training/llm_trainer.zig` (1146 lines).
 - JWT module has duplicated parsing logic between manager.zig and standalone.zig (parseHeader/parseHeaderStandalone, parseClaims/parseClaimsStandalone, etc.). Future deduplication opportunity.
+
+## 30. Core Path Compatibility Bridge
+- [x] Restore the tracked `src/core/**` surface as a compatibility layer to `src/features/core/**` without changing external callers.
+- [x] Fix the stale `core/...` imports inside `src/features/core/database/**` so the moved tree is internally consistent.
+- [x] Validate with targeted fmt, `./build.sh typecheck --summary all`, `./build.sh check-parity`, and `git diff --check`.
+
+### Notes
+- Opened on March 27, 2026 from local `main` with a dirty worktree that already includes unrelated AI/GPU/network edits and the untracked `.claude/worktrees/` directory; those remain out of scope.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Baseline failures reproduced with `./build.sh typecheck --summary all` and `./build.sh check-parity`: both stopped on 24 `FileNotFound` imports under `src/core/**` after the implementation tree was moved to `src/features/core/**`.
+- The compatibility layer landed as path-matched symlinks for all 158 legacy `src/core/**` files because Zig rejected the attempted file-scope wrapper form; this keeps the old import contract intact while leaving `src/features/core/**` as the source tree.
+- Internal cleanup was limited to the 13 stale `core/...` imports in `src/features/core/database/**`, switching them to direct local paths like `../mod.zig` and `../config/mod.zig` instead of adding nested compatibility shims.
+- Validation passed with `zig fmt --check src/core src/features/core/database`, `./build.sh typecheck --summary all`, `./build.sh check-parity`, and `git diff --check`.
+- Residual risk: the bridge is filesystem-level compatibility, so a future cleanup wave should decide whether to keep symlinks or complete the migration to direct `src/features/core/**` imports before broadening the validation surface further.

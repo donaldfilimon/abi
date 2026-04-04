@@ -38,7 +38,7 @@ pub const DiscoveryConfig = struct {
     /// Datacenter for Consul
     datacenter: []const u8 = "dc1",
     /// Namespace for etcd keys
-    namespace: []const u8 = "/abi/services",
+    namespace: []const u8 = "/abi/registry",
     /// Token for authentication
     token: []const u8 = "",
 };

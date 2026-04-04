@@ -6,10 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
-Zig version is pinned in `.zigversion` (currently `0.16.0-dev.2984+cb7d2b056`). The zig version manager auto-downloads the correct version:
+Zig version is pinned in `.zigversion` (currently `0.16.0-dev.3070+b22eb176b`). `tools/zigly`
+is the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version matches the pin:
 
 ```bash
-zigly --status    # Print zig path (auto-install if missing)
+zvm use --sync    # Sync ZVM with the repo pin when supported
+zigly --status    # Print the pinned zig path (ZVM-first when versions match)
 zigly --link      # Symlink zig + zls into ~/.local/bin
 zigly --bootstrap # One-command project setup (install, link, verify)
 zigly --doctor    # Toolchain health check (versions, PATH, platform)
@@ -32,7 +34,10 @@ tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
 Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
-`zigly` also detects system-installed zig from zvm (`~/.zvm/bin/zig`) or brew, preferring those over its own cache when the version matches `.zigversion`. If zvm is installed, `zvm install master` provides both zig and zls.
+`zigly` now checks the active ZVM binary at `~/.zvm/bin/zig` first and uses it when `zig version`
+matches `.zigversion`; otherwise it falls back to the pinned zigly cache. If ZVM is installed,
+`zigly --install` syncs through ZVM first, and `zvm install master` can provide the current
+upstream dev snapshot when explicit snapshot lookup lags.
 
 To make zig and zls available globally, run `zigly --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
 ```bash
@@ -53,7 +58,10 @@ This repository includes a Claude Code plugin at `zig-abi-plugin/` providing:
 - Build troubleshooting skill for linker errors and platform issues
 - Zig 0.16 patterns skill for API guidance
 - Feature scaffolding skill for new modules
-- Pre/post tool hooks for validation
+- Cross-check and Pipeline DSL skills
+- Pre/post tool hooks for import validation and parity checking
+- MCP server integration (`abi-mcp` bundled via `.mcp.json`)
+- 4 specialized agents (build-troubleshooter, feature-scaffolder, parity-checker, pipeline-auditor)
 
 Install with: `claude --plugin-dir zig-abi-plugin`
 
@@ -122,18 +130,20 @@ Build with `zig build cli` (or `./build.sh cli`). Binary: `zig-out/bin/abi`.
 abi                    # Smart status (feature count, enabled/disabled tags)
 abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
-abi features           # List all 35 features from catalog with [+]/[-] status
+abi features           # List all 60 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
-abi connectors         # List 12 LLM provider connectors with [configured]/[not set] env var status
+abi connectors         # List 16 LLM provider connectors with [configured]/[not set] env var status
 abi search <sub>       # Full-text search (create, index, query, delete, stats)
 abi info               # Framework architecture summary
 abi chat <message...>  # Route through multi-profile pipeline
 abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
 abi serve              # Start ACP HTTP server (default 127.0.0.1:8080)
 abi acp serve          # Same as above (explicit ACP prefix)
-abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)
+abi dashboard          # Developer diagnostics shell (overview, features, runtime; requires -Dfeat-tui=true)
 abi help               # Full help reference
 ```
+
+Without an interactive terminal, `abi dashboard` prints guidance to use `abi doctor`.
 
 `./build.sh` is a macOS 26.4+ (Darwin 25.x) wrapper that patches Zig's LLD linker incompatibility with the macOS SDK. It passes all arguments through to `zig build` (e.g., `./build.sh test --summary all`, `./build.sh -Dfeat-gpu=false`). The `--link` flag additionally symlinks zig+zls to `~/.local/bin`. On Linux / older macOS, `zig build` works directly.
 
@@ -172,7 +182,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 20 feature directories under src/features/ (35 features total including AI sub-features in the catalog)
+- `src/features/` — 20 feature directories under src/features/ (60 features total including AI sub-features in the catalog)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction
@@ -276,9 +286,11 @@ To add a new focused test lane:
 4. Add the new step name to the `Steps` struct and return it from `addSteps()`
 5. Document the `zig build <name>-tests` command in the Build Commands section above
 
+**Known pre-existing test failures**: inference engine connector backend tests (2 failures in `src/inference/engine.zig`) and auth integration tests (1 failure, 3 leaks in `test/auth_mod.zig`) fail consistently — not regressions. MCP integration tests have compilation errors in `test/integration/mcp_test.zig`.
+
 ### MCP Server
 
-`zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`.
+`zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools for Claude Desktop, Cursor, etc. Entry point: `src/mcp_main.zig`. The MCP server is configured in `.mcp.json` (project root) for Claude Code integration and `zig-abi-plugin/.mcp.json` for plugin portability. After rebuilding (`zig build mcp`), restart Claude Code to pick up the new binary.
 
 ### Multi-Profile Pipeline (Abbey-Aviva-Abi)
 
@@ -321,6 +333,8 @@ The router also exposes `routeAndExecutePipeline()` which builds the standard pi
 
 `abi serve` (or `abi acp serve`) starts an HTTP server on `127.0.0.1:8080` exposing the Agent Communication Protocol. Entry: `src/protocols/acp/server/mod.zig`. Gated by `feat_acp`. The server wires together task management (`src/protocols/acp/server/tasks.zig`) with the ACP protocol layer.
 
+ACP endpoints: `/.well-known/agent.json` (agent card), `/health`, `/status`, `/tasks/send`, `/tasks/{id}`, `/tasks/{id}/status`, `/sessions`, `/sessions/{id}`, `/openapi.json`, `/discord/*`. CORS enabled on all responses. Request logging via `std.log.info`.
+
 The ACP server also includes:
 - **Discord gateway bridge** (`server/discord_routes.zig`) — routes Discord interactions through ACP
 - **OpenAPI 3.1.0 spec** (`server/openapi.zig`) — auto-generated API documentation
@@ -333,7 +347,7 @@ Multi-backend engine (`src/inference/engine.zig`) supports:
 - `connector` — resolves provider from `model_id` ("provider/model" format), loads config from env vars, delegates to connector clients (`src/inference/engine/backends.zig`)
 - `local` — built-in transformer forward pass (integration point for GGUF loading)
 
-The connector backend dispatches to 12 providers (openai, anthropic, ollama, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp, codex). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
+The connector backend dispatches to 16 providers (openai, anthropic, claude, ollama, ollama_passthrough, mistral, cohere, gemini, mlx, huggingface, lm_studio, vllm, llama_cpp, codex, opencode, discord). Provider config is loaded from environment variables via `src/connectors/loaders.zig`. Falls back to echo when env vars are missing.
 
 The `abi chat` CLI command wires the profile router to the inference engine: routing decision → `Engine.generate()` → connector dispatch → response.
 

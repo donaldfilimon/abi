@@ -14,12 +14,14 @@ Guidance for AI coding agents working in this repository.
 | `zig build check` | Full gate (lint + test + parity) |
 | `zig build check-parity` | Verify mod/stub parity |
 
-### Focused Test Lanes
+### Test Lanes
 
 ```bash
+zig build test --summary all                        # All tests
+zig build test -- --test-filter "pattern"          # Single test
 zig build feature-tests messaging-tests agents-tests orchestration-tests
 zig build gateway-tests inference-tests secrets-tests pitr-tests
-zig build mcp-tests cli-tests tui-tests
+zig build mcp-tests cli-tests tui-tests multi-agent-tests
 ```
 
 ---
@@ -34,6 +36,7 @@ zig build mcp-tests cli-tests tui-tests
 6. Use `foundation.sync.Mutex` not `std.Thread.Mutex`
 7. On macOS 26.4+, use `./build.sh` not `zig build`
 8. All path imports need explicit `.zig` extensions
+9. `.zigversion` is the toolchain source of truth; `./build.sh` resolves it through `tools/zigly` and prefers `~/.zvm/bin/zig` when the active ZVM version matches
 
 ---
 
@@ -79,15 +82,21 @@ zig build mcp-tests cli-tests tui-tests
 
 ---
 
-## Zig 0.16 Gotchas
+## CLI Commands
 
-| Old API | New API |
-|---------|---------|
-| `.{}` for ArrayListUnmanaged | `.empty` |
-| `std.BoundedArray` | `buffer: [N]T = undefined` + `len: usize = 0` |
-| `std.time.milliTimestamp` | `foundation.time.unixMs()` |
-| `std.mem.trimRight` | `std.mem.trimEnd` |
-| `pub fn main() !void` | `pub fn main(init: std.process.Init) !void` |
+```bash
+abi               # Smart status
+abi version       # Version info
+abi doctor        # Diagnostics
+abi features      # List all 60 features
+abi platform      # Platform detection
+abi connectors    # List LLM providers
+abi chat <msg>    # Multi-profile pipeline
+abi db <cmd>      # Vector database ops
+abi dashboard     # Developer diagnostics shell (overview, features, runtime)
+```
+
+`abi dashboard` requires `-Dfeat-tui=true`; non-interactive launches point users to `abi doctor`.
 
 ---
 

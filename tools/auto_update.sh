@@ -128,26 +128,27 @@ do_update() {
     echo "$LATEST_VERSION" > "$ZIGVERSION_FILE"
     log "Updated .zigversion to $LATEST_VERSION"
 
-    # Force reinstall zig
+    # Force reinstall zig through the shared zigly/zvm resolution path
     log "Installing zig $LATEST_VERSION ..."
-    "$ZIGLY" --install || {
+    "$ZIGLY" --install "$LATEST_VERSION" || {
         log "Install failed, reverting .zigversion"
         mv "${ZIGVERSION_FILE}.bak" "$ZIGVERSION_FILE"
         err "zig install failed for $LATEST_VERSION"
     }
 
-    # Run build check
-    log "Running 'zig build check' to verify ..."
-    ZIG="$("$ZIGLY" --status)"
-    ZIG_LIB="$(dirname "$(dirname "$ZIG")")/lib"
-    if "$ZIG" build check --zig-lib-dir "$ZIG_LIB" --global-cache-dir "$HOME/.cache/zig" --cache-dir .zig-cache 2>&1; then
+    # Run the repo wrapper check so Darwin toolchain handling stays truthful
+    log "Running './build.sh check --summary all' to verify ..."
+    if (
+        cd "$REPO_ROOT"
+        ./build.sh check --summary all
+    ) 2>&1; then
         log "Check passed!"
         rm -f "${ZIGVERSION_FILE}.bak"
         return 0
     else
         log "Check failed! Reverting to $CURRENT_VERSION"
         mv "${ZIGVERSION_FILE}.bak" "$ZIGVERSION_FILE"
-        "$ZIGLY" --install
+        "$ZIGLY" --install "$CURRENT_VERSION"
         err "Build check failed with zig $LATEST_VERSION, reverted to $CURRENT_VERSION"
     fi
 }
@@ -170,7 +171,7 @@ do_auto() {
             git commit -m "chore: update zig to $LATEST_VERSION
 
 Updated .zigversion from $CURRENT_VERSION to $LATEST_VERSION.
-Verified with 'zig build check'."
+Verified with './build.sh check --summary all'."
             log "Committed version bump: $CURRENT_VERSION -> $LATEST_VERSION"
         else
             log "No changes to commit (version unchanged after install)."

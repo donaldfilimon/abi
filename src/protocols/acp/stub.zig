@@ -204,6 +204,13 @@ pub const Server = struct {
     }
 
     /// Stub: always returns error.FeatureDisabled.
+    pub fn statusJson(self: *const Server, allocator: std.mem.Allocator) AcpError![]const u8 {
+        _ = self;
+        _ = allocator;
+        return AcpError.FeatureDisabled;
+    }
+
+    /// Stub: always returns error.FeatureDisabled.
     pub fn addTaskToSession(self: *Server, session_id: []const u8, task_id: []const u8) AcpError!void {
         _ = self;
         _ = session_id;

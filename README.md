@@ -24,11 +24,13 @@ zig build                   # Linux / older macOS
 ```
 
 On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binaries.
-Use `./build.sh` which auto-relinks with Apple's native linker. To install and symlink
-the correct Zig version:
+Use `./build.sh` which auto-relinks with Apple's native linker. `tools/zigly`
+remains the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version
+matches `.zigversion`:
 
 ```bash
-tools/zigly --status     # Auto-install if missing
+zvm use --sync          # Optional: sync ZVM with the repo pin
+tools/zigly --status    # Resolve the pinned Zig (ZVM-first when it matches)
 tools/zigly --link       # Symlink to ~/.local/bin
 ```
 
@@ -74,15 +76,17 @@ The binary lands at `zig-out/bin/abi`. Entry point: `src/main.zig`.
 abi                # Smart status (feature count + available commands)
 abi version        # Print version and build info
 abi doctor         # Run diagnostics (all feature flags + GPU backends)
-abi features       # List all 35 features with [+]/[-] status
+abi features       # List all 60 features with [+]/[-] status
 abi platform       # Show platform detection (OS, arch, CPU, GPU)
 abi connectors     # List 16 LLM provider connectors
 abi info           # Framework architecture summary
 abi chat <message...>  # Route through multi-profile pipeline
 abi db <cmd>       # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
-abi dashboard      # Interactive TUI (requires -Dfeat-tui=true)
+abi dashboard      # Developer diagnostics shell (overview, features, runtime; requires -Dfeat-tui=true)
 abi help           # Full help reference
 ```
+
+Without an interactive terminal, `abi dashboard` prints guidance to use `abi doctor`.
 
 ## Pipeline architecture
 
@@ -131,7 +135,7 @@ abi/
 ├── src/                  # Framework source (single "abi" module)
 │   ├── root.zig          # Public package entrypoint (@import("abi"))
 │   ├── core/             # Always-on framework internals
-│   ├── features/         # 20 feature directories (35 features including AI sub-features)
+│   ├── features/         # 20 feature directories (60 features including AI sub-features)
 │   ├── foundation/       # Shared utilities: logging, security, time, SIMD, sync
 │   ├── runtime/          # Task scheduling, event loops, concurrency
 │   ├── platform/         # OS detection, capabilities, environment
@@ -153,7 +157,7 @@ regardless of which features are enabled.
 
 ```bash
 tools/zigly --status    # Print zig path (auto-install if missing)
-tools/zigly --install   # Force re-download zig + ZLS
+tools/zigly --install   # Sync the pinned Zig + ZLS (ZVM-first when available)
 tools/zigly --link      # Symlink zig + zls into ~/.local/bin
 tools/zigly --unlink    # Remove symlinks from local bin
 tools/zigly --update    # Check for newer zig and update if available
@@ -163,11 +167,15 @@ tools/crossbuild.sh        # Cross-compile for linux, wasi, x86_64 targets
 tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
-Cache location: `~/.cache/abi-zig/<version>/bin/{zig,zls}`
+Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
+When ZVM is installed, the active `~/.zvm/bin/zig` is authoritative if its exact
+`zig version` matches `.zigversion`; otherwise `tools/zigly` falls back to the pinned
+zigly cache.
 
 ## Toolchain
 
-ABI is pinned to the Zig version in `.zigversion`. On macOS 26.4+, `./build.sh`
+ABI is pinned to the Zig version in `.zigversion` (currently `0.16.0-dev.3070+b22eb176b`).
+On macOS 26.4+, `./build.sh`
 auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
 
 ## Testing
