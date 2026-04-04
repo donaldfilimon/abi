@@ -182,7 +182,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 20 feature directories under src/features/ (60 features total including AI sub-features in the catalog)
+- `src/features/` — 21 feature directories under src/features/ (60 features total including AI sub-features in the catalog)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction

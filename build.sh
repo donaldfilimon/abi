@@ -268,13 +268,8 @@ case "$FIRST_ARG" in
         exit $?
         ;;
     test)
-        # Only route to direct zig test when no additional args
-        # "./build.sh test" → zig test, "./build.sh test --summary all" → zig build test
-        if [ $# -eq 1 ]; then
-            shift
-            direct_zig_cmd "test" "src/root.zig"
-            exit $?
-        fi
+        # src/root.zig requires the build_options module from build.zig,
+        # so direct `zig test` cannot work. Always route through `zig build test`.
         ;;
     run)
         # Only route to direct zig run if a file arg follows

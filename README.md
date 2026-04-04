@@ -135,7 +135,7 @@ abi/
 ├── src/                  # Framework source (single "abi" module)
 │   ├── root.zig          # Public package entrypoint (@import("abi"))
 │   ├── core/             # Always-on framework internals
-│   ├── features/         # 20 feature directories (60 features including AI sub-features)
+│   ├── features/         # 21 feature directories (60 features including AI sub-features)
 │   ├── foundation/       # Shared utilities: logging, security, time, SIMD, sync
 │   ├── runtime/          # Task scheduling, event loops, concurrency
 │   ├── platform/         # OS detection, capabilities, environment

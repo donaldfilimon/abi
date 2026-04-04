@@ -44,7 +44,7 @@ zig build -Dgpu-backend=metal
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 20 feature directories (35 features total including AI sub-features and protocols)
+- `src/features/` — 21 feature directories (60 features total including AI sub-features and protocols)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction

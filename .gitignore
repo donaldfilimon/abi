@@ -85,6 +85,7 @@ firebase-debug.log
 tmp/
 temp/
 *.tmp
+updated_site/
 abi.json
 probe_error.txt
 probe_*.txt
@@ -287,6 +288,7 @@ TRASH-FILES.md
 # Documentation tree
 !/docs/README.md
 !/docs/STRUCTURE.md
+!/docs/onboarding.md
 !/docs/PATTERNS.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md

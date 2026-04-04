@@ -21,7 +21,7 @@
 | Original Phase | Status | Notes |
 |---|---|---|
 | Phase 1: Zero-Risk | **DONE** | Git hygiene, doc comments, error convention, GEMINI.md, build step descriptions |
-| Phase 2: Protocol Gates | **DONE** | ACP/HA comptime-gated, docs say 35 features |
+| Phase 2: Protocol Gates | **DONE** | ACP/HA comptime-gated, docs say 60 features |
 | Phase 3: Parity Fixes | **DONE** | `check-parity` passes, exit 0 |
 | Phase 4: Structural Refactoring | **80% done** | Most decompositions done. Remaining: ai_ops (669L), scann (385L), 3 facades |
 | Phase 5: Final Validation | **Pending** | Baseline needs update: 3675 passed (was 3266) |

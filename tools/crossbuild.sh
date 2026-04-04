@@ -25,7 +25,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ZIGLY="$SCRIPT_DIR/zigly"
 OUT_BASE="$REPO_ROOT/zig-out"
 
-OPTIMIZE="Debug"
+OPTIMIZE="ReleaseSafe"
 EXTRA_ARGS=""
 BUILT_ARTIFACTS=""
 

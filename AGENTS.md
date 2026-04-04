@@ -10,19 +10,36 @@ Guidance for AI coding agents working in this repository.
 | `zig build test --summary all` | All tests |
 | `zig build test -- --test-filter "pattern"` | Single test |
 | `zig build lint` | Check formatting |
-| `zig build fix` | Auto-format |
+| `zig build fix` | Auto-format in place |
 | `zig build check` | Full gate (lint + test + parity) |
 | `zig build check-parity` | Verify mod/stub parity |
+
+**Do NOT run `zig fmt .` at repo root** — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
+
+### Running Single Tests
+
+```bash
+# Run a specific test by name pattern
+zig build test --summary all -- --test-filter "test_name_pattern"
+
+# On macOS 26.4+:
+./build.sh test --summary all -- --test-filter "test_name_pattern"
+```
 
 ### Test Lanes
 
 ```bash
 zig build test --summary all                        # All tests
-zig build test -- --test-filter "pattern"          # Single test
 zig build feature-tests messaging-tests agents-tests orchestration-tests
 zig build gateway-tests inference-tests secrets-tests pitr-tests
 zig build mcp-tests cli-tests tui-tests multi-agent-tests
 ```
+
+27 focused test lanes exist: `acp-tests`, `agents-tests`, `auth-tests`, `cache-tests`, `cloud-tests`, `compute-tests`, `connectors-tests`, `database-tests`, `desktop-tests`, `documents-tests`, `gateway-tests`, `gpu-tests`, `ha-tests`, `inference-tests`, `lsp-tests`, `messaging-tests`, `multi-agent-tests`, `network-tests`, `observability-tests`, `orchestration-tests`, `pipeline-tests`, `pitr-tests`, `search-tests`, `secrets-tests`, `storage-tests`, `tasks-tests`, `web-tests`.
+
+**Known pre-existing test failures**: inference engine connector backend tests (2 failures), auth integration tests (1 failure, 3 leaks).
+
+**Resolved**: MCP integration tests (fixed `.len` → `.items.len` for `ArrayListUnmanaged`), pipeline tests (fixed `builder.build()` → `try builder.build()` for error union).
 
 ---
 
@@ -43,7 +60,7 @@ zig build mcp-tests cli-tests tui-tests multi-agent-tests
 ## Architecture
 
 - **Entrypoint**: `src/root.zig` re-exports domains as `abi.<domain>`
-- **Features**: 20 dirs under `src/features/`, mod/stub/types pattern
+- **Features**: 21 dirs under `src/features/`, mod/stub/types pattern
 - **Comptime gating**: `root.zig` uses `if (build_options.feat_X) mod else stub`
 - **Core/Foundation/Runtime**: config, logging, task scheduling
 - **Connectors**: OpenAI, Anthropic, Discord, etc.
@@ -57,6 +74,7 @@ zig build mcp-tests cli-tests tui-tests multi-agent-tests
 - camelCase: functions/methods
 - PascalCase: types/structs/enums
 - SCREAMING_SNAKE_CASE: constants
+- snake_case: enum variants
 - One main type per file named after filename (e.g., `bar.zig` → `Bar`)
 
 ### Formatting
@@ -67,9 +85,10 @@ zig build mcp-tests cli-tests tui-tests multi-agent-tests
 - No inline comments unless implementation is non-obvious
 
 ### Error Handling
-- Prefer error unions (`!`) for recoverable failures
-- Use `error.FeatureDisabled` in stubs
-- `@panic` only in CLI entry points and tests
+- `@compileError` — compile-time contract violations only
+- `@panic` — unrecoverable invariant violations; never in library code (`src/`), only in CLI entry points and tests
+- `unreachable` — provably impossible branches verified at comptime
+- Error unions (`!`) — all runtime failure paths in library code; prefer `error.FeatureDisabled` in stubs
 
 ### Memory
 - Always pair allocation/deallocation with `defer`
@@ -79,6 +98,14 @@ zig build mcp-tests cli-tests tui-tests multi-agent-tests
 ### Testing
 - `test {}` blocks: include `std.testing.refAllDecls(@This())`
 - Integration tests in `test/mod.zig` import `@import("abi")`
+- Use public API accessors (e.g., `manager.getStatus()`) not direct struct field access
+
+### refAllDecls Convention
+Most files end with `test { std.testing.refAllDecls(@This()); }`. If a sub-module has pre-existing compilation errors, use a deferred comment instead:
+```zig
+// refAllDecls deferred — sub_module.zig has pre-existing Zig 0.16 API errors
+```
+Files with known pre-existing errors: `features/ai/abbey/mod.zig`, `features/cloud/mod.zig`, `features/gpu/mod.zig`, `features/network/mod.zig`, `features/web/mod.zig`, `foundation/utils.zig`.
 
 ---
 
@@ -93,10 +120,9 @@ abi platform      # Platform detection
 abi connectors    # List LLM providers
 abi chat <msg>    # Multi-profile pipeline
 abi db <cmd>      # Vector database ops
-abi dashboard     # Developer diagnostics shell (overview, features, runtime)
+abi serve         # Start ACP HTTP server (127.0.0.1:8080)
+abi dashboard     # Developer diagnostics shell (requires -Dfeat-tui=true)
 ```
-
-`abi dashboard` requires `-Dfeat-tui=true`; non-interactive launches point users to `abi doctor`.
 
 ---
 
@@ -155,6 +181,18 @@ pub const AiOps = struct {
 - **Emotion files**: use `emotions.zig`, not `emotion.zig`
 - **Platform-gated externs**: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`
 - **Wall-clock vs monotonic**: `timestampSec()` is monotonic; use `clock_gettime(.REALTIME)` for persisted data
+- **Runtime env vars**: use `std.c.getenv(name.ptr)` which returns `?[*:0]const u8`
+- **Signal handlers**: use `std.posix.Sigaction` with `callconv(.c)` handler functions
+
+---
+
+## Zig 0.16 Gotchas
+
+- `std.BoundedArray` removed: use manual `buffer: [N]T = undefined` + `len: usize = 0`
+- Entry points use `pub fn main(init: std.process.Init) !void`; access args via `init.minimal.args`, allocator via `init.gpa` or `init.arena`
+- IO operations: use `std.Io.Threaded` + `std.Io.Dir.cwd()` pattern (not removed `std.fs.cwd()`)
+- `std.mem.trimRight` renamed to `std.mem.trimEnd`
+- `std.process.getEnvVarOwned` removed: use `b.graph.environ_map.get("KEY")` in build.zig
 
 ---
 

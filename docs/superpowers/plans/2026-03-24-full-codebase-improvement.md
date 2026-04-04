@@ -135,13 +135,13 @@ git commit -m "docs: add error handling convention to CLAUDE.md"
 
 - [ ] **Step 1: Check GEMINI.md feature counts**
 
-Read `GEMINI.md` line 47. It should say "20 feature directories (30 features total including AI sub-features)".
+Read `GEMINI.md` line 47. It should say "21 feature directories (60 features total including AI sub-features and protocols)".
 
 If it matches CLAUDE.md, skip to Step 3. If stale, proceed to Step 2.
 
 - [ ] **Step 2: Fix any stale counts**
 
-Update to match CLAUDE.md. Use "30+ features" phrasing if Phase 2 (feat_acp/feat_ha) hasn't merged yet.
+Update to match CLAUDE.md. The current repository already uses the updated 21-dir / 60-feature counts, so keep this section aligned with those values.
 
 - [ ] **Step 3: Commit (if changes made)**
 
@@ -237,7 +237,7 @@ Expected: all 4 targets pass.
 **Files:**
 - Modify: `CLAUDE.md`, `AGENTS.md`, `README.md`, `GEMINI.md` (feature counts)
 
-The feature catalog now has 32 features (30 original + acp + ha). Update all docs.
+The feature catalog now has 60 features (21 feature directories under `src/features/` plus nested AI sub-features and protocol surfaces). Update all docs.
 
 - [ ] **Step 1: Check current feature catalog count**
 
@@ -249,11 +249,11 @@ Record the actual count.
 
 - [ ] **Step 2: Update CLAUDE.md**
 
-Find "30 features" and update to the actual count. Also update "20 feature directories" if it changed.
+Find "60 features" and update to the actual count. Also update "21 feature directories" if it changed.
 
 - [ ] **Step 3: Update AGENTS.md, README.md, GEMINI.md**
 
-Same updates for each file — search for "30 features" or "30 features total" and update.
+Same updates for each file — search for "60 features" or "60 features total" and update.
 
 - [ ] **Step 4: Commit**
 

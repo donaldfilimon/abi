@@ -6,7 +6,7 @@
 
 ## Context
 
-The ABI Zig framework (1,127 .zig files, 20 feature directories, 30 features) is architecturally sound but has accumulated inconsistencies across five areas: git hygiene, protocol gating, AI sub-feature stub parity, monolithic file sizes, and documentation gaps. This spec addresses all of them in risk-ascending order so each phase can be validated before escalating.
+The ABI Zig framework (1,621 tracked .zig files, 21 feature directories, 60 features) is architecturally sound but has accumulated inconsistencies across five areas: git hygiene, protocol gating, AI sub-feature stub parity, monolithic file sizes, and documentation gaps. This spec addresses all of them in risk-ascending order so each phase can be validated before escalating.
 
 ## Phase 1 — Zero-Risk (No Behavior Change)
 
@@ -28,9 +28,9 @@ Add to CLAUDE.md under "Key Conventions":
 - Error unions — all runtime failure paths in library code
 
 ### 1d. Doc Consistency
-- Verify GEMINI.md feature counts match CLAUDE.md (20 dirs, 30 features)
+- Verify GEMINI.md feature counts match CLAUDE.md (21 dirs, 60 features)
 - Update any stale counts found
-- **Note:** Phase 2 may add `acp`/`ha` to the feature catalog, changing counts. If so, defer doc count updates to after Phase 2 merges, or use "30+ features" phrasing.
+- **Note:** Historical guidance from before the ACP/HA merge; the current repository already documents the updated 21-dir / 60-feature counts.
 
 ### 1e. Build Step Descriptions
 Verify alias steps in build.zig have differentiated descriptions. If already differentiated (e.g., "Run CLI tests"), skip. Only update if descriptions are generic/identical.
