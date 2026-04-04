@@ -1,18 +1,27 @@
 # Codebase Improvement Plan
 
 ## 0D. Merge Attached Workspaces Into `main`
-- [ ] Add a short merge/cleanup checklist here before mutating git history.
-- [ ] Exclude accidental `.claude/worktrees/*` index entries from the consolidation commit.
-- [ ] Commit the dirty root `main` workspace as one intentional consolidation commit.
-- [ ] Cherry-pick `f6c3abe080b9c77e1ce90d496e44efcf5d3489fa` from `worktree-agent-aea73b27` onto `main`.
-- [ ] Validate the integrated `main` workspace with parity, CLI, TUI, and full-check gates.
-- [ ] Remove attached worktrees and delete their local branches once validation passes.
+- [x] Add a short merge/cleanup checklist here before mutating git history.
+- [x] Exclude accidental `.claude/worktrees/*` index entries from the consolidation commit.
+- [x] Commit the dirty root `main` workspace as one intentional consolidation commit.
+- [x] Cherry-pick `f6c3abe080b9c77e1ce90d496e44efcf5d3489fa` from `worktree-agent-aea73b27` onto `main`.
+- [x] Validate the integrated `main` workspace with parity, CLI, TUI, and full-check gates.
+- [x] Remove attached worktrees and delete their local branches once validation passes.
 
 ### Notes
 - Opened on April 3, 2026 in `/Users/donaldfilimon/abi`, which is already checked out on `main`; this wave is about integrating attached worktree history and cleaning up the local workspace topology without rebasing or resetting against `origin/main`.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Current git topology shows two attached worktrees under `.claude/worktrees/`: `worktree-agent-ad29d5e3` has no unique commits versus `main`, while `worktree-agent-aea73b27` contributes one unique inference fix commit on `src/inference/engine/backends.zig`.
 - The root `main` workspace is intentionally dirty and includes prior staged/unstaged repo changes plus accidental staged `.claude/worktrees/*` entries that must stay out of the consolidation commit.
+- Completed on April 3, 2026 with root consolidation commit `2f45c45` (`chore: consolidate local main workspace`) followed by cherry-picked inference fix `de77cc1` on `main`.
+- The cherry-pick hit a content conflict in `src/inference/engine/backends.zig`; it was resolved by keeping the new `error.UnsupportedProvider` behavior for bare model IDs and then updating the stale local test to assert that contract instead of the old echo fallback.
+- Attached worktrees `/Users/donaldfilimon/abi/.claude/worktrees/agent-ad29d5e3` and `/Users/donaldfilimon/abi/.claude/worktrees/agent-aea73b27` were removed, and the now-obsolete local branches `worktree-agent-ad29d5e3` and `worktree-agent-aea73b27` were deleted after validation.
+- Validation passed with:
+  - `./build.sh test --summary all -- --test-filter "dispatchToConnector: no slash returns UnsupportedProvider"`
+  - `./build.sh check-parity --summary all`
+  - `./build.sh cli-tests --summary all`
+  - `./build.sh tui-tests --summary all`
+  - `./build.sh check --summary all`
 
 ## 0C. Dashboard Surface Alignment Wave
 - [x] Make the shared CLI renderers authoritative for status/help so `src/main.zig` stops duplicating dashboard/help copy.

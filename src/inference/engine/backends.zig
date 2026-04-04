@@ -576,10 +576,9 @@ test "dispatchToConnector: unknown provider returns UnsupportedProvider" {
     try std.testing.expectError(error.UnsupportedProvider, result);
 }
 
-test "dispatchToConnector: no slash falls back to echo" {
-    const result = try dispatchToConnector(std.testing.allocator, "bare-model-name", "hello");
-    defer std.testing.allocator.free(result);
-    try std.testing.expectEqualStrings("[bare-model-name] hello", result);
+test "dispatchToConnector: no slash returns UnsupportedProvider" {
+    const result = dispatchToConnector(std.testing.allocator, "bare-model-name", "hello");
+    try std.testing.expectError(error.UnsupportedProvider, result);
 }
 
 test "echoFallback: truncates prompt over 500 chars" {
