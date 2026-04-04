@@ -7,7 +7,7 @@
 //! - Cache-aligned storage: 64-byte alignment for hot data
 
 const std = @import("std");
-const shared = @import("../../foundation/mod.zig");
+const shared = @import("../../../foundation/mod.zig");
 const simd = shared.simd;
 const sync = shared.sync;
 const Mutex = sync.Mutex;

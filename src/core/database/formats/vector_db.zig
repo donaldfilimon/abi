@@ -1,1 +1,0 @@
-../../../features/core/database/formats/vector_db.zig

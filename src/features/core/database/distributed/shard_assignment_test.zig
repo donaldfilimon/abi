@@ -10,8 +10,8 @@
 //! - Dynamic rebalancing with minimal data movement
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("../../../../foundation/mod.zig").time;
+const sync = @import("../../../../foundation/mod.zig").sync;
 const parent = @import("./mod.zig");
 const ShardKey = parent.ShardKey;
 const ShardId = parent.ShardId;

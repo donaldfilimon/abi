@@ -1,1 +1,0 @@
-../../../features/core/database/distributed/shard_assignment_test.zig

@@ -33,14 +33,14 @@
 //! good load balancing even with variable insertion costs.
 
 const std = @import("std");
-const time = @import("../../foundation/mod.zig").time;
-const sync = @import("../../foundation/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const builtin = @import("builtin");
 const hnsw = @import("hnsw/mod.zig");
 const index_mod = @import("index.zig");
-const simd = @import("../../foundation/mod.zig").simd;
-const ChaseLevDeque = @import("../../runtime/concurrency/chase_lev.zig").ChaseLevDeque;
-const WorkStealingScheduler = @import("../../runtime/concurrency/chase_lev.zig").WorkStealingScheduler;
+const simd = @import("../../../foundation/mod.zig").simd;
+const ChaseLevDeque = @import("../../../runtime/concurrency/chase_lev.zig").ChaseLevDeque;
+const WorkStealingScheduler = @import("../../../runtime/concurrency/chase_lev.zig").WorkStealingScheduler;
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and

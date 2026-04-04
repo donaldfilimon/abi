@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const index_mod = @import("../index.zig");
-const simd = @import("../../../foundation/mod.zig").simd;
+const simd = @import("../../../../foundation/mod.zig").simd;
 const search_state = @import("../search_state.zig");
 const gpu_accel = @import("../gpu_accel.zig");
 const search_types = @import("search.zig");

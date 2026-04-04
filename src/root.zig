@@ -8,20 +8,20 @@ const build_options = @import("build_options");
 // ── Core ─────────────────────────────────────────────────────────────────
 
 /// Application configuration: feature flags, platform settings, build profiles.
-pub const config = @import("core/config/mod.zig");
+pub const config = @import("features/core/config/mod.zig");
 pub const Config = config.Config;
 pub const Feature = config.Feature;
 
 /// Framework error types and error set definitions.
-pub const errors = @import("core/errors.zig");
+pub const errors = @import("features/core/errors.zig");
 pub const FrameworkError = errors.FrameworkError;
 
 /// Service and plugin registry for runtime module discovery.
-pub const registry = @import("core/registry/mod.zig");
+pub const registry = @import("features/core/registry/mod.zig");
 pub const Registry = registry.Registry;
 
 /// Framework lifecycle: initialization, shutdown, state management.
-pub const framework = @import("core/framework.zig");
+pub const framework = @import("features/core/framework.zig");
 
 // ── Services (non-feature-gated) ─────────────────────────────────────────
 
@@ -100,7 +100,7 @@ pub const tui = if (build_options.feat_tui) @import("features/tui/mod.zig") else
 /// Build metadata: package version and feature catalog.
 pub const meta = struct {
     pub const package_version = build_options.package_version;
-    pub const features = @import("core/feature_catalog.zig");
+    pub const features = @import("features/core/feature_catalog.zig");
 
     pub fn version() []const u8 {
         return package_version;

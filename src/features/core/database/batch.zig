@@ -4,8 +4,8 @@
 //! with configurable batching strategies and progress reporting.
 
 const std = @import("std");
-const time = @import("../../foundation/mod.zig").time;
-const sync = @import("../../foundation/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 
 /// Batch operation configuration.
 pub const BatchConfig = struct {

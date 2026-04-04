@@ -3,6 +3,7 @@
 const std = @import("std");
 const stub_helpers = @import("../stub_helpers.zig");
 const config_module = @import("../config/mod.zig");
+const semantic_store_stub = @import("semantic_store/stub.zig");
 
 // --- Error Types ---
 
@@ -17,12 +18,11 @@ pub const DatabaseError = error{
     FeatureDisabled,
 };
 
-// --- Engine stub ---
+// --- Sub-module stubs ---
+
 pub const engine = struct {
     pub const Error = DatabaseError;
 };
-
-// --- Sub-module stubs for feature facade ---
 pub const distance = struct {
     pub const Error = DatabaseError;
 };
@@ -40,7 +40,7 @@ pub const DatabaseConfig = config_module.DatabaseConfig;
 const types = @import("stubs/types.zig");
 const parallel = @import("stubs/parallel.zig");
 const misc = @import("stubs/misc.zig");
-pub const semantic_store = @import("semantic_store/stub.zig");
+pub const semantic_store = semantic_store_stub;
 pub const core = @import("../mod.zig");
 
 // --- Core Types Re-exports ---
@@ -94,15 +94,6 @@ pub const Context = struct {
 
 pub const neural = @import("stubs/neural.zig");
 pub const cli = misc.cli;
-
-pub const ParallelSearchConfig = parallel.ParallelSearchConfig;
-pub const ParallelSearchExecutor = parallel.ParallelSearchExecutor;
-pub const ParallelBeamState = parallel.ParallelBeamState;
-pub const ParallelWorkQueue = parallel.ParallelWorkQueue;
-pub const BatchSearchResult = parallel.BatchSearchResult;
-pub const ParallelSearchStats = parallel.ParallelSearchStats;
-pub const batchCosineDistances = parallel.batchCosineDistances;
-
 pub const parallel_search = misc.parallel_search;
 pub const database = misc.database;
 pub const db_helpers = misc.db_helpers;
@@ -127,22 +118,31 @@ pub const search_state = misc.search_state;
 pub const distance_cache = misc.distance_cache;
 pub const time = misc.time;
 
+// Re-export sub-module contents for API parity with mod.zig
+pub const ParallelSearchConfig = parallel.ParallelSearchConfig;
+pub const ParallelSearchExecutor = parallel.ParallelSearchExecutor;
+pub const ParallelBeamState = parallel.ParallelBeamState;
+pub const ParallelWorkQueue = parallel.ParallelWorkQueue;
+pub const BatchSearchResult = parallel.BatchSearchResult;
+pub const ParallelSearchStats = parallel.ParallelSearchStats;
+pub const batchCosineDistances = parallel.batchCosineDistances;
+
 pub const Database = misc.database.Database;
 
-// --- Full-text search ---
+// Full-text search
 pub const InvertedIndex = misc.fulltext.InvertedIndex;
 pub const Bm25Config = misc.fulltext.Bm25Config;
 pub const TokenizerConfig = misc.fulltext.TokenizerConfig;
 pub const TextSearchResult = misc.fulltext.TextSearchResult;
 pub const QueryParser = misc.fulltext.QueryParser;
 
-// --- Hybrid search ---
+// Hybrid search
 pub const HybridSearchEngine = misc.hybrid.HybridSearchEngine;
 pub const HybridConfig = misc.hybrid.HybridConfig;
 pub const HybridResult = misc.hybrid.HybridResult;
 pub const FusionMethod = misc.hybrid.FusionMethod;
 
-// --- Filter ---
+// Filter
 pub const FilterBuilder = misc.filter.FilterBuilder;
 pub const FilterExpression = misc.filter.FilterExpression;
 pub const FilterCondition = misc.filter.FilterCondition;
@@ -152,7 +152,7 @@ pub const MetadataStore = misc.filter.MetadataStore;
 pub const FilteredSearch = misc.filter.FilteredSearch;
 pub const FilteredResult = misc.filter.FilteredResult;
 
-// --- Batch ---
+// Batch
 pub const BatchProcessor = misc.batch.BatchProcessor;
 pub const BatchConfig = misc.batch.BatchConfig;
 pub const BatchRecord = misc.batch.BatchRecord;
@@ -162,7 +162,7 @@ pub const BatchOperationBuilder = misc.batch.BatchOperationBuilder;
 pub const BatchImporter = misc.batch.BatchImporter;
 pub const ImportFormat = misc.batch.ImportFormat;
 
-// --- Clustering ---
+// Clustering
 pub const KMeans = misc.clustering.KMeans;
 pub const ClusterStats = misc.clustering.ClusterStats;
 pub const FitOptions = misc.clustering.FitOptions;
@@ -172,17 +172,17 @@ pub const cosineSimilarity = misc.clustering.cosineSimilarity;
 pub const silhouetteScore = misc.clustering.silhouetteScore;
 pub const elbowMethod = misc.clustering.elbowMethod;
 
-// --- Quantization ---
+// Quantization
 pub const ScalarQuantizer = misc.quantization.ScalarQuantizer;
 pub const ProductQuantizer = misc.quantization.ProductQuantizer;
 pub const QuantizationError = misc.quantization.QuantizationError;
 
-// --- GPU acceleration ---
+// GPU acceleration
 pub const GpuAccelerator = misc.gpu_accel.GpuAccelerator;
 pub const GpuAccelConfig = misc.gpu_accel.GpuAccelConfig;
 pub const GpuAccelStats = misc.gpu_accel.GpuAccelStats;
 
-// --- Formats ---
+// Formats
 pub const UnifiedFormat = misc.formats.UnifiedFormat;
 pub const UnifiedFormatBuilder = misc.formats.unified.UnifiedFormatBuilder;
 pub const FormatHeader = misc.formats.FormatHeader;
@@ -203,7 +203,6 @@ pub const FormatSearchResult = misc.formats.SearchResult;
 pub const fromGguf = misc.formats.fromGguf;
 pub const toGguf = misc.formats.toGguf;
 pub const GgufTensorType = misc.formats.GgufTensorType;
-
 pub const ZonFormat = misc.formats.ZonFormat;
 pub const ZonDatabase = misc.formats.ZonDatabase;
 pub const ZonRecord = misc.formats.ZonRecord;
@@ -212,7 +211,7 @@ pub const ZonDistanceMetric = misc.formats.ZonDistanceMetric;
 pub const exportToZon = misc.formats.exportToZon;
 pub const importFromZon = misc.formats.importFromZon;
 
-// --- Storage v2 ---
+// Storage v2
 pub const FileHeader = storage.FileHeader;
 pub const FileFooter = storage.FileFooter;
 pub const BloomFilter = storage.BloomFilter;
@@ -221,7 +220,7 @@ pub const StorageV2Config = storage.StorageV2Config;
 pub const saveDatabaseV2 = storage.saveDatabaseV2;
 pub const loadDatabaseV2 = storage.loadDatabaseV2;
 
-// --- BlockChain ---
+// BlockChain
 pub const BlockChain = misc.block_chain.BlockChain;
 pub const ConversationBlock = misc.block_chain.ConversationBlock;
 pub const BlockChainConfig = misc.block_chain.BlockChainConfig;
@@ -231,7 +230,7 @@ pub const RoutingWeights = misc.block_chain.RoutingWeights;
 pub const IntentCategory = misc.block_chain.IntentCategory;
 pub const PolicyFlags = misc.block_chain.PolicyFlags;
 
-// --- Distributed ---
+// Distributed
 pub const ShardManager = misc.distributed.ShardManager;
 pub const ShardConfig = misc.distributed.ShardConfig;
 pub const ShardKey = misc.distributed.ShardKey;
@@ -251,7 +250,7 @@ pub const DistributedBlockChainConfig = misc.distributed.DistributedBlockChainCo
 pub const DistributedBlockChainError = misc.distributed.DistributedBlockChainError;
 pub const DistributedContext = misc.distributed.Context;
 
-// --- DiskANN ---
+// DiskANN
 pub const DiskANNIndex = misc.diskann.DiskANNIndex;
 pub const DiskANNConfig = misc.diskann.DiskANNConfig;
 pub const PQCodebook = misc.diskann.PQCodebook;
@@ -260,14 +259,14 @@ pub const VamanaIndex = misc.diskann.VamanaIndex;
 pub const VamanaConfig = misc.diskann.VamanaConfig;
 pub const VamanaSearchResult = misc.diskann.VamanaSearchResult;
 
-// --- ScaNN ---
+// ScaNN
 pub const ScaNNIndex = misc.scann.ScaNNIndex;
 pub const ScaNNConfig = misc.scann.ScaNNConfig;
 pub const QuantizationType = misc.scann.QuantizationType;
 pub const AVQCodebook = misc.scann.AVQCodebook;
 pub const ScaNNStats = misc.scann.IndexStats;
 
-// --- Parallel HNSW ---
+// Parallel HNSW
 pub const ParallelHnswBuilder = misc.parallel_hnsw.ParallelHnswBuilder;
 pub const ParallelBuildConfig = misc.parallel_hnsw.ParallelBuildConfig;
 pub const ParallelBuildStats = misc.parallel_hnsw.ParallelBuildStats;

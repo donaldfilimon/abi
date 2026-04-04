@@ -12,10 +12,10 @@
 //! - Batch distance: SIMD/GPU acceleration for candidate evaluation
 
 const std = @import("std");
-const time = @import("../../foundation/mod.zig").time;
-const sync = @import("../../foundation/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const builtin = @import("builtin");
-const simd = @import("../../foundation/mod.zig").simd;
+const simd = @import("../../../foundation/mod.zig").simd;
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and

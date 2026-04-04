@@ -5,7 +5,7 @@ const semantic_store = @import("semantic_store/mod.zig");
 const storage = @import("storage.zig");
 const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
-const ai = if (build_options.feat_ai) @import("../../features/ai/mod.zig") else @import("../../features/ai/stub.zig");
+const ai = if (build_options.feat_ai) @import("../../ai/mod.zig") else @import("../../ai/stub.zig");
 const transformer = if (build_options.feat_ai) ai.transformer else struct {
     pub const TransformerModel = struct {
         pub fn init(_: std.mem.Allocator, _: anytype) !TransformerModel {
@@ -419,7 +419,7 @@ fn seedDatabase(handle: *semantic_store.DatabaseHandle) !void {
     }
 }
 
-const fs = @import("../../foundation/mod.zig").utils.fs;
+const fs = @import("../../../foundation/mod.zig").utils.fs;
 
 /// Parse CLI arguments for the add command. Returns parsed options or null on validation error.
 /// Exposed for testing purposes.

@@ -7,7 +7,7 @@
 //! Storage format uses unified storage wal_entry block type (0x05).
 
 const std = @import("std");
-const SerializationCursor = @import("../../../foundation/utils/binary.zig").SerializationCursor;
+const SerializationCursor = @import("../../../../foundation/utils/binary.zig").SerializationCursor;
 
 // ============================================================================
 // Types

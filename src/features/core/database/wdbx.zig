@@ -3,7 +3,7 @@ const std = @import("std");
 const core_db = @import("mod.zig");
 const database = core_db.database;
 const storage = core_db.storage; // Unified storage with v1 fallback
-const shared = @import("../../foundation/mod.zig");
+const shared = @import("../../../foundation/mod.zig");
 const fs = shared.utils.fs;
 
 pub const DatabaseHandle = struct {

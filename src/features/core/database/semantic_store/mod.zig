@@ -3,7 +3,7 @@
 const std = @import("std");
 const database = @import("../database.zig");
 const storage = @import("../storage.zig");
-const fs = @import("../../../foundation/mod.zig").utils.fs;
+const fs = @import("../../../../foundation/mod.zig").utils.fs;
 
 pub const StoreHandle = struct {
     db: database.Database,
@@ -133,8 +133,8 @@ pub fn searchStoreWeighted(
     const stats = handle.db.stats();
     const total_count = stats.count;
 
-    var hits = std.ArrayList(RetrievalHit).init(allocator);
-    errdefer hits.deinit();
+    var hits = std.ArrayListUnmanaged(RetrievalHit).empty;
+    errdefer hits.deinit(allocator);
 
     for (raw_results, 0..) |result, rank| {
         // Derive importance from the raw similarity score (higher score = more important).
@@ -159,7 +159,7 @@ pub fn searchStoreWeighted(
             .weight_inputs = weights,
         };
 
-        try hits.append(.{
+        try hits.append(allocator, .{
             .block_id = result.id,
             .score = weights.combinedScore(),
             .similarity = result.score,
@@ -178,7 +178,7 @@ pub fn searchStoreWeighted(
         }
     }.lessThan);
 
-    return hits.toOwnedSlice();
+    return hits.toOwnedSlice(allocator);
 }
 
 pub fn insertBatch(handle: *StoreHandle, items: []const BatchItem) !void {
@@ -290,4 +290,6 @@ test "influence trace captures retrieval metadata" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.8), trace.weight_inputs.similarity, 0.0001);
 }
 
-// refAllDecls deferred — searchStoreWeighted uses ArrayList.init (Zig 0.16: use .empty)
+test {
+    std.testing.refAllDecls(@This());
+}

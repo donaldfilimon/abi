@@ -11,9 +11,9 @@ const std = @import("std");
 const build_options = @import("build_options");
 const shard_manager = @import("shard_manager.zig");
 const network_mod = if (build_options.feat_network)
-    @import("../../../features/network/mod.zig")
+    @import("../../../network/mod.zig")
 else
-    @import("../../../features/network/stub.zig");
+    @import("../../../network/stub.zig");
 
 // ============================================================================
 // Types

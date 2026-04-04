@@ -3,7 +3,7 @@
 //! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
 
 const std = @import("std");
-const stub_helpers = @import("../core/stub_helpers.zig");
+const stub_helpers = @import("../features/core/stub_helpers.zig");
 
 /// Shared connector types (available even when connectors are disabled).
 pub const shared = @import("shared.zig");

@@ -25,7 +25,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const simd = @import("../../foundation/mod.zig").simd;
+const simd = @import("../../../foundation/mod.zig").simd;
 const gpu_accel = @import("gpu_accel.zig");
 
 pub const ClusteringError = error{

@@ -12,7 +12,7 @@
 //! Run via: `zig build check-parity`
 
 const std = @import("std");
-const catalog = @import("core/feature_catalog.zig");
+const catalog = @import("features/core/feature_catalog.zig");
 
 /// Compare public declaration names between two module types.
 /// Returns a list of names present in `expected` but missing from `actual`.

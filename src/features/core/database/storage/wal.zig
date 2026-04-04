@@ -274,7 +274,7 @@ pub const WalReader = struct {
 // ============================================================================
 
 fn getTestPath(buf: *[128]u8, name: []const u8) ![]u8 {
-    return std.fmt.bufPrint(buf, "/tmp/abi_wal_test_{d}_{s}.wal", .{ @import("../../../foundation/mod.zig").time.unixMs(), name });
+    return std.fmt.bufPrint(buf, "/tmp/abi_wal_test_{d}_{s}.wal", .{ @import("../../../../foundation/mod.zig").time.unixMs(), name });
 }
 
 fn deleteTestFile(path: []const u8) void {

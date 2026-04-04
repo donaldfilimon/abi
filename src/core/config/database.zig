@@ -1,1 +1,0 @@
-../../features/core/config/database.zig

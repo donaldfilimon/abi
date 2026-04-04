@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const feature_catalog = @import("core/feature_catalog.zig");
+const feature_catalog = @import("features/core/feature_catalog.zig");
 const acp = @import("protocols/acp/mod.zig");
 
 const default_host = "127.0.0.1";

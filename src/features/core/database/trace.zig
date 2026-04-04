@@ -1,7 +1,7 @@
 //! Makes the system inspectable.
 
 const std = @import("std");
-const foundation_time = @import("../../foundation/time.zig");
+const foundation_time = @import("../../../foundation/time.zig");
 
 pub const TraceEvent = struct {
     pub const Kind = enum { retrieval, scoring, tool_use, memory_update };

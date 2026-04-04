@@ -7,8 +7,8 @@
 //! 4. Raft consensus coordination
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("../../../../foundation/mod.zig").time;
+const sync = @import("../../../../foundation/mod.zig").sync;
 const BlockChain = @import("../block_chain.zig");
 const Distributed = @import("./mod.zig");
 

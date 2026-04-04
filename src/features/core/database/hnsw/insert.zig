@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const index_mod = @import("../index.zig");
-const simd = @import("../../../foundation/mod.zig").simd;
+const simd = @import("../../../../foundation/mod.zig").simd;
 const distance_cache_mod = @import("../distance_cache.zig");
 
 pub const DistanceCache = distance_cache_mod.DistanceCache;

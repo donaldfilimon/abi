@@ -18,13 +18,13 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../foundation/mod.zig").time;
-const sync = @import("../../foundation/mod.zig").sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
-const simd = @import("../../foundation/mod.zig").simd;
+const simd = @import("../../../foundation/mod.zig").simd;
 
 // Conditionally import GPU module
-const gpu = if (build_options.feat_gpu) @import("../../features/gpu/mod.zig") else struct {
+const gpu = if (build_options.feat_gpu) @import("../../gpu/mod.zig") else struct {
     pub const Gpu = void;
     pub const GpuConfig = struct {
         preferred_backend: ?void = null,

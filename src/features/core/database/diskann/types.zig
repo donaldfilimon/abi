@@ -127,4 +127,4 @@ pub fn writePaddingFile(file: std.Io.File, io: std.Io, len: usize) PersistError!
 
 // Helper functions
 
-pub const computeL2DistanceSquared = @import("../../../foundation/mod.zig").simd.distances.l2DistanceSquared;
+pub const computeL2DistanceSquared = @import("../../../../foundation/mod.zig").simd.distances.l2DistanceSquared;

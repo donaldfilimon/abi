@@ -1,1 +1,0 @@
-../../features/core/database/sync_compat.zig

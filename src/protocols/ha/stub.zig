@@ -3,7 +3,7 @@
 //! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
 
 const std = @import("std");
-const stub_helpers = @import("../../core/stub_helpers.zig");
+const stub_helpers = @import("../../features/core/stub_helpers.zig");
 const ha_types = @import("types.zig");
 
 /// HA module errors.

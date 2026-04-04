@@ -611,3 +611,14 @@
 - The TUI lane passed after the change with `./build.sh tui-tests --summary all`, and `git diff --check` remained clean.
 - This fills the most concrete, low-risk part of the TUI live-metrics gap without changing chat/database/log-viewer behavior yet.
 - Keep the unrelated dirty worktree changes out of scope for this wave.
+
+## 34. Source Layout Canonicalization
+- [x] Migrate internal callers off the `src/core` compatibility tree and onto `src/features/core`.
+- [x] Retire the `src/core` symlink bridge once the import sweep is clean.
+- [x] Validate the post-migration tree with parity, typecheck, and the most affected feature lanes.
+- Validation: `~/.zvm/bin/zig build check-parity`, `~/.zvm/bin/zig build typecheck --summary all`, `~/.zvm/bin/zig build agents-tests --summary all`, `~/.zvm/bin/zig build tui-tests --summary all`, and `~/.zvm/bin/zig build mcp-tests --summary all` passed. `database-tests` still fails on `test.database: chain integrity across multiple blocks` in both the current tree and the merge-base commit.
+
+### Notes
+- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` as a follow-up organization wave.
+- This wave should preserve the public `abi.*` surface while making `src/features/core/**` the canonical internal layout.
+- The current dirty worktree contains unrelated edits and must remain untouched outside the source-layout sweep.

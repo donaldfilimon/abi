@@ -109,8 +109,8 @@ const mobile_mod = fi.mobile_mod;
 const compute_mod = fi.compute_mod;
 const documents_mod = fi.documents_mod;
 const desktop_mod = fi.desktop_mod;
-const ha_mod = @import("../protocols/ha/mod.zig");
-const runtime_mod = @import("../runtime/mod.zig");
+const ha_mod = @import("../../protocols/ha/mod.zig");
+const runtime_mod = @import("../../runtime/mod.zig");
 
 /// Framework orchestration handle.
 ///

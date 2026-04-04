@@ -9,7 +9,7 @@ const build_options = @import("build_options");
 
 // Gate the features/ai import through build_options to respect the comptime gate pattern.
 // features/ai/config.zig only depends on features/ai/types.zig, not on core/config.
-const profiles_config = if (build_options.feat_ai) @import("../../features/ai/config.zig") else struct {
+const profiles_config = if (build_options.feat_ai) @import("../../ai/config.zig") else struct {
     pub const MultiProfileConfig = struct {};
 };
 pub const ProfilesConfig = profiles_config.MultiProfileConfig;

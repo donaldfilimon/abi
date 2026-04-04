@@ -18,64 +18,64 @@ pub const LifecycleError = error{
 // ── Feature Framework Errors ─────────────────────────────────────────────
 
 /// GPU feature errors visible at the framework level.
-pub const GpuFrameworkError = @import("../features/gpu/types.zig").FrameworkError;
+pub const GpuFrameworkError = @import("../gpu/types.zig").FrameworkError;
 
 /// AI feature errors visible at the framework level.
-pub const AiFrameworkError = @import("../features/ai/types.zig").FrameworkError;
+pub const AiFrameworkError = @import("../ai/types.zig").FrameworkError;
 
 /// Database feature errors visible at the framework level.
-pub const DatabaseFrameworkError = @import("../features/database/types.zig").FrameworkError;
+pub const DatabaseFrameworkError = @import("../database/types.zig").FrameworkError;
 
 /// Network feature errors visible at the framework level.
-pub const NetworkFrameworkError = @import("../features/network/types.zig").Error;
+pub const NetworkFrameworkError = @import("../network/types.zig").Error;
 
 /// Observability feature errors visible at the framework level.
-pub const ObservabilityFrameworkError = @import("../features/observability/types.zig").Error;
+pub const ObservabilityFrameworkError = @import("../observability/types.zig").Error;
 
 /// Web feature errors visible at the framework level.
-pub const WebFrameworkError = @import("../features/web/types.zig").WebError;
+pub const WebFrameworkError = @import("../web/types.zig").WebError;
 
 /// Dashboard pages feature errors visible at the framework level.
-pub const PagesFrameworkError = @import("../features/observability/pages/types.zig").PagesError;
+pub const PagesFrameworkError = @import("../observability/pages/types.zig").PagesError;
 
 /// Cloud feature errors visible at the framework level.
-pub const CloudFrameworkError = @import("../features/cloud/types.zig").CloudError;
+pub const CloudFrameworkError = @import("../cloud/types.zig").CloudError;
 
 /// Analytics feature errors visible at the framework level.
-pub const AnalyticsFrameworkError = @import("../features/analytics/types.zig").AnalyticsError;
+pub const AnalyticsFrameworkError = @import("../analytics/types.zig").AnalyticsError;
 
 /// Auth feature errors visible at the framework level.
-pub const AuthFrameworkError = @import("../features/auth/types.zig").AuthError;
+pub const AuthFrameworkError = @import("../auth/types.zig").AuthError;
 
 /// Messaging feature errors visible at the framework level.
-pub const MessagingFrameworkError = @import("../features/messaging/types.zig").MessagingError;
+pub const MessagingFrameworkError = @import("../messaging/types.zig").MessagingError;
 
 /// Cache feature errors visible at the framework level.
-pub const CacheFrameworkError = @import("../features/cache/types.zig").CacheError;
+pub const CacheFrameworkError = @import("../cache/types.zig").CacheError;
 
 /// Storage feature errors visible at the framework level.
-pub const StorageFrameworkError = @import("../features/storage/types.zig").StorageError;
+pub const StorageFrameworkError = @import("../storage/types.zig").StorageError;
 
 /// Search feature errors visible at the framework level.
-pub const SearchFrameworkError = @import("../features/search/types.zig").SearchError;
+pub const SearchFrameworkError = @import("../search/types.zig").SearchError;
 
 /// Mobile feature errors visible at the framework level.
-pub const MobileFrameworkError = @import("../features/mobile/types.zig").MobileError;
+pub const MobileFrameworkError = @import("../mobile/types.zig").MobileError;
 
 /// API Gateway feature errors visible at the framework level.
-pub const GatewayFrameworkError = @import("../features/gateway/types.zig").GatewayError;
+pub const GatewayFrameworkError = @import("../gateway/types.zig").GatewayError;
 
 /// Benchmarks feature errors visible at the framework level.
-pub const BenchmarksFrameworkError = @import("../features/benchmarks/types.zig").BenchmarksError;
+pub const BenchmarksFrameworkError = @import("../benchmarks/types.zig").BenchmarksError;
 
 /// Compute feature errors visible at the framework level.
-pub const ComputeFrameworkError = @import("../features/compute/types.zig").ComputeError;
+pub const ComputeFrameworkError = @import("../compute/types.zig").ComputeError;
 
 /// Documents feature errors visible at the framework level.
-pub const DocumentsFrameworkError = @import("../features/documents/types.zig").DocumentsError;
+pub const DocumentsFrameworkError = @import("../documents/types.zig").DocumentsError;
 
 /// Desktop feature errors visible at the framework level.
-pub const DesktopFrameworkError = @import("../features/desktop/types.zig").DesktopError;
+pub const DesktopFrameworkError = @import("../desktop/types.zig").DesktopError;
 
 /// All feature errors combined.
 pub const AllFeatureErrors = GpuFrameworkError ||

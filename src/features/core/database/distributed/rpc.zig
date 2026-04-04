@@ -4,7 +4,7 @@
 //! then payload. Encode/decode only; no I/O.
 
 const std = @import("std");
-const SerializationCursor = @import("../../../foundation/utils/binary.zig").SerializationCursor;
+const SerializationCursor = @import("../../../../foundation/utils/binary.zig").SerializationCursor;
 
 pub const MessageType = enum(u8) {
     heartbeat = 0,
