@@ -16,7 +16,7 @@ test "pipeline builder creates and runs a basic pipeline" {
     var builder = pipeline_mod.chain(allocator, "test-session-1");
     defer builder.deinit();
 
-    var p = builder
+    var p = try builder
         .template("Hello {input}, context: {context}")
         .route(.heuristic)
         .generate(.{})
@@ -40,7 +40,7 @@ test "pipeline template step interpolates variables" {
     var builder = pipeline_mod.chain(allocator, "test-session-2");
     defer builder.deinit();
 
-    var p = builder
+    var p = try builder
         .template("User said: {input}")
         .generate(.{})
         .build();
@@ -64,7 +64,7 @@ test "pipeline routing selects profile based on keywords" {
     var builder = pipeline_mod.chain(allocator, "test-session-3");
     defer builder.deinit();
 
-    var p = builder
+    var p = try builder
         .route(.heuristic)
         .generate(.{})
         .build();
@@ -95,7 +95,7 @@ test "pipeline with WDBX chain records blocks" {
     var builder = pipeline_mod.chain(allocator, "test-wdbx-session");
     defer builder.deinit();
 
-    var p = builder
+    var p = try builder
         .withChain(&wdbx_chain)
         .template("Respond to: {input}")
         .route(.adaptive)
@@ -121,7 +121,7 @@ test "pipeline validation step catches unsafe content" {
     var builder = pipeline_mod.chain(allocator, "test-session-validate");
     defer builder.deinit();
 
-    var p = builder
+    var p = try builder
         .generate(.{})
         .validate(.constitution)
         .build();
@@ -145,7 +145,7 @@ test "pipeline full chain matches DSL syntax from spec" {
     var builder = pipeline_mod.chain(allocator, "spec-demo");
     defer builder.deinit();
 
-    var p = builder
+    var p = try builder
         .retrieve(.wdbx, .{ .k = 5 })
         .template("Given {context}, respond to: {input}")
         .route(.adaptive)

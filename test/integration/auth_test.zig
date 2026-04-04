@@ -93,8 +93,9 @@ test "auth: rate_limit sub-module is accessible" {
 
 test "auth: createToken returns result or FeatureDisabled" {
     const result = auth.createToken(std.testing.allocator, "user-1");
-    if (result) |_| {
+    if (result) |res| {
         // Feature enabled — token created successfully
+        std.testing.allocator.free(res.raw);
     } else |err| {
         try std.testing.expectEqual(error.FeatureDisabled, err);
     }
@@ -102,17 +103,25 @@ test "auth: createToken returns result or FeatureDisabled" {
 
 test "auth: verifyToken returns result or FeatureDisabled" {
     const result = auth.verifyToken(std.testing.allocator, "some-token");
-    if (result) |_| {
+    if (result) |res| {
         // Feature enabled
+        std.testing.allocator.free(res.claims.sub);
     } else |err| {
-        try std.testing.expectEqual(error.FeatureDisabled, err);
+        if (auth.isEnabled()) {
+            // If enabled, "some-token" is expected to be invalid
+            try std.testing.expectEqual(error.InvalidCredentials, err);
+        } else {
+            try std.testing.expectEqual(error.FeatureDisabled, err);
+        }
     }
 }
 
 test "auth: createSession returns result or FeatureDisabled" {
     const result = auth.createSession(std.testing.allocator, "user-1");
-    if (result) |_| {
+    if (result) |res| {
         // Feature enabled
+        std.testing.allocator.free(res.id);
+        std.testing.allocator.free(res.user_id);
     } else |err| {
         try std.testing.expectEqual(error.FeatureDisabled, err);
     }

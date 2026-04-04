@@ -138,8 +138,8 @@ test "mcp: server starts with no tools" {
     var server = mcp.Server.init(std.testing.allocator, "empty-server", "0.0.1");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 0), server.tools.len);
-    try std.testing.expectEqual(@as(usize, 0), server.resources.len);
+    try std.testing.expectEqual(@as(usize, 0), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 0), server.resources.items.len);
 }
 
 // ============================================================================
@@ -165,7 +165,7 @@ test "mcp: register tool with server" {
         .handler = dummyHandler,
     });
 
-    try std.testing.expectEqual(@as(usize, 1), server.tools.len);
+    try std.testing.expectEqual(@as(usize, 1), server.tools.items.len);
     try std.testing.expectEqualStrings("my_tool", server.tools.items[0].def.name);
 }
 
@@ -182,7 +182,7 @@ test "mcp: register multiple tools" {
         .handler = dummyHandler,
     });
 
-    try std.testing.expectEqual(@as(usize, 2), server.tools.len);
+    try std.testing.expectEqual(@as(usize, 2), server.tools.items.len);
     try std.testing.expectEqualStrings("tool_a", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("tool_b", server.tools.items[1].def.name);
 }
@@ -196,7 +196,7 @@ test "mcp: createStatusServer" {
     defer server.deinit();
 
     try std.testing.expectEqualStrings("abi-status", server.server_name);
-    try std.testing.expect(server.tools.len > 0);
+    try std.testing.expect(server.tools.items.len > 0);
 }
 
 test {

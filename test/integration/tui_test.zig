@@ -262,6 +262,23 @@ test "tui: dashboard features view tracks canonical catalog" {
     try std.testing.expect(containsText(screen.back, "inference"));
 }
 
+test "tui: dashboard overview renders live metrics" {
+    try requireRealTui();
+
+    const Screen = abi.tui.render.Screen;
+    const dashboard = abi.tui.dashboard;
+
+    var screen = try Screen.init(std.testing.allocator, 100, 28);
+    defer screen.deinit();
+
+    const state: dashboard.AppState = .{};
+    dashboard.renderDashboard(&screen, &state);
+
+    try std.testing.expect(containsText(screen.back, "METRICS"));
+    try std.testing.expect(containsText(screen.back, "feature coverage"));
+    try std.testing.expect(containsText(screen.back, "runtime surfaces"));
+}
+
 test "tui: dashboard compact and minimal modes render usable diagnostics" {
     try requireRealTui();
 
