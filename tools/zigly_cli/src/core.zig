@@ -40,7 +40,13 @@ pub fn initConfig(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.pr
         if (f.stat(io)) |stat| {
             if (allocator.alloc(u8, stat.size)) |content| {
                 if (f.readPositionalAll(io, content, 0)) |bytes_read| {
-                    project_version = std.mem.trim(u8, content[0..bytes_read], " \n\r\t");
+                    const trimmed = std.mem.trim(u8, content[0..bytes_read], " \n\r\t");
+                    if (trimmed.len == 0) {
+                        allocator.free(content);
+                    } else {
+                        project_version = allocator.dupe(u8, trimmed) catch null;
+                        allocator.free(content);
+                    }
                 } else |_| {
                     allocator.free(content);
                 }

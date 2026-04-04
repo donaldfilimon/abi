@@ -1,5 +1,33 @@
 # Codebase Improvement Plan
 
+## 0E. ZVM-First Toolchain Alignment + Zig Pin Bump
+- [x] Bump `.zigversion` to `0.16.0-dev.3070+b22eb176b`.
+- [x] Make `tools/zigly` resolve/install the pinned Zig through ZVM first when ZVM is present.
+- [x] Align internal Zig path helpers and auto-update flow with the same ZVM-first resolution order.
+- [x] Refresh toolchain docs/comments to describe the ZVM-first contract and the new pin.
+- [x] Validate the new pin and resolver behavior with ZVM checks plus repo build gates.
+
+### Notes
+- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a clean tracked worktree on `main`; this wave is toolchain-focused and should avoid unrelated repo cleanup.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Current drift: `.zigversion` still pins `0.16.0-dev.2984+cb7d2b056`, `build.sh` resolves Zig through `tools/zigly --status`, `tools/zigly_cli/src/cli.zig` only returns the zigly cache path, and `src/foundation/utils/zig_toolchain.zig` still prefers the legacy `~/.cache/abi-zig` path plus `~/.zvm/master/zig`.
+- Environment note before implementation: `zvm v0.8.14` rejects the explicit snapshot `0.16.0-dev.3070+b22eb176b` as unsupported, but `zvm install master` / `zvm use master` does expose `~/.zvm/bin/zig` at that exact version. `~/.zvm/versions-zls.json` was also permission-blocked until it was removed from the user-writable directory.
+- Completed on April 3, 2026 with `.zigversion` pinned to `0.16.0-dev.3070+b22eb176b`, `tools/zigly --status` returning `/Users/donaldfilimon/.zvm/bin/zig`, and the native `zigly` bootstrap updated to rebuild when its sources change.
+- `tools/zigly_cli/src/cli.zig`, `src/foundation/utils/zig_toolchain.zig`, `build.sh`, `tools/crossbuild.sh`, and `tools/auto_update.sh` now agree on the ZVM-first lookup order: use `~/.zvm/bin/zig` when its reported version matches `.zigversion`, otherwise fall back to the pinned zigly cache.
+- Validation passed with:
+  - `zig fmt --check src/foundation/utils/zig_toolchain.zig tools/zigly_cli/build.zig tools/zigly_cli/src/cli.zig tools/zigly_cli/src/core.zig`
+  - `~/.zvm/bin/zig test tools/zigly_cli/src/cli.zig -lc`
+  - `~/.zvm/bin/zig test tools/zigly_cli/src/core.zig`
+  - `tools/auto_update.sh --check` (reported `Already up to date.` on `0.16.0-dev.3070+b22eb176b`)
+  - `./tools/zigly --status`
+  - `./tools/zigly --install`
+  - `zvm use --sync`
+  - `zig version`
+  - `~/.zvm/bin/zig version`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh check --summary all`
+- Residual environment caveat: `zvm v0.8.14` still needs the `master` alias fallback to reach this exact snapshot, and the active ZVM `zls` remains `0.16.0-dev.296+ef64fa01` even while `zig` is aligned to `0.16.0-dev.3070+b22eb176b`.
+
 ## 0D. Merge Attached Workspaces Into `main`
 - [x] Add a short merge/cleanup checklist here before mutating git history.
 - [x] Exclude accidental `.claude/worktrees/*` index entries from the consolidation commit.

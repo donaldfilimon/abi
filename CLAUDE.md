@@ -6,10 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
-Zig version is pinned in `.zigversion` (currently `0.16.0-dev.2984+cb7d2b056`). The zig version manager auto-downloads the correct version:
+Zig version is pinned in `.zigversion` (currently `0.16.0-dev.3070+b22eb176b`). `tools/zigly`
+is the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version matches the pin:
 
 ```bash
-zigly --status    # Print zig path (auto-install if missing)
+zvm use --sync    # Sync ZVM with the repo pin when supported
+zigly --status    # Print the pinned zig path (ZVM-first when versions match)
 zigly --link      # Symlink zig + zls into ~/.local/bin
 zigly --bootstrap # One-command project setup (install, link, verify)
 zigly --doctor    # Toolchain health check (versions, PATH, platform)
@@ -32,7 +34,10 @@ tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
 Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
-`zigly` also detects system-installed zig from zvm (`~/.zvm/bin/zig`) or brew, preferring those over its own cache when the version matches `.zigversion`. If zvm is installed, `zvm install master` provides both zig and zls.
+`zigly` now checks the active ZVM binary at `~/.zvm/bin/zig` first and uses it when `zig version`
+matches `.zigversion`; otherwise it falls back to the pinned zigly cache. If ZVM is installed,
+`zigly --install` syncs through ZVM first, and `zvm install master` can provide the current
+upstream dev snapshot when explicit snapshot lookup lags.
 
 To make zig and zls available globally, run `zigly --link` which symlinks them into `~/.local/bin`. Ensure `~/.local/bin` is on your PATH:
 ```bash

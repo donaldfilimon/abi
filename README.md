@@ -24,11 +24,13 @@ zig build                   # Linux / older macOS
 ```
 
 On macOS 26.4+ (Darwin 25.x), stock prebuilt Zig's LLD linker cannot link binaries.
-Use `./build.sh` which auto-relinks with Apple's native linker. To install and symlink
-the correct Zig version:
+Use `./build.sh` which auto-relinks with Apple's native linker. `tools/zigly`
+remains the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version
+matches `.zigversion`:
 
 ```bash
-tools/zigly --status     # Auto-install if missing
+zvm use --sync          # Optional: sync ZVM with the repo pin
+tools/zigly --status    # Resolve the pinned Zig (ZVM-first when it matches)
 tools/zigly --link       # Symlink to ~/.local/bin
 ```
 
@@ -155,7 +157,7 @@ regardless of which features are enabled.
 
 ```bash
 tools/zigly --status    # Print zig path (auto-install if missing)
-tools/zigly --install   # Force re-download zig + ZLS
+tools/zigly --install   # Sync the pinned Zig + ZLS (ZVM-first when available)
 tools/zigly --link      # Symlink zig + zls into ~/.local/bin
 tools/zigly --unlink    # Remove symlinks from local bin
 tools/zigly --update    # Check for newer zig and update if available
@@ -166,10 +168,14 @@ tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
 Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
+When ZVM is installed, the active `~/.zvm/bin/zig` is authoritative if its exact
+`zig version` matches `.zigversion`; otherwise `tools/zigly` falls back to the pinned
+zigly cache.
 
 ## Toolchain
 
-ABI is pinned to the Zig version in `.zigversion`. On macOS 26.4+, `./build.sh`
+ABI is pinned to the Zig version in `.zigversion` (currently `0.16.0-dev.3070+b22eb176b`).
+On macOS 26.4+, `./build.sh`
 auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
 
 ## Testing

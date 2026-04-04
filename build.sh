@@ -34,9 +34,26 @@ for arg in "$@"; do
 done
 set -- $ARGS
 
-# Resolve zig via zigly (auto-downloads if missing)
+# Resolve zig via zigly (prefers a version-matched ZVM toolchain when available)
 ZIG2="$("$SCRIPT_DIR/tools/zigly" --status)"
-ZIG_LIB="$(dirname "$(dirname "$ZIG2")")/lib"
+ZIG_REAL="$(readlink -f "$ZIG2" 2>/dev/null || echo "$ZIG2")"
+
+resolve_zig_lib_dir() {
+    local zig_bin="$1"
+    local bin_dir candidate fallback
+
+    bin_dir="$(dirname "$zig_bin")"
+    candidate="$bin_dir/lib"
+    if [ -d "$candidate" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+
+    fallback="$(dirname "$bin_dir")/lib"
+    printf '%s\n' "$fallback"
+}
+
+ZIG_LIB="$(resolve_zig_lib_dir "$ZIG_REAL")"
 
 SYSROOT="$(xcrun --show-sdk-path 2>/dev/null || echo "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")"
 MACOS_VER="$(sw_vers -productVersion 2>/dev/null || echo "26.4")"

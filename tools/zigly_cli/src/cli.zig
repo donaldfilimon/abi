@@ -4,6 +4,29 @@ const core = @import("core.zig");
 const download = @import("download.zig");
 const archive = @import("archive.zig");
 
+const ToolchainSource = enum {
+    zvm,
+    zigly,
+};
+
+const ToolchainSelection = enum {
+    zvm_active,
+    zigly_cache,
+    install_via_zvm,
+    install_via_zigly,
+};
+
+const ResolvedToolchain = struct {
+    source: ToolchainSource,
+    zig_path: []u8,
+    zls_path: ?[]u8,
+
+    pub fn deinit(self: ResolvedToolchain, allocator: std.mem.Allocator) void {
+        allocator.free(self.zig_path);
+        if (self.zls_path) |zls_path| allocator.free(zls_path);
+    }
+};
+
 pub fn resolveVersion(config: *core.Config, raw_version: []const u8) ![]const u8 {
     if (raw_version.len > 0) {
         return raw_version;
@@ -34,37 +57,250 @@ pub fn getOsArch() struct { os: []const u8, arch: []const u8 } {
     return .{ .os = os_tag, .arch = arch_tag };
 }
 
-pub fn doStatus(config: *core.Config, raw_version: []const u8) !void {
-    const version = try resolveVersion(config, raw_version);
-    const cache_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "versions", version });
-    defer config.allocator.free(cache_dir);
+fn versionMatches(requested: []const u8, actual: ?[]const u8) bool {
+    const actual_version = actual orelse return false;
+    return std.mem.eql(u8, requested, actual_version);
+}
 
-    const zig_bin = try std.fs.path.join(config.allocator, &[_][]const u8{ cache_dir, "bin", "zig" });
-    defer config.allocator.free(zig_bin);
+fn selectToolchain(
+    requested: []const u8,
+    has_zvm: bool,
+    active_zvm_version: ?[]const u8,
+    has_zigly_cache: bool,
+) ToolchainSelection {
+    if (has_zvm) {
+        if (versionMatches(requested, active_zvm_version)) return .zvm_active;
+        return .install_via_zvm;
+    }
+    if (has_zigly_cache) return .zigly_cache;
+    return .install_via_zigly;
+}
 
-    // Check if installed
-    const zig_bin_exists = if (std.Io.Dir.accessAbsolute(config.io, zig_bin, .{})) true else |_| false;
-    if (zig_bin_exists) {
-        const out_str = std.fmt.allocPrint(config.allocator, "{s}\n", .{zig_bin}) catch return;
-        defer config.allocator.free(out_str);
-        _ = std.Io.File.stdout().writeStreamingAll(config.io, out_str) catch {};
-    } else {
-        try doInstall(config, version);
-        const out_str = std.fmt.allocPrint(config.allocator, "{s}\n", .{zig_bin}) catch return;
-        defer config.allocator.free(out_str);
-        _ = std.Io.File.stdout().writeStreamingAll(config.io, out_str) catch {};
+fn fileExistsAbsolute(io: std.Io, path: []const u8) bool {
+    const file = std.Io.Dir.openFileAbsolute(io, path, .{}) catch return false;
+    file.close(io);
+    return true;
+}
+
+fn allocZiglyCacheDir(config: *core.Config, version: []const u8) ![]u8 {
+    return try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "versions", version });
+}
+
+fn allocZiglyZigPath(config: *core.Config, version: []const u8) ![]u8 {
+    return try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "versions", version, "bin", "zig" });
+}
+
+fn allocZiglyZlsPath(config: *core.Config, version: []const u8) ![]u8 {
+    return try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "versions", version, "bin", "zls" });
+}
+
+fn allocZvmSelfPath(config: *core.Config) ![]u8 {
+    return try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".zvm", "self", "zvm" });
+}
+
+fn allocZvmBinZigPath(config: *core.Config) ![]u8 {
+    return try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".zvm", "bin", "zig" });
+}
+
+fn allocZvmBinZlsPath(config: *core.Config) ![]u8 {
+    return try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".zvm", "bin", "zls" });
+}
+
+fn allocZvmMasterZigPath(config: *core.Config) ![]u8 {
+    return try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".zvm", "master", "zig" });
+}
+
+fn hasZvm(config: *core.Config) !bool {
+    const zvm_path = try allocZvmSelfPath(config);
+    defer config.allocator.free(zvm_path);
+    return fileExistsAbsolute(config.io, zvm_path);
+}
+
+fn probeBinaryVersion(config: *core.Config, binary_path: []const u8) !?[]u8 {
+    if (!fileExistsAbsolute(config.io, binary_path)) return null;
+
+    const output_path = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "tmp", "version.txt" });
+    defer config.allocator.free(output_path);
+
+    var child_args = std.ArrayListUnmanaged([]const u8).empty;
+    defer child_args.deinit(config.allocator);
+    try child_args.append(config.allocator, "sh");
+    try child_args.append(config.allocator, "-c");
+    try child_args.append(config.allocator, "\"$1\" version > \"$2\"");
+    try child_args.append(config.allocator, "sh");
+    try child_args.append(config.allocator, binary_path);
+    try child_args.append(config.allocator, output_path);
+
+    var child = try std.process.spawn(config.io, .{ .argv = child_args.items });
+    const term = try child.wait(config.io);
+    switch (term) {
+        .exited => |code| {
+            if (code != 0) return null;
+        },
+        else => return null,
+    }
+
+    const file = std.Io.Dir.openFileAbsolute(config.io, output_path, .{}) catch return null;
+    defer file.close(config.io);
+    const stat = file.stat(config.io) catch return null;
+    if (stat.size == 0) return null;
+
+    const content = try config.allocator.alloc(u8, @min(stat.size, 128));
+    const bytes_read = try file.readPositionalAll(config.io, content, 0);
+    const trimmed = std.mem.trim(u8, content[0..bytes_read], " \n\r\t");
+    if (trimmed.len == 0) {
+        config.allocator.free(content);
+        return null;
+    }
+    const version = try config.allocator.dupe(u8, trimmed);
+    config.allocator.free(content);
+    return version;
+}
+
+fn tryRunCommand(config: *core.Config, argv: []const []const u8) !bool {
+    var child = try std.process.spawn(config.io, .{ .argv = argv });
+    const term = try child.wait(config.io);
+    return switch (term) {
+        .exited => |code| code == 0,
+        else => false,
+    };
+}
+
+fn resolveActiveZvmToolchain(config: *core.Config, version: []const u8) !?ResolvedToolchain {
+    const zvm_zig = try allocZvmBinZigPath(config);
+    const active_version = try probeBinaryVersion(config, zvm_zig);
+    defer if (active_version) |v| config.allocator.free(v);
+
+    if (!versionMatches(version, active_version)) {
+        config.allocator.free(zvm_zig);
+        return null;
+    }
+
+    const zvm_zls = try allocZvmBinZlsPath(config);
+    if (!fileExistsAbsolute(config.io, zvm_zls)) {
+        config.allocator.free(zvm_zls);
+        return ResolvedToolchain{
+            .source = .zvm,
+            .zig_path = zvm_zig,
+            .zls_path = null,
+        };
+    }
+
+    return ResolvedToolchain{
+        .source = .zvm,
+        .zig_path = zvm_zig,
+        .zls_path = zvm_zls,
+    };
+}
+
+fn resolveZiglyCacheToolchain(config: *core.Config, version: []const u8) !?ResolvedToolchain {
+    const zig_path = try allocZiglyZigPath(config, version);
+    if (!fileExistsAbsolute(config.io, zig_path)) {
+        config.allocator.free(zig_path);
+        return null;
+    }
+
+    const zls_path = try allocZiglyZlsPath(config, version);
+    if (!fileExistsAbsolute(config.io, zls_path)) {
+        config.allocator.free(zls_path);
+        return ResolvedToolchain{
+            .source = .zigly,
+            .zig_path = zig_path,
+            .zls_path = null,
+        };
+    }
+
+    return ResolvedToolchain{
+        .source = .zigly,
+        .zig_path = zig_path,
+        .zls_path = zls_path,
+    };
+}
+
+fn syncViaZvm(config: *core.Config, version: []const u8) !ResolvedToolchain {
+    const zvm_path = try allocZvmSelfPath(config);
+    defer config.allocator.free(zvm_path);
+
+    std.debug.print("==> ZVM detected. Activating Zig {s} through ZVM...\n", .{version});
+
+    const install_exact = [_][]const u8{ zvm_path, "install", "--zls", "--nomirror", version };
+    const installed_exact = try tryRunCommand(config, &install_exact);
+
+    if (installed_exact) {
+        const sync = [_][]const u8{ zvm_path, "use", "--sync" };
+        _ = try tryRunCommand(config, &sync);
+        if (try resolveActiveZvmToolchain(config, version)) |toolchain| return toolchain;
+    }
+
+    const install_master = [_][]const u8{ zvm_path, "install", "--zls", "--nomirror", "master" };
+    _ = try tryRunCommand(config, &install_master);
+
+    const master_zig = try allocZvmMasterZigPath(config);
+    defer config.allocator.free(master_zig);
+    const master_version = try probeBinaryVersion(config, master_zig);
+    defer if (master_version) |v| config.allocator.free(v);
+
+    if (versionMatches(version, master_version)) {
+        const use_master = [_][]const u8{ zvm_path, "use", "master" };
+        if (!(try tryRunCommand(config, &use_master))) {
+            std.debug.print("ERROR: ZVM has a matching master build for {s}, but 'zvm use master' failed.\n", .{version});
+            return error.ZvmUseFailed;
+        }
+        if (try resolveActiveZvmToolchain(config, version)) |toolchain| return toolchain;
+    }
+
+    std.debug.print("ERROR: ZVM is installed but could not activate Zig {s}.\n", .{version});
+    std.debug.print("       Tried explicit snapshot install/sync and a version-matched 'master' fallback.\n", .{});
+    return error.UnsupportedZigVersion;
+}
+
+fn ensureToolchain(config: *core.Config, version: []const u8) !ResolvedToolchain {
+    const zvm_installed = try hasZvm(config);
+    const active_zvm_path = if (zvm_installed) try allocZvmBinZigPath(config) else null;
+    defer if (active_zvm_path) |path| config.allocator.free(path);
+    const active_zvm_version = if (active_zvm_path) |path| try probeBinaryVersion(config, path) else null;
+    defer if (active_zvm_version) |v| config.allocator.free(v);
+
+    const zigly_cache_path = try allocZiglyZigPath(config, version);
+    const has_zigly_cache = fileExistsAbsolute(config.io, zigly_cache_path);
+    config.allocator.free(zigly_cache_path);
+
+    switch (selectToolchain(version, zvm_installed, active_zvm_version, has_zigly_cache)) {
+        .zvm_active => {
+            if (try resolveActiveZvmToolchain(config, version)) |toolchain| return toolchain;
+            return error.ZvmResolutionFailed;
+        },
+        .zigly_cache => {
+            if (try resolveZiglyCacheToolchain(config, version)) |toolchain| return toolchain;
+            return error.ZiglyResolutionFailed;
+        },
+        .install_via_zvm => return syncViaZvm(config, version),
+        .install_via_zigly => {
+            try installViaZiglyCache(config, version);
+            if (try resolveZiglyCacheToolchain(config, version)) |toolchain| return toolchain;
+            return error.ZiglyResolutionFailed;
+        },
     }
 }
 
-pub fn doInstall(config: *core.Config, raw_version: []const u8) !void {
+pub fn doStatus(config: *core.Config, raw_version: []const u8) !void {
     const version = try resolveVersion(config, raw_version);
-    const cache_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "versions", version });
+    const toolchain = try ensureToolchain(config, version);
+    defer toolchain.deinit(config.allocator);
+
+    const out_str = std.fmt.allocPrint(config.allocator, "{s}\n", .{toolchain.zig_path}) catch return;
+    defer config.allocator.free(out_str);
+    _ = std.Io.File.stdout().writeStreamingAll(config.io, out_str) catch {};
+}
+
+fn installViaZiglyCache(config: *core.Config, version: []const u8) !void {
+    const cache_dir = try allocZiglyCacheDir(config, version);
     defer config.allocator.free(cache_dir);
 
-    const zig_bin = try std.fs.path.join(config.allocator, &[_][]const u8{ cache_dir, "bin", "zig" });
+    const zig_bin = try allocZiglyZigPath(config, version);
     defer config.allocator.free(zig_bin);
 
-    const zig_bin_exists = if (std.Io.Dir.accessAbsolute(config.io, zig_bin, .{})) true else |_| false;
+    const zig_bin_exists = fileExistsAbsolute(config.io, zig_bin);
     if (zig_bin_exists) {
         std.debug.print("==> Zig {s} is already installed.\n", .{version});
         return;
@@ -146,6 +382,17 @@ pub fn doInstall(config: *core.Config, raw_version: []const u8) !void {
 
     // Attempt ZLS download (best effort, don't fail installation if it fails)
     try downloadZls(config, version);
+}
+
+pub fn doInstall(config: *core.Config, raw_version: []const u8) !void {
+    const version = try resolveVersion(config, raw_version);
+    const toolchain = try ensureToolchain(config, version);
+    defer toolchain.deinit(config.allocator);
+
+    switch (toolchain.source) {
+        .zvm => std.debug.print("==> Zig {s} is active via ZVM.\n", .{version}),
+        .zigly => std.debug.print("==> Zig {s} is ready in the zigly cache.\n", .{version}),
+    }
 }
 
 pub fn downloadZls(config: *core.Config, version: []const u8) !void {
@@ -253,10 +500,8 @@ pub fn downloadZls(config: *core.Config, version: []const u8) !void {
 
 pub fn doUse(config: *core.Config, raw_version: []const u8) !void {
     const version = try resolveVersion(config, raw_version);
-    try doInstall(config, version);
-
-    const cache_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "versions", version });
-    defer config.allocator.free(cache_dir);
+    const toolchain = try ensureToolchain(config, version);
+    defer toolchain.deinit(config.allocator);
 
     const local_bin = try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".local", "bin" });
     defer config.allocator.free(local_bin);
@@ -265,23 +510,18 @@ pub fn doUse(config: *core.Config, raw_version: []const u8) !void {
 
     std.debug.print("==> Setting Zig {s} as default in {s}...\n", .{ version, local_bin });
 
-    const zig_bin = try std.fs.path.join(config.allocator, &[_][]const u8{ cache_dir, "bin", "zig" });
-    defer config.allocator.free(zig_bin);
     const local_zig = try std.fs.path.join(config.allocator, &[_][]const u8{ local_bin, "zig" });
     defer config.allocator.free(local_zig);
 
     _ = std.Io.Dir.deleteFileAbsolute(config.io, local_zig) catch {};
-    try std.Io.Dir.symLinkAbsolute(config.io, zig_bin, local_zig, .{});
+    try std.Io.Dir.symLinkAbsolute(config.io, toolchain.zig_path, local_zig, .{});
     std.debug.print("==> Symlinked zig -> {s}\n", .{local_zig});
 
-    const zls_bin = try std.fs.path.join(config.allocator, &[_][]const u8{ cache_dir, "bin", "zls" });
-    defer config.allocator.free(zls_bin);
-    const zls_bin_exists = if (std.Io.Dir.accessAbsolute(config.io, zls_bin, .{})) true else |_| false;
-    if (zls_bin_exists) {
+    if (toolchain.zls_path) |zls_path| {
         const local_zls = try std.fs.path.join(config.allocator, &[_][]const u8{ local_bin, "zls" });
         defer config.allocator.free(local_zls);
         _ = std.Io.Dir.deleteFileAbsolute(config.io, local_zls) catch {};
-        try std.Io.Dir.symLinkAbsolute(config.io, zls_bin, local_zls, .{});
+        try std.Io.Dir.symLinkAbsolute(config.io, zls_path, local_zls, .{});
         std.debug.print("==> Symlinked zls -> {s}\n", .{local_zls});
     }
 
@@ -353,10 +593,22 @@ pub fn doCurrent(config: *core.Config) !void {
 
     std.debug.print("Global active version: {s}\n", .{active_version});
 
+    const zvm_version = blk: {
+        const zvm_zig = try allocZvmBinZigPath(config);
+        defer config.allocator.free(zvm_zig);
+        break :blk try probeBinaryVersion(config, zvm_zig);
+    };
+    defer if (zvm_version) |v| config.allocator.free(v);
+
+    if (zvm_version) |version| {
+        std.debug.print("ZVM active version:  {s}\n", .{version});
+    }
+
     if (config.project_version) |pv| {
         std.debug.print("Project .zigversion:   {s}\n", .{pv});
-        if (!std.mem.eql(u8, active_version, pv)) {
-            std.debug.print("==> WARNING: Project version does not match global active version.\n", .{});
+        const zvm_matches = versionMatches(pv, zvm_version);
+        if (!zvm_matches and !std.mem.eql(u8, active_version, pv)) {
+            std.debug.print("==> WARNING: Project version does not match the active Zig toolchain.\n", .{});
             std.debug.print("==> Run 'zigly use' to activate the project version.\n", .{});
         }
     }
@@ -402,6 +654,16 @@ pub fn doDoctor(config: *core.Config) !void {
         std.debug.print("Project:    {s}\n", .{pv});
     } else {
         std.debug.print("Project:    No .zigversion found\n", .{});
+    }
+
+    const zvm_zig = try allocZvmBinZigPath(config);
+    defer config.allocator.free(zvm_zig);
+    const zvm_version = try probeBinaryVersion(config, zvm_zig);
+    defer if (zvm_version) |v| config.allocator.free(v);
+    if (zvm_version) |version| {
+        std.debug.print("ZVM zig:    {s} ({s})\n", .{ zvm_zig, version });
+    } else {
+        std.debug.print("ZVM zig:    unavailable or version probe failed\n", .{});
     }
 
     const local_bin = try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".local", "bin" });
@@ -496,7 +758,7 @@ pub fn doCheck(config: *core.Config) !void {
                                 if (std.mem.eql(u8, version, latest)) {
                                     std.debug.print("==> You are up to date.\n", .{});
                                 } else {
-                                    std.debug.print("==> Update available! Run 'zigly install' to upgrade.\n", .{});
+                                    std.debug.print("==> Update available! Run 'zigly install' to sync the project toolchain.\n", .{});
                                 }
                                 return;
                             }
@@ -638,8 +900,8 @@ pub fn printUsage() void {
         \\Usage: zigly <command> [options]
         \\
         \\Commands:
-        \\  install [version]    Install a specific version of Zig + ZLS (defaults to .zigversion)
-        \\  use [version]        Install and set as the active global version (symlinks to ~/.local/bin)
+        \\  install [version]    Install a specific version of Zig + ZLS (prefers ZVM when available)
+        \\  use [version]        Activate the requested version and link ~/.local/bin
         \\  unlink               Remove zig/zls symlinks from ~/.local/bin
         \\  check                Check if a newer Zig version is available
         \\  list, ls             List installed versions
@@ -648,7 +910,7 @@ pub fn printUsage() void {
         \\  clean                Remove all cached versions and downloads
         \\  bootstrap            One-command project setup (install from .zigversion and link)
         \\  doctor               Report toolchain health diagnostics
-        \\  status               Print path to the active zig binary (useful for scripts)
+        \\  status               Print path to the active zig binary (ZVM-first when versions match)
         \\
         \\Examples:
         \\  zigly install master
@@ -657,4 +919,39 @@ pub fn printUsage() void {
         \\
     ;
     std.debug.print("{s}", .{usage});
+}
+
+test "versionMatches requires an exact version string match" {
+    try std.testing.expect(versionMatches("0.16.0-dev.3070+b22eb176b", "0.16.0-dev.3070+b22eb176b"));
+    try std.testing.expect(!versionMatches("0.16.0-dev.3070+b22eb176b", "0.16.0-dev.2984+cb7d2b056"));
+    try std.testing.expect(!versionMatches("0.16.0-dev.3070+b22eb176b", null));
+}
+
+test "selectToolchain prefers an active matching zvm binary" {
+    try std.testing.expectEqual(
+        ToolchainSelection.zvm_active,
+        selectToolchain("0.16.0-dev.3070+b22eb176b", true, "0.16.0-dev.3070+b22eb176b", true),
+    );
+}
+
+test "selectToolchain installs via zvm when zvm is present but mismatched" {
+    try std.testing.expectEqual(
+        ToolchainSelection.install_via_zvm,
+        selectToolchain("0.16.0-dev.3070+b22eb176b", true, "0.16.0-dev.2984+cb7d2b056", true),
+    );
+}
+
+test "selectToolchain falls back to zigly cache only when zvm is absent" {
+    try std.testing.expectEqual(
+        ToolchainSelection.zigly_cache,
+        selectToolchain("0.16.0-dev.3070+b22eb176b", false, null, true),
+    );
+    try std.testing.expectEqual(
+        ToolchainSelection.install_via_zigly,
+        selectToolchain("0.16.0-dev.3070+b22eb176b", false, null, false),
+    );
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

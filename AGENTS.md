@@ -36,6 +36,7 @@ zig build mcp-tests cli-tests tui-tests multi-agent-tests
 6. Use `foundation.sync.Mutex` not `std.Thread.Mutex`
 7. On macOS 26.4+, use `./build.sh` not `zig build`
 8. All path imports need explicit `.zig` extensions
+9. `.zigversion` is the toolchain source of truth; `./build.sh` resolves it through `tools/zigly` and prefers `~/.zvm/bin/zig` when the active ZVM version matches
 
 ---
 
