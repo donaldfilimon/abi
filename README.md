@@ -74,15 +74,17 @@ The binary lands at `zig-out/bin/abi`. Entry point: `src/main.zig`.
 abi                # Smart status (feature count + available commands)
 abi version        # Print version and build info
 abi doctor         # Run diagnostics (all feature flags + GPU backends)
-abi features       # List all 35 features with [+]/[-] status
+abi features       # List all 60 features with [+]/[-] status
 abi platform       # Show platform detection (OS, arch, CPU, GPU)
 abi connectors     # List 16 LLM provider connectors
 abi info           # Framework architecture summary
 abi chat <message...>  # Route through multi-profile pipeline
 abi db <cmd>       # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
-abi dashboard      # Interactive TUI (requires -Dfeat-tui=true)
+abi dashboard      # Developer diagnostics shell (overview, features, runtime; requires -Dfeat-tui=true)
 abi help           # Full help reference
 ```
+
+Without an interactive terminal, `abi dashboard` prints guidance to use `abi doctor`.
 
 ## Pipeline architecture
 
@@ -131,7 +133,7 @@ abi/
 ├── src/                  # Framework source (single "abi" module)
 │   ├── root.zig          # Public package entrypoint (@import("abi"))
 │   ├── core/             # Always-on framework internals
-│   ├── features/         # 20 feature directories (35 features including AI sub-features)
+│   ├── features/         # 20 feature directories (60 features including AI sub-features)
 │   ├── foundation/       # Shared utilities: logging, security, time, SIMD, sync
 │   ├── runtime/          # Task scheduling, event loops, concurrency
 │   ├── platform/         # OS detection, capabilities, environment

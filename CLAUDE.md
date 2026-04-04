@@ -125,7 +125,7 @@ Build with `zig build cli` (or `./build.sh cli`). Binary: `zig-out/bin/abi`.
 abi                    # Smart status (feature count, enabled/disabled tags)
 abi version            # Version and build info
 abi doctor             # Build config report (all feature flags + GPU backends)
-abi features           # List all 35 features from catalog with [+]/[-] status
+abi features           # List all 60 features from catalog with [+]/[-] status
 abi platform           # Platform detection (OS, arch, CPU, GPU backends)
 abi connectors         # List 16 LLM provider connectors with [configured]/[not set] env var status
 abi search <sub>       # Full-text search (create, index, query, delete, stats)
@@ -134,9 +134,11 @@ abi chat <message...>  # Route through multi-profile pipeline
 abi db <subcommand>    # Vector database (add, query, stats, diagnostics, optimize, backup, restore, serve)
 abi serve              # Start ACP HTTP server (default 127.0.0.1:8080)
 abi acp serve          # Same as above (explicit ACP prefix)
-abi dashboard          # Interactive TUI (requires -Dfeat-tui=true)
+abi dashboard          # Developer diagnostics shell (overview, features, runtime; requires -Dfeat-tui=true)
 abi help               # Full help reference
 ```
+
+Without an interactive terminal, `abi dashboard` prints guidance to use `abi doctor`.
 
 `./build.sh` is a macOS 26.4+ (Darwin 25.x) wrapper that patches Zig's LLD linker incompatibility with the macOS SDK. It passes all arguments through to `zig build` (e.g., `./build.sh test --summary all`, `./build.sh -Dfeat-gpu=false`). The `--link` flag additionally symlinks zig+zls to `~/.local/bin`. On Linux / older macOS, `zig build` works directly.
 
@@ -175,7 +177,7 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
 - `src/core/` — Always-on internals: config, errors, registry, framework lifecycle, feature catalog
-- `src/features/` — 20 feature directories under src/features/ (35 features total including AI sub-features in the catalog)
+- `src/features/` — 20 feature directories under src/features/ (60 features total including AI sub-features in the catalog)
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
 - `src/platform/` — OS detection, capabilities, environment abstraction

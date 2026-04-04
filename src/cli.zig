@@ -9,6 +9,12 @@ const default_host = "127.0.0.1";
 const default_port: u16 = 8080;
 const command_usage_width: usize = 18;
 
+pub const dashboard_command_summary = "Launch developer diagnostics shell";
+pub const dashboard_command_detail =
+    "Launch developer diagnostics shell (overview, features, runtime; requires -Dfeat-tui=true)";
+pub const dashboard_fallback_note =
+    "Dashboard note: non-interactive runs fall back to 'abi doctor'.";
+
 pub const CommandDescriptor = struct {
     name: []const u8,
     description: []const u8,
@@ -22,7 +28,7 @@ pub const single_token_commands = [_]CommandDescriptor{
     .{ .name = "connectors", .description = "List available LLM connectors" },
     .{ .name = "info", .description = "Framework architecture summary" },
     .{ .name = "serve", .description = "Start the ACP HTTP server" },
-    .{ .name = "dashboard", .description = "Launch interactive TUI dashboard" },
+    .{ .name = "dashboard", .description = dashboard_command_summary },
     .{ .name = "lsp", .description = "Start Language Server Protocol (LSP) server" },
 };
 
@@ -68,7 +74,7 @@ pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "lsp", .description = "Start the Language Server Protocol (LSP) server", .section = .ai_data },
     .{
         .usage = "dashboard",
-        .description = "Launch interactive TUI dashboard (requires -Dfeat-tui=true)",
+        .description = dashboard_command_detail,
         .section = .interactive,
         .feature_gate = .tui,
     },
@@ -235,11 +241,14 @@ pub fn writeStatus(writer: anytype) !void {
         try writeUsageLine(out, command.usage, command.description, command.feature_gate);
     }
 
-    try out.writeAll(
+    try out.print(
+        \\
+        \\{s}
+        \\
         \\
         \\Run 'abi <command>' for details. 'abi help' for full reference.
         \\
-    );
+    , .{dashboard_fallback_note});
 }
 
 fn writeHelpSection(writer: anytype, title: []const u8, section: HelpSection) !void {
@@ -265,7 +274,10 @@ pub fn writeHelp(writer: anytype) !void {
     try writeHelpSection(out, "AI & Data", .ai_data);
     try out.writeByte('\n');
     try writeHelpSection(out, "Interactive", .interactive);
-    try out.writeAll(
+    try out.print(
+        \\
+        \\{s}
+        \\
         \\
         \\Build:
         \\  zig build cli      Build this CLI binary
@@ -274,7 +286,7 @@ pub fn writeHelp(writer: anytype) !void {
         \\  zig build test     Run all tests
         \\  zig build check    Full gate (lint + test + parity)
         \\
-    );
+    , .{dashboard_fallback_note});
 }
 
 pub fn writeServeHelp(writer: *std.Io.Writer) !void {

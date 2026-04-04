@@ -16,7 +16,7 @@
 //!   abi acp serve         Start the ACP HTTP server
 //!   abi db <subcommand>   Vector database operations
 //!   abi search <cmd>      Full-text search (create, index, query, delete, stats)
-//!   abi dashboard         Launch interactive TUI dashboard
+//!   abi dashboard         Launch developer diagnostics shell
 //!   abi help              Show this help message
 
 const std = @import("std");
@@ -59,6 +59,21 @@ fn writeToStdout(data: []const u8) void {
             break;
         }
     }
+}
+
+fn printSharedCliText(comptime renderFn: anytype) void {
+    var writer: std.Io.Writer.Allocating = .init(std.heap.page_allocator);
+    renderFn(&writer.writer) catch {
+        writer.deinit();
+        return;
+    };
+
+    const output = writer.toOwnedSlice() catch {
+        writer.deinit();
+        return;
+    };
+    defer std.heap.page_allocator.free(output);
+    writeToStdout(output);
 }
 
 fn countEnabledFeatures() struct { enabled: usize, total: usize } {
@@ -153,41 +168,7 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
 // ── Status (no-args) ────────────────────────────────────────────────────
 
 pub fn printStatus() void {
-    const version = build_options.package_version;
-
-    const counts = countEnabledFeatures();
-
-    std.debug.print(
-        \\ABI Framework v{s}
-        \\Zig 0.16.0-dev | {d}/{d} features enabled
-        \\
-        \\Commands:
-        \\  version      Print version and build info
-        \\  doctor       Run diagnostics (features, platform, GPU)
-        \\  features     List all {d} features with status
-        \\  platform     Show platform detection info
-        \\  connectors   List available LLM connectors
-        \\  info         Framework architecture summary
-        \\  chat <message...>  Route through profile pipeline
-        \\  serve        Start the ACP HTTP server
-        \\  acp serve    Start the ACP HTTP server
-        \\  lsp          Start the LSP server
-        \\
-    , .{ version, counts.enabled, counts.total, counts.total });
-
-    std.debug.print("  db <cmd>     Vector database operations       ", .{});
-    printFeatureTag(build_options.feat_database);
-    std.debug.print("  search <cmd> Full-text search                 ", .{});
-    printFeatureTag(build_options.feat_search);
-    std.debug.print("  dashboard    Interactive TUI dashboard         ", .{});
-    printFeatureTag(build_options.feat_tui);
-
-    std.debug.print(
-        \\  help         Show detailed help
-        \\
-        \\Run 'abi <command>' for details. 'abi help' for full reference.
-        \\
-    , .{});
+    printSharedCliText(cli.writeStatus);
 }
 
 fn printFeatureTag(enabled: bool) void {
@@ -214,38 +195,7 @@ pub fn printVersion() void {
 // ── Help ────────────────────────────────────────────────────────────────
 
 pub fn printHelp() void {
-    std.debug.print(
-        \\ABI — Multi-Profile AI Framework with WDBX
-        \\
-        \\Usage: abi <command> [args]
-        \\
-        \\Diagnostics:
-        \\  version      Print version and build info
-        \\  doctor       Run diagnostics (features, platform, GPU)
-        \\  features     List all features with enabled/disabled status
-        \\  platform     Show platform detection (OS, arch, CPU)
-        \\  connectors   List available LLM provider connectors
-        \\  info         Show framework architecture summary
-        \\
-        \\AI & Data:
-        \\  chat <message...>  Route a message through the profile pipeline
-        \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
-        \\  search <cmd> Full-text search (create, index, query, delete, stats)
-        \\  serve        Start the ACP HTTP server
-        \\  acp serve    Start the ACP HTTP server
-        \\  lsp          Start the Language Server Protocol (LSP) server
-        \\
-        \\Interactive:
-        \\  dashboard    Launch interactive TUI dashboard (requires -Dfeat-tui=true)
-        \\
-        \\Build:
-        \\  zig build cli          Build this CLI binary
-        \\  zig build mcp          Build MCP stdio server
-        \\  zig build lib          Build static library
-        \\  zig build test         Run all tests
-        \\  zig build check        Full gate (lint + test + parity)
-        \\
-    , .{});
+    printSharedCliText(cli.writeHelp);
 }
 
 // ── Features ────────────────────────────────────────────────────────────
@@ -359,13 +309,13 @@ pub fn printInfo() void {
         \\    Cohere, HuggingFace, Ollama, LM Studio, vLLM, MLX,
         \\    llama.cpp, Codex, OpenCode, Discord, local-scheduler
         \\
-        \\Features: 20 feature directories, 35 in catalog (mod/stub pattern)
+        \\Features: 20 feature directories, {d} in catalog (mod/stub pattern)
         \\GPU backends: Metal, CUDA, Vulkan, WebGPU, OpenGL, stdgpu, FPGA, TPU
         \\Protocols: MCP, LSP, ACP, HA
         \\
         \\Spec: docs/spec/ABBEY-SPEC.md
         \\
-    , .{});
+    , .{feature_catalog.feature_count});
 }
 
 // ── Doctor ──────────────────────────────────────────────────────────────

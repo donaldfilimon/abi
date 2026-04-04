@@ -87,13 +87,15 @@ zig build mcp-tests cli-tests tui-tests multi-agent-tests
 abi               # Smart status
 abi version       # Version info
 abi doctor        # Diagnostics
-abi features      # List all 35 features
+abi features      # List all 60 features
 abi platform      # Platform detection
 abi connectors    # List LLM providers
 abi chat <msg>    # Multi-profile pipeline
 abi db <cmd>      # Vector database ops
-abi dashboard     # Interactive TUI
+abi dashboard     # Developer diagnostics shell (overview, features, runtime)
 ```
+
+`abi dashboard` requires `-Dfeat-tui=true`; non-interactive launches point users to `abi doctor`.
 
 ---
 

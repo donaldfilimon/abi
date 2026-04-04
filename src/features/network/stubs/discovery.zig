@@ -51,7 +51,7 @@ pub const DiscoveryConfig = struct {
     tags: []const []const u8 = &.{},
     enable_tls: bool = false,
     datacenter: []const u8 = "dc1",
-    namespace: []const u8 = "/abi/services",
+    namespace: []const u8 = "/abi/registry",
     token: []const u8 = "",
 };
 

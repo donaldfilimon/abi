@@ -2,6 +2,7 @@
 //!
 //! Re-exports the SpirvGenerator and SPIR-V specification constants.
 
+const std = @import("std");
 const generator_mod = @import("generator/generator.zig");
 const spec_mod = @import("generator/spec.zig");
 
@@ -22,3 +23,9 @@ pub const Decoration = spec_mod.Decoration;
 pub const BuiltIn = spec_mod.BuiltIn;
 pub const MemorySemantics = spec_mod.MemorySemantics;
 pub const Scope = spec_mod.Scope;
+
+test {
+    _ = @import("generator/generator.zig");
+    _ = @import("generator/spec.zig");
+    std.testing.refAllDecls(@This());
+}

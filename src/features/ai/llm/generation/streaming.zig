@@ -31,5 +31,10 @@ pub const StreamingResponse = streaming_mod.StreamingResponse;
 pub const collectStreamingResponse = streaming_mod.collectStreamingResponse;
 
 test {
+    _ = @import("streaming/types.zig");
+    _ = @import("streaming/generator.zig");
+    _ = @import("streaming/sse.zig");
+    _ = @import("streaming/response.zig");
+    _ = @import("streaming/tests.zig");
     std.testing.refAllDecls(@This());
 }

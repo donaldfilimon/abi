@@ -10,9 +10,9 @@ const type_codegen = @import("../type_codegen.zig");
 const const_codegen = @import("../const_codegen.zig");
 const instruction_emit = @import("../instruction_emit.zig");
 
-const dsl_expr = @import("../../../../expr.zig");
-const dsl_stmt = @import("../../../../stmt.zig");
-const kernel = @import("../../../../kernel.zig");
+const dsl_expr = @import("../../../expr.zig");
+const dsl_stmt = @import("../../../stmt.zig");
+const kernel = @import("../../../kernel.zig");
 const backend = @import("../../backend.zig");
 
 const SPIRV_MAGIC = spec.SPIRV_MAGIC;

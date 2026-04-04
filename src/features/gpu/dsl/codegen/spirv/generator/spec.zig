@@ -1,4 +1,4 @@
-const constants = @import("constants.zig");
+const constants = @import("../constants.zig");
 
 pub const SPIRV_MAGIC = constants.SPIRV_MAGIC;
 pub const SPIRV_VERSION = constants.SPIRV_VERSION;

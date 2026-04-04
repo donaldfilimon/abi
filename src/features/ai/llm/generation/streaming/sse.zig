@@ -44,7 +44,7 @@ pub const SSEFormatter = struct {
     }
 
     /// Format completion event as SSE.
-    pub fn formatCompletionEvent(allocator: std.mem.Allocator, stats: types.StreamingStats) ![]u8 {
+    pub fn formatCompletion(allocator: std.mem.Allocator, stats: types.StreamingStats) ![]u8 {
         return std.fmt.allocPrint(allocator,
             \\data: {{"event":"complete","tokens_generated":{d},"tokens_per_second":{d:.1},"time_to_first_token_ms":{d:.1}}}
             \\

@@ -188,6 +188,9 @@ test "cli: help output renders the displayed command catalog" {
     for (cli.displayed_commands) |command| {
         try std.testing.expect(std.mem.indexOf(u8, help, command.usage) != null);
     }
+
+    try std.testing.expect(std.mem.indexOf(u8, help, cli.dashboard_command_detail) != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, cli.dashboard_fallback_note) != null);
 }
 
 test "cli: status output includes shared feature-gated command tags" {
@@ -195,10 +198,25 @@ test "cli: status output includes shared feature-gated command tags" {
     defer std.testing.allocator.free(status);
 
     try std.testing.expect(std.mem.indexOf(u8, status, abi.meta.package_version) != null);
-    try std.testing.expect(std.mem.indexOf(u8, status, "db <cmd>") != null);
-    try std.testing.expect(std.mem.indexOf(u8, status, "dashboard") != null);
+    for (cli.displayed_commands) |command| {
+        try std.testing.expect(std.mem.indexOf(u8, status, command.usage) != null);
+    }
+    try std.testing.expect(std.mem.indexOf(u8, status, cli.dashboard_command_detail) != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, cli.dashboard_fallback_note) != null);
     try std.testing.expect(std.mem.indexOf(u8, status, if (build_options.feat_database) "[enabled]" else "[disabled]") != null);
     try std.testing.expect(std.mem.indexOf(u8, status, if (build_options.feat_tui) "[enabled]" else "[disabled]") != null);
+}
+
+test "cli: help and status share dashboard contract wording" {
+    const help = try renderHelp();
+    defer std.testing.allocator.free(help);
+    const status = try renderStatus();
+    defer std.testing.allocator.free(status);
+
+    try std.testing.expect(std.mem.indexOf(u8, help, cli.dashboard_command_detail) != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, cli.dashboard_command_detail) != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, cli.dashboard_fallback_note) != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, cli.dashboard_fallback_note) != null);
 }
 
 test "cli: serve help uses the shared writer path" {
@@ -357,9 +375,10 @@ test "cli: untrusted plugin paths are rejected" {
 
 // === Features Command Path (printFeatures data) ===
 
-test "cli: feature catalog has 30 entries" {
+test "cli: feature catalog count matches exported entries" {
     const catalog = abi.meta.features;
-    try std.testing.expectEqual(@as(usize, 30), catalog.feature_count);
+    try std.testing.expectEqual(catalog.all.len, catalog.feature_count);
+    try std.testing.expectEqual(@typeInfo(catalog.Feature).@"enum".fields.len, catalog.feature_count);
 }
 
 test "cli: every feature has a valid compile flag in build_options" {
