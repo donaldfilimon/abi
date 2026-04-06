@@ -147,27 +147,30 @@ pub fn parseCommonArgs(args: []const [:0]const u8) CommonArgs {
 }
 
 /// Resolve a vector from either --vector CSV or --embed text input.
-/// Returns null if neither is valid or if AI is disabled for embedding.
-fn resolveVector(allocator: std.mem.Allocator, parsed: CommonArgs) !?[]f32 {
+fn resolveVector(allocator: std.mem.Allocator, parsed: CommonArgs) ![]f32 {
     const has_vector = parsed.vector_text != null;
     const has_embed = parsed.embed_text != null;
     if (has_vector == has_embed) {
-        std.debug.print("Specify exactly one of --vector or --embed\n", .{});
-        return null;
+        return error.InvalidVectorSpec;
     }
 
     if (parsed.vector_text) |vector_input| {
-        return try db_helpers.parseVector(allocator, vector_input);
+        return db_helpers.parseVector(allocator, vector_input) catch |err| switch (err) {
+            error.OutOfMemory => return err,
+            else => return error.InvalidVector,
+        };
     } else if (parsed.embed_text) |text| {
         if (!build_options.feat_ai) {
-            std.debug.print("Embedding requires -Dfeat-ai=true\n", .{});
-            return null;
+            return error.FeatureDisabled;
         }
         var model = try transformer.TransformerModel.init(allocator, .{});
         defer model.deinit();
-        return try model.embed(allocator, text);
+        return model.embed(allocator, text) catch |err| switch (err) {
+            error.OutOfMemory => return err,
+            else => return error.InvalidVector,
+        };
     }
-    return null;
+    unreachable;
 }
 
 fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -177,12 +180,12 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     const parsed = parseCommonArgs(args);
 
-    const id_value = parsed.id orelse {
-        std.debug.print("Missing --id\n", .{});
+    const id_value = parsed.id orelse return error.MissingId;
+    const vector = resolveVector(allocator, parsed) catch |err| {
+        std.debug.print("Error resolving vector: {s}\n", .{@errorName(err)});
+        if (err == error.OutOfMemory) return err;
         return;
     };
-
-    const vector = try resolveVector(allocator, parsed) orelse return;
     defer allocator.free(vector);
 
     var ctx = try DbContext.init(allocator, parsed.path);
@@ -200,7 +203,11 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     const parsed = parseCommonArgs(args);
 
-    const query = try resolveVector(allocator, parsed) orelse return;
+    const query = resolveVector(allocator, parsed) catch |err| {
+        std.debug.print("Error resolving vector: {s}\n", .{@errorName(err)});
+        if (err == error.OutOfMemory) return err;
+        return;
+    };
     defer allocator.free(query);
 
     var ctx = try DbContext.init(allocator, parsed.path);

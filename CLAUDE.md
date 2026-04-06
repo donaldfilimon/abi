@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
-Zig version is pinned in `.zigversion` (currently `0.16.0-dev.3070+b22eb176b`). `tools/zigly`
+Zig version is pinned in `.zigversion` (currently `0.16.0-dev.3091+557caecaa`). `tools/zigly`
 is the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version matches the pin:
 
 ```bash

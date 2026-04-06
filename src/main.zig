@@ -61,17 +61,11 @@ fn writeToStdout(data: []const u8) void {
     }
 }
 
-fn printSharedCliText(comptime renderFn: anytype) void {
+fn printSharedCliText(comptime renderFn: anytype) !void {
     var writer: std.Io.Writer.Allocating = .init(std.heap.page_allocator);
-    renderFn(&writer.writer) catch {
-        writer.deinit();
-        return;
-    };
-
-    const output = writer.toOwnedSlice() catch {
-        writer.deinit();
-        return;
-    };
+    defer writer.deinit();
+    renderFn(&writer.writer) catch return;
+    const output = writer.toOwnedSlice() catch return;
     defer std.heap.page_allocator.free(output);
     writeToStdout(output);
 }
@@ -168,7 +162,7 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
 // ── Status (no-args) ────────────────────────────────────────────────────
 
 pub fn printStatus() void {
-    printSharedCliText(cli.writeStatus);
+    _ = printSharedCliText(cli.writeStatus);
 }
 
 fn printFeatureTag(enabled: bool) void {
@@ -182,20 +176,13 @@ fn printFeatureTag(enabled: bool) void {
 // ── Version ─────────────────────────────────────────────────────────────
 
 pub fn printVersion() void {
-    const version = build_options.package_version;
-    std.debug.print(
-        \\ABI Framework v{s}
-        \\Zig 0.16.0-dev | Multi-Profile AI + WDBX
-        \\
-        \\Core: Care first. Clarity always. Competence throughout.
-        \\
-    , .{version});
+    _ = printSharedCliText(cli.writeVersion);
 }
 
 // ── Help ────────────────────────────────────────────────────────────────
 
 pub fn printHelp() void {
-    printSharedCliText(cli.writeHelp);
+    _ = printSharedCliText(cli.writeHelp);
 }
 
 // ── Features ────────────────────────────────────────────────────────────

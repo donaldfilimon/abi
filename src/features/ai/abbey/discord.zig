@@ -80,7 +80,7 @@ pub const SessionManager = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
-            .sessions = .{},
+            .sessions = .empty,
         };
     }
 

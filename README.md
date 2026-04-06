@@ -174,7 +174,7 @@ zigly cache.
 
 ## Toolchain
 
-ABI is pinned to the Zig version in `.zigversion` (currently `0.16.0-dev.3070+b22eb176b`).
+ABI is pinned to the Zig version in `.zigversion` (currently `0.16.0-dev.3091+557caecaa`).
 On macOS 26.4+, `./build.sh`
 auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
 
