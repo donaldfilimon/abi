@@ -1,6 +1,6 @@
 # Full Codebase Improvement Implementation Plan
 
-> **Status (2026-03-27):** COMPLETE. Phases 1-3 done by 2026-03-26. Phase 4 decompositions already done via prior PRs. Section header conversions completed 2026-03-27. Baseline synced to 3677 passed.
+> **Status (2026-04-05):** COMPLETE. Phases 1-3 done by 2026-03-26. Phase 4 decompositions already done via prior PRs. Section header conversions completed 2026-03-27. Baseline synced to 3720 passed.
 > Remaining work plan: `docs/superpowers/plans/2026-03-27-codebase-improvement-remaining.md`
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

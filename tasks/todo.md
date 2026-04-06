@@ -1,5 +1,22 @@
 # Codebase Improvement Plan
 
+## 35. Zig 0.16.0-dev.3091 Toolchain + Inference Safety Sweep
+- [x] Bump the repo pin and minimum supported Zig version to `0.16.0-dev.3091+557caecaa` everywhere current-toolchain references are surfaced.
+- [x] Fix the in-progress CLI/database/inference cleanup so the new tests compile and ownership/locking remain sound.
+- [x] Restore or intentionally prune the accidental `.claude` deletions after review.
+- [x] Validate with focused fmt/tests before broader verification.
+
+### Notes
+- Completed on April 5, 2026 in `/Users/donaldfilimon/abi`.
+- Validation passed with:
+  - `~/.zvm/bin/zig fmt --check src/main.zig src/features/core/database/cli.zig src/inference/engine.zig test/integration/cognitive_pipeline_test.zig test/integration/inference_stress_test.zig src/foundation/utils/zig_toolchain.zig tools/zigly_cli/src/cli.zig src/features/ai/abbey/discord.zig src/features/ai/agents/types.zig test/mod.zig build.zig.zon`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "cognitive pipeline"`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "inference stress"`
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "preferred source"`
+  - `~/.zvm/bin/zig test tools/zigly_cli/src/cli.zig -lc`
+  - `git diff --check`
+- Residual note: the standalone `zig test src/foundation/utils/zig_toolchain.zig` path still needs a proper module-path wrapper, so the build-backed test lane was used for that file instead.
+
 ## 0G. Review Follow-Up: DiskANN Surface + Abbey Gateway Cleanup
 - [x] Restore the `abi.database.retrieval.diskann` export in the real retrieval facade.
 - [x] Remove the overlapping gateway bridge destroy path in Abbey startup.

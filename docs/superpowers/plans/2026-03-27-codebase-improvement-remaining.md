@@ -1,12 +1,12 @@
 # Codebase Improvement — Remaining Work Implementation Plan
 
-> **Status (2026-03-27):** COMPLETE. All sub-namespace facades added, inference bug fixed, and baseline synchronized to 3677 passed.
+> **Status (2026-04-05):** COMPLETE. All sub-namespace facades added, inference bug fixed, and baseline synchronized to 3720 passed.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Complete the remaining 20% of the full codebase improvement plan (2026-03-24) — two file decompositions, sub-namespace facades for large modules, and baseline sync.
 
-**Architecture:** The original 5-phase plan is ~80% complete. Phases 1-3 are fully done. Phase 4 has two remaining decompositions (ai_ops.zig at 669 lines, scann.zig at 385 lines) and three remaining sub-namespace facade additions (network, training, gpu). Phase 5 needs a baseline sync update (3675 passed vs 3266 original baseline).
+**Architecture:** The original 5-phase plan completed after the final baseline sync. Phases 1-3 were fully done earlier; Phase 4's remaining decompositions and facades were already closed by the time this record was updated. Phase 5 finished with the 3720-passed baseline.
 
 **Tech Stack:** Zig 0.16, `./build.sh` wrapper (macOS 26.4+), `zig build check-parity`
 
@@ -23,10 +23,10 @@
 | Phase 1: Zero-Risk | **DONE** | Git hygiene, doc comments, error convention, GEMINI.md, build step descriptions |
 | Phase 2: Protocol Gates | **DONE** | ACP/HA comptime-gated, docs say 60 features |
 | Phase 3: Parity Fixes | **DONE** | `check-parity` passes, exit 0 |
-| Phase 4: Structural Refactoring | **80% done** | Most decompositions done. Remaining: ai_ops (669L), scann (385L), 3 facades |
-| Phase 5: Final Validation | **Pending** | Baseline needs update: 3675 passed (was 3266) |
+| Phase 4: Structural Refactoring | **DONE** | All decompositions and facade additions completed |
+| Phase 5: Final Validation | **DONE** | Baseline synced: 3720 passed, 4 skipped, 0 failed |
 
-**Current baseline:** 3675 passed, 4 skipped, 0 failed. Parity clean. Cross-check clean.
+**Current baseline:** 3720 passed, 4 skipped, 0 failed. Parity clean. Cross-check clean.
 
 ---
 
@@ -392,7 +392,7 @@ Edit `.claude/skills/baseline-sync/SKILL.md` line 68-71. Replace the old baselin
 
     ## Current Baseline (2026-03-27)
 
-    3675 passed, 4 skipped, 0 failed (exit 0) | zig: 0.16.0-dev.2984+cb7d2b056
+    3720 passed, 4 skipped, 0 failed (exit 0) | zig: 0.16.0-dev.3091+557caecaa
     Build Summary: 6/6 steps succeeded
     Note: macOS 26.4+ requires ./build.sh wrapper
 
@@ -400,7 +400,7 @@ Edit `.claude/skills/baseline-sync/SKILL.md` line 68-71. Replace the old baselin
 
 ```bash
 git add .claude/skills/baseline-sync/SKILL.md
-git commit -m "chore: sync test baseline — 3675 passed, 4 skipped (was 3266)"
+git commit -m "chore: sync test baseline — 3720 passed, 4 skipped (was 3266)"
 ```
 
 - [x] **Step 7: Mark original plan as complete**

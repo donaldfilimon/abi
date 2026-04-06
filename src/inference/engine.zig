@@ -77,6 +77,8 @@ pub const Engine = struct {
 
     /// Serialises KV-cache access and sampler state within each generate call.
     generation_mu: sync_mod.Mutex = .{},
+    /// Guards scheduler queue access.
+    scheduler_mu: sync_mod.Mutex = .{},
     /// Guards in_flight_async and closing_async.
     async_mu: sync_mod.Mutex = .{},
     in_flight_async: u32 = 0,
@@ -196,6 +198,8 @@ pub const Engine = struct {
     }
 
     pub fn submit(self: *Self, request: scheduler_mod.Request) !bool {
+        self.scheduler_mu.lock();
+        defer self.scheduler_mu.unlock();
         return self.scheduler.submit(request);
     }
 
@@ -249,6 +253,11 @@ pub const Engine = struct {
         const toks = self.total_tokens.load(.acquire);
         const ns = self.total_elapsed_ns.load(.acquire);
 
+        const mutable = @constCast(self);
+        mutable.scheduler_mu.lock();
+        defer mutable.scheduler_mu.unlock();
+        const pending = self.scheduler.pendingCount();
+
         const avg_tps: f32 = if (ns > 0)
             @as(f32, @floatFromInt(toks)) * @as(f32, @floatFromInt(std.time.ns_per_s)) /
                 @as(f32, @floatFromInt(ns))
@@ -260,7 +269,7 @@ pub const Engine = struct {
             .total_tokens_generated = toks,
             .active_sequences = @intCast(self.kv_cache.activeSequences()),
             .cache_utilization = self.kv_cache.getUtilization(),
-            .pending_requests = @intCast(self.scheduler.pendingCount()),
+            .pending_requests = @intCast(pending),
             .avg_tokens_per_second = avg_tps,
             .backend = self.config.backend,
         };

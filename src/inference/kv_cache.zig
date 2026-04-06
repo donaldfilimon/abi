@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const sync_mod = @import("../foundation/sync.zig");
 
 pub const Config = struct {
     num_pages: u32 = 10000,
@@ -30,6 +31,7 @@ pub const PagedKVCache = struct {
     free_pages: std.ArrayListUnmanaged(u32),
     seq_pages: std.AutoHashMapUnmanaged(u64, std.ArrayListUnmanaged(u32)),
     total_pages: u32,
+    mu: sync_mod.Mutex = .{},
 
     pub fn init(allocator: Allocator, config: Config) !Self {
         const page_data_size = config.page_size * config.num_heads * config.head_dim * 2;
@@ -88,6 +90,9 @@ pub const PagedKVCache = struct {
     }
 
     pub fn allocate(self: *Self, seq_id: u64, num_tokens: u32) !bool {
+        self.mu.lock();
+        defer self.mu.unlock();
+
         const pages_needed = (num_tokens + self.config.page_size - 1) / self.config.page_size;
         if (self.free_pages.items.len < pages_needed) return false;
 
@@ -107,6 +112,9 @@ pub const PagedKVCache = struct {
     }
 
     pub fn free(self: *Self, seq_id: u64) void {
+        self.mu.lock();
+        defer self.mu.unlock();
+
         if (self.seq_pages.fetchRemove(seq_id)) |kv| {
             var page_list = kv.value;
             for (page_list.items) |page_id| {
@@ -123,12 +131,20 @@ pub const PagedKVCache = struct {
     }
 
     pub fn getUtilization(self: *const Self) f32 {
+        const mutable = @constCast(self);
+        mutable.mu.lock();
+        defer mutable.mu.unlock();
+
         const used: f32 = @floatFromInt(self.total_pages - @as(u32, @intCast(self.free_pages.items.len)));
         const total: f32 = @floatFromInt(self.total_pages);
         return used / total;
     }
 
     pub fn activeSequences(self: *const Self) usize {
+        const mutable = @constCast(self);
+        mutable.mu.lock();
+        defer mutable.mu.unlock();
+
         return self.seq_pages.count();
     }
 };

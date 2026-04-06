@@ -69,7 +69,7 @@ zigly --link             # Symlink zig + zls to ~/.local/bin
 
 ## Feature Flags
 
-35 features total (including AI sub-features). All default to `true` except `feat-mobile` and `feat-tui`. Disable with `-Dfeat-<name>=false`:
+60 features total (including AI sub-features). All default to `true` except `feat-mobile` and `feat-tui`. Disable with `-Dfeat-<name>=false`:
 
 ```bash
 zig build -Dfeat-gpu=false -Dfeat-ai=false
@@ -79,5 +79,5 @@ zig build -Dgpu-backend=metal
 ## Platform Notes
 
 - **macOS 26.4+** (Darwin 25+): Stock Zig linker fails. Use `./build.sh` which auto-relinks with Apple's native linker.
-- **Zig version**: Pinned in `.zigversion` (`0.16.0-dev.2984+cb7d2b056`). `zigly` auto-downloads the correct version.
+- **Zig version**: Pinned in `.zigversion` (`0.16.0-dev.3091+557caecaa`). `zigly` auto-downloads the correct version.
 - **WASM**: Timer APIs unavailable; foundation time utilities return 0.

@@ -383,10 +383,10 @@ Scale_up if L_current > L_threshold
 
 ### 8.1 Codebase
 
-- **Language:** Zig 0.16.0-dev.2984+cb7d2b056
-- **Size:** 360K+ LOC across 1,126+ .zig files
-- **Tests:** 3,675+ unit + integration tests (27 focused test lanes)
-- **Features:** 35 comptime-gated features in the catalog
+- **Language:** Zig 0.16.0-dev.3091+557caecaa
+- **Size:** 387K+ LOC across 1,411+ .zig files
+- **Tests:** 3,720+ unit + integration tests (27 focused test lanes)
+- **Features:** 60 comptime-gated features in the catalog
 - **Package:** `@import("abi")` — single module, comptime-gated features (mod/stub pattern)
 - **Build:** `./build.sh` (macOS 26.4+) or `zig build` (Linux)
 - **Cross-compilation:** linux-aarch64, linux-x86_64, wasm32-wasi, x86_64-macos
@@ -424,7 +424,7 @@ All pipeline steps wired end-to-end:
 | CLI (`abi`) | 12 commands: status, version, doctor, features, platform, connectors, info, chat, db, serve, dashboard, help | Implemented |
 | MCP Server (`abi-mcp`) | JSON-RPC 2.0 stdio server for Claude Desktop, Cursor, and other MCP clients | Implemented |
 | ACP Server | HTTP server for Agent Communication Protocol (default 127.0.0.1:8080) | Implemented |
-| Feature flags | 35 comptime flags with mod/stub parity enforcement | Implemented |
+| Feature flags | 33 comptime flags with mod/stub parity enforcement | Implemented |
 | Cross-compilation | 4 targets verified in CI: aarch64-linux, x86_64-linux, wasm32-wasi, x86_64-macos | Implemented |
 | Build wrapper | `./build.sh` auto-relinks with Apple ld on macOS 26.4+ (Darwin 25.x) | Implemented |
 | Parity checker | `zig build check-parity` validates mod/stub declaration name parity | Implemented |

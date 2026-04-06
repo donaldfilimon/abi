@@ -392,6 +392,7 @@ pub const ToolContext = struct {
     working_directory: []const u8,
     environment: ?*const std.StringHashMapUnmanaged([]const u8),
     cancellation: ?*const std.atomic.Value(bool),
+    io: *std.Io,
 };
 
 pub const Tool = struct {

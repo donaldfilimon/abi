@@ -63,10 +63,10 @@ Store in conversation context or suggest updating relevant docs if counts change
 - The `zig build doctor` step can confirm build configuration before running tests.
 - Commit baseline updates with: `chore: sync test baseline counts (passed: <N>, skipped: <N>)`
 
-## Current Baseline (2026-03-27)
+## Current Baseline (2026-04-05)
 
 ```
-3677 passed, 4 skipped, 0 failed (exit 0) | zig: 0.16.0-dev.2984+cb7d2b056
+3720 passed, 4 skipped, 0 failed (exit 0) | zig: 0.16.0-dev.3091+557caecaa
 Build Summary: 6/6 steps succeeded
 Note: macOS 26.4+ requires ./build.sh wrapper
 ```
