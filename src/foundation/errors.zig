@@ -1,4 +1,4 @@
-//! Shared Error Types
+///! Shared Error Types
 //!
 //! Common error sets for cross-module error handling. Modules can import
 //! and combine these error sets to maintain consistency across the framework.

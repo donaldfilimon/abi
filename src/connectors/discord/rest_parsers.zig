@@ -370,6 +370,109 @@ pub fn parseApplicationCommandArray(allocator: std.mem.Allocator, json: []const 
     return commands;
 }
 
+pub fn parseInteraction(allocator: std.mem.Allocator, json: []const u8) !types.Interaction {
+    const parsed = try std.json.parseFromSlice(
+        std.json.Value,
+        allocator,
+        json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const object = try json_utils.getRequiredObject(parsed.value);
+
+    var interaction = types.Interaction{
+        .id = try json_utils.parseStringField(object, "id", allocator),
+        .application_id = try json_utils.parseStringField(object, "application_id", allocator),
+        .interaction_type = @intCast(try json_utils.parseIntField(object, "type")),
+        .token = try json_utils.parseStringField(object, "token", allocator),
+        .version = @intCast(json_utils.parseIntField(object, "version") catch 1),
+    };
+
+    interaction.guild_id = json_utils.parseOptionalStringField(object, "guild_id", allocator) catch null;
+    interaction.channel_id = json_utils.parseOptionalStringField(object, "channel_id", allocator) catch null;
+    interaction.locale = json_utils.parseOptionalStringField(object, "locale", allocator) catch null;
+    interaction.guild_locale = json_utils.parseOptionalStringField(object, "guild_locale", allocator) catch null;
+
+    if (object.get("data")) |data_val| {
+        interaction.data = try parseInteractionData(allocator, data_val);
+    }
+
+    if (object.get("user")) |user_val| {
+        const user_obj = try json_utils.getRequiredObject(user_val);
+        interaction.user = types.User{
+            .id = try json_utils.parseStringField(user_obj, "id", allocator),
+            .username = try json_utils.parseStringField(user_obj, "username", allocator),
+            .discriminator = try json_utils.parseStringField(user_obj, "discriminator", allocator),
+        };
+    } else if (object.get("member")) |member_val| {
+        const member_obj = try json_utils.getRequiredObject(member_val);
+        if (member_obj.get("user")) |user_val| {
+            const user_obj = try json_utils.getRequiredObject(user_val);
+            interaction.user = types.User{
+                .id = try json_utils.parseStringField(user_obj, "id", allocator),
+                .username = try json_utils.parseStringField(user_obj, "username", allocator),
+                .discriminator = try json_utils.parseStringField(user_obj, "discriminator", allocator),
+            };
+        }
+    }
+
+    return interaction;
+}
+
+fn parseInteractionData(allocator: std.mem.Allocator, val: std.json.Value) !types.InteractionData {
+    const object = try json_utils.getRequiredObject(val);
+
+    var data = types.InteractionData{
+        .id = try json_utils.parseStringField(object, "id", allocator),
+        .name = try json_utils.parseStringField(object, "name", allocator),
+        .data_type = @intCast(json_utils.parseIntField(object, "type") catch 1),
+    };
+
+    data.custom_id = json_utils.parseOptionalStringField(object, "custom_id", allocator) catch null;
+    data.guild_id = json_utils.parseOptionalStringField(object, "guild_id", allocator) catch null;
+    data.target_id = json_utils.parseOptionalStringField(object, "target_id", allocator) catch null;
+
+    if (object.get("options")) |options_val| {
+        const array = options_val.array;
+        var options = try allocator.alloc(types.ApplicationCommandInteractionDataOption, array.items.len);
+        errdefer allocator.free(options);
+
+        for (array.items, 0..) |opt_val, i| {
+            options[i] = try parseInteractionOption(allocator, opt_val);
+        }
+        data.options = options;
+    }
+
+    return data;
+}
+
+fn parseInteractionOption(allocator: std.mem.Allocator, val: std.json.Value) !types.ApplicationCommandInteractionDataOption {
+    const object = try json_utils.getRequiredObject(val);
+
+    var opt = types.ApplicationCommandInteractionDataOption{
+        .name = try json_utils.parseStringField(object, "name", allocator),
+        .option_type = @intCast(try json_utils.parseIntField(object, "type")),
+    };
+
+    if (object.get("value")) |v| {
+        opt.value = try std.fmt.allocPrint(allocator, "{}", .{v});
+    }
+
+    if (object.get("options")) |opts_val| {
+        const array = opts_val.array;
+        var sub_options = try allocator.alloc(types.ApplicationCommandInteractionDataOption, array.items.len);
+        errdefer allocator.free(sub_options);
+
+        for (array.items, 0..) |sub_opt_val, i| {
+            sub_options[i] = try parseInteractionOption(allocator, sub_opt_val);
+        }
+        opt.options = sub_options;
+    }
+
+    return opt;
+}
+
 pub fn parseWebhook(allocator: std.mem.Allocator, json: []const u8) !Webhook {
     const parsed = try std.json.parseFromSlice(
         std.json.Value,

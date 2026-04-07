@@ -12,6 +12,11 @@ const discord = if (build_options.feat_connectors)
 else
     @import("../../../connectors/stubs/discord.zig");
 
+const DiscordError = if (build_options.feat_connectors)
+    @import("../../../connectors/discord/types.zig").DiscordError
+else
+    error{};
+
 fn getStringParam(p: std.json.ObjectMap, key: []const u8) ?[]const u8 {
     const val = p.get(key) orelse return null;
     return if (val == .string) val.string else null;
@@ -28,9 +33,9 @@ fn requireString(p: ?std.json.ObjectMap, key: []const u8) ![]const u8 {
 }
 
 fn appendError(allocator: std.mem.Allocator, out: *std.ArrayListUnmanaged(u8), msg: []const u8) !void {
-    try out.appendSlice(allocator, "{\"error\":\"");
-    try out.appendSlice(allocator, msg);
-    try out.appendSlice(allocator, "\"}");
+    try out.appendSlice(allocator, "{\"content\":[{\"type\":\"text\",\"text\":\"");
+    try json_utils.appendJsonEscaped(allocator, out, msg);
+    try out.appendSlice(allocator, "\"}],\"isError\":true}");
 }
 
 fn withClient(allocator: std.mem.Allocator, out: *std.ArrayListUnmanaged(u8)) !?discord.Client {
@@ -38,8 +43,14 @@ fn withClient(allocator: std.mem.Allocator, out: *std.ArrayListUnmanaged(u8)) !?
         try appendError(allocator, out, "connectors disabled");
         return null;
     }
-    return discord.createClient(allocator) catch {
-        try appendError(allocator, out, "DISCORD_BOT_TOKEN not set");
+    return discord.createClient(allocator) catch |err| {
+        const msg = switch (err) {
+            DiscordError.MissingBotToken => "DISCORD_BOT_TOKEN env var not set",
+            DiscordError.MissingClientId => "DISCORD_CLIENT_ID env var not set",
+            DiscordError.MissingClientSecret => "DISCORD_CLIENT_SECRET env var not set",
+            else => "failed to create Discord client",
+        };
+        try appendError(allocator, out, msg);
         return null;
     };
 }
