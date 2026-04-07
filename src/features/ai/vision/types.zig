@@ -148,26 +148,6 @@ pub const ViTConfig = struct {
     }
 };
 
-<<<<<<< Updated upstream
 test {
     std.testing.refAllDecls(@This());
 }
-=======
-// --- Vision Pipeline Types ---
-
-pub const VisionPipelineType = struct {
-    pub fn init(_: std.mem.Allocator) Error!@This() {
-        return error.FeatureDisabled;
-    }
-    pub fn deinit(_: *@This()) void {}
-    pub fn ingestImage(_: *@This(), _: *const Image) Error!void {
-        return error.FeatureDisabled;
-    }
-    pub fn extractFeatures(_: *@This()) Error![]f32 {
-        return error.FeatureDisabled;
-    }
-    pub fn injectTokens(_: *@This(), _: []const f32) Error!void {
-        return error.FeatureDisabled;
-    }
-};
->>>>>>> Stashed changes

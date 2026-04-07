@@ -583,32 +583,11 @@ pub const pitr = struct {};
 // Module Lifecycle
 // =============================================================================
 
-<<<<<<< Updated upstream
 const Stub = stub_helpers.StubFeatureNoConfig(Error);
 pub const init = Stub.init;
 pub const deinit = Stub.deinit;
 pub const isEnabled = Stub.isEnabled;
 pub const isInitialized = Stub.isInitialized;
-=======
-var initialized = std.atomic.Value(bool).init(false);
-
-pub fn init(allocator: std.mem.Allocator) Error!void {
-    _ = allocator;
-    return Error.FeatureDisabled;
-}
-
-pub fn deinit() void {
-    initialized.store(false, .release);
-}
-
-pub fn isEnabled() bool {
-    return false;
-}
-
-pub fn isInitialized() bool {
-    return initialized.load(.acquire);
-}
->>>>>>> Stashed changes
 
 // =============================================================================
 // Tests

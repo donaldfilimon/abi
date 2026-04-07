@@ -20,31 +20,11 @@ const Error = error{
     OutOfMemory,
 };
 
-<<<<<<< Updated upstream
 const Stub = stub_helpers.StubFeatureNoConfig(Error);
 pub const init = Stub.init;
 pub const deinit = Stub.deinit;
 pub const isEnabled = Stub.isEnabled;
 pub const isInitialized = Stub.isInitialized;
-=======
-var initialized = std.atomic.Value(bool).init(false);
-
-pub fn init(_: std.mem.Allocator) !void {
-    return Error.FeatureDisabled;
-}
-
-pub fn deinit() void {
-    initialized.store(false, .release);
-}
-
-pub fn isEnabled() bool {
-    return false;
-}
-
-pub fn isInitialized() bool {
-    return initialized.load(.acquire);
-}
->>>>>>> Stashed changes
 
 pub fn getEnvOwned(_: std.mem.Allocator, _: []const u8) !?[]u8 {
     return Error.FeatureDisabled;

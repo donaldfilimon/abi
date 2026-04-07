@@ -91,14 +91,9 @@ extern "c" fn IOConnectCallStructMethod(
 extern "c" fn mach_task_self_() mach_port_t;
 
 // Cached IOKit connection — opened once, reused across calls.
-<<<<<<< Updated upstream
 // Protected by smc_mu to prevent TOCTOU: two threads must not both see
 // conn_initialized == false and both call IOServiceOpen simultaneously.
 var smc_mu: sync.BlockingMutex = .{};
-=======
-// Guarded by smc_mu to prevent TOCTOU races under concurrent callers.
-var smc_mu: sync.Mutex = .{};
->>>>>>> Stashed changes
 var cached_conn: io_connect_t = 0;
 var conn_initialized: bool = false;
 
@@ -106,14 +101,7 @@ fn getConnection() SmcError!io_connect_t {
     if (comptime !is_darwin) return error.PlatformUnsupported;
     smc_mu.lock();
     defer smc_mu.unlock();
-<<<<<<< Updated upstream
     if (conn_initialized) return cached_conn;
-=======
-    if (!conn_initialized) {
-        const matching = IOServiceMatching("AppleSMC");
-        const service = IOServiceGetMatchingService(mach_task_self_(), matching);
-        if (service == 0) return error.SmcNotFound;
->>>>>>> Stashed changes
 
         if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
             return error.SmcConnectFailed;

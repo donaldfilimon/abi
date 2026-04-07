@@ -165,10 +165,7 @@ var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(allocator: std.mem.Allocator) !void {
     _ = allocator;
-<<<<<<< Updated upstream
     if (initialized.load(.acquire)) return;
-=======
->>>>>>> Stashed changes
     initialized.store(true, .release);
 }
 

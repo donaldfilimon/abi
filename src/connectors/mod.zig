@@ -58,58 +58,11 @@ pub const env = @import("env.zig");
 pub const providers = @import("providers.zig");
 pub const loaders = @import("loaders.zig");
 
-<<<<<<< Updated upstream
-pub const AuthHeader = auth.AuthHeader;
-pub const buildBearerHeader = auth.buildBearerHeader;
-pub const getEnvOwned = env.getEnvOwned;
-pub const getFirstEnvOwned = env.getFirstEnvOwned;
-pub const ENV_VARS = env.ENV_VARS;
-pub const ProviderInfo = providers.ProviderInfo;
-pub const ProviderRegistry = providers.ProviderRegistry;
-pub const loadOpenAI = loaders.loadOpenAI;
-pub const tryLoadOpenAI = loaders.tryLoadOpenAI;
-pub const loadCodex = loaders.loadCodex;
-pub const tryLoadCodex = loaders.tryLoadCodex;
-pub const loadOpenCode = loaders.loadOpenCode;
-pub const tryLoadOpenCode = loaders.tryLoadOpenCode;
-pub const loadClaude = loaders.loadClaude;
-pub const tryLoadClaude = loaders.tryLoadClaude;
-pub const loadGemini = loaders.loadGemini;
-pub const tryLoadGemini = loaders.tryLoadGemini;
-pub const loadHuggingFace = loaders.loadHuggingFace;
-pub const tryLoadHuggingFace = loaders.tryLoadHuggingFace;
-pub const loadOllama = loaders.loadOllama;
-pub const tryLoadOllama = loaders.tryLoadOllama;
-pub const loadOllamaPassthrough = loaders.loadOllamaPassthrough;
-pub const tryLoadOllamaPassthrough = loaders.tryLoadOllamaPassthrough;
-pub const loadLocalScheduler = loaders.loadLocalScheduler;
-pub const loadDiscord = loaders.loadDiscord;
-pub const tryLoadDiscord = loaders.tryLoadDiscord;
-pub const loadAnthropic = loaders.loadAnthropic;
-pub const tryLoadAnthropic = loaders.tryLoadAnthropic;
-pub const loadMistral = loaders.loadMistral;
-pub const tryLoadMistral = loaders.tryLoadMistral;
-pub const loadCohere = loaders.loadCohere;
-pub const tryLoadCohere = loaders.tryLoadCohere;
-pub const loadLMStudio = loaders.loadLMStudio;
-pub const tryLoadLMStudio = loaders.tryLoadLMStudio;
-pub const loadVLLM = loaders.loadVLLM;
-pub const tryLoadVLLM = loaders.tryLoadVLLM;
-pub const loadMLX = loaders.loadMLX;
-pub const tryLoadMLX = loaders.tryLoadMLX;
-pub const loadLlamaCpp = loaders.loadLlamaCpp;
-pub const tryLoadLlamaCpp = loaders.tryLoadLlamaCpp;
-
-=======
->>>>>>> Stashed changes
 var initialized = std.atomic.Value(bool).init(false);
 
 /// Initialize the connectors subsystem (idempotent; no-op if already initialized).
 pub fn init(_: std.mem.Allocator) !void {
-<<<<<<< Updated upstream
     if (initialized.load(.acquire)) return;
-=======
->>>>>>> Stashed changes
     initialized.store(true, .release);
 }
 
@@ -126,8 +79,6 @@ pub fn isEnabled() bool {
 /// Returns true after `init()` has been called.
 pub fn isInitialized() bool {
     return initialized.load(.acquire);
-<<<<<<< Updated upstream
-=======
 }
 
 const builtin = @import("builtin");
@@ -340,7 +291,6 @@ pub fn loadLlamaCpp(allocator: std.mem.Allocator) !llama_cpp.Config {
 
 pub fn tryLoadLlamaCpp(allocator: std.mem.Allocator) !?llama_cpp.Config {
     return llama_cpp.loadFromEnv(allocator) catch null;
->>>>>>> Stashed changes
 }
 
 test "connectors init toggles state" {

@@ -84,7 +84,7 @@ Build fails with warnings about invalid flag combinations or missing dependencie
 
 ### Diagnosis
 
-The build.zig defines all feature flags inline (no external modules). Each flag defaults to enabled except `feat-mobile` (defaults false). The build validates GPU backend combinations and feature dependencies at build time with warnings.
+The build.zig defines all feature flags inline (no external modules). Each flag defaults to enabled. The build validates GPU backend combinations and feature dependencies at build time with warnings.
 
 1. Check which flags are being passed: review the `zig build` invocation for `-Dfeat-*=false` or `-Dfeat-*=true` arguments.
 2. Run `zig build doctor` to see the current flag configuration.

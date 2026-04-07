@@ -62,10 +62,6 @@ pub const Context = struct {
 
     /// Read a sensor value based on the sensor type, dispatching to platform bindings if applicable.
     pub fn readSensor(self: *Context, sensor_type: SensorType) MobileError!SensorData {
-<<<<<<< Updated upstream
-        _ = self;
-        return sensors.readSensor(sensor_type);
-=======
         var values: [3]f32 = .{ 0.0, 0.0, 0.0 };
         var actual_timestamp: u64 = 0;
 
@@ -76,7 +72,6 @@ pub const Context = struct {
             const res = abi_ios_sensor_read(@intCast(@intFromEnum(sensor_type)), &values, &actual_timestamp);
             if (res != 0) return error.SensorUnavailable;
         } else {
-            // Simulated fallback for development/testing
             var ts: std.c.timespec = undefined;
             _ = std.c.clock_gettime(.REALTIME, &ts);
             actual_timestamp = @intCast(@as(i64, @intCast(ts.sec)) * 1000 +
@@ -97,7 +92,6 @@ pub const Context = struct {
             .timestamp_ms = actual_timestamp,
             .values = values,
         };
->>>>>>> Stashed changes
     }
 
     /// Send a notification and track it in the log.

@@ -40,7 +40,7 @@ You are a build diagnostician for the ABI Zig framework. You systematically diag
 - Zig version pinned in `.zigversion` (currently `0.16.0-dev.2962+08416b44f`)
 - Build system: `build.zig` (self-contained, no external modules)
 - On macOS 26.4+ (Darwin 25.x): use `./build.sh` (Apple ld wrapper), NOT `zig build` for anything that links
-- Feature flags: all default enabled except `feat-mobile` and `feat-tui` (false)
+- Feature flags: all default enabled
 - Mod/stub pattern: features comptime-gated in `src/root.zig`
 - Tests: unit tests via `src/root.zig` refAllDecls + integration tests via `test/mod.zig`
 

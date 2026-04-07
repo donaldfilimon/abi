@@ -13,6 +13,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const time = @import("../../foundation/mod.zig").time;
 pub const types = @import("types.zig");
 const engine_mod = @import("engine.zig");
 const funnel_mod = @import("funnel.zig");
@@ -78,10 +79,7 @@ var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(allocator: std.mem.Allocator) !void {
     _ = allocator;
-<<<<<<< Updated upstream
     if (initialized.load(.acquire)) return;
-=======
->>>>>>> Stashed changes
     initialized.store(true, .release);
 }
 
@@ -95,8 +93,6 @@ pub fn isEnabled() bool {
 
 pub fn isInitialized() bool {
     return initialized.load(.acquire);
-<<<<<<< Updated upstream
-=======
 }
 
 // ============================================================================
@@ -114,7 +110,6 @@ fn timestampMs() u64 {
     };
     const now = time.Instant.now() catch return 0;
     return now.since(start) / std.time.ns_per_ms;
->>>>>>> Stashed changes
 }
 
 // ============================================================================
