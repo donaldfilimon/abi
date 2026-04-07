@@ -29,13 +29,13 @@ pub fn build(b: *std.Build) void {
     const feat_cache = b.option(bool, "feat-cache", "Caching") orelse true;
     const feat_storage = b.option(bool, "feat-storage", "Storage backends") orelse true;
     const feat_search = b.option(bool, "feat-search", "Full-text search") orelse true;
-    const feat_mobile = b.option(bool, "feat-mobile", "Mobile (iOS/Android)") orelse false;
+    const feat_mobile = b.option(bool, "feat-mobile", "Mobile (iOS/Android)") orelse true;
     const feat_gateway = b.option(bool, "feat-gateway", "API gateway") orelse true;
     const feat_benchmarks = b.option(bool, "feat-benchmarks", "Benchmark suites") orelse true;
     const feat_compute = b.option(bool, "feat-compute", "Distributed compute") orelse true;
     const feat_documents = b.option(bool, "feat-documents", "Document processing") orelse true;
     const feat_desktop = b.option(bool, "feat-desktop", "Desktop integration") orelse true;
-    const feat_tui = b.option(bool, "feat-tui", "Terminal user interface") orelse false;
+    const feat_tui = b.option(bool, "feat-tui", "Terminal user interface") orelse true;
     const feat_observability = feat_observability_opt orelse true;
 
     // AI sub-feature flags
