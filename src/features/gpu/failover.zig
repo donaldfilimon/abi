@@ -299,7 +299,7 @@ pub const FailoverManager = struct {
         });
     }
 
-    fn findNextAvailableBackend(self: *FailoverManager) ?Backend {
+    fn findNextAvailableBackend(self: *const FailoverManager) ?Backend {
         const now = time.unixMilliseconds();
 
         // Try failover chain in order

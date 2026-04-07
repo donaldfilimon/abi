@@ -382,6 +382,7 @@ pub const ErrorContext = struct {
                 .compilation => stats.compilation += 1,
                 .launch => stats.launch += 1,
                 .synchronization => stats.synchronization += 1,
+                .buffer, .backend, .cache, .profiling => {},
             }
         }
 

@@ -147,6 +147,8 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
         try runSearch(allocator, args[1..]);
     } else if (std.mem.eql(u8, cmd, "lsp")) {
         try runLsp(allocator);
+    } else if (std.mem.eql(u8, cmd, "discord")) {
+        try cli.runDiscord(allocator, args[1..]);
     } else if (std.mem.eql(u8, cmd, "dashboard")) {
         try runDashboard(allocator);
     } else if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h")) {
@@ -162,7 +164,9 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
 // ── Status (no-args) ────────────────────────────────────────────────────
 
 pub fn printStatus() void {
-    _ = printSharedCliText(cli.writeStatus);
+    printSharedCliText(cli.writeStatus) catch |err| {
+        std.debug.print("Warning: Failed to write status: {}\n", .{err});
+    };
 }
 
 fn printFeatureTag(enabled: bool) void {
@@ -176,13 +180,13 @@ fn printFeatureTag(enabled: bool) void {
 // ── Version ─────────────────────────────────────────────────────────────
 
 pub fn printVersion() void {
-    _ = printSharedCliText(cli.writeVersion);
+    std.debug.print("ABI Framework v{s}\n", .{build_options.package_version});
 }
 
 // ── Help ────────────────────────────────────────────────────────────────
 
 pub fn printHelp() void {
-    _ = printSharedCliText(cli.writeHelp);
+    printSharedCliText(cli.writeHelp) catch {};
 }
 
 // ── Features ────────────────────────────────────────────────────────────

@@ -74,9 +74,9 @@ const SizeClassBucket = struct {
     fn init(allocator: std.mem.Allocator, size_class: usize) SizeClassBucket {
         return .{
             .size_class = size_class,
-            .allocations = .{},
+            .allocations = .empty,
             .free_list = null,
-            .metadata = .{},
+            .metadata = .empty,
             .total_allocated = 0,
             .total_used = 0,
             .allocator = allocator,
@@ -227,7 +227,7 @@ pub const AdvancedMemoryPool = struct {
             .allocator = allocator,
             .config = config,
             .size_classes = undefined,
-            .overflow_allocations = .{},
+            .overflow_allocations = .empty,
             .total_size = 0,
             .peak_size = 0,
             .allocation_count = 0,
@@ -370,7 +370,7 @@ pub const AdvancedMemoryPool = struct {
     }
 
     /// Get pool statistics.
-    pub fn getStats(self: *const AdvancedMemoryPool) PoolStats {
+    pub fn getStats(self: *AdvancedMemoryPool) PoolStats {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -905,7 +905,7 @@ test "pool coalescing" {
     defer pool.deinit();
 
     // Allocate and free many times
-    var buffers: [10]?*memory.GpuBuffer = [_]?*memory.GpuBuffer{null} ** 10;
+    var buffers: [10]*memory.GpuBuffer = undefined;
     for (&buffers) |*buf| {
         buf.* = try pool.allocate(256, .{});
     }
@@ -929,7 +929,7 @@ test "memory pressure handling" {
     defer pool.deinit();
 
     // Fill pool close to capacity
-    var buffers: [3]?*memory.GpuBuffer = [_]?*memory.GpuBuffer{null} ** 3;
+    var buffers: [3]*memory.GpuBuffer = undefined;
     for (&buffers) |*buf| {
         buf.* = try pool.allocate(1024, .{});
     }

@@ -23,7 +23,7 @@ pub const CudaContext = struct {
     device_id: i32,
     context: ?*anyopaque,
     stream: ?*anyopaque,
-    device_memory: std.ArrayListUnmanaged([]u8),
+    device_memory: std.AutoHashMapUnmanaged(*anyopaque, usize),
     allocator: std.mem.Allocator,
 };
 
@@ -45,8 +45,15 @@ const CuResult = enum(i32) {
 };
 
 const CUdevice = i32;
-const CUcontext = *anyopaque;
-const CUstream = *anyopaque;
+const CUcontext = ?*anyopaque;
+const CUstream = ?*anyopaque;
+
+fn optPtr(ptr: ?*anyopaque) *anyopaque {
+    const zero: *anyopaque = @ptrFromInt(0);
+    if (ptr == null) return zero;
+    return ptr.?;
+}
+
 const CUmodule = *anyopaque;
 const CUfunction = *anyopaque;
 const CUdeviceptr = usize;
@@ -223,7 +230,7 @@ pub fn init() !void {
         .device_id = @intCast(device),
         .context = context,
         .stream = stream,
-        .device_memory = std.ArrayListUnmanaged([]u8).empty,
+        .device_memory = .empty,
         .allocator = std.heap.page_allocator,
     };
 
@@ -244,9 +251,10 @@ pub fn deinit() void {
             _ = stream_destroy_fn(stream);
         }
 
-        for (ctx.device_memory.items) |mem| {
+        var iter = ctx.device_memory.iterator();
+        while (iter.next()) |entry| {
             const free_fn = cuMemFree orelse return;
-            _ = free_fn(@intCast(@intFromPtr(mem.ptr)));
+            _ = free_fn(@intCast(@intFromPtr(entry.key_ptr.*)));
         }
         ctx.device_memory.deinit(ctx.allocator);
 
@@ -282,16 +290,17 @@ pub fn compileKernel(
 
     const get_fn = cuModuleGetFunction orelse {
         const unload_fn = cuModuleUnload orelse return types.KernelError.CompilationFailed;
-        unload_fn(module);
+        _ = unload_fn(module);
         return types.KernelError.CompilationFailed;
     };
 
     var function: CUfunction = undefined;
-    const func_result = get_fn(&function, module, source.entry_point.ptr);
+    const entry_ptr: [*:0]const u8 = @ptrCast(source.entry_point.ptr);
+    const func_result = get_fn(&function, module, entry_ptr);
 
     if (func_result != .success) {
         const unload_fn = cuModuleUnload orelse return types.KernelError.CompilationFailed;
-        unload_fn(module);
+        _ = unload_fn(module);
         return types.KernelError.CompilationFailed;
     }
 
@@ -310,19 +319,19 @@ pub fn launchKernel(
     kernel_handle: *anyopaque,
     config: types.KernelConfig,
     args: []const ?*const anyopaque,
-) types.KernelError!void {
+) (types.KernelError || std.mem.Allocator.Error)!void {
     _ = allocator;
 
     const handle: *CudaKernel = @ptrCast(@alignCast(kernel_handle));
     const launch_fn = cuLaunchKernel orelse return types.KernelError.LaunchFailed;
 
-    const stream = if (cuda_context) |ctx| ctx.stream else null;
+    const stream = if (cuda_context) |ctx| optPtr(ctx.stream) else @as(*anyopaque, @ptrFromInt(0));
 
     var kernel_args = try std.heap.page_allocator.alloc(*anyopaque, args.len);
     defer std.heap.page_allocator.free(kernel_args);
 
     for (args, 0..) |arg, i| {
-        kernel_args[i] = @constCast(arg orelse null);
+        kernel_args[i] = @constCast(arg orelse @as(*const anyopaque, @ptrFromInt(0)));
     }
 
     const result = launch_fn(
@@ -355,7 +364,7 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     const handle: *CudaKernel = @ptrCast(@alignCast(kernel_handle));
     const unload_fn = cuModuleUnload orelse return;
 
-    unload_fn(handle.module);
+    _ = unload_fn(handle.module);
     std.heap.page_allocator.free(handle.name);
     std.heap.page_allocator.destroy(handle);
 }
@@ -364,7 +373,7 @@ pub fn createStream() !*anyopaque {
     if (cuda_context == null) return CudaError.InitializationFailed;
 
     const stream_fn = cuStreamCreate orelse return CudaError.InitializationFailed;
-    var stream: CUstream = null;
+    var stream: CUstream = undefined;
 
     if (stream_fn(&stream, 0) != .success) {
         return CudaError.InitializationFailed;
@@ -378,7 +387,7 @@ pub fn createStream() !*anyopaque {
 pub fn destroyStream(stream: *anyopaque) void {
     const cu_stream: *CuStream = @ptrCast(@alignCast(stream));
     const destroy_fn = cuStreamDestroy orelse return;
-    destroy_fn(cu_stream.ptr);
+    _ = destroy_fn(cu_stream.ptr);
     std.heap.page_allocator.destroy(cu_stream);
 }
 
@@ -391,7 +400,7 @@ pub fn synchronizeStream(stream: *anyopaque) !void {
     }
 }
 
-pub fn allocateDeviceMemory(size: usize) !*anyopaque {
+pub fn allocateDeviceMemory(size: usize) (std.mem.Allocator.Error || CudaError)!*anyopaque {
     if (cuda_context == null) return CudaError.OutOfMemory;
 
     const alloc_fn = cuMemAlloc orelse return CudaError.OutOfMemory;
@@ -402,11 +411,10 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     }
 
     const ctx = &cuda_context.?;
-    const mem = try ctx.allocator.alloc(u8, size);
-    ctx.device_memory.append(ctx.allocator, mem);
+    const device_ptr: *anyopaque = @ptrFromInt(ptr);
+    try ctx.device_memory.put(ctx.allocator, device_ptr, size);
 
-    mem.ptr = @ptrFromInt(ptr);
-    return mem.ptr;
+    return device_ptr;
 }
 
 pub fn freeDeviceMemory(ptr: *anyopaque) void {
@@ -414,16 +422,10 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
     if (@intFromPtr(ptr) == 0) return;
 
     const free_fn = cuMemFree orelse return;
-    free_fn(@intCast(@intFromPtr(ptr)));
+    _ = free_fn(@intCast(@intFromPtr(ptr)));
 
     const ctx = &cuda_context.?;
-    for (ctx.device_memory.items, 0..) |mem, i| {
-        if (mem.ptr == ptr) {
-            ctx.allocator.free(mem);
-            _ = ctx.device_memory.orderedRemove(i);
-            break;
-        }
-    }
+    _ = ctx.device_memory.remove(ptr);
 }
 
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *const anyopaque, size: usize) !void {

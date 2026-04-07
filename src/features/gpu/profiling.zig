@@ -4,7 +4,7 @@
 //! for GPU operations and kernel launches.
 
 const std = @import("std");
-const platform_time = @import("../../foundation/mod.zig").utils;
+const platform_time = @import("../../foundation/mod.zig").time;
 const time = platform_time;
 
 pub const ProfilingError = error{

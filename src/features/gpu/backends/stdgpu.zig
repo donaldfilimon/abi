@@ -48,6 +48,15 @@ pub fn compileKernel(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
 ) types.KernelError!*anyopaque {
+    return stdgpuCompile(allocator, source) catch |err| switch (err) {
+        else => types.KernelError.CompilationFailed,
+    };
+}
+
+fn stdgpuCompile(
+    allocator: std.mem.Allocator,
+    source: types.KernelSource,
+) std.mem.Allocator.Error!*anyopaque {
     // Compile shader source to internal representation
     // This backend provides a CPU-based software fallback when native GPU isn't available
 
@@ -110,7 +119,7 @@ pub fn launchKernel(
         .grid_dim = config.grid_dim,
         .block_dim = config.block_dim,
         .args = args,
-        .shared_mem_size = config.shared_mem_bytes,
+        .shared_mem_size = config.shared_memory_bytes,
     };
 
     // Execute kernel dispatch
@@ -351,7 +360,7 @@ pub fn deviceSlice(ptr: *anyopaque) DeviceMemoryError![]u8 {
     return allocation.bytes;
 }
 
-fn getAllocation(ptr: *anyopaque) DeviceMemoryError!*DeviceAllocation {
+fn getAllocation(ptr: anyopaque) DeviceMemoryError!*DeviceAllocation {
     if (@intFromPtr(ptr) == 0) return DeviceMemoryError.InvalidDeviceMemory;
     return @ptrCast(@alignCast(ptr));
 }

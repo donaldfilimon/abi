@@ -104,6 +104,20 @@ pub const RecoveryManager = struct {
         pub fn eql(a: DeviceKey, b: DeviceKey) bool {
             return a.backend_type == b.backend_type and a.device_id == b.device_id;
         }
+
+        pub fn format(
+            self: DeviceKey,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
+            _ = fmt;
+            _ = options;
+            try writer.print("DeviceKey({s}, {d})", .{
+                @tagName(self.backend_type),
+                self.device_id,
+            });
+        }
     };
 
     const DeviceHealthState = struct {
@@ -130,9 +144,9 @@ pub const RecoveryManager = struct {
             .allocator = allocator,
             .config = config,
             .device_health = .{},
-            .recovery_history = .{},
+            .recovery_history = .empty,
             .active_backend = .cuda,
-            .fallback_backends = .{},
+            .fallback_backends = .empty,
             .mutex = .{},
         };
     }

@@ -21,10 +21,10 @@ pub fn compile(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
 ) (types.KernelError || SimulatedError)!*anyopaque {
-    const handle = try allocator.create(KernelHandle);
+    const handle = allocator.create(KernelHandle) catch return types.KernelError.CompilationFailed;
     errdefer allocator.destroy(handle);
 
-    const name = try allocator.dupe(u8, source.name);
+    const name = allocator.dupe(u8, source.name) catch return types.KernelError.CompilationFailed;
     errdefer allocator.free(name);
 
     handle.* = .{

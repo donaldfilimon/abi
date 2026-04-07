@@ -8,6 +8,13 @@ pub const KernelError = error{
     InvalidArguments,
     UnsupportedBackend,
     MissingDevice,
+    DispatchFailed,
+};
+
+pub const BackendDetectionLevel = enum {
+    not_supported,
+    runtime_available,
+    device_count,
 };
 
 pub const KernelSource = struct {

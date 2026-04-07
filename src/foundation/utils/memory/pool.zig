@@ -281,7 +281,7 @@ pub const MemoryPool = struct {
         }
     }
 
-    pub fn getStats(self: *MemoryPool) PoolStats {
+    pub fn getStats(self: *const MemoryPool) PoolStats {
         return .{
             .total_blocks = self.blocks.items.len,
             .used_blocks = self.current_usage,

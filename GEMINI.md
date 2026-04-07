@@ -8,27 +8,39 @@ ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU accele
 
 Zig version is pinned in `.zigversion`. Use `tools/zigly --status` to auto-install the correct version, or `tools/zigly --link` to symlink zig + zls into `~/.local/bin`.
 
-## Build Commands
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `./build.sh` | Build (macOS 26.4+) |
+| `zig build test --summary all` | All tests |
+| `zig build test -- --test-filter "pattern"` | Single test |
+| `zig build lint` | Check formatting |
+| `zig build fix` | Auto-format in place |
+| `zig build check` | Full gate (lint + test + parity) |
+
+**Do NOT run `zig fmt .`** — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
+
+### Running Single Tests
 
 ```bash
-./build.sh                         # Build (macOS 26.4+ auto-relinks with Apple ld)
-./build.sh test --summary all      # Run tests via wrapper (macOS 26.4+)
-zig build                          # Build static library (Linux / older macOS)
-zig build test --summary all       # Run tests (src/ + test/)
-zig build check                    # Lint + test + stub parity (full gate)
-zig build lint                     # Check formatting (read-only)
-zig build fix                      # Auto-format in place
-zig build check-parity             # Verify mod/stub declaration parity
-zig build cross-check              # Verify cross-compilation (linux, wasi, x86_64)
-zig build lib                      # Build static library artifact
-zig build mcp                      # Build MCP stdio server (zig-out/bin/abi-mcp)
-zig build cli                      # Build ABI CLI binary (zig-out/bin/abi)
-zig build doctor                   # Report build configuration and diagnostics
+# Run a specific test by name pattern
+zig build test --summary all -- --test-filter "test_name_pattern"
+
+# On macOS 26.4+:
+./build.sh test --summary all -- --test-filter "test_name_pattern"
 ```
 
-Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/` and `build.zig`.
+### Test Lanes
 
-On macOS 26.4+ (Darwin 25.x), stock Zig's LLD linker cannot link binaries. Use `./build.sh` which auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
+```bash
+zig build messaging-tests agents-tests orchestration-tests
+zig build gateway-tests inference-tests secrets-tests pitr-tests
+```
+
+27 focused test lanes exist. Run `zig build test --summary all` for full suite.
+
+**Known pre-existing failures**: inference engine connector backend tests (2), auth integration tests (1 failure, 3 leaks).
 
 ### Feature Flags
 
@@ -73,7 +85,7 @@ When modifying a feature's public API, **both `mod.zig` and `stub.zig` must be u
 The `build_options` module provides these fields (all `bool` unless noted):
 - Feature flags: `feat_gpu`, `feat_ai`, `feat_database`, `feat_network`, `feat_observability`, `feat_web`, `feat_pages`, `feat_analytics`, `feat_cloud`, `feat_auth`, `feat_messaging`, `feat_cache`, `feat_storage`, `feat_search`, `feat_mobile`, `feat_gateway`, `feat_benchmarks`, `feat_compute`, `feat_documents`, `feat_desktop`, `feat_tui`
 - AI sub-features: `feat_llm`, `feat_training`, `feat_vision`, `feat_explore`, `feat_reasoning`
-- Protocols: `feat_lsp`, `feat_mcp`
+- Protocols: `feat_lsp`, `feat_mcp`, `feat_acp`, `feat_ha`
 - GPU backends: `gpu_metal`, `gpu_cuda`, `gpu_vulkan`, `gpu_webgpu`, `gpu_opengl`, `gpu_opengles`, `gpu_webgl2`, `gpu_stdgpu`, `gpu_fpga`, `gpu_tpu`
 - `package_version` (`[]const u8`)
 
@@ -85,6 +97,35 @@ Two test suites run under `zig build test`:
 
 Both suites link the same platform frameworks (macOS: System, IOKit, Accelerate, Metal, objc).
 
+## Critical Rules
+
+1. **Never use `@import("abi")` from `src/`** — causes circular import
+2. **Cross-feature imports**: use comptime gates `if (build_options.feat_X) mod else stub`
+3. **Mod/stub parity**: update both together, run `zig build check-parity`
+4. Use `.empty` not `.{}` for `ArrayListUnmanaged`/`HashMapUnmanaged` init
+5. Use `foundation.time.unixMs()` not `std.time.milliTimestamp`
+6. Use `foundation.sync.Mutex` not `std.Thread.Mutex`
+7. On macOS 26.4+, use `./build.sh` not `zig build`
+8. All path imports need explicit `.zig` extensions
+
+## Code Style
+
+### Naming
+- camelCase: functions/methods
+- PascalCase: types/structs/enums
+- SCREAMING_SNAKE_CASE: constants
+- snake_case: enum variants
+
+### Error Handling
+- `@compileError` — compile-time contract violations only
+- `@panic` — unrecoverable invariant violations; never in library code (`src/`), only in CLI entry points and tests
+- `unreachable` — provably impossible branches verified at comptime
+- Error unions (`!`) — all runtime failure paths; prefer `error.FeatureDisabled` in stubs
+
+### Memory & Ownership
+- Always pair allocation/deallocation with `defer`
+- String literals in structs with `deinit()` → always `allocator.dupe()`
+
 ## Import Rules
 
 - **Within `src/`**: use relative imports only (`@import("../../foundation/mod.zig")`). Never `@import("abi")` from inside `src/` — causes circular import error.
@@ -92,19 +133,13 @@ Both suites link the same platform frameworks (macOS: System, IOKit, Accelerate,
 - **Cross-feature imports**: never import another feature's `mod.zig` directly. Use comptime gate: `const obs = if (build_options.feat_observability) @import("../../features/observability/mod.zig") else @import("../../features/observability/stub.zig");`
 - **Explicit `.zig` extensions** required on all path imports (Zig 0.16).
 
-## Key Conventions
-
-- Public surface is `abi.<domain>` (e.g., `abi.gpu`, `abi.ai`). `src/root.zig` is the source of truth.
-- Struct field renames: grep for `.field_name` (with leading dot) to catch anonymous struct literals.
-- `src/core/feature_catalog.zig` is the canonical source of truth for feature metadata.
-- `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, and `StubContextWithConfig` — reuse in stubs.
-
 ## Zig 0.16 Gotchas
 
-- `ArrayListUnmanaged` init: use `.empty` not `.{}` (struct fields changed)
 - `std.BoundedArray` removed: use manual `buffer: [N]T = undefined` + `len: usize = 0`
 - `std.Thread.Mutex` may be unavailable: use `foundation.sync.Mutex`
 - `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
 - `var` vs `const`: compiler enforces const for never-mutated locals
-- Function pointers: can call through `*const fn` directly without dereferencing
-- `zig fmt .` from root: don't — use `zig build fix` to avoid vendored fixtures
+- Entry points use `pub fn main(init: std.process.Init) !void`
+- `std.mem.trimRight` renamed to `std.mem.trimEnd`
+- Platform-gated externs: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`
+- `foundation.time.timestampSec()` is monotonic — use `clock_gettime(.REALTIME)` for persisted data

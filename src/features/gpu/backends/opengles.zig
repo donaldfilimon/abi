@@ -153,7 +153,11 @@ pub fn init() OpenGlesError!void {
     if (!tryLoadOpenGles()) {
         return OpenGlesError.LibraryNotFound;
     }
-    errdefer if (opengles_lib) |lib| lib.close();
+    errdefer {
+        if (opengles_lib) |*lib| {
+            lib.close();
+        }
+    }
 
     if (!loadOpenGlesFunctions()) {
         return OpenGlesError.FunctionLoadFailed;
@@ -169,7 +173,7 @@ pub fn init() OpenGlesError!void {
     // Parse OpenGL ES version using glGetIntegerv for accurate major/minor version
     const get_integer_fn = glesGetIntegerv orelse {
         // Fallback: parse version string
-        if (parseVersionString(std.mem.span(version))) |parsed| {
+        if (parseVersionString(std.mem.span(version).?)) |parsed| {
             gles_major_version = parsed.major;
             gles_minor_version = parsed.minor;
         } else {

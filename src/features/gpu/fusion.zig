@@ -40,10 +40,10 @@ pub const FusionOptimizer = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .nodes = .{},
-            .buffer_refs = .{},
-            .buffer_producers = .{},
-            .patterns = .{},
+            .nodes = .empty,
+            .buffer_refs = .empty,
+            .buffer_producers = .empty,
+            .patterns = .empty,
             .device_caps = null,
             .stats = .{},
             .auto_apply = false,

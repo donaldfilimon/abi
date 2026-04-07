@@ -343,9 +343,9 @@ pub const CudaBackend = struct {
         if (flags.host_visible) {
             // Allocate host-pinned memory
             const cu_mem_alloc_host = funcs.memory.cuMemAllocHost orelse return interface.MemoryError.OutOfMemory;
-            var host_ptr: ?*anyopaque = null;
+            var host_ptr: *anyopaque = undefined;
             const result = cu_mem_alloc_host(&host_ptr, size);
-            if (result != .success or host_ptr == null) {
+            if (result != .success or @intFromPtr(&host_ptr) == 0) {
                 return interface.MemoryError.OutOfMemory;
             }
 
@@ -357,12 +357,12 @@ pub const CudaBackend = struct {
                 .host_ptr = host_ptr,
             }) catch {
                 if (funcs.memory.cuMemFreeHost) |cu_mem_free_host| {
-                    _ = cu_mem_free_host(host_ptr.?);
+                    _ = cu_mem_free_host(host_ptr);
                 }
                 return interface.MemoryError.OutOfMemory;
             };
 
-            return host_ptr.?;
+            return host_ptr;
         } else {
             // Allocate device memory
             const cu_mem_alloc = funcs.memory.cuMemAlloc orelse return interface.MemoryError.OutOfMemory;

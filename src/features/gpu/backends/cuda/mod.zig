@@ -227,7 +227,7 @@ pub const QuantConfig = quantized_kernels.QuantConfig;
 pub const CuResult = cuda_loader.CuResult;
 
 const CuStream = extern struct {
-    ptr: *anyopaque,
+    ptr: ?*anyopaque,
 };
 
 const CuEvent = extern struct {
@@ -420,7 +420,7 @@ pub fn createStream() !*anyopaque {
             std.log.warn("Native stream creation failed: {}. Falling back to simulation.", .{err});
         }
     }
-    return fallback.createOpaqueHandle(CuStream, .{ .ptr = null });
+    return fallback.createOpaqueHandle(CuStream, .{ .ptr = @ptrFromInt(0) });
 }
 
 /// Destroy a CUDA stream.

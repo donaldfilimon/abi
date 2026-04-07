@@ -96,7 +96,6 @@ pub fn addSteps(ctx: Context) Steps {
         .{ .arch = .aarch64, .os = .linux, .name = "aarch64-linux" },
         .{ .arch = .x86_64, .os = .linux, .name = "x86_64-linux" },
         .{ .arch = .wasm32, .os = .wasi, .name = "wasm32-wasi" },
-        .{ .arch = .x86_64, .os = .macos, .name = "x86_64-macos" },
     };
 
     inline for (cross_targets) |ct| {

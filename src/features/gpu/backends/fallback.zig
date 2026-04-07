@@ -29,7 +29,13 @@ pub fn launchKernel(
     config: types.KernelConfig,
     args: []const ?*const anyopaque,
 ) types.KernelError!void {
-    return simulated.launch(allocator, kernel_handle, config, args);
+    return simulated.launch(allocator, kernel_handle, config, args) catch |err| {
+        switch (err) {
+            error.UnsupportedKernel => return types.KernelError.UnsupportedBackend,
+            error.ArgumentCountMismatch => return types.KernelError.InvalidArguments,
+            else => return types.KernelError.LaunchFailed,
+        }
+    };
 }
 
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
@@ -104,7 +110,7 @@ pub fn deviceSlice(ptr: *anyopaque) DeviceMemoryError![]u8 {
     return allocation.bytes;
 }
 
-fn getAllocation(ptr: *anyopaque) DeviceMemoryError!*DeviceAllocation {
+fn getAllocation(ptr: anyopaque) DeviceMemoryError!*DeviceAllocation {
     if (@intFromPtr(ptr) == 0) return DeviceMemoryError.InvalidDeviceMemory;
     return @ptrCast(@alignCast(ptr));
 }

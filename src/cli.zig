@@ -5,6 +5,13 @@ const build_options = @import("build_options");
 const feature_catalog = @import("features/core/feature_catalog.zig");
 const acp = @import("protocols/acp/mod.zig");
 
+const abbey_mod = if (build_options.feat_ai and build_options.feat_reasoning)
+    @import("features/ai/abbey/mod.zig")
+else
+    @import("features/ai/abbey/stub.zig");
+
+const time_mod = @import("foundation/time.zig");
+
 const default_host = "127.0.0.1";
 const default_port: u16 = 8080;
 const command_usage_width: usize = 18;
@@ -30,6 +37,7 @@ pub const single_token_commands = [_]CommandDescriptor{
     .{ .name = "serve", .description = "Start the ACP HTTP server" },
     .{ .name = "dashboard", .description = dashboard_command_summary },
     .{ .name = "lsp", .description = "Start Language Server Protocol (LSP) server" },
+    .{ .name = "discord", .description = "Start Abbey Discord bot" },
 };
 
 pub const HelpSection = enum {
@@ -72,6 +80,7 @@ pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "serve", .description = "Start the ACP HTTP server", .section = .ai_data },
     .{ .usage = "acp serve", .description = "Start the ACP HTTP server", .section = .ai_data },
     .{ .usage = "lsp", .description = "Start the Language Server Protocol (LSP) server", .section = .ai_data },
+    .{ .usage = "discord", .description = "Start Abbey Discord bot", .section = .ai_data },
     .{
         .usage = "dashboard",
         .description = dashboard_command_detail,
@@ -392,6 +401,64 @@ pub fn runServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     var writer = stdout_file.writer(io_backend.io(), &write_buf);
     try runServeWithWriter(allocator, args, &writer.interface);
     try writer.flush();
+}
+
+pub fn runDiscord(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (!build_options.feat_ai or !build_options.feat_reasoning) {
+        std.debug.print("Abbey AI features are disabled. Rebuild with -Dfeat-ai=true -Dfeat-reasoning=true\n", .{});
+        return;
+    }
+
+    if (args.len > 0 and std.mem.eql(u8, args[0], "--help")) {
+        std.debug.print("Usage: abi discord\n", .{});
+        std.debug.print("       abi discord --token <bot-token>\n", .{});
+        std.debug.print("\nStart the Abbey Discord bot. Requires DISCORD_BOT_TOKEN env var or --token flag.\n", .{});
+        return;
+    }
+
+    var bot_token: ?[]const u8 = null;
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        if (std.mem.eql(u8, args[i], "--token") or std.mem.eql(u8, args[i], "-t")) {
+            if (i + 1 < args.len) {
+                bot_token = args[i + 1];
+                i += 1;
+            } else {
+                std.debug.print("Error: --token requires a value\n", .{});
+                return;
+            }
+        }
+    }
+
+    if (std.c.getenv("DISCORD_BOT_TOKEN")) |token| {
+        bot_token = std.mem.sliceTo(token, 0);
+    } else if (std.c.getenv("ABI_DISCORD_BOT_TOKEN")) |token| {
+        bot_token = std.mem.sliceTo(token, 0);
+    }
+
+    if (bot_token == null or bot_token.?.len == 0) {
+        std.debug.print("Error: DISCORD_BOT_TOKEN environment variable not set\n", .{});
+        std.debug.print("Usage: abi discord\n", .{});
+        std.debug.print("  or:  DISCORD_BOT_TOKEN=your-token abi discord\n", .{});
+        return;
+    }
+
+    const config = abbey_mod.DiscordBotConfig{
+        .bot_token = bot_token.?,
+    };
+
+    var bot = try abbey_mod.AbbeyDiscordBot.init(allocator, config);
+    defer bot.deinit();
+
+    std.debug.print("Starting Abbey Discord bot...\n", .{});
+    try bot.startGateway();
+
+    std.debug.print("Abbey bot connected! Press Ctrl+C to stop.\n", .{});
+
+    while (true) {
+        _ = try bot.processGatewayEvents();
+        time_mod.sleepMs(16);
+    }
 }
 
 test "serve invocation recognises both aliases" {

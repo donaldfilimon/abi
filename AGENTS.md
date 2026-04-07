@@ -1,139 +1,84 @@
-# AGENTS.md
+# Repository Guidelines
 
-Guidance for AI coding agents working in this repository.
+A Zig 0.16 framework for AI services, semantic storage, GPU acceleration, and distributed runtime.
 
-## Quick Reference
+## Project Structure
+
+```
+src/              # Framework source (single `abi` module)
+├── root.zig      # Public entrypoint (@import("abi"))
+├── features/     # 21 feature directories (mod/stub/types pattern)
+├── foundation/   # Shared utilities (logging, security, time, SIMD)
+├── runtime/      # Task scheduling, event loops
+├── platform/     # OS detection, capabilities
+├── connectors/   # External service adapters
+├── protocols/    # MCP, LSP, ACP, HA implementations
+├── tasks/        # Task management
+└── inference/    # ML inference engine
+build.zig         # Self-contained build root
+test/             # Integration tests (50 modules)
+```
+
+## Build & Test Commands
 
 | Command | Description |
 |---------|-------------|
-| `./build.sh` | Build (macOS 26.4+) |
-| `zig build test --summary all` | All tests |
-| `zig build test -- --test-filter "pattern"` | Single test |
+| `./build.sh` | Build (macOS 26.4+ auto-relinks) |
+| `zig build` | Build (Linux / older macOS) |
+| `zig build test --summary all` | All unit + integration tests |
+| `zig build test -- --test-filter "pattern"` | Single test by name |
+| `./build.sh test --summary all` | All tests (macOS 26.4+) |
 | `zig build lint` | Check formatting |
-| `zig build fix` | Auto-format in place |
+| `zig build fix` | Auto-format |
 | `zig build check` | Full gate (lint + test + parity) |
-| `zig build check-parity` | Verify mod/stub parity |
+| `zig build check-parity` | Verify mod/stub declaration parity |
 
-**Do NOT run `zig fmt .` at repo root** — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
+## Build Options
 
-### Running Single Tests
+| Flag | Description |
+|------|-------------|
+| `-Dfeat-<name>=false` | Disable feature (e.g., `-Dfeat-gpu=false`) |
+| `-Dgpu-backend=metal` | Single GPU backend |
+| `-Dgpu-backend=cuda,vulkan` | Multiple GPU backends |
 
-```bash
-# Run a specific test by name pattern
-zig build test --summary all -- --test-filter "test_name_pattern"
+## Tools
 
-# On macOS 26.4+:
-./build.sh test --summary all -- --test-filter "test_name_pattern"
-```
+| Command | Description |
+|---------|-------------|
+| `tools/zigly --status` | Show Zig path |
+| `tools/zigly --link` | Symlink Zig/ZLS to `~/.local/bin` |
+| `tools/crossbuild.sh` | Cross-compile (linux, wasi, x86_64) |
 
-### Test Lanes
+## CLI
 
-```bash
-zig build test --summary all                        # All tests
-zig build feature-tests messaging-tests agents-tests orchestration-tests
-zig build gateway-tests inference-tests secrets-tests pitr-tests
-zig build mcp-tests cli-tests tui-tests multi-agent-tests
-```
-
-27 focused test lanes exist: `acp-tests`, `agents-tests`, `auth-tests`, `cache-tests`, `cloud-tests`, `compute-tests`, `connectors-tests`, `database-tests`, `desktop-tests`, `documents-tests`, `gateway-tests`, `gpu-tests`, `ha-tests`, `inference-tests`, `lsp-tests`, `messaging-tests`, `multi-agent-tests`, `network-tests`, `observability-tests`, `orchestration-tests`, `pipeline-tests`, `pitr-tests`, `search-tests`, `secrets-tests`, `storage-tests`, `tasks-tests`, `web-tests`.
-
-**Known pre-existing test failures**: inference engine connector backend tests (2 failures), auth integration tests (1 failure, 3 leaks).
-
-**Resolved**: MCP integration tests (fixed `.len` → `.items.len` for `ArrayListUnmanaged`), pipeline tests (fixed `builder.build()` → `try builder.build()` for error union).
-
----
-
-## Critical Rules
-
-1. **Never use `@import("abi")` from `src/`** — causes circular import
-2. **Cross-feature imports**: use comptime gates `if (build_options.feat_X) mod else stub`
-3. **Mod/stub parity**: update both together, run `zig build check-parity`
-4. Use `.empty` not `.{}` for `ArrayListUnmanaged`/`HashMapUnmanaged` init
-5. Use `foundation.time.unixMs()` not `std.time.milliTimestamp`
-6. Use `foundation.sync.Mutex` not `std.Thread.Mutex`
-7. On macOS 26.4+, use `./build.sh` not `zig build`
-8. All path imports need explicit `.zig` extensions
-9. `.zigversion` is the toolchain source of truth; `./build.sh` resolves it through `tools/zigly` and prefers `~/.zvm/bin/zig` when the active ZVM version matches
-
----
-
-## Architecture
-
-- **Entrypoint**: `src/root.zig` re-exports domains as `abi.<domain>`
-- **Features**: 21 dirs under `src/features/`, mod/stub/types pattern
-- **Comptime gating**: `root.zig` uses `if (build_options.feat_X) mod else stub`
-- **Core/Foundation/Runtime**: config, logging, task scheduling
-- **Connectors**: OpenAI, Anthropic, Discord, etc.
-- **Protocols**: MCP, LSP, ACP, HA — all comptime-gated
-
----
+| Command | Description |
+|---------|-------------|
+| `zig build cli` | Build CLI binary (`zig-out/bin/abi`) |
+| `./build.sh cli` | Build CLI (macOS 26.4+) |
+| `abi doctor` | Build configuration report |
+| `abi features` | List all 60 features |
 
 ## Code Style
 
-### Naming
-- camelCase: functions/methods
-- PascalCase: types/structs/enums
-- SCREAMING_SNAKE_CASE: constants
-- snake_case: enum variants
-- One main type per file named after filename (e.g., `bar.zig` → `Bar`)
+- **Indentation**: 4 spaces, no tabs; ~80 char line width
+- **Naming**: camelCase (functions), PascalCase (types), SCREAMING_SNAKE_CASE (constants), snake_case (enum variants)
+- **Doc comments**: `///` on public API only
+- **Error handling**: `!` unions for runtime failures; `@panic` only in CLI/tests
+- **Imports**: Relative paths within `src/`; never `@import("abi")` from `src/`
 
-### Formatting
-- 4-space indentation, no tabs, ~80 char line width
+## Testing
 
-### Comments
-- Doc comments (`//!`, `///`) for public API only
-- No inline comments unless implementation is non-obvious
+- Unit tests: `std.testing.refAllDecls(@This())` in `test {}` blocks
+- Integration tests: `test/mod.zig` covers all features
+- Known pre-existing failures: inference engine connectors (2), auth integration (1)
 
-### Error Handling
-- `@compileError` — compile-time contract violations only
-- `@panic` — unrecoverable invariant violations; never in library code (`src/`), only in CLI entry points and tests
-- `unreachable` — provably impossible branches verified at comptime
-- Error unions (`!`) — all runtime failure paths in library code; prefer `error.FeatureDisabled` in stubs
+## Critical Rules
 
-### Memory
-- Always pair allocation/deallocation with `defer`
-- Use arena allocators for temporary parsing
-- String literals in structs with `deinit()` → always `allocator.dupe()`
-
-### Testing
-- `test {}` blocks: include `std.testing.refAllDecls(@This())`
-- Integration tests in `test/mod.zig` import `@import("abi")`
-- Use public API accessors (e.g., `manager.getStatus()`) not direct struct field access
-
-### refAllDecls Convention
-Most files end with `test { std.testing.refAllDecls(@This()); }`. If a sub-module has pre-existing compilation errors, use a deferred comment instead:
-```zig
-// refAllDecls deferred — sub_module.zig has pre-existing Zig 0.16 API errors
-```
-Files with known pre-existing errors: `features/ai/abbey/mod.zig`, `features/cloud/mod.zig`, `features/gpu/mod.zig`, `features/network/mod.zig`, `features/web/mod.zig`, `foundation/utils.zig`.
-
----
-
-## CLI Commands
-
-```bash
-abi               # Smart status
-abi version       # Version info
-abi doctor        # Diagnostics
-abi features      # List all 60 features
-abi platform      # Platform detection
-abi connectors    # List LLM providers
-abi chat <msg>    # Multi-profile pipeline
-abi db <cmd>      # Vector database ops
-abi serve         # Start ACP HTTP server (127.0.0.1:8080)
-abi dashboard     # Developer diagnostics shell (requires -Dfeat-tui=true)
-```
-
----
-
-## Imports
-
-- **Never use `@import("abi")` from `src/`** — causes circular import
-- Use relative imports within src: `@import("../../foundation/mod.zig")`
-- Use `@import("abi")` from `test/` only
-- All path imports need explicit `.zig` extensions
-
----
+1. **Mod/stub contract**: Update both together; run `zig build check-parity`
+2. **Feature gates**: `if (build_options.feat_X) mod else stub`
+3. **macOS 26.4+**: Use `./build.sh`, never `zig build` directly
+4. **Memory**: Use `allocator.dupe()` for string literals in structs
+5. **Paths**: All imports need explicit `.zig` extensions
 
 ## Common Patterns
 
@@ -147,7 +92,7 @@ else
 
 ### String Ownership
 ```zig
-// WRONG: crashes on deinit
+// WRONG
 const response = ProfileResponse{ .content = "Hello", ... };
 
 // CORRECT
@@ -156,48 +101,3 @@ const response = ProfileResponse{
     ...
 };
 ```
-
-### GPU VTable
-```zig
-pub const AiOps = struct {
-    ptr: *anyopaque,
-    vtable: *const VTable,
-    pub const VTable = struct {
-        sgemm: *const fn (ctx: *anyopaque, ...) AiOpsError!void,
-        deinit: *const fn (ctx: *anyopaque) void,
-    },
-    pub fn sgemm(self: AiOps, ...) AiOpsError!void {
-        return self.vtable.sgemm(self.ptr, ...);
-    }
-};
-```
-
----
-
-## Important Safety Notes
-
-- **Thread safety**: every `Engine` public method must acquire `db_lock` before reading vectors/index/client
-- **JSON escaping**: use `foundation/utils/json.zig`, never reimplement
-- **Emotion files**: use `emotions.zig`, not `emotion.zig`
-- **Platform-gated externs**: gate on BOTH `build_options.feat_*` AND `builtin.os.tag`
-- **Wall-clock vs monotonic**: `timestampSec()` is monotonic; use `clock_gettime(.REALTIME)` for persisted data
-- **Runtime env vars**: use `std.c.getenv(name.ptr)` which returns `?[*:0]const u8`
-- **Signal handlers**: use `std.posix.Sigaction` with `callconv(.c)` handler functions
-
----
-
-## Zig 0.16 Gotchas
-
-- `std.BoundedArray` removed: use manual `buffer: [N]T = undefined` + `len: usize = 0`
-- Entry points use `pub fn main(init: std.process.Init) !void`; access args via `init.minimal.args`, allocator via `init.gpa` or `init.arena`
-- IO operations: use `std.Io.Threaded` + `std.Io.Dir.cwd()` pattern (not removed `std.fs.cwd()`)
-- `std.mem.trimRight` renamed to `std.mem.trimEnd`
-- `std.process.getEnvVarOwned` removed: use `b.graph.environ_map.get("KEY")` in build.zig
-
----
-
-## Module Decomposition
-
-- Split files >300 lines into sub-modules
-- Keep parent as thin re-export layer (see `src/features/gpu/ai_ops.zig`)
-- Define shared types in `types.zig` to avoid circular deps
