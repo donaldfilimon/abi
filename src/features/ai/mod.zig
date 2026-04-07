@@ -76,7 +76,10 @@ pub const createRegistry = core_facade.createRegistry;
 pub const createAgent = core_facade.createAgent;
 
 pub fn init(_: std.mem.Allocator, _: framework_config.AiConfig) !void {
+<<<<<<< Updated upstream
     if (initialized.load(.acquire)) return;
+=======
+>>>>>>> Stashed changes
     initialized.store(true, .release);
 }
 

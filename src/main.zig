@@ -11,9 +11,15 @@
 //!   abi platform          Show platform detection info
 //!   abi connectors        List available LLM connectors
 //!   abi info              Show framework architecture summary
+<<<<<<< Updated upstream
 //!   abi chat <message...>  Route a message through the profile pipeline
 //!   abi serve             Start the ACP HTTP server
 //!   abi acp serve         Start the ACP HTTP server
+=======
+//!   abi chat <msg>        Route a message through the persona pipeline
+//!   abi serve             Launch the ACP HTTP server
+//!   abi acp serve         Launch the ACP HTTP server
+>>>>>>> Stashed changes
 //!   abi db <subcommand>   Vector database operations
 //!   abi search <cmd>      Full-text search (create, index, query, delete, stats)
 //!   abi dashboard         Launch developer diagnostics shell
@@ -100,15 +106,30 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const args = try init.minimal.args.toSlice(arena);
 
+<<<<<<< Updated upstream
     const exit_code = dispatch(allocator, args[1..]) catch |err| blk: {
         std.debug.print("Error: {s}\n", .{@errorName(err)});
         break :blk 1;
     };
     if (exit_code != 0) std.process.exit(exit_code);
+=======
+    var args = std.process.Args.Iterator.init(init.minimal.args);
+    _ = args.skip(); // skip argv[0] (program name)
+
+    var collected_args = std.ArrayListUnmanaged([:0]const u8).empty;
+    defer collected_args.deinit(allocator);
+
+    while (args.next()) |arg| {
+        try collected_args.append(allocator, arg);
+    }
+
+    try dispatch(allocator, collected_args.items);
+>>>>>>> Stashed changes
 }
 
 // ── Command Dispatch ────────────────────────────────────────────────────
 
+<<<<<<< Updated upstream
 pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
     if (args.len == 0) {
         printStatus();
@@ -122,6 +143,15 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
     }
 
     const cmd = args[0];
+=======
+pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        printStatus();
+        return;
+    }
+
+    const cmd = std.mem.sliceTo(args[0], 0);
+>>>>>>> Stashed changes
 
     if (std.mem.eql(u8, cmd, "version")) {
         printVersion();
@@ -136,6 +166,7 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
     } else if (std.mem.eql(u8, cmd, "info")) {
         printInfo();
     } else if (std.mem.eql(u8, cmd, "chat")) {
+<<<<<<< Updated upstream
         if (args.len < 2) {
             std.debug.print("Usage: abi chat <message...>\n", .{});
             return 1;
@@ -149,6 +180,24 @@ pub fn dispatch(allocator: std.mem.Allocator, args: []const [:0]const u8) !u8 {
         try runLsp(allocator);
     } else if (std.mem.eql(u8, cmd, "discord")) {
         try cli.runDiscord(allocator, args[1..]);
+=======
+        const message = if (args.len >= 2) std.mem.sliceTo(args[1], 0) else {
+            std.debug.print("Usage: abi chat <message>\n", .{});
+            return;
+        };
+        try runChat(allocator, message);
+    } else if (std.mem.eql(u8, cmd, "serve")) {
+        try runServe(allocator, args[1..]);
+    } else if (std.mem.eql(u8, cmd, "acp")) {
+        if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[1], 0), "serve")) {
+            try runServe(allocator, args[2..]);
+        } else {
+            std.debug.print("Unknown command: {s}\n\n", .{cmd});
+            printHelp();
+        }
+    } else if (std.mem.eql(u8, cmd, "db")) {
+        try runDb(allocator, args[1..]);
+>>>>>>> Stashed changes
     } else if (std.mem.eql(u8, cmd, "dashboard")) {
         try runDashboard(allocator);
     } else if (std.mem.eql(u8, cmd, "help") or std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h")) {
@@ -186,7 +235,39 @@ pub fn printVersion() void {
 // ── Help ────────────────────────────────────────────────────────────────
 
 pub fn printHelp() void {
+<<<<<<< Updated upstream
     printSharedCliText(cli.writeHelp) catch {};
+=======
+    std.debug.print(
+        \\ABI — Multi-Persona AI Framework with WDBX
+        \\
+        \\Usage: abi <command> [args]
+        \\
+        \\Diagnostics:
+        \\  version      Print version and build info
+        \\  doctor       Run diagnostics (features, platform, GPU)
+        \\  features     List all features with enabled/disabled status
+        \\  platform     Show platform detection (OS, arch, CPU)
+        \\  connectors   List available LLM provider connectors
+        \\  info         Show framework architecture summary
+        \\
+        \\AI & Data:
+        \\  chat <msg>   Route a message through the persona pipeline
+        \\  serve        Launch the ACP HTTP server (alias: acp serve)
+        \\  db <cmd>     Vector database operations (add, query, stats, optimize, backup, restore, serve)
+        \\
+        \\Interactive:
+        \\  dashboard    Launch interactive TUI dashboard (requires -Dfeat-tui=true)
+        \\
+        \\Build:
+        \\  zig build cli          Build this CLI binary
+        \\  zig build mcp          Build MCP stdio server
+        \\  zig build lib          Build static library
+        \\  zig build test         Run all tests
+        \\  zig build check        Full gate (lint + test + parity)
+        \\
+    , .{});
+>>>>>>> Stashed changes
 }
 
 // ── Features ────────────────────────────────────────────────────────────
@@ -307,6 +388,93 @@ pub fn printInfo() void {
         \\Spec: docs/spec/ABBEY-SPEC.md
         \\
     , .{feature_catalog.feature_count});
+}
+
+pub fn isServeInvocation(args: []const [:0]const u8) bool {
+    if (args.len == 0) return false;
+
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (std.mem.eql(u8, cmd, "serve")) return true;
+    if (!std.mem.eql(u8, cmd, "acp") or args.len < 2) return false;
+    return std.mem.eql(u8, std.mem.sliceTo(args[1], 0), "serve");
+}
+
+fn wantsHelp(args: []const [:0]const u8) bool {
+    for (args) |arg| {
+        const s = std.mem.sliceTo(arg, 0);
+        if (std.mem.eql(u8, s, "help") or std.mem.eql(u8, s, "--help") or std.mem.eql(u8, s, "-h")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn printServeUsage() void {
+    std.debug.print(
+        \\Usage: abi serve [--addr <host:port>] [--port <port>]
+        \\       abi acp serve [--addr <host:port>] [--port <port>]
+        \\
+    , .{});
+}
+
+pub fn parseServeAddress(allocator: std.mem.Allocator, args: []const [:0]const u8) ![]u8 {
+    var address: ?[]const u8 = null;
+    var port: ?u16 = null;
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        if (std.mem.eql(u8, arg, "--addr") or std.mem.eql(u8, arg, "--address")) {
+            if (i + 1 < args.len) {
+                i += 1;
+                address = std.mem.sliceTo(args[i], 0);
+            }
+        } else if (std.mem.eql(u8, arg, "--port")) {
+            if (i + 1 < args.len) {
+                i += 1;
+                port = std.fmt.parseInt(u16, std.mem.sliceTo(args[i], 0), 10) catch 8080;
+            }
+        }
+        i += 1;
+    }
+
+    if (address) |addr| {
+        return allocator.dupe(u8, addr);
+    }
+
+    return std.fmt.allocPrint(allocator, "127.0.0.1:{d}", .{port orelse 8080});
+}
+
+pub fn runServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printServeUsage();
+        return;
+    }
+
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const address = try parseServeAddress(allocator, args);
+    defer allocator.free(address);
+
+    const card_url = try std.fmt.allocPrint(allocator, "http://{s}", .{address});
+    defer allocator.free(card_url);
+
+    const card = root.acp.AgentCard{
+        .name = "abi",
+        .description = "ABI Agent Communication Protocol server",
+        .version = build_options.package_version,
+        .url = card_url,
+        .capabilities = .{
+            .streaming = false,
+            .pushNotifications = false,
+            .stateTransitionHistory = true,
+            .extensions = true,
+        },
+    };
+
+    try root.acp.serveHttp(allocator, io, address, card);
 }
 
 // ── Doctor ──────────────────────────────────────────────────────────────
@@ -612,9 +780,10 @@ pub fn runLsp(allocator: std.mem.Allocator) !void {
 // ── Dashboard ───────────────────────────────────────────────────────────
 
 pub fn runDashboard(allocator: std.mem.Allocator) !void {
-    const has_dashboard = comptime @hasDecl(root.tui.dashboard, "run");
-    if (has_dashboard) {
-        return root.tui.dashboard.run(allocator);
+    if (build_options.feat_tui) {
+        if (comptime @hasDecl(root.tui.dashboard, "run")) {
+            return root.tui.dashboard.run(allocator);
+        }
     }
     std.debug.print("TUI is disabled. Rebuild with -Dfeat-tui=true\n", .{});
 }

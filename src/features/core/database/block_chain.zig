@@ -281,6 +281,87 @@ pub const BlockChain = struct {
         return result.toOwnedSlice(self.allocator);
     }
 
+<<<<<<< Updated upstream:src/features/core/database/block_chain.zig
+=======
+    /// Traverse chain with skip pointers (logarithmic efficiency)
+    pub fn traverseWithSkips(self: *const Self, max_blocks: usize) ![]const u64 {
+        var result = std.ArrayListUnmanaged(u64).empty;
+        defer result.deinit(self.allocator);
+
+        var current = self.current_head;
+        var visited: std.AutoHashMapUnmanaged(u64, void) = .empty;
+        defer visited.deinit(self.allocator);
+
+        while (current != null and result.items.len < max_blocks) {
+            if (self.blocks.get(current.?)) |block| {
+                // Add current block
+                if (!visited.contains(current.?)) {
+                    try result.append(self.allocator, current.?);
+                    try visited.put(self.allocator, current.?, {});
+                }
+
+                // Try skip pointer first, then parent
+                if (block.skip_pointer != null and !visited.contains(block.skip_pointer.?)) {
+                    current = block.skip_pointer;
+                } else {
+                    current = block.parent_block_id;
+                }
+            } else {
+                break;
+            }
+        }
+
+        return result.toOwnedSlice(self.allocator);
+    }
+
+    /// Calculate skip pointer based on chain length
+    fn calculateSkipPointer(self: *const Self, head_id: u64) !?u64 {
+        // Count chain length
+        var length: usize = 0;
+        var current: ?u64 = head_id;
+
+        while (current != null) {
+            length += 1;
+            if (self.blocks.get(current.?)) |block| {
+                current = block.parent_block_id;
+            } else {
+                break;
+            }
+        }
+
+        // Skip pointer every log2(length) blocks
+        if (length >= 2) {
+            const skip_distance = std.math.log2_int(usize, length);
+            var target = head_id;
+            for (0..skip_distance) |_| {
+                if (self.blocks.get(target)) |block| {
+                    target = block.parent_block_id orelse break;
+                } else {
+                    break;
+                }
+            }
+            if (target != head_id) return target;
+        }
+
+        return null;
+    }
+
+    /// Verify the consistency of the block chain backward from the current head
+    pub fn verifyConsistency(self: *Self) !bool {
+        var current_id = self.current_head;
+        while (current_id) |id| {
+            const block = self.blocks.get(id) orelse return error.BlockNotFound;
+            if (block.parent_block_id) |parent_id| {
+                _ = self.blocks.get(parent_id) orelse return error.BlockNotFound;
+                // Note: In a fully cryptographic chain, we would verify:
+                // if (!std.mem.eql(u8, &block.previous_hash, &parent_block.hash)) return false;
+            }
+            current_id = block.parent_block_id;
+        }
+        return true;
+    }
+
+>>>>>>> Stashed changes:src/core/database/block_chain.zig
     /// Create summarized block for long conversations
     pub fn createSummary(self: *Self, block_ids: []const u64) !u64 {
         // Average embeddings of selected blocks
@@ -573,6 +654,7 @@ test "MvccStore visibility control" {
     try std.testing.expect(visible[0] == block_id);
 }
 
+<<<<<<< Updated upstream:src/features/core/database/block_chain.zig
 fn testBlockChainInitBorrowedSessionId(allocator: std.mem.Allocator, session_id: []const u8) !void {
     var chain = BlockChain.init(allocator, session_id);
     defer chain.deinit();
@@ -610,4 +692,164 @@ test "MvccStore.getChain cleans up on insertion failure" {
     defer allocator.free(session_id);
 
     try std.testing.checkAllAllocationFailures(allocator, testMvccStoreGetChainInsertion, .{session_id});
+=======
+/// Generic state block for arbitrary serialized state (WDBX Distributed State Fabric)
+pub const StateBlock = struct {
+    state_type: []const u8, // Identifies payload format (e.g. "blackboard_snapshot")
+    payload: []const u8, // Serialized state
+
+    commit_timestamp: i64,
+    end_timestamp: ?i64 = null,
+
+    parent_block_id: ?u64 = null,
+
+    hash: [32]u8,
+    previous_hash: [32]u8,
+    timestamp: i64,
+
+    pub fn create(allocator: std.mem.Allocator, config: StateBlockConfig) !StateBlock {
+        const now = time.unixSeconds();
+        const block_hash = try computeStateBlockHash(config);
+
+        return StateBlock{
+            .state_type = try allocator.dupe(u8, config.state_type),
+            .payload = try allocator.dupe(u8, config.payload),
+            .commit_timestamp = now,
+            .parent_block_id = config.parent_block_id,
+            .hash = block_hash,
+            .previous_hash = config.previous_hash,
+            .timestamp = now,
+        };
+    }
+
+    pub fn deinit(self: *StateBlock, allocator: std.mem.Allocator) void {
+        allocator.free(self.state_type);
+        allocator.free(self.payload);
+    }
+
+    pub fn isVisible(self: StateBlock, read_timestamp: i64) bool {
+        return read_timestamp >= self.commit_timestamp and
+            (self.end_timestamp == null or read_timestamp < self.end_timestamp.?);
+    }
+};
+
+pub const StateBlockConfig = struct {
+    state_type: []const u8,
+    payload: []const u8,
+    parent_block_id: ?u64 = null,
+    previous_hash: [32]u8 = .{0} ** 32,
+};
+
+fn computeStateBlockHash(config: StateBlockConfig) ![32]u8 {
+    var hasher = crypto.hash.sha2.Sha256.init(.{});
+    hasher.update(config.state_type);
+    hasher.update(config.payload);
+    hasher.update(&config.previous_hash);
+    var hash: [32]u8 = undefined;
+    hasher.final(&hash);
+    return hash;
+}
+
+fn generateStateBlockId(config: StateBlockConfig) u64 {
+    const timestamp = time.unixSeconds();
+    var hasher = std.hash.XxHash3.init(0);
+    hasher.update(std.mem.asBytes(&timestamp));
+    hasher.update(config.state_type);
+    hasher.update(config.payload);
+
+    const static = struct {
+        var counter: u64 = 0;
+    };
+    _ = @atomicRmw(u64, &static.counter, .Add, 1, .monotonic);
+    hasher.update(std.mem.asBytes(&static.counter));
+
+    const hash = hasher.final();
+    return @as(u64, @intCast(timestamp)) ^ hash;
+}
+
+pub const StateBlockChain = struct {
+    allocator: std.mem.Allocator,
+    blocks: std.AutoHashMapUnmanaged(u64, StateBlock),
+    chain_id: []const u8,
+    chain_id_owned: bool = false,
+    current_head: ?u64 = null,
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator, chain_id: []const u8) Self {
+        const fallback_chain_id = "state-block-chain";
+        if (allocator.dupe(u8, chain_id)) |copy| {
+            return .{
+                .allocator = allocator,
+                .blocks = .empty,
+                .chain_id = copy,
+                .chain_id_owned = true,
+            };
+        } else |_| {
+            return .{
+                .allocator = allocator,
+                .blocks = .empty,
+                .chain_id = fallback_chain_id,
+                .chain_id_owned = false,
+            };
+        }
+    }
+
+    pub fn deinit(self: *Self) void {
+        var iter = self.blocks.iterator();
+        while (iter.next()) |entry| {
+            entry.value_ptr.deinit(self.allocator);
+        }
+        self.blocks.deinit(self.allocator);
+        if (self.chain_id_owned) {
+            self.allocator.free(self.chain_id);
+        }
+    }
+
+    pub fn addBlock(self: *Self, config: StateBlockConfig) !u64 {
+        const block_id = generateStateBlockId(config);
+        const block = try StateBlock.create(self.allocator, config);
+
+        const fetch_result = try self.blocks.fetchPut(self.allocator, block_id, block);
+        if (fetch_result) |old| {
+            var old_block = old.value;
+            old_block.deinit(self.allocator);
+        }
+
+        self.current_head = block_id;
+        return block_id;
+    }
+
+    pub fn getBlock(self: *const Self, block_id: u64) ?StateBlock {
+        return self.blocks.get(block_id);
+    }
+};
+
+fn addStateBlockWithPossibleOOM(allocator: std.mem.Allocator) !void {
+    var chain = StateBlockChain.init(allocator, "oom-session");
+    defer chain.deinit();
+
+    const block_id = try chain.addBlock(.{
+        .state_type = "snapshot",
+        .payload = "payload",
+    });
+    _ = block_id;
+}
+
+test "StateBlockChain init falls back to static chain id on OOM" {
+    var failing_state = std.testing.FailingAllocator.init(std.testing.allocator, .{
+        .fail_index = 0,
+    });
+    const failing_allocator = failing_state.allocator();
+
+    var chain = StateBlockChain.init(failing_allocator, "session-id");
+    defer chain.deinit();
+
+    try std.testing.expect(!chain.chain_id_owned);
+    try std.testing.expectEqualStrings("state-block-chain", chain.chain_id);
+}
+
+test "StateBlockChain addBlock cleans up on OOM" {
+    try std.testing.checkAllAllocationFailures(std.testing.allocator, addStateBlockWithPossibleOOM, .{});
+>>>>>>> Stashed changes:src/core/database/block_chain.zig
 }

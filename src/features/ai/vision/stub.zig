@@ -15,6 +15,7 @@ pub const BatchNormGradients = types.BatchNormGradients;
 pub const ImageNetNorm = types.ImageNetNorm;
 pub const ClipNorm = types.ClipNorm;
 pub const ViTConfig = types.ViTConfig;
+pub const VisionPipeline = types.VisionPipelineType;
 
 // --- Submodule Re-exports ---
 pub const image = struct {
@@ -165,6 +166,9 @@ pub const Context = struct {
         return error.FeatureDisabled;
     }
     pub fn preprocessForModelCustom(_: *Context, _: *const Image, _: u32, _: [3]f32, _: [3]f32) Error![]f32 {
+        return error.FeatureDisabled;
+    }
+    pub fn createPipeline(_: *Context) Error!VisionPipeline {
         return error.FeatureDisabled;
     }
 };

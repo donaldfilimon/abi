@@ -28,6 +28,17 @@ pub const DeviceInfo = types.DeviceInfo;
 const permission_count = types.permission_count;
 
 // ============================================================================
+// Platform Bindings (JNI / Objective-C Scaffolding)
+// ============================================================================
+
+const builtin = @import("builtin");
+
+// These extern declarations will only be resolved by the linker on their respective target platforms.
+// They form the C ABI boundary for Android (JNI) and iOS (Objective-C/Swift) bindings.
+extern "c" fn abi_android_sensor_read(sensor_type: i32, out_values: [*]f32, out_timestamp: *u64) c_int;
+extern "c" fn abi_ios_sensor_read(sensor_type: i32, out_values: [*]f32, out_timestamp: *u64) c_int;
+
+// ============================================================================
 // Context
 // ============================================================================
 
@@ -49,10 +60,44 @@ pub const Context = struct {
         self.allocator.destroy(self);
     }
 
-    /// Read a simulated sensor value based on the sensor type.
+    /// Read a sensor value based on the sensor type, dispatching to platform bindings if applicable.
     pub fn readSensor(self: *Context, sensor_type: SensorType) MobileError!SensorData {
+<<<<<<< Updated upstream
         _ = self;
         return sensors.readSensor(sensor_type);
+=======
+        var values: [3]f32 = .{ 0.0, 0.0, 0.0 };
+        var actual_timestamp: u64 = 0;
+
+        if (self.config.platform == .android and builtin.os.tag == .linux and builtin.abi == .android) {
+            const res = abi_android_sensor_read(@intCast(@intFromEnum(sensor_type)), &values, &actual_timestamp);
+            if (res != 0) return error.SensorUnavailable;
+        } else if (self.config.platform == .ios and builtin.os.tag == .ios) {
+            const res = abi_ios_sensor_read(@intCast(@intFromEnum(sensor_type)), &values, &actual_timestamp);
+            if (res != 0) return error.SensorUnavailable;
+        } else {
+            // Simulated fallback for development/testing
+            var ts: std.c.timespec = undefined;
+            _ = std.c.clock_gettime(.REALTIME, &ts);
+            actual_timestamp = @intCast(@as(i64, @intCast(ts.sec)) * 1000 +
+                @divTrunc(@as(i64, ts.nsec), 1_000_000));
+
+            values = switch (sensor_type) {
+                .accelerometer => .{ 0.0, 0.0, 9.81 },
+                .gyroscope => .{ 0.0, 0.0, 0.0 },
+                .magnetometer => .{ 25.0, 0.0, 45.0 },
+                .gps => .{ 37.7749, -122.4194, 0.0 },
+                .barometer => .{ 1013.25, 0.0, 0.0 },
+                .proximity => .{ 1.0, 0.0, 0.0 },
+                .light => .{ 500.0, 0.0, 0.0 },
+            };
+        }
+
+        return .{
+            .timestamp_ms = actual_timestamp,
+            .values = values,
+        };
+>>>>>>> Stashed changes
     }
 
     /// Send a notification and track it in the log.

@@ -52,6 +52,12 @@ zig build -Dgpu-backend=metal
 
 ## Architecture
 
+### Architectural Rules (Massive Update Guidelines)
+1. **Direct Domain API**: All domain logic must be exposed via top-level direct APIs (`abi.<domain>`). Legacy `abi.features` nesting is strictly prohibited.
+2. **Comptime Feature Catalog Loops**: Use Zig's zero-overhead `inline for` loops driven by `src/core/feature_catalog.zig` for all framework initialization, shutdown, and registry logic. Do not hardcode lists.
+3. **Unified Errors**: All modules must use the unified error handling framework defined in `src/core/errors.zig` instead of declaring localized, ad-hoc error sets.
+4. **WDBX Integration**: Features (especially database/cache) should adhere to Liquid Glass memory models and utilize `LiquidGlassMemory` schemas where appropriate.
+
 ### Module Layout
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`

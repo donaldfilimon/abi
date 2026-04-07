@@ -51,7 +51,11 @@ fn fillEntropy(buf: []u8) error{ EntropySourceFailed, UnsupportedPlatform }!void
     // Use comptime to surface this as a compile error on known-unsupported
     // targets rather than failing silently at runtime.
     if (comptime builtin.os.tag == .freestanding) {
+<<<<<<< Updated upstream
         @compileError("csprng is not supported on freestanding targets -- provide your own entropy source");
+=======
+        @compileError("csprng is not supported on freestanding targets — provide your own entropy source");
+>>>>>>> Stashed changes
     }
 
     return error.UnsupportedPlatform;

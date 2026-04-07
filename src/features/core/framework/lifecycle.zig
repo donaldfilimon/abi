@@ -5,7 +5,6 @@ const shutdown_mod = @import("shutdown.zig");
 const context_init = @import("context_init.zig");
 
 pub const State = framework_state.State;
-pub const RegistryError = shutdown_mod.RegistryError;
 
 pub fn init(comptime Framework: type, allocator: anytype, cfg: anytype) Framework.Error!Framework {
     return context_init.init(Framework, allocator, cfg);

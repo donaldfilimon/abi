@@ -78,7 +78,10 @@ var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(allocator: std.mem.Allocator) !void {
     _ = allocator;
+<<<<<<< Updated upstream
     if (initialized.load(.acquire)) return;
+=======
+>>>>>>> Stashed changes
     initialized.store(true, .release);
 }
 
@@ -92,6 +95,26 @@ pub fn isEnabled() bool {
 
 pub fn isInitialized() bool {
     return initialized.load(.acquire);
+<<<<<<< Updated upstream
+=======
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/// Application start anchor for monotonic timestamps.
+var app_start: ?time.Instant = null;
+
+fn timestampMs() u64 {
+    const start = app_start orelse blk: {
+        const s = time.Instant.now() catch return 0;
+        app_start = s;
+        break :blk s;
+    };
+    const now = time.Instant.now() catch return 0;
+    return now.since(start) / std.time.ns_per_ms;
+>>>>>>> Stashed changes
 }
 
 // ============================================================================

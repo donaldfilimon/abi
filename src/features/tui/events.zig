@@ -25,6 +25,7 @@ pub const EventReader = struct {
         return .{ .fd = {} };
     }
 
+<<<<<<< Updated upstream
     /// Read an event from the file descriptor, blocking until one is available.
     pub fn readEvent(self: *EventReader) !?Event {
         if (comptime !is_posix) return null;
@@ -41,6 +42,45 @@ pub const EventReader = struct {
         }
 
         return .{ .key = parseKey(buf[0]) };
+=======
+    /// Read a single event from the terminal, handling multi-byte escape sequences.
+    pub fn readEvent(self: *EventReader) !Key {
+        if (comptime !is_posix) return error.Unsupported;
+        var buf: [1]u8 = undefined;
+        const bytes_read = std.posix.read(self.fd, &buf) catch |err| return err;
+        if (bytes_read == 0) return error.EndOfStream;
+
+        if (buf[0] != 0x1b) {
+            return parseKey(buf[0]);
+        }
+
+        // It's an escape sequence, try to read more
+        var seq: [16]u8 = undefined;
+        var seq_len: usize = 0;
+
+        // Use poll to non-blockingly read the rest of the sequence
+        var fds: [1]std.posix.pollfd = undefined;
+        fds[0] = .{ .fd = self.fd, .events = std.posix.POLL.IN, .revents = 0 };
+
+        while (seq_len < seq.len) {
+            // Wait up to 10ms for next byte (escape sequences are sent quickly)
+            const num_events = std.posix.poll(&fds, 10) catch break;
+            if (num_events == 0) break;
+
+            var b: [1]u8 = undefined;
+            const n = std.posix.read(self.fd, &b) catch break;
+            if (n == 0) break;
+            
+            seq[seq_len] = b[0];
+            seq_len += 1;
+            // Stop parsing if we reach a letter or tilde, typical ends of ANSI sequences
+            if ((b[0] >= 'A' and b[0] <= 'Z') or (b[0] >= 'a' and b[0] <= 'z') or b[0] == '~') {
+                break;
+            }
+        }
+
+        return parseEscapeSequence(seq[0..seq_len]);
+>>>>>>> Stashed changes
     }
 
     /// Parse a single byte into a Key event.
@@ -59,22 +99,48 @@ pub const EventReader = struct {
     /// Expects the leading ESC has already been consumed.
     pub fn parseEscapeSequence(seq: []const u8) Key {
         if (seq.len == 0) return .escape;
-        if (seq[0] != '[') return .{ .alt = seq[0] };
 
+        if (seq[0] == 'O' and seq.len == 2) {
+            return switch (seq[1]) {
+                'P' => .f1,
+                'Q' => .f2,
+                'R' => .f3,
+                'S' => .f4,
+                else => .{ .alt = seq[0] },
+            };
+        }
+
+        if (seq[0] != '[') return .{ .alt = seq[0] };
         if (seq.len < 2) return .escape;
 
-        return switch (seq[1]) {
-            'A' => .up,
-            'B' => .down,
-            'C' => .right,
-            'D' => .left,
-            'H' => .home,
-            'F' => .end,
-            '3' => if (seq.len > 2 and seq[2] == '~') .delete else .escape,
-            '5' => if (seq.len > 2 and seq[2] == '~') .page_up else .escape,
-            '6' => if (seq.len > 2 and seq[2] == '~') .page_down else .escape,
-            else => .escape,
-        };
+        if (std.mem.eql(u8, seq, "[A")) return .up;
+        if (std.mem.eql(u8, seq, "[B")) return .down;
+        if (std.mem.eql(u8, seq, "[C")) return .right;
+        if (std.mem.eql(u8, seq, "[D")) return .left;
+        if (std.mem.eql(u8, seq, "[H")) return .home;
+        if (std.mem.eql(u8, seq, "[F")) return .end;
+
+        if (std.mem.eql(u8, seq, "[1~") or std.mem.eql(u8, seq, "[7~")) return .home;
+        if (std.mem.eql(u8, seq, "[4~") or std.mem.eql(u8, seq, "[8~")) return .end;
+
+        if (std.mem.eql(u8, seq, "[3~")) return .delete;
+        if (std.mem.eql(u8, seq, "[5~")) return .page_up;
+        if (std.mem.eql(u8, seq, "[6~")) return .page_down;
+
+        if (std.mem.eql(u8, seq, "[11~")) return .f1;
+        if (std.mem.eql(u8, seq, "[12~")) return .f2;
+        if (std.mem.eql(u8, seq, "[13~")) return .f3;
+        if (std.mem.eql(u8, seq, "[14~")) return .f4;
+        if (std.mem.eql(u8, seq, "[15~")) return .f5;
+        if (std.mem.eql(u8, seq, "[17~")) return .f6;
+        if (std.mem.eql(u8, seq, "[18~")) return .f7;
+        if (std.mem.eql(u8, seq, "[19~")) return .f8;
+        if (std.mem.eql(u8, seq, "[20~")) return .f9;
+        if (std.mem.eql(u8, seq, "[21~")) return .f10;
+        if (std.mem.eql(u8, seq, "[23~")) return .f11;
+        if (std.mem.eql(u8, seq, "[24~")) return .f12;
+
+        return .escape;
     }
 };
 
@@ -110,6 +176,8 @@ test "parseEscapeSequence special keys" {
     try std.testing.expectEqual(Key.delete, EventReader.parseEscapeSequence("[3~"));
     try std.testing.expectEqual(Key.page_up, EventReader.parseEscapeSequence("[5~"));
     try std.testing.expectEqual(Key.page_down, EventReader.parseEscapeSequence("[6~"));
+    try std.testing.expectEqual(Key.f1, EventReader.parseEscapeSequence("OP"));
+    try std.testing.expectEqual(Key.f5, EventReader.parseEscapeSequence("[15~"));
 }
 
 test "parseEscapeSequence empty" {

@@ -128,7 +128,16 @@ do_update() {
     echo "$LATEST_VERSION" > "$ZIGVERSION_FILE"
     log "Updated .zigversion to $LATEST_VERSION"
 
+<<<<<<< Updated upstream
     # Force reinstall zig through the shared zigly/zvm resolution path
+=======
+    if command -v zvm >/dev/null 2>&1; then
+        log "Updating zvm master with ZLS..."
+        zvm i --zls master || log "zvm update failed, continuing..."
+    fi
+
+    # Force reinstall zig
+>>>>>>> Stashed changes
     log "Installing zig $LATEST_VERSION ..."
     "$ZIGLY" --install "$LATEST_VERSION" || {
         log "Install failed, reverting .zigversion"

@@ -4,13 +4,13 @@ const std = @import("std");
 
 pub const types = @import("types.zig");
 
-pub const terminal = struct {};
-pub const ansi = struct {};
-pub const render = struct {};
-pub const layout = struct {};
-pub const widgets = struct {};
-pub const events = struct {};
-pub const dashboard = struct {};
+pub const terminal = @import("stub_terminal.zig");
+pub const ansi = @import("stub_ansi.zig");
+pub const render = @import("stub_render.zig");
+pub const layout = @import("stub_layout.zig");
+pub const widgets = @import("stub_widgets.zig");
+pub const events = @import("stub_events.zig");
+pub const dashboard = @import("stub_dashboard.zig");
 
 pub const TuiError = types.TuiError;
 pub const Error = types.Error;

@@ -1,6 +1,7 @@
 //! Framework shutdown helpers for split lifecycle modules.
 
 const std = @import("std");
+const config_module = @import("../config/mod.zig");
 const state_machine = @import("state_machine.zig");
 
 // Shared comptime-gated feature imports (DRY: single source of truth).
@@ -26,16 +27,13 @@ const compute_mod = fi.compute_mod;
 const documents_mod = fi.documents_mod;
 const desktop_mod = fi.desktop_mod;
 
-/// Composable error type for registry operations from framework shutdown helpers.
-const registry_types = @import("../registry/types.zig");
-pub const RegistryError = registry_types.Error;
-
 /// Release feature contexts and mark the framework stopped.
 pub fn deinit(self: anytype) void {
     if (self.state == .stopped or self.state == .uninitialized) return;
 
     state_machine.markStopping(&self.state);
     deinitFeatures(self);
+    deinitPlugins(self);
     self.registry.deinit();
     self.runtime.deinit();
     self.config.plugins.deinit(self.allocator);
@@ -81,6 +79,38 @@ pub fn deinitFeatures(self: anytype) void {
     deinitOptionalContext(database_mod.Context, &self.database);
     deinitOptionalContext(ai_mod.Context, &self.ai);
     deinitOptionalContext(gpu_mod.Context, &self.gpu);
+}
+
+/// Release plugin-owned resources after feature teardown has completed.
+pub fn deinitPlugins(self: anytype) void {
+    if (self.owned_plugins) |plugins| {
+        deinitOwnedPlugins(self.allocator, plugins);
+        self.owned_plugins = null;
+    }
+
+    var idx: usize = self.dyn_lib_handles.items.len;
+    while (idx > 0) : (idx -= 1) {
+        self.dyn_lib_handles.items[idx - 1].close();
+    }
+    self.dyn_lib_handles.deinit(self.allocator);
+    self.dyn_lib_handles = .empty;
+}
+
+/// Close any dynamic libraries inside an owned plugin slice, then free the slice.
+pub fn deinitOwnedPlugins(allocator: std.mem.Allocator, plugins: []config_module.plugin_config.Plugin) void {
+    if (plugins.len == 0) return;
+
+    var idx: usize = plugins.len;
+    while (idx > 0) : (idx -= 1) {
+        switch (plugins[idx - 1]) {
+            .dyn_lib => |lib| {
+                var owned_lib = lib;
+                owned_lib.close();
+            },
+            .static => {},
+        }
+    }
+    allocator.free(plugins);
 }
 
 /// Safely deinitialize an optional feature context slot.

@@ -456,9 +456,13 @@ test "search save and load index round-trip" {
     const score_before = before[0].score;
 
     // Save to disk
+<<<<<<< Updated upstream
     var path_buf: [128]u8 = undefined;
     const tmp_path = try std.fmt.bufPrint(&path_buf, "/tmp/abi_search_persist_test_{d}.idx", .{@import("../../foundation/mod.zig").time.unixMs()});
 
+=======
+    const tmp_path = "abi_search_persist_test.idx";
+>>>>>>> Stashed changes
     try saveIndex(allocator, "persist", tmp_path);
     defer persistence.unlinkFile(tmp_path);
 

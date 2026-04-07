@@ -15,6 +15,14 @@
 
 const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;
+const log = @import("../../foundation/mod.zig").log;
+
+pub const Span = struct {
+    name: []const u8,
+    start_ns: u64,
+    end_ns: u64,
+    duration_ns: u64,
+};
 
 // ─── Stage Status ────────────────────────────────────────────────────────────
 
@@ -189,6 +197,8 @@ pub const Pipeline = struct {
             }
 
             stage.status = .running;
+
+            const start_ns = pipeline_timer.read();
             var stage_timer = startTimer();
 
             const success = if (stage.execute_fn) |func|
@@ -197,6 +207,18 @@ pub const Pipeline = struct {
                 true;
 
             stage.duration_ns = stage_timer.read();
+            const end_ns = pipeline_timer.read();
+
+            const span = Span{
+                .name = stage.getName(),
+                .start_ns = start_ns,
+                .end_ns = end_ns,
+                .duration_ns = stage.duration_ns,
+            };
+
+            log(.info, "[Tracing] Pipeline Stage '{s}' | start: {d} ns | end: {d} ns | duration: {d} ns", .{
+                span.name, span.start_ns, span.end_ns, span.duration_ns,
+            });
 
             if (success) {
                 stage.status = .completed;

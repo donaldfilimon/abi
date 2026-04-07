@@ -351,6 +351,22 @@ pub const LoadStats = struct {
     imbalance_ratio: f32 = 0.0,
 };
 
+/// Per-node load statistics
+pub const NodeLoadStats = struct {
+    latency_ms: u64 = 0,
+    cpu_usage_pct: f32 = 0.0,
+    shard_size_bytes: u64 = 0,
+    shard_count: usize = 0,
+};
+
+/// Proposed shard migration
+pub const MigrationProposal = struct {
+    shard_hash: u64,
+    source_node: []const u8,
+    target_node: []const u8,
+    estimated_transfer_bytes: u64 = 0,
+};
+
 /// Shard manager main interface
 pub const ShardManager = struct {
     allocator: std.mem.Allocator,
@@ -361,6 +377,7 @@ pub const ShardManager = struct {
     // Topology awareness for locality placement
     node_latencies: std.StringHashMapUnmanaged(u64), // Node -> average latency (ms)
     node_regions: std.StringHashMapUnmanaged([]const u8), // Node -> region/zone
+    node_stats: std.StringHashMapUnmanaged(NodeLoadStats), // Node -> load statistics
 
     const Self = @This();
 
@@ -385,6 +402,7 @@ pub const ShardManager = struct {
             .node_registry = node_registry,
             .node_latencies = .empty,
             .node_regions = .empty,
+            .node_stats = .empty,
         };
     }
 
@@ -403,6 +421,12 @@ pub const ShardManager = struct {
             self.allocator.free(entry.value_ptr.*);
         }
         self.node_regions.deinit(self.allocator);
+
+        var stats_iter = self.node_stats.iterator();
+        while (stats_iter.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+        }
+        self.node_stats.deinit(self.allocator);
     }
 
     /// Determine shard placement for a conversation block
@@ -472,8 +496,72 @@ pub const ShardManager = struct {
             self.allocator.free(kv.key);
             self.allocator.free(kv.value);
         }
+        if (self.node_stats.fetchRemove(node_id)) |kv| {
+            self.allocator.free(kv.key);
+        }
 
         std.log.info("ShardManager: Node {s} left cluster, removed from hash ring", .{node_id});
+    }
+
+    /// Update node statistics
+    pub fn updateNodeStats(self: *Self, node_id: []const u8, stats: NodeLoadStats) !void {
+        if (self.node_stats.getPtr(node_id)) |existing| {
+            existing.* = stats;
+        } else {
+            const node_copy = try self.allocator.dupe(u8, node_id);
+            try self.node_stats.put(self.allocator, node_copy, stats);
+        }
+    }
+
+    /// Analyze cluster load and recommend shard migrations
+    pub fn analyzeLoadAndRebalance(self: *Self) ![]MigrationProposal {
+        var proposals = std.ArrayListUnmanaged(MigrationProposal).empty;
+        defer proposals.deinit(self.allocator);
+
+        var total_cpu: f32 = 0;
+        var node_count: usize = 0;
+
+        var iter = self.node_stats.iterator();
+        while (iter.next()) |entry| {
+            total_cpu += entry.value_ptr.cpu_usage_pct;
+            node_count += 1;
+        }
+
+        if (node_count < 2) return try proposals.toOwnedSlice(self.allocator);
+
+        const avg_cpu = total_cpu / @as(f32, @floatFromInt(node_count));
+
+        var overloaded_node: ?[]const u8 = null;
+        var underloaded_node: ?[]const u8 = null;
+        var max_cpu: f32 = avg_cpu; // start from avg to only pick above avg
+        var min_cpu: f32 = avg_cpu; // start from avg to only pick below avg
+
+        var stat_iter = self.node_stats.iterator();
+        while (stat_iter.next()) |entry| {
+            const cpu = entry.value_ptr.cpu_usage_pct;
+            if (cpu > max_cpu and cpu > self.config.rebalance_threshold_pct) {
+                max_cpu = cpu;
+                overloaded_node = entry.key_ptr.*;
+            }
+            if (cpu < min_cpu) {
+                min_cpu = cpu;
+                underloaded_node = entry.key_ptr.*;
+            }
+        }
+
+        if (overloaded_node) |src| {
+            if (underloaded_node) |target| {
+                // Return a single proposed migration for the most overloaded node to the most underloaded node
+                try proposals.append(self.allocator, MigrationProposal{
+                    .shard_hash = 0, // Placeholder: in reality, we'd select a specific shard from the source node
+                    .source_node = try self.allocator.dupe(u8, src),
+                    .target_node = try self.allocator.dupe(u8, target),
+                    .estimated_transfer_bytes = 1024 * 1024, // Dummy estimation
+                });
+            }
+        }
+
+        return try proposals.toOwnedSlice(self.allocator);
     }
 
     /// Check if rebalancing is needed based on load
@@ -564,4 +652,40 @@ test "ShardManager block placement" {
         } else false;
         try std.testing.expect(node_found);
     }
+}
+
+test "ShardManager dynamic load rebalancing" {
+    const allocator = std.testing.allocator;
+
+    var registry = network.NodeRegistry.init(allocator);
+    defer registry.deinit();
+
+    try registry.register("node-1", "127.0.0.1:9000");
+    try registry.register("node-2", "127.0.0.1:9001");
+    try registry.register("node-3", "127.0.0.1:9002");
+
+    var manager = try ShardManager.init(allocator, .{
+        .virtual_nodes_per_node = 5,
+        .replication_factor = 2,
+        .rebalance_threshold_pct = 20.0,
+    }, &registry);
+    defer manager.deinit();
+
+    // Simulate node-1 being overloaded and node-2 being underloaded
+    try manager.updateNodeStats("node-1", .{ .cpu_usage_pct = 85.0 });
+    try manager.updateNodeStats("node-2", .{ .cpu_usage_pct = 15.0 });
+    try manager.updateNodeStats("node-3", .{ .cpu_usage_pct = 20.0 });
+
+    const proposals = try manager.analyzeLoadAndRebalance();
+    defer {
+        for (proposals) |p| {
+            allocator.free(p.source_node);
+            allocator.free(p.target_node);
+        }
+        allocator.free(proposals);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), proposals.len);
+    try std.testing.expectEqualStrings("node-1", proposals[0].source_node);
+    try std.testing.expectEqualStrings("node-2", proposals[0].target_node);
 }

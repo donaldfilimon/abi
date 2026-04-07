@@ -378,9 +378,16 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
                 group_idx = group_idx & ~@as(usize, group_width - 1);
             }
 
+<<<<<<< Updated upstream
             // If we exhaust probing, the capacity calculation in ensureCapacity
             // is wrong — report as an error so callers can handle it gracefully.
             return error.CapacityInvariantViolated; // was @panic("swiss_map: insertUnchecked exhausted probing â capacity invariant violated");
+=======
+            // Safety: insertUnchecked is only called from rehash() with a
+            // freshly-allocated table sized to fit all entries. If we exhaust
+            // probing, the capacity calculation in ensureCapacity is wrong.
+            @panic("swiss_map: insertUnchecked exhausted probing — capacity invariant violated");
+>>>>>>> Stashed changes
         }
 
         // ── Capacity Management ──────────────────────────────────

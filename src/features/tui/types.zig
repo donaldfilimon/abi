@@ -1,14 +1,9 @@
 //! Shared TUI types used by both mod.zig and stub.zig.
 
 const std = @import("std");
+const errors = @import("../../core/errors.zig");
 
-pub const TuiError = error{
-    TerminalInitFailed,
-    UnsupportedTerminal,
-    RenderFailed,
-    InputError,
-    FeatureDisabled,
-};
+pub const TuiError = errors.TuiFrameworkError;
 
 pub const Error = TuiError || std.mem.Allocator.Error;
 

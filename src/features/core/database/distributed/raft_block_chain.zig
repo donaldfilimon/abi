@@ -344,85 +344,291 @@ pub const DistributedBlockChain = struct {
 
     /// Serialize block config for Raft log
     fn serializeBlockConfig(self: *Self, config: block_chain.BlockConfig) ![]const u8 {
-        // Simplified serialization - would need proper serialization in real impl
-        var buffer = std.ArrayListUnmanaged(u8).empty;
-        errdefer buffer.deinit(self.allocator);
+        var size: usize = 4 + 4 * config.query_embedding.len;
+        size += 1; // has response
+        if (config.response_embedding) |resp| size += 4 + 4 * resp.len;
+        size += 1 + 4; // profile_tag
+        size += 12; // routing_weights
+        size += 1 + 4; // intent, risk_score
+        size += 1; // policy_flags bools
+        size += 1; // has violation_details
+        if (config.policy_flags.violation_details) |vd| size += 4 + vd.len;
+        size += if (config.parent_block_id != null) @as(usize, 9) else 1;
+        size += if (config.skip_pointer != null) @as(usize, 9) else 1;
+        size += if (config.summary_pointer != null) @as(usize, 9) else 1;
+        size += 32; // previous_hash
 
-        // Write dimension
-        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @intCast(config.query_embedding.len))));
+        const buffer = try self.allocator.alloc(u8, size);
+        errdefer self.allocator.free(buffer);
 
-        // Write embedding data
-        const embedding_bytes = std.mem.sliceAsBytes(config.query_embedding);
-        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @intCast(embedding_bytes.len))));
-        try buffer.appendSlice(self.allocator, embedding_bytes);
+        var pos: usize = 0;
 
-        // Write profile tag
-        try buffer.append(self.allocator, @intFromEnum(config.profile_tag.primary_profile));
-        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @bitCast(config.profile_tag.blend_coefficient))));
+        // query_embedding
+        std.mem.writeInt(u32, buffer[pos..][0..4], @as(u32, @intCast(config.query_embedding.len)), .little);
+        pos += 4;
+        for (config.query_embedding) |f| {
+            std.mem.writeInt(u32, buffer[pos..][0..4], @bitCast(f), .little);
+            pos += 4;
+        }
 
-        // Write intent
-        try buffer.append(self.allocator, @intFromEnum(config.intent));
+        // response_embedding
+        if (config.response_embedding) |resp| {
+            buffer[pos] = 1;
+            pos += 1;
+            std.mem.writeInt(u32, buffer[pos..][0..4], @as(u32, @intCast(resp.len)), .little);
+            pos += 4;
+            for (resp) |f| {
+                std.mem.writeInt(u32, buffer[pos..][0..4], @bitCast(f), .little);
+                pos += 4;
+            }
+        } else {
+            buffer[pos] = 0;
+            pos += 1;
+        }
 
-        // Write timestamp (from when config was created)
-        const timestamp = time.unixSeconds();
-        try buffer.appendSlice(self.allocator, &std.mem.toBytes(timestamp));
+        // profile_tag
+        buffer[pos] = @intFromEnum(config.profile_tag.primary_profile);
+        pos += 1;
+        std.mem.writeInt(u32, buffer[pos..][0..4], @bitCast(config.profile_tag.blend_coefficient), .little);
+        pos += 4;
 
-        return buffer.toOwnedSlice(self.allocator);
+        // routing_weights
+        std.mem.writeInt(u32, buffer[pos..][0..4], @bitCast(config.routing_weights.abbey_weight), .little);
+        pos += 4;
+        std.mem.writeInt(u32, buffer[pos..][0..4], @bitCast(config.routing_weights.aviva_weight), .little);
+        pos += 4;
+        std.mem.writeInt(u32, buffer[pos..][0..4], @bitCast(config.routing_weights.abi_weight), .little);
+        pos += 4;
+
+        // intent & risk_score
+        buffer[pos] = @intFromEnum(config.intent);
+        pos += 1;
+        std.mem.writeInt(u32, buffer[pos..][0..4], @bitCast(config.risk_score), .little);
+        pos += 4;
+
+        // policy_flags bools
+        var pflags: u8 = 0;
+        if (config.policy_flags.is_safe) pflags |= 1;
+        if (config.policy_flags.requires_moderation) pflags |= 2;
+        if (config.policy_flags.sensitive_topic) pflags |= 4;
+        if (config.policy_flags.pii_detected) pflags |= 8;
+        buffer[pos] = pflags;
+        pos += 1;
+
+        // policy_flags violation_details
+        if (config.policy_flags.violation_details) |vd| {
+            buffer[pos] = 1;
+            pos += 1;
+            std.mem.writeInt(u32, buffer[pos..][0..4], @as(u32, @intCast(vd.len)), .little);
+            pos += 4;
+            @memcpy(buffer[pos..][0..vd.len], vd);
+            pos += vd.len;
+        } else {
+            buffer[pos] = 0;
+            pos += 1;
+        }
+
+        // parent_block_id
+        if (config.parent_block_id) |pid| {
+            buffer[pos] = 1;
+            pos += 1;
+            std.mem.writeInt(u64, buffer[pos..][0..8], pid, .little);
+            pos += 8;
+        } else {
+            buffer[pos] = 0;
+            pos += 1;
+        }
+
+        // skip_pointer
+        if (config.skip_pointer) |sp| {
+            buffer[pos] = 1;
+            pos += 1;
+            std.mem.writeInt(u64, buffer[pos..][0..8], sp, .little);
+            pos += 8;
+        } else {
+            buffer[pos] = 0;
+            pos += 1;
+        }
+
+        // summary_pointer
+        if (config.summary_pointer) |sp| {
+            buffer[pos] = 1;
+            pos += 1;
+            std.mem.writeInt(u64, buffer[pos..][0..8], sp, .little);
+            pos += 8;
+        } else {
+            buffer[pos] = 0;
+            pos += 1;
+        }
+
+        // previous_hash
+        @memcpy(buffer[pos..][0..32], &config.previous_hash);
+        pos += 32;
+
+        return buffer;
     }
 
     /// Deserialize block config from Raft log
     fn deserializeBlockConfig(self: *Self, data: []const u8) !block_chain.BlockConfig {
         var pos: usize = 0;
 
-        // Read dimension
+        // query_embedding
         if (pos + 4 > data.len) return error.UnexpectedEndOfData;
-        const dim = std.mem.readInt(u32, data[pos..][0..4], .little);
+        const q_len = std.mem.readInt(u32, data[pos..][0..4], .little);
         pos += 4;
+        if (pos + 4 * q_len > data.len) return error.UnexpectedEndOfData;
 
-        // Read embedding
-        if (pos + 4 > data.len) return error.UnexpectedEndOfData;
-        const embedding_len = std.mem.readInt(u32, data[pos..][0..4], .little);
-        pos += 4;
+        const query_embedding = try self.allocator.alloc(f32, q_len);
+        errdefer self.allocator.free(query_embedding);
+        for (query_embedding) |*f| {
+            f.* = @bitCast(std.mem.readInt(u32, data[pos..][0..4], .little));
+            pos += 4;
+        }
 
-        // Skip embedding bytes
-        if (pos + embedding_len > data.len) return error.UnexpectedEndOfData;
-        pos += embedding_len;
-
-        // Convert bytes back to floats (simplified)
-        const embedding = try self.allocator.alloc(f32, dim);
-        errdefer self.allocator.free(embedding);
-
-        // Note: This is simplified - would need proper deserialization
-        @memset(embedding, 0.1);
-
-        // Read profile tag
-        if (pos + 6 > data.len) return error.UnexpectedEndOfData;
-        const profile_raw = data[pos];
+        // response_embedding
+        if (pos + 1 > data.len) return error.UnexpectedEndOfData;
+        const has_resp = data[pos] == 1;
         pos += 1;
-        const blend_raw = std.mem.readInt(u32, data[pos..][0..4], .little);
+        var response_embedding: ?[]const f32 = null;
+        if (has_resp) {
+            if (pos + 4 > data.len) return error.UnexpectedEndOfData;
+            const r_len = std.mem.readInt(u32, data[pos..][0..4], .little);
+            pos += 4;
+            if (pos + 4 * r_len > data.len) return error.UnexpectedEndOfData;
+
+            const resp = try self.allocator.alloc(f32, r_len);
+            errdefer self.allocator.free(resp);
+            for (resp) |*f| {
+                f.* = @bitCast(std.mem.readInt(u32, data[pos..][0..4], .little));
+                pos += 4;
+            }
+            response_embedding = resp;
+        }
+        errdefer if (response_embedding) |r| self.allocator.free(r);
+
+        // profile_tag
+        if (pos + 5 > data.len) return error.UnexpectedEndOfData;
+        const pt_enum = data[pos];
+        pos += 1;
+        const pt_blend = @as(f32, @bitCast(std.mem.readInt(u32, data[pos..][0..4], .little)));
         pos += 4;
 
-        const profile_tag = block_chain.ProfileTag{
-            .primary_profile = @enumFromInt(profile_raw),
-            .blend_coefficient = @bitCast(blend_raw),
+        // routing_weights
+        if (pos + 12 > data.len) return error.UnexpectedEndOfData;
+        const rw_abbey = @as(f32, @bitCast(std.mem.readInt(u32, data[pos..][0..4], .little)));
+        pos += 4;
+        const rw_aviva = @as(f32, @bitCast(std.mem.readInt(u32, data[pos..][0..4], .little)));
+        pos += 4;
+        const rw_abi = @as(f32, @bitCast(std.mem.readInt(u32, data[pos..][0..4], .little)));
+        pos += 4;
+
+        // intent & risk_score
+        if (pos + 5 > data.len) return error.UnexpectedEndOfData;
+        const intent_enum = data[pos];
+        pos += 1;
+        const risk_score = @as(f32, @bitCast(std.mem.readInt(u32, data[pos..][0..4], .little)));
+        pos += 4;
+
+        // policy_flags
+        if (pos + 2 > data.len) return error.UnexpectedEndOfData;
+        const pflags_val = data[pos];
+        pos += 1;
+        const has_vd = data[pos] == 1;
+        pos += 1;
+        var violation_details: ?[]const u8 = null;
+        if (has_vd) {
+            if (pos + 4 > data.len) return error.UnexpectedEndOfData;
+            const vd_len = std.mem.readInt(u32, data[pos..][0..4], .little);
+            pos += 4;
+            if (pos + vd_len > data.len) return error.UnexpectedEndOfData;
+
+            const vd = try self.allocator.alloc(u8, vd_len);
+            errdefer self.allocator.free(vd);
+            @memcpy(vd, data[pos..][0..vd_len]);
+            pos += vd_len;
+            violation_details = vd;
+        }
+        errdefer if (violation_details) |vd| self.allocator.free(vd);
+
+        const policy_flags = block_chain.PolicyFlags{
+            .is_safe = (pflags_val & 1) != 0,
+            .requires_moderation = (pflags_val & 2) != 0,
+            .sensitive_topic = (pflags_val & 4) != 0,
+            .pii_detected = (pflags_val & 8) != 0,
+            .violation_details = violation_details,
         };
 
-        // Read intent
-        if (pos >= data.len) return error.UnexpectedEndOfData;
-        const intent_raw = data[pos];
+        // parent_block_id
+        if (pos + 1 > data.len) return error.UnexpectedEndOfData;
+        const has_parent = data[pos] == 1;
+        pos += 1;
+        var parent_block_id: ?u64 = null;
+        if (has_parent) {
+            if (pos + 8 > data.len) return error.UnexpectedEndOfData;
+            parent_block_id = std.mem.readInt(u64, data[pos..][0..8], .little);
+            pos += 8;
+        }
+
+        // skip_pointer
+        if (pos + 1 > data.len) return error.UnexpectedEndOfData;
+        const has_skip = data[pos] == 1;
+        pos += 1;
+        var skip_pointer: ?u64 = null;
+        if (has_skip) {
+            if (pos + 8 > data.len) return error.UnexpectedEndOfData;
+            skip_pointer = std.mem.readInt(u64, data[pos..][0..8], .little);
+            pos += 8;
+        }
+
+        // summary_pointer
+        if (pos + 1 > data.len) return error.UnexpectedEndOfData;
+        const has_summary = data[pos] == 1;
+        pos += 1;
+        var summary_pointer: ?u64 = null;
+        if (has_summary) {
+            if (pos + 8 > data.len) return error.UnexpectedEndOfData;
+            summary_pointer = std.mem.readInt(u64, data[pos..][0..8], .little);
+            pos += 8;
+        }
+
+        // previous_hash
+        if (pos + 32 > data.len) return error.UnexpectedEndOfData;
+        var previous_hash: [32]u8 = undefined;
+        @memcpy(&previous_hash, data[pos..][0..32]);
+        pos += 32;
 
         return block_chain.BlockConfig{
-            .query_embedding = embedding,
-            .profile_tag = profile_tag,
-            .intent = @enumFromInt(intent_raw),
-            .routing_weights = .{}, // Would need to serialize/deserialize
-            .previous_hash = .{0} ** 32, // Would need from context
+            .query_embedding = query_embedding,
+            .response_embedding = response_embedding,
+            .profile_tag = .{
+                .primary_profile = @enumFromInt(pt_enum),
+                .blend_coefficient = pt_blend,
+            },
+            .routing_weights = .{
+                .abbey_weight = rw_abbey,
+                .aviva_weight = rw_aviva,
+                .abi_weight = rw_abi,
+            },
+            .intent = @enumFromInt(intent_enum),
+            .risk_score = risk_score,
+            .policy_flags = policy_flags,
+            .parent_block_id = parent_block_id,
+            .skip_pointer = skip_pointer,
+            .summary_pointer = summary_pointer,
+            .previous_hash = previous_hash,
         };
     }
 
     /// Check if node is cluster leader
     pub fn isLeader(self: *Self) bool {
         return if (self.raft_node) |raft| raft.isLeader() else false;
+    }
+
+    /// Check leader health and trigger elections if necessary
+    pub fn checkLeaderHealth(self: *Self, elapsed_ms: u64) !void {
+        if (self.raft_node) |*raft| {
+            try raft.tick(elapsed_ms);
+        }
     }
 
     /// Get current term (if in cluster)

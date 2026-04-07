@@ -120,7 +120,16 @@ zig build cli                      # Build ABI CLI binary (zig-out/bin/abi)
 zig build doctor                   # Report build configuration and diagnostics
 ```
 
+<<<<<<< Updated upstream
 Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/`, `build.zig`, `build/`, and `test/`.
+=======
+Single-file compile check (no linking, useful on Darwin 25+):
+```bash
+zig test src/features/gpu/mod.zig -fno-emit-bin    # Type-check one file without linking
+```
+
+Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to `src/` and `build.zig`.
+>>>>>>> Stashed changes
 
 ### CLI Commands
 
@@ -191,11 +200,16 @@ The build system is split across `build.zig` (root) and `build/` helpers:
 - `src/protocols/` — Protocol implementations: mcp/, lsp/, acp/, ha/
 - `src/inference/` — ML inference: engine, scheduler, sampler, paged KV cache — comptime-gated by `feat_inference`
 - `src/core/database/` — Vector database implementation (consumed by features/database/ facade)
+<<<<<<< Updated upstream
 - `src/main.zig` — CLI entry point (builds as `abi` binary)
+=======
+- `src/main.zig` — CLI entry point (builds as `abi` binary via `zig build cli`)
+>>>>>>> Stashed changes
 - `src/mcp_main.zig` — MCP stdio server entry point (builds as `abi-mcp` binary)
 - `src/ffi.zig` — C-ABI FFI endpoints for linking as a static library (`libabi.a`)
 - `build/` — Build helpers: flags, cross-compilation, linking, validation (imported by `build.zig`)
 - `test/` — Integration tests via `test/mod.zig` (uses `@import("abi")`, separate from unit tests in `src/`)
+- `zig-abi-plugin/` — Claude Code plugin with skills (build-troubleshooting, zig-016-patterns, feature-scaffolding, cross-check) and agents (parity-checker, build-troubleshooter, feature-scaffolder)
 
 ### The Mod/Stub Pattern
 
@@ -413,6 +427,7 @@ Most files end with `test { std.testing.refAllDecls(@This()); }` to ensure all p
 - `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
 - `var` vs `const`: compiler enforces const for never-mutated locals
 - Function pointers: can call through `*const fn` directly without dereferencing
+<<<<<<< Updated upstream
 - Entry points use `pub fn main(init: std.process.Init) !void` (not the older `pub fn main() !void`). Access args via `init.minimal.args`, allocator via `init.gpa` or `init.arena`.
 - `zig fmt .` from root: don't — use `zig build fix` (scopes to `src/`, `build.zig`, `build/`, `test/`)
 - IO operations: use `std.Io.Threaded` + `std.Io.Dir.cwd()` pattern (not the removed `std.fs.cwd()`)
@@ -457,6 +472,10 @@ The repository includes 6 skills in `.claude/skills/`:
 - Enum variants: `snake_case`
 - Doc comments (`///`) on public API only — not on internal helpers
 - GPU backends use a VTable pattern for backend-agnostic dispatch (see `src/features/gpu/`)
+=======
+- Main signature: `pub fn main(init: std.process.Init) !void` (not the old `pub fn main() !void`)
+- `zig fmt .` from root: don't — use `zig build fix` to avoid vendored fixtures
+>>>>>>> Stashed changes
 
 ## Skill Overrides
 

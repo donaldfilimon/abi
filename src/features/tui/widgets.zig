@@ -189,6 +189,90 @@ test "renderGauge draws filled and empty" {
     try std.testing.expectEqual(@as(u21, 0x2591), screen.back[5].char); // ░
 }
 
+pub const List = struct {
+    items: []const []const u8,
+    selected: usize = 0,
+    normal_style: Style = .{},
+    selected_style: Style = .{ .reverse = true },
+
+    pub fn render(self: *const List, screen: *Screen, area: Rect) void {
+        renderList(screen, area, self.items, self.selected, self.normal_style, self.selected_style);
+    }
+};
+
+pub const Spinner = struct {
+    frames: []const []const u8 = &[_][]const u8{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+    index: usize = 0,
+    style: Style = .{},
+
+    pub fn tick(self: *Spinner) void {
+        self.index = (self.index + 1) % self.frames.len;
+    }
+
+    pub fn render(self: *const Spinner, screen: *Screen, area: Rect) void {
+        if (area.width == 0 or area.height == 0) return;
+        const frame = self.frames[self.index];
+        screen.print(area.x, area.y, frame, self.style);
+    }
+};
+
+pub const TextInput = struct {
+    buffer: std.ArrayList(u8),
+    cursor: usize = 0,
+    style: Style = .{},
+    cursor_style: Style = .{ .reverse = true },
+
+    pub fn init(allocator: std.mem.Allocator) TextInput {
+        return .{
+            .buffer = std.ArrayList(u8).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *TextInput) void {
+        self.buffer.deinit();
+    }
+
+    pub fn insert(self: *TextInput, char: u8) !void {
+        try self.buffer.insert(self.cursor, char);
+        self.cursor += 1;
+    }
+
+    pub fn backspace(self: *TextInput) void {
+        if (self.cursor > 0) {
+            self.cursor -= 1;
+            _ = self.buffer.orderedRemove(self.cursor);
+        }
+    }
+
+    pub fn render(self: *const TextInput, screen: *Screen, area: Rect) void {
+        if (area.width == 0 or area.height == 0) return;
+
+        const text = self.buffer.items;
+        var display_len = @min(text.len, area.width);
+        var offset: usize = 0;
+
+        if (self.cursor >= area.width) {
+            offset = self.cursor - area.width + 1;
+            display_len = @min(text.len - offset, area.width);
+        }
+
+        const visible_text = text[offset..][0..display_len];
+
+        var col: u16 = 0;
+        while (col < area.width) : (col += 1) {
+            screen.setCell(area.x + col, area.y, .{ .char = ' ', .style = self.style });
+        }
+
+        screen.print(area.x, area.y, visible_text, self.style);
+
+        const cursor_x = area.x + @as(u16, @intCast(self.cursor - offset));
+        if (cursor_x < area.x + area.width) {
+            const cursor_char: u21 = if (self.cursor < text.len) text[self.cursor] else ' ';
+            screen.setCell(cursor_x, area.y, .{ .char = cursor_char, .style = self.cursor_style });
+        }
+    }
+};
+
 test {
     std.testing.refAllDecls(@This());
 }

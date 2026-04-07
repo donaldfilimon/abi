@@ -136,10 +136,31 @@ pub const MetricsSummary = types.MetricsSummary;
 pub const Error = types.Error;
 pub const MonitoringError = types.MonitoringError;
 
+<<<<<<< Updated upstream
 pub const init = state.init;
 pub const deinit = state.deinit;
 pub const isEnabled = state.isEnabled;
 pub const isInitialized = state.isInitialized;
+=======
+var initialized = std.atomic.Value(bool).init(false);
+
+pub fn init(_: std.mem.Allocator) !void {
+    if (!isEnabled()) return MonitoringError.MonitoringDisabled;
+    initialized.store(true, .release);
+}
+
+pub fn deinit() void {
+    initialized.store(false, .release);
+}
+
+pub fn isEnabled() bool {
+    return build_options.feat_profiling;
+}
+
+pub fn isInitialized() bool {
+    return initialized.load(.acquire);
+}
+>>>>>>> Stashed changes
 
 // ============================================================================
 // Observability Bundle (delegated to bundle.zig)

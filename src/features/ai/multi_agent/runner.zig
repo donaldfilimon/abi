@@ -35,6 +35,11 @@ const step_execute = @import("workflow_runner/execute.zig");
 const run_finalize = @import("workflow_runner/finalize.zig");
 const build_options = @import("build_options");
 const agents_mod = @import("../agents/mod.zig");
+<<<<<<< Updated upstream
+=======
+const time = @import("../../../foundation/mod.zig").time;
+const reasoning = @import("../reasoning/engine.zig");
+>>>>>>> Stashed changes
 const training = if (build_options.feat_training)
     @import("../training/mod.zig")
 else
@@ -140,8 +145,233 @@ pub const WorkflowRunner = struct {
                     outcome,
                 );
 
+<<<<<<< Updated upstream
                 if (outcome.escalated) {
                     return session.fail(self, "step escalated");
+=======
+                defer {
+                    if (inputs.len > 0) self.allocator.free(inputs);
+                    if (prompt_owned) self.allocator.free(prompt);
+                }
+
+                // Select agent: try profile name first, then first available
+                const agent = self.selectAgent(profile_name);
+
+                var step_timer = time.Timer.start() catch null;
+                var attempts: u32 = 0;
+                var step_output: ?[]const u8 = null;
+                var step_status: workflow_mod.StepStatus = .failed;
+                var escalated = false;
+
+                // Execution loop with retry
+                while (attempts <= self.config.max_retries) : (attempts += 1) {
+                    if (agent) |ag| {
+                        const result = ag.process(prompt, self.allocator) catch |err| {
+                            // Handle failure
+                            const action = self.handleFailure(step_id, err, &tracker);
+                            switch (action) {
+                                .retry => {
+                                    stats.total_retries += 1;
+                                    continue;
+                                },
+                                .reassign => {
+                                    stats.total_retries += 1;
+                                    continue;
+                                },
+                                .skip => {
+                                    step_status = .failed;
+                                    break;
+                                },
+                                .escalate => {
+                                    escalated = true;
+                                    step_status = .failed;
+                                    break;
+                                },
+                                .restart => {
+                                    stats.total_retries += 1;
+                                    continue;
+                                },
+                            }
+                        };
+
+                        // Success
+                        step_output = result;
+
+                        // --- Reactive Orchestration: Evaluate Confidence ---
+                        var chain = reasoning.ReasoningChain.init(self.allocator, prompt);
+                        defer chain.deinit();
+
+                        // Mock evaluation heuristic
+                        const output_str = step_output orelse "";
+                        var conf_score: f32 = 0.8; // Default high confidence
+                        if (std.mem.indexOf(u8, output_str, "error") != null or
+                            std.mem.indexOf(u8, output_str, "unknown") != null or
+                            std.mem.indexOf(u8, output_str, "research needed") != null)
+                        {
+                            conf_score = 0.3;
+                        }
+
+                        chain.addStep(.assessment, "Evaluating step output confidence", .{
+                            .level = reasoning.ConfidenceLevel.fromScore(conf_score),
+                            .score = conf_score,
+                            .reasoning = "Mocked evaluation based on output keywords",
+                        }) catch {};
+
+                        chain.finalize() catch {};
+                        const final_conf = chain.getOverallConfidence();
+
+                        if (final_conf.score < 0.5) {
+                            if (attempts < self.config.max_retries) {
+                                chain.addStep(.research, "Confidence below threshold, initiating research", .{
+                                    .level = reasoning.ConfidenceLevel.fromScore(0.8),
+                                    .score = 0.8,
+                                    .reasoning = "Fallback triggered",
+                                }) catch {};
+
+                                if (step_output) |o| self.allocator.free(o);
+                                step_output = null;
+
+                                const action = self.handleFailure(step_id, RunError.ExecutionFailed, &tracker);
+                                switch (action) {
+                                    .retry, .reassign, .restart => {
+                                        stats.total_retries += 1;
+                                        continue;
+                                    },
+                                    .skip => {
+                                        step_status = .failed;
+                                        break;
+                                    },
+                                    .escalate => {
+                                        escalated = true;
+                                        step_status = .failed;
+                                        break;
+                                    },
+                                }
+                            } else {
+                                step_status = .failed;
+                                break;
+                            }
+                        }
+
+                        step_status = .completed;
+                        break;
+                    } else {
+                        // No agent available
+                        step_status = .failed;
+                        break;
+                    }
+                }
+
+                // Duration
+                const duration_ms: u64 = if (step_timer) |*t|
+                    t.read() / std.time.ns_per_ms
+                else
+                    0;
+
+                // Record result
+                if (step_status == .completed) {
+                    // Store output in blackboard
+                    if (step_output) |output| {
+                        self.blackboard.put(step.output_key, output, profile_name) catch |err| {
+                            std.log.warn("Failed to update blackboard: {t}", .{err});
+                        };
+                    }
+
+                    const step_result_entry = workflow_mod.StepResult{
+                        .step_id = step_id,
+                        .status = .completed,
+                        .output = step_output orelse "",
+                        .error_message = "",
+                        .duration_ns = duration_ms * std.time.ns_per_ms,
+                        .assigned_profile = profile_name,
+                    };
+                    tracker.markCompleted(step_id, step_result_entry) catch |err| {
+                        std.log.warn("Failed to mark step completed: {t}", .{err});
+                    };
+                    stats.completed_steps += 1;
+
+                    // Store in our step_results map (dupe the output for ownership)
+                    const output_copy = if (step_output) |o|
+                        self.allocator.dupe(u8, o) catch null
+                    else
+                        null;
+                    step_results.put(self.allocator, step_id, .{
+                        .step_id = step_id,
+                        .output = output_copy,
+                        .status = .completed,
+                        .assigned_profile = profile_name,
+                        .attempts = attempts,
+                        .duration_ms = duration_ms,
+                    }) catch |err| {
+                        std.log.warn("Failed to generate step log: {t}", .{err});
+                    };
+
+                    // Free the process() result (we duped it for step_results)
+                    if (step_output) |o| self.allocator.free(o);
+
+                    self.event_bus.publish(.{
+                        .event_type = .agent_finished,
+                        .task_id = task_id,
+                        .success = true,
+                        .duration_ns = duration_ms * std.time.ns_per_ms,
+                    });
+
+                    // Reset supervisor for this agent on success
+                    self.supervisor.resetAgent(profile_name);
+                } else {
+                    const step_result_entry = workflow_mod.StepResult{
+                        .step_id = step_id,
+                        .status = .failed,
+                        .output = "",
+                        .error_message = "step execution failed",
+                        .duration_ns = duration_ms * std.time.ns_per_ms,
+                        .assigned_profile = profile_name,
+                    };
+                    tracker.markFailed(step_id, step_result_entry) catch |err| {
+                        std.log.warn("Failed to mark step failed: {t}", .{err});
+                    };
+                    stats.failed_steps += 1;
+
+                    step_results.put(self.allocator, step_id, .{
+                        .step_id = step_id,
+                        .output = null,
+                        .status = .failed,
+                        .assigned_profile = profile_name,
+                        .attempts = attempts,
+                        .duration_ms = duration_ms,
+                    }) catch |err| {
+                        std.log.warn("Failed to generate step log: {t}", .{err});
+                    };
+
+                    // Free any partial output on failure
+                    if (step_output) |o| self.allocator.free(o);
+
+                    self.event_bus.publish(.{
+                        .event_type = .agent_finished,
+                        .task_id = task_id,
+                        .success = false,
+                        .duration_ns = duration_ms * std.time.ns_per_ms,
+                    });
+
+                    if (escalated) {
+                        // Stop workflow on escalation
+                        const total_ms: u64 = if (overall_timer) |*t|
+                            t.read() / std.time.ns_per_ms
+                        else
+                            0;
+                        stats.total_duration_ms = total_ms;
+
+                        self.event_bus.taskFailed(task_id, "step escalated");
+
+                        return WorkflowResult{
+                            .success = false,
+                            .step_results = step_results,
+                            .final_output = null,
+                            .stats = stats,
+                            .allocator = self.allocator,
+                        };
+                    }
+>>>>>>> Stashed changes
                 }
             }
         }

@@ -10,6 +10,7 @@ pub const LifecycleError = error{
     NotInitialized,
     InitializationFailed,
     FeatureInitFailed,
+    PluginInitFailed,
     FeatureDisabled,
     InvalidState,
     EngineCreationFailed,
@@ -77,6 +78,15 @@ pub const DocumentsFrameworkError = @import("../documents/types.zig").DocumentsE
 /// Desktop feature errors visible at the framework level.
 pub const DesktopFrameworkError = @import("../desktop/types.zig").DesktopError;
 
+/// TUI feature errors visible at the framework level.
+pub const TuiFrameworkError = error{
+    TuiDisabled,
+    TerminalInitFailed,
+    UnsupportedTerminal,
+    RenderFailed,
+    InputError,
+};
+
 /// All feature errors combined.
 pub const AllFeatureErrors = GpuFrameworkError ||
     AiFrameworkError ||
@@ -92,12 +102,16 @@ pub const AllFeatureErrors = GpuFrameworkError ||
     CacheFrameworkError ||
     StorageFrameworkError ||
     SearchFrameworkError ||
+<<<<<<< Updated upstream:src/features/core/errors.zig
     MobileFrameworkError ||
     GatewayFrameworkError ||
     BenchmarksFrameworkError ||
     ComputeFrameworkError ||
     DocumentsFrameworkError ||
     DesktopFrameworkError;
+=======
+    TuiFrameworkError;
+>>>>>>> Stashed changes:src/core/errors.zig
 
 /// The complete Framework error set.
 /// Composes lifecycle errors, all feature errors, and infrastructure errors.

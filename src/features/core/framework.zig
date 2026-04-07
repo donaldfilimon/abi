@@ -83,9 +83,7 @@ const feature_catalog = @import("feature_catalog.zig");
 
 pub const Config = config_module.Config;
 pub const Feature = config_module.Feature;
-pub const ConfigError = config_module.ConfigError;
 pub const Registry = registry_mod.Registry;
-pub const RegistryError = registry_mod.types.Error;
 
 // Shared comptime-gated feature imports (DRY: single source of truth).
 const fi = @import("framework/feature_imports.zig");
@@ -208,6 +206,12 @@ pub const Framework = struct {
     ha: ?ha_mod.HaManager = null,
     /// Runtime context (always available).
     runtime: *runtime_mod.Context,
+    /// Owned plugin slice transferred in by the builder.
+    /// When present, shutdown closes any dynamic libraries in the slice and frees it.
+    owned_plugins: ?[]config_module.plugin_config.Plugin = null,
+    /// Dynamic library handles opened during plugin initialization.
+    /// Stored here so they remain resident and are closed on shutdown.
+    dyn_lib_handles: std.ArrayListUnmanaged(std.DynLib) = .empty,
 
     /// Framework lifecycle states.
     pub const State = framework_state.State;
@@ -397,7 +401,7 @@ pub const Framework = struct {
     }
 
     /// List all registered features.
-    pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) RegistryError![]Feature {
+    pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) Error![]Feature {
         return self.registry.listFeatures(allocator);
     }
 
@@ -438,6 +442,9 @@ pub const FrameworkBuilder = struct {
     // Optional shared I/O backend (set via `withIo`).  Sub‑systems that need
     // file or network access can retrieve it through `framework.io`.
     io: ?std.Io = null,
+    // List of registered plugins
+    plugins: std.ArrayListUnmanaged(config_module.plugin_config.Plugin) = .empty,
+    plugins_oom: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) FrameworkBuilder {
         return framework_builder.init(FrameworkBuilder, allocator);
@@ -485,6 +492,21 @@ pub const FrameworkBuilder = struct {
     /// Configure plugins.
     pub fn withPlugins(self: *FrameworkBuilder, plugin_config: config_module.PluginConfig) *FrameworkBuilder {
         return framework_builder.withPlugins(FrameworkBuilder, self, plugin_config);
+    }
+
+    /// Register a plugin directly (either static or dynamic).
+    pub fn registerPlugin(self: *FrameworkBuilder, plugin: config_module.plugin_config.Plugin) *FrameworkBuilder {
+        return framework_builder.registerPlugin(FrameworkBuilder, self, plugin);
+    }
+
+    /// Register a dynamic library as a plugin.
+    pub fn registerDynLibPlugin(self: *FrameworkBuilder, lib: std.DynLib) *FrameworkBuilder {
+        return framework_builder.registerDynLibPlugin(FrameworkBuilder, self, lib);
+    }
+
+    /// Register a static plugin.
+    pub fn registerStaticPlugin(self: *FrameworkBuilder, ptr: ?*anyopaque, init_fn: *const fn (ptr: ?*anyopaque, fw: *anyopaque) anyerror!void) *FrameworkBuilder {
+        return framework_builder.registerStaticPlugin(FrameworkBuilder, self, ptr, init_fn);
     }
 
     /// Build and initialize the framework.

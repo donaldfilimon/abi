@@ -57,6 +57,7 @@ pub fn init(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_
     errdefer fw.runtime.deinit();
 
     // Initialize enabled features and register them.
+    errdefer shutdown.deinitPlugins(&fw);
     errdefer shutdown.deinitFeatures(&fw);
     try initFeatureContexts(Framework, allocator, cfg_owned, &fw);
     return fw;
@@ -170,10 +171,74 @@ fn initConfiglessFeatures(comptime Framework: type, allocator: std.mem.Allocator
     }
 }
 
+fn initPlugins(comptime Framework: type, _: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
+    if (cfg.plugins.paths.len > 0 and !cfg.plugins.allow_untrusted) {
+        std.log.err("Refusing to load plugin paths while allow_untrusted is false", .{});
+        return error.InvalidConfig;
+    }
+
+    var loaded_libs: std.ArrayListUnmanaged(std.DynLib) = .empty;
+    defer loaded_libs.deinit(fw.allocator);
+    errdefer {
+        var idx: usize = loaded_libs.items.len;
+        while (idx > 0) : (idx -= 1) {
+            loaded_libs.items[idx - 1].close();
+        }
+    }
+
+    // 1. Initialize pre-registered plugins (static or already loaded dynlibs)
+    for (cfg.plugins.plugins) |*plugin| {
+        switch (plugin.*) {
+            .static => |s| {
+                s.init_plugin(s.ptr, fw) catch |err| {
+                    std.log.err("Static plugin initialization failed: {}", .{err});
+                    return error.PluginInitFailed;
+                };
+            },
+            .dyn_lib => |lib_const| {
+                var lib = lib_const; // create mutable copy of the handle to call lookup
+                const init_fn = lib.lookup(*const fn (fw: *anyopaque) anyerror!void, "init_plugin") orelse {
+                    std.log.err("Dynamic plugin missing init_plugin symbol", .{});
+                    return error.PluginInitFailed;
+                };
+                init_fn(fw) catch |err| {
+                    std.log.err("Dynamic plugin initialization failed: {}", .{err});
+                    return error.PluginInitFailed;
+                };
+            },
+        }
+    }
+
+    // 2. Load and initialize plugins from explicit paths
+    for (cfg.plugins.paths) |path| {
+        var dyn_lib = std.DynLib.open(path) catch |err| {
+            std.log.err("Failed to load dynamic plugin at '{s}': {}", .{ path, err });
+            return error.PluginInitFailed;
+        };
+        errdefer dyn_lib.close();
+        try loaded_libs.append(fw.allocator, dyn_lib);
+
+        const init_fn = loaded_libs.items[loaded_libs.items.len - 1]
+            .lookup(*const fn (fw: *anyopaque) anyerror!void, "init_plugin") orelse {
+            std.log.err("Dynamic plugin at '{s}' missing init_plugin symbol", .{path});
+            return error.PluginInitFailed;
+        };
+
+        init_fn(fw) catch |err| {
+            std.log.err("Dynamic plugin initialization failed at '{s}': {}", .{ path, err });
+            return error.PluginInitFailed;
+        };
+    }
+
+    try fw.dyn_lib_handles.appendSlice(fw.allocator, loaded_libs.items);
+    loaded_libs.items.len = 0;
+}
+
 fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
     try initStandardFeatures(Framework, allocator, cfg, fw);
     try initConvertedFeatures(Framework, allocator, cfg, fw);
     try initConfiglessFeatures(Framework, allocator, fw);
+    try initPlugins(Framework, allocator, cfg, fw);
 
     // Always initialize HA manager using default provider when available.
     fw.ha = ha_mod.HaManager.init(allocator, .{});

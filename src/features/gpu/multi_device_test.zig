@@ -243,6 +243,58 @@ test "scatter gather" {
     try std.testing.expect(output[0] == 1.0);
 }
 
+test "concurrent distributed workload stress" {
+    const allocator = std.testing.allocator;
+    var cluster = GPUCluster.init(allocator, .{}) catch |err| {
+        if (err == error.GpuDisabled or err == error.OutOfMemory) {
+            return error.SkipZigTest;
+        }
+        return err;
+    };
+    defer cluster.deinit();
+
+    const total_workload: usize = 1024 * 1024 * 64; // 64M items
+
+    if (@import("builtin").single_threaded) return error.SkipZigTest;
+
+    const num_threads = 4;
+    var threads: [num_threads]std.Thread = undefined;
+
+    const Context = struct {
+        cluster_ptr: *GPUCluster,
+        workload: usize,
+        alloc: std.mem.Allocator,
+
+        fn run(ctx: @This()) void {
+            var i: usize = 0;
+            while (i < 10) : (i += 1) {
+                const dist = ctx.cluster_ptr.distributeWork(ctx.workload) catch unreachable;
+                defer ctx.alloc.free(dist);
+
+                var sum: usize = 0;
+                for (dist) |d| {
+                    sum += d.size;
+                }
+                std.testing.expectEqual(ctx.workload, sum) catch unreachable;
+            }
+        }
+    };
+
+    const context = Context{
+        .cluster_ptr = &cluster,
+        .workload = total_workload,
+        .alloc = allocator,
+    };
+
+    for (0..num_threads) |i| {
+        threads[i] = std.Thread.spawn(.{}, Context.run, .{context}) catch return error.SkipZigTest;
+    }
+
+    for (0..num_threads) |i| {
+        threads[i].join();
+    }
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

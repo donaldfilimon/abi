@@ -108,8 +108,32 @@ const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;
 const sync = @import("../../foundation/mod.zig").sync;
 
+<<<<<<< Updated upstream
 // ── Core GPU & Unified API ───────────────────────────────────────────────
 pub const core_gpu = @import("core_gpu.zig");
+=======
+// Decoupled sub-modules
+pub const core = @import("core.zig");
+pub const compute = @import("compute.zig");
+pub const memory_sys = @import("memory.zig");
+pub const dispatch_sys = @import("dispatch_sys.zig");
+
+// Performance optimization modules
+pub const occupancy = @import("occupancy.zig");
+pub const fusion = @import("fusion.zig");
+pub const execution_coordinator = @import("execution_coordinator.zig");
+pub const memory_pool_advanced = @import("memory/pool.zig");
+pub const memory_pool_lockfree = @import("memory/lockfree.zig");
+pub const sync_event = @import("sync_event.zig");
+pub const kernel_ring = @import("kernel_ring.zig");
+pub const adaptive_tiling = @import("adaptive_tiling.zig");
+
+// std.gpu integration (Zig 0.16+ native GPU support)
+pub const std_gpu = @import("std_gpu.zig");
+pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
+
+// Unified API modules
+>>>>>>> Stashed changes
 pub const unified = @import("unified.zig");
 pub const unified_buffer = @import("unified_buffer.zig");
 pub const device = @import("device.zig");
@@ -169,6 +193,7 @@ pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
 pub const kernels = @import("runtime_kernels.zig");
 pub const builtin_kernels = @import("builtin_kernels.zig");
 pub const interface = @import("interface.zig");
+<<<<<<< Updated upstream
 pub const platform = @import("platform.zig");
 
 pub const Backend = backend.Backend;
@@ -200,6 +225,9 @@ else
             return false;
         }
     };
+=======
+pub const cuda_loader = dispatch_sys.cuda_loader;
+>>>>>>> Stashed changes
 
 // ── Performance & Advanced ───────────────────────────────────────────────
 pub const advanced = @import("advanced.zig");
@@ -281,18 +309,29 @@ const lifecycle = @import("../../foundation/mod.zig").utils;
 const SimpleModuleLifecycle = lifecycle.SimpleModuleLifecycle;
 const LifecycleError = lifecycle.LifecycleError;
 
-var gpu_lifecycle = SimpleModuleLifecycle{};
+// Core re-exports
+pub const init = core.init;
+pub const ensureInitialized = core.ensureInitialized;
+pub const deinit = core.deinit;
+pub const isInitialized = core.isInitialized;
 
+<<<<<<< Updated upstream
 var cuda_backend_init_lock = sync.Mutex{};
 var cuda_backend_initialized = false;
 var cached_gpu_allocator: ?std.mem.Allocator = null;
 
 pub const types = @import("types.zig");
 
+=======
+pub const types = @import("types.zig");
+pub const MemoryError = memory_sys.MemoryError;
+pub const KernelError = interface.KernelError;
+>>>>>>> Stashed changes
 pub const GpuError = types.GpuError;
 pub const Error = types.Error;
 pub const BackendSelectionError = types.BackendSelectionError;
 
+<<<<<<< Updated upstream
 pub fn init(allocator: std.mem.Allocator) GpuError!void {
     if (!backend.moduleEnabled()) return error.GpuDisabled;
 
@@ -364,133 +403,48 @@ pub fn deinit() void {
 pub fn isInitialized() bool {
     return gpu_lifecycle.isInitialized();
 }
+=======
+pub const MemoryInfo = memory_sys.MemoryInfo;
+pub const GpuStats = unified.GpuStats;
+pub const MetricsSummary = unified.MetricsSummary;
+
+pub const Stream = compute.Stream;
+
+pub const Backend = backend.Backend;
+pub const isEnabled = backend.isEnabled;
+
+// ============================================================================
+// Unified API Exports (essential shared types only)
+// ============================================================================
+
+pub const Gpu = unified.Gpu;
+pub const GpuConfig = unified.GpuConfig;
+pub const GpuDevice = unified.GpuDevice;
+pub const ExecutionResult = compute.ExecutionResult;
+pub const LaunchConfig = compute.LaunchConfig;
+pub const HealthStatus = unified.HealthStatus;
+
+pub const UnifiedBuffer = memory_sys.UnifiedBuffer;
+pub const BufferOptions = memory_sys.BufferOptions;
+pub const BufferFlags = memory_sys.BufferFlags;
+pub const GpuBuffer = memory_sys.GpuBuffer;
+pub const Buffer = memory_sys.Buffer;
+
+pub const Device = device.Device;
+pub const DeviceType = device.DeviceType;
+
+pub const StreamOptions = stream.StreamOptions;
+pub const Event = stream.Event;
+pub const EventOptions = stream.EventOptions;
+
+pub const KernelBuilder = compute.KernelBuilder;
+>>>>>>> Stashed changes
 
 // ── Framework Integration ────────────────────────────────────────────────
 
 const config_module = @import("../core/config/mod.zig");
 
-/// GPU Context for Framework integration.
-///
-/// The Context struct wraps the `Gpu` struct to provide a consistent interface
-/// with other framework modules. It handles configuration translation and
-/// provides convenient access to GPU operations.
-///
-/// ## Thread Safety
-///
-/// The Context itself is not thread-safe. For concurrent GPU operations,
-/// use the underlying Gpu's stream-based operations or external synchronization.
-///
-/// ## Example
-///
-/// ```zig
-/// var ctx = try Context.init(allocator, .{ .backend = .vulkan });
-/// defer ctx.deinit();
-///
-/// // Get the underlying Gpu instance
-/// const gpu = ctx.get(.gpu);
-///
-/// // Create and use buffers
-/// var buffer = try ctx.createBuffer(f32, 1024, .{});
-/// defer ctx.destroyBuffer(&buffer);
-/// ```
-pub const Context = struct {
-    /// Memory allocator for GPU operations.
-    allocator: std.mem.Allocator,
-    /// The underlying unified GPU instance.
-    gpu: Gpu,
-
-    /// Initialize the GPU context with the given configuration.
-    ///
-    /// ## Parameters
-    ///
-    /// - `allocator`: Memory allocator for GPU resources
-    /// - `cfg`: GPU configuration (backend selection, memory limits, etc.)
-    ///
-    /// ## Returns
-    ///
-    /// A pointer to the initialized Context.
-    ///
-    /// ## Errors
-    ///
-    /// - `error.GpuDisabled`: GPU feature is disabled at compile time
-    /// - `error.NoDeviceAvailable`: No compatible GPU device found
-    /// - `error.OutOfMemory`: Memory allocation failed
-    pub fn init(allocator: std.mem.Allocator, cfg: config_module.GpuConfig) !*Context {
-        if (!backend.moduleEnabled()) return error.GpuDisabled;
-
-        // Convert config_module.GpuConfig to unified.GpuConfig
-        const preferred_backend: ?Backend = switch (cfg.backend) {
-            .auto => null,
-            .cuda => .cuda,
-            .vulkan => .vulkan,
-            .stdgpu => .stdgpu,
-            .metal => .metal,
-            .webgpu => .webgpu,
-            .opengl => .opengl,
-            .opengles => .opengles,
-            .webgl2 => .webgl2,
-            .fpga => .fpga,
-            .tpu => .tpu,
-            .cpu => .stdgpu, // CPU fallback uses stdgpu backend
-        };
-
-        const gpu_config = GpuConfig{
-            .preferred_backend = preferred_backend,
-            .allow_fallback = true,
-            .max_memory_bytes = cfg.memory_limit orelse 0,
-            .enable_profiling = false,
-        };
-
-        const ctx = try allocator.create(Context);
-        errdefer allocator.destroy(ctx);
-
-        ctx.* = .{
-            .allocator = allocator,
-            .gpu = try Gpu.init(allocator, gpu_config),
-        };
-        return ctx;
-    }
-
-    pub fn deinit(self: *Context) void {
-        self.gpu.deinit();
-        self.allocator.destroy(self);
-    }
-
-    /// Get the underlying Gpu instance.
-    pub fn getGpu(self: *Context) Error!*Gpu {
-        return &self.gpu;
-    }
-
-    /// Create a buffer.
-    pub fn createBuffer(self: *Context, comptime T: type, count: usize, options: BufferOptions) !UnifiedBuffer {
-        return self.gpu.createBuffer(T, count, options);
-    }
-
-    /// Create a buffer from a slice.
-    pub fn createBufferFromSlice(self: *Context, comptime T: type, data: []const T, options: BufferOptions) !UnifiedBuffer {
-        return self.gpu.createBufferFromSlice(T, data, options);
-    }
-
-    /// Destroy a buffer.
-    pub fn destroyBuffer(self: *Context, buffer: *UnifiedBuffer) void {
-        self.gpu.destroyBuffer(buffer);
-    }
-
-    /// Vector addition.
-    pub fn vectorAdd(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer) !ExecutionResult {
-        return self.gpu.vectorAdd(a, b, result);
-    }
-
-    /// Matrix multiplication.
-    pub fn matrixMultiply(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer, dims: unified.MatrixDims) !ExecutionResult {
-        return self.gpu.matrixMultiply(a, b, result, dims);
-    }
-
-    /// Get GPU health status.
-    pub fn getHealth(self: *Context) !HealthStatus {
-        return self.gpu.getHealth();
-    }
-};
+pub const Context = core.Context;
 
 // ── Tests ────────────────────────────────────────────────────────────────
 

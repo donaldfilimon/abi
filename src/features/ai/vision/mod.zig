@@ -228,6 +228,39 @@ pub const Error = error{
     OutOfMemory,
 };
 
+/// Pipeline for processing vision and multi-modal inputs.
+pub const VisionPipeline = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) !VisionPipeline {
+        if (!isEnabled()) return error.VisionDisabled;
+        return .{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *VisionPipeline) void {
+        _ = self;
+    }
+
+    /// Ingest an image into the pipeline.
+    pub fn ingestImage(self: *VisionPipeline, img: *const Image) !void {
+        _ = self;
+        _ = img;
+    }
+
+    /// Extract features from the ingested inputs.
+    pub fn extractFeatures(self: *VisionPipeline) ![]f32 {
+        return self.allocator.alloc(f32, 0);
+    }
+
+    /// Inject text or other tokens to process alongside vision.
+    pub fn injectTokens(self: *VisionPipeline, tokens: []const f32) !void {
+        _ = self;
+        _ = tokens;
+    }
+};
+
 /// Vision context for framework integration.
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -278,6 +311,11 @@ pub const Context = struct {
         defer resized.deinit();
 
         return toFloatNormalized(&resized, self.allocator, mean, std_dev);
+    }
+
+    /// Create a multi-modal vision pipeline.
+    pub fn createPipeline(self: *Context) !VisionPipeline {
+        return VisionPipeline.init(self.allocator);
     }
 };
 

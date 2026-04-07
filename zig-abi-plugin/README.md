@@ -1,6 +1,10 @@
 # zig-abi-plugin v0.11.0
 
+<<<<<<< Updated upstream
 Claude Code plugin for ABI Framework development. Provides smart build routing, Zig 0.16 patterns, feature module scaffolding, pipeline DSL guidance, cross-platform builds, and real-time verification.
+=======
+Claude Code plugin for ABI Framework development. Provides smart build routing, Zig 0.16 patterns, feature module scaffolding, build troubleshooting, cross-platform build guidance, autonomous parity checking, and real-time verification.
+>>>>>>> Stashed changes
 
 ## Installation
 
@@ -17,8 +21,20 @@ claude --plugin-dir zig-abi-plugin
 | `build-troubleshooting` | Build failures, linker errors, Darwin workarounds, flag validation |
 | `zig-016-patterns` | Writing Zig code, compilation errors, removed API usage |
 | `feature-scaffolding` | Creating new feature modules, mod/stub/types structure |
+<<<<<<< Updated upstream
 | `cross-check` | Cross-compilation targets, platform feature matrix |
 | `pipeline-dsl` | Pipeline DSL usage, step wiring, WDBX persistence, memory safety |
+=======
+| `cross-check` | Cross-compilation failures, target-specific errors, WASM/Linux issues |
+
+### Agents
+
+| Agent | Trigger | Color |
+|-------|---------|-------|
+| `parity-checker` | Mod/stub edits, parity drift, stub compilation failures | Yellow |
+| `build-troubleshooter` | Build errors, linker failures, test failures, compile errors | Red |
+| `feature-scaffolder` | Adding new features, scaffolding mod/stub/types modules | Green |
+>>>>>>> Stashed changes
 
 ### Agents (4)
 
@@ -67,6 +83,34 @@ zigly --status           # Auto-install zig if missing
 zigly --link             # Symlink zig + zls to ~/.local/bin
 ```
 
+<<<<<<< Updated upstream
+=======
+### Build Steps (build.zig)
+
+| Step | Purpose |
+|------|---------|
+| `zig build` / `zig build lib` | Build static library |
+| `zig build test --summary all` | Run tests (src/ + test/) |
+| `zig build check` | Lint + test + parity |
+| `zig build check-parity` | Verify mod/stub declaration parity |
+| `zig build cross-check` | Cross-compilation (linux, wasi, x86_64) |
+| `zig build lint` | Check formatting |
+| `zig build fix` | Auto-format in place |
+| `zig build doctor` | Report feature flags, GPU config, platform |
+
+### Hooks
+
+Automatically enforced on every Edit/Write tool call:
+
+| Hook | Type | Trigger | Action |
+|------|------|---------|--------|
+| `check_abi_import.sh` | PreToolUse (command) | Edit/Write to `src/**/*.zig` | **Blocks** `@import("abi")` — circular import |
+| `check_zigversion.sh` | PreToolUse (command) | Edit/Write to `.zigversion` | Warns to update `build.zig.zon` + CI atomically |
+| stub-sync check | PostToolUse (prompt) | Edit/Write to `src/features/**/mod.zig` | Warns when public API changed without updating `stub.zig` |
+
+Hooks require a Claude Code restart to take effect after any changes.
+
+>>>>>>> Stashed changes
 ## Feature Flags
 
 60 features total (including AI sub-features). All default to `true` except `feat-mobile` and `feat-tui`. Disable with `-Dfeat-<name>=false`:

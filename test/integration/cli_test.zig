@@ -7,6 +7,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
+<<<<<<< Updated upstream
 const cli = abi.cli;
 
 fn renderStatus() ![]u8 {
@@ -45,6 +46,9 @@ fn renderChatReport(options: cli.RenderOptions) ![]u8 {
     });
     return writer.toOwnedSlice();
 }
+=======
+const cli = @import("../../src/main.zig");
+>>>>>>> Stashed changes
 
 // === Version Command Path ===
 
@@ -345,17 +349,21 @@ test "cli: serve address parsing honors addr and port flags" {
     defer std.testing.allocator.free(port_address);
     try std.testing.expectEqualStrings("127.0.0.1:9090", port_address);
 
+<<<<<<< Updated upstream
     const ipv6_args = [_][:0]const u8{ "--host", "::1", "--port", "9090" };
     const ipv6_address = try cli.parseServeAddress(std.testing.allocator, &ipv6_args);
     defer std.testing.allocator.free(ipv6_address);
     try std.testing.expectEqualStrings("[::1]:9090", ipv6_address);
 
+=======
+>>>>>>> Stashed changes
     const addr_args = [_][:0]const u8{ "--addr", "0.0.0.0:8080" };
     const explicit_address = try cli.parseServeAddress(std.testing.allocator, &addr_args);
     defer std.testing.allocator.free(explicit_address);
     try std.testing.expectEqualStrings("0.0.0.0:8080", explicit_address);
 }
 
+<<<<<<< Updated upstream
 test "cli: plugin path helper builds successfully" {
     var builder = abi.App.builder(std.testing.allocator);
     _ = builder.withPlugins(abi.config.PluginConfig.withPaths(&.{"/tmp/abi-plugin.so"}));
@@ -373,6 +381,8 @@ test "cli: untrusted plugin paths are rejected" {
     try std.testing.expectError(error.InvalidConfig, builder.build());
 }
 
+=======
+>>>>>>> Stashed changes
 // === Features Command Path (printFeatures data) ===
 
 test "cli: feature catalog count matches exported entries" {
@@ -511,6 +521,40 @@ test "cli: connectors module is accessible" {
     // printConnectors() prints static text, but the module should be reachable
     const conn = abi.connectors;
     _ = conn;
+}
+
+// === Plugin System ===
+
+var mock_plugin_initialized = false;
+
+fn mock_init_plugin(ptr: ?*anyopaque, fw: *anyopaque) anyerror!void {
+    _ = ptr;
+    _ = fw;
+    mock_plugin_initialized = true;
+}
+
+test "cli: plugin system can inject and initialize mock plugin" {
+    mock_plugin_initialized = false;
+    var builder = abi.App.builder(std.testing.allocator);
+    _ = builder.withDefaults();
+
+    // Register the static plugin
+    _ = builder.registerStaticPlugin(null, mock_init_plugin);
+
+    var fw = try builder.build();
+    defer fw.deinit();
+
+    try std.testing.expect(mock_plugin_initialized);
+}
+
+test "cli: untrusted plugin paths are rejected" {
+    var builder = abi.App.builder(std.testing.allocator);
+    _ = builder.withPlugins(.{
+        .paths = &.{"/tmp/abi-untrusted-plugin.so"},
+        .allow_untrusted = false,
+    });
+
+    try std.testing.expectError(error.InvalidConfig, builder.build());
 }
 
 test {
