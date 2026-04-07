@@ -279,6 +279,16 @@ test "standalone decode with custom claims" {
         .exp = types.wallClockSeconds() + 3600,
         .custom = custom,
     });
+    // Free the custom map entries after createToken has serialised them
+    {
+        var it = custom.iterator();
+        while (it.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        custom.deinit(allocator);
+        custom = .empty; // prevent double-free in the outer defer
+    }
     defer allocator.free(token_str);
 
     var token = try decode(allocator, token_str);
