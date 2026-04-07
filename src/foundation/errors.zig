@@ -1,7 +1,25 @@
-///! Shared Error Types
+//
+//  Shared Error Types
 //!
 //! Common error sets for cross-module error handling. Modules can import
 //! and combine these error sets to maintain consistency across the framework.
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const errors = @import("shared").errors;
+//!
+//! pub const MyError = errors.CommonError || MyModuleError;
+//!
+//! pub fn doSomething() !void {
+//!     if (condition) return errors.CommonError.GenericFailure;
+//! }
+//! ```
+//!
+//! See also:
+//! - `foundation.logging` for log levels
+//! - `foundation.time` for time utilities
+//! - `foundation.sync` for synchronization primitives
 //!
 //! ## Usage
 //!

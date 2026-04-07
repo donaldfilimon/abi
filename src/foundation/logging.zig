@@ -1,4 +1,4 @@
-//! Simple logging helpers with scoped timing.
+// Simple logging helpers with scoped timing.
 const std = @import("std");
 const time = @import("mod.zig").time;
 const sync = @import("mod.zig").sync;
