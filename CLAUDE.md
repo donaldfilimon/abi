@@ -10,7 +10,7 @@ Zig version is pinned in `.zigversion` (currently `0.16.0-dev.3091+557caecaa`). 
 is the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version matches the pin:
 
 ```bash
-zvm use --sync    # Sync ZVM with the repo pin when supported
+sudo zvm use --sync    # Sync ZVM with the repo pin when supported
 zigly --status    # Print the pinned zig path (ZVM-first when versions match)
 zigly --link      # Symlink zig + zls into ~/.local/bin
 zigly --bootstrap # One-command project setup (install, link, verify)
