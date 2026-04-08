@@ -102,16 +102,13 @@ pub const AllFeatureErrors = GpuFrameworkError ||
     CacheFrameworkError ||
     StorageFrameworkError ||
     SearchFrameworkError ||
-<<<<<<< Updated upstream:src/features/core/errors.zig
     MobileFrameworkError ||
     GatewayFrameworkError ||
     BenchmarksFrameworkError ||
     ComputeFrameworkError ||
     DocumentsFrameworkError ||
-    DesktopFrameworkError;
-=======
+    DesktopFrameworkError ||
     TuiFrameworkError;
->>>>>>> Stashed changes:src/core/errors.zig
 
 /// The complete Framework error set.
 /// Composes lifecycle errors, all feature errors, and infrastructure errors.

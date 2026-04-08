@@ -48,17 +48,6 @@ pub const Result = engine_types.Result;
 pub const AsyncResult = engine_types.AsyncResult;
 pub const Stats = engine_types.Stats;
 
-fn makeErrorResult(id: u64, message: []const u8) Result {
-    return engine_types.makeErrorResult(id, message);
-}
-
-fn elapsedNsToMs(elapsed_ns: u64) f32 {
-    return engine_types.elapsedNsToMs(elapsed_ns);
-}
-
-fn tokensPerSecond(token_count: u32, elapsed_ns: u64) f32 {
-    return engine_types.tokensPerSecond(token_count, elapsed_ns);
-}
 
 fn makeErrorResult(id: u64, message: []const u8) Result {
     return .{
@@ -229,7 +218,6 @@ pub const Engine = struct {
         return self.scheduler.submit(request);
     }
 
-<<<<<<< Updated upstream
     pub const AsyncCallback = engine_async.AsyncCallback;
 
     fn beginAsyncJob(self: *Self) !void {
@@ -240,131 +228,21 @@ pub const Engine = struct {
         engine_async.finishAsyncJob(self);
     }
 
-    /// Generate a response asynchronously on a separate thread, invoking a
-    /// callback upon completion. The callback receives the result by value;
-    /// the engine frees the result's owned buffers *after* the callback
-    /// returns.
-    ///
-    /// **Note**: prefer `generateAsyncWithTimeout` for new code — it gives
-    /// the caller explicit ownership and timeout support.
     pub fn generateAsync(self: *Self, request: scheduler_mod.Request, callback: AsyncCallback) !void {
         return engine_async.generateAsync(self, request, callback);
     }
 
-    /// Generate a response asynchronously, returning an `*AsyncResult` that
-    /// the caller can poll or wait on with an optional timeout.
-    ///
-    /// **Ownership contract**:
-    /// - On success the caller receives a heap-allocated `*AsyncResult`.
-    /// - Call `waitTimeout(ms)` or `wait()` to retrieve the inner `Result`.
-    /// - The returned `Result` is owned by the caller — call
-    ///   `result.deinit(engine.allocator)` when done.
-    /// - If the caller no longer needs the result (e.g. after a timeout),
-    ///   call `async_result.deinit()`. The background thread will free the
-    ///   inner buffers when it completes.
-    /// - The `*AsyncResult` itself is freed by the background thread after
-    ///   it finishes, so the caller must not dereference it after calling
-    ///   `deinit()`.
     pub fn generateAsyncWithTimeout(self: *Self, request: scheduler_mod.Request) !*AsyncResult {
         return engine_async.generateAsyncWithTimeout(self, request);
     }
 
-    fn isClosing(self: *Self) bool {
-        return engine_async.isClosing(self);
-    }
 
-    /// Return a snapshot of engine statistics. Safe to call from any thread
-    /// without holding any lock — counters are read with acquire ordering.
-    pub fn getStats(self: *const Self) Stats {
+    pub fn getStats(self: *Self) Stats {
         const reqs = self.total_requests.load(.acquire);
         const toks = self.total_tokens.load(.acquire);
-        const ns = self.total_elapsed_ns.load(.acquire);
-
-        const mutable = @constCast(self);
-        mutable.scheduler_mu.lock();
-        defer mutable.scheduler_mu.unlock();
+        const elapsed = self.total_elapsed_ns.load(.acquire);
         const pending = self.scheduler.pendingCount();
-
-        const avg_tps: f32 = if (ns > 0)
-            @as(f32, @floatFromInt(toks)) * @as(f32, @floatFromInt(std.time.ns_per_s)) /
-                @as(f32, @floatFromInt(ns))
-=======
-    pub const AsyncCallback = *const fn (Result) void;
-
-    fn beginAsyncJob(self: *Self) !void {
-        self.async_mu.lock();
-        defer self.async_mu.unlock();
-        if (self.closing_async) return error.ShutdownInProgress;
-        self.in_flight_async += 1;
-    }
-
-    fn finishAsyncJob(self: *Self) void {
-        self.async_mu.lock();
-        defer self.async_mu.unlock();
-        std.debug.assert(self.in_flight_async > 0);
-        self.in_flight_async -= 1;
-    }
-
-    /// Generate a response asynchronously on a separate thread, invoking a callback upon completion.
-    /// This prevents blocking the main execution thread during long inference passes.
-    pub fn generateAsync(self: *Self, request: scheduler_mod.Request, callback: AsyncCallback) !void {
-        try self.beginAsyncJob();
-        errdefer self.finishAsyncJob();
-
-        const prompt_copy = try self.allocator.dupe(u8, request.prompt);
-        errdefer self.allocator.free(prompt_copy);
-
-        const profile_copy = try self.allocator.dupe(u8, request.profile);
-        errdefer self.allocator.free(profile_copy);
-
-        const AsyncContext = struct {
-            engine: *Self,
-            request: scheduler_mod.Request,
-            callback: AsyncCallback,
-
-            fn run(ctx: @This()) void {
-                defer ctx.engine.finishAsyncJob();
-                defer ctx.engine.allocator.free(ctx.request.profile);
-                defer ctx.engine.allocator.free(ctx.request.prompt);
-
-                var res = ctx.engine.generate(ctx.request) catch makeErrorResult(ctx.request.id, "Error: internal generation error");
-                defer res.deinit(ctx.engine.allocator);
-                ctx.callback(res);
-            }
-        };
-
-        const ctx = AsyncContext{
-            .engine = self,
-            .request = .{
-                .id = request.id,
-                .prompt = prompt_copy,
-                .max_tokens = request.max_tokens,
-                .temperature = request.temperature,
-                .top_p = request.top_p,
-                .top_k = request.top_k,
-                .profile = profile_copy,
-                .priority = request.priority,
-                .created_at = request.created_at,
-                .stream = request.stream,
-            },
-            .callback = callback,
-        };
-
-        const thread = try std.Thread.spawn(.{}, AsyncContext.run, .{ctx});
-        thread.detach();
-    }
-
-    pub fn getStats(self: *const Self) Stats {
-        const mutable_self = @constCast(self);
-        mutable_self.generation_mu.lock();
-        defer mutable_self.generation_mu.unlock();
-
-        const avg_tps: f32 = if (self.total_elapsed_ns > 0)
-            @as(f32, @floatFromInt(self.total_tokens)) * @as(f32, @floatFromInt(std.time.ns_per_s)) /
-                @as(f32, @floatFromInt(self.total_elapsed_ns))
->>>>>>> Stashed changes
-        else
-            0;
+        const avg_tps = if (@as(f32, @floatFromInt(elapsed)) > 0) @as(f32, @as(f32, @floatFromInt(toks))) * @as(f32, std.time.ns_per_s) / @as(f32, elapsed) else 0;
 
         return .{
             .total_requests = reqs,
@@ -447,90 +325,10 @@ test "engine connector backend: unsupported provider returns error" {
         .prompt = "Explain HNSW",
         .max_tokens = 10,
     });
-<<<<<<< Updated upstream
     defer if (result.text_owned) allocator.free(result.text);
     try std.testing.expect(std.mem.indexOf(u8, result.text, "Explain HNSW") != null);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
-}
-
-test "engine connector backend: unknown provider falls back to echo" {
-    const allocator = std.testing.allocator;
-
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .connector,
-        .model_id = "fakeprovider/some-model",
-    });
-    defer engine.deinit();
-
-    // "fakeprovider" is not in known_providers -> falls back to echo
-    const result = try engine.generate(.{
-        .id = 1,
-        .prompt = "Hello",
-        .max_tokens = 10,
-    });
-    defer if (result.text_owned) allocator.free(result.text);
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "Hello") != null);
-}
-
-test "engine connector backend: missing API key returns error" {
-    const allocator = std.testing.allocator;
-
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .connector,
-        .model_id = "openai/gpt-4",
-    });
-    defer engine.deinit();
-
-    // In test env, OPENAI_API_KEY is not set -> MissingApiKey or ApiRequestFailed
-    const result = engine.generate(.{
-        .id = 1,
-        .prompt = "Hello",
-        .max_tokens = 10,
-    });
-    if (result) |*r| {
-        var mutable = r.*;
-        mutable.deinit(allocator);
-    } else |err| {
-        try std.testing.expect(err == error.MissingApiKey or err == error.ApiRequestFailed);
-    }
-}
-
-test "engine demo backend: echo response works" {
-    const allocator = std.testing.allocator;
-
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .demo,
-        .model_id = "demo-model",
-    });
-    defer engine.deinit();
-
-    // Demo backend always succeeds with synthetic text
-    var result = try engine.generate(.{
-        .id = 1,
-        .prompt = "Test prompt",
-        .max_tokens = 10,
-    });
-=======
->>>>>>> Stashed changes
-    defer result.deinit(allocator);
+    defer var mutable = result; mutable.deinit(allocator);
 
     try std.testing.expect(result.text.len > 0);
     try std.testing.expectEqual(Backend.demo, engine.getStats().backend);
@@ -620,20 +418,13 @@ test "engine average throughput uses elapsed time" {
     });
     defer engine.deinit();
 
-<<<<<<< Updated upstream
-    engine.total_requests.store(3, .release);
-    engine.total_tokens.store(300, .release);
-    engine.total_elapsed_ns.store(2 * std.time.ns_per_s, .release);
-=======
-    engine.total_requests = 3;
-    engine.total_tokens = 300;
-    engine.total_elapsed_ns = 2 * std.time.ns_per_s;
->>>>>>> Stashed changes
+     engine.total_requests.store(3, .release);
+     engine.total_tokens.store(300, .release);
+     engine.total_elapsed_ns.store(2 * std.time.ns_per_s, .release);
 
     const stats = engine.getStats();
     try std.testing.expectApproxEqAbs(@as(f32, 150.0), stats.avg_tokens_per_second, 0.001);
 }
-<<<<<<< Updated upstream
 
 test "result deinit frees owned buffers (leak detection)" {
     const allocator = std.testing.allocator;
@@ -757,5 +548,3 @@ test "generateAsyncWithTimeout abandon cleans up" {
     // (called by defer above). The testing allocator will detect
     // leaks if the thread fails to free the result.
 }
-=======
->>>>>>> Stashed changes

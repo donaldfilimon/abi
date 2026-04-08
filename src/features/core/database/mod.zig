@@ -128,10 +128,7 @@ var initialized = std.atomic.Value(bool).init(false);
 
 pub fn init(_: std.mem.Allocator) !void {
     if (!isEnabled()) return DatabaseFeatureError.DatabaseDisabled;
-<<<<<<< Updated upstream:src/features/core/database/mod.zig
     if (initialized.load(.acquire)) return;
-=======
->>>>>>> Stashed changes:src/core/database/mod.zig
     initialized.store(true, .release);
 }
 

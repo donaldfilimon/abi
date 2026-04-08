@@ -281,8 +281,6 @@ pub const BlockChain = struct {
         return result.toOwnedSlice(self.allocator);
     }
 
-<<<<<<< Updated upstream:src/features/core/database/block_chain.zig
-=======
     /// Traverse chain with skip pointers (logarithmic efficiency)
     pub fn traverseWithSkips(self: *const Self, max_blocks: usize) ![]const u64 {
         var result = std.ArrayListUnmanaged(u64).empty;
@@ -360,8 +358,6 @@ pub const BlockChain = struct {
         }
         return true;
     }
-
->>>>>>> Stashed changes:src/core/database/block_chain.zig
     /// Create summarized block for long conversations
     pub fn createSummary(self: *Self, block_ids: []const u64) !u64 {
         // Average embeddings of selected blocks
@@ -654,7 +650,6 @@ test "MvccStore visibility control" {
     try std.testing.expect(visible[0] == block_id);
 }
 
-<<<<<<< Updated upstream:src/features/core/database/block_chain.zig
 fn testBlockChainInitBorrowedSessionId(allocator: std.mem.Allocator, session_id: []const u8) !void {
     var chain = BlockChain.init(allocator, session_id);
     defer chain.deinit();
@@ -692,7 +687,7 @@ test "MvccStore.getChain cleans up on insertion failure" {
     defer allocator.free(session_id);
 
     try std.testing.checkAllAllocationFailures(allocator, testMvccStoreGetChainInsertion, .{session_id});
-=======
+}
 /// Generic state block for arbitrary serialized state (WDBX Distributed State Fabric)
 pub const StateBlock = struct {
     state_type: []const u8, // Identifies payload format (e.g. "blackboard_snapshot")
@@ -851,5 +846,4 @@ test "StateBlockChain init falls back to static chain id on OOM" {
 
 test "StateBlockChain addBlock cleans up on OOM" {
     try std.testing.checkAllAllocationFailures(std.testing.allocator, addStateBlockWithPossibleOOM, .{});
->>>>>>> Stashed changes:src/core/database/block_chain.zig
 }

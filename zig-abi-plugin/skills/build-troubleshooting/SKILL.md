@@ -1,4 +1,4 @@
----
+`---
 name: build-troubleshooting
 description: This skill diagnoses and resolves ABI build failures. Trigger when the user encounters Darwin linker errors (undefined symbols like _malloc_size, __availability_version_check), Zig version mismatch warnings, feature flag validation failures, Metal backend linking issues, "no module named 'abi'" circular import errors, stub compilation failures, format check failures, or any build step that exits non-zero. Also trigger on questions about "build fails", "linker error", "zig build broken", "wrong zig version", "flag combo", "validate-flags", "full-check fails", or "Darwin 25".
 ---

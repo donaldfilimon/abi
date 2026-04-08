@@ -10,7 +10,7 @@ pub const render = @import("stub_render.zig");
 pub const layout = @import("stub_layout.zig");
 pub const widgets = @import("stub_widgets.zig");
 pub const events = @import("stub_events.zig");
-pub const dashboard = @import("stub_dashboard.zig");
+pub const dashboard = @import("dashboard.zig");
 
 pub const TuiError = types.TuiError;
 pub const Error = types.Error;

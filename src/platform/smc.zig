@@ -102,7 +102,7 @@ fn getConnection() SmcError!io_connect_t {
     smc_mu.lock();
     defer smc_mu.unlock();
     if (conn_initialized) return cached_conn;
-
+    {
         if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
             return error.SmcConnectFailed;
         }

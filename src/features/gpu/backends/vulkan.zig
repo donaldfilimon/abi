@@ -8,6 +8,9 @@
 //! - `vulkan/resources.zig` — ShaderCache, CommandPool
 
 const std = @import("std");
+const builtin = @import("builtin");
+
+const vulkan_caps = @import("vulkan/capabilities.zig");
 
 // Re-export type definitions for build discovery
 pub const vulkan_types = @import("vulkan_types.zig");
@@ -149,15 +152,6 @@ pub const KernelConfig = vulkan_types.KernelConfig;
 // Facade re-exports
 // ============================================================================
 
-<<<<<<< Updated upstream
-pub const backend_impl = @import("vulkan/backend_impl.zig");
-pub const isVulkanAvailable = backend_impl.isVulkanAvailable;
-pub const getDetectedApiVersion = backend_impl.getDetectedApiVersion;
-pub const enumerateDevices = backend_impl.enumerateDevices;
-pub const initVulkanGlobal = backend_impl.initVulkanGlobal;
-pub const deinit = backend_impl.deinit;
-pub const findMemoryType = backend_impl.findMemoryType;
-=======
 pub var vulkan_lib: ?std.DynLib = null;
 pub var vulkan_initialized = std.atomic.Value(bool).init(false);
 pub var vulkan_context: ?VulkanContext = null;
@@ -166,21 +160,21 @@ pub var detected_api_version_raw: u32 = vulkan_caps.encodeApiVersion(.{
     .minor = 0,
     .patch = 0,
 });
->>>>>>> Stashed changes
-
-// We re-export these from vtable.zig which expects them
-pub const VulkanBackend = @import("vulkan/vtable.zig").VulkanBackend;
-pub const createVulkanVTable = @import("vulkan/vtable.zig").createVulkanVTable;
-
-<<<<<<< Updated upstream
-// We re-export these from resources.zig
-pub const ShaderCache = @import("vulkan/resources.zig").ShaderCache;
-pub const CommandPool = @import("vulkan/resources.zig").CommandPool;
 
 // ============================================================================
 // Variable proxies (since we cannot export 'pub var' from an inner module)
-=======
 // Instance function pointers
+pub var vkCreateInstance: ?VkCreateInstanceFn = null;
+pub var vkDestroyInstance: ?VkDestroyInstanceFn = null;
+pub var vkEnumerateInstanceLayerProperties: ?VkEnumerateInstanceLayerPropertiesFn = null;
+pub var vkEnumeratePhysicalDevices: ?VkEnumeratePhysicalDevicesFn = null;
+pub var vkGetPhysicalDeviceProperties: ?VkGetPhysicalDevicePropertiesFn = null;
+pub var vkGetPhysicalDeviceQueueFamilyProperties: ?VkGetPhysicalDeviceQueueFamilyPropertiesFn = null;
+pub var vkGetPhysicalDeviceMemoryProperties: ?VkGetPhysicalDeviceMemoryPropertiesFn = null;
+pub var vkCreateDevice: ?VkCreateDeviceFn = null;
+pub var vkDestroyDevice: ?VkDestroyDeviceFn = null;
+pub var vkGetDeviceQueue: ?VkGetDeviceQueueFn = null;
+
 pub var vkCreateBuffer: ?VkCreateBufferFn = null;
 pub var vkDestroyBuffer: ?VkDestroyBufferFn = null;
 pub var vkGetBufferMemoryRequirements: ?VkGetBufferMemoryRequirementsFn = null;
@@ -1147,7 +1141,6 @@ pub const createVulkanVTable = vulkan_vtable.createVulkanVTable;
 
 // ============================================================================
 // Tests
->>>>>>> Stashed changes
 // ============================================================================
 // Note: Some modules directly access `vulkan.vulkan_initialized` or `vulkan.vkCreateBuffer`.
 // We need to provide accessor functions or require them to import backend_impl directly.

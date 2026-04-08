@@ -35,11 +35,8 @@ const step_execute = @import("workflow_runner/execute.zig");
 const run_finalize = @import("workflow_runner/finalize.zig");
 const build_options = @import("build_options");
 const agents_mod = @import("../agents/mod.zig");
-<<<<<<< Updated upstream
-=======
 const time = @import("../../../foundation/mod.zig").time;
 const reasoning = @import("../reasoning/engine.zig");
->>>>>>> Stashed changes
 const training = if (build_options.feat_training)
     @import("../training/mod.zig")
 else
@@ -128,6 +125,9 @@ pub const WorkflowRunner = struct {
                 var prepared = prepared_step.PreparedStep.prepare(self, &step);
                 defer prepared.deinit(self.allocator);
 
+                var inputs: []const u8 = "";
+                errdefer self.allocator.free(inputs);
+
                 const outcome = step_execute.executeStepAttempts(
                     self,
                     &session.tracker,
@@ -145,17 +145,8 @@ pub const WorkflowRunner = struct {
                     outcome,
                 );
 
-<<<<<<< Updated upstream
-                if (outcome.escalated) {
-                    return session.fail(self, "step escalated");
-=======
-                defer {
-                    if (inputs.len > 0) self.allocator.free(inputs);
-                    if (prompt_owned) self.allocator.free(prompt);
-                }
-
                 // Select agent: try profile name first, then first available
-                const agent = self.selectAgent(profile_name);
+                const agent = self.selectAgent(prepared.profile_name);
 
                 var step_timer = time.Timer.start() catch null;
                 var attempts: u32 = 0;
@@ -166,16 +157,16 @@ pub const WorkflowRunner = struct {
                 // Execution loop with retry
                 while (attempts <= self.config.max_retries) : (attempts += 1) {
                     if (agent) |ag| {
-                        const result = ag.process(prompt, self.allocator) catch |err| {
+                        const result = ag.process(prepared.prompt, self.allocator) catch |err| {
                             // Handle failure
-                            const action = self.handleFailure(step_id, err, &tracker);
+                            const action = self.handleFailure(step_id, err, &session.tracker);
                             switch (action) {
                                 .retry => {
-                                    stats.total_retries += 1;
+                                    session.stats.total_retries += 1;
                                     continue;
                                 },
                                 .reassign => {
-                                    stats.total_retries += 1;
+                                    session.stats.total_retries += 1;
                                     continue;
                                 },
                                 .skip => {
@@ -188,7 +179,7 @@ pub const WorkflowRunner = struct {
                                     break;
                                 },
                                 .restart => {
-                                    stats.total_retries += 1;
+                                    session.stats.total_retries += 1;
                                     continue;
                                 },
                             }
@@ -234,7 +225,7 @@ pub const WorkflowRunner = struct {
                                 const action = self.handleFailure(step_id, RunError.ExecutionFailed, &tracker);
                                 switch (action) {
                                     .retry, .reassign, .restart => {
-                                        stats.total_retries += 1;
+                                        session.stats.total_retries += 1;
                                         continue;
                                     },
                                     .skip => {
@@ -371,7 +362,6 @@ pub const WorkflowRunner = struct {
                             .allocator = self.allocator,
                         };
                     }
->>>>>>> Stashed changes
                 }
             }
         }

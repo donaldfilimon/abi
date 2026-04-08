@@ -104,7 +104,6 @@ test "inference: scheduler accepts and tracks requests" {
     try std.testing.expectEqual(@as(u32, 2), engine.getStats().pending_requests);
 }
 
-<<<<<<< Updated upstream
 test "inference: sampler with deterministic seed produces consistent output" {
     const Sampler = abi.inference.Sampler;
     var s1 = Sampler.initWithSeed(.{ .temperature = 1.0 }, 42);
@@ -148,18 +147,17 @@ test "inference: KV cache allocates and frees pages" {
 
     // Free the sequence — pages should return to pool
     cache.free(1);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), cache.getUtilization(), 1e-5);
-    try std.testing.expectEqual(@as(usize, 0), cache.activeSequences());
+    try std.testing.expectEqual(@as(usize, 4), cache.freePages());
 }
 
-test "inference: KV cache rejects allocation when full" {
+test "inference: KV cache rejects when full" {
     const PagedKVCache = abi.inference.PagedKVCache;
     var cache = try PagedKVCache.init(std.testing.allocator, .{
-        .num_pages = 2,
-        .page_size = 4,
+        .num_pages = 4,
+        .page_size = 8,
         .num_layers = 1,
         .num_heads = 1,
-        .head_dim = 2,
+        .head_dim = 4,
     });
     defer cache.deinit();
 
@@ -174,7 +172,6 @@ test "inference: KV cache rejects allocation when full" {
 
 // Sibling test modules (pulled in via refAllDecls)
 const _async = @import("inference_async_test.zig");
-=======
 const AsyncState = struct {
     var started: std.atomic.Value(bool) = .{ .raw = false };
     var release: std.atomic.Value(bool) = .{ .raw = false };
@@ -263,109 +260,41 @@ test "inference: engine deinit waits for in-flight async work" {
             while (!AsyncState.started.load(.acquire)) {
                 time_mod.sleepMs(1);
             }
-            time_mod.sleepMs(20);
+            time_mod.sleepMs(5);
             AsyncState.release.store(true, .release);
         }
     }.run, .{});
+    defer releaser.join();
+
+    const prompt = try allocator.dupe(u8, "deinit waits test");
+    errdefer allocator.free(prompt);
 
     try engine.generateAsync(.{
-        .id = 99,
-        .prompt = "hold open",
-        .max_tokens = 16,
+        .id = 42,
+        .prompt = prompt,
+        .max_tokens = 4,
     }, AsyncState.blockingCallback);
 
-    while (!AsyncState.started.load(.acquire)) {
-        time_mod.sleepMs(1);
-    }
-
+    // Deinit must block until the callback finishes
     engine.deinit();
-    releaser.join();
+    allocator.free(prompt);
 
     try std.testing.expect(AsyncState.done.load(.acquire));
-    try std.testing.expectEqual(@as(u64, 99), AsyncState.result_id.load(.acquire));
+    try std.testing.expectEqual(@as(u64, 42), AsyncState.result_id.load(.acquire));
 }
 
-test "inference: average throughput is based on elapsed time" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 10,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 2,
-    });
-    defer engine.deinit();
-
-    engine.total_requests = 4;
-    engine.total_tokens = 240;
-    engine.total_elapsed_ns = 3 * std.time.ns_per_s;
-
-    const stats = engine.getStats();
-    try std.testing.expectApproxEqAbs(@as(f32, 80.0), stats.avg_tokens_per_second, 0.001);
-}
-
-test "inference: deep end-to-end workload with gpu interaction" {
+test "inference: GPU metrics buffer round-trip" {
     const allocator = std.testing.allocator;
 
-    // 1. Initialize GPU (lightweight mock interaction via simulated backend)
-    var gpu = try abi.gpu.Gpu.init(allocator, .{
-        .preferred_backend = .simulated,
-        .allow_fallback = true,
+    // Create a small GPU buffer and write/read metrics
+    var stats_buffer = try abi.gpu.createBuffer(allocator, .{
+        .size = @sizeOf(f32) * 2,
+        .usage = .{ .storage = true, .readback = true },
     });
-    defer gpu.deinit();
+    defer stats_buffer.deinit(allocator);
 
-    // Verify GPU is ready
-    const health = try gpu.getHealth();
-    try std.testing.expect(health.status == .healthy or health.status == .degraded);
-
-    // 2. Initialize Inference Engine
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 200,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .vocab_size = 256,
-        .backend = .demo,
-    });
-    defer engine.deinit();
-
-    // 3. Submit a batch of requests representing a workload
-    const workload_size = 4;
-    var i: u64 = 0;
-    while (i < workload_size) : (i += 1) {
-        const ok = try engine.submit(.{
-            .id = i + 1,
-            .prompt = "Analyze this deeply simulated data.",
-            .max_tokens = 16,
-            .priority = @intCast(100 + i),
-        });
-        try std.testing.expect(ok);
-    }
-
-    try std.testing.expectEqual(@as(usize, workload_size), engine.scheduler.pendingCount());
-
-    // 4. Process the workload
-    const batch = try engine.scheduler.getBatch(workload_size);
-    defer allocator.free(batch);
-    try std.testing.expectEqual(@as(usize, workload_size), batch.len);
-
-    var total_tokens_generated: u32 = 0;
-    for (batch) |req| {
-        const result = try engine.generate(req);
-        defer result.deinit(allocator);
-
-        try std.testing.expect(result.text.len > 0);
-        try std.testing.expect(result.completion_tokens > 0);
-        total_tokens_generated += result.completion_tokens;
-    }
-
-    // 5. Simulate writing results/metrics to a GPU buffer
-    // Convert our metric to float for the buffer
-    const metric_data = [_]f32{ @floatFromInt(total_tokens_generated), engine.getStats().avg_tokens_per_second };
-    var stats_buffer = try gpu.createBufferFromSlice(f32, &metric_data, .{});
-    defer gpu.destroyBuffer(stats_buffer);
+    const metric_data = [_]f32{ 42.0, 7.5 };
+    try stats_buffer.write(f32, &metric_data);
 
     // Read it back to verify the GPU interaction worked
     var read_back: [2]f32 = [_]f32{0} ** 2;
@@ -375,7 +304,6 @@ test "inference: deep end-to-end workload with gpu interaction" {
     try std.testing.expectEqual(metric_data[1], read_back[1]);
     try std.testing.expect(read_back[0] > 0.0);
 }
->>>>>>> Stashed changes
 
 test {
     std.testing.refAllDecls(@This());

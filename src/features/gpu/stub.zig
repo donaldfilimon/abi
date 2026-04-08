@@ -37,22 +37,10 @@ pub const GpuConfig = types.GpuConfig;
 
 // ── Sub-module namespace stubs ─────────────────────────────────────────────
 
-<<<<<<< Updated upstream
-pub const core_gpu = struct {};
-pub const execution = struct {};
-pub const memory_ns = struct {};
-pub const advanced = struct {};
-
-pub const backend = struct {};
-pub const kernels = struct {};
-pub const memory = struct {};
-pub const backend_shared = struct {};
-=======
 pub const core = struct {};
 pub const compute = struct {};
 pub const memory_sys = struct {};
 pub const dispatch_sys = struct {};
->>>>>>> Stashed changes
 pub const profiling = struct {};
 pub const occupancy = struct {};
 pub const fusion = struct {};

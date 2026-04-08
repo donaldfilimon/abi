@@ -25,7 +25,6 @@ pub const EventReader = struct {
         return .{ .fd = {} };
     }
 
-<<<<<<< Updated upstream
     /// Read an event from the file descriptor, blocking until one is available.
     pub fn readEvent(self: *EventReader) !?Event {
         if (comptime !is_posix) return null;
@@ -42,45 +41,6 @@ pub const EventReader = struct {
         }
 
         return .{ .key = parseKey(buf[0]) };
-=======
-    /// Read a single event from the terminal, handling multi-byte escape sequences.
-    pub fn readEvent(self: *EventReader) !Key {
-        if (comptime !is_posix) return error.Unsupported;
-        var buf: [1]u8 = undefined;
-        const bytes_read = std.posix.read(self.fd, &buf) catch |err| return err;
-        if (bytes_read == 0) return error.EndOfStream;
-
-        if (buf[0] != 0x1b) {
-            return parseKey(buf[0]);
-        }
-
-        // It's an escape sequence, try to read more
-        var seq: [16]u8 = undefined;
-        var seq_len: usize = 0;
-
-        // Use poll to non-blockingly read the rest of the sequence
-        var fds: [1]std.posix.pollfd = undefined;
-        fds[0] = .{ .fd = self.fd, .events = std.posix.POLL.IN, .revents = 0 };
-
-        while (seq_len < seq.len) {
-            // Wait up to 10ms for next byte (escape sequences are sent quickly)
-            const num_events = std.posix.poll(&fds, 10) catch break;
-            if (num_events == 0) break;
-
-            var b: [1]u8 = undefined;
-            const n = std.posix.read(self.fd, &b) catch break;
-            if (n == 0) break;
-            
-            seq[seq_len] = b[0];
-            seq_len += 1;
-            // Stop parsing if we reach a letter or tilde, typical ends of ANSI sequences
-            if ((b[0] >= 'A' and b[0] <= 'Z') or (b[0] >= 'a' and b[0] <= 'z') or b[0] == '~') {
-                break;
-            }
-        }
-
-        return parseEscapeSequence(seq[0..seq_len]);
->>>>>>> Stashed changes
     }
 
     /// Parse a single byte into a Key event.

@@ -33,7 +33,7 @@ Auto-update checker:
 tools/auto_update.sh       # Check and apply updates for zig + zls
 ```
 
-Cache location: `~/.zigly/versions/<version>/bin/{zig,zls}`
+Cache location: `~/.zvm/{version}/bin/{zig,zls}`
 `zigly` now checks the active ZVM binary at `~/.zvm/bin/zig` first and uses it when `zig version`
 matches `.zigversion`; otherwise it falls back to the pinned zigly cache. If ZVM is installed,
 `zigly --install` syncs through ZVM first, and `zvm install master` can provide the current

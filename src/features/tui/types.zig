@@ -1,7 +1,7 @@
 //! Shared TUI types used by both mod.zig and stub.zig.
 
 const std = @import("std");
-const errors = @import("../../core/errors.zig");
+const errors = @import("../../features/core/errors.zig");
 
 pub const TuiError = errors.TuiFrameworkError;
 
