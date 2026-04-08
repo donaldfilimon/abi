@@ -40,7 +40,7 @@ pub fn withPlugins(comptime Builder: type, self: *Builder, plugin_cfg: config_mo
     return self;
 }
 
-pub fn registerPlugin(comptime Builder: type, self: *Builder, plugin: config_module.plugin_config.Plugin) *Builder {
+pub fn registerPlugin(comptime Builder: type, self: *Builder, plugin: config_module.PluginEntry) *Builder {
     self.plugins.append(self.allocator, plugin) catch {
         self.plugins_oom = true;
     };

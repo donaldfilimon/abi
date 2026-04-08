@@ -96,18 +96,23 @@ extern "c" fn mach_task_self_() mach_port_t;
 var smc_mu: sync.BlockingMutex = .{};
 var cached_conn: io_connect_t = 0;
 var conn_initialized: bool = false;
+var cached_service: io_object_t = 0;
 
 fn getConnection() SmcError!io_connect_t {
     if (comptime !is_darwin) return error.PlatformUnsupported;
     smc_mu.lock();
     defer smc_mu.unlock();
     if (conn_initialized) return cached_conn;
-    {
-        if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
-            return error.SmcConnectFailed;
-        }
-        conn_initialized = true;
+
+    const matching = IOServiceMatching("AppleSMC");
+    const service = IOServiceGetMatchingService(mach_task_self_(), matching);
+    if (service == 0) return error.SmcConnectFailed;
+    cached_service = service;
+
+    if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
+        return error.SmcConnectFailed;
     }
+    conn_initialized = true;
     return cached_conn;
 }
 

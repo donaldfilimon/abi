@@ -122,11 +122,8 @@ pub const WorkflowRunner = struct {
                     .task_id = session.task_id,
                 });
 
-                var prepared = prepared_step.PreparedStep.prepare(self, &step);
+                const prepared = prepared_step.PreparedStep.prepare(self, &step);
                 defer prepared.deinit(self.allocator);
-
-                var inputs: []const u8 = "";
-                errdefer self.allocator.free(inputs);
 
                 const outcome = step_execute.executeStepAttempts(
                     self,
@@ -189,7 +186,7 @@ pub const WorkflowRunner = struct {
                         step_output = result;
 
                         // --- Reactive Orchestration: Evaluate Confidence ---
-                        var chain = reasoning.ReasoningChain.init(self.allocator, prompt);
+                        var chain = reasoning.ReasoningChain.init(self.allocator, prepared.prompt);
                         defer chain.deinit();
 
                         // Mock evaluation heuristic
@@ -222,7 +219,7 @@ pub const WorkflowRunner = struct {
                                 if (step_output) |o| self.allocator.free(o);
                                 step_output = null;
 
-                                const action = self.handleFailure(step_id, RunError.ExecutionFailed, &tracker);
+                                const action = self.handleFailure(step_id, RunError.ExecutionFailed, &session.tracker);
                                 switch (action) {
                                     .retry, .reassign, .restart => {
                                         session.stats.total_retries += 1;
@@ -263,7 +260,7 @@ pub const WorkflowRunner = struct {
                 if (step_status == .completed) {
                     // Store output in blackboard
                     if (step_output) |output| {
-                        self.blackboard.put(step.output_key, output, profile_name) catch |err| {
+                        self.blackboard.put(step.output_key, output, prepared.profile_name) catch |err| {
                             std.log.warn("Failed to update blackboard: {t}", .{err});
                         };
                     }
@@ -274,23 +271,23 @@ pub const WorkflowRunner = struct {
                         .output = step_output orelse "",
                         .error_message = "",
                         .duration_ns = duration_ms * std.time.ns_per_ms,
-                        .assigned_profile = profile_name,
+                        .assigned_profile = prepared.profile_name,
                     };
-                    tracker.markCompleted(step_id, step_result_entry) catch |err| {
+                    session.tracker.markCompleted(step_id, step_result_entry) catch |err| {
                         std.log.warn("Failed to mark step completed: {t}", .{err});
                     };
-                    stats.completed_steps += 1;
+                    session.stats.completed_steps += 1;
 
                     // Store in our step_results map (dupe the output for ownership)
                     const output_copy = if (step_output) |o|
                         self.allocator.dupe(u8, o) catch null
                     else
                         null;
-                    step_results.put(self.allocator, step_id, .{
+                    session.step_results.put(self.allocator, step_id, .{
                         .step_id = step_id,
                         .output = output_copy,
                         .status = .completed,
-                        .assigned_profile = profile_name,
+                        .assigned_profile = prepared.profile_name,
                         .attempts = attempts,
                         .duration_ms = duration_ms,
                     }) catch |err| {
@@ -302,13 +299,13 @@ pub const WorkflowRunner = struct {
 
                     self.event_bus.publish(.{
                         .event_type = .agent_finished,
-                        .task_id = task_id,
+                        .task_id = session.task_id,
                         .success = true,
                         .duration_ns = duration_ms * std.time.ns_per_ms,
                     });
 
                     // Reset supervisor for this agent on success
-                    self.supervisor.resetAgent(profile_name);
+                    self.supervisor.resetAgent(prepared.profile_name);
                 } else {
                     const step_result_entry = workflow_mod.StepResult{
                         .step_id = step_id,
@@ -316,18 +313,18 @@ pub const WorkflowRunner = struct {
                         .output = "",
                         .error_message = "step execution failed",
                         .duration_ns = duration_ms * std.time.ns_per_ms,
-                        .assigned_profile = profile_name,
+                        .assigned_profile = prepared.profile_name,
                     };
-                    tracker.markFailed(step_id, step_result_entry) catch |err| {
+                    session.tracker.markFailed(step_id, step_result_entry) catch |err| {
                         std.log.warn("Failed to mark step failed: {t}", .{err});
                     };
-                    stats.failed_steps += 1;
+                    session.stats.failed_steps += 1;
 
-                    step_results.put(self.allocator, step_id, .{
+                    session.step_results.put(self.allocator, step_id, .{
                         .step_id = step_id,
                         .output = null,
                         .status = .failed,
-                        .assigned_profile = profile_name,
+                        .assigned_profile = prepared.profile_name,
                         .attempts = attempts,
                         .duration_ms = duration_ms,
                     }) catch |err| {
@@ -339,26 +336,26 @@ pub const WorkflowRunner = struct {
 
                     self.event_bus.publish(.{
                         .event_type = .agent_finished,
-                        .task_id = task_id,
+                        .task_id = session.task_id,
                         .success = false,
                         .duration_ns = duration_ms * std.time.ns_per_ms,
                     });
 
                     if (escalated) {
                         // Stop workflow on escalation
-                        const total_ms: u64 = if (overall_timer) |*t|
+                        const total_ms: u64 = if (session.overall_timer) |*t|
                             t.read() / std.time.ns_per_ms
                         else
                             0;
-                        stats.total_duration_ms = total_ms;
+                        session.stats.total_duration_ms = total_ms;
 
-                        self.event_bus.taskFailed(task_id, "step escalated");
+                        self.event_bus.taskFailed(session.task_id, "step escalated");
 
                         return WorkflowResult{
                             .success = false,
-                            .step_results = step_results,
+                            .step_results = session.step_results,
                             .final_output = null,
-                            .stats = stats,
+                            .stats = session.stats,
                             .allocator = self.allocator,
                         };
                     }

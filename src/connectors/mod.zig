@@ -56,6 +56,10 @@ pub const shared = @import("shared.zig");
 pub const auth = @import("auth.zig");
 pub const env = @import("env.zig");
 pub const providers = @import("providers.zig");
+
+pub const ENV_VARS = env.ENV_VARS;
+pub const ProviderInfo = providers.ProviderInfo;
+pub const ProviderRegistry = providers.ProviderRegistry;
 pub const loaders = @import("loaders.zig");
 
 var initialized = std.atomic.Value(bool).init(false);

@@ -65,6 +65,8 @@ pub const PagesConfig = content_config.PagesConfig;
 pub const BenchmarksConfig = benchmarks_config.BenchmarksConfig;
 pub const MobileConfig = platform_config.MobileConfig;
 pub const PluginConfig = plugin_config.PluginConfig;
+pub const PluginEntry = plugin_config.PluginEntry;
+pub const PluginEntryStatic = plugin_config.PluginEntryStatic;
 pub const LspConfig = lsp_config.LspConfig;
 
 // ============================================================================

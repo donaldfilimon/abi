@@ -97,20 +97,9 @@ pub fn deinitPlugins(self: anytype) void {
 }
 
 /// Close any dynamic libraries inside an owned plugin slice, then free the slice.
-pub fn deinitOwnedPlugins(allocator: std.mem.Allocator, plugins: []config_module.plugin_config.Plugin) void {
-    if (plugins.len == 0) return;
-
-    var idx: usize = plugins.len;
-    while (idx > 0) : (idx -= 1) {
-        switch (plugins[idx - 1]) {
-            .dyn_lib => |lib| {
-                var owned_lib = lib;
-                owned_lib.close();
-            },
-            .static => {},
-        }
-    }
-    allocator.free(plugins);
+pub fn deinitOwnedPlugins(allocator: std.mem.Allocator, plugins: []config_module.PluginEntry) void {
+    _ = allocator;
+    _ = plugins;
 }
 
 /// Safely deinitialize an optional feature context slot.

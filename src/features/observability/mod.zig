@@ -148,7 +148,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return build_options.feat_profiling;
+    return build_options.feat_observability;
 }
 
 pub fn isInitialized() bool {

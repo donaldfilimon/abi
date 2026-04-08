@@ -83,6 +83,7 @@ pub const VkPhysicalDeviceSparseProperties = vulkan_types.VkPhysicalDeviceSparse
 pub const VkCreateInstanceFn = vulkan_types.VkCreateInstanceFn;
 pub const VkDestroyInstanceFn = vulkan_types.VkDestroyInstanceFn;
 pub const VkEnumeratePhysicalDevicesFn = vulkan_types.VkEnumeratePhysicalDevicesFn;
+pub const VkEnumerateInstanceLayerPropertiesFn = vulkan_types.VkEnumerateInstanceLayerPropertiesFn;
 pub const VkGetPhysicalDevicePropertiesFn = vulkan_types.VkGetPhysicalDevicePropertiesFn;
 pub const VkGetPhysicalDeviceQueueFamilyPropertiesFn = vulkan_types.VkGetPhysicalDeviceQueueFamilyPropertiesFn;
 pub const VkGetPhysicalDeviceMemoryPropertiesFn = vulkan_types.VkGetPhysicalDeviceMemoryPropertiesFn;

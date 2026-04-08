@@ -148,6 +148,8 @@ pub const ViTConfig = struct {
     }
 };
 
+pub const VisionPipelineType = struct {};
+
 test {
     std.testing.refAllDecls(@This());
 }

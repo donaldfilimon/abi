@@ -4,6 +4,8 @@
 
 const std = @import("std");
 
+pub const Plugin = PluginConfig;
+
 /// Plugin loading and discovery settings.
 pub const PluginConfig = struct {
     /// Paths to search for plugins.
@@ -19,6 +21,9 @@ pub const PluginConfig = struct {
 
     /// Allow loading untrusted plugins.
     allow_untrusted: bool = false,
+
+    /// Plugins to load at startup.
+    plugins: []const PluginEntry = &[_]PluginEntry{},
 
     fn deinitStringSlices(allocator: std.mem.Allocator, slices: []const []const u8) void {
         var idx: usize = slices.len;
@@ -67,6 +72,17 @@ pub const PluginConfig = struct {
             .allow_untrusted = true,
         };
     }
+};
+
+pub const PluginEntry = union(enum) {
+    static: PluginEntryStatic,
+    dyn_lib: []const u8,
+};
+
+pub const PluginEntryStatic = struct {
+    name: []const u8,
+    init_plugin: *const fn (fw: *anyopaque) anyerror!void,
+    ptr: *anyopaque = undefined,
 };
 
 fn dupeStringSlices(allocator: std.mem.Allocator, slices: []const []const u8) ![]const []const u8 {

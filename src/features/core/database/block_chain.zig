@@ -120,6 +120,10 @@ pub const BlockConfig = struct {
     pipeline_id: ?u64 = null,
     /// Ordering within the pipeline (0-indexed).
     step_index: ?u16 = null,
+    /// Skip pointer for fast-forward navigation.
+    skip_pointer: ?u64 = null,
+    /// Summary pointer for aggregated content.
+    summary_pointer: ?u64 = null,
 };
 
 /// Profile tag with blending coefficient

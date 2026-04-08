@@ -137,9 +137,6 @@ pub const memory = @import("memory/base.zig");
 pub const memory_pool_advanced = @import("memory/pool.zig");
 pub const memory_pool_lockfree = @import("memory/lockfree.zig");
 
-pub const BufferFlags = memory.BufferFlags;
-pub const GpuBuffer = memory.GpuBuffer;
-pub const Buffer = GpuBuffer; // Alias for convenience
 pub const MemoryError = memory.MemoryError;
 
 // ── backend.Backends & Hardware ──────────────────────────────────────────────────
@@ -237,7 +234,92 @@ const LifecycleError = lifecycle.LifecycleError;
 
 const config_module = @import("../core/config/mod.zig");
 
-pub const Context = core.Context;
+pub const Gpu = unified.Gpu;
+
+pub const types = @import("types.zig");
+pub const Error = types.Error;
+pub const GpuError = types.Error;
+pub const KernelError = types.KernelError;
+pub const BackendSelectionError = types.BackendSelectionError;
+pub const MemoryInfo = types.MemoryInfo;
+pub const GpuStats = types.GpuStats;
+pub const MetricsSummary = types.MetricsSummary;
+pub const Backend = types.Backend;
+pub const Device = types.Device;
+pub const DeviceType = types.DeviceType;
+pub const Buffer = types.Buffer;
+pub const GpuBuffer = types.Buffer;
+pub const UnifiedBuffer = types.UnifiedBuffer;
+pub const BufferFlags = types.BufferFlags;
+pub const Stream = types.Stream;
+pub const StreamOptions = types.StreamOptions;
+pub const Event = types.Event;
+pub const EventOptions = types.EventOptions;
+pub const LaunchConfig = types.LaunchConfig;
+pub const ExecutionResult = types.ExecutionResult;
+pub const HealthStatus = types.HealthStatus;
+pub const KernelBuilder = types.KernelBuilder;
+pub const GpuConfig = unified.GpuConfig;
+pub const BufferOptions = unified.BufferOptions;
+pub const MatrixDims = unified.MatrixDims;
+
+pub const Context = struct {
+    pub fn init(allocator: std.mem.Allocator, config: GpuConfig) Error!*Context {
+        const ctx = try Context.create(allocator, config);
+        return ctx;
+    }
+    pub fn create(allocator: std.mem.Allocator, config: GpuConfig) Error!*Context {
+        const gpu = try Gpu.init(allocator, config);
+        const ctx = try allocator.create(Context);
+        ctx.* = Context{ .gpu = gpu };
+        return ctx;
+    }
+    pub fn deinit(ctx: *Context) void {
+        ctx.gpu.deinit();
+    }
+    pub fn getGpu(ctx: *Context) Error!*Gpu {
+        return &ctx.gpu;
+    }
+    pub fn createBuffer(ctx: *Context, comptime T: type, size: usize, opts: BufferOptions) Error!UnifiedBuffer {
+        return ctx.gpu.createBuffer(T, size, opts);
+    }
+    pub fn createBufferFromSlice(ctx: *Context, comptime T: type, data: []const T, opts: BufferOptions) Error!UnifiedBuffer {
+        return ctx.gpu.createBufferFromSlice(T, data, opts);
+    }
+    pub fn destroyBuffer(ctx: *Context, buf: *UnifiedBuffer) void {
+        ctx.gpu.destroyBuffer(buf);
+    }
+    pub fn vectorAdd(ctx: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, out: *UnifiedBuffer) Error!ExecutionResult {
+        return ctx.gpu.vectorAdd(a, b, out);
+    }
+    pub fn matrixMultiply(ctx: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, out: *UnifiedBuffer, dims: types.MatrixDims) Error!ExecutionResult {
+        return ctx.gpu.matrixMultiply(a, b, out, dims);
+    }
+    pub fn getHealth(ctx: *Context) Error!HealthStatus {
+        return ctx.gpu.getHealth();
+    }
+
+    gpu: Gpu,
+};
+
+pub const platform = @import("platform.zig");
+
+pub const GpuDevice = unified.GpuDevice;
+
+pub fn isEnabled(b: Backend) bool {
+    return b.isAvailable();
+}
+
+const stub_helpers = @import("../core/stub_helpers.zig");
+const Stub = stub_helpers.StubFeatureNoConfig(Error);
+pub const init = Stub.init;
+pub const deinit = Stub.deinit;
+pub const isInitialized = Stub.isInitialized;
+
+pub fn ensureInitialized(allocator: std.mem.Allocator) Error!void {
+    _ = allocator;
+    return error.GpuDisabled;
+}
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
@@ -248,9 +330,8 @@ test "gpu module enabled status" {
 
 test "gpu context init and deinit" {
     const allocator = std.testing.allocator;
-    const cfg = config_module.unified.GpuConfig{
-        .backend = .auto,
-        .memory_limit = null,
+    const cfg = unified.GpuConfig{
+        .preferred_backend = .simulated,
     };
     const ctx = Context.init(allocator, cfg) catch return error.SkipZigTest;
     defer ctx.deinit();

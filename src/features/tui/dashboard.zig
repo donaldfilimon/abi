@@ -230,16 +230,20 @@ pub fn run(allocator: std.mem.Allocator) !void {
     var event_reader = events_mod.EventReader.init();
     while (true) {
         const key = event_reader.readEvent() catch break;
+        const event = key orelse continue;
 
-        switch (key) {
-            .char => |c| {
-                if (c == 'q' or c == 'Q') break;
+        switch (event) {
+            .key => |k| switch (k) {
+                .char => |c| {
+                    if (c == 'q' or c == 'Q') break;
+                },
+                .ctrl => |c| {
+                    if (c == 'c') break;
+                },
+                .escape => break,
+                else => {},
             },
-            .ctrl => |c| {
-                if (c == 'c') break; // Ctrl+C
-            },
-            .escape => break,
-            else => {},
+            .resize => {},
         }
 
         // Re-render on any key

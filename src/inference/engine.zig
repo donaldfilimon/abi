@@ -48,7 +48,6 @@ pub const Result = engine_types.Result;
 pub const AsyncResult = engine_types.AsyncResult;
 pub const Stats = engine_types.Stats;
 
-
 fn makeErrorResult(id: u64, message: []const u8) Result {
     return .{
         .id = id,
@@ -236,13 +235,13 @@ pub const Engine = struct {
         return engine_async.generateAsyncWithTimeout(self, request);
     }
 
-
     pub fn getStats(self: *Self) Stats {
         const reqs = self.total_requests.load(.acquire);
         const toks = self.total_tokens.load(.acquire);
         const elapsed = self.total_elapsed_ns.load(.acquire);
         const pending = self.scheduler.pendingCount();
-        const avg_tps = if (@as(f32, @floatFromInt(elapsed)) > 0) @as(f32, @as(f32, @floatFromInt(toks))) * @as(f32, std.time.ns_per_s) / @as(f32, elapsed) else 0;
+        const elapsed_s = @as(f32, @floatFromInt(elapsed)) / @as(f32, @floatFromInt(std.time.ns_per_s));
+        const avg_tps: f32 = if (elapsed_s > 0) @as(f32, @floatFromInt(toks)) / elapsed_s else 0;
 
         return .{
             .total_requests = reqs,
@@ -320,7 +319,7 @@ test "engine connector backend: unsupported provider returns error" {
     defer engine.deinit();
 
     // model_id "test-model" has no slash -> falls back to echo
-    const result = try engine.generate(.{
+    var result = try engine.generate(.{
         .id = 1,
         .prompt = "Explain HNSW",
         .max_tokens = 10,
@@ -328,7 +327,7 @@ test "engine connector backend: unsupported provider returns error" {
     defer if (result.text_owned) allocator.free(result.text);
     try std.testing.expect(std.mem.indexOf(u8, result.text, "Explain HNSW") != null);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
-    defer var mutable = result; mutable.deinit(allocator);
+    result.deinit(allocator);
 
     try std.testing.expect(result.text.len > 0);
     try std.testing.expectEqual(Backend.demo, engine.getStats().backend);
@@ -418,9 +417,9 @@ test "engine average throughput uses elapsed time" {
     });
     defer engine.deinit();
 
-     engine.total_requests.store(3, .release);
-     engine.total_tokens.store(300, .release);
-     engine.total_elapsed_ns.store(2 * std.time.ns_per_s, .release);
+    engine.total_requests.store(3, .release);
+    engine.total_tokens.store(300, .release);
+    engine.total_elapsed_ns.store(2 * std.time.ns_per_s, .release);
 
     const stats = engine.getStats();
     try std.testing.expectApproxEqAbs(@as(f32, 150.0), stats.avg_tokens_per_second, 0.001);

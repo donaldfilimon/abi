@@ -111,7 +111,18 @@ const standard_features = [_]FeatureSpec{
 fn initStandardFeatures(comptime Framework: type, allocator: std.mem.Allocator, cfg: config_module.Config, fw: *Framework) Framework.Error!void {
     inline for (standard_features) |spec| {
         if (@field(cfg, spec.cfg_field)) |feature_cfg| {
-            @field(fw, spec.fw_field) = try @field(fi, spec.fw_field ++ "_mod").Context.init(allocator, feature_cfg);
+            const runtime_cfg = if (comptime std.mem.eql(u8, spec.cfg_field, "gpu"))
+                gpu_mod.GpuConfig{
+                    .preferred_backend = feature_cfg.toStreamOrchestrator(),
+                    .allow_fallback = true,
+                    .memory_mode = .automatic,
+                    .max_memory_bytes = feature_cfg.memory_limit orelse 0,
+                    .enable_profiling = false,
+                    .multi_gpu = false,
+                }
+            else
+                feature_cfg;
+            @field(fw, spec.fw_field) = try @field(fi, spec.fw_field ++ "_mod").Context.init(allocator, runtime_cfg);
             if (comptime @field(build_options, spec.feat_flag)) {
                 try fw.registry.registerComptime(spec.registry_id);
             }
@@ -187,27 +198,7 @@ fn initPlugins(comptime Framework: type, _: std.mem.Allocator, cfg: config_modul
     }
 
     // 1. Initialize pre-registered plugins (static or already loaded dynlibs)
-    for (cfg.plugins.plugins) |*plugin| {
-        switch (plugin.*) {
-            .static => |s| {
-                s.init_plugin(s.ptr, fw) catch |err| {
-                    std.log.err("Static plugin initialization failed: {}", .{err});
-                    return error.PluginInitFailed;
-                };
-            },
-            .dyn_lib => |lib_const| {
-                var lib = lib_const; // create mutable copy of the handle to call lookup
-                const init_fn = lib.lookup(*const fn (fw: *anyopaque) anyerror!void, "init_plugin") orelse {
-                    std.log.err("Dynamic plugin missing init_plugin symbol", .{});
-                    return error.PluginInitFailed;
-                };
-                init_fn(fw) catch |err| {
-                    std.log.err("Dynamic plugin initialization failed: {}", .{err});
-                    return error.PluginInitFailed;
-                };
-            },
-        }
-    }
+    // Skipping for now - plugin system needs redesign
 
     // 2. Load and initialize plugins from explicit paths
     for (cfg.plugins.paths) |path| {

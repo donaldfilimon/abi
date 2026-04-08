@@ -34,6 +34,7 @@ pub const ExecutionResult = types.ExecutionResult;
 pub const HealthStatus = types.HealthStatus;
 pub const KernelBuilder = types.KernelBuilder;
 pub const GpuConfig = types.GpuConfig;
+pub const MatrixDims = struct { m: usize = 0, n: usize = 0, k: usize = 0 };
 
 // ── Sub-module namespace stubs ─────────────────────────────────────────────
 
@@ -66,8 +67,11 @@ pub const interface = struct {};
 pub const cuda_loader = struct {};
 pub const platform = struct {};
 pub const backends = struct {};
+pub const backend = struct {};
+pub const backend_shared = struct {};
 pub const dispatch = struct {};
 pub const builtin_kernels = struct {};
+pub const kernels = struct {};
 pub const recovery = struct {};
 pub const failover = struct {};
 pub const failover_types = struct {};
@@ -79,6 +83,10 @@ pub const mega = struct {};
 pub const coordinator_ai_ops = struct {};
 pub const training_bridge = struct {};
 pub const gradient_compression = struct {};
+pub const execution = struct {};
+pub const memory_ns = struct {};
+pub const memory = struct {};
+pub const advanced = struct {};
 
 // ── Gpu struct ─────────────────────────────────────────────────────────────
 

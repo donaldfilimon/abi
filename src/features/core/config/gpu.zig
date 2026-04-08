@@ -51,6 +51,23 @@ pub const GpuConfig = struct {
         return .{};
     }
 
+    pub fn toStreamOrchestrator(self: GpuConfig) ?@import("../../../features/gpu/stream_orchestrator.zig").Backend {
+        return switch (self.backend) {
+            .auto => null,
+            .cuda => .cuda,
+            .vulkan => .vulkan,
+            .stdgpu => .stdgpu,
+            .metal => .metal,
+            .webgpu => .webgpu,
+            .opengl => .opengl,
+            .opengles => .opengles,
+            .webgl2 => .webgl2,
+            .fpga => .fpga,
+            .tpu => .tpu,
+            .cpu => .simulated,
+        };
+    }
+
     /// Select the best backend based on availability.
     pub fn autoSelectBackend() Backend {
         if (build_options.gpu_cuda) return .cuda;

@@ -208,7 +208,7 @@ pub const Framework = struct {
     runtime: *runtime_mod.Context,
     /// Owned plugin slice transferred in by the builder.
     /// When present, shutdown closes any dynamic libraries in the slice and frees it.
-    owned_plugins: ?[]config_module.plugin_config.Plugin = null,
+    owned_plugins: ?[]config_module.PluginEntry = null,
     /// Dynamic library handles opened during plugin initialization.
     /// Stored here so they remain resident and are closed on shutdown.
     dyn_lib_handles: std.ArrayListUnmanaged(std.DynLib) = .empty,
@@ -443,7 +443,7 @@ pub const FrameworkBuilder = struct {
     // file or network access can retrieve it through `framework.io`.
     io: ?std.Io = null,
     // List of registered plugins
-    plugins: std.ArrayListUnmanaged(config_module.plugin_config.Plugin) = .empty,
+    plugins: std.ArrayListUnmanaged(config_module.PluginEntry) = .empty,
     plugins_oom: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) FrameworkBuilder {
@@ -495,7 +495,7 @@ pub const FrameworkBuilder = struct {
     }
 
     /// Register a plugin directly (either static or dynamic).
-    pub fn registerPlugin(self: *FrameworkBuilder, plugin: config_module.plugin_config.Plugin) *FrameworkBuilder {
+    pub fn registerPlugin(self: *FrameworkBuilder, plugin: config_module.PluginEntry) *FrameworkBuilder {
         return framework_builder.registerPlugin(FrameworkBuilder, self, plugin);
     }
 
