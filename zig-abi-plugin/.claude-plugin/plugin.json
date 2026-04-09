@@ -16,6 +16,7 @@
     "pipeline",
     "wdbx"
   ],
+  
 
   "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, cross-platform builds, code review heuristics, autonomous parity checking, build diagnostics, and feature scaffolding for the ABI Zig codebase.",
   "author": {
