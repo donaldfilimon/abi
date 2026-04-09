@@ -1,7 +1,7 @@
 {
   "name": "zig-abi",
   "version": "0.11.0",
-  "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, pipeline DSL guidance, cross-platform builds, code review heuristics, and real-time verification for the ABI Zig codebase.",,
+  "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, pipeline DSL guidance, cross-platform builds, code review heuristics, and real-time verification for the ABI Zig codebase.",
   "author": {
     "name": "Donald Filimon"
   },
@@ -16,7 +16,6 @@
     "pipeline",
     "wdbx"
   ],
-  
 
   "description": "ABI Framework development assistant — smart build routing, Zig 0.16 patterns, feature module management, cross-platform builds, code review heuristics, autonomous parity checking, build diagnostics, and feature scaffolding for the ABI Zig codebase.",
   "author": {
