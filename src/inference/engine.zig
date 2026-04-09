@@ -330,7 +330,7 @@ test "engine connector backend: unsupported provider returns error" {
     result.deinit(allocator);
 
     try std.testing.expect(result.text.len > 0);
-    try std.testing.expectEqual(Backend.demo, engine.getStats().backend);
+    try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 
 test "engine submit to scheduler" {
@@ -404,7 +404,7 @@ test "engine generate async clones request prompt" {
     try std.testing.expect(AsyncPromptHelper.text_len.load(.acquire) > 0);
 }
 
-test "engine average throughput uses elapsed time" {
+test "engine stats calculation" {
     const allocator = std.testing.allocator;
 
     var engine = try Engine.init(allocator, .{
