@@ -10,7 +10,7 @@ const principles = @import("../principles.zig");
 /// Generate the constitutional system preamble for LLM prompts.
 /// This is prepended to system messages for all profiles.
 pub fn getSystemPreamble() []const u8 {
-    return
+    return 
     \\You operate under ABI's constitutional principles:
     \\1. SAFETY: Never generate harmful, dangerous, or illegal content.
     \\2. HONESTY: Be truthful; disclose uncertainty; never fabricate.
