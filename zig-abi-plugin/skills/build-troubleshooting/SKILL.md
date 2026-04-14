@@ -5,7 +5,7 @@ description: This skill diagnoses and resolves ABI build failures. Trigger when 
 
 # Build Troubleshooting for ABI
 
-Pinned at Zig `0.16.0-dev.2962+08416b44f` (`.zigversion`), package version `0.1.0` (`build.zig.zon`). The build.zig is **self-contained** — no external build/ modules.
+Pinned at Zig `0.16.0-dev.3153+d6f43caad` (`.zigversion`), package version `0.1.0` (`build.zig.zon`). The build.zig is **self-contained** — no external build/ modules.
 
 On macOS 26.4+ (Darwin 25.x), use `./build.sh` which auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
 
@@ -66,7 +66,7 @@ Build output shows a version mismatch warning, or only format-check steps (`lint
 
 ### Diagnosis
 
-1. Check the pinned version: read `.zigversion` (should contain `0.16.0-dev.2962+08416b44f`).
+1. Check the pinned version: read `.zigversion` (should contain `0.16.0-dev.3153+d6f43caad`).
 2. Check the active Zig version: `zig version`.
 3. Compare the two. Any mismatch triggers the detection logic in `build.zig`.
 
