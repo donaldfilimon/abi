@@ -15,23 +15,21 @@ if [ ! -x "$ZIGLY_BIN" ]; then
 elif [ "$ZIGLY_CLI_DIR/build.zig" -nt "$ZIGLY_BIN" ] || [ "$ZIGLY_CLI_DIR/build_wrapper.sh" -nt "$ZIGLY_BIN" ]; then
     needs_bootstrap=true
 else
-    while IFS= read -r source_file; do
-        if [ "$source_file" -nt "$ZIGLY_BIN" ]; then
-            needs_bootstrap=true
-            break
-        fi
-    done < <(find "$ZIGLY_CLI_DIR/src" -type f -name '*.zig' | sort)
+    # Check if any zig source files have been modified since the binary was built
+    if [ -n "$(find "$ZIGLY_CLI_DIR/src" -type f -name '*.zig' -newer "$ZIGLY_BIN" -print -quit)" ]; then
+        needs_bootstrap=true
+    fi
 fi
 
 # Ensure the native binary is built and fresh
 if [ "$needs_bootstrap" = true ]; then
     echo "==> Bootstrapping native zigly manager..." >&2
     cd "$ZIGLY_CLI_DIR"
-    ./build_wrapper.sh >/dev/null 2>&1 || {
+    # We don't redirect to /dev/null so the user can see build errors if they occur
+    if ! ./build_wrapper.sh; then
         echo "==> ERROR: Failed to bootstrap the native Zigly manager." >&2
-        cat manual_build_err.log >&2 2>/dev/null || true
         exit 1
-    }
+    fi
     cd - >/dev/null
 fi
 

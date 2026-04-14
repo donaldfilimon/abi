@@ -223,6 +223,23 @@ fn syncViaZvm(config: *core.Config, version: []const u8) !ResolvedToolchain {
 
     std.debug.print("==> ZVM detected. Activating Zig {s} through ZVM...\n", .{version});
 
+    // Check ZVM master first — this is the primary source for dev builds
+    const master_zig = try allocZvmMasterZigPath(config);
+    defer config.allocator.free(master_zig);
+    const master_version = try probeBinaryVersion(config, master_zig);
+    defer if (master_version) |v| config.allocator.free(v);
+
+    if (versionMatches(version, master_version)) {
+        const use_master = [_][]const u8{ zvm_path, "use", "master" };
+        if (try tryRunCommand(config, &use_master)) {
+            if (try resolveActiveZvmToolchain(config, version)) |toolchain| return toolchain;
+            return error.ZvmResolutionFailed;
+        }
+        std.debug.print("ERROR: ZVM has master matching version {s}, but 'zvm use master' failed.\n", .{version});
+        return error.ZvmUseFailed;
+    }
+
+    // Fall back to snapshot install if master doesn't match
     const install_exact = [_][]const u8{ zvm_path, "install", "--zls", "--nomirror", version };
     const installed_exact = try tryRunCommand(config, &install_exact);
 
@@ -232,25 +249,23 @@ fn syncViaZvm(config: *core.Config, version: []const u8) !ResolvedToolchain {
         if (try resolveActiveZvmToolchain(config, version)) |toolchain| return toolchain;
     }
 
+    // Try installing master as a last resort
     const install_master = [_][]const u8{ zvm_path, "install", "--zls", "--nomirror", "master" };
     _ = try tryRunCommand(config, &install_master);
 
-    const master_zig = try allocZvmMasterZigPath(config);
-    defer config.allocator.free(master_zig);
-    const master_version = try probeBinaryVersion(config, master_zig);
-    defer if (master_version) |v| config.allocator.free(v);
+    const master_version_after = try probeBinaryVersion(config, master_zig);
+    defer if (master_version_after) |v| config.allocator.free(v);
 
-    if (versionMatches(version, master_version)) {
+    if (versionMatches(version, master_version_after)) {
         const use_master = [_][]const u8{ zvm_path, "use", "master" };
-        if (!(try tryRunCommand(config, &use_master))) {
-            std.debug.print("ERROR: ZVM has a matching master build for {s}, but 'zvm use master' failed.\n", .{version});
-            return error.ZvmUseFailed;
+        if (try tryRunCommand(config, &use_master)) {
+            if (try resolveActiveZvmToolchain(config, version)) |toolchain| return toolchain;
+            return error.ZvmResolutionFailed;
         }
-        if (try resolveActiveZvmToolchain(config, version)) |toolchain| return toolchain;
     }
 
     std.debug.print("ERROR: ZVM is installed but could not activate Zig {s}.\n", .{version});
-    std.debug.print("       Tried explicit snapshot install/sync and a version-matched 'master' fallback.\n", .{});
+    std.debug.print("       Tried master, snapshot install, and master fallback.\n", .{});
     return error.UnsupportedZigVersion;
 }
 

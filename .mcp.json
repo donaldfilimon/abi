@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "abi-mcp": {
-      "command": "/Users/donaldfilimon/.local/bin/abi-mcp",
+      "command": "~/.local/bin/abi-mcp",
       "args": []
     }
   }

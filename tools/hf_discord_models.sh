@@ -1,11 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # hf_discord_models.sh — Search Hugging Face for chat/text-generation models
-# suitable for powering a Discord bot via the ABI inference engine.
-#
-# Outputs JSON with model id, downloads, likes, library, and tags.
-# Designed to pipe into jq or feed into ABI connector config.
-
-set -euo pipefail
+## Modernized POSIX shell version (no Bashisms)
+set -eu
 
 usage() {
   cat <<'EOF'
@@ -48,10 +44,10 @@ LIMIT=10
 PIPELINE="text-generation"
 LIBRARY=""
 SORT="downloads"
-COMPACT=false
-IDS_ONLY=false
+COMPACT=0
+IDS_ONLY=0
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
   case "$1" in
     --help) usage ;;
     --query) QUERY="$2"; shift 2 ;;
@@ -59,34 +55,27 @@ while [[ $# -gt 0 ]]; do
     --pipeline) PIPELINE="$2"; shift 2 ;;
     --library) LIBRARY="$2"; shift 2 ;;
     --sort) SORT="$2"; shift 2 ;;
-    --compact) COMPACT=true; shift ;;
-    --ids-only) IDS_ONLY=true; shift ;;
-    *) echo "Unknown option: $1" >&2; exit 1 ;;
+    --compact) COMPACT=1; shift ;;
+    --ids-only) IDS_ONLY=1; shift ;;
+    *) echo "Unknown option: $1" >&2; usage ;;
   esac
 done
 
 # Build URL
 URL="https://huggingface.co/api/models?pipeline_tag=${PIPELINE}&sort=${SORT}&direction=-1&limit=${LIMIT}&search=${QUERY}"
-if [[ -n "$LIBRARY" ]]; then
-  URL="${URL}&library=${LIBRARY}"
-fi
-
-# Auth header (optional but recommended for rate limits)
-AUTH_HEADER=()
-if [[ -n "${HF_TOKEN:-}" ]]; then
-  AUTH_HEADER=(-H "Authorization: Bearer ${HF_TOKEN}")
+if [ -n "$LIBRARY" ]; then
+  URL="$URL&library=${LIBRARY}"
 fi
 
 # Fetch
-RESPONSE=$(curl -sf "${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"}" "$URL") || {
-  echo "Error: Failed to fetch from Hugging Face API" >&2
-  exit 1
+RESPONSE="$(curl -fsSL "$URL" || true)" || {
+  echo "Error: Failed to fetch from Hugging Face API" >&2; exit 1;
 }
 
 # Output
-if $IDS_ONLY; then
+if [ "$IDS_ONLY" -eq 1 ]; then
   echo "$RESPONSE" | jq -r '.[].id'
-elif $COMPACT; then
+elif [ "$COMPACT" -eq 1 ]; then
   echo "$RESPONSE" | jq -c '.[] | {id, downloads, likes, library: .library_name, pipeline: .pipeline_tag}'
 else
   echo "$RESPONSE" | jq '[.[] | {
@@ -96,5 +85,5 @@ else
     library: .library_name,
     pipeline: .pipeline_tag,
     tags: [.tags[] | select(. == "chat" or . == "conversational" or . == "instruct" or . == "gguf" or . == "mlx" or . == "quantized")]
-  }]'
+  }]]'
 fi

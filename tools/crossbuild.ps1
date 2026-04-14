@@ -1,4 +1,5 @@
 #Requires -Version 7.0
+Set-StrictMode -Version Latest
 <#
 .SYNOPSIS
     ABI Cross-Platform Build Tool for Windows

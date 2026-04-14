@@ -106,10 +106,15 @@ fn getConnection() SmcError!io_connect_t {
 
     const matching = IOServiceMatching("AppleSMC");
     const service = IOServiceGetMatchingService(mach_task_self_(), matching);
-    if (service == 0) return error.SmcConnectFailed;
+    if (service == 0) {
+        std.log.err("SMC: IOServiceGetMatchingService returned null/zero for 'AppleSMC'. SMC is likely inaccessible or not present.", .{});
+        return error.SmcConnectFailed;
+    }
     cached_service = service;
 
-    if (IOServiceOpen(service, mach_task_self_(), 0, &cached_conn) != 0) {
+    const open_res = IOServiceOpen(service, mach_task_self_(), 0, &cached_conn);
+    if (open_res != 0) {
+        std.log.err("SMC: IOServiceOpen failed with code {d}. SMC access restricted.", .{open_res});
         return error.SmcConnectFailed;
     }
     conn_initialized = true;
