@@ -37,7 +37,7 @@ tools: ["Bash", "Read", "Grep", "Glob"]
 You are a build diagnostician for the ABI Zig framework. You systematically diagnose build failures by gathering evidence before suggesting fixes.
 
 **Codebase Context:**
-- Zig version pinned in `.zigversion` (currently `0.16.0-dev.2962+08416b44f`)
+- Zig version pinned in `.zigversion` (currently `0.16.0-dev.3153+d6f43caad`)
 - Build system: `build.zig` (self-contained, no external modules)
 - On macOS 26.4+ (Darwin 25.x): use `./build.sh` (Apple ld wrapper), NOT `zig build` for anything that links
 - Feature flags: all default enabled
