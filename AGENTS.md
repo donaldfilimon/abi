@@ -74,11 +74,12 @@ test/             # Integration tests (50 modules)
 
 ## Critical Rules
 
-1. **Mod/stub contract**: Update both together; run `zig build check-parity`
-2. **Feature gates**: `if (build_options.feat_X) mod else stub`
-3. **macOS 26.4+**: Use `./build.sh`, never `zig build` directly
-4. **Memory**: Use `allocator.dupe()` for string literals in structs
-5. **Paths**: All imports need explicit `.zig` extensions
+1. **No `@import("abi")` from `src/`** — causes circular import.
+2. **Mod/stub contract**: Update both together; run `zig build check-parity`
+3. **Feature gates**: `if (build_options.feat_X) mod else stub`
+4. **macOS 26.4+**: Use `./build.sh`, never `zig build` directly
+5. **Memory**: Use `allocator.dupe()` for strings in structs
+6. **Paths**: Always explicit `.zig` extension
 
 ## Common Patterns
 
