@@ -47,8 +47,6 @@ pub const StreamingError = error{
 // ── Enums ──────────────────────────────────────────────────────────────────
 
 pub const DType = enum { f32, f16, q4_0, q8_0 };
-pub const ParallelStrategy = enum { none, tensor, pipeline, hybrid };
-pub const ParallelMode = enum { single, distributed };
 pub const StreamingState = enum { idle, prefilling, generating, completed, cancelled, errored };
 pub const EngineBackend = enum {
     none,
@@ -73,6 +71,9 @@ pub const TensorInfo = struct {
 };
 pub const GgufHeader = struct {};
 pub const GgufMetadata = struct {};
+pub const GgufMetadataValue = struct {};
+pub const GgufMetadataValueType = enum { none, uint8, int8, uint16, int16, uint32, int32, float32, bool, string, array, uint64, int64, float64 };
+pub const GgufTensorType = enum { f32, f16, q4_0, q4_1, q5_0, q5_1, q8_0, q8_1, q2_k, q3_k, q4_k, q5_k, q6_k, q8_k };
 pub const TensorEntry = struct { value_ptr: *const TensorInfo };
 pub const TensorIterator = struct {
     pub fn next(_: *TensorIterator) ?TensorEntry {
@@ -93,8 +94,20 @@ pub const GgufFile = struct {
     pub fn deinit(_: *GgufFile) void {}
     pub fn printSummaryDebug(_: *const GgufFile) void {}
 };
+pub const MmapError = error{ OpenFailed, MapFailed, CloseFailed, OutOfMemory, FeatureDisabled };
+pub const GgufError = error{ InvalidMagic, UnsupportedVersion, MetadataNotFound, TensorNotFound, ShapeMismatch, InvalidType, InvalidValue, FeatureDisabled };
+pub const GgufWriterError = error{ OpenFailed, WriteFailed, OutOfMemory, FeatureDisabled };
+pub const ExportConfig = struct {};
+pub const ExportWeights = struct {};
+pub const LayerWeights = struct {};
+pub const TensorLoader = struct {};
+
 pub const MappedFile = struct {};
 pub const Tensor = struct {};
+pub const Shape = [4]u32;
+pub const TensorError = error{ InvalidShape, InvalidType, OutOfMemory, FeatureDisabled };
+pub const QuantType = enum { none, q4_0, q4_1, q8_0 };
+pub const TensorView = struct {};
 pub const Q4_0Block = struct {};
 pub const Q4_1Block = struct {};
 pub const Q8_0Block = struct {};
@@ -111,8 +124,27 @@ pub const BpeTokenizer = struct {
         return error.FeatureDisabled;
     }
 };
+pub const CharTokenizer = struct {};
+pub const SentencePieceTokenizer = struct {
+    pub fn init(_: std.mem.Allocator) SentencePieceTokenizer {
+        return .{};
+    }
+    pub fn deinit(_: *SentencePieceTokenizer) void {}
+    pub fn encode(_: *const SentencePieceTokenizer, _: std.mem.Allocator, _: []const u8) LlmError![]u32 {
+        return error.FeatureDisabled;
+    }
+    pub fn decode(_: *const SentencePieceTokenizer, _: std.mem.Allocator, _: []const u32) LlmError![]u8 {
+        return error.FeatureDisabled;
+    }
+};
 pub const Tokenizer = BpeTokenizer;
 pub const Vocab = struct {};
+pub const SpecialTokens = struct {};
+pub const TokenizerError = error{ InvalidUtf8, VocabNotLoaded, UnknownToken, DecodingError, EncodingError, OutOfMemory, FeatureDisabled };
+pub const SentencePieceError = error{ InvalidModel, InvalidToken, DecodingError, EncodingError, OutOfMemory, FeatureDisabled };
+pub const TokenType = enum { normal, unknown, control, user_defined, byte };
+pub const TokenizerLoadError = error{ MissingTokenizer, InvalidTokenizer, UnsupportedTokenizer, OutOfMemory, FeatureDisabled };
+pub const TokenizerKind = enum { bpe, sentencepiece, unknown };
 
 pub const ModelInfo = struct {
     model_name: []const u8 = "",
@@ -201,7 +233,6 @@ pub const ModelConfig = struct {
     }
 };
 
-pub const Generator = struct {};
 pub const GeneratorConfig = struct {
     max_tokens: u32 = 256,
     stop_tokens: []const u32 = &[_]u32{2},
@@ -214,8 +245,19 @@ pub const GeneratorConfig = struct {
 pub const Sampler = struct {};
 pub const SamplerConfig = struct {};
 pub const KvCache = struct {};
+pub const RopeCache = struct {};
+pub const GpuOpsContext = struct {};
+pub const GpuStats = struct {};
+pub const LlmMemoryPool = struct {};
+pub const PooledBuffer = struct {};
+pub const PoolConfig = struct {};
+pub const PoolStats = struct {};
+pub const AttentionCache = struct {};
+pub const SwigluCache = struct {};
 pub const TensorParallelConfig = struct {};
 pub const PipelineParallelConfig = struct {};
+pub const ParallelStrategy = enum { none, tensor, pipeline, hybrid };
+pub const ParallelMode = enum { single, distributed };
 pub const ParallelConfig = struct {};
 pub const ParallelCoordinator = struct {};
 pub const ParallelExecutor = struct {

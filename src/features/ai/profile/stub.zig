@@ -14,11 +14,11 @@ pub const MessageKind = types.MessageKind;
 pub const RoutingConfig = types.RoutingConfig;
 pub const ProfileError = types.ProfileError;
 
-pub const MultiProfileConfig = struct {
+pub const MultiProfileConfig_Internal = struct {
     routing: RoutingConfig = .{},
 };
 
-pub const ProfileInstance = struct {
+pub const ProfileInstance_Internal = struct {
     id: ProfileId,
     state: ProfileState = .uninitialized,
     allocator: std.mem.Allocator,
@@ -34,11 +34,11 @@ pub const ProfileInstance = struct {
     }
 };
 
-pub const ProfileRegistry = struct {
+pub const ProfileRegistry_Internal = struct {
     allocator: std.mem.Allocator,
     initialized: bool = false,
 
-    pub fn init(allocator: std.mem.Allocator, _: MultiProfileConfig) ProfileRegistry {
+    pub fn init(allocator: std.mem.Allocator, _: MultiProfileConfig_Internal) ProfileRegistry_Internal {
         return .{ .allocator = allocator };
     }
     pub fn initAll(_: *ProfileRegistry) ProfileError!void {
@@ -58,10 +58,10 @@ pub const ProfileRegistry = struct {
     pub fn deinit(_: *ProfileRegistry) void {}
 };
 
-pub const MultiProfileRouter = struct {
+pub const MultiProfileRouter_Internal = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator, _: *ProfileRegistry, _: RoutingConfig) MultiProfileRouter {
+    pub fn init(allocator: std.mem.Allocator, _: *ProfileRegistry_Internal, _: RoutingConfig) MultiProfileRouter_Internal {
         return .{ .allocator = allocator };
     }
     pub fn route(_: *MultiProfileRouter, _: []const u8) RoutingDecision {
@@ -82,39 +82,46 @@ pub const MultiProfileRouter = struct {
     pub fn deinit(_: *MultiProfileRouter) void {}
 };
 
-pub const ProfileBus = struct {
-    pub fn init(_: std.mem.Allocator) ProfileBus {
+pub const ProfileBus_Internal = struct {
+    pub fn init(_: std.mem.Allocator) ProfileBus_Internal {
         return .{};
     }
-    pub fn deinit(_: *ProfileBus) void {}
+    pub fn deinit(_: *ProfileBus_Internal) void {}
 };
 
-pub const ConversationMemory = struct {
-    pub fn init(_: std.mem.Allocator) ConversationMemory {
+pub const ConversationMemory_Internal = struct {
+    pub fn init(_: std.mem.Allocator) ConversationMemory_Internal {
         return .{};
     }
-    pub fn asStoreStep(_: *const ConversationMemory) pipeline_types.StoreConfig {
+    pub fn asStoreStep(_: *const ConversationMemory_Internal) pipeline_types.StoreConfig {
         return .{ .target = .wdbx };
     }
-    pub fn deinit(_: *ConversationMemory) void {}
+    pub fn deinit(_: *ConversationMemory_Internal) void {}
 };
 
+pub const MultiProfileConfig = MultiProfileConfig_Internal;
+pub const ProfileInstance = ProfileInstance_Internal;
+pub const ProfileRegistry = ProfileRegistry_Internal;
+pub const MultiProfileRouter = MultiProfileRouter_Internal;
+pub const ProfileBus = ProfileBus_Internal;
+pub const ConversationMemory = ConversationMemory_Internal;
+
 pub const registry = struct {
-    pub const ProfileRegistry_ = ProfileRegistry;
-    pub const ProfileInstance_ = ProfileInstance;
-    pub const MultiProfileConfig_ = MultiProfileConfig;
+    pub const ProfileRegistry = ProfileRegistry_Internal;
+    pub const ProfileInstance = ProfileInstance_Internal;
+    pub const MultiProfileConfig = MultiProfileConfig_Internal;
 };
 
 pub const router = struct {
-    pub const MultiProfileRouter_ = MultiProfileRouter;
+    pub const MultiProfileRouter = MultiProfileRouter_Internal;
 };
 
 pub const bus = struct {
-    pub const ProfileBus_ = ProfileBus;
+    pub const ProfileBus = ProfileBus_Internal;
 };
 
 pub const memory = struct {
-    pub const ConversationMemory_ = ConversationMemory;
+    pub const ConversationMemory = ConversationMemory_Internal;
 };
 
 test {

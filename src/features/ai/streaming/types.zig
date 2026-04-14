@@ -280,6 +280,9 @@ pub const SseEncoder = struct {
     pub fn encode(_: *SseEncoder, _: StreamEvent) ![]u8 {
         return error.FeatureDisabled;
     }
+    pub fn encodeHeartbeat(_: *SseEncoder) ![]u8 {
+        return error.FeatureDisabled;
+    }
 };
 
 pub const SseDecoder = struct {
@@ -295,8 +298,11 @@ pub const SseDecoder = struct {
     }
 };
 
+pub const FormatType = enum { openai, abi };
+pub const StreamChunk = struct { text: []const u8, index: usize, is_end: bool, model: ?[]const u8, finish_reason: ?[]const u8 };
+
 pub const BackpressureController = struct {
-    pub fn init(_: BackpressureConfig) BackpressureController {
+    pub fn init(_: BackpressureConfig) error{TimerUnavailable}!BackpressureController {
         return .{};
     }
     pub fn checkFlow(_: *BackpressureController) FlowState {
@@ -304,13 +310,21 @@ pub const BackpressureController = struct {
     }
     pub fn produce(_: *BackpressureController) void {}
     pub fn consume(_: *BackpressureController) void {}
+    pub fn drop(_: *BackpressureController) void {}
+    pub fn getState(_: *const BackpressureController) FlowState {
+        return .normal;
+    }
+    pub fn getStats(_: *const BackpressureController) BackpressureStats {
+        return .{};
+    }
+    pub fn reset(_: *BackpressureController) void {}
 };
 
 pub const RateLimiter = struct {
     tokens_per_second: f64 = 0,
-    bucket_size: ?f64 = null,
-    pub fn init(tps: f64, bs: ?f64) RateLimiter {
-        return .{ .tokens_per_second = tps, .bucket_size = bs };
+    bucket_size: f64 = 0,
+    pub fn init(tps: f64, bs: ?f64) error{TimerUnavailable}!RateLimiter {
+        return .{ .tokens_per_second = tps, .bucket_size = bs orelse tps };
     }
     pub fn tryAcquire(_: *RateLimiter) bool {
         return false;
@@ -353,7 +367,7 @@ pub const TokenBuffer = struct {
     }
     pub fn clear(_: *TokenBuffer) void {}
     pub fn getStats(_: *const TokenBuffer) BufferStats {
-        return .{};
+        return .{ .current_size = 0, .capacity = 0, .total_pushed = 0, .total_popped = 0, .total_dropped = 0, .utilization = 0 };
     }
     pub fn flushAsText(_: *TokenBuffer) ![]u8 {
         return error.FeatureDisabled;
@@ -362,7 +376,7 @@ pub const TokenBuffer = struct {
 
 pub const CoalescingBuffer = struct {
     allocator: std.mem.Allocator,
-    max_length: usize,
+    max_length: usize = 0,
     pub fn init(allocator: std.mem.Allocator, max_length: usize) CoalescingBuffer {
         return .{ .allocator = allocator, .max_length = max_length };
     }
@@ -450,6 +464,9 @@ pub const StreamingServer = struct {
         return error.FeatureDisabled;
     }
 };
+
+pub const Frame = struct { fin: bool, opcode: WebSocketOpcode, masked: bool, mask: ?[4]u8, payload: []const u8 };
+pub const ConnectionState = enum { connecting, open, closing, closed };
 
 pub const WebSocketHandler = struct {
     allocator: std.mem.Allocator,

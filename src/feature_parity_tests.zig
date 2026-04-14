@@ -204,8 +204,8 @@ comptime {
     }
 
     // Tier 2: Public-adjacent internal AI modules not represented in the catalog.
-    // Note: ai/aviva lacks stub.zig — skip until stub is created.
     assertParity("ai/abi", @import("features/ai/abi/mod.zig"), @import("features/ai/abi/stub.zig"));
+    assertParity("ai/aviva", @import("features/ai/aviva/mod.zig"), @import("features/ai/aviva/stub.zig"));
 }
 
 test "mod/stub parity check compiled successfully" {

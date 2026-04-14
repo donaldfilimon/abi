@@ -59,6 +59,7 @@ pub const results = struct {
     pub const MatchType = types.MatchType;
     pub const ExploreError = types.ExploreError;
     pub const ExplorationStats = types.ExplorationStats;
+    pub const FileSummary = types.FileSummary;
 };
 pub const fs = struct {
     pub const FileVisitor = types.FileVisitor;
@@ -103,7 +104,6 @@ pub const dependency = struct {
     pub const DependencyEdge = types.DependencyEdge;
     pub const ImportType = types.ImportType;
     pub const DependencyGraph = types.DependencyGraph;
-    pub const ModuleDependency = types.DependencyGraph.ModuleDependency;
     pub const DependencyAnalyzer = types.DependencyAnalyzer;
     pub const buildDependencyGraph = @import("stub.zig").buildDependencyGraph;
 };

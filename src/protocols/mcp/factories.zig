@@ -123,61 +123,61 @@ pub fn createDiscordServer(allocator: std.mem.Allocator, version: []const u8) !S
     var server = Server.init(allocator, "abi-discord", version);
 
     const tools = [_]struct { name: []const u8, desc: []const u8, schema: []const u8, handler: @TypeOf(discord_handlers.handleDiscordSendMessage) }{
-        .{ .name = "discord_send_message", .desc = "Send a message to a Discord channel", .schema = 
+        .{ .name = "discord_send_message", .desc = "Send a message to a Discord channel", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"content":{"type":"string","description":"Message content"}},"required":["channel_id","content"]}
         , .handler = discord_handlers.handleDiscordSendMessage },
-        .{ .name = "discord_send_embed", .desc = "Send a rich embed message to a Discord channel", .schema = 
+        .{ .name = "discord_send_embed", .desc = "Send a rich embed message to a Discord channel", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"title":{"type":"string","description":"Embed title"},"description":{"type":"string","description":"Embed description"},"content":{"type":"string","description":"Optional text content"},"color":{"type":"integer","description":"Embed color (decimal)"}},"required":["channel_id","title"]}
         , .handler = discord_handlers.handleDiscordSendEmbed },
-        .{ .name = "discord_edit_message", .desc = "Edit an existing Discord message", .schema = 
+        .{ .name = "discord_edit_message", .desc = "Edit an existing Discord message", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"},"content":{"type":"string","description":"New content"}},"required":["channel_id","message_id","content"]}
         , .handler = discord_handlers.handleDiscordEditMessage },
-        .{ .name = "discord_delete_message", .desc = "Delete a Discord message", .schema = 
+        .{ .name = "discord_delete_message", .desc = "Delete a Discord message", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"}},"required":["channel_id","message_id"]}
         , .handler = discord_handlers.handleDiscordDeleteMessage },
-        .{ .name = "discord_get_messages", .desc = "Get recent messages from a Discord channel", .schema = 
+        .{ .name = "discord_get_messages", .desc = "Get recent messages from a Discord channel", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"limit":{"type":"integer","description":"Max messages (1-100, default 50)","default":50}},"required":["channel_id"]}
         , .handler = discord_handlers.handleDiscordGetMessages },
-        .{ .name = "discord_get_channel", .desc = "Get Discord channel details", .schema = 
+        .{ .name = "discord_get_channel", .desc = "Get Discord channel details", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"}},"required":["channel_id"]}
         , .handler = discord_handlers.handleDiscordGetChannel },
-        .{ .name = "discord_react", .desc = "Add a reaction to a Discord message", .schema = 
+        .{ .name = "discord_react", .desc = "Add a reaction to a Discord message", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"},"emoji":{"type":"string","description":"Emoji (e.g. %F0%9F%91%8D or custom:name:id)"}},"required":["channel_id","message_id","emoji"]}
         , .handler = discord_handlers.handleDiscordReact },
-        .{ .name = "discord_typing", .desc = "Show typing indicator in a Discord channel", .schema = 
+        .{ .name = "discord_typing", .desc = "Show typing indicator in a Discord channel", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string"}},"required":["channel_id"]}
         , .handler = discord_handlers.handleDiscordTyping },
-        .{ .name = "discord_get_guild", .desc = "Get Discord server (guild) details", .schema = 
+        .{ .name = "discord_get_guild", .desc = "Get Discord server (guild) details", .schema =
         \\{"type":"object","properties":{"guild_id":{"type":"string","description":"Discord guild/server ID"}},"required":["guild_id"]}
         , .handler = discord_handlers.handleDiscordGetGuild },
-        .{ .name = "discord_get_guild_channels", .desc = "List all channels in a Discord server", .schema = 
+        .{ .name = "discord_get_guild_channels", .desc = "List all channels in a Discord server", .schema =
         \\{"type":"object","properties":{"guild_id":{"type":"string","description":"Discord guild/server ID"}},"required":["guild_id"]}
         , .handler = discord_handlers.handleDiscordGetGuildChannels },
-        .{ .name = "discord_list_guilds", .desc = "List all Discord servers the bot is in", .schema = 
+        .{ .name = "discord_list_guilds", .desc = "List all Discord servers the bot is in", .schema =
         \\{"type":"object","properties":{},"required":[]}
         , .handler = discord_handlers.handleDiscordListGuilds },
-        .{ .name = "discord_get_bot", .desc = "Get the bot's own Discord user info", .schema = 
+        .{ .name = "discord_get_bot", .desc = "Get the bot's own Discord user info", .schema =
         \\{"type":"object","properties":{},"required":[]}
         , .handler = discord_handlers.handleDiscordGetBot },
-        .{ .name = "discord_create_dm", .desc = "Open a DM channel with a Discord user", .schema = 
+        .{ .name = "discord_create_dm", .desc = "Open a DM channel with a Discord user", .schema =
         \\{"type":"object","properties":{"user_id":{"type":"string","description":"Discord user ID"}},"required":["user_id"]}
         , .handler = discord_handlers.handleDiscordCreateDM },
-        .{ .name = "discord_execute_webhook", .desc = "Execute a Discord webhook", .schema = 
+        .{ .name = "discord_execute_webhook", .desc = "Execute a Discord webhook", .schema =
         \\{"type":"object","properties":{"webhook_id":{"type":"string"},"token":{"type":"string"},"content":{"type":"string"}},"required":["webhook_id","token","content"]}
         , .handler = discord_handlers.handleDiscordExecuteWebhook },
-        .{ .name = "discord_get_member", .desc = "Get a member's details in a Discord server", .schema = 
+        .{ .name = "discord_get_member", .desc = "Get a member's details in a Discord server", .schema =
         \\{"type":"object","properties":{"guild_id":{"type":"string"},"user_id":{"type":"string"}},"required":["guild_id","user_id"]}
         , .handler = discord_handlers.handleDiscordGetMember },
-        .{ .name = "discord_register_command", .desc = "Register a global slash command for the bot", .schema = 
+        .{ .name = "discord_register_command", .desc = "Register a global slash command for the bot", .schema =
         \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"},"name":{"type":"string","description":"Command name (lowercase, 1-32 chars)"},"description":{"type":"string","description":"Command description (1-100 chars)"}},"required":["application_id","name","description"]}
         , .handler = discord_handlers.handleDiscordRegisterCommand },
-        .{ .name = "discord_list_commands", .desc = "List all registered global slash commands", .schema = 
+        .{ .name = "discord_list_commands", .desc = "List all registered global slash commands", .schema =
         \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"}},"required":["application_id"]}
         , .handler = discord_handlers.handleDiscordListCommands },
-        .{ .name = "discord_delete_command", .desc = "Delete a global slash command by ID", .schema = 
+        .{ .name = "discord_delete_command", .desc = "Delete a global slash command by ID", .schema =
         \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"},"command_id":{"type":"string","description":"Command ID to delete"}},"required":["application_id","command_id"]}
         , .handler = discord_handlers.handleDiscordDeleteCommand },
-        .{ .name = "discord_get_message", .desc = "Get a specific Discord message by ID", .schema = 
+        .{ .name = "discord_get_message", .desc = "Get a specific Discord message by ID", .schema =
         \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"}},"required":["channel_id","message_id"]}
         , .handler = discord_handlers.handleDiscordGetMessage },
     };

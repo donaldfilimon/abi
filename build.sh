@@ -25,7 +25,7 @@ Commands:
 
 Options:
     -Dfeat-*          Feature flags (e.g., -Dfeat-gpu=false)
-    -Dgpu-backend=*  GPU backend (metal, cuda, vulkan, etc.)
+    -Dgpu-backend=*   GPU backend (metal, cuda, vulkan, etc.)
 
 Examples:
     ./build.sh                    # Build library
@@ -39,6 +39,7 @@ EOF
 
 LINK_MODE=false
 BOOTSTRAP_MODE=false
+COMMAND=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -69,8 +70,6 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
-REMAINING_ARGS=("$@")
 
 resolve_zig() {
     local candidate
@@ -109,10 +108,9 @@ if [ "$BOOTSTRAP_MODE" = true ]; then
     echo "Building project..."
 fi
 
-COMMAND="${COMMAND:-}"
 if [ -z "$COMMAND" ]; then
     echo "Building library..."
-    exec "$ZIG" build "${REMAINING_ARGS[@]}"
+    exec "$ZIG" build "$@"
 else
-    exec "$ZIG" build "$COMMAND" "${REMAINING_ARGS[@]}"
+    exec "$ZIG" build "$COMMAND" "$@"
 fi

@@ -11,8 +11,33 @@ pub const BackendConfig = types.BackendConfig;
 pub const EmbeddingConfig = types.EmbeddingConfig;
 
 pub const Error = error{ FeatureDisabled, ModelNotFound, EmbeddingFailed, InvalidInput };
+
+pub const EmbedFn = *const fn (
+    ctx: *anyopaque,
+    allocator: std.mem.Allocator,
+    text: []const u8,
+    dimensions: usize,
+) BackendError![]f32;
+
+pub const EmbedBatchFn = *const fn (
+    ctx: *anyopaque,
+    allocator: std.mem.Allocator,
+    texts: []const []const u8,
+    dimensions: usize,
+) BackendError![][]f32;
+
+pub const DeinitFn = *const fn (ctx: *anyopaque) void;
+
 pub const EmbeddingBackend = struct {
+    ptr: *anyopaque = undefined,
+    embedFn: EmbedFn = undefined,
+    embedBatchFn: EmbedBatchFn = undefined,
+    deinitFn: ?DeinitFn = null,
     backend_type: BackendType = .local,
+    name: []const u8 = "stub",
+    model: []const u8 = "",
+    default_dimensions: usize = 384,
+
     pub fn embed(_: EmbeddingBackend, _: std.mem.Allocator, _: []const u8, _: usize) BackendError![]f32 {
         return BackendError.BackendNotAvailable;
     }
@@ -23,13 +48,32 @@ pub const EmbeddingBackend = struct {
 };
 
 pub const backend = struct {
-    pub const EmbeddingBackend_ = EmbeddingBackend;
-    pub const BackendError_ = BackendError;
-    pub const BackendType_ = BackendType;
-    pub const BackendConfig_ = BackendConfig;
+    pub const EmbeddingBackend = @import("stub.zig").EmbeddingBackend;
+    pub const BackendError = @import("stub.zig").BackendError;
+    pub const BackendType = @import("stub.zig").BackendType;
+    pub const BackendConfig = @import("stub.zig").BackendConfig;
+    pub const EmbedFn = @import("stub.zig").EmbedFn;
+    pub const EmbedBatchFn = @import("stub.zig").EmbedBatchFn;
+    pub const DeinitFn = @import("stub.zig").DeinitFn;
 };
 
-pub const backends = struct {};
+pub const backends = struct {
+    pub const openai = struct {
+        pub const OpenAIBackend = struct {
+            pub fn init(_: std.mem.Allocator, _: []const u8, _: []const u8) error{FeatureDisabled}!*openai.OpenAIBackend {
+                return error.FeatureDisabled;
+            }
+            pub fn initFromEnv(_: std.mem.Allocator) error{FeatureDisabled}!*openai.OpenAIBackend {
+                return error.FeatureDisabled;
+            }
+            pub fn deinit(_: *openai.OpenAIBackend) void {}
+            pub fn asBackend(_: *openai.OpenAIBackend) EmbeddingBackend {
+                return .{};
+            }
+        };
+        pub const Model = enum { @"text-embedding-3-small", @"text-embedding-3-large", @"text-embedding-ada-002" };
+    };
+};
 
 pub fn normalizeEmbedding(_: []f32) void {}
 pub fn normalizeEmbeddingBatch(_: [][]f32) void {}
@@ -100,8 +144,12 @@ pub const Context = struct {
     pub fn cosineSimilarity(_: *Context, _: []const f32, _: []const f32) f32 {
         return 0;
     }
-    pub fn useOpenAI(_: *Context, _: []const u8) void {}
-    pub fn useOpenAIFromEnv(_: *Context) void {}
+    pub fn useOpenAI(_: *Context, _: []const u8, _: []const u8) error{FeatureDisabled}!void {
+        return error.FeatureDisabled;
+    }
+    pub fn useOpenAIFromEnv(_: *Context) error{FeatureDisabled}!void {
+        return error.FeatureDisabled;
+    }
     pub fn hasBackend(_: *const Context) bool {
         return false;
     }

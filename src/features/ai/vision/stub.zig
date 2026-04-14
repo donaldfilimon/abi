@@ -19,9 +19,9 @@ pub const VisionPipeline = types.VisionPipelineType;
 
 // --- Submodule Re-exports ---
 pub const image = struct {
-    pub const Image_ = types.Image;
-    pub const Channels_ = types.Channels;
-    pub const ImageError_ = types.ImageError;
+    pub const Image = types.Image;
+    pub const Channels = types.Channels;
+    pub const ImageError = types.ImageError;
 };
 
 // --- Preprocessing ---
@@ -74,7 +74,7 @@ pub const flipVertical = preprocessing.flipVertical;
 // --- Neural Network Layers ---
 pub const conv = struct {
     pub const Conv2D = types.Conv2DType;
-    pub const ConvGradients_ = types.ConvGradients;
+    pub const ConvGradients = types.ConvGradients;
     pub fn im2col(_: anytype) Error!void {
         return error.FeatureDisabled;
     }
@@ -87,7 +87,7 @@ pub const pooling = struct {
     pub const MaxPool2D = types.MaxPool2DType;
     pub const AvgPool2D = types.AvgPool2DType;
     pub const AdaptiveAvgPool2D = types.AdaptiveAvgPool2DType;
-    pub const PoolResult_ = types.PoolResult;
+    pub const PoolResult = types.PoolResult;
     pub fn globalAvgPool2D(_: anytype) Error!void {
         return error.FeatureDisabled;
     }
@@ -95,7 +95,7 @@ pub const pooling = struct {
 
 pub const batchnorm = struct {
     pub const BatchNorm2D = types.BatchNorm2DType;
-    pub const BatchNormGradients_ = types.BatchNormGradients;
+    pub const BatchNormGradients = types.BatchNormGradients;
 };
 
 pub const Conv2D = conv.Conv2D;
@@ -108,48 +108,97 @@ pub const globalAvgPool2D = pooling.globalAvgPool2D;
 pub const BatchNorm2D = batchnorm.BatchNorm2D;
 
 // --- ViT Re-exports ---
-pub const VisionTransformer = struct {};
-pub const PatchEmbedding = struct {};
-pub const MultiHeadAttention = struct {};
-pub const TransformerBlock = struct {};
+pub const VisionTransformer_Internal = struct {};
+pub const PatchEmbedding_Internal = struct {};
+pub const MultiHeadAttention_Internal = struct {};
+pub const TransformerBlock_Internal = struct {};
 pub const ViTLayerNorm = struct {};
 pub const ViTMLP = struct {};
+pub const ViTConfig_Internal = types.ViTConfig;
+
+pub const VisionTransformer = VisionTransformer_Internal;
+pub const PatchEmbedding = PatchEmbedding_Internal;
+pub const MultiHeadAttention = MultiHeadAttention_Internal;
+pub const TransformerBlock = TransformerBlock_Internal;
 
 pub fn gelu(x: f32) f32 {
     return 0.5 * x * (1.0 + @as(f32, @floatCast(std.math.tanh(@as(f64, 0.7978846) * @as(f64, @floatCast(x + 0.044715 * x * x * x))))));
 }
 
 // --- Multimodal Re-exports ---
-pub const CLIPModel = struct {};
-pub const MultiModalConfig = struct {};
-pub const ContrastiveLoss = struct {};
-pub const CrossAttention = struct {};
-pub const TextEncoder = struct {};
-pub const TextEmbedding = struct {};
-pub const FusionBlock = struct {};
-pub const UnifiedEmbeddingSpace = struct {};
+pub const CLIPModel_Internal = struct {};
+pub const MultiModalConfig_Internal = struct {};
+pub const ContrastiveLoss_Internal = struct {};
+pub const CrossAttention_Internal = struct {};
+pub const TextEncoder_Internal = struct {};
+pub const TextEmbedding_Internal = struct {};
+pub const FusionBlock_Internal = struct {};
+pub const UnifiedEmbeddingSpace_Internal = struct {};
+
+pub const CLIPModel = CLIPModel_Internal;
+pub const MultiModalConfig = MultiModalConfig_Internal;
+pub const ContrastiveLoss = ContrastiveLoss_Internal;
+pub const CrossAttention = CrossAttention_Internal;
+pub const TextEncoder = TextEncoder_Internal;
+pub const TextEmbedding = TextEmbedding_Internal;
+pub const FusionBlock = FusionBlock_Internal;
+pub const UnifiedEmbeddingSpace = UnifiedEmbeddingSpace_Internal;
 
 // --- Sub-module Namespace Re-exports ---
 pub const vit = struct {
-    pub const VisionTransformer_ = VisionTransformer;
-    pub const ViTConfig_ = ViTConfig;
-    pub const PatchEmbedding_ = PatchEmbedding;
-    pub const MultiHeadAttention_ = MultiHeadAttention;
-    pub const TransformerBlock_ = TransformerBlock;
+    pub const embedding = struct {
+        pub const PatchEmbedding = PatchEmbedding_Internal;
+    };
+    pub const attention = struct {
+        pub const MultiHeadAttention = MultiHeadAttention_Internal;
+        pub fn softmax(_: []f32) void {}
+    };
+    pub const layers = struct {
+        pub const TransformerBlock = TransformerBlock_Internal;
+        pub const MLP = ViTMLP;
+        pub const LayerNorm = ViTLayerNorm;
+        pub const gelu = @import("stub.zig").gelu;
+        pub fn geluSlice(_: []f32) void {}
+    };
+
+    pub const VisionTransformer = VisionTransformer_Internal;
+    pub const ViTConfig = ViTConfig_Internal;
+    pub const PatchEmbedding = PatchEmbedding_Internal;
+    pub const MultiHeadAttention = MultiHeadAttention_Internal;
+    pub const TransformerBlock = TransformerBlock_Internal;
     pub const LayerNorm = ViTLayerNorm;
     pub const MLP = ViTMLP;
-    pub const gelu_ = @import("stub.zig").gelu;
+    pub const gelu = @import("stub.zig").gelu;
+    pub const softmax = attention.softmax;
+    pub fn geluSlice(x: []f32) void {
+        layers.geluSlice(x);
+    }
 };
 
 pub const multimodal = struct {
-    pub const CLIPModel_ = CLIPModel;
-    pub const MultiModalConfig_ = MultiModalConfig;
-    pub const ContrastiveLoss_ = ContrastiveLoss;
-    pub const CrossAttention_ = CrossAttention;
-    pub const TextEncoder_ = TextEncoder;
-    pub const TextEmbedding_ = TextEmbedding;
-    pub const FusionBlock_ = FusionBlock;
-    pub const UnifiedEmbeddingSpace_ = UnifiedEmbeddingSpace;
+    pub const preprocessing = struct {
+        pub const MultiModalConfig = MultiModalConfig_Internal;
+        pub const UnifiedEmbeddingSpace = UnifiedEmbeddingSpace_Internal;
+    };
+    pub const encoders = struct {
+        pub const TextEmbedding = TextEmbedding_Internal;
+        pub const TextEncoder = TextEncoder_Internal;
+    };
+    pub const fusion = struct {
+        pub const ContrastiveLoss = ContrastiveLoss_Internal;
+        pub const CrossAttention = CrossAttention_Internal;
+        pub const FusionBlock = FusionBlock_Internal;
+        pub const CLIPModel = CLIPModel_Internal;
+    };
+
+    pub const CLIPModel = CLIPModel_Internal;
+    pub const MultiModalConfig = MultiModalConfig_Internal;
+    pub const ContrastiveLoss = ContrastiveLoss_Internal;
+    pub const CrossAttention = CrossAttention_Internal;
+    pub const TextEncoder = TextEncoder_Internal;
+    pub const TextEmbedding = TextEmbedding_Internal;
+    pub const FusionBlock = FusionBlock_Internal;
+    pub const UnifiedEmbeddingSpace = UnifiedEmbeddingSpace_Internal;
 };
 
 // --- Context ---

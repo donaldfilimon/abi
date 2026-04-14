@@ -94,17 +94,19 @@ pub const DocumentPipeline = struct {
     pub const PipelineError = Error;
 };
 
+const stub_root = @This();
+
 // Sub-module namespace stubs
 pub const parser = struct {
-    pub const SegmentationConfig_ = SegmentationConfig;
-    pub const TextSegmenter_ = TextSegmenter;
-    pub const EntityExtractor_ = EntityExtractor;
-    pub const LayoutAnalyzer_ = LayoutAnalyzer;
+    pub const SegmentationConfig = types.SegmentationConfig;
+    pub const TextSegmenter = stub_root.TextSegmenter;
+    pub const EntityExtractor = stub_root.EntityExtractor;
+    pub const LayoutAnalyzer = stub_root.LayoutAnalyzer;
 };
 
 pub const pipeline = struct {
-    pub const PipelineConfig_ = PipelineConfig;
-    pub const DocumentPipeline_ = DocumentPipeline;
+    pub const PipelineConfig = types.PipelineConfig;
+    pub const DocumentPipeline = stub_root.DocumentPipeline;
 };
 
 pub fn isEnabled() bool {

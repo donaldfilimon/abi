@@ -106,7 +106,12 @@ pub const websocket = struct {
     pub const WebSocketConfig = types.WebSocketConfig;
     pub const Opcode = types.WebSocketOpcode;
     pub const CloseCode = types.WebSocketCloseCode;
+    pub const Frame = types.Frame;
+    pub const ConnectionState = types.ConnectionState;
     pub const computeAcceptKey = stub_root.computeWebSocketAcceptKey;
+    pub fn createStreamingMessage(_: std.mem.Allocator, _: []const u8, _: []const u8) ![]u8 {
+        return error.FeatureDisabled;
+    }
 };
 
 pub const backends = struct {
@@ -118,6 +123,11 @@ pub const backends = struct {
 
 pub const formats = struct {
     pub const openai = types.formats_openai;
+    pub const FormatType = types.FormatType;
+    pub const StreamChunk = types.StreamChunk;
+    pub fn formatChunk(_: std.mem.Allocator, _: types.StreamChunk, _: types.FormatType) ![]u8 {
+        return error.FeatureDisabled;
+    }
 };
 
 pub const recovery = struct {

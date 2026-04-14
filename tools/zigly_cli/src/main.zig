@@ -10,31 +10,34 @@ const zigly_home_dir = ".zigly";
 const zigversion_file = ".zigversion";
 
 pub fn main(init: std.process.Init) !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    const allocator = init.gpa;
+    const io = init.io;
 
-    const args = try init.minimal.args.toSlice(allocator);
+    // Get command line arguments using the Args iterator
+    var args_iter = std.process.Args.Iterator.init(init.minimal.args);
+    defer args_iter.deinit();
 
-    if (args.len <= 1) {
+    // Skip program name (first arg) - the first next() returns executable path
+    _ = args_iter.next();
+
+    // Get the command (second arg)
+    const command = args_iter.next() orelse {
         cli.printUsage();
         std.process.exit(1);
-    }
+    };
 
-    var config = try core.initConfig(allocator, init.io, init.environ_map);
+    // Get optional version argument
+    const version = args_iter.next();
+
+    var config = try core.initConfig(allocator, io, init.environ_map);
     defer config.deinit();
 
-    const command = args[1];
-
     if (std.mem.eql(u8, command, "install") or std.mem.eql(u8, command, "--install") or std.mem.eql(u8, command, "--update")) {
-        const version = if (args.len > 2) args[2] else "";
-        try cli.doInstall(&config, version);
+        try cli.doInstall(&config, version orelse "");
     } else if (std.mem.eql(u8, command, "use") or std.mem.eql(u8, command, "--link")) {
-        const version = if (args.len > 2) args[2] else "";
-        try cli.doUse(&config, version);
+        try cli.doUse(&config, version orelse "");
     } else if (std.mem.eql(u8, command, "status") or std.mem.eql(u8, command, "--status")) {
-        const version = if (args.len > 2) args[2] else "";
-        try cli.doStatus(&config, version);
+        try cli.doStatus(&config, version orelse "");
     } else if (std.mem.eql(u8, command, "bootstrap") or std.mem.eql(u8, command, "--bootstrap")) {
         try cli.doBootstrap(&config);
     } else if (std.mem.eql(u8, command, "doctor") or std.mem.eql(u8, command, "--doctor")) {
