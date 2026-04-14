@@ -42,6 +42,26 @@ pub const BackendType = backend.BackendType;
 pub const BackendConfig = backend.BackendConfig;
 pub const EmbeddingConfig = types.EmbeddingConfig;
 
+// Re-export callback types for parity with stub.zig
+/// Function signature for single text embedding.
+pub const EmbedFn = *const fn (
+    ctx: *anyopaque,
+    allocator: std.mem.Allocator,
+    text: []const u8,
+    dimensions: usize,
+) BackendError![]f32;
+
+/// Function signature for batch text embedding.
+pub const EmbedBatchFn = *const fn (
+    ctx: *anyopaque,
+    allocator: std.mem.Allocator,
+    texts: []const []const u8,
+    dimensions: usize,
+) BackendError![][]f32;
+
+/// Function signature for backend cleanup.
+pub const DeinitFn = *const fn (ctx: *anyopaque) void;
+
 // SIMD vector size for batch normalization
 const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
 

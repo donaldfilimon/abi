@@ -47,7 +47,8 @@ pub const ToolResult = struct {
 
     pub fn deinit(self: *ToolResult) void {
         if (self.metadata) |*obj| {
-            obj.deinit();
+            obj.deinit(self.allocator);
+            self.metadata = null;
         }
     }
 };

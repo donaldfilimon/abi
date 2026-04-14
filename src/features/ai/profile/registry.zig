@@ -24,12 +24,14 @@ const abi_mod = @import("../abi/mod.zig");
 const ai_config = @import("../config.zig");
 
 /// Configuration for the multi-profile system.
-pub const MultiProfileConfig = struct {
+pub const MultiProfileConfig_Internal = struct {
     abbey: ai_config.AbbeyConfig = .{},
     aviva: ai_config.AvivaConfig = .{},
     abi: ai_config.AbiConfig = .{},
     routing: RoutingConfig = .{},
 };
+
+pub const MultiProfileConfig = MultiProfileConfig_Internal;
 
 /// A single profile instance wrapping its underlying implementation.
 pub const ProfileInstance = struct {

@@ -150,53 +150,42 @@ pub const BatchNorm2D = batchnorm.BatchNorm2D;
 /// Gradients from BatchNorm backward pass
 pub const BatchNormGradients = batchnorm.BatchNormGradients;
 
-/// Vision Transformer model
+// Vision Transformer types
 pub const VisionTransformer = vit.VisionTransformer;
-
-/// Vision Transformer configuration
-pub const ViTConfig = vit.ViTConfig;
-
-/// Patch embedding layer for ViT
 pub const PatchEmbedding = vit.PatchEmbedding;
-
-/// Multi-head self-attention
 pub const MultiHeadAttention = vit.MultiHeadAttention;
-
-/// Transformer encoder block
 pub const TransformerBlock = vit.TransformerBlock;
-
-/// Layer normalization
+pub const ViTConfig = vit.ViTConfig;
 pub const ViTLayerNorm = vit.LayerNorm;
-
-/// MLP block (feed-forward network)
 pub const ViTMLP = vit.MLP;
-
-/// GELU activation function
 pub const gelu = vit.gelu;
 
-/// CLIP-style contrastive learning model
+// Internal exports for mod/stub parity
+pub const VisionTransformer_Internal = vit.VisionTransformer;
+pub const PatchEmbedding_Internal = vit.PatchEmbedding;
+pub const MultiHeadAttention_Internal = vit.MultiHeadAttention;
+pub const TransformerBlock_Internal = vit.TransformerBlock;
+pub const ViTConfig_Internal = vit.ViTConfig;
+
+// Multi-modal types
 pub const CLIPModel = multimodal.CLIPModel;
-
-/// Multi-modal configuration
 pub const MultiModalConfig = multimodal.MultiModalConfig;
-
-/// Contrastive loss for aligning embeddings
 pub const ContrastiveLoss = multimodal.ContrastiveLoss;
-
-/// Cross-modal attention layer
 pub const CrossAttention = multimodal.CrossAttention;
-
-/// Text encoder for multi-modal learning
 pub const TextEncoder = multimodal.TextEncoder;
-
-/// Text embedding layer
 pub const TextEmbedding = multimodal.TextEmbedding;
-
-/// Fusion block for bidirectional cross-attention
 pub const FusionBlock = multimodal.FusionBlock;
-
-/// Unified embedding space for multi-modal retrieval
 pub const UnifiedEmbeddingSpace = multimodal.UnifiedEmbeddingSpace;
+
+// Internal exports for mod/stub parity
+pub const CLIPModel_Internal = multimodal.CLIPModel;
+pub const MultiModalConfig_Internal = multimodal.MultiModalConfig;
+pub const ContrastiveLoss_Internal = multimodal.ContrastiveLoss;
+pub const CrossAttention_Internal = multimodal.CrossAttention;
+pub const TextEncoder_Internal = multimodal.TextEncoder;
+pub const TextEmbedding_Internal = multimodal.TextEmbedding;
+pub const FusionBlock_Internal = multimodal.FusionBlock;
+pub const UnifiedEmbeddingSpace_Internal = multimodal.UnifiedEmbeddingSpace;
 
 // ============================================================================
 // Normalization Constants

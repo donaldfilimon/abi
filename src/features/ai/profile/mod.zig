@@ -43,6 +43,14 @@ pub const MessageKind = types.MessageKind;
 pub const RoutingConfig = types.RoutingConfig;
 pub const ProfileError = types.ProfileError;
 
+// Internal exports for mod/stub parity
+pub const MultiProfileConfig_Internal = registry.MultiProfileConfig_Internal;
+pub const ProfileInstance_Internal = registry.ProfileInstance_Internal;
+pub const ProfileRegistry_Internal = registry.ProfileRegistry_Internal;
+pub const MultiProfileRouter_Internal = router.MultiProfileRouter_Internal;
+pub const ProfileBus_Internal = bus.ProfileBus_Internal;
+pub const ConversationMemory_Internal = memory.ConversationMemory_Internal;
+
 pub const ProfileRegistry = registry.ProfileRegistry;
 pub const ProfileInstance = registry.ProfileInstance;
 pub const MultiProfileConfig = registry.MultiProfileConfig;

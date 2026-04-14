@@ -20,6 +20,18 @@ pub const TrainingMetadata = brain_export.TrainingMetadata;
 pub const ExportResult = brain_export.ExportResult;
 pub const exportDual = brain_export.exportDual;
 
+// Internal exports for mod/stub parity
+pub const WdbxTokenDataset_Internal = dataset.WdbxTokenDataset;
+pub const tokenBinToWdbx_Internal = convert.tokenBinToWdbx;
+pub const wdbxToTokenBin_Internal = convert.wdbxToTokenBin;
+pub const readTokenBinFile_Internal = convert.readTokenBinFile;
+pub const writeTokenBinFile_Internal = convert.writeTokenBinFile;
+pub const exportGgufFromState_Internal = export_mod.exportGgufFromState;
+pub const BrainExportConfig_Internal = brain_export.BrainExportConfig;
+pub const TrainingMetadata_Internal = brain_export.TrainingMetadata;
+pub const ExportResult_Internal = brain_export.ExportResult;
+pub const exportDual_Internal = brain_export.exportDual;
+
 test {
     std.testing.refAllDecls(@This());
 }

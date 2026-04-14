@@ -267,6 +267,24 @@ pub const ParallelExecutor = struct {
     pub fn deinit(_: *ParallelExecutor) void {}
 };
 
+pub const Generator = struct {
+    allocator: std.mem.Allocator,
+    config: GeneratorConfig,
+
+    pub fn init(allocator: std.mem.Allocator, config: GeneratorConfig) Generator {
+        return .{
+            .allocator = allocator,
+            .config = config,
+        };
+    }
+
+    pub fn deinit(_: *Generator) void {}
+
+    pub fn generate(_: *Generator, _: []const u8, _: GeneratorConfig) LlmError![]u8 {
+        return error.FeatureDisabled;
+    }
+};
+
 // ── Streaming Types ────────────────────────────────────────────────────────
 
 pub const TokenEvent = struct {
