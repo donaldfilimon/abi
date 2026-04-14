@@ -1,4 +1,4 @@
-# zig-abi-plugin
+t s# zig-abi-plugin
 
 OpenCode plugin for the ABI Zig framework.
 
@@ -10,8 +10,17 @@ tools/zigly --bootstrap    # Install zig + zls, symlink to ~/.local/bin, verify
 ```
 
 Add to PATH:
+
 ```bash
 export PATH="$HOME/.local/bin:$PATH"  # Add to your shell profile
+```
+
+## Install
+
+Run the install-all.sh script to install zig-abi-plugin into common plugin roots:
+
+```bash
+./install-all.sh
 ```
 
 ## Verify Setup

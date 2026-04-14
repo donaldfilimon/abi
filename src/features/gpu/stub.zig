@@ -2,7 +2,6 @@
 
 const std = @import("std");
 const stub_helpers = @import("../core/stub_helpers.zig");
-const config_module = @import("../core/config/mod.zig");
 
 // ── Shared types (re-exported) ─────────────────────────────────────────────
 
@@ -199,7 +198,7 @@ pub const GpuDevice = struct {
 // ── Context ────────────────────────────────────────────────────────────────
 
 pub const Context = struct {
-    pub fn init(_: std.mem.Allocator, _: config_module.GpuConfig) !*Context {
+    pub fn init(_: std.mem.Allocator, _: GpuConfig) !*Context {
         return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}

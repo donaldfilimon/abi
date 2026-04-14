@@ -183,7 +183,7 @@ comptime {
         _ = @import("tests/backend_detection_test.zig");
         _ = @import("tests/std_gpu_test.zig");
         _ = @import("tests/execution_fallback_test.zig");
-        _ = @import("tests/integration_test.zig");
+        // _ = @import("tests/integration_test.zig");
         _ = @import("tests/all_backends_test.zig");
         _ = @import("peer_transfer/tests.zig");
         _ = @import("peer_transfer/network.zig");

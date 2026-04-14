@@ -5,6 +5,8 @@
 
 const std = @import("std");
 const backend_mod = @import("backend.zig");
+const buffer_mod = @import("unified_buffer.zig");
+const device_manager = @import("device_manager.zig");
 
 // ── Error Sets ─────────────────────────────────────────────────────────────
 
@@ -145,6 +147,9 @@ pub const KernelBuilder = struct {};
 pub const GpuConfig = struct {
     preferred_backend: ?backend_mod.Backend = null,
     allow_fallback: bool = true,
-    max_memory_bytes: u64 = 0,
+    memory_mode: buffer_mod.MemoryMode = .automatic,
+    max_memory_bytes: usize = 0,
     enable_profiling: bool = false,
+    multi_gpu: bool = false,
+    load_balance_strategy: device_manager.LoadBalanceStrategy = .memory_aware,
 };

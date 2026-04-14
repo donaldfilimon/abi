@@ -190,7 +190,8 @@ pub fn build(b: *std.Build) void {
     static_lib.root_module.addImport("build_options", build_options_module);
     linkIfDarwin(static_lib, .static_lib, feat_gpu, gpu_metal);
     b.installArtifact(static_lib);
-    b.step("lib", "Build static library").dependOn(&b.addInstallArtifact(static_lib, .{}).step);
+    const install_static_lib = b.addInstallArtifact(static_lib, .{});
+    b.step("lib", "Build static library").dependOn(&install_static_lib.step);
 
     // ── MCP server binary ────────────────────────────────────────────────
     const mcp_exe = b.addExecutable(.{
@@ -203,7 +204,8 @@ pub fn build(b: *std.Build) void {
     });
     mcp_exe.root_module.addImport("build_options", build_options_module);
     linkIfDarwin(mcp_exe, .executable, feat_gpu, gpu_metal);
-    b.step("mcp", "Build MCP stdio server").dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
+    const install_mcp = b.addInstallArtifact(mcp_exe, .{});
+    b.step("mcp", "Build MCP stdio server").dependOn(&install_mcp.step);
 
     // ── CLI binary ──────────────────────────────────────────────────────
     const cli_exe = b.addExecutable(.{
@@ -216,7 +218,12 @@ pub fn build(b: *std.Build) void {
     });
     cli_exe.root_module.addImport("build_options", build_options_module);
     linkIfDarwin(cli_exe, .executable, feat_gpu, gpu_metal);
-    b.step("cli", "Build ABI command-line interface").dependOn(&b.addInstallArtifact(cli_exe, .{}).step);
+    const install_cli = b.addInstallArtifact(cli_exe, .{});
+    b.step("cli", "Build ABI command-line interface").dependOn(&install_cli.step);
+
+    const tools_step = b.step("tools", "Install abi and abi-mcp into the selected prefix");
+    tools_step.dependOn(&install_cli.step);
+    tools_step.dependOn(&install_mcp.step);
 
     _ = build_validation.addSteps(.{
         .b = b,

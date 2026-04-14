@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "abi-mcp": {
-      "command": "./zig-out/bin/abi-mcp",
+      "command": "~/.local/bin/abi-mcp",
       "args": []
     }
   }
