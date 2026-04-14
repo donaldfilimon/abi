@@ -75,12 +75,7 @@ fn selectParallelResponse(primary: *ParallelResult, fallback: *ParallelResult) P
 
 /// Multi-profile router that wraps AbiRouter for intelligent dispatch.
 ///
-/// Implements the full Abbey-Aviva-Abi pipeline:
-/// 1. Abi analyzes input (sentiment + policy + rules)
-/// 2. Translates to weighted routing decision
-/// 3. Executes via appropriate profile(s)
-/// 4. Stores interaction in WDBX conversation memory
-pub const MultiProfileRouter = struct {
+pub const MultiProfileRouter_Internal = struct {
     allocator: std.mem.Allocator,
     registry: *ProfileRegistry,
     config: RoutingConfig,
@@ -504,6 +499,8 @@ pub const MultiProfileRouter = struct {
         }
     }
 };
+
+pub const MultiProfileRouter = MultiProfileRouter_Internal;
 
 test "heuristic routing - code query" {
     var registry = ProfileRegistry.init(std.testing.allocator, .{});

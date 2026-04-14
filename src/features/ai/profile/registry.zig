@@ -11,11 +11,13 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const pipeline_types = @import("../pipeline/types.zig");
 const ProfileId = types.ProfileId;
 const ProfileState = types.ProfileState;
 const ProfileError = types.ProfileError;
 const ProfileResponse = types.ProfileResponse;
 const RoutingConfig = types.RoutingConfig;
+const RoutingDecision = @import("../profile/types.zig").RoutingDecision;
 
 // Profile implementations
 const abbey_mod = @import("../abbey/mod.zig");
@@ -32,6 +34,88 @@ pub const MultiProfileConfig_Internal = struct {
 };
 
 pub const MultiProfileConfig = MultiProfileConfig_Internal;
+
+// Internal exports for mod/stub parity
+pub const ProfileInstance_Internal = struct {
+    id: ProfileId,
+    state: ProfileState = .uninitialized,
+    allocator: std.mem.Allocator,
+
+    pub fn process(_: *ProfileInstance, _: []const u8) ProfileError!ProfileResponse {
+        return error.ProfileNotInitialized;
+    }
+    pub fn getName(self: *const ProfileInstance) []const u8 {
+        return self.id.name();
+    }
+    pub fn isAvailable(_: *const ProfileInstance) bool {
+        return false;
+    }
+};
+
+pub const ProfileRegistry_Internal = struct {
+    allocator: std.mem.Allocator,
+    initialized: bool = false,
+
+    pub fn init(allocator: std.mem.Allocator, _: MultiProfileConfig_Internal) ProfileRegistry_Internal {
+        return .{ .allocator = allocator };
+    }
+    pub fn initAll(_: *ProfileRegistry) ProfileError!void {
+        return error.ProfileNotInitialized;
+    }
+    pub fn getProfile(_: *ProfileRegistry, _: ProfileId) ?*ProfileInstance {
+        return null;
+    }
+    pub fn getAbiRouter(_: *ProfileRegistry) ?*anyopaque {
+        return null;
+    }
+    pub fn suspendProfile(_: *ProfileRegistry, _: ProfileId) void {}
+    pub fn resumeProfile(_: *ProfileRegistry, _: ProfileId) void {}
+    pub fn listAvailable(_: *ProfileRegistry) [3]?ProfileId {
+        return .{ null, null, null };
+    }
+    pub fn deinit(_: *ProfileRegistry) void {}
+};
+
+pub const MultiProfileRouter_Internal = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, _: *ProfileRegistry_Internal, _: RoutingConfig) MultiProfileRouter_Internal {
+        return .{ .allocator = allocator };
+    }
+    pub fn route(_: *MultiProfileRouter_Internal, _: []const u8) RoutingDecision {
+        return .{
+            .primary = .abbey,
+            .weights = .{},
+            .strategy = .single,
+            .confidence = 0.0,
+            .reason = "AI disabled",
+        };
+    }
+    pub fn execute(_: *MultiProfileRouter_Internal, _: RoutingDecision, _: []const u8) ProfileError!ProfileResponse {
+        return error.ProfileNotInitialized;
+    }
+    pub fn routeAndExecute(_: *MultiProfileRouter_Internal, _: []const u8) ProfileError!ProfileResponse {
+        return error.ProfileNotInitialized;
+    }
+    pub fn deinit(_: *MultiProfileRouter_Internal) void {}
+};
+
+pub const ProfileBus_Internal = struct {
+    pub fn init(_: std.mem.Allocator) ProfileBus_Internal {
+        return .{};
+    }
+    pub fn deinit(_: *ProfileBus_Internal) void {}
+};
+
+pub const ConversationMemory_Internal = struct {
+    pub fn init(_: std.mem.Allocator) ConversationMemory_Internal {
+        return .{};
+    }
+    pub fn asStoreStep(_: *const ConversationMemory_Internal) pipeline_types.StoreConfig {
+        return .{ .target = .wdbx };
+    }
+    pub fn deinit(_: *ConversationMemory_Internal) void {}
+};
 
 /// A single profile instance wrapping its underlying implementation.
 pub const ProfileInstance = struct {

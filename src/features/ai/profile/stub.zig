@@ -60,11 +60,13 @@ pub const ProfileRegistry_Internal = struct {
 
 pub const MultiProfileRouter_Internal = struct {
     allocator: std.mem.Allocator,
+    registry: *ProfileRegistry_Internal,
+    config: RoutingConfig,
 
     pub fn init(allocator: std.mem.Allocator, _: *ProfileRegistry_Internal, _: RoutingConfig) MultiProfileRouter_Internal {
         return .{ .allocator = allocator };
     }
-    pub fn route(_: *MultiProfileRouter, _: []const u8) RoutingDecision {
+    pub fn route(_: *MultiProfileRouter_Internal, _: []const u8) RoutingDecision {
         return .{
             .primary = .abbey,
             .weights = .{},
@@ -73,13 +75,13 @@ pub const MultiProfileRouter_Internal = struct {
             .reason = "AI disabled",
         };
     }
-    pub fn execute(_: *MultiProfileRouter, _: RoutingDecision, _: []const u8) ProfileError!ProfileResponse {
+    pub fn execute(_: *MultiProfileRouter_Internal, _: RoutingDecision, _: []const u8) ProfileError!ProfileResponse {
         return error.ProfileNotInitialized;
     }
-    pub fn routeAndExecute(_: *MultiProfileRouter, _: []const u8) ProfileError!ProfileResponse {
+    pub fn routeAndExecute(_: *MultiProfileRouter_Internal, _: []const u8) ProfileError!ProfileResponse {
         return error.ProfileNotInitialized;
     }
-    pub fn deinit(_: *MultiProfileRouter) void {}
+    pub fn deinit(_: *MultiProfileRouter_Internal) void {}
 };
 
 pub const ProfileBus_Internal = struct {

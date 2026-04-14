@@ -47,9 +47,9 @@ pub const ProfileError = types.ProfileError;
 pub const MultiProfileConfig_Internal = registry.MultiProfileConfig_Internal;
 pub const ProfileInstance_Internal = registry.ProfileInstance_Internal;
 pub const ProfileRegistry_Internal = registry.ProfileRegistry_Internal;
-pub const MultiProfileRouter_Internal = router.MultiProfileRouter_Internal;
-pub const ProfileBus_Internal = bus.ProfileBus_Internal;
-pub const ConversationMemory_Internal = memory.ConversationMemory_Internal;
+pub const MultiProfileRouter_Internal = router.MultiProfileRouter;
+pub const ProfileBus_Internal = bus.ProfileBus;
+pub const ConversationMemory_Internal = memory.ConversationMemory;
 
 pub const ProfileRegistry = registry.ProfileRegistry;
 pub const ProfileInstance = registry.ProfileInstance;
