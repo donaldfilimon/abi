@@ -19,12 +19,17 @@ pub fn main(init: std.process.Init) !void {
 
     if (args.len > 1) {
         const arg = args[1];
+        if (std.mem.eql(u8, arg, "--debug")) {
+            try runDebugRepl(allocator, init.io);
+            return;
+        }
         if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "help")) {
             const help_text =
                 \\ABI MCP Server — Model Context Protocol stdio interface.
                 \\
                 \\Usage:
                 \\  abi-mcp              Start the JSON-RPC 2.0 stdio server
+                \\  abi-mcp --debug      Start in debug REPL mode for manual testing
                 \\  abi-mcp --help       Show this help message
                 \\
                 \\This server exposes ABI framework tools (status, database, AI, ZLS)
@@ -35,6 +40,19 @@ pub fn main(init: std.process.Init) !void {
             return;
         }
     }
+
+fn runDebugRepl(allocator: std.mem.Allocator, io: anytype) !void {
+    _ = io;
+    const stdout = std.io.getStdOut().writer();
+    const stdin = std.io.getStdIn().reader();
+    try stdout.print("ABI MCP Debug Mode. Enter JSON-RPC 2.0 requests.\n", .{});
+
+    var buf: [4096]u8 = undefined;
+    while (stdin.readUntilDelimiterOrEof(&buf, '\n') catch null) |line| {
+        // Echo input for testing framing
+        try stdout.print("Echo: {s}\n", .{line});
+    }
+}
 
     const version = build_options.package_version;
 
