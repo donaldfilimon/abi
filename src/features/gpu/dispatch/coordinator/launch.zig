@@ -6,7 +6,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const interface = @import("../../interface.zig");
 const dispatch_types = @import("../types.zig");
-const unified_buffer = @import("../../unified_buffer.zig");
+const unified_buffer = @import("../../internal/unified_buffer.zig");
 const backend_shared = @import("../../backends/shared.zig");
 
 const DispatchError = dispatch_types.DispatchError;

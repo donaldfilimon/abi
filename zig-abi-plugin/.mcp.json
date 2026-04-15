@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "abi-mcp": {
-      "command": "/Users/donaldfilimon/.local/bin/abi-mcp",
-      "args": []
+    "abi": {
+      "command": "./zig-out/bin/abi-mcp",
+      "args": ["stdio", "--verbose"]
     }
   }
 }

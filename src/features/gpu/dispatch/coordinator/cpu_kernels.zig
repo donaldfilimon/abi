@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const dispatch_types = @import("../types.zig");
-const unified_buffer = @import("../../unified_buffer.zig");
+const unified_buffer = @import("../../internal/unified_buffer.zig");
 
 const DispatchError = dispatch_types.DispatchError;
 const Buffer = unified_buffer.Buffer;
