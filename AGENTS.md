@@ -46,6 +46,16 @@ zig build {messaging,secrets,pitr,agents,multi-agent,orchestration,gateway,infer
 6. **String ownership**: Use `allocator.dupe()` for string literals in structs with `deinit()`.
 7. **Imports**: Explicit `.zig` extension required on all path imports.
 
+## Stub Generation
+
+Stub files (`stub.zig`) are generated from `mod.zig` to maintain mod/stub parity.
+To update stubs, run:
+  python3 tools/stub_generator/generate_stubs.py <feature_dir>
+For example:
+  python3 tools/stub_generator/generate_stubs.py src/features/ai/agents
+To update all features, use:
+  python3 tools/stub_generator/generate_stubs.py all
+
 ## Common Patterns
 
 All enabled by default except `feat-mobile` and `feat-tui`:

@@ -1,0 +1,14 @@
+{
+  "lsp": {
+    "zig": {
+      "command": "/Users/donaldfilimon/.local/bin/zls",
+      "roots": ["src", "build.zig", "build/"]
+    }
+  },
+  "mcpServers": {
+    "abi-mcp": {
+      "command": "/Users/donaldfilimon/.local/bin/abi-mcp",
+      "args": []
+    }
+  }
+}

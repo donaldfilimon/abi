@@ -112,13 +112,10 @@ fn initStandardFeatures(comptime Framework: type, allocator: std.mem.Allocator, 
     inline for (standard_features) |spec| {
         if (@field(cfg, spec.cfg_field)) |feature_cfg| {
             const runtime_cfg = if (comptime std.mem.eql(u8, spec.cfg_field, "gpu"))
-                gpu_mod.GpuConfig{
-                    .preferred_backend = feature_cfg.toStreamOrchestrator(),
-                    .allow_fallback = true,
-                    .memory_mode = .automatic,
-                    .max_memory_bytes = feature_cfg.memory_limit orelse 0,
-                    .enable_profiling = false,
-                    .multi_gpu = false,
+                config_module.GpuConfig{
+                    .backend = .auto,
+                    .device_index = feature_cfg.device_index,
+                    .memory_limit = feature_cfg.memory_limit,
                 }
             else
                 feature_cfg;
