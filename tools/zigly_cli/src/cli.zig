@@ -431,10 +431,10 @@ pub fn downloadZls(config: *core.Config, version: []const u8) !void {
         return;
     }
 
-    // Simplified: directly try to download 0.16.0-dev.3091+557caecaa or known versions for ZLS as it's hard to dynamically fetch API using bash currently.
-    // In native zig, we can just hardcode a known good version for master since the API changed a lot in 0.16.
+    // Simplified: prefer ZLS builds compatible with Zig 0.16.0.
+    // We try the canonical 0.16.0 release first, then fall back to a couple of nearby known variants.
     const os_arch = getOsArch();
-    const versions = [_][]const u8{ "0.16.0-dev.3091+557caecaa", "0.16.0-dev.3091+557caecaa", "0.16.0-dev.3091+557caecaa" };
+    const versions = [_][]const u8{ "0.16.0", "0.16.0+0", "0.16.0-rc1" };
     var zls_version: ?[]const u8 = null;
 
     const tmp_tarball = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "tmp", "zls.tar.xz" });
@@ -921,35 +921,37 @@ pub fn printUsage() void {
 }
 
 test "versionMatches requires an exact version string match" {
-    try std.testing.expect(versionMatches("0.16.0-dev.3091+557caecaa", "0.16.0-dev.3091+557caecaa"));
-    try std.testing.expect(!versionMatches("0.16.0-dev.3091+557caecaa", "0.16.0-dev.2984+cb7d2b056"));
-    try std.testing.expect(!versionMatches("0.16.0-dev.3091+557caecaa", null));
+    try std.testing.expect(versionMatches("0.16.0", "0.16.0"));
+    try std.testing.expect(!versionMatches("0.16.0", "0.15.0"));
+    try std.testing.expect(!versionMatches("0.16.0", null));
 }
 
 test "selectToolchain prefers an active matching zvm binary" {
     try std.testing.expectEqual(
         ToolchainSelection.zvm_active,
-        selectToolchain("0.16.0-dev.3091+557caecaa", true, "0.16.0-dev.3091+557caecaa", true),
+        selectToolchain("0.16.0", true, "0.16.0", true),
     );
 }
 
 test "selectToolchain installs via zvm when zvm is present but mismatched" {
     try std.testing.expectEqual(
         ToolchainSelection.install_via_zvm,
-        selectToolchain("0.16.0-dev.3091+557caecaa", true, "0.16.0-dev.2984+cb7d2b056", true),
+        selectToolchain("0.16.0", true, "0.15.0", true),
     );
 }
 
 test "selectToolchain falls back to zigly cache only when zvm is absent" {
     try std.testing.expectEqual(
         ToolchainSelection.zigly_cache,
-        selectToolchain("0.16.0-dev.3091+557caecaa", false, null, true),
-    );
-    try std.testing.expectEqual(
-        ToolchainSelection.install_via_zigly,
-        selectToolchain("0.16.0-dev.3091+557caecaa", false, null, false),
+        selectToolchain("0.16.0", false, null, true),
     );
 }
+    test "selectToolchain falls back to zigly cache only when zvm is absent" {
+        try std.testing.expectEqual(
+            ToolchainSelection.install_via_zigly,
+            selectToolchain("0.16.0", false, null, false),
+        );
+    }
 
 test {
     std.testing.refAllDecls(@This());
