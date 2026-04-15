@@ -946,12 +946,12 @@ test "selectToolchain falls back to zigly cache only when zvm is absent" {
         selectToolchain("0.16.0", false, null, true),
     );
 }
-    test "selectToolchain falls back to zigly cache only when zvm is absent" {
-        try std.testing.expectEqual(
-            ToolchainSelection.install_via_zigly,
-            selectToolchain("0.16.0", false, null, false),
-        );
-    }
+test "selectToolchain installs via zigly when zvm is absent" {
+    try std.testing.expectEqual(
+        ToolchainSelection.install_via_zigly,
+        selectToolchain("0.16.0", false, null, false),
+    );
+}
 
 test {
     std.testing.refAllDecls(@This());
