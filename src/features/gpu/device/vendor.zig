@@ -1,7 +1,7 @@
 //! GPU vendor identification and backend recommendation.
 
 const std = @import("std");
-const backend_mod = @import("../backend.zig");
+const backend_mod = @import("../internal/backend.zig");
 
 pub const Backend = backend_mod.Backend;
 

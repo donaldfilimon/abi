@@ -44,11 +44,13 @@ pub const HelpSection = enum {
     diagnostics,
     ai_data,
     interactive,
+    agents,
 };
 
 pub const FeatureGate = enum {
     database,
     tui,
+    ai,
 };
 
 pub const RenderOptions = struct {
@@ -58,7 +60,7 @@ pub const RenderOptions = struct {
 pub const DisplayCommand = struct {
     usage: []const u8,
     description: []const u8,
-    section: HelpSection,
+    section: HelpSection = .interactive,
     feature_gate: ?FeatureGate = null,
 };
 
@@ -70,7 +72,7 @@ pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "connectors", .description = "List available LLM provider connectors", .section = .diagnostics },
     .{ .usage = "info", .description = "Show framework architecture summary", .section = .diagnostics },
     .{ .usage = "help", .description = "Show detailed help", .section = .diagnostics },
-    .{ .usage = "chat <message...>", .description = "Route a message through the profile pipeline", .section = .ai_data },
+    .{ .usage = "chat <message...>", .description = "Route a message through the profile pipeline", .section = .agents },
     .{
         .usage = "db <cmd>",
         .description = "Vector database operations (add, query, stats, optimize, backup, restore, serve)",
@@ -182,6 +184,7 @@ fn isFeatureEnabled(gate: FeatureGate) bool {
     return switch (gate) {
         .database => build_options.feat_database,
         .tui => build_options.feat_tui,
+        .ai => build_options.feat_ai,
     };
 }
 

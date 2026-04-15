@@ -4,7 +4,9 @@
 //! import from here so that type definitions are not duplicated.
 
 const std = @import("std");
-const backend_mod = @import("backend.zig");
+const backend_mod = @import("internal/backend.zig");
+const buffer_mod = @import("internal/unified_buffer.zig");
+const device_manager = @import("internal/device_manager.zig");
 
 // ── Error Sets ─────────────────────────────────────────────────────────────
 

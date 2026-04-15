@@ -2,7 +2,7 @@
   "mcpServers": {
     "abi-mcp": {
       "command": "./zig-out/bin/abi-mcp",
-      "args": []
+      "args": ["stdio"]
     }
   }
 }

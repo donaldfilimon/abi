@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const backend_mod = @import("../backend.zig");
+const backend_mod = @import("../internal/backend.zig");
 const build_options = @import("build_options");
 const policy = @import("../policy/mod.zig");
 const android_probe = @import("android_probe.zig");
