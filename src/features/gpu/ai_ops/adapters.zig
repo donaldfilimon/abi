@@ -3,8 +3,8 @@
 //! Utilities for creating AiOps wrappers from concrete implementation types.
 
 const std = @import("std");
-const ai_ops = @import("../ai_ops.zig");
 
+const ai_ops = @import("../ai_ops.zig");
 const AiOps = ai_ops.AiOps;
 const AiOpsError = ai_ops.AiOpsError;
 const DeviceBuffer = ai_ops.DeviceBuffer;
@@ -12,7 +12,10 @@ const Transpose = ai_ops.Transpose;
 
 // Centralized pointer-cast helper for AiOps adapters (comptime-parameterized).
 pub fn asAiOpsImplPtr(comptime Impl: type, ptr: *anyopaque) *Impl {
-    return @ptrCast(*Impl, ptr);
+    // Use the single-argument form of @ptrCast so the target type is inferred
+    // from the function's declared return type (*Impl). This avoids passing the
+    // type explicitly and resolves incompatibilities with the builtin's arity.
+    return @ptrCast(ptr);
 }
 
 // (Moved) Centralized pointer-cast helper will be defined inside the generated struct below.

@@ -4,7 +4,7 @@ This file provides guidance to Google Gemini when working with code in this repo
 
 ## Project Overview
 
-ABI is a **Zig 0.16 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime. This repository implements a multi-AI orchestration system (Abbey-Aviva-Abi pipeline) with constitutional AI governance.
+ABI is a **Zig 0.17 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime. This repository implements a multi-AI orchestration system (Abbey-Aviva-Abi pipeline) with constitutional AI governance.
 
 ## Quick Reference
 

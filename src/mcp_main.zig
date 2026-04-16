@@ -10,10 +10,12 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+
 const mcp = @import("protocols/mcp/mod.zig");
 
 // Top-level debug REPL so it can be invoked from `main`.
 fn runDebugRepl(allocator: std.mem.Allocator, io: anytype) !void {
+    _ = allocator; // autofix
     // We intentionally ignore the generic `io` parameter; use std I/O handles for REPL.
     _ = io;
     _ = allocator;
