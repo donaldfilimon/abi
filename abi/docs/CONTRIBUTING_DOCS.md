@@ -15,13 +15,13 @@ This file describes the conventions for writing and contributing docs for the AB
 
 Example:
 
-// Compute the answer to life.
-//
-// Parameters:
-//   - allocator: allocator to use
-//   - input: the input string
-//
-// Returns: Zig string containing the answer
+/// Compute the answer to life.
+///
+/// Parameters:
+///   - allocator: allocator to use
+///   - input: the input string
+///
+/// Returns: Zig string containing the answer
 
 ## How to preview docs
 - Docs are maintained as markdown. There is no automated generator in this scaffold.
