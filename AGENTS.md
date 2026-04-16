@@ -93,3 +93,4 @@ AiOps Adapter Refactor Plan (Centralized Pointer Cast Helper)
   - Static checks: zig build check-parity; ensure no mod/stub parity regressions.
   - Unit tests: run any existing tests for AiOps paths; if none exist, add a minimal unit test to validate pointer-cast behavior using a mock Impl type.
 - Contacts: If parity fails, revert changes and pursue a less invasive approach (e.g., a local inline cast helper per adapter invocation) to minimize risk.
+- **Zig syntax note**: Do NOT declare `fn` inside a struct — use anonymous function expression pattern: `const implCastHelper = fn (ptr: *anyopaque) *Impl { return @ptrCast(*Impl, ptr); };` (see adapters.zig:24-26 for working example)
