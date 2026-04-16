@@ -185,8 +185,13 @@ fn callOpenAICompatible(
     prompt: []const u8,
 ) ![]u8 {
     // Load config from environment variables
-    var config = (loader_fn(allocator) catch return error.ApiRequestFailed) orelse
-        return error.MissingApiKey;
+    var config = loader_fn(allocator) catch |err| {
+        std.log.warn("connector: loader failed for {s}: {s}", .{ @typeName(shared.openaiCompatEncodeChatRequest), @errorName(err) });
+        return switch (err) {
+            error.MissingApiKey, error.MissingApiToken => error.MissingApiKey,
+            else => error.ApiRequestFailed,
+        };
+    } orelse return error.MissingApiKey;
     defer config.deinit(allocator);
 
     const ConfigType = @TypeOf(config);
