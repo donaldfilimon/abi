@@ -80,7 +80,10 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
     defer self.kv_cache.free(request.id);
 
     // Try real connector dispatch.
-    const response_text = try dispatchToConnector(self.allocator, self.config.model_id, request.prompt);
+    const response_text = dispatchToConnector(self.allocator, self.config.model_id, request.prompt) catch |err| {
+        foundation_mod.log.err("connector: failed to dispatch to connector for model '{s}': {any}", .{ self.config.model_id, err });
+        return err;
+    };
     errdefer self.allocator.free(response_text);
 
     const end = time_mod.timestampNs();
