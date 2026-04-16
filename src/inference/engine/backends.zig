@@ -71,8 +71,6 @@ pub fn isKnownProvider(name: []const u8) bool {
 
 /// Try to generate via a real LLM connector. Falls back to echo on failure.
 pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.Result {
-    std.log.warn("inference: connector backend using echo mode for model '{s}' — connector bridge not yet wired to external providers", .{self.config.model_id});
-
     const start = time_mod.timestampNs();
 
     const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
@@ -81,15 +79,8 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
     }
     defer self.kv_cache.free(request.id);
 
-    // Try real connector dispatch — fall back to echo on any failure
-    const response_text = dispatchToConnector(self.allocator, self.config.model_id, request.prompt) catch |err| blk: {
-        std.log.debug("Connector dispatch failed ({s}), using echo fallback", .{@errorName(err)});
-        break :blk try std.fmt.allocPrint(
-            self.allocator,
-            "[echo/{s}] Processing: {s}",
-            .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
-        );
-    };
+    // Try real connector dispatch.
+    const response_text = try dispatchToConnector(self.allocator, self.config.model_id, request.prompt);
     errdefer self.allocator.free(response_text);
 
     const end = time_mod.timestampNs();
