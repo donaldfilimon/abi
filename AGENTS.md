@@ -89,3 +89,20 @@ zig build -Dgpu-backend=cuda,vulkan
 
 - `CLAUDE.md` — Detailed architecture, conventions, and agent/skill references
 - `QWEN.md` — Quick reference and Zig 0.16 gotchas
+
+AiOps Adapter Refactor Plan (Centralized Pointer Cast Helper)
+- Objective: Introduce a centralized single-argument pointer cast helper for the AiOps adapter to reduce duplication and improve consistency when casting from opaque pointers back to concrete Impl types.
+- Scope: src/features/gpu/ai_ops/adapters.zig; ensure all internal adapter methods obtain Impl instances via the helper.
+- Approach (phases):
+  1) Add a small, centralized helper that converts *anyopaque to *Impl for the current AiOps Impl, taking the Impl as a comptime type parameter.
+  2) Replace repetitive @ptrCast usages in AiOps adapter methods with calls to the centralized helper.
+  3) Run a full build parity check: zig build check-parity. Address any parity or type-resolution issues.
+  4) Run the test suite (zig build test or zig build test --summary all) if feasible in this repo context.
+  5) Document the decision and usage pattern in AGENTS.md, including potential risks and how to extend to other adapters.
+- Risks and caveats:
+  - Cross-scope comptime type resolution can be tricky in Zig; ensure the helper is visible in the scope of all generically generated adapters.
+  - Potential ABI/VTABLE compatibility concerns if the helper behavior is not perfectly aligned with existing casts; ensure parity checks pass.
+- Verification plan:
+  - Static checks: zig build check-parity; ensure no mod/stub parity regressions.
+  - Unit tests: run any existing tests for AiOps paths; if none exist, add a minimal unit test to validate pointer-cast behavior using a mock Impl type.
+- Contacts: If parity fails, revert changes and pursue a less invasive approach (e.g., a local inline cast helper per adapter invocation) to minimize risk.
