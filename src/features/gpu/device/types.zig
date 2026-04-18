@@ -1,7 +1,7 @@
 //! Core GPU device types shared across the device subsystem.
 
 const std = @import("std");
-const backend_mod = @import("../internal/backend.zig");
+const backend_mod = @import("../backend.zig");
 const vendor_mod = @import("vendor.zig");
 
 pub const Backend = backend_mod.Backend;

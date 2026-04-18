@@ -1,6 +1,6 @@
 const std = @import("std");
-const backend_mod = @import("../internal/backend.zig");
-const backend_factory = @import("../internal/backend_factory.zig");
+const backend_mod = @import("../backend.zig");
+const backend_factory = @import("../backend_factory.zig");
 
 pub const BackendPool = struct {
     allocator: std.mem.Allocator,

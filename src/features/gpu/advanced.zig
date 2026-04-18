@@ -1,1 +1,1 @@
-pub const advanced_gpu = @import("internal/advanced.zig");
+pub const advanced_gpu = @import("advanced.zig");

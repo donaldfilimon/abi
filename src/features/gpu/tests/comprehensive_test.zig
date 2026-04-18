@@ -4,8 +4,8 @@
 //! including performance benchmarks, stress tests, and correctness verification.
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("abi").foundation.time;
+const sync = @import("abi").foundation.sync;
 const gpu = @import("../mod.zig");
 const unified = @import("../unified.zig");
 const device_mod = @import("../device.zig");

@@ -4,7 +4,7 @@
 //! Uses statistical analysis with outlier rejection and EMA smoothing.
 
 const std = @import("std");
-const coordinator = @import("../internal/execution_coordinator.zig");
+const coordinator = @import("../execution_coordinator.zig");
 
 const OperationType = coordinator.OperationType;
 const ExecutionMethod = coordinator.ExecutionMethod;

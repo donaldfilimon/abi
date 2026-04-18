@@ -28,16 +28,16 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("abi").foundation.time;
+const sync = @import("abi").foundation.sync;
 const build_options = @import("build_options");
-const shared_utils = @import("../../../foundation/mod.zig").utils;
+const shared_utils = @import("abi").foundation.utils;
 const backend_shared = @import("../backends/shared.zig");
 
 const multi_device = @import("../multi_device.zig");
-const stream_mod = @import("../internal/stream.zig");
-const backend_mod = @import("../internal/backend.zig");
-const device_mod = @import("../internal/device.zig");
+const stream_mod = @import("../stream.zig");
+const backend_mod = @import("../backend.zig");
+const device_mod = @import("../device.zig");
 
 // Backend implementations
 pub const host_staged = @import("host_staged.zig");

@@ -1,4 +1,4 @@
-pub const DeviceGroup = @import("internal/device_group.zig").DeviceGroup;
-pub const MultiDeviceConfig = @import("internal/device_group.zig").MultiDeviceConfig;
-pub const DeviceId = @import("internal/device_group.zig").DeviceId;
-pub const WorkDistribution = @import("internal/device_group.zig").WorkDistribution;
+pub const DeviceGroup = @import("device_group.zig").DeviceGroup;
+pub const MultiDeviceConfig = @import("device_group.zig").MultiDeviceConfig;
+pub const DeviceId = @import("device_group.zig").DeviceId;
+pub const WorkDistribution = @import("device_group.zig").WorkDistribution;

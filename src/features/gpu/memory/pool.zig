@@ -8,10 +8,10 @@
 //! - Memory pressure handling with automatic eviction
 
 const std = @import("std");
-const platform_time = @import("../../../foundation/mod.zig").utils;
+const platform_time = @import("abi").foundation.utils;
 const time = platform_time;
-const sync = @import("../../../foundation/mod.zig").sync;
-const memory = @import("internal/memory/base.zig");
+const sync = @import("abi").foundation.sync;
+const memory = @import("memory/base.zig");
 
 /// Memory allocation size classes in bytes.
 const SIZE_CLASSES = [_]usize{

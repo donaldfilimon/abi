@@ -4,8 +4,8 @@
 //! for cross-platform GPU compute acceleration. Requires OpenGL 4.3+ for compute shader support.
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("abi").foundation.time;
+const sync = @import("abi").foundation.sync;
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
@@ -671,9 +671,9 @@ pub fn getVersion() struct { major: i32, minor: i32 } {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../internal/device.zig").Device;
-const DeviceType = @import("../internal/device.zig").DeviceType;
-const Backend = @import("../internal/backend.zig").Backend;
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
+const Backend = @import("../backend.zig").Backend;
 
 /// Enumerate all OpenGL devices available on the system
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {

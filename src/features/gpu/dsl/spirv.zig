@@ -8,7 +8,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
-const zig_toolchain = @import("../../../foundation/mod.zig").utils.zig_toolchain;
+const zig_toolchain = @import("abi").foundation.utils.zig_toolchain;
 
 // ---------------------------------------------------------------------------
 // Public types

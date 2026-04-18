@@ -1,1 +1,1 @@
-pub const kernel_ring = @import("internal/kernel_ring.zig");
+pub const kernel_ring = @import("kernel_ring.zig");

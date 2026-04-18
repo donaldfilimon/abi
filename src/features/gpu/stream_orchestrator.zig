@@ -1,1 +1,1 @@
-pub const Backend = @import("internal/stream_orchestrator.zig").Backend;
+pub const Backend = @import("stream_orchestrator.zig").Backend;

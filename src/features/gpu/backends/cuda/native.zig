@@ -4,8 +4,8 @@
 //! using the CUDA Driver API instead of fallback simulation.
 
 const std = @import("std");
-const time = @import("../../../../foundation/mod.zig").time;
-const sync = @import("../../../../foundation/mod.zig").sync;
+const time = @import("abi").foundation.time;
+const sync = @import("abi").foundation.sync;
 const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");
 

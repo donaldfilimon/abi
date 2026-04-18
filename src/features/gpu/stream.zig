@@ -1,1 +1,1 @@
-pub const stream = @import("internal/stream.zig");
+pub const stream = @import("stream.zig");

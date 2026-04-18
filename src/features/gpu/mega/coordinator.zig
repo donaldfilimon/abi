@@ -32,12 +32,12 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("abi").foundation.time;
+const sync = @import("abi").foundation.sync;
 const build_options = @import("build_options");
 const multi_device = @import("../multi_device.zig");
-const backend_mod = @import("../internal/backend.zig");
-const interface = @import("../internal/interface.zig");
+const backend_mod = @import("../backend.zig");
+const interface = @import("../interface.zig");
 
 /// Backend instance with metadata for cross-backend coordination.
 pub const BackendInstance = struct {

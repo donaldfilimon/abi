@@ -4,8 +4,8 @@
 //! deadline support, and retry policies.
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("abi").foundation.time;
+const sync = @import("abi").foundation.sync;
 const coordinator = @import("coordinator.zig");
 
 /// Workload priority levels.

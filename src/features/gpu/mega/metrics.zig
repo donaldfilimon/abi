@@ -4,10 +4,10 @@
 //! export. Uses shared observability primitives from the centralized metrics module.
 
 const std = @import("std");
-const time = @import("../../../foundation/mod.zig").time;
-const sync = @import("../../../foundation/mod.zig").sync;
+const time = @import("abi").foundation.time;
+const sync = @import("abi").foundation.sync;
 const backend_mod = @import("../backend.zig");
-const core_metrics = @import("../../../foundation/mod.zig").utils.metric_types;
+const core_metrics = @import("abi").foundation.utils.metric_types;
 
 // Re-export shared types for API compatibility
 pub const Counter = core_metrics.Counter;

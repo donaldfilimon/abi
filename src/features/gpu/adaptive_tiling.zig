@@ -1,3 +1,3 @@
 //! Re-export from internal/adaptive_tiling
 
-pub const AdaptiveTiling = @import("internal/adaptive_tiling.zig").AdaptiveTiling;
+pub const AdaptiveTiling = @import("adaptive_tiling.zig").AdaptiveTiling;

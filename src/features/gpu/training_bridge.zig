@@ -1,2 +1,2 @@
-pub const GpuTrainingBridge = @import("internal/training_bridge.zig").GpuTrainingBridge;
-pub const GpuTrainingStats = @import("internal/training_bridge.zig").GpuTrainingStats;
+pub const GpuTrainingBridge = @import("training_bridge.zig").GpuTrainingBridge;
+pub const GpuTrainingStats = @import("training_bridge.zig").GpuTrainingStats;
