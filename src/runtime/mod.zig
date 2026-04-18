@@ -76,9 +76,10 @@ pub const WorkItem = workload.WorkItem;
 /// Helper to execute a work item in a specific context.
 pub const runWorkItem = workload.runWorkItem;
 
-// Benchmarking
-/// Results from a benchmark run.
-pub const BenchmarkResult = engine.BenchmarkResult;
+// Inference
+pub const inference_coordinator = @import("inference_coordinator.zig");
+pub const InferenceCoordinator = inference_coordinator.InferenceCoordinator;
+pub const InferenceCoordinatorConfig = inference_coordinator.CoordinatorConfig;
 /// Execute the internal benchmark suite.
 pub const runBenchmarks = engine.runBenchmarks;
 
