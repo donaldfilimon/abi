@@ -13,8 +13,8 @@
 //! This is the slowest transfer method but always works.
 
 const std = @import("std");
-const time = @import("abi").foundation.time;
-const sync = @import("abi").foundation.sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const multi_device = @import("../multi_device.zig");
 
 pub const DeviceId = multi_device.DeviceId;

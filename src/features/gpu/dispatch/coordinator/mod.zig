@@ -33,8 +33,8 @@
 //! ```
 
 const std = @import("std");
-const time = @import("abi").foundation.time;
-const sync = @import("abi").foundation.sync;
+const time = @import("../../../../foundation/mod.zig").time;
+const sync = @import("../../../../foundation/mod.zig").sync;
 const build_options = @import("build_options");
 const backend_mod = @import("../../backend.zig");
 const device_mod = @import("../../device.zig");
@@ -42,10 +42,10 @@ const interface = @import("../../interface.zig");
 const backend_shared = @import("../../backends/shared.zig");
 const dsl = @import("../../dsl/mod.zig");
 const unified_buffer = @import("../../unified_buffer.zig");
-const kernel_types = @import("../../../kernel_types.zig");
-const builtin_kernels = @import("../../../builtin_kernels.zig");
-const kernel_ring_mod = @import("../../../kernel_ring.zig");
-const policy = @import("../../../policy/mod.zig");
+const kernel_types = @import("../../kernel_types.zig");
+const builtin_kernels = @import("../../builtin_kernels.zig");
+const kernel_ring_mod = @import("../../kernel_ring.zig");
+const policy = @import("../../policy/mod.zig");
 const std_gpu_integration = @import("../../backends/std_gpu_integration.zig");
 const StdGpuKernelRegistry = std_gpu_integration.StdGpuKernelRegistry;
 

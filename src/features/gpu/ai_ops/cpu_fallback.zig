@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const ai_ops = @import("../ai_ops.zig");
-const activations = @import("abi").foundation.simd.activations;
+const activations = @import("../../../foundation/mod.zig").simd.activations;
 
 const AiOps = ai_ops.AiOps;
 const AiOpsError = ai_ops.AiOpsError;

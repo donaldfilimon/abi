@@ -1,23 +1,50 @@
-pub const DeviceGroup = @import("multi_device.zig").DeviceGroup;
-pub const DeviceId = @import("multi_device.zig").DeviceId;
-pub const DeviceType = @import("multi_device.zig").DeviceType;
-pub const DeviceCapabilities = @import("multi_device.zig").DeviceCapabilities;
-pub const DeviceInfo = @import("multi_device.zig").DeviceInfo;
-pub const LoadBalanceStrategy = @import("multi_device.zig").LoadBalanceStrategy;
-pub const MultiDeviceConfig = @import("multi_device.zig").MultiDeviceConfig;
-pub const WorkDistribution = @import("multi_device.zig").WorkDistribution;
-pub const GroupStats = @import("multi_device.zig").GroupStats;
-pub const PeerTransferConfig = @import("multi_device.zig").PeerTransferConfig;
-pub const PeerTransfer = @import("multi_device.zig").PeerTransfer;
-pub const DeviceBarrier = @import("multi_device.zig").DeviceBarrier;
-pub const GPUCluster = @import("multi_device.zig").GPUCluster;
-pub const ReduceOp = @import("multi_device.zig").ReduceOp;
-pub const ParallelismStrategy = @import("multi_device.zig").ParallelismStrategy;
-pub const ModelPartition = @import("multi_device.zig").ModelPartition;
-pub const GPUClusterConfig = @import("multi_device.zig").GPUClusterConfig;
-pub const AllReduceAlgorithm = @import("multi_device.zig").AllReduceAlgorithm;
-pub const TensorPartition = @import("multi_device.zig").TensorPartition;
-pub const DeviceChunk = @import("multi_device.zig").DeviceChunk;
-pub const ClusterStats = @import("multi_device.zig").ClusterStats;
-pub const GradientBucket = @import("multi_device.zig").GradientBucket;
-pub const GradientBucketManager = @import("multi_device.zig").GradientBucketManager;
+//! Multi-GPU device management and coordination.
+//!
+//! This is a re-export hub. Implementations live in:
+//! - `device_group.zig` — Device discovery, load balancing, work distribution, barriers
+//! - `gpu_cluster.zig` — Multi-GPU context, AllReduce, scatter/gather, partitioning
+//! - `gradient_sync.zig` — Gradient bucketing for efficient AllReduce
+
+const std = @import("std");
+
+// Extracted submodules
+pub const device_group_mod = @import("device_group.zig");
+pub const gpu_cluster_mod = @import("gpu_cluster.zig");
+pub const gradient_sync_mod = @import("gradient_sync.zig");
+
+// Re-export device_group types
+pub const DeviceId = device_group_mod.DeviceId;
+pub const DeviceType = device_group_mod.DeviceType;
+pub const DeviceCapabilities = device_group_mod.DeviceCapabilities;
+pub const DeviceInfo = device_group_mod.DeviceInfo;
+pub const LoadBalanceStrategy = device_group_mod.LoadBalanceStrategy;
+pub const MultiDeviceConfig = device_group_mod.MultiDeviceConfig;
+pub const DeviceGroup = device_group_mod.DeviceGroup;
+pub const WorkDistribution = device_group_mod.WorkDistribution;
+pub const GroupStats = device_group_mod.GroupStats;
+pub const PeerTransferConfig = device_group_mod.PeerTransferConfig;
+pub const PeerTransfer = device_group_mod.PeerTransfer;
+pub const DeviceBarrier = device_group_mod.DeviceBarrier;
+
+// Re-export gpu_cluster types
+pub const ReduceOp = gpu_cluster_mod.ReduceOp;
+pub const ParallelismStrategy = gpu_cluster_mod.ParallelismStrategy;
+pub const ModelPartition = gpu_cluster_mod.ModelPartition;
+pub const GPUClusterConfig = gpu_cluster_mod.GPUClusterConfig;
+pub const AllReduceAlgorithm = gpu_cluster_mod.AllReduceAlgorithm;
+pub const GPUCluster = gpu_cluster_mod.GPUCluster;
+pub const TensorPartition = gpu_cluster_mod.TensorPartition;
+pub const DeviceChunk = gpu_cluster_mod.DeviceChunk;
+pub const ClusterStats = gpu_cluster_mod.ClusterStats;
+
+// Re-export gradient_sync types
+pub const GradientBucket = gradient_sync_mod.GradientBucket;
+pub const GradientBucketManager = gradient_sync_mod.GradientBucketManager;
+
+// Test discovery for extracted submodules
+test {
+    _ = @import("device_group.zig");
+    _ = @import("gpu_cluster.zig");
+    _ = @import("gradient_sync.zig");
+    _ = @import("multi_device_test.zig");
+}

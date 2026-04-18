@@ -105,11 +105,11 @@
 //! - Lifecycle management internals (gpu_lifecycle, cuda_backend_init_lock)
 //! - backend.Backend-specific initialization functions (initCudaComponents, etc.)
 const std = @import("std");
-const time = @import("abi").foundation.time;
-const sync = @import("abi").foundation.sync;
+const time = @import("../../foundation/mod.zig").time;
+const sync = @import("../../foundation/mod.zig").sync;
 
 // Decoupled sub-modules
-pub const core = @import("backend.zig");
+pub const core = @import("core_gpu.zig");
 pub const compute = @import("unified.zig");
 pub const memory_sys = @import("backends/cuda/memory.zig");
 pub const dispatch_sys = @import("backends/shared.zig");
@@ -123,8 +123,8 @@ pub const stream = @import("stream.zig");
 pub const dsl = @import("dsl/mod.zig");
 
 // ── Execution & Orchestration ────────────────────────────────────────────
-pub const execution = @import("execution/mod.zig");
-pub const execution_coordinator = @import("execution_coordinator/coordinator.zig");
+pub const execution = @import("execution.zig");
+pub const execution_coordinator = @import("execution_coordinator.zig");
 pub const runtime = @import("runtime/mod.zig");
 pub const dispatch = @import("dispatch/mod.zig");
 pub const mega = @import("mega/mod.zig");
@@ -145,23 +145,23 @@ pub const backends = @import("backends/mod.zig");
 pub const backend_shared = @import("backends/shared.zig");
 pub const std_gpu = @import("std_gpu.zig");
 pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
-pub const kernels = @import("runtime/ops_builtin.zig");
+pub const kernels = @import("runtime_kernels.zig");
 pub const builtin_kernels = @import("builtin_kernels.zig");
 pub const interface = @import("interface.zig");
 pub const cuda_loader = dispatch_sys.cuda_loader;
 
 // ── Performance & Advanced ───────────────────────────────────────────────
-pub const advanced = @import("fusion/detection.zig");
-pub const profiling = @import("runtime/health_metrics.zig");
-pub const occupancy = @import("ai_ops.zig");
-pub const fusion = @import("fusion/types.zig");
-pub const sync_event = @import("memory/lockfree.zig");
+pub const advanced = @import("advanced.zig");
+pub const profiling = @import("profiling.zig");
+pub const occupancy = @import("occupancy.zig");
+pub const fusion = @import("fusion.zig");
+pub const sync_event = @import("sync_event.zig");
 pub const kernel_ring = @import("kernel_ring.zig");
 pub const adaptive_tiling = @import("adaptive_tiling.zig");
 
 // ── Recovery & Diagnostics ───────────────────────────────────────────────
-pub const recovery = @import("runtime/health_metrics.zig");
-pub const failover = @import("mega/failover.zig");
+pub const recovery = @import("recovery.zig");
+pub const failover = @import("failover.zig");
 pub const failover_types = @import("failover_types.zig");
 pub const diagnostics = @import("diagnostics.zig");
 pub const error_handling = @import("error_handling.zig");
@@ -188,7 +188,7 @@ comptime {
         _ = @import("peer_transfer/tests.zig");
         _ = @import("peer_transfer/network.zig");
         // Performance optimization module tests
-        _ = @import("memory/lockfree.zig");
+        _ = @import("sync_event.zig");
         _ = @import("kernel_ring.zig");
         _ = @import("adaptive_tiling.zig");
         _ = @import("memory/lockfree.zig");
@@ -226,7 +226,7 @@ comptime {
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils
-const lifecycle = @import("abi").foundation.utils;
+const lifecycle = @import("../../foundation/mod.zig").utils;
 const SimpleModuleLifecycle = lifecycle.SimpleModuleLifecycle;
 const LifecycleError = lifecycle.LifecycleError;
 

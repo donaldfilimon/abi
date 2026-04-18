@@ -4,21 +4,7 @@
 //! import from here so that type definitions are not duplicated.
 
 const std = @import("std");
-<<<<<<< Updated upstream
-const backend_mod = @import("internal/backend.zig");
-const buffer_mod = @import("internal/unified_buffer.zig");
-const device_manager = @import("internal/device_manager.zig");
-=======
-<<<<<<< HEAD
 const backend_mod = @import("backend.zig");
-const buffer_mod = @import("unified_buffer.zig");
-const device_manager = @import("device_manager.zig");
-=======
-const backend_mod = @import("backend.zig");
-const buffer_mod = @import("unified_buffer.zig");
-const device_manager = @import("device_manager.zig");
->>>>>>> 0aad638 (chore: consolidate local main workspace and resolve merge conflicts)
->>>>>>> Stashed changes
 
 // ── Error Sets ─────────────────────────────────────────────────────────────
 

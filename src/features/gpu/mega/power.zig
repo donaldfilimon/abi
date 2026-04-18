@@ -4,8 +4,8 @@
 //! scheduling recommendations based on power efficiency.
 
 const std = @import("std");
-const time = @import("abi").foundation.time;
-const sync = @import("abi").foundation.sync;
+const time = @import("../../../foundation/mod.zig").time;
+const sync = @import("../../../foundation/mod.zig").sync;
 const backend_mod = @import("../backend.zig");
 
 /// Power profile for a GPU backend.

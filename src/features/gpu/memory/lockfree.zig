@@ -44,8 +44,8 @@
 //! simultaneously allocate, access, and free resources without blocking.
 
 const std = @import("std");
-const memory = @import("memory/base.zig");
-const time = @import("abi").foundation.time;
+const memory = @import("base.zig");
+const time = @import("../../../foundation/mod.zig").time;
 
 /// Cache line size for alignment (x86/ARM64)
 pub const CACHE_LINE_SIZE: usize = 64;
