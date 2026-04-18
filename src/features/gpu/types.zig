@@ -5,6 +5,8 @@
 
 const std = @import("std");
 const backend_mod = @import("backend.zig");
+const device_manager = @import("device_manager.zig");
+const buffer_mod = @import("unified_buffer.zig");
 
 // ── Error Sets ─────────────────────────────────────────────────────────────
 
