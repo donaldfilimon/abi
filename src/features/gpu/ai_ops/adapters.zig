@@ -14,6 +14,10 @@ const Transpose = ai_ops.Transpose;
 /// The implementation type must have methods matching the VTable signatures.
 pub fn createAiOps(comptime Impl: type, impl: *Impl) AiOps {
     const gen = struct {
+        fn implCast(ptr: *anyopaque) *Impl {
+            return @ptrCast(@alignCast(ptr));
+        }
+
         fn sgemm(
             ptr: *anyopaque,
             trans_a: Transpose,
@@ -30,7 +34,7 @@ pub fn createAiOps(comptime Impl: type, impl: *Impl) AiOps {
             c: *anyopaque,
             ldc: i32,
         ) AiOpsError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = implCast(ptr);
             return self.sgemm(trans_a, trans_b, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
         }
 
