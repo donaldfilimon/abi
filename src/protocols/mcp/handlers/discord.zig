@@ -7,6 +7,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const json_utils = @import("../../../foundation/mod.zig").utils.json;
 
+const registry = @import("../registry.zig");
 const discord = if (build_options.feat_connectors)
     @import("../../../connectors/discord/mod.zig")
 else

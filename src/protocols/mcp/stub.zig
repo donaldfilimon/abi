@@ -205,14 +205,10 @@ pub const transport = struct {
     }
 };
 
-pub fn isEnabled() bool {
-    return false;
-}
-
+// Parity stubs for isEnabled and Context to mirror mod.zig surface
+pub fn isEnabled() bool { return false; }
 pub const Context = struct {
-    pub fn isEnabled() bool {
-        return false;
-    }
+    pub fn isEnabled() bool { return false; }
 };
 
 test {
