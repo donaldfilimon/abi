@@ -6,6 +6,15 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const types = @import("../types.zig");
+const registry = @import("../registry.zig");
+
+pub const tools = [_]registry.ToolDef{
+    .{ .name = "abi_status", .description = "Get ABI server status", .input_schema = "{}", .handler = handleAbiStatus },
+    .{ .name = "abi_health", .description = "Get ABI server health", .input_schema = "{}", .handler = handleAbiHealth },
+    .{ .name = "abi_features", .description = "List enabled ABI features", .input_schema = "{}", .handler = handleAbiFeatures },
+    .{ .name = "abi_version", .description = "Get ABI version info", .input_schema = "{}", .handler = handleAbiVersion },
+    .{ .name = "hardware_status", .description = "Get hardware capability status", .input_schema = "{}", .handler = handleHardwareStatus },
+};
 
 pub fn handleAbiStatus(
     allocator: std.mem.Allocator,
