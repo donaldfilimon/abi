@@ -483,6 +483,7 @@ fn findMemoryType(type_filter: u32, properties: VkMemoryPropertyFlags) VulkanErr
 // ============================================================================
 
 const interface = @import("../interface.zig");
+const PointerCast = @import("../pointer_cast.zig");
 
 pub const VulkanBackend = struct {
     allocator: std.mem.Allocator,
@@ -538,7 +539,7 @@ pub const VulkanBackend = struct {
 
         // Destroy kernels
         for (self.kernels.items) |k| {
-            const kernel: *VulkanKernel = @ptrCast(@alignCast(k.handle));
+            const kernel = PointerCast.implCast(VulkanKernel, k.handle);
             vkDestroyPipeline.?(ctx.device, kernel.pipeline, null);
             vkDestroyPipelineLayout.?(ctx.device, kernel.pipeline_layout, null);
             vkDestroyDescriptorSetLayout.?(ctx.device, kernel.descriptor_set_layout, null);
@@ -791,7 +792,7 @@ pub const VulkanBackend = struct {
 
     pub fn launchKernel(self: *Self, kernel_handle: *anyopaque, config: interface.LaunchConfig, args: []const *anyopaque) interface.KernelError!void {
         const ctx = vulkan_context.?;
-        const kernel: *VulkanKernel = @ptrCast(@alignCast(kernel_handle));
+        const kernel = PointerCast.implCast(VulkanKernel, kernel_handle);
 
         // 1. Allocate Descriptor Set
         const alloc_info = VkDescriptorSetAllocateInfo{
@@ -886,7 +887,7 @@ pub const VulkanBackend = struct {
 
     pub fn destroyKernel(self: *Self, kernel_handle: *anyopaque) void {
         const ctx = vulkan_context.?;
-        const kernel: *VulkanKernel = @ptrCast(@alignCast(kernel_handle));
+        const kernel = PointerCast.implCast(VulkanKernel, kernel_handle);
 
         // Remove from tracking if present
         for (self.kernels.items, 0..) |k, i| {

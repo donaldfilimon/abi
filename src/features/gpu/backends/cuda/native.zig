@@ -322,7 +322,7 @@ pub fn launchKernel(
 ) (types.KernelError || std.mem.Allocator.Error)!void {
     _ = allocator;
 
-    const handle: *CudaKernel = @ptrCast(@alignCast(kernel_handle));
+    const handle = castKernel(kernel_handle);
     const launch_fn = cuLaunchKernel orelse return types.KernelError.LaunchFailed;
 
     const stream = if (cuda_context) |ctx| optPtr(ctx.stream) else @as(*anyopaque, @ptrFromInt(0));
@@ -361,7 +361,7 @@ pub fn launchKernel(
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
     _ = allocator;
 
-    const handle: *CudaKernel = @ptrCast(@alignCast(kernel_handle));
+    const handle = castKernel(kernel_handle);
     const unload_fn = cuModuleUnload orelse return;
 
     _ = unload_fn(handle.module);
@@ -385,14 +385,14 @@ pub fn createStream() !*anyopaque {
 }
 
 pub fn destroyStream(stream: *anyopaque) void {
-    const cu_stream: *CuStream = @ptrCast(@alignCast(stream));
+    const cu_stream = castStream(stream);
     const destroy_fn = cuStreamDestroy orelse return;
     _ = destroy_fn(cu_stream.ptr);
     std.heap.page_allocator.destroy(cu_stream);
 }
 
 pub fn synchronizeStream(stream: *anyopaque) !void {
-    const cu_stream: *CuStream = @ptrCast(@alignCast(stream));
+    const cu_stream = castStream(stream);
     const sync_fn = cuStreamSynchronize orelse return CudaError.KernelLaunchFailed;
 
     if (sync_fn(cu_stream.ptr) != .success) {
@@ -612,7 +612,7 @@ pub fn getDeviceProperties(device_id: i32) !DeviceProperties {
 
 pub fn getOptimalBlockSize(kernel_handle: *anyopaque, dynamic_smem: usize) !struct { min_grid: i32, block_size: i32 } {
     const occupancy_fn = cuOccupancyMaxPotentialBlockSize orelse return CudaError.DriverNotFound;
-    const handle: *CudaKernel = @ptrCast(@alignCast(kernel_handle));
+    const handle = castKernel(kernel_handle);
 
     var min_grid_size: i32 = 0;
     var block_size: i32 = 0;
@@ -649,6 +649,14 @@ const CudaKernel = struct {
 const CuStream = struct {
     ptr: CUstream,
 };
+
+inline fn castKernel(ptr: *anyopaque) *CudaKernel {
+    return @ptrCast(@alignCast(ptr));
+}
+
+inline fn castStream(ptr: *anyopaque) *CuStream {
+    return @ptrCast(@alignCast(ptr));
+}
 
 fn tryLoadCuda() bool {
     const lib_names = [_][]const u8{ "nvcuda.dll", "libcuda.so.1", "libcuda.so" };

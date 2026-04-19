@@ -33,6 +33,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const std_gpu_kernels = @import("../std_gpu_kernels.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 // Import dispatch types for BuiltinKernel enum and Buffer
 const dsl_kernel = @import("../dsl/kernel.zig");
@@ -231,7 +232,7 @@ pub fn TypedBuffer(comptime T: type) type {
         }
 
         pub fn asConstSlice(self: *const Self) []const T {
-            const ptr: [*]const T = @ptrCast(@alignCast(self.data.ptr));
+            const ptr: [*]const T = PointerCast.implCast([*]const T, self.data.ptr);
             return ptr[0..self.count];
         }
     };
@@ -551,7 +552,8 @@ pub const StdGpuKernelRegistry = struct {
     ) ?T {
         if (index >= uniforms.len) return null;
         if (index < uniform_sizes.len and uniform_sizes[index] != @sizeOf(T)) return null;
-        return @as(*const T, @ptrCast(@alignCast(uniforms[index]))).*;
+        const typed_ptr: *const T = @ptrCast(@alignCast(uniforms[index]));
+        return typed_ptr.*;
     }
 };
 

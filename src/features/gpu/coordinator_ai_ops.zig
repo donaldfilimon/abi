@@ -13,6 +13,20 @@ const AiOpsError = ai_ops.AiOpsError;
 const DeviceBuffer = ai_ops.DeviceBuffer;
 const Transpose = ai_ops.Transpose;
 
+// =============================================================================
+// Centralized pointer cast helpers
+// =============================================================================
+
+/// Convenience cast from *anyopaque to [*]f32 (many-pointer for slice operations).
+inline fn toSlice(ptr: *anyopaque) [*]f32 {
+    return @ptrCast(@alignCast(ptr));
+}
+
+/// Convenience cast from *const anyopaque to [*]const f32.
+inline fn toConstSlice(ptr: *const anyopaque) [*]const f32 {
+    return @ptrCast(@alignCast(ptr));
+}
+
 /// AiOps implementation backed by ExecutionCoordinator.
 ///
 /// Provides GPU-accelerated AI operations through the coordinator's
@@ -74,9 +88,9 @@ pub const CoordinatorAiOps = struct {
         const mu: usize = @intCast(m);
         const nu: usize = @intCast(n);
         const ku: usize = @intCast(k);
-        const a_slice = @as([*]const f32, @ptrCast(@alignCast(a_ptr)))[0 .. mu * ku];
-        const b_slice = @as([*]const f32, @ptrCast(@alignCast(b_ptr)))[0 .. ku * nu];
-        const c_slice = @as([*]f32, @ptrCast(@alignCast(c_ptr)))[0 .. mu * nu];
+        const a_slice = toConstSlice(a_ptr)[0 .. mu * ku];
+        const b_slice = toConstSlice(b_ptr)[0 .. ku * nu];
+        const c_slice = toSlice(c_ptr)[0 .. mu * nu];
 
         // CPU GEMM: C = alpha * A @ B + beta * C
         for (0..mu) |i| {
@@ -116,7 +130,7 @@ pub const CoordinatorAiOps = struct {
     pub fn softmax(self: *CoordinatorAiOps, data: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         _ = self;
         // In-place softmax on host memory
-        const slice = @as([*]f32, @ptrCast(@alignCast(data)))[0..len];
+        const slice = toSlice(data)[0..len];
 
         // Numerically stable softmax
         var max_val: f32 = -std.math.inf(f32);
@@ -134,8 +148,8 @@ pub const CoordinatorAiOps = struct {
 
     pub fn rmsnorm(self: *CoordinatorAiOps, x: *anyopaque, weight: *const anyopaque, len: u32, eps: f32, _: ?*anyopaque) AiOpsError!void {
         _ = self;
-        const x_slice = @as([*]f32, @ptrCast(@alignCast(x)))[0..len];
-        const w_slice = @as([*]const f32, @ptrCast(@alignCast(weight)))[0..len];
+        const x_slice = toSlice(x)[0..len];
+        const w_slice = toConstSlice(weight)[0..len];
 
         // Compute RMS
         var sum_sq: f32 = 0;
@@ -150,7 +164,7 @@ pub const CoordinatorAiOps = struct {
 
     pub fn silu(self: *CoordinatorAiOps, data: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         _ = self;
-        const slice = @as([*]f32, @ptrCast(@alignCast(data)))[0..len];
+        const slice = toSlice(data)[0..len];
         for (slice) |*v| {
             // SiLU: x * sigmoid(x)
             const sigmoid = 1.0 / (1.0 + @exp(-v.*));
@@ -160,7 +174,7 @@ pub const CoordinatorAiOps = struct {
 
     pub fn gelu(self: *CoordinatorAiOps, data: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         _ = self;
-        const slice = @as([*]f32, @ptrCast(@alignCast(data)))[0..len];
+        const slice = toSlice(data)[0..len];
         for (slice) |*v| {
             // GELU approximation: 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
             const x = v.*;
@@ -172,20 +186,20 @@ pub const CoordinatorAiOps = struct {
 
     pub fn scale(self: *CoordinatorAiOps, data: *anyopaque, scalar: f32, len: u32, _: ?*anyopaque) AiOpsError!void {
         _ = self;
-        const slice = @as([*]f32, @ptrCast(@alignCast(data)))[0..len];
+        const slice = toSlice(data)[0..len];
         for (slice) |*v| v.* *= scalar;
     }
 
     pub fn elementwiseMul(self: *CoordinatorAiOps, a: *anyopaque, b: *const anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const coord = &(self.coordinator orelse {
             // CPU fallback
-            const a_s = @as([*]f32, @ptrCast(@alignCast(a)))[0..len];
-            const b_s = @as([*]const f32, @ptrCast(@alignCast(b)))[0..len];
+            const a_s = toSlice(a)[0..len];
+            const b_s = toConstSlice(b)[0..len];
             for (a_s, b_s) |*av, bv| av.* *= bv;
             return;
         });
-        const a_s = @as([*]f32, @ptrCast(@alignCast(a)))[0..len];
-        const b_s = @as([*]const f32, @ptrCast(@alignCast(b)))[0..len];
+        const a_s = toSlice(a)[0..len];
+        const b_s = toConstSlice(b)[0..len];
         _ = coord.vectorMul(a_s, b_s, a_s) catch {
             // CPU fallback
             for (a_s, b_s) |*av, bv| av.* *= bv;
@@ -194,13 +208,13 @@ pub const CoordinatorAiOps = struct {
 
     pub fn elementwiseAdd(self: *CoordinatorAiOps, a: *anyopaque, b: *const anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const coord = &(self.coordinator orelse {
-            const a_s = @as([*]f32, @ptrCast(@alignCast(a)))[0..len];
-            const b_s = @as([*]const f32, @ptrCast(@alignCast(b)))[0..len];
+            const a_s = toSlice(a)[0..len];
+            const b_s = toConstSlice(b)[0..len];
             for (a_s, b_s) |*av, bv| av.* += bv;
             return;
         });
-        const a_s = @as([*]f32, @ptrCast(@alignCast(a)))[0..len];
-        const b_s = @as([*]const f32, @ptrCast(@alignCast(b)))[0..len];
+        const a_s = toSlice(a)[0..len];
+        const b_s = toConstSlice(b)[0..len];
         _ = coord.vectorAdd(a_s, b_s, a_s) catch {
             for (a_s, b_s) |*av, bv| av.* += bv;
         };

@@ -12,6 +12,14 @@ pub const SimulatedError = error{
     ArgumentCountMismatch,
 };
 
+inline fn ptrToF32(ptr: *anyopaque) [*]f32 {
+    return @ptrCast(@alignCast(ptr));
+}
+
+inline fn ptrToConstF32(ptr: *const anyopaque) [*]const f32 {
+    return @ptrCast(@alignCast(ptr));
+}
+
 pub const KernelHandle = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
@@ -99,9 +107,9 @@ fn launchVectorAdd(args: []const ?*const anyopaque) SimulatedError!void {
     const n_ptr = try argPtrConst(u32, args, 3);
 
     const n = @as(usize, @intCast(n_ptr.*));
-    const a_many: [*]const f32 = @ptrCast(@alignCast(a_ptr));
-    const b_many: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-    const c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
+    const a_many = ptrToConstF32(a_ptr);
+    const b_many = ptrToConstF32(b_ptr);
+    const c_many = ptrToF32(c_ptr);
 
     for (0..n) |i| {
         c_many[i] = a_many[i] + b_many[i];
@@ -120,9 +128,9 @@ fn launchMatMul(args: []const ?*const anyopaque) SimulatedError!void {
     const n = @as(usize, @intCast(n_ptr.*));
     const k = @as(usize, @intCast(k_ptr.*));
 
-    const a_many: [*]const f32 = @ptrCast(@alignCast(a_ptr));
-    const b_many: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-    const c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
+    const a_many = ptrToConstF32(a_ptr);
+    const b_many = ptrToConstF32(b_ptr);
+    const c_many = ptrToF32(c_ptr);
 
     for (0..m) |row| {
         for (0..n) |col| {
@@ -141,8 +149,8 @@ fn launchReduceSum(args: []const ?*const anyopaque) SimulatedError!void {
     const n_ptr = try argPtrConst(u32, args, 2);
 
     const n = @as(usize, @intCast(n_ptr.*));
-    const input_many: [*]const f32 = @ptrCast(@alignCast(input_ptr));
-    const output_many: [*]f32 = @ptrCast(@alignCast(output_ptr));
+    const input_many = ptrToConstF32(input_ptr);
+    const output_many = ptrToF32(output_ptr);
 
     var sum: f32 = 0.0;
     for (0..n) |i| {

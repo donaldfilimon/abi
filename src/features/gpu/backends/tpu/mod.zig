@@ -11,6 +11,7 @@
 const std = @import("std");
 const interface = @import("../../interface.zig");
 const tpu_types = @import("types.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 pub const types = tpu_types;
 
@@ -244,7 +245,7 @@ pub const TpuBackend = struct {
         _ = config;
         _ = args;
 
-        const kernel_ptr: *CompiledKernel = @ptrCast(@alignCast(kernel));
+        const kernel_ptr: *CompiledKernel = PointerCast.implCast(CompiledKernel, kernel);
 
         std.log.info("TPU: simulating kernel '{s}' execution (class: {s})", .{
             kernel_ptr.name,
@@ -255,7 +256,7 @@ pub const TpuBackend = struct {
     }
 
     pub fn destroyKernel(self: *Self, kernel: *anyopaque) void {
-        const kernel_ptr: *CompiledKernel = @ptrCast(@alignCast(kernel));
+        const kernel_ptr: *CompiledKernel = PointerCast.implCast(CompiledKernel, kernel);
 
         for (self.kernels.items, 0..) |k, i| {
             if (std.mem.eql(u8, k.name, kernel_ptr.name)) {

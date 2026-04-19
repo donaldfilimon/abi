@@ -6,12 +6,13 @@
 const std = @import("std");
 const s = @import("metal_state.zig");
 const metal_types = @import("metal_types.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 /// Safely cast an opaque pointer to a MetalBuffer pointer with validation.
 /// Returns null if the pointer is null or the magic value doesn't match.
 fn safeCastToBuffer(ptr: ?*anyopaque) ?*s.MetalBuffer {
     const p = ptr orelse return null;
-    const safe_buffer: *s.SafeMetalBuffer = @ptrCast(@alignCast(p));
+    const safe_buffer = PointerCast.implCast(s.SafeMetalBuffer, p);
     if (safe_buffer.magic != s.buffer_magic) {
         std.log.err("Invalid MetalBuffer pointer: magic mismatch (expected 0x{x}, got 0x{x})", .{ s.buffer_magic, safe_buffer.magic });
         return null;
@@ -22,7 +23,7 @@ fn safeCastToBuffer(ptr: ?*anyopaque) ?*s.MetalBuffer {
 /// Safely cast a const opaque pointer to a MetalBuffer pointer with validation.
 fn safeCastToBufferConst(ptr: ?*const anyopaque) ?*const s.MetalBuffer {
     const p = ptr orelse return null;
-    const safe_buffer: *const s.SafeMetalBuffer = @ptrCast(@alignCast(p));
+    const safe_buffer: *s.SafeMetalBuffer = PointerCast.implCast(s.SafeMetalBuffer, @constCast(p));
     if (safe_buffer.magic != s.buffer_magic) {
         std.log.err("Invalid MetalBuffer pointer: magic mismatch (expected 0x{x}, got 0x{x})", .{ s.buffer_magic, safe_buffer.magic });
         return null;

@@ -8,6 +8,7 @@ const interface = @import("../../interface.zig");
 const kernels = @import("kernels.zig");
 const fpga_mod = @import("mod.zig");
 const loader = @import("loader.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 // Phase 1 kernels (vector distance operations)
 const distance_kernels = @import("kernels/distance_kernels.zig");
@@ -273,7 +274,7 @@ pub const FpgaBackend = struct {
         // 4. Wait for completion
 
         // For simulation, we'll run CPU equivalent
-        const kernel_ptr = @as(*CompiledKernel, @ptrCast(@alignCast(kernel)));
+        const kernel_ptr = PointerCast.implCast(CompiledKernel, kernel);
 
         // Extract arguments based on kernel type
         if (args.len < 3) return interface.KernelError.ArgumentCountMismatch;
@@ -347,7 +348,7 @@ pub const FpgaBackend = struct {
     }
 
     pub fn destroyKernel(self: *Self, kernel: *anyopaque) void {
-        const kernel_ptr = @as(*CompiledKernel, @ptrCast(@alignCast(kernel)));
+        const kernel_ptr = PointerCast.implCast(CompiledKernel, kernel);
 
         // Find and remove from tracking
         for (self.kernels.items, 0..) |k, i| {

@@ -19,6 +19,7 @@ const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");
 const fallback = @import("../fallback.zig");
 const gpu = std.gpu;
+const PointerCast = @import("../../pointer_cast.zig");
 
 const cuda_native = if (shared.dynlibSupported)
     @import("native.zig")
@@ -440,7 +441,7 @@ pub fn synchronizeStream(stream_: *anyopaque) !void {
     if (use_native.load(.acquire)) {
         return cuda_native.synchronizeStream(stream_);
     }
-    const cu_stream: *CuStream = @ptrCast(@alignCast(stream_));
+    const cu_stream = PointerCast.implCast(CuStream, stream_);
     _ = cu_stream;
 }
 
@@ -475,13 +476,13 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
 /// @return CuResult error on transfer failure
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     if (use_native.load(.acquire)) {
-        if (cuda_native.memcpyHostToDevice(dst, @ptrCast(@alignCast(src)), size)) |_| {
+        if (cuda_native.memcpyHostToDevice(dst, PointerCast.implCast(u8, src), size)) |_| {
             return;
         } else |err| {
             std.log.warn("Native host-to-device copy failed: {}. Falling back to simulation.", .{err});
         }
     }
-    return fallback.memcpyHostToDevice(dst, @ptrCast(@alignCast(src)), size);
+    return fallback.memcpyHostToDevice(dst, PointerCast.implCast(u8, src), size);
 }
 
 /// Copy data from CUDA device memory to host memory.
@@ -497,7 +498,7 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
             std.log.warn("Native device-to-host copy failed: {}. Falling back to simulation.", .{err});
         }
     }
-    return fallback.memcpyDeviceToHost(dst, @ptrCast(@alignCast(src)), size);
+    return fallback.memcpyDeviceToHost(dst, PointerCast.implCast(u8, src), size);
 }
 
 /// Check if CUDA is available

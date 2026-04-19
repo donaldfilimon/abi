@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const cuda_loader = @import("loader.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 pub const MemoryError = error{
     AllocationFailed,
@@ -239,7 +240,7 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) MemoryE
 
     const mem_funcs = getMemoryFuncs() orelse return MemoryError.InitializationFailed;
     const copy_fn = mem_funcs.cuMemcpyDtoH orelse return MemoryError.InitializationFailed;
-    const dst_ptr: [*]u8 = @ptrCast(@alignCast(dst));
+    const dst_ptr: [*]u8 = PointerCast.implCast([*]u8, dst);
     const src_ptr: CUdeviceptr = @intFromPtr(src);
 
     const result = copy_fn(dst_ptr, src_ptr, size);
