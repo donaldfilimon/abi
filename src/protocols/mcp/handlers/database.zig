@@ -5,6 +5,19 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const registry = @import("../registry.zig");
+
+pub const tools = [_]registry.ToolDef{
+    .{ .name = "db_query", .description = "Query database vectors", .input_schema = "{}", .handler = handleDbQuery },
+    .{ .name = "db_insert", .description = "Insert vector into database", .input_schema = "{}", .handler = handleDbInsert },
+    .{ .name = "db_stats", .description = "Get database statistics", .input_schema = "{}", .handler = handleDbStats },
+    .{ .name = "db_list", .description = "List database vectors", .input_schema = "{}", .handler = handleDbList },
+    .{ .name = "db_delete", .description = "Delete vector by ID", .input_schema = "{}", .handler = handleDbDelete },
+    .{ .name = "db_get", .description = "Get vector by ID", .input_schema = "{}", .handler = handleDbGet },
+    .{ .name = "db_update", .description = "Update vector by ID", .input_schema = "{}", .handler = handleDbUpdate },
+    .{ .name = "db_backup", .description = "Backup database to path", .input_schema = "{}", .handler = handleDbBackup },
+    .{ .name = "db_diagnostics", .description = "Get database diagnostics", .input_schema = "{}", .handler = handleDbDiagnostics },
+};
 
 /// Shared database access — comptime-gated to support disabled database feature.
 const database = if (build_options.feat_database)
