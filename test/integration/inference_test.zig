@@ -147,11 +147,11 @@ test "inference: KV cache allocates and frees pages" {
 
     // Free the sequence — pages should return to pool
     cache.free(1);
-    
+
     const free = @as(u32, @intCast(cache.free_pages.items.len));
-    
+
     if (free != 4) {
-        std.debug.print("Expected 4 free pages, found {} (pages.len={})\n", .{free, cache.pages.len});
+        std.debug.print("Expected 4 free pages, found {} (pages.len={})\n", .{ free, cache.pages.len });
         return error.TestExpectedEqual;
     }
 }
@@ -174,7 +174,7 @@ test "inference: KV cache rejects when full" {
 
     const ok2 = try cache.allocate(2, 16);
     try std.testing.expect(ok2);
-    
+
     // Now full
     const ok3 = try cache.allocate(3, 16);
     try std.testing.expect(!ok3);
@@ -305,7 +305,7 @@ test "inference: GPU metrics buffer round-trip" {
 
     const devices = try abi.gpu.device.enumerateAllDevices(allocator);
     defer allocator.free(devices);
-    
+
     // We expect at least one device, likely the simulated one.
     const device = &devices[0];
 

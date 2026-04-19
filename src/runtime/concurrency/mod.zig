@@ -8,8 +8,8 @@
 //! - `WorkStealingQueue` - Owner pushes/pops from back, thieves steal from front
 //! - `WorkQueue` - Simple FIFO queue with mutex
 //! - `LockFreeQueue` - CAS-based queue (SPSC)
-//! - `LockFreeStack` - CAS-based stack (WARNING: ABA susceptible)
-//! - `LockFreeStackEBR` - ABA-safe stack with epoch-based reclamation
+//! - `LockFreeStack` - CAS-based stack (UNSAFE: ABA susceptible; DO NOT USE for new code)
+//! - `LockFreeStackEBR` - ABA-safe stack with epoch-based reclamation (USE FOR PRODUCTION)
 //! - `ChaseLevDeque` - Lock-free work-stealing deque (Chase-Lev algorithm)
 //! - `MpmcQueue` - Lock-free multi-producer multi-consumer queue
 //! - `ShardedMap` - Partitioned map reducing contention

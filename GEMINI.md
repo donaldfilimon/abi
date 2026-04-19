@@ -118,7 +118,7 @@ test {
 
 **Known pre-existing failures**: 2 inference engine connector tests, 1 auth integration test (not regressions).
 
-### Zig 0.16 Gotchas
+### Zig 0.17 Gotchas
 
 - `ArrayListUnmanaged` init: `.empty` not `.{}`
 - `std.BoundedArray` removed: use manual `buffer: [N]T` + `len`

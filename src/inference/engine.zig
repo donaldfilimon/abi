@@ -18,10 +18,31 @@
 //! `getStats()` reads them with `load(.acquire)` and requires no mutex.
 //!
 //! `in_flight_async` is guarded by `async_mu`.
-//! `generation_mu` serialises access to the KV cache and sampler state inside
-//! each `generate*` call.
 
 const std = @import("std");
+const shared = @import("../connectors/shared.zig");
+
+pub const InferenceError = shared.ProviderError || error{
+    SchedulerFull,
+    CacheCapacityExceeded,
+    InvalidInput,
+};
+
+pub const InferenceResult = struct {
+    text: []u8,
+    metadata: ?std.json.ObjectMap = null,
+};
+
+/// Thread safety documentation
+///
+/// `total_requests`, `total_tokens`, and `total_elapsed_ns` are
+/// `std.atomic.Value(u64)` counters updated with `fetchAdd(.acq_rel)` so that
+/// concurrent `generateAsync` callers never produce torn reads or lost updates.
+/// `getStats()` reads them with `load(.acquire)` and requires no mutex.
+///
+/// `in_flight_async` is guarded by `async_mu`.
+/// `generation_mu` serialises access to the KV cache and sampler state inside
+/// each `generate*` call.
 const Allocator = std.mem.Allocator;
 const build_options = @import("build_options");
 const engine_async = @import("engine/async.zig");

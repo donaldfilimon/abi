@@ -11,13 +11,10 @@ const DeviceBuffer = ai_ops.DeviceBuffer;
 const Transpose = ai_ops.Transpose;
 const PointerCast = @import("../pointer_cast.zig");
 
- 
-
 /// Create an AiOps wrapper from a concrete implementation type.
 /// The implementation type must have methods matching the VTable signatures.
 pub fn createAiOps(comptime Impl: type, impl: *Impl) AiOps {
     const gen = struct {
-
         fn sgemm(
             ptr: *anyopaque,
             trans_a: Transpose,

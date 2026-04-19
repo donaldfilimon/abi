@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
+Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
 
 ## Build Commands
 
@@ -77,13 +77,14 @@ pub fn callback(ptr: *anyopaque) callconv(.C) void {
 
 ## Toolchain
 
-- **Zig**: pinned in `.zigversion` (0.16.0)
-- **Toolchain manager**: `tools/zigly --status` shows current Zig path
+- **Zig**: pinned in `.zigversion` (0.17.0-dev.0)
+- **Toolchain**: Use system `zig` directly if `tools/zigly` fails (ZVM doesn't support -dev versions)
 - **Cross-compile check**: `zig build cross-check` validates linux/wasi targets
 
 ## MCP Server
 
-- Entry: `src/mcp_main.zig` → `zig-out/bin/abi-mcp`
+- Build: `zig build mcp` → `zig-out/bin/abi-mcp`
+- Install: `cp zig-out/bin/abi-mcp ~/.local/bin/`
 - Config: `.mcp.json` (root)
 
 Would an agent likely miss this without help? See ENTRA-ID.md for Entra onboarding guidance.
