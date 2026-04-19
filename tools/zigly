@@ -1,6 +1,5 @@
-#!/bin/bash
-set -euo pipefail
 set -x
+set -euo pipefail
 
 # This script is a lightweight wrapper that transparently compiles and runs
 # the native zigly CLI manager so that you always have the fastest execution
