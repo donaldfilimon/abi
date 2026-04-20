@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "abi": {
+      "command": "./zig-out/bin/abi-mcp",
+      "args": ["stdio", "--verbose"]
+    }
+  }
+}

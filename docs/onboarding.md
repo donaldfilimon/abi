@@ -68,13 +68,13 @@ zig-out/bin/abi doctor                  # Build config report
 
 ## 3. Key References
 
-| Resource | Path | Why Read It |
-|----------|------|-------------|
-| `CLAUDE.md` | repo root | Canonical build commands, architecture, conventions, gotchas |
-| `AGENTS.md` | repo root | AI agent guidance, code style, safety rules |
-| `docs/spec/ABBEY-SPEC.md` | docs/spec/ | Full architecture vision (Abbey-Aviva-Abi pipeline) |
-| `tasks/lessons.md` | tasks/ | Pitfalls others have already hit — saves you time |
-| `src/core/feature_catalog.zig` | src/core/ | Source of truth for all 60 features |
+| Resource                       | Path       | Why Read It                                                  |
+| ------------------------------ | ---------- | ------------------------------------------------------------ |
+| `CLAUDE.md`                    | repo root  | Canonical build commands, architecture, conventions, gotchas |
+| `AGENTS.md`                    | repo root  | AI agent guidance, code style, safety rules                  |
+| `docs/spec/ABBEY-SPEC.md`      | docs/spec/ | Full architecture vision (Abbey-Aviva-Abi pipeline)          |
+| `tasks/lessons.md`             | tasks/     | Pitfalls others have already hit — saves you time            |
+| `src/core/feature_catalog.zig` | src/core/  | Source of truth for all 60 features                          |
 
 ---
 
@@ -88,3 +88,4 @@ zig-out/bin/abi doctor                  # Build config report
 - [ ] Run `zig build check` to see the full quality gate
 - [ ] Read `docs/spec/ABBEY-SPEC.md` for the full architecture vision
 - [ ] Read `tasks/lessons.md` for pitfalls others have already hit
+      /

@@ -1,0 +1,1 @@
+Refactor src/features/gpu/mod.zig: delegate logic to sub-modules (kernel, memory, compute) matching the pattern in src/features/ai/.

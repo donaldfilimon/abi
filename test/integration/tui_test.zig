@@ -7,9 +7,11 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
+const builtin = @import("builtin");
 
 /// Helper: skip test when TUI feature is disabled.
 fn requireRealTui() !void {
+    @setRuntimeSafety(true);
     if (!build_options.feat_tui) return error.SkipZigTest;
 }
 

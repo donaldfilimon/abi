@@ -1,0 +1,410 @@
+//! Search Tools for Agent Actions
+//!
+//! Provides search operations that agents can use:
+//! - Grep (pattern matching in files)
+//! - Find (locate files by name)
+//!
+//! Note: These tools use shell commands internally for Zig 0.16 compatibility.
+
+const std = @import("std");
+const json = std.json;
+const tool = @import("tool.zig");
+const os = @import("../../../foundation/mod.zig").os;
+
+const Tool = tool.Tool;
+const ToolResult = tool.ToolResult;
+const ToolRegistry = tool.ToolRegistry;
+const Context = tool.Context;
+const Parameter = tool.Parameter;
+const ParameterType = tool.ParameterType;
+const ToolExecutionError = tool.ToolExecutionError;
+
+// ============================================================================
+// Grep Tool
+// ============================================================================
+
+fn executeGrep(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = args.object;
+    const pattern_val = obj.get("pattern") orelse {
+        return ToolResult.fromError(ctx.allocator, "Missing required parameter: pattern");
+    };
+
+    const pattern = switch (pattern_val) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Parameter 'pattern' must be a string"),
+    };
+
+    // Get optional path (default to current directory)
+    var search_path: []const u8 = ctx.working_directory;
+    var path_allocated = false;
+    if (obj.get("path")) |path_val| {
+        switch (path_val) {
+            .string => |s| {
+                if (tool.hasPathTraversal(s)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
+                if (std.fs.path.isAbsolute(s)) {
+                    search_path = s;
+                } else {
+                    search_path = std.fs.path.join(ctx.allocator, &[_][]const u8{ ctx.working_directory, s }) catch return error.OutOfMemory;
+                    path_allocated = true;
+                }
+            },
+            else => {},
+        }
+    }
+    defer if (path_allocated) ctx.allocator.free(search_path);
+
+    // Get optional file glob
+    var file_glob: []const u8 = "*";
+    if (obj.get("glob")) |glob_val| {
+        switch (glob_val) {
+            .string => |s| file_glob = s,
+            else => {},
+        }
+    }
+
+    // Get context lines
+    var context_flag: []const u8 = "";
+    var context_allocated = false;
+    if (obj.get("context_before")) |cb| {
+        switch (cb) {
+            .integer => |i| {
+                if (i > 0) {
+                    context_flag = std.fmt.allocPrint(ctx.allocator, "-B {d} ", .{i}) catch return error.OutOfMemory;
+                    context_allocated = true;
+                }
+            },
+            else => {},
+        }
+    }
+    if (obj.get("context_after")) |ca| {
+        switch (ca) {
+            .integer => |i| {
+                if (i > 0) {
+                    const after_flag = std.fmt.allocPrint(ctx.allocator, "-A {d} ", .{i}) catch return error.OutOfMemory;
+                    if (context_allocated) {
+                        const combined = std.fmt.allocPrint(ctx.allocator, "{s}{s}", .{ context_flag, after_flag }) catch return error.OutOfMemory;
+                        ctx.allocator.free(context_flag);
+                        ctx.allocator.free(after_flag);
+                        context_flag = combined;
+                    } else {
+                        context_flag = after_flag;
+                        context_allocated = true;
+                    }
+                }
+            },
+            else => {},
+        }
+    }
+    defer if (context_allocated) ctx.allocator.free(context_flag);
+
+    // Case insensitive flag
+    var case_flag: []const u8 = "";
+    if (obj.get("case_insensitive")) |ci| {
+        switch (ci) {
+            .bool => |b| {
+                if (b) case_flag = "-i ";
+            },
+            else => {},
+        }
+    }
+
+    // Build grep command - use grep -rn for recursive search with line numbers
+    const command = std.fmt.allocPrint(ctx.allocator, "grep -rn {s}{s}--include=\"{s}\" \"{s}\" \"{s}\" 2>/dev/null | head -500", .{
+        case_flag,
+        context_flag,
+        file_glob,
+        pattern,
+        search_path,
+    }) catch return error.OutOfMemory;
+    defer ctx.allocator.free(command);
+
+    const result = os.exec(ctx.allocator, command) catch |err| {
+        const msg = std.fmt.allocPrint(ctx.allocator, "Grep failed: {t}", .{err}) catch return error.OutOfMemory;
+        return ToolResult.fromError(ctx.allocator, msg);
+    };
+    defer ctx.allocator.free(result.stderr);
+
+    // grep returns exit code 1 when no matches found (not an error)
+    if (result.exit_code == 0 or result.exit_code == 1) {
+        if (result.stdout.len == 0) {
+            ctx.allocator.free(result.stdout);
+            const output = ctx.allocator.dupe(u8, "No matches found") catch return error.OutOfMemory;
+            return ToolResult.init(ctx.allocator, true, output);
+        }
+        return ToolResult.init(ctx.allocator, true, result.stdout);
+    } else {
+        ctx.allocator.free(result.stdout);
+        const msg = std.fmt.allocPrint(ctx.allocator, "Grep failed: {s}", .{result.stderr}) catch return error.OutOfMemory;
+        return ToolResult.fromError(ctx.allocator, msg);
+    }
+}
+
+pub const grep_tool = Tool{
+    .name = "grep",
+    .description = "Search for a pattern in files. Returns matching lines with file paths and line numbers.",
+    .parameters = &[_]Parameter{
+        .{
+            .name = "pattern",
+            .type = .string,
+            .required = true,
+            .description = "Pattern to search for (supports regex)",
+        },
+        .{
+            .name = "path",
+            .type = .string,
+            .required = false,
+            .description = "File or directory to search in (default: working directory)",
+        },
+        .{
+            .name = "glob",
+            .type = .string,
+            .required = false,
+            .description = "File glob pattern to filter files (e.g., '*.zig')",
+        },
+        .{
+            .name = "context_before",
+            .type = .integer,
+            .required = false,
+            .description = "Number of lines to show before each match",
+        },
+        .{
+            .name = "context_after",
+            .type = .integer,
+            .required = false,
+            .description = "Number of lines to show after each match",
+        },
+        .{
+            .name = "case_insensitive",
+            .type = .boolean,
+            .required = false,
+            .description = "If true, search case-insensitively (default: false)",
+        },
+    },
+    .execute = &executeGrep,
+};
+
+// ============================================================================
+// Find Tool
+// ============================================================================
+
+fn executeFind(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = args.object;
+    const name_val = obj.get("name") orelse {
+        return ToolResult.fromError(ctx.allocator, "Missing required parameter: name");
+    };
+
+    const name = switch (name_val) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Parameter 'name' must be a string"),
+    };
+
+    // Get optional path
+    var search_path: []const u8 = ctx.working_directory;
+    var path_allocated = false;
+    if (obj.get("path")) |path_val| {
+        switch (path_val) {
+            .string => |s| {
+                if (tool.hasPathTraversal(s)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
+                if (std.fs.path.isAbsolute(s)) {
+                    search_path = s;
+                } else {
+                    search_path = std.fs.path.join(ctx.allocator, &[_][]const u8{ ctx.working_directory, s }) catch return error.OutOfMemory;
+                    path_allocated = true;
+                }
+            },
+            else => {},
+        }
+    }
+    defer if (path_allocated) ctx.allocator.free(search_path);
+
+    // Get type filter
+    var type_flag: []const u8 = "";
+    if (obj.get("type")) |type_val| {
+        switch (type_val) {
+            .string => |s| {
+                if (std.mem.eql(u8, s, "file") or std.mem.eql(u8, s, "f")) {
+                    type_flag = "-type f ";
+                } else if (std.mem.eql(u8, s, "directory") or std.mem.eql(u8, s, "d")) {
+                    type_flag = "-type d ";
+                }
+            },
+            else => {},
+        }
+    }
+
+    // Build find command
+    const command = std.fmt.allocPrint(ctx.allocator, "find \"{s}\" {s}-name \"{s}\" 2>/dev/null | head -1000", .{
+        search_path,
+        type_flag,
+        name,
+    }) catch return error.OutOfMemory;
+    defer ctx.allocator.free(command);
+
+    var result = os.exec(ctx.allocator, command) catch |err| {
+        const msg = std.fmt.allocPrint(ctx.allocator, "Find failed: {t}", .{err}) catch return error.OutOfMemory;
+        return ToolResult.fromError(ctx.allocator, msg);
+    };
+    defer ctx.allocator.free(result.stderr);
+
+    if (result.success()) {
+        if (result.stdout.len == 0) {
+            ctx.allocator.free(result.stdout);
+            const output = ctx.allocator.dupe(u8, "No files found") catch return error.OutOfMemory;
+            return ToolResult.init(ctx.allocator, true, output);
+        }
+        return ToolResult.init(ctx.allocator, true, result.stdout);
+    } else {
+        ctx.allocator.free(result.stdout);
+        const msg = std.fmt.allocPrint(ctx.allocator, "Find failed: {s}", .{result.stderr}) catch return error.OutOfMemory;
+        return ToolResult.fromError(ctx.allocator, msg);
+    }
+}
+
+pub const find_tool = Tool{
+    .name = "find",
+    .description = "Find files and directories by name. Supports glob patterns.",
+    .parameters = &[_]Parameter{
+        .{
+            .name = "name",
+            .type = .string,
+            .required = true,
+            .description = "File name pattern to search for (supports * and ? wildcards)",
+        },
+        .{
+            .name = "path",
+            .type = .string,
+            .required = false,
+            .description = "Directory to search in (default: working directory)",
+        },
+        .{
+            .name = "type",
+            .type = .string,
+            .required = false,
+            .description = "Filter by type: 'file' (or 'f'), 'directory' (or 'd')",
+            .enum_values = &[_][]const u8{ "file", "f", "directory", "d" },
+        },
+    },
+    .execute = &executeFind,
+};
+
+// ============================================================================
+// Registration
+// ============================================================================
+
+fn executeSearchCodebase(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const dir_path = if (obj.get("dir_path")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string dir_path"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing dir_path");
+
+    const pattern = if (obj.get("pattern")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string pattern"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing pattern");
+
+    // Native implementation mapping over CodebaseIndexer capabilities without external process spawning
+    const context_mod = @import("../context_engine/codebase_indexer.zig");
+    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, ctx.io);
+    defer indexer.deinit();
+
+    const output = indexer.searchCodebase(dir_path, pattern) catch |err| {
+        return ToolResult.fromError(ctx.allocator, @errorName(err));
+    };
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const search_codebase_tool = Tool{
+    .name = "search_codebase",
+    .description = "Natively search a local codebase directory for a specific semantic string or literal.",
+    .parameters = &[_]Parameter{
+        .{ .name = "dir_path", .type = .string, .required = true, .description = "Directory to search" },
+        .{ .name = "pattern", .type = .string, .required = true, .description = "String literal to find" },
+    },
+    .execute = &executeSearchCodebase,
+};
+
+fn executeAnalyzeFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
+    const obj = switch (args) {
+        .object => |o| o,
+        else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
+    };
+
+    const file_path = if (obj.get("file_path")) |v| switch (v) {
+        .string => |s| s,
+        else => return ToolResult.fromError(ctx.allocator, "Expected string file_path"),
+    } else return ToolResult.fromError(ctx.allocator, "Missing file_path");
+
+    const context_mod = @import("../context_engine/codebase_indexer.zig");
+    var indexer = context_mod.CodebaseIndexer.init(ctx.allocator, ctx.io);
+    defer indexer.deinit();
+
+    const output = indexer.analyzeFile(file_path) catch |err| {
+        return ToolResult.fromError(ctx.allocator, @errorName(err));
+    };
+
+    return ToolResult.init(ctx.allocator, true, output);
+}
+
+pub const analyze_file_tool = Tool{
+    .name = "analyze_file",
+    .description = "Read a file and natively extract semantic metadata and layout structures.",
+    .parameters = &[_]Parameter{
+        .{ .name = "file_path", .type = .string, .required = true, .description = "Path to file" },
+    },
+    .execute = &executeAnalyzeFile,
+};
+
+/// All search tools for easy registration
+pub const all_tools = [_]*const Tool{
+    &grep_tool,
+    &find_tool,
+    &search_codebase_tool,
+    &analyze_file_tool,
+};
+
+/// Register all search tools with a registry
+pub fn registerAll(registry: *ToolRegistry) !void {
+    for (all_tools) |t| {
+        try registry.register(t);
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "grep_tool creation" {
+    const testing = std.testing;
+    try testing.expectEqualStrings("grep", grep_tool.name);
+}
+
+test "find_tool creation" {
+    const testing = std.testing;
+    try testing.expectEqualStrings("find", find_tool.name);
+}
+
+fn hasToolNamed(name: []const u8) bool {
+    for (all_tools) |entry| {
+        if (std.mem.eql(u8, entry.name, name)) return true;
+    }
+    return false;
+}
+
+test "all_tools includes required registrations" {
+    const testing = std.testing;
+    try testing.expect(all_tools.len >= 4);
+    try testing.expect(hasToolNamed("grep"));
+    try testing.expect(hasToolNamed("find"));
+    try testing.expect(hasToolNamed("search_codebase"));
+    try testing.expect(hasToolNamed("analyze_file"));
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

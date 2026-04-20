@@ -1,0 +1,129 @@
+//! Constitution Module — Unified moderation and alignment for ABI.
+//!
+//! Provides a declarative principle-based system that governs all training,
+//! inference, and routing decisions. The "soul" of ABI — ensuring safety,
+//! honesty, privacy, fairness, autonomy, and transparency.
+//!
+//! Integration points:
+//! - Pre-generation: `getSystemPreamble()` → inject into all LLM prompts
+//! - Training: `computeConstitutionalLoss()` → weight RLHF reward
+//! - Post-generation: `evaluateResponse()` → validate outputs
+//! - Reflection: `alignmentScore()` → Abbey self-evaluation
+const std = @import("std");
+
+pub const principles = @import("principles.zig");
+pub const enforcement = @import("enforcement.zig");
+
+const types = @import("types.zig");
+
+// Re-export key types from canonical types.zig
+pub const Principle = types.Principle;
+pub const Severity = types.Severity;
+pub const ConstraintKind = types.ConstraintKind;
+pub const ConstitutionalRule = types.ConstitutionalRule;
+pub const TrainingGuardrails = types.TrainingGuardrails;
+pub const ConstitutionalScore = types.ConstitutionalScore;
+pub const Violation = types.Violation;
+pub const SafetyScore = types.SafetyScore;
+pub const SafetyViolation = types.SafetyViolation;
+pub const SafetyViolationCategory = types.SafetyViolationCategory;
+pub const BiasScore = types.BiasScore;
+pub const MAX_BIAS_ATTRIBUTES = types.MAX_BIAS_ATTRIBUTES;
+pub const DEFAULT_BIAS_THRESHOLD = types.DEFAULT_BIAS_THRESHOLD;
+
+/// The Constitution engine — stateless, principle-driven evaluation.
+pub const Constitution = struct {
+    guardrails: TrainingGuardrails,
+
+    pub fn init() Constitution {
+        return .{ .guardrails = principles.DEFAULT_GUARDRAILS };
+    }
+
+    pub fn initWithGuardrails(guardrails: TrainingGuardrails) Constitution {
+        return .{ .guardrails = guardrails };
+    }
+
+    /// Get the system preamble for LLM prompt injection.
+    pub fn getSystemPreamble(_: *const Constitution) []const u8 {
+        return enforcement.getSystemPreamble();
+    }
+
+    /// Evaluate a response against all principles.
+    pub fn evaluate(_: *const Constitution, response: []const u8) ConstitutionalScore {
+        return enforcement.evaluateResponse(response);
+    }
+
+    /// Compute RLHF constitutional loss modifier.
+    pub fn constitutionalLoss(self: *const Constitution, embedding: []const f32) f32 {
+        return enforcement.computeConstitutionalLoss(embedding, &self.guardrails);
+    }
+
+    /// Get alignment score for reflection.
+    pub fn alignmentScore(_: *const Constitution, response: []const u8) f32 {
+        return enforcement.alignmentScore(response);
+    }
+
+    /// Check if a response is compliant (no critical violations).
+    pub fn isCompliant(_: *const Constitution, response: []const u8) bool {
+        return enforcement.evaluateResponse(response).isCompliant();
+    }
+
+    /// Run standalone pattern-based safety evaluation.
+    pub fn evaluateSafety(_: *const Constitution, text: []const u8) SafetyScore {
+        return enforcement.evaluateSafety(text);
+    }
+
+    /// Quantify bias across protected attributes.
+    /// Implements spec Section 5.4: B = (1/n) * Sigma |Bi|
+    pub fn computeBias(_: *const Constitution, measurements: []const f32, threshold: f32) BiasScore {
+        return enforcement.computeBias(measurements, threshold);
+    }
+
+    /// Get all principle definitions.
+    pub fn getPrinciples(_: *const Constitution) []const Principle {
+        return &principles.ALL_PRINCIPLES;
+    }
+};
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+const testing = @import("std").testing;
+
+test "Constitution init and evaluate" {
+    const c = Constitution.init();
+    const score = c.evaluate("Hello world");
+    try testing.expectApproxEqAbs(@as(f32, 1.0), score.overall, 0.01);
+    try testing.expect(score.isCompliant());
+}
+
+test "Constitution blocks harmful content" {
+    const c = Constitution.init();
+    try testing.expect(!c.isCompliant("run rm -rf / to clean up"));
+}
+
+test "Constitution preamble available" {
+    const c = Constitution.init();
+    const preamble = c.getSystemPreamble();
+    try testing.expect(preamble.len > 0);
+}
+
+test "Constitution principles count" {
+    const c = Constitution.init();
+    try testing.expectEqual(@as(usize, 6), c.getPrinciples().len);
+}
+
+test "Constitution computeBias delegates to enforcement" {
+    const c = Constitution.init();
+    const measurements = [_]f32{ 0.05, -0.2, 0.08, 0.15 };
+    const result = c.computeBias(&measurements, DEFAULT_BIAS_THRESHOLD);
+    try testing.expectEqual(@as(usize, 4), result.attribute_count);
+    try testing.expect(result.mean_abs_bias > 0.0);
+}
+
+test {
+    _ = principles;
+    _ = enforcement;
+    std.testing.refAllDecls(@This());
+}

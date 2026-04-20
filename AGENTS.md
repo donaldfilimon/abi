@@ -14,10 +14,13 @@ Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU accelerat
 | `./build.sh test --summary all` | Run all tests |
 | `zig build test -- --test-filter "pat"` | Run single test |
 | `./build.sh check` | Lint + test + stub parity |
+| `zig build full-check` | Full validation gate (macOS: `./build.sh full-check`) |
 | `zig build check-parity` | Verify mod/stub declaration parity |
 | `zig build fix` | Auto-format |
+| `zig build cross-check` | Verify cross-compilation (linux/wasi) |
+| `zig build typecheck` | Compile-only validation |
 
-**Test lanes**: `zig build {messaging,secrets,pitr,agents,gpu,network,web,search,auth,storage,cloud,cache,database,connectors,lsp,acp,ha,tasks,documents,compute,desktop,pipeline}-tests`
+**Test lanes** (27 total): `zig build {messaging,secrets,pitr,agents,gpu,network,web,search,auth,storage,cloud,cache,database,connectors,lsp,acp,ha,tasks,documents,compute,desktop,pipeline}-tests`
 
 ## Critical Rules
 
@@ -27,58 +30,103 @@ Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU accelerat
 4. **Feature gates**: `if (build_options.feat_X) @import("features/X/mod.zig") else @import("features/X/stub.zig")`
 5. **String ownership**: Use `allocator.dupe()` for string literals in structs with `deinit()`.
 
-## Pointer Cast Refactoring - COMPLETED
+## Architecture
 
-All GPU subsystem `@ptrCast(@alignCast(ptr))` patterns centralized. Total: ~115+ casts across ~20 files.
+### Module Layout
 
-### Centralized Helper
+- `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
+- `src/core/` — Always-on internals: config, errors, registry, framework lifecycle
+- `src/features/` — 21+ feature directories under mod/stub/types pattern
+- `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
+- `src/runtime/` — Task scheduling, event loops, concurrency primitives
+- `src/platform/` — OS detection, capabilities, environment abstraction
+- `src/connectors/` — External service adapters (OpenAI, Anthropic, Discord)
+- `src/protocols/` — MCP, LSP, ACP, HA protocol implementations
+- `src/tasks/` — Task management, async job queues
+- `src/inference/` — ML inference: engine, scheduler, sampler, KV cache
 
-`src/features/gpu/pointer_cast.zig`:
+### The Mod/Stub Pattern
+
+Every feature under `src/features/<name>/` follows a contract:
+- `mod.zig` — Real implementation
+- `stub.zig` — API-compatible no-ops (same public surface, zero-cost when disabled)
+- `types.zig` — Shared types used by both mod and stub
+
+In `src/root.zig`, each feature uses comptime selection:
 ```zig
-pub fn implCast(comptime Impl: type, ptr: *anyopaque) *Impl {
-    return @ptrCast(@alignCast(ptr));
-}
+pub const gpu = if (build_options.feat_gpu)
+    @import("features/gpu/mod.zig")
+else
+    @import("features/gpu/stub.zig");
 ```
 
-### Files Refactored (20 files)
+**Critical rule**: When modifying a feature's public API, **both `mod.zig` and `stub.zig` must be updated in sync**. Run `zig build check-parity` to verify.
 
-**Core Interface:** `interface.zig` (12), `adapters.zig` (15)
+## Import Rules
 
-**GPU Backends:** `opengl.zig` (8), `opengles.zig` (8), `webgpu.zig` (7), `vulkan.zig` (3), `stdgpu.zig` (3), `cuda/mod.zig` (3), `fallback.zig` (4), `tpu/mod.zig` (2), `fpga/vtable.zig` (2), `cuda/memory.zig` (1), `std_gpu_integration.zig` (1), `peer_transfer/vulkan.zig` (2)
+- **Within `src/`**: Use relative imports only (`@import("../../foundation/mod.zig")`). Never `@import("abi")` from inside the module — causes circular import error.
+- **From `test/`**: Use `@import("abi")` and `@import("build_options")` — these are wired as named module imports by build.zig.
+- **Cross-feature imports**: Never import another feature's `mod.zig` directly. Use conditional: `const obs = if (build_options.feat_observability) @import("../../features/observability/mod.zig") else @import("../../features/observability/stub.zig");`
+- **Explicit `.zig` extensions** required on all path imports.
 
-**AiOps Subsystem:** `coordinator_ai_ops.zig` (local helpers for slice casts), `cpu_fallback.zig` (local helpers), `simulated.zig` (local helpers)
+## Build Options
 
-**Metal Backends:** `metal_buffers.zig` (2), `metal_compute.zig` (2)
+Feature flags (defaults to enabled): `-Dfeat-gpu=true -Dfeat-ai=true -Dfeat-database=true -Dfeat-network=true -Dfeat-observability=true -Dfeat-web=true -Dfeat-cloud=true -Dfeat-analytics=true -Dfeat-auth=true -Dfeat-messaging=true -Dfeat-cache=true -Dfeat-storage=true -Dfeat-search=true -Dfeat-mobile=false -Dfeat-tui=false`
 
-### Files Retaining Direct Casts (Technical Reasons)
+GPU backends: `-Dgpu-backend=metal,cuda,vulkan,stdgpu` (stdgpu is CPU-based fallback)
 
-- `cuda/native.zig` - Direct FFI handling
-- `simulated.zig` - Internal operations
-- `metal/unified_memory.zig` - Metal memory ops
-- `metal_device.zig` - ObjC dispatch
-- `dispatch/coordinator/launch.zig` - Kernel uniforms
-- `peer_transfer/metal.zig` - objc_msgSend lookups
+## CLI Commands
 
-Many-pointer casts (`[*]T`) and generic `comptime T` casts keep `@ptrCast(@alignCast)`.
-
-### Usage
-
-```zig
-const PointerCast = @import("pointer_cast.zig");
-pub fn callback(ptr: *anyopaque) callconv(.C) void {
-    const self: *Impl = PointerCast.implCast(Impl, ptr);
-}
+```bash
+abi                    # Smart status (feature count, enabled/disabled tags)
+abi version            # Version and build info
+abi doctor             # Build config report (all feature flags + GPU backends)
+abi features           # List all 60 features with [+]/[-] status
+abi platform           # Platform detection (OS, arch, CPU, GPU backends)
+abi connectors         # List LLM provider connectors with env var status
+abi search <sub>       # Full-text search
+abi info               # Framework architecture summary
+abi db <subcommand>    # Vector database (add, query, stats, serve)
+abi chat <message...>  # Route through multi-profile pipeline
+abi serve              # Start ACP HTTP server
+abi dashboard          # Developer diagnostics shell (requires -Dfeat-tui=true)
+abi help               # Full help reference
 ```
 
-### Verification
+## Zig 0.17 Gotchas
 
-- `zig build check-parity` - PASSED
-- `zig build test --summary all` - 3781/3787 (6 skipped)
+- `ArrayListUnmanaged` init: use `.empty` not `.{}`
+- `std.BoundedArray` removed: use manual `buffer: [N]T = undefined` + `len: usize = 0`
+- `std.Thread.Mutex` may be unavailable: use `foundation.sync.Mutex`
+- `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
+- Entry points: `pub fn main(init: std.process.Init) !void` (not old `pub fn main() !void`)
+- `std.mem.trimRight` renamed to `std.mem.trimEnd`
+- Runtime env var access: `std.c.getenv(name.ptr)` returns `?[*:0]const u8`
+- Signal handlers: use `std.posix.Sigaction` with `callconv(.c)` handler functions
+- **Do NOT run `zig fmt .`** at repo root — use `zig build fix`
+
+## Error Handling Convention
+
+- `@compileError` — Compile-time contract violations only
+- `@panic` — Unrecoverable invariant violations; only in CLI entry points and tests, never in library code
+- `unreachable` — Provably impossible branches where compiler can verify exhaustiveness
+- Error unions — All runtime failure paths in library code; prefer `error.FeatureDisabled` in stubs
+
+## Testing
+
+- `zig build test --summary all` — Run all unit + integration tests
+- `zig build test -- --test-filter "pattern"` — Run single test by name
+- Files end with: `test { std.testing.refAllDecls(@This()); }`
+
+**Known pre-existing failures** (not regressions):
+- Inference engine connector backend tests (2)
+- Auth integration tests (1 failure, 3 leaks)
 
 ## Toolchain
 
-- **Zig**: pinned in `.zigversion` (0.17.0-dev.0)
-- **Toolchain**: Use system `zig` directly if `tools/zigly` fails (ZVM doesn't support -dev versions)
+- **Zig**: pinned in `.zigversion` (`0.17.0-dev.27+0dd99c37c`)
+- **Bootstrap**: `tools/zigly --bootstrap` (one-command project setup)
+- **Status**: `tools/zigly --status` (print pinned zig path)
 - **Cross-compile check**: `zig build cross-check` validates linux/wasi targets
 
 ## MCP Server
@@ -87,8 +135,16 @@ pub fn callback(ptr: *anyopaque) callconv(.C) void {
 - Install: `cp zig-out/bin/abi-mcp ~/.local/bin/`
 - Config: `.mcp.json` (root)
 
-Would an agent likely miss this without help? See ENTRA-ID.md for Entra onboarding guidance.
-Would an agent likely miss this without help? Yes. See GEMINI.md for ABI Framework overview.
-Would an agent likely miss this without help? Yes. See CUSTOMIZE-MODEL-DEPLOYMENT.md for detailed customization workflow.
-Would an agent likely miss this without help? Yes. See DEPLOY-MODEL-OPTIMAL-REGION.md for deployment to optimal region guidance.
-Would an agent likely miss this without help? Yes. See DEPLOY-MODEL.md for Deploy Model routing guidance.
+## Key References
+
+- **Full architecture**: See `README.md` and `docs/spec/ABBEY-SPEC.md`
+- **Import rules and conventions**: See `CLAUDE.md` (comprehensive, updated Apr 2026)
+- **Onboarding**: See `docs/onboarding.md`
+- **AI pipeline spec**: See `docs/spec/abbey-aviva-abi-framework.md`
+
+## Workflow Notes
+
+- Run `zig build check-parity` after ANY public API change
+- Verification gate before committing: `./build.sh check` (macOS) or `zig build check` (Linux)
+- Files with pre-existing refAllDecls errors are documented in CLAUDE.md
+- **No `rm`**: Use safe alternatives

@@ -1,0 +1,215 @@
+//! AI Configuration
+//!
+//! Configuration for AI features including LLM inference, embeddings,
+//! agents, and training pipelines. System-level support for all data types:
+//! text, images, video, audio, documents, and arbitrary payloads (Zig 0.16).
+
+const std = @import("std");
+const build_options = @import("build_options");
+
+// Gate the features/ai import through build_options to respect the comptime gate pattern.
+// features/ai/config.zig only depends on features/ai/types.zig, not on core/config.
+const profiles_config = if (build_options.feat_ai) @import("../../ai/config.zig") else struct {
+    pub const MultiProfileConfig = struct {};
+};
+pub const ProfilesConfig = profiles_config.MultiProfileConfig;
+
+/// AI configuration with independent sub-features.
+pub const AiConfig = struct {
+    /// LLM inference settings. Set to enable local LLM.
+    llm: ?LlmConfig = null,
+
+    /// Embeddings generation settings.
+    embeddings: ?EmbeddingsConfig = null,
+
+    /// Agent runtime settings.
+    agents: ?AgentsConfig = null,
+
+    /// Training pipeline settings.
+    training: ?TrainingConfig = null,
+
+    /// Behavior profile selection and routing settings.
+    profiles: ?ProfilesConfig = null,
+
+    /// Reasoning engine settings.
+    reasoning: ?ReasoningConfig = null,
+
+    /// Enable automatic model discovery from standard paths.
+    auto_discover: bool = false,
+
+    /// Custom model search paths (in addition to standard paths).
+    model_paths: []const []const u8 = &.{},
+
+    /// Enable adaptive configuration based on system capabilities.
+    adaptive_config: bool = true,
+
+    /// Run warm-up diagnostics on model load.
+    warmup_diagnostics: bool = false,
+
+    pub fn defaults() AiConfig {
+        return .{
+            .llm = if (build_options.feat_llm) LlmConfig.defaults() else null,
+            .embeddings = EmbeddingsConfig.defaults(),
+            .agents = AgentsConfig.defaults(),
+            .training = null, // Training not enabled by default
+            .reasoning = ReasoningConfig.defaults(),
+            .profiles = if (build_options.feat_ai) .{} else null,
+            .auto_discover = true, // Enable auto-discovery by default
+        };
+    }
+
+    /// Reasoning configuration.
+    pub const ReasoningConfig = struct {
+        /// Enable research triggers when confidence is low.
+        enable_research_triggers: bool = true,
+
+        /// Confidence threshold for triggering research (0.0 - 1.0).
+        research_threshold: f32 = 0.5,
+
+        /// Maximum number of reasoning steps per query.
+        max_steps: u32 = 20,
+
+        /// Enable detailed logging of reasoning chains.
+        log_chains: bool = false,
+
+        pub fn defaults() ReasoningConfig {
+            return .{};
+        }
+    };
+
+    /// Configuration with auto-discovery enabled.
+    pub fn withAutoDiscovery() AiConfig {
+        return .{
+            .auto_discover = true,
+            .adaptive_config = true,
+        };
+    }
+
+    /// Enable only LLM inference.
+    pub fn llmOnly(config: LlmConfig) AiConfig {
+        return .{ .llm = config };
+    }
+
+    /// Enable only embeddings.
+    pub fn embeddingsOnly(config: EmbeddingsConfig) AiConfig {
+        return .{ .embeddings = config };
+    }
+};
+
+/// LLM inference configuration.
+pub const LlmConfig = struct {
+    /// Path to model file (GGUF format).
+    model_path: ?[]const u8 = null,
+
+    /// Model to use from registry.
+    model_name: []const u8 = "gpt-oss:20b",
+
+    /// Context window size.
+    context_size: u32 = 2048,
+
+    /// Number of threads for inference.
+    threads: ?u32 = null,
+
+    /// Use GPU acceleration if available.
+    use_gpu: bool = true,
+
+    /// Batch size for inference.
+    batch_size: u32 = 512,
+
+    pub fn defaults() LlmConfig {
+        return .{};
+    }
+};
+
+/// Embeddings generation configuration.
+pub const EmbeddingsConfig = struct {
+    /// Embedding model to use.
+    model: []const u8 = "default",
+
+    /// Output embedding dimension.
+    dimension: u32 = 384,
+
+    /// Normalize output vectors.
+    normalize: bool = true,
+
+    pub fn defaults() EmbeddingsConfig {
+        return .{};
+    }
+};
+
+/// Agent runtime configuration.
+pub const AgentsConfig = struct {
+    /// Maximum concurrent agents.
+    max_agents: u32 = 16,
+
+    /// Default agent timeout in milliseconds.
+    timeout_ms: u64 = 30000,
+
+    /// Enable agent memory/context persistence.
+    persistent_memory: bool = false,
+
+    pub fn defaults() AgentsConfig {
+        return .{};
+    }
+};
+
+/// System-level content/data type for models that process and generate all modalities (Zig 0.16).
+pub const ContentKind = enum {
+    text,
+    image,
+    video,
+    audio,
+    document,
+    other,
+};
+
+/// Training pipeline configuration.
+pub const TrainingConfig = struct {
+    /// Number of training epochs.
+    epochs: u32 = 10,
+
+    /// Training batch size.
+    batch_size: u32 = 32,
+
+    /// Learning rate.
+    learning_rate: f32 = 0.001,
+
+    /// Optimizer to use.
+    optimizer: Optimizer = .adamw,
+
+    /// Checkpoint directory.
+    checkpoint_dir: ?[]const u8 = null,
+
+    /// Checkpoint frequency (epochs).
+    checkpoint_frequency: u32 = 1,
+
+    /// Max checkpoints to retain (null = use default 5).
+    max_checkpoints: ?u32 = null,
+
+    /// Enable vision (image) training.
+    enable_vision: bool = true,
+    /// Enable video training.
+    enable_video: bool = true,
+    /// Enable audio training.
+    enable_audio: bool = true,
+    /// Enable training on arbitrary data types (raw payloads).
+    enable_all_modalities: bool = true,
+
+    pub const Optimizer = enum {
+        sgd,
+        adam,
+        adamw,
+        rmsprop,
+    };
+
+    pub fn defaults() TrainingConfig {
+        return .{};
+    }
+};
+
+// ProfilesConfig is re-exported from features/ai/config.zig above.
+// See the layering exception comment at the top of this file.
+
+test {
+    std.testing.refAllDecls(@This());
+}

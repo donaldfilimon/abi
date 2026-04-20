@@ -1,0 +1,483 @@
+//! Training Sub-module
+//!
+//! Training pipeline utilities, gradient aggregation, and checkpointing.
+//! Models can be trained to handle and generate all types of data: text, images,
+//! video, audio, documents, and arbitrary payloads (see ExperienceType, DataKind, and
+//! SelfLearningSystem.recordVideoExperience / recordAudioExperience / recordGenericExperience).
+//!
+//! ## Precision semantics
+//! All weights, gradients, activations, and optimizer state (momentum, velocity) are **f32**.
+//! When `PrecisionMode.mixed_f16_f32` is selected, the forward-pass working copy is FP16
+//! while master weights, gradients, and optimizer arithmetic remain f32. This is intentional
+//! for numerical stability, especially on Apple Silicon / CPU-only training paths.
+//!
+//! Provides neural network training with SGD, Adam optimizers, learning rate scheduling,
+//! gradient clipping, loss functions, and mixed precision support.
+
+const std = @import("std");
+const build_options = @import("build_options");
+const config_module = @import("../../core/config/mod.zig");
+
+// ── Core Training & Models ───────────────────────────────────────────────
+pub const core_training = @import("core_training.zig");
+pub const models = @import("models.zig");
+pub const trainable_model = @import("trainable_model.zig");
+pub const llm_trainer = @import("llm_trainer.zig");
+pub const trainer = @import("trainer.zig");
+pub const training_utils = @import("training_utils.zig");
+pub const optimizer_mod = @import("optimizer.zig");
+pub const gradient = @import("gradient.zig");
+pub const loss = @import("loss.zig");
+
+// Trainable Model re-exports
+pub const TrainableModel = trainable_model.TrainableModel;
+pub const TrainableModelConfig = trainable_model.TrainableModelConfig;
+pub const TrainableWeights = trainable_model.TrainableWeights;
+pub const TrainableLayerWeights = trainable_model.TrainableLayerWeights;
+pub const ActivationCache = trainable_model.ActivationCache;
+pub const ModelLoadError = trainable_model.LoadError;
+
+// LLM Trainer re-exports
+pub const LlamaTrainer = llm_trainer.LlamaTrainer;
+pub const LlmTrainingConfig = llm_trainer.LlmTrainingConfig;
+pub const trainLlm = llm_trainer.trainLlm;
+
+// Trainer Functions re-exports
+pub const TrainingResult = trainer.TrainingResult;
+pub const train = trainer.train;
+pub const trainAndReport = trainer.trainAndReport;
+pub const trainWithResult = trainer.trainWithResult;
+pub const calculateLearningRate = trainer.calculateLearningRate;
+pub const clipGradients = trainer.clipGradients;
+pub const saveModelToWdbx = trainer.saveModelToWdbx;
+
+// Optimizer re-exports
+pub const Optimizer = optimizer_mod.Optimizer;
+pub const SgdOptimizer = optimizer_mod.SgdOptimizer;
+pub const AdamOptimizer = optimizer_mod.AdamOptimizer;
+pub const AdamWOptimizer = optimizer_mod.AdamWOptimizer;
+
+// Gradient & Loss re-exports
+pub const GradientAccumulator = gradient.GradientAccumulator;
+pub const GradientError = gradient.GradientError;
+pub const CrossEntropyLoss = loss.CrossEntropyLoss;
+pub const MSELoss = loss.MSELoss;
+pub const FocalLoss = loss.FocalLoss;
+pub const perplexity = loss.perplexity;
+pub const klDivergence = loss.klDivergence;
+
+// ── Data & Datasets ──────────────────────────────────────────────────────
+pub const data = @import("data.zig");
+pub const data_loader = @import("data_loader.zig");
+pub const token_dataset = @import("../database/wdbx.zig");
+
+// Data Loading re-exports
+pub const DataLoader = data_loader.DataLoader;
+pub const TokenizedDataset = data_loader.TokenizedDataset;
+pub const Batch = data_loader.Batch;
+pub const BatchIterator = data_loader.BatchIterator;
+pub const SequencePacker = data_loader.SequencePacker;
+pub const InstructionSample = data_loader.InstructionSample;
+pub const parseInstructionDataset = data_loader.parseInstructionDataset;
+
+// Token Dataset re-exports
+pub const WdbxTokenDataset = token_dataset.WdbxTokenDataset;
+pub const TokenBlock = token_dataset.TokenBlock;
+pub const encodeTokenBlock = token_dataset.encodeTokenBlock;
+pub const decodeTokenBlock = token_dataset.decodeTokenBlock;
+pub const readTokenBinFile = token_dataset.readTokenBinFile;
+pub const writeTokenBinFile = token_dataset.writeTokenBinFile;
+
+// ── Checkpointing ────────────────────────────────────────────────────────
+pub const checkpointing = @import("checkpointing.zig");
+pub const checkpoint = @import("checkpoint.zig");
+pub const llm_checkpoint = @import("llm_checkpoint.zig");
+
+// Checkpoint re-exports
+pub const Checkpoint = checkpoint.Checkpoint;
+pub const CheckpointError = checkpoint.CheckpointError;
+pub const CheckpointStore = checkpoint.CheckpointStore;
+pub const CheckpointView = checkpoint.CheckpointView;
+pub const LoadCheckpointError = checkpoint.LoadError;
+pub const SaveCheckpointError = checkpoint.SaveError;
+pub const SaveLatestCheckpointError = checkpoint.SaveLatestError;
+pub const loadCheckpoint = checkpoint.loadCheckpoint;
+pub const saveCheckpoint = checkpoint.saveCheckpoint;
+
+// LLM Checkpointing re-exports
+pub const LlmCheckpoint = llm_checkpoint.LlmCheckpoint;
+pub const LlmCheckpointView = llm_checkpoint.LlmCheckpointView;
+pub const LoadLlmCheckpointError = llm_checkpoint.LoadError;
+pub const SaveLlmCheckpointError = llm_checkpoint.SaveError;
+pub const loadLlmCheckpoint = llm_checkpoint.loadLlmCheckpoint;
+pub const saveLlmCheckpoint = llm_checkpoint.saveLlmCheckpoint;
+
+// ── Specialized & Multimodal ─────────────────────────────────────────────
+pub const specialized = @import("specialized.zig");
+pub const lora = @import("lora.zig");
+pub const mixed_precision = @import("mixed_precision.zig");
+pub const self_learning = @import("self_learning.zig");
+pub const vision_trainer = @import("vision_trainer.zig");
+pub const multimodal_trainer = @import("multimodal_trainer.zig");
+
+// LoRA re-exports
+pub const LoraAdapter = lora.LoraAdapter;
+pub const LoraConfig = lora.LoraConfig;
+pub const LoraLayerAdapters = lora.LoraLayerAdapters;
+pub const LoraModel = lora.LoraModel;
+
+// Mixed Precision re-exports
+pub const MixedPrecisionConfig = mixed_precision.MixedPrecisionConfig;
+pub const MixedPrecisionContext = mixed_precision.MixedPrecisionContext;
+pub const LossScaler = mixed_precision.LossScaler;
+pub const MasterWeights = mixed_precision.MasterWeights;
+pub const fp32ToFp16 = mixed_precision.fp32ToFp16;
+pub const fp16ToFp32 = mixed_precision.fp16ToFp32;
+
+// Self-Learning re-exports
+pub const SelfLearningSystem = self_learning.SelfLearningSystem;
+pub const SelfLearningConfig = self_learning.SelfLearningConfig;
+pub const LearningExperience = self_learning.LearningExperience;
+pub const ExperienceBuffer = self_learning.ExperienceBuffer;
+pub const RewardModel = self_learning.RewardModel;
+pub const SelfLearningVisionTrainer = self_learning.VisionTrainer;
+pub const DocumentTrainer = self_learning.DocumentTrainer;
+pub const ExperienceType = self_learning.ExperienceType;
+pub const FeedbackType = self_learning.FeedbackType;
+pub const DataKind = self_learning.DataKind;
+
+/// Build SelfLearningConfig from system-level TrainingConfig (Zig 0.16).
+/// Flows enable_vision, enable_video, enable_audio, enable_all_modalities from core config.
+pub fn selfLearningConfigFromCore(core_cfg: config_module.TrainingConfig) SelfLearningConfig {
+    return .{
+        .enable_vision = core_cfg.enable_vision,
+        .enable_video = core_cfg.enable_video,
+        .enable_audio = core_cfg.enable_audio,
+        .enable_all_modalities = core_cfg.enable_all_modalities,
+        .enable_rlhf = true,
+        .enable_documents = true,
+        .replay_buffer_size = 10000,
+        .batch_size = core_cfg.batch_size,
+        .min_buffer_size = 100,
+        .update_frequency = 64,
+    };
+}
+
+// Vision Transformer Training re-exports
+pub const TrainableViTModel = vision_trainer.TrainableViTModel;
+pub const TrainableViTConfig = vision_trainer.TrainableViTConfig;
+pub const TrainableViTWeights = vision_trainer.TrainableViTWeights;
+pub const TrainableViTLayerWeights = vision_trainer.TrainableViTLayerWeights;
+pub const ViTActivationCache = vision_trainer.ViTActivationCache;
+pub const VisionTrainingError = vision_trainer.VisionTrainingError;
+
+// Multimodal (CLIP) Training re-exports
+pub const TrainableCLIPModel = multimodal_trainer.TrainableCLIPModel;
+pub const CLIPTrainingConfig = multimodal_trainer.CLIPTrainingConfig;
+pub const TrainableTextEncoderWeights = multimodal_trainer.TrainableTextEncoderWeights;
+pub const TextTransformerLayerWeights = multimodal_trainer.TextTransformerLayerWeights;
+pub const MultimodalTrainingError = multimodal_trainer.MultimodalTrainingError;
+
+// ── Logging & Distributed ────────────────────────────────────────────────
+pub const logging = @import("logging.zig");
+pub const distributed = @import("distributed.zig");
+
+// Logging re-exports
+pub const TrainingLogger = logging.TrainingLogger;
+pub const TrainingLogConfig = logging.LoggerConfig;
+pub const TrainingLogMetric = logging.Metric;
+
+// Distributed Training re-exports
+pub const DistributedConfig = distributed.DistributedConfig;
+pub const DistributedTrainer = distributed.DistributedTrainer;
+
+// ── Core Types & Config ──────────────────────────────────────────────────
+pub const types = @import("types.zig");
+
+pub const TrainingError = error{
+    InvalidConfiguration,
+    ConvergenceFailed,
+    NaNGradient,
+    InvalidCheckpoint,
+};
+
+pub const TrainError =
+    TrainingError ||
+    GradientError ||
+    SaveLatestCheckpointError ||
+    std.mem.Allocator.Error;
+
+pub const Error = error{
+    TrainingDisabled,
+    InvalidConfig,
+    CheckpointFailed,
+    TrainingFailed,
+    OutOfMemory,
+};
+
+pub const OptimizerType = enum {
+    sgd,
+    adam,
+    adamw,
+};
+
+// Re-exported from types.zig — single source of truth for PrecisionMode.
+pub const PrecisionMode = types.PrecisionMode;
+
+pub const LearningRateSchedule = enum {
+    constant,
+    linear,
+    cosine,
+    warmup_cosine,
+    step,
+    polynomial,
+    /// Cosine annealing with warm restarts (SGDR)
+    cosine_warm_restarts,
+};
+
+pub const TrainingConfig = struct {
+    epochs: u32 = 10,
+    batch_size: u32 = 32,
+    sample_count: usize = 1024,
+    model_size: u32 = 512,
+    learning_rate: f32 = 0.001,
+    optimizer: OptimizerType = .adamw,
+    learning_rate_schedule: LearningRateSchedule = .warmup_cosine,
+    warmup_steps: u32 = 100,
+    decay_steps: u32 = 1000,
+    min_learning_rate: f32 = 0.0001,
+    gradient_accumulation_steps: u32 = 1,
+    gradient_clip_norm: f32 = 1.0,
+    weight_decay: f32 = 0.01,
+    checkpoint_interval: u32 = 0,
+    max_checkpoints: u32 = 5,
+    checkpoint_path: ?[]const u8 = null,
+    early_stopping_patience: u32 = 5,
+    early_stopping_threshold: f32 = 1e-4,
+    mixed_precision: bool = false,
+    /// Precision mode (explicit alternative to the mixed_precision bool)
+    precision_mode: PrecisionMode = .f32_full,
+
+    pub fn validate(self: TrainingConfig) TrainingError!void {
+        if (self.epochs == 0) return TrainingError.InvalidConfiguration;
+        if (self.batch_size == 0) return TrainingError.InvalidConfiguration;
+        if (self.sample_count == 0) return TrainingError.InvalidConfiguration;
+        if (self.model_size == 0) return TrainingError.InvalidConfiguration;
+        if (self.learning_rate <= 0) return TrainingError.InvalidConfiguration;
+        if (self.gradient_accumulation_steps == 0) {
+            return TrainingError.InvalidConfiguration;
+        }
+        if (self.gradient_clip_norm < 0) {
+            return TrainingError.InvalidConfiguration;
+        }
+        if (self.weight_decay < 0) {
+            return TrainingError.InvalidConfiguration;
+        }
+        if (self.warmup_steps >= self.decay_steps and self.learning_rate_schedule == .warmup_cosine) {
+            return TrainingError.InvalidConfiguration;
+        }
+        if (self.decay_steps == 0 and self.learning_rate_schedule == .cosine) {
+            return TrainingError.InvalidConfiguration;
+        }
+    }
+};
+
+pub const TrainingReport = struct {
+    epochs: u32,
+    batches: u32,
+    final_loss: f32,
+    final_accuracy: f32,
+    best_loss: f32,
+    learning_rate: f32,
+    gradient_updates: u64 = 0,
+    checkpoints_saved: u32 = 0,
+    early_stopped: bool = false,
+    total_time_ms: u64 = 0,
+    best_val_loss: f32 = 0,
+    best_val_accuracy: f32 = 0,
+    final_perplexity: f32 = 0,
+    total_steps: u64 = 0,
+    total_tokens: u64 = 0,
+    total_time_ns: u64 = 0,
+    avg_throughput: f32 = 0,
+};
+
+pub const ModelState = struct {
+    allocator: std.mem.Allocator,
+    weights: []f32,
+    gradients: []f32,
+    momentum: ?[]f32,
+    velocity: ?[]f32,
+    step: u64,
+    name: []const u8,
+
+    pub fn init(allocator: std.mem.Allocator, size: usize, name: []const u8) !ModelState {
+        const weights = try allocator.alloc(f32, size);
+        errdefer allocator.free(weights);
+        const gradients = try allocator.alloc(f32, size);
+        errdefer allocator.free(gradients);
+        const momentum = try allocator.alloc(f32, size);
+        errdefer allocator.free(momentum);
+        const velocity = try allocator.alloc(f32, size);
+        errdefer allocator.free(velocity);
+
+        trainer.initializeXavierUniform(weights, size);
+        @memset(gradients, 0);
+        @memset(momentum, 0);
+        @memset(velocity, 0);
+
+        const name_copy = try allocator.dupe(u8, name);
+
+        return .{
+            .allocator = allocator,
+            .weights = weights,
+            .gradients = gradients,
+            .momentum = momentum,
+            .velocity = velocity,
+            .step = 0,
+            .name = name_copy,
+        };
+    }
+
+    pub fn deinit(self: *ModelState) void {
+        self.allocator.free(self.name);
+        if (self.velocity) |v| self.allocator.free(v);
+        if (self.momentum) |m| self.allocator.free(m);
+        self.allocator.free(self.gradients);
+        self.allocator.free(self.weights);
+        self.* = undefined;
+    }
+
+    pub fn zeroGradients(self: *ModelState) void {
+        @memset(self.gradients, 0);
+    }
+
+    pub fn numParams(self: *const ModelState) usize {
+        return self.weights.len;
+    }
+};
+
+/// Training context for framework integration.
+pub const Context = struct {
+    allocator: std.mem.Allocator,
+    config: config_module.TrainingConfig,
+    checkpoint_store: ?*CheckpointStore = null,
+
+    pub fn init(allocator: std.mem.Allocator, cfg: config_module.TrainingConfig) !*Context {
+        if (!isEnabled()) return error.TrainingDisabled;
+
+        const ctx = try allocator.create(Context);
+        ctx.* = .{
+            .allocator = allocator,
+            .config = cfg,
+        };
+        return ctx;
+    }
+
+    pub fn deinit(self: *Context) void {
+        if (self.checkpoint_store) |cs| {
+            cs.deinit();
+            self.allocator.destroy(cs);
+        }
+        self.allocator.destroy(self);
+    }
+
+    /// Run training with the given configuration.
+    pub fn train(self: *Context, train_config: TrainingConfig) !TrainingResult {
+        return trainWithResult(self.allocator, train_config);
+    }
+
+    /// Get or create checkpoint store.
+    pub fn getCheckpointStore(self: *Context) !*CheckpointStore {
+        if (self.checkpoint_store) |cs| return cs;
+
+        const store = try self.allocator.create(CheckpointStore);
+        store.* = CheckpointStore.init(self.allocator, self.config.max_checkpoints orelse 5);
+        self.checkpoint_store = store;
+        return store;
+    }
+
+    /// Save a checkpoint.
+    pub fn saveCheckpoint(self: *Context, name: []const u8, payload: anytype) !void {
+        const store = try self.getCheckpointStore();
+        try store.save(name, payload);
+    }
+
+    /// Load a checkpoint.
+    pub fn loadCheckpointData(self: *Context, name: []const u8, comptime T: type) !T {
+        const store = try self.getCheckpointStore();
+        return store.load(name, T);
+    }
+};
+
+pub fn isEnabled() bool {
+    return build_options.feat_training;
+}
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+// Test discovery for extracted test files
+test {
+    _ = @import("self_learning_test.zig");
+    _ = @import("trainable_model_test.zig");
+}
+
+test "training result includes checkpoints" {
+    var result = try trainWithResult(std.testing.allocator, .{
+        .epochs = 2,
+        .batch_size = 2,
+        .sample_count = 4,
+        .model_size = 8,
+        .gradient_accumulation_steps = 1,
+        .checkpoint_interval = 1,
+        .max_checkpoints = 2,
+    });
+    defer result.deinit();
+
+    try std.testing.expect(result.checkpoints.count() <= 2);
+    try std.testing.expect(result.report.checkpoints_saved >= 1);
+}
+
+test "training honors gradient accumulation steps" {
+    var result = try trainWithResult(std.testing.allocator, .{
+        .epochs = 1,
+        .batch_size = 2,
+        .sample_count = 4,
+        .model_size = 4,
+        .gradient_accumulation_steps = 2,
+    });
+    defer result.deinit();
+
+    try std.testing.expectEqual(@as(u64, 1), result.model.step);
+    try std.testing.expectEqual(@as(u64, 1), result.report.gradient_updates);
+}
+
+test "learning rate schedule" {
+    const config = TrainingConfig{
+        .warmup_steps = 100,
+        .decay_steps = 1000,
+        .learning_rate = 0.01,
+    };
+
+    const lr_warmup = calculateLearningRate(config, 50, config.learning_rate);
+    const lr_decay = calculateLearningRate(config, 600, config.learning_rate);
+
+    try std.testing.expect(lr_warmup < config.learning_rate);
+    try std.testing.expect(lr_decay < lr_warmup);
+}
+
+test "gradient clipping" {
+    var gradients = [_]f32{ 1.5, 2.5, 3.5, 4.5 };
+    const norm = clipGradients(&gradients, 2.0);
+
+    try std.testing.expect(norm > 0);
+    for (gradients) |g| {
+        try std.testing.expect(@abs(g) <= 2.0);
+    }
+}
+
+test {
+    _ = optimizer_mod;
+    _ = trainer;
+    std.testing.refAllDecls(@This());
+}
