@@ -74,7 +74,14 @@ The GitHub API query requires `python3` for JSON parsing. If python3 is not avai
 | Script | Description |
 |--------|-------------|
 | `crossbuild.sh` | Cross-compile for linux, wasi, x86_64 targets |
+| `verify_changes.sh` | Verify shell scripts syntax and DOS line endings |
 | `compile_zig_codeberg.sh` | Compile Zig from source (Codeberg mirror, requires `brew install llvm`) |
 | `auto_update.sh` | Check and apply updates for zig + zls |
 | `feature_tests.sh` | Run feature-specific test suites |
 | `lessons_review.sh` | Review lessons learned from development sessions |
+
+## Modernization notes
+- The crossbuild.sh script has been refreshed to a safe, minimal cross-build helper with a dry-run capability to avoid accidental long builds in environments without proper toolchains.
+- The hf_discord_models.sh tool was rewritten to a POSIX-compliant shell, improving portability and reliability across shells.
+- The crossbuild.ps1 script now includes Set-StrictMode to catch potential runtime errors early.
+- Plan.md and CodeMap.md were added to improve planning, onboarding, and codebase understanding.
