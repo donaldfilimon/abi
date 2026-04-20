@@ -189,6 +189,11 @@ test "ResourceDef format" {
         .name = "Test Resource",
         .description = "A test resource",
         .mime_type = "application/json",
+        .handler = struct {
+            fn handle(_: std.mem.Allocator, _: []const u8, out: *std.ArrayListUnmanaged(u8)) !void {
+                try out.appendSlice(std.testing.allocator, "ok");
+            }
+        }.handle,
     };
 
     try std.testing.expectEqualStrings("abi://test", def.uri);
