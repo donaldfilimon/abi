@@ -33,11 +33,31 @@ pub const OSControlManager = struct {
             .read_only => return false,
             .full_control => return true,
             .ask_before_action => {
-                // In a real CLI, this hooks into the confirmation prompt.
-                // TODO: wire into actual CLI/TUI confirmation dialog.
                 std.log.info("[Security] Agent wants to: {s}. Allow? (y/N)", .{action_desc});
-                // Stubbing permission to true for this prototype
-                return true;
+                const stdin = std.io.getStdIn();
+                const reader = stdin.reader();
+                var buf: [64]u8 = undefined;
+                const line = reader.readUntilDelimiterOrEof(&buf, '\n') orelse return false;
+                // Trim whitespace (including newline if present)
+                const trimmed = std.mem.trim(u8, line, " \t\n\r");
+                if (trimmed.len == 0) {
+                    // Empty line (just Enter) -> no
+                    return false;
+                }
+                // Convert to lowercase for comparison
+                var lower: [64]u8 = undefined;
+                var j: usize = 0;
+                for (trimmed) |b| {
+                    if (j >= lower.len) break;
+                    lower[j] = std.ascii.toLower(b);
+                    j += 1;
+                }
+                const lowerSlice = lower[0..j];
+                if (std.mem.eql(u8, lowerSlice, "y") or std.mem.eql(u8, lowerSlice, "yes")) {
+                    return true;
+                } else {
+                    return false;
+                }
             },
         }
     }

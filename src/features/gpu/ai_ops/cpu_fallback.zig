@@ -13,6 +13,22 @@ const AiOpsError = ai_ops.AiOpsError;
 const DeviceBuffer = ai_ops.DeviceBuffer;
 const Transpose = ai_ops.Transpose;
 
+inline fn ptrToF32Slice(ptr: *anyopaque) [*]f32 {
+    return @ptrCast(@alignCast(ptr));
+}
+
+inline fn ptrToConstF32Slice(ptr: *const anyopaque) [*]const f32 {
+    return @ptrCast(@alignCast(ptr));
+}
+
+inline fn ptrToU8Slice(ptr: *anyopaque) [*]u8 {
+    return @ptrCast(@alignCast(ptr));
+}
+
+inline fn ptrToConstU8Slice(ptr: *const anyopaque) [*]const u8 {
+    return @ptrCast(@alignCast(ptr));
+}
+
 /// CPU fallback implementation when GPU is disabled.
 /// Performs real computations on host memory using standard math.
 /// Pointers are interpreted as f32 arrays laid out in row-major order.
@@ -76,9 +92,9 @@ pub const CpuFallbackAiOps = struct {
         const LDB: usize = @intCast(ldb);
         const LDC: usize = @intCast(ldc);
 
-        const a: [*]const f32 = @ptrCast(@alignCast(a_ptr));
-        const b: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-        const c: [*]f32 = @ptrCast(@alignCast(c_ptr));
+        const a = ptrToConstF32Slice(a_ptr);
+        const b = ptrToConstF32Slice(b_ptr);
+        const c = ptrToF32Slice(c_ptr);
 
         for (0..M) |i| {
             for (0..N) |j| {
@@ -130,9 +146,9 @@ pub const CpuFallbackAiOps = struct {
         const sb: usize = @intCast(stride_b);
         const sc: usize = @intCast(stride_c);
 
-        const a_base: [*]const f32 = @ptrCast(@alignCast(a_ptr));
-        const b_base: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-        const c_base: [*]f32 = @ptrCast(@alignCast(c_ptr));
+        const a_base = ptrToConstF32Slice(a_ptr);
+        const b_base = ptrToConstF32Slice(b_ptr);
+        const c_base = ptrToF32Slice(c_ptr);
 
         for (0..@intCast(batch_count)) |batch| {
             const a = a_base + batch * sa;
@@ -167,7 +183,7 @@ pub const CpuFallbackAiOps = struct {
     fn cpuSoftmax(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         if (len == 0) return;
         const n_val: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
+        const data = ptrToF32Slice(data_ptr);
         activations.softmaxInPlace(data[0..n_val]);
     }
 
@@ -182,29 +198,29 @@ pub const CpuFallbackAiOps = struct {
     ) AiOpsError!void {
         if (len == 0) return;
         const n_val: usize = @intCast(len);
-        const x: [*]f32 = @ptrCast(@alignCast(x_ptr));
-        const weight: [*]const f32 = @ptrCast(@alignCast(weight_ptr));
+        const x = ptrToF32Slice(x_ptr);
+        const weight = ptrToConstF32Slice(weight_ptr);
         activations.rmsNormInPlace(x[0..n_val], weight[0..n_val], eps);
     }
 
     /// CPU SiLU: delegates to SIMD-accelerated foundation implementation.
     fn cpuSilu(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const n_val: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
+        const data = ptrToF32Slice(data_ptr);
         activations.siluInPlace(data[0..n_val]);
     }
 
     /// CPU GELU: delegates to SIMD-accelerated foundation implementation.
     fn cpuGelu(_: *anyopaque, data_ptr: *anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const n_val: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
+        const data = ptrToF32Slice(data_ptr);
         activations.geluInPlace(data[0..n_val]);
     }
 
     /// CPU scale: x = x * scalar.
     fn cpuScale(_: *anyopaque, data_ptr: *anyopaque, scalar: f32, len: u32, _: ?*anyopaque) AiOpsError!void {
         const n_val: usize = @intCast(len);
-        const data: [*]f32 = @ptrCast(@alignCast(data_ptr));
+        const data = ptrToF32Slice(data_ptr);
 
         for (0..n_val) |i| {
             data[i] *= scalar;
@@ -214,8 +230,8 @@ pub const CpuFallbackAiOps = struct {
     /// CPU element-wise multiply: a = a * b.
     fn cpuElementwiseMul(_: *anyopaque, a_ptr: *anyopaque, b_ptr: *const anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const n_val: usize = @intCast(len);
-        const a: [*]f32 = @ptrCast(@alignCast(a_ptr));
-        const b: [*]const f32 = @ptrCast(@alignCast(b_ptr));
+        const a = ptrToF32Slice(a_ptr);
+        const b = ptrToConstF32Slice(b_ptr);
 
         for (0..n_val) |i| {
             a[i] *= b[i];
@@ -225,8 +241,8 @@ pub const CpuFallbackAiOps = struct {
     /// CPU element-wise add: a = a + b.
     fn cpuElementwiseAdd(_: *anyopaque, a_ptr: *anyopaque, b_ptr: *const anyopaque, len: u32, _: ?*anyopaque) AiOpsError!void {
         const n_val: usize = @intCast(len);
-        const a: [*]f32 = @ptrCast(@alignCast(a_ptr));
-        const b: [*]const f32 = @ptrCast(@alignCast(b_ptr));
+        const a = ptrToF32Slice(a_ptr);
+        const b = ptrToConstF32Slice(b_ptr);
 
         for (0..n_val) |i| {
             a[i] += b[i];
@@ -253,13 +269,13 @@ pub const CpuFallbackAiOps = struct {
 
     /// Copy from host to "device" (host-backed).
     fn cpuCopyToDevice(_: *anyopaque, dst: *anyopaque, src: [*]const u8, len: usize) AiOpsError!void {
-        const dst_slice: [*]u8 = @ptrCast(@alignCast(dst));
+        const dst_slice = ptrToU8Slice(dst);
         @memcpy(dst_slice[0..len], src[0..len]);
     }
 
     /// Copy from "device" (host-backed) to host.
     fn cpuCopyFromDevice(_: *anyopaque, dst: [*]u8, src: *const anyopaque, len: usize) AiOpsError!void {
-        const src_slice: [*]const u8 = @ptrCast(@alignCast(src));
+        const src_slice = ptrToConstU8Slice(src);
         @memcpy(dst[0..len], src_slice[0..len]);
     }
 

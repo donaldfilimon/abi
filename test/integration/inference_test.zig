@@ -24,7 +24,7 @@ test "inference: demo backend generates text" {
     });
     defer engine.deinit();
 
-    const result = try engine.generate(.{
+    var result = try engine.generate(.{
         .id = 1,
         .prompt = "Explain HNSW indexing",
         .max_tokens = 10,
@@ -49,7 +49,7 @@ test "inference: connector backend returns model-tagged response" {
     });
     defer engine.deinit();
 
-    const result = try engine.generate(.{
+    var result = try engine.generate(.{
         .id = 1,
         .prompt = "What is a vector database?",
         .max_tokens = 50,
@@ -75,7 +75,7 @@ test "inference: local backend falls back to demo" {
     });
     defer engine.deinit();
 
-    const result = try engine.generate(.{
+    var result = try engine.generate(.{
         .id = 1,
         .prompt = "Test local inference",
         .max_tokens = 8,
@@ -147,27 +147,37 @@ test "inference: KV cache allocates and frees pages" {
 
     // Free the sequence — pages should return to pool
     cache.free(1);
-    try std.testing.expectEqual(@as(usize, 4), cache.freePages());
+
+    const free = @as(u32, @intCast(cache.free_pages.items.len));
+
+    if (free != 4) {
+        std.debug.print("Expected 4 free pages, found {} (pages.len={})\n", .{ free, cache.pages.len });
+        return error.TestExpectedEqual;
+    }
 }
 
 test "inference: KV cache rejects when full" {
     const PagedKVCache = abi.inference.PagedKVCache;
     var cache = try PagedKVCache.init(std.testing.allocator, .{
-        .num_pages = 4,
-        .page_size = 8,
+        .num_pages = 2,
+        .page_size = 16,
         .num_layers = 1,
         .num_heads = 1,
         .head_dim = 4,
     });
     defer cache.deinit();
 
-    // Fill all pages
-    const ok1 = try cache.allocate(1, 8);
+    // Fill all pages: num_pages=2, size=16 each.
+    // allocate(1, 16) takes 1 page, allocate(2, 16) takes 1 page.
+    const ok1 = try cache.allocate(1, 16);
     try std.testing.expect(ok1);
 
-    // No pages left — should return false
-    const ok2 = try cache.allocate(2, 4);
-    try std.testing.expect(!ok2);
+    const ok2 = try cache.allocate(2, 16);
+    try std.testing.expect(ok2);
+
+    // Now full
+    const ok3 = try cache.allocate(3, 16);
+    try std.testing.expect(!ok3);
 }
 
 // Sibling test modules (pulled in via refAllDecls)
@@ -256,7 +266,7 @@ test "inference: engine deinit waits for in-flight async work" {
     });
 
     const releaser = try std.Thread.spawn(.{}, struct {
-        fn run(_: void) void {
+        fn run() void {
             while (!AsyncState.started.load(.acquire)) {
                 time_mod.sleepMs(1);
             }
@@ -287,11 +297,22 @@ test "inference: GPU metrics buffer round-trip" {
     const allocator = std.testing.allocator;
 
     // Create a small GPU buffer and write/read metrics
-    var stats_buffer = try abi.gpu.createBuffer(allocator, .{
-        .size = @sizeOf(f32) * 2,
-        .usage = .{ .storage = true, .readback = true },
+    const gpu_ctx = try abi.gpu.Context.init(allocator, .{ .preferred_backend = .simulated, .allow_fallback = true });
+    defer {
+        gpu_ctx.deinit();
+        allocator.destroy(gpu_ctx);
+    }
+
+    const devices = try abi.gpu.device.enumerateAllDevices(allocator);
+    defer allocator.free(devices);
+
+    // We expect at least one device, likely the simulated one.
+    const device = &devices[0];
+
+    var stats_buffer = try abi.gpu.unified_buffer.Buffer.init(allocator, @sizeOf(f32) * 2, device, .{
+        .mode = .explicit,
     });
-    defer stats_buffer.deinit(allocator);
+    defer stats_buffer.deinit();
 
     const metric_data = [_]f32{ 42.0, 7.5 };
     try stats_buffer.write(f32, &metric_data);

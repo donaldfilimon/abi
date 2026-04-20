@@ -118,8 +118,8 @@ test "handleMessage tools/list" {
     try server.addTool(.{
         .def = .{ .name = "echo", .description = "Echo tool", .input_schema = "{}" },
         .handler = struct {
-            fn handle(_: std.mem.Allocator, _: ?std.json.ObjectMap, o: *std.ArrayListUnmanaged(u8)) !void {
-                try o.appendSlice(std.testing.allocator, "ok");
+            fn handle(_: std.mem.Allocator, _: ?std.json.ObjectMap, out: *std.ArrayListUnmanaged(u8)) !void {
+                try out.appendSlice(std.testing.allocator, "echo");
             }
         }.handle,
     });

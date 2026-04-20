@@ -1,0 +1,3 @@
+src/runtime/concurrency/lockfree.zig:11://! **WARNING: ABA Problem**
+src/runtime/concurrency/lockfree.zig:115:        /// WARNING: This operation is susceptible to the ABA problem. See module docs.
+src/runtime/concurrency/mod.zig:11://! - `LockFreeStack` - CAS-based stack (WARNING: ABA susceptible)

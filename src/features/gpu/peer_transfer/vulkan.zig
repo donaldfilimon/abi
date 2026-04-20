@@ -22,6 +22,7 @@ const multi_device = @import("../multi_device.zig");
 const stream_mod = @import("../stream.zig");
 const vulkan = @import("../backends/vulkan.zig");
 const vulkan_ext = @import("vulkan_ext.zig");
+const PointerCast = @import("../pointer_cast.zig");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const ReduceOp = multi_device.ReduceOp;
@@ -288,7 +289,7 @@ pub fn exportBuffer(
     const ctx = contexts.get(device_id) orelse return error.DeviceNotFound;
 
     // Cast to VulkanBuffer to get the memory handle
-    const vk_buffer: *vulkan.VulkanBuffer = @ptrCast(@alignCast(buffer_handle));
+    const vk_buffer: *vulkan.VulkanBuffer = PointerCast.implCast(vulkan.VulkanBuffer, buffer_handle);
 
     // Platform-specific export
     if (builtin.os.tag == .linux) {
@@ -806,7 +807,7 @@ pub fn destroyExportableBuffer(device_id: DeviceId, buffer_handle: *anyopaque) v
     const ctx = contexts.get(device_id) orelse return;
     const allocator = allocator_ref orelse return;
 
-    const vk_buffer: *vulkan.VulkanBuffer = @ptrCast(@alignCast(buffer_handle));
+    const vk_buffer: *vulkan.VulkanBuffer = PointerCast.implCast(vulkan.VulkanBuffer, buffer_handle);
 
     // Unmap if mapped
     if (vk_buffer.mapped_ptr != null) {

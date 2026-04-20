@@ -1,4 +1,4 @@
-#!/bin/bash
+set -x
 set -euo pipefail
 
 # This script is a lightweight wrapper that transparently compiles and runs

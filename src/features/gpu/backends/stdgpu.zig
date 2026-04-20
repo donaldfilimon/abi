@@ -9,6 +9,7 @@ const builtin = @import("builtin");
 
 const types = @import("../kernel_types.zig");
 const interface = @import("../interface.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and
@@ -100,7 +101,7 @@ pub fn launchKernel(
     config: types.KernelConfig,
     args: []const ?*const anyopaque,
 ) types.KernelError!void {
-    const kernel: *CompiledKernel = @ptrCast(@alignCast(kernel_handle));
+    const kernel = PointerCast.implCast(CompiledKernel, kernel_handle);
 
     // Validate grid dimensions
     if (config.grid_dim[0] == 0 or config.grid_dim[1] == 0 or config.grid_dim[2] == 0) {
@@ -238,7 +239,7 @@ fn recordDispatchMetrics(kernel_name: []const u8, total_threads: u64, shared_mem
 }
 
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
-    const kernel = @as(*CompiledKernel, @ptrCast(@alignCast(kernel_handle)));
+    const kernel = PointerCast.implCast(CompiledKernel, kernel_handle);
     allocator.free(kernel.spirv_code);
     allocator.free(kernel.entry_point);
     allocator.destroy(kernel);
@@ -312,7 +313,7 @@ pub fn allocateDeviceMemory(size: usize) DeviceMemoryError!*anyopaque {
 /// Free device memory
 pub fn freeDeviceMemory(ptr: *anyopaque) void {
     if (@intFromPtr(ptr) == 0) return;
-    const allocation: *DeviceAllocation = @ptrCast(@alignCast(ptr));
+    const allocation = PointerCast.implCast(DeviceAllocation, ptr);
     std.heap.page_allocator.free(allocation.bytes);
     std.heap.page_allocator.destroy(allocation);
 }
@@ -324,7 +325,7 @@ pub fn memcpyHostToDevice(
     size: usize,
 ) DeviceMemoryError!void {
     const allocation = try getAllocation(dst);
-    const src_bytes: [*]const u8 = @ptrCast(@alignCast(src));
+    const src_bytes: [*]const u8 = PointerCast.implCast([*]const u8, src);
     try validateCopy(allocation.bytes.len, size);
     std.mem.copyForwards(u8, allocation.bytes[0..size], src_bytes[0..size]);
 }
@@ -336,7 +337,7 @@ pub fn memcpyDeviceToHost(
     size: usize,
 ) DeviceMemoryError!void {
     const allocation = try getAllocation(src);
-    const dst_bytes: [*]u8 = @ptrCast(@alignCast(dst));
+    const dst_bytes: [*]u8 = PointerCast.implCast([*]u8, dst);
     try validateCopy(allocation.bytes.len, size);
     std.mem.copyForwards(u8, dst_bytes[0..size], allocation.bytes[0..size]);
 }
@@ -362,7 +363,7 @@ pub fn deviceSlice(ptr: *anyopaque) DeviceMemoryError![]u8 {
 
 fn getAllocation(ptr: anyopaque) DeviceMemoryError!*DeviceAllocation {
     if (@intFromPtr(ptr) == 0) return DeviceMemoryError.InvalidDeviceMemory;
-    return @ptrCast(@alignCast(ptr));
+    return PointerCast.implCast(DeviceAllocation, ptr);
 }
 
 fn validateCopy(available: usize, size: usize) DeviceMemoryError!void {

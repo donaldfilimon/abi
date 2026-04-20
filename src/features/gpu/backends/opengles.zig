@@ -9,6 +9,7 @@ const sync = @import("../../../foundation/mod.zig").sync;
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 pub const OpenGlesError = error{
     InitializationFailed,
@@ -328,7 +329,7 @@ pub fn launchKernel(
         return OpenGlesError.InitializationFailed;
     }
 
-    const kernel: *OpenGlesKernel = @ptrCast(@alignCast(kernel_handle));
+    const kernel = PointerCast.implCast(OpenGlesKernel, kernel_handle);
 
     // Use program
     const use_program_fn = glesUseProgram orelse return OpenGlesError.DispatchFailed;
@@ -338,7 +339,7 @@ pub fn launchKernel(
     const bind_buffer_base_fn = glesBindBufferBase orelse return OpenGlesError.DispatchFailed;
     for (args, 0..) |arg, i| {
         if (arg != null) {
-            const buffer: *const OpenGlesBuffer = @ptrCast(@alignCast(arg.?));
+            const buffer = PointerCast.implCast(OpenGlesBuffer, @constCast(arg.?));
             bind_buffer_base_fn(GL_SHADER_STORAGE_BUFFER, @intCast(i), buffer.buffer_id);
         }
     }
@@ -363,7 +364,7 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
         return;
     }
 
-    const kernel: *OpenGlesKernel = @ptrCast(@alignCast(kernel_handle));
+    const kernel = PointerCast.implCast(OpenGlesKernel, kernel_handle);
 
     const delete_program_fn = glesDeleteProgram orelse return;
     delete_program_fn(kernel.program);
@@ -482,7 +483,7 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
         return;
     }
 
-    const buffer: *OpenGlesBuffer = @ptrCast(@alignCast(ptr));
+    const buffer = PointerCast.implCast(OpenGlesBuffer, ptr);
     const allocator = buffer.allocator;
 
     const delete_buffers_fn = glesDeleteBuffers orelse return;
@@ -497,8 +498,8 @@ pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) OpenG
         return OpenGlesError.InitializationFailed;
     }
 
-    const src_buffer: *OpenGlesBuffer = @ptrCast(@alignCast(src));
-    const dst_buffer: *OpenGlesBuffer = @ptrCast(@alignCast(dst));
+    const src_buffer = PointerCast.implCast(OpenGlesBuffer, src);
+    const dst_buffer = PointerCast.implCast(OpenGlesBuffer, dst);
 
     if (size > src_buffer.size) {
         std.log.err("OpenGL ES memcpy size ({B}) exceeds source buffer size ({B})", .{ size, src_buffer.size });
@@ -571,7 +572,7 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) OpenGle
         return OpenGlesError.InitializationFailed;
     }
 
-    const dst_buffer: *OpenGlesBuffer = @ptrCast(@alignCast(dst));
+    const dst_buffer = PointerCast.implCast(OpenGlesBuffer, dst);
     if (size > dst_buffer.size) {
         std.log.err("OpenGL ES memcpy size ({B}) exceeds buffer size ({B})", .{ size, dst_buffer.size });
         return OpenGlesError.BufferCreationFailed;
@@ -591,7 +592,7 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) OpenGle
         return OpenGlesError.InitializationFailed;
     }
 
-    const src_buffer: *OpenGlesBuffer = @ptrCast(@alignCast(src));
+    const src_buffer = PointerCast.implCast(OpenGlesBuffer, src);
     if (size > src_buffer.size) {
         std.log.err("OpenGL ES memcpy size ({B}) exceeds buffer size ({B})", .{ size, src_buffer.size });
         return OpenGlesError.BufferCreationFailed;

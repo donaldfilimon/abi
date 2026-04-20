@@ -4,6 +4,7 @@
 //! Enables runtime polymorphism and consistent behavior across backends.
 
 const std = @import("std");
+const PointerCast = @import("../pointer_cast.zig");
 
 // =============================================================================
 // Standard GPU Error Types
@@ -366,68 +367,70 @@ pub fn createBackend(
     impl: *Impl,
 ) Backend {
     const gen = struct {
+        // Removed inline implCast helper; use centralized PointerCast.implCast instead
+
         fn deinit(ptr: *anyopaque) void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             self.deinit();
         }
 
         fn getDeviceCount(ptr: *anyopaque) u32 {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.getDeviceCount();
         }
 
         fn getDeviceCaps(ptr: *anyopaque, device_id: u32) BackendError!DeviceCaps {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.getDeviceCaps(device_id);
         }
 
         fn allocate(ptr: *anyopaque, size: usize, flags: MemoryFlags) MemoryError!*anyopaque {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.allocate(size, flags);
         }
 
         fn free(ptr: *anyopaque, mem: *anyopaque) void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             self.free(mem);
         }
 
         fn copyToDevice(ptr: *anyopaque, dst: *anyopaque, src: []const u8) MemoryError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.copyToDevice(dst, src);
         }
 
         fn copyFromDevice(ptr: *anyopaque, dst: []u8, src: *anyopaque) MemoryError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.copyFromDevice(dst, src);
         }
 
         fn copyToDeviceAsync(ptr: *anyopaque, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) MemoryError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.copyToDeviceAsync(dst, src, stream);
         }
 
         fn copyFromDeviceAsync(ptr: *anyopaque, dst: []u8, src: *anyopaque, stream: ?*anyopaque) MemoryError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.copyFromDeviceAsync(dst, src, stream);
         }
 
         fn compileKernel(ptr: *anyopaque, allocator: std.mem.Allocator, source: []const u8, kernel_name: []const u8) KernelError!*anyopaque {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.compileKernel(allocator, source, kernel_name);
         }
 
         fn launchKernel(ptr: *anyopaque, kernel: *anyopaque, config: LaunchConfig, args: []const *anyopaque) KernelError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.launchKernel(kernel, config, args);
         }
 
         fn destroyKernel(ptr: *anyopaque, kernel: *anyopaque) void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             self.destroyKernel(kernel);
         }
 
         fn synchronize(ptr: *anyopaque) BackendError!void {
-            const self: *Impl = @ptrCast(@alignCast(ptr));
+            const self: *Impl = PointerCast.implCast(Impl, ptr);
             return self.synchronize();
         }
 

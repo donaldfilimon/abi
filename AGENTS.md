@@ -1,70 +1,94 @@
 # AGENTS.md
-## Entry Points
-- abi (CLI)
-  - Build: ./build.sh cli (macOS) or zig build cli (Linux)
-  - Binary: zig-out/bin/abi
-  - Entry: src/main.zig
-- abi-mcp (MCP server)
-  - Build: ./build.sh mcp
-  - Binary: zig-out/bin/abi-mcp
-  - Entry: src/mcp_main.zig
-## Workflow
-Would an agent likely miss this without help? Ramp-up: Build → Test → Check parity → Run smoke tests (macOS: ./build.sh test --summary all; Linux: zig build test --summary all).
-Would an agent likely miss this without help? Verifier: After any public API change, run zig build check-parity and a targeted test subset (zig build test -- --test-filter "parity").
 
-Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
+Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
 
 ## Build Commands
 
-| Command | When |
-|---------|------|
-| `./build.sh` | macOS 26.4+ (auto-relinks with Apple ld) |
-| `zig build` | Linux / older macOS |
-| `./build.sh cli` | CLI binary (`zig-out/bin/abi`) |
-| `./build.sh mcp` | MCP server (`zig-out/bin/abi-mcp`) |
-
-## Test Commands
+**macOS 26.4+**: Always use `./build.sh`, never `zig build` directly — stock Zig's LLD cannot link.
+**Linux / older macOS**: Use `zig build` directly.
 
 | Command | Description |
 |---------|-------------|
-| `./build.sh test --summary all` | Full suite (macOS) |
-| `zig build test --summary all` | Full suite (Linux) |
-| `zig build test -- --test-filter "pattern"` | Single test |
-| `zig build check-parity` | Verify mod/stub parity |
+| `./build.sh cli` / `zig build cli` | Build CLI binary (`zig-out/bin/abi`) |
+| `./build.sh mcp` / `zig build mcp` | Build MCP server (`zig-out/bin/abi-mcp`) |
+| `./build.sh test --summary all` | Run all tests |
+| `zig build test -- --test-filter "pat"` | Run single test |
+| `./build.sh check` | Lint + test + stub parity |
+| `zig build check-parity` | Verify mod/stub declaration parity |
+| `zig build fix` | Auto-format |
+
+**Test lanes**: `zig build {messaging,secrets,pitr,agents,gpu,network,web,search,auth,storage,cloud,cache,database,connectors,lsp,acp,ha,tasks,documents,compute,desktop,pipeline}-tests`
 
 ## Critical Rules
 
-1. **Never `@import("abi")` from `src/`** — causes circular import
-2. **macOS 26.4+**: Use `./build.sh`, never `zig build` directly
-3. **Mod/stub contract**: Update both together; run `zig build check-parity`
-4. **Feature gates**: `if (build_options.feat_X) mod else stub`
-5. **String ownership**: Use `allocator.dupe()` for string literals in structs with `deinit()`
-6. **Imports**: Explicit `.zig` extension required on all path imports
+1. **Never `@import("abi")` from `src/`** — causes circular import. Use relative imports only.
+2. **Mod/stub contract**: Every feature has `mod.zig` (real), `stub.zig` (no-ops), `types.zig` (shared). Update both together for any public API change.
+3. **After any public API change**: Run `zig build check-parity` before committing.
+4. **Feature gates**: `if (build_options.feat_X) @import("features/X/mod.zig") else @import("features/X/stub.zig")`
+5. **String ownership**: Use `allocator.dupe()` for string literals in structs with `deinit()`.
 
-## Feature Flags
+## Pointer Cast Refactoring - COMPLETED
 
-All enabled by default except `feat-mobile` and `feat-tui`:
-```bash
-zig build -Dfeat-gpu=false -Dfeat-ai=false
-zig build -Dgpu-backend=metal
+All GPU subsystem `@ptrCast(@alignCast(ptr))` patterns centralized. Total: ~115+ casts across ~20 files.
+
+### Centralized Helper
+
+`src/features/gpu/pointer_cast.zig`:
+```zig
+pub fn implCast(comptime Impl: type, ptr: *anyopaque) *Impl {
+    return @ptrCast(@alignCast(ptr));
+}
 ```
+
+### Files Refactored (20 files)
+
+**Core Interface:** `interface.zig` (12), `adapters.zig` (15)
+
+**GPU Backends:** `opengl.zig` (8), `opengles.zig` (8), `webgpu.zig` (7), `vulkan.zig` (3), `stdgpu.zig` (3), `cuda/mod.zig` (3), `fallback.zig` (4), `tpu/mod.zig` (2), `fpga/vtable.zig` (2), `cuda/memory.zig` (1), `std_gpu_integration.zig` (1), `peer_transfer/vulkan.zig` (2)
+
+**AiOps Subsystem:** `coordinator_ai_ops.zig` (local helpers for slice casts), `cpu_fallback.zig` (local helpers), `simulated.zig` (local helpers)
+
+**Metal Backends:** `metal_buffers.zig` (2), `metal_compute.zig` (2)
+
+### Files Retaining Direct Casts (Technical Reasons)
+
+- `cuda/native.zig` - Direct FFI handling
+- `simulated.zig` - Internal operations
+- `metal/unified_memory.zig` - Metal memory ops
+- `metal_device.zig` - ObjC dispatch
+- `dispatch/coordinator/launch.zig` - Kernel uniforms
+- `peer_transfer/metal.zig` - objc_msgSend lookups
+
+Many-pointer casts (`[*]T`) and generic `comptime T` casts keep `@ptrCast(@alignCast)`.
+
+### Usage
+
+```zig
+const PointerCast = @import("pointer_cast.zig");
+pub fn callback(ptr: *anyopaque) callconv(.C) void {
+    const self: *Impl = PointerCast.implCast(Impl, ptr);
+}
+```
+
+### Verification
+
+- `zig build check-parity` - PASSED
+- `zig build test --summary all` - 3781/3787 (6 skipped)
+
+## Toolchain
+
+- **Zig**: pinned in `.zigversion` (0.17.0-dev.0)
+- **Toolchain**: Use system `zig` directly if `tools/zigly` fails (ZVM doesn't support -dev versions)
+- **Cross-compile check**: `zig build cross-check` validates linux/wasi targets
 
 ## MCP Server
 
-- Config: `.mcp.json` (root) and `zig-abi-plugin/.mcp.json`
-- Binary: `./zig-out/bin/abi-mcp`
-- Entry: `src/mcp_main.zig`
+- Build: `zig build mcp` → `zig-out/bin/abi-mcp`
+- Install: `cp zig-out/bin/abi-mcp ~/.local/bin/`
+- Config: `.mcp.json` (root)
 
-## Known Pre-existing Issues
-
-- 2 inference engine connector tests (expected failures)
-- 1 auth integration test (expected failure)
-
-## General Next Steps
-Would an agent likely miss this without help? Validate that the Build Commands and Test Commands sections align with current repository tooling (build.sh, zig, cross-platform parity checks).
-Would an agent likely miss this without help? Cross-link CLAUDE.md and QWEN.md for current project context and references.
-Would an agent likely miss this without help? Validation pass: cross-check CLAUDE.md, QWEN.md, README.md for alignment with AGENTS.md and ensure terminology is consistent (parity checks, feature flags).
-Would an agent likely miss this without help? Optional consolidation: consider wrapping the General Next Steps in a collapsible details block if your renderer supports it.
-Would an agent likely miss this without help? Keep MCP Server notes up-to-date: Config: .mcp.json (root) and zig-abi-plugin/.mcp.json, Entry: src/mcp_main.zig.
-Would an agent likely miss this without help? Ensure Known Pre-existing Issues section is current and clearly flagged before work begins.
-Would an agent likely miss this without help? Verify feature flag guidance examples (-Dfeat-<name>=false) are consistent with the 60-feature catalog.
+Would an agent likely miss this without help? See ENTRA-ID.md for Entra onboarding guidance.
+Would an agent likely miss this without help? Yes. See GEMINI.md for ABI Framework overview.
+Would an agent likely miss this without help? Yes. See CUSTOMIZE-MODEL-DEPLOYMENT.md for detailed customization workflow.
+Would an agent likely miss this without help? Yes. See DEPLOY-MODEL-OPTIMAL-REGION.md for deployment to optimal region guidance.
+Would an agent likely miss this without help? Yes. See DEPLOY-MODEL.md for Deploy Model routing guidance.

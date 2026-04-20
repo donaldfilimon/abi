@@ -73,39 +73,105 @@ pub const providers = struct {
 };
 
 pub const loaders = struct {
-    pub const loadOpenAI = @import("stub.zig").loadOpenAI;
-    pub const tryLoadOpenAI = @import("stub.zig").tryLoadOpenAI;
-    pub const loadCodex = @import("stub.zig").loadCodex;
-    pub const tryLoadCodex = @import("stub.zig").tryLoadCodex;
-    pub const loadOpenCode = @import("stub.zig").loadOpenCode;
-    pub const tryLoadOpenCode = @import("stub.zig").tryLoadOpenCode;
-    pub const loadClaude = @import("stub.zig").loadClaude;
-    pub const tryLoadClaude = @import("stub.zig").tryLoadClaude;
-    pub const loadGemini = @import("stub.zig").loadGemini;
-    pub const tryLoadGemini = @import("stub.zig").tryLoadGemini;
-    pub const loadHuggingFace = @import("stub.zig").loadHuggingFace;
-    pub const tryLoadHuggingFace = @import("stub.zig").tryLoadHuggingFace;
-    pub const loadOllama = @import("stub.zig").loadOllama;
-    pub const tryLoadOllama = @import("stub.zig").tryLoadOllama;
-    pub const loadOllamaPassthrough = @import("stub.zig").loadOllamaPassthrough;
-    pub const tryLoadOllamaPassthrough = @import("stub.zig").tryLoadOllamaPassthrough;
-    pub const loadLocalScheduler = @import("stub.zig").loadLocalScheduler;
-    pub const loadDiscord = @import("stub.zig").loadDiscord;
-    pub const tryLoadDiscord = @import("stub.zig").tryLoadDiscord;
-    pub const loadAnthropic = @import("stub.zig").loadAnthropic;
-    pub const tryLoadAnthropic = @import("stub.zig").tryLoadAnthropic;
-    pub const loadMistral = @import("stub.zig").loadMistral;
-    pub const tryLoadMistral = @import("stub.zig").tryLoadMistral;
-    pub const loadCohere = @import("stub.zig").loadCohere;
-    pub const tryLoadCohere = @import("stub.zig").tryLoadCohere;
-    pub const loadLMStudio = @import("stub.zig").loadLMStudio;
-    pub const tryLoadLMStudio = @import("stub.zig").tryLoadLMStudio;
-    pub const loadVLLM = @import("stub.zig").loadVLLM;
-    pub const tryLoadVLLM = @import("stub.zig").tryLoadVLLM;
-    pub const loadMLX = @import("stub.zig").loadMLX;
-    pub const tryLoadMLX = @import("stub.zig").tryLoadMLX;
-    pub const loadLlamaCpp = @import("stub.zig").loadLlamaCpp;
-    pub const tryLoadLlamaCpp = @import("stub.zig").tryLoadLlamaCpp;
+    pub fn loadOpenAI(_: std.mem.Allocator) !openai.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadOpenAI(_: std.mem.Allocator) !?openai.Config {
+        return null;
+    }
+    pub fn loadCodex(_: std.mem.Allocator) !codex.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadCodex(_: std.mem.Allocator) !?codex.Config {
+        return null;
+    }
+    pub fn loadOpenCode(_: std.mem.Allocator) !opencode.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadOpenCode(_: std.mem.Allocator) !?opencode.Config {
+        return null;
+    }
+    pub fn loadClaude(_: std.mem.Allocator) !claude.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadClaude(_: std.mem.Allocator) !?claude.Config {
+        return null;
+    }
+    pub fn loadGemini(_: std.mem.Allocator) !gemini.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadGemini(_: std.mem.Allocator) !?gemini.Config {
+        return null;
+    }
+    pub fn loadHuggingFace(_: std.mem.Allocator) !huggingface.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadHuggingFace(_: std.mem.Allocator) !?huggingface.Config {
+        return null;
+    }
+    pub fn loadOllama(_: std.mem.Allocator) !ollama.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadOllama(_: std.mem.Allocator) !?ollama.Config {
+        return null;
+    }
+    pub fn loadOllamaPassthrough(_: std.mem.Allocator) !ollama_passthrough.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadOllamaPassthrough(_: std.mem.Allocator) !?ollama_passthrough.Config {
+        return null;
+    }
+    pub fn loadLocalScheduler(_: std.mem.Allocator) !local_scheduler.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn loadDiscord(_: std.mem.Allocator) !discord.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadDiscord(_: std.mem.Allocator) !?discord.Config {
+        return null;
+    }
+    pub fn loadAnthropic(_: std.mem.Allocator) !anthropic.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadAnthropic(_: std.mem.Allocator) !?anthropic.Config {
+        return null;
+    }
+    pub fn loadMistral(_: std.mem.Allocator) !mistral.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadMistral(_: std.mem.Allocator) !?mistral.Config {
+        return null;
+    }
+    pub fn loadCohere(_: std.mem.Allocator) !cohere.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadCohere(_: std.mem.Allocator) !?cohere.Config {
+        return null;
+    }
+    pub fn loadLMStudio(_: std.mem.Allocator) !lm_studio.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadLMStudio(_: std.mem.Allocator) !?lm_studio.Config {
+        return null;
+    }
+    pub fn loadVLLM(_: std.mem.Allocator) !vllm.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadVLLM(_: std.mem.Allocator) !?vllm.Config {
+        return null;
+    }
+    pub fn loadMLX(_: std.mem.Allocator) !mlx.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadMLX(_: std.mem.Allocator) !?mlx.Config {
+        return null;
+    }
+    pub fn loadLlamaCpp(_: std.mem.Allocator) !llama_cpp.Config {
+        return Error.FeatureDisabled;
+    }
+    pub fn tryLoadLlamaCpp(_: std.mem.Allocator) !?llama_cpp.Config {
+        return null;
+    }
 };
 
 /// Stub ENV_VARS — mirrors env.zig's ENV_VARS structure with the same public fields.

@@ -6,6 +6,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const types = @import("../kernel_types.zig");
+const PointerCast = @import("../pointer_cast.zig");
 
 pub const WebGpuError = error{
     InitializationFailed,
@@ -301,7 +302,7 @@ pub fn launchKernel(
         return types.KernelError.LaunchFailed;
     }
 
-    const kernel: *WebGpuKernel = @ptrCast(@alignCast(kernel_handle));
+    const kernel = PointerCast.implCast(WebGpuKernel, kernel_handle);
     const device = webgpu_device.?;
     const queue = webgpu_queue.?;
 
@@ -353,7 +354,7 @@ pub fn launchKernel(
 }
 
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
-    const kernel: *WebGpuKernel = @ptrCast(@alignCast(kernel_handle));
+    const kernel = PointerCast.implCast(WebGpuKernel, kernel_handle);
     // WebGPU objects are typically cleaned up automatically
     allocator.destroy(kernel);
 }
@@ -400,7 +401,7 @@ pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usi
 
 pub fn freeDeviceMemory(allocator: std.mem.Allocator, ptr: *anyopaque) void {
     _ = allocator;
-    const buffer: *WebGpuBuffer = @ptrCast(@alignCast(ptr));
+    const buffer = PointerCast.implCast(WebGpuBuffer, ptr);
     const buffer_allocator_ref = buffer.allocator;
 
     // WebGPU buffers should be destroyed explicitly
@@ -413,8 +414,8 @@ pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void
         return WebGpuError.SubmissionFailed;
     }
 
-    const src_buffer: *WebGpuBuffer = @ptrCast(@alignCast(src));
-    const dst_buffer: *WebGpuBuffer = @ptrCast(@alignCast(dst));
+    const src_buffer = PointerCast.implCast(WebGpuBuffer, src);
+    const dst_buffer = PointerCast.implCast(WebGpuBuffer, dst);
     const device = webgpu_device.?;
     const queue = webgpu_queue.?;
 
@@ -474,7 +475,7 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
         return WebGpuError.SubmissionFailed;
     }
 
-    const dst_buffer: *WebGpuBuffer = @ptrCast(@alignCast(dst));
+    const dst_buffer = PointerCast.implCast(WebGpuBuffer, dst);
     const queue = webgpu_queue.?;
 
     // WebGPU uses wgpuQueueWriteBuffer for host-to-device copies
@@ -525,7 +526,7 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
 }
 
 pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    const src_buffer: *WebGpuBuffer = @ptrCast(@alignCast(src));
+    const src_buffer = PointerCast.implCast(WebGpuBuffer, src);
 
     // Map buffer and copy data
     const map_fn = wgpuBufferMapAsync orelse return WebGpuError.SubmissionFailed;

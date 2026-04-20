@@ -208,12 +208,13 @@ pub const transport = struct {
 pub fn isEnabled() bool {
     return false;
 }
-
 pub const Context = struct {
     pub fn isEnabled() bool {
         return false;
     }
 };
+
+pub const registry = @import("registry.zig");
 
 test {
     std.testing.refAllDecls(@This());

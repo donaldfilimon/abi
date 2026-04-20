@@ -8,6 +8,7 @@ pub const engine = struct {};
 pub const scheduler = struct {};
 pub const sampler = struct {};
 pub const kv_cache = struct {};
+pub const coordinator = @import("coordinator_stub.zig");
 
 // ── Re-exported type stubs ─────────────────────────────────────────────────
 
@@ -109,6 +110,10 @@ pub const PagedKVCache = struct {
 
     pub fn deinit(_: *PagedKVCache) void {}
 };
+
+pub const Result = EngineResult;
+pub const InferenceCoordinator = coordinator.InferenceCoordinator;
+pub const InferenceCoordinatorConfig = coordinator.CoordinatorConfig;
 
 test {
     std.testing.refAllDecls(@This());

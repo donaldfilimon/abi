@@ -9,6 +9,7 @@ const sync = @import("../../../foundation/mod.zig").sync;
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
+const PointerCast = @import("../../pointer_cast.zig");
 
 pub const OpenGlError = error{
     InitializationFailed,
@@ -318,7 +319,7 @@ pub fn launchKernel(
         return OpenGlError.InitializationFailed;
     }
 
-    const kernel: *OpenGlKernel = @ptrCast(@alignCast(kernel_handle));
+    const kernel = PointerCast.implCast(OpenGlKernel, kernel_handle);
 
     // Use program
     const use_program_fn = glUseProgram orelse return OpenGlError.DispatchFailed;
@@ -328,7 +329,7 @@ pub fn launchKernel(
     const bind_buffer_base_fn = glBindBufferBase orelse return OpenGlError.DispatchFailed;
     for (args, 0..) |arg, i| {
         if (arg != null) {
-            const buffer: *OpenGlBuffer = @ptrCast(@alignCast(@constCast(arg.?)));
+            const buffer = PointerCast.implCast(OpenGlBuffer, @constCast(arg.?));
             bind_buffer_base_fn(GL_SHADER_STORAGE_BUFFER, @intCast(i), buffer.buffer_id);
         }
     }
@@ -353,7 +354,7 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
         return;
     }
 
-    const kernel: *OpenGlKernel = @ptrCast(@alignCast(kernel_handle));
+    const kernel = PointerCast.implCast(OpenGlKernel, kernel_handle);
 
     // Detach shader from program before deletion (required by OpenGL)
     if (glDetachShader) |detach_fn| {
@@ -423,7 +424,7 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
         return;
     }
 
-    const buffer: *OpenGlBuffer = @ptrCast(@alignCast(ptr));
+    const buffer = PointerCast.implCast(OpenGlBuffer, ptr);
     const allocator = buffer.allocator;
 
     const delete_buffers_fn = glDeleteBuffers orelse return;
@@ -438,8 +439,8 @@ pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) OpenG
         return OpenGlError.InitializationFailed;
     }
 
-    const src_buffer: *OpenGlBuffer = @ptrCast(@alignCast(src));
-    const dst_buffer: *OpenGlBuffer = @ptrCast(@alignCast(dst));
+    const src_buffer = PointerCast.implCast(OpenGlBuffer, src);
+    const dst_buffer = PointerCast.implCast(OpenGlBuffer, dst);
 
     if (size > src_buffer.size) {
         std.log.err("OpenGL memcpy size ({B}) exceeds source buffer size ({B})", .{ size, src_buffer.size });
@@ -498,7 +499,7 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) OpenGlE
         return OpenGlError.InitializationFailed;
     }
 
-    const dst_buffer: *OpenGlBuffer = @ptrCast(@alignCast(dst));
+    const dst_buffer = PointerCast.implCast(OpenGlBuffer, dst);
     if (size > dst_buffer.size) {
         std.log.err("OpenGL memcpy size ({B}) exceeds buffer size ({B})", .{ size, dst_buffer.size });
         return OpenGlError.BufferCreationFailed;
@@ -518,7 +519,7 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) OpenGlE
         return OpenGlError.InitializationFailed;
     }
 
-    const src_buffer: *OpenGlBuffer = @ptrCast(@alignCast(src));
+    const src_buffer = PointerCast.implCast(OpenGlBuffer, src);
     if (size > src_buffer.size) {
         std.log.err("OpenGL memcpy size ({B}) exceeds buffer size ({B})", .{ size, src_buffer.size });
         return OpenGlError.BufferCreationFailed;
