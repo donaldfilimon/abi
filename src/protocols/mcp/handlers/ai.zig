@@ -6,6 +6,17 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const root = @import("../../../root.zig");
+const registry = @import("../registry.zig");
+
+pub const tools = [_]registry.ToolDef{
+    .{
+        .name = "abi_chat",
+        .description = "Route a message through the ABI multi-profile pipeline and get an AI response",
+        .input_schema = \\{"type":"object","properties":{"message":{"type":"string","description":"User message to process"}},"required":["message"]}
+        ,
+        .handler = handleAbiChat,
+    },
+};
 
 pub fn handleAbiChat(
     allocator: std.mem.Allocator,

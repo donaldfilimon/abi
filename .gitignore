@@ -340,3 +340,6 @@ lang/swift/.build/
 .darwin-sdk-overlay/
 .qwen/
 parity_results.txt
+
+# Stakpak session files
+.stakpak/session*
