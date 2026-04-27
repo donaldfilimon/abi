@@ -173,7 +173,7 @@ pub fn isAvailable() bool {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../device.zig").Device;
+const Device = @import("../internal/device.zig").Device;
 
 /// Enumerate all Metal devices available on this Mac.
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {

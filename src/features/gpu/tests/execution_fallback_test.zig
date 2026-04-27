@@ -1,5 +1,5 @@
 const std = @import("std");
-const exec = @import("../execution_coordinator.zig");
+const exec = @import("../internal/execution_coordinator.zig");
 
 test "GPU to SIMD fallback on GPU unavailable" {
     const allocator = std.testing.allocator;

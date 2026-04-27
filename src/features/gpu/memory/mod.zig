@@ -8,7 +8,7 @@
 //! - `lockfree`: Lock-free resource pool with generational handles
 const std = @import("std");
 
-pub const base = @import("base.zig");
+pub const base = @import("internal/memory/base.zig");
 pub const pool = @import("pool.zig");
 pub const lockfree = @import("lockfree.zig");
 

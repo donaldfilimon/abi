@@ -11,7 +11,7 @@ const std = @import("std");
 const platform_time = @import("../../../foundation/mod.zig").utils;
 const time = platform_time;
 const sync = @import("../../../foundation/mod.zig").sync;
-const memory = @import("base.zig");
+const memory = @import("internal/memory/base.zig");
 
 /// Memory allocation size classes in bytes.
 const SIZE_CLASSES = [_]usize{

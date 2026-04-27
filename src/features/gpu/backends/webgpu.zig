@@ -610,9 +610,9 @@ fn loadWebGpuFunctions() bool {
 // Device Enumeration (Task 4.1)
 // ============================================================================
 
-const Device = @import("../device.zig").Device;
-const DeviceType = @import("../device.zig").DeviceType;
-const Backend = @import("../backend.zig").Backend;
+const Device = @import("../internal/device.zig").Device;
+const DeviceType = @import("../internal/device.zig").DeviceType;
+const Backend = @import("../internal/backend.zig").Backend;
 
 /// Enumerate all WebGPU devices available on the system
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {

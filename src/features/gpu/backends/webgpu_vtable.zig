@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../interface.zig");
+const interface = @import("../internal/interface.zig");
 const webgpu = @import("webgpu.zig");
 const types = @import("../kernel_types.zig");
 

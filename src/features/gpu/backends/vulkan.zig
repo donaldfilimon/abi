@@ -482,8 +482,7 @@ fn findMemoryType(type_filter: u32, properties: VkMemoryPropertyFlags) VulkanErr
 // VTable Implementation
 // ============================================================================
 
-const interface = @import("../interface.zig");
-const PointerCast = @import("../pointer_cast.zig");
+const interface = @import("../internal/interface.zig");
 
 pub const VulkanBackend = struct {
     allocator: std.mem.Allocator,
@@ -1088,7 +1087,7 @@ pub const CommandPool = struct {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../device.zig").Device;
+const Device = @import("../internal/device.zig").Device;
 
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
     if (!tryLoadVulkanLibrary()) {

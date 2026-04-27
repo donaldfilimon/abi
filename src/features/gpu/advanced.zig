@@ -1,11 +1,1 @@
-pub const profiling = @import("profiling.zig");
-pub const occupancy = @import("occupancy.zig");
-pub const fusion = @import("fusion.zig");
-pub const recovery = @import("recovery.zig");
-pub const failover = @import("failover.zig");
-pub const failover_types = @import("failover_types.zig");
-pub const diagnostics = @import("diagnostics.zig");
-pub const error_handling = @import("error_handling.zig");
-pub const peer_transfer = @import("peer_transfer/mod.zig");
-pub const mega = @import("mega/mod.zig");
-pub const gradient_compression = @import("gradient_compression.zig");
+pub const advanced_gpu = @import("internal/advanced.zig");
