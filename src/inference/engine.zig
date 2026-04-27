@@ -339,18 +339,13 @@ test "engine connector backend: unsupported provider returns error" {
     });
     defer engine.deinit();
 
-    // model_id "test-model" has no slash -> falls back to echo
-    var result = try engine.generate(.{
+    // model_id "test-model" has no slash -> returns error.UnsupportedProvider
+    const result = engine.generate(.{
         .id = 1,
         .prompt = "Explain HNSW",
         .max_tokens = 10,
     });
-    defer if (result.text_owned) allocator.free(result.text);
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "Explain HNSW") != null);
-    try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
-    result.deinit(allocator);
-
-    try std.testing.expect(result.text.len > 0);
+    try std.testing.expectError(error.UnsupportedProvider, result);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 

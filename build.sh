@@ -39,8 +39,8 @@ EOF
     exit "${1:-0}"
 }
 
-LINK_MODE=true
-BOOTSTRAP_MODE=true
+LINK_MODE=false
+BOOTSTRAP_MODE=false
 COMMAND=""
 
 while [[ $# -gt 0 ]]; do

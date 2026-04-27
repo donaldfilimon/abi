@@ -74,8 +74,6 @@ pub fn handleAbiChat(
     try out.appendSlice(allocator, result.text);
 }
 
-
-
 test {
     std.testing.refAllDecls(@This());
 }

@@ -5,7 +5,7 @@ description: This skill diagnoses and resolves ABI build failures. Trigger when 
 
 # Build Troubleshooting for ABI
 
-Pinned at Zig `0.16.0-dev.3153+d6f43caad` (`.zigversion`), package version `0.1.0` (`build.zig.zon`). The build.zig is **self-contained** — no external build/ modules.
+Pinned at Zig `0.17.0-dev.3153+d6f43caad` (`.zigversion`), package version `0.1.0` (`build.zig.zon`). The build.zig is **self-contained** — no external build/ modules.
 
 On macOS 26.4+ (Darwin 25.x), use `./build.sh` which auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
 
@@ -66,7 +66,7 @@ Build output shows a version mismatch warning, or only format-check steps (`lint
 
 ### Diagnosis
 
-1. Check the pinned version: read `.zigversion` (should contain `0.16.0-dev.3153+d6f43caad`).
+1. Check the pinned version: read `.zigversion` (should contain `0.17.0-dev.3153+d6f43caad`).
 2. Check the active Zig version: `zig version`.
 3. Compare the two. Any mismatch triggers the detection logic in `build.zig`.
 
@@ -202,7 +202,7 @@ Compilation fails with an import path not found error after adding a `.zig` suff
 1. Verify the target file actually exists at the expected path.
 2. Check for gated imports: the file might only be available when a feature flag is enabled.
 3. Confirm the import path depth matches the source file's location in the directory tree.
-4. Ensure explicit `.zig` extensions are present on all path imports (required in Zig 0.16 / dev.2962+).
+4. Ensure explicit `.zig` extensions are present on all path imports (required in Zig 0.17 / dev.2962+).
 
 ### Fix
 
@@ -219,7 +219,7 @@ error: missing struct field: items
 
 ### Diagnosis
 
-Zig 0.16 changed initialization for `ArrayListUnmanaged` and `AutoHashMapUnmanaged`. The old `.{}` initialization no longer works.
+Zig 0.17 changed initialization for `ArrayListUnmanaged` and `AutoHashMapUnmanaged`. The old `.{}` initialization no longer works.
 
 ### Fix
 

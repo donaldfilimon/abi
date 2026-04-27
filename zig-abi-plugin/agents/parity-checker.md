@@ -85,5 +85,5 @@ You are a mod/stub parity checker for the ABI Zig framework. Your job is to ensu
 - Always preserve existing stub implementations that are correct
 - Use `stub_helpers.zig` patterns when the feature uses StubFeature/StubContext
 - Types shared between mod and stub belong in types.zig, never duplicated
-- Explicit `.zig` extensions required on all imports (Zig 0.16)
+- Explicit `.zig` extensions required on all imports (Zig 0.17)
 - Sub-modules in mod.zig must have matching `pub const` declarations in stub.zig

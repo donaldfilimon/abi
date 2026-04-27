@@ -4,10 +4,10 @@ Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU accelerat
 
 ## Entry Points
 
-| Target | Build Command | Binary | Source |
-|--------|--------------|--------|--------|
-| CLI | `./build.sh cli` (macOS 26.4+) or `zig build cli` (Linux) | `zig-out/bin/abi` | `src/main.zig` |
-| MCP server | `./build.sh mcp` | `zig-out/bin/abi-mcp` | `src/mcp_main.zig` |
+| Target     | Build Command                                             | Binary                | Source             |
+| ---------- | --------------------------------------------------------- | --------------------- | ------------------ |
+| CLI        | `./build.sh cli` (macOS 26.4+) or `zig build cli` (Linux) | `zig-out/bin/abi`     | `src/main.zig`     |
+| MCP server | `./build.sh mcp`                                          | `zig-out/bin/abi-mcp` | `src/mcp_main.zig` |
 
 ## Build Commands
 
@@ -15,18 +15,18 @@ Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU accelerat
 
 **Linux / older macOS**: Use `zig build` directly.
 
-| Command | Description |
-|---------|-------------|
-| `./build.sh` / `zig build` | Build static library |
-| `./build.sh test --summary all` / `zig build test --summary all` | Run all tests |
-| `zig build test -- --test-filter "pattern"` | Run single test |
-| `./build.sh check` / `zig build check` | Lint + test + stub parity |
-| `zig build check-parity` | Verify mod/stub declaration parity |
-| `zig build fix` | Auto-format |
-| `zig build cli` | Build CLI binary |
-| `zig build mcp` | Build MCP server |
-| `zig build feature-tests` | Run feature integration + parity tests |
-| `zig build full-check` | Full validation gate |
+| Command                                                          | Description                            |
+| ---------------------------------------------------------------- | -------------------------------------- |
+| `./build.sh` / `zig build`                                       | Build static library                   |
+| `./build.sh test --summary all` / `zig build test --summary all` | Run all tests                          |
+| `zig build test -- --test-filter "pattern"`                      | Run single test                        |
+| `./build.sh check` / `zig build check`                           | Lint + test + stub parity              |
+| `zig build check-parity`                                         | Verify mod/stub declaration parity     |
+| `zig build fix`                                                  | Auto-format                            |
+| `zig build cli`                                                  | Build CLI binary                       |
+| `zig build mcp`                                                  | Build MCP server                       |
+| `zig build feature-tests`                                        | Run feature integration + parity tests |
+| `zig build full-check`                                           | Full validation gate                   |
 
 ### Focused Test Lanes (27 total)
 
@@ -115,6 +115,7 @@ abi help               # Full help reference
 - Files end with: `test { std.testing.refAllDecls(@This()); }`
 
 **Known pre-existing failures** (not regressions):
+
 - Inference engine connector backend tests (2)
 - Auth integration tests (1 failure, 3 leaks)
 
@@ -138,23 +139,24 @@ abi help               # Full help reference
 
 ## Toolchain
 
-- **Zig version**: Pinned in `.zigversion` (currently `0.16.0`)
+- **Zig version**: Pinned in `.zigversion` (currently `0.17.0`)
 - **Zig manager**: `tools/zigly` — prefers `~/.zvm/bin/zig` when version matches
 
 ## See Also
 
 - `CLAUDE.md` — Detailed architecture, conventions, and agent/skill references
-- `QWEN.md` — Quick reference and Zig 0.16 gotchas
+- `QWEN.md` — Quick reference and Zig 0.17 gotchas
 
 AiOps Adapter Refactor Plan (Centralized Pointer Cast Helper)
+
 - Objective: Introduce a centralized single-argument pointer cast helper for the AiOps adapter to reduce duplication and improve consistency when casting from opaque pointers back to concrete Impl types.
 - Scope: src/features/gpu/ai_ops/adapters.zig; ensure all internal adapter methods obtain Impl instances via the helper.
 - Approach (phases):
-  1) Add a small, centralized helper that converts *anyopaque to *Impl for the current AiOps Impl, taking the Impl as a comptime type parameter.
-  2) Replace repetitive @ptrCast usages in AiOps adapter methods with calls to the centralized helper.
-  3) Run a full build parity check: zig build check-parity. Address any parity or type-resolution issues.
-  4) Run the test suite (zig build test or zig build test --summary all) if feasible in this repo context.
-  5) Document the decision and usage pattern in AGENTS.md, including potential risks and how to extend to other adapters.
+  1. Add a small, centralized helper that converts *anyopaque to *Impl for the current AiOps Impl, taking the Impl as a comptime type parameter.
+  2. Replace repetitive @ptrCast usages in AiOps adapter methods with calls to the centralized helper.
+  3. Run a full build parity check: zig build check-parity. Address any parity or type-resolution issues.
+  4. Run the test suite (zig build test or zig build test --summary all) if feasible in this repo context.
+  5. Document the decision and usage pattern in AGENTS.md, including potential risks and how to extend to other adapters.
 - Risks and caveats:
   - Cross-scope comptime type resolution can be tricky in Zig; ensure the helper is visible in the scope of all generically generated adapters.
   - Potential ABI/VTABLE compatibility concerns if the helper behavior is not perfectly aligned with existing casts; ensure parity checks pass.

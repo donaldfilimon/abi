@@ -3,7 +3,7 @@
 ## 38. Stabilize ABI on the Zig 0.17 Dev Line
 - [x] Repin the repo and zigly metadata to `0.17.0-dev.135+9df02121d`.
 - [x] Fix `build.sh` and zigly resolution so the wrapper resolves the exact pinned toolchain through `tools/zigly --status`.
-- [x] Remove live `0.16` drift from CLI/MCP/TUI surfaces and active docs.
+- [x] Remove live `0.17` drift from CLI/MCP/TUI surfaces and active docs.
 - [x] Validate the upgrade with focused toolchain, wrapper, CLI, and hygiene checks.
 
 ### Notes
@@ -61,8 +61,8 @@
   - `./build.sh test --summary all -- --test-filter "ResourceDef format"`
 - Residual risk: validation was intentionally narrow to the two touched MCP surfaces and did not broaden to unrelated protocol lanes.
 
-## 35. Zig 0.16.0-dev.3091 Toolchain + Inference Safety Sweep
-- [x] Bump the repo pin and minimum supported Zig version to `0.16.0-dev.3091+557caecaa` everywhere current-toolchain references are surfaced.
+## 35. Zig 0.17.0-dev.3091 Toolchain + Inference Safety Sweep
+- [x] Bump the repo pin and minimum supported Zig version to `0.17.0-dev.3091+557caecaa` everywhere current-toolchain references are surfaced.
 - [x] Fix the in-progress CLI/database/inference cleanup so the new tests compile and ownership/locking remain sound.
 - [x] Restore or intentionally prune the accidental `.claude` deletions after review.
 - [x] Validate with focused fmt/tests before broader verification.
@@ -117,7 +117,7 @@
 - Residual limitation: the repo-local `./build.sh` path remains blocked by the current zigly binary state, so this follow-up is validated with direct `~/.zvm/bin/zig build ...` fallback rather than the preferred Darwin wrapper.
 
 ## 0E. ZVM-First Toolchain Alignment + Zig Pin Bump
-- [x] Bump `.zigversion` to `0.16.0-dev.3070+b22eb176b`.
+- [x] Bump `.zigversion` to `0.17.0-dev.3070+b22eb176b`.
 - [x] Make `tools/zigly` resolve/install the pinned Zig through ZVM first when ZVM is present.
 - [x] Align internal Zig path helpers and auto-update flow with the same ZVM-first resolution order.
 - [x] Refresh toolchain docs/comments to describe the ZVM-first contract and the new pin.
@@ -126,15 +126,15 @@
 ### Notes
 - Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a clean tracked worktree on `main`; this wave is toolchain-focused and should avoid unrelated repo cleanup.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
-- Current drift: `.zigversion` still pins `0.16.0-dev.2984+cb7d2b056`, `build.sh` resolves Zig through `tools/zigly --status`, `tools/zigly_cli/src/cli.zig` only returns the zigly cache path, and `src/foundation/utils/zig_toolchain.zig` still prefers the legacy `~/.cache/abi-zig` path plus `~/.zvm/master/zig`.
-- Environment note before implementation: `zvm v0.8.14` rejects the explicit snapshot `0.16.0-dev.3070+b22eb176b` as unsupported, but `zvm install master` / `zvm use master` does expose `~/.zvm/bin/zig` at that exact version. `~/.zvm/versions-zls.json` was also permission-blocked until it was removed from the user-writable directory.
-- Completed on April 3, 2026 with `.zigversion` pinned to `0.16.0-dev.3070+b22eb176b`, `tools/zigly --status` returning `/Users/donaldfilimon/.zvm/bin/zig`, and the native `zigly` bootstrap updated to rebuild when its sources change.
+- Current drift: `.zigversion` still pins `0.17.0-dev.2984+cb7d2b056`, `build.sh` resolves Zig through `tools/zigly --status`, `tools/zigly_cli/src/cli.zig` only returns the zigly cache path, and `src/foundation/utils/zig_toolchain.zig` still prefers the legacy `~/.cache/abi-zig` path plus `~/.zvm/master/zig`.
+- Environment note before implementation: `zvm v0.8.14` rejects the explicit snapshot `0.17.0-dev.3070+b22eb176b` as unsupported, but `zvm install master` / `zvm use master` does expose `~/.zvm/bin/zig` at that exact version. `~/.zvm/versions-zls.json` was also permission-blocked until it was removed from the user-writable directory.
+- Completed on April 3, 2026 with `.zigversion` pinned to `0.17.0-dev.3070+b22eb176b`, `tools/zigly --status` returning `/Users/donaldfilimon/.zvm/bin/zig`, and the native `zigly` bootstrap updated to rebuild when its sources change.
 - `tools/zigly_cli/src/cli.zig`, `src/foundation/utils/zig_toolchain.zig`, `build.sh`, `tools/crossbuild.sh`, and `tools/auto_update.sh` now agree on the ZVM-first lookup order: use `~/.zvm/bin/zig` when its reported version matches `.zigversion`, otherwise fall back to the pinned zigly cache.
 - Validation passed with:
   - `zig fmt --check src/foundation/utils/zig_toolchain.zig tools/zigly_cli/build.zig tools/zigly_cli/src/cli.zig tools/zigly_cli/src/core.zig`
   - `~/.zvm/bin/zig test tools/zigly_cli/src/cli.zig -lc`
   - `~/.zvm/bin/zig test tools/zigly_cli/src/core.zig`
-  - `tools/auto_update.sh --check` (reported `Already up to date.` on `0.16.0-dev.3070+b22eb176b`)
+  - `tools/auto_update.sh --check` (reported `Already up to date.` on `0.17.0-dev.3070+b22eb176b`)
   - `./tools/zigly --status`
   - `./tools/zigly --install`
   - `zvm use --sync`
@@ -142,7 +142,7 @@
   - `~/.zvm/bin/zig version`
   - `./build.sh typecheck --summary all`
   - `./build.sh check --summary all`
-- Residual environment caveat: `zvm v0.8.14` still needs the `master` alias fallback to reach this exact snapshot, and the active ZVM `zls` remains `0.16.0-dev.296+ef64fa01` even while `zig` is aligned to `0.16.0-dev.3070+b22eb176b`.
+- Residual environment caveat: `zvm v0.8.14` still needs the `master` alias fallback to reach this exact snapshot, and the active ZVM `zls` remains `0.17.0-dev.296+ef64fa01` even while `zig` is aligned to `0.17.0-dev.3070+b22eb176b`.
 
 ## 0D. Merge Attached Workspaces Into `main`
 - [x] Add a short merge/cleanup checklist here before mutating git history.
@@ -234,10 +234,10 @@
   - `./build.sh typecheck --summary all`
   - `./build.sh test --summary all`
 - ZVM outcome:
-  - `.zigversion` pins `0.16.0-dev.2984+cb7d2b056`
-  - `zvm install 0.16.0-dev.2984+cb7d2b056` failed in `zvm v0.8.14` with `unsupported Zig version`
-  - `zvm use --sync` was a no-op until `~/.zvm/bin` was repointed to a local compatibility install assembled from `~/.zigly/versions/0.16.0-dev.2984+cb7d2b056`
-  - Final verification: `zig version` now reports `0.16.0-dev.2984+cb7d2b056`, and `zvm list` shows both `0.16.0-dev.2984+cb7d2b056` and `master`
+  - `.zigversion` pins `0.17.0-dev.2984+cb7d2b056`
+  - `zvm install 0.17.0-dev.2984+cb7d2b056` failed in `zvm v0.8.14` with `unsupported Zig version`
+  - `zvm use --sync` was a no-op until `~/.zvm/bin` was repointed to a local compatibility install assembled from `~/.zigly/versions/0.17.0-dev.2984+cb7d2b056`
+  - Final verification: `zig version` now reports `0.17.0-dev.2984+cb7d2b056`, and `zvm list` shows both `0.17.0-dev.2984+cb7d2b056` and `master`
 - Residual risk:
   - `~/.zvm/versions-zls.json` is root-owned in this environment, which breaks `zvm list --all` metadata refreshes and likely contributed to the native `zvm install` limitation for older dev snapshots.
 
@@ -622,7 +622,7 @@
 - Opened on March 24, 2026 from clean local `main` at `4669f81`, with only the untracked `.claude/worktrees/` directory remaining out of scope.
 - Tests were successfully decoupled into `src/features/ai/multi_agent/tests.zig` and integration points configured via `src/multi_agent_mod_test.zig`.
 - Type extraction was performed safely without breaking `multi_agent.WorkflowRunner.RunError` namespace expectations by mirroring types at the top level of the facade to reduce nested structs.
-- Validation successfully verified parity on `0.16.0` Zig using the updated local runner logic for macOS SDK wrappers without any regression errors.
+- Validation successfully verified parity on `0.17.0` Zig using the updated local runner logic for macOS SDK wrappers without any regression errors.
 
 ## 14. Workflow Lessons and Documentation Improvements
 - [x] Review and update `tasks/lessons.md` with additional patterns from AGENTS.md

@@ -16,7 +16,7 @@ const registry = @import("registry.zig");
 /// Uses registry pattern for modular tool registration
 pub fn createStatusServer(allocator: std.mem.Allocator, version: []const u8) !Server {
     var server = Server.init(allocator, "abi-status", version);
-    try registry.registerTools(&server, .{status});
+    try registry.registerTools(&server, .{ status, ai });
     return server;
 }
 
@@ -137,7 +137,7 @@ test "createStatusServer registers 5 tools" {
     var server = try createStatusServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 5), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 6), server.tools.items.len);
     try std.testing.expectEqualStrings("abi_status", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("abi_health", server.tools.items[1].def.name);
     try std.testing.expectEqualStrings("abi_features", server.tools.items[2].def.name);

@@ -8,7 +8,7 @@
 
 **Architecture:** The original 5-phase plan completed after the final baseline sync. Phases 1-3 were fully done earlier; Phase 4's remaining decompositions and facades were already closed by the time this record was updated. Phase 5 finished with the 3720-passed baseline.
 
-**Tech Stack:** Zig 0.16, `./build.sh` wrapper (macOS 26.4+), `zig build check-parity`
+**Tech Stack:** Zig 0.17, `./build.sh` wrapper (macOS 26.4+), `zig build check-parity`
 
 **Spec:** `docs/superpowers/specs/2026-03-24-full-codebase-improvement-design.md`
 
@@ -392,7 +392,7 @@ Edit `.claude/skills/baseline-sync/SKILL.md` line 68-71. Replace the old baselin
 
     ## Current Baseline (2026-03-27)
 
-    3720 passed, 4 skipped, 0 failed (exit 0) | zig: 0.16.0-dev.3091+557caecaa
+    3720 passed, 4 skipped, 0 failed (exit 0) | zig: 0.17.0-dev.3091+557caecaa
     Build Summary: 6/6 steps succeeded
     Note: macOS 26.4+ requires ./build.sh wrapper
 

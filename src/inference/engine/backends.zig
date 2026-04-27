@@ -260,14 +260,6 @@ fn callOpenAICompatible(
     return allocator.dupe(u8, response.choices[0].message.content) catch return error.OutOfMemory;
 }
 
-/// Format an echo fallback string when HTTP is unavailable.
-fn echoFallback(allocator: std.mem.Allocator, model_name: []const u8, prompt: []const u8) ![]u8 {
-    return std.fmt.allocPrint(allocator, "[{s}] {s}", .{
-        model_name,
-        prompt[0..@min(prompt.len, 500)],
-    }) catch return error.OutOfMemory;
-}
-
 fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8, prompt: []const u8) ![]u8 {
     var config = (loaders.tryLoadAnthropic(allocator) catch return error.ApiRequestFailed) orelse
         return error.MissingApiKey;
@@ -564,22 +556,6 @@ test "dispatchToConnector: unknown provider returns UnsupportedProvider" {
 test "dispatchToConnector: no slash returns UnsupportedProvider" {
     const result = dispatchToConnector(std.testing.allocator, "bare-model-name", "hello");
     try std.testing.expectError(error.UnsupportedProvider, result);
-}
-
-test "echoFallback: truncates prompt over 500 chars" {
-    const long_prompt = "A" ** 600;
-    const result = try echoFallback(std.testing.allocator, "test-model", long_prompt);
-    defer std.testing.allocator.free(result);
-    // Should contain model name prefix and truncated prompt (500 chars)
-    try std.testing.expect(std.mem.startsWith(u8, result, "[test-model] "));
-    // "[test-model] " (13) + 500 = 513
-    try std.testing.expectEqual(@as(usize, 513), result.len);
-}
-
-test "echoFallback: short prompt not truncated" {
-    const result = try echoFallback(std.testing.allocator, "demo", "hello world");
-    defer std.testing.allocator.free(result);
-    try std.testing.expectEqualStrings("[demo] hello world", result);
 }
 
 test "dispatchToConnector: missing API key returns MissingApiKey" {
