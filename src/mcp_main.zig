@@ -16,6 +16,7 @@
  fn runDebugRepl(allocator: std.mem.Allocator, io: anytype) !void {
      // We intentionally ignore the generic `io` parameter; use std I/O handles for REPL.
      _ = io;
+     _ = allocator;
      const stdout = std.io.getStdOut().writer();
      const stdin = std.io.getStdIn().reader();
      try stdout.print("ABI MCP Debug Mode. Enter JSON-RPC 2.0 requests.\n", .{});

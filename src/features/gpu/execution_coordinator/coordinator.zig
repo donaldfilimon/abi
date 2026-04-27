@@ -34,12 +34,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const sync = @import("../../../foundation/mod.zig").sync;
-const backend_factory = @import("../internal/backend_factory.zig");
+const backend_factory = @import("../backend_factory.zig");
 const shared = @import("../../../foundation/mod.zig");
 const simd = shared.simd;
 const dispatcher_mod = @import("../dispatch/coordinator/mod.zig");
-const device_mod = @import("../internal/device.zig");
-const unified_buffer = @import("../internal/unified_buffer.zig");
+const device_mod = @import("../device.zig");
+const unified_buffer = @import("../unified_buffer.zig");
 const metal_mod = @import("../backends/metal.zig");
 
 const KernelDispatcher = dispatcher_mod.KernelDispatcher;

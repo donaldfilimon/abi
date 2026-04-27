@@ -16,7 +16,7 @@ const registry = @import("registry.zig");
 /// Uses registry pattern for modular tool registration
 pub fn createStatusServer(allocator: std.mem.Allocator, version: []const u8) !Server {
     var server = Server.init(allocator, "abi-status", version);
-    try registry.registerModules(&server, .{status});
+    try registry.registerTools(&server, .{status});
     return server;
 }
 
@@ -26,7 +26,7 @@ pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !
     var server = Server.init(allocator, "abi-full", version);
 
     // Aggregate tools using registry pattern
-    try registry.registerModules(&server, .{
+    try registry.registerTools(&server, .{
         status,
         database,
         ai,
@@ -46,14 +46,14 @@ pub fn createCombinedServer(allocator: std.mem.Allocator, version: []const u8) !
 /// Create an MCP server pre-configured with Discord REST API tools
 pub fn createDiscordServer(allocator: std.mem.Allocator, version: []const u8) !Server {
     var server = Server.init(allocator, "abi-discord", version);
-    try registry.registerModules(&server, .{discord_handlers});
+    try registry.registerTools(&server, .{discord_handlers});
     return server;
 }
 
 /// Create an MCP server pre-configured with database tools
 pub fn createDatabaseServer(allocator: std.mem.Allocator, version: []const u8) !Server {
     var server = Server.init(allocator, "abi-database", version);
-    try registry.registerModules(&server, .{database});
+    try registry.registerTools(&server, .{database});
     return server;
 }
 
@@ -137,7 +137,7 @@ test "createStatusServer registers 5 tools" {
     var server = try createStatusServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 6), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 5), server.tools.items.len);
     try std.testing.expectEqualStrings("abi_status", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("abi_health", server.tools.items[1].def.name);
     try std.testing.expectEqualStrings("abi_features", server.tools.items[2].def.name);

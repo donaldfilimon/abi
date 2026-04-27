@@ -130,7 +130,7 @@ pub fn init(_: std.mem.Allocator, config: AuthConfig) AuthError!void {
     }
     // No secret provided — fail safely instead of using hardcoded secret
     std.log.err("auth: no JWT secret configured. Set ABI_JWT_SECRET environment variable or provide AuthConfig.jwt_secret", .{});
-    return error.InvalidConfig;
+    return error.AuthDisabled;
 }
 
 pub fn deinit() void {

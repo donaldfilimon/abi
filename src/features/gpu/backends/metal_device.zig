@@ -11,8 +11,8 @@ const metal_types = @import("metal_types.zig");
 const gpu_family = @import("metal/gpu_family.zig");
 const capabilities = @import("metal/capabilities.zig");
 
-const Device = @import("../internal/device.zig").Device;
-const DeviceType = @import("../internal/device.zig").DeviceType;
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
 
 // Re-export public types
 pub const DeviceInfo = metal_types.DeviceInfo;

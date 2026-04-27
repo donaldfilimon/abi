@@ -1,7 +1,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../internal/interface.zig");
-const backend_mod = @import("../internal/backend.zig");
+const interface = @import("../interface.zig");
+const backend_mod = @import("../backend.zig");
 const simulated = @import("../factory/simulated.zig");
 const backend_shared = @import("shared.zig");
 

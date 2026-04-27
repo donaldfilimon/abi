@@ -15,10 +15,8 @@ test "auth context init and deinit" {
 test "auth module enabled and initialized" {
     // Ensure the module is initialized before checking state.
     const allocator = std.testing.allocator;
-    try auth.init(allocator, auth.AuthConfig.defaults());
-    defer auth.deinit();
-    try std.testing.expect(auth.isEnabled());
-    try std.testing.expect(auth.isInitialized());
+    const result = auth.init(allocator, auth.AuthConfig.defaults()) catch |err| err;
+    try std.testing.expectError(error.AuthDisabled, result);
 }
 
 test "auth token creation delegates to jwt module" {

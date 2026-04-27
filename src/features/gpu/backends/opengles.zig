@@ -773,7 +773,7 @@ pub fn getVersion() struct { major: i32, minor: i32 } {
 // Device Enumeration
 // ============================================================================
 
-const Device = @import("../internal/device.zig").Device;
+const Device = @import("../device.zig").Device;
 
 /// Check if OpenGL ES compute is available on this system.
 pub fn isAvailable() bool {

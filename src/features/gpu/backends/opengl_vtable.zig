@@ -6,7 +6,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const interface = @import("../internal/interface.zig");
+const interface = @import("../interface.zig");
 const opengl = @import("opengl.zig");
 const gl_runtime = @import("gl/runtime.zig");
 
@@ -221,7 +221,7 @@ pub const OpenGLBackend = struct {
         kernel_name: []const u8,
     ) interface.KernelError!*anyopaque {
         const kernel_types = @import("../kernel_types.zig");
-        const backend_mod = @import("../internal/backend.zig");
+        const backend_mod = @import("../backend.zig");
 
         // Create kernel source for OpenGL (GLSL compute shader)
         const kernel_source = kernel_types.KernelSource{
