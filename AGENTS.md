@@ -124,7 +124,7 @@ abi help               # Full help reference
 
 ## Toolchain
 
-- **Zig**: pinned in `.zigversion` (`0.17.0-dev.135+9df02121d`)
+- **Zig**: pinned in `.zigversion` (`0.17.0-dev.27+0dd99c37c`)
 - **Bootstrap**: `tools/zigly --bootstrap` (one-command project setup)
 - **Status**: `tools/zigly --status` (print pinned zig path)
 - **Cross-compile check**: `zig build cross-check` validates linux/wasi targets

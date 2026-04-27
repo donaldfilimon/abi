@@ -87,20 +87,25 @@ pub const Context = struct {
 // callers should instantiate the sub-module managers directly.
 // ============================================================================
 
-/// Default secret used when AuthConfig.jwt_secret is null.
-/// Only suitable for development/testing — production code MUST provide
-/// a real secret via AuthConfig.
-const default_jwt_secret = "abi-auth-default-dev-secret-key!";
+/// Dev secret loaded from environment variable ABI_JWT_SECRET or ABI_DEV_JWT_SECRET.
+/// If neither is set, returns null and forces explicit configuration.
+fn getDevSecret() ?[]const u8 {
+    if (std.c.getenv("ABI_JWT_SECRET")) |s| return std.mem.span(s);
+    if (std.c.getenv("ABI_DEV_JWT_SECRET")) |s| return std.mem.span(s);
+    return null;
+}
+
+threadlocal var dev_secret_storage: [256]u8 = undefined;
+threadlocal var dev_secret_len: usize = 0;
 
 /// Module-level state.  `init()` stores the configured secret so that
 /// `createToken()` / `verifyToken()` use it instead of the hardcoded default.
-var active_jwt_secret: []const u8 = default_jwt_secret;
+var active_jwt_secret: []const u8 = "";
 var initialized = std.atomic.Value(bool).init(false);
 
 /// Initialise the auth module with a caller-provided config.
 /// If `config.jwt_secret` is set, it will be used for all subsequent token
-/// operations.  Otherwise the default dev secret is used and a warning is
-/// printed to stderr.
+/// operations.  Otherwise attempts to read from ABI_JWT_SECRET env var.
 pub fn init(_: std.mem.Allocator, config: AuthConfig) AuthError!void {
     if (initialized.load(.acquire)) return;
     if (@hasField(AuthConfig, "jwt_secret")) {
@@ -112,14 +117,26 @@ pub fn init(_: std.mem.Allocator, config: AuthConfig) AuthError!void {
             }
         }
     }
-    // Fallback to default — warn loudly.
-    std.log.warn("auth: using default dev JWT secret — NOT suitable for production", .{});
-    active_jwt_secret = default_jwt_secret;
-    initialized.store(true, .release);
+    // Try environment variable as fallback
+    if (getDevSecret()) |secret| {
+        if (secret.len > 0 and secret.len <= dev_secret_storage.len) {
+            @memcpy(dev_secret_storage[0..secret.len], secret);
+            dev_secret_len = secret.len;
+            active_jwt_secret = dev_secret_storage[0..dev_secret_len];
+            initialized.store(true, .release);
+            std.log.warn("auth: using JWT secret from environment variable — make sure this is securely configured", .{});
+            return;
+        }
+    }
+    // No secret provided — fail safely instead of using hardcoded secret
+    std.log.err("auth: no JWT secret configured. Set ABI_JWT_SECRET environment variable or provide AuthConfig.jwt_secret", .{});
+    return error.InvalidConfig;
 }
 
 pub fn deinit() void {
-    active_jwt_secret = default_jwt_secret;
+    active_jwt_secret = "";
+    dev_secret_len = 0;
+    @memset(&dev_secret_storage, 0);
     initialized.store(false, .release);
 }
 

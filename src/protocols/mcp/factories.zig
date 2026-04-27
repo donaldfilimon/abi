@@ -137,12 +137,13 @@ test "createStatusServer registers 5 tools" {
     var server = try createStatusServer(allocator, "0.4.0");
     defer server.deinit();
 
-    try std.testing.expectEqual(@as(usize, 5), server.tools.items.len);
+    try std.testing.expectEqual(@as(usize, 6), server.tools.items.len);
     try std.testing.expectEqualStrings("abi_status", server.tools.items[0].def.name);
     try std.testing.expectEqualStrings("abi_health", server.tools.items[1].def.name);
     try std.testing.expectEqualStrings("abi_features", server.tools.items[2].def.name);
     try std.testing.expectEqualStrings("abi_version", server.tools.items[3].def.name);
     try std.testing.expectEqualStrings("hardware_status", server.tools.items[4].def.name);
+    try std.testing.expectEqualStrings("abi_chat", server.tools.items[5].def.name);
 }
 
 test {

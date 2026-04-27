@@ -183,15 +183,17 @@ test "ToolDef format" {
     try std.testing.expectEqualStrings("{}", def.input_schema);
 }
 
-fn dummyResourceHandler(_: std.mem.Allocator, _: []const u8, _: *std.ArrayListUnmanaged(u8)) anyerror!void {}
-
 test "ResourceDef format" {
     const def = ResourceDef{
         .uri = "abi://test",
         .name = "Test Resource",
         .description = "A test resource",
         .mime_type = "application/json",
-        .handler = dummyResourceHandler,
+        .handler = struct {
+            fn handle(_: std.mem.Allocator, _: []const u8, out: *std.ArrayListUnmanaged(u8)) !void {
+                try out.appendSlice(std.testing.allocator, "ok");
+            }
+        }.handle,
     };
 
     try std.testing.expectEqualStrings("abi://test", def.uri);

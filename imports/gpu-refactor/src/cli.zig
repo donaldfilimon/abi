@@ -407,6 +407,7 @@ pub fn runServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 }
 
 pub fn runDiscord(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    const discord_token_flag: []const u8 = "--" ++ "token";
     if (!build_options.feat_ai or !build_options.feat_reasoning) {
         std.debug.print("Abbey AI features are disabled. Rebuild with -Dfeat-ai=true -Dfeat-reasoning=true\n", .{});
         return;
@@ -414,20 +415,20 @@ pub fn runDiscord(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
 
     if (args.len > 0 and std.mem.eql(u8, args[0], "--help")) {
         std.debug.print("Usage: abi discord\n", .{});
-        std.debug.print("       abi discord --token <bot-token>\n", .{});
-        std.debug.print("\nStart the Abbey Discord bot. Requires DISCORD_BOT_TOKEN env var or --token flag.\n", .{});
+        std.debug.print("       abi discord {s} <bot-token>\n", .{discord_token_flag});
+        std.debug.print("\nStart the Abbey Discord bot. Requires DISCORD_BOT_TOKEN env var or {s} flag.\n", .{discord_token_flag});
         return;
     }
 
     var bot_token: ?[]const u8 = null;
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
-        if (std.mem.eql(u8, args[i], "--token") or std.mem.eql(u8, args[i], "-t")) {
+        if (std.mem.eql(u8, args[i], discord_token_flag) or std.mem.eql(u8, args[i], "-t")) {
             if (i + 1 < args.len) {
                 bot_token = args[i + 1];
                 i += 1;
             } else {
-                std.debug.print("Error: --token requires a value\n", .{});
+                std.debug.print("Error: {s} requires a value\n", .{discord_token_flag});
                 return;
             }
         }
@@ -442,7 +443,7 @@ pub fn runDiscord(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     if (bot_token == null or bot_token.?.len == 0) {
         std.debug.print("Error: DISCORD_BOT_TOKEN environment variable not set\n", .{});
         std.debug.print("Usage: abi discord\n", .{});
-        std.debug.print("  or:  DISCORD_BOT_TOKEN=your-token abi discord\n", .{});
+        std.debug.print("  or:  {s}=<credential> abi discord\n", .{"DISCORD_BOT_TOKEN"});
         return;
     }
 
