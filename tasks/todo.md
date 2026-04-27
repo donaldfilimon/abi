@@ -1,5 +1,66 @@
 # Codebase Improvement Plan
 
+## 38. Stabilize ABI on the Zig 0.17 Dev Line
+- [x] Repin the repo and zigly metadata to `0.17.0-dev.135+9df02121d`.
+- [x] Fix `build.sh` and zigly resolution so the wrapper resolves the exact pinned toolchain through `tools/zigly --status`.
+- [x] Remove live `0.16` drift from CLI/MCP/TUI surfaces and active docs.
+- [x] Validate the upgrade with focused toolchain, wrapper, CLI, and hygiene checks.
+
+### Notes
+- Opened on April 27, 2026 in `/Users/donaldfilimon/abi` on a dirty worktree; leave the pre-existing `src/protocols/mcp/handlers/ai.zig` edit untouched.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- `tools/scripts/run_build.sh` is absent in this checkout, so the ABI skill's macOS wrapper validation falls back to the repo-root `./build.sh` plus direct focused Zig checks.
+- Completed on April 27, 2026 by repinning the project/tool manifests, feeding the compiler version through `build_options`, fixing `build.sh` default/link/bootstrap behavior and `tools/zigly --status` resolution, switching zigly's ZLS lookup to exact-version-first with ZVM/zig-only fallback, and updating the live CLI/MCP/TUI/docs surfaces plus focused regression tests.
+- Validation passed with:
+  - `~/.zvm/bin/zig fmt --check build.zig build/flags.zig build/cross.zig build/validation.zig tools/zigly_cli/src/cli.zig src/foundation/utils/zig_toolchain.zig src/cli.zig src/main.zig src/protocols/mcp/handlers/status.zig src/features/tui/app/dashboard/view_overview.zig src/mcp_main.zig test/integration/cli_test.zig test/integration/tui_test.zig`
+  - `~/.zvm/bin/zig test tools/zigly_cli/src/cli.zig -lc`
+  - `~/.zvm/bin/zig test tools/zigly_cli/src/core.zig`
+  - `~/.zvm/bin/zig build typecheck --summary all`
+  - `./tools/zigly --status`
+  - `./tools/zigly --check`
+  - `./build.sh --status`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh cli`
+  - `./build.sh cli-tests --summary all`
+  - `./build.sh tui-tests --summary all`
+  - `./zig-out/bin/abi`
+  - `./zig-out/bin/abi version`
+  - `git diff --check`
+- Residual risk: exact prebuilt ZLS artifacts for dev snapshots remain external; the new contract intentionally keeps Zig resolution working and emits a warning when only Zig is available.
+
+## 37. Align MCP Status Factory Test With Actual Registration Set
+- [x] Keep the status factory test aligned with `createStatusServer()`'s real tool set.
+- [x] Validate the touched MCP factory surface with focused formatting and test checks.
+- [x] Commit the cleanup on top of `main`.
+- [x] Record the validation outcome and residual risk.
+
+### Notes
+- Opened on April 27, 2026 in `/Users/donaldfilimon/abi` after the prior MCP consolidation commit left one tracked factory test edit in the worktree.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Validation outcome:
+  - `~/.zvm/bin/zig fmt --check src/protocols/mcp/factories.zig`
+  - `./build.sh test --summary all -- --test-filter "createStatusServer registers 5 tools"` failed before build execution because ZVM could not activate Zig `0.17.0-dev.27+0dd99c37c`
+  - `./build.sh test --summary all -- --test-filter "createCombinedServer registers database and ZLS tools"` failed for the same ZVM activation reason
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "createStatusServer registers 5 tools"` ran the targeted single filtered test successfully, but the overall command still exited non-zero because the pre-existing `features.core.database.storage.wal.test.wal resume appending to existing file` failure remains in the broader suite
+  - `~/.zvm/bin/zig build test --summary all -- --test-filter "createCombinedServer registers database and ZLS tools"` likewise ran the targeted single filtered test successfully, but the command exited non-zero for the same unrelated WAL failure
+  - `git diff --check`
+- Residual risk: this cleanup only updates the factory test expectation; broader suite health is still limited by the existing WAL failure and the current ZVM activation issue in `./build.sh`.
+
+## 36. Merge MCP Cleanup Into `main`
+- [x] Stage the MCP handler and registry cleanup.
+- [x] Validate the touched MCP files with focused formatting and test checks.
+- [x] Commit the cleanup on top of `main`.
+- [x] Record the validation outcome and any residual risk.
+
+### Notes
+- Opened on April 27, 2026 in `/Users/donaldfilimon/abi` while consolidating the current `main` checkout.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Validation passed with:
+  - `~/.zvm/bin/zig fmt --check src/protocols/mcp/handlers/ai.zig src/protocols/mcp/registry.zig`
+  - `./build.sh test --summary all -- --test-filter "ToolDef format"`
+  - `./build.sh test --summary all -- --test-filter "ResourceDef format"`
+- Residual risk: validation was intentionally narrow to the two touched MCP surfaces and did not broaden to unrelated protocol lanes.
+
 ## 35. Zig 0.16.0-dev.3091 Toolchain + Inference Safety Sweep
 - [x] Bump the repo pin and minimum supported Zig version to `0.16.0-dev.3091+557caecaa` everywhere current-toolchain references are surfaced.
 - [x] Fix the in-progress CLI/database/inference cleanup so the new tests compile and ownership/locking remain sound.

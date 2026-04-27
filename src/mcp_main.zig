@@ -29,7 +29,7 @@ pub fn main(init: std.process.Init) !void {
     };
     defer server.deinit();
 
-    // Run stdio event loop with Zig 0.16 I/O
+    // Run the stdio event loop using the project I/O backend.
     server.run(init.io) catch |err| {
         std.log.err("MCP server error: {}", .{err});
         return err;

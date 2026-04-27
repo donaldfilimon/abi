@@ -4,7 +4,7 @@ Helper scripts for managing the Zig toolchain and build environment.
 
 ## zigly -- Zig Version Manager
 
-Reads `.zigversion` from the repo root, downloads the matching Zig compiler and ZLS language server to `~/.cache/abi-zig/<version>/`, and optionally symlinks them onto your PATH.
+Reads `.zigversion` from the repo root, resolves the exact pinned Zig compiler, caches toolchains under `~/.zigly/versions/<version>/`, and optionally symlinks Zig and ZLS onto your PATH.
 
 ### Quick Start
 
@@ -13,19 +13,19 @@ Reads `.zigversion` from the repo root, downloads the matching Zig compiler and 
 tools/zigly --bootstrap
 ```
 
-This checks prerequisites, downloads zig + zls, symlinks them to `~/.local/bin`, verifies the installation, and prints platform-specific build instructions.
+This checks prerequisites, resolves the pinned zig toolchain, installs or reuses a matching ZLS when available, symlinks the tools to `~/.local/bin`, verifies the installation, and prints platform-specific build instructions.
 
 ### Commands
 
 | Flag | Description |
 |------|-------------|
-| `--status` | Print path to correct zig binary (auto-installs if missing) |
-| `--install` | Force (re-)download and install zig + zls |
+| `--status` | Print the exact pinned zig binary path (auto-installs if missing) |
+| `--install` | Resolve and install the pinned zig toolchain, plus ZLS when available |
 | `--update` | Check for newer zig and update `.zigversion` if available |
 | `--check` | Report if update is available (no download) |
 | `--link` | Symlink zig + zls into `~/.local/bin` (or `/usr/local/bin`) |
 | `--unlink` | Remove zig + zls symlinks |
-| `--clean` | Remove all cached abi-zig versions |
+| `--clean` | Remove all cached zigly versions |
 | `--bootstrap` | One-command project setup: prereqs + install + link + verify |
 | `--doctor` | Report toolchain health diagnostics |
 
@@ -46,9 +46,9 @@ Example output:
 ```
 === ABI Toolchain Doctor ===
 
-.zigversion:  0.16.0-dev.2979+e93834410
-zig binary:   /Users/you/.cache/abi-zig/0.16.0-dev.2979+e93834410/bin/zig  [OK]
-zls binary:   /Users/you/.cache/abi-zig/0.16.0-dev.2979+e93834410/bin/zls  [OK (0.16.0-dev.1)]
+.zigversion:  0.17.0-dev.135+9df02121d
+zig binary:   /Users/you/.zigly/versions/0.17.0-dev.135+9df02121d/bin/zig  [OK]
+zls binary:   /Users/you/.zigly/versions/0.17.0-dev.135+9df02121d/bin/zls  [OK]
 zig on PATH:  YES (/Users/you/.local/bin/zig)
 platform:     Darwin/arm64
 xcode-cli:    INSTALLED
@@ -60,14 +60,11 @@ zig build doctor: OK
 
 ### ZLS Download Strategy
 
-The script resolves the best ZLS version using this priority:
+The script resolves ZLS using this priority:
 
-1. **zvm copy** -- if `~/.zvm/bin/zls` exists, copy it (best for dev zig versions)
-2. **GitHub API** -- query `zigtools/zls` releases for the latest tag matching your zig major.minor
-3. **Hardcoded fallback** -- try known versions (`0.16.0-dev.1`, `0.15.0`, `0.14.0`)
-4. **Manual install** -- print instructions for `zvm install master` or building from source
-
-The GitHub API query requires `python3` for JSON parsing. If python3 is not available, the script skips directly to the hardcoded fallback list.
+1. **Exact prebuilt match** -- try the exact `.zigversion` on `builds.zigtools.org` and the matching GitHub release path
+2. **ZVM fallback** -- if `~/.zvm/bin/zls` exists, copy it into the pinned zigly cache
+3. **Zig-only continuation** -- if no exact ZLS is available, keep the Zig toolchain usable and warn instead of failing the install
 
 ## Other Tools
 

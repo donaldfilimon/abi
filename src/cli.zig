@@ -243,10 +243,10 @@ pub fn writeStatus(writer: anytype) !void {
     var out = writer;
     try out.print(
         \\ABI Framework v{s}
-        \\Zig 0.16.0-dev | {d}/{d} features enabled
+        \\Zig {s} | {d}/{d} features enabled
         \\
         \\Commands:
-    , .{ build_options.package_version, enabled, feature_catalog.feature_count });
+    , .{ build_options.package_version, build_options.zig_version, enabled, feature_catalog.feature_count });
     try out.writeByte('\n');
 
     for (displayed_commands) |command| {
@@ -261,6 +261,15 @@ pub fn writeStatus(writer: anytype) !void {
         \\Run 'abi <command>' for details. 'abi help' for full reference.
         \\
     , .{dashboard_fallback_note});
+}
+
+pub fn writeVersion(writer: anytype) !void {
+    var out = writer;
+    try out.print(
+        \\ABI Framework v{s}
+        \\Zig {s}
+        \\
+    , .{ build_options.package_version, build_options.zig_version });
 }
 
 fn writeHelpSection(writer: anytype, title: []const u8, section: HelpSection) !void {

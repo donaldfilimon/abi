@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const build_flags = @import("flags.zig");
 const linking = @import("linking.zig");
 
@@ -194,7 +195,7 @@ fn crossBuildOptions(b: *std.Build, ct: CrossTarget, package_version: []const u8
         .gpu_stdgpu = caps.has_gpu_hw,
         .gpu_fpga = false,
         .gpu_tpu = false,
-    }, package_version);
+    }, package_version, builtin.zig_version_string);
 
     return cross_opts;
 }

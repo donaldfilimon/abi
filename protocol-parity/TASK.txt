@@ -1,0 +1,1 @@
+Audit all protocol modules (MCP, ACP, LSP, HA) against the mod/stub contract; ensure every pub symbol in mod.zig has a matching, no-op counterpart in stub.zig.

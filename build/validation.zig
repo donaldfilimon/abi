@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const build_flags = @import("flags.zig");
 const linking = @import("linking.zig");
 
@@ -161,7 +162,7 @@ fn addFlagOverrideTestLane(
     @field(override_flags, flag_name) = flag_value;
 
     const override_opts = ctx.b.addOptions();
-    build_flags.addAllBuildOptions(override_opts, override_flags, ctx.package_version);
+    build_flags.addAllBuildOptions(override_opts, override_flags, ctx.package_version, builtin.zig_version_string);
     const override_bom = override_opts.createModule();
 
     const module_name = std.fmt.allocPrint(ctx.b.allocator, "abi_{s}", .{step_name}) catch @panic("OOM");

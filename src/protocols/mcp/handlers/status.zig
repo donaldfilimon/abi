@@ -70,7 +70,8 @@ pub fn handleAbiVersion(
     try out.appendSlice(allocator, build_options.package_version);
     try out.appendSlice(allocator, "\nProtocol: ");
     try out.appendSlice(allocator, types.PROTOCOL_VERSION);
-    try out.appendSlice(allocator, "\nZig: 0.16.0-dev");
+    try out.appendSlice(allocator, "\nZig: ");
+    try out.appendSlice(allocator, build_options.zig_version);
 }
 
 pub fn handleHardwareStatus(
@@ -87,4 +88,14 @@ pub fn handleHardwareStatus(
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "abi_version handler reports the compiler-derived zig version" {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    defer out.deinit(std.testing.allocator);
+
+    try handleAbiVersion(std.testing.allocator, null, &out);
+    try std.testing.expect(std.mem.indexOf(u8, out.items, build_options.package_version) != null);
+    try std.testing.expect(std.mem.indexOf(u8, out.items, build_options.zig_version) != null);
+    try std.testing.expect(std.mem.indexOf(u8, out.items, "0.16.0-dev") == null);
 }

@@ -1,5 +1,6 @@
 //! ABI build root — Zig 0.17.x/dev, self-contained.
 const std = @import("std");
+const builtin = @import("builtin");
 const build_flags = @import("build/flags.zig");
 const build_cross = @import("build/cross.zig");
 const build_linking = @import("build/linking.zig");
@@ -158,7 +159,7 @@ pub fn build(b: *std.Build) void {
         const zon = @import("build.zig.zon");
         break :blk zon.version;
     };
-    addAllBuildOptions(build_opts, flags, pkg_version);
+    addAllBuildOptions(build_opts, flags, pkg_version, builtin.zig_version_string);
 
     const build_options_module = build_opts.createModule();
     _ = build_cross.addSteps(.{

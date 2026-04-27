@@ -4,7 +4,7 @@
 > ethics, benchmarks, implementation, and visual assets.
 >
 > Research conducted by: M | Date: January 4, 2025
-> Implementation: Zig 0.16 (ABI Framework) | Updated: March 26, 2026
+> Implementation: Zig 0.17.x/dev (ABI Framework) | Updated: April 27, 2026
 
 ---
 
@@ -66,7 +66,7 @@ User Input → Abi (Context + Policy + Intent Analysis)
 
 The Wide Distributed Block Exchange (WDBX) is a purpose-built computational substrate
 combining horizontal scalability, immutable integrity, and non-blocking efficiency.
-Implemented in Zig 0.16 for deterministic memory management with zero GC pauses.
+Implemented in Zig 0.17.x/dev for deterministic memory management with zero GC pauses.
 
 **Sharding Latency Model:**
 ```
@@ -383,7 +383,7 @@ Scale_up if L_current > L_threshold
 
 ### 8.1 Codebase
 
-- **Language:** Zig 0.16.0-dev.3091+557caecaa
+- **Language:** Zig 0.17.0-dev.135+9df02121d
 - **Size:** 387K+ LOC across 1,411+ .zig files
 - **Tests:** 3,720+ unit + integration tests (27 focused test lanes)
 - **Features:** 60 comptime-gated features in the catalog

@@ -1,6 +1,6 @@
 # ABI Framework — New Engineer Onboarding
 
-Welcome to ABI, a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
+Welcome to ABI, a Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
 
 For comprehensive build commands, architecture details, and conventions, see `CLAUDE.md` (the canonical reference). This guide covers first-day setup and orientation only.
 
@@ -18,7 +18,7 @@ For comprehensive build commands, architecture details, and conventions, see `CL
 
 ```bash
 git clone <repo-url> && cd abi
-tools/zigly --bootstrap    # Install zig + zls, symlink to ~/.local/bin, verify
+tools/zigly --bootstrap    # Install pinned zig, install or reuse zls, symlink to ~/.local/bin, verify
 ```
 
 Ensure `~/.local/bin` is on your PATH:
@@ -68,13 +68,13 @@ zig-out/bin/abi doctor                  # Build config report
 
 ## 3. Key References
 
-| Resource | Path | Why Read It |
-|----------|------|-------------|
-| `CLAUDE.md` | repo root | Canonical build commands, architecture, conventions, gotchas |
-| `AGENTS.md` | repo root | AI agent guidance, code style, safety rules |
-| `docs/spec/ABBEY-SPEC.md` | docs/spec/ | Full architecture vision (Abbey-Aviva-Abi pipeline) |
-| `tasks/lessons.md` | tasks/ | Pitfalls others have already hit — saves you time |
-| `src/core/feature_catalog.zig` | src/core/ | Source of truth for all 60 features |
+| Resource                       | Path       | Why Read It                                                  |
+| ------------------------------ | ---------- | ------------------------------------------------------------ |
+| `CLAUDE.md`                    | repo root  | Canonical build commands, architecture, conventions, gotchas |
+| `AGENTS.md`                    | repo root  | AI agent guidance, code style, safety rules                  |
+| `docs/spec/ABBEY-SPEC.md`      | docs/spec/ | Full architecture vision (Abbey-Aviva-Abi pipeline)          |
+| `tasks/lessons.md`             | tasks/     | Pitfalls others have already hit — saves you time            |
+| `src/core/feature_catalog.zig` | src/core/  | Source of truth for all 60 features                          |
 
 ---
 
@@ -82,9 +82,10 @@ zig-out/bin/abi doctor                  # Build config report
 
 - [ ] Run `tools/zigly --bootstrap` and verify the build passes
 - [ ] Run `zig-out/bin/abi doctor` and `zig-out/bin/abi features` to see the system state
-- [ ] Read `CLAUDE.md` — especially Architecture, Import Rules, and Zig 0.16 Gotchas
+- [ ] Read `CLAUDE.md` — especially Architecture, Import Rules, and Zig 0.17 Gotchas
 - [ ] Read `src/root.zig` to understand the public API surface
 - [ ] Pick one feature directory (e.g., `src/features/cache/`) and read its `mod.zig`, `stub.zig`, and `types.zig` to understand the pattern
 - [ ] Run `zig build check` to see the full quality gate
 - [ ] Read `docs/spec/ABBEY-SPEC.md` for the full architecture vision
 - [ ] Read `tasks/lessons.md` for pitfalls others have already hit
+      /

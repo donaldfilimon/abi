@@ -1,6 +1,6 @@
 # ABI Framework
 
-ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration,
+ABI is a Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU acceleration,
 and distributed runtime. The public package entrypoint is `src/root.zig`, exposed to
 consumers as `@import("abi")`.
 
@@ -174,7 +174,7 @@ zigly cache.
 
 ## Toolchain
 
-ABI is pinned to the Zig version in `.zigversion` (currently `0.16.0-dev.3091+557caecaa`).
+ABI is pinned to the Zig version in `.zigversion` (currently `0.17.0-dev.135+9df02121d`).
 On macOS 26.4+, `./build.sh`
 auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
 
