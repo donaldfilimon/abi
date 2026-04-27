@@ -221,12 +221,8 @@ fn callOpenAICompatible(
     }) catch return error.OutOfMemory;
     defer allocator.free(json_body);
 
-    // Initialize the async HTTP client. May fail in test or constrained
-    // environments — fall back to echo on failure.
-    var http = async_http.AsyncHttpClient.init(allocator) catch {
-        std.log.debug("async_http init failed, using echo fallback", .{});
-        return echoFallback(allocator, model_name, prompt);
-    };
+    // Initialize the async HTTP client.
+    var http = try async_http.AsyncHttpClient.init(allocator);
     defer http.deinit();
 
     // Build and send the HTTP request.
@@ -282,11 +278,7 @@ fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8
         config.model_owned = true;
     }
 
-    var client = anthropic.Client.init(allocator, config) catch {
-        std.log.debug("Anthropic client init failed, using echo fallback", .{});
-        const model_name = model_override orelse "claude-3-5-sonnet-20241022";
-        return echoFallback(allocator, model_name, prompt);
-    };
+    var client = try anthropic.Client.init(allocator, config);
     defer client.deinit();
 
     const response = client.chatSimple(prompt) catch |err| {
