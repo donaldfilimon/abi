@@ -1,5 +1,10 @@
-# AGENTS.md
-
+- Yes: After any public API change, run `zig build check-parity` to ensure mod/stub parity.
+- Yes: Always update both `mod.zig` and `stub.zig` when changing a public API.
+- Yes: Do not run `zig fmt` at repo root; use `zig build fix` to normalize formatting.
+- Yes: Run unit/integration tests for changed features; use `zig build test --summary all` or narrow with `--test-filter`.
+- Yes: Do not commit secret files (e.g., `.env`, credentials.json); ensure they are ignored by adding to `.gitignore` if needed.
+- Yes: Prioritize targeted tests for changed areas to minimize CI churn.
+- Yes: Before merging, ensure local checks (parity, tests) pass and CI is likely to succeed.
 Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
 
 ## Entry Points
@@ -164,3 +169,4 @@ AiOps Adapter Refactor Plan (Centralized Pointer Cast Helper)
   - Static checks: zig build check-parity; ensure no mod/stub parity regressions.
   - Unit tests: run any existing tests for AiOps paths; if none exist, add a minimal unit test to validate pointer-cast behavior using a mock Impl type.
 - Contacts: If parity fails, revert changes and pursue a less invasive approach (e.g., a local inline cast helper per adapter invocation) to minimize risk.
+- Yes: If parity check fails due to auth tests missing environment variables, provide required env vars (e.g., ABI_JWT_SECRET) or adjust test gating. This is an environment gating caveat to be aware of during local runs.
