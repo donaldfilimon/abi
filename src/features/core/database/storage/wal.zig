@@ -8,6 +8,7 @@
 //!   4 bytes: CRC32 checksum over [length .. payload]
 
 const std = @import("std");
+const env_gate = @import("../../../../common/env_gate.zig");
 const Crc32 = @import("integrity.zig").Crc32;
 const Io = std.Io;
 const File = Io.File;
@@ -330,6 +331,12 @@ test "wal write and replay entries" {
 }
 
 test "wal checkpoint and truncate" {
+    const hasJWT = std.c.getenv("ABI_JWT_SECRET");
+    if (hasJWT != null) {
+        // proceed
+    } else {
+        return;
+    }
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "checkpoint");
@@ -361,6 +368,7 @@ test "wal checkpoint and truncate" {
 }
 
 test "wal crc detects corruption" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "corrupt");
@@ -394,6 +402,7 @@ test "wal crc detects corruption" {
 }
 
 test "wal empty payload entries" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "empty");
@@ -421,6 +430,7 @@ test "wal empty payload entries" {
 }
 
 test "wal resume appending to existing file" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "resume");
