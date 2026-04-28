@@ -288,7 +288,7 @@ fn deleteTestFile(path: []const u8) void {
 
 test "wal write and replay entries" {
     // Optional: skip in parity-heavy environments if requested
-    if (std.c.getenv("ABI_WAL_TEST_DISABLE" ) != null) return;
+    if (std.c.getenv("ABI_WAL_TEST_DISABLE") != null) return;
     // Optional skip flag for CI environments where parity is flaky for WAL replay
     if (std.c.getenv("ABI_WAL_TEST_SKIP") != null) return;
     if (!parity_gate.canRunTest()) return;
@@ -335,7 +335,7 @@ test "wal write and replay entries" {
                 .delete => {
                     if (entry.seq == 3) seen_delete_seq3 = true;
                 },
-                else => {}
+                else => {},
             }
         }
         try std.testing.expect(seen_insert_seq1);
