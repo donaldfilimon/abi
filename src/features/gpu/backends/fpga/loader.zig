@@ -201,7 +201,7 @@ pub fn loadBitstream(
 
     const device = device_cache[device_index];
 
-    // Validate bitstream file exists (Zig 0.16 I/O API)
+    // Validate bitstream file exists (Zig 0.17 I/O API)
     var io_backend = std.Io.Threaded.init(allocator, .{
         .environ = std.process.Environ.empty,
     });

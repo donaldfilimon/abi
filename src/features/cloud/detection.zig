@@ -8,14 +8,14 @@ const types = @import("types.zig");
 const CloudProvider = types.CloudProvider;
 
 /// Detect which cloud provider environment we're running in.
-/// This function requires an allocator to read environment variables in Zig 0.16.
+/// This function requires an allocator to read environment variables in Zig 0.17.
 pub fn detectProvider() ?CloudProvider {
     return detectProviderWithAllocator(std.heap.page_allocator);
 }
 
 /// Detect which cloud provider environment we're running in (with explicit allocator).
 pub fn detectProviderWithAllocator(allocator: std.mem.Allocator) ?CloudProvider {
-    // Get environment map using Zig 0.16 API
+    // Get environment map using Zig 0.17 API
     var env_map = std.process.Environ.createMap(std.process.Environ.empty, allocator) catch return null;
     defer env_map.deinit();
 

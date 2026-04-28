@@ -206,7 +206,7 @@ pub fn formatStreamChunk(
     var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
-    // Generate a simple ID using timer - Zig 0.16 compatible
+    // Generate a simple ID using timer - Zig 0.17 compatible
     // Since we just need a unique-ish ID, use timer elapsed nanoseconds
     var timer = time.Timer.start() catch return error.OutOfMemory;
     const id: i128 = @intCast(timer.read());
@@ -257,7 +257,7 @@ pub fn formatResponse(
     var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
-    // Generate a simple ID using timer - Zig 0.16 compatible
+    // Generate a simple ID using timer - Zig 0.17 compatible
     var timer = time.Timer.start() catch return error.OutOfMemory;
     const id: i128 = @intCast(timer.read());
     const prompt_tokens: u32 = @intCast(@max(1, @divFloor(content.len, 4))); // ~4 chars/token estimate

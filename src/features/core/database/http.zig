@@ -458,7 +458,7 @@ fn timingSafeEqual(a: []const u8, b: []const u8) bool {
 
 /// Get the Authorization header value from a request by parsing the raw header buffer
 fn getAuthorizationHeader(request: *std.http.Server.Request) ?[]const u8 {
-    // In Zig 0.16, we need to parse the raw header buffer to find custom headers
+    // In Zig 0.17, we need to parse the raw header buffer to find custom headers
     // The head_buffer contains the raw HTTP headers
     return findHeaderInBuffer(request.head_buffer, "authorization");
 }

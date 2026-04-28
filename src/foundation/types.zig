@@ -107,7 +107,7 @@ pub const InstanceId = struct {
 
     pub fn generate() error{ EntropySourceFailed, UnsupportedPlatform }!InstanceId {
         var bytes: [16]u8 = undefined;
-        // Use project CSPRNG (Zig 0.16 removed std.crypto.random)
+        // Use project CSPRNG (Zig 0.17 removed std.crypto.random)
         const csprng = @import("security/csprng.zig");
         var rng = try csprng.init();
         rng.fill(&bytes);

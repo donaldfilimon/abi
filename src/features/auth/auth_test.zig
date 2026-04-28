@@ -1,6 +1,6 @@
 //! Auth module standalone tests.
 //! Separated from mod.zig to avoid pulling in security sub-modules that have
-//! pre-existing Zig 0.16 compile issues (rbac, secrets, session, validation).
+//! pre-existing Zig 0.17 compile issues (rbac, secrets, session, validation).
 
 const std = @import("std");
 const auth = @import("mod.zig");

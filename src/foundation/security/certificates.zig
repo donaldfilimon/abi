@@ -266,7 +266,7 @@ pub const CertificateManager = struct {
 
     /// Load certificate from file
     pub fn loadFromFile(self: *CertificateManager, path: []const u8) !CertificateInfo {
-        // Initialize I/O backend (Zig 0.16)
+        // Initialize I/O backend (Zig 0.17)
         var io_backend = std.Io.Threaded.init(self.allocator, .{
             .environ = if (comptime !os.no_os) std.process.Environ.empty else .{},
         });

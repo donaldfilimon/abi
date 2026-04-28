@@ -1,6 +1,6 @@
 //! Async runtime built on std.Io.
 //!
-//! Provides task scheduling, concurrency, and cancellation using the Zig 0.16
+//! Provides task scheduling, concurrency, and cancellation using the Zig 0.17
 //! std.Io Threaded backend.
 const std = @import("std");
 const builtin = @import("builtin");

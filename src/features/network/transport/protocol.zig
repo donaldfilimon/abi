@@ -6,7 +6,7 @@ const std = @import("std");
 const SerializationCursor = @import("../../../foundation/utils/binary.zig").SerializationCursor;
 
 /// Network address wrapper for low-level posix socket operations.
-/// Replaces the removed `std.net.Address` in Zig 0.16 by wrapping
+/// Replaces the removed `std.net.Address` in Zig 0.17 by wrapping
 /// `std.Io.net.IpAddress` parsing with a sockaddr layout for posix calls.
 pub const NetworkAddress = struct {
     /// Raw sockaddr storage large enough for IPv4 or IPv6.

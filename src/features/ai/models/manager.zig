@@ -8,7 +8,7 @@ const builtin = @import("builtin");
 const build_options = @import("build_options");
 const discovery = @import("../explore/discovery.zig");
 
-// libc import for environment access - required for Zig 0.16
+// libc import for environment access - required for Zig 0.17
 const c = if (builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm32 and
     builtin.target.cpu.arch != .wasm64)
@@ -156,7 +156,7 @@ pub const Manager = struct {
             .format = format,
             .quantization = quantization,
             .source_url = if (source_url) |url| try self.allocator.dupe(u8, url) else null,
-            .downloaded_at = 0, // Timestamp would require I/O backend in Zig 0.16
+            .downloaded_at = 0, // Timestamp would require I/O backend in Zig 0.17
             .checksum = null,
         };
 
@@ -219,7 +219,7 @@ pub const Manager = struct {
         try self.scanCacheDirWithIo(io_backend.io());
     }
 
-    /// Scan cache directory with I/O backend (Zig 0.16 compatible).
+    /// Scan cache directory with I/O backend (Zig 0.17 compatible).
     pub fn scanCacheDirWithIo(self: *Self, io: std.Io) !void {
         var dir = blk: {
             if (std.fs.path.isAbsolute(self.cache_dir)) {
@@ -310,7 +310,7 @@ fn getDefaultCacheDir(allocator: std.mem.Allocator) ![]const u8 {
     }
 }
 
-/// Get environment variable value (Zig 0.16 libc pattern).
+/// Get environment variable value (Zig 0.17 libc pattern).
 fn getEnv(name: [:0]const u8) ?[]const u8 {
     if (builtin.target.os.tag == .freestanding or
         builtin.target.cpu.arch == .wasm32 or
@@ -426,7 +426,7 @@ test "remove model deletes file" {
     const allocator = std.testing.allocator;
     const test_file = "test_manager_remove_model.gguf";
 
-    // Create a temporary file using Zig 0.16 Io-based API
+    // Create a temporary file using Zig 0.17 Io-based API
     var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();

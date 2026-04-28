@@ -7,7 +7,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// libc imports for cross-platform compatibility (Zig 0.16)
+// libc imports for cross-platform compatibility (Zig 0.17)
 const libc = if (builtin.link_libc) std.c else struct {
     pub extern "c" fn getenv(name: [*:0]const u8) ?[*:0]u8;
 };
@@ -80,7 +80,7 @@ pub const Env = struct {
         buf[name.len] = 0;
         const name_z: [:0]const u8 = buf[0..name.len :0];
 
-        // Prefer std.c.getenv for Darwin 26+ and general Zig 0.16 stability
+        // Prefer std.c.getenv for Darwin 26+ and general Zig 0.17 stability
         const ptr = std.c.getenv(name_z.ptr);
         if (ptr) |p| {
             return std.mem.sliceTo(@as([*:0]const u8, @ptrCast(p)), 0);

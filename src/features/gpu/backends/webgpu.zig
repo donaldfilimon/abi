@@ -6,7 +6,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const types = @import("../kernel_types.zig");
-const PointerCast = @import("../pointer_cast.zig");
+const PointerCast = @import("../../../foundation/utils/pointer_cast.zig");
 
 pub const WebGpuError = error{
     InitializationFailed,

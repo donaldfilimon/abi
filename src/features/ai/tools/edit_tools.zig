@@ -17,7 +17,7 @@ const Parameter = tool.Parameter;
 const ParameterType = tool.ParameterType;
 const ToolExecutionError = tool.ToolExecutionError;
 
-/// File I/O helpers using Zig 0.16 std.Io backend.
+/// File I/O helpers using Zig 0.17 std.Io backend.
 fn readFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8, max_size: usize) ![]u8 {
     return std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(max_size));
 }

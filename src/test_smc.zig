@@ -1,7 +1,8 @@
 const std = @import("std");
 const smc = @import("platform/smc.zig");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    _ = init;
     std.debug.print("Testing SMC read availability...\n", .{});
 
     // Attempting to read SMC sensors

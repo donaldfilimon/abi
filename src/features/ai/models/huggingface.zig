@@ -10,7 +10,7 @@ const build_options = @import("build_options");
 const web_enabled = @hasDecl(build_options, "enable_web") and build_options.enable_web;
 const web_client = if (web_enabled) @import("../../web/client.zig") else @as(?void, null);
 
-// libc import for environment access - required for Zig 0.16
+// libc import for environment access - required for Zig 0.17
 const c = if (builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm32 and
     builtin.target.cpu.arch != .wasm64)
@@ -371,7 +371,7 @@ pub const QuantInfo = struct {
 // Helper Functions
 // ============================================================================
 
-/// Get environment variable value (Zig 0.16 libc pattern).
+/// Get environment variable value (Zig 0.17 libc pattern).
 fn getEnv(name: [:0]const u8) ?[]const u8 {
     if (builtin.target.os.tag == .freestanding or
         builtin.target.cpu.arch == .wasm32 or

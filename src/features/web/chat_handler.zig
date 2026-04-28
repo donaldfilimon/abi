@@ -17,7 +17,7 @@
 const std = @import("std");
 const rate_limit = @import("../../foundation/mod.zig").security.rate_limit;
 
-/// Helper to serialize a value to JSON using Zig 0.16 API
+/// Helper to serialize a value to JSON using Zig 0.17 API
 fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std.json.Stringify.Options) ![]u8 {
     var out: std.Io.Writer.Allocating = .init(allocator);
     errdefer out.deinit();

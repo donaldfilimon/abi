@@ -8,7 +8,7 @@
 // Self-contained — no external utility dependencies.
 //
 // Changes from v2.0:
-//   - Replaced utils.Time.Stopwatch with std.time.Timer (Zig 0.16)
+//   - Replaced utils.Time.Stopwatch with std.time.Timer (Zig 0.17)
 //   - Removed @import("utils") dependency
 //   - All timing uses std.time.Timer.start() / .read()
 // ============================================================================

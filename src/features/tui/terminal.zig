@@ -45,7 +45,7 @@ pub const Terminal = struct {
     }
 
     /// Enable raw terminal mode (disable echo, canonical, signals).
-    /// Manipulates individual struct fields of Zig 0.16's packed termios flags.
+    /// Manipulates individual struct fields of Zig 0.17's packed termios flags.
     pub fn enableRawMode(self: *Terminal) !void {
         if (comptime !is_posix) return;
         var raw = self.original_termios;

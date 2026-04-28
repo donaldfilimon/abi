@@ -2,7 +2,7 @@
 //!
 //! Configuration for AI features including LLM inference, embeddings,
 //! agents, and training pipelines. System-level support for all data types:
-//! text, images, video, audio, documents, and arbitrary payloads (Zig 0.16).
+//! text, images, video, audio, documents, and arbitrary payloads (Zig 0.17).
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -153,7 +153,7 @@ pub const AgentsConfig = struct {
     }
 };
 
-/// System-level content/data type for models that process and generate all modalities (Zig 0.16).
+/// System-level content/data type for models that process and generate all modalities (Zig 0.17).
 pub const ContentKind = enum {
     text,
     image,

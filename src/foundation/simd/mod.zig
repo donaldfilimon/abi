@@ -90,7 +90,7 @@ pub const scale = extras.scale;
 // Test discovery
 // ============================================================================
 
-// NOTE: test {} required for Zig 0.16 test discovery (not comptime)
+// NOTE: test {} required for Zig 0.17 test discovery (not comptime)
 test {
     _ = vector_ops;
     _ = activations;

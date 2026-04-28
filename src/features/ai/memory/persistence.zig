@@ -116,7 +116,7 @@ pub const SessionStore = struct {
         const json = serializeSession(self.allocator, session) catch return PersistenceError.SerializationFailed;
         defer self.allocator.free(json);
 
-        // Write to file using Zig 0.16 I/O
+        // Write to file using Zig 0.17 I/O
         writeFile(self.allocator, path, json) catch return PersistenceError.IoError;
     }
 
@@ -460,7 +460,7 @@ fn isValidSessionId(id: []const u8) bool {
 }
 
 // =============================================================================
-// File I/O (Zig 0.16 compatible)
+// File I/O (Zig 0.17 compatible)
 // =============================================================================
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
@@ -481,7 +481,7 @@ fn writeFile(allocator: std.mem.Allocator, path: []const u8, content: []const u8
     };
     defer file.close(io);
 
-    // Use writeStreamingAll for Zig 0.16 compatibility
+    // Use writeStreamingAll for Zig 0.17 compatibility
     file.writeStreamingAll(io, content) catch |err| {
         std.log.err("Failed to write to file: {t}", .{err});
         return err;

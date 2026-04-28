@@ -11,6 +11,7 @@ const handlers = @import("handlers.zig");
 const routing = @import("routing.zig");
 const config_mod = @import("config.zig");
 const request_types = @import("../request_types.zig");
+const server_types = @import("types.zig");
 
 const extractJsonString = request_types.extractJsonString;
 const histogramPercentile = handlers.histogramPercentile;

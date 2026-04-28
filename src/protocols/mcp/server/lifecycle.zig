@@ -109,7 +109,7 @@ pub const Server = struct {
     }
 
     /// Run the server loop — reads from stdin, writes to stdout.
-    /// The caller must provide a Zig 0.16 I/O handle (from `std.Io.Threaded`).
+    /// The caller must provide a Zig 0.17 I/O handle (from `std.Io.Threaded`).
     pub fn run(self: *Self, io: std.Io) !void {
         return io_loop.run(self, io);
     }

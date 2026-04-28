@@ -29,13 +29,45 @@
 - Residual risk: exact prebuilt ZLS artifacts for dev snapshots remain external; the new contract intentionally keeps Zig resolution working and emits a warning when only Zig is available.
 
 ## 39. AiOps Adapter Cast-Helper Hardening
-- [ ] Add focused unit coverage for `src/features/gpu/ai_ops/adapters.zig` that validates vtable dispatch through the centralized opaque-pointer cast helper.
-- [ ] Keep the change isolated to adapter test coverage with no public API surface changes.
-- [ ] Validate with targeted formatting + focused test command(s), then record residual risk.
+- [x] Add focused unit coverage for `src/features/gpu/ai_ops/adapters.zig` that validates vtable dispatch through the centralized opaque-pointer cast helper.
+- [x] Keep the change isolated to adapter test coverage with no public API surface changes.
+- [x] Validate with targeted formatting + focused test command(s), then record residual risk.
 
 ### Notes
 - Opened on April 28, 2026 in `/Users/donaldfilimon/abi` during the ongoing refactor wave with a heavily dirty worktree; this slice must stay confined to adapter coverage and workflow notes only.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- `src/features/gpu/ai_ops/adapters.zig` now includes a focused mock-backed test (`createAiOps routes through centralized opaque cast helper`) that exercises scale/isAvailable/deinit vtable dispatch and confirms the centralized cast helper correctly recovers the concrete implementation pointer.
+- Validation passed with:
+  - `~/.zvm/bin/zig fmt --check src/features/gpu/ai_ops/adapters.zig`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh test --summary all -- --test-filter "createAiOps routes through centralized opaque cast helper"`
+- Residual risk: the focused test lane still runs under the broader test harness and emits unrelated pre-existing warnings/noise from other subsystems; this slice intentionally avoids broad cleanup outside the adapter helper coverage.
+
+## 40. Consolidated Plan Execution: Legacy File Removal Wave
+- [x] De-duplicate overlapping plan docs and execute a safe, no-reference legacy cleanup slice first.
+- [x] Remove orphaned `src/features/legacy_orphans/deploy-model/` files after confirming no live source/docs references remain.
+- [x] Run focused validation (`typecheck`) to confirm cleanup does not impact compilation.
+
+### Notes
+- Opened on April 28, 2026 as part of the user-requested "do all" pass over:
+  - `docs/superpowers/plans/2026-03-24-full-codebase-improvement.md`
+  - `docs/superpowers/plans/2026-04-14-abi-mcp-hybrid-integration.md`
+  - `docs/superpowers/plans/2026-04-16-inference-connector-integration.md`
+  - `docs/superpowers/plans/2026-04-19-mcp-registry-migration-plan.md`
+  - `docs/superpowers/plans/2026-04-19-streaming-server-decoupling-plan.md`
+  - `docs/superpowers/plans/2026-04-19-system-refactor-plan.md`
+  - `docs/superpowers/plans/2026-04-27-inference-connector-integration.md`
+  - `docs/superpowers/plans/2026-04-28-codebase-cleanup.md`
+  - `docs/superpowers/plans/2026-04-28-codebase-stability.md`
+  - `docs/superpowers/plans/2026-04-28-zig-017-perfection.md`
+- Consolidation finding: several plans are already completed, superseded, or overlapping; execution now proceeds in verified, low-risk waves to avoid contradictory edits in the heavily dirty worktree.
+- Removed:
+  - `src/features/legacy_orphans/deploy-model/mod.zig`
+  - `src/features/legacy_orphans/deploy-model/stub.zig`
+  - `src/features/legacy_orphans/deploy-model/types.zig`
+- Validation passed with:
+  - `./build.sh typecheck --summary all`
+- Residual risk: broad "do all" scope spans many historical/stale plan steps; future waves should remain scoped and validated incrementally to avoid mixing incompatible historical instructions.
 
 ## 37. Align MCP Status Factory Test With Actual Registration Set
 - [x] Keep the status factory test aligned with `createStatusServer()`'s real tool set.

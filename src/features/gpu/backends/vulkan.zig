@@ -483,7 +483,7 @@ fn findMemoryType(type_filter: u32, properties: VkMemoryPropertyFlags) VulkanErr
 // ============================================================================
 
 const interface = @import("../interface.zig");
-const PointerCast = @import("../pointer_cast.zig");
+const PointerCast = @import("../../../foundation/utils/pointer_cast.zig");
 
 pub const VulkanBackend = struct {
     allocator: std.mem.Allocator,

@@ -94,9 +94,12 @@ pub const rbac = @import("rbac.zig");
 /// Includes certificate validation, hostname verification, and ALPN negotiation.
 pub const tls = @import("tls.zig");
 
-/// Cross-platform CSPRNG helper for Zig 0.16.
+/// Cross-platform CSPRNG helper for Zig 0.17.
 /// Provides seeded random generation from OS entropy sources.
 pub const csprng = @import("csprng.zig");
+
+/// Fixed-capacity list that replaces the removed `std.StaticArrayList`.
+pub const FixedList = csprng.FixedList;
 
 // ============================================================================
 // Extended Security Modules

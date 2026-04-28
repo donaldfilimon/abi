@@ -1,7 +1,7 @@
 //! Web Server Core Types
 //!
 //! Provides fundamental types for HTTP server configuration and connection management.
-//! These types follow Zig 0.16 conventions and integrate with std.Io.Threaded.
+//! These types follow Zig 0.17 conventions and integrate with std.Io.Threaded.
 
 const std = @import("std");
 const Io = std.Io;

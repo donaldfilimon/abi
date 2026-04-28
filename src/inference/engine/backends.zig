@@ -69,7 +69,7 @@ pub fn isKnownProvider(name: []const u8) bool {
     return false;
 }
 
-/// Try to generate via a real LLM connector. Falls back to echo on failure.
+/// Try to generate via a real LLM connector.
 pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.Result {
     const start = time_mod.timestampNs();
 
@@ -116,7 +116,7 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
 /// 3. Create client and make chat completion call
 /// 4. Return response text (caller owns the allocation)
 ///
-/// Falls back to error if env vars are missing or network call fails.
+/// Returns an error if env vars are missing or network call fails.
 fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, prompt: []const u8) ![]u8 {
     const parsed = parseModelId(model_id);
     const provider = parsed.provider orelse {
@@ -167,8 +167,6 @@ fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, promp
 /// - OpenAI-style: `api_key: []u8` + `base_url: []u8` (openai, mistral, anthropic, cohere, etc.)
 /// - OpenAICompat-style: `host: []u8` + `api_key: ?[]u8` (lm_studio, vllm, llama_cpp, ollama, mlx)
 ///
-/// Falls back to a formatted echo string if the HTTP client cannot be
-/// initialized (e.g., async I/O layer unavailable in the test environment).
 fn callOpenAICompatible(
     allocator: std.mem.Allocator,
     comptime loader_fn: anytype,
@@ -540,6 +538,10 @@ test "isKnownProvider: all known providers" {
     try std.testing.expect(isKnownProvider("vllm"));
     try std.testing.expect(isKnownProvider("llama_cpp"));
     try std.testing.expect(isKnownProvider("codex"));
+}
+
+test "isKnownProvider: echo is no longer a provider" {
+    try std.testing.expect(!isKnownProvider("echo"));
 }
 
 test "isKnownProvider: unknown returns false" {

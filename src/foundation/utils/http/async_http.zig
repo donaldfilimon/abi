@@ -385,7 +385,7 @@ pub const AsyncHttpClient = struct {
         }
     };
 
-    /// Note: Streaming is handled internally in Zig 0.16's HTTP client.
+    /// Note: Streaming is handled internally in Zig 0.17's HTTP client.
     /// This method now returns a regular response for API compatibility.
     pub fn fetchStreaming(self: *AsyncHttpClient, http_request: *HttpRequest) !StreamingResponse {
         const response = try self.fetch(http_request);
@@ -471,7 +471,7 @@ pub const AsyncHttpClient = struct {
         return try self.fetchWithRetry(http_request, options);
     }
 
-    /// Async version of fetch - delegates to standard fetch in Zig 0.16
+    /// Async version of fetch - delegates to standard fetch in Zig 0.17
     pub fn fetchAsync(self: *AsyncHttpClient, http_request: *HttpRequest) !HttpResponse {
         return try self.fetch(http_request);
     }

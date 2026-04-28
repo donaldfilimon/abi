@@ -226,7 +226,7 @@ pub const CloudResponse = struct {
         resp.status_code = status_code;
         try resp.headers.put(allocator, "Content-Type", "application/json");
 
-        // Format error as JSON using Zig 0.16 API
+        // Format error as JSON using Zig 0.17 API
         var out: std.Io.Writer.Allocating = .init(allocator);
         errdefer out.deinit();
         var writer = std.json.Stringify{ .writer = &out.writer, .options = .{} };

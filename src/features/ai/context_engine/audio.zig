@@ -141,7 +141,7 @@ pub const AudioStreamer = struct {
         const stdout = child.stdout orelse return null;
 
         var buf: [4096]u8 = undefined;
-        // In Zig 0.16 with std.Io, reads on spawned pipes can be managed by the event loop.
+        // In Zig 0.17 with std.Io, reads on spawned pipes can be managed by the event loop.
         // We perform a direct read. If no data is ready, we handle the error or zero bytes.
         const bytes_read = std.posix.read(stdout.handle, &buf) catch |err| switch (err) {
             error.WouldBlock => return null,

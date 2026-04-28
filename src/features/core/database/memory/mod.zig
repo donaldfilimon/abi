@@ -19,4 +19,4 @@ pub const Lineage = semantic.Lineage;
 pub const InfluenceTrace = semantic.InfluenceTrace;
 pub const RetrievalHit = semantic.RetrievalHit;
 
-// refAllDecls deferred — block_chain.zig (MVCC store) has pre-existing Zig 0.16 API errors
+// refAllDecls deferred — block_chain.zig (MVCC store) has pre-existing Zig 0.17 API errors

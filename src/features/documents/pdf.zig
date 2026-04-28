@@ -131,11 +131,11 @@ pub const PdfParser = struct {
 
     /// Decompress a FlateDecode (zlib) stream.
     /// Note: Full zlib decompression requires std.compress.zlib which uses
-    /// fixedBufferStream (removed in Zig 0.16). Skip compressed streams
+    /// fixedBufferStream (removed in Zig 0.17). Skip compressed streams
     /// gracefully — uncompressed text extraction still works.
     fn decompressFlate(_: *PdfParser, data: []const u8) ![]u8 {
         if (data.len == 0) return error.StreamDecompressFailure;
-        // Cannot decompress without zlib support in Zig 0.16
+        // Cannot decompress without zlib support in Zig 0.17
         // (fixedBufferStream removed). Skip compressed streams — the caller
         // handles this gracefully by extracting text from uncompressed streams only.
         if (data.len > 0) return error.StreamDecompressFailure;

@@ -470,9 +470,9 @@ pub const KeyWrapper = struct {
 };
 
 /// Securely delete a file by overwriting with random data
-/// Note: In Zig 0.16+, this function requires an allocator for I/O backend initialization
+/// Note: In Zig 0.17+, this function requires an allocator for I/O backend initialization
 pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) !void {
-    // Initialize I/O backend (Zig 0.16)
+    // Initialize I/O backend (Zig 0.17)
     var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();

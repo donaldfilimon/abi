@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const cuda_loader = @import("loader.zig");
-const PointerCast = @import("../../pointer_cast.zig");
+const PointerCast = @import("../../../../foundation/utils/pointer_cast.zig");
 
 pub const MemoryError = error{
     AllocationFailed,

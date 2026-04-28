@@ -4,7 +4,7 @@
 //! redundant compilation and improve startup time.
 //!
 //! Disk persistence functions (persistToDisk, loadFromDisk)
-//! use std.Io.Dir.cwd() with proper I/O context for full Zig 0.16 compliance.
+//! use std.Io.Dir.cwd() with proper I/O context for full Zig 0.17 compliance.
 
 const std = @import("std");
 const platform_time = @import("../../foundation/mod.zig").utils;
@@ -503,7 +503,7 @@ pub const KernelCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // Create cache directory if it doesn't exist (Zig 0.16 pattern)
+        // Create cache directory if it doesn't exist (Zig 0.17 pattern)
         std.Io.Dir.cwd().createDirPath(self.io, cache_dir) catch |err| {
             if (err != error.PathAlreadyExists) return err;
         };
@@ -528,7 +528,7 @@ pub const KernelCache = struct {
             var file = try std.Io.Dir.cwd().createFile(self.io, filename, .{ .truncate = true });
             defer file.close(self.io);
 
-            // Build cache entry data in buffer for Zig 0.16 compatibility
+            // Build cache entry data in buffer for Zig 0.17 compatibility
             var entry_buf = std.ArrayListUnmanaged(u8).empty;
             defer entry_buf.deinit(self.allocator);
 
@@ -538,7 +538,7 @@ pub const KernelCache = struct {
             // Write binary data
             try entry_buf.appendSlice(self.allocator, cache_entry.binary);
 
-            // Write using writeStreamingAll for Zig 0.16 compatibility
+            // Write using writeStreamingAll for Zig 0.17 compatibility
             try file.writeStreamingAll(self.io, entry_buf.items);
         }
     }
@@ -551,7 +551,7 @@ pub const KernelCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // Open cache directory (Zig 0.16 pattern)
+        // Open cache directory (Zig 0.17 pattern)
         var dir = std.Io.Dir.cwd().openDir(self.io, cache_dir, .{ .iterate = true }) catch |err| {
             if (err == error.FileNotFound) return;
             return err;

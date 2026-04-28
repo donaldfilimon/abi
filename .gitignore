@@ -343,3 +343,6 @@ parity_results.txt
 
 # Stakpak session files
 .stakpak/session*
+
+# Legacy orphaned root files (moved during 0.17 refactor)
+legacy/

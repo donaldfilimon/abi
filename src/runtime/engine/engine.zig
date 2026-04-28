@@ -98,7 +98,7 @@ const concurrency = @import("../concurrency/mod.zig");
 const sync = @import("../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
 
-// Zig 0.16 compatibility: Simple Condition (busy-wait implementation)
+// Zig 0.17 compatibility: Simple Condition (busy-wait implementation)
 const Condition = struct {
     waiters: std.atomic.Value(u32) = std.atomic.Value(u32).init(0),
 
@@ -588,7 +588,7 @@ fn createTaskNode(
     task: anytype,
 ) !*TaskNode {
     const TaskType = @TypeOf(task);
-    // Zig 0.16: bare fn types cannot be struct fields — store as *const fn pointer
+    // Zig 0.17: bare fn types cannot be struct fields — store as *const fn pointer
     const IsFn = @typeInfo(TaskType) == .@"fn";
     const StoredType = if (IsFn) *const TaskType else TaskType;
     const Payload = struct {

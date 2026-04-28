@@ -1,7 +1,7 @@
 //! HTTP Server Implementation
 //!
 //! Provides the main HTTP server that listens for connections and dispatches
-//! requests to handlers. Uses Zig 0.16 std.Io.Threaded for async I/O.
+//! requests to handlers. Uses Zig 0.17 std.Io.Threaded for async I/O.
 
 const std = @import("std");
 const Io = std.Io;
@@ -226,7 +226,7 @@ pub const Server = struct {
         const enable: i32 = 1;
         _ = std.posix.setsockopt(sock, std.posix.SOL.SOCKET, std.posix.SO.REUSEADDR, std.mem.asBytes(&enable));
 
-        // Bind - parse address using Zig 0.16 Io.net API
+        // Bind - parse address using Zig 0.17 Io.net API
         const ip4 = Io.net.Ip4Address.parse(self.config.host, self.config.port) catch
             return ServerError.BindFailed;
 

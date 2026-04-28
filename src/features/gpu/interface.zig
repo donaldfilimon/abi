@@ -4,7 +4,7 @@
 //! Enables runtime polymorphism and consistent behavior across backends.
 
 const std = @import("std");
-const PointerCast = @import("../pointer_cast.zig");
+const PointerCast = @import("../../foundation/utils/pointer_cast.zig");
 
 // =============================================================================
 // Standard GPU Error Types

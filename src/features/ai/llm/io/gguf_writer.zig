@@ -390,7 +390,7 @@ pub const GgufWriter = struct {
 
     /// Finalize and write the GGUF file.
     pub fn finalize(self: *GgufWriter) !void {
-        // Build entire file in memory for Zig 0.16 compatibility
+        // Build entire file in memory for Zig 0.17 compatibility
         var buffer = std.ArrayListUnmanaged(u8).empty;
         defer buffer.deinit(self.allocator);
 
@@ -439,7 +439,7 @@ pub const GgufWriter = struct {
         // Write tensor data
         try buffer.appendSlice(self.allocator, self.tensor_data.items);
 
-        // Write all at once using writeStreamingAll for Zig 0.16 compatibility
+        // Write all at once using writeStreamingAll for Zig 0.17 compatibility
         try self.file.writeStreamingAll(self.io, buffer.items);
 
         std.log.info("GGUF file written: {d} tensors, {d} metadata entries", .{

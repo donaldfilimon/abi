@@ -8,7 +8,7 @@ const std = @import("std");
 const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
 
 // ============================================================================
-// Integer Vector Operations (Zig 0.16 @Vector)
+// Integer Vector Operations (Zig 0.17 @Vector)
 // ============================================================================
 
 /// Vector size for i32 operations
