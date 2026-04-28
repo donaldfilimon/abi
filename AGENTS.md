@@ -170,3 +170,4 @@ AiOps Adapter Refactor Plan (Centralized Pointer Cast Helper)
   - Unit tests: run any existing tests for AiOps paths; if none exist, add a minimal unit test to validate pointer-cast behavior using a mock Impl type.
 - Contacts: If parity fails, revert changes and pursue a less invasive approach (e.g., a local inline cast helper per adapter invocation) to minimize risk.
 - Yes: If parity check fails due to auth tests missing environment variables, provide required env vars (e.g., ABI_JWT_SECRET) or adjust test gating. This is an environment gating caveat to be aware of during local runs.
+- Yes: Document CI parity workflow and gating clearly. Local devs should know how to run parity with or without JWT secrets and how gating affects tests.

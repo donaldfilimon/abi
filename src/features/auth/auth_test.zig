@@ -16,10 +16,10 @@ test "auth context init and deinit" {
 test "auth module enabled and initialized" {
     // Gate: skip locally if no JWT secret configured
     if (!env_gate.isAuthConfigured()) return;
-    // Ensure the module is initialized before checking state.
+    // Attempt to initialize; then verify initialized flag.
     const allocator = std.testing.allocator;
-    const result = auth.init(allocator, auth.AuthConfig.defaults()) catch |err| err;
-    try std.testing.expectError(error.AuthDisabled, result);
+    auth.init(allocator, auth.AuthConfig.defaults()) catch {};
+    try std.testing.expect(auth.isInitialized());
 }
 
 test "auth token creation delegates to jwt module" {

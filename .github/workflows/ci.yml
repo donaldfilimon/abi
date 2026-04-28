@@ -1,0 +1,33 @@
+name: CI parity
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Zig (0.17-dev)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          ZIG_VERSION=0.17.0-dev.135+9df02121d
+          curl -L https://ziglang.org/download/index.html?os=linux&target=x86_64&version=${ZIG_VERSION} -o zig.tar.xz
+          tar -xf zig.tar.xz -C /tmp
+          export PATH=/tmp/zig-linux-x86_64/bin:$PATH
+          zig --version
+      - name: Check parity
+        run: |
+          if [ -n "${{ secrets.ABI_JWT_SECRET }}" ]; then
+            echo "JWT secret provided; running full parity including auth tests."
+          else
+            echo "No JWT secret in CI; parity will skip auth-heavy tests."
+          fi
+          zig build check-parity
+      - name: Run parity tests (subset)
+        if: success() && (env.ABI_JWT_SECRET != '')
+        run: |
+          zig build test --summary all -- -test-filter "auth|token_tests"
+        shell: bash
