@@ -5,6 +5,8 @@
 const std = @import("std");
 const auth = @import("mod.zig");
 const parity_gate = @import("../../common/parity_gate.zig");
+// parity/env gate imports for authentication gating
+const env_gate = @import("../../common/env_gate.zig");
 
 test "auth context init and deinit" {
     if (!env_gate.isAuthConfigured()) return;

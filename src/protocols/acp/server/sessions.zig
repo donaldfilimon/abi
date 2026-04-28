@@ -69,6 +69,8 @@ test "Session toJson" {
     try std.testing.expect(std.mem.indexOf(u8, json, "test-meta") != null);
 }
 
+const parity_gate = @import("../../../common/parity_gate.zig");
 test {
+    if (!parity_gate.canRunTest()) return;
     std.testing.refAllDecls(@This());
 }
