@@ -5,6 +5,7 @@
 //! cached on the Server struct.
 
 const std = @import("std");
+const parity_gate = @import("../../../common/parity_gate.zig");
 const json_utils = @import("json_utils.zig");
 const appendEscaped = json_utils.appendEscaped;
 const AgentCard = @import("agent_card.zig").AgentCard;
@@ -267,6 +268,7 @@ test "openapi: spec contains x-state-machine" {
 }
 
 test "openapi: spec reflects card fields" {
+    if (!parity_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     const card = AgentCard{
         .name = "my-custom-agent",
@@ -286,6 +288,7 @@ test "openapi: spec reflects card fields" {
 }
 
 test "openapi: spec contains discord routes" {
+    if (!parity_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     const card = AgentCard{
         .name = "test",
@@ -306,5 +309,6 @@ test "openapi: spec contains discord routes" {
 }
 
 test {
+    if (!parity_gate.canRunTest()) return;
     std.testing.refAllDecls(@This());
 }

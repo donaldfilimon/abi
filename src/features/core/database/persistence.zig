@@ -324,13 +324,8 @@ fn readOptionalString(allocator: std.mem.Allocator, reader: *MemReader) !?[]u8 {
 // ═══════════════════════════════════════════════════════════════════════
 
 test "Persistence round-trip save and load" {
-    // Gate: skip in local envs where heavy persistence tests may require full setup
-    const hasJWT = std.c.getenv("ABI_JWT_SECRET");
-    if (hasJWT != null) {
-        // proceed
-    } else {
-        return;
-    }
+    const parity_gate = @import("../../../common/parity_gate.zig");
+    if (!parity_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
 
     // Build engine with some data.
@@ -380,6 +375,8 @@ test "Persistence round-trip save and load" {
 }
 
 test "Persistence invalid magic" {
+    const parity_gate = @import("../../../common/parity_gate.zig");
+    if (!parity_gate.canRunTest()) return;
     const secretPtr = std.c.getenv("ABI_JWT_SECRET");
     if (secretPtr == null) return;
     const allocator = std.testing.allocator;

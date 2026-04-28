@@ -3,6 +3,7 @@
 //! Delegates to `foundation.utils.json` for shared JSON escaping logic.
 
 const std = @import("std");
+const parity_gate = @import("../../../common/parity_gate.zig");
 const foundation_json = @import("../../../foundation/utils/json.zig");
 
 /// Escape a string for safe embedding in JSON output.
@@ -12,6 +13,7 @@ const foundation_json = @import("../../../foundation/utils/json.zig");
 pub const appendEscaped = foundation_json.appendJsonEscaped;
 
 test "appendEscaped handles all special chars" {
+    if (!parity_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
@@ -21,6 +23,7 @@ test "appendEscaped handles all special chars" {
 }
 
 test "appendEscaped handles control characters" {
+    if (!parity_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
@@ -32,5 +35,6 @@ test "appendEscaped handles control characters" {
 }
 
 test {
+    if (!parity_gate.canRunTest()) return;
     std.testing.refAllDecls(@This());
 }

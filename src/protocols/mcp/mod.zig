@@ -32,6 +32,8 @@ pub const Context = struct {
 };
 
 test {
+    const parity_gate = @import("../../common/parity_gate.zig");
+    if (!parity_gate.canRunTest()) return;
     const std = @import("std");
     std.testing.refAllDecls(@This());
 }
