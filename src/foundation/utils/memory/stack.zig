@@ -66,7 +66,7 @@ pub const StackAllocator = struct {
             .config = config,
             .peak_usage = 0,
             .allocation_count = 0,
-            .fallback_allocations = .{},
+            .fallback_allocations = .empty,
         };
     }
 

@@ -9,6 +9,7 @@ zig-cache/
 zig-out/
 exe/
 docs_html/
+/site/
 # Root-level build artifacts (stray from manual builds)
 /test.db
 /target_contract.o
@@ -288,16 +289,20 @@ TRASH-FILES.md
 
 # Documentation tree
 !/docs/README.md
+!/docs/index.md
 !/docs/STRUCTURE.md
 !/docs/onboarding.md
 !/docs/PATTERNS.md
 !/docs/ABI_WDBX_ARCHITECTURE.md
 !/docs/ZIG_MACOS_LINKER_RESEARCH.md
+!/docs/stylesheets/
+!/docs/stylesheets/*.css
 !/docs/plans/*.md
 !/docs/api/*.md
 !/docs/guides/*.md
 !/docs/superpowers/**/*.md
 !/docs/spec/*.md
+!/docs/review/*.md
 
 # Subsystem docs
 !/benchmarks/README.md

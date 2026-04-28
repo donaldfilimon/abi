@@ -195,7 +195,7 @@ pub const ThreadCache = struct {
             .global_frees = std.atomic.Value(u64).init(0),
             .active_locals = std.atomic.Value(usize).init(0),
             .mutex = .{},
-            .locals = .{},
+            .locals = .empty,
         };
     }
 

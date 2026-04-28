@@ -327,4 +327,6 @@ test "Time helpers" {
     try std.testing.expect(s >= 0);
 }
 
-// refAllDecls deferred — memory/stack.zig and memory/thread_cache.zig have pre-existing Zig 0.17 errors
+test {
+    std.testing.refAllDecls(@This());
+}

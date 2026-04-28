@@ -1,5 +1,54 @@
 # Codebase Improvement Plan
 
+## 42. MkDocs GitHub Pages Setup
+- [x] Preserve the current cleanup-wave source edits and add the docs site as a separate slice.
+- [x] Add MkDocs Material configuration, docs landing pages, and tracked stylesheet assets under `docs/`.
+- [x] Add a GitHub Pages workflow that builds strict MkDocs artifacts from `docs/`.
+- [x] Extend the Markdown allowlist so the new docs-site files are tracked.
+- [x] Validate docs build, diff hygiene, and the existing cleanup-wave gates.
+
+### Notes
+- Opened on April 28, 2026 in `/Users/donaldfilimon/abi` after the current cleanup wave had pre-existing dirty edits in `AGENTS.md`, `LICENSE`, source files, test files, and `tasks/todo.md`; this slice must not revert them.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- MkDocs Material is the chosen framework, with `docs/` as the source directory and GitHub Actions publishing the generated `site/` artifact.
+- Historical review, plan, and spec documents are surfaced as archived navigation entries rather than rewritten broadly.
+- Follow-up review cleanup restored the `AGENTS.md` CI parity guidance, removed the redundant AiOps plan block from that file, and made the connector smoke tests preserve and restore all OpenAI-related environment variables.
+- Final review cleanup scoped GitHub Pages `pages: write` and `id-token: write` permissions to the deploy job while leaving pull-request builds with read-only contents access.
+- `LICENSE` was phantom-dirty: its blob hash matched `HEAD`, `git diff` showed no content change, and `git update-index --refresh -- LICENSE` cleared the status without staging it.
+- `python3 -m pip install -r requirements-docs.txt` is blocked by the Homebrew externally-managed Python environment, so validation used an isolated `/tmp/abi-docs-venv` virtualenv with the same requirements.
+- Validation passed with:
+  - `git check-ignore -v docs/index.md docs/README.md docs/stylesheets/extra.css`
+  - `/tmp/abi-docs-venv/bin/mkdocs build --strict`
+  - `git diff --check`
+  - `~/.zvm/bin/zig fmt --check test/integration/connector_test.zig src/foundation/utils.zig src/foundation/utils/memory/stack.zig src/foundation/utils/memory/thread_cache.zig`
+  - `./build.sh test --summary all -- --test-filter "connector"`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh check-parity --summary all`
+  - `./build.sh full-check --summary all`
+
+## 41. Zig 0.17-dev Cleanup Wave
+- [x] Record the cleanup scope and preserve pre-existing dirty worktree changes.
+- [x] Convert the dormant connector integration smoke from `main()` to real `zig test` coverage.
+- [x] Remove the empty legacy orphan deploy-model directory if it remains empty.
+- [x] Resolve one focused `refAllDecls` deferred blocker without moving public APIs.
+- [x] Supersede stale cleanup docs that conflict with current Zig 0.17-dev ABI rules.
+- [x] Validate with targeted checks, typecheck, parity where appropriate, and diff hygiene.
+
+### Notes
+- Opened on April 28, 2026 in `/Users/donaldfilimon/abi` with pre-existing dirty `AGENTS.md` and `LICENSE` status; this wave must not revert those changes.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Cleanup proceeds as a small verified wave, not a global perfection rewrite.
+- `test/integration/connector_test.zig` now runs as real integration coverage for configured and missing OpenAI connector environment handling.
+- The focused `refAllDecls` wave restored `src/foundation/utils.zig` declaration discovery and fixed the two exposed Zig 0.17 `ArrayListUnmanaged` initializer blockers in `memory/stack.zig` and `memory/thread_cache.zig`.
+- Removed the empty `src/features/legacy_orphans/deploy-model` directory after confirming it contained no files.
+- `docs/superpowers/plans/2026-04-28-codebase-cleanup.md` now supersedes the stale "replace sync wrappers" direction with the current ABI wrapper-preservation rule.
+- Validation passed with:
+  - `~/.zvm/bin/zig fmt --check test/integration/connector_test.zig src/foundation/utils.zig src/foundation/utils/memory/stack.zig src/foundation/utils/memory/thread_cache.zig`
+  - `./build.sh test --summary all -- --test-filter "connector"`
+  - `./build.sh typecheck --summary all`
+  - `./build.sh check-parity --summary all`
+- Note: `zig fmt --check` was initially attempted on Markdown and failed because Markdown is not Zig syntax; Markdown hygiene is covered by `git diff --check`.
+
 ## 38. Stabilize ABI on the Zig 0.17 Dev Line
 - [x] Repin the repo and zigly metadata to `0.17.0-dev.135+9df02121d`.
 - [x] Fix `build.sh` and zigly resolution so the wrapper resolves the exact pinned toolchain through `tools/zigly --status`.
