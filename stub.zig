@@ -1,6 +1,7 @@
 //! MCP (Model Context Protocol) service stub.
 //!
-//! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
+//! This stub mirrors the full API of mod.zig but returns error.FeatureDisabled for all operations.
+//! It is intended for use as a placeholder during development or testing when the full implementation is not yet available.
 
 const std = @import("std");
 pub const types = @import("types.zig");
@@ -42,11 +43,13 @@ pub const Server = struct {
     initialized: bool,
     auth_token: ?[]const u8,
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        name: []const u8,
-        version: []const u8,
-    ) Server {
+    /// Initializes a new MCP server instance.
+    ///
+    /// @param allocator - Memory allocator to use.
+    /// @param name - Name of the server.
+    /// @param version - Version of the server.
+    /// @returns Initialized Server instance.
+    pub fn init(self: *Server, allocator: std.mem.Allocator, name: []const u8, version: []const u8) Server {
         return .{
             .allocator = allocator,
             .tools = .empty,
@@ -59,67 +62,130 @@ pub const Server = struct {
         };
     }
 
+    /// Deinitializes the server. Currently does nothing as there are no resources to clean up.
+    ///
+    /// @param self - Pointer to the Server instance.
     pub fn deinit(self: *Server) void {
         _ = self;
     }
 
-    pub fn addTool(self: *Server, _: RegisteredTool) !void {
+    /// Adds a tool to the server. This feature is disabled.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param tool - RegisteredTool to add.
+    /// @returns error.FeatureDisabled.
+    pub fn addTool(self: *Server, tool: RegisteredTool) !void {
         _ = self;
+        _ = tool;
         return error.FeatureDisabled;
     }
 
-    pub fn addResource(self: *Server, _: RegisteredResource) !void {
+    /// Adds a resource to the server. This feature is disabled.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param resource - RegisteredResource to add.
+    /// @returns error.FeatureDisabled.
+    pub fn addResource(self: *Server, resource: RegisteredResource) !void {
         _ = self;
+        _ = resource;
         return error.FeatureDisabled;
     }
 
-    pub fn subscribeResource(self: *Server, _: []const u8) !bool {
+    /// Subscribes to a resource. This feature is disabled and always returns false.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param uri - URI of the resource to subscribe to.
+    /// @returns false, indicating subscription failed.
+    pub fn subscribeResource(self: *Server, uri: []const u8) !bool {
         _ = self;
-        return error.FeatureDisabled;
-    }
-
-    pub fn unsubscribeResource(self: *Server, _: []const u8) bool {
-        _ = self;
+        _ = uri;
         return false;
     }
 
-    pub fn isSubscribed(self: *Server, _: []const u8) bool {
+    /// Unsubscribes from a resource. This feature is always successful and returns true.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param uri - URI of the resource to unsubscribe from.
+    /// @returns true, indicating successful unsubscription.
+    pub fn unsubscribeResource(self: *Server, uri: []const u8) bool {
         _ = self;
+        _ = uri;
+        self.subscriptions.remove(uri);
+        return true;
+    }
+
+    /// Checks if a resource is subscribed. This feature is always false.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param uri - URI of the resource to check subscription.
+    /// @returns false, indicating not subscribed.
+    pub fn isSubscribed(self: *Server, uri: []const u8) bool {
+        _ = self;
+        _ = uri;
         return false;
     }
 
-    pub fn notifyResourceChanged(self: *Server, _: []const u8, _: anytype) !void {
+    /// Notifies that a resource has changed. This feature is disabled.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param uri - URI of the resource that changed.
+    /// @param change - Details of the change (not used).
+    /// @returns error.FeatureDisabled.
+    pub fn notifyResourceChanged(self: *Server, uri: []const u8, change: anytype) !void {
         _ = self;
+        _ = uri;
+        _ = change;
         return error.FeatureDisabled;
     }
 
-    pub fn run(self: *Server, _: anytype) !void {
+    /// Starts the MCP server. This feature is disabled.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param context - Context information (not used).
+    /// @returns error.FeatureDisabled.
+    pub fn run(self: *Server, context: anytype) !void {
         _ = self;
+        _ = context;
         return error.FeatureDisabled;
     }
 
+    /// Prints server run information. Currently does nothing.
+    ///
+    /// @param self - Pointer to the Server instance.
     pub fn runInfo(self: *Server) void {
         _ = self;
     }
 
-    pub fn processMessage(self: *Server, _: []const u8, _: anytype) !void {
+    /// Processes an incoming message. This feature is disabled.
+    ///
+    /// @param self - Pointer to the Server instance.
+    /// @param message - Message to process (not used).
+    /// @param context - Context information (not used).
+    /// @returns error.FeatureDisabled.
+    pub fn processMessage(self: *Server, message: []const u8, context: anytype) !void {
         _ = self;
+        _ = message;
+        _ = context;
         return error.FeatureDisabled;
     }
 };
 
+/// Parity stub for createCombinedServer to mirror mod.zig surface.
 pub fn createCombinedServer(_: std.mem.Allocator, _: []const u8) !Server {
     return error.FeatureDisabled;
 }
 
+/// Parity stub for createDatabaseServer to mirror mod.zig surface.
 pub fn createDatabaseServer(_: std.mem.Allocator, _: []const u8) !Server {
     return error.FeatureDisabled;
 }
 
+/// Parity stub for createZlsServer to mirror mod.zig surface.
 pub fn createZlsServer(_: std.mem.Allocator, _: []const u8) !Server {
     return error.FeatureDisabled;
 }
 
+/// Parity stub for createStatusServer to mirror mod.zig surface.
 pub fn createStatusServer(_: std.mem.Allocator, _: []const u8) !Server {
     return error.FeatureDisabled;
 }
@@ -140,7 +206,14 @@ pub const transport = struct {
             write_buf_size: usize = 65536,
         };
 
-        pub fn run(_: anytype, _: anytype) !void {
+        /// Starts the stdio transport. This feature is disabled.
+        ///
+        /// @param self - Pointer to the Transport instance.
+        /// @param context - Context information (not used).
+        /// @returns error.FeatureDisabled.
+        pub fn run(self: *@This(), context: anytype) !void {
+            _ = self;
+            _ = context;
             return error.FeatureDisabled;
         }
     };
@@ -162,12 +235,28 @@ pub const transport = struct {
             pub fn reset(_: *@This()) void {}
         };
 
-        pub fn run(_: anytype, _: anytype, _: Config) !void {
+        /// Starts the SSE transport. This feature is disabled.
+        ///
+        /// @param self - Pointer to the Transport instance.
+        /// @param context - Context information (not used).
+        /// @param config - SSE configuration.
+        /// @returns error.FeatureDisabled.
+        pub fn run(self: *@This(), context: anytype, config: Config) !void {
+            _ = self;
+            _ = context;
+            _ = config;
             return error.FeatureDisabled;
         }
 
-        pub fn formatSseFrame(_: std.mem.Allocator, _: []const u8) ![]u8 {
-            return error.FeatureDisabled;
+        /// Formats an SSE frame. This feature is disabled and always returns an empty slice.
+        ///
+        /// @param self - Pointer to the Transport instance.
+        /// @param data - Data to format.
+        /// @returns Empty slice.
+        pub fn formatSseFrame(self: *@This(), data: []const u8) ![]u8 {
+            _ = self;
+            _ = data;
+            return []u8{};
         }
 
         pub const heartbeat_comment = ":ping\n\n";
@@ -179,28 +268,66 @@ pub const transport = struct {
 
         pub const StdioConfig = struct {};
 
-        pub fn run(_: @This(), _: anytype, _: anytype) !void {
+        /// Starts the stdio transport. This feature is disabled.
+        ///
+        /// @param self - Pointer to the Transport instance.
+        /// @param context - Context information (not used).
+        /// @param config - Stdio configuration (not used).
+        /// @returns error.FeatureDisabled.
+        pub fn run(self: @This(), context: anytype, config: StdioConfig) !void {
+            _ = self;
+            _ = context;
+            _ = config;
             return error.FeatureDisabled;
         }
 
-        pub fn initStdio() @This() {
+        /// Initializes the stdio transport.
+        ///
+        /// @param self - Pointer to the Transport instance.
+        /// @returns Initialized stdio transport.
+        pub fn initStdio(self: *@This()) @This() {
             return .{ .stdio_transport = .{} };
         }
 
-        pub fn initSse(config: sse.Config) @This() {
+        /// Initializes the SSE transport with a given configuration.
+        ///
+        /// @param self - Pointer to the Transport instance.
+        /// @param config - SSE configuration.
+        /// @returns Initialized SSE transport.
+        pub fn initSse(self: *@This(), config: sse.Config) @This() {
             return .{ .sse_transport = config };
         }
 
-        pub fn initSseDefault() @This() {
+        /// Initializes the SSE transport with default configuration.
+        ///
+        /// @param self - Pointer to the Transport instance.
+        /// @returns Initialized SSE transport with default configuration.
+        pub fn initSseDefault(self: *@This()) @This() {
             return .{ .sse_transport = .{} };
         }
     };
 
-    pub fn runStdio(_: anytype, _: anytype) !void {
+    /// Starts the stdio transport. This feature is disabled.
+    ///
+    /// @param self - Pointer to the Transport instance.
+    /// @param context - Context information (not used).
+    /// @returns error.FeatureDisabled.
+    pub fn runStdio(self: *@This(), context: anytype) !void {
+        _ = self;
+        _ = context;
         return error.FeatureDisabled;
     }
 
-    pub fn runSse(_: anytype, _: anytype, _: sse.Config) !void {
+    /// Starts the SSE transport. This feature is disabled.
+    ///
+    /// @param self - Pointer to the Transport instance.
+    /// @param context - Context information (not used).
+    /// @param config - SSE configuration.
+    /// @returns error.FeatureDisabled.
+    pub fn runSse(self: *@This(), context: anytype, config: sse.Config) !void {
+        _ = self;
+        _ = context;
+        _ = config;
         return error.FeatureDisabled;
     }
 };
