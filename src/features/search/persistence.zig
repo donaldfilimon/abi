@@ -3,7 +3,7 @@
 //! Binary serialization/deserialization for inverted indexes.
 //! File format: magic header + terms section + documents section.
 
-const std = @import("std");
+ const std = @import("std");
 const index = @import("index.zig");
 
 const InvertedIndex = index.InvertedIndex;

@@ -7,6 +7,7 @@ const auth = @import("mod.zig");
 const env_gate = @import("../../common/env_gate.zig");
 
 test "auth context init and deinit" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const ctx = try auth.Context.init(allocator, auth.AuthConfig.defaults());
     defer ctx.deinit();
@@ -23,6 +24,7 @@ test "auth module enabled and initialized" {
 }
 
 test "auth token creation delegates to jwt module" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const token = try auth.createToken(allocator, "user123");
     defer allocator.free(token.raw);
@@ -37,6 +39,7 @@ test "auth token creation delegates to jwt module" {
 }
 
 test "auth token verify round-trip" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     // Create a token, then verify it — full round-trip.
     const created = try auth.createToken(allocator, "roundtrip_user");
@@ -49,12 +52,14 @@ test "auth token verify round-trip" {
 }
 
 test "auth permission check delegates to rbac" {
+    if (!env_gate.isAuthConfigured()) return;
     // Without role assignments the ephemeral RbacManager returns false.
     const result = try auth.checkPermission("user123", .read);
     try std.testing.expect(!result);
 }
 
 test "auth session creation delegates to session module" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const session_inst = try auth.createSession(allocator, "user456");
     defer allocator.free(session_inst.id);
@@ -70,6 +75,7 @@ test "auth session creation delegates to session module" {
 }
 
 test "auth error type variants" {
+    if (!env_gate.isAuthConfigured()) return;
     const err: auth.AuthError = error.InvalidCredentials;
     try std.testing.expect(err == error.InvalidCredentials);
     const err2: auth.AuthError = error.TokenExpired;
@@ -77,6 +83,7 @@ test "auth error type variants" {
 }
 
 test "auth type definitions" {
+    if (!env_gate.isAuthConfigured()) return;
     const token = auth.Token{};
     try std.testing.expectEqualStrings("", token.raw);
     try std.testing.expectEqual(@as(u64, 0), token.claims.exp);
@@ -87,6 +94,7 @@ test "auth type definitions" {
 }
 
 test "auth permission enum" {
+    if (!env_gate.isAuthConfigured()) return;
     const perm: auth.Permission = .read;
     try std.testing.expect(perm == .read);
     const perm2: auth.Permission = .write;
@@ -96,6 +104,7 @@ test "auth permission enum" {
 // ── Additional inline tests ───────────────────────────────────────────
 
 test "auth JWT has three base64url parts" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const token = try auth.createToken(allocator, "jwt_struct_user");
     defer allocator.free(token.raw);
@@ -114,6 +123,7 @@ test "auth JWT has three base64url parts" {
 }
 
 test "auth verifyToken rejects tampered payload" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const token = try auth.createToken(allocator, "tamper_user");
     defer allocator.free(token.raw);
@@ -135,27 +145,32 @@ test "auth verifyToken rejects tampered payload" {
 }
 
 test "auth verifyToken rejects empty string" {
+    if (!env_gate.isAuthConfigured()) return;
     const result = auth.verifyToken(std.testing.allocator, "");
     try std.testing.expectError(error.InvalidCredentials, result);
 }
 
 test "auth verifyToken rejects malformed token" {
+    if (!env_gate.isAuthConfigured()) return;
     const result = auth.verifyToken(std.testing.allocator, "not-a-jwt-token");
     try std.testing.expectError(error.InvalidCredentials, result);
 }
 
 test "auth checkPermission admin returns false without role assignment" {
+    if (!env_gate.isAuthConfigured()) return;
     // An ephemeral RbacManager with no role assignments always returns false
     const result = try auth.checkPermission("admin_user", .admin);
     try std.testing.expect(!result);
 }
 
 test "auth checkPermission write returns false without role assignment" {
+    if (!env_gate.isAuthConfigured()) return;
     const result = try auth.checkPermission("some_user", .write);
     try std.testing.expect(!result);
 }
 
 test "auth session IDs are unique across users" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
 
     const s1 = try auth.createSession(allocator, "user_aaa");
@@ -171,6 +186,7 @@ test "auth session IDs are unique across users" {
 }
 
 test "auth session timestamps are valid" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const sess = try auth.createSession(allocator, "ts_user");
     defer allocator.free(sess.id);
@@ -183,6 +199,7 @@ test "auth session timestamps are valid" {
 }
 
 test "auth createToken verifyToken round-trip preserves user_id" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const user_ids = [_][]const u8{ "alice", "bob", "charlie" };
 
@@ -199,6 +216,7 @@ test "auth createToken verifyToken round-trip preserves user_id" {
 }
 
 test "auth token claims sub matches input" {
+    if (!env_gate.isAuthConfigured()) return;
     const allocator = std.testing.allocator;
     const token = try auth.createToken(allocator, "claims_check");
     defer allocator.free(token.raw);

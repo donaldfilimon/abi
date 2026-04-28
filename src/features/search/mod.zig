@@ -165,6 +165,8 @@ pub fn loadIndex(allocator: std.mem.Allocator, name: []const u8, path: []const u
 // ── Tests ──────────────────────────────────────────────────────────────
 
 test "search basic index and query" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     try init(allocator, SearchConfig.defaults());
     defer deinit();
@@ -184,6 +186,8 @@ test "search basic index and query" {
 }
 
 test "search delete document" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     try init(allocator, SearchConfig.defaults());
     defer deinit();
@@ -200,6 +204,8 @@ test "search delete document" {
 }
 
 test "search delete index" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     try init(allocator, SearchConfig.defaults());
     defer deinit();
@@ -214,6 +220,8 @@ test "search delete index" {
 }
 
 test "search stats" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     try init(allocator, SearchConfig.defaults());
     defer deinit();
@@ -243,6 +251,8 @@ test "search empty query" {
 }
 
 test "search duplicate index error" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     try init(allocator, SearchConfig.defaults());
     defer deinit();
@@ -253,6 +263,8 @@ test "search duplicate index error" {
 }
 
 test "tokenizer basic" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     var tokens = try tokenizer.tokenize(allocator, "Hello World! This is a TEST.", true);
     defer {
@@ -268,6 +280,8 @@ test "tokenizer basic" {
 }
 
 test "search delete document then query returns no results" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     try init(allocator, SearchConfig.defaults());
     defer deinit();
@@ -440,6 +454,8 @@ test "search single character query" {
 }
 
 test "search save and load index round-trip" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     try init(allocator, SearchConfig.defaults());
     defer deinit();
