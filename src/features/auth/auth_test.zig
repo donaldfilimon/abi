@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const auth = @import("mod.zig");
+const env_gate = @import("../../common/env_gate.zig");
 
 test "auth context init and deinit" {
     const allocator = std.testing.allocator;
@@ -13,6 +14,8 @@ test "auth context init and deinit" {
 }
 
 test "auth module enabled and initialized" {
+    // Gate: skip locally if no JWT secret configured
+    if (!env_gate.isAuthConfigured()) return;
     // Ensure the module is initialized before checking state.
     const allocator = std.testing.allocator;
     const result = auth.init(allocator, auth.AuthConfig.defaults()) catch |err| err;
