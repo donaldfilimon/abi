@@ -4,6 +4,8 @@
 
 const std = @import("std");
 const auth = @import("mod.zig");
+const parity_gate = @import("../../common/parity_gate.zig");
+// parity/env gate imports for authentication gating
 const env_gate = @import("../../common/env_gate.zig");
 
 test "auth context init and deinit" {
@@ -16,7 +18,7 @@ test "auth context init and deinit" {
 
 test "auth module enabled and initialized" {
     // Gate: skip locally if no JWT secret configured
-    if (!env_gate.isAuthConfigured()) return;
+    if (!parity_gate.canRunAuth()) return;
     // Attempt to initialize; then verify initialized flag.
     const allocator = std.testing.allocator;
     auth.init(allocator, auth.AuthConfig.defaults()) catch {};
