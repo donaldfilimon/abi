@@ -1,7 +1,7 @@
 //! Synchronization primitives
 //!
-//! Provides cross-version compatible synchronization primitives for Zig 0.16.
-//! This module works around the absence of std.Thread.Mutex in earlier 0.16 dev builds.
+//
+//
 
 const std = @import("std");
 const builtin = @import("builtin");
