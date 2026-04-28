@@ -349,7 +349,7 @@ pub const AbbeyEngine = struct {
 
         const ralph_profile = prompts.getProfile(.ralph);
 
-        // Build system prompt: base profile + optional learned skills (Zig 0.16 / self-improving Ralph)
+        // Build system prompt: base profile + optional learned skills
         var system_content = try self.allocator.dupe(u8, ralph_profile.system_prompt);
         defer self.allocator.free(system_content);
         const skills_text = self.memory.getSkillsContext(self.allocator, 1024) catch null;
