@@ -18,6 +18,8 @@ jobs:
           tar -xf zig.tar.xz -C /tmp
           export PATH=/tmp/zig-linux-x86_64/bin:$PATH
           zig --version
+      - name: Preflight: detect stray nested repos
+        run: bash ./scripts/detect-nested-repos.sh
       - name: Check parity
         run: |
           if [ -n "${{ secrets.ABI_JWT_SECRET }}" ]; then
