@@ -28,6 +28,15 @@
   - `git diff --check`
 - Residual risk: exact prebuilt ZLS artifacts for dev snapshots remain external; the new contract intentionally keeps Zig resolution working and emits a warning when only Zig is available.
 
+## 39. AiOps Adapter Cast-Helper Hardening
+- [ ] Add focused unit coverage for `src/features/gpu/ai_ops/adapters.zig` that validates vtable dispatch through the centralized opaque-pointer cast helper.
+- [ ] Keep the change isolated to adapter test coverage with no public API surface changes.
+- [ ] Validate with targeted formatting + focused test command(s), then record residual risk.
+
+### Notes
+- Opened on April 28, 2026 in `/Users/donaldfilimon/abi` during the ongoing refactor wave with a heavily dirty worktree; this slice must stay confined to adapter coverage and workflow notes only.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+
 ## 37. Align MCP Status Factory Test With Actual Registration Set
 - [x] Keep the status factory test aligned with `createStatusServer()`'s real tool set.
 - [x] Validate the touched MCP factory surface with focused formatting and test checks.
