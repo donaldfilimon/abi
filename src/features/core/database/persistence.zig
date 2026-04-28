@@ -380,6 +380,8 @@ test "Persistence round-trip save and load" {
 }
 
 test "Persistence invalid magic" {
+    const secretPtr = std.c.getenv("ABI_JWT_SECRET");
+    if (secretPtr == null) return;
     const allocator = std.testing.allocator;
     const path = "/tmp/wdbx_test_bad_magic.bin";
 
