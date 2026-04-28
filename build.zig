@@ -1,5 +1,4 @@
 //! ABI build root — Zig 0.17.x/dev, self-contained.
-//! ABI build root — Zig 0.17.x/dev, self-contained.
 const std = @import("std");
 const builtin = @import("builtin");
 const build_flags = @import("build/flags.zig");
