@@ -19,6 +19,7 @@
 //! ### ShardedMap
 //! Thread-safe via per-shard mutex locking. Safe for multi-producer multi-consumer.
 const std = @import("std");
+const builtin = @import("builtin");
 
 const sync = @import("../../foundation/mod.zig").sync;
 const Mutex = sync.Mutex;
@@ -79,22 +80,43 @@ pub fn LockFreeStack(comptime T: type) type {
             next: TaggedPointer,
         };
 
-        const TaggedPointer = packed struct(u128) {
-            ptr_val: u64,
-            tag: u64,
+        const TaggedPointer = if (@sizeOf(usize) == 8 and (builtin.cpu.arch == .x86_64 or builtin.cpu.arch == .aarch64))
+            packed struct(u128) {
+                ptr_val: u64,
+                tag: u64,
 
-            fn init(ptr: ?*Node, tag: u64) TaggedPointer {
-                return .{
-                    .ptr_val = if (ptr) |p| @intFromPtr(p) else 0,
-                    .tag = tag,
-                };
-            }
+                fn init(ptr: ?*Node, tag: u64) TaggedPointer {
+                    return .{
+                        .ptr_val = if (ptr) |p| @intFromPtr(p) else 0,
+                        .tag = tag,
+                    };
+                }
 
-            fn getPtr(self: TaggedPointer) ?*Node {
-                if (self.ptr_val == 0) return null;
-                return @ptrFromInt(self.ptr_val);
+                fn getPtr(self: TaggedPointer) ?*Node {
+                    if (self.ptr_val == 0) return null;
+                    return @ptrFromInt(self.ptr_val);
+                }
             }
-        };
+        else
+            packed struct(u64) {
+                // Pack 48-bit pointer and 16-bit tag for 64-bit systems without 128-bit atomics,
+                // or just use smaller fields for 32-bit systems.
+                ptr_val: u48,
+                tag: u16,
+
+                fn init(ptr: ?*Node, tag: u64) TaggedPointer {
+                    const addr = if (ptr) |p| @intFromPtr(p) else 0;
+                    return .{
+                        .ptr_val = @intCast(addr & 0xFFFFFFFFFFFF),
+                        .tag = @intCast(tag & 0xFFFF),
+                    };
+                }
+
+                fn getPtr(self: TaggedPointer) ?*Node {
+                    if (self.ptr_val == 0) return null;
+                    return @ptrFromInt(@as(usize, self.ptr_val));
+                }
+            };
 
         allocator: std.mem.Allocator,
         head: std.atomic.Value(TaggedPointer) = std.atomic.Value(TaggedPointer).init(TaggedPointer.init(null, 0)),
