@@ -3,9 +3,9 @@
 ## 43. Consolidate Main Workspace and Whole-Codebase Review
 - [x] Stabilize the current dirty workspace before branch integration.
 - [x] Merge remaining safe branches with unique commits into `main`.
-- [ ] Remove imported snapshot roots after proving they are not active build/source inputs.
-- [ ] Run whole-codebase review prep and validation gates.
-- [ ] Delete merged local branches once the consolidated `main` is validated.
+- [x] Remove imported snapshot roots after proving they are not active build/source inputs.
+- [x] Run whole-codebase review prep and validation gates.
+- [x] Delete merged local branches once the consolidated `main` is validated.
 
 ### Notes
 - Opened on April 29, 2026 in `/Users/donaldfilimon/abi` after `main` had already absorbed `origin/main` and was ahead locally, with dirty MCP handler/test cleanup edits and transient MCP JSON audit files.
@@ -16,6 +16,10 @@
 - Merge commit `70e4e59` integrated `mig/zig-0.17`; merge commit `3071c8c` integrated `feature/inference-connector-integration` while preserving the current Zig 0.17 MCP I/O and AiOps cast helper; merge commit `6d1334a` integrated the compile-safe `fix/stub-regeneration` surface while pruning broken generated stubs and branch artifacts.
 - A full `master` merge was attempted and aborted because it conflicted across unrelated historical build, docs, MCP/ACP, AI, GPU, and test surfaces; the useful mmap/JWT safety fixes from that branch are already present or superseded on current `main`, while the stale echo fallback change would regress the current connector dispatch path.
 - Final snapshot-root reference checks found tracked files under `imports/`, nested `abi/`, top-level `runtime/`, and top-level `transport/`, but no active build/source references to those roots from `build.zig`, `build/`, `src/`, `test/`, `tools/`, live docs, or workflow files; remaining matches are historical docs or active similarly named paths such as `src/runtime` and `src/protocols/mcp/transport`.
+- Snapshot removal landed in `b404a77`, deleting 3,030 imported snapshot files and preserving only active workspace roots. The same commit fixed the merged connector path by mapping non-missing loader errors to `ApiRequestFailed` and lowering the expected unsupported-provider dispatch log to a warning so parity tests do not fail on an intentional error path.
+- Validation passed after the snapshot removal with `git diff --check`, `~/.zvm/bin/zig fmt --check src/inference/engine/backends.zig`, `./build.sh typecheck --summary all`, `./build.sh check-parity --summary all`, `./build.sh full-check --summary all`, and ABI review prep against `origin/main`.
+- Residual risk: a stale external editor/buffer repeatedly rewrote `src/inference/engine/backends.zig` with an aborted `master` merge variant during validation; the committed content was restored and the file was left read-only in the working tree to prevent further transient corruption while checks ran.
+- Deleted local branches that `git branch --merged main` reported as contained; only `main` and the unmerged divergent `master` branch remain locally.
 
 ## 42. MkDocs GitHub Pages Setup
 - [x] Preserve the current cleanup-wave source edits and add the docs site as a separate slice.
