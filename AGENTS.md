@@ -27,6 +27,9 @@
 - `src/main.zig` — CLI entry point
 - `src/mcp_main.zig` — MCP server entry point
 
+## MCP Enhancements
+- Suggested: use `mcp/servers.json` to configure MCP servers with environment variables, health checks, and restart policies for robustness.
+
 Feature flags (defaults enabled): `-Dfeat-gpu -Dfeat-ai -Dfeat-database -Dfeat-network -Dfeat-observability -Dfeat-web -Dfeat-cloud -Dfeat-auth -Dfeat-messaging -Dfeat-cache -Dfeat-storage -Dfeat-search`
 
 GPU backends: `-Dgpu-backend=metal,cuda,vulkan,stdgpu`
