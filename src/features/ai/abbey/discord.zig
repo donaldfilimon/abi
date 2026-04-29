@@ -20,6 +20,7 @@ const core_types = @import("../types.zig");
 const core_config = @import("../core/config.zig");
 const discord = @import("../../../connectors/discord/mod.zig");
 const emotions = @import("emotions.zig");
+const wdbx = @import("../../core/database/wdbx.zig");
 const log = std.log.scoped(.abbey_discord);
 
 // ============================================================================
@@ -263,6 +264,7 @@ pub const AbbeyDiscordBot = struct {
     config: DiscordBotConfig,
     abbey_engine: engine.AbbeyEngine,
     session_manager: SessionManager,
+    wdbx_handle: ?wdbx.DatabaseHandle = null,
     running: bool = false,
     discord_client: ?DiscordClientWrapper = null,
     gateway_client: ?discord.GatewayClient = null,
@@ -322,11 +324,14 @@ pub const AbbeyDiscordBot = struct {
         var abbey_eng = try engine.AbbeyEngine.init(allocator, config.abbey);
         errdefer abbey_eng.deinit();
 
+        const wdbx_handle = try wdbx.createDatabase(allocator, "abbey-discord-memory");
+
         return Self{
             .allocator = allocator,
             .config = config,
             .abbey_engine = abbey_eng,
             .session_manager = SessionManager.init(allocator),
+            .wdbx_handle = wdbx_handle,
         };
     }
 
@@ -335,6 +340,9 @@ pub const AbbeyDiscordBot = struct {
         self.stopGateway();
         if (self.discord_client) |*client| {
             client.deinit();
+        }
+        if (self.wdbx_handle) |*handle| {
+            wdbx.closeDatabase(handle);
         }
         self.session_manager.deinit();
         self.abbey_engine.deinit();

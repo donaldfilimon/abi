@@ -1,0 +1,24 @@
+{
+  "name": "abi-vscode",
+  "displayName": "ABI Toolkit",
+  "description": "VS Code extension scaffold for ABI development",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.60.0" },
+  "activationEvents": [ "onCommand:abi.helloWorld" ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "abi.helloWorld", "title": "ABI: Hello World" }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./"
+  },
+  "devDependencies": {
+    "typescript": "^4.0.0",
+    "@types/node": "^14.0.0",
+    "vscode": "^1.1.37"
+  }
+}

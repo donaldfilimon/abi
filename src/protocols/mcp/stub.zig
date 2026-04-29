@@ -132,6 +132,9 @@ pub const zls_bridge = struct {
     }.f;
 };
 
+/// Registry stub — mirrors the real registry module's public surface.
+pub const registry = @import("stub_registry.zig");
+
 /// Transport stub — mirrors the real transport module's public surface.
 pub const transport = struct {
     pub const stdio = struct {
@@ -206,10 +209,13 @@ pub const transport = struct {
 };
 
 // Parity stubs for isEnabled and Context to mirror mod.zig surface
-<<<<<<< HEAD
-pub fn isEnabled() bool { return false; }
+pub fn isEnabled() bool {
+    return false;
+}
 pub const Context = struct {
-    pub fn isEnabled() bool { return false; }
+    pub fn isEnabled() bool {
+        return false;
+    }
 };
 
 test {
