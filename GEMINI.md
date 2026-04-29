@@ -9,7 +9,7 @@ ABI is a **Zig 0.17 framework** for AI services, semantic vector storage, GPU ac
 ## Quick Reference
 
 - **Entry point**: `src/root.zig` (exported as `@import("abi")`)
-- **Zig version**: Pinned in `.zigversion` (0.16.x)
+- **Zig version**: Pinned in `.zigversion` (0.17.0-dev)
 - **Build wrapper**: `./build.sh` (macOS 26.4+) / `zig build` (Linux)
 - **Test gate**: `./build.sh check` or `zig build check`
 - **Parity check**: `zig build check-parity` (required after API changes)

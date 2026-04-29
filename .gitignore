@@ -340,3 +340,5 @@ lang/swift/.build/
 .darwin-sdk-overlay/
 .qwen/
 parity_results.txt
+.DS_Store
+._*

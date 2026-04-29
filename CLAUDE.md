@@ -6,7 +6,7 @@ Would an agent likely miss this without help? See AGENTS.md for General Next Ste
 
 ## Project Overview
 
-ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
+ABI is a Zig 0.17-dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
 Zig version is pinned in `.zigversion`. `tools/zigly` is the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version matches the pin:
 
