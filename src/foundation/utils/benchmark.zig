@@ -7,8 +7,8 @@
 // Self-contained — no external utility dependencies.
 //
 // Changes from v2.0:
-//   - std.time.nanoTimestamp() replaced with std.time.Timer (Zig 0.16)
-//   - std.ArrayList replaced with std.ArrayListUnmanaged (Zig 0.16 convention)
+//   - std.time.nanoTimestamp() replaced with std.time.Timer (Zig 0.17)
+//   - std.ArrayList replaced with std.ArrayListUnmanaged (Zig 0.17 convention)
 //   - Removed @import("utils"), @import("memory/mod.zig"), @import("simd") deps
 //   - Removed built-in benchmark functions (depend on external modules)
 //   - Removed emojis from report output (project convention)

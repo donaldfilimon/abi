@@ -1,4 +1,4 @@
-//! Integration with Zig 0.16's std.gpu facilities
+//! Integration with Zig 0.17's std.gpu facilities
 //!
 //! Provides a bridge between our backend interface and Zig's standard library
 //! GPU abstraction. This module enables:
@@ -33,7 +33,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const std_gpu_kernels = @import("../std_gpu_kernels.zig");
-const PointerCast = @import("../../pointer_cast.zig");
+const PointerCast = @import("../../../foundation/utils/pointer_cast.zig");
 
 // Import dispatch types for BuiltinKernel enum and Buffer
 const dsl_kernel = @import("../dsl/kernel.zig");

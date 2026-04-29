@@ -16,16 +16,16 @@
 - Treat ABI `review_prep.py` as blocked in this checkout unless the required repo markers are added or the helper is updated.
 - Keep repo-root `tasks/` for workflow notes only; do not confuse it with `src/tasks`.
 
-## Zig 0.16 API Changes
+## Zig 0.17 API Changes
 
-### Lesson 2: Removed APIs in Zig 0.16
+### Lesson 2: Removed APIs in Zig 0.17
 - `std.process.getEnvVarOwned` — removed. Use `b.graph.environ_map.get("KEY")` in build.zig context.
 - `std.mem.trimRight` — renamed to `std.mem.trimEnd`.
 - `std.fs.cwd()` — removed. Use `std.Io.Threaded` + `std.Io.Dir.cwd()`.
 - `std.time.milliTimestamp` — removed. Use `foundation.time.unixMs()`.
 - `std.BoundedArray` — removed. Use manual `buffer: [N]T = undefined` + `len: usize = 0`.
 - Entry point signature: `pub fn main(init: std.process.Init) !void` (not `pub fn main() !void`).
-- Prevention: grep for the old API name before using it. Check CLAUDE.md "Zig 0.16 Gotchas" section.
+- Prevention: grep for the old API name before using it. Check CLAUDE.md "Zig 0.17 Gotchas" section.
 
 ## Mod/Stub Parity
 

@@ -121,7 +121,7 @@ pub const QTable = struct {
     pub fn selectAction(self: *QTable, state: SchedulerState, num_backends: usize) u8 {
         const state_idx = discretizeState(state);
 
-        // Epsilon-greedy exploration - use Timer for Zig 0.16 compatibility
+        // Epsilon-greedy exploration - use Timer for Zig 0.17 compatibility
         const seed: u64 = blk: {
             var timer = time.Timer.start() catch break :blk 0;
             break :blk timer.read();

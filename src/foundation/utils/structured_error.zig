@@ -8,7 +8,7 @@
 //
 // Changes from v2.0:
 //   - Self-contained (no external utils dependency)
-//   - Zig 0.16 compatible (no std.time.nanoTimestamp)
+//   - Zig 0.17 compatible (no std.time.nanoTimestamp)
 //   - Inline std.atomic.Value for Logger counter
 //   - Uses @import("builtin") for debug detection
 // ============================================================================
@@ -89,7 +89,7 @@ pub const Context = struct {
         var ctx = Context{
             .category = category,
             .severity = severity,
-            // Absolute timestamps are not available in Zig 0.16 without the
+            // Absolute timestamps are not available in Zig 0.17 without the
             // I/O backend. Use relative timing via std.time.Instant if needed.
             .timestamp_ns = 0,
         };

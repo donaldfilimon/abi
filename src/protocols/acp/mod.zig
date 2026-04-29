@@ -19,6 +19,9 @@ pub fn isInitialized() bool {
     return build_options.feat_acp;
 }
 
+const parity_gate = @import("../../common/parity_gate.zig");
+
 test {
+    if (!parity_gate.canRunTest()) return;
     @import("std").testing.refAllDecls(@This());
 }

@@ -1,7 +1,7 @@
 //! ABIX Binary Serializer / Deserializer
 //!
 //! Adapted from the v2.0 serialize.zig module for the ABI framework.
-//! Uses `std.ArrayListUnmanaged(u8)` per Zig 0.16 convention — the allocator
+//! Uses `std.ArrayListUnmanaged(u8)` per Zig 0.17 convention — the allocator
 //! is threaded explicitly rather than stored inside the list.
 //!
 //! Schema-driven binary encoding for the WDBX distributed block exchange.

@@ -25,7 +25,7 @@ pub const PerformanceStats = database_diagnostics.PerformanceStats;
 pub const ConfigStatus = database_diagnostics.ConfigStatus;
 pub const DiagnosticsInfo = database_diagnostics.DiagnosticsInfo;
 
-// Zig 0.16 compatibility: Simple RwLock
+// Zig 0.17 compatibility: Simple RwLock
 const RwLock = struct {
     state: std.atomic.Value(i32) = std.atomic.Value(i32).init(0),
     pub fn lockShared(self: *RwLock) void {
@@ -620,7 +620,7 @@ pub const Database = struct {
         const file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
         defer file.close(io);
 
-        // Build JSON manually in memory for Zig 0.16 compatibility
+        // Build JSON manually in memory for Zig 0.17 compatibility
         var json_buf = std.ArrayListUnmanaged(u8).empty;
         defer json_buf.deinit(self.allocator);
 
@@ -654,7 +654,7 @@ pub const Database = struct {
         }
         try json_buf.appendSlice(self.allocator, "\n]\n");
 
-        // Write using writeStreamingAll for Zig 0.16 compatibility
+        // Write using writeStreamingAll for Zig 0.17 compatibility
         try file.writeStreamingAll(io, json_buf.items);
     }
 

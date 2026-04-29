@@ -62,7 +62,7 @@ test {
     _ = @import("self_learning_test.zig");
 }
 
-/// Get current timestamp for Zig 0.16 compatibility (no std.time.timestamp()).
+/// Get current timestamp for Zig 0.17 compatibility (no std.time.timestamp()).
 /// Returns nanoseconds since timer start as an i64.
 fn getCurrentTimestamp() i64 {
     var timer = time.Timer.start() catch return 0;

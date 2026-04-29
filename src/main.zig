@@ -180,7 +180,7 @@ fn printFeatureTag(enabled: bool) void {
 // ── Version ─────────────────────────────────────────────────────────────
 
 pub fn printVersion() void {
-    std.debug.print("ABI Framework v{s}\n", .{build_options.package_version});
+    printSharedCliText(cli.writeVersion) catch {};
 }
 
 // ── Help ────────────────────────────────────────────────────────────────

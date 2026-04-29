@@ -511,7 +511,7 @@ pub const TestSuite = struct {
     fn recordBenchmark(self: *TestSuite, result: BenchmarkResult) !void {
         try self.results.append(self.allocator, result);
 
-        // Use {t} format for enums (Zig 0.16)
+        // Use {t} format for enums (Zig 0.17)
         std.log.info("Benchmark: {s} on {t}", .{ result.operation, result.backend });
         std.log.info("  Data size: {} elements", .{result.data_size});
         std.log.info("  Iterations: {}", .{result.iterations});
@@ -541,7 +541,7 @@ pub const TestSuite = struct {
         if (self.results.items.len > 0) {
             std.log.info("Benchmark Results:", .{});
             for (self.results.items) |result| {
-                // Use {t} format for enums (Zig 0.16)
+                // Use {t} format for enums (Zig 0.17)
                 std.log.info("  {s} ({t}):", .{ result.operation, result.backend });
                 std.log.info("    Throughput: {:.2} elements/sec", .{result.throughput_elements_per_sec});
                 std.log.info("    Memory BW: {:.2} GB/s", .{result.memory_bandwidth_gb_per_sec});

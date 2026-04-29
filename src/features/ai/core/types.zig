@@ -9,7 +9,7 @@ const sync = @import("../../../foundation/mod.zig").sync;
 const builtin = @import("builtin");
 
 // ============================================================================
-// Time Utilities (Zig 0.16 compatible, platform-aware)
+// Time Utilities (Zig 0.17 compatible, platform-aware)
 // ============================================================================
 
 /// Check if we're on a platform that supports time.Instant

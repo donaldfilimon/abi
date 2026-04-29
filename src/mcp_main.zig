@@ -10,15 +10,48 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-
 const mcp = @import("protocols/mcp/mod.zig");
 
-// Debug REPL removed for stability. MCP operates via JSON-RPC over stdin/stdout.
+// Top-level debug REPL so it can be invoked from `main`.
+fn runDebugRepl(allocator: std.mem.Allocator, io: anytype) !void {
+    // We intentionally ignore the generic `io` parameter; use std I/O handles for REPL.
+    _ = allocator;
+    var out_buf: [4096]u8 = undefined;
+    var in_buf: [4096]u8 = undefined;
+    const stdout_writer = std.Io.File.stdout().writer(io, &out_buf);
+    var stdout = stdout_writer.interface;
+    const stdin_reader = std.Io.File.stdin().reader(io, &in_buf);
+    var stdin = stdin_reader.interface;
+    try stdout.print("ABI MCP Debug Mode. Enter JSON-RPC 2.0 requests.\n", .{});
+
+    while (stdin.takeDelimiterExclusive('\n')) |line| {
+        // Echo input for testing framing
+        try stdout.print("Echo: {s}\n", .{line});
+    } else |err| {
+        if (err != error.EndOfStream) {
+            std.log.err("REPL error: {t}", .{err});
+        }
+    }
+}
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
+    const arena = init.arena.allocator();
+    const args = try init.minimal.args.toSlice(arena);
 
-    // CLI arguments are not used in this minimal runtime; proceed to server startup
+    if (args.len > 1) {
+        const arg = args[1];
+        if (std.mem.eql(u8, arg, "--debug")) {
+            // Call the top-level REPL and return.
+            try runDebugRepl(allocator, init.io);
+            return;
+        }
+        if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "help")) {
+            const help_text = "ABI MCP Server - Model Context Protocol stdio interface.\n\nUsage:\n  abi-mcp              Start the JSON-RPC 2.0 stdio server\n  abi-mcp --debug      Start in debug REPL mode for manual testing\n  abi-mcp --help       Show this help message\n\nThis server exposes ABI framework tools (status, database, AI, ZLS) over stdin/stdout for use with MCP-compatible AI clients.\n";
+            std.debug.print("{s}", .{help_text});
+            return;
+        }
+    }
 
     const version = build_options.package_version;
 
@@ -29,7 +62,7 @@ pub fn main(init: std.process.Init) !void {
     };
     defer server.deinit();
 
-    // Run stdio event loop with Zig 0.16 I/O
+    // Run stdio event loop with Zig 0.17 I/O
     server.run(init.io) catch |err| {
         std.log.err("MCP server error: {}", .{err});
         return err;

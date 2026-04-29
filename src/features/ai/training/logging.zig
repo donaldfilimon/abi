@@ -490,7 +490,7 @@ fn encodeEvent(
 }
 
 fn writeTfRecord(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, payload: []const u8) !void {
-    // Build the TFRecord in a buffer for Zig 0.16 compatibility
+    // Build the TFRecord in a buffer for Zig 0.17 compatibility
     var record_buf: std.ArrayListUnmanaged(u8) = .empty;
     defer record_buf.deinit(allocator);
 
@@ -510,7 +510,7 @@ fn writeTfRecord(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, pa
     try record_buf.appendSlice(allocator, payload);
     try record_buf.appendSlice(allocator, &data_crc_bytes);
 
-    // Write using writeStreamingAll for Zig 0.16 compatibility
+    // Write using writeStreamingAll for Zig 0.17 compatibility
     try file.writeStreamingAll(io, record_buf.items);
 }
 

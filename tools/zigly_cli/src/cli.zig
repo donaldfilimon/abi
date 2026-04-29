@@ -425,56 +425,52 @@ pub fn downloadZls(config: *core.Config, version: []const u8) !void {
 
     std.debug.print("==> Installing ZLS for Zig {s}...\n", .{version});
 
-    // Check zvm fallback
-    const zvm_zls = try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".zvm", "bin", "zls" });
-    defer config.allocator.free(zvm_zls);
-
-    const zvm_zls_exists = if (std.Io.Dir.accessAbsolute(config.io, zvm_zls, .{})) true else |_| false;
-    if (zvm_zls_exists) {
-        std.debug.print("==> Using ZLS from existing zvm installation...\n", .{});
-        const cache_bin_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ cache_dir, "bin" });
-        defer config.allocator.free(cache_bin_dir);
-        try std.Io.Dir.cwd().createDirPath(config.io, cache_bin_dir);
-        try std.Io.Dir.copyFileAbsolute(zvm_zls, zls_bin, config.io, .{});
-
-        var child_args = std.ArrayListUnmanaged([]const u8).empty;
-        try child_args.append(config.allocator, "chmod");
-        try child_args.append(config.allocator, "+x");
-        try child_args.append(config.allocator, zls_bin);
-        var child = try std.process.spawn(config.io, .{ .argv = child_args.items });
-        _ = try child.wait(config.io);
+    const os_arch = getOsArch();
+    if (std.mem.eql(u8, os_arch.os, "unknown") or std.mem.eql(u8, os_arch.arch, "unknown")) {
+        std.debug.print("==> WARNING: Unsupported OS or architecture for ZLS download; continuing without ZLS.\n", .{});
         return;
     }
 
-    // Simplified: directly try to download 0.16.0-dev.3091+557caecaa or known versions for ZLS as it's hard to dynamically fetch API using bash currently.
-    // In native zig, we can just hardcode a known good version for master since the API changed a lot in 0.16.
-    const os_arch = getOsArch();
-    const versions = [_][]const u8{ "0.16.0-dev.3091+557caecaa", "0.16.0-dev.3091+557caecaa", "0.16.0-dev.3091+557caecaa" };
-    var zls_version: ?[]const u8 = null;
-
     const tmp_tarball = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "tmp", "zls.tar.xz" });
     defer config.allocator.free(tmp_tarball);
+    const urls = [_][]const u8{
+        try std.fmt.allocPrint(config.allocator, "https://builds.zigtools.org/zls-{s}-{s}-{s}.tar.xz", .{ os_arch.arch, os_arch.os, version }),
+        try std.fmt.allocPrint(config.allocator, "https://github.com/zigtools/zls/releases/download/{s}/zls-{s}-{s}.tar.xz", .{ version, os_arch.os, os_arch.arch }),
+    };
+    defer config.allocator.free(urls[0]);
+    defer config.allocator.free(urls[1]);
 
-    for (versions) |tv| {
-        // try zigtools builds first, then github releases
-        const urls = [_][]const u8{
-            try std.fmt.allocPrint(config.allocator, "https://builds.zigtools.org/zls-{s}-{s}-{s}.tar.xz", .{ os_arch.arch, os_arch.os, tv }),
-            try std.fmt.allocPrint(config.allocator, "https://github.com/zigtools/zls/releases/download/{s}/zls-{s}-{s}.tar.xz", .{ tv, os_arch.os, os_arch.arch }),
-        };
-        defer config.allocator.free(urls[0]);
-        defer config.allocator.free(urls[1]);
-
-        for (urls) |url| {
-            if (download.downloadFile(config.allocator, config.io, url, tmp_tarball)) |_| {
-                zls_version = tv;
-                break;
-            } else |_| {}
-        }
-        if (zls_version != null) break;
+    var downloaded_exact = false;
+    for (urls) |url| {
+        if (download.downloadFile(config.allocator, config.io, url, tmp_tarball)) |_| {
+            downloaded_exact = true;
+            break;
+        } else |_| {}
     }
 
-    if (zls_version == null) {
-        std.debug.print("==> WARNING: Could not find a pre-built ZLS matching Zig {s}.\n", .{version});
+    if (!downloaded_exact) {
+        const zvm_zls = try std.fs.path.join(config.allocator, &[_][]const u8{ config.home_dir, ".zvm", "bin", "zls" });
+        defer config.allocator.free(zvm_zls);
+
+        const zvm_zls_exists = if (std.Io.Dir.accessAbsolute(config.io, zvm_zls, .{})) true else |_| false;
+        if (zvm_zls_exists) {
+            std.debug.print("==> No exact pre-built ZLS found for Zig {s}; using the existing ZVM ZLS.\n", .{version});
+            const cache_bin_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ cache_dir, "bin" });
+            defer config.allocator.free(cache_bin_dir);
+            try std.Io.Dir.cwd().createDirPath(config.io, cache_bin_dir);
+            try std.Io.Dir.copyFileAbsolute(zvm_zls, zls_bin, config.io, .{});
+
+            var child_args = std.ArrayListUnmanaged([]const u8).empty;
+            defer child_args.deinit(config.allocator);
+            try child_args.append(config.allocator, "chmod");
+            try child_args.append(config.allocator, "+x");
+            try child_args.append(config.allocator, zls_bin);
+            var child = try std.process.spawn(config.io, .{ .argv = child_args.items });
+            _ = try child.wait(config.io);
+            return;
+        }
+
+        std.debug.print("==> WARNING: No exact pre-built ZLS found for Zig {s}; continuing without ZLS.\n", .{version});
         return;
     }
 
@@ -484,7 +480,7 @@ pub fn downloadZls(config: *core.Config, version: []const u8) !void {
     _ = std.Io.Dir.cwd().deleteTree(config.io, extract_dir) catch {};
     try std.Io.Dir.cwd().createDirPath(config.io, extract_dir);
 
-    std.debug.print("==> Extracting ZLS {s}...\n", .{zls_version.?});
+    std.debug.print("==> Extracting ZLS {s}...\n", .{version});
     try archive.extractTarball(config.allocator, config.io, tmp_tarball, extract_dir);
 
     // Find the zls binary
@@ -793,7 +789,7 @@ fn extractVersionFromIndex(data: []const u8) ?[]const u8 {
     const search_end = @min(master_pos + 500, data.len);
     const section = data[master_pos..search_end];
 
-    // Look for "version": "0.16.0-dev..."
+    // Look for the latest development version string in the download index.
     const needle = "\"version\":";
     const ver_pos = std.mem.indexOf(u8, section, needle) orelse
         std.mem.indexOf(u8, section, "\"version\" :") orelse return null;
@@ -936,33 +932,33 @@ pub fn printUsage() void {
 }
 
 test "versionMatches requires an exact version string match" {
-    try std.testing.expect(versionMatches("0.16.0-dev.3091+557caecaa", "0.16.0-dev.3091+557caecaa"));
-    try std.testing.expect(!versionMatches("0.16.0-dev.3091+557caecaa", "0.16.0-dev.2984+cb7d2b056"));
-    try std.testing.expect(!versionMatches("0.16.0-dev.3091+557caecaa", null));
+    try std.testing.expect(versionMatches("0.17.0-dev.135+9df02121d", "0.17.0-dev.135+9df02121d"));
+    try std.testing.expect(!versionMatches("0.17.0-dev.135+9df02121d", "0.17.0-dev.27+0dd99c37c"));
+    try std.testing.expect(!versionMatches("0.17.0-dev.135+9df02121d", null));
 }
 
 test "selectToolchain prefers an active matching zvm binary" {
     try std.testing.expectEqual(
         ToolchainSelection.zvm_active,
-        selectToolchain("0.16.0-dev.3091+557caecaa", true, "0.16.0-dev.3091+557caecaa", true),
+        selectToolchain("0.17.0-dev.135+9df02121d", true, "0.17.0-dev.135+9df02121d", true),
     );
 }
 
 test "selectToolchain installs via zvm when zvm is present but mismatched" {
     try std.testing.expectEqual(
         ToolchainSelection.install_via_zvm,
-        selectToolchain("0.16.0-dev.3091+557caecaa", true, "0.16.0-dev.2984+cb7d2b056", true),
+        selectToolchain("0.17.0-dev.135+9df02121d", true, "0.17.0-dev.27+0dd99c37c", true),
     );
 }
 
 test "selectToolchain falls back to zigly cache only when zvm is absent" {
     try std.testing.expectEqual(
         ToolchainSelection.zigly_cache,
-        selectToolchain("0.16.0-dev.3091+557caecaa", false, null, true),
+        selectToolchain("0.17.0-dev.135+9df02121d", false, null, true),
     );
     try std.testing.expectEqual(
         ToolchainSelection.install_via_zigly,
-        selectToolchain("0.16.0-dev.3091+557caecaa", false, null, false),
+        selectToolchain("0.17.0-dev.135+9df02121d", false, null, false),
     );
 }
 

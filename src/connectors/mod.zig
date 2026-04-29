@@ -87,19 +87,13 @@ pub fn isInitialized() bool {
 
 const builtin = @import("builtin");
 
-// libc import for environment access - required for Zig 0.16
-const c = struct {
-    pub extern "c" fn getenv(name: [*:0]const u8) ?[*:0]const u8;
-};
-
 /// Read environment variable by name; returns owned slice or null if unset. Caller must free.
 pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
-    // Zig 0.16: Environment access via libc getenv (build links libc)
+    // Environment access via libc getenv
     const name_z = allocator.dupeZ(u8, name) catch return error.OutOfMemory;
     defer allocator.free(name_z);
 
-    const value_ptr = c.getenv(name_z.ptr);
-    if (value_ptr) |ptr| {
+    if (std.c.getenv(name_z.ptr)) |ptr| {
         const value = std.mem.span(ptr);
         return allocator.dupe(u8, value) catch return error.OutOfMemory;
     }

@@ -2,11 +2,11 @@
 Set-StrictMode -Version Latest
 <#
 .SYNOPSIS
-    ABI Cross-Platform Build Tool for Windows
+    ABI Cross-Platform Build Tool
 
 .DESCRIPTION
-    Builds ABI for multiple platforms from Windows.
-    Use from WSL or when cross-compiling.
+    Builds ABI for multiple platforms using Zig's cross-compilation.
+    Works on Windows, macOS, and Linux.
 
 .PARAMETER Platform
     Target platform: linux, macos, windows, wasm, ios, android, freebsd, all
@@ -21,9 +21,9 @@ Set-StrictMode -Version Latest
     Clean all build artifacts
 
 .EXAMPLE
-    .\crossbuild.ps1 --all         # Build all platforms
-    .\crossbuild.ps1 windows       # Build for Windows
-    .\crossbuild.ps1 --list       # List available targets
+    .\crossbuild.ps1 all             # Build all platforms
+    .\crossbuild.ps1 windows         # Build for Windows
+    .\crossbuild.ps1 --list          # List available targets
 #>
 
 param(
@@ -69,10 +69,18 @@ function Show-List {
 }
 
 function Find-Zig {
+    # Check for zig in common locations across platforms
     $candidates = @(
+        # Windows
         "$env:USERPROFILE\.zvm\bin\zig.exe",
         "$env:LOCALAPPDATA\Programs\Zig\zig.exe",
         "$env:USERPROFILE\.local\bin\zig.exe",
+        # macOS / Linux
+        "$env:HOME/.zvm/bin/zig",
+        "$env:HOME/.local/bin/zig",
+        "/usr/local/bin/zig",
+        "/opt/homebrew/bin/zig",
+        # PATH
         (Get-Command zig -ErrorAction SilentlyContinue).Source
     )
 
@@ -94,18 +102,23 @@ function Build-Target {
 
     $zig = Find-Zig
     if (-not $zig) {
-        Write-Host "Zig not found. Run '.\build.ps1 -Bootstrap'" -ForegroundColor Red
+        Write-Host "Zig not found. Please install Zig or run with -Bootstrap flag" -ForegroundColor Red
         exit 1
     }
 
     $zigDir = Split-Path $zig -Parent
-    $zigLibDir = Join-Path (Split-Path $zigDir -Parent) "lib"
+    # Handle both Windows and Unix paths
+    $zigLibDir = if ($IsWindows -or ($PSVersionTable.PSVersion.Major -lt 6 -and $env:OS -eq "Windows_NT")) {
+        Join-Path (Split-Path $zigDir -Parent) "lib"
+    } else {
+        Join-Path (Split-Path $zigDir -Parent) "lib"
+    }
 
     $args = @(
-        "lib",
+        "build",
         "--zig-lib-dir", $zigLibDir,
-        "--global-cache-dir", "$env:USERPROFILE\.cache\zig",
-        "--cache-dir", "$ScriptDir\.zig-cache",
+        "--global-cache-dir", "$env:HOME/.cache/zig",
+        "--build-file", "$RepoRoot/build.zig",
         "-Dtarget=$Target",
         "-Doptimize=$Optimize"
     )
@@ -118,6 +131,11 @@ function Build-Target {
     $args += @("--prefix", $outDir)
 
     & $zig @args
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Build failed for $Target" -ForegroundColor Red
+        exit 1
+    }
 
     Write-Host "  $Target -> $outDir" -ForegroundColor Green
 }
@@ -143,6 +161,7 @@ if ($Clean) {
     Write-Host "Cleaning all build artifacts..." -ForegroundColor Yellow
     Remove-Item -Path $OutBase -Recurse -ErrorAction SilentlyContinue
     Remove-Item -Path (Join-Path $RepoRoot ".zig-cache") -Recurse -ErrorAction SilentlyContinue
+    Remove-Item -Path (Join-Path $RepoRoot "zig-cache") -Recurse -ErrorAction SilentlyContinue
     Write-Host "Done." -ForegroundColor Green
     exit 0
 }

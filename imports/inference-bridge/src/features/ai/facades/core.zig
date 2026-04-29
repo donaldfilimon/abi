@@ -1,0 +1,193 @@
+//! AI Core Module — Agents, Tools, Prompts, Memory
+//!
+//! This module provides the foundational AI building blocks: agents, tool
+//! registries, prompt builders, multi-agent coordination, memory, and model
+//! discovery. It is always available when the `ai` feature flag is enabled.
+//!
+//! For LLM inference, embeddings, and vision see `ai_inference`.
+//! For training pipelines see `ai_training`.
+//! For advanced reasoning (Abbey, RAG, eval) see `ai_reasoning`.
+
+const std = @import("std");
+const build_options = @import("build_options");
+const config_module = @import("../../core/config/mod.zig");
+
+// ============================================================================
+// Sub-module re-exports (from features/ai/)
+// ============================================================================
+
+pub const agent = @import("../agents/mod.zig");
+pub const agents = agent;
+pub const tools = @import("../tools/mod.zig");
+pub const prompts = @import("../prompts/mod.zig");
+pub const memory = @import("../memory/mod.zig");
+pub const multi_agent = @import("../multi_agent/mod.zig");
+pub const core = @import("../../core/mod.zig");
+pub const gpu_agent = @import("../agents/gpu_agent.zig");
+pub const discovery = @import("../explore/discovery.zig");
+pub const models = @import("../models/mod.zig");
+pub const model_registry = @import("../models/registry.zig");
+
+// ============================================================================
+// Convenience type re-exports
+// ============================================================================
+
+pub const Agent = agent.Agent;
+pub const MultiAgentCoordinator = multi_agent.Coordinator;
+pub const ModelRegistry = model_registry.ModelRegistry;
+pub const ModelInfo = model_registry.ModelInfo;
+pub const Tool = tools.Tool;
+pub const ToolResult = tools.ToolResult;
+pub const ToolRegistry = tools.ToolRegistry;
+pub const TaskTool = tools.TaskTool;
+pub const Subagent = tools.Subagent;
+pub const DiscordTools = tools.DiscordTools;
+pub const registerDiscordTools = tools.registerDiscordTools;
+pub const OsTools = tools.OsTools;
+pub const registerOsTools = tools.registerOsTools;
+pub const PromptBuilder = prompts.PromptBuilder;
+pub const Profile = prompts.Profile;
+pub const ProfileType = prompts.ProfileType;
+pub const PromptFormat = prompts.PromptFormat;
+pub const GpuAgent = gpu_agent.GpuAgent;
+pub const GpuAwareRequest = gpu_agent.GpuAwareRequest;
+pub const GpuAwareResponse = gpu_agent.GpuAwareResponse;
+pub const WorkloadType = gpu_agent.WorkloadType;
+pub const GpuAgentPriority = gpu_agent.Priority;
+pub const GpuAgentStats = gpu_agent.AgentStats;
+pub const ModelDiscovery = discovery.ModelDiscovery;
+pub const DiscoveredModel = discovery.DiscoveredModel;
+pub const DiscoveryConfig = discovery.DiscoveryConfig;
+pub const SystemCapabilities = discovery.SystemCapabilities;
+pub const AdaptiveConfig = discovery.AdaptiveConfig;
+pub const ModelRequirements = discovery.ModelRequirements;
+pub const WarmupResult = discovery.WarmupResult;
+pub const detectCapabilities = discovery.detectCapabilities;
+pub const runWarmup = discovery.runWarmup;
+
+// Core AI types
+const ai_core_types = @import("../core/types.zig");
+pub const Confidence = ai_core_types.Confidence;
+pub const ConfidenceLevel = ai_core_types.ConfidenceLevel;
+pub const EmotionalState = ai_core_types.EmotionalState;
+pub const EmotionType = ai_core_types.EmotionType;
+
+// ============================================================================
+// Error
+// ============================================================================
+
+pub const Error = error{
+    AiDisabled,
+    AgentsDisabled,
+    ModelNotFound,
+    InvalidConfig,
+};
+
+// ============================================================================
+// Context
+// ============================================================================
+
+pub const Context = struct {
+    allocator: std.mem.Allocator,
+    config: config_module.AiConfig,
+    agents_ctx: ?*agents.Context = null,
+    model_discovery: ?*discovery.ModelDiscovery = null,
+    capabilities: discovery.SystemCapabilities = .{},
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        cfg: config_module.AiConfig,
+    ) !*Context {
+        if (!isEnabled()) return error.AiDisabled;
+
+        const ctx = try allocator.create(Context);
+        errdefer allocator.destroy(ctx);
+
+        ctx.* = .{
+            .allocator = allocator,
+            .config = cfg,
+            .capabilities = discovery.detectCapabilities(),
+        };
+
+        if (cfg.auto_discover) {
+            const disc = try allocator.create(discovery.ModelDiscovery);
+            disc.* = discovery.ModelDiscovery.init(allocator, .{});
+            disc.scanAll() catch |err| {
+                std.log.debug(
+                    "Model discovery scan failed (best effort): {t}",
+                    .{err},
+                );
+            };
+            ctx.model_discovery = disc;
+        }
+
+        if (cfg.agents) |agent_cfg| {
+            ctx.agents_ctx = try agents.Context.init(allocator, agent_cfg);
+        }
+
+        return ctx;
+    }
+
+    pub fn deinit(self: *Context) void {
+        if (self.agents_ctx) |a| a.deinit();
+        if (self.model_discovery) |disc| {
+            disc.deinit();
+            self.allocator.destroy(disc);
+        }
+        self.allocator.destroy(self);
+    }
+
+    pub fn getAgents(self: *Context) Error!*agents.Context {
+        return self.agents_ctx orelse error.AgentsDisabled;
+    }
+};
+
+// ============================================================================
+// Module-level functions
+// ============================================================================
+
+pub fn isEnabled() bool {
+    return build_options.feat_ai;
+}
+
+pub fn createRegistry(allocator: std.mem.Allocator) ModelRegistry {
+    return ModelRegistry.init(allocator);
+}
+
+pub fn createAgent(allocator: std.mem.Allocator, name: []const u8) !Agent {
+    if (!isEnabled()) return error.AiDisabled;
+    return agent.Agent.init(allocator, .{ .name = name });
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "ai_core module loads" {
+    try std.testing.expect(@TypeOf(Agent) != void);
+    try std.testing.expect(@TypeOf(ToolRegistry) != void);
+    try std.testing.expect(@TypeOf(PromptBuilder) != void);
+}
+
+test "ai_core isEnabled reflects build flag" {
+    const enabled = isEnabled();
+    try std.testing.expectEqual(build_options.feat_ai, enabled);
+}
+
+test "ai_core createRegistry returns valid registry" {
+    var registry = createRegistry(std.testing.allocator);
+    defer registry.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), registry.count());
+}
+
+test "ai_core type re-exports are distinct types" {
+    try std.testing.expect(@sizeOf(ModelInfo) > 0);
+    try std.testing.expect(@TypeOf(MultiAgentCoordinator) != void);
+    try std.testing.expect(@TypeOf(Profile) != void);
+    try std.testing.expect(@TypeOf(ProfileType) != void);
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

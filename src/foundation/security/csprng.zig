@@ -1,4 +1,4 @@
-//! Cross-platform CSPRNG helper for Zig 0.16.
+//! Cross-platform CSPRNG helper for Zig 0.17.
 //!
 //! Replaces the removed `std.crypto.random` with a DefaultCsprng
 //! seeded from OS entropy via platform-specific APIs.
@@ -109,12 +109,21 @@ pub fn FixedList(comptime T: type, comptime capacity: usize) type {
 
         pub fn append(self: *Self, item: T) error{Overflow}!void {
             if (self.len >= capacity) return error.Overflow;
+            self.appendAssumeCapacity(item);
+        }
+
+        pub fn appendAssumeCapacity(self: *Self, item: T) void {
+            std.debug.assert(self.len < capacity);
             self.buffer[self.len] = item;
             self.len += 1;
         }
 
         pub fn slice(self: *const Self) []const T {
             return self.buffer[0..self.len];
+        }
+
+        pub fn items(self: *const Self) []const T {
+            return self.slice();
         }
     };
 }

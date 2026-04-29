@@ -9,7 +9,7 @@
 
 **Architecture:** Risk-layered execution — zero-risk changes first, then additive feature gates, then parity fixes, then structural refactoring. Each phase is independently mergeable with its own validation gate.
 
-**Tech Stack:** Zig 0.16, `./build.sh` wrapper (macOS 26.4+), `zig build check-parity`, `zig build cross-check`
+**Tech Stack:** Zig 0.17, `./build.sh` wrapper (macOS 26.4+), `zig build check-parity`, `zig build cross-check`
 
 **Spec:** `docs/superpowers/specs/2026-03-24-full-codebase-improvement-design.md`
 
@@ -107,7 +107,7 @@ git commit -m "docs: add module-level doc comment to GPU policy contract validat
 
 - [ ] **Step 1: Add the convention section**
 
-Insert after the existing Key Conventions bullet points (after line 226 — the integration test accessor rule) and before "## Zig 0.16 Gotchas":
+Insert after the existing Key Conventions bullet points (after line 226 — the integration test accessor rule) and before "## Zig 0.17 Gotchas":
 
 ```markdown
 

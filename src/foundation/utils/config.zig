@@ -447,7 +447,7 @@ pub const ConfigLoader = struct {
         return null;
     }
 
-    /// Look up an environment variable using std.c.getenv (Zig 0.16 compatible).
+    /// Look up an environment variable using std.c.getenv (Zig 0.17 compatible).
     /// Returns a non-owning slice into the process environment block.
     fn lookupEnv(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?[*:0]u8 {
         const env_name = try std.fmt.allocPrintSentinel(self.allocator, "{s}{s}", .{ prefix, name }, 0);

@@ -29,7 +29,7 @@ pub const IoBackend = struct {
     /// `std.Io` implementation.
     allocator: std.mem.Allocator,
 
-    /// Owns the underlying Zig 0.16 I/O backend.
+    /// Owns the underlying Zig 0.17 I/O backend.
     /// Keeping this alive ensures `io` remains valid for the backend lifetime.
     backend: if (builtin.os.tag == .freestanding) void else std.Io.Threaded,
 
@@ -38,7 +38,7 @@ pub const IoBackend = struct {
 
     fn initThreaded(allocator: std.mem.Allocator, options: anytype) !std.Io.Threaded {
         if (comptime builtin.os.tag == .freestanding) return error.UnsupportedPlatform;
-        // Zig 0.16 dev snapshots have shifted whether `std.Io.Threaded.init` returns
+        // Zig 0.17 dev snapshots have shifted whether `std.Io.Threaded.init` returns
         // `Threaded` or `!Threaded`. Support both shapes for robustness.
         const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
         if (@typeInfo(Result) == .error_union) {

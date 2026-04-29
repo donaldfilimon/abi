@@ -87,7 +87,7 @@ test "engine connector backend echo fallback for unknown provider" {
         .head_dim = 4,
         .max_batch_size = 4,
         .backend = .connector,
-        .model_id = "unknown-model",
+        .model_id = "echo/unknown-model",
     });
     defer engine.deinit();
 
@@ -99,6 +99,7 @@ test "engine connector backend echo fallback for unknown provider" {
     defer result.deinit(allocator);
 
     try std.testing.expect(result.text.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, result.text, "[echo/unknown-model]") != null);
     try std.testing.expectEqual(inference.Backend.connector, engine.getStats().backend);
 }
 

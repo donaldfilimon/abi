@@ -11,7 +11,7 @@
 const std = @import("std");
 const interface = @import("../../interface.zig");
 const tpu_types = @import("types.zig");
-const PointerCast = @import("../../pointer_cast.zig");
+const PointerCast = @import("../../../../foundation/utils/pointer_cast.zig");
 
 pub const types = tpu_types;
 

@@ -9,7 +9,7 @@ The Wide Distributed Block Exchange (WDBX) is a purpose-built computational subs
 - Immutable integrity via blockchain-inspired data structures
 - Non-blocking efficiency via Multiversion Concurrency Control (MVCC)
 
-Implemented in Zig 0.16 for deterministic memory management and zero GC pauses.
+Implemented in Zig 0.17 for deterministic memory management and zero GC pauses.
 
 ## 2. Sharding Latency Model
 

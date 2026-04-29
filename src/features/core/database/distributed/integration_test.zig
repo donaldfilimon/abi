@@ -37,7 +37,7 @@ test "WDBX distributed workflow integration" {
     // 2. Test shard key computation (distributed placement logic)
     const tenant_id: u64 = 1001;
     const session_id = "test-session-xyz";
-    // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
+    // Use Timer for Zig 0.17 compatibility (no std.time.timestamp())
     var timer = try time.Timer.start();
     const timestamp: i64 = @intCast(timer.read());
 
@@ -65,7 +65,7 @@ test "WDBX distributed workflow integration" {
     try version_b.update(allocator, "node-b", timestamp + 100);
 
     const comparison = version_a.compare(&version_b);
-    // Use {t} format specifier instead of @tagName (Zig 0.16)
+    // Use {t} format specifier instead of @tagName (Zig 0.17)
     std.debug.print("✓ Version vector comparison: {t}\n", .{comparison});
 
     // Should be concurrent (different nodes)
@@ -73,7 +73,7 @@ test "WDBX distributed workflow integration" {
 
     // 4. Test conflict resolution types
     const conflict_type = Distributed.BlockConflict.ConflictType.timestamp_conflict;
-    // Use {t} format specifier instead of @tagName (Zig 0.16)
+    // Use {t} format specifier instead of @tagName (Zig 0.17)
     std.debug.print("✓ Block conflict type: {t}\n", .{conflict_type});
 
     // 5. Test sync states

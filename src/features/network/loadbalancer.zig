@@ -218,7 +218,7 @@ pub const LoadBalancer = struct {
                 const node_id_copy = try self.allocator.dupe(u8, node.id);
                 errdefer self.allocator.free(node_id_copy);
 
-                // Zig 0.16: use fetchSwapRemove instead of fetchRemove
+                // Zig 0.17: use fetchSwapRemove instead of fetchRemove
                 if (self.session_map.fetchSwapRemove(cid_copy)) |old| {
                     self.allocator.free(old.key);
                     self.allocator.free(old.value);

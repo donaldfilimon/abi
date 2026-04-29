@@ -204,7 +204,7 @@ After scaffolding, report:
 **Important Rules:**
 - Always use `orelse true` for default-enabled features, `orelse false` for opt-in
 - Never use `@import("abi")` in files under `src/` — only relative imports
-- Explicit `.zig` extensions required on all path imports (Zig 0.16)
+- Explicit `.zig` extensions required on all path imports (Zig 0.17)
 - Types go in types.zig, never duplicated between mod and stub
 - The build.zig is self-contained — do not create external build modules
 - Match existing code style: check nearby feature directories for conventions

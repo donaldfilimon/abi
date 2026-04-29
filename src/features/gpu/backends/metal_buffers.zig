@@ -6,7 +6,7 @@
 const std = @import("std");
 const s = @import("metal_state.zig");
 const metal_types = @import("metal_types.zig");
-const PointerCast = @import("../../pointer_cast.zig");
+const PointerCast = @import("../../../foundation/utils/pointer_cast.zig");
 
 /// Safely cast an opaque pointer to a MetalBuffer pointer with validation.
 /// Returns null if the pointer is null or the magic value doesn't match.

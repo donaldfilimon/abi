@@ -1,3 +1,3 @@
 [submodule "protocol-parity"]
-	path = protocol-parity
-	url = https://REPLACE-WITH-REMOTE/protocol-parity.git
+\tpath = protocol-parity
+\turl = https://REPLACE-WITH-REMOTE/protocol-parity.git

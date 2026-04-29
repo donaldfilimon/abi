@@ -11,7 +11,7 @@
 //   FallbackAllocator  — Primary → fallback chain
 //   NullAllocator      — Always fails (sentinel / test stub)
 //
-// All vtables use the Zig 0.16 5-parameter signature:
+// All vtables use the Zig 0.17 5-parameter signature:
 //   alloc(ctx, len, alignment, ret_addr) -> ?[*]u8
 //   resize(ctx, memory: []u8, alignment, new_len, ret_addr) -> bool
 //   remap(ctx, memory: []u8, alignment, new_len, ret_addr) -> ?[*]u8

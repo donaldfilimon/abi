@@ -12,6 +12,7 @@
 const std = @import("std");
 const time = @import("../time.zig");
 const sync = @import("../sync.zig");
+const csprng = @import("csprng.zig");
 
 /// Rate limiting algorithm
 pub const Algorithm = enum {
@@ -612,7 +613,7 @@ pub const MultiTierRateLimiter = struct {
 
     /// Check all tiers (must pass all)
     pub fn check(self: *MultiTierRateLimiter, keys: Keys) MultiTierStatus {
-        var statuses: std.StaticArrayList(TierStatus, 10) = .{};
+        var statuses = csprng.FixedList(TierStatus, 10){};
         var all_allowed = true;
         var most_restrictive: ?RateLimitStatus = null;
 
@@ -633,7 +634,6 @@ pub const MultiTierRateLimiter = struct {
                 .status = status,
             }) catch |err| {
                 std.log.debug("Failed to append rate limit status: {t}", .{err});
-                std.log.debug("Failed to append rate limit status: {t}", .{err});
             };
 
             if (!status.allowed) {
@@ -648,7 +648,7 @@ pub const MultiTierRateLimiter = struct {
 
         return .{
             .allowed = all_allowed,
-            .tier_statuses = statuses.items,
+            .tier_statuses = statuses.items(),
             .blocking_status = most_restrictive,
         };
     }

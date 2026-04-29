@@ -7,9 +7,11 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
+const builtin = @import("builtin");
 
 /// Helper: skip test when TUI feature is disabled.
 fn requireRealTui() !void {
+    @setRuntimeSafety(true);
     if (!build_options.feat_tui) return error.SkipZigTest;
 }
 
@@ -277,6 +279,7 @@ test "tui: dashboard overview renders live metrics" {
     try std.testing.expect(containsText(screen.back, "METRICS"));
     try std.testing.expect(containsText(screen.back, "feature coverage"));
     try std.testing.expect(containsText(screen.back, "runtime surfaces"));
+    try std.testing.expect(containsText(screen.back, build_options.zig_version));
 }
 
 test "tui: dashboard compact and minimal modes render usable diagnostics" {

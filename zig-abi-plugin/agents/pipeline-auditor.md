@@ -1,11 +1,11 @@
 ---
 name: pipeline-auditor
-description: Audits the Abbey Dynamic Model pipeline DSL for memory safety, Zig 0.16 compatibility, and correctness. Checks for dangling pointers, missing deinit calls, swallowed errors, removed std APIs, and string ownership violations. Use when pipeline code is modified, when debugging pipeline memory leaks, or proactively after adding new pipeline steps.
+description: Audits the Abbey Dynamic Model pipeline DSL for memory safety, Zig 0.17 compatibility, and correctness. Checks for dangling pointers, missing deinit calls, swallowed errors, removed std APIs, and string ownership violations. Use when pipeline code is modified, when debugging pipeline memory leaks, or proactively after adding new pipeline steps.
 
 <example>
 Context: User just added a new pipeline step that calls an external API
 user: "I added a new inference step to the pipeline, can you audit it?"
-assistant: "I'll use the pipeline-auditor agent to check for memory safety and Zig 0.16 issues."
+assistant: "I'll use the pipeline-auditor agent to check for memory safety and Zig 0.17 issues."
 <commentary>
 New step code is a prime target for ownership bugs and missing deinit calls.
 </commentary>
@@ -72,7 +72,7 @@ Any code path calling `ClientWrapper.complete()` must `defer resp.deinit(allocat
 
 **Check:** In `context.zig`, verify `fetchPut` uses `try` (not if/else catch pattern).
 
-## 6. Zig 0.16 Removed APIs
+## 6. Zig 0.17 Removed APIs
 
 These APIs are removed and will cause compile errors:
 - `std.time.timestamp()` → use `foundation.time.nowSeconds()`

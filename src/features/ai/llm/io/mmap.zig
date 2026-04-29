@@ -15,7 +15,7 @@ const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 const is_freestanding = builtin.os.tag == .freestanding;
 const has_mmap_support = !is_wasm and !is_freestanding and builtin.os.tag != .windows;
 
-// libc imports for Zig 0.16 compatibility (only on platforms with libc)
+// libc imports for Zig 0.17 compatibility (only on platforms with libc)
 const c = struct {
     // Stub definitions for platforms without mmap
     pub const O_RDONLY: c_int = 0;
@@ -162,7 +162,7 @@ pub const MappedFile = struct {
     }
 
     fn openPosix(path: []const u8, options: OpenOptions) MmapError!MappedFile {
-        // Zig 0.16 with libc: Use libc functions directly for reliability
+        // Zig 0.17 with libc: Use libc functions directly for reliability
         _ = options; // Options like populate/huge_pages require more complex handling
 
         // Create null-terminated path
@@ -214,7 +214,7 @@ pub const MappedFile = struct {
     fn openWindows(allocator: std.mem.Allocator, path: []const u8) MmapError!MappedFile {
         // On Windows, we read the file into page-aligned memory.
         // This provides the same API as mmap but without zero-copy benefits.
-        // Uses kernel32 APIs directly for Zig 0.16 compatibility.
+        // Uses kernel32 APIs directly for Zig 0.17 compatibility.
 
         // Create null-terminated path for Windows API
         var path_buf: [std.fs.max_path_bytes:0]u8 = undefined;
@@ -306,7 +306,7 @@ pub const MappedFile = struct {
             // Windows and WASM/freestanding use allocator-based memory
             self.handle.allocator.free(self.data);
         } else {
-            // Use libc munmap and close for Zig 0.16 compatibility
+            // Use libc munmap and close for Zig 0.17 compatibility
             _ = c.munmap(@ptrCast(self.data.ptr), self.data.len);
             _ = c.close(self.handle.fd);
         }
@@ -347,7 +347,7 @@ pub const MappedFile = struct {
     pub fn advise(self: *MappedFile, advice: Advice) void {
         switch (builtin.os.tag) {
             .linux => {
-                // Use libc madvise for Zig 0.16 compatibility
+                // Use libc madvise for Zig 0.17 compatibility
                 const posix_advice: c_int = switch (advice) {
                     .normal => c.MADV_NORMAL,
                     .sequential => c.MADV_SEQUENTIAL,

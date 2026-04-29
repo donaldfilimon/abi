@@ -304,7 +304,7 @@ pub const SecurityHeaders = struct {
     /// Get headers that should be removed
     pub fn getHeadersToRemove(self: *SecurityHeaders) []const []const u8 {
         // Capacity 10 is sufficient: max 4 headers can be added (provably safe)
-        var to_remove: std.StaticArrayList([]const u8, 10) = .{};
+        var to_remove = csprng.FixedList([]const u8, 10){};
 
         if (self.config.remove_server_header) {
             to_remove.appendAssumeCapacity("Server");
@@ -315,7 +315,7 @@ pub const SecurityHeaders = struct {
             to_remove.appendAssumeCapacity("X-AspNetMvc-Version");
         }
 
-        return to_remove.items;
+        return to_remove.items();
     }
 
     /// Generate a new nonce for CSP

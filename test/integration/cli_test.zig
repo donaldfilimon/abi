@@ -16,6 +16,13 @@ fn renderStatus() ![]u8 {
     return writer.toOwnedSlice();
 }
 
+fn renderVersion() ![]u8 {
+    var writer: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    errdefer writer.deinit();
+    try cli.writeVersion(&writer.writer);
+    return writer.toOwnedSlice();
+}
+
 fn renderHelp() ![]u8 {
     var writer: std.Io.Writer.Allocating = .init(std.testing.allocator);
     errdefer writer.deinit();
@@ -197,6 +204,8 @@ test "cli: status output includes shared feature-gated command tags" {
     defer std.testing.allocator.free(status);
 
     try std.testing.expect(std.mem.indexOf(u8, status, abi.meta.package_version) != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, build_options.zig_version) != null);
+    try std.testing.expect(std.mem.indexOf(u8, status, "0.16.0-dev") == null);
     for (cli.displayed_commands) |command| {
         try std.testing.expect(std.mem.indexOf(u8, status, command.usage) != null);
     }
@@ -330,6 +339,15 @@ test "cli: status uses package_version from build_options" {
     const bo_version = build_options.package_version;
     const meta_version = abi.meta.package_version;
     try std.testing.expectEqualStrings(bo_version, meta_version);
+}
+
+test "cli: version output reports the compiler-derived zig version" {
+    const version = try renderVersion();
+    defer std.testing.allocator.free(version);
+
+    try std.testing.expect(std.mem.indexOf(u8, version, abi.meta.package_version) != null);
+    try std.testing.expect(std.mem.indexOf(u8, version, build_options.zig_version) != null);
+    try std.testing.expect(std.mem.indexOf(u8, version, "0.16.0-dev") == null);
 }
 
 test "cli: serve routing recognizes acp alias" {

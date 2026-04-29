@@ -81,7 +81,7 @@ pub fn vectorDot(a: []const f32, b: []const f32) f32 {
             vec_sum += va * vb;
         }
 
-        // Use @reduce for efficient horizontal sum (Zig 0.16+)
+        // Use @reduce for efficient horizontal sum (Zig 0.17+)
         dot_sum += @reduce(.Add, vec_sum);
     }
 
@@ -110,7 +110,7 @@ pub fn vectorL2Norm(v: []const f32) f32 {
             vec_sum += vv * vv;
         }
 
-        // Use @reduce for efficient horizontal sum (Zig 0.16+)
+        // Use @reduce for efficient horizontal sum (Zig 0.17+)
         norm_sum += @reduce(.Add, vec_sum);
     }
 
@@ -278,7 +278,7 @@ pub fn vectorReduce(op: enum { sum, max, min }, v: []const f32) f32 {
                 }
             }
 
-            // Use @reduce for efficient horizontal reduction (Zig 0.16+)
+            // Use @reduce for efficient horizontal reduction (Zig 0.17+)
             switch (op) {
                 .sum => result += @reduce(.Add, vec_result),
                 .max => result = @max(result, @reduce(.Max, vec_result)),

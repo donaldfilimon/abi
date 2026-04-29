@@ -13,6 +13,67 @@ const discord = if (build_options.feat_connectors)
 else
     @import("../../../connectors/stubs/discord.zig");
 
+/// MCP Tool Definitions for Discord REST API operations
+pub const tools = [_]registry.ToolDef{
+    .{ .name = "discord_send_message", .description = "Send a message to a Discord channel", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"content":{"type":"string","description":"Message content"}},"required":["channel_id","content"]}
+    , .handler = handleDiscordSendMessage },
+    .{ .name = "discord_send_embed", .description = "Send a rich embed message to a Discord channel", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"title":{"type":"string","description":"Embed title"},"description":{"type":"string","description":"Embed description"},"content":{"type":"string","description":"Optional text content"},"color":{"type":"integer","description":"Embed color (decimal)"}},"required":["channel_id","title"]}
+    , .handler = handleDiscordSendEmbed },
+    .{ .name = "discord_edit_message", .description = "Edit an existing Discord message", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"},"content":{"type":"string","description":"New content"}},"required":["channel_id","message_id","content"]}
+    , .handler = handleDiscordEditMessage },
+    .{ .name = "discord_delete_message", .description = "Delete a Discord message", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"}},"required":["channel_id","message_id"]}
+    , .handler = handleDiscordDeleteMessage },
+    .{ .name = "discord_get_messages", .description = "Get recent messages from a Discord channel", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"},"limit":{"type":"integer","description":"Max messages (1-100, default 50)","default":50}},"required":["channel_id"]}
+    , .handler = handleDiscordGetMessages },
+    .{ .name = "discord_get_channel", .description = "Get Discord channel details", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string","description":"Discord channel ID"}},"required":["channel_id"]}
+    , .handler = handleDiscordGetChannel },
+    .{ .name = "discord_react", .description = "Add a reaction to a Discord message", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"},"emoji":{"type":"string","description":"Emoji (e.g. %F0%9F%91%8D or custom:name:id)"}},"required":["channel_id","message_id","emoji"]}
+    , .handler = handleDiscordReact },
+    .{ .name = "discord_typing", .description = "Show typing indicator in a Discord channel", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string"}},"required":["channel_id"]}
+    , .handler = handleDiscordTyping },
+    .{ .name = "discord_get_guild", .description = "Get Discord server (guild) details", .input_schema =
+    \\{"type":"object","properties":{"guild_id":{"type":"string","description":"Discord guild/server ID"}},"required":["guild_id"]}
+    , .handler = handleDiscordGetGuild },
+    .{ .name = "discord_get_guild_channels", .description = "List all channels in a Discord server", .input_schema =
+    \\{"type":"object","properties":{"guild_id":{"type":"string","description":"Discord guild/server ID"}},"required":["guild_id"]}
+    , .handler = handleDiscordGetGuildChannels },
+    .{ .name = "discord_list_guilds", .description = "List all Discord servers the bot is in", .input_schema =
+    \\{"type":"object","properties":{},"required":[]}
+    , .handler = handleDiscordListGuilds },
+    .{ .name = "discord_get_bot", .description = "Get the bot's own Discord user info", .input_schema =
+    \\{"type":"object","properties":{},"required":[]}
+    , .handler = handleDiscordGetBot },
+    .{ .name = "discord_create_dm", .description = "Open a DM channel with a Discord user", .input_schema =
+    \\{"type":"object","properties":{"user_id":{"type":"string","description":"Discord user ID"}},"required":["user_id"]}
+    , .handler = handleDiscordCreateDM },
+    .{ .name = "discord_execute_webhook", .description = "Execute a Discord webhook", .input_schema =
+    \\{"type":"object","properties":{"webhook_id":{"type":"string"},"token":{"type":"string"},"content":{"type":"string"}},"required":["webhook_id","token","content"]}
+    , .handler = handleDiscordExecuteWebhook },
+    .{ .name = "discord_get_member", .description = "Get a member's details in a Discord server", .input_schema =
+    \\{"type":"object","properties":{"guild_id":{"type":"string"},"user_id":{"type":"string"}},"required":["guild_id","user_id"]}
+    , .handler = handleDiscordGetMember },
+    .{ .name = "discord_register_command", .description = "Register a global slash command for the bot", .input_schema =
+    \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"},"name":{"type":"string","description":"Command name (lowercase, 1-32 chars)"},"description":{"type":"string","description":"Command description (1-100 chars)"}},"required":["application_id","name","description"]}
+    , .handler = handleDiscordRegisterCommand },
+    .{ .name = "discord_list_commands", .description = "List all registered global slash commands", .input_schema =
+    \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"}},"required":["application_id"]}
+    , .handler = handleDiscordListCommands },
+    .{ .name = "discord_delete_command", .description = "Delete a global slash command by ID", .input_schema =
+    \\{"type":"object","properties":{"application_id":{"type":"string","description":"Discord application ID"},"command_id":{"type":"string","description":"Command ID to delete"}},"required":["application_id","command_id"]}
+    , .handler = handleDiscordDeleteCommand },
+    .{ .name = "discord_get_message", .description = "Get a specific Discord message by ID", .input_schema =
+    \\{"type":"object","properties":{"channel_id":{"type":"string"},"message_id":{"type":"string"}},"required":["channel_id","message_id"]}
+    , .handler = handleDiscordGetMessage },
+};
+
 const DiscordError = if (build_options.feat_connectors)
     @import("../../../connectors/discord/types.zig").DiscordError
 else

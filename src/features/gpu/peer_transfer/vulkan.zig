@@ -22,7 +22,7 @@ const multi_device = @import("../multi_device.zig");
 const stream_mod = @import("../stream.zig");
 const vulkan = @import("../backends/vulkan.zig");
 const vulkan_ext = @import("vulkan_ext.zig");
-const PointerCast = @import("../pointer_cast.zig");
+const PointerCast = @import("../../../foundation/utils/pointer_cast.zig");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const ReduceOp = multi_device.ReduceOp;

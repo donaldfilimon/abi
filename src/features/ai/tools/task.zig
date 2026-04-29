@@ -77,7 +77,7 @@ pub const Task = struct {
     retry_count: u3 = 0,
 };
 
-/// Simple counting semaphore using atomics (Zig 0.16 compatible).
+/// Simple counting semaphore using atomics (Zig 0.17 compatible).
 const SimpleSemaphore = struct {
     permits: std.atomic.Value(u32),
 

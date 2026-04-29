@@ -109,7 +109,7 @@ pub fn alignToSector(size: usize, sector: u32) usize {
     return ((size + s - 1) / s) * s;
 }
 
-/// Write all bytes to a file using the current Zig 0.16 I/O API.
+/// Write all bytes to a file using the current Zig 0.17 I/O API.
 pub fn writeAllFile(file: std.Io.File, io: std.Io, buf: []const u8) PersistError!void {
     file.writeStreamingAll(io, buf) catch return error.WriteFailed;
 }

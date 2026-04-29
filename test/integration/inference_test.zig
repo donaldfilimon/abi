@@ -45,7 +45,7 @@ test "inference: connector backend returns model-tagged response" {
         .head_dim = 4,
         .max_batch_size = 8,
         .backend = .connector,
-        .model_id = "claude-3-sonnet",
+        .model_id = "echo/claude-3-sonnet",
     });
     defer engine.deinit();
 
@@ -57,7 +57,7 @@ test "inference: connector backend returns model-tagged response" {
     defer result.deinit(std.testing.allocator);
 
     try std.testing.expect(result.text.len > 0);
-    // model_id "claude-3-sonnet" has no slash, so provider resolves to "echo"
+    // Explicitly uses echo provider
     try std.testing.expect(std.mem.indexOf(u8, result.text, "[echo/claude-3-sonnet]") != null);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }

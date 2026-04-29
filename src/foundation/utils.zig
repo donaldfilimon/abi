@@ -7,7 +7,7 @@
 //!
 //! This module provides core utilities organized into these categories:
 //!
-//! - **Time**: Platform-aware time functions compatible with Zig 0.16
+//! - **Time**: Platform-aware time functions compatible with Zig 0.17
 //! - **Math**: Statistical functions (mean, variance, percentile, etc.)
 //! - **String**: String manipulation and parsing utilities
 //! - **Lifecycle**: Module initialization and teardown helpers
@@ -22,7 +22,7 @@
 //! |--------|-------------|
 //! | `crypto` | Cryptographic hashing and random generation |
 //! | `encoding` | Base64, hex, URL encoding/decoding |
-//! | `fs` | Filesystem operations (Zig 0.16 compatible) |
+//! | `fs` | Filesystem operations (Zig 0.17 compatible) |
 //! | `http` | HTTP client with retry and connection pooling |
 //! | `json` | JSON parsing and serialization |
 //! | `memory` | Memory pools and specialized allocators |
@@ -50,7 +50,7 @@ const std = @import("std");
 const platform_time = @import("time.zig");
 
 // ============================================================================
-// Time Utilities (Zig 0.16 compatible, platform-aware)
+// Time Utilities (Zig 0.17 compatible, platform-aware)
 // ============================================================================
 
 /// Get current time as Unix timestamp in seconds.
@@ -253,7 +253,7 @@ pub const crypto = @import("utils/crypto.zig");
 /// Both allocating and buffer-based APIs available.
 pub const encoding = @import("utils/encoding.zig");
 
-/// Filesystem utilities compatible with Zig 0.16's I/O model.
+/// Filesystem utilities compatible with Zig 0.17's I/O model.
 /// File reading, writing, directory operations.
 pub const fs = @import("utils/fs.zig");
 
@@ -312,6 +312,11 @@ pub const metric_types = @import("utils/metric_types.zig");
 // Note: Top-level shared modules (logging, os, platform, plugins, simd, time)
 // are exported via shared/mod.zig. Access them as abi.foundation.<module>.
 
+/// Centralized pointer-cast helper for Zig 0.17 upgrade path.
+pub const pointer_cast = @import("utils/pointer_cast.zig");
+/// Shorthand for `pointer_cast.implCast`.
+pub const implCast = pointer_cast.implCast;
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -322,4 +327,6 @@ test "Time helpers" {
     try std.testing.expect(s >= 0);
 }
 
-// refAllDecls deferred — memory/stack.zig and memory/thread_cache.zig have pre-existing Zig 0.16 errors
+test {
+    std.testing.refAllDecls(@This());
+}

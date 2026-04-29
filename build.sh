@@ -39,8 +39,8 @@ EOF
     exit "${1:-0}"
 }
 
-LINK_MODE=true
-BOOTSTRAP_MODE=true
+LINK_MODE=false
+BOOTSTRAP_MODE=false
 COMMAND=""
 
 while [[ $# -gt 0 ]]; do
@@ -57,34 +57,38 @@ while [[ $# -gt 0 ]]; do
             usage 0
             ;;
         --status)
-            exec tools/zigly status
-            ;;
-        test|cli|lib|mcp|tools|lint|fix|check|check-parity)
-            COMMAND="$1"
-            shift
+            exec tools/zigly --status
             ;;
         -D*|--*)
             break
             ;;
         *)
-            echo "Unknown option: $1"
-            usage 1
+            if [ -z "$COMMAND" ]; then
+                COMMAND="$1"
+                shift
+            else
+                break
+            fi
             ;;
     esac
 done
 
 resolve_zig() {
     local candidate
-    for candidate in \
-        "$HOME/.zvm/bin/zig" \
-        "$HOME/.local/bin/zig" \
-        "$HOME/.zigly/versions/"*/bin/zig \
-        "$(command -v zig 2>/dev/null || true)"; do
-        if [ -n "$candidate" ] && [ -x "$candidate" ]; then
-            readlink -f "$candidate" 2>/dev/null || echo "$candidate"
-            return 0
-        fi
-    done
+    candidate="$(
+        tools/zigly --status 2>/dev/null |
+            while IFS= read -r line; do
+                line="${line%$'\r'}"
+                if [ -n "$line" ] && [ -x "$line" ]; then
+                    printf '%s\n' "$line"
+                fi
+            done |
+            tail -n 1
+    )"
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+    fi
     return 1
 }
 

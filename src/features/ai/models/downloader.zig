@@ -4,7 +4,7 @@
 //! checksum verification, and retry logic for downloading large model files.
 //!
 //! Features:
-//! - Native HTTP/HTTPS download using std.http.Client (Zig 0.16)
+//! - Native HTTP/HTTPS download using std.http.Client (Zig 0.17)
 //! - Streaming download with progress callback
 //! - Resume interrupted downloads via HTTP Range headers
 //! - SHA256 checksum verification
@@ -198,7 +198,7 @@ pub const Downloader = struct {
         return error.ConnectionFailed;
     }
 
-    /// Download a file with I/O backend (Zig 0.16 compatible).
+    /// Download a file with I/O backend (Zig 0.17 compatible).
     ///
     /// This is the full implementation that uses std.http.Client for native HTTP download.
     /// Supports resume via Range headers and computes SHA256 checksum during download.

@@ -1,7 +1,7 @@
 //! Synchronization primitives
 //!
-//! Provides cross-version compatible synchronization primitives for Zig 0.16.
-//! This module works around the absence of std.Thread.Mutex in earlier 0.16 dev builds.
+//
+//
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -10,7 +10,7 @@ const time_mod = @import("time.zig");
 /// Mutex is a synchronization primitive which enforces atomic access to a
 /// shared region of code known as the "critical section".
 ///
-/// This is a spinlock-based implementation that works across Zig 0.16 versions.
+/// This is a spinlock-based implementation that works across Zig 0.17 versions.
 /// It blocks by busy-waiting rather than using futex/condvars, so use sparingly
 /// for very short critical sections.
 ///
@@ -301,7 +301,9 @@ pub const Condition = struct {
     pub fn timedWait(self: *Condition, mutex: *BlockingMutex, timeout_ns: u64) error{Timeout}!void {
         if (comptime use_pthreads) {
             var ts: std.c.timespec = undefined;
-            _ = std.c.clock_gettime(.REALTIME, &ts);
+            if (std.c.clock_gettime(.REALTIME, &ts) != 0) {
+                return error.Timeout;
+            }
 
             // Add timeout_ns to the current time
             const extra_sec: i64 = @intCast(timeout_ns / std.time.ns_per_s);

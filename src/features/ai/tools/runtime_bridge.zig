@@ -77,7 +77,7 @@ pub const RuntimeBridge = struct {
         }
         try args.append(self.allocator, tmp_file_name);
 
-        // In Zig 0.16 we execute via child process natively
+        // In Zig 0.17 we execute via child process natively
         const result = try std.process.run(self.allocator, self.io.*, .{
             .argv = args.items,
         });

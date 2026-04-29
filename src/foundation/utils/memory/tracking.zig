@@ -205,7 +205,7 @@ pub const TrackingAllocator = struct {
         return self.history.items;
     }
 
-    // Allocator vtable implementations (Zig 0.16 API with std.mem.Alignment)
+    // Allocator vtable implementations (Zig 0.17 API with std.mem.Alignment)
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const ptr = self.backing_allocator.rawAlloc(len, ptr_align, ret_addr);

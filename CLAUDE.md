@@ -20,6 +20,7 @@ tools/zigly --bootstrap     # One-command project setup
 ## Build Commands
 
 ### macOS 26.4+ (Darwin 25.x)
+
 Zig's internal LLD linker cannot link on macOS 26.4+. Use `./build.sh` which auto-relinks with Apple's native linker:
 
 ```bash
@@ -31,6 +32,7 @@ Zig's internal LLD linker cannot link on macOS 26.4+. Use `./build.sh` which aut
 ```
 
 ### Linux / Older macOS
+
 ```bash
 zig build                          # Build static library
 zig build test --summary all       # Run tests
@@ -50,7 +52,9 @@ zig build typecheck                # Compile-only validation
 ```
 
 ### Focused Test Lanes (27 total)
+
 Each runs unit + integration tests for a specific feature:
+
 ```bash
 zig build acp-tests agents-tests auth-tests cache-tests cloud-tests
 zig build compute-tests connectors-tests database-tests desktop-tests
@@ -83,11 +87,13 @@ zig build search-tests secrets-tests storage-tests tasks-tests web-tests
 ### The Mod/Stub Pattern
 
 Every feature under `src/features/<name>/` follows a contract:
+
 - `mod.zig` — Real implementation
 - `stub.zig` — API-compatible no-ops (same public surface, zero-cost when disabled)
 - `types.zig` — Shared types used by both mod and stub
 
 In `src/root.zig`, each feature uses comptime selection:
+
 ```zig
 pub const gpu = if (build_options.feat_gpu)
     @import("features/gpu/mod.zig")
@@ -100,6 +106,7 @@ else
 ### AI Feature Structure
 
 The `ai` feature (`src/features/ai/`) contains 33+ sub-directories:
+
 - **Inference:** `llm/`, `embeddings/`, `vision/`, `models/`, `streaming/`
 - **Reasoning:** `abbey/`, `aviva/`, `abi/`, `constitution/`, `eval/`, `reasoning/`
 - **Agents:** `agents/`, `tools/`, `multi_agent/`, `coordination/`, `orchestration/`
@@ -110,6 +117,7 @@ The `ai` feature (`src/features/ai/`) contains 33+ sub-directories:
 ### Multi-Profile Pipeline (Abbey-Aviva-Abi)
 
 The full pipeline is wired end-to-end in `src/features/ai/profile/router.zig`:
+
 ```
 User Input -> Abi Analysis (sentiment + policy + rules)
   -> AdaptiveModulator (EMA user preference learning)
@@ -123,6 +131,7 @@ User Input -> Abi Analysis (sentiment + policy + rules)
 ### Feature Flags
 
 All features default to enabled except `feat-mobile` and `feat-tui` (both false). Disable with `-Dfeat-<name>=false`:
+
 ```bash
 zig build -Dfeat-gpu=false -Dfeat-ai=false
 zig build -Dgpu-backend=metal
@@ -133,16 +142,16 @@ Build options are exposed via `@import("build_options")` with fields like `feat_
 
 ### GPU Backend Status
 
-| Backend | Status | Notes |
-|---------|--------|-------|
-| Metal | Functional | macOS only, MPS acceleration |
-| CUDA | Functional | NVIDIA GPUs, dynamic library loading |
-| Vulkan | Functional | Cross-platform, full pipeline |
-| stdgpu | Functional | CPU-based SPIR-V emulation (default) |
-| WebGPU | Partial | API structure present |
-| OpenGL | Partial | Compute shaders (GL 4.3+) |
-| WebGL2 | Stub | No compute shader support |
-| FPGA/TPU | Stub | Simulation mode only |
+| Backend  | Status     | Notes                                |
+| -------- | ---------- | ------------------------------------ |
+| Metal    | Functional | macOS only, MPS acceleration         |
+| CUDA     | Functional | NVIDIA GPUs, dynamic library loading |
+| Vulkan   | Functional | Cross-platform, full pipeline        |
+| stdgpu   | Functional | CPU-based SPIR-V emulation (default) |
+| WebGPU   | Partial    | API structure present                |
+| OpenGL   | Partial    | Compute shaders (GL 4.3+)            |
+| WebGL2   | Stub       | No compute shader support            |
+| FPGA/TPU | Stub       | Simulation mode only                 |
 
 ## Import Rules
 
@@ -187,10 +196,12 @@ Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to 
 ### Testing
 
 Two test suites run under `zig build test`:
+
 1. **Unit tests** (`src/root.zig`) — `refAllDecls` walks the entire module tree
 2. **Integration tests** (`test/mod.zig`) — imports `@import("abi")` as external consumer
 
 Most files end with:
+
 ```zig
 test {
     std.testing.refAllDecls(@This());
@@ -202,6 +213,7 @@ test {
 ### refAllDecls Convention
 
 Files with known pre-existing sub-module errors (refAllDecls deferred):
+
 - `features/ai/abbey/mod.zig` — abbey_train.zig, config.zig
 - `features/cloud/mod.zig` — aws_lambda, azure_functions, gcp_functions
 - `features/gpu/mod.zig` — stdgpu, diagnostics, profiling, recovery
@@ -251,7 +263,7 @@ abi help               # Full help reference
 - **feature-scaffolder** — Scaffolds new feature modules
 - **build-troubleshooter** — Diagnoses Zig build failures
 - **abi-test-writer** — Writes integration tests following conventions
-- **abbey-aviva-abi-architect** — Multi-persona AI pipeline expert
+- **abbey-aviva-abi-architect** — Multi-profile AI pipeline expert
 
 Invoke via `Agent` tool with `subagent_type: "<agent-name>"`.
 

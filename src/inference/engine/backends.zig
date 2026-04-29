@@ -69,10 +69,8 @@ pub fn isKnownProvider(name: []const u8) bool {
     return false;
 }
 
-/// Try to generate via a real LLM connector. Falls back to echo on failure.
+/// Try to generate via a real LLM connector.
 pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.Result {
-    std.log.warn("inference: connector backend using echo mode for model '{s}' — connector bridge not yet wired to external providers", .{self.config.model_id});
-
     const start = time_mod.timestampNs();
 
     const cache_ok = try self.kv_cache.allocate(request.id, request.max_tokens);
@@ -81,15 +79,8 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
     }
     defer self.kv_cache.free(request.id);
 
-    // Try real connector dispatch — fall back to echo on any failure
-    const response_text = dispatchToConnector(self.allocator, self.config.model_id, request.prompt) catch |err| blk: {
-        std.log.debug("Connector dispatch failed ({s}), using echo fallback", .{@errorName(err)});
-        break :blk try std.fmt.allocPrint(
-            self.allocator,
-            "[echo/{s}] Processing: {s}",
-            .{ self.config.model_id, request.prompt[0..@min(request.prompt.len, 200)] },
-        );
-    };
+    // Try real connector dispatch
+    const response_text = try dispatchToConnector(self.allocator, self.config.model_id, request.prompt);
     errdefer self.allocator.free(response_text);
 
     const end = time_mod.timestampNs();
@@ -125,7 +116,7 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
 /// 3. Create client and make chat completion call
 /// 4. Return response text (caller owns the allocation)
 ///
-/// Falls back to error if env vars are missing or network call fails.
+/// Returns an error if env vars are missing or network call fails.
 fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, prompt: []const u8) ![]u8 {
     const parsed = parseModelId(model_id);
     const provider = parsed.provider orelse {
@@ -176,8 +167,6 @@ fn dispatchToConnector(allocator: std.mem.Allocator, model_id: []const u8, promp
 /// - OpenAI-style: `api_key: []u8` + `base_url: []u8` (openai, mistral, anthropic, cohere, etc.)
 /// - OpenAICompat-style: `host: []u8` + `api_key: ?[]u8` (lm_studio, vllm, llama_cpp, ollama, mlx)
 ///
-/// Falls back to a formatted echo string if the HTTP client cannot be
-/// initialized (e.g., async I/O layer unavailable in the test environment).
 fn callOpenAICompatible(
     allocator: std.mem.Allocator,
     comptime loader_fn: anytype,
@@ -185,8 +174,10 @@ fn callOpenAICompatible(
     prompt: []const u8,
 ) ![]u8 {
     // Load config from environment variables
-    var config = (loader_fn(allocator) catch return error.ApiRequestFailed) orelse
-        return error.MissingApiKey;
+    var config = (loader_fn(allocator) catch |err| {
+        if (err == error.MissingApiKey) return error.MissingApiKey;
+        return error.ApiRequestFailed;
+    }) orelse return error.MissingApiKey;
     defer config.deinit(allocator);
 
     const ConfigType = @TypeOf(config);
@@ -228,12 +219,8 @@ fn callOpenAICompatible(
     }) catch return error.OutOfMemory;
     defer allocator.free(json_body);
 
-    // Initialize the async HTTP client. May fail in test or constrained
-    // environments — fall back to echo on failure.
-    var http = async_http.AsyncHttpClient.init(allocator) catch {
-        std.log.debug("async_http init failed, using echo fallback", .{});
-        return echoFallback(allocator, model_name, prompt);
-    };
+    // Initialize the async HTTP client.
+    var http = try async_http.AsyncHttpClient.init(allocator);
     defer http.deinit();
 
     // Build and send the HTTP request.
@@ -271,14 +258,6 @@ fn callOpenAICompatible(
     return allocator.dupe(u8, response.choices[0].message.content) catch return error.OutOfMemory;
 }
 
-/// Format an echo fallback string when HTTP is unavailable.
-fn echoFallback(allocator: std.mem.Allocator, model_name: []const u8, prompt: []const u8) ![]u8 {
-    return std.fmt.allocPrint(allocator, "[{s}] {s}", .{
-        model_name,
-        prompt[0..@min(prompt.len, 500)],
-    }) catch return error.OutOfMemory;
-}
-
 fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8, prompt: []const u8) ![]u8 {
     var config = (loaders.tryLoadAnthropic(allocator) catch return error.ApiRequestFailed) orelse
         return error.MissingApiKey;
@@ -289,11 +268,7 @@ fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8
         config.model_owned = true;
     }
 
-    var client = anthropic.Client.init(allocator, config) catch {
-        std.log.debug("Anthropic client init failed, using echo fallback", .{});
-        const model_name = model_override orelse "claude-3-5-sonnet-20241022";
-        return echoFallback(allocator, model_name, prompt);
-    };
+    var client = try anthropic.Client.init(allocator, config);
     defer client.deinit();
 
     const response = client.chatSimple(prompt) catch |err| {
@@ -565,6 +540,10 @@ test "isKnownProvider: all known providers" {
     try std.testing.expect(isKnownProvider("codex"));
 }
 
+test "isKnownProvider: echo is no longer a provider" {
+    try std.testing.expect(!isKnownProvider("echo"));
+}
+
 test "isKnownProvider: unknown returns false" {
     try std.testing.expect(!isKnownProvider("foobar"));
     try std.testing.expect(!isKnownProvider(""));
@@ -579,22 +558,6 @@ test "dispatchToConnector: unknown provider returns UnsupportedProvider" {
 test "dispatchToConnector: no slash returns UnsupportedProvider" {
     const result = dispatchToConnector(std.testing.allocator, "bare-model-name", "hello");
     try std.testing.expectError(error.UnsupportedProvider, result);
-}
-
-test "echoFallback: truncates prompt over 500 chars" {
-    const long_prompt = "A" ** 600;
-    const result = try echoFallback(std.testing.allocator, "test-model", long_prompt);
-    defer std.testing.allocator.free(result);
-    // Should contain model name prefix and truncated prompt (500 chars)
-    try std.testing.expect(std.mem.startsWith(u8, result, "[test-model] "));
-    // "[test-model] " (13) + 500 = 513
-    try std.testing.expectEqual(@as(usize, 513), result.len);
-}
-
-test "echoFallback: short prompt not truncated" {
-    const result = try echoFallback(std.testing.allocator, "demo", "hello world");
-    defer std.testing.allocator.free(result);
-    try std.testing.expectEqualStrings("[demo] hello world", result);
 }
 
 test "dispatchToConnector: missing API key returns MissingApiKey" {

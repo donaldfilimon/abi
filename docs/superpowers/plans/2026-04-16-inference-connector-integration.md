@@ -6,7 +6,7 @@
 
 **Architecture:** Implement robust connector handling within `src/inference/engine/backends.zig`. Each connector (OpenAI, Anthropic, etc.) will be wired to its respective client implementation, using standard env-var configurations.
 
-**Tech Stack:** Zig 0.16, ABI foundation (async HTTP client).
+**Tech Stack:** Zig 0.17, ABI foundation (async HTTP client).
 
 ---
 

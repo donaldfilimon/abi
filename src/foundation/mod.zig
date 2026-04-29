@@ -92,16 +92,16 @@ pub const os = @import("os.zig");
 /// Cross-platform ABI app path resolver (primary config root).
 pub const app_paths = @import("app_paths.zig");
 
-/// Time utilities compatible with Zig 0.16.
+/// Time utilities compatible with Zig 0.17.
 /// Platform-aware implementations for unix timestamps, monotonic clocks, and sleep.
 pub const time = @import("time.zig");
 
-/// Synchronization primitives compatible with Zig 0.16.
+/// Synchronization primitives compatible with Zig 0.17.
 /// Provides Mutex, RwLock, and other concurrency utilities.
 pub const sync = @import("sync.zig");
 
 /// I/O utilities and helpers for file and stream operations.
-/// Designed for Zig 0.16's explicit I/O backend model.
+/// Designed for Zig 0.17's explicit I/O backend model.
 pub const io = @import("io.zig");
 
 /// Common stub utilities for feature-disabled builds.

@@ -11,7 +11,7 @@
 //! protocol.  When no TcpTransport is present the transport falls back
 //! to the in-process queue-based simulation (useful for testing).
 //!
-//! Uses Zig 0.16 std.Io patterns for cross-platform networking.
+//! Uses Zig 0.17 std.Io patterns for cross-platform networking.
 
 const std = @import("std");
 const time = @import("../../foundation/mod.zig").time;

@@ -111,6 +111,7 @@ pub fn renderOverviewDetail(screen: *Screen, area: Rect, state: *const state_mod
     } else |_| {}
 
     widget_util.renderKeyValue(screen, content_area, &row, "version", build_options.package_version, widget_util.body_style);
+    widget_util.renderKeyValue(screen, content_area, &row, "zig", build_options.zig_version, widget_util.body_style);
 
     var size_buf: [64]u8 = undefined;
     const size_line = std.fmt.bufPrint(&size_buf, "{d}x{d}", .{ screen_width, screen_height }) catch "terminal";

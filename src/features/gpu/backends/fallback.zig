@@ -5,7 +5,7 @@
 const std = @import("std");
 const types = @import("../kernel_types.zig");
 const simulated = @import("simulated.zig");
-const pointer_cast = @import("../../pointer_cast.zig");
+const pointer_cast = @import("../../../foundation/utils/pointer_cast.zig");
 
 pub const DeviceMemoryError = error{
     BufferTooSmall,

@@ -76,7 +76,7 @@ pub const RequestOptions = struct {
 ///
 /// This client manages its own I/O backend and provides methods for
 /// GET and POST requests with configurable options. It properly handles
-/// Zig 0.16's I/O backend requirements.
+/// Zig 0.17's I/O backend requirements.
 ///
 /// ## Memory Management
 ///

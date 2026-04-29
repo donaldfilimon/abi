@@ -8,7 +8,7 @@ const interface = @import("../../interface.zig");
 const kernels = @import("kernels.zig");
 const fpga_mod = @import("mod.zig");
 const loader = @import("loader.zig");
-const PointerCast = @import("../../pointer_cast.zig");
+const PointerCast = @import("../../../../foundation/utils/pointer_cast.zig");
 
 // Phase 1 kernels (vector distance operations)
 const distance_kernels = @import("kernels/distance_kernels.zig");

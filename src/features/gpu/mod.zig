@@ -363,4 +363,4 @@ test "gpu type exports" {
     try std.testing.expect(true);
 }
 
-// refAllDecls deferred — stdgpu, diagnostics, profiling, recovery have pre-existing Zig 0.16 API errors
+// refAllDecls deferred — stdgpu, diagnostics, profiling, recovery have pre-existing Zig 0.17 API errors

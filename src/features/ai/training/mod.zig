@@ -146,7 +146,7 @@ pub const ExperienceType = self_learning.ExperienceType;
 pub const FeedbackType = self_learning.FeedbackType;
 pub const DataKind = self_learning.DataKind;
 
-/// Build SelfLearningConfig from system-level TrainingConfig (Zig 0.16).
+/// Build SelfLearningConfig from system-level TrainingConfig (Zig 0.17).
 /// Flows enable_vision, enable_video, enable_audio, enable_all_modalities from core config.
 pub fn selfLearningConfigFromCore(core_cfg: config_module.TrainingConfig) SelfLearningConfig {
     return .{

@@ -132,7 +132,7 @@ if (wrapper.complete(request)) |resp_val| {
 try pctx.setMetadata("key", "value");
 ```
 
-### Timer Usage (Zig 0.16)
+### Timer Usage (Zig 0.17)
 
 `std.time.timestamp()` and `std.time.nanoTimestamp()` are removed. Use:
 ```zig
@@ -200,6 +200,6 @@ Test files:
 | String literal in PipelineContext | SIGSEGV on deinit | `allocator.dupe()` all strings |
 | Missing `resp.deinit()` in generate | Memory leak per LLM call | `defer resp.deinit(pctx.allocator)` |
 | Embedding in separate function | Dangling pointer to stack | Keep in same frame as `addBlock` |
-| `std.time.timestamp()` | Compile error in Zig 0.16 | Use `foundation.time.nowSeconds()` |
+| `std.time.timestamp()` | Compile error in Zig 0.17 | Use `foundation.time.nowSeconds()` |
 | Swallowing `fetchPut` error | Silent memory leak | Use `try` to propagate |
 | Missing stub `withChain` | Compile error when feat disabled | Add no-op to stub PipelineBuilder |

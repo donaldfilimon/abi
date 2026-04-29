@@ -1,6 +1,6 @@
 //! Binary encode and decode logic.
 //!
-//! Uses direct memory writes instead of stream APIs for Zig 0.16 compatibility.
+//! Uses direct memory writes instead of stream APIs for Zig 0.17 compatibility.
 
 const std = @import("std");
 const block = @import("block.zig");

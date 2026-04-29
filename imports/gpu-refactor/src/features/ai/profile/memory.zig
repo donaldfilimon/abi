@@ -1,0 +1,246 @@
+//! Conversation Memory — WDBX Block Chain Integration
+//!
+//! Bridges the multi-profile orchestration layer with the WDBX block chain
+//! storage system. Each routing decision + profile response is stored as
+//! a ConversationBlock with cryptographic chaining for auditability.
+//!
+//! Per spec Section 4.1:
+//!   B_t = { V_t, M_t, T_t, R_t, H_t }
+//!   - V_t: Query/response embeddings
+//!   - M_t: Profile tag, routing weights, intent, risk
+//!   - T_t: MVCC timestamps
+//!   - R_t: Parent block pointer
+//!   - H_t: SHA-256 hash chain
+
+const std = @import("std");
+const types = @import("types.zig");
+const ProfileId = types.ProfileId;
+const RoutingDecision = types.RoutingDecision;
+const ProfileResponse = types.ProfileResponse;
+
+// Import through the database feature facade (not core directly)
+const build_options = @import("build_options");
+const db_feature = if (build_options.feat_database) @import("../../database/mod.zig") else @import("../../database/stub.zig");
+const block_chain = db_feature.memory.block_chain;
+const BlockChain = block_chain.BlockChain;
+const BlockConfig = block_chain.BlockConfig;
+const ProfileTag = block_chain.ProfileTag;
+const RoutingWeights = block_chain.RoutingWeights;
+const IntentCategory = block_chain.IntentCategory;
+const PolicyFlags = block_chain.PolicyFlags;
+const PipelineStepTag = block_chain.PipelineStepTag;
+const pipeline_types = @import("../pipeline/types.zig");
+const PipelineContext = @import("../pipeline/context.zig").PipelineContext;
+
+/// Conversation memory backed by WDBX block chaining.
+/// Stores each interaction as a cryptographically chained block with
+/// routing metadata for auditability and retrieval.
+pub const ConversationMemory = struct {
+    allocator: std.mem.Allocator,
+    chain: BlockChain,
+    interaction_count: u64 = 0,
+
+    const Self = @This();
+
+    /// Optional pipeline lineage for traceability.
+    pub const PipelineLineage = struct {
+        pipeline_id: ?u64 = null,
+        step_index: ?u16 = null,
+        pipeline_step: PipelineStepTag = .none,
+    };
+
+    /// Create a new conversation memory for a session.
+    pub fn init(allocator: std.mem.Allocator, session_id: []const u8) Self {
+        return .{
+            .allocator = allocator,
+            .chain = BlockChain.init(allocator, session_id),
+        };
+    }
+
+    /// Record an interaction: routing decision + input + response → ConversationBlock.
+    pub fn recordInteraction(
+        self: *Self,
+        decision: RoutingDecision,
+        input: []const u8,
+        _: ProfileResponse,
+        lineage: ?PipelineLineage,
+    ) !u64 {
+        // Placeholder embedding from input content (shared helper).
+        // Real embeddings would come from a connector (OpenAI, Cohere, etc.)
+        var query_embedding = PipelineContext.hashEmbedding(input);
+
+        // Map ProfileId → ProfileTag.ProfileType
+        const primary_profile: ProfileTag.ProfileType = switch (decision.primary) {
+            .abbey => .abbey,
+            .aviva => .aviva,
+            .abi => .abi,
+        };
+
+        // Calculate blend coefficient (how much primary dominates)
+        const blend = decision.weights.forProfile(decision.primary);
+
+        // Determine secondary profile for blending metadata
+        const secondary: ?ProfileTag.ProfileType = if (blend < 0.9) blk: {
+            if (decision.primary != .abbey and decision.weights.abbey > 0.1) break :blk .abbey;
+            if (decision.primary != .aviva and decision.weights.aviva > 0.1) break :blk .aviva;
+            if (decision.primary != .abi and decision.weights.abi > 0.1) break :blk .abi;
+            break :blk null;
+        } else null;
+
+        // Map to WDBX intent category
+        const intent: IntentCategory = if (!self.isQuerySafe(decision))
+            .safety_critical
+        else if (decision.primary == .aviva)
+            .technical_problem
+        else if (decision.primary == .abbey)
+            .empathy_seeking
+        else
+            .general;
+
+        // Get previous hash for chaining
+        const prev_hash: [32]u8 = if (self.chain.current_head) |head| blk: {
+            if (self.chain.getBlock(head)) |blk_val| {
+                break :blk blk_val.hash;
+            }
+            break :blk .{0} ** 32;
+        } else .{0} ** 32;
+
+        // Build block config
+        const config = BlockConfig{
+            .query_embedding = &query_embedding,
+            .profile_tag = .{
+                .primary_profile = primary_profile,
+                .blend_coefficient = blend,
+                .secondary_profile = secondary,
+            },
+            .routing_weights = .{
+                .abbey_weight = decision.weights.abbey,
+                .aviva_weight = decision.weights.aviva,
+                .abi_weight = decision.weights.abi,
+            },
+            .intent = intent,
+            .risk_score = 1.0 - decision.confidence,
+            .policy_flags = .{
+                .is_safe = self.isQuerySafe(decision),
+            },
+            .parent_block_id = self.chain.current_head,
+            .previous_hash = prev_hash,
+            .pipeline_step = if (lineage) |l| l.pipeline_step else .none,
+            .pipeline_id = if (lineage) |l| l.pipeline_id else null,
+            .step_index = if (lineage) |l| l.step_index else null,
+        };
+
+        const block_id = try self.chain.addBlock(config);
+        self.interaction_count += 1;
+
+        return block_id;
+    }
+
+    /// Check if the routing decision indicates a safe query.
+    fn isQuerySafe(_: *const Self, decision: RoutingDecision) bool {
+        // If Abi is primary with high confidence, it's likely a policy issue
+        return !(decision.primary == .abi and decision.confidence > 0.8);
+    }
+
+    /// Get the number of recorded interactions.
+    pub fn getInteractionCount(self: *const Self) u64 {
+        return self.interaction_count;
+    }
+
+    /// Get the underlying block chain for direct access.
+    pub fn getChain(self: *const Self) *const BlockChain {
+        return &self.chain;
+    }
+
+    /// Retrieve recent conversation history (block IDs).
+    pub fn getRecentHistory(self: *const Self, max_blocks: usize) ![]const u64 {
+        return self.chain.traverseBackward(max_blocks);
+    }
+
+    /// Get a mutable reference to the underlying block chain.
+    /// Useful for attaching to pipeline builders.
+    pub fn getChainMut(self: *Self) *BlockChain {
+        return &self.chain;
+    }
+
+    /// Convenience for pipeline DSL: returns a store StepConfig wrapping
+    /// this memory's chain. Use with `builder.withChain(mem.getChainMut())`.
+    pub fn asStoreStep(_: *const Self) pipeline_types.StoreConfig {
+        return .{ .target = .wdbx };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.chain.deinit();
+    }
+};
+
+test "conversation memory initialization" {
+    var mem = ConversationMemory.init(std.testing.allocator, "test-session");
+    defer mem.deinit();
+
+    try std.testing.expectEqual(@as(u64, 0), mem.getInteractionCount());
+}
+
+test "conversation memory records interaction" {
+    if (!build_options.feat_database) return error.SkipZigTest;
+
+    var mem = ConversationMemory.init(std.testing.allocator, "test-session");
+    defer mem.deinit();
+
+    const decision = RoutingDecision{
+        .primary = .aviva,
+        .weights = .{ .abbey = 0.2, .aviva = 0.6, .abi = 0.2 },
+        .strategy = .single,
+        .confidence = 0.8,
+        .reason = "Technical query",
+    };
+
+    const response = ProfileResponse{
+        .profile = .aviva,
+        .content = "Here is the answer.",
+        .confidence = 0.85,
+        .allocator = std.testing.allocator,
+    };
+
+    const block_id = try mem.recordInteraction(decision, "How do I implement HNSW?", response, null);
+    try std.testing.expect(block_id > 0);
+    try std.testing.expectEqual(@as(u64, 1), mem.getInteractionCount());
+}
+
+test "conversation memory chain integrity" {
+    if (!build_options.feat_database) return error.SkipZigTest;
+
+    var mem = ConversationMemory.init(std.testing.allocator, "chain-test");
+    defer mem.deinit();
+
+    const decision = RoutingDecision{
+        .primary = .abbey,
+        .weights = .{ .abbey = 0.7, .aviva = 0.2, .abi = 0.1 },
+        .strategy = .single,
+        .confidence = 0.7,
+        .reason = "Conversational query",
+    };
+
+    const response = ProfileResponse{
+        .profile = .abbey,
+        .content = "I understand how you feel.",
+        .confidence = 0.9,
+        .allocator = std.testing.allocator,
+    };
+
+    // Record two interactions
+    const id1 = try mem.recordInteraction(decision, "I feel stuck", response, null);
+    const id2 = try mem.recordInteraction(decision, "Can you help more?", response, null);
+
+    try std.testing.expect(id1 != id2);
+    try std.testing.expectEqual(@as(u64, 2), mem.getInteractionCount());
+
+    // Verify chain linkage
+    if (mem.chain.getBlock(id2)) |block2| {
+        try std.testing.expectEqual(id1, block2.parent_block_id.?);
+    }
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

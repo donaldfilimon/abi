@@ -23,7 +23,7 @@ test "shard key computation from conversation" {
 
     const tenant_id: u64 = 1001;
     const session_id = "session-xyz-789";
-    // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
+    // Use Timer for Zig 0.17 compatibility (no std.time.timestamp())
     var timer = try time.Timer.start();
     const timestamp: i64 = @intCast(timer.read());
 
@@ -385,7 +385,7 @@ test "research alignment: intelligent sharding strategy" {
     try ring.addNode("research-node-3", 0.6);
 
     // Test placement demonstrates research concepts
-    // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
+    // Use Timer for Zig 0.17 compatibility (no std.time.timestamp())
     var research_timer = try time.Timer.start();
     const research_key = ShardKey{
         .tenant_id = 9999,

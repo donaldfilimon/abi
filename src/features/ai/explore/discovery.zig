@@ -25,7 +25,7 @@ const builtin = @import("builtin");
 const build_options = @import("build_options");
 const app_paths = @import("../../../foundation/mod.zig").app_paths;
 
-// libc import for environment access - required for Zig 0.16
+// libc import for environment access - required for Zig 0.17
 // Not available on freestanding/WASM targets
 const c = struct {
     pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
@@ -359,7 +359,7 @@ pub const ModelDiscovery = struct {
     /// Note: This is a no-op in the lazy implementation.
     /// Use addModelPath to manually register known model paths.
     pub fn scanPath(self: *Self, path: []const u8) !void {
-        // In Zig 0.16, file system operations require I/O backend initialization.
+        // In Zig 0.17, file system operations require I/O backend initialization.
         // For now, we provide a lazy model registration API instead.
         // Users can call addModelPath() to register known model files.
         _ = self;

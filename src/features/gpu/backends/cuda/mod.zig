@@ -19,7 +19,7 @@ const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");
 const fallback = @import("../fallback.zig");
 const gpu = std.gpu;
-const PointerCast = @import("../../pointer_cast.zig");
+const PointerCast = @import("../../../../foundation/utils/pointer_cast.zig");
 
 const cuda_native = if (shared.dynlibSupported)
     @import("native.zig")

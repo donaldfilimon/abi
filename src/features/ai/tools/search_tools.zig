@@ -4,7 +4,7 @@
 //! - Grep (pattern matching in files)
 //! - Find (locate files by name)
 //!
-//! Note: These tools use shell commands internally for Zig 0.16 compatibility.
+//! Note: These tools use shell commands internally for Zig 0.17 compatibility.
 
 const std = @import("std");
 const json = std.json;

@@ -34,10 +34,10 @@ pub const OSControlManager = struct {
             .full_control => return true,
             .ask_before_action => {
                 std.log.info("[Security] Agent wants to: {s}. Allow? (y/N)", .{action_desc});
-                const stdin = std.io.getStdIn();
-                const reader = stdin.reader();
-                var buf: [64]u8 = undefined;
-                const line = reader.readUntilDelimiterOrEof(&buf, '\n') orelse return false;
+                const stdin = std.Io.File.stdin();
+                var in_buf: [64]u8 = undefined;
+                var reader = stdin.reader(std.Io.File.stdin().?, &in_buf);
+                const line = reader.takeDelimiterExclusive('\n') catch return false;
                 // Trim whitespace (including newline if present)
                 const trimmed = std.mem.trim(u8, line, " \t\n\r");
                 if (trimmed.len == 0) {

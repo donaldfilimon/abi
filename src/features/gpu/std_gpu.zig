@@ -1,6 +1,6 @@
 //! Zig std.gpu Integration Module
 //!
-//! Provides direct access to Zig 0.16's std.gpu facilities for GPU compute,
+//! Provides direct access to Zig 0.17's std.gpu facilities for GPU compute,
 //! including address spaces, shader built-ins, and SPIR-V code generation.
 //!
 //! ## Overview
@@ -377,7 +377,7 @@ pub fn gridStrideLoop(total_elements: u32) struct { start: u32, stride: u32 } {
 }
 
 // ============================================================================
-// Atomic Operations (Zig 0.16 compatible)
+// Atomic Operations (Zig 0.17 compatible)
 // ============================================================================
 
 /// Atomic add for u32 in device scope
@@ -560,7 +560,7 @@ test "is_gpu_target detection" {
 }
 
 // ============================================================================
-// Subgroup Operations (Zig 0.16 std.gpu)
+// Subgroup Operations (Zig 0.17 std.gpu)
 // ============================================================================
 
 /// Subgroup size (warp/wavefront size)

@@ -9,7 +9,7 @@
 - **Convenience Layer:** Shell script utility for common ABI framework operations, providing a CLI abstraction for MCP tools.
 
 **Tech Stack:**
-- Zig 0.16
+- Zig 0.17
 - Bash
 
 ---

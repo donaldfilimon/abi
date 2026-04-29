@@ -8,7 +8,7 @@
 // Thread-safe via inline spinlock.
 //
 // Changes from v2.0:
-//   - Replaced std.time.nanoTimestamp() with time.Timer (Zig 0.16)
+//   - Replaced std.time.nanoTimestamp() with time.Timer (Zig 0.17)
 //   - Replaced utils.Atomic.SpinLock with inline atomic spinlock
 //   - Removed @import("utils") dependency
 //   - Removed emojis from report output (project convention)
