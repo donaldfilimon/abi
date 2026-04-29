@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Would an agent likely miss this without help? See AGENTS.md for General Next Steps guidance.
 
+Onboarding: See ONBOARDING.md for a quick-start guide to bootstrapping a session.
+
+Glossary: See GLOSSARY.md for repo-wide terms.
+
 ## Project Overview
 
 ABI is a Zig 0.17-dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.

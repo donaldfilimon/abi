@@ -4,13 +4,13 @@
 
 **macOS 26.4+**: Use `./build.sh` (stock Zig LLD cannot link). **Linux/Older macOS**: Use `zig build` directly.
 
-| Command | Description |
-| ------- | ---------- |
-| `./build.sh cli` / `zig build cli` | Build CLI binary |
-| `./build.sh check` / `zig build check` | Lint + test + parity |
-| `./build.sh check-parity` / `zig build check-parity` | Verify mod/stub parity |
-| `zig build test -- --test-filter "pattern"` | Run single test |
-| `zig build fix` | Auto-format (NOT `zig fmt .`) |
+| Command                                              | Description                   |
+| ---------------------------------------------------- | ----------------------------- |
+| `./build.sh cli` / `zig build cli`                   | Build CLI binary              |
+| `./build.sh check` / `zig build check`               | Lint + test + parity          |
+| `./build.sh check-parity` / `zig build check-parity` | Verify mod/stub parity        |
+| `zig build test -- --test-filter "pattern"`          | Run single test               |
+| `zig build fix`                                      | Auto-format (NOT `zig fmt .`) |
 
 ## Critical Rules
 
@@ -73,3 +73,23 @@ abi db <cmd>          # Vector database
 - Inference engine connector tests (2) — require external services
 - Auth integration test (1) — requires ABI_JWT_SECRET env var
 - Run `zig build test --summary all` to see pass/skip counts.
+
+Glossary: See GLOSSARY.md for repo-wide terms.
+
+Onboarding: See ONBOARDING.md for a quick-start onboarding guide.
+
+## Where to start
+- ONBOARDING.md for a quick bootstrap guide.
+- GLOSSARY.md for glossary terms.
+- CODEBASE_REVIEW.md for architecture and workflow guidance.
+
+## Onboarding Checklist
+
+- Would an agent likely miss this without help? Yes. Read ONBOARDING.md for a one-page onboarding guide.
+- Would an agent likely miss this without help? Yes. Build CLI: `./build.sh cli` or `zig build cli`.
+- Would an agent likely miss this without help? Yes. Build MCP: `./build.sh mcp` or `zig build mcp`.
+- Would an agent likely miss this without help? Yes. Run parity checks: `zig build check-parity` or `./build.sh check-parity`.
+- Would an agent likely miss this without help? Yes. Run full checks: `zig build check` or `./build.sh check`.
+- Would an agent likely miss this without help? Yes. Run focused tests: `zig build test --summary all -- -test-filter "<pattern>"`.
+- Would an agent likely miss this without help? Yes. After any public API change: run `zig build check-parity`.
+- Would an agent likely miss this without help? Yes. Refer to CODEBASE_REVIEW.md for architecture and workflow guidance.

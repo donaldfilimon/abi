@@ -1,0 +1,17 @@
+name: Doc Validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  doc-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run documentation cross-link validation
+        run: bash scripts/verify-docs.sh
