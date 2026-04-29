@@ -263,7 +263,10 @@ fn callOpenAICompatible(
 }
 
 fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8, prompt: []const u8) ![]u8 {
-    var config = (loaders.tryLoadAnthropic(allocator) catch |err| switch(err) { error.MissingApiKey => return error.MissingApiKey, else => return error.ApiRequestFailed, }) orelse
+    var config = (loaders.tryLoadAnthropic(allocator) catch |err| switch (err) {
+        error.MissingApiKey => return error.MissingApiKey,
+        else => return error.ApiRequestFailed,
+    }) orelse
         return error.MissingApiKey;
 
     if (model_override) |override| {
