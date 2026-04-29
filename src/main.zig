@@ -412,9 +412,9 @@ pub fn runDoctor() void {
     , .{version});
 
     inline for (feature_catalog.all) |entry| {
+        if (entry.parent != null) continue;
         const enabled = @field(build_options, entry.compile_flag_field);
-        const indent: []const u8 = if (entry.parent != null) "    " else "  ";
-        std.debug.print("{s}{s} = {any}\n", .{ indent, entry.compile_flag_field, enabled });
+        std.debug.print("  {s} = {any}\n", .{ entry.compile_flag_field, enabled });
     }
 
     std.debug.print(
