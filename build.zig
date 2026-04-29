@@ -1,4 +1,4 @@
-//! ABI build root — Zig 0.17.x/dev, self-contained.
+//! ABI build root — Zig 0.16, self-contained.
 const std = @import("std");
 const build_flags = @import("build/flags.zig");
 const build_cross = @import("build/cross.zig");

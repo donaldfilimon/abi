@@ -27,10 +27,10 @@ pub fn handleAbiChat(
     const message = message_val.string;
 
     // Route through multi-profile pipeline
-    var profileRegistry = root.ai.profile.ProfileRegistry.init(allocator, .{});
-    defer profileRegistry.deinit();
+    var registry = root.ai.profile.ProfileRegistry.init(allocator, .{});
+    defer registry.deinit();
 
-    var router = root.ai.profile.MultiProfileRouter.init(allocator, &profileRegistry, .{});
+    var router = root.ai.profile.MultiProfileRouter.init(allocator, &registry, .{});
     defer router.deinit();
 
     const decision = router.route(message);

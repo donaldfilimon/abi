@@ -205,6 +205,7 @@ pub const transport = struct {
     }
 };
 
+// Parity stubs for isEnabled and Context to mirror mod.zig surface
 pub fn isEnabled() bool {
     return false;
 }
@@ -213,8 +214,6 @@ pub const Context = struct {
         return false;
     }
 };
-
-pub const registry = @import("registry.zig");
 
 test {
     std.testing.refAllDecls(@This());

@@ -1,0 +1,1 @@
+Integrate inference engine bridge with LLM connectors by auditing env configuration loading (ABI_OPENAI_API_KEY, etc.) and removing echo mode.

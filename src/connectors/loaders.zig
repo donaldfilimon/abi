@@ -1,22 +1,22 @@
 const std = @import("std");
 
-pub const openai = @import("openai.zig");
-pub const codex = @import("codex.zig");
-pub const opencode = @import("opencode.zig");
-pub const claude = @import("claude.zig");
-pub const gemini = @import("gemini.zig");
-pub const huggingface = @import("huggingface.zig");
-pub const ollama = @import("ollama.zig");
-pub const ollama_passthrough = @import("ollama_passthrough.zig");
-pub const local_scheduler = @import("local_scheduler.zig");
-pub const discord = @import("discord/mod.zig");
-pub const anthropic = @import("anthropic.zig");
-pub const mistral = @import("mistral.zig");
-pub const cohere = @import("cohere.zig");
-pub const lm_studio = @import("lm_studio.zig");
-pub const vllm = @import("vllm.zig");
-pub const mlx = @import("mlx.zig");
-pub const llama_cpp = @import("llama_cpp.zig");
+const openai = @import("openai.zig");
+const codex = @import("codex.zig");
+const opencode = @import("opencode.zig");
+const claude = @import("claude.zig");
+const gemini = @import("gemini.zig");
+const huggingface = @import("huggingface.zig");
+const ollama = @import("ollama.zig");
+const ollama_passthrough = @import("ollama_passthrough.zig");
+const local_scheduler = @import("local_scheduler.zig");
+const discord = @import("discord/mod.zig");
+const anthropic = @import("anthropic.zig");
+const mistral = @import("mistral.zig");
+const cohere = @import("cohere.zig");
+const lm_studio = @import("lm_studio.zig");
+const vllm = @import("vllm.zig");
+const mlx = @import("mlx.zig");
+const llama_cpp = @import("llama_cpp.zig");
 
 fn LoaderPayload(comptime load_fn: anytype) type {
     const return_type = @typeInfo(@TypeOf(load_fn)).@"fn".return_type orelse

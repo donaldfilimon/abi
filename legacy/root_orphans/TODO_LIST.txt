@@ -1,0 +1,2 @@
+src/features/ai/explore/query.zig:176:                    try patterns.append(allocator, "TODO");
+src/features/ai/constitution/enforcement/common.zig:86:        "REPLACE", "replace", "TODO",  "example",

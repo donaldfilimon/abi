@@ -6,7 +6,7 @@ Would an agent likely miss this without help? See AGENTS.md for General Next Ste
 
 ## Project Overview
 
-ABI is a Zig 0.17.x/dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
+ABI is a Zig 0.16 framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
 
 Zig version is pinned in `.zigversion`. `tools/zigly` is the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version matches the pin:
 
@@ -151,7 +151,7 @@ Build options are exposed via `@import("build_options")` with fields like `feat_
 - **Cross-feature imports**: Never import another feature's `mod.zig` directly. Use conditional: `const obs = if (build_options.feat_observability) @import("../../features/observability/mod.zig") else @import("../../features/observability/stub.zig");`
 - **Explicit `.zig` extensions** required on all path imports.
 
-## Zig 0.17 Gotchas
+## Zig 0.16 Gotchas
 
 - `ArrayListUnmanaged` init: use `.empty` not `.{}`
 - `std.BoundedArray` removed: use manual `buffer: [N]T = undefined` + `len: usize = 0`
