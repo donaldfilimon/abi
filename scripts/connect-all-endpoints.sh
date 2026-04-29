@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "=== Connect All MCP & ACP Endpoints ==="
+echo "=== Connect All MCP & ACP Endpoints (Summary) ==="
 
 # Connect to MCP endpoints from mcp/servers.json
 if ! command -v jq >/dev/null 2>&1; then
@@ -48,3 +48,9 @@ fi
 
 echo
 echo "Interop summary complete."
+
+## Optional: also run ACP connectivity check if endpoints are provided
+if [[ -n "${ACP_ENDPOINTS:-}" ]]; then
+  echo "\nACP endpoints configured; running quick checks."
+  bash scripts/list-acp-endpoints.sh || true
+fi
