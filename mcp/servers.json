@@ -1,12 +1,32 @@
 {
   "mcpServers": {
-    "abi-mcp": {
-      "command": "/Users/donaldfilimon/abi/zig-out/bin/abi-mcp",
+    "abi-mcp-1": {
+      "command": "./mcp/launcher.sh",
       "args": ["stdio"],
       "workDir": "/Users/donaldfilimon/abi",
       "env": {
         "LOG_LEVEL": "info",
         "ABI_MCP_PORT": "50051",
+        "ABI_MCP_HOST": "127.0.0.1"
+      },
+      "healthCheck": {
+        "enabled": true,
+        "path": "/health",
+        "intervalMs": 10000,
+        "timeoutMs": 2000
+      },
+      "restartPolicy": {
+        "maxRetries": 5,
+        "backoffMs": 2000
+      }
+    },
+    "abi-mcp-2": {
+      "command": "./mcp/launcher.sh",
+      "args": ["stdio"],
+      "workDir": "/Users/donaldfilimon/abi",
+      "env": {
+        "LOG_LEVEL": "info",
+        "ABI_MCP_PORT": "50052",
         "ABI_MCP_HOST": "127.0.0.1"
       },
       "healthCheck": {
