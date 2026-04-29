@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "abi-mcp": {
-      "command": "./zig-out/bin/abi-mcp",
+      "command": "/Users/donaldfilimon/abi/zig-out/bin/abi-mcp",
       "args": ["stdio"],
       "workDir": "/Users/donaldfilimon/abi",
       "env": {
