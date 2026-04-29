@@ -16,7 +16,7 @@ jobs:
           python-version: '3.x'
       - name: Start mock MCP health servers
         run: |
-          python3 scripts/mock-mcp-health-servers.py 50051 50052 &
+          python3 scripts/mock-mcp-health-servers.py &
           echo $! > /tmp/mock_mcp_pids.txt
       - name: Wait for mock servers
         run: sleep 2
