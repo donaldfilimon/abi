@@ -1,98 +1,10 @@
-# AGENTS.md
-
-## Build Commands
-
-**macOS 26.4+**: Use `./build.sh` (stock Zig LLD cannot link). **Linux/Older macOS**: Use `zig build` directly.
-
-| Command                                              | Description                   |
-| ---------------------------------------------------- | ----------------------------- |
-| `./build.sh cli` / `zig build cli`                   | Build CLI binary              |
-| `./build.sh check` / `zig build check`               | Lint + test + parity          |
-| `./build.sh check-parity` / `zig build check-parity` | Verify mod/stub parity        |
-| `zig build test -- --test-filter "pattern"`          | Run single test               |
-| `zig build fix`                                      | Auto-format (NOT `zig fmt .`) |
-
-## Critical Rules
-
-1. **Never `@import("abi")` from `src/`** — causes circular import. Use relative imports.
-2. **Mod/stub contract**: Every feature has `mod.zig` + `stub.zig`. Update both for any public API change.
-3. After any public API change: run `zig build check-parity`.
-4. Feature gates: `if (build_options.feat_X) @import("features/X/mod.zig") else @import("features/X/stub.zig")`.
-5. **String ownership**: Use `allocator.dupe()` for string literals in structs with `deinit()`.
-
-## Architecture
-
-- `src/root.zig` — Package root, exports `abi.<domain>`
-- `src/features/<name>/` — Feature modules with mod/stub/types pattern
-- `src/main.zig` — CLI entry point
-- `src/mcp_main.zig` — MCP server entry point
-
-## MCP Enhancements
-- Suggested: use `mcp/servers.json` to configure MCP servers with environment variables, health checks, and restart policies for robustness.
-
-Feature flags (defaults enabled): `-Dfeat-gpu -Dfeat-ai -Dfeat-database -Dfeat-network -Dfeat-observability -Dfeat-web -Dfeat-cloud -Dfeat-auth -Dfeat-messaging -Dfeat-cache -Dfeat-storage -Dfeat-search`
-
-GPU backends: `-Dgpu-backend=metal,cuda,vulkan,stdgpu`
-
-## CLI Commands
-
-```bash
-abi                    # Smart status
-abi version            # Version + build info
-abi doctor             # Feature flags + GPU backends
-abi features           # List 60 features
-abi platform           # OS, arch, CPU, GPU
-abi connectors         # 16 LLM providers + env vars
-abi info              # Architecture summary
-abi chat <msg>        # Multi-profile pipeline
-abi db <cmd>          # Vector database
-```
-
-## Import Rules
-
-- **Within `src/`**: `@import("../../foundation/mod.zig")` — never `@import("abi")`
-- **From `test/`**: `@import("abi")` and `@import("build_options")` are wired by build.zig
-- **Cross-feature**: Use conditional import pattern
-- Explicit `.zig` extensions required
-
-## Zig 0.17 Gotchas
-
-- `ArrayListUnmanaged` init: `.empty` not `.{}`
-- `std.BoundedArray` removed: use `buffer: [N]T = undefined + len: usize = 0`
-- `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
-- Entry: `pub fn main(init: std.process.Init) !void`
-- `std.mem.trimRight` → `std.mem.trimEnd`
-- Env vars: `std.c.getenv(name.ptr)` returns `?[*:0]const u8`
-
-## Error Handling
-
-- `@compileError` — Compile-time only
-- `@panic` — Unrecoverable; CLI entry points and tests only
-- `unreachable` — Provably impossible
-- Error unions — Runtime failures in library code
-
-## Known Pre-existing Test Failures
-
-- Inference engine connector tests (2) — require external services
-- Auth integration test (1) — requires ABI_JWT_SECRET env var
-- Run `zig build test --summary all` to see pass/skip counts.
-
-Glossary: See GLOSSARY.md for repo-wide terms.
-
-Onboarding: See ONBOARDING.md for a quick-start onboarding guide.
-
-## Where to start
-- ONBOARDING.md for a quick bootstrap guide.
-- GLOSSARY.md for glossary terms.
-- CODEBASE_REVIEW.md for architecture and workflow guidance.
-
-## Onboarding Checklist
-
-- Would an agent likely miss this without help? Yes. Read ONBOARDING.md for a one-page onboarding guide.
-- Would an agent likely miss this without help? Yes. Build CLI: `./build.sh cli` or `zig build cli`.
-- Would an agent likely miss this without help? Yes. Build MCP: `./build.sh mcp` or `zig build mcp`.
-- Would an agent likely miss this without help? Yes. Run parity checks: `zig build check-parity` or `./build.sh check-parity`.
-- Would an agent likely miss this without help? Yes. Run full checks: `zig build check` or `./build.sh check`.
-- Would an agent likely miss this without help? Yes. Run focused tests: `zig build test --summary all -- -test-filter "<pattern>"`.
-- Would an agent likely miss this without help? Yes. After any public API change: run `zig build check-parity`.
-- Would an agent likely miss this without help? Yes. Refer to CODEBASE_REVIEW.md for architecture and workflow guidance.
+- Would an agent miss this without help? Yes. Start with ONBOARDING.md for a quick bootstrap guide.
+- Would an agent miss this without help? Yes. The repository uses Zig 0.17-dev; follow the build/test parity steps described in README and ONBOARDING.
+- Would an agent miss this without help? Yes. Use the mcp launcher (mcp/launcher.sh) for cross-OS MCP startup; connect to abi-mcp-1 and abi-mcp-2 for high availability.
+- Would an agent miss this without help? Yes. Use mcp/servers.json to configure multiple MCP servers with per-instance ports and health checks.
+- Would an agent miss this without help? Yes. Use scripts/check-mcp-health.sh to verify multi-HA MCP health; interpret non-zero exit as failure.
+- Would an agent miss this without help? Yes. Use scripts/check-interop.sh to validate MCP-ACP interop and cross-HA readiness; integrate with startup tests.
+- Would an agent miss this without help? Yes. Use scripts/list-acp-endpoints.sh to verify ACP endpoints and connectivity (via ACP_ENDPOINTS env var).
+- Would an agent miss this without help? Yes. Enable doc validation CI (doc-validation.yml) to catch cross-link and Mermaid issues on PRs.
+- Would an agent miss this without help? Yes. ONBOARDING.md should be read first; ONBOARDING_INDEX.md and SUMMARY.md provide navigation for quick ramp-up.
+- Would an agent miss this without help? Yes. Use the Launcher-based approach for cross-CLI workflows and avoid OS-specific pitfalls.
