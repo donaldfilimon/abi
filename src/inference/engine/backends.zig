@@ -178,6 +178,7 @@ fn callOpenAICompatible(
 ) ![]u8 {
     // Load config from environment variables
     var config = loader_fn(allocator) catch |err| {
+        if (err == error.MissingApiKey) return error.MissingApiKey;
         std.log.warn("connector: loader failed for model override {any}: {s}", .{ model_override, @errorName(err) });
         return error.ApiRequestFailed;
     } orelse return error.MissingApiKey;
@@ -262,7 +263,7 @@ fn callOpenAICompatible(
 }
 
 fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8, prompt: []const u8) ![]u8 {
-    var config = (loaders.tryLoadAnthropic(allocator) catch return error.ApiRequestFailed) orelse
+    var config = (loaders.tryLoadAnthropic(allocator) catch |err| switch(err) { error.MissingApiKey => return error.MissingApiKey, else => return error.ApiRequestFailed, }) orelse
         return error.MissingApiKey;
 
     if (model_override) |override| {
