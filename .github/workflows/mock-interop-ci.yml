@@ -1,0 +1,33 @@
+name: Mock Interop CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mock-interop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Start mock MCP health servers
+        run: |
+          python3 scripts/mock-mcp-health-servers.py &
+          echo $! > /tmp/mock_mcp_pids.txt
+      - name: Wait for mock servers
+        run: sleep 2
+      - name: Run MCP health check against mock servers
+        run: |
+          bash scripts/check-mcp-health.sh
+      - name: Run interop checks against mock endpoints
+        run: |
+          ACP_ENDPOINTS="" bash scripts/check-interop.sh
+      - name: Teardown mock servers
+        run: |
+          if [ -f /tmp/mock_mcp_pids.txt ]; then
+            kill -9 $(cat /tmp/mock_mcp_pids.txt) || true
+          fi
