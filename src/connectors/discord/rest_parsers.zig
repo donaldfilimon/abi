@@ -18,6 +18,7 @@ const ApplicationCommand = types.ApplicationCommand;
 const Webhook = types.Webhook;
 const VoiceRegion = types.VoiceRegion;
 const OAuth2Token = types.OAuth2Token;
+const GatewayBotInfo = types.GatewayBotInfo;
 
 pub fn parseUser(allocator: std.mem.Allocator, json: []const u8) !User {
     const parsed = try std.json.parseFromSlice(
@@ -556,6 +557,114 @@ pub fn parseOAuth2Token(allocator: std.mem.Allocator, json: []const u8) !OAuth2T
         ) catch null,
         .scope = try json_utils.parseStringField(object, "scope", allocator),
     };
+}
+
+pub fn parseGatewayBotInfo(allocator: std.mem.Allocator, json: []const u8) !GatewayBotInfo {
+    const parsed = try std.json.parseFromSlice(
+        std.json.Value,
+        allocator,
+        json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const object = try json_utils.getRequiredObject(parsed.value);
+    const limit_object = try json_utils.parseObjectField(object, "session_start_limit");
+
+    return GatewayBotInfo{
+        .url = try json_utils.parseStringField(object, "url", allocator),
+        .shards = @intCast(try json_utils.parseIntField(object, "shards")),
+        .session_start_limit = .{
+            .total = @intCast(try json_utils.parseIntField(limit_object, "total")),
+            .remaining = @intCast(try json_utils.parseIntField(limit_object, "remaining")),
+            .reset_after = @intCast(try json_utils.parseIntField(limit_object, "reset_after")),
+            .max_concurrency = @intCast(try json_utils.parseIntField(limit_object, "max_concurrency")),
+        },
+    };
+}
+
+test "parseWebhook parses offline payload" {
+    const allocator = std.testing.allocator;
+    const webhook = try parseWebhook(allocator,
+        \\{"id":"1","type":1,"name":"deploy","token":"tok"}
+    );
+    defer allocator.free(webhook.id);
+    defer if (webhook.name) |name| allocator.free(name);
+    defer if (webhook.token) |token| allocator.free(token);
+
+    try std.testing.expectEqualStrings("1", webhook.id);
+    try std.testing.expectEqual(@as(u8, 1), webhook.webhook_type);
+    try std.testing.expectEqualStrings("deploy", webhook.name.?);
+    try std.testing.expectEqualStrings("tok", webhook.token.?);
+}
+
+test "parseApplicationCommand parses command payload" {
+    const allocator = std.testing.allocator;
+    const command = try parseApplicationCommand(allocator,
+        \\{"id":"10","application_id":"20","name":"ping","description":"Ping","version":"30"}
+    );
+    defer allocator.free(command.id);
+    defer allocator.free(command.application_id);
+    defer allocator.free(command.name);
+    defer allocator.free(command.description);
+    defer allocator.free(command.version);
+
+    try std.testing.expectEqualStrings("10", command.id);
+    try std.testing.expectEqualStrings("20", command.application_id);
+    try std.testing.expectEqualStrings("ping", command.name);
+    try std.testing.expectEqualStrings("Ping", command.description);
+    try std.testing.expectEqualStrings("30", command.version);
+}
+
+test "parseVoiceRegionArray parses metadata" {
+    const allocator = std.testing.allocator;
+    const regions = try parseVoiceRegionArray(allocator,
+        \\[{"id":"us-east","name":"US East","optimal":true,"deprecated":false}]
+    );
+    defer {
+        for (regions) |region| {
+            allocator.free(region.id);
+            allocator.free(region.name);
+        }
+        allocator.free(regions);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), regions.len);
+    try std.testing.expectEqualStrings("us-east", regions[0].id);
+    try std.testing.expect(regions[0].optimal);
+    try std.testing.expect(!regions[0].deprecated);
+}
+
+test "parseOAuth2Token parses token payload" {
+    const allocator = std.testing.allocator;
+    const token = try parseOAuth2Token(allocator,
+        \\{"access_token":"access","token_type":"Bearer","expires_in":3600,"refresh_token":"refresh","scope":"identify"}
+    );
+    defer allocator.free(token.access_token);
+    defer allocator.free(token.token_type);
+    defer if (token.refresh_token) |refresh| allocator.free(refresh);
+    defer allocator.free(token.scope);
+
+    try std.testing.expectEqualStrings("access", token.access_token);
+    try std.testing.expectEqualStrings("Bearer", token.token_type);
+    try std.testing.expectEqual(@as(u64, 3600), token.expires_in);
+    try std.testing.expectEqualStrings("refresh", token.refresh_token.?);
+    try std.testing.expectEqualStrings("identify", token.scope);
+}
+
+test "parseGatewayBotInfo parses gateway metadata" {
+    const allocator = std.testing.allocator;
+    const info = try parseGatewayBotInfo(allocator,
+        \\{"url":"wss://gateway.discord.gg","shards":2,"session_start_limit":{"total":1000,"remaining":999,"reset_after":14400000,"max_concurrency":1}}
+    );
+    defer allocator.free(info.url);
+
+    try std.testing.expectEqualStrings("wss://gateway.discord.gg", info.url);
+    try std.testing.expectEqual(@as(u32, 2), info.shards);
+    try std.testing.expectEqual(@as(u32, 1000), info.session_start_limit.total);
+    try std.testing.expectEqual(@as(u32, 999), info.session_start_limit.remaining);
+    try std.testing.expectEqual(@as(u64, 14400000), info.session_start_limit.reset_after);
+    try std.testing.expectEqual(@as(u32, 1), info.session_start_limit.max_concurrency);
 }
 
 test {

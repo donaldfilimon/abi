@@ -61,6 +61,9 @@ pub const ENV_VARS = struct {
     };
     pub const discord = struct {
         pub const bot_token = &[_][]const u8{ "ABI_DISCORD_BOT_TOKEN", "DISCORD_BOT_TOKEN" };
+        pub const client_id = &[_][]const u8{ "ABI_DISCORD_CLIENT_ID", "DISCORD_CLIENT_ID" };
+        pub const client_secret = &[_][]const u8{ "ABI_DISCORD_CLIENT_SECRET", "DISCORD_CLIENT_SECRET" };
+        pub const public_key = &[_][]const u8{ "ABI_DISCORD_PUBLIC_KEY", "DISCORD_PUBLIC_KEY" };
     };
 };
 
@@ -106,6 +109,17 @@ test "ENV_VARS documents ABI-prefixed primary for HuggingFace" {
 test "ENV_VARS documents ABI-prefixed primary for Ollama" {
     try std.testing.expectEqualStrings("ABI_OLLAMA_HOST", ENV_VARS.ollama.host[0]);
     try std.testing.expectEqualStrings("OLLAMA_HOST", ENV_VARS.ollama.host[1]);
+}
+
+test "ENV_VARS documents ABI-prefixed primary for Discord" {
+    try std.testing.expectEqualStrings("ABI_DISCORD_BOT_TOKEN", ENV_VARS.discord.bot_token[0]);
+    try std.testing.expectEqualStrings("DISCORD_BOT_TOKEN", ENV_VARS.discord.bot_token[1]);
+    try std.testing.expectEqualStrings("ABI_DISCORD_CLIENT_ID", ENV_VARS.discord.client_id[0]);
+    try std.testing.expectEqualStrings("DISCORD_CLIENT_ID", ENV_VARS.discord.client_id[1]);
+    try std.testing.expectEqualStrings("ABI_DISCORD_CLIENT_SECRET", ENV_VARS.discord.client_secret[0]);
+    try std.testing.expectEqualStrings("DISCORD_CLIENT_SECRET", ENV_VARS.discord.client_secret[1]);
+    try std.testing.expectEqualStrings("ABI_DISCORD_PUBLIC_KEY", ENV_VARS.discord.public_key[0]);
+    try std.testing.expectEqualStrings("DISCORD_PUBLIC_KEY", ENV_VARS.discord.public_key[1]);
 }
 
 test {

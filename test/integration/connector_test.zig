@@ -8,6 +8,59 @@ const abi = @import("abi");
 
 const connectors = abi.connectors;
 
+const c = struct {
+    pub extern "c" fn getenv(name: [*:0]const u8) ?[*:0]const u8;
+    pub extern "c" fn setenv(name: [*:0]const u8, value: [*:0]const u8, overwrite: i32) i32;
+    pub extern "c" fn unsetenv(name: [*:0]const u8) i32;
+};
+
+const SavedEnv = struct {
+    name: [:0]const u8,
+    value: ?[:0]u8,
+};
+
+const discord_env_names = [_][:0]const u8{
+    "ABI_DISCORD_BOT_TOKEN",
+    "DISCORD_BOT_TOKEN",
+    "ABI_DISCORD_CLIENT_ID",
+    "DISCORD_CLIENT_ID",
+    "ABI_DISCORD_CLIENT_SECRET",
+    "DISCORD_CLIENT_SECRET",
+    "ABI_DISCORD_PUBLIC_KEY",
+    "DISCORD_PUBLIC_KEY",
+};
+
+fn saveEnv(allocator: std.mem.Allocator, name: [:0]const u8) !SavedEnv {
+    if (c.getenv(name.ptr)) |ptr| {
+        return .{ .name = name, .value = try allocator.dupeZ(u8, std.mem.span(ptr)) };
+    }
+    return .{ .name = name, .value = null };
+}
+
+fn saveAndClearDiscordEnv(allocator: std.mem.Allocator) ![discord_env_names.len]SavedEnv {
+    var saved: [discord_env_names.len]SavedEnv = undefined;
+    for (discord_env_names, 0..) |name, i| {
+        saved[i] = try saveEnv(allocator, name);
+        _ = c.unsetenv(name.ptr);
+    }
+    return saved;
+}
+
+fn restoreEnv(allocator: std.mem.Allocator, saved: []SavedEnv) void {
+    for (saved) |item| {
+        if (item.value) |value| {
+            _ = c.setenv(item.name.ptr, value.ptr, 1);
+            allocator.free(value);
+        } else {
+            _ = c.unsetenv(item.name.ptr);
+        }
+    }
+}
+
+fn setEnv(name: [:0]const u8, value: [:0]const u8) !void {
+    if (c.setenv(name.ptr, value.ptr, 1) != 0) return error.SetEnvFailed;
+}
+
 // ============================================================================
 // Module Exports
 // ============================================================================
@@ -130,8 +183,33 @@ test "connectors: tryLoadCohere returns null without key" {
 }
 
 test "connectors: tryLoadDiscord returns null without key" {
+    var saved = try saveAndClearDiscordEnv(std.testing.allocator);
+    defer restoreEnv(std.testing.allocator, &saved);
+
     const result = try connectors.tryLoadDiscord(std.testing.allocator);
     try std.testing.expect(result == null);
+}
+
+test "connectors: Discord env loading prefers ABI names and skips empty values" {
+    var saved = try saveAndClearDiscordEnv(std.testing.allocator);
+    defer restoreEnv(std.testing.allocator, &saved);
+
+    try setEnv("DISCORD_BOT_TOKEN", "legacy-token");
+    try setEnv("ABI_DISCORD_BOT_TOKEN", "abi-token");
+    try setEnv("DISCORD_CLIENT_ID", "legacy-client");
+    try setEnv("ABI_DISCORD_CLIENT_ID", "");
+    try setEnv("DISCORD_CLIENT_SECRET", "legacy-secret");
+    try setEnv("ABI_DISCORD_CLIENT_SECRET", "abi-secret");
+    try setEnv("DISCORD_PUBLIC_KEY", "legacy-key");
+    try setEnv("ABI_DISCORD_PUBLIC_KEY", "");
+
+    var config = try connectors.discord.loadFromEnv(std.testing.allocator);
+    defer config.deinit(std.testing.allocator);
+
+    try std.testing.expectEqualStrings("abi-token", config.bot_token);
+    try std.testing.expectEqualStrings("legacy-client", config.client_id.?);
+    try std.testing.expectEqualStrings("abi-secret", config.client_secret.?);
+    try std.testing.expectEqualStrings("legacy-key", config.public_key.?);
 }
 
 test "connectors: tryLoadCodex returns null without key" {
@@ -235,6 +313,8 @@ test "connectors: ProviderRegistry lists exactly 16 providers" {
 
 test "connectors: ProviderRegistry getByName finds all 16 providers by name" {
     const expected_names = [_][]const u8{
+        "ollama",
+        "ollama_passthrough",
         "openai",
         "anthropic",
         "claude",
@@ -242,8 +322,6 @@ test "connectors: ProviderRegistry getByName finds all 16 providers by name" {
         "opencode",
         "gemini",
         "huggingface",
-        "ollama",
-        "ollama_passthrough",
         "mistral",
         "cohere",
         "lm_studio",
@@ -256,6 +334,14 @@ test "connectors: ProviderRegistry getByName finds all 16 providers by name" {
         const info = connectors.ProviderRegistry.getByName(name);
         try std.testing.expect(info != null);
     }
+}
+
+test "connectors: ProviderRegistry order starts with local inference" {
+    const all = connectors.ProviderRegistry.listAll();
+    try std.testing.expect(all.len >= 3);
+    try std.testing.expectEqualStrings("ollama", all[0].name);
+    try std.testing.expectEqualStrings("ollama_passthrough", all[1].name);
+    try std.testing.expectEqualStrings("openai", all[2].name);
 }
 
 test "connectors: ProviderRegistry getByName returns null for unknown provider" {
@@ -433,6 +519,9 @@ test "connectors: ENV_VARS all entries are non-empty strings" {
     for (connectors.ENV_VARS.cohere.api_key) |v| try std.testing.expect(v.len > 0);
 
     for (connectors.ENV_VARS.discord.bot_token) |v| try std.testing.expect(v.len > 0);
+    for (connectors.ENV_VARS.discord.client_id) |v| try std.testing.expect(v.len > 0);
+    for (connectors.ENV_VARS.discord.client_secret) |v| try std.testing.expect(v.len > 0);
+    for (connectors.ENV_VARS.discord.public_key) |v| try std.testing.expect(v.len > 0);
 }
 
 test "connectors: ENV_VARS primary entries all start with ABI_ prefix" {
@@ -448,6 +537,9 @@ test "connectors: ENV_VARS primary entries all start with ABI_ prefix" {
     try std.testing.expect(std.mem.startsWith(u8, connectors.ENV_VARS.mistral.api_key[0], "ABI_"));
     try std.testing.expect(std.mem.startsWith(u8, connectors.ENV_VARS.cohere.api_key[0], "ABI_"));
     try std.testing.expect(std.mem.startsWith(u8, connectors.ENV_VARS.discord.bot_token[0], "ABI_"));
+    try std.testing.expect(std.mem.startsWith(u8, connectors.ENV_VARS.discord.client_id[0], "ABI_"));
+    try std.testing.expect(std.mem.startsWith(u8, connectors.ENV_VARS.discord.client_secret[0], "ABI_"));
+    try std.testing.expect(std.mem.startsWith(u8, connectors.ENV_VARS.discord.public_key[0], "ABI_"));
 }
 
 // ============================================================================

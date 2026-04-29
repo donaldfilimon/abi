@@ -16,6 +16,7 @@
 
 const std = @import("std");
 const gateway_types = @import("gateway_types.zig");
+const json_utils = @import("../../foundation/mod.zig").utils.json;
 
 pub const GatewayState = gateway_types.GatewayState;
 pub const GatewayEventHandler = gateway_types.GatewayEventHandler;
@@ -28,6 +29,96 @@ pub const GatewayError = error{
     AlreadyConnected,
     NotConnected,
 };
+
+fn appendJsonString(allocator: std.mem.Allocator, json: *std.ArrayListUnmanaged(u8), value: []const u8) !void {
+    try json.append(allocator, '"');
+    try json_utils.appendJsonEscaped(allocator, json, value);
+    try json.append(allocator, '"');
+}
+
+/// Build an offline IDENTIFY payload. Transport over a WebSocket is deferred to
+/// a future networking wave; callers can use this for deterministic validation.
+pub fn buildIdentifyPayload(
+    allocator: std.mem.Allocator,
+    token: []const u8,
+    intents: u32,
+) ![]u8 {
+    var json = std.ArrayListUnmanaged(u8).empty;
+    errdefer json.deinit(allocator);
+
+    try json.print(allocator, "{{\"op\":{d},\"d\":{{\"token\":", .{@intFromEnum(GatewayOpcode.IDENTIFY)});
+    try appendJsonString(allocator, &json, token);
+    try json.print(
+        allocator,
+        ",\"intents\":{d},\"properties\":{{\"os\":\"zig\",\"browser\":\"abi\",\"device\":\"abi\"}}}}}}",
+        .{intents},
+    );
+
+    return try json.toOwnedSlice(allocator);
+}
+
+/// Build an offline HEARTBEAT payload using the last Gateway sequence number.
+pub fn buildHeartbeatPayload(allocator: std.mem.Allocator, sequence_number: ?u64) ![]u8 {
+    if (sequence_number) |seq| {
+        return try std.fmt.allocPrint(
+            allocator,
+            "{{\"op\":{d},\"d\":{d}}}",
+            .{ @intFromEnum(GatewayOpcode.HEARTBEAT), seq },
+        );
+    }
+    return try std.fmt.allocPrint(
+        allocator,
+        "{{\"op\":{d},\"d\":null}}",
+        .{@intFromEnum(GatewayOpcode.HEARTBEAT)},
+    );
+}
+
+/// Build an offline RESUME payload for a stored session.
+pub fn buildResumePayload(
+    allocator: std.mem.Allocator,
+    token: []const u8,
+    session_id: []const u8,
+    sequence_number: u64,
+) ![]u8 {
+    var json = std.ArrayListUnmanaged(u8).empty;
+    errdefer json.deinit(allocator);
+
+    try json.print(allocator, "{{\"op\":{d},\"d\":{{\"token\":", .{@intFromEnum(GatewayOpcode.RESUME)});
+    try appendJsonString(allocator, &json, token);
+    try json.appendSlice(allocator, ",\"session_id\":");
+    try appendJsonString(allocator, &json, session_id);
+    try json.print(allocator, ",\"seq\":{d}}}}}", .{sequence_number});
+
+    return try json.toOwnedSlice(allocator);
+}
+
+/// Build an offline PRESENCE_UPDATE payload. Activity arrays are deferred until
+/// live Gateway transport and richer presence state are implemented.
+pub fn buildPresencePayload(
+    allocator: std.mem.Allocator,
+    since: ?u64,
+    status: []const u8,
+    afk: bool,
+) ![]u8 {
+    const since_json = if (since) |value|
+        try std.fmt.allocPrint(allocator, "{d}", .{value})
+    else
+        try allocator.dupe(u8, "null");
+    defer allocator.free(since_json);
+
+    var json = std.ArrayListUnmanaged(u8).empty;
+    errdefer json.deinit(allocator);
+
+    try json.print(
+        allocator,
+        "{{\"op\":{d},\"d\":{{\"since\":{s},\"activities\":[],\"status\":",
+        .{ @intFromEnum(GatewayOpcode.PRESENCE_UPDATE), since_json },
+    );
+    try appendJsonString(allocator, &json, status);
+    try json.print(allocator, ",\"afk\":{s}}}}}", .{if (afk) "true" else "false"});
+
+    return try json.toOwnedSlice(allocator);
+}
 
 pub const GatewayClient = struct {
     allocator: std.mem.Allocator,
@@ -59,15 +150,12 @@ pub const GatewayClient = struct {
         };
     }
 
-    /// Begin gateway connection. Transitions through connecting -> identifying -> connected.
-    /// In a full implementation this would perform TCP -> TLS -> WS upgrade -> HELLO -> Identify.
-    /// Currently transitions state for use with processPayload.
+    /// Begin offline gateway setup. Transitions through connecting -> identifying -> connected
+    /// without opening a socket; real TCP/TLS/WebSocket transport is deferred.
     pub fn connect(self: *GatewayClient) !void {
         if (self.state == .connected) return GatewayError.AlreadyConnected;
         self.state = .connecting;
         self.running.store(true, .release);
-        // In a real implementation: TCP connect, TLS handshake, WebSocket upgrade,
-        // receive HELLO, send IDENTIFY, wait for READY.
         self.state = .identifying;
         self.state = .connected;
     }
@@ -161,8 +249,8 @@ pub const GatewayClient = struct {
                 if (envelope.d) |d_val| {
                     if (d_val == .object) {
                         if (d_val.object.get("heartbeat_interval")) |interval| {
-                            if (interval == .integer) {
-                                self.heartbeat_interval_ms = @intCast(@as(u64, @bitCast(interval.integer)));
+                            if (interval == .integer and interval.integer >= 0) {
+                                self.heartbeat_interval_ms = @intCast(interval.integer);
                             }
                         }
                     }
@@ -311,7 +399,16 @@ test "gateway client process INVALID_SESSION" {
 
 test "gateway client process READY extracts session_id" {
     const allocator = std.testing.allocator;
-    const handler = GatewayEventHandler{};
+    var ready_called = false;
+    const handler = GatewayEventHandler{
+        .ctx = @ptrCast(&ready_called),
+        .on_ready = struct {
+            fn callback(ctx: ?*anyopaque, _: []const u8) void {
+                const ptr: *bool = @ptrCast(@alignCast(ctx.?));
+                ptr.* = true;
+            }
+        }.callback,
+    };
     var client = GatewayClient.init(allocator, "test-token", 513, handler);
     defer client.deinit();
 
@@ -322,6 +419,88 @@ test "gateway client process READY extracts session_id" {
     try std.testing.expectEqualStrings("abc123", client.session_id.?);
     try std.testing.expectEqualStrings("wss://resume.example.com", client.resume_gateway_url.?);
     try std.testing.expectEqual(@as(?u64, 1), client.getSequenceNumber());
+    try std.testing.expect(ready_called);
+}
+
+test "gateway payload builders produce offline control frames" {
+    const allocator = std.testing.allocator;
+
+    const identify = try buildIdentifyPayload(allocator, "token\"x", 513);
+    defer allocator.free(identify);
+    try std.testing.expect(std.mem.indexOf(u8, identify, "\"op\":2") != null);
+    try std.testing.expect(std.mem.indexOf(u8, identify, "token\\\"x") != null);
+    try std.testing.expect(std.mem.indexOf(u8, identify, "\"intents\":513") != null);
+
+    const heartbeat = try buildHeartbeatPayload(allocator, 42);
+    defer allocator.free(heartbeat);
+    try std.testing.expectEqualStrings("{\"op\":1,\"d\":42}", heartbeat);
+
+    const heartbeat_null = try buildHeartbeatPayload(allocator, null);
+    defer allocator.free(heartbeat_null);
+    try std.testing.expectEqualStrings("{\"op\":1,\"d\":null}", heartbeat_null);
+
+    const resume_payload = try buildResumePayload(allocator, "token", "session", 99);
+    defer allocator.free(resume_payload);
+    try std.testing.expect(std.mem.indexOf(u8, resume_payload, "\"op\":6") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resume_payload, "\"session_id\":\"session\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, resume_payload, "\"seq\":99") != null);
+
+    const presence = try buildPresencePayload(allocator, null, "idle", true);
+    defer allocator.free(presence);
+    try std.testing.expect(std.mem.indexOf(u8, presence, "\"op\":3") != null);
+    try std.testing.expect(std.mem.indexOf(u8, presence, "\"since\":null") != null);
+    try std.testing.expect(std.mem.indexOf(u8, presence, "\"status\":\"idle\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, presence, "\"afk\":true") != null);
+}
+
+test "gateway client dispatches interaction guild and resumed events" {
+    const allocator = std.testing.allocator;
+
+    const Counters = struct {
+        interaction: u8 = 0,
+        guild: u8 = 0,
+        resumed: u8 = 0,
+    };
+
+    var counters = Counters{};
+    const handler = GatewayEventHandler{
+        .ctx = @ptrCast(&counters),
+        .on_interaction_create = struct {
+            fn callback(ctx: ?*anyopaque, _: []const u8) void {
+                const ptr: *Counters = @ptrCast(@alignCast(ctx.?));
+                ptr.interaction += 1;
+            }
+        }.callback,
+        .on_guild_create = struct {
+            fn callback(ctx: ?*anyopaque, _: []const u8) void {
+                const ptr: *Counters = @ptrCast(@alignCast(ctx.?));
+                ptr.guild += 1;
+            }
+        }.callback,
+        .on_resumed = struct {
+            fn callback(ctx: ?*anyopaque) void {
+                const ptr: *Counters = @ptrCast(@alignCast(ctx.?));
+                ptr.resumed += 1;
+            }
+        }.callback,
+    };
+    var client = GatewayClient.init(allocator, "test-token", 513, handler);
+    defer client.deinit();
+
+    try client.processPayload(
+        \\{"op":0,"d":{"id":"interaction"},"s":2,"t":"INTERACTION_CREATE"}
+    );
+    try client.processPayload(
+        \\{"op":0,"d":{"id":"guild"},"s":3,"t":"GUILD_CREATE"}
+    );
+    try client.processPayload(
+        \\{"op":0,"d":{},"s":4,"t":"RESUMED"}
+    );
+
+    try std.testing.expectEqual(@as(u8, 1), counters.interaction);
+    try std.testing.expectEqual(@as(u8, 1), counters.guild);
+    try std.testing.expectEqual(@as(u8, 1), counters.resumed);
+    try std.testing.expectEqual(@as(?u64, 4), client.getSequenceNumber());
 }
 
 test "gateway client process invalid JSON" {

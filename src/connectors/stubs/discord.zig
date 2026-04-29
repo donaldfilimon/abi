@@ -2,15 +2,29 @@
 
 const std = @import("std");
 const shared = @import("../shared.zig");
+const discord_stub = @This();
 
 pub const DiscordError = error{
     MissingBotToken,
+    MissingClientId,
+    MissingClientSecret,
+    MissingPublicKey,
     ApiRequestFailed,
     InvalidResponse,
-    RateLimited,
+    RateLimitExceeded,
     Unauthorized,
     Forbidden,
     NotFound,
+    GatewayError,
+    WebSocketError,
+    InvalidToken,
+    InvalidInteraction,
+    UnknownInteraction,
+    CommandNotFound,
+    InvalidPermissions,
+    MissingAccess,
+    InvalidWebhook,
+    VoiceConnectionFailed,
 };
 
 pub const Snowflake = []const u8;
@@ -93,6 +107,20 @@ pub const GuildMember = struct {
     user: ?User = null,
     nick: ?[]const u8 = null,
     joined_at: []const u8 = "",
+};
+
+pub const GatewayOpcode = enum(u8) {
+    DISPATCH = 0,
+    HEARTBEAT = 1,
+    IDENTIFY = 2,
+    PRESENCE_UPDATE = 3,
+    VOICE_STATE_UPDATE = 4,
+    RESUME = 6,
+    RECONNECT = 7,
+    REQUEST_GUILD_MEMBERS = 8,
+    INVALID_SESSION = 9,
+    HELLO = 10,
+    HEARTBEAT_ACK = 11,
 };
 
 pub const Config = struct {
@@ -247,6 +275,33 @@ pub const GatewayClient = struct {
     pub fn getSequenceNumber(_: *const GatewayClient) ?u64 {
         return null;
     }
+};
+
+pub fn buildIdentifyPayload(_: std.mem.Allocator, _: []const u8, _: u32) ![]u8 {
+    return error.ConnectorsDisabled;
+}
+
+pub fn buildHeartbeatPayload(_: std.mem.Allocator, _: ?u64) ![]u8 {
+    return error.ConnectorsDisabled;
+}
+
+pub fn buildResumePayload(_: std.mem.Allocator, _: []const u8, _: []const u8, _: u64) ![]u8 {
+    return error.ConnectorsDisabled;
+}
+
+pub fn buildPresencePayload(_: std.mem.Allocator, _: ?u64, _: []const u8, _: bool) ![]u8 {
+    return error.ConnectorsDisabled;
+}
+
+pub const gateway = struct {
+    pub const GatewayClient = discord_stub.GatewayClient;
+    pub const GatewayState = discord_stub.GatewayState;
+    pub const GatewayEventHandler = discord_stub.GatewayEventHandler;
+    pub const GatewayOpcode = discord_stub.GatewayOpcode;
+    pub const buildIdentifyPayload = discord_stub.buildIdentifyPayload;
+    pub const buildHeartbeatPayload = discord_stub.buildHeartbeatPayload;
+    pub const buildResumePayload = discord_stub.buildResumePayload;
+    pub const buildPresencePayload = discord_stub.buildPresencePayload;
 };
 
 test {

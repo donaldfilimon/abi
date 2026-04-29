@@ -9,6 +9,23 @@ const json_utils = @import("../../foundation/mod.zig").utils.json;
 const Embed = types.Embed;
 const ApplicationCommandOption = types.ApplicationCommandOption;
 
+fn appendJsonString(allocator: std.mem.Allocator, json: *std.ArrayListUnmanaged(u8), value: []const u8) !void {
+    try json.append(allocator, '"');
+    try json_utils.appendJsonEscaped(allocator, json, value);
+    try json.append(allocator, '"');
+}
+
+pub fn encodeMessage(allocator: std.mem.Allocator, content: []const u8) ![]u8 {
+    var json = std.ArrayListUnmanaged(u8).empty;
+    errdefer json.deinit(allocator);
+
+    try json.appendSlice(allocator, "{\"content\":");
+    try appendJsonString(allocator, &json, content);
+    try json.append(allocator, '}');
+
+    return try json.toOwnedSlice(allocator);
+}
+
 pub fn encodeMessageWithEmbed(
     allocator: std.mem.Allocator,
     content: ?[]const u8,
@@ -20,32 +37,24 @@ pub fn encodeMessageWithEmbed(
     try json.appendSlice(allocator, "{");
 
     if (content) |c| {
-        try json.print(
-            allocator,
-            "\"content\":\"{}\",",
-            .{json_utils.jsonEscape(c)},
-        );
+        try json.appendSlice(allocator, "\"content\":");
+        try appendJsonString(allocator, &json, c);
+        try json.append(allocator, ',');
     }
 
     try json.appendSlice(allocator, "\"embeds\":[{");
 
     var first = true;
     if (embed.title) |title| {
-        try json.print(
-            allocator,
-            "\"title\":\"{}\"",
-            .{json_utils.jsonEscape(title)},
-        );
+        try json.appendSlice(allocator, "\"title\":");
+        try appendJsonString(allocator, &json, title);
         first = false;
     }
 
     if (embed.description) |desc| {
         if (!first) try json.appendSlice(allocator, ",");
-        try json.print(
-            allocator,
-            "\"description\":\"{}\"",
-            .{json_utils.jsonEscape(desc)},
-        );
+        try json.appendSlice(allocator, "\"description\":");
+        try appendJsonString(allocator, &json, desc);
         first = false;
     }
 
@@ -69,11 +78,8 @@ pub fn encodeMessageWithEmbed(
 
     if (embed.footer) |footer| {
         if (!first) try json.appendSlice(allocator, ",");
-        try json.print(
-            allocator,
-            "\"footer\":{{\"text\":\"{}\"",
-            .{json_utils.jsonEscape(footer.text)},
-        );
+        try json.appendSlice(allocator, "\"footer\":{\"text\":");
+        try appendJsonString(allocator, &json, footer.text);
         if (footer.icon_url) |icon| {
             try json.print(allocator, ",\"icon_url\":\"{s}\"", .{icon});
         }
@@ -83,11 +89,8 @@ pub fn encodeMessageWithEmbed(
 
     if (embed.author) |author| {
         if (!first) try json.appendSlice(allocator, ",");
-        try json.print(
-            allocator,
-            "\"author\":{{\"name\":\"{}\"",
-            .{json_utils.jsonEscape(author.name)},
-        );
+        try json.appendSlice(allocator, "\"author\":{\"name\":");
+        try appendJsonString(allocator, &json, author.name);
         if (author.url) |url_val| {
             try json.print(allocator, ",\"url\":\"{s}\"", .{url_val});
         }
@@ -103,14 +106,14 @@ pub fn encodeMessageWithEmbed(
         try json.appendSlice(allocator, "\"fields\":[");
         for (embed.fields, 0..) |field, i| {
             if (i > 0) try json.appendSlice(allocator, ",");
+            try json.appendSlice(allocator, "{\"name\":");
+            try appendJsonString(allocator, &json, field.name);
+            try json.appendSlice(allocator, ",\"value\":");
+            try appendJsonString(allocator, &json, field.value);
             try json.print(
                 allocator,
-                "{{\"name\":\"{}\",\"value\":\"{}\",\"inline\":{s}}}",
-                .{
-                    json_utils.jsonEscape(field.name),
-                    json_utils.jsonEscape(field.value),
-                    if (field.inline_field) "true" else "false",
-                },
+                ",\"inline\":{s}}}",
+                .{if (field.inline_field) "true" else "false"},
             );
         }
         try json.appendSlice(allocator, "]");
@@ -130,25 +133,23 @@ pub fn encodeApplicationCommand(
     var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
-    try json.print(
-        allocator,
-        "{{\"name\":\"{s}\",\"description\":\"{}\"",
-        .{ name, json_utils.jsonEscape(description) },
-    );
+    try json.appendSlice(allocator, "{\"name\":");
+    try appendJsonString(allocator, &json, name);
+    try json.appendSlice(allocator, ",\"description\":");
+    try appendJsonString(allocator, &json, description);
 
     if (options.len > 0) {
         try json.appendSlice(allocator, ",\"options\":[");
         for (options, 0..) |opt, i| {
             if (i > 0) try json.appendSlice(allocator, ",");
+            try json.print(allocator, "{{\"type\":{d},\"name\":", .{opt.option_type});
+            try appendJsonString(allocator, &json, opt.name);
+            try json.appendSlice(allocator, ",\"description\":");
+            try appendJsonString(allocator, &json, opt.description);
             try json.print(
                 allocator,
-                "{{\"type\":{d},\"name\":\"{s}\",\"description\":\"{}\",\"required\":{s}}}",
-                .{
-                    opt.option_type,
-                    opt.name,
-                    json_utils.jsonEscape(opt.description),
-                    if (opt.required) "true" else "false",
-                },
+                ",\"required\":{s}}}",
+                .{if (opt.required) "true" else "false"},
             );
         }
         try json.appendSlice(allocator, "]");
@@ -157,6 +158,83 @@ pub fn encodeApplicationCommand(
     try json.appendSlice(allocator, "}");
 
     return try json.toOwnedSlice(allocator);
+}
+
+pub fn encodeWebhookExecute(
+    allocator: std.mem.Allocator,
+    content: []const u8,
+    username: ?[]const u8,
+) ![]u8 {
+    var json = std.ArrayListUnmanaged(u8).empty;
+    errdefer json.deinit(allocator);
+
+    try json.appendSlice(allocator, "{\"content\":");
+    try appendJsonString(allocator, &json, content);
+    if (username) |value| {
+        try json.appendSlice(allocator, ",\"username\":");
+        try appendJsonString(allocator, &json, value);
+    }
+    try json.appendSlice(allocator, "}");
+
+    return try json.toOwnedSlice(allocator);
+}
+
+pub fn encodeInteractionResponse(
+    allocator: std.mem.Allocator,
+    response_type: types.InteractionCallbackType,
+    content: ?[]const u8,
+) ![]u8 {
+    var json = std.ArrayListUnmanaged(u8).empty;
+    errdefer json.deinit(allocator);
+
+    try json.print(allocator, "{{\"type\":{d}", .{@intFromEnum(response_type)});
+    if (content) |value| {
+        try json.appendSlice(allocator, ",\"data\":{\"content\":");
+        try appendJsonString(allocator, &json, value);
+        try json.append(allocator, '}');
+    }
+    try json.appendSlice(allocator, "}");
+
+    return try json.toOwnedSlice(allocator);
+}
+
+fn isFormUnreserved(byte: u8) bool {
+    return (byte >= 'A' and byte <= 'Z') or
+        (byte >= 'a' and byte <= 'z') or
+        (byte >= '0' and byte <= '9') or
+        byte == '-' or byte == '_' or byte == '.' or byte == '~';
+}
+
+fn appendFormEncoded(allocator: std.mem.Allocator, list: *std.ArrayListUnmanaged(u8), value: []const u8) !void {
+    const hex = "0123456789ABCDEF";
+    for (value) |byte| {
+        if (byte == ' ') {
+            try list.append(allocator, '+');
+        } else if (isFormUnreserved(byte)) {
+            try list.append(allocator, byte);
+        } else {
+            try list.appendSlice(allocator, &[_]u8{ '%', hex[byte >> 4], hex[byte & 0x0f] });
+        }
+    }
+}
+
+pub fn encodeOAuthClientCredentials(
+    allocator: std.mem.Allocator,
+    client_id: []const u8,
+    client_secret: []const u8,
+    scope: []const u8,
+) ![]u8 {
+    var body = std.ArrayListUnmanaged(u8).empty;
+    errdefer body.deinit(allocator);
+
+    try body.appendSlice(allocator, "grant_type=client_credentials&client_id=");
+    try appendFormEncoded(allocator, &body, client_id);
+    try body.appendSlice(allocator, "&client_secret=");
+    try appendFormEncoded(allocator, &body, client_secret);
+    try body.appendSlice(allocator, "&scope=");
+    try appendFormEncoded(allocator, &body, scope);
+
+    return try body.toOwnedSlice(allocator);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -177,6 +255,14 @@ test "encodeMessageWithEmbed basic" {
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"embeds\":[{") != null);
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"title\":") != null);
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"description\":") != null);
+}
+
+test "encodeMessage escapes content" {
+    const allocator = std.testing.allocator;
+    const json_str = try encodeMessage(allocator, "hello \"discord\"");
+    defer allocator.free(json_str);
+
+    try std.testing.expectEqualStrings("{\"content\":\"hello \\\"discord\\\"\"}", json_str);
 }
 
 test "encodeMessageWithEmbed no content" {
@@ -228,6 +314,43 @@ test "encodeApplicationCommand with options" {
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"options\":[") != null);
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"name\":\"query\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"required\":true") != null);
+}
+
+test "encodeWebhookExecute includes optional username" {
+    const allocator = std.testing.allocator;
+    const json_str = try encodeWebhookExecute(allocator, "deploy done", "ABI Bot");
+    defer allocator.free(json_str);
+
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"content\":\"deploy done\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"username\":\"ABI Bot\"") != null);
+}
+
+test "encodeInteractionResponse wraps message data" {
+    const allocator = std.testing.allocator;
+    const json_str = try encodeInteractionResponse(
+        allocator,
+        .CHANNEL_MESSAGE_WITH_SOURCE,
+        "ack",
+    );
+    defer allocator.free(json_str);
+
+    try std.testing.expectEqualStrings("{\"type\":4,\"data\":{\"content\":\"ack\"}}", json_str);
+}
+
+test "encodeOAuthClientCredentials form-encodes secrets and scopes" {
+    const allocator = std.testing.allocator;
+    const body = try encodeOAuthClientCredentials(
+        allocator,
+        "client id",
+        "secret&value",
+        "identify guilds.members.read",
+    );
+    defer allocator.free(body);
+
+    try std.testing.expectEqualStrings(
+        "grant_type=client_credentials&client_id=client+id&client_secret=secret%26value&scope=identify+guilds.members.read",
+        body,
+    );
 }
 
 test {

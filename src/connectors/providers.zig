@@ -11,6 +11,8 @@ pub const ProviderInfo = struct {
 
 pub const ProviderRegistry = struct {
     pub const providers = [_]ProviderInfo{
+        .{ .name = "ollama", .display_name = "Ollama", .env_key = env.ENV_VARS.ollama.host[0], .base_url = "http://127.0.0.1:11434", .is_alias = false },
+        .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "ABI_OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
         .{ .name = "openai", .display_name = "OpenAI", .env_key = env.ENV_VARS.openai.api_key[0], .base_url = "https://api.openai.com/v1", .is_alias = false },
         .{ .name = "anthropic", .display_name = "Anthropic", .env_key = env.ENV_VARS.anthropic.api_key[0], .base_url = "https://api.anthropic.com/v1", .is_alias = false },
         .{ .name = "claude", .display_name = "Claude", .env_key = env.ENV_VARS.anthropic.api_key[0], .base_url = "https://api.anthropic.com/v1", .is_alias = true },
@@ -18,8 +20,6 @@ pub const ProviderRegistry = struct {
         .{ .name = "opencode", .display_name = "OpenCode", .env_key = "ABI_OPENCODE_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
         .{ .name = "gemini", .display_name = "Google Gemini", .env_key = env.ENV_VARS.gemini.api_key[0], .base_url = "https://generativelanguage.googleapis.com/v1beta", .is_alias = false },
         .{ .name = "huggingface", .display_name = "HuggingFace", .env_key = env.ENV_VARS.huggingface.api_key[0], .base_url = "https://api-inference.huggingface.co", .is_alias = false },
-        .{ .name = "ollama", .display_name = "Ollama", .env_key = env.ENV_VARS.ollama.host[0], .base_url = "http://127.0.0.1:11434", .is_alias = false },
-        .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "ABI_OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
         .{ .name = "mistral", .display_name = "Mistral AI", .env_key = env.ENV_VARS.mistral.api_key[0], .base_url = "https://api.mistral.ai/v1", .is_alias = false },
         .{ .name = "cohere", .display_name = "Cohere", .env_key = env.ENV_VARS.cohere.api_key[0], .base_url = "https://api.cohere.ai/v1", .is_alias = false },
         .{ .name = "lm_studio", .display_name = "LM Studio", .env_key = "ABI_LM_STUDIO_HOST", .base_url = "http://localhost:1234", .is_alias = false },
@@ -48,6 +48,14 @@ pub const ProviderRegistry = struct {
 test "ProviderRegistry.listAll returns 16 providers" {
     const all = ProviderRegistry.listAll();
     try std.testing.expectEqual(@as(usize, 16), all.len);
+}
+
+test "ProviderRegistry keeps local-first inference providers first" {
+    const all = ProviderRegistry.listAll();
+    try std.testing.expect(all.len >= 3);
+    try std.testing.expectEqualStrings("ollama", all[0].name);
+    try std.testing.expectEqualStrings("ollama_passthrough", all[1].name);
+    try std.testing.expectEqualStrings("openai", all[2].name);
 }
 
 test "ProviderRegistry.getByName finds openai" {

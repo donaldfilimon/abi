@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // ── Feature flags ───────────────────────────────────────────────────
+    //  Feature flags
     const feat_gpu = b.option(bool, "feat-gpu", "GPU compute backends") orelse true;
     const feat_ai = b.option(bool, "feat-ai", "AI services") orelse true;
     const feat_database = b.option(bool, "feat-database", "Vector database") orelse true;
@@ -68,7 +68,7 @@ pub fn build(b: *std.Build) void {
     const gpu_fpga = feat_gpu and hasBackend(gpu_backend_str, "fpga");
     const gpu_tpu = feat_gpu and hasBackend(gpu_backend_str, "tpu");
 
-    // ── GPU backend validation ──────────────────────────────────────────
+    //  GPU backend validation
     if (gpu_backend_str) |str| {
         const valid_backends: []const []const u8 = &.{
             "metal",    "cuda",   "vulkan", "webgpu", "opengl",
@@ -94,7 +94,7 @@ pub fn build(b: *std.Build) void {
     if (gpu_metal and gpu_cuda)
         std.log.warn("Both Metal and CUDA enabled — unusual; intended for cross-compilation only", .{});
 
-    // ── Feature dependency warnings ─────────────────────────────────────
+    //  Feature dependency warnings
     if (!feat_ai) {
         if (feat_llm) std.log.warn("feat_llm requires feat_ai — llm will be stubbed", .{});
         if (feat_training) std.log.warn("feat_training requires feat_ai — training will be stubbed", .{});
@@ -107,7 +107,7 @@ pub fn build(b: *std.Build) void {
     if (feat_mcp and !feat_database)
         std.log.info("feat_mcp benefits from feat_database for DB tools", .{});
 
-    // ── Build options module ────────────────────────────────────────────
+    //  Build options module
     const flags = FeatureFlags{
         .feat_gpu = feat_gpu,
         .feat_ai = feat_ai,
@@ -170,7 +170,7 @@ pub fn build(b: *std.Build) void {
         .package_version = pkg_version,
     });
 
-    // ── ABI library module ──────────────────────────────────────────────
+    //  ABI library module
     const abi_module = b.addModule("abi", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -178,7 +178,7 @@ pub fn build(b: *std.Build) void {
     });
     abi_module.addImport("build_options", build_options_module);
 
-    // ── Static library ──────────────────────────────────────────────────
+    //  Static library
     const static_lib = b.addLibrary(.{
         .name = "abi",
         .root_module = b.createModule(.{
@@ -194,7 +194,7 @@ pub fn build(b: *std.Build) void {
     const install_static_lib = b.addInstallArtifact(static_lib, .{});
     b.step("lib", "Build static library").dependOn(&install_static_lib.step);
 
-    // ── MCP server binary ────────────────────────────────────────────────
+    //  MCP server binary
     const mcp_exe = b.addExecutable(.{
         .name = "abi-mcp",
         .root_module = b.createModule(.{
@@ -208,7 +208,7 @@ pub fn build(b: *std.Build) void {
     const install_mcp = b.addInstallArtifact(mcp_exe, .{});
     b.step("mcp", "Build MCP stdio server").dependOn(&install_mcp.step);
 
-    // ── CLI binary ──────────────────────────────────────────────────────
+    //  CLI binary
     const cli_exe = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{
@@ -236,12 +236,12 @@ pub fn build(b: *std.Build) void {
         .package_version = pkg_version,
     });
 
-    // ── Lint / format ───────────────────────────────────────────────────
+    //  Lint / format
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
     b.step("lint", "Check formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = true }).step);
     b.step("fix", "Fix formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = false }).step);
 
-    // ── Doctor step ────────────────────────────────────────────────────
+    //  Doctor step
     const doctor_step = b.step("doctor", "Report build configuration and diagnostics");
     const doc1 = b.addSystemCommand(&.{
         "echo",

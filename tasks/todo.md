@@ -1,5 +1,21 @@
 # Codebase Improvement Plan
 
+## 44. Discord Module Completion
+- [x] Preserve the local-first provider registry order with regression coverage.
+- [x] Tighten Discord config loading for ABI-prefixed precedence, empty-value handling, and owned deinit coverage.
+- [x] Complete offline Gateway payload construction and event processing tests without live WebSocket transport.
+- [x] Align real and stub Discord public surfaces used by connector, MCP, and ACP integrations.
+- [x] Harden REST request encoding and response parsing coverage without Discord network access.
+- [x] Validate focused connector, MCP, ACP, parity, and full-check lanes where feasible.
+
+### Notes
+- Opened on April 29, 2026 for an offline-complete Discord connector wave; live Gateway WebSocket transport, heartbeat scheduling, reconnect backoff, and network resume loops are intentionally deferred.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Pre-existing workspace state includes an intentional provider registry order edit in `src/connectors/providers.zig`, a comment-only dirty `build.zig`, and untracked `src/core/build_validation.zig`; this wave preserves the provider policy and leaves unrelated dirty files alone.
+- Completed the offline Discord wave by adding ABI-prefixed/non-empty env loading for all Discord credentials, pure Gateway Identify/Heartbeat/Resume/Presence payload builders, expanded Gateway dispatch coverage, REST request encoder tests, REST parser tests for webhook/application-command/voice/OAuth/gateway metadata, and compatible stub Gateway helpers.
+- Validation passed with `git diff --check`, targeted `zig fmt --check`, `./build.sh connectors-tests --summary all`, `./build.sh mcp-tests --summary all`, `./build.sh acp-tests --summary all`, `./build.sh typecheck --summary all`, `./build.sh check-parity --summary all`, and `./build.sh full-check --summary all`.
+- ABI review prep against `origin/main` completed after validation; it still reports the consensus wrapper missing and shows pre-existing staged `build.zig` / `src/core/build_validation.zig` state outside this Discord wave.
+
 ## 43. Consolidate Main Workspace and Whole-Codebase Review
 - [x] Stabilize the current dirty workspace before branch integration.
 - [x] Merge remaining safe branches with unique commits into `main`.

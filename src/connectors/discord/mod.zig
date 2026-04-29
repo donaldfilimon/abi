@@ -127,32 +127,39 @@ pub const hasPermission = utils.hasPermission;
 // Environment Loading
 // ============================================================================
 
-pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const bot_token_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_DISCORD_BOT_TOKEN",
-        "DISCORD_BOT_TOKEN",
-    });
-    const bot_token = bot_token_raw orelse return DiscordError.MissingBotToken;
-    // Treat empty string as missing (e.g., DISCORD_BOT_TOKEN="")
-    if (bot_token.len == 0) {
-        allocator.free(bot_token);
-        return DiscordError.MissingBotToken;
+fn getFirstNonEmptyEnvOwned(allocator: std.mem.Allocator, names: []const []const u8) !?[]u8 {
+    for (names) |name| {
+        if (try connectors.getEnvOwned(allocator, name)) |value| {
+            if (value.len > 0) return value;
+            allocator.free(value);
+        }
     }
+    return null;
+}
 
-    const client_id = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_DISCORD_CLIENT_ID",
-        "DISCORD_CLIENT_ID",
-    });
+pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
+    const bot_token = (try getFirstNonEmptyEnvOwned(
+        allocator,
+        connectors.ENV_VARS.discord.bot_token,
+    )) orelse return DiscordError.MissingBotToken;
+    errdefer connectors.shared.secureFree(allocator, bot_token);
 
-    const client_secret = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_DISCORD_CLIENT_SECRET",
-        "DISCORD_CLIENT_SECRET",
-    });
+    const client_id = try getFirstNonEmptyEnvOwned(
+        allocator,
+        connectors.ENV_VARS.discord.client_id,
+    );
+    errdefer if (client_id) |value| allocator.free(value);
 
-    const public_key = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_DISCORD_PUBLIC_KEY",
-        "DISCORD_PUBLIC_KEY",
-    });
+    const client_secret = try getFirstNonEmptyEnvOwned(
+        allocator,
+        connectors.ENV_VARS.discord.client_secret,
+    );
+    errdefer connectors.shared.secureFreeOptional(allocator, client_secret);
+
+    const public_key = try getFirstNonEmptyEnvOwned(
+        allocator,
+        connectors.ENV_VARS.discord.public_key,
+    );
 
     return .{
         .bot_token = bot_token,
