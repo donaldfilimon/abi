@@ -6,9 +6,9 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const root = @import("../../../root.zig");
-const registry = @import("../registry.zig");
+const mcp_registry = @import("../registry.zig");
 
-pub const tools = [_]registry.ToolDef{
+pub const tools = [_]mcp_registry.ToolDef{
     .{
         .name = "abi_chat",
         .description = "Route a message through the ABI multi-profile pipeline and get an AI response",
@@ -39,10 +39,10 @@ pub fn handleAbiChat(
     const message = message_val.string;
 
     // Route through multi-profile pipeline
-    var registry = root.ai.profile.ProfileRegistry.init(allocator, .{});
-    defer registry.deinit();
+    var profile_registry = root.ai.profile.ProfileRegistry.init(allocator, .{});
+    defer profile_registry.deinit();
 
-    var router = root.ai.profile.MultiProfileRouter.init(allocator, &registry, .{});
+    var router = root.ai.profile.MultiProfileRouter.init(allocator, &profile_registry, .{});
     defer router.deinit();
 
     const decision = router.route(message);

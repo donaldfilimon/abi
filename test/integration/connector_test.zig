@@ -171,13 +171,10 @@ test "connectors: getFirstEnvOwned returns null for unset vars" {
 // ============================================================================
 
 test "connectors: tryLoadOllama returns non-null config with default host" {
-    // Ollama doesn't require an API key — loadFromEnv uses a default host.
-    // tryLoadOllama should return a config or null depending on env, but never error.
     const result = try connectors.tryLoadOllama(std.testing.allocator);
     if (result) |cfg| {
         var config = cfg;
         defer config.deinit(std.testing.allocator);
-        // Default host should be non-empty
         try std.testing.expect(config.host.len > 0);
     }
 }
@@ -264,7 +261,7 @@ test "connectors: ProviderRegistry getByName finds all 16 providers by name" {
 test "connectors: ProviderRegistry getByName returns null for unknown provider" {
     try std.testing.expect(connectors.ProviderRegistry.getByName("grok") == null);
     try std.testing.expect(connectors.ProviderRegistry.getByName("") == null);
-    try std.testing.expect(connectors.ProviderRegistry.getByName("OPENAI") == null); // case-sensitive
+    try std.testing.expect(connectors.ProviderRegistry.getByName("OPENAI") == null);
 }
 
 test "connectors: ProviderRegistry all providers have non-empty env_key" {
@@ -334,8 +331,6 @@ test "connectors: ProviderRegistry non-alias providers are not marked as aliases
 }
 
 test "connectors: ProviderRegistry listAvailable returns provider list" {
-    // In the live module, listAvailable returns all 16; in stub it returns 0.
-    // Either way it should not crash and should return a valid slice.
     const available = connectors.ProviderRegistry.listAvailable();
     try std.testing.expect(available.len <= 16);
 }
@@ -345,8 +340,6 @@ test "connectors: ProviderRegistry listAvailable returns provider list" {
 // ============================================================================
 
 test "connectors: all sub-connectors expose isAvailable" {
-    // Each connector has an isAvailable() function. Without API keys or
-    // local servers, most should return false. Verify they are callable.
     _ = connectors.openai.isAvailable();
     _ = connectors.anthropic.isAvailable();
     _ = connectors.claude.isAvailable();
@@ -370,7 +363,6 @@ test "connectors: all sub-connectors expose isAvailable" {
 // ============================================================================
 
 test "connectors: Config types are accessible for all connectors" {
-    // Verify all connectors export a Config type that can be referenced
     try std.testing.expect(@sizeOf(connectors.openai.Config) > 0);
     try std.testing.expect(@sizeOf(connectors.anthropic.Config) > 0);
     try std.testing.expect(@sizeOf(connectors.claude.Config) > 0);
@@ -391,7 +383,6 @@ test "connectors: Config types are accessible for all connectors" {
 }
 
 test "connectors: Client types are accessible for key connectors" {
-    // Verify connectors export a Client type
     try std.testing.expect(@sizeOf(connectors.openai.Client) > 0);
     try std.testing.expect(@sizeOf(connectors.anthropic.Client) > 0);
     try std.testing.expect(@sizeOf(connectors.ollama.Client) > 0);
@@ -403,7 +394,6 @@ test "connectors: Client types are accessible for key connectors" {
 }
 
 test "connectors: Message types alias shared.ChatMessage" {
-    // Most connectors re-export shared.ChatMessage as their Message type
     try std.testing.expectEqual(@sizeOf(connectors.shared.ChatMessage), @sizeOf(connectors.openai.Message));
     try std.testing.expectEqual(@sizeOf(connectors.shared.ChatMessage), @sizeOf(connectors.anthropic.Message));
     try std.testing.expectEqual(@sizeOf(connectors.shared.ChatMessage), @sizeOf(connectors.ollama.Message));
@@ -419,37 +409,29 @@ test "connectors: Message types alias shared.ChatMessage" {
 // ============================================================================
 
 test "connectors: ENV_VARS all entries are non-empty strings" {
-    // OpenAI
     for (connectors.ENV_VARS.openai.api_key) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.openai.base_url) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.openai.model) |v| try std.testing.expect(v.len > 0);
 
-    // Anthropic
     for (connectors.ENV_VARS.anthropic.api_key) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.anthropic.base_url) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.anthropic.model) |v| try std.testing.expect(v.len > 0);
 
-    // Gemini
     for (connectors.ENV_VARS.gemini.api_key) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.gemini.base_url) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.gemini.model) |v| try std.testing.expect(v.len > 0);
 
-    // HuggingFace
     for (connectors.ENV_VARS.huggingface.api_key) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.huggingface.base_url) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.huggingface.model) |v| try std.testing.expect(v.len > 0);
 
-    // Ollama
     for (connectors.ENV_VARS.ollama.host) |v| try std.testing.expect(v.len > 0);
     for (connectors.ENV_VARS.ollama.model) |v| try std.testing.expect(v.len > 0);
 
-    // Mistral
     for (connectors.ENV_VARS.mistral.api_key) |v| try std.testing.expect(v.len > 0);
 
-    // Cohere
     for (connectors.ENV_VARS.cohere.api_key) |v| try std.testing.expect(v.len > 0);
 
-    // Discord
     for (connectors.ENV_VARS.discord.bot_token) |v| try std.testing.expect(v.len > 0);
 }
 
@@ -473,7 +455,6 @@ test "connectors: ENV_VARS primary entries all start with ABI_ prefix" {
 // ============================================================================
 
 test "connectors: ConnectorError type is accessible via shared" {
-    // Verify the shared error type exists and has expected variants
     const err: connectors.shared.ConnectorError = connectors.shared.ConnectorError.MissingApiKey;
     try std.testing.expect(err == connectors.shared.ConnectorError.MissingApiKey);
 }
@@ -532,7 +513,6 @@ test "connectors: double init is safe" {
     try connectors.init(std.testing.allocator);
     try std.testing.expect(connectors.isInitialized());
 
-    // Second init should not crash
     try connectors.init(std.testing.allocator);
     try std.testing.expect(connectors.isInitialized());
 
@@ -541,7 +521,6 @@ test "connectors: double init is safe" {
 }
 
 test "connectors: deinit without init is safe" {
-    // Ensure deinit on an uninitialized module does not crash
     connectors.deinit();
     try std.testing.expect(!connectors.isInitialized());
 }

@@ -1,5 +1,18 @@
 # Codebase Improvement Plan
 
+## 43. Consolidate Main Workspace and Whole-Codebase Review
+- [ ] Stabilize the current dirty workspace before branch integration.
+- [ ] Merge remaining branches with unique commits into `main`.
+- [ ] Remove imported snapshot roots after proving they are not active build/source inputs.
+- [ ] Run whole-codebase review prep and validation gates.
+- [ ] Delete merged local branches once the consolidated `main` is validated.
+
+### Notes
+- Opened on April 29, 2026 in `/Users/donaldfilimon/abi` after `main` had already absorbed `origin/main` and was ahead locally, with dirty MCP handler/test cleanup edits and transient MCP JSON audit files.
+- The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
+- Initial branch scan identified the only local branches with right-side commits versus current `main` as `mig/zig-0.17`, `feature/inference-connector-integration`, `fix/stub-regeneration`, and `master`; all other checked branches are treated as already contained unless a fresh ancestry check proves otherwise.
+- Imported snapshot roots (`imports/`, nested `abi/`, top-level `runtime/`, and top-level `transport/`) remain cleanup candidates only after final reference checks confirm they are not active build/source inputs.
+
 ## 42. MkDocs GitHub Pages Setup
 - [x] Preserve the current cleanup-wave source edits and add the docs site as a separate slice.
 - [x] Add MkDocs Material configuration, docs landing pages, and tracked stylesheet assets under `docs/`.
