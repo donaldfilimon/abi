@@ -1,8 +1,8 @@
 # Codebase Improvement Plan
 
 ## 43. Consolidate Main Workspace and Whole-Codebase Review
-- [ ] Stabilize the current dirty workspace before branch integration.
-- [ ] Merge remaining branches with unique commits into `main`.
+- [x] Stabilize the current dirty workspace before branch integration.
+- [x] Merge remaining safe branches with unique commits into `main`.
 - [ ] Remove imported snapshot roots after proving they are not active build/source inputs.
 - [ ] Run whole-codebase review prep and validation gates.
 - [ ] Delete merged local branches once the consolidated `main` is validated.
@@ -12,6 +12,10 @@
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Initial branch scan identified the only local branches with right-side commits versus current `main` as `mig/zig-0.17`, `feature/inference-connector-integration`, `fix/stub-regeneration`, and `master`; all other checked branches are treated as already contained unless a fresh ancestry check proves otherwise.
 - Imported snapshot roots (`imports/`, nested `abi/`, top-level `runtime/`, and top-level `transport/`) remain cleanup candidates only after final reference checks confirm they are not active build/source inputs.
+- Stabilization commit `15832e7` kept the MCP registry-name cleanup, fixed the connector test comment typo, and removed transient MCP audit JSON files after `git diff --check`, focused Zig fmt, and the connector-filtered test lane passed.
+- Merge commit `70e4e59` integrated `mig/zig-0.17`; merge commit `3071c8c` integrated `feature/inference-connector-integration` while preserving the current Zig 0.17 MCP I/O and AiOps cast helper; merge commit `6d1334a` integrated the compile-safe `fix/stub-regeneration` surface while pruning broken generated stubs and branch artifacts.
+- A full `master` merge was attempted and aborted because it conflicted across unrelated historical build, docs, MCP/ACP, AI, GPU, and test surfaces; the useful mmap/JWT safety fixes from that branch are already present or superseded on current `main`, while the stale echo fallback change would regress the current connector dispatch path.
+- Final snapshot-root reference checks found tracked files under `imports/`, nested `abi/`, top-level `runtime/`, and top-level `transport/`, but no active build/source references to those roots from `build.zig`, `build/`, `src/`, `test/`, `tools/`, live docs, or workflow files; remaining matches are historical docs or active similarly named paths such as `src/runtime` and `src/protocols/mcp/transport`.
 
 ## 42. MkDocs GitHub Pages Setup
 - [x] Preserve the current cleanup-wave source edits and add the docs site as a separate slice.

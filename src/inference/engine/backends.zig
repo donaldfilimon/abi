@@ -81,7 +81,7 @@ pub fn generateConnector(self: anytype, request: scheduler_mod.Request) !types.R
 
     // Try real connector dispatch.
     const response_text = dispatchToConnector(self.allocator, self.config.model_id, request.prompt) catch |err| {
-        std.log.err("connector: failed to dispatch to connector for model '{s}': {any}", .{ self.config.model_id, err });
+        std.log.warn("connector: failed to dispatch to connector for model '{s}': {any}", .{ self.config.model_id, err });
         return err;
     };
     errdefer self.allocator.free(response_text);
@@ -179,10 +179,7 @@ fn callOpenAICompatible(
     // Load config from environment variables
     var config = loader_fn(allocator) catch |err| {
         std.log.warn("connector: loader failed for model override {any}: {s}", .{ model_override, @errorName(err) });
-        return switch (err) {
-            error.MissingApiKey, error.MissingApiToken => error.MissingApiKey,
-            else => error.ApiRequestFailed,
-        };
+        return error.ApiRequestFailed;
     } orelse return error.MissingApiKey;
     defer config.deinit(allocator);
 
@@ -295,7 +292,7 @@ fn callAnthropicNative(allocator: std.mem.Allocator, model_override: ?[]const u8
         allocator.free(response.content);
     }
 
-    const text = client.getResponseText(response) catch return error.ApiRequestFailed;
+    const text = try client.getResponseText(response);
     if (text.len == 0) {
         allocator.free(text);
         return error.ApiRequestFailed;
