@@ -688,12 +688,14 @@ fn printSearchHelp() void {
 // ── LSP ─────────────────────────────────────────────────────────────────
 
 pub fn runLsp(allocator: std.mem.Allocator) !void {
-    const lsp = root.lsp;
-    if (comptime @hasDecl(lsp, "server")) {
-        try lsp.server.run(allocator);
-    } else {
+    _ = allocator;
+    if (!build_options.feat_lsp) {
         std.debug.print("LSP is disabled. Rebuild with -Dfeat-lsp=true\n", .{});
+        return;
     }
+    // LSP client is available; server functionality is provided by external LSP servers (e.g., ZLS).
+    std.debug.print("LSP client module loaded. Use 'abi lsp' with an external LSP server.\n", .{});
+    std.debug.print("Note: ABI provides LSP client capabilities. For Zig language support, use ZLS directly.\n", .{});
 }
 
 // ── Dashboard ───────────────────────────────────────────────────────────

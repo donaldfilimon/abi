@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd \"$(dirname \"$0\")/..\" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 OS="$(uname -s)"
 case "$OS" in
   Linux|Darwin) BIN="$ROOT_DIR/zig-out/bin/abi-mcp" ;;
