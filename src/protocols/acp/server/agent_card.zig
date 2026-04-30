@@ -94,8 +94,8 @@ test "AgentCard toJson includes new capabilities" {
     try std.testing.expect(std.mem.indexOf(u8, json, "\"extensions\":false") != null);
 }
 
-const parity_gate = @import("../../../common/parity_gate.zig");
+const env_gate = @import("common");
 test {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     std.testing.refAllDecls(@This());
 }

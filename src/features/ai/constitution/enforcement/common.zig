@@ -83,7 +83,7 @@ pub fn isPlaceholderValue(text: []const u8) bool {
     // Check for common placeholder strings
     const placeholders = [_][]const u8{
         "xxx",     "XXX",     "your_", "YOUR_",   "****", "....",
-        "REPLACE", "replace", "TODO",  "example",
+        "REPLACE", "replace", "example",
     };
     for (&placeholders) |ph| {
         if (text.len >= ph.len and std.mem.startsWith(u8, text, ph)) return true;

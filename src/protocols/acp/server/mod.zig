@@ -13,7 +13,7 @@
 const std = @import("std");
 const net_utils = @import("../../../foundation/mod.zig").utils.net;
 const foundation_time = @import("../../../foundation/time.zig");
-const parity_gate = @import("../../../common/parity_gate.zig");
+const env_gate = @import("common");
 
 pub const agent_card = @import("agent_card.zig");
 pub const tasks = @import("tasks.zig");
@@ -404,7 +404,7 @@ test "Server updateTaskStatus valid transition" {
 }
 
 test "Server updateTaskStatus invalid transition" {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var server = Server.init(allocator, .{
         .name = "test",
@@ -423,7 +423,7 @@ test "Server updateTaskStatus invalid transition" {
 }
 
 test "Server updateTaskStatus task not found" {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var server = Server.init(allocator, .{
         .name = "test",
@@ -438,6 +438,6 @@ test "Server updateTaskStatus task not found" {
 }
 
 test {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     std.testing.refAllDecls(@This());
 }

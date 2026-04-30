@@ -8,7 +8,7 @@
 //!   4 bytes: CRC32 checksum over [length .. payload]
 
 const std = @import("std");
-const parity_gate = @import("../../../../common/parity_gate.zig");
+const env_gate = @import("common");
 const Crc32 = @import("integrity.zig").Crc32;
 const Io = std.Io;
 const File = Io.File;
@@ -291,7 +291,7 @@ test "wal write and replay entries" {
     if (std.c.getenv("ABI_WAL_TEST_DISABLE") != null) return;
     // Optional skip flag for CI environments where parity is flaky for WAL replay
     if (std.c.getenv("ABI_WAL_TEST_SKIP") != null) return;
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "roundtrip");
@@ -345,7 +345,7 @@ test "wal write and replay entries" {
 }
 
 test "wal checkpoint and truncate" {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "checkpoint");
@@ -377,7 +377,7 @@ test "wal checkpoint and truncate" {
 }
 
 test "wal crc detects corruption" {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "corrupt");
@@ -411,7 +411,7 @@ test "wal crc detects corruption" {
 }
 
 test "wal empty payload entries" {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "empty");
@@ -439,7 +439,7 @@ test "wal empty payload entries" {
 }
 
 test "wal resume appending to existing file" {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     const allocator = std.testing.allocator;
     var path_buf: [128]u8 = undefined;
     const path = try getTestPath(&path_buf, "resume");

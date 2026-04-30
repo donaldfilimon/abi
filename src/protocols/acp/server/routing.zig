@@ -1,7 +1,7 @@
 //! ACP HTTP route dispatch, request parsing, and path matching.
 
 const std = @import("std");
-const parity_gate = @import("../../../common/parity_gate.zig");
+const env_gate = @import("common");
 const AgentCard = @import("agent_card.zig").AgentCard;
 const Server = @import("mod.zig").Server;
 const discord_routes = @import("discord_routes.zig");
@@ -314,6 +314,6 @@ fn respondCors(request: *std.http.Server.Request) !void {
 }
 
 test {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     std.testing.refAllDecls(@This());
 }

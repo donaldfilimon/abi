@@ -1,11 +1,11 @@
 const std = @import("std");
 const auth = @import("mod.zig");
-const parity_gate = @import("../../common/parity_gate.zig");
+const env_gate = @import("common");
 
 // Token-related tests guarded behind env gate to ensure parity can run in
 // environments where ABI_JWT_SECRET is not configured.
 test "auth token segmentation is exactly three parts" {
-    if (!parity_gate.canRunAuth()) return;
+    if (!env_gate.canRunAuth()) return;
     const allocator = std.testing.allocator;
     const token = try auth.createToken(allocator, "seg_check");
     defer allocator.free(token.raw);

@@ -160,8 +160,15 @@ pub fn build(b: *std.Build) void {
         break :blk zon.version;
     };
     addAllBuildOptions(build_opts, flags, pkg_version, builtin.zig_version_string);
-
     const build_options_module = build_opts.createModule();
+
+    // Common module for shared utilities like env_gate
+    const common_module = b.createModule(.{
+        .root_source_file = b.path("src/common/env_gate.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     _ = build_cross.addSteps(.{
         .b = b,
         .target = target,
@@ -177,6 +184,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     abi_module.addImport("build_options", build_options_module);
+    abi_module.addImport("common", common_module);
 
     //  Static library
     const static_lib = b.addLibrary(.{
@@ -189,6 +197,7 @@ pub fn build(b: *std.Build) void {
         .linkage = .static,
     });
     static_lib.root_module.addImport("build_options", build_options_module);
+    static_lib.root_module.addImport("common", common_module);
     linkIfDarwin(static_lib, .static_lib, feat_gpu, gpu_metal);
     b.installArtifact(static_lib);
     const install_static_lib = b.addInstallArtifact(static_lib, .{});
@@ -204,6 +213,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     mcp_exe.root_module.addImport("build_options", build_options_module);
+    mcp_exe.root_module.addImport("common", common_module);
     linkIfDarwin(mcp_exe, .executable, feat_gpu, gpu_metal);
     const install_mcp = b.addInstallArtifact(mcp_exe, .{});
     b.step("mcp", "Build MCP stdio server").dependOn(&install_mcp.step);
@@ -218,6 +228,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     cli_exe.root_module.addImport("build_options", build_options_module);
+    cli_exe.root_module.addImport("common", common_module);
     linkIfDarwin(cli_exe, .executable, feat_gpu, gpu_metal);
     const install_cli = b.addInstallArtifact(cli_exe, .{});
     b.step("cli", "Build ABI command-line interface").dependOn(&install_cli.step);
@@ -233,6 +244,7 @@ pub fn build(b: *std.Build) void {
         .flags = flags,
         .build_options_module = build_options_module,
         .abi_module = abi_module,
+        .common_module = common_module,
         .package_version = pkg_version,
     });
 

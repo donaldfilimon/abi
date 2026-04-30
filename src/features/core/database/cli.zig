@@ -170,7 +170,7 @@ fn resolveVector(allocator: std.mem.Allocator, parsed: CommonArgs) ![]f32 {
             else => return error.InvalidVector,
         };
     }
-    unreachable;
+    return error.InvalidVectorSpec;
 }
 
 fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

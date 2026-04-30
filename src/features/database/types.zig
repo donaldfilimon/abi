@@ -14,5 +14,4 @@ pub const FrameworkError = error{
     IndexError,
     StorageError,
 };
-
 pub const DatabaseFeatureError = FrameworkError;

@@ -207,8 +207,8 @@ test "Task.transitionTo rejects invalid transition" {
     try std.testing.expectEqual(@as(usize, 0), task.history.items.len);
 }
 
-const parity_gate = @import("../../../common/parity_gate.zig");
+const env_gate = @import("common");
 test {
-    if (!parity_gate.canRunTest()) return;
+    if (!env_gate.canRunTest()) return;
     std.testing.refAllDecls(@This());
 }

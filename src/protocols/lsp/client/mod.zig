@@ -448,8 +448,8 @@ fn cleanupTestRepo(allocator: std.mem.Allocator, io: std.Io, repo_root: []const 
 }
 
 test "resolveZigPath prefers explicit override over fallback discovery" {
-    const parity_gate = @import("../../../common/parity_gate.zig");
-    if (!parity_gate.canRunTest()) return;
+    const env_gate = @import("common");
+    if (!env_gate.canRunTest()) return;
     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{});
     defer io_backend.deinit();
     const io = io_backend.io();

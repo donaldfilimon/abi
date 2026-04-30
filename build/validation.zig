@@ -10,6 +10,7 @@ pub const Context = struct {
     flags: build_flags.FeatureFlags,
     build_options_module: *std.Build.Module,
     abi_module: *std.Build.Module,
+    common_module: *std.Build.Module,
     package_version: []const u8 = "0.1.0",
 };
 
@@ -58,7 +59,7 @@ pub const Steps = struct {
 pub fn addSteps(ctx: Context) Steps {
     const test_step = ctx.b.step("test", "Run tests");
 
-    const lib_tests = addTests(ctx.b, ctx.target, ctx.optimize, "src/root.zig", ctx.build_options_module, null);
+    const lib_tests = addTests(ctx.b, ctx.target, ctx.optimize, "src/root.zig", ctx.build_options_module, null, ctx.common_module);
     linking.linkIfDarwin(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const run_lib_tests = ctx.b.addRunArtifact(lib_tests);
     test_step.dependOn(&run_lib_tests.step);
@@ -70,6 +71,7 @@ pub fn addSteps(ctx: Context) Steps {
         "test/mod.zig",
         ctx.build_options_module,
         ctx.abi_module,
+        ctx.common_module,
     );
     linking.linkIfDarwin(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const run_integration = ctx.b.addRunArtifact(integration_tests);
@@ -77,7 +79,7 @@ pub fn addSteps(ctx: Context) Steps {
 
     addFlagOverrideTestLane(ctx, "feat_tui", true, "tui-tests", "Run TUI tests with feat-tui=true");
 
-    const parity_tests = addParityTests(ctx.b, ctx.target, ctx.optimize, ctx.build_options_module);
+    const parity_tests = addParityTests(ctx.b, ctx.target, ctx.optimize, ctx.build_options_module, ctx.common_module);
     linking.linkIfDarwin(parity_tests, .parity_test, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const run_parity = ctx.b.addRunArtifact(parity_tests);
     const check_parity_step = ctx.b.step("check-parity", "Verify mod/stub declaration parity");
@@ -94,6 +96,7 @@ pub fn addSteps(ctx: Context) Steps {
         "test/integration/mcp_test.zig",
         ctx.build_options_module,
         ctx.abi_module,
+        ctx.common_module,
     );
     linking.linkIfDarwin(mcp_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const mcp_tests_step = ctx.b.step("mcp-tests", "Run MCP integration tests");
@@ -134,6 +137,7 @@ fn addTests(
     root_path: []const u8,
     build_options_module: *std.Build.Module,
     abi_module: ?*std.Build.Module,
+    common_module: ?*std.Build.Module,
 ) *std.Build.Step.Compile {
     const test_mod = b.createModule(.{
         .root_source_file = b.path(root_path),
@@ -144,6 +148,9 @@ fn addTests(
     test_mod.addImport("build_options", build_options_module);
     if (abi_module) |m| {
         test_mod.addImport("abi", m);
+    }
+    if (common_module) |m| {
+        test_mod.addImport("common", m);
     }
     return b.addTest(.{ .root_module = test_mod });
 }
@@ -183,7 +190,7 @@ fn addFlagOverrideTestLane(
     lib_tests.root_module.addImport("build_options", override_bom);
     linking.linkIfDarwin(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
 
-    const integration_tests = addTests(ctx.b, ctx.target, ctx.optimize, "test/mod.zig", override_bom, override_abi);
+    const integration_tests = addTests(ctx.b, ctx.target, ctx.optimize, "test/mod.zig", override_bom, override_abi, ctx.common_module);
     linking.linkIfDarwin(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
 
     const step = ctx.b.step(step_name, step_desc);
@@ -200,9 +207,9 @@ fn addFeatureTestLane(ctx: Context, name: []const u8, display_name: []const u8, 
     const step_name = std.fmt.allocPrint(ctx.b.allocator, "{s}-tests", .{display_name}) catch @panic("OOM");
     const step_desc = std.fmt.allocPrint(ctx.b.allocator, "Run {s}-focused unit and integration tests", .{display_name}) catch @panic("OOM");
 
-    const unit_tests = addTests(ctx.b, ctx.target, ctx.optimize, unit_path, ctx.build_options_module, null);
+    const unit_tests = addTests(ctx.b, ctx.target, ctx.optimize, unit_path, ctx.build_options_module, null, ctx.common_module);
     linking.linkIfDarwin(unit_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
-    const integration_tests = addTests(ctx.b, ctx.target, ctx.optimize, integration_path, ctx.build_options_module, ctx.abi_module);
+    const integration_tests = addTests(ctx.b, ctx.target, ctx.optimize, integration_path, ctx.build_options_module, ctx.abi_module, ctx.common_module);
     linking.linkIfDarwin(integration_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const step = ctx.b.step(step_name, step_desc);
     step.dependOn(&ctx.b.addRunArtifact(unit_tests).step);
@@ -214,6 +221,7 @@ fn addParityTests(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     build_options_module: *std.Build.Module,
+    common_module: *std.Build.Module,
 ) *std.Build.Step.Compile {
     const parity_mod = b.createModule(.{
         .root_source_file = b.path("src/feature_parity_tests.zig"),
@@ -222,5 +230,6 @@ fn addParityTests(
         .link_libc = true,
     });
     parity_mod.addImport("build_options", build_options_module);
+    parity_mod.addImport("common", common_module);
     return b.addTest(.{ .root_module = parity_mod });
 }

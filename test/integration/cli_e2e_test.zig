@@ -30,9 +30,9 @@ test "cli: e2e routes" {
     };
 
     for (routes) |args| {
-    const result = try std.process.run(std.testing.allocator, std.testing.io, .{
-        .argv = args,
-    });
+        const result = try std.process.run(std.testing.allocator, std.testing.io, .{
+            .argv = args,
+        });
         defer std.testing.allocator.free(result.stdout);
         defer std.testing.allocator.free(result.stderr);
 
