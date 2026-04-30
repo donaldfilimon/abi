@@ -121,31 +121,7 @@ pub fn sleepNs(ns: u64) void {
 // String Utilities
 // ============================================================================
 
-pub const string = struct {
-    /// Convert a string to lowercase ASCII (allocating).
-    ///
-    /// Returns a newly allocated string that must be freed by the caller.
-    /// Non-ASCII characters are copied unchanged.
-    pub fn toLowerAscii(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-        const copy = try allocator.alloc(u8, input.len);
-        for (input, 0..) |char, i| {
-            copy[i] = std.ascii.toLower(char);
-        }
-        return copy;
-    }
-
-    /// Convert a string to uppercase ASCII (allocating).
-    ///
-    /// Returns a newly allocated string that must be freed by the caller.
-    /// Non-ASCII characters are copied unchanged.
-    pub fn toUpperAscii(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-        const copy = try allocator.alloc(u8, input.len);
-        for (input, 0..) |char, i| {
-            copy[i] = std.ascii.toUpper(char);
-        }
-        return copy;
-    }
-};
+pub const string = @import("utils/string.zig");
 
 // ---------------------------------------------------------------------------
 // Unit Tests for time utilities
