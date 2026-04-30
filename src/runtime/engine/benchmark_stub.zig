@@ -1,25 +1,16 @@
-//! Benchmark Stub for WASM/Freestanding Targets
-//!
-//! Provides stub implementations when benchmarking is not available.
+//! Benchmark stub for platforms without thread support.
 
 const std = @import("std");
 
-/// Stub benchmark result
-pub const BenchmarkResult = struct {
-    name: []const u8 = "stub",
-    iterations: usize = 0,
-    total_ns: u64 = 0,
-    avg_ns: u64 = 0,
-    min_ns: u64 = 0,
-    max_ns: u64 = 0,
+pub const BenchmarkConfig = struct {
+    iterations: u32 = 1000,
+    warmup: u32 = 10,
 };
 
-/// Stub run benchmarks - returns empty results
-pub fn runBenchmarks(allocator: std.mem.Allocator) ![]BenchmarkResult {
-    _ = allocator;
-    return &[_]BenchmarkResult{};
-}
-
-test {
-    std.testing.refAllDecls(@This());
-}
+pub const Benchmark = struct {
+    pub fn init(_: std.mem.Allocator, _: BenchmarkConfig) !Benchmark {
+        return error.ThreadsNotSupported;
+    }
+    pub fn deinit(_: *Benchmark) void {}
+    pub fn run(_: *Benchmark, _: anytype) !void {}
+};

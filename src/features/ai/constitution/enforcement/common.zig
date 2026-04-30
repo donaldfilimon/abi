@@ -82,7 +82,7 @@ pub fn isPlaceholderValue(text: []const u8) bool {
     if (text[0] == '<' or text[0] == '$' or text[0] == '{') return true;
     // Check for common placeholder strings
     const placeholders = [_][]const u8{
-        "xxx",     "XXX",     "your_", "YOUR_",   "****", "....",
+        "xxx",     "XXX",     "your_",   "YOUR_", "****", "....",
         "REPLACE", "replace", "example",
     };
     for (&placeholders) |ph| {
