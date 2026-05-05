@@ -55,7 +55,7 @@ pub const GatewayStats = struct {
 
 pub const MatchResult = struct {
     route: Route,
-    params: [RouteTree.max_params]Param = [_]Param{.{}} ** RouteTree.max_params,
+    params: [RouteTree.max_params]Param = @as([RouteTree.max_params]Param, @splat(.{})),
     param_count: u8 = 0,
     matched_route_idx: ?u32 = null, // internal: radix tree match result
 

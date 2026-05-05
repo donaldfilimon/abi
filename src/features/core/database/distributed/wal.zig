@@ -157,7 +157,7 @@ pub const WalWriter = struct {
         self.header = .{ .node_id = node_id };
         self.entries = .empty;
         self.data_buf = .empty;
-        self.path = [_]u8{0} ** 512;
+        self.path = @as([512]u8, @splat(0));
         self.path_len = @min(path.len, 511);
         @memcpy(self.path[0..self.path_len], path[0..self.path_len]);
         self.dirty = false;

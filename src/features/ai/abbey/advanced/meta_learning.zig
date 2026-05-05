@@ -137,7 +137,7 @@ pub const MetaLearner = struct {
             .inner_learning_rate = config.inner_learning_rate,
             .adaptation_steps = config.adaptation_steps,
             .task_history = .empty,
-            .domain_statistics = [_]DomainStats{.{}} ** 7,
+            .domain_statistics = @as([7]DomainStats, @splat(.{})),
             .strategy_weights = strategy_weights,
         };
     }
@@ -259,8 +259,8 @@ pub const MetaLearner = struct {
         const recent = self.task_history.items[self.task_history.items.len - recent_count ..];
 
         // Aggregate performance by domain
-        var domain_rewards: [7]f32 = [_]f32{0} ** 7;
-        var domain_counts: [7]usize = [_]usize{0} ** 7;
+        var domain_rewards: [7]f32 = @as([7]f32, @splat(0));
+        var domain_counts: [7]usize = @as([7]usize, @splat(0));
 
         for (recent) |record| {
             const idx = @intFromEnum(record.profile.domain);

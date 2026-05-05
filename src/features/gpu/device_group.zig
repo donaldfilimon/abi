@@ -51,7 +51,7 @@ pub const DeviceInfo = struct {
     id: DeviceId,
     backend: backend_mod.Backend = .stdgpu,
     backend_device_id: ?u32 = null,
-    name: [128]u8 = [_]u8{0} ** 128,
+    name: [128]u8 = @as([128]u8, @splat(0)),
     name_len: usize = 0,
     device_type: DeviceType = .unknown,
     capabilities: DeviceCapabilities = .{},
@@ -379,7 +379,7 @@ pub const DeviceGroup = struct {
     }
 
     fn appendCpuFallback(self: *DeviceGroup, id: DeviceId) !void {
-        var name: [128]u8 = [_]u8{0} ** 128;
+        var name: [128]u8 = @as([128]u8, @splat(0));
         const src = "CPU Fallback";
         @memcpy(name[0..src.len], src);
 

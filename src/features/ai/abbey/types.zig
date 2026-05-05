@@ -267,7 +267,7 @@ pub const ralph_multi = struct {
         to_id: u32 = 0,
         kind: RalphMessageKind = .task_result,
         content_len: u16 = 0,
-        content: [max_message_content_len]u8 = [_]u8{0} ** max_message_content_len,
+        content: [max_message_content_len]u8 = @as([max_message_content_len]u8, @splat(0)),
         pub fn setContent(self: *RalphMessage, slice: []const u8) void {
             const n = @min(slice.len, max_message_content_len);
             @memcpy(self.content[0..n], slice[0..n]);

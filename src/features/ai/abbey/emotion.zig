@@ -82,7 +82,7 @@ pub const EmotionalResponse = struct {
     /// Intensity of primary emotion (0.0 - 1.0).
     intensity: f32,
     /// Secondary emotions detected.
-    secondary_emotions: [3]?EmotionType = [_]?EmotionType{null} ** 3,
+    secondary_emotions: [3]?EmotionType = @as([3]?EmotionType, @splat(null)),
     /// Suggested tone for response.
     suggested_tone: ToneStyle,
     /// Empathy level required (0.0 - 1.0).
@@ -246,7 +246,7 @@ pub const EmotionProcessor = struct {
         defer self.allocator.free(lower);
 
         // Detect emotions from patterns
-        var emotion_scores = [_]f32{0.0} ** 14;
+        var emotion_scores = @as([14]f32, @splat(0.0));
         for (EMOTION_PATTERNS) |pattern| {
             if (std.mem.indexOf(u8, lower, pattern.pattern) != null) {
                 // Apply context requirement check
@@ -268,11 +268,11 @@ pub const EmotionProcessor = struct {
         // Find primary and secondary emotions
         var primary_emotion: EmotionType = .neutral;
         var primary_intensity: f32 = 0.0;
-        var secondary: [3]?EmotionType = [_]?EmotionType{null} ** 3;
+        var secondary: [3]?EmotionType = @as([3]?EmotionType, @splat(null));
 
         // Find top emotions
-        var top_indices: [4]usize = [_]usize{0} ** 4;
-        var top_scores: [4]f32 = [_]f32{0.0} ** 4;
+        var top_indices: [4]usize = @as([4]usize, @splat(0));
+        var top_scores: [4]f32 = @as([4]f32, @splat(0.0));
 
         for (emotion_scores, 0..) |score, idx| {
             if (score > top_scores[3]) {

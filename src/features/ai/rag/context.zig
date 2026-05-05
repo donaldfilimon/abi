@@ -331,7 +331,7 @@ test "context builder truncation" {
     defer builder.deinit();
 
     const chunk = @import("chunker.zig").Chunk{
-        .content = "A" ** 100,
+        .content = &@as([100]u8, @splat('A')),
         .start_offset = 0,
         .end_offset = 100,
         .index = 0,

@@ -146,11 +146,11 @@ pub const FeedbackAnalyzer = struct {
             .average_rating = 0.0,
             .positive_ratio = 0.0,
             .trend = .insufficient_data,
-            .category_breakdown = .{.{
+            .category_breakdown = @splat(.{
                 .category = .accuracy,
                 .count = 0,
                 .average_rating = 0.0,
-            }} ** 8,
+            }),
         };
     }
 
@@ -158,7 +158,7 @@ pub const FeedbackAnalyzer = struct {
         return .{
             .overall_average = 0.0,
             .total_entries = 0,
-            .profile_stats = .{null} ** 5,
+            .profile_stats = @splat(null),
             .overall_trend = .insufficient_data,
             .generated_at = 0,
         };

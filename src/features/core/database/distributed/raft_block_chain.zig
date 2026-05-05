@@ -822,7 +822,7 @@ test "DistributedBlockChain local insertion cleans up on OOM" {
         .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
-        .previous_hash = .{0} ** 32,
+        .previous_hash = @splat(0),
     };
 
     try std.testing.checkAllAllocationFailures(allocator, testDistributedBlockChainLocalInsertion, .{ session_id, config });

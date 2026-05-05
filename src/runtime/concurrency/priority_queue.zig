@@ -309,7 +309,7 @@ pub fn PriorityQueue(comptime T: type) type {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            var priority_counts = [_]usize{0} ** 5;
+            var priority_counts = @as([5]usize, @splat(0));
             for (self.items.items) |item| {
                 priority_counts[@intFromEnum(item.priority)] += 1;
             }

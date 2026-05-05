@@ -236,7 +236,7 @@ test "scatter gather" {
     try std.testing.expect(chunks.len >= 1);
 
     // Gather back
-    var output: [6]f32 = [_]f32{0} ** 6;
+    var output: [6]f32 = @as([6]f32, @splat(0));
     try cluster.gather(chunks, &output);
 
     // Should have some data

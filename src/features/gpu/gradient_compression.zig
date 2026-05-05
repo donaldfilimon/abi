@@ -321,7 +321,7 @@ test "GradientCompressor all-zero gradient" {
     var compressor = try GradientCompressor.init(allocator, 10, 0.5);
     defer compressor.deinit();
 
-    const gradients = [_]f32{0} ** 10;
+    const gradients = @as([10]f32, @splat(0));
     var compressed = try compressor.compress(&gradients);
     defer compressed.deinit();
 

@@ -29,7 +29,7 @@ pub const Agent = struct {
     history: std.ArrayListUnmanaged(Message) = .empty,
     total_tokens_used: u64 = 0,
     cognition: ?*advanced_cognition.AdvancedCognition = null,
-    backend_metrics: [8]BackendMetrics = [_]BackendMetrics{.{}} ** 8,
+    backend_metrics: [8]BackendMetrics = @as([8]BackendMetrics, @splat(.{})),
 
     pub fn init(allocator: std.mem.Allocator, config: AgentConfig) AgentError!Agent {
         try config.validate();

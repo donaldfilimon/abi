@@ -133,10 +133,10 @@ test "SegmentLog append and read back" {
     const payload = "hello segment";
     const b = block.StoredBlock{
         .header = .{
-            .id = .{ .id = [_]u8{0xAB} ** 32 },
+            .id = .{ .id = @as([32]u8, @splat(0xAB)) },
             .kind = @enumFromInt(0),
             .version = 1,
-            .content_hash = [_]u8{0} ** 32,
+            .content_hash = @as([32]u8, @splat(0)),
             .timestamp = .{ .counter = 42 },
             .size = @intCast(payload.len),
             .flags = 0,
@@ -152,10 +152,10 @@ test "SegmentLog append and read back" {
     const payload2 = "world";
     const b2 = block.StoredBlock{
         .header = .{
-            .id = .{ .id = [_]u8{0xCD} ** 32 },
+            .id = .{ .id = @as([32]u8, @splat(0xCD)) },
             .kind = @enumFromInt(0),
             .version = 2,
-            .content_hash = [_]u8{0} ** 32,
+            .content_hash = @as([32]u8, @splat(0)),
             .timestamp = .{ .counter = 99 },
             .size = @intCast(payload2.len),
             .flags = 0,

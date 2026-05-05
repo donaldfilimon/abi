@@ -454,7 +454,7 @@ test "memory cursor basic operations" {
 }
 
 test "memory cursor alignment" {
-    const data = [_]u8{0} ** 16;
+    const data = @as([16]u8, @splat(0));
     var cursor = MemoryCursor.init(&data);
 
     _ = cursor.read(u8);

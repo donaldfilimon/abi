@@ -820,8 +820,8 @@ test "EncryptedMessage serialization" {
     const allocator = std.testing.allocator;
 
     const msg = EncryptedMessage{
-        .nonce = [_]u8{1} ** 12,
-        .tag = [_]u8{2} ** 16,
+        .nonce = @as([12]u8, @splat(1)),
+        .tag = @as([16]u8, @splat(2)),
         .ciphertext = "hello",
     };
 

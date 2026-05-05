@@ -29,7 +29,7 @@ pub const StorageObject = struct {
 /// Optional per-object metadata (content type and up to 4 custom key-value pairs).
 pub const ObjectMetadata = struct {
     content_type: []const u8 = "application/octet-stream",
-    custom: [4]MetadataEntry = [_]MetadataEntry{.{}} ** 4,
+    custom: [4]MetadataEntry = @as([4]MetadataEntry, @splat(.{})),
     custom_count: u8 = 0,
 
     pub const MetadataEntry = struct {

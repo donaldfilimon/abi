@@ -100,7 +100,7 @@ pub const PowerMonitor = struct {
         self.* = .{
             .allocator = allocator,
             .profiles = .empty,
-            .per_backend_stats = [_]BackendEnergyStats{.{}} ** backend_count,
+            .per_backend_stats = @as([backend_count]BackendEnergyStats, @splat(.{})),
             .eco_config = .{},
             .mutex = .{},
         };

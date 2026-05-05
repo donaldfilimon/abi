@@ -87,7 +87,7 @@ test "QuantizedVector compression ratio" {
     var qv = QuantizedVector{
         .format = .int8,
         .dimension = 768,
-        .data = @constCast(&[_]u8{0} ** 768),
+        .data = @constCast(&@as([768]u8, @splat(0))),
         .scale = 0.01,
         .zero_point = 0,
     };

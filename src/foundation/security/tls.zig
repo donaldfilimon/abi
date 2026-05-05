@@ -111,9 +111,9 @@ pub const TlsConnection = struct {
             .config = .{},
             .read_buffer = std.ArrayListUnmanaged(u8).empty,
             .write_buffer = std.ArrayListUnmanaged(u8).empty,
-            .session_key = [_]u8{0} ** 32,
-            .client_random = [_]u8{0} ** 32,
-            .server_random = [_]u8{0} ** 32,
+            .session_key = @as([32]u8, @splat(0)),
+            .client_random = @as([32]u8, @splat(0)),
+            .server_random = @as([32]u8, @splat(0)),
         };
     }
 
@@ -132,9 +132,9 @@ pub const TlsConnection = struct {
             .config = .{},
             .read_buffer = std.ArrayListUnmanaged(u8).empty,
             .write_buffer = std.ArrayListUnmanaged(u8).empty,
-            .session_key = [_]u8{0} ** 32,
-            .client_random = [_]u8{0} ** 32,
-            .server_random = [_]u8{0} ** 32,
+            .session_key = @as([32]u8, @splat(0)),
+            .client_random = @as([32]u8, @splat(0)),
+            .server_random = @as([32]u8, @splat(0)),
         };
     }
 
@@ -303,7 +303,7 @@ pub const TlsConnection = struct {
         // Perform ECDHE or RSA key exchange
         // Generate session key using HKDF
         const ikm = self.client_random ++ self.server_random;
-        const salt = [_]u8{0} ** 32;
+        const salt = @as([32]u8, @splat(0));
         // Note: info would be used in full HKDF-Expand: "tls13 master secret"
 
         // Use HKDF to derive session key
@@ -722,9 +722,9 @@ test "default_cipher_suites are TLS 1.3" {
 }
 
 test "CertificatePinningConfig.isPinned" {
-    const fp1 = [_]u8{0xAA} ** 32;
-    const fp2 = [_]u8{0xBB} ** 32;
-    const fp_unknown = [_]u8{0xCC} ** 32;
+    const fp1 = @as([32]u8, @splat(0xAA));
+    const fp2 = @as([32]u8, @splat(0xBB));
+    const fp_unknown = @as([32]u8, @splat(0xCC));
 
     const config = CertificatePinningConfig{
         .pinned_fingerprints = &[_][32]u8{ fp1, fp2 },

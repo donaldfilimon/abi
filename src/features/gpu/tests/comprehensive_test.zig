@@ -462,8 +462,8 @@ pub const TestSuite = struct {
 
     fn concurrentOperations(ctx: *const ThreadContext) void {
         const size = 1024;
-        const a_data = [_]f32{1.0} ** size;
-        const b_data = [_]f32{2.0} ** size;
+        const a_data = @as([size]f32, @splat(1.0));
+        const b_data = @as([size]f32, @splat(2.0));
 
         for (0..ctx.operations) |_| {
             var a_buf = ctx.gpu.createBufferFromSlice(f32, &a_data, .{}) catch continue;

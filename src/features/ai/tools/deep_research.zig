@@ -172,7 +172,7 @@ pub const DeepResearcher = struct {
             } else if (c == ' ') {
                 try result.append(self.allocator, '+');
             } else {
-                var buf: [3]u8 = [_]u8{0} ** 3;
+                var buf: [3]u8 = @as([3]u8, @splat(0));
                 _ = std.fmt.bufPrint(&buf, "%{X:0>2}", .{c}) catch continue;
                 try result.appendSlice(self.allocator, &buf);
             }

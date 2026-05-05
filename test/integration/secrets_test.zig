@@ -23,7 +23,7 @@ test "secrets: SecureString round trip" {
 }
 
 test "secrets: memory provider round trip via public surface" {
-    const key: [32]u8 = [_]u8{7} ** 32;
+    const key: [32]u8 = @as([32]u8, @splat(7));
 
     var manager = try security.SecretsManager.init(std.testing.allocator, .{
         .provider = .memory,

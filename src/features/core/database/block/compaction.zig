@@ -48,10 +48,10 @@ pub const CompactionJob = struct {
             if (combined.items.len > 0) {
                 const consolidated = block.StoredBlock{
                     .header = .{
-                        .id = .{ .id = [_]u8{0} ** 32 },
+                        .id = .{ .id = @as([32]u8, @splat(0)) },
                         .kind = @enumFromInt(0),
                         .version = 1,
-                        .content_hash = [_]u8{0} ** 32,
+                        .content_hash = @as([32]u8, @splat(0)),
                         .timestamp = .{ .counter = 0 },
                         .size = @intCast(combined.items.len),
                         .flags = 0,

@@ -60,12 +60,12 @@ pub const FileHeader = struct {
     dimension: u32 = 0,
     distance_metric: DistanceMetric = .euclidean,
     compression: CompressionType = .none,
-    reserved1: [2]u8 = .{0} ** 2,
-    uuid: [16]u8 = .{0} ** 16,
-    reserved2: [16]u8 = .{0} ** 16,
+    reserved1: [2]u8 = @splat(0),
+    uuid: [16]u8 = @splat(0),
+    reserved2: [16]u8 = @splat(0),
 
     pub fn serialize(self: FileHeader) [HEADER_SIZE]u8 {
-        var buf: [HEADER_SIZE]u8 = .{0} ** HEADER_SIZE;
+        var buf: [HEADER_SIZE]u8 = @splat(0);
         @memcpy(buf[0..4], &self.magic);
         std.mem.writeInt(u16, buf[4..6], self.version, .little);
         std.mem.writeInt(u16, buf[6..8], @bitCast(self.flags), .little);
@@ -120,7 +120,7 @@ pub const SectionDirectoryEntry = struct {
     reserved: u32 = 0,
 
     pub fn serialize(self: SectionDirectoryEntry) [DIRECTORY_ENTRY_SIZE]u8 {
-        var buf: [DIRECTORY_ENTRY_SIZE]u8 = .{0} ** DIRECTORY_ENTRY_SIZE;
+        var buf: [DIRECTORY_ENTRY_SIZE]u8 = @splat(0);
         std.mem.writeInt(u16, buf[0..2], @intFromEnum(self.section_type), .little);
         std.mem.writeInt(u16, buf[2..4], self.flags, .little);
         std.mem.writeInt(u64, buf[4..12], self.offset, .little);
@@ -152,10 +152,10 @@ pub const FileFooter = struct {
     file_checksum: u32 = 0,
     file_size: u64 = 0,
     section_count: u32 = 0,
-    reserved: [8]u8 = .{0} ** 8,
+    reserved: [8]u8 = @splat(0),
 
     pub fn serialize(self: FileFooter) [FOOTER_SIZE]u8 {
-        var buf: [FOOTER_SIZE]u8 = .{0} ** FOOTER_SIZE;
+        var buf: [FOOTER_SIZE]u8 = @splat(0);
         @memcpy(buf[0..4], &self.marker);
         std.mem.writeInt(u32, buf[4..8], self.header_checksum, .little);
         std.mem.writeInt(u32, buf[8..12], self.directory_checksum, .little);

@@ -304,8 +304,8 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
         /// Called while holding shard lock.
         fn evictFromShard(self: *Self, shard: *Shard) void {
             // Find oldest entries
-            var oldest_keys: [16]?K = .{null} ** 16;
-            var oldest_times: [16]i64 = .{std.math.maxInt(i64)} ** 16;
+            var oldest_keys: [16]?K = @splat(null);
+            var oldest_times: [16]i64 = @splat(std.math.maxInt(i64));
             const batch_size = @min(self.config.eviction_batch, 16);
 
             var iter = shard.map.iterator();

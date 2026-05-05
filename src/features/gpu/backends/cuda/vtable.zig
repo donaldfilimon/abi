@@ -589,7 +589,7 @@ pub const CudaBackend = struct {
 
         // Convert args slice to optional pointers array for CUDA
         // CUDA expects a pointer to an array of pointers to arguments
-        var cuda_args: [32]?*anyopaque = .{null} ** 32;
+        var cuda_args: [32]?*anyopaque = @splat(null);
         const arg_count = @min(args.len, 32);
         for (0..arg_count) |i| {
             cuda_args[i] = @constCast(args[i]);

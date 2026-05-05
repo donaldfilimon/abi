@@ -47,7 +47,7 @@ pub const TransferStats = struct {
 /// Description of a remote GPU node reachable over the network.
 pub const RemoteNode = struct {
     id: u32,
-    host: [64]u8 = .{0} ** 64,
+    host: [64]u8 = @splat(0),
     host_len: u8 = 0,
     port: u16,
     connected: bool = false,

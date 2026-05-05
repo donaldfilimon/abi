@@ -726,7 +726,7 @@ test "Buffer write and read" {
 
     try std.testing.expect(buffer.isHostDirty());
 
-    var output: [4]f32 = [_]f32{0} ** 4;
+    var output: [4]f32 = @as([4]f32, @splat(0));
     try buffer.read(f32, &output);
 
     try std.testing.expectEqualSlices(f32, &input, &output);
@@ -807,7 +807,7 @@ test "Buffer createFromSlice" {
     try std.testing.expect(buffer.getSize() == 5 * @sizeOf(i32));
     try std.testing.expect(buffer.element_type == .i32);
 
-    var output: [5]i32 = [_]i32{0} ** 5;
+    var output: [5]i32 = @as([5]i32, @splat(0));
     try buffer.read(i32, &output);
     try std.testing.expectEqualSlices(i32, &data, &output);
 }

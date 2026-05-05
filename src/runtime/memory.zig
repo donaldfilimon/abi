@@ -163,7 +163,7 @@ pub const SlabAllocator = struct {
     pub fn init(backing: std.mem.Allocator, blocks_per_class: usize) !SlabAllocator {
         var self = SlabAllocator{
             .backing = backing,
-            .pools = [_]?FixedPool{null} ** NUM_CLASSES,
+            .pools = @as([NUM_CLASSES]?FixedPool, @splat(null)),
             .stats = .{},
         };
 
@@ -248,7 +248,7 @@ pub const SlabAllocator = struct {
     }
 
     pub fn getUtilization(self: *const SlabAllocator) [NUM_CLASSES]f32 {
-        var result: [NUM_CLASSES]f32 = [_]f32{0.0} ** NUM_CLASSES;
+        var result: [NUM_CLASSES]f32 = @as([NUM_CLASSES]f32, @splat(0.0));
         for (self.pools, 0..) |pool_opt, i| {
             if (pool_opt) |pool| {
                 const cap = pool.capacity();

@@ -49,7 +49,7 @@ pub const enforcement = struct {
     pub fn evaluateResponse(_: []const u8) root.ConstitutionalScore {
         return .{
             .overall = 1.0,
-            .violations = [_]?root.Violation{null} ** 16,
+            .violations = @as([16]?root.Violation, @splat(null)),
             .violation_count = 0,
             .highest_severity = null,
             .safety_score = null,
@@ -64,7 +64,7 @@ pub const enforcement = struct {
     pub fn computeBias(_: []const f32, _: f32) root.BiasScore {
         return .{
             .mean_abs_bias = 0.0,
-            .attribute_flags = [_]bool{false} ** root.MAX_BIAS_ATTRIBUTES,
+            .attribute_flags = @as([root.MAX_BIAS_ATTRIBUTES]bool, @splat(false)),
             .attribute_count = 0,
             .flagged_count = 0,
             .is_acceptable = true,
@@ -74,7 +74,7 @@ pub const enforcement = struct {
         return .{
             .is_safe = true,
             .score = 1.0,
-            .violations = [_]?root.SafetyViolation{null} ** root.SafetyScore.MAX_SAFETY_VIOLATIONS,
+            .violations = @as([root.SafetyScore.MAX_SAFETY_VIOLATIONS]?root.SafetyViolation, @splat(null)),
             .violation_count = 0,
         };
     }
@@ -98,7 +98,7 @@ pub const Constitution = struct {
     pub fn evaluate(_: *const Constitution, _: []const u8) root.ConstitutionalScore {
         return .{
             .overall = 1.0,
-            .violations = [_]?root.Violation{null} ** 16,
+            .violations = @as([16]?root.Violation, @splat(null)),
             .violation_count = 0,
             .highest_severity = null,
             .safety_score = null,

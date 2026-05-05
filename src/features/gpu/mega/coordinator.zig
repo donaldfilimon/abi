@@ -181,11 +181,11 @@ pub const Coordinator = struct {
         /// Average scheduling latency in microseconds
         avg_scheduling_latency_us: u64 = 0,
         /// Per-backend usage counts (indexed by backend enum value)
-        backend_usage: [backend_count]u64 = [_]u64{0} ** backend_count,
+        backend_usage: [backend_count]u64 = @as([backend_count]u64, @splat(0)),
         /// Per-backend success counts
-        backend_successes: [backend_count]u64 = [_]u64{0} ** backend_count,
+        backend_successes: [backend_count]u64 = @as([backend_count]u64, @splat(0)),
         /// Per-category scheduling counts
-        category_counts: [category_count]u64 = [_]u64{0} ** category_count,
+        category_counts: [category_count]u64 = @as([category_count]u64, @splat(0)),
     };
 
     /// Initialize the coordinator and discover available backends.

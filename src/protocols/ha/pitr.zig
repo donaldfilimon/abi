@@ -48,7 +48,7 @@ pub const CheckpointHeader = extern struct {
     operation_count: u64,
     data_size: u64,
     checksum: [32]u8,
-    reserved: [32]u8 = [_]u8{0} ** 32,
+    reserved: [32]u8 = @as([32]u8, @splat(0)),
 };
 
 pub const OperationType = enum(u8) {

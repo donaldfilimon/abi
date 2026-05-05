@@ -228,7 +228,7 @@ pub fn writeHnswBlock(
     state: *SaveState,
 ) !void {
     // Block header: type + 3 reserved + entry_point + max_layer + node_count = 16 bytes
-    var blk_header: [16]u8 = .{0} ** 16;
+    var blk_header: [16]u8 = @splat(0);
     blk_header[0] = @intFromEnum(BlockType.vector_index);
     std.mem.writeInt(u32, blk_header[4..8], hnsw.entry_point, .little);
     std.mem.writeInt(u32, blk_header[8..12], hnsw.max_layer, .little);

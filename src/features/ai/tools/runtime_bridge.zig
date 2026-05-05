@@ -52,7 +52,7 @@ pub const RuntimeBridge = struct {
         };
 
         // Write synthetic script to a temporary file
-        var tmp_name_buf: [64]u8 = [_]u8{0} ** 64;
+        var tmp_name_buf: [64]u8 = @as([64]u8, @splat(0));
         const ts = @import("../../../foundation/mod.zig").time.timestampMs();
         const tmp_file_name = try std.fmt.bufPrint(&tmp_name_buf, ".abi_synthetic_script_{d}{s}", .{ ts, ext });
 

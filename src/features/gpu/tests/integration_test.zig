@@ -22,7 +22,7 @@ test "full stack: auto-detect → execute → fallback" {
 
     const a = [_]f32{ 1, 2, 3, 4, 5, 6, 7, 8 };
     const b = [_]f32{ 8, 7, 6, 5, 4, 3, 2, 1 };
-    var result = [_]f32{0} ** 8;
+    var result = @as([8]f32, @splat(0));
 
     const method = try coordinator.vectorAdd(&a, &b, &result);
 

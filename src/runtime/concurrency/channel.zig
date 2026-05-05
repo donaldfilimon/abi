@@ -234,7 +234,7 @@ pub const F32Channel = Channel(f32);
 /// Fits in 128 bytes for cache-line-friendly transfer.
 pub const Message = struct {
     tag: MessageTag = .empty,
-    payload: [120]u8 = .{0} ** 120,
+    payload: [120]u8 = @splat(0),
 
     pub const MessageTag = enum(u8) {
         empty,

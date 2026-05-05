@@ -34,7 +34,7 @@ pub fn execute(pctx: *PipelineContext, _: types.StoreConfig) !void {
     };
 
     // Get previous hash for chaining
-    var previous_hash: [32]u8 = .{0} ** 32;
+    var previous_hash: [32]u8 = @splat(0);
     if (chain.current_head) |head_id| {
         if (chain.blocks.get(head_id)) |head_block| {
             previous_hash = head_block.hash;

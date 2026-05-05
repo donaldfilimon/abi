@@ -285,7 +285,7 @@ pub const EmotionalState = struct {
     current: EmotionType = .neutral,
     intensity: f32 = 0.0,
     previous: EmotionType = .neutral,
-    history: [8]EmotionType = [_]EmotionType{.neutral} ** 8,
+    history: [8]EmotionType = @as([8]EmotionType, @splat(.neutral)),
     history_index: usize = 0,
     consecutive_same: usize = 0,
     last_detected: i64 = 0,
@@ -313,7 +313,7 @@ pub const EmotionalState = struct {
     }
 
     pub fn getDominant(self: *const EmotionalState) EmotionType {
-        var counts = [_]usize{0} ** 14;
+        var counts = @as([14]usize, @splat(0));
         for (self.history) |emotion| {
             counts[@intFromEnum(emotion)] += 1;
         }

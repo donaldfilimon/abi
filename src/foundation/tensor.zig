@@ -27,7 +27,7 @@ pub const max_rank = 8;
 // ─── Shape ─────────────────────────────────────────────────────────────────
 
 pub const Shape = struct {
-    dims: [max_rank]usize = .{0} ** max_rank,
+    dims: [max_rank]usize = @splat(0),
     rank: u8 = 0,
 
     pub fn init(dims: []const usize) Shape {
@@ -102,7 +102,7 @@ pub fn Tensor(comptime T: type) type {
 
         data: []T,
         shape: Shape,
-        strides: [max_rank]usize = .{0} ** max_rank,
+        strides: [max_rank]usize = @splat(0),
 
         // ── Construction ────────────────────────────────────────────
 

@@ -85,7 +85,7 @@ pub fn Histogram(comptime bucket_count: usize) type {
     return struct {
         const Self = @This();
 
-        buckets: [bucket_count]u64 = [_]u64{0} ** bucket_count,
+        buckets: [bucket_count]u64 = @as([bucket_count]u64, @splat(0)),
         bucket_bounds: [bucket_count]f64,
         sum: f64 = 0,
         count: u64 = 0,
@@ -149,7 +149,7 @@ pub fn Histogram(comptime bucket_count: usize) type {
         pub fn reset(self: *Self) void {
             self.mutex.lock();
             defer self.mutex.unlock();
-            self.buckets = [_]u64{0} ** bucket_count;
+            self.buckets = @as([bucket_count]u64, @splat(0));
             self.sum = 0;
             self.count = 0;
         }

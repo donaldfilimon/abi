@@ -502,7 +502,7 @@ test "conv2d forward" {
     @memset(conv.weights, 1.0);
 
     // 1x1x4x4 input filled with 1s
-    const input = [_]f32{1.0} ** 16;
+    const input = @as([16]f32, @splat(1.0));
 
     const output = try conv.forward(&input, 1, 4, 4);
     defer allocator.free(output);

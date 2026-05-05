@@ -65,8 +65,8 @@ pub const SchedulerState = struct {
     /// Create a state snapshot from the coordinator.
     pub fn fromCoordinator(coord: *coordinator.Coordinator) SchedulerState {
         var state = SchedulerState{
-            .backend_loads = [_]f32{0} ** 8,
-            .memory_pressures = [_]f32{0} ** 8,
+            .backend_loads = @as([8]f32, @splat(0)),
+            .memory_pressures = @as([8]f32, @splat(0)),
             .pending_workloads = 0,
             .current_throughput = 0,
         };
@@ -98,7 +98,7 @@ pub const QTable = struct {
     /// Initialize Q-table with default hyperparameters.
     pub fn init() QTable {
         return .{
-            .values = [_][16]f32{[_]f32{0} ** 16} ** 8,
+            .values = @as([8][16]f32, @splat(@as([16]f32, @splat(0)))),
             .learning_rate = 0.1,
             .discount_factor = 0.95,
             .exploration_rate = 0.1,
@@ -391,16 +391,16 @@ test "q-table update" {
 
     const exp = Experience{
         .state = .{
-            .backend_loads = [_]f32{0} ** 8,
-            .memory_pressures = [_]f32{0.5} ** 8,
+            .backend_loads = @as([8]f32, @splat(0)),
+            .memory_pressures = @as([8]f32, @splat(0.5)),
             .pending_workloads = 0,
             .current_throughput = 0,
         },
         .action = 0,
         .reward = 1.0,
         .next_state = .{
-            .backend_loads = [_]f32{0} ** 8,
-            .memory_pressures = [_]f32{0.5} ** 8,
+            .backend_loads = @as([8]f32, @splat(0)),
+            .memory_pressures = @as([8]f32, @splat(0.5)),
             .pending_workloads = 0,
             .current_throughput = 0,
         },
@@ -419,16 +419,16 @@ test "replay buffer" {
 
     const exp = Experience{
         .state = .{
-            .backend_loads = [_]f32{0} ** 8,
-            .memory_pressures = [_]f32{0} ** 8,
+            .backend_loads = @as([8]f32, @splat(0)),
+            .memory_pressures = @as([8]f32, @splat(0)),
             .pending_workloads = 0,
             .current_throughput = 0,
         },
         .action = 0,
         .reward = 1.0,
         .next_state = .{
-            .backend_loads = [_]f32{0} ** 8,
-            .memory_pressures = [_]f32{0} ** 8,
+            .backend_loads = @as([8]f32, @splat(0)),
+            .memory_pressures = @as([8]f32, @splat(0)),
             .pending_workloads = 0,
             .current_throughput = 0,
         },
@@ -453,16 +453,16 @@ test "replay buffer capacity" {
 
     const exp = Experience{
         .state = .{
-            .backend_loads = [_]f32{0} ** 8,
-            .memory_pressures = [_]f32{0} ** 8,
+            .backend_loads = @as([8]f32, @splat(0)),
+            .memory_pressures = @as([8]f32, @splat(0)),
             .pending_workloads = 0,
             .current_throughput = 0,
         },
         .action = 0,
         .reward = 1.0,
         .next_state = .{
-            .backend_loads = [_]f32{0} ** 8,
-            .memory_pressures = [_]f32{0} ** 8,
+            .backend_loads = @as([8]f32, @splat(0)),
+            .memory_pressures = @as([8]f32, @splat(0)),
             .pending_workloads = 0,
             .current_throughput = 0,
         },
@@ -480,24 +480,24 @@ test "replay buffer capacity" {
 
 test "q-table discretization" {
     const state_low = SchedulerState{
-        .backend_loads = [_]f32{0} ** 8,
-        .memory_pressures = [_]f32{0} ** 8,
+        .backend_loads = @as([8]f32, @splat(0)),
+        .memory_pressures = @as([8]f32, @splat(0)),
         .pending_workloads = 0,
         .current_throughput = 0,
     };
     try std.testing.expectEqual(@as(u4, 0), QTable.discretizeState(state_low));
 
     const state_high = SchedulerState{
-        .backend_loads = [_]f32{1} ** 8,
-        .memory_pressures = [_]f32{1} ** 8,
+        .backend_loads = @as([8]f32, @splat(1)),
+        .memory_pressures = @as([8]f32, @splat(1)),
         .pending_workloads = 100,
         .current_throughput = 1000,
     };
     try std.testing.expectEqual(@as(u4, 15), QTable.discretizeState(state_high));
 
     const state_mid = SchedulerState{
-        .backend_loads = [_]f32{0.5} ** 8,
-        .memory_pressures = [_]f32{0.5} ** 8,
+        .backend_loads = @as([8]f32, @splat(0.5)),
+        .memory_pressures = @as([8]f32, @splat(0.5)),
         .pending_workloads = 50,
         .current_throughput = 500,
     };

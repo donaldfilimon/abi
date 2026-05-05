@@ -463,7 +463,7 @@ test "fused matmul with activation" {
     kernel.setActivation(.relu);
 
     const activations = [_]f32{ 1, -1, -1, 1 };
-    const weights = [_]u8{0} ** 16; // Placeholder
+    const weights = @as([16]u8, @splat(0)); // Placeholder
     var output: [4]f32 = undefined;
 
     try kernel.execute(&activations, &weights, &output);

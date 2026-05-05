@@ -230,8 +230,8 @@ test "connector errors: anyEnvIsSet returns false for empty list" {
 
 test "connector errors: envIsSet rejects oversized variable names" {
     // envIsSet uses a 256-byte stack buffer; names >= 256 should return false
-    const long_name = "A" ** 300;
-    try std.testing.expect(!shared.envIsSet(long_name));
+    const long_name: [300]u8 = @splat('A');
+    try std.testing.expect(!shared.envIsSet(&long_name));
 }
 
 // ============================================================================

@@ -66,8 +66,8 @@ pub const FeedbackAnalyzer = struct {
         var positive: usize = 0;
 
         // Category counts and totals
-        var cat_counts: [8]usize = .{0} ** 8;
-        var cat_totals: [8]f32 = .{0} ** 8;
+        var cat_counts: [8]usize = @splat(0);
+        var cat_totals: [8]f32 = @splat(0);
 
         for (entries) |entry| {
             if (entry.profile == profile) {
@@ -111,7 +111,7 @@ pub const FeedbackAnalyzer = struct {
     /// Generate a full satisfaction report across all profiles.
     pub fn generateReport(self: *const Self, entries: []const collector_mod.FeedbackEntry) SatisfactionReport {
         const profiles = [_]collector_mod.ProfileRef{ .abbey, .aviva, .abi, .ralph, .other };
-        var profile_stats: [5]?ProfileStats = .{null} ** 5;
+        var profile_stats: [5]?ProfileStats = @splat(null);
         var overall_total: f32 = 0;
         var overall_count: usize = 0;
 

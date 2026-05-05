@@ -591,7 +591,7 @@ test "trace id formatting" {
 
 test "sampler" {
     var sampler = TraceSampler.init(.always_on, 1.0);
-    const trace_id = [_]u8{0} ** 16;
+    const trace_id = @as([16]u8, @splat(0));
     try std.testing.expect(sampler.shouldSample(trace_id));
 
     sampler = TraceSampler.init(.always_off, 0.0);

@@ -41,7 +41,7 @@ test "compute: ComputeNode BackendType enum values" {
 
 test "compute: ComputeNode struct layout" {
     const node = compute.mesh.ComputeNode{
-        .id = [_]u8{0} ** 16,
+        .id = @as([16]u8, @splat(0)),
         .address = std.mem.zeroes(std.c.sockaddr.in),
         .is_local = true,
         .available_vram_mb = 8192,
@@ -117,7 +117,7 @@ test "compute: MeshOrchestrator type exists and has expected fields" {
 
 test "compute: ComputeNode default values" {
     const node = compute.mesh.ComputeNode{
-        .id = [_]u8{0xAB} ** 16,
+        .id = @as([16]u8, @splat(0xAB)),
         .address = std.mem.zeroes(std.c.sockaddr.in),
         .is_local = false,
         .available_vram_mb = 0,

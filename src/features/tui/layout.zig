@@ -27,7 +27,7 @@ pub fn split(rect: Rect, direction: Direction, constraints: []const Constraint) 
     const count = @min(constraints.len, max_splits);
 
     // --- Pass 1: compute base sizes, track last_min_index and base_total ---
-    var sizes: [max_splits]u16 = [_]u16{0} ** max_splits;
+    var sizes: [max_splits]u16 = @as([max_splits]u16, @splat(0));
     var base_total: u16 = 0;
     var last_min_index: ?usize = null;
 
@@ -72,7 +72,7 @@ pub fn split(rect: Rect, direction: Direction, constraints: []const Constraint) 
 pub const max_splits = 8;
 
 pub const SplitResult = struct {
-    rects: [max_splits]Rect = [_]Rect{.{}} ** max_splits,
+    rects: [max_splits]Rect = @as([max_splits]Rect, @splat(.{})),
     len: usize = 0,
 
     pub fn slice(self: *const SplitResult) []const Rect {
@@ -138,7 +138,7 @@ test "split oversized constraints clamp to available space" {
 test "split max_splits truncation" {
     const rect = Rect{ .x = 0, .y = 0, .width = 100, .height = 10 };
     // 10 constraints but max_splits is 8
-    const constraints = [_]Constraint{.{ .fixed = 5 }} ** 10;
+    const constraints = @as([10]Constraint, @splat(.{ .fixed = 5 }));
     const result = split(rect, .vertical, &constraints);
     try std.testing.expectEqual(@as(usize, 8), result.len);
 }

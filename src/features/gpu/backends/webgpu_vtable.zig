@@ -249,7 +249,7 @@ pub const WebGpuBackend = struct {
         };
 
         // Convert args to optional pointers
-        var opt_args: [32]?*const anyopaque = .{null} ** 32;
+        var opt_args: [32]?*const anyopaque = @splat(null);
         const arg_count = @min(args.len, 32);
         for (0..arg_count) |i| {
             opt_args[i] = args[i];

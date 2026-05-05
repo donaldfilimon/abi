@@ -373,8 +373,9 @@ test "search large document tokenization" {
     _ = try createIndex(allocator, "large");
 
     // Build a document with 100+ words
-    const big_doc = "alpha bravo charlie delta echo foxtrot golf hotel india juliet " **
-        11; // 110 words
+    const phrase = "alpha bravo charlie delta echo foxtrot golf hotel india juliet ";
+    const big_doc = phrase ++ phrase ++ phrase ++ phrase ++ phrase ++ phrase ++
+        phrase ++ phrase ++ phrase ++ phrase ++ phrase; // 110 words
     try indexDocument("large", "big1", big_doc);
 
     const s = stats();

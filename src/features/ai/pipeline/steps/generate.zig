@@ -117,8 +117,8 @@ test "generate uses correct profile name" {
 test "generate truncates long prompts in demo response" {
     const allocator = std.testing.allocator;
     // Create a prompt longer than 100 chars
-    const long_input = "a" ** 150;
-    var pctx = try PipelineContext.init(allocator, long_input, "session-4", 4);
+    const long_input: [150]u8 = @splat('a');
+    var pctx = try PipelineContext.init(allocator, &long_input, "session-4", 4);
     defer pctx.deinit();
 
     try execute(&pctx, .{});
@@ -127,7 +127,7 @@ test "generate truncates long prompts in demo response" {
     // The truncated portion should be at most 100 chars of 'a'
     try std.testing.expect(response.len > 0);
     // Full 150-char input should NOT appear in the response
-    try std.testing.expect(std.mem.indexOf(u8, response, long_input) == null);
+    try std.testing.expect(std.mem.indexOf(u8, response, &long_input) == null);
 }
 
 test "truncate helper" {

@@ -148,8 +148,9 @@ pub const BenchmarkSuite = struct {
         try w.print("{s:<30} {s:>12} {s:>12} {s:>12} {s:>12} {s:>12} {s:>14}\n", .{
             "Name", "Iterations", "Min (ns)", "Max (ns)", "Mean (ns)", "Median (ns)", "Ops/sec",
         });
-        // Separator line
-        try w.writeAll("-" ** 108 ++ "\n");
+        var separator: [108]u8 = @splat('-');
+        try w.writeAll(&separator);
+        try w.writeAll("\n");
 
         for (self.results.items) |r| {
             const ops = r.opsPerSecond();

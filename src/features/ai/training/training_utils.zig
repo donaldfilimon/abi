@@ -100,7 +100,7 @@ pub fn l2Normalize(data: []f32) void {
 // ============================================================================
 
 test "xavier initialization produces non-zero values" {
-    var data = [_]f32{0} ** 16;
+    var data = @as([16]f32, @splat(0));
     initializeXavier(&data);
 
     var any_nonzero = false;
@@ -114,8 +114,8 @@ test "xavier initialization produces non-zero values" {
 }
 
 test "xavier with different seeds produces different values" {
-    var data_a = [_]f32{0} ** 8;
-    var data_b = [_]f32{0} ** 8;
+    var data_a = @as([8]f32, @splat(0));
+    var data_b = @as([8]f32, @splat(0));
     initializeXavierWithSeed(&data_a, 0x12345678);
     initializeXavierWithSeed(&data_b, 0x87654321);
 
@@ -130,7 +130,7 @@ test "xavier with different seeds produces different values" {
 }
 
 test "positional initialization produces alternating sin/cos" {
-    var data = [_]f32{0} ** 8; // 2 positions, 4 hidden
+    var data = @as([8]f32, @splat(0)); // 2 positions, 4 hidden
     initializePositional(&data, 2, 4);
 
     // Position 0 should be all zeros for sin, non-trivial for cos at i=1

@@ -318,7 +318,7 @@ test "inference: GPU metrics buffer round-trip" {
     try stats_buffer.write(f32, &metric_data);
 
     // Read it back to verify the GPU interaction worked
-    var read_back: [2]f32 = [_]f32{0} ** 2;
+    var read_back: [2]f32 = @as([2]f32, @splat(0));
     try stats_buffer.read(f32, &read_back);
 
     try std.testing.expectEqual(metric_data[0], read_back[0]);

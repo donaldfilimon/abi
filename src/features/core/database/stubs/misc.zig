@@ -315,8 +315,8 @@ pub const block_chain = struct {
         }
     };
     pub const ConversationBlock = struct {
-        hash: [32]u8 = .{0} ** 32,
-        previous_hash: [32]u8 = .{0} ** 32,
+        hash: [32]u8 = @splat(0),
+        previous_hash: [32]u8 = @splat(0),
         parent_block_id: ?u64 = null,
 
         pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
@@ -330,7 +330,7 @@ pub const block_chain = struct {
         risk_score: f32 = 0.0,
         policy_flags: PolicyFlags = .{},
         parent_block_id: ?u64 = null,
-        previous_hash: [32]u8 = .{0} ** 32,
+        previous_hash: [32]u8 = @splat(0),
     };
     pub const BlockChainConfig = struct {};
     pub const BlockChainError = error{ DatabaseDisabled, InvalidBlock, ChainCorrupted };
@@ -428,7 +428,7 @@ pub const distributed = struct {
     pub const TransportType = enum { tcp, tls, thunderbolt, auto };
     pub const NodeInfo = struct {
         node_id: u64 = 0,
-        address: [64]u8 = [_]u8{0} ** 64,
+        address: [64]u8 = @as([64]u8, @splat(0)),
         address_len: u8 = 0,
         port: u16 = 9200,
         role: NodeRole = .primary,
@@ -447,7 +447,7 @@ pub const distributed = struct {
         failure_timeout_ms: u32 = 5000,
         auto_rebalance: bool = true,
         max_nodes: u16 = 256,
-        bootstrap_peers: [512]u8 = [_]u8{0} ** 512,
+        bootstrap_peers: [512]u8 = @as([512]u8, @splat(0)),
         bootstrap_peers_len: u16 = 0,
     };
     pub const ClusterStatus = struct {
@@ -464,7 +464,7 @@ pub const distributed = struct {
     pub const ClusterMessage = struct {
         msg_type: MessageType = .heartbeat,
         sender_id: u64 = 0,
-        payload: [1024]u8 = [_]u8{0} ** 1024,
+        payload: [1024]u8 = @as([1024]u8, @splat(0)),
         payload_len: u32 = 0,
         pub fn serialize(_: *const @This(), _: []u8) ClusterError!usize {
             return error.BufferTooSmall;
@@ -474,7 +474,7 @@ pub const distributed = struct {
         }
     };
     pub const PeerAddress = struct {
-        host: [64]u8 = [_]u8{0} ** 64,
+        host: [64]u8 = @as([64]u8, @splat(0)),
         host_len: u8 = 0,
         port: u16 = 9200,
         pub fn fromString(_: []const u8) PeerAddress {

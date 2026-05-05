@@ -29,7 +29,7 @@ pub const BiasScore = types.BiasScore;
 pub fn computeBias(measurements: []const f32, threshold: f32) BiasScore {
     var result = BiasScore{
         .mean_abs_bias = 0.0,
-        .attribute_flags = [_]bool{false} ** MAX_BIAS_ATTRIBUTES,
+        .attribute_flags = @as([MAX_BIAS_ATTRIBUTES]bool, @splat(false)),
         .attribute_count = measurements.len,
         .flagged_count = 0,
         .is_acceptable = true,

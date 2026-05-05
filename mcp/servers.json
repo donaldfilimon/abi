@@ -3,7 +3,7 @@
     "abi-mcp-1": {
       "command": "./mcp/launcher.sh",
       "args": ["stdio"],
-      "workDir": "/Users/donaldfilimon/abi",
+      "workDir": ".",
       "env": {
         "LOG_LEVEL": "info",
         "ABI_MCP_PORT": "50051",
@@ -23,7 +23,7 @@
     "abi-mcp-2": {
       "command": "./mcp/launcher.sh",
       "args": ["stdio"],
-      "workDir": "/Users/donaldfilimon/abi",
+      "workDir": ".",
       "env": {
         "LOG_LEVEL": "info",
         "ABI_MCP_PORT": "50052",

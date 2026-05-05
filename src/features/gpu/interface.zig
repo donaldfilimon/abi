@@ -182,7 +182,7 @@ pub const DeviceCaps = struct {
     sm_count: u32 = 0,
     memory_clock_rate_khz: u32 = 0,
     memory_bus_width: u32 = 0,
-    architecture_name: [64]u8 = .{0} ** 64,
+    architecture_name: [64]u8 = @splat(0),
     architecture_name_len: usize = 0,
 
     pub fn getName(self: *const DeviceCaps) []const u8 {

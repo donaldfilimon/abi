@@ -25,7 +25,7 @@ pub const SafetyViolation = common.SafetyViolation;
 pub fn evaluateResponse(response: []const u8) ConstitutionalScore {
     var score = ConstitutionalScore{
         .overall = 1.0,
-        .violations = [_]?Violation{null} ** 16,
+        .violations = @as([16]?Violation, @splat(null)),
         .violation_count = 0,
         .highest_severity = null,
         .safety_score = null,
@@ -88,7 +88,7 @@ pub fn evaluateSafety(text: []const u8) SafetyScore {
     var score = SafetyScore{
         .is_safe = true,
         .score = 1.0,
-        .violations = [_]?SafetyViolation{null} ** SafetyScore.MAX_SAFETY_VIOLATIONS,
+        .violations = @as([SafetyScore.MAX_SAFETY_VIOLATIONS]?SafetyViolation, @splat(null)),
         .violation_count = 0,
     };
 

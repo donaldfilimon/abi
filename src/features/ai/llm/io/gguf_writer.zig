@@ -501,7 +501,7 @@ pub fn exportToGguf(
     // SAFETY: name_buf is 128 bytes. Longest format is "blk.{d}.attn_output.weight" = ~30 chars.
     // Even with max u32 layer index (10 digits), output is ~40 chars, well under 128.
     for (weights.layers, 0..) |layer, i| {
-        var name_buf: [128]u8 = [_]u8{0} ** 128;
+        var name_buf: [128]u8 = @as([128]u8, @splat(0));
 
         // Attention norms
         const attn_norm_name = std.fmt.bufPrint(&name_buf, "blk.{d}.attn_norm.weight", .{i}) catch return error.OutOfMemory;

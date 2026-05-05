@@ -164,9 +164,9 @@ pub const ClassificationResult = struct {
     /// Estimated complexity.
     complexity: Complexity,
     /// Secondary query types (if mixed).
-    secondary_types: [2]?QueryType = [_]?QueryType{null} ** 2,
+    secondary_types: [2]?QueryType = @as([2]?QueryType, @splat(null)),
     /// Keywords that influenced classification.
-    key_indicators: [5]?[]const u8 = [_]?[]const u8{null} ** 5,
+    key_indicators: [5]?[]const u8 = @splat(null),
 };
 
 /// Pattern for classification detection.
@@ -291,8 +291,8 @@ pub const QueryClassifier = struct {
         const query_lower = self.toLowerBounded(query, &lower_buf);
 
         // Detect query type
-        var type_scores = [_]f32{0.0} ** 8;
-        var key_indicators: [5]?[]const u8 = [_]?[]const u8{null} ** 5;
+        var type_scores = @as([8]f32, @splat(0.0));
+        var key_indicators: [5]?[]const u8 = @splat(null);
         var indicator_idx: usize = 0;
 
         for (QUERY_PATTERNS) |pattern| {
@@ -311,11 +311,11 @@ pub const QueryClassifier = struct {
         // Find primary and secondary types
         var primary_type: QueryType = .general;
         var primary_score: f32 = 0.0;
-        var secondary: [2]?QueryType = [_]?QueryType{null} ** 2;
+        var secondary: [2]?QueryType = @as([2]?QueryType, @splat(null));
 
         // Find top types
-        var top_indices: [3]usize = [_]usize{7} ** 3; // Default to general
-        var top_scores: [3]f32 = [_]f32{0.0} ** 3;
+        var top_indices: [3]usize = @as([3]usize, @splat(7)); // Default to general
+        var top_scores: [3]f32 = @as([3]f32, @splat(0.0));
 
         for (type_scores, 0..) |score, idx| {
             if (score > top_scores[2]) {

@@ -251,7 +251,7 @@ pub const AuditLogger = struct {
     pub const AuditStats = struct {
         total_events: u64 = 0,
         events_by_severity: [5]u64 = .{ 0, 0, 0, 0, 0 },
-        events_by_category: [12]u64 = .{0} ** 12,
+        events_by_category: [12]u64 = @splat(0),
         alerts_triggered: u64 = 0,
         events_dropped: u64 = 0,
     };
@@ -578,7 +578,7 @@ pub const AuditLogger = struct {
         var hasher = if (self.config.hmac_key) |key|
             std.crypto.auth.hmac.sha2.HmacSha256.init(&key)
         else
-            std.crypto.auth.hmac.sha2.HmacSha256.init(&([_]u8{0} ** 32));
+            std.crypto.auth.hmac.sha2.HmacSha256.init(&(@as([32]u8, @splat(0))));
 
         hasher.update(event.id);
         hasher.update(std.mem.asBytes(&event.timestamp));

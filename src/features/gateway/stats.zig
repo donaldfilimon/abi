@@ -3,7 +3,7 @@ const std = @import("std");
 /// Latency histogram with 7 log-scale buckets.
 pub const LatencyHistogram = struct {
     // Buckets: <1ms, <5ms, <10ms, <50ms, <100ms, <500ms, >=500ms
-    buckets: [7]u64 = [_]u64{0} ** 7,
+    buckets: [7]u64 = @as([7]u64, @splat(0)),
     total_ns: u128 = 0,
     count: u64 = 0,
 

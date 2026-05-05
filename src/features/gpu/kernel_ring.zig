@@ -51,13 +51,13 @@ pub const KernelRing = struct {
     /// Initialize an empty ring buffer.
     pub fn init() KernelRing {
         return .{
-            .buffer = [_]Descriptor{.{
+            .buffer = @splat(Descriptor{
                 .kernel_handle = 0,
                 .grid_dim = .{ 0, 0, 0 },
                 .block_dim = .{ 0, 0, 0 },
                 .shared_mem = 0,
-            }} ** CAPACITY,
-            .lookup = [_]u64{0} ** CAPACITY,
+            }),
+            .lookup = @as([CAPACITY]u64, @splat(0)),
             .head = std.atomic.Value(u32).init(0),
             .tail = std.atomic.Value(u32).init(0),
         };

@@ -153,7 +153,7 @@ test "safety score struct operations" {
     var score = SafetyScore{
         .is_safe = true,
         .score = 1.0,
-        .violations = [_]?SafetyViolation{null} ** SafetyScore.MAX_SAFETY_VIOLATIONS,
+        .violations = @as([SafetyScore.MAX_SAFETY_VIOLATIONS]?SafetyViolation, @splat(null)),
         .violation_count = 0,
     };
 

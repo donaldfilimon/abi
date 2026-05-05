@@ -16,7 +16,7 @@ pub const INDEX_VERSION: u16 = 1;
 
 /// Convert a path slice to a sentinel-terminated buffer for POSIX calls.
 fn toPathZ(path: []const u8) error{IoError}![std.fs.max_path_bytes:0]u8 {
-    var buf: [std.fs.max_path_bytes:0]u8 = [_:0]u8{0} ** std.fs.max_path_bytes;
+    var buf: [std.fs.max_path_bytes:0]u8 = @as([std.fs.max_path_bytes:0]u8, @splat(0));
     if (path.len >= buf.len) return error.IoError;
     @memcpy(buf[0..path.len], path);
     buf[path.len] = 0;

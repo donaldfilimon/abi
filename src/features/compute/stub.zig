@@ -6,7 +6,7 @@ pub const types = @import("types.zig");
 
 pub const mesh = struct {
     pub const ComputeNode = struct {
-        id: [16]u8 = [_]u8{0} ** 16,
+        id: [16]u8 = @as([16]u8, @splat(0)),
         address: std.c.sockaddr.in = std.mem.zeroes(std.c.sockaddr.in),
         is_local: bool = false,
         available_vram_mb: u64 = 0,

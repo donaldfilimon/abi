@@ -292,7 +292,7 @@ pub const StreamPool = struct {
 /// ```
 pub const MultiStreamPool = struct {
     num_streams: u32,
-    in_use: [MAX_STREAMS]bool = [_]bool{false} ** MAX_STREAMS,
+    in_use: [MAX_STREAMS]bool = @as([MAX_STREAMS]bool, @splat(false)),
 
     pub const MAX_STREAMS = 16;
 

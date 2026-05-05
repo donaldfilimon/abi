@@ -41,7 +41,7 @@ pub const max_stages = 64;
 const max_name_len = 48;
 
 pub const Stage = struct {
-    name: [max_name_len]u8 = .{0} ** max_name_len,
+    name: [max_name_len]u8 = @splat(0),
     name_len: u8 = 0,
     id: u8 = 0,
     dependencies: u64 = 0,
@@ -129,7 +129,7 @@ pub const Pipeline = struct {
     pub fn sort(self: *Pipeline) !void {
         if (self.count == 0) return;
 
-        var in_degree: [max_stages]u8 = .{0} ** max_stages;
+        var in_degree: [max_stages]u8 = @splat(0);
         for (0..self.count) |i| {
             var deps = self.stages[i].dependencies;
             while (deps != 0) {

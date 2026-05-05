@@ -200,7 +200,7 @@ test "encode/decode result envelope" {
 
 test "decode rejects invalid magic" {
     const allocator = std.testing.allocator;
-    const invalid_data = "INVALID" ++ [1]u8{0} ** 10;
+    const invalid_data = "INVALID" ++ @as([10]u8, @splat(0));
 
     try std.testing.expectError(ProtocolError.InvalidFormat, decodeTask(allocator, invalid_data));
     try std.testing.expectError(ProtocolError.InvalidFormat, decodeResult(allocator, invalid_data));

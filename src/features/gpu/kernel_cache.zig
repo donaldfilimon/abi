@@ -114,7 +114,7 @@ pub const CacheEntryMeta = struct {
     compile_time_ns: i64,
     binary_size: usize,
     source_type: KernelSourceType,
-    entry_point: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN,
+    entry_point: [ENTRY_POINT_MAX_LEN]u8 = @as([ENTRY_POINT_MAX_LEN]u8, @splat(0)),
     entry_point_len: usize = 0,
 
     pub fn getEntryPoint(self: *const CacheEntryMeta) []const u8 {
@@ -317,7 +317,7 @@ pub const KernelCache = struct {
         errdefer self.allocator.destroy(lru_node);
         lru_node.* = .{ .key = owned_key, .prev = null, .next = null };
 
-        var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN;
+        var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = @as([ENTRY_POINT_MAX_LEN]u8, @splat(0));
         const ep_len = @min(entry_point.len, ENTRY_POINT_MAX_LEN);
         @memcpy(entry_point_buf[0..ep_len], entry_point[0..ep_len]);
 
@@ -399,7 +399,7 @@ pub const KernelCache = struct {
         errdefer self.allocator.destroy(lru_node);
         lru_node.* = .{ .key = key, .prev = null, .next = null };
 
-        var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN;
+        var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = @as([ENTRY_POINT_MAX_LEN]u8, @splat(0));
         const ep_len = @min(entry_point.len, ENTRY_POINT_MAX_LEN);
         @memcpy(entry_point_buf[0..ep_len], entry_point[0..ep_len]);
 
@@ -521,7 +521,7 @@ pub const KernelCache = struct {
             }
 
             // Construct filename from key
-            var filename_buf: [FILENAME_BUF_SIZE]u8 = [_]u8{0} ** FILENAME_BUF_SIZE;
+            var filename_buf: [FILENAME_BUF_SIZE]u8 = @as([FILENAME_BUF_SIZE]u8, @splat(0));
             const filename = try std.fmt.bufPrint(&filename_buf, "{s}/{s}.bin", .{ cache_dir, key });
 
             // Write binary to file

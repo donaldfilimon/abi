@@ -813,7 +813,7 @@ test "parallel layer assignment" {
     defer allocator.free(layers);
 
     // Check layer distribution
-    var layer_counts = [_]usize{0} ** 10;
+    var layer_counts = @as([10]usize, @splat(0));
     var max_layer: i32 = 0;
     for (layers) |layer| {
         if (layer < 10) {

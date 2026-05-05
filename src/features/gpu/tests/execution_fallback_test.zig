@@ -31,9 +31,9 @@ test "automatic method selection based on size" {
     defer coordinator.deinit();
 
     // Small vectors use SIMD/scalar
-    const small_a = [_]f32{1} ** 10;
-    const small_b = [_]f32{2} ** 10;
-    var small_result = [_]f32{0} ** 10;
+    const small_a = @as([10]f32, @splat(1));
+    const small_b = @as([10]f32, @splat(2));
+    var small_result = @as([10]f32, @splat(0));
 
     const small_method = try coordinator.vectorAdd(&small_a, &small_b, &small_result);
 

@@ -427,7 +427,7 @@ test "ToolExecutionError - all error types exist" {
 
     // Just verify they all exist and are errors
     for (errors) |err| {
-        var err_name_buf: [64]u8 = [_]u8{0} ** 64;
+        var err_name_buf: [64]u8 = @as([64]u8, @splat(0));
         const err_name = std.fmt.bufPrint(&err_name_buf, "{t}", .{err}) catch "UnknownError";
         try std.testing.expect(err_name.len > 0);
     }

@@ -43,7 +43,7 @@ pub const TemplateVar = struct {
 
 pub const TemplateRef = struct {
     source: []const u8 = "",
-    default_vars: [8]TemplateVar = [_]TemplateVar{.{}} ** 8,
+    default_vars: [8]TemplateVar = @as([8]TemplateVar, @splat(.{})),
     var_count: u8 = 0,
 };
 
@@ -60,13 +60,13 @@ pub const Page = struct {
     method: HttpMethod = .GET,
     require_auth: bool = false,
     cache_ttl_ms: u64 = 0,
-    metadata: [4]MetadataEntry = [_]MetadataEntry{.{}} ** 4,
+    metadata: [4]MetadataEntry = @as([4]MetadataEntry, @splat(.{})),
     metadata_count: u8 = 0,
 };
 
 pub const PageMatch = struct {
     page: Page,
-    params: [PageTree.max_params]Param = [_]Param{.{}} ** PageTree.max_params,
+    params: [PageTree.max_params]Param = @as([PageTree.max_params]Param, @splat(.{})),
     param_count: u8 = 0,
 
     pub const Param = PageTree.Param;

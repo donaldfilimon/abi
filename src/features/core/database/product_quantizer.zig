@@ -321,7 +321,7 @@ pub const ProductQuantizer = struct {
         var batch_idx: usize = 0;
         while (batch_idx < batch_count) : (batch_idx += 1) {
             const start = batch_idx * VectorSize;
-            var batch_dists: [VectorSize]f32 = .{0} ** VectorSize;
+            var batch_dists: [VectorSize]f32 = @splat(0);
 
             // Process all subvectors for this batch
             if (self.bits_per_code == 8) {

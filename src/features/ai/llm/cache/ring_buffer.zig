@@ -255,8 +255,8 @@ test "kv ring buffer" {
     var rb = try KvRingBuffer.init(allocator, 4, 8);
     defer rb.deinit(allocator);
 
-    const k1 = [_]f32{1.0} ** 8;
-    const v1 = [_]f32{2.0} ** 8;
+    const k1 = @as([8]f32, @splat(1.0));
+    const v1 = @as([8]f32, @splat(2.0));
 
     rb.push(&k1, &v1);
     try std.testing.expectEqual(@as(u32, 1), rb.length());

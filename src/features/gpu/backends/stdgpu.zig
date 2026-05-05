@@ -810,7 +810,7 @@ pub const StdGpuBackend = struct {
         };
 
         // Convert args to optional pointers
-        var opt_args: [32]?*const anyopaque = .{null} ** 32;
+        var opt_args: [32]?*const anyopaque = @splat(null);
         const arg_count = @min(args.len, 32);
         for (0..arg_count) |i| {
             opt_args[i] = args[i];
@@ -889,7 +889,7 @@ test "stdgpu device memory device-to-device copy" {
 test "simd vector add" {
     var a = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0 };
     var b = [_]f32{ 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0 };
-    var dst = [_]f32{0} ** 8;
+    var dst = @as([8]f32, @splat(0));
 
     simdVectorAdd(&dst, &a, &b);
 
@@ -909,7 +909,7 @@ test "simd dot product" {
 
 test "simd relu" {
     var a = [_]f32{ -2.0, -1.0, 0.0, 1.0, 2.0, -0.5, 0.5, 3.0 };
-    var dst = [_]f32{0} ** 8;
+    var dst = @as([8]f32, @splat(0));
 
     simdRelu(&dst, &a);
 
@@ -925,7 +925,7 @@ test "simd relu" {
 
 test "simd softmax sums to one" {
     var a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    var dst = [_]f32{0} ** 4;
+    var dst = @as([4]f32, @splat(0));
 
     simdSoftmax(&dst, &a);
 

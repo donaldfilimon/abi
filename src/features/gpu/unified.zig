@@ -737,7 +737,7 @@ test "Gpu createBufferFromSlice" {
     var buffer = try gpu.createBufferFromSlice(f32, &data, .{ .mode = .explicit });
     defer gpu.destroyBuffer(buffer);
 
-    var output: [4]f32 = [_]f32{0} ** 4;
+    var output: [4]f32 = @as([4]f32, @splat(0));
     try buffer.read(f32, &output);
 
     try std.testing.expectEqualSlices(f32, &data, &output);
@@ -766,7 +766,7 @@ test "Gpu vectorAdd" {
     const exec_result = try gpu.vectorAdd(a, b, result);
     try std.testing.expect(exec_result.elements_processed == 4);
 
-    var output: [4]f32 = [_]f32{0} ** 4;
+    var output: [4]f32 = @as([4]f32, @splat(0));
     try result.read(f32, &output);
 
     try std.testing.expectApproxEqAbs(@as(f32, 6.0), output[0], 0.001);

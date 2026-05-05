@@ -16,7 +16,7 @@ pub fn escapeString(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             '\r' => try escaped.appendSlice(allocator, "\\r"),
             '\t' => try escaped.appendSlice(allocator, "\\t"),
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
-                var buf: [6]u8 = [_]u8{0} ** 6;
+                var buf: [6]u8 = @as([6]u8, @splat(0));
                 // SAFETY: Buffer is exactly 6 bytes which matches the output format
                 // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
                 // NoSpaceLeft which cannot occur here.
@@ -47,7 +47,7 @@ pub fn escapeJsonContent(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             '\t' => try escaped.appendSlice(allocator, "\\t"),
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 // Escape other control characters as \uXXXX
-                var buf: [6]u8 = [_]u8{0} ** 6;
+                var buf: [6]u8 = @as([6]u8, @splat(0));
                 // SAFETY: Buffer is exactly 6 bytes which matches the output format
                 // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
                 // NoSpaceLeft which cannot occur here.
@@ -102,7 +102,7 @@ pub fn appendJsonEscaped(
             '\t' => try list.appendSlice(allocator, "\\t"),
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 // Escape control characters as \uXXXX
-                var buf: [6]u8 = [_]u8{0} ** 6;
+                var buf: [6]u8 = @as([6]u8, @splat(0));
                 // SAFETY: Buffer is exactly 6 bytes which matches the output format
                 // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
                 // NoSpaceLeft which cannot occur here.

@@ -469,12 +469,12 @@ test "cache memory budget enforcement" {
     });
     defer deinit();
 
-    const big_value = "x" ** 8192;
-    try put("mem0", big_value);
-    try put("mem1", big_value);
-    try put("mem2", big_value);
-    try put("mem3", big_value);
-    try put("mem4", big_value);
+    const big_value: [8192]u8 = @splat('x');
+    try put("mem0", &big_value);
+    try put("mem1", &big_value);
+    try put("mem2", &big_value);
+    try put("mem3", &big_value);
+    try put("mem4", &big_value);
 
     const s = stats();
     try std.testing.expect(s.memory_used <= 1024 * 1024);

@@ -95,11 +95,11 @@ pub const AdaptiveThresholds = struct {
 
         // Group samples by size ranges and method
         var gpu_times: [16]struct { count: usize, total_ns: u64, sum_squares: u64 } =
-            .{.{ .count = 0, .total_ns = 0, .sum_squares = 0 }} ** 16;
+            @splat(.{ .count = 0, .total_ns = 0, .sum_squares = 0 });
         var simd_times: [16]struct { count: usize, total_ns: u64, sum_squares: u64 } =
-            .{.{ .count = 0, .total_ns = 0, .sum_squares = 0 }} ** 16;
+            @splat(.{ .count = 0, .total_ns = 0, .sum_squares = 0 });
         var scalar_times: [16]struct { count: usize, total_ns: u64, sum_squares: u64 } =
-            .{.{ .count = 0, .total_ns = 0, .sum_squares = 0 }} ** 16;
+            @splat(.{ .count = 0, .total_ns = 0, .sum_squares = 0 });
 
         // First pass: collect statistics
         for (samples_list.items) |sample| {

@@ -383,7 +383,7 @@ Scale_up if L_current > L_threshold
 
 ### 8.1 Codebase
 
-- **Language:** Zig 0.17.0-dev.135+9df02121d
+- **Language:** Zig 0.17.0-dev.251+0db721ec2
 - **Size:** 387K+ LOC across 1,411+ .zig files
 - **Tests:** 3,720+ unit + integration tests (27 focused test lanes)
 - **Features:** 60 comptime-gated features in the catalog

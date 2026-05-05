@@ -102,8 +102,8 @@ pub const ConversationMemory = struct {
             if (self.chain.getBlock(head)) |blk_val| {
                 break :blk blk_val.hash;
             }
-            break :blk .{0} ** 32;
-        } else .{0} ** 32;
+            break :blk @splat(0);
+        } else @splat(0);
 
         // Build block config
         const config = BlockConfig{

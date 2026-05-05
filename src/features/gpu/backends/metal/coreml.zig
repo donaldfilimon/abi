@@ -146,7 +146,7 @@ pub const DataType = enum(u32) {
 
 /// Wraps MLMultiArray for tensor I/O with CoreML models
 pub const MultiArray = struct {
-    shape: [8]u32 = [_]u32{0} ** 8,
+    shape: [8]u32 = @as([8]u32, @splat(0)),
     ndim: u8 = 0,
     data_type: DataType = .float32,
     obj: ID = null,
@@ -218,7 +218,7 @@ pub const MultiArray = struct {
 
 /// Named array for model I/O
 pub const NamedArray = struct {
-    name: [64]u8 = [_]u8{0} ** 64,
+    name: [64]u8 = @as([64]u8, @splat(0)),
     name_len: u8 = 0,
     array: ?*MultiArray = null,
 };

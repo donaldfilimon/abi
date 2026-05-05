@@ -322,7 +322,7 @@ pub const OtelTracer = struct {
         const trace_id = if (parent_trace_id) |tid| tid else self.generateTraceId();
         const span_id = self.generateSpanId();
 
-        var parent_sid: [8]u8 = .{0} ** 8;
+        var parent_sid: [8]u8 = @splat(0);
         if (parent_span_id) |sid| {
             parent_sid = sid;
         }

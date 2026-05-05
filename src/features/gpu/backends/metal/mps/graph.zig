@@ -24,14 +24,14 @@ pub const GraphDataType = enum(u32) {
 /// Wraps an MPSGraphTensor Obj-C ID with metadata
 pub const GraphTensor = struct {
     tensor: ID = null,
-    shape: [8]u32 = [_]u32{0} ** 8,
+    shape: [8]u32 = @as([8]u32, @splat(0)),
     ndim: u8 = 0,
     dtype: GraphDataType = .float32,
 };
 
 /// Maps placeholder name to input data
 pub const GraphFeed = struct {
-    name: [64]u8 = [_]u8{0} ** 64,
+    name: [64]u8 = @as([64]u8, @splat(0)),
     name_len: u8 = 0,
     data: [*]const f32 = undefined,
     data_len: usize = 0,
@@ -39,7 +39,7 @@ pub const GraphFeed = struct {
 
 /// Holds output tensor data from graph execution
 pub const GraphResult = struct {
-    outputs: [8]?[]f32 = [_]?[]f32{null} ** 8,
+    outputs: [8]?[]f32 = @as([8]?[]f32, @splat(null)),
     output_count: u8 = 0,
     allocator: std.mem.Allocator = undefined,
 
@@ -137,7 +137,7 @@ pub const MpsGraph = struct {
         // Create NSString for name
         const nsstring_class = get_class("NSString") orelse return MpsError.FrameworkNotAvailable;
         const sel_string = sel_fn("stringWithUTF8String:");
-        var name_buf: [64]u8 = [_]u8{0} ** 64;
+        var name_buf: [64]u8 = @as([64]u8, @splat(0));
         const copy_len = @min(name.len, 63);
         @memcpy(name_buf[0..copy_len], name[0..copy_len]);
         const str_fn: *const fn (?Class, SEL, [*:0]const u8) callconv(.c) ID = @ptrCast(msg_send);

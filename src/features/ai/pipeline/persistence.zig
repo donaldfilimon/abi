@@ -78,7 +78,7 @@ pub const PipelineBlockAdapter = struct {
         };
 
         // Get previous hash from the chain's head block
-        var previous_hash: [32]u8 = .{0} ** 32;
+        var previous_hash: [32]u8 = @splat(0);
         if (pctx.chain) |c| {
             if (c.current_head) |head_id| {
                 if (c.blocks.get(head_id)) |head_block| {

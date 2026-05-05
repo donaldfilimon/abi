@@ -566,8 +566,8 @@ test "paged kv cache basic" {
     const seq_id = try cache.createSequence();
 
     // Append some tokens (num_kv_heads * head_dim = 4 * 8 = 32)
-    const k = [_]f32{1.0} ** 32;
-    const v = [_]f32{2.0} ** 32;
+    const k = @as([32]f32, @splat(1.0));
+    const v = @as([32]f32, @splat(2.0));
 
     // Add 3 tokens across both layers
     for (0..3) |_| {
@@ -604,8 +604,8 @@ test "paged kv cache page allocation" {
     const seq_id = try cache.createSequence();
 
     // num_kv_heads * head_dim = 2 * 4 = 8
-    const k = [_]f32{1.0} ** 8;
-    const v = [_]f32{2.0} ** 8;
+    const k = @as([8]f32, @splat(1.0));
+    const v = @as([8]f32, @splat(2.0));
 
     // Add 5 tokens (should use 3 pages: 2+2+1)
     for (0..5) |_| {
@@ -632,8 +632,8 @@ test "paged kv cache sequence fork" {
     const parent_id = try cache.createSequence();
 
     // num_kv_heads * head_dim = 2 * 4 = 8
-    const k = [_]f32{1.0} ** 8;
-    const v = [_]f32{2.0} ** 8;
+    const k = @as([8]f32, @splat(1.0));
+    const v = @as([8]f32, @splat(2.0));
 
     for (0..3) |_| {
         try cache.appendToken(parent_id, 0, &k, &v);
@@ -668,8 +668,8 @@ test "paged kv cache remove sequence" {
 
     const seq_id = try cache.createSequence();
 
-    const k = [_]f32{1.0} ** 8;
-    const v = [_]f32{2.0} ** 8;
+    const k = @as([8]f32, @splat(1.0));
+    const v = @as([8]f32, @splat(2.0));
 
     for (0..5) |_| {
         try cache.appendToken(seq_id, 0, &k, &v);

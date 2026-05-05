@@ -127,9 +127,9 @@ test "HostStagedBackend multiple transfers" {
     var backend = try host_staged.HostStagedBackend.init(allocator);
     defer backend.deinit();
 
-    var data1 = [_]u8{1} ** 1000;
-    var data2 = [_]u8{2} ** 2000;
-    var data3 = [_]u8{3} ** 3000;
+    var data1 = @as([1000]u8, @splat(1));
+    var data2 = @as([2000]u8, @splat(2));
+    var data3 = @as([3000]u8, @splat(3));
 
     try backend.transfer(0, 1, &data1);
     try backend.transfer(1, 2, &data2);

@@ -37,7 +37,7 @@ pub const RalphMessage = struct {
     kind: RalphMessageKind = .task_result,
     content_len: u16 = 0,
     /// Payload (only content_len bytes valid).
-    content: [max_message_content_len]u8 = [_]u8{0} ** max_message_content_len,
+    content: [max_message_content_len]u8 = @as([max_message_content_len]u8, @splat(0)),
 
     pub fn setContent(self: *RalphMessage, slice: []const u8) void {
         const n = @min(slice.len, max_message_content_len);

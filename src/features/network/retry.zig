@@ -74,7 +74,7 @@ pub const RetryError = struct {
     attempts: u32,
     last_error: RetryableError,
     elapsed_ns: u64,
-    errors: [16]?RetryableError = [_]?RetryableError{null} ** 16,
+    errors: [16]?RetryableError = @as([16]?RetryableError, @splat(null)),
 };
 
 /// Retry strategy.
@@ -196,7 +196,7 @@ pub fn RetryExecutor(comptime T: type) type {
 
             var attempts: u32 = 0;
             var last_error: RetryableError = error.Unknown;
-            var errors: [16]?RetryableError = [_]?RetryableError{null} ** 16;
+            var errors: [16]?RetryableError = @as([16]?RetryableError, @splat(null));
 
             while (attempts <= self.config.max_retries) {
                 // Check total timeout
@@ -264,7 +264,7 @@ pub fn RetryExecutor(comptime T: type) type {
 
             var attempts: u32 = 0;
             var last_error: RetryableError = error.Unknown;
-            var errors: [16]?RetryableError = [_]?RetryableError{null} ** 16;
+            var errors: [16]?RetryableError = @as([16]?RetryableError, @splat(null));
 
             while (attempts <= self.config.max_retries) {
                 const elapsed = timer.read();

@@ -269,7 +269,7 @@ pub const GraphStore = struct {
 // ═══════════════════════════════════════════════════════════════════════
 
 fn makeId(comptime c: u8) [32]u8 {
-    var id: [32]u8 = [_]u8{0} ** 32;
+    var id: [32]u8 = @as([32]u8, @splat(0));
     id[0] = c;
     return id;
 }

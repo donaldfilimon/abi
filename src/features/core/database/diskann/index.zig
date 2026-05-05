@@ -445,7 +445,7 @@ pub const DiskANNIndex = struct {
         defer file.close(io);
 
         // --- Write header (sector-aligned) ---
-        var header_buf: [4096]u8 = [_]u8{0} ** 4096;
+        var header_buf: [4096]u8 = @as([4096]u8, @splat(0));
         // Magic
         @memcpy(header_buf[0..4], &DISKANN_MAGIC);
         // Version
@@ -842,7 +842,7 @@ test "diskann load rejects invalid magic" {
     var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true });
     defer file.close(io);
 
-    var buf: [4096]u8 = [_]u8{0} ** 4096;
+    var buf: [4096]u8 = @as([4096]u8, @splat(0));
     @memcpy(buf[0..4], "NOPE");
     try file.writeStreamingAll(io, &buf);
 

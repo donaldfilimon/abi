@@ -170,7 +170,7 @@ pub const EmotionalState = struct {
         };
 
         // Check patterns and score (expanded for all 14 emotion types)
-        var emotion_scores = [_]f32{0} ** 14;
+        var emotion_scores = @as([14]f32, @splat(0));
 
         for (frustration_patterns) |p| {
             if (std.mem.indexOf(u8, lower, p) != null) emotion_scores[@intFromEnum(EmotionType.frustrated)] += 1;
@@ -330,7 +330,7 @@ pub const RelationshipMemory = struct {
     pub fn getDominantPattern(self: *const Self) ?EmotionType {
         if (self.emotion_history.items.len < 5) return null;
 
-        var counts = [_]usize{0} ** 14; // Expanded for all 14 emotion types
+        var counts = @as([14]usize, @splat(0)); // Expanded for all 14 emotion types
         for (self.emotion_history.items) |record| {
             counts[@intFromEnum(record.emotion)] += 1;
         }

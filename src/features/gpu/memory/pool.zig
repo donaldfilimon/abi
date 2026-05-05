@@ -234,7 +234,7 @@ pub const AdvancedMemoryPool = struct {
             .free_count = 0,
             .coalesce_count = 0,
             .mutex = .{},
-            .allocation_histogram = .{0} ** SIZE_CLASSES.len,
+            .allocation_histogram = @splat(0),
         };
 
         for (&pool.size_classes, 0..) |*bucket, i| {
@@ -449,7 +449,7 @@ pub const AdvancedMemoryPool = struct {
     pub fn resetHistogram(self: *AdvancedMemoryPool) void {
         self.mutex.lock();
         defer self.mutex.unlock();
-        self.allocation_histogram = .{0} ** SIZE_CLASSES.len;
+        self.allocation_histogram = @splat(0);
     }
 
     /// Force memory coalescing.
@@ -853,7 +853,7 @@ pub const DetailedPoolStats = struct {
 
     /// Calculate recommended pre-warm sizes based on current usage patterns.
     pub fn getPrewarmRecommendations(self: *const DetailedPoolStats) [SIZE_CLASSES.len]usize {
-        var recommendations: [SIZE_CLASSES.len]usize = .{0} ** SIZE_CLASSES.len;
+        var recommendations: [SIZE_CLASSES.len]usize = @splat(0);
 
         for (self.size_class_stats, 0..) |stats, i| {
             // Recommend based on utilization and current usage

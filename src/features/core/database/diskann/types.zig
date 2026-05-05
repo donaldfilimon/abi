@@ -116,7 +116,7 @@ pub fn writeAllFile(file: std.Io.File, io: std.Io, buf: []const u8) PersistError
 
 /// Write zero-padding of the given length.
 pub fn writePaddingFile(file: std.Io.File, io: std.Io, len: usize) PersistError!void {
-    const zeros = [_]u8{0} ** 4096;
+    const zeros = @as([4096]u8, @splat(0));
     var remaining = len;
     while (remaining > 0) {
         const chunk = @min(remaining, zeros.len);

@@ -207,8 +207,8 @@ pub const MetricsMiddleware = struct {
     total_requests: u64 = 0,
     total_errors: u64 = 0,
     active_requests: u64 = 0,
-    request_durations_us: [BUCKET_COUNT]u64 = .{0} ** BUCKET_COUNT,
-    status_counts: [6]u64 = .{0} ** 6,
+    request_durations_us: [BUCKET_COUNT]u64 = @splat(0),
+    status_counts: [6]u64 = @splat(0),
 
     pub fn init() MetricsMiddleware {
         return .{};
@@ -222,8 +222,8 @@ pub const MetricsMiddleware = struct {
             .total_requests = 0,
             .total_errors = 0,
             .active_requests = 0,
-            .request_durations_us = .{0} ** BUCKET_COUNT,
-            .status_counts = .{0} ** 6,
+            .request_durations_us = @splat(0),
+            .status_counts = @splat(0),
         };
     }
     pub fn formatPrometheus(_: *const MetricsMiddleware, _: std.mem.Allocator) ![]u8 {

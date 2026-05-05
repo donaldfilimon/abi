@@ -113,7 +113,7 @@ pub const BlockConfig = struct {
     risk_score: f32 = 0.0,
     policy_flags: PolicyFlags = .{},
     parent_block_id: ?u64 = null,
-    previous_hash: [32]u8 = .{0} ** 32,
+    previous_hash: [32]u8 = @splat(0),
     /// Pipeline metadata — which step produced this block.
     pipeline_step: PipelineStepTag = .none,
     /// Groups blocks from a single pipeline execution.
@@ -420,7 +420,7 @@ pub const BlockChain = struct {
             .routing_weights = profile_weights,
             .intent = dominant_intent,
             .parent_block_id = self.current_head,
-            .previous_hash = .{0} ** 32, // Special summary hash
+            .previous_hash = @splat(0), // Special summary hash
         };
 
         // Create and add summary block
@@ -559,7 +559,7 @@ test "ConversationBlock creation and MVCC" {
         .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
-        .previous_hash = .{0} ** 32,
+        .previous_hash = @splat(0),
     };
 
     var block = try ConversationBlock.create(allocator, config);
@@ -590,7 +590,7 @@ test "BlockChain basic operations" {
         .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
-        .previous_hash = .{0} ** 32,
+        .previous_hash = @splat(0),
     };
 
     // Add first block
@@ -603,7 +603,7 @@ test "BlockChain basic operations" {
         .routing_weights = .{ .abbey_weight = 0.3, .aviva_weight = 0.7 },
         .intent = .technical_problem,
         .parent_block_id = block1_id,
-        .previous_hash = .{0} ** 32,
+        .previous_hash = @splat(0),
     };
 
     const block2_id = try chain.addBlock(config2);
@@ -638,7 +638,7 @@ test "MvccStore visibility control" {
         .profile_tag = .{ .primary_profile = .abbey },
         .routing_weights = .{ .abbey_weight = 0.8, .aviva_weight = 0.2 },
         .intent = .empathy_seeking,
-        .previous_hash = .{0} ** 32,
+        .previous_hash = @splat(0),
     };
 
     const block_id = try chain.addBlock(config);
@@ -736,7 +736,7 @@ pub const StateBlockConfig = struct {
     state_type: []const u8,
     payload: []const u8,
     parent_block_id: ?u64 = null,
-    previous_hash: [32]u8 = .{0} ** 32,
+    previous_hash: [32]u8 = @splat(0),
 };
 
 fn computeStateBlockHash(config: StateBlockConfig) ![32]u8 {

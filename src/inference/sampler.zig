@@ -248,7 +248,7 @@ test "top-p nucleus sampling with allocator" {
     }, 42);
 
     // Run multiple samples — with top_p=0.5, results should be heavily concentrated
-    var counts = [_]u32{0} ** 8;
+    var counts = @as([8]u32, @splat(0));
     for (0..100) |_| {
         var l = logits;
         const idx = sampler.sample(&l);
@@ -268,7 +268,7 @@ test "top-p nucleus sampling without allocator (linear fallback)" {
         .top_p = 0.5,
     }, 42);
 
-    var counts = [_]u32{0} ** 4;
+    var counts = @as([4]u32, @splat(0));
     for (0..100) |_| {
         var l = logits;
         const idx = sampler.sample(&l);
@@ -287,7 +287,7 @@ test "top-p 1.0 does not filter" {
         .top_p = 1.0,
     }, 42);
     // All tokens should be possible
-    var seen = [_]bool{false} ** 4;
+    var seen = @as([4]bool, @splat(false));
     for (0..200) |_| {
         var l = logits;
         const idx = sampler.sample(&l);

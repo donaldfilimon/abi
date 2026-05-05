@@ -151,7 +151,7 @@ pub const VectorDatabase = struct {
 
         // Save vectors as tensors
         for (self.vectors.items, 0..) |v, i| {
-            var name_buf: [64]u8 = [_]u8{0} ** 64;
+            var name_buf: [64]u8 = @as([64]u8, @splat(0));
             const name = std.fmt.bufPrint(&name_buf, "vector_{d}", .{i}) catch |err| {
                 std.log.debug("Failed to format vector name {d}: {t}", .{ i, err });
                 continue;
@@ -164,7 +164,7 @@ pub const VectorDatabase = struct {
         }
 
         // Save metadata
-        var meta_buf: [256]u8 = [_]u8{0} ** 256;
+        var meta_buf: [256]u8 = @as([256]u8, @splat(0));
         const meta = std.fmt.bufPrint(&meta_buf, "{{\"name\":\"{s}\",\"dimension\":{d},\"count\":{d}}}", .{
             self.name,
             self.dimension,
@@ -225,7 +225,7 @@ pub const VectorDatabase = struct {
 
         // Load vectors
         var i: usize = 0;
-        var name_buf: [64]u8 = [_]u8{0} ** 64;
+        var name_buf: [64]u8 = @as([64]u8, @splat(0));
         while (i < ids.len) : (i += 1) {
             const name = std.fmt.bufPrint(&name_buf, "vector_{d}", .{i}) catch |err| {
                 std.log.debug("Failed to format vector name during load {d}: {t}", .{ i, err });

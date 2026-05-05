@@ -170,8 +170,8 @@ pub fn computeTextStatistics(text: []const u8) TextStatistics {
 
     // Fixed-size hash table for tracking unique words (1024 entries)
     const HASH_TABLE_SIZE: usize = 1024;
-    var hash_table: [HASH_TABLE_SIZE]u64 = [_]u64{0} ** HASH_TABLE_SIZE;
-    var hash_occupied: [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+    var hash_table: [HASH_TABLE_SIZE]u64 = @as([HASH_TABLE_SIZE]u64, @splat(0));
+    var hash_occupied: [HASH_TABLE_SIZE]bool = @as([HASH_TABLE_SIZE]bool, @splat(false));
 
     var word_count: usize = 0;
     var unique_words: usize = 0;

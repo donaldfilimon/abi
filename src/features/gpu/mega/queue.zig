@@ -99,7 +99,7 @@ pub const QueueStats = struct {
     total_timeout: u64 = 0,
     total_dropped: u64 = 0,
     current_depth: usize = 0,
-    priority_counts: [5]u64 = [_]u64{0} ** 5,
+    priority_counts: [5]u64 = @as([5]u64, @splat(0)),
     avg_wait_time_ms: f32 = 0,
     max_wait_time_ms: i64 = 0,
 };
@@ -118,7 +118,7 @@ pub const WorkloadQueue = struct {
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .queues = [_]std.ArrayListUnmanaged(QueuedWorkload){.empty} ** 5,
+            .queues = @as([5]std.ArrayListUnmanaged(QueuedWorkload), @splat(.empty)),
             .stats = .{},
             .next_id = 1,
             .mutex = .{},

@@ -63,7 +63,7 @@ pub const ClusterConfig = struct {
     auto_rebalance: bool = true,
     max_nodes: u16 = 256,
     // Bootstrap peers (comma-separated "host:port" list)
-    bootstrap_peers: [512]u8 = [_]u8{0} ** 512,
+    bootstrap_peers: [512]u8 = @as([512]u8, @splat(0)),
     bootstrap_peers_len: u16 = 0,
 };
 
@@ -94,7 +94,7 @@ pub const ClusterManager = struct {
     pub fn init(allocator: std.mem.Allocator, config: ClusterConfig) ClusterManager {
         var self_info: NodeInfo = undefined;
         self_info.node_id = config.node_id;
-        self_info.address = [_]u8{0} ** 64;
+        self_info.address = @as([64]u8, @splat(0));
         self_info.address_len = 0;
         self_info.port = config.listen_port;
         self_info.role = .primary; // Default until cluster negotiation
@@ -307,7 +307,7 @@ pub const ClusterManager = struct {
 
             var info: NodeInfo = undefined;
             info.node_id = peer_id;
-            info.address = [_]u8{0} ** 64;
+            info.address = @as([64]u8, @splat(0));
             const copy_len = @min(trimmed.len, 64);
             @memcpy(info.address[0..copy_len], trimmed[0..copy_len]);
             info.address_len = @intCast(copy_len);
@@ -352,7 +352,7 @@ pub const MessageType = enum(u8) {
 pub const ClusterMessage = struct {
     msg_type: MessageType,
     sender_id: u64,
-    payload: [1024]u8 = [_]u8{0} ** 1024,
+    payload: [1024]u8 = @as([1024]u8, @splat(0)),
     payload_len: u32 = 0,
 
     pub fn serialize(self: *const ClusterMessage, buffer: []u8) !usize {
@@ -384,7 +384,7 @@ pub const ClusterMessage = struct {
 
 /// Parsed peer address from bootstrap config.
 pub const PeerAddress = struct {
-    host: [64]u8 = [_]u8{0} ** 64,
+    host: [64]u8 = @as([64]u8, @splat(0)),
     host_len: u8 = 0,
     port: u16 = 9200,
 
@@ -439,7 +439,7 @@ test "ClusterManager add/remove peers" {
 
     var peer: NodeInfo = undefined;
     peer.node_id = 2;
-    peer.address = [_]u8{0} ** 64;
+    peer.address = @as([64]u8, @splat(0));
     peer.address_len = 0;
     peer.port = 9200;
     peer.role = .replica;
@@ -501,7 +501,7 @@ test "ClusterManager electLeader selects highest node_id" {
     // Add peers with higher IDs
     var peer1: NodeInfo = undefined;
     peer1.node_id = 10;
-    peer1.address = [_]u8{0} ** 64;
+    peer1.address = @as([64]u8, @splat(0));
     peer1.address_len = 0;
     peer1.port = 9200;
     peer1.role = .replica;
@@ -513,7 +513,7 @@ test "ClusterManager electLeader selects highest node_id" {
 
     var peer2: NodeInfo = undefined;
     peer2.node_id = 20;
-    peer2.address = [_]u8{0} ** 64;
+    peer2.address = @as([64]u8, @splat(0));
     peer2.address_len = 0;
     peer2.port = 9201;
     peer2.role = .replica;

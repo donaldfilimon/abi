@@ -133,7 +133,7 @@ pub const DistributedConfig = struct {
     /// Enable WAL for durability
     enable_wal: bool = true,
     /// WAL path (default: alongside database file)
-    wal_path: [512]u8 = [_]u8{0} ** 512,
+    wal_path: [512]u8 = @as([512]u8, @splat(0)),
     wal_path_len: u16 = 0,
     /// Replication factor
     replication_factor: u32 = 3,

@@ -109,7 +109,7 @@ test "runRequesterPath: not_found" {
     var payload: [rpc.BlockSyncResponse.encoded_len]u8 = undefined;
     try resp.encode(&payload);
     const n = try rpc.encodeMessage(.block_sync_response, &payload, &buf);
-    const req = rpc.BlockSyncRequest{ .shard_id = 0, .block_id = [_]u8{0} ** 32 };
+    const req = rpc.BlockSyncRequest{ .shard_id = 0, .block_id = @as([32]u8, @splat(0)) };
     const result = try runRequesterPath(allocator, req, buf[0..n], &sink, null);
     try std.testing.expect(result.status == .not_found);
     try std.testing.expect(result.chunks_received == 0);
@@ -136,7 +136,7 @@ test "runRequesterPath: ok with one chunk" {
     const n2 = try rpc.encodeMessage(.block_chunk, &chunk_payload, &tmp);
     try stream.appendSlice(allocator, tmp[0..n2]);
 
-    const req = rpc.BlockSyncRequest{ .shard_id = 1, .block_id = [_]u8{0} ** 32 };
+    const req = rpc.BlockSyncRequest{ .shard_id = 1, .block_id = @as([32]u8, @splat(0)) };
     const result = try runRequesterPath(allocator, req, stream.items, &sink, null);
     try std.testing.expect(result.status == .ok);
     try std.testing.expect(result.total_byte_len == 4);

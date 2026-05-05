@@ -905,8 +905,8 @@ test "lock-free pool concurrent stress test" {
             threads[i].join();
         }
     }
-    var success_counts: [thread_count]std.atomic.Value(usize) = [_]std.atomic.Value(usize){std.atomic.Value(usize).init(0)} ** thread_count;
-    var error_counts: [thread_count]std.atomic.Value(usize) = [_]std.atomic.Value(usize){std.atomic.Value(usize).init(0)} ** thread_count;
+    var success_counts: [thread_count]std.atomic.Value(usize) = @as([thread_count]std.atomic.Value(usize), @splat(std.atomic.Value(usize).init(0)));
+    var error_counts: [thread_count]std.atomic.Value(usize) = @as([thread_count]std.atomic.Value(usize), @splat(std.atomic.Value(usize).init(0)));
 
     for (0..thread_count) |i| {
         success_counts[i] = std.atomic.Value(usize).init(0);
@@ -920,7 +920,7 @@ test "lock-free pool concurrent stress test" {
                 successes: *std.atomic.Value(usize),
                 errors: *std.atomic.Value(usize),
             ) !void {
-                var handles: [8]ResourceHandle = .{INVALID_HANDLE} ** 8;
+                var handles: [8]ResourceHandle = @splat(INVALID_HANDLE);
                 var idx: usize = 0;
 
                 for (0..ops_per_thread) |i| {

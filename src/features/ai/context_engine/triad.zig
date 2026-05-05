@@ -30,7 +30,7 @@ pub const TriadEngine = struct {
         // Deep soul prompt integration into the neural database matrix.
         // Since we are running natively without external APIs by default, we embed a synthetic
         // high-dimensional anchor vector representing the Soul Prompt's gravity.
-        var soul_vector: [1536]f32 = .{0} ** 1536;
+        var soul_vector: [1536]f32 = @splat(0);
         soul_vector[0] = 1.0; // Anchor dimension
 
         try engine.brain.indexByVector("triad_soul_anchor", &soul_vector, .{
@@ -139,7 +139,7 @@ pub const TriadEngine = struct {
         var interaction_id_buf: [32]u8 = undefined;
         const interaction_id = try std.fmt.bufPrint(&interaction_id_buf, "interaction_{d}", .{self.interaction_count});
 
-        var interaction_vec: [1536]f32 = .{0} ** 1536;
+        var interaction_vec: [1536]f32 = @splat(0);
         interaction_vec[self.interaction_count % 1536] = 0.5;
 
         try self.brain.indexByVector(interaction_id, &interaction_vec, .{

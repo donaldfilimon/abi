@@ -52,7 +52,7 @@ pub const ConnectionPoolConfig = struct {
 
 /// Host key for connection pooling.
 pub const HostKey = struct {
-    host: [256]u8 = [_]u8{0} ** 256,
+    host: [256]u8 = @as([256]u8, @splat(0)),
     host_len: usize = 0,
     port: u16 = 80,
     is_tls: bool = false,

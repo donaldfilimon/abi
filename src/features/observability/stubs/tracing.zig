@@ -27,8 +27,8 @@ pub const Span = struct {
 };
 
 pub const TraceContext = struct {
-    trace_id: types.TraceId = [_]u8{0} ** 16,
-    span_id: types.SpanId = [_]u8{0} ** 8,
+    trace_id: types.TraceId = @as([16]u8, @splat(0)),
+    span_id: types.SpanId = @as([8]u8, @splat(0)),
     is_remote: bool = false,
     trace_flags: u8 = 0x01,
 
@@ -81,10 +81,10 @@ pub const OtelAttributeValue = types.AttributeValue;
 pub const OtelEvent = struct {};
 
 pub fn formatTraceId(_: [16]u8) [32]u8 {
-    return [_]u8{0} ** 32;
+    return @as([32]u8, @splat(0));
 }
 pub fn formatSpanId(_: [8]u8) [16]u8 {
-    return [_]u8{0} ** 16;
+    return @as([16]u8, @splat(0));
 }
 pub fn createOtelResource(_: std.mem.Allocator, _: []const u8) types.Error!void {
     return error.ObservabilityDisabled;

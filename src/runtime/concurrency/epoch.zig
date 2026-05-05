@@ -65,7 +65,7 @@ const ThreadState = struct {
     /// Whether this thread is currently pinned
     is_pinned: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     /// Per-thread retirement lists for each epoch
-    retired_lists: [EPOCH_COUNT]RetiredList = .{RetiredList{}} ** EPOCH_COUNT,
+    retired_lists: [EPOCH_COUNT]RetiredList = @splat(RetiredList{}),
     /// Count of retired items for this thread
     retired_count: usize = 0,
 };
@@ -88,7 +88,7 @@ pub const EpochReclamation = struct {
     /// Global epoch counter
     global_epoch: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
     /// Per-thread states
-    thread_states: [MAX_THREADS]ThreadState = .{ThreadState{}} ** MAX_THREADS,
+    thread_states: [MAX_THREADS]ThreadState = @splat(ThreadState{}),
     /// Allocator for internal bookkeeping
     allocator: std.mem.Allocator,
     /// Active thread count

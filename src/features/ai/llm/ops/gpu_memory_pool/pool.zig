@@ -54,8 +54,8 @@ pub const LlmMemoryPool = struct {
         var pool = LlmMemoryPool{
             .allocator = allocator,
             .config = config,
-            .free_lists = .{null} ** SIZE_CLASS_COUNT,
-            .free_counts = .{0} ** SIZE_CLASS_COUNT,
+            .free_lists = @splat(null),
+            .free_counts = @splat(0),
             .gpu_available = build_options.feat_gpu and checkGpuMemory(),
         };
 

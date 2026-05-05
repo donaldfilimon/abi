@@ -42,7 +42,7 @@ pub fn RadixTree(comptime TerminalIndex: type) type {
         /// Result of a path match operation.
         pub const MatchResult = struct {
             terminal_idx: ?TerminalIndex = null,
-            params: [max_params]Param = [_]Param{.{}} ** max_params,
+            params: [max_params]Param = @as([max_params]Param, @splat(.{})),
             param_count: u8 = 0,
 
             /// Look up a parameter value by name.

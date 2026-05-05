@@ -74,8 +74,8 @@ pub const MetricsMiddleware = struct {
             .total_requests = 0,
             .total_errors = 0,
             .active_requests = 0,
-            .request_durations_us = .{0} ** BUCKET_COUNT,
-            .status_counts = .{0} ** 6,
+            .request_durations_us = @splat(0),
+            .status_counts = @splat(0),
         };
     }
 

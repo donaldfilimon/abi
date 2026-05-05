@@ -116,7 +116,7 @@ pub const IpAddress = struct {
 
 fn parseIpv4(str: []const u8) ?IpAddress {
     var result = IpAddress{
-        .bytes = [_]u8{0} ** 16,
+        .bytes = @as([16]u8, @splat(0)),
         .version = .v4,
     };
 
@@ -148,7 +148,7 @@ fn parseIpv4(str: []const u8) ?IpAddress {
 fn parseIpv6(str: []const u8) ?IpAddress {
     // Simplified IPv6 parsing
     var result = IpAddress{
-        .bytes = [_]u8{0} ** 16,
+        .bytes = @as([16]u8, @splat(0)),
         .version = .v6,
     };
 

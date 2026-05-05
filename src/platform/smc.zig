@@ -58,13 +58,13 @@ const SMC_CMD_READ_BYTES: u8 = 5;
 const SmcKeyData = extern struct {
     key: u32 = 0,
     vers: [6]u8 = .{ 0, 0, 0, 0, 0, 0 },
-    p_limit_data: [16]u8 = .{0} ** 16,
+    p_limit_data: [16]u8 = @splat(0),
     key_info: SmcKeyInfoData = .{},
     result: u8 = 0,
     status: u8 = 0,
     data8: u8 = 0,
     data32: u32 = 0,
-    bytes: [32]u8 = .{0} ** 32,
+    bytes: [32]u8 = @splat(0),
 };
 
 const SmcKeyInfoData = extern struct {

@@ -77,7 +77,7 @@ pub const OSControlManager = struct {
 
     /// Simulate a mouse click.
     pub fn clickMouse(self: *OSControlManager, x: u32, y: u32) !void {
-        var buf: [64]u8 = [_]u8{0} ** 64;
+        var buf: [64]u8 = @as([64]u8, @splat(0));
         const msg = try std.fmt.bufPrint(&buf, "Click mouse at ({d}, {d})", .{ x, y });
         if (!try self.checkPermission(msg)) return error.PermissionDenied;
         // Stub implementation

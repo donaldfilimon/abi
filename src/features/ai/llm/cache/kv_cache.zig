@@ -435,8 +435,8 @@ test "layer kv cache basic" {
     try std.testing.expect(!cache.isFull());
 
     // Add some K, V
-    const k = [_]f32{1.0} ** 256;
-    const v = [_]f32{2.0} ** 256;
+    const k = @as([256]f32, @splat(1.0));
+    const v = @as([256]f32, @splat(2.0));
 
     cache.update(&k, &v, 0);
     try std.testing.expectEqual(@as(u32, 1), cache.length());
@@ -463,8 +463,8 @@ test "full kv cache" {
     try std.testing.expectEqual(@as(u32, 0), cache.sequenceLength());
 
     // Update layer 0
-    const k = [_]f32{1.0} ** 256;
-    const v = [_]f32{2.0} ** 256;
+    const k = @as([256]f32, @splat(1.0));
+    const v = @as([256]f32, @splat(2.0));
     cache.update(0, &k, &v, 0);
 
     // Stats
@@ -498,11 +498,11 @@ test "sliding window layer cache" {
     try std.testing.expect(cache.isSlidingWindow());
     try std.testing.expectEqual(@as(u32, 4), cache.max_len);
 
-    const v = [_]f32{2.0} ** 64;
+    const v = @as([64]f32, @splat(2.0));
 
     // Push 6 tokens (exceeds window of 4)
     for (0..6) |i| {
-        const k_val = [_]f32{@floatFromInt(i)} ** 64;
+        const k_val = @as([64]f32, @splat(@floatFromInt(i)));
         cache.update(&k_val, &v, @intCast(i));
     }
 
@@ -529,8 +529,8 @@ test "sliding window full cache" {
 
     try std.testing.expectEqual(@as(u32, 8), cache.config.effectiveWindowSize());
 
-    const k = [_]f32{1.0} ** 64;
-    const v = [_]f32{2.0} ** 64;
+    const k = @as([64]f32, @splat(1.0));
+    const v = @as([64]f32, @splat(2.0));
 
     // Add 12 tokens (exceeds window)
     for (0..12) |i| {
@@ -563,8 +563,8 @@ test "memory pressure callback" {
 
     cache.setMemoryPressureCallback(TestCallback.callback);
 
-    const k = [_]f32{1.0} ** 8;
-    const v = [_]f32{2.0} ** 8;
+    const k = @as([8]f32, @splat(1.0));
+    const v = @as([8]f32, @splat(2.0));
 
     // Add tokens until pressure threshold (50%)
     for (0..6) |i| {

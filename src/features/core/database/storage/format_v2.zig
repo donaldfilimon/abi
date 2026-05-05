@@ -40,11 +40,11 @@ pub const FileHeader = struct {
     dimension: u32 = 0,
     distance_metric: DistanceMetric = .euclidean,
     compression: CompressionType = .none,
-    uuid: [16]u8 = .{0} ** 16,
-    reserved: [16]u8 = .{0} ** 16,
+    uuid: [16]u8 = @splat(0),
+    reserved: [16]u8 = @splat(0),
 
     pub fn serialize(self: FileHeader) [64]u8 {
-        var buf: [64]u8 = .{0} ** 64;
+        var buf: [64]u8 = @splat(0);
         @memcpy(buf[0..4], &self.magic);
         std.mem.writeInt(u16, buf[4..6], self.version, .little);
         buf[6] = @bitCast(self.flags);
@@ -67,7 +67,7 @@ pub const FileHeader = struct {
         const version = std.mem.readInt(u16, buf[4..6], .little);
         if (version > FORMAT_VERSION) return error.UnsupportedVersion;
 
-        var reserved: [16]u8 = .{0} ** 16;
+        var reserved: [16]u8 = @splat(0);
         @memcpy(
             reserved[0..HEADER_RESERVED_STORED_SIZE],
             buf[HEADER_RESERVED_OFFSET .. HEADER_RESERVED_OFFSET + HEADER_RESERVED_STORED_SIZE],
@@ -114,7 +114,7 @@ pub const FileFooter = struct {
     file_checksum: u32 = 0,
     file_size: u64 = 0,
     num_blocks: u32 = 0,
-    reserved: [8]u8 = .{0} ** 8,
+    reserved: [8]u8 = @splat(0),
 
     pub fn serialize(self: FileFooter) [32]u8 {
         var buf: [32]u8 = undefined;
