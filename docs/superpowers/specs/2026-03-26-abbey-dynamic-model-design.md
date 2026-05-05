@@ -76,7 +76,7 @@ const result = try p.run("Hello Abbey!");
 - `test/integration/pipeline_test.zig`, `src/pipeline_mod_test.zig`, `test/pipeline_mod.zig`
 
 ### Modified (7)
-- `src/core/database/block_chain.zig` — `PipelineStepTag` + 3 fields on `BlockConfig`
+- `src/features/core/database/block_chain.zig` — `PipelineStepTag` + 3 fields on `BlockConfig`
 - `src/features/ai/{mod,stub}.zig` — Register pipeline sub-feature
 - `src/features/ai/modulation.zig` — WDBX write-behind
 - `src/features/ai/profile/router.zig` — `routeAndExecutePipeline()`

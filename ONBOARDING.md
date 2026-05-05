@@ -21,6 +21,7 @@ zig version
 
 - Build MCP with `./build.sh mcp`.
 - Start through `mcp/launcher.sh`; the HA instances are configured in `mcp/servers.json`.
+- Prefer `abi-mcp stdio` for client stdio integrations and `abi-mcp sse` for HTTP health checks and SSE transport when enabled.
 - Check MCP health with `scripts/check-mcp-health.sh`.
 - Check MCP-ACP interop with `scripts/check-interop.sh`.
 - Inspect ACP endpoints with `scripts/list-acp-endpoints.sh` when `ACP_ENDPOINTS` is set.

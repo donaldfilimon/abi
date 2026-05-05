@@ -29,11 +29,11 @@ You are a feature scaffolding agent for the ABI Zig framework. You create comple
 
 **Architecture Context:**
 - Features live in `src/features/<name>/` with `mod.zig`, `stub.zig`, `types.zig`
-- Features are comptime-gated in `src/root.zig` via `build_options.feat_<name>`
+- Features are comptime-gated in `src/public/features.zig` via `build_options.feat_<name>` and re-exported from `src/root.zig`
 - Feature flags defined inline in `build.zig` (self-contained, no external modules)
-- Feature metadata in `src/core/feature_catalog.zig`
+- Feature metadata in `src/features/core/feature_catalog.zig`
 - Integration tests in `test/` import `@import("abi")` and `@import("build_options")`
-- `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, `StubContextWithConfig`
+- `src/features/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, `StubContextWithConfig`
 
 **Scaffolding Procedure:**
 
@@ -145,12 +145,12 @@ When the user requests a new feature named `<name>`:
    - Add to cross-check options (default: enabled for native targets, disabled for WASM):
      `cross_opts.addOption(bool, "feat_<name>", !is_wasm);`
 
-6. **Edit `src/core/feature_catalog.zig`:**
+6. **Edit `src/features/core/feature_catalog.zig`:**
    - Add variant to `Feature` enum
    - Add variant to `ParitySpec` enum
    - Add catalog entry to `all` array with metadata (name, description, default enabled, dependencies)
 
-7. **Edit `src/root.zig`:**
+7. **Edit `src/public/features.zig` and `src/root.zig`:**
    - Add conditional import in the features section:
      `pub const <name> = if (build_options.feat_<name>) @import("features/<name>/mod.zig") else @import("features/<name>/stub.zig");`
 
@@ -192,8 +192,9 @@ After scaffolding, report:
 
 ### Files Modified
 - build.zig (flag + options + cross-check)
-- src/core/feature_catalog.zig (enum + catalog entry)
-- src/root.zig (conditional import)
+- src/features/core/feature_catalog.zig (enum + catalog entry)
+- src/public/features.zig (conditional import)
+- src/root.zig (compatibility re-export)
 
 ### Verification
 - [ ] `zig build lint` — formatting OK

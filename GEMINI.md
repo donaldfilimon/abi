@@ -1,6 +1,6 @@
 # GEMINI.md — ABI Framework
 
-This file provides guidance to Google Gemini when working with code in this repository. See also CLAUDE.md and QWEN.md for parallel AI-specific guidance.
+This file provides guidance to Google Gemini when working with code in this repository. See also `CLAUDE.md` for the canonical long-form engineering guidance.
 
 ## Project Overview
 
@@ -8,7 +8,7 @@ ABI is a **Zig 0.17 framework** for AI services, semantic vector storage, GPU ac
 
 ## Quick Reference
 
-- **Entry point**: `src/root.zig` (exported as `@import("abi")`)
+- **Entry point**: `src/root.zig` (exported as `@import("abi")`, with grouped public wiring in `src/public/`)
 - **Zig version**: Pinned in `.zigversion` (0.17.0-dev)
 - **Build wrapper**: `./build.sh` (macOS 26.4+) / `zig build` (Linux)
 - **Test gate**: `./build.sh check` or `zig build check`
@@ -30,13 +30,14 @@ Input → Abi Analyzer → Adaptive Modulator (EMA learning) → Router → Prof
 
 | Directory         | Purpose                                        |
 | ----------------- | ---------------------------------------------- |
-| `src/core/`       | Framework lifecycle, config, registry          |
+| `src/features/core/` | Framework lifecycle, config, registry       |
 | `src/features/`   | 21 feature modules (mod/stub/types pattern)    |
 | `src/foundation/` | Utilities: logging, security, time, SIMD, sync |
 | `src/runtime/`    | Task scheduling, event loops, concurrency      |
 | `src/inference/`  | ML engine: scheduler, sampler, KV cache        |
 | `src/connectors/` | LLM providers (OpenAI, Anthropic, etc.)        |
 | `src/protocols/`  | MCP, ACP, LSP, HA protocol implementations     |
+| `src/public/`     | Public root wiring re-exported by `src/root.zig` |
 
 ### The Mod/Stub Pattern
 
@@ -160,9 +161,9 @@ test {
 | File                      | Purpose                        |
 | ------------------------- | ------------------------------ |
 | `CLAUDE.md`               | Detailed Claude Code guidance  |
-| `QWEN.md`                 | Qwen-specific guidance         |
 | `AGENTS.md`               | Project-wide agent conventions |
 | `.zigversion`             | Pinned Zig version             |
+| `src/public/`             | Public ABI root wiring         |
 | `build.sh`                | macOS 26.4+ build wrapper      |
 | `tools/zigly`             | Zig version manager            |
 | `docs/spec/ABBEY-SPEC.md` | Comprehensive mega-spec        |

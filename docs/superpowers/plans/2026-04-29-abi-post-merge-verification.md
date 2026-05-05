@@ -23,7 +23,7 @@ Expected: SUCCESS (API parity between mod/stub verified)
 ### Task 2: Artifact Cleanup
 
 - [ ] **Step 1: Remove backup directory**
-Run: `rm -rf /Users/donaldfilimon/abi_backups`
+Run: `rm -rf <repo>/abi_backups`
 (Note: Confirmed that all relevant worktrees are merged into /abi)
 
 - [ ] **Step 2: Final status report**

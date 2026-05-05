@@ -387,7 +387,7 @@ Scale_up if L_current > L_threshold
 - **Size:** 387K+ LOC across 1,411+ .zig files
 - **Tests:** 3,720+ unit + integration tests (27 focused test lanes)
 - **Features:** 60 comptime-gated features in the catalog
-- **Package:** `@import("abi")` — single module, comptime-gated features (mod/stub pattern)
+- **Package:** `@import("abi")` — single public root with grouped `src/public/` wiring and comptime-gated features (mod/stub pattern)
 - **Build:** `./build.sh` (macOS 26.4+) or `zig build` (Linux)
 - **Cross-compilation:** linux-aarch64, linux-x86_64, wasm32-wasi, x86_64-macos
 - **Feature-disabled builds:** AI, database, GPU can each be disabled independently
@@ -422,7 +422,7 @@ All pipeline steps wired end-to-end:
 | Component | Description | Status |
 |-----------|-------------|--------|
 | CLI (`abi`) | 12 commands: status, version, doctor, features, platform, connectors, info, chat, db, serve, dashboard, help | Implemented |
-| MCP Server (`abi-mcp`) | JSON-RPC 2.0 stdio server for Claude Desktop, Cursor, and other MCP clients | Implemented |
+| MCP Server (`abi-mcp`) | JSON-RPC 2.0 MCP server for Claude Desktop, Cursor, HTTP/SSE health checks, and other MCP clients | Implemented |
 | ACP Server | HTTP server for Agent Communication Protocol (default 127.0.0.1:8080) | Implemented |
 | Feature flags | 33 comptime flags with mod/stub parity enforcement | Implemented |
 | Cross-compilation | 4 targets verified in CI: aarch64-linux, x86_64-linux, wasm32-wasi, x86_64-macos | Implemented |
@@ -442,7 +442,7 @@ Key spec claims and their actual status:
 | `alignmentScore()` | **Implemented** | `src/features/ai/constitution/enforcement.zig`, `mod.zig` |
 | Profile routing (Abi → Abbey/Aviva) | **Implemented** | `src/features/ai/profile/router.zig` — 3-way weights, not simple α blend |
 | Adaptive modulation (EMA learning) | **Implemented** | `src/features/ai/profile/modulation.zig` |
-| WDBX block chain memory | **Implemented** | `src/core/database/block_chain.zig`, `profile/memory.zig` |
+| WDBX block chain memory | **Implemented** | `src/features/core/database/block_chain.zig`, `profile/memory.zig` |
 | Bias quantification formula | **Implemented** | `src/features/ai/constitution/enforcement.zig` — `computeBias()` with `BiasScore` struct |
 | Profile token injection (Z = Embed) | **Implemented** | `llm/model/llama.zig` — additive profile embeddings injected before first layer; `setProfile(id)` API |
 | Benchmark numbers (110ms, 90 req/s) | **Aspirational** | No production inference benchmark; demo/connector backends only |

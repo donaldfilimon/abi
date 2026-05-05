@@ -160,18 +160,24 @@ options.addOption(bool, "feat_<name>", feat_<name>);
 
 ## Step 3: Add to Feature Catalog
 
-Edit `src/core/feature_catalog.zig`. Three additions required:
+Edit `src/features/core/feature_catalog.zig`. Three additions required:
 
 1. Add the variant to the `Feature` enum.
 2. Add the variant to the `ParitySpec` enum.
 3. Add a catalog entry to the `all` array.
 
-## Step 4: Add Conditional Import to root.zig
+## Step 4: Add Conditional Import to Public Feature Wiring
 
-Edit `src/root.zig`. Add in the features section:
+Edit `src/public/features.zig`. Add in the features section:
 
 ```zig
-pub const <name> = if (build_options.feat_<name>) @import("features/<name>/mod.zig") else @import("features/<name>/stub.zig");
+pub const <name> = if (build_options.feat_<name>) @import("../features/<name>/mod.zig") else @import("../features/<name>/stub.zig");
+```
+
+Then re-export it from `src/root.zig`:
+
+```zig
+pub const <name> = public_features.<name>;
 ```
 
 ## Step 5: Add to Cross-Compilation
@@ -198,7 +204,7 @@ zig build test --summary all       # Tests pass
 zig build doctor                   # Feature shows in config report
 ```
 
-On Darwin 25+, the `check-parity` step compiles cleanly but may fail at runtime with `InvalidExe` — that's the known linker issue, not a code problem.
+On Darwin 25+, use `./build.sh` for any step that links. `zig build lint` remains safe because it does not link.
 
 ## Checklist
 
@@ -208,10 +214,11 @@ Use this list to confirm completeness before committing:
 - [ ] `src/features/<name>/mod.zig` created with `isEnabled() -> true`
 - [ ] `src/features/<name>/stub.zig` created with `isEnabled() -> false`, signatures match mod
 - [ ] `build.zig` registers `feat_<name>` with `b.option` and `options.addOption`
-- [ ] `src/core/feature_catalog.zig` `Feature` enum has `.<name>`
-- [ ] `src/core/feature_catalog.zig` `ParitySpec` enum has `.<name>`
-- [ ] `src/core/feature_catalog.zig` `all` array has catalog entry
-- [ ] `src/root.zig` has conditional import line
+- [ ] `src/features/core/feature_catalog.zig` `Feature` enum has `.<name>`
+- [ ] `src/features/core/feature_catalog.zig` `ParitySpec` enum has `.<name>`
+- [ ] `src/features/core/feature_catalog.zig` `all` array has catalog entry
+- [ ] `src/public/features.zig` has conditional import line
+- [ ] `src/root.zig` re-exports the feature from `public_features`
 - [ ] `zig build lib` passes
 - [ ] `zig build lint` passes
 - [ ] `zig build check-parity` compiles clean

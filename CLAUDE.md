@@ -10,7 +10,7 @@ Glossary: See GLOSSARY.md for repo-wide terms.
 
 ## Project Overview
 
-ABI is a Zig 0.17-dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`.
+ABI is a Zig 0.17-dev framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime. The package entrypoint is `src/root.zig`, exposed as `@import("abi")`. The root is a compatibility re-export layer over grouped public wiring in `src/public/`.
 
 Zig version is pinned in `.zigversion`. `tools/zigly` is the repo entrypoint and prefers `~/.zvm/bin/zig` when its actual version matches the pin:
 
@@ -50,7 +50,7 @@ zig build full-check               # Full validation gate
 zig build verify-all               # Release verification
 zig build cross-check              # Verify cross-compilation
 zig build lib                      # Build static library artifact
-zig build mcp                      # Build MCP stdio server
+zig build mcp                      # Build MCP server
 zig build cli                      # Build CLI binary
 zig build typecheck                # Compile-only validation
 ```
@@ -73,7 +73,8 @@ zig build search-tests secrets-tests storage-tests tasks-tests web-tests
 ### Module Layout
 
 - `src/root.zig` — Package root, re-exports all domains as `abi.<domain>`
-- `src/core/` — Always-on internals: config, errors, registry, framework lifecycle
+- `src/public/` — Grouped public wiring for core, services, protocols, features, and metadata
+- `src/features/core/` — Always-on internals: config, errors, registry, feature catalog, framework lifecycle
 - `src/features/` — 21 feature directories under mod/stub/types pattern
 - `src/foundation/` — Shared utilities: logging, security, time, SIMD, sync primitives
 - `src/runtime/` — Task scheduling, event loops, concurrency primitives
@@ -83,7 +84,7 @@ zig build search-tests secrets-tests storage-tests tasks-tests web-tests
 - `src/tasks/` — Task management, async job queues
 - `src/inference/` — ML inference: engine, scheduler, sampler, KV cache
 - `src/main.zig` — CLI entry point (builds as `abi` binary)
-- `src/mcp_main.zig` — MCP stdio server entry point
+- `src/mcp_main.zig` — MCP server entry point
 - `src/ffi.zig` — C-ABI FFI endpoints for linking as static library
 - `build/` — Build helpers: flags, cross-compilation, linking, validation
 - `test/` — Integration tests via `test/mod.zig` (uses `@import("abi")`)
@@ -96,13 +97,13 @@ Every feature under `src/features/<name>/` follows a contract:
 - `stub.zig` — API-compatible no-ops (same public surface, zero-cost when disabled)
 - `types.zig` — Shared types used by both mod and stub
 
-In `src/root.zig`, each feature uses comptime selection:
+In `src/public/features.zig`, each feature uses comptime selection that `src/root.zig` re-exports:
 
 ```zig
 pub const gpu = if (build_options.feat_gpu)
-    @import("features/gpu/mod.zig")
+    @import("../features/gpu/mod.zig")
 else
-    @import("features/gpu/stub.zig");
+    @import("../features/gpu/stub.zig");
 ```
 
 **Critical rule**: When modifying a feature's public API, **both `mod.zig` and `stub.zig` must be updated in sync**. Run `zig build check-parity` to verify. The parity checker lives at `src/feature_parity_tests.zig`.
@@ -201,7 +202,7 @@ Do NOT run `zig fmt .` at the repo root — use `zig build fix` which scopes to 
 
 Two test suites run under `zig build test`:
 
-1. **Unit tests** (`src/root.zig`) — `refAllDecls` walks the entire module tree
+1. **Unit tests** (`src/root.zig`) — `refAllDecls` walks the public root plus grouped `src/public/` wiring
 2. **Integration tests** (`test/mod.zig`) — imports `@import("abi")` as external consumer
 
 Most files end with:
@@ -247,7 +248,7 @@ abi help               # Full help reference
 
 ## MCP Server
 
-`zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 stdio server exposing database and ZLS tools. Entry point: `src/mcp_main.zig`. After rebuilding, restart Claude Code to pick up the new binary.
+`zig build mcp` produces `zig-out/bin/abi-mcp`, a JSON-RPC 2.0 MCP server exposing database and ZLS tools. Entry point: `src/mcp_main.zig`. Use stdio mode for desktop/client integrations and SSE mode for HTTP `/health` checks when enabled. After rebuilding, restart MCP clients to pick up the new binary.
 
 ## Workflow
 

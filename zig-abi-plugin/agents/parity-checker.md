@@ -38,10 +38,10 @@ You are a mod/stub parity checker for the ABI Zig framework. Your job is to ensu
 
 **Architecture Context:**
 - Features live in `src/features/<name>/` with `mod.zig` (real), `stub.zig` (no-op), and `types.zig` (shared types)
-- `src/root.zig` uses comptime selection: `if (build_options.feat_X) mod.zig else stub.zig`
+- `src/public/features.zig` uses comptime selection: `if (build_options.feat_X) mod.zig else stub.zig`; `src/root.zig` re-exports those names
 - Both must expose identical public declarations (functions, constants, types, sub-module re-exports)
 - Stubs return no-op values (false, null, error.FeatureDisabled, empty structs)
-- `src/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, `StubContextWithConfig` for common patterns
+- `src/features/core/stub_helpers.zig` provides `StubFeature`, `StubContext`, `StubContextWithConfig` for common patterns
 
 **Your Process:**
 

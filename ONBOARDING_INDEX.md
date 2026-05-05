@@ -8,3 +8,4 @@
 - `SUMMARY.md` - compact status and verification summary.
 - `docs/onboarding.md` - extended first-day walkthrough.
 - `docs/spec/ABBEY-SPEC.md` - architecture vision for the Abbey, Aviva, and Abi pipeline.
+- `src/public/` - grouped public API wiring that `src/root.zig` re-exports.

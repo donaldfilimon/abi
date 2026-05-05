@@ -138,23 +138,23 @@ git commit -m "refactor: decompose gpu/ai_ops.zig into focused sub-modules"
 
 ---
 
-## Task 2: ~~Decompose `src/core/database/scann.zig`~~ SKIP — already decomposed
+## Task 2: ~~Decompose `src/features/core/database/scann.zig`~~ SKIP — already decomposed
 
 > **Status:** SKIP. The file is already a facade (37 lines of re-exports + 348 lines of integration tests). Sub-dir exists with `types.zig`, `codebook.zig`, `index.zig`.
 
 **Files:**
-- Read: `src/core/database/scann.zig`
-- Create: `src/core/database/scann/codebook.zig`
-- Create: `src/core/database/scann/partitioning.zig`
-- Create: `src/core/database/scann/index.zig`
-- Modify: `src/core/database/scann.zig` → thin re-export facade
+- Read: `src/features/core/database/scann.zig`
+- Create: `src/features/core/database/scann/codebook.zig`
+- Create: `src/features/core/database/scann/partitioning.zig`
+- Create: `src/features/core/database/scann/index.zig`
+- Modify: `src/features/core/database/scann.zig` → thin re-export facade
 
 At 385 lines this is only moderately over the 300-line threshold. Only split if there are clear struct boundaries. If the file is a single cohesive struct, skip this task.
 
 - [x] **Step 1: Read scann.zig and assess decomposition value**
 
 ```bash
-grep -n "^pub const\|^pub fn\|= struct" src/core/database/scann.zig | head -20
+grep -n "^pub const\|^pub fn\|= struct" src/features/core/database/scann.zig | head -20
 ```
 
 If the file is one struct with a few methods, document "scann.zig is 385 lines but cohesive — skipping decomposition" and move to Task 3.
@@ -165,7 +165,7 @@ If there are 3+ distinct public structs (codebook, partitioning, index), proceed
 
 Same "thin facade" pattern as Task 1:
 ```bash
-mkdir -p src/core/database/scann
+mkdir -p src/features/core/database/scann
 ```
 
 Extract each struct into its own file. Convert `scann.zig` to facade.
@@ -187,7 +187,7 @@ Expected: passes, exit 0.
 - [x] **Step 5: Commit**
 
 ```bash
-git add src/core/database/scann.zig src/core/database/scann/
+git add src/features/core/database/scann.zig src/features/core/database/scann/
 git commit -m "refactor: decompose scann.zig into codebook/partitioning/index sub-modules"
 ```
 

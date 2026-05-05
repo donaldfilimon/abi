@@ -62,7 +62,7 @@
 ## Stub Patterns
 
 ### Lesson 8: AI Sub-Feature Stub Conventions
-- AI sub-feature stubs: check `src/core/stub_helpers.zig` before writing custom init/deinit/isEnabled boilerplate.
+- AI sub-feature stubs: check `src/features/core/stub_helpers.zig` before writing custom init/deinit/isEnabled boilerplate.
 - Complex domain stubs (with rich types like EmbeddingModel) should stay custom — don't force StubFeature on them.
 - Aviva stub should import shared types from `../types.zig` instead of redefining them.
 
@@ -171,7 +171,7 @@
 ## Documentation Sync
 
 ### Lesson 24: Keep Feature Count Docs Derived and Synchronized
-- Treat `src/core/feature_catalog.zig` as the canonical source for feature counts used in user-facing docs and planning notes.
+- Treat `src/features/core/feature_catalog.zig` as the canonical source for feature counts used in user-facing docs and planning notes.
 - When feature or directory counts change, update every relevant `.md` file in one pass so README, CLI docs, and planning/spec artifacts do not drift.
 - Prefer explicit count derivation over stale hardcoded values; if a doc must preserve historical context, label it clearly as historical.
 - After doc count edits, run a grep sweep for the old count strings and finish with `git diff --check`.

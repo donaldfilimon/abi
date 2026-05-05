@@ -49,7 +49,7 @@ zig build test --summary all
 
 ### What You're Working With
 
-Everything is exposed through `src/root.zig` as `@import("abi")`. The public surface is `abi.<domain>` (e.g., `abi.gpu`, `abi.ai`, `abi.database`). See `CLAUDE.md` § Architecture for the full module map.
+Everything is exposed through `src/root.zig` as `@import("abi")`. The public surface is `abi.<domain>` (e.g., `abi.gpu`, `abi.ai`, `abi.database`), while grouped wiring lives under `src/public/` so internals can refactor without breaking consumers. See `CLAUDE.md` § Architecture for the full module map.
 
 ### The One Pattern You Must Know
 
@@ -74,7 +74,7 @@ zig-out/bin/abi doctor                  # Build config report
 | `AGENTS.md`                    | repo root  | AI agent guidance, code style, safety rules                  |
 | `docs/spec/ABBEY-SPEC.md`      | docs/spec/ | Full architecture vision (Abbey-Aviva-Abi pipeline)          |
 | `tasks/lessons.md`             | tasks/     | Pitfalls others have already hit — saves you time            |
-| `src/core/feature_catalog.zig` | src/core/  | Source of truth for all 60 features                          |
+| `src/features/core/feature_catalog.zig` | src/features/core/ | Source of truth for all 60 features                          |
 
 ---
 
@@ -83,7 +83,7 @@ zig-out/bin/abi doctor                  # Build config report
 - [ ] Run `tools/zigly --bootstrap` and verify the build passes
 - [ ] Run `zig-out/bin/abi doctor` and `zig-out/bin/abi features` to see the system state
 - [ ] Read `CLAUDE.md` — especially Architecture, Import Rules, and Zig 0.17 Gotchas
-- [ ] Read `src/root.zig` to understand the public API surface
+- [ ] Read `src/root.zig` and `src/public/` to understand the public API surface
 - [ ] Pick one feature directory (e.g., `src/features/cache/`) and read its `mod.zig`, `stub.zig`, and `types.zig` to understand the pattern
 - [ ] Run `zig build check` to see the full quality gate
 - [ ] Read `docs/spec/ABBEY-SPEC.md` for the full architecture vision

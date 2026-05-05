@@ -1,4 +1,4 @@
-t s# zig-abi-plugin
+# zig-abi-plugin
 
 OpenCode plugin for the ABI Zig framework.
 
@@ -45,3 +45,4 @@ zig build test --summary all
 - `skills/` — Skill definitions for common tasks
 - `hooks/` — Pre-commit validation hooks
 - `.mcp.json` — MCP server config (points to `zig-out/bin/abi-mcp`)
+- `mcp/servers.json` — HA MCP server definitions used by repo startup checks
