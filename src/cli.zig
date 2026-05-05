@@ -33,6 +33,12 @@ pub const single_token_commands = [_]CommandDescriptor{
     .{ .name = "features", .description = "List all features with status" },
     .{ .name = "platform", .description = "Show platform detection info" },
     .{ .name = "connectors", .description = "List available LLM connectors" },
+    .{ .name = "plugins", .description = "List configured LLM provider plugins" },
+    .{ .name = "skills", .description = "List bundled ABI agent skills" },
+    .{ .name = "build", .description = "Delegate to ./build.sh" },
+    .{ .name = "check", .description = "Run focused validation workflows" },
+    .{ .name = "mcp", .description = "MCP server automation and health checks" },
+    .{ .name = "acp", .description = "ACP server automation and endpoint checks" },
     .{ .name = "info", .description = "Framework architecture summary" },
     .{ .name = "serve", .description = "Start the ACP HTTP server" },
     .{ .name = "dashboard", .description = dashboard_command_summary },
@@ -70,6 +76,10 @@ pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "features", .description = "List all features with enabled/disabled status", .section = .diagnostics },
     .{ .usage = "platform", .description = "Show platform detection (OS, arch, CPU)", .section = .diagnostics },
     .{ .usage = "connectors", .description = "List available LLM provider connectors", .section = .diagnostics },
+    .{ .usage = "plugins", .description = "List configured LLM provider plugins", .section = .diagnostics },
+    .{ .usage = "skills", .description = "List bundled ABI agent skills", .section = .diagnostics },
+    .{ .usage = "build <step>", .description = "Run ./build.sh with a build step and extra Zig args", .section = .diagnostics },
+    .{ .usage = "check [lane]", .description = "Run quick, ci, parity, mcp, or interop validation", .section = .diagnostics },
     .{ .usage = "info", .description = "Show framework architecture summary", .section = .diagnostics },
     .{ .usage = "help", .description = "Show detailed help", .section = .diagnostics },
     .{ .usage = "chat <message...>", .description = "Route a message through the profile pipeline", .section = .agents },
@@ -81,6 +91,10 @@ pub const displayed_commands = [_]DisplayCommand{
     },
     .{ .usage = "serve", .description = "Start the ACP HTTP server", .section = .ai_data },
     .{ .usage = "acp serve", .description = "Start the ACP HTTP server", .section = .ai_data },
+    .{ .usage = "acp endpoints", .description = "List/check ACP endpoints from ACP_ENDPOINTS", .section = .ai_data },
+    .{ .usage = "mcp health", .description = "Check configured MCP HA health endpoints", .section = .ai_data },
+    .{ .usage = "mcp endpoints", .description = "List configured MCP server endpoints", .section = .ai_data },
+    .{ .usage = "mcp serve", .description = "Start abi-mcp via mcp/launcher.sh", .section = .ai_data },
     .{ .usage = "lsp", .description = "Start the Language Server Protocol (LSP) server", .section = .ai_data },
     .{ .usage = "discord", .description = "Start Abbey Discord bot", .section = .ai_data },
     .{
@@ -301,11 +315,10 @@ pub fn writeHelp(writer: anytype) !void {
         \\
         \\
         \\Build:
-        \\  zig build cli      Build this CLI binary
-        \\  zig build mcp      Build MCP stdio server
-        \\  zig build lib      Build static library
-        \\  zig build test     Run all tests
-        \\  zig build check    Full gate (lint + test + parity)
+        \\  ./build.sh quick   Fast local gate
+        \\  ./build.sh dev     Typecheck + build CLI and MCP
+        \\  ./build.sh ci      Full CI-style validation
+        \\  zig build mcp      Build MCP stdio/SSE server
         \\
     , .{dashboard_fallback_note});
 }
@@ -500,7 +513,9 @@ test "displayed commands cover single-token commands" {
     for (single_token_commands) |single| {
         var found = false;
         for (displayed_commands) |displayed| {
-            if (std.mem.eql(u8, displayed.usage, single.name)) {
+            if (std.mem.eql(u8, displayed.usage, single.name) or
+                (std.mem.startsWith(u8, displayed.usage, single.name) and displayed.usage.len > single.name.len and displayed.usage[single.name.len] == ' '))
+            {
                 found = true;
                 break;
             }

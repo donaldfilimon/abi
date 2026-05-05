@@ -1,8 +1,8 @@
 //! Focused gateway unit-test root that keeps the module path anchored at `src/`.
 
-const std = @import("std");
+const refAllDecls = @import("common/ref_all.zig").refAllDecls;
 const gateway = @import("features/gateway/mod.zig");
 
 test {
-    std.testing.refAllDecls(gateway);
+    refAllDecls(gateway);
 }
