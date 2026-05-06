@@ -49,6 +49,7 @@ pub const default_profiles = struct {
             .opengl, .opengles => vulkan,
             .webgl2 => webgpu,
             .tpu => cuda, // TPU: use high-throughput profile until TPU-specific data
+            .intel_arc => vulkan, // Intel Arc: use Vulkan profile
             .simulated => stdgpu,
         };
     }

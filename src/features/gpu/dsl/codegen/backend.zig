@@ -148,58 +148,16 @@ pub const BackendCapabilities = struct {
                 .supports_fp16 = true,
                 .supports_fp64 = false,
                 .supports_subgroups = true, // simdgroups
-                .supports_mesh_shaders = true, // Metal 3+ (Apple7+)
-                .supports_ray_tracing = true, // Metal 3+ (Apple7+)
             },
             .webgpu => .{
                 .max_workgroup_size = 256,
-                .max_shared_memory = 16384,
-                .supports_fp16 = false, // extension
-                .supports_fp64 = false,
-                .supports_subgroups = false,
-            },
-            .opengl, .opengles => .{
-                .max_workgroup_size = 1024,
-                .max_shared_memory = 32768,
                 .supports_fp16 = false,
-                .supports_fp64 = true, // OpenGL
-                .supports_subgroups = false,
             },
-            .stdgpu => .{
+            .opengl, .opengles, .webgl2 => .{
                 .max_workgroup_size = 256,
-                .max_shared_memory = 16384,
-                .supports_fp64 = true,
-            },
-            .webgl2 => .{
-                .max_workgroup_size = 0, // no compute
-                .max_shared_memory = 0,
-                .supports_atomics = false,
-            },
-            .fpga => .{
-                .max_workgroup_size = 256,
-                .max_shared_memory = 64 * 1024, // FPGA PLRAM/BRAM
-                .supports_fp16 = true,
-                .supports_fp64 = true,
-                .supports_int64 = true,
-                .supports_subgroups = false,
-                .supports_dynamic_shared_memory = false,
-            },
-            .tpu => .{
-                .max_workgroup_size = 1024,
-                .max_shared_memory = 128 * 1024,
-                .supports_fp16 = true,
                 .supports_fp64 = false,
-                .supports_int64 = true,
-                .supports_subgroups = true,
-                .supports_dynamic_shared_memory = true,
             },
-            .simulated => .{
-                .max_workgroup_size = 256,
-                .max_shared_memory = 16 * 1024,
-                .supports_fp16 = true,
-                .supports_fp64 = true,
-                .supports_int64 = true,
-            },
+            .fpga, .tpu, .intel_arc, .stdgpu, .simulated => .{},
         };
     }
 };

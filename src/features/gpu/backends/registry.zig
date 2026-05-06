@@ -21,7 +21,7 @@ pub fn createVTable(allocator: std.mem.Allocator, backend: Backend) interface.Ba
         .opengles => createOpenGLES(allocator),
         .fpga => createFpga(allocator),
         .tpu => createTpu(allocator),
-        .intel_arc => return interface.BackendError.NotImplemented,
+        .intel_arc => interface.BackendError.NotAvailable,
         .stdgpu, .simulated => simulated.createSimulatedVTable(allocator),
         .webgl2 => simulated.createSimulatedVTable(allocator),
     };

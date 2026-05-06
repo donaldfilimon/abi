@@ -286,6 +286,7 @@ pub const Coordinator = struct {
             .stdgpu => 4096,
             .webgl2 => 1024,
             .tpu => 16384,
+            .intel_arc => 4096,
             .simulated => 2048,
         };
     }

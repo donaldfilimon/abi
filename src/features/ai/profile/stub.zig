@@ -135,9 +135,13 @@ pub const assistant = struct {
 };
 
 pub const Assistant_Internal = struct {
-    pub fn init(_: std.mem.Allocator, _: anytype) !*Assistant_Internal { return error.FeatureDisabled; }
+    pub fn init(_: std.mem.Allocator, _: anytype) !*Assistant_Internal {
+        return error.FeatureDisabled;
+    }
     pub fn deinit(_: *Assistant_Internal) void {}
-    pub fn process(_: *Assistant_Internal, _: []const u8) !void { return error.FeatureDisabled; }
+    pub fn process(_: *Assistant_Internal, _: []const u8) !void {
+        return error.FeatureDisabled;
+    }
 };
 
 test {

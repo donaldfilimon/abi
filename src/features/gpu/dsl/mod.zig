@@ -290,16 +290,20 @@ pub const CompileOptions = compiler.CompileOptions;
 pub const compile = compiler.compile;
 
 /// Compile kernel IR to KernelSource.
-pub const compileToKernelSource = compiler.compileToKernelSource;
+// TODO: Implement compileToKernelSource
+// pub const compileToKernelSource = compiler.compileToKernelSource;
 
 /// Compile to all available backends.
-pub const compileAll = compiler.compileAll;
+// TODO: Implement compileAll
+// pub const compileAll = compiler.compileAll;
 
 /// Get the best available backend.
-pub const getBestBackend = compiler.getBestBackend;
+// TODO: Implement getBestBackend
+// pub const getBestBackend = compiler.getBestBackend;
 
 /// Check if backend supports compilation.
-pub const backendSupportsCompilation = compiler.backendSupportsCompilation;
+// TODO: Implement backendSupportsCompilation
+// pub const backendSupportsCompilation = compiler.backendSupportsCompilation;
 
 /// Zig-to-SPIRV compiler integration.
 pub const zig_spirv = @import("spirv.zig");

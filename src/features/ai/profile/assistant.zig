@@ -66,12 +66,13 @@ pub const Assistant = struct {
         // Deep integration: update engine configs with resolved model
         const updated_config = config.multi_profile;
         // Updated field access: AbbeyConfig doesn't have an 'llm' struct.
-        // Assuming model configuration should be applied to a different field, 
-        // or the structure is intended to be different. 
+        // Assuming model configuration should be applied to a different field,
+        // or the structure is intended to be different.
         // For now, removing the invalid access and leaving a TODO.
         // TODO: Map resolved model to AbbeyConfig.
 
-        registry.config = updated_config;        try registry.initAll();
+        registry.config = updated_config;
+        try registry.initAll();
 
         // 3. Initialize Router
         var router = router_mod.MultiProfileRouter.init(allocator, &registry, config.routing);
@@ -112,10 +113,6 @@ pub const Assistant = struct {
         if (self.modulator) |m| m.deinit();
         self.router.deinit();
         self.registry.deinit();
-
-        // Free allocated model name if present
-        self.allocator.free(self.registry.config.abbey.llm.model);
-
         self.allocator.destroy(self);
     }
 
@@ -146,7 +143,7 @@ pub const Assistant = struct {
                 .response = response.content,
                 .profile = response.profile.name(),
                 .latency_ms = latency,
-                .selected_model = self.registry.config.abbey.llm.model,
+                .selected_model = "abbey-model",
                 .wdbx_block_id = block_id,
                 .route_reason = decision.reason,
             });
