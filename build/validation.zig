@@ -188,6 +188,7 @@ fn addFlagOverrideTestLane(
         }),
     });
     lib_tests.root_module.addImport("build_options", override_bom);
+    lib_tests.root_module.addImport("common", ctx.common_module);
     linking.linkIfDarwin(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
 
     const integration_tests = addTests(ctx.b, ctx.target, ctx.optimize, "test/mod.zig", override_bom, override_abi, ctx.common_module);
