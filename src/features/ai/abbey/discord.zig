@@ -21,6 +21,7 @@ const core_config = @import("../core/config.zig");
 const discord = @import("../../../connectors/discord/mod.zig");
 const emotions = @import("emotions.zig");
 const wdbx = @import("../../core/database/wdbx.zig");
+const embeddings = @import("../embeddings/mod.zig");
 const log = std.log.scoped(.abbey_discord);
 
 // ============================================================================
@@ -265,6 +266,7 @@ pub const AbbeyDiscordBot = struct {
     abbey_engine: engine.AbbeyEngine,
     session_manager: SessionManager,
     wdbx_handle: ?wdbx.DatabaseHandle = null,
+    embedding_model: ?*embeddings.EmbeddingModel = null,
     running: bool = false,
     discord_client: ?DiscordClientWrapper = null,
     gateway_client: ?discord.GatewayClient = null,
@@ -326,12 +328,20 @@ pub const AbbeyDiscordBot = struct {
 
         const wdbx_handle = try wdbx.createDatabase(allocator, "abbey-discord-memory");
 
+        var embedding_model_ptr = try allocator.create(embeddings.EmbeddingModel);
+        embedding_model_ptr.* = embeddings.EmbeddingModel.init(allocator, .{});
+        errdefer {
+            embedding_model_ptr.deinit();
+            allocator.destroy(embedding_model_ptr);
+        }
+
         return Self{
             .allocator = allocator,
             .config = config,
             .abbey_engine = abbey_eng,
             .session_manager = SessionManager.init(allocator),
             .wdbx_handle = wdbx_handle,
+            .embedding_model = embedding_model_ptr,
         };
     }
 
@@ -343,6 +353,10 @@ pub const AbbeyDiscordBot = struct {
         }
         if (self.wdbx_handle) |*handle| {
             wdbx.closeDatabase(handle);
+        }
+        if (self.embedding_model) |m| {
+            m.deinit();
+            self.allocator.destroy(m);
         }
         self.session_manager.deinit();
         self.abbey_engine.deinit();
@@ -489,12 +503,87 @@ pub const AbbeyDiscordBot = struct {
             }
         }
 
-        // Process with Abbey
-        var response = try self.abbey_engine.process(message.content);
+        // Generate embedding, store vector, retrieve context, then call Abbey with context
+        var prompt_with_context: ?[]u8 = null;
+        var temp_input_owned: ?[]u8 = null;
+
+        // Attempt to generate embedding
+        var embedding: ?[]f32 = null;
+        if (self.embedding_model) |*m| {
+            embedding = m.embed(message.content) catch null;
+            if (embedding == null) {
+                log.err("AbbeyDiscordBot: embedding generation failed", .{});
+            }
+        }
+
+        // If we have an embedding and a DB, store the vector and retrieve similar memories
+        if (embedding) |emb| {
+            if (self.wdbx_handle) |*handle| {
+                const now_ms = core_types.getTimestampMs();
+                const id: u64 = (@as(u64, now_ms) << 16) | @as(u64, session.message_count & 0xFFFF);
+
+                // Build an excerpt for metadata
+                const excerpt_len = @min(message.content.len, 200);
+                const excerpt = try self.allocator.alloc(u8, excerpt_len);
+                @memcpy(excerpt, message.content[0..excerpt_len]);
+
+                const metadata = try std.fmt.allocPrint(self.allocator, "user:{s};channel:{s};ts:{d};msg:{s};excerpt:{s}", .{
+                    message.author.id,
+                    message.channel_id,
+                    now_ms,
+                    message.id,
+                    excerpt,
+                });
+
+                // Insert vector (log on failure)
+                wdbx.insertVector(handle, id, emb, metadata) catch |err| {
+                    // insertVector returns error on failure; log and continue
+                    log.err("AbbeyDiscordBot: wdbx insert failed: {s}", .{err});
+                };
+
+                // Free our temporary metadata and excerpt; DB duplicates as needed
+                self.allocator.free(metadata);
+                self.allocator.free(excerpt);
+
+                // Retrieve context (top_k configurable; hardcoded 8 here)
+                const top_k: usize = 8;
+                const results = try wdbx.searchVectors(handle, self.allocator, emb, top_k);
+                defer self.allocator.free(results);
+
+                var ctx_buf = std.ArrayListUnmanaged(u8).empty;
+                errdefer ctx_buf.deinit(self.allocator);
+
+                for (results) |res| {
+                    const view = wdbx.getVector(handle, res.id) orelse continue;
+                    if (view.metadata) |meta| {
+                        try ctx_buf.appendSlice(self.allocator, "Retrieved memory: ");
+                        try ctx_buf.appendSlice(self.allocator, meta);
+                        try ctx_buf.appendSlice(self.allocator, "\n\n");
+                    }
+                }
+
+                if (ctx_buf.items.len > 0) {
+                    prompt_with_context = try ctx_buf.toOwnedSlice(self.allocator);
+                }
+            }
+        }
+
+        // Build final input (prepend context if present)
+        var final_input: []const u8 = message.content;
+        if (prompt_with_context) |ctx| {
+            temp_input_owned = try std.fmt.allocPrint(self.allocator, "{s}\n\nUser: {s}", .{ ctx, message.content });
+            final_input = temp_input_owned.*;
+        }
+
+        var response = try self.abbey_engine.process(final_input);
         defer response.deinit(self.allocator);
 
         // Update session emotional trend
         session.emotional_trend = response.emotional_context.detected;
+
+        // Free temporary buffers
+        if (prompt_with_context) |p| self.allocator.free(p);
+        if (temp_input_owned) |t| self.allocator.free(t);
 
         // Build response
         return MessageResponse{
