@@ -19,7 +19,7 @@ const profile = @import("../profile/mod.zig");
 const engine = @import("engine.zig");
 const core_types = @import("../types.zig");
 const core_config = @import("../core/config.zig");
-const config = @import("../config.zig");
+const ai_config = @import("../config.zig");
 const discord = @import("../../../connectors/discord/mod.zig");
 const emotions = @import("emotions.zig");
 const wdbx = @import("../../core/database/wdbx.zig");
@@ -48,7 +48,7 @@ pub const DiscordBotError = error{
 /// Configuration for Abbey Discord bot
 pub const DiscordBotConfig = struct {
     /// Abbey engine configuration
-    abbey: config.AbbeyConfig = .{},
+    abbey: ai_config.AbbeyConfig = .{},
     /// Discord bot token (overrides env var)
     bot_token: ?[]const u8 = null,
     /// Whether to respond to all messages or only mentions
