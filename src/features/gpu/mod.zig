@@ -172,6 +172,7 @@ pub const multi_device = @import("multi_device.zig");
 pub const peer_transfer = @import("peer_transfer/mod.zig");
 
 // ── AI & Training Bridge ─────────────────────────────────────────────────
+pub const ai_ops = @import("ai_ops.zig");
 pub const coordinator_ai_ops = @import("coordinator_ai_ops.zig");
 pub const training_bridge = @import("training_bridge.zig");
 pub const gradient_compression = @import("gradient_compression.zig");

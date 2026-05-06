@@ -103,13 +103,13 @@ pub const Pipeline = struct {
     pub fn deinit(_: *Pipeline) void {}
 };
 
-pub fn chain(allocator: std.mem.Allocator, session_id: []const u8) PipelineBuilder {
+pub fn chain(allocator: std.mem.Allocator, session_id: []const u8) !PipelineBuilder {
     return PipelineBuilder.init(allocator, session_id);
 }
 
 test "pipeline stub compiles" {
     const allocator = std.testing.allocator;
-    var pb = chain(allocator, "test-session");
+    var pb = try chain(allocator, "test-session");
     defer pb.deinit();
 
     _ = pb

@@ -135,7 +135,7 @@ pub const MeshOrchestrator = struct {
     }
 
     /// Background thread to listen for UDP discovery packets from peers.
-    fn discoveryListenLoop(self: *MeshOrchestrator) void {
+    fn discoveryListenLoop(self: *MeshOrchestrator) !void {
         const sin: std.c.sockaddr.in = .{
             .family = std.c.AF.INET,
             .port = std.mem.nativeToBig(u16, DISCOVERY_PORT),
@@ -145,9 +145,10 @@ pub const MeshOrchestrator = struct {
         const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.DGRAM | std.c.SOCK.CLOEXEC, 0);
         if (sock < 0) {
             std.log.err("[Compute Mesh] Failed to create discovery socket", .{});
-            return;
+            return error.SocketCreateFailed;
         }
         self.discovery_socket = sock;
+        defer _ = std.c.close(sock);
 
         // Allow port reuse
         _ = std.c.setsockopt(sock, std.c.SOL.SOCKET, std.c.SO.REUSEADDR, &std.mem.toBytes(@as(c_int, 1)), @sizeOf(c_int));
@@ -156,8 +157,7 @@ pub const MeshOrchestrator = struct {
         const sock_addr: *const std.c.sockaddr = @ptrCast(&sin);
         if (std.c.bind(sock, sock_addr, @sizeOf(std.c.sockaddr.in)) < 0) {
             std.log.err("[Compute Mesh] Failed to bind discovery socket", .{});
-            _ = std.c.close(sock);
-            return;
+            return error.SocketBindFailed;
         }
 
         var buf: [1024]u8 = undefined;
@@ -185,13 +185,13 @@ pub const MeshOrchestrator = struct {
                     if (std.mem.eql(u8, &packet.node_id, &self.local_id)) continue;
 
                     const backend: ComputeNode.BackendType = @enumFromInt(packet.backend);
-                    self.registerPeer(packet.node_id, peer_addr, backend, packet.vram_mb);
+                    try self.registerPeer(packet.node_id, peer_addr, backend, packet.vram_mb);
                 }
             }
         }
     }
 
-    fn registerPeer(self: *MeshOrchestrator, node_id: [16]u8, addr: std.c.sockaddr.in, backend: ComputeNode.BackendType, vram_mb: u64) void {
+    fn registerPeer(self: *MeshOrchestrator, node_id: [16]u8, addr: std.c.sockaddr.in, backend: ComputeNode.BackendType, vram_mb: u64) !void {
         for (self.nodes.items) |*node| {
             if (std.mem.eql(u8, &node.id, &node_id)) {
                 node.last_seen_ms = @intCast(@import("../../foundation/mod.zig").time.timestampMs());
@@ -201,16 +201,16 @@ pub const MeshOrchestrator = struct {
 
         std.log.info("[Compute Mesh] Discovered new node: Backend={t}, VRAM={d}MB", .{ backend, vram_mb });
 
-        self.nodes.append(self.allocator, .{
+        if (self.nodes.append(self.allocator, .{
             .id = node_id,
             .address = addr,
             .is_local = false,
             .available_vram_mb = vram_mb,
             .backend = backend,
             .last_seen_ms = @intCast(@import("../../foundation/mod.zig").time.timestampMs()),
-        }) catch |e| {
-            std.log.err("[Compute Mesh] Failed to add discovered node: {}", .{e});
-        };
+        })) |err| {
+            std.log.err("[Compute Mesh] Failed to add discovered node: {s}", .{err});
+        }
     }
 
     /// Broadcasts presence on LAN to discover and announce to available GPU nodes.
@@ -219,7 +219,16 @@ pub const MeshOrchestrator = struct {
         self.is_discovering = true;
 
         std.log.info("[Compute Mesh] Initializing P2P discovery protocol...", .{});
-        self.discovery_thread = try std.Thread.spawn(.{}, discoveryListenLoop, .{self});
+        // Adapter to run fallible discovery loop
+        const discovery_adapter = struct {
+            fn run(mesh: *MeshOrchestrator) void {
+                mesh.discoveryListenLoop() catch |err| {
+                    std.log.err("[Compute Mesh] Discovery loop failed: {}", .{err});
+                };
+            }
+        }.run;
+
+        self.discovery_thread = try std.Thread.spawn(.{}, discovery_adapter, .{self});
         self.tensor_thread = try std.Thread.spawn(.{}, tensorListenLoop, .{self});
 
         // Broadcast a presence packet

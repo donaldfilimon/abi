@@ -216,6 +216,7 @@ pub fn enumerateDevicesForBackend(
         .fpga => &[_]Device{}, // Not yet implemented
         .tpu => &[_]Device{}, // TPU runtime not yet linked
         .simulated => if (comptime build_options.feat_gpu) try enumerateStdgpuDevices(allocator) else &[_]Device{},
+        .intel_arc => &[_]Device{}, // Not yet implemented
     };
 }
 

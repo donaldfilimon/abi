@@ -21,6 +21,7 @@ pub fn createVTable(allocator: std.mem.Allocator, backend: Backend) interface.Ba
         .opengles => createOpenGLES(allocator),
         .fpga => createFpga(allocator),
         .tpu => createTpu(allocator),
+        .intel_arc => return interface.BackendError.NotImplemented,
         .stdgpu, .simulated => simulated.createSimulatedVTable(allocator),
         .webgl2 => simulated.createSimulatedVTable(allocator),
     };
@@ -38,6 +39,7 @@ pub fn isEnabledAtBuild(backend: Backend) bool {
         .webgl2 => build_options.gpu_webgl2,
         .fpga => if (@hasDecl(build_options, "gpu_fpga")) build_options.gpu_fpga else false,
         .tpu => if (@hasDecl(build_options, "gpu_tpu")) build_options.gpu_tpu else false,
+        .intel_arc => if (@hasDecl(build_options, "gpu_intel")) build_options.gpu_intel else false,
         .simulated => build_options.feat_gpu,
     };
 }
@@ -105,6 +107,7 @@ fn assertRegistryTag(comptime backend: Backend) void {
         .fpga,
         .tpu,
         .simulated,
+        .intel_arc,
         => {},
     };
 }

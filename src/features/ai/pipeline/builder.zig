@@ -32,14 +32,8 @@ pub const PipelineBuilder = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator, session_id: []const u8) Self {
-        const owned_id = allocator.dupe(u8, session_id) catch {
-            return .{
-                .allocator = allocator,
-                .session_id = session_id,
-                .steps = .empty,
-            };
-        };
+    pub fn init(allocator: std.mem.Allocator, session_id: []const u8) !Self {
+        const owned_id = try allocator.dupe(u8, session_id);
         return .{
             .allocator = allocator,
             .session_id = owned_id,

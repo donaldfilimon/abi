@@ -92,18 +92,44 @@ pub fn renderDashboard(screen: *Screen) void {
     }
 
     // Body: split into features (left) and GPU/AI (right)
-    const body_split = body_area.splitVertical(body_area.width / 2);
+    const body_split = body_area.splitVertical(body_area.width / 3);
     const left_area = body_split.left;
-    const right_area = body_split.right;
+    const middle_right = body_split.right;
+    const middle_right_split = middle_right.splitVertical(middle_right.width / 2);
+    const middle_area = middle_right_split.left;
+    const right_area = middle_right_split.right;
 
     // Feature flags panel
     renderFeaturePanel(screen, left_area);
 
-    // GPU + AI panel
-    renderGpuPanel(screen, right_area);
+    // GPU panel
+    renderGpuPanel(screen, middle_area);
+
+    // AI Routing & WDBX panel
+    renderAiRoutingPanel(screen, right_area);
 
     // Status bar
     widgets.renderStatusBar(screen, status_area, " q:quit  r:refresh", "ABI Framework ", status_style);
+}
+
+fn renderAiRoutingPanel(screen: *Screen, area: Rect) void {
+    widgets.renderPanel(screen, area, " AI Routing & WDBX ", header_style);
+    const inner = innerRect(area);
+
+    const entries = [_]struct { label: []const u8, val: []const u8 }{
+        .{ .label = "Primary:", .val = "Abbey" },
+        .{ .label = "Modulator:", .val = "EMA (Active)" },
+        .{ .label = "Memory:", .val = "WDBX (Synced)" },
+        .{ .label = "Storage:", .val = "Block Chain" },
+        .{ .label = "Principles:", .val = "6 Active" },
+    };
+
+    for (entries, 0..) |entry, i| {
+        const row = @as(u16, @intCast(i));
+        if (row >= inner.height) break;
+        widgets.renderText(screen, .{ .x = inner.x, .y = inner.y + row, .width = 10, .height = 1 }, entry.label, dim_style);
+        widgets.renderText(screen, .{ .x = inner.x + 10, .y = inner.y + row, .width = inner.width -| 10, .height = 1 }, entry.val, green_style);
+    }
 }
 
 /// Render a list of flag entries starting at a given row within an inner rect.

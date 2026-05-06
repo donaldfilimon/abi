@@ -383,7 +383,7 @@ pub const CodeGenerator = struct {
     }
 
     /// Get the markdown language identifier.
-    fn getLanguageName(self: *const Self, language: classifier.Language) []const u8 {
+    pub fn getLanguageName(self: *const Self, language: classifier.Language) []const u8 {
         _ = self;
         return switch (language) {
             .zig => "zig",

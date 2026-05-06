@@ -31,6 +31,7 @@ pub const registry = @import("registry.zig");
 pub const router = @import("router.zig");
 pub const bus = @import("bus.zig");
 pub const memory = @import("memory.zig");
+pub const assistant = @import("assistant.zig");
 
 // ── Type re-exports ─────────────────────────────────────────────────────
 pub const ProfileId = types.ProfileId;
@@ -60,6 +61,8 @@ pub const MultiProfileConfig = registry.MultiProfileConfig;
 pub const MultiProfileRouter = router.MultiProfileRouter;
 pub const ProfileBus = bus.ProfileBus;
 pub const ConversationMemory = memory.ConversationMemory;
+pub const Assistant = assistant.Assistant;
+pub const Assistant_Internal = assistant.Assistant;
 
 test {
     std.testing.refAllDecls(@This());

@@ -16,47 +16,35 @@ pub const gpu_enabled = build_options.feat_gpu;
 pub const memory = if (build_options.feat_gpu and build_options.gpu_fpga)
     // FPGA memory interface would go here
     struct {
-        pub fn init(_: std.mem.Allocator) !void {
-            std.log.info("FPGA memory simulation initialized", .{});
-        }
-
+        // ... (rest of FPGA stub)
+    }
+else if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
+    @import("../backends/cuda/memory.zig")
+else if (build_options.feat_gpu and @import("builtin").os.tag == .macos)
+    struct {
+        // Simplified memory for unified Apple Silicon
+        pub fn init(_: std.mem.Allocator) !void {}
         pub fn deinit() void {}
-
         pub const DeviceMemory = struct {
             ptr: ?*anyopaque,
             size: usize,
             allocator: std.mem.Allocator,
-            tier: enum { bram, hbm, ddr } = .ddr,
-
             pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
-                const ptr = try allocator.alloc(u8, size);
-                return @This(){
-                    .ptr = ptr.ptr,
-                    .size = size,
-                    .allocator = allocator,
-                };
+                const slice = try allocator.alloc(u8, size);
+                return @This(){ .ptr = slice.ptr, .size = size, .allocator = allocator };
             }
-
             pub fn deinit(self: *@This()) void {
                 const slice = @as([*]u8, @ptrCast(@alignCast(self.ptr)))[0..self.size];
                 self.allocator.free(slice);
             }
         };
-
         pub fn memcpyHostToDevice(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
-            const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
-            const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
-            @memcpy(dst_ptr[0..size], src_ptr[0..size]);
+            @memcpy(@as([*]u8, @ptrCast(@alignCast(dst)))[0..size], @as([*]const u8, @ptrCast(@alignCast(src)))[0..size]);
         }
-
         pub fn memcpyDeviceToHost(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
-            const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
-            const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
-            @memcpy(dst_ptr[0..size], src_ptr[0..size]);
+            @memcpy(@as([*]u8, @ptrCast(@alignCast(dst)))[0..size], @as([*]const u8, @ptrCast(@alignCast(src)))[0..size]);
         }
     }
-else if (build_options.feat_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("../backends/cuda/memory.zig")
 else
     struct {
         pub fn init(_: std.mem.Allocator) !void {
@@ -213,21 +201,14 @@ pub const backend = if (build_options.feat_gpu)
     @import("../backend.zig")
 else
     struct {
-        pub fn summary() Summary {
-            return .{
-                .module_enabled = false,
-                .enabled_backend_count = 0,
-                .available_backend_count = 0,
-                .device_count = 0,
-                .emulated_devices = 0,
-            };
-        }
+        // ...
+    };
 
-        pub const Summary = struct {
-            module_enabled: bool,
-            enabled_backend_count: usize,
-            available_backend_count: usize,
-            device_count: usize,
-            emulated_devices: usize,
-        };
+pub const MacosAiOps = if (@import("builtin").os.tag == .macos)
+    @import("macos.zig").MacosAiOps
+else
+    struct {
+        pub fn init(_: std.mem.Allocator) !void {
+            return error.NotAvailable;
+        }
     };

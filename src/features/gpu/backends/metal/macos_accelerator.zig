@@ -139,12 +139,12 @@ pub const MacOSAccelerator = struct {
         self.metal_device = create_device() orelse return error.MetalDeviceNotFound;
 
         // Create command queue: [device newCommandQueue]
-        const sel_new_queue = mps.sel_register("newCommandQueue");
-        const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) ?*anyopaque = @ptrCast(&mps.objc_msgSend);
+        const sel_new_queue = mps.sel_register_fn.?("newCommandQueue");
+        const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) ?*anyopaque = @ptrCast(&mps.objc_msgSend_fn.?);
         self.command_queue = msg_send(self.metal_device.?, sel_new_queue) orelse return error.CommandQueueCreationFailed;
 
         // Initialize MPS with the device
-        mps.init(self.metal_device.?, null, null) catch |err| {
+        mps.init(mps.objc_msgSend_fn.?, mps.sel_register_fn.?, mps.objc_get_class_fn.?) catch |err| {
             std.log.warn("MPS init failed (GPU dispatch unavailable): {}", .{err});
         };
         self.mps_ready = true;

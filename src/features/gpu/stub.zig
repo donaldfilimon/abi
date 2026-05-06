@@ -79,6 +79,7 @@ pub const error_handling = struct {};
 pub const multi_device = struct {};
 pub const peer_transfer = struct {};
 pub const mega = struct {};
+pub const ai_ops = struct {};
 pub const coordinator_ai_ops = struct {};
 pub const training_bridge = struct {};
 pub const gradient_compression = struct {};

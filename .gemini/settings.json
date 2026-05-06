@@ -1,0 +1,17 @@
+{
+  "experimental": {
+    "contextManagement": true,
+    "autoMemory": true,
+    "useOSC52Copy": true,
+    "modelSteering": true,
+    "directWebFetch": true,
+    "useOSC52Paste": true,
+    "worktrees": false
+  },
+  "advanced": {
+    "autoConfigureMemory": true
+  },
+  "security": {
+    "enablePermanentToolApproval": true
+  }
+}

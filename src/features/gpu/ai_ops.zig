@@ -37,6 +37,7 @@ pub const AiOpsError = error{
     InvalidParameter,
     /// Operation not supported by this backend
     NotSupported,
+    NotImplemented,
 };
 
 // =============================================================================
@@ -427,6 +428,8 @@ pub const CpuFallbackAiOps = @import("ai_ops/cpu_fallback.zig").CpuFallbackAiOps
 
 /// Backward-compatible alias for the CPU fallback (was StubAiOps).
 pub const StubAiOps = @import("ai_ops/cpu_fallback.zig").StubAiOps;
+
+pub const MacosAiOps = @import("ai_ops/macos.zig").MacosAiOps;
 
 /// Create an AiOps wrapper from a concrete implementation type.
 pub const createAiOps = @import("ai_ops/adapters.zig").createAiOps;

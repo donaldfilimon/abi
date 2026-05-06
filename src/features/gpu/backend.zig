@@ -18,6 +18,7 @@ pub const Backend = enum {
     fpga,
     tpu,
     simulated,
+    intel_arc,
 
     /// Get backend name as a string.
     pub fn name(self: Backend) []const u8 {
@@ -33,6 +34,7 @@ pub const Backend = enum {
             .fpga => "fpga",
             .tpu => "tpu",
             .simulated => "simulated",
+            .intel_arc => "intel_arc",
         };
     }
 };
@@ -295,6 +297,25 @@ const backend_meta = [_]BackendMeta{
         .supports_kernels = true,
         .aliases = &.{},
     },
+    .{
+        .name = "intel_arc",
+        .display_name = "Intel Arc",
+        .description = "Intel Arc GPU backend (OneAPI/Level Zero)",
+        .build_flag = "-Dgpu-intel",
+        .device_name = "Intel Arc GPU",
+        .device_name_emulated = "Intel Arc GPU (emulated)",
+        .memory_bytes = 16 * GiB,
+        .capability = .{
+            .unified_memory = true,
+            .supports_fp16 = true,
+            .supports_int8 = true,
+            .supports_async_transfers = true,
+            .max_threads_per_block = 1024,
+            .max_shared_memory_bytes = 64 * 1024,
+        },
+        .supports_kernels = true,
+        .aliases = &.{},
+    },
 };
 
 fn meta(backend: Backend) BackendMeta {
@@ -319,6 +340,7 @@ pub fn isEnabled(backend: Backend) bool {
         .fpga => if (@hasDecl(build_options, "gpu_fpga")) build_options.gpu_fpga else false,
         .tpu => if (@hasDecl(build_options, "gpu_tpu")) build_options.gpu_tpu else false,
         .simulated => true, // always available as software fallback
+        .intel_arc => if (@hasDecl(build_options, "gpu_intel")) build_options.gpu_intel else false,
     };
 }
 
@@ -441,7 +463,13 @@ pub fn backendAvailability(backend: Backend) BackendAvailability {
             .device_count = 1,
             .level = .device_count,
         },
+        .intel_arc => detectIntelArc(),
     };
+}
+
+fn detectIntelArc() BackendAvailability {
+    // Basic stub for Intel Arc detection
+    return unavailableAvailability("Intel Arc runtime (OneAPI/Level Zero) not detected");
 }
 
 pub fn listBackendInfo(allocator: std.mem.Allocator) ![]BackendInfo {

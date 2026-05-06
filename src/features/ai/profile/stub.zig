@@ -114,6 +114,7 @@ pub const registry = struct {
     pub const ProfileRegistry = ProfileRegistry_Internal;
     pub const ProfileInstance = ProfileInstance_Internal;
     pub const MultiProfileConfig = MultiProfileConfig_Internal;
+    pub const Assistant = Assistant_Internal;
 };
 
 pub const router = struct {
@@ -126,6 +127,17 @@ pub const bus = struct {
 
 pub const memory = struct {
     pub const ConversationMemory = ConversationMemory_Internal;
+};
+
+pub const Assistant = Assistant_Internal;
+pub const assistant = struct {
+    pub const Assistant = Assistant_Internal;
+};
+
+pub const Assistant_Internal = struct {
+    pub fn init(_: std.mem.Allocator, _: anytype) !*Assistant_Internal { return error.FeatureDisabled; }
+    pub fn deinit(_: *Assistant_Internal) void {}
+    pub fn process(_: *Assistant_Internal, _: []const u8) !void { return error.FeatureDisabled; }
 };
 
 test {

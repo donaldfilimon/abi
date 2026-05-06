@@ -77,42 +77,32 @@ pub const DisplayCommand = struct {
 
 pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "version", .description = "Print version and build info", .section = .diagnostics },
-    .{ .usage = "doctor", .description = "Run diagnostics (features, platform, GPU)", .section = .diagnostics },
-    .{ .usage = "features", .description = "List all features with enabled/disabled status", .section = .diagnostics },
-    .{ .usage = "platform", .description = "Show platform detection (OS, arch, CPU)", .section = .diagnostics },
-    .{ .usage = "connectors", .description = "List available LLM provider connectors", .section = .diagnostics },
-    .{ .usage = "plugins", .description = "List configured LLM provider plugins", .section = .diagnostics },
-    .{ .usage = "skills", .description = "List bundled ABI agent skills", .section = .diagnostics },
-    .{ .usage = "build <step>", .description = "Run ./build.sh with a build step and extra Zig args", .section = .diagnostics },
-    .{ .usage = "check [lane]", .description = "Run quick, ci, parity, mcp, or interop validation", .section = .diagnostics },
-    .{ .usage = "learn <cmd>", .description = "Learning telemetry, feedback, reports, and manual retrain", .section = .agents },
+    .{ .usage = "doctor", .description = "System/GPU diagnostics", .section = .diagnostics },
+    .{ .usage = "features", .description = "List all framework features", .section = .diagnostics },
+    .{ .usage = "platform", .description = "Show system platform detection", .section = .diagnostics },
+    .{ .usage = "connectors", .description = "List available LLM connectors", .section = .diagnostics },
+    .{ .usage = "plugins", .description = "List configured provider plugins", .section = .diagnostics },
+    .{ .usage = "skills", .description = "List agent skill modules", .section = .diagnostics },
+    .{ .usage = "check-env", .description = "Verify required environment variables", .section = .diagnostics },
+    .{ .usage = "info", .description = "Architecture summary", .section = .diagnostics },
+    .{ .usage = "help", .description = "Show this help message", .section = .diagnostics },
+
+    .{ .usage = "chat <msg>", .description = "Route message through pipeline", .section = .agents },
     .{ .usage = "agent <cmd>", .description = "Agent chat and runtime stats", .section = .agents },
-    .{ .usage = "gpu <cmd>", .description = "GPU diagnostics and backend availability", .section = .diagnostics },
-    .{ .usage = "info", .description = "Show framework architecture summary", .section = .diagnostics },
-    .{ .usage = "help", .description = "Show detailed help", .section = .diagnostics },
-    .{ .usage = "chat <message...>", .description = "Route a message through the profile pipeline", .section = .agents },
-    .{
-        .usage = "db <cmd>",
-        .description = "Vector database operations (add, query, stats, optimize, backup, restore, serve)",
-        .section = .ai_data,
-        .feature_gate = .database,
-    },
-    .{ .usage = "serve", .description = "Start the ACP HTTP server", .section = .ai_data },
-    .{ .usage = "acp serve", .description = "Start the ACP HTTP server", .section = .ai_data },
-    .{ .usage = "acp endpoints", .description = "List/check ACP endpoints from ACP_ENDPOINTS", .section = .ai_data },
-    .{ .usage = "mcp health", .description = "Check configured MCP HA health endpoints", .section = .ai_data },
-    .{ .usage = "mcp endpoints", .description = "List configured MCP server endpoints", .section = .ai_data },
-    .{ .usage = "mcp serve", .description = "Start abi-mcp via mcp/launcher.sh", .section = .ai_data },
-    .{ .usage = "lsp", .description = "Start the Language Server Protocol (LSP) server", .section = .ai_data },
-    .{ .usage = "discord", .description = "Start Abbey Discord bot", .section = .ai_data },
-    .{ .usage = "aviva <cmd>", .description = "Manage Aviva agent (train, stats, config)", .section = .agents },
-    .{ .usage = "check-env", .description = "Verify required environment variables (API keys, etc.)", .section = .diagnostics },
-    .{
-        .usage = "dashboard",
-        .description = dashboard_command_detail,
-        .section = .interactive,
-        .feature_gate = .tui,
-    },
+    .{ .usage = "aviva <cmd>", .description = "Manage Aviva agent training", .section = .agents },
+    .{ .usage = "learn <cmd>", .description = "Learning telemetry and training", .section = .agents },
+    .{ .usage = "discord", .description = "Start Abbey Discord bot", .section = .agents },
+    .{ .usage = "gpu <cmd>", .description = "GPU diagnostics and backends", .section = .diagnostics },
+
+    .{ .usage = "db <cmd>", .description = "WDBX vector database operations", .section = .ai_data, .feature_gate = .database },
+    .{ .usage = "serve", .description = "Start ACP HTTP server", .section = .ai_data },
+    .{ .usage = "acp <cmd>", .description = "ACP endpoint operations", .section = .ai_data },
+    .{ .usage = "mcp <cmd>", .description = "MCP HA health and server ops", .section = .ai_data },
+    .{ .usage = "lsp", .description = "Start Language Server", .section = .ai_data },
+
+    .{ .usage = "dashboard", .description = "TUI developer shell", .section = .interactive, .feature_gate = .tui },
+    .{ .usage = "build <step>", .description = "Delegate to ./build.sh", .section = .interactive },
+    .{ .usage = "check [lane]", .description = "Run validation workflows", .section = .interactive },
 };
 
 pub const ChatPipelineReport = struct {
@@ -558,6 +548,7 @@ test "displayed commands cover single-token commands" {
     for (single_token_commands) |single| {
         var found = false;
         for (displayed_commands) |displayed| {
+            // Check if usage matches or is a subcommand (e.g., 'mcp health' matches 'mcp')
             if (std.mem.eql(u8, displayed.usage, single.name) or
                 (std.mem.startsWith(u8, displayed.usage, single.name) and displayed.usage.len > single.name.len and displayed.usage[single.name.len] == ' '))
             {

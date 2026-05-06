@@ -334,19 +334,13 @@ pub const HnswIndex = struct {
 
             // Use GPU-accelerated batch distance when batch exceeds threshold
             if (unvisited_count >= gpu_batch_threshold and self.gpu_accelerator != null) {
-                const unvisited_ids = allocator.alloc(u32, unvisited_count) catch {
-                    search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch |e| {
-                        std.log.warn("HNSW search: GPU alloc failed and sequential fallback also failed: {}", .{e});
-                    };
-                    continue;
+                const unvisited_ids = allocator.alloc(u32, unvisited_count) catch |e| {
+                    return e; // Propagate allocation failure
                 };
                 defer allocator.free(unvisited_ids);
 
-                const unvisited_vecs = allocator.alloc([]const f32, unvisited_count) catch {
-                    search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch |e| {
-                        std.log.warn("HNSW search: GPU vec alloc failed and sequential fallback also failed: {}", .{e});
-                    };
-                    continue;
+                const unvisited_vecs = allocator.alloc([]const f32, unvisited_count) catch |e| {
+                    return e; // Propagate allocation failure
                 };
                 defer allocator.free(unvisited_vecs);
 
@@ -359,20 +353,15 @@ pub const HnswIndex = struct {
                     }
                 }
 
-                const batch_distances = allocator.alloc(f32, unvisited_count) catch {
-                    search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch |e| {
-                        std.log.warn("HNSW search: GPU dist alloc failed and sequential fallback also failed: {}", .{e});
-                    };
-                    continue;
+                const batch_distances = allocator.alloc(f32, unvisited_count) catch |e| {
+                    return e; // Propagate allocation failure
                 };
                 defer allocator.free(batch_distances);
 
                 if (self.gpu_accelerator) |accel| {
                     accel.batchCosineSimilarity(query, query_norm, unvisited_vecs, batch_distances) catch {
-                        search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state) catch |e| {
-                            std.log.warn("HNSW search: GPU batch cosine failed and sequential fallback also failed: {}", .{e});
-                        };
-                        continue;
+                        // Fallback to sequential search if GPU fails
+                        try search_impl.searchNeighborsSequential(allocator, neighbors, records, query, query_norm, state);
                     };
 
                     for (unvisited_ids, 0..) |v, vi| {

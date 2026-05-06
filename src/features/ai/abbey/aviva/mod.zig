@@ -9,6 +9,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const foundation = @import("../../../../foundation/mod.zig");
 const wdbx = @import("../../core/database/wdbx.zig");
 const embeddings = @import("../../embeddings/mod.zig");
 const neural = @import("../neural/mod.zig");
@@ -173,7 +174,7 @@ pub const AvivaAgent = struct {
 
     /// Process input and generate response with memory augmentation
     pub fn processWithMemory(self: *Self, input: []const u8) !ProcessResult {
-        const start_time = std.time.milliTimestamp();
+        const start_time = foundation.time.unixMs();
 
         // Generate embedding for input
         var embedding: ?[]f32 = null;
@@ -239,7 +240,7 @@ pub const AvivaAgent = struct {
         // TODO: Send to Abbey engine (would need reference to engine)
         // For now, return the augmented input and context
 
-        const elapsed = std.time.milliTimestamp() - start_time;
+        const elapsed = foundation.time.unixMs() - start_time;
 
         return ProcessResult{
             .augmented_input = augmented_input,
@@ -271,13 +272,13 @@ pub const AvivaAgent = struct {
                 std.json.encodeString(writer, input) catch return;
                 writer.print("\",\"response\":\"", .{}) catch return;
                 std.json.encodeString(writer, response) catch return;
-                writer.print("\",\"timestamp\":{}}}", .{std.time.milliTimestamp()}) catch return;
+                writer.print("\",\"timestamp\":{}}}", .{foundation.time.unixMs()}) catch return;
 
                 const metadata = try meta_builder.toOwnedSlice();
                 defer self.allocator.free(metadata);
 
                 // Insert into WDBX
-                const id = (@as(u64, std.time.milliTimestamp()) << 16) | @as(u64, count & 0xFFFF);
+                const id = (@as(u64, @intCast(foundation.time.unixMs())) << 16) | @as(u64, count & 0xFFFF);
                 wdbx.insertVector(handle, id, emb, metadata) catch |err| {
                     log.err("WDBX insert failed: {any}", .{err});
                 };

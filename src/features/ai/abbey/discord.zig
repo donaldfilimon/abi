@@ -15,6 +15,7 @@
 //!   _ = try bot.processGatewayEvents(); // Drain queued events
 
 const std = @import("std");
+const profile = @import("../profile/mod.zig");
 const engine = @import("engine.zig");
 const core_types = @import("../types.zig");
 const core_config = @import("../core/config.zig");
@@ -294,10 +295,8 @@ pub const GatewayBridge = struct {
 pub const AbbeyDiscordBot = struct {
     allocator: std.mem.Allocator,
     config: DiscordBotConfig,
-    abbey_engine: engine.AbbeyEngine,
+    assistant: *profile.Assistant,
     session_manager: SessionManager,
-    wdbx_handle: ?wdbx.DatabaseHandle = null,
-    embedding_model: ?*embeddings.EmbeddingModel = null,
     running: bool = false,
     discord_client: ?DiscordClientWrapper = null,
     gateway_client: ?discord.GatewayClient = null,
@@ -354,47 +353,18 @@ pub const AbbeyDiscordBot = struct {
 
     /// Initialize the Abbey Discord bot
     pub fn init(allocator: std.mem.Allocator, config: DiscordBotConfig) !Self {
-        var abbey_eng = try engine.AbbeyEngine.init(allocator, config.abbey);
-        errdefer abbey_eng.deinit();
-
-        const wdbx_handle = try wdbx.createDatabase(allocator, "abbey-discord-memory");
-
-        var embedding_model_ptr = try allocator.create(embeddings.EmbeddingModel);
-        embedding_model_ptr.* = embeddings.EmbeddingModel.init(allocator, .{});
-        errdefer {
-            embedding_model_ptr.deinit();
-            allocator.destroy(embedding_model_ptr);
-        }
-
-        // Optionally initialize embedding backend from config
-        if (config.embedding_backend) |btype| {
-            switch (btype) {
-                .openai => {
-                    const init_result = embeddings.backends.openai.OpenAIBackend.initFromEnv(allocator);
-                    var openai_ptr: ?*embeddings.backends.openai.OpenAIBackend = null;
-                    if (init_result) |ptr| {
-                        openai_ptr = ptr;
-                    } else |err| {
-                        log.warn("AbbeyDiscordBot: OpenAI backend init failed: {}", .{err});
-                    }
-                    if (openai_ptr) |ob| {
-                        const be = ob.asBackend();
-                        embedding_model_ptr.setBackend(be);
-                    }
-                },
-                else => {
-                    log.info("AbbeyDiscordBot: embedding backend {s} not implemented", .{btype.toString()});
-                },
-            }
-        }
+        var assistant = try profile.Assistant.init(allocator, .{
+            .session_id = "abbey-discord",
+            .policy = .{ .allow_trusted_fallback = config.allow_trusted_fallback },
+            .multi_profile = config.multi_profile,
+        });
+        errdefer assistant.deinit();
 
         return Self{
             .allocator = allocator,
             .config = config,
-            .abbey_engine = abbey_eng,
+            .assistant = assistant,
             .session_manager = SessionManager.init(allocator),
-            .wdbx_handle = wdbx_handle,
-            .embedding_model = embedding_model_ptr,
         };
     }
 
@@ -404,15 +374,8 @@ pub const AbbeyDiscordBot = struct {
         if (self.discord_client) |*client| {
             client.deinit();
         }
-        if (self.wdbx_handle) |*handle| {
-            wdbx.closeDatabase(handle);
-        }
-        if (self.embedding_model) |m| {
-            embeddings.EmbeddingModel.deinit(m);
-            self.allocator.destroy(m);
-        }
         self.session_manager.deinit();
-        self.abbey_engine.deinit();
+        self.assistant.deinit();
     }
 
     /// Start the Gateway WebSocket connection for receiving real-time events.
@@ -533,36 +496,8 @@ pub const AbbeyDiscordBot = struct {
         // Skip bot messages
         if (message.author.bot) return null;
 
-        const model_resolution = internal_api_policy.resolveModel(
-            &.{ "ollama/abbeycode", "ollama/llama3", "lm_studio/qwen2.5" },
-            .{ .allow_trusted_fallback = self.config.allow_trusted_fallback },
-        ) catch |err| {
-            log.warn("AbbeyDiscordBot policy rejection: {s}", .{@errorName(err)});
-            return MessageResponse{
-                .content = "This command only supports internal ABI APIs. Configure an internal model endpoint.",
-                .channel_id = message.channel_id,
-                .reply_to = message.id,
-            };
-        };
-        if (model_resolution.used_fallback) {
-            log.warn("AbbeyDiscordBot using trusted fallback provider: {s}", .{model_resolution.selected_model});
-        }
-
-        // Check if we should respond
+        // Check if we should respond (e.g. mention or DM)
         if (!self.shouldRespond(&message)) return null;
-
-        // Get or create session
-        var session = try self.session_manager.getOrCreateSession(
-            message.author.id,
-            message.channel_id,
-        );
-        session.last_interaction = core_types.getTimestampSec();
-        session.message_count += 1;
-
-        // Start Abbey conversation if needed
-        if (!self.abbey_engine.conversation_active) {
-            try self.abbey_engine.startConversation(message.author.id);
-        }
 
         // Show typing indicator
         if (self.config.show_typing) {
@@ -571,162 +506,17 @@ pub const AbbeyDiscordBot = struct {
             }
         }
 
-        // Generate embedding, store vector, retrieve context, then call Abbey with context
-        var prompt_with_context: ?[]u8 = null;
-        var temp_input_owned: ?[]u8 = null;
-        var retrieval_hits: usize = 0;
-
-        // Attempt to generate embedding
-        var embedding: ?[]f32 = null;
-        if (self.embedding_model) |*m| {
-            embedding = m.embed(message.content) catch null;
-            if (embedding == null) {
-                log.err("AbbeyDiscordBot: embedding generation failed", .{});
-            }
+        // Process through unified assistant
+        const result = try self.assistant.process(message.content);
+        defer {
+            var r = result;
+            r.deinit();
         }
 
-        // If we have an embedding and a DB, store the vector and retrieve similar memories
-        if (embedding) |emb| {
-            if (self.wdbx_handle) |*handle| {
-                const now_ms = core_types.getTimestampMs();
-                const id: u64 = (@as(u64, now_ms) << 16) | @as(u64, session.message_count & 0xFFFF);
-
-                // Build an excerpt for metadata
-                const excerpt_len = @min(message.content.len, 200);
-                const excerpt = try self.allocator.alloc(u8, excerpt_len);
-                @memcpy(excerpt, message.content[0..excerpt_len]);
-
-                // Build JSON metadata using foundation json utilities
-                var meta_builder = std.ArrayListUnmanaged(u8).empty;
-                defer meta_builder.deinit(self.allocator);
-                try meta_builder.appendSlice(self.allocator, "{");
-                try meta_builder.appendSlice(self.allocator, "\"user\":");
-                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, message.author.id);
-                try meta_builder.appendSlice(self.allocator, ",\"channel\":");
-                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, message.channel_id);
-                try meta_builder.appendSlice(self.allocator, ",\"ts\":");
-                try meta_builder.writer(self.allocator).print("{d}", .{now_ms});
-                try meta_builder.appendSlice(self.allocator, ",\"msg_id\":");
-                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, message.id);
-                try meta_builder.appendSlice(self.allocator, ",\"excerpt\":");
-                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, excerpt);
-                try meta_builder.appendSlice(self.allocator, "}");
-
-                const metadata = try meta_builder.toOwnedSlice(self.allocator);
-
-                // Insert vector (log on failure)
-                wdbx.insertVector(handle, id, emb, metadata) catch |err| {
-                    log.err("AbbeyDiscordBot: wdbx insert failed: {s}", .{err});
-                };
-
-                // Free our temporary metadata and excerpt; DB duplicates as needed
-                self.allocator.free(metadata);
-                self.allocator.free(excerpt);
-
-                // Retrieve context (top_k configurable)
-                const top_k: usize = self.config.memory_top_k;
-                const results = try wdbx.searchVectors(handle, self.allocator, emb, top_k);
-                defer self.allocator.free(results);
-                retrieval_hits = results.len;
-
-                var ctx_buf = std.ArrayListUnmanaged(u8).empty;
-                errdefer ctx_buf.deinit(self.allocator);
-
-                for (results) |res| {
-                    const view = wdbx.getVector(handle, res.id) orelse continue;
-                    if (view.metadata) |meta| {
-                        // Optional channel filtering
-                        var include: bool = true;
-                        if (self.config.allowed_channels.len > 0) {
-                            // Parse JSON metadata
-                            const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, meta, .{ .ignore_unknown_fields = true }) catch null;
-                            if (parsed == null) continue;
-                            defer parsed.deinit();
-                            const obj = json_utils.getRequiredObject(parsed.value) catch null;
-                            if (obj == null) continue;
-
-                            // Check channel field
-                            const ch = json_utils.parseOptionalStringField(obj, "channel", self.allocator) catch null;
-                            if (ch) |chv| {
-                                var allowed = false;
-                                for (self.config.allowed_channels) |ach| {
-                                    if (std.mem.eql(u8, ach, chv)) {
-                                        allowed = true;
-                                        break;
-                                    }
-                                }
-                                if (!allowed) include = false;
-                            } else {
-                                include = false;
-                            }
-
-                            // Time window filtering
-                            if (include and self.config.memory_time_window_days) |days| {
-                                const ts_opt = json_utils.parseOptionalUintField(obj, "ts") catch null;
-                                if (ts_opt) |ts| {
-                                    const window_ms: u64 = @as(u64, days) * 24 * 60 * 60 * 1000;
-                                    const now: u64 = core_types.getTimestampMs();
-                                    if (now > ts + window_ms) include = false;
-                                }
-                            }
-                        }
-
-                        if (!include) continue;
-
-                        try ctx_buf.appendSlice(self.allocator, "Retrieved memory: ");
-                        try ctx_buf.appendSlice(self.allocator, meta);
-                        try ctx_buf.appendSlice(self.allocator, "\n\n");
-                    }
-                }
-
-                if (ctx_buf.items.len > 0) {
-                    prompt_with_context = try ctx_buf.toOwnedSlice(self.allocator);
-                }
-            }
-        }
-
-        // Build final input (prepend context if present)
-        var final_input: []const u8 = message.content;
-        if (prompt_with_context) |ctx| {
-            temp_input_owned = try std.fmt.allocPrint(self.allocator, "{s}\n\nUser: {s}", .{ ctx, message.content });
-            final_input = temp_input_owned.*;
-        }
-
-        var response = try self.abbey_engine.process(final_input);
-        defer response.deinit(self.allocator);
-
-        // Update session emotional trend
-        session.emotional_trend = response.emotional_context.detected;
-
-        // Free temporary buffers
-        if (prompt_with_context) |p| self.allocator.free(p);
-        if (temp_input_owned) |t| self.allocator.free(t);
-
-        if (learning.LearningRuntime.init(self.allocator)) |runtime| {
-            var rt = runtime;
-            defer rt.deinit();
-            rt.recordInteraction(.{
-                .prompt = message.content,
-                .response = response.content,
-                .profile = "abbey",
-                .backend = "discord",
-                .selected_model = model_resolution.selected_model,
-                .route_reason = "discord message path",
-                .retrieval_hits = retrieval_hits,
-                .constitution_passed = true,
-                .used_fallback_provider = model_resolution.used_fallback,
-            }) catch {};
-        } else |_| {}
-
-        // Build response
         return MessageResponse{
-            .content = try self.formatResponse(&response),
-            .channel_id = message.channel_id,
-            .reply_to = message.id,
-            .emotional_reaction = (if (self.config.add_emotional_reactions)
-                getEmotionalEmoji(response.emotional_context.detected)
-            else
-                null),
+            .content = try self.allocator.dupe(u8, result.response.content),
+            .channel_id = try self.allocator.dupe(u8, message.channel_id),
+            .reply_to = try self.allocator.dupe(u8, message.id),
         };
     }
 

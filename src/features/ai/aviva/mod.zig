@@ -186,7 +186,7 @@ pub const AvivaProfile = struct {
             if (final_response.ptr != raw_response.ptr) {
                 self.allocator.free(final_response);
             }
-            final_response = qualified;
+            final_response = @constCast(qualified);
         }
 
         const elapsed_ms = timer.read() / std.time.ns_per_ms;

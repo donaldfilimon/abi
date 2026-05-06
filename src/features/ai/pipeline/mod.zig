@@ -69,8 +69,8 @@ pub const steps = struct {
 };
 
 /// Entry point: create a new pipeline builder for a session.
-pub fn chain(allocator: std.mem.Allocator, session_id: []const u8) PipelineBuilder {
-    return PipelineBuilder.init(allocator, session_id);
+pub fn chain(allocator: std.mem.Allocator, session_id: []const u8) !PipelineBuilder {
+    return try PipelineBuilder.init(allocator, session_id);
 }
 
 test "pipeline mod compiles" {

@@ -301,7 +301,7 @@ pub const MultiProfileRouter_Internal = struct {
                 // Store the blocked interaction in memory
                 if (self.memory) |*mem| {
                     mem.recordInteraction(decision, input, safe_response, null) catch |err| {
-                        std.log.warn("profile: failed to record blocked interaction: {s}", .{@errorName(err)});
+                        std.log.warn("profile: failed to record interaction: {s}", .{@errorName(err)});
                     };
                 }
 

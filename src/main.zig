@@ -1100,15 +1100,18 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
     defer allocator.free(message);
 
     const ai = root.ai;
-    var registry = ai.profile.ProfileRegistry.init(allocator, .{});
-    defer registry.deinit();
+    var assistant = try ai.profile.Assistant.init(allocator, .{
+        .session_id = "abi-chat",
+    });
+    defer assistant.deinit();
 
-    var router = ai.profile.MultiProfileRouter.init(allocator, &registry, .{});
-    defer router.deinit();
+    printHeader("ABI Chat — Unified Pipeline", null);
 
-    const decision = router.route(message);
-
-    printHeader("ABI Chat — Profile Pipeline", null);
+    const result = try assistant.process(message);
+    defer {
+        var r = result;
+        r.deinit();
+    }
 
     std.debug.print(
         \\Input: {s}
@@ -1126,128 +1129,31 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         \\
     , .{
         message,
-        decision.primary.name(),
-        @tagName(decision.strategy),
-        decision.confidence * 100.0,
-        decision.reason,
-        decision.weights.abbey * 100.0,
-        decision.weights.aviva * 100.0,
-        decision.weights.abi * 100.0,
+        result.decision.primary.name(),
+        @tagName(result.decision.strategy),
+        result.decision.confidence * 100.0,
+        result.decision.reason,
+        result.decision.weights.abbey * 100.0,
+        result.decision.weights.aviva * 100.0,
+        result.decision.weights.abi * 100.0,
     });
 
     std.debug.print("\nExecution:\n", .{});
 
-    const inference = root.inference;
-    const policy = ai.internal_api_policy;
-    const model_resolution = policy.resolveModel(
-        &.{
-            "ollama/abbeycode",
-            "ollama/llama3",
-            "llama_cpp/qwen2.5",
-        },
-        .{ .allow_trusted_fallback = true },
-    ) catch |err| {
-        std.debug.print("  Internal API policy rejected model selection: {s}\n", .{@errorName(err)});
-        return;
-    };
-    if (model_resolution.used_fallback) {
-        std.debug.print("  Internal API fallback: {s} ({s})\n", .{ model_resolution.selected_model, model_resolution.reason });
-    }
-
-    var engine = inference.Engine.init(allocator, .{
-        .backend = .connector,
-        .model_id = model_resolution.selected_model,
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-    }) catch |err| {
-        std.debug.print("  Engine init failed: {s}\n", .{@errorName(err)});
-        std.debug.print("\nHint: Ensure Ollama is running with abbeycode model.\n", .{});
-        if (err == error.LocalBackendNotAvailable) {
-            std.debug.print("      Local backend requires -Dfeat-llm=true build flag.\n", .{});
-        }
-        return;
-    };
-    defer engine.deinit();
-
-    var result = engine.generate(.{
-        .id = 1,
-        .prompt = message,
-        .max_tokens = 256,
-        .temperature = 0.7,
-        .top_p = 0.9,
-        .top_k = 40,
-        .profile_id = @intFromEnum(decision.primary),
-    }) catch |err| {
-        std.debug.print("  Inference failed: {s}\n", .{@errorName(err)});
-        std.debug.print("\nHint: run 'abi connectors' to see required environment variables.\n", .{});
-        if (err == error.EmptyPrompt) {
-            std.debug.print("      The message was empty after processing.\n", .{});
-        }
-        return;
-    };
-    defer result.deinit(allocator);
-
     // Detect demo vs local backend response
-    const is_demo = std.mem.startsWith(u8, result.text, "[");
+    const is_demo = std.mem.startsWith(u8, result.response.content, "[");
     const backend_label: []const u8 = if (is_demo) "demo" else "local";
 
-    std.debug.print("  [{s}] {s} | {d} tokens | {d:.1}ms\n", .{
+    std.debug.print("  [{s}] {s} | {d:.1}ms | WDBX Block: {any}\n", .{
         backend_label,
-        engine.config.model_id,
-        result.completion_tokens,
+        assistant.registry.config.abbey.llm.model,
         result.latency_ms,
+        result.wdbx_block_id,
     });
 
-    var wdbx_block_id: ?u64 = null;
-    if (comptime build_options.feat_database) {
-        var memory = root.ai.profile.ConversationMemory.init(allocator, "abi-chat");
-        defer memory.deinit();
-        const response_copy = try allocator.dupe(u8, result.text);
-        var profile_response = root.ai.profile.ProfileResponse{
-            .profile = decision.primary,
-            .content = response_copy,
-            .confidence = decision.confidence,
-            .allocator = allocator,
-        };
-        defer profile_response.deinit();
-        wdbx_block_id = memory.recordInteraction(decision, message, profile_response, null) catch |err| blk: {
-            std.debug.print("  Warning: Failed to record WDBX memory block: {s}\n", .{@errorName(err)});
-            break :blk null;
-        };
-    }
-
-    var learning_runtime: ?root.ai.learning.LearningRuntime = null;
-    if (root.ai.learning.LearningRuntime.init(allocator)) |runtime| {
-        learning_runtime = runtime;
-    } else |err| {
-        std.debug.print("  Warning: Learning runtime init failed: {s}\n", .{@errorName(err)});
-    }
-    if (learning_runtime) |*rt| {
-        defer rt.deinit();
-        rt.recordInteraction(.{
-            .prompt = message,
-            .response = result.text,
-            .profile = decision.primary.name(),
-            .backend = backend_label,
-            .latency_ms = result.latency_ms,
-            .selected_model = engine.config.model_id,
-            .wdbx_block_id = wdbx_block_id,
-            .route_reason = decision.reason,
-            .constitution_passed = true,
-            .used_fallback_provider = model_resolution.used_fallback,
-        }) catch |err| {
-            std.debug.print("  Warning: Failed to record interaction: {s}\n", .{@errorName(err)});
-        };
-    }
-
     // Write the actual response to stdout so it can be piped.
-    // Metadata goes to stderr (via std.debug.print above); response to stdout.
     try writeToStdout("\n");
-    try writeToStdout(result.text);
+    try writeToStdout(result.response.content);
     try writeToStdout("\n");
 }
 

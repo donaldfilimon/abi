@@ -24,6 +24,7 @@ const abbey_mod = @import("../abbey/mod.zig");
 const aviva_mod = @import("../aviva/mod.zig");
 const abi_mod = @import("../abi/mod.zig");
 const ai_config = @import("../config.zig");
+const core_config = @import("../core/config.zig");
 
 /// Configuration for the multi-profile system.
 pub const MultiProfileConfig_Internal = struct {
@@ -154,10 +155,10 @@ pub const ProfileInstance = struct {
             },
             .aviva => {
                 if (self.aviva_profile) |profile| {
-                    const result = profile.respond(message) catch return error.ProfileFailed;
+                    const result = profile.process(.{ .content = message }) catch return error.ProfileFailed;
                     return ProfileResponse{
                         .profile = .aviva,
-                        .content = result,
+                        .content = try self.allocator.dupe(u8, result.content),
                         .confidence = 0.85, // Aviva is high-confidence by design
                         .allocator = self.allocator,
                     };
@@ -220,7 +221,19 @@ pub const ProfileRegistry = struct {
         // Initialize Abbey
         var abbey_instance = self.instances.getPtr(.abbey);
         const abbey_engine = try self.allocator.create(abbey_mod.AbbeyEngine);
-        abbey_engine.* = try abbey_mod.AbbeyEngine.init(self.allocator, self.config.abbey);
+        // Cast our local (comprehensive) AbbeyConfig to the expected core config
+        const abbey_config = core_config.AbbeyConfig{
+            .name = "Abbey", // Assuming name is needed
+            .behavior = .{
+                .base_temperature = self.config.abbey.empathy_level,
+                .max_tokens = 4096,
+            },
+            .llm = .{
+                .backend = .ollama, // default backend
+                .model = "abbeycode", // default model
+            },
+        };
+        abbey_engine.* = try abbey_mod.AbbeyEngine.init(self.allocator, abbey_config);
         abbey_instance.abbey_engine = abbey_engine;
         abbey_instance.state = .idle;
 

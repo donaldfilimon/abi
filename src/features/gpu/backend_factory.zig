@@ -224,7 +224,7 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
     instance.backend = try createVTableBackend(allocator, backend_type);
     instance.total_memory = queryDeviceMemory(backend_type);
     instance.max_threads_per_block = switch (backend_type) {
-        .cuda, .vulkan, .metal, .opengl, .opengles, .tpu => 1024,
+        .cuda, .vulkan, .metal, .opengl, .opengles, .tpu, .intel_arc => 1024,
         .webgpu, .stdgpu, .webgl2, .simulated => 256,
         .fpga => 1,
     };
@@ -484,11 +484,11 @@ pub fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bo
         .fp16 => backend_type == .cuda or backend_type == .metal,
         .fp64 => backend_type == .cuda,
         .atomics => switch (backend_type) {
-            .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .fpga, .tpu => true,
+            .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .fpga, .tpu, .intel_arc => true,
             .stdgpu, .webgl2, .simulated => false,
         },
         .shared_memory => switch (backend_type) {
-            .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .fpga, .tpu => true,
+            .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .fpga, .tpu, .intel_arc => true,
             .stdgpu, .webgl2, .simulated => false,
         },
         .subgroups => backend_type == .cuda or backend_type == .vulkan,
@@ -513,7 +513,7 @@ pub fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bo
 
 fn queryDeviceMemory(backend_type: Backend) ?u64 {
     return switch (backend_type) {
-        .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .webgl2, .fpga, .tpu => null,
+        .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .webgl2, .fpga, .tpu, .intel_arc => null,
         .stdgpu => null,
         .simulated => 2 * 1024 * 1024 * 1024, // 2 GiB (matches backend_meta)
     };
