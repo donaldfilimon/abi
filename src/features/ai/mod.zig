@@ -57,6 +57,8 @@ pub const transformer = if (build_options.feat_ai) @import("transformer/mod.zig"
 pub const federated = if (build_options.feat_ai) @import("federated/mod.zig") else @import("federated/stub.zig");
 pub const feedback = if (build_options.feat_ai) @import("feedback/mod.zig") else @import("feedback/stub.zig");
 pub const compliance = if (build_options.feat_ai) @import("compliance/mod.zig") else @import("compliance/stub.zig");
+pub const learning = if (build_options.feat_ai) @import("learning.zig") else @import("learning_stub.zig");
+pub const internal_api_policy = @import("internal_api_policy.zig");
 
 /// Multi-profile orchestration: registry, router, collaboration bus.
 pub const profile = if (build_options.feat_ai) @import("profile/mod.zig") else @import("profile/stub.zig");

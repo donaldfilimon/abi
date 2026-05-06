@@ -22,6 +22,10 @@ const discord = @import("../../../connectors/discord/mod.zig");
 const emotions = @import("emotions.zig");
 const wdbx = @import("../../core/database/wdbx.zig");
 const embeddings = @import("../embeddings/mod.zig");
+const learning = @import("../learning.zig");
+const shared = @import("../../../foundation/mod.zig");
+const json_utils = shared.utils.json;
+const internal_api_policy = @import("../internal_api_policy.zig");
 const log = std.log.scoped(.abbey_discord);
 
 // ============================================================================
@@ -57,6 +61,33 @@ pub const DiscordBotConfig = struct {
     add_emotional_reactions: bool = true,
     /// Default channel IDs to listen on (empty = all)
     allowed_channels: []const []const u8 = &.{},
+
+    // Memory retrieval configuration
+    memory_top_k: usize = 8,
+    /// Optional time window in days to limit retrieved memories
+    memory_time_window_days: ?u32 = null,
+
+    // Embedding backend preferences (optional, disabled by default for internal-only)
+    embedding_backend: ?embeddings.BackendType = null,
+    /// Optional model id to pass to backend (e.g., OpenAI model)
+    embedding_model_id: ?[]const u8 = null,
+    /// Allow trusted local fallback providers when internal API is unavailable.
+    allow_trusted_fallback: bool = true,
+
+    /// Validate configuration (FeatureContext compatibility)
+    pub fn validate(config: @This()) !void {
+        if (config.max_message_length == 0) return error.InvalidConfig;
+        if (config.memory_top_k == 0) return error.InvalidConfig;
+    }
+
+    /// Cleanup configuration resources
+    pub fn deinit(config: @This(), allocator: std.mem.Allocator) void {
+        if (config.bot_token) |t| allocator.free(t);
+        if (config.command_prefix) |p| allocator.free(p);
+        if (config.embedding_model_id) |m| allocator.free(m);
+        for (config.allowed_channels) |ch| allocator.free(ch);
+        allocator.free(config.allowed_channels);
+    }
 };
 
 // ============================================================================
@@ -335,6 +366,28 @@ pub const AbbeyDiscordBot = struct {
             allocator.destroy(embedding_model_ptr);
         }
 
+        // Optionally initialize embedding backend from config
+        if (config.embedding_backend) |btype| {
+            switch (btype) {
+                .openai => {
+                    const init_result = embeddings.backends.openai.OpenAIBackend.initFromEnv(allocator);
+                    var openai_ptr: ?*embeddings.backends.openai.OpenAIBackend = null;
+                    if (init_result) |ptr| {
+                        openai_ptr = ptr;
+                    } else |err| {
+                        log.warn("AbbeyDiscordBot: OpenAI backend init failed: {}", .{err});
+                    }
+                    if (openai_ptr) |ob| {
+                        const be = ob.asBackend();
+                        embedding_model_ptr.setBackend(be);
+                    }
+                },
+                else => {
+                    log.info("AbbeyDiscordBot: embedding backend {s} not implemented", .{btype.toString()});
+                },
+            }
+        }
+
         return Self{
             .allocator = allocator,
             .config = config,
@@ -355,7 +408,7 @@ pub const AbbeyDiscordBot = struct {
             wdbx.closeDatabase(handle);
         }
         if (self.embedding_model) |m| {
-            m.deinit();
+            embeddings.EmbeddingModel.deinit(m);
             self.allocator.destroy(m);
         }
         self.session_manager.deinit();
@@ -480,6 +533,21 @@ pub const AbbeyDiscordBot = struct {
         // Skip bot messages
         if (message.author.bot) return null;
 
+        const model_resolution = internal_api_policy.resolveModel(
+            &.{ "ollama/abbeycode", "ollama/llama3", "lm_studio/qwen2.5" },
+            .{ .allow_trusted_fallback = self.config.allow_trusted_fallback },
+        ) catch |err| {
+            log.warn("AbbeyDiscordBot policy rejection: {s}", .{@errorName(err)});
+            return MessageResponse{
+                .content = "This command only supports internal ABI APIs. Configure an internal model endpoint.",
+                .channel_id = message.channel_id,
+                .reply_to = message.id,
+            };
+        };
+        if (model_resolution.used_fallback) {
+            log.warn("AbbeyDiscordBot using trusted fallback provider: {s}", .{model_resolution.selected_model});
+        }
+
         // Check if we should respond
         if (!self.shouldRespond(&message)) return null;
 
@@ -506,6 +574,7 @@ pub const AbbeyDiscordBot = struct {
         // Generate embedding, store vector, retrieve context, then call Abbey with context
         var prompt_with_context: ?[]u8 = null;
         var temp_input_owned: ?[]u8 = null;
+        var retrieval_hits: usize = 0;
 
         // Attempt to generate embedding
         var embedding: ?[]f32 = null;
@@ -527,17 +596,26 @@ pub const AbbeyDiscordBot = struct {
                 const excerpt = try self.allocator.alloc(u8, excerpt_len);
                 @memcpy(excerpt, message.content[0..excerpt_len]);
 
-                const metadata = try std.fmt.allocPrint(self.allocator, "user:{s};channel:{s};ts:{d};msg:{s};excerpt:{s}", .{
-                    message.author.id,
-                    message.channel_id,
-                    now_ms,
-                    message.id,
-                    excerpt,
-                });
+                // Build JSON metadata using foundation json utilities
+                var meta_builder = std.ArrayListUnmanaged(u8).empty;
+                defer meta_builder.deinit(self.allocator);
+                try meta_builder.appendSlice(self.allocator, "{");
+                try meta_builder.appendSlice(self.allocator, "\"user\":");
+                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, message.author.id);
+                try meta_builder.appendSlice(self.allocator, ",\"channel\":");
+                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, message.channel_id);
+                try meta_builder.appendSlice(self.allocator, ",\"ts\":");
+                try meta_builder.writer(self.allocator).print("{d}", .{now_ms});
+                try meta_builder.appendSlice(self.allocator, ",\"msg_id\":");
+                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, message.id);
+                try meta_builder.appendSlice(self.allocator, ",\"excerpt\":");
+                try json_utils.appendJsonEscaped(self.allocator, &meta_builder, excerpt);
+                try meta_builder.appendSlice(self.allocator, "}");
+
+                const metadata = try meta_builder.toOwnedSlice(self.allocator);
 
                 // Insert vector (log on failure)
                 wdbx.insertVector(handle, id, emb, metadata) catch |err| {
-                    // insertVector returns error on failure; log and continue
                     log.err("AbbeyDiscordBot: wdbx insert failed: {s}", .{err});
                 };
 
@@ -545,10 +623,11 @@ pub const AbbeyDiscordBot = struct {
                 self.allocator.free(metadata);
                 self.allocator.free(excerpt);
 
-                // Retrieve context (top_k configurable; hardcoded 8 here)
-                const top_k: usize = 8;
+                // Retrieve context (top_k configurable)
+                const top_k: usize = self.config.memory_top_k;
                 const results = try wdbx.searchVectors(handle, self.allocator, emb, top_k);
                 defer self.allocator.free(results);
+                retrieval_hits = results.len;
 
                 var ctx_buf = std.ArrayListUnmanaged(u8).empty;
                 errdefer ctx_buf.deinit(self.allocator);
@@ -556,6 +635,44 @@ pub const AbbeyDiscordBot = struct {
                 for (results) |res| {
                     const view = wdbx.getVector(handle, res.id) orelse continue;
                     if (view.metadata) |meta| {
+                        // Optional channel filtering
+                        var include: bool = true;
+                        if (self.config.allowed_channels.len > 0) {
+                            // Parse JSON metadata
+                            const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, meta, .{ .ignore_unknown_fields = true }) catch null;
+                            if (parsed == null) continue;
+                            defer parsed.deinit();
+                            const obj = json_utils.getRequiredObject(parsed.value) catch null;
+                            if (obj == null) continue;
+
+                            // Check channel field
+                            const ch = json_utils.parseOptionalStringField(obj, "channel", self.allocator) catch null;
+                            if (ch) |chv| {
+                                var allowed = false;
+                                for (self.config.allowed_channels) |ach| {
+                                    if (std.mem.eql(u8, ach, chv)) {
+                                        allowed = true;
+                                        break;
+                                    }
+                                }
+                                if (!allowed) include = false;
+                            } else {
+                                include = false;
+                            }
+
+                            // Time window filtering
+                            if (include and self.config.memory_time_window_days) |days| {
+                                const ts_opt = json_utils.parseOptionalUintField(obj, "ts") catch null;
+                                if (ts_opt) |ts| {
+                                    const window_ms: u64 = @as(u64, days) * 24 * 60 * 60 * 1000;
+                                    const now: u64 = core_types.getTimestampMs();
+                                    if (now > ts + window_ms) include = false;
+                                }
+                            }
+                        }
+
+                        if (!include) continue;
+
                         try ctx_buf.appendSlice(self.allocator, "Retrieved memory: ");
                         try ctx_buf.appendSlice(self.allocator, meta);
                         try ctx_buf.appendSlice(self.allocator, "\n\n");
@@ -585,15 +702,31 @@ pub const AbbeyDiscordBot = struct {
         if (prompt_with_context) |p| self.allocator.free(p);
         if (temp_input_owned) |t| self.allocator.free(t);
 
+        if (learning.LearningRuntime.init(self.allocator)) |runtime| {
+            var rt = runtime;
+            defer rt.deinit();
+            rt.recordInteraction(.{
+                .prompt = message.content,
+                .response = response.content,
+                .profile = "abbey",
+                .backend = "discord",
+                .selected_model = model_resolution.selected_model,
+                .route_reason = "discord message path",
+                .retrieval_hits = retrieval_hits,
+                .constitution_passed = true,
+                .used_fallback_provider = model_resolution.used_fallback,
+            }) catch {};
+        } else |_| {}
+
         // Build response
         return MessageResponse{
             .content = try self.formatResponse(&response),
             .channel_id = message.channel_id,
             .reply_to = message.id,
-            .emotional_reaction = if (self.config.add_emotional_reactions)
+            .emotional_reaction = (if (self.config.add_emotional_reactions)
                 getEmotionalEmoji(response.emotional_context.detected)
             else
-                null,
+                null),
         };
     }
 
@@ -825,9 +958,30 @@ fn handleChatCommand(bot: *AbbeyDiscordBot, data: *const discord.InteractionData
         return buildErrorResponse("Missing message");
     };
 
+    _ = internal_api_policy.resolveModel(
+        &.{ "ollama/abbeycode", "ollama/llama3", "llama_cpp/qwen2.5" },
+        .{ .allow_trusted_fallback = bot.config.allow_trusted_fallback },
+    ) catch {
+        return buildErrorResponse("Only internal ABI APIs are allowed for this command.");
+    };
+
     // Process with Abbey
     var response = try bot.abbey_engine.process(user_message);
     defer response.deinit(bot.allocator);
+
+    if (learning.LearningRuntime.init(bot.allocator)) |runtime| {
+        var rt = runtime;
+        defer rt.deinit();
+        rt.recordInteraction(.{
+            .prompt = user_message,
+            .response = response.content,
+            .profile = "abbey",
+            .backend = "discord_slash",
+            .selected_model = "ollama/abbeycode",
+            .route_reason = "discord slash command",
+            .constitution_passed = true,
+        }) catch {};
+    } else |_| {}
 
     return discord.InteractionResponse{
         .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE

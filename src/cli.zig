@@ -37,6 +37,9 @@ pub const single_token_commands = [_]CommandDescriptor{
     .{ .name = "skills", .description = "List bundled ABI agent skills" },
     .{ .name = "build", .description = "Delegate to ./build.sh" },
     .{ .name = "check", .description = "Run focused validation workflows" },
+    .{ .name = "learn", .description = "Learning telemetry and feedback" },
+    .{ .name = "agent", .description = "Agent chat and diagnostics" },
+    .{ .name = "gpu", .description = "GPU diagnostics and backend availability" },
     .{ .name = "mcp", .description = "MCP server automation and health checks" },
     .{ .name = "acp", .description = "ACP server automation and endpoint checks" },
     .{ .name = "info", .description = "Framework architecture summary" },
@@ -44,6 +47,8 @@ pub const single_token_commands = [_]CommandDescriptor{
     .{ .name = "dashboard", .description = dashboard_command_summary },
     .{ .name = "lsp", .description = "Start Language Server Protocol (LSP) server" },
     .{ .name = "discord", .description = "Start Abbey Discord bot" },
+    .{ .name = "aviva", .description = "Manage Aviva agent training and statistics" },
+    .{ .name = "check-env", .description = "Verify required environment variables" },
 };
 
 pub const HelpSection = enum {
@@ -80,6 +85,9 @@ pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "skills", .description = "List bundled ABI agent skills", .section = .diagnostics },
     .{ .usage = "build <step>", .description = "Run ./build.sh with a build step and extra Zig args", .section = .diagnostics },
     .{ .usage = "check [lane]", .description = "Run quick, ci, parity, mcp, or interop validation", .section = .diagnostics },
+    .{ .usage = "learn <cmd>", .description = "Learning telemetry, feedback, reports, and manual retrain", .section = .agents },
+    .{ .usage = "agent <cmd>", .description = "Agent chat and runtime stats", .section = .agents },
+    .{ .usage = "gpu <cmd>", .description = "GPU diagnostics and backend availability", .section = .diagnostics },
     .{ .usage = "info", .description = "Show framework architecture summary", .section = .diagnostics },
     .{ .usage = "help", .description = "Show detailed help", .section = .diagnostics },
     .{ .usage = "chat <message...>", .description = "Route a message through the profile pipeline", .section = .agents },
@@ -97,6 +105,8 @@ pub const displayed_commands = [_]DisplayCommand{
     .{ .usage = "mcp serve", .description = "Start abi-mcp via mcp/launcher.sh", .section = .ai_data },
     .{ .usage = "lsp", .description = "Start the Language Server Protocol (LSP) server", .section = .ai_data },
     .{ .usage = "discord", .description = "Start Abbey Discord bot", .section = .ai_data },
+    .{ .usage = "aviva <cmd>", .description = "Manage Aviva agent (train, stats, config)", .section = .agents },
+    .{ .usage = "check-env", .description = "Verify required environment variables (API keys, etc.)", .section = .diagnostics },
     .{
         .usage = "dashboard",
         .description = dashboard_command_detail,
@@ -116,6 +126,35 @@ pub const ChatPipelineReport = struct {
     abi_pct: f32,
     execution_summary: []const u8 = "",
 };
+
+fn editDistance(a: []const u8, b: []const u8) usize {
+    var rows: [32]usize = undefined;
+    var next: [32]usize = undefined;
+    if (b.len + 1 > rows.len) return 999;
+    for (0..b.len + 1) |i| rows[i] = i;
+    for (a, 0..) |ca, i| {
+        next[0] = i + 1;
+        for (b, 0..) |cb, j| {
+            const cost: usize = if (ca == cb) 0 else 1;
+            next[j + 1] = @min(@min(next[j] + 1, rows[j + 1] + 1), rows[j] + cost);
+        }
+        @memcpy(rows[0 .. b.len + 1], next[0 .. b.len + 1]);
+    }
+    return rows[b.len];
+}
+
+pub fn suggestCommand(cmd: []const u8) ?[]const u8 {
+    var best_name: ?[]const u8 = null;
+    var best_score: usize = 999;
+    for (single_token_commands) |entry| {
+        const score = editDistance(cmd, entry.name);
+        if (score < best_score) {
+            best_score = score;
+            best_name = entry.name;
+        }
+    }
+    return if (best_score <= 3) best_name else null;
+}
 
 pub fn joinChatMessage(allocator: std.mem.Allocator, message_args: []const [:0]const u8) ![]u8 {
     var full_message = std.ArrayListUnmanaged(u8).empty;
@@ -308,6 +347,8 @@ pub fn writeHelp(writer: anytype) !void {
     try out.writeByte('\n');
     try writeHelpSection(out, "AI & Data", .ai_data);
     try out.writeByte('\n');
+    try writeHelpSection(out, "Agents", .agents);
+    try out.writeByte('\n');
     try writeHelpSection(out, "Interactive", .interactive);
     try out.print(
         \\
@@ -442,6 +483,7 @@ pub fn runDiscord(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     }
 
     var bot_token: ?[]const u8 = null;
+    var allow_trusted_fallback = true;
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         if (std.mem.eql(u8, args[i], "--token") or std.mem.eql(u8, args[i], "-t")) {
@@ -452,6 +494,8 @@ pub fn runDiscord(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
                 std.debug.print("Error: --token requires a value\n", .{});
                 return;
             }
+        } else if (std.mem.eql(u8, args[i], "--internal-strict")) {
+            allow_trusted_fallback = false;
         }
     }
 
@@ -470,6 +514,7 @@ pub fn runDiscord(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
 
     const config = abbey_mod.DiscordBotConfig{
         .bot_token = bot_token.?,
+        .allow_trusted_fallback = allow_trusted_fallback,
     };
 
     var bot = try abbey_mod.AbbeyDiscordBot.init(allocator, config);
