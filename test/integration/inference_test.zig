@@ -9,20 +9,32 @@ const build_options = @import("build_options");
 const time_mod = abi.foundation.time;
 
 const Engine = abi.inference.Engine;
+const EngineConfig = abi.inference.EngineConfig;
 const Backend = abi.inference.Backend;
 const Result = abi.inference.Result;
 
+/// Reduced model + KV sizing for inference integration tests (`page_size` stays at type default).
+const integration_engine_light: EngineConfig = .{
+    .kv_cache_pages = 100,
+    .num_layers = 1,
+    .num_heads = 1,
+    .head_dim = 4,
+    .max_batch_size = 8,
+};
+
+const integration_engine_scheduler: EngineConfig = .{
+    .kv_cache_pages = 10,
+    .num_layers = 1,
+    .num_heads = 1,
+    .head_dim = 4,
+    .max_batch_size = 4,
+};
+
 test "inference: demo backend generates text" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .vocab_size = 256,
-        .backend = .demo,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.backend = .demo;
+    var engine = try Engine.init(std.testing.allocator, cfg);
     defer engine.deinit();
 
     var result = try engine.generate(.{
@@ -38,16 +50,10 @@ test "inference: demo backend generates text" {
 }
 
 test "inference: connector backend rejects unsupported provider" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .connector,
-        .model_id = "echo/claude-3-sonnet",
-    });
+    var cfg = integration_engine_light;
+    cfg.backend = .connector;
+    cfg.model_id = "echo/claude-3-sonnet";
+    var engine = try Engine.init(std.testing.allocator, cfg);
     defer engine.deinit();
 
     const result = engine.generate(.{
@@ -61,16 +67,10 @@ test "inference: connector backend rejects unsupported provider" {
 }
 
 test "inference: local backend falls back to demo" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .vocab_size = 256,
-        .backend = .local,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.backend = .local;
+    var engine = try Engine.init(std.testing.allocator, cfg);
     defer engine.deinit();
 
     var result = try engine.generate(.{
@@ -84,14 +84,7 @@ test "inference: local backend falls back to demo" {
 }
 
 test "inference: scheduler accepts and tracks requests" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 10,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 4,
-    });
+    var engine = try Engine.init(std.testing.allocator, integration_engine_scheduler);
     defer engine.deinit();
 
     const ok1 = try engine.submit(.{ .id = 1, .prompt = "query 1", .priority = 100 });
@@ -214,15 +207,10 @@ test "inference: async callback survives prompt reclamation" {
 
     AsyncState.reset();
 
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 4,
-        .vocab_size = 256,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.max_batch_size = 4;
+    var engine = try Engine.init(allocator, cfg);
     defer engine.deinit();
 
     const prompt = try allocator.dupe(u8, "prompt lifetime regression");
@@ -253,15 +241,10 @@ test "inference: engine deinit waits for in-flight async work" {
 
     AsyncState.reset();
 
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 4,
-        .vocab_size = 256,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.max_batch_size = 4;
+    var engine = try Engine.init(allocator, cfg);
 
     const releaser = try std.Thread.spawn(.{}, struct {
         fn run() void {
