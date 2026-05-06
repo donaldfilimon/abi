@@ -4,10 +4,10 @@ Start here when opening a new ABI session.
 
 ## Bootstrap
 
+- ABI is built with **Zig 0.16.0**.
 - Read `AGENTS.md` for agent-specific guidance.
 - Use the pinned Zig version from `.zigversion`.
-- Run `tools/zigly --bootstrap` to install/link Zig and ZLS.
-- On macOS 26.4+ use `./build.sh`; on Linux or older macOS, `zig build` is acceptable.
+- Run `./build.sh --bootstrap` to install/link Zig and ZLS.
 
 ## First Checks
 

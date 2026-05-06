@@ -33,6 +33,7 @@ pub const KernelError = error{
 
 /// GPU feature errors visible at the framework level.
 pub const FrameworkError = error{
+    FeatureDisabled,
     GpuDisabled,
     NoDeviceAvailable,
     InvalidConfig,

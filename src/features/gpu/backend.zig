@@ -254,7 +254,7 @@ const backend_meta = [_]BackendMeta{
             .max_threads_per_block = 256,
             .max_shared_memory_bytes = 4 * 1024 * 1024, // 4MB PLRAM
         },
-        .supports_kernels = true,
+        .supports_kernels = false,
         .aliases = &.{},
     },
     .{
@@ -273,7 +273,7 @@ const backend_meta = [_]BackendMeta{
             .max_threads_per_block = 1024,
             .max_shared_memory_bytes = 128 * 1024,
         },
-        .supports_kernels = true,
+        .supports_kernels = false,
         .aliases = &.{},
     },
     .{

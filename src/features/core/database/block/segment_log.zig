@@ -38,24 +38,20 @@ pub const SegmentLog = struct {
 
         const frame_offset = self.current_offset;
 
-        // Open (or create) the file and seek to the current end offset.
-        const fd = std.posix.open(
-            self.path,
-            .{ .ACCMODE = .WRONLY, .CREAT = true, .APPEND = false },
-            0o644,
-        ) catch return error.OpenFailed;
-        defer std.posix.close(fd);
+        const file = try std.fs.openFileAbsolute(self.path, .{ .mode = .write_only });
+        defer file.close();
 
         // Seek to the write position.
-        _ = std.posix.lseek(fd, @intCast(self.current_offset), .SET) catch return error.SeekFailed;
+        try file.seekTo(self.current_offset);
 
         // Write the length prefix (u32 LE).
         const len: u32 = @intCast(encoded.len);
-        const len_bytes = std.mem.toBytes(len);
-        writeAll(fd, &len_bytes) catch return error.WriteFailed;
+        var len_bytes: [4]u8 = undefined;
+        std.mem.writeInt(u32, &len_bytes, len, .little);
+        try writeAll(file, &len_bytes);
 
         // Write the encoded block data.
-        writeAll(fd, encoded) catch return error.WriteFailed;
+        try writeAll(file, encoded);
 
         self.current_offset += @as(u64, 4) + @as(u64, encoded.len);
 
@@ -64,27 +60,22 @@ pub const SegmentLog = struct {
 
     /// Read a block back from the segment file at the given byte offset.
     pub fn readAt(self: *SegmentLog, offset: u64) !block.StoredBlock {
-        const fd = std.posix.open(
-            self.path,
-            .{ .ACCMODE = .RDONLY },
-            0,
-        ) catch return error.OpenFailed;
-        defer std.posix.close(fd);
+        const file = try std.fs.openFileAbsolute(self.path, .{ .mode = .read_only });
+        defer file.close();
 
         // Seek to the frame offset.
-        _ = std.posix.lseek(fd, @intCast(offset), .SET) catch return error.SeekFailed;
+        try file.seekTo(offset);
 
         // Read the u32 LE length prefix.
         var len_bytes: [4]u8 = undefined;
-        readAll(fd, &len_bytes) catch return error.ReadFailed;
+        try readAll(file, &len_bytes);
         const len = std.mem.readInt(u32, &len_bytes, .little);
 
         // Read the encoded block data.
         const data = try self.allocator.alloc(u8, len);
+        errdefer self.allocator.free(data);
+        try readAll(file, data);
         defer self.allocator.free(data);
-        readAll(fd, data) catch {
-            return error.ReadFailed;
-        };
 
         // Decode and return — the caller owns the decoded payload memory.
         return codec.decodeBlock(self.allocator, data);
@@ -92,22 +83,12 @@ pub const SegmentLog = struct {
 
     // -- helpers --
 
-    fn writeAll(fd: std.posix.fd_t, buf: []const u8) !void {
-        var written: usize = 0;
-        while (written < buf.len) {
-            const n = std.posix.write(fd, buf[written..]) catch return error.WriteFailed;
-            if (n == 0) return error.WriteFailed;
-            written += n;
-        }
+    fn writeAll(file: std.fs.File, buf: []const u8) !void {
+        try file.writer().writeAll(buf);
     }
 
-    fn readAll(fd: std.posix.fd_t, buf: []u8) !void {
-        var total: usize = 0;
-        while (total < buf.len) {
-            const n = std.posix.read(fd, buf[total..]) catch return error.ReadFailed;
-            if (n == 0) return error.ReadFailed;
-            total += n;
-        }
+    fn readAll(file: std.fs.File, buf: []u8) !void {
+        try file.reader().readNoEof(buf);
     }
 };
 

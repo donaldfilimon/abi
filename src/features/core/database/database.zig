@@ -273,13 +273,39 @@ pub const Database = struct {
         else
             items[0].vector.len;
 
+        // Validate all items first before any modifications
         for (items) |item| {
             if (item.vector.len != base_dim) return DatabaseError.InvalidDimension;
+            if (self.findIndex(item.id) != null) return DatabaseError.DuplicateId;
         }
 
         try self.reserve(items.len);
+
+        // Batch insert with optimized vector cloning
         for (items) |item| {
-            try self.insert(item.id, item.vector, item.metadata);
+            const vector_copy = try self.cloneVector(item.vector);
+            errdefer if (self.vector_pool) |pool| pool.free(vector_copy) else self.allocator.free(vector_copy);
+
+            const metadata_copy = if (item.metadata) |meta|
+                try self.allocator.dupe(u8, meta)
+            else
+                null;
+
+            const new_index = self.records.items.len;
+            self.records.appendAssumeCapacity(.{
+                .id = item.id,
+                .vector = vector_copy,
+                .metadata = metadata_copy,
+            });
+
+            // Compute and cache L2 norm for fast similarity computation
+            if (self.config.cache_norms) {
+                const norm = simd.vectorL2Norm(vector_copy);
+                self.cached_norms.appendAssumeCapacity(norm);
+            }
+
+            // Maintain O(1) lookup index
+            self.id_index.putAssumeCapacity(item.id, new_index);
         }
     }
 

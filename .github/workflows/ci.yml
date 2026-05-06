@@ -9,15 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Zig (0.17-dev)
+      - name: Install Zig (0.17.0-dev.251+0db721ec2)
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip
+          sudo apt-get install -y wget unzip xz-utils
           ZIG_VERSION=0.17.0-dev.251+0db721ec2
-          ZIG_DIR=/tmp/zig-x86_64-linux-${ZIG_VERSION}
-          curl -L https://ziglang.org/builds/zig-x86_64-linux-${ZIG_VERSION}.tar.xz -o /tmp/zig.tar.xz
+          ZIG_DIR=/tmp/zig-linux-x86_64-${ZIG_VERSION}
+          curl -L https://ziglang.org/builds/zig-linux-x86_64-${ZIG_VERSION}.tar.xz -o /tmp/zig.tar.xz
           tar -xf /tmp/zig.tar.xz -C /tmp
-          echo "${ZIG_DIR}" >> "$GITHUB_PATH"
+          echo "${ZIG_DIR}" >> $GITHUB_PATH
+          echo "ZIG_PATH=${ZIG_DIR}/zig" >> $GITHUB_ENV
           "${ZIG_DIR}/zig" version
       - name: Preflight: detect stray nested repos
         run: bash ./scripts/detect-nested-repos.sh
@@ -29,7 +30,14 @@ jobs:
             echo "No JWT secret in CI; parity will skip auth-heavy tests."
           fi
           zig build check-parity
-      - name: Run parity tests (subset)
+      - name: Ensure no TODO/FIXME comments
+        run: |
+          if grep -R -n -E "TODO|FIXME" . --exclude-dir=.git --exclude-dir=node_modules; then
+            echo "Error: TODO/FIXME comments present" && exit 1
+          else
+            echo "No TODO/FIXME comments found"
+          fi
+
         if: success() && (env.ABI_JWT_SECRET != '')
         run: |
           zig build test --summary all -- -test-filter "auth|token_tests"

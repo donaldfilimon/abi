@@ -659,6 +659,23 @@ pub const OllamaBackend = struct {
 
 /// Create an LLM client based on configuration
 pub fn createClient(allocator: std.mem.Allocator, llm_config: config.LLMConfig) !ClientWrapper {
+    // External AI check: reject OpenAI/Anthropic/HuggingFace when feature disabled
+    const external_backends = comptime &.{
+        config.LLMConfig.Backend.openai,
+        config.LLMConfig.Backend.anthropic,
+        config.LLMConfig.Backend.huggingface,
+    };
+    if (!build_options.feat_external_ai) {
+        inline for (external_backends) |ext| {
+            if (llm_config.backend == ext) {
+                // Fallback to echo when external AI is disabled
+                const backend = try allocator.create(EchoBackend);
+                backend.* = EchoBackend.init(allocator);
+                return .{ .echo = backend };
+            }
+        }
+    }
+
     switch (llm_config.backend) {
         .echo => {
             const backend = try allocator.create(EchoBackend);

@@ -90,7 +90,15 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
                 .destroy = webgl2_module.destroyKernel,
             };
         } else null,
-        .fpga, .tpu, .simulated => null, // TPU/fpga/simulated kernel ops via other paths
+        .simulated => blk: {
+            const fallback_module = @import("backends/fallback.zig");
+            break :blk .{
+                .compile = fallback_module.compileKernel,
+                .launch = fallback_module.launchKernel,
+                .destroy = fallback_module.destroyKernel,
+            };
+        },
+        .fpga, .tpu => null, // Hardware-specific kernels require runtime loaders.
     };
 }
 
@@ -174,19 +182,24 @@ const opengles_kernel_builders = [_]KernelBuilder{
     &createOpenGlesVectorAddKernel,
 };
 const webgl2_kernel_builders = [_]KernelBuilder{};
-
-const backend_kernel_builders = [_][]const KernelBuilder{
-    cuda_kernel_builders[0..],
-    vulkan_kernel_builders[0..],
-    metal_kernel_builders[0..],
-    webgpu_kernel_builders[0..],
-    opengl_kernel_builders[0..],
-    opengles_kernel_builders[0..],
-    webgl2_kernel_builders[0..],
+const simulated_kernel_builders = [_]KernelBuilder{
+    &createSimulatedVectorAddKernel,
+    &createSimulatedMatMulKernel,
+    &createSimulatedReduceKernel,
 };
 
 fn kernelBuildersForBackend(which_backend: backend.Backend) []const KernelBuilder {
-    return backend_kernel_builders[@intFromEnum(which_backend)];
+    return switch (which_backend) {
+        .cuda => cuda_kernel_builders[0..],
+        .vulkan => vulkan_kernel_builders[0..],
+        .stdgpu => simulated_kernel_builders[0..],
+        .metal => metal_kernel_builders[0..],
+        .webgpu => webgpu_kernel_builders[0..],
+        .opengl => opengl_kernel_builders[0..],
+        .opengles => opengles_kernel_builders[0..],
+        .webgl2, .fpga, .tpu => webgl2_kernel_builders[0..],
+        .simulated => simulated_kernel_builders[0..],
+    };
 }
 
 pub fn createDefaultKernels(allocator: std.mem.Allocator) ![]KernelSource {
@@ -500,6 +513,30 @@ fn createWebGl2PlaceholderKernel(allocator: std.mem.Allocator) KernelBuildError!
         .entry_point = entry_point,
         .backend = .webgl2,
     };
+}
+
+fn createSimulatedKernel(
+    allocator: std.mem.Allocator,
+    name_text: []const u8,
+) KernelBuildError!KernelSource {
+    return .{
+        .name = try allocator.dupe(u8, name_text),
+        .source = try allocator.dupe(u8, name_text),
+        .entry_point = try allocator.dupe(u8, name_text),
+        .backend = .simulated,
+    };
+}
+
+fn createSimulatedVectorAddKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
+    return createSimulatedKernel(allocator, "vector_add");
+}
+
+fn createSimulatedMatMulKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
+    return createSimulatedKernel(allocator, "matmul");
+}
+
+fn createSimulatedReduceKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
+    return createSimulatedKernel(allocator, "reduce_sum");
 }
 
 test "create default kernels for available backends" {

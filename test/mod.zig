@@ -59,6 +59,7 @@ const inference_e2e_tests = @import("integration/inference_e2e_test.zig");
 const pipeline_tests = @import("integration/pipeline_test.zig");
 const cognitive_pipeline_tests = @import("integration/cognitive_pipeline_test.zig");
 const inference_stress_tests = @import("integration/inference_stress_test.zig");
+const spec_traceability_tests = @import("integration/spec_traceability_test.zig");
 
 test {
     std.testing.refAllDecls(@This());

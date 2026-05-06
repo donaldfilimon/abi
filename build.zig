@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
 
             // Define defaults based on project requirements
             var default_val = true;
-            if (std.mem.eql(u8, field.name, "feat_mobile") or std.mem.eql(u8, field.name, "feat_tui")) {
+            if (std.mem.eql(u8, field.name, "feat_mobile") or std.mem.eql(u8, field.name, "feat_tui") or std.mem.eql(u8, field.name, "feat_external_ai")) {
                 default_val = false;
             }
             @field(flags, field.name) = b.option(bool, flag_name, desc) orelse default_val;
@@ -227,17 +227,17 @@ pub fn build(b: *std.Build) void {
         "echo",
         b.fmt(
             \\AI Sub-features:
-            \\  feat_llm={} feat_training={} feat_vision={} feat_explore={} feat_reasoning={}
+            \\  feat_llm={} feat_training={} feat_vision={} feat_explore={} feat_reasoning={} feat_external_ai={}
             \\Protocols:
             \\  feat_lsp={} feat_mcp={} feat_acp={} feat_ha={}
             \\GPU Backends:
             \\  metal={} cuda={} vulkan={} webgpu={} opengl={}
             \\  opengles={} webgl2={} stdgpu={} fpga={} tpu={}
         , .{
-            flags.feat_llm,   flags.feat_training, flags.feat_vision, flags.feat_explore, flags.feat_reasoning,
-            flags.feat_lsp,   flags.feat_mcp,      flags.feat_acp,    flags.feat_ha,      flags.gpu_metal,
-            flags.gpu_cuda,   flags.gpu_vulkan,    flags.gpu_webgpu,  flags.gpu_opengl,   flags.gpu_opengles,
-            flags.gpu_webgl2, flags.gpu_stdgpu,    flags.gpu_fpga,    flags.gpu_tpu,
+            flags.feat_llm,   flags.feat_training, flags.feat_vision, flags.feat_explore, flags.feat_reasoning, flags.feat_external_ai,
+            flags.feat_lsp,   flags.feat_mcp,      flags.feat_acp,    flags.feat_ha,      flags.gpu_metal,      flags.gpu_cuda,
+            flags.gpu_vulkan, flags.gpu_webgpu,    flags.gpu_opengl,  flags.gpu_opengles, flags.gpu_webgl2,     flags.gpu_stdgpu,
+            flags.gpu_fpga,   flags.gpu_tpu,
         }),
     });
     doc2.step.dependOn(&doc1.step);

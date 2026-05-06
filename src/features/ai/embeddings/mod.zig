@@ -3,11 +3,10 @@
 //! Vector embeddings generation for text and other data types.
 //! Provides models for converting text into dense vector representations.
 //!
-//! Supports multiple backends:
-//! - OpenAI (text-embedding-3-small, text-embedding-3-large)
-//! - HuggingFace (sentence-transformers)
-//! - Ollama (local models)
+//! Supports multiple backends (internal-only by default):
+//! - Ollama (local models, default)
 //! - Local transformer (offline)
+//! - Internal WDBX vector store
 //!
 //! ## Example
 //!
@@ -362,8 +361,10 @@ pub const Context = struct {
         self.allocator.destroy(self);
     }
 
-    /// Use OpenAI as the embedding backend.
+    /// Use OpenAI as the embedding backend. (Internal-only mandate: disabled by default)
     pub fn useOpenAI(self: *Context, api_key: []const u8, model_name: []const u8) !void {
+        if (!build_options.feat_external_ai) return error.FeatureDisabled;
+
         // Clean up old backend if any
         if (self.openai_backend) |old| {
             old.deinit();
@@ -380,6 +381,8 @@ pub const Context = struct {
     /// Use OpenAI backend with configuration from environment variables.
     /// Requires ABI_OPENAI_API_KEY or OPENAI_API_KEY to be set.
     pub fn useOpenAIFromEnv(self: *Context) !void {
+        if (!build_options.feat_external_ai) return error.FeatureDisabled;
+
         if (self.openai_backend) |old| {
             old.deinit();
         }

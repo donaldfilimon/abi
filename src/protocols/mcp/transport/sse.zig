@@ -67,13 +67,8 @@ pub const SseResponseCollector = struct {
         }
 
         pub fn print(self: Writer, comptime fmt: []const u8, args: anytype) !void {
-            // Format into the collector buffer
-            var buf: [1024]u8 = undefined;
-            const formatted = std.fmt.bufPrint(&buf, fmt, args) catch {
-                // Fall back to per-byte write for very long formats
-                try std.fmt.format(self, fmt, args);
-                return;
-            };
+            const formatted = try std.fmt.allocPrint(self.collector.allocator, fmt, args);
+            defer self.collector.allocator.free(formatted);
             try self.writeAll(formatted);
         }
 

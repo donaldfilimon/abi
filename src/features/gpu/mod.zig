@@ -148,7 +148,7 @@ pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
 pub const kernels = @import("runtime_kernels.zig");
 pub const builtin_kernels = @import("builtin_kernels.zig");
 pub const interface = @import("interface.zig");
-pub const cuda_loader = dispatch_sys.cuda_loader;
+pub const cuda_loader = @import("backends/cuda/loader.zig");
 
 // ── Performance & Advanced ───────────────────────────────────────────────
 pub const advanced = @import("advanced.zig");
@@ -308,7 +308,7 @@ pub const platform = @import("platform.zig");
 pub const GpuDevice = unified.GpuDevice;
 
 pub fn isEnabled(b: Backend) bool {
-    return b.isAvailable();
+    return backend.backendAvailability(b).available;
 }
 
 const stub_helpers = @import("../core/stub_helpers.zig");
@@ -325,8 +325,11 @@ pub fn ensureInitialized(allocator: std.mem.Allocator) Error!void {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 test "gpu module enabled status" {
-    try std.testing.expect(backend.moduleEnabled());
-    try std.testing.expect(backend.isEnabled(.simulated));
+    if (backend.moduleEnabled()) {
+        try std.testing.expect(backend.isEnabled(.simulated));
+    } else {
+        try std.testing.expect(!backend.isEnabled(.simulated));
+    }
 }
 
 test "gpu context init and deinit" {

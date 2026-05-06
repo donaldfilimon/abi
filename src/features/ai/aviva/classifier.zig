@@ -8,6 +8,7 @@
 //! - Domain detection for specialized handling
 //! - Complexity estimation
 //! - Response format recommendation
+//! - Confidence scoring for classifications
 
 const std = @import("std");
 
@@ -54,6 +55,20 @@ pub const QueryType = enum {
         return switch (self) {
             .factual_query, .documentation => true,
             else => false,
+        };
+    }
+
+    /// Returns the default confidence threshold for this query type.
+    pub fn defaultConfidenceThreshold(self: QueryType) f32 {
+        return switch (self) {
+            .factual_query => 0.8,
+            .documentation => 0.85,
+            .code_request => 0.75,
+            .debugging => 0.7,
+            .explanation => 0.7,
+            .comparison => 0.65,
+            .optimization => 0.7,
+            .general => 0.6,
         };
     }
 };

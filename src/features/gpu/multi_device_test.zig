@@ -1,6 +1,7 @@
 //! Tests for multi-device GPU management.
 
 const std = @import("std");
+const device_mod = @import("device.zig");
 const device_group_mod = @import("device_group.zig");
 const gpu_cluster_mod = @import("gpu_cluster.zig");
 const gradient_sync_mod = @import("gradient_sync.zig");
@@ -91,6 +92,10 @@ test "gpu cluster creation" {
 
 test "gpu cluster wires backend interfaces for initialized contexts" {
     const allocator = std.testing.allocator;
+    const devices = try device_mod.enumerateAllDevices(allocator);
+    defer allocator.free(devices);
+    if (devices.len == 0) return error.SkipZigTest;
+
     var cluster = GPUCluster.init(allocator, .{}) catch |err| {
         if (err == error.GpuDisabled or err == error.OutOfMemory) {
             return error.SkipZigTest;
@@ -98,6 +103,9 @@ test "gpu cluster wires backend interfaces for initialized contexts" {
         return err;
     };
     defer cluster.deinit();
+
+    // If no GPU contexts are initialized, we skip this check
+    if (cluster.gpu_contexts.count() == 0) return error.SkipZigTest;
 
     var wired_dispatcher = false;
     var iter = cluster.gpu_contexts.iterator();
@@ -110,7 +118,7 @@ test "gpu cluster wires backend interfaces for initialized contexts" {
         }
     }
 
-    try std.testing.expect(wired_dispatcher or cluster.gpu_contexts.count() == 0);
+    try std.testing.expect(wired_dispatcher);
 }
 
 test "model partitioning" {

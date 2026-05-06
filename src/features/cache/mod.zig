@@ -26,20 +26,10 @@ pub const CacheError = types.CacheError;
 pub const Error = CacheError;
 pub const CacheEntry = types.CacheEntry;
 pub const CacheStats = types.CacheStats;
-pub const Context = struct {
-    allocator: std.mem.Allocator,
-    config: CacheConfig,
+const foundation = @import("../../foundation/mod.zig");
+const context = @import("../../foundation/context.zig");
 
-    pub fn init(allocator: std.mem.Allocator, config: CacheConfig) !*Context {
-        const ctx = try allocator.create(Context);
-        ctx.* = .{ .allocator = allocator, .config = config };
-        return ctx;
-    }
-
-    pub fn deinit(self: *Context) void {
-        self.allocator.destroy(self);
-    }
-};
+pub const Context = context.FeatureContext(CacheConfig);
 
 // ── Module State ───────────────────────────────────────────────────────
 

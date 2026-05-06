@@ -25,6 +25,12 @@ const shared = @import("shared.zig");
 const async_http = @import("../foundation/mod.zig").utils.async_http;
 const json_utils = @import("../foundation/mod.zig").utils.json;
 
+fn appendJsonValue(allocator: std.mem.Allocator, buffer: *std.ArrayListUnmanaged(u8), value: anytype) !void {
+    var writer: std.Io.Writer.Allocating = .fromArrayList(allocator, buffer);
+    defer buffer.* = writer.toArrayList();
+    try std.json.Stringify.value(value, .{}, &writer.writer);
+}
+
 /// Errors that can occur when interacting with the Ollama API.
 /// Superset of shared.ProviderError with Ollama-specific additions.
 pub const OllamaError = shared.ProviderError || error{
@@ -37,6 +43,10 @@ pub const Config = struct {
     model: []const u8 = "gpt-oss",
     model_owned: bool = false,
     timeout_ms: u32 = 120_000,
+    /// Maximum number of retries for failed requests.
+    max_retries: u32 = 3,
+    /// Base delay between retries in milliseconds (uses exponential backoff).
+    retry_base_delay_ms: u32 = 1000,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
         allocator.free(self.host);
@@ -56,9 +66,21 @@ pub const GenerateRequest = struct {
     options: ?Options = null,
 };
 
+pub const ToolFunction = struct {
+    name: []const u8,
+    description: []const u8,
+    parameters: ?std.json.Value = null,
+};
+
+pub const ToolDefinition = struct {
+    type: []const u8 = "function",
+    function: ToolFunction,
+};
+
 pub const ChatRequest = struct {
     model: []const u8,
     messages: []const Message,
+    tools: ?[]const ToolDefinition = null,
     stream: bool = false,
 };
 
@@ -91,15 +113,31 @@ pub const GenerateResponse = struct {
     }
 };
 
+pub const ToolCall = struct {
+    type: []const u8 = "function",
+    function: struct {
+        name: []const u8,
+        arguments: []const u8,
+    },
+};
+
 pub const ChatResponse = struct {
     model: []const u8,
     message: Message,
     done: bool,
+    tool_calls: ?[]ToolCall = null,
 
     pub fn deinit(self: *ChatResponse, allocator: std.mem.Allocator) void {
         allocator.free(self.model);
         allocator.free(self.message.role);
         allocator.free(self.message.content);
+        if (self.tool_calls) |calls| {
+            for (calls) |call| {
+                allocator.free(call.function.name);
+                allocator.free(call.function.arguments);
+            }
+            allocator.free(calls);
+        }
         self.* = undefined;
     }
 };
@@ -217,7 +255,30 @@ pub const Client = struct {
 
         try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 
-        try json_str.appendSlice(self.allocator, "]}");
+        try json_str.appendSlice(self.allocator, "]");
+
+        // Add tools if provided
+        if (request.tools) |tools| {
+            try json_str.appendSlice(self.allocator, ",\"tools\":[");
+            for (tools, 0..) |tool, i| {
+                if (i > 0) try json_str.appendSlice(self.allocator, ",");
+                try json_str.appendSlice(self.allocator, "{\"type\":\"");
+                try json_utils.appendJsonEscaped(self.allocator, &json_str, tool.type);
+                try json_str.appendSlice(self.allocator, "\",\"function\":{\"name\":\"");
+                try json_utils.appendJsonEscaped(self.allocator, &json_str, tool.function.name);
+                try json_str.appendSlice(self.allocator, "\",\"description\":\"");
+                try json_utils.appendJsonEscaped(self.allocator, &json_str, tool.function.description);
+                if (tool.function.parameters) |params| {
+                    try json_str.appendSlice(self.allocator, "\",\"parameters\":");
+                    try appendJsonValue(self.allocator, &json_str, params);
+                }
+                try json_str.appendSlice(self.allocator, "}}");
+            }
+            try json_str.appendSlice(self.allocator, "]");
+        }
+
+        try json_str.appendSlice(self.allocator, ",\"stream\":");
+        try json_str.appendSlice(self.allocator, if (request.stream) "true}" else "false}");
 
         return json_str.toOwnedSlice(self.allocator);
     }
@@ -285,6 +346,63 @@ pub const Client = struct {
         errdefer self.allocator.free(content);
         const done = try json_utils.parseBoolField(object, "done");
 
+        // Parse tool_calls if present - improved implementation
+        var tool_calls: ?[]ToolCall = null;
+        errdefer if (tool_calls) |calls| {
+            for (calls) |call| {
+                self.allocator.free(call.function.name);
+                self.allocator.free(call.function.arguments);
+            }
+            self.allocator.free(calls);
+        };
+
+        if (message_obj.get("tool_calls")) |tool_calls_val| {
+            if (tool_calls_val == .array) {
+                const calls = try self.allocator.alloc(ToolCall, tool_calls_val.array.items.len);
+                errdefer self.allocator.free(calls);
+
+                for (tool_calls_val.array.items, 0..) |item, i| {
+                    const func_obj = try json_utils.getRequiredObject(item);
+
+                    // Extract function name
+                    const func_name = try json_utils.parseStringField(func_obj, "name", self.allocator);
+                    errdefer if (i < calls.len and calls[i].function.arguments.len == 0) {
+                        self.allocator.free(func_name);
+                    };
+
+                    // Extract arguments - handle both string and object formats
+                    const args_str = blk: {
+                        if (func_obj.get("arguments")) |args_val| {
+                            switch (args_val) {
+                                .string => |s| {
+                                    break :blk try self.allocator.dupe(u8, s);
+                                },
+                                .object, .array => {
+                                    // Serialize object/array to JSON string
+                                    var args_buf = std.ArrayListUnmanaged(u8).empty;
+                                    defer args_buf.deinit(self.allocator);
+                                    try appendJsonValue(self.allocator, &args_buf, args_val);
+                                    break :blk try args_buf.toOwnedSlice(self.allocator);
+                                },
+                                else => {
+                                    // For other types, convert to string representation
+                                    break :blk try std.fmt.allocPrint(self.allocator, "{any}", .{args_val});
+                                },
+                            }
+                        }
+                        // No arguments field - return empty string
+                        break :blk try self.allocator.dupe(u8, "");
+                    };
+
+                    calls[i] = .{
+                        .function = .{ .name = func_name, .arguments = args_str },
+                    };
+                }
+
+                tool_calls = calls;
+            }
+        }
+
         return ChatResponse{
             .model = model,
             .message = .{
@@ -292,6 +410,7 @@ pub const Client = struct {
                 .content = content,
             },
             .done = done,
+            .tool_calls = tool_calls,
         };
     }
 };
@@ -324,11 +443,27 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         break :blk m;
     } else try allocator.dupe(u8, "gpt-oss");
 
+    // Get timeout from environment if set
+    const timeout_ms: u32 = blk: {
+        const env_vars = [_][:0]const u8{ "ABI_OLLAMA_TIMEOUT_MS", "OLLAMA_TIMEOUT_MS" };
+        var found: ?[:0]const u8 = null;
+        for (env_vars) |var_name| {
+            if (std.c.getenv(var_name.ptr)) |val| {
+                found = std.mem.span(val);
+                break;
+            }
+        }
+        if (found) |val| {
+            break :blk std.fmt.parseInt(u32, val, 10) catch 120_000;
+        }
+        break :blk 120_000;
+    };
+
     return .{
         .host = host,
         .model = model,
         .model_owned = true,
-        .timeout_ms = 120_000,
+        .timeout_ms = timeout_ms,
     };
 }
 

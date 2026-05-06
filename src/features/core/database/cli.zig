@@ -180,19 +180,41 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     const parsed = parseCommonArgs(args);
 
-    const id_value = parsed.id orelse return error.MissingId;
+    const id_value = parsed.id orelse {
+        std.debug.print("Error: --id is required for add command.\n", .{});
+        std.debug.print("Usage: abi db add --id <id> (--vector <csv> | --embed <text>) [--meta <text>] [--db <path>]\n", .{});
+        return;
+    };
     const vector = resolveVector(allocator, parsed) catch |err| {
         std.debug.print("Error resolving vector: {s}\n", .{@errorName(err)});
+        std.debug.print("Hint: For --vector, provide comma-separated floats (e.g., '0.1,0.2,0.3').\n", .{});
+        std.debug.print("      For --embed, ensure AI features are enabled (rebuild with -Dfeat-ai=true).\n", .{});
         if (err == error.OutOfMemory) return err;
         return;
     };
     defer allocator.free(vector);
 
-    var ctx = try DbContext.init(allocator, parsed.path);
+    var ctx = DbContext.init(allocator, parsed.path) catch |err| {
+        std.debug.print("Error opening database: {s}\n", .{@errorName(err)});
+        if (err == error.FileNotFound) {
+            std.debug.print("Hint: Check the database path or the file will be created.\n", .{});
+        }
+        return err;
+    };
     defer ctx.deinit();
 
-    try semantic_store.insertVector(&ctx.handle, id_value, vector, parsed.meta);
-    try ctx.persist();
+    semantic_store.insertVector(&ctx.handle, id_value, vector, parsed.meta) catch |err| {
+        std.debug.print("Error inserting vector {d}: {s}\n", .{ id_value, @errorName(err) });
+        if (err == error.InvalidDimension) {
+            std.debug.print("Hint: All vectors must have the same dimension ({d}).\n", .{ctx.handle.db.records.items[0].vector.len});
+        } else if (err == error.DuplicateId) {
+            std.debug.print("Hint: Vector with id {d} already exists. Use a different id or delete the existing vector first.\n", .{id_value});
+        }
+        return err;
+    };
+    ctx.persist() catch |err| {
+        std.debug.print("Warning: Failed to persist database: {s}\n", .{@errorName(err)});
+    };
     std.debug.print("Inserted vector {d} (dim {d}).\n", .{ id_value, vector.len });
 }
 

@@ -9,7 +9,7 @@ echo "=== MCP-ACP Interop Check ==="
 # 1) MCP health (multi-HA)
 if command -v bash >/dev/null 2>&1; then
   if [ -f scripts/check-mcp-health.sh ]; then
-    bash scripts/check-mcp-health.sh || true
+    bash scripts/check-mcp-health.sh
   fi
 fi
 

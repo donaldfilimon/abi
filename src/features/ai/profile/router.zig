@@ -19,6 +19,7 @@ const RoutingConfig = types.RoutingConfig;
 const ProfileResponse = types.ProfileResponse;
 const ProfileError = types.ProfileError;
 const ProfileRegistry = registry_mod.ProfileRegistry;
+const strategyFromWeights = types.strategyFromWeights;
 
 const ai_types = @import("../types.zig");
 const abi_mod = @import("../abi/mod.zig");
@@ -129,15 +130,9 @@ pub const MultiProfileRouter_Internal = struct {
             decision.weights.abi = abi_result.modulated_score;
             decision.weights.normalize();
 
-            // Recalculate primary after modulation
-            decision.primary = if (decision.weights.abbey >= decision.weights.aviva and decision.weights.abbey >= decision.weights.abi)
-                ProfileId.abbey
-            else if (decision.weights.aviva >= decision.weights.abi)
-                ProfileId.aviva
-            else
-                ProfileId.abi;
-
+            decision.primary = decision.weights.primary();
             decision.confidence = decision.weights.forProfile(decision.primary);
+            decision.strategy = strategyFromWeights(decision.weights);
         }
 
         return decision;
@@ -189,23 +184,13 @@ pub const MultiProfileRouter_Internal = struct {
 
         weights.normalize();
 
-        // Determine primary profile from weights
-        const primary = if (weights.abbey >= weights.aviva and weights.abbey >= weights.abi)
-            ProfileId.abbey
-        else if (weights.aviva >= weights.abi)
-            ProfileId.aviva
-        else
-            ProfileId.abi;
+        const primary = weights.primary();
 
         // Determine strategy based on confidence and policy
         const strategy: RoutingStrategy = if (!abi_decision.policy_flags.is_safe)
             .single // Policy violations always route to single profile (Abi)
-        else if (abi_decision.confidence < 0.5)
-            .parallel // Low confidence → try multiple profiles
-        else if (abi_decision.confidence < 0.7 and primary != .abi)
-            .consensus // Medium confidence → blend responses
         else
-            .single; // High confidence → single profile
+            strategyFromWeights(weights);
 
         return .{
             .primary = primary,
@@ -270,20 +255,13 @@ pub const MultiProfileRouter_Internal = struct {
 
         weights.normalize();
 
-        // Determine primary profile
-        const primary = if (weights.abbey >= weights.aviva and weights.abbey >= weights.abi)
-            ProfileId.abbey
-        else if (weights.aviva >= weights.abi)
-            ProfileId.aviva
-        else
-            ProfileId.abi;
-
+        const primary = weights.primary();
         const confidence = weights.forProfile(primary);
 
         return .{
             .primary = primary,
             .weights = weights,
-            .strategy = if (confidence < 0.5) .parallel else .single,
+            .strategy = strategyFromWeights(weights),
             .confidence = confidence,
             .reason = switch (primary) {
                 .abbey => "Conversational or exploratory query routed to Abbey",

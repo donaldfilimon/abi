@@ -291,7 +291,7 @@ pub fn calculateOccupancy(
 ) OccupancyInfo {
     const blocks_per_sm = @min(
         device_max_threads / block_size,
-        if (device_shared_mem > 0)
+        if (device_shared_mem > 0 and shared_mem_per_block > 0)
             @divFloor(device_shared_mem, shared_mem_per_block)
         else
             999,

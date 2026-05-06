@@ -43,6 +43,8 @@ pub const ConversationBlock = struct {
 
     // References (R_t)
     parent_block_id: ?u64 = null,
+    skip_pointer: ?u64 = null,
+    summary_pointer: ?u64 = null,
 
     // Integrity (H_t)
     hash: [32]u8, // SHA-256 hash of block content
@@ -71,6 +73,8 @@ pub const ConversationBlock = struct {
             .policy_flags = config.policy_flags,
             .commit_timestamp = now,
             .parent_block_id = config.parent_block_id,
+            .skip_pointer = config.skip_pointer,
+            .summary_pointer = config.summary_pointer,
             .hash = block_hash,
             .previous_hash = config.previous_hash,
             .timestamp = now,
@@ -239,11 +243,28 @@ pub const BlockChain = struct {
 
     /// Add a new block to the chain
     pub fn addBlock(self: *Self, config: BlockConfig) !u64 {
+        var resolved_config = config;
+        if (resolved_config.parent_block_id == null) {
+            resolved_config.parent_block_id = self.current_head;
+        }
+        if (std.mem.allEqual(u8, &resolved_config.previous_hash, 0)) {
+            if (resolved_config.parent_block_id) |parent_id| {
+                if (self.blocks.get(parent_id)) |parent| {
+                    resolved_config.previous_hash = parent.hash;
+                }
+            }
+        }
+        if (resolved_config.skip_pointer == null) {
+            if (resolved_config.parent_block_id) |parent_id| {
+                resolved_config.skip_pointer = self.calculateSkipPointer(parent_id) catch null;
+            }
+        }
+
         // Generate block ID from timestamp and hash
-        const block_id = generateBlockId(config);
+        const block_id = generateBlockId(resolved_config);
 
         // Create the block
-        var block = try ConversationBlock.create(self.allocator, config);
+        var block = try ConversationBlock.create(self.allocator, resolved_config);
         errdefer block.deinit(self.allocator);
 
         // Store block in memory
@@ -354,9 +375,10 @@ pub const BlockChain = struct {
         while (current_id) |id| {
             const block = self.blocks.get(id) orelse return error.BlockNotFound;
             if (block.parent_block_id) |parent_id| {
-                _ = self.blocks.get(parent_id) orelse return error.BlockNotFound;
-                // Note: In a fully cryptographic chain, we would verify:
-                // if (!std.mem.eql(u8, &block.previous_hash, &parent_block.hash)) return false;
+                const parent_block = self.blocks.get(parent_id) orelse return error.BlockNotFound;
+                if (!std.mem.eql(u8, &block.previous_hash, &parent_block.hash)) return false;
+            } else if (!std.mem.allEqual(u8, &block.previous_hash, 0)) {
+                return false;
             }
             current_id = block.parent_block_id;
         }

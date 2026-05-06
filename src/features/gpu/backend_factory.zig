@@ -86,10 +86,32 @@ pub const BackendInstance = struct {
     max_threads_per_block: u32,
     /// Total device memory in bytes (null if unknown).
     total_memory: ?u64,
+    /// Currently used device memory in bytes (null if unknown).
+    used_memory: ?u64 = null,
 
     /// Check if this backend supports a specific feature.
     pub fn supportsFeature(self: *const BackendInstance, feature: BackendFeature) bool {
         return backendSupportsFeature(self.backend_type, feature);
+    }
+
+    /// Update memory usage information if supported by backend.
+    pub fn updateMemoryUsage(self: *BackendInstance) void {
+        // In a real implementation, this would query the backend for actual usage
+        // For now, we track it as a field that can be updated externally
+        _ = self;
+    }
+
+    /// Get available memory in bytes.
+    pub fn availableMemory(self: *const BackendInstance) ?u64 {
+        if (self.total_memory == null or self.used_memory == null) return null;
+        return self.total_memory.? - self.used_memory.?;
+    }
+
+    /// Get memory usage as a percentage.
+    pub fn memoryUsagePercent(self: *const BackendInstance) ?f32 {
+        if (self.total_memory == null or self.used_memory == null) return null;
+        if (self.total_memory.? == 0) return null;
+        return @as(f32, @floatFromInt(self.used_memory.?)) / @as(f32, @floatFromInt(self.total_memory.?)) * 100.0;
     }
 };
 
@@ -211,13 +233,40 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
 }
 
 /// Create the best available backend based on hardware detection.
+/// Provides detailed error messages via stderr when no backend is available.
 pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInstance {
     const priorities = priorityList();
+    var attempted: [16]Backend = undefined;
+    var attempted_count: usize = 0;
+
     for (priorities.slice()) |backend_type| {
         if (isBackendAvailable(backend_type)) {
-            return createBackend(allocator, backend_type) catch continue;
+            const result = createBackend(allocator, backend_type);
+            if (result) |instance| {
+                return instance;
+            } else |err| {
+                // Log the failure but continue to next backend
+                if (attempted_count < attempted.len) {
+                    attempted[attempted_count] = backend_type;
+                    attempted_count += 1;
+                }
+                std.debug.print("Warning: Backend {s} failed to initialize: {s}\n", .{ @tagName(backend_type), @errorName(err) });
+                continue;
+            }
         }
     }
+
+    // No backend available - provide helpful message
+    std.debug.print("Error: No GPU backends available.\n", .{});
+    if (attempted_count > 0) {
+        std.debug.print("Attempted backends that failed:", .{});
+        for (attempted[0..attempted_count]) |b| {
+            std.debug.print(" {s}", .{@tagName(b)});
+        }
+        std.debug.print("\n", .{});
+    }
+    std.debug.print("Falling back to CPU emulation (stdgpu/simulated).\n", .{});
+    std.debug.print("Hint: Ensure GPU drivers are installed for your hardware.\n", .{});
     return FactoryError.NoBackendsAvailable;
 }
 
@@ -430,7 +479,7 @@ fn meetsFeatureRequirements(backend_type: Backend, features: []const BackendFeat
     return true;
 }
 
-fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bool {
+pub fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bool {
     return switch (feature) {
         .fp16 => backend_type == .cuda or backend_type == .metal,
         .fp64 => backend_type == .cuda,

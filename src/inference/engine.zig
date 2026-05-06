@@ -177,16 +177,36 @@ pub const Engine = struct {
         self.async_mu.lock();
         const closing = self.closing_async;
         self.async_mu.unlock();
-        if (closing) return error.ShutdownInProgress;
+        if (closing) {
+            std.debug.print("Error: Engine is shutting down, cannot process new requests.\n", .{});
+            return error.ShutdownInProgress;
+        }
+
+        if (request.prompt.len == 0) {
+            std.debug.print("Error: Cannot generate with empty prompt.\n", .{});
+            return error.EmptyPrompt;
+        }
 
         self.generation_mu.lock();
         defer self.generation_mu.unlock();
 
-        return switch (self.config.backend) {
+        const result = switch (self.config.backend) {
             .demo => self.generateDemo(request),
             .connector => self.generateConnector(request),
             .local => self.generateLocal(request),
         };
+        if (result) |_| {} else |err| {
+            std.debug.print("Error generating response: {s}\n", .{@errorName(err)});
+            if (err == error.UnsupportedProvider) {
+                std.debug.print("Hint: Use 'provider/model' format (e.g., 'ollama/abbeycode').\n", .{});
+                std.debug.print("      Available providers: ollama, openai, anthropic, gemini, etc.\n", .{});
+            } else if (err == error.ModelNotAvailable) {
+                std.debug.print("Hint: Ensure the model '{s}' is available from the provider.\n", .{self.config.model_id});
+            }
+            return err;
+        }
+
+        return result;
     }
 
     /// Connector-backed generation: constructs a response using the prompt

@@ -33,6 +33,40 @@ pub const ProfileId = enum {
             .abi => "Adaptive Moderator",
         };
     }
+
+    /// Tone contract from the Abbey/Aviva/Abi spec.
+    pub fn tone(self: ProfileId) []const u8 {
+        return switch (self) {
+            .abbey => "Warm, calm, collaborative, and technically capable",
+            .aviva => "Sharp, efficient, factual, and concise",
+            .abi => "Policy-aware, transparent, adaptive, and moderating",
+        };
+    }
+
+    /// Primary behavior contract for routing and response shaping.
+    pub fn behaviorContract(self: ProfileId) []const u8 {
+        return switch (self) {
+            .abbey => "Acknowledge emotion when present, explain clearly, and keep progress actionable",
+            .aviva => "Answer directly with minimal framing, high factual density, and execution-ready code",
+            .abi => "Analyze intent, policy, sentiment, and context before selecting or blending profiles",
+        };
+    }
+
+    /// Default generation settings used by profile-aware callers.
+    pub fn generationDefaults(self: ProfileId) GenerationDefaults {
+        return switch (self) {
+            .abbey => .{ .temperature = 0.6, .max_tokens = 1024, .include_empathy = true, .include_policy_rationale = false },
+            .aviva => .{ .temperature = 0.2, .max_tokens = 768, .include_empathy = false, .include_policy_rationale = false },
+            .abi => .{ .temperature = 0.3, .max_tokens = 896, .include_empathy = false, .include_policy_rationale = true },
+        };
+    }
+};
+
+pub const GenerationDefaults = struct {
+    temperature: f32,
+    max_tokens: u32,
+    include_empathy: bool,
+    include_policy_rationale: bool,
 };
 
 /// Lifecycle state of a profile instance.
@@ -86,10 +120,35 @@ pub const RoutingDecision = struct {
                 self.abbey /= total;
                 self.aviva /= total;
                 self.abi /= total;
+            } else {
+                self.abbey = 0.5;
+                self.aviva = 0.3;
+                self.abi = 0.2;
             }
+        }
+
+        pub fn primary(self: Weights) ProfileId {
+            if (self.abbey >= self.aviva and self.abbey >= self.abi) return .abbey;
+            if (self.aviva >= self.abi) return .aviva;
+            return .abi;
+        }
+
+        pub fn sum(self: Weights) f32 {
+            return self.abbey + self.aviva + self.abi;
         }
     };
 };
+
+/// Spec routing thresholds:
+/// - primary > 0.9: single profile
+/// - primary in [0.5, 0.9]: parallel/blended execution
+/// - no clear primary: consensus
+pub fn strategyFromWeights(weights: RoutingDecision.Weights) RoutingStrategy {
+    const primary_weight = weights.forProfile(weights.primary());
+    if (primary_weight > 0.9) return .single;
+    if (primary_weight >= 0.5) return .parallel;
+    return .consensus;
+}
 
 /// A response produced by a profile.
 ///

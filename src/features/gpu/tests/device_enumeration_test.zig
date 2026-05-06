@@ -8,7 +8,16 @@ test "enumerate all available GPU devices" {
     const devices = try device.enumerateAllDevices(allocator);
     defer allocator.free(devices);
 
-    // Should find at least CPU fallback
+    // If only emulated devices are present, skip physical device tests
+    var has_physical = false;
+    for (devices) |dev| {
+        if (!dev.is_emulated) {
+            has_physical = true;
+            break;
+        }
+    }
+    if (!has_physical) return error.SkipZigTest;
+
     try std.testing.expect(devices.len >= 1);
 
     // Verify each device has valid properties

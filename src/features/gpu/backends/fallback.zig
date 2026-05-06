@@ -21,7 +21,12 @@ pub fn compileKernel(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
 ) types.KernelError!*anyopaque {
-    return simulated.compile(allocator, source);
+    return simulated.compile(allocator, source) catch |err| switch (err) {
+        error.UnsupportedKernel => return types.KernelError.UnsupportedKernel,
+        error.ArgumentCountMismatch => return types.KernelError.ArgumentCountMismatch,
+        error.InvalidArguments => return types.KernelError.InvalidArguments,
+        else => return types.KernelError.CompilationFailed,
+    };
 }
 
 pub fn launchKernel(
@@ -78,7 +83,7 @@ pub fn memcpyHostToDevice(
     size: usize,
 ) DeviceMemoryError!void {
     const allocation = try getAllocation(dst);
-    const src_bytes: [*]const u8 = pointer_cast.implCast([*]const u8, src);
+    const src_bytes: [*]const u8 = @ptrCast(@alignCast(src));
     try validateCopy(allocation.bytes.len, size);
     std.mem.copyForwards(u8, allocation.bytes[0..size], src_bytes[0..size]);
 }
@@ -89,7 +94,7 @@ pub fn memcpyDeviceToHost(
     size: usize,
 ) DeviceMemoryError!void {
     const allocation = try getAllocation(src);
-    const dst_bytes: [*]u8 = pointer_cast.implCast([*]u8, dst);
+    const dst_bytes: [*]u8 = @ptrCast(@alignCast(dst));
     try validateCopy(allocation.bytes.len, size);
     std.mem.copyForwards(u8, dst_bytes[0..size], allocation.bytes[0..size]);
 }
@@ -111,9 +116,9 @@ pub fn deviceSlice(ptr: *anyopaque) DeviceMemoryError![]u8 {
     return allocation.bytes;
 }
 
-fn getAllocation(ptr: anyopaque) DeviceMemoryError!*DeviceAllocation {
+fn getAllocation(ptr: *const anyopaque) DeviceMemoryError!*DeviceAllocation {
     if (@intFromPtr(ptr) == 0) return DeviceMemoryError.InvalidDeviceMemory;
-    return pointer_cast.implCast(DeviceAllocation, ptr);
+    return @ptrCast(@alignCast(@constCast(ptr)));
 }
 
 fn validateCopy(available: usize, size: usize) DeviceMemoryError!void {

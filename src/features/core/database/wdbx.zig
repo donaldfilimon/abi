@@ -74,7 +74,32 @@ pub fn insertVector(
 }
 
 pub fn insertBatch(handle: *DatabaseHandle, items: []const BatchItem) !void {
+    if (items.len == 0) return;
+
+    // Pre-allocate to avoid incremental rehashing
+    try handle.db.reserve(items.len);
+
+    // Use the optimized batch insert
     try handle.db.insertBatch(items);
+}
+
+/// Optimized batch insert with progress callback.
+/// The `progress_fn` is called with (completed_count, total_count) after each insert.
+pub fn insertBatchWithProgress(
+    handle: *DatabaseHandle,
+    items: []const BatchItem,
+    progress_fn: ?*const fn (completed: usize, total: usize) void,
+) !void {
+    if (items.len == 0) return;
+
+    try handle.db.reserve(items.len);
+
+    for (items, 0..) |item, i| {
+        try handle.db.insert(item.id, item.vector, item.metadata);
+        if (progress_fn) |fn_ptr| {
+            fn_ptr(i + 1, items.len);
+        }
+    }
 }
 
 pub fn searchVectors(

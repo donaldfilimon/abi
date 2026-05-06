@@ -3,6 +3,8 @@
 const std = @import("std");
 const advanced_cognition = @import("../abbey/advanced.zig");
 const backend_dispatch = @import("agent/dispatch.zig");
+const time = @import("../../../foundation/mod.zig").time;
+const learning = @import("../learning.zig");
 const types = @import("types.zig");
 
 pub const MIN_TEMPERATURE = types.MIN_TEMPERATURE;
@@ -94,7 +96,10 @@ pub const Agent = struct {
             });
         }
 
+        const start_ns = time.timestampNs();
         const response = try self.generateResponse(input, allocator);
+        const elapsed_ns = time.timestampNs() - start_ns;
+        const latency_ms: f32 = @as(f32, @floatFromInt(elapsed_ns)) / 1_000_000.0;
 
         if (self.config.enable_history) {
             const response_copy = try self.allocator.dupe(u8, response);
@@ -102,6 +107,21 @@ pub const Agent = struct {
                 .role = .assistant,
                 .content = response_copy,
             });
+        }
+
+        if (self.config.learning_telemetry) {
+            var runtime = learning.LearningRuntime.init(self.allocator) catch null;
+            if (runtime) |*rt| {
+                defer rt.deinit();
+                rt.recordInteraction(.{
+                    .prompt = input,
+                    .response = response,
+                    .profile = "agent",
+                    .backend = @tagName(self.config.backend),
+                    .latency_ms = latency_ms,
+                    .selected_model = self.config.model,
+                }) catch {};
+            }
         }
 
         return response;

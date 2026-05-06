@@ -1,15 +1,15 @@
 # GEMINI.md — ABI Framework
 
-This file provides guidance to Google Gemini when working with code in this repository. See also `CLAUDE.md` for the canonical long-form engineering guidance.
+This file provides guidance to Google Gemini when working with code in this repository. See also CLAUDE.md and QWEN.md for parallel AI-specific guidance.
 
 ## Project Overview
 
-ABI is a **Zig 0.17 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime. This repository implements a multi-AI orchestration system (Abbey-Aviva-Abi pipeline) with constitutional AI governance.
+ABI is a **Zig 0.16.0 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime. This repository implements a multi-AI orchestration system (Abbey-Aviva-Abi pipeline) with constitutional AI governance.
 
 ## Quick Reference
 
-- **Entry point**: `src/root.zig` (exported as `@import("abi")`, with grouped public wiring in `src/public/`)
-- **Zig version**: Pinned in `.zigversion` (0.17.0-dev)
+- **Entry point**: `src/root.zig` (exported as `@import("abi")`)
+- **Zig version**: Pinned in `.zigversion` (0.16.0)
 - **Build wrapper**: `./build.sh` (macOS 26.4+) / `zig build` (Linux)
 - **Test gate**: `./build.sh check` or `zig build check`
 - **Parity check**: `zig build check-parity` (required after API changes)
@@ -30,14 +30,13 @@ Input → Abi Analyzer → Adaptive Modulator (EMA learning) → Router → Prof
 
 | Directory         | Purpose                                        |
 | ----------------- | ---------------------------------------------- |
-| `src/features/core/` | Framework lifecycle, config, registry       |
+| `src/core/`       | Framework lifecycle, config, registry          |
 | `src/features/`   | 21 feature modules (mod/stub/types pattern)    |
 | `src/foundation/` | Utilities: logging, security, time, SIMD, sync |
 | `src/runtime/`    | Task scheduling, event loops, concurrency      |
 | `src/inference/`  | ML engine: scheduler, sampler, KV cache        |
 | `src/connectors/` | LLM providers (OpenAI, Anthropic, etc.)        |
 | `src/protocols/`  | MCP, ACP, LSP, HA protocol implementations     |
-| `src/public/`     | Public root wiring re-exported by `src/root.zig` |
 
 ### The Mod/Stub Pattern
 
@@ -119,13 +118,12 @@ test {
 
 **Known pre-existing failures**: 2 inference engine connector tests, 1 auth integration test (not regressions).
 
-### Zig 0.16 Gotchas
+### Zig 0.16.0 Patterns
 
 - `ArrayListUnmanaged` init: `.empty` not `.{}`
-- `std.BoundedArray` removed: use manual `buffer: [N]T` + `len`
-- `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
 - Entry point: `pub fn main(init: std.process.Init) !void`
 - `std.mem.trimRight` renamed to `std.mem.trimEnd`
+- `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
 
 ## AI Feature Structure (`src/features/ai/`)
 
@@ -161,9 +159,9 @@ test {
 | File                      | Purpose                        |
 | ------------------------- | ------------------------------ |
 | `CLAUDE.md`               | Detailed Claude Code guidance  |
+| `QWEN.md`                 | Qwen-specific guidance         |
 | `AGENTS.md`               | Project-wide agent conventions |
 | `.zigversion`             | Pinned Zig version             |
-| `src/public/`             | Public ABI root wiring         |
 | `build.sh`                | macOS 26.4+ build wrapper      |
 | `tools/zigly`             | Zig version manager            |
 | `docs/spec/ABBEY-SPEC.md` | Comprehensive mega-spec        |

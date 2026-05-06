@@ -2,6 +2,11 @@
 
 Use `ONBOARDING.md` first, then this map when planning implementation work. See `GLOSSARY.md` for terminology.
 
+## Core Information
+- **Zig Version**: 0.16.0
+- **Framework Entrypoint**: `src/root.zig` (`abi` module)
+- **Build System**: `./build.sh` (automatic) or `zig build`
+
 ## Entry Points
 
 - `src/root.zig` re-exports the public `abi` module surface.

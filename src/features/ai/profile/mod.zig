@@ -42,6 +42,8 @@ pub const ProfileMessage = types.ProfileMessage;
 pub const MessageKind = types.MessageKind;
 pub const RoutingConfig = types.RoutingConfig;
 pub const ProfileError = types.ProfileError;
+pub const GenerationDefaults = types.GenerationDefaults;
+pub const strategyFromWeights = types.strategyFromWeights;
 
 // Internal exports for mod/stub parity
 pub const MultiProfileConfig_Internal = registry.MultiProfileConfig_Internal;

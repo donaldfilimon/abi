@@ -53,6 +53,28 @@ pub const AbbeyConfig = struct {
         }
     }
 
+    /// Clean up allocated resources.
+    /// Call only if the config owns its string fields (e.g., loaded via loadFromEnvironment).
+    /// Default struct literals use comptime string literals that must not be freed.
+    pub fn deinit(self: *const AbbeyConfig, allocator: std.mem.Allocator) void {
+        // Free optional allocated strings
+        if (self.llm.api_key) |key| allocator.free(key);
+        if (self.llm.base_url) |url| allocator.free(url);
+
+        // Free model if not the default string literal
+        // Note: This heuristic works because the default is "gpt-4" (comptime) and
+        // loadFromEnvironment allocates via allocator.dupe()
+        if (self.llm.model.ptr != @as([]const u8, "gpt-4").ptr) {
+            allocator.free(self.llm.model);
+        }
+
+        // Free discord fields if not default string literals
+        if (self.discord.bot_token) |token| allocator.free(token);
+        if (self.discord.command_prefix.ptr != @as([]const u8, "!abbey").ptr) {
+            allocator.free(self.discord.command_prefix);
+        }
+    }
+
     pub fn withLLMBackend(self: AbbeyConfig, backend: LLMConfig.Backend) AbbeyConfig {
         var config = self;
         config.llm.backend = backend;

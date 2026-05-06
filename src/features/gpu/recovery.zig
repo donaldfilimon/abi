@@ -105,14 +105,7 @@ pub const RecoveryManager = struct {
             return a.backend_type == b.backend_type and a.device_id == b.device_id;
         }
 
-        pub fn format(
-            self: DeviceKey,
-            comptime fmt: []const u8,
-            options: std.fmt.FormatOptions,
-            writer: anytype,
-        ) !void {
-            _ = fmt;
-            _ = options;
+        pub fn format(self: DeviceKey, writer: *std.Io.Writer) !void {
             try writer.print("DeviceKey({s}, {d})", .{
                 @tagName(self.backend_type),
                 self.device_id,
@@ -326,7 +319,7 @@ pub const RecoveryManager = struct {
 
         // Record in history
         self.recordRecovery(key, strategy, result.action != .fail, state.recovery_attempts) catch {
-            std.log.warn("gpu_recovery: failed to record recovery history for key: {d}", .{key});
+            std.log.warn("gpu_recovery: failed to record recovery history for key: {f}", .{key});
         };
 
         // Emit recovery completed event

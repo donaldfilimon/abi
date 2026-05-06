@@ -2,7 +2,7 @@
   "mcpServers": {
     "abi-mcp-1": {
       "command": "./mcp/launcher.sh",
-      "args": ["stdio"],
+      "args": ["sse"],
       "workDir": ".",
       "env": {
         "LOG_LEVEL": "info",
@@ -22,7 +22,7 @@
     },
     "abi-mcp-2": {
       "command": "./mcp/launcher.sh",
-      "args": ["stdio"],
+      "args": ["sse"],
       "workDir": ".",
       "env": {
         "LOG_LEVEL": "info",

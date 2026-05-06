@@ -9,6 +9,18 @@ pub const KernelError = error{
     UnsupportedBackend,
     MissingDevice,
     DispatchFailed,
+    UnsupportedKernel,
+    ArgumentCountMismatch,
+    OutOfMemory,
+};
+
+pub const KernelSourceFormat = enum {
+    cuda,
+    spirv,
+    wgsl,
+    glsl,
+    msl,
+    source,
 };
 
 pub const BackendDetectionLevel = enum {
@@ -22,6 +34,7 @@ pub const KernelSource = struct {
     source: []const u8,
     entry_point: []const u8 = "main",
     backend: backend.Backend,
+    format: KernelSourceFormat = .source,
 
     pub fn deinit(self: *KernelSource, allocator: std.mem.Allocator) void {
         allocator.free(self.name);

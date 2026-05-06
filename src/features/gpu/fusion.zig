@@ -271,6 +271,7 @@ test "fusion apply" {
     try optimizer.analyze();
 
     const optimized = try optimizer.applyFusions();
+    defer allocator.free(optimized);
 
     try std.testing.expect(optimized.len < 2);
 

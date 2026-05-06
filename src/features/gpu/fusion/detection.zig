@@ -21,10 +21,6 @@ pub fn detectElementWiseChains(
         var chain_len: u8 = 1;
         chain[0] = @intCast(i);
 
-        if (isCommonFusionPattern(nodes, buffer_refs, i)) {
-            continue;
-        }
-
         var current_output = node.output;
         var current_idx = i;
 

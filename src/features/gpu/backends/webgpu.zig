@@ -29,8 +29,8 @@ var webgpu_queue: ?*anyopaque = null;
 
 // WebGPU API function pointers (simplified)
 const WgpuCreateInstanceFn = *const fn (?*anyopaque) callconv(.c) ?*anyopaque;
-const WgpuInstanceRequestAdapterFn = *const fn (?*anyopaque, ?*anyopaque, ?*anyopaque, ?*anyopaque) callconv(.c) void;
-const WgpuAdapterRequestDeviceFn = *const fn (?*anyopaque, ?*anyopaque, ?*anyopaque, ?*anyopaque) callconv(.c) void;
+const WgpuInstanceRequestAdapterFn = *const fn (?*anyopaque, ?*anyopaque, *const fn (u32, ?*anyopaque, ?[*:0]const u8, ?*anyopaque) callconv(.c) void, ?*anyopaque) callconv(.c) void;
+const WgpuAdapterRequestDeviceFn = *const fn (?*anyopaque, ?*anyopaque, *const fn (u32, ?*anyopaque, ?[*:0]const u8, ?*anyopaque) callconv(.c) void, ?*anyopaque) callconv(.c) void;
 const WgpuDeviceGetQueueFn = *const fn (?*anyopaque) callconv(.c) ?*anyopaque;
 const WgpuDeviceCreateShaderModuleFn = *const fn (?*anyopaque, ?*anyopaque) callconv(.c) ?*anyopaque;
 const WgpuDeviceCreateComputePipelineFn = *const fn (?*anyopaque, ?*anyopaque) callconv(.c) ?*anyopaque;
@@ -149,7 +149,7 @@ const WebGpuBuffer = struct {
 };
 
 // Async callback for adapter request — sets status and stores adapter handle.
-fn adapterRequestCallback(status: u32, adapter: ?*anyopaque, _: ?[*:0]const u8, _: ?*anyopaque) callconv(.C) void {
+fn adapterRequestCallback(status: u32, adapter: ?*anyopaque, _: ?[*:0]const u8, _: ?*anyopaque) callconv(.c) void {
     if (status == 0 and adapter != null) { // WGPURequestAdapterStatus_Success = 0
         webgpu_adapter = adapter;
         adapter_callback_status = .success;
@@ -159,7 +159,7 @@ fn adapterRequestCallback(status: u32, adapter: ?*anyopaque, _: ?[*:0]const u8, 
 }
 
 // Async callback for device request — sets status and stores device handle.
-fn deviceRequestCallback(status: u32, device: ?*anyopaque, _: ?[*:0]const u8, _: ?*anyopaque) callconv(.C) void {
+fn deviceRequestCallback(status: u32, device: ?*anyopaque, _: ?[*:0]const u8, _: ?*anyopaque) callconv(.c) void {
     if (status == 0 and device != null) { // WGPURequestDeviceStatus_Success = 0
         webgpu_device = device;
         device_callback_status = .success;
@@ -252,18 +252,20 @@ pub fn compileKernel(
     }
 
     const device = webgpu_device.?;
+    const source_z = allocator.dupeZ(u8, source.source) catch return types.KernelError.OutOfMemory;
+    defer allocator.free(source_z);
 
     // Create shader module from WGSL source via proper descriptor chain
     const create_shader_fn = wgpuDeviceCreateShaderModule orelse return types.KernelError.CompilationFailed;
     const wgsl_desc = WGPUShaderModuleWGSLDescriptor{
         .chain = .{ .sType = 6, .next = null }, // WGPUSType_ShaderModuleWGSLDescriptor
-        .code = source.source.ptr,
+        .code = source_z.ptr,
     };
     const shader_desc = WGPUShaderModuleDescriptor{
         .nextInChain = @ptrCast(&wgsl_desc.chain),
         .label = null,
     };
-    const shader_module = create_shader_fn(device, @ptrCast(&shader_desc));
+    const shader_module = create_shader_fn(device, @constCast(@as(*const anyopaque, @ptrCast(&shader_desc))));
     if (shader_module == null) {
         return types.KernelError.CompilationFailed;
     }

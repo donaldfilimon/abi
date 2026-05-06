@@ -37,14 +37,7 @@ pub const DiagnosticsInfo = struct {
     /// Build configuration.
     build_config: BuildConfig,
 
-    pub fn format(
-        self: DiagnosticsInfo,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = fmt;
-        _ = options;
+    pub fn format(self: DiagnosticsInfo, writer: *std.Io.Writer) !void {
         try writer.writeAll("GPU Diagnostics\n");
         try writer.print("Backend: {s}\n", .{self.backend_name});
         try writer.print("Device Count: {d}\n", .{self.device_count});
@@ -137,7 +130,7 @@ pub fn collect() DiagnosticsInfo {
     inline for (std.enums.values(backend.Backend)) |b| {
         const avail = backend.backendAvailability(b);
         if (avail.available and device_count == 0) {
-            device_count = if (avail.device_count > 0) avail.device_count else 1;
+            device_count = @intCast(@min(if (avail.device_count > 0) avail.device_count else 1, std.math.maxInt(u32)));
             backend_name = backend.backendName(b);
             backend_type = b;
             break;
@@ -226,10 +219,10 @@ pub fn collectWithContext(
 
 /// Format diagnostics as a string for logging/display.
 pub fn formatToString(allocator: std.mem.Allocator, info: DiagnosticsInfo) ![]u8 {
-    var buffer = std.ArrayListUnmanaged(u8).empty;
-    errdefer buffer.deinit(allocator);
-    try info.format("", .{}, buffer.writer(allocator));
-    return buffer.toOwnedSlice(allocator);
+    var buffer: std.Io.Writer.Allocating = .init(allocator);
+    errdefer buffer.deinit();
+    try info.format(&buffer.writer);
+    return buffer.toOwnedSlice();
 }
 
 // ============================================================================

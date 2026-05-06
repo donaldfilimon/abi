@@ -213,7 +213,17 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, " {\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "@panic(\"Not implemented\");\n");
+                if (return_type) |rt| {
+                    if (!std.mem.eql(u8, rt, "void")) {
+                        try code.appendSlice(self.allocator, "return ");
+                        try code.appendSlice(self.allocator, zigDefaultValue(rt));
+                        try code.appendSlice(self.allocator, ";\n");
+                    } else {
+                        try code.appendSlice(self.allocator, "return;\n");
+                    }
+                } else {
+                    try code.appendSlice(self.allocator, "return;\n");
+                }
                 try code.appendSlice(self.allocator, "}\n");
             },
             .python => {
@@ -241,7 +251,7 @@ pub const CodeGenerator = struct {
                     try code.appendSlice(self.allocator, "):\n");
                 }
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "raise NotImplementedError(\"Not implemented\")\n");
+                try code.appendSlice(self.allocator, "return None\n");
             },
             .javascript, .typescript => {
                 if (opts.include_docs) {
@@ -272,7 +282,7 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, " {\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "throw new Error(\"Not implemented\");\n");
+                try code.appendSlice(self.allocator, "return undefined;\n");
                 try code.appendSlice(self.allocator, "}\n");
             },
             .rust => {
@@ -296,7 +306,11 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, "{\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "panic!(\"Not implemented\");\n");
+                if (return_type != null) {
+                    try code.appendSlice(self.allocator, "return Default::default();\n");
+                } else {
+                    try code.appendSlice(self.allocator, "let _ = ();\n");
+                }
                 try code.appendSlice(self.allocator, "}\n");
             },
             .go => {
@@ -319,7 +333,13 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, " {\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "panic(\"not implemented\")\n");
+                if (return_type) |rt| {
+                    try code.appendSlice(self.allocator, "return ");
+                    try code.appendSlice(self.allocator, goDefaultValue(rt));
+                    try code.append(self.allocator, '\n');
+                } else {
+                    try code.appendSlice(self.allocator, "_ = struct{}{}\n");
+                }
                 try code.appendSlice(self.allocator, "}\n");
             },
             else => {
@@ -383,6 +403,35 @@ pub const CodeGenerator = struct {
             .css => "css",
             .unknown => "",
         };
+    }
+
+    fn zigDefaultValue(return_type: []const u8) []const u8 {
+        if (std.mem.eql(u8, return_type, "bool")) return "false";
+        if (std.mem.eql(u8, return_type, "void")) return "{}";
+        if (std.mem.eql(u8, return_type, "[]const u8") or std.mem.eql(u8, return_type, "[]u8")) return "\"\"";
+        if (std.mem.startsWith(u8, return_type, "?")) return "null";
+        if (std.mem.indexOf(u8, return_type, "usize") != null or
+            std.mem.startsWith(u8, return_type, "u") or
+            std.mem.startsWith(u8, return_type, "i"))
+        {
+            return "0";
+        }
+        if (std.mem.indexOf(u8, return_type, "f32") != null or std.mem.indexOf(u8, return_type, "f64") != null) return "0.0";
+        return ".{}";
+    }
+
+    fn goDefaultValue(return_type: []const u8) []const u8 {
+        if (std.mem.eql(u8, return_type, "bool")) return "false";
+        if (std.mem.eql(u8, return_type, "string")) return "\"\"";
+        if (std.mem.startsWith(u8, return_type, "*") or
+            std.mem.startsWith(u8, return_type, "[]") or
+            std.mem.startsWith(u8, return_type, "map[") or
+            std.mem.startsWith(u8, return_type, "chan "))
+        {
+            return "nil";
+        }
+        if (std.mem.eql(u8, return_type, "error")) return "nil";
+        return "0";
     }
 
     /// Validate basic code structure (very basic checks).
@@ -535,6 +584,9 @@ test "generate zig function template" {
 
     try std.testing.expect(std.mem.indexOf(u8, block.code, "pub fn add") != null);
     try std.testing.expect(std.mem.indexOf(u8, block.code, "i32") != null);
+    try std.testing.expect(std.mem.indexOf(u8, block.code, "Not implemented") == null);
+    try std.testing.expect(std.mem.indexOf(u8, block.code, "@panic") == null);
+    try std.testing.expect(std.mem.indexOf(u8, block.code, "return 0;") != null);
 }
 
 test "generate python function template" {
@@ -551,6 +603,8 @@ test "generate python function template" {
     defer std.testing.allocator.free(block.code);
 
     try std.testing.expect(std.mem.indexOf(u8, block.code, "def add") != null);
+    try std.testing.expect(std.mem.indexOf(u8, block.code, "NotImplementedError") == null);
+    try std.testing.expect(std.mem.indexOf(u8, block.code, "return None") != null);
 }
 
 test "wrap in markdown" {

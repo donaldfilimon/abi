@@ -48,10 +48,8 @@ const CUdevice = i32;
 const CUcontext = ?*anyopaque;
 const CUstream = ?*anyopaque;
 
-fn optPtr(ptr: ?*anyopaque) *anyopaque {
-    const zero: *anyopaque = @ptrFromInt(0);
-    if (ptr == null) return zero;
-    return ptr.?;
+fn optPtr(ptr: ?*anyopaque) ?*anyopaque {
+    return ptr;
 }
 
 const CUmodule = *anyopaque;
@@ -83,7 +81,7 @@ const CuLaunchKernelFn = *const fn (
     u32,
     CUstream,
     [*]*const anyopaque,
-    [*]*const anyopaque,
+    ?[*]*const anyopaque,
 ) callconv(.c) CuResult;
 const CuStreamCreateFn = *const fn (*CUstream, u32) callconv(.c) CuResult;
 const CuStreamDestroyFn = *const fn (CUstream) callconv(.c) CuResult;
@@ -304,11 +302,11 @@ pub fn compileKernel(
         return types.KernelError.CompilationFailed;
     }
 
-    const handle = try std.heap.page_allocator.create(CudaKernel);
+    const handle = std.heap.page_allocator.create(CudaKernel) catch return types.KernelError.OutOfMemory;
     handle.* = .{
         .module = module,
         .function = function,
-        .name = try std.heap.page_allocator.dupe(u8, source.name),
+        .name = std.heap.page_allocator.dupe(u8, source.name) catch return types.KernelError.OutOfMemory,
     };
 
     return handle;
@@ -325,13 +323,15 @@ pub fn launchKernel(
     const handle = castKernel(kernel_handle);
     const launch_fn = cuLaunchKernel orelse return types.KernelError.LaunchFailed;
 
-    const stream = if (cuda_context) |ctx| optPtr(ctx.stream) else @as(*anyopaque, @ptrFromInt(0));
+    const stream = if (cuda_context) |ctx| optPtr(ctx.stream) else null;
 
-    var kernel_args = try std.heap.page_allocator.alloc(*anyopaque, args.len);
+    var kernel_args = try std.heap.page_allocator.alloc(*const anyopaque, args.len);
     defer std.heap.page_allocator.free(kernel_args);
 
+    var null_arg_storage: usize = 0;
+    const null_arg: *const anyopaque = @ptrCast(&null_arg_storage);
     for (args, 0..) |arg, i| {
-        kernel_args[i] = @constCast(arg orelse @as(*const anyopaque, @ptrFromInt(0)));
+        kernel_args[i] = arg orelse null_arg;
     }
 
     const result = launch_fn(

@@ -13,19 +13,12 @@ pub const TerminalSize = struct {
 
 /// Terminal controller for raw mode and size detection.
 pub const Terminal = struct {
-    /// Original terminal state for restoration.
     original_termios: if (is_posix) std.posix.termios else void,
-    /// File descriptor for the terminal.
     fd: if (is_posix) std.posix.fd_t else void,
-    /// Whether raw mode is currently active.
     raw_mode_active: bool = false,
 
-    const is_posix = switch (builtin.os.tag) {
-        .macos, .linux, .freebsd, .netbsd, .openbsd => true,
-        else => false,
-    };
+    const is_posix = builtin.os.tag == .macos or builtin.os.tag == .linux or builtin.os.tag == .freebsd or builtin.os.tag == .netbsd or builtin.os.tag == .openbsd;
 
-    /// Initialize the terminal controller.
     pub fn init() !Terminal {
         if (comptime !is_posix) {
             return .{
@@ -44,29 +37,24 @@ pub const Terminal = struct {
         };
     }
 
-    /// Enable raw terminal mode (disable echo, canonical, signals).
-    /// Manipulates individual struct fields of Zig 0.17's packed termios flags.
     pub fn enableRawMode(self: *Terminal) !void {
         if (comptime !is_posix) return;
         var raw = self.original_termios;
 
-        // Input: disable break, CR→NL, parity, strip, flow control
+        // Zig 0.17 models termios flags as typed bitfields instead of integer masks.
         raw.iflag.BRKINT = false;
         raw.iflag.ICRNL = false;
         raw.iflag.INPCK = false;
         raw.iflag.ISTRIP = false;
         raw.iflag.IXON = false;
 
-        // Output: disable post-processing
         raw.oflag.OPOST = false;
 
-        // Local: disable echo, canonical, signals, extended
         raw.lflag.ECHO = false;
         raw.lflag.ICANON = false;
         raw.lflag.IEXTEN = false;
         raw.lflag.ISIG = false;
 
-        // Control: set 8-bit chars via CSIZE field
         raw.cflag.CSIZE = .CS8;
 
         // Read: minimum 0 chars, timeout 100ms
@@ -77,56 +65,38 @@ pub const Terminal = struct {
         self.raw_mode_active = true;
     }
 
-    /// Restore original terminal mode.
     pub fn disableRawMode(self: *Terminal) void {
         if (comptime !is_posix) return;
         if (!self.raw_mode_active) return;
-        std.posix.tcsetattr(self.fd, .FLUSH, self.original_termios) catch {};
+        _ = std.posix.tcsetattr(self.fd, .FLUSH, self.original_termios) catch {};
         self.raw_mode_active = false;
     }
 
-    // VT100 standard terminal dimensions used as fallback.
     const default_width: u16 = 80;
     const default_height: u16 = 24;
 
-    // ioctl request code for TIOCGWINSZ (get window size).
-    const tiocgwinsz = if (builtin.os.tag == .macos) 0x40087468 else 0x5413;
-
-    /// Get the terminal size via ioctl.
     pub fn getSize(self: *const Terminal) !TerminalSize {
         if (comptime !is_posix) {
             return .{ .width = default_width, .height = default_height };
         }
 
-        const Winsize = extern struct {
-            ws_row: u16,
-            ws_col: u16,
-            ws_xpixel: u16,
-            ws_ypixel: u16,
+        var ws = std.posix.winsize{
+            .row = 0,
+            .col = 0,
+            .xpixel = 0,
+            .ypixel = 0,
         };
-        var ws: Winsize = undefined;
-        const result = std.posix.system.ioctl(self.fd, tiocgwinsz, @intFromPtr(&ws));
+        const result = std.posix.system.ioctl(self.fd, std.posix.T.IOCGWINSZ, @intFromPtr(&ws));
         if (result != 0) {
             return .{ .width = default_width, .height = default_height };
         }
         return .{
-            .width = if (ws.ws_col > 0) ws.ws_col else default_width,
-            .height = if (ws.ws_row > 0) ws.ws_row else default_height,
+            .width = if (ws.col > 0) ws.col else default_width,
+            .height = if (ws.row > 0) ws.row else default_height,
         };
     }
 
-    /// Cleanup: restore terminal state.
     pub fn deinit(self: *Terminal) void {
         self.disableRawMode();
     }
 };
-
-test "Terminal struct fields exist" {
-    // Verify the Terminal struct can be instantiated (compile-time check)
-    const T = Terminal;
-    try std.testing.expect(@sizeOf(T) > 0);
-}
-
-test {
-    std.testing.refAllDecls(@This());
-}

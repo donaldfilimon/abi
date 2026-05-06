@@ -209,11 +209,9 @@ pub const BackupOrchestrator = struct {
         self.state = .verifying;
         self.emitEvent(.{ .backup_progress = .{ .backup_id = backup_id, .percent = 90 } });
 
-        // Calculate checksum for metadata record (SHA-256 placeholder, use CRC32 bytes)
+        // Metadata stores a full SHA-256 digest over the backup payload.
         var checksum: [32]u8 = undefined;
-        @memset(&checksum, 0);
-        const crc_val = std.hash.crc.Crc32IsoHdlc.hash(backup_buf[0 .. backup_buf.len - CRC32_SIZE]);
-        std.mem.writeInt(u32, checksum[0..4], crc_val, .little);
+        std.crypto.hash.sha2.Sha256.hash(backup_buf[0 .. backup_buf.len - CRC32_SIZE], &checksum, .{});
 
         const end_time = wallClockSec();
         const duration_ms = (end_time - start_time) * 1000;

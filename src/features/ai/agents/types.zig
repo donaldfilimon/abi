@@ -318,6 +318,7 @@ pub const AgentConfig = struct {
     provider_strict_backend: bool = false,
     provider_plugin_id: ?[]const u8 = null,
     system_prompt: ?[]const u8 = null,
+    learning_telemetry: bool = true,
     retry_config: retry.RetryConfig = .{},
 
     pub fn validate(self: AgentConfig) AgentError!void {

@@ -325,7 +325,7 @@ pub fn memcpyHostToDevice(
     size: usize,
 ) DeviceMemoryError!void {
     const allocation = try getAllocation(dst);
-    const src_bytes: [*]const u8 = PointerCast.implCast([*]const u8, src);
+    const src_bytes: [*]const u8 = @ptrCast(@alignCast(src));
     try validateCopy(allocation.bytes.len, size);
     std.mem.copyForwards(u8, allocation.bytes[0..size], src_bytes[0..size]);
 }
@@ -337,7 +337,7 @@ pub fn memcpyDeviceToHost(
     size: usize,
 ) DeviceMemoryError!void {
     const allocation = try getAllocation(src);
-    const dst_bytes: [*]u8 = PointerCast.implCast([*]u8, dst);
+    const dst_bytes: [*]u8 = @ptrCast(@alignCast(dst));
     try validateCopy(allocation.bytes.len, size);
     std.mem.copyForwards(u8, dst_bytes[0..size], allocation.bytes[0..size]);
 }
@@ -361,9 +361,9 @@ pub fn deviceSlice(ptr: *anyopaque) DeviceMemoryError![]u8 {
     return allocation.bytes;
 }
 
-fn getAllocation(ptr: anyopaque) DeviceMemoryError!*DeviceAllocation {
+fn getAllocation(ptr: *const anyopaque) DeviceMemoryError!*DeviceAllocation {
     if (@intFromPtr(ptr) == 0) return DeviceMemoryError.InvalidDeviceMemory;
-    return PointerCast.implCast(DeviceAllocation, ptr);
+    return @ptrCast(@alignCast(@constCast(ptr)));
 }
 
 fn validateCopy(available: usize, size: usize) DeviceMemoryError!void {
@@ -759,8 +759,10 @@ pub const StdGpuBackend = struct {
         kernel_name: []const u8,
     ) interface.KernelError!*anyopaque {
         const kernel_source = types.KernelSource{
+            .name = kernel_name,
             .source = source,
             .entry_point = kernel_name,
+            .backend = .stdgpu,
             .format = .spirv,
         };
 
@@ -806,7 +808,7 @@ pub const StdGpuBackend = struct {
         const kernel_config = types.KernelConfig{
             .grid_dim = .{ config.grid_x, config.grid_y, config.grid_z },
             .block_dim = .{ config.block_x, config.block_y, config.block_z },
-            .shared_mem_bytes = config.shared_memory,
+            .shared_memory_bytes = config.shared_memory,
         };
 
         // Convert args to optional pointers
@@ -949,9 +951,9 @@ test "GpuError enum covers all cases" {
 
 test "DeviceMemoryError enum covers all cases" {
     const errors = [_]DeviceMemoryError{
-        error.AllocationFailed,
-        error.InvalidPointer,
-        error.OutOfDeviceMemory,
+        error.OutOfMemory,
+        error.InvalidDeviceMemory,
+        error.BufferTooSmall,
     };
     try std.testing.expectEqual(@as(usize, 3), errors.len);
 }

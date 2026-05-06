@@ -157,16 +157,20 @@ pub const OpenAIBackend = struct {
             return backend.BackendError.OutOfMemory;
         defer self.allocator.free(url);
 
-        var http_req = async_http.HttpRequest.init(self.allocator, .POST, url) catch
+        var http_req = async_http.HttpRequest.init(self.allocator, .post, url) catch
             return backend.BackendError.RequestFailed;
         defer http_req.deinit();
 
         http_req.setBearerToken(self.api_key) catch return backend.BackendError.RequestFailed;
         http_req.setJsonBody(json_body) catch return backend.BackendError.RequestFailed;
 
-        const http_res = self.http.fetchJson(&http_req) catch
+        var http_res = self.http.fetchJson(&http_req) catch
             return backend.BackendError.RequestFailed;
-        defer http_res.deinit();
+        defer {
+            // Explicitly take address to get mutable pointer for deinit
+            var ptr = &http_res;
+            ptr.deinit();
+        }
 
         if (!http_res.isSuccess()) {
             if (http_res.status_code == 429) {
@@ -213,7 +217,9 @@ pub const OpenAIBackend = struct {
 
         // Add dimensions parameter for text-embedding-3 models
         if (std.mem.startsWith(u8, self.model, "text-embedding-3")) {
-            try json_str.writer(self.allocator).print(",\"dimensions\":{d}", .{dimensions});
+            const dims_owned = try std.fmt.allocPrint(self.allocator, ",\"dimensions\":{d}", .{dimensions});
+            defer self.allocator.free(dims_owned);
+            try json_str.appendSlice(self.allocator, dims_owned);
         }
 
         try json_str.append(self.allocator, '}');

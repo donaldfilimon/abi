@@ -47,6 +47,16 @@ pub const AbiConfig = struct {
         moderate,
         strict,
     };
+
+    /// Validate configuration.
+    pub fn validate(self: @This()) !void {
+        if (self.max_routing_latency_ms == 0) {
+            return error.InvalidRoutingLatency;
+        }
+    }
+
+    /// Clean up resources (no-op for this config).
+    pub fn deinit(_: @This()) void {}
 };
 
 /// Settings for the Abbey profile.
@@ -133,6 +143,19 @@ pub const AvivaConfig = struct {
     cite_sources: bool = false,
     /// Whether to skip preamble/boilerplate in code generation.
     skip_preamble: bool = false,
+
+    /// Validate configuration.
+    pub fn validate(self: @This()) !void {
+        if (self.directness_level < 0.0 or self.directness_level > 1.0) {
+            return error.InvalidDirectnessLevel;
+        }
+        if (self.max_response_length == 0) {
+            return error.InvalidMaxResponseLength;
+        }
+    }
+
+    /// Clean up resources (no-op for this config).
+    pub fn deinit(_: @This()) void {}
 };
 
 /// Settings for profile scaling and resilience.
