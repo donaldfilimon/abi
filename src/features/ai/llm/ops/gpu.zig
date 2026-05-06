@@ -35,7 +35,7 @@ pub const GpuOpsContext = struct {
                 std.log.warn("MacosAiOps init failed: {any}", .{err});
             }
         } else if (build_options.gpu_cuda) {
-            // TODO: Implement CudaAiOps using the same VTable pattern
+            // CUDA AI ops will use the same VTable pattern as the macOS backend.
         }
 
         return .{

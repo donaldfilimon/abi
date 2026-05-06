@@ -16,6 +16,8 @@ const config = @import("../config.zig");
 const sentiment_mod = @import("sentiment.zig");
 const policy_mod = @import("policy.zig");
 const rules_mod = @import("rules.zig");
+const wdbx = @import("../../core/database/wdbx.zig");
+const embeddings = @import("../embeddings/mod.zig");
 
 // Re-export sub-modules for convenient access
 pub const SentimentAnalyzer = sentiment_mod.SentimentAnalyzer;
@@ -37,6 +39,8 @@ pub const AbiRouter = struct {
     sentiment_analyzer: sentiment_mod.SentimentAnalyzer,
     policy_checker: policy_mod.PolicyChecker,
     rules_engine: rules_mod.RulesEngine,
+    wdbx_handle: ?wdbx.DatabaseHandle = null,
+    embedding_ctx: ?*embeddings.Context = null,
 
     const Self = @This();
 
@@ -53,7 +57,17 @@ pub const AbiRouter = struct {
             .sentiment_analyzer = sentiment_mod.SentimentAnalyzer.init(allocator),
             .policy_checker = try policy_mod.PolicyChecker.init(allocator),
             .rules_engine = rules_engine,
+            .wdbx_handle = null,
+            .embedding_ctx = null,
         };
+
+        // Initialize WDBX
+        self.wdbx_handle = try wdbx.createDatabase(allocator, cfg.db_name);
+        errdefer if (self.wdbx_handle) |*handle| wdbx.closeDatabase(handle);
+
+        // Initialize embeddings
+        self.embedding_ctx = try embeddings.Context.init(allocator, .{});
+        errdefer if (self.embedding_ctx) |ctx| ctx.deinit();
 
         return self;
     }
@@ -61,6 +75,8 @@ pub const AbiRouter = struct {
     /// Shutdown the router and free resources.
     /// Note: does NOT free `self` — the caller (ProfileRegistry) owns the allocation.
     pub fn deinit(self: *Self) void {
+        if (self.embedding_ctx) |ctx| ctx.deinit();
+        if (self.wdbx_handle) |*handle| wdbx.closeDatabase(handle);
         self.rules_engine.deinit();
         self.policy_checker.deinit();
     }
@@ -159,13 +175,45 @@ pub const AbiRouter = struct {
             confidence = sentiment.confidence;
         }
 
-        return types.RoutingDecision{
+        const decision = types.RoutingDecision{
             .selected_profile = selected,
             .confidence = confidence,
             .emotional_context = sentiment.toEmotionalState(),
             .policy_flags = policy_flags,
             .routing_reason = try reason_buf.toOwnedSlice(self.allocator),
         };
+
+        // Record interaction in WDBX
+        try self.recordInteraction(request, decision);
+
+        return decision;
+    }
+
+    /// Record routing interaction in WDBX for future training.
+    pub fn recordInteraction(self: *Self, request: types.ProfileRequest, decision: types.RoutingDecision) !void {
+        const handle = if (self.wdbx_handle) |*h| h else return;
+        const ctx = self.embedding_ctx orelse return;
+
+        // Generate embedding for request content
+        const embedding = try ctx.embed(request.content);
+        defer self.allocator.free(embedding);
+
+        // Store in WDBX with metadata
+        const metadata = try std.fmt.allocPrint(self.allocator, "{{\"profile\":\"{s}\",\"reason\":\"{s}\"}}", .{
+            @tagName(decision.selected_profile),
+            decision.routing_reason,
+        });
+        defer self.allocator.free(metadata);
+
+        const id = std.hash.Wyhash.hash(0, request.content);
+        try wdbx.insertVector(handle, id, embedding, metadata);
+    }
+
+    /// Adjust routing rule weights based on stored interactions and feedback.
+    pub fn train(self: *Self) !void {
+        _ = self;
+        // TODO: Implement reinforcement learning loop to optimize routing rules
+        std.log.info("AbiRouter training hook: analyzing WDBX interactions...", .{});
     }
 
     /// Validate a profile's response against safety and quality policies.

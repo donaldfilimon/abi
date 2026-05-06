@@ -131,6 +131,19 @@ pub const MacOSAccelerator = struct {
     pub fn initMetal(self: *MacOSAccelerator) !void {
         if (comptime builtin.os.tag != .macos) return error.PlatformNotSupported;
 
+        var objc_lib = std.DynLib.open("/usr/lib/libobjc.A.dylib") catch {
+            return error.FrameworkNotAvailable;
+        };
+        defer objc_lib.close();
+
+        const SelRegisterNameFn = *const fn ([*:0]const u8) callconv(.c) *anyopaque;
+        const MsgSendFn = *const fn (*anyopaque, *anyopaque) callconv(.c) ?*anyopaque;
+        const GetClassFn = *const fn ([*:0]const u8) callconv(.c) ?*anyopaque;
+
+        const sel_register = objc_lib.lookup(SelRegisterNameFn, "sel_registerName") orelse return error.FrameworkNotAvailable;
+        const msg_send_raw = objc_lib.lookup(MsgSendFn, "objc_msgSend") orelse return error.FrameworkNotAvailable;
+        const get_class = objc_lib.lookup(GetClassFn, "objc_getClass") orelse return error.FrameworkNotAvailable;
+
         // MTLCreateSystemDefaultDevice() returns an MTLDevice ID
         const create_device = @extern(*const fn () callconv(.c) ?*anyopaque, .{
             .name = "MTLCreateSystemDefaultDevice",
@@ -139,12 +152,11 @@ pub const MacOSAccelerator = struct {
         self.metal_device = create_device() orelse return error.MetalDeviceNotFound;
 
         // Create command queue: [device newCommandQueue]
-        const sel_new_queue = mps.sel_register_fn.?("newCommandQueue");
-        const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) ?*anyopaque = @ptrCast(&mps.objc_msgSend_fn.?);
-        self.command_queue = msg_send(self.metal_device.?, sel_new_queue) orelse return error.CommandQueueCreationFailed;
+        const sel_new_queue = sel_register("newCommandQueue");
+        self.command_queue = msg_send_raw(self.metal_device.?, sel_new_queue) orelse return error.CommandQueueCreationFailed;
 
         // Initialize MPS with the device
-        mps.init(mps.objc_msgSend_fn.?, mps.sel_register_fn.?, mps.objc_get_class_fn.?) catch |err| {
+        mps.init(@ptrCast(msg_send_raw), @ptrCast(sel_register), @ptrCast(get_class)) catch |err| {
             std.log.warn("MPS init failed (GPU dispatch unavailable): {}", .{err});
         };
         self.mps_ready = true;
@@ -155,14 +167,18 @@ pub const MacOSAccelerator = struct {
         if (comptime builtin.os.tag != .macos) return;
 
         if (self.command_queue) |queue| {
-            const sel_release = mps.sel_register("release");
-            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(&mps.objc_msgSend);
+            const sel_register = mps.sel_register_fn orelse return;
+            const sel_release = sel_register("release");
+            const msg_send_raw = mps.objc_msgSend_fn orelse return;
+            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(msg_send_raw);
             msg_send(queue, sel_release);
             self.command_queue = null;
         }
         if (self.metal_device) |device| {
-            const sel_release = mps.sel_register("release");
-            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(&mps.objc_msgSend);
+            const sel_register = mps.sel_register_fn orelse return;
+            const sel_release = sel_register("release");
+            const msg_send_raw = mps.objc_msgSend_fn orelse return;
+            const msg_send: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(msg_send_raw);
             msg_send(device, sel_release);
             self.metal_device = null;
         }
@@ -228,19 +244,19 @@ pub const MacOSAccelerator = struct {
         switch (backend) {
             .accelerate_cpu => {
                 if (comptime accelerate.is_available) {
-                    accelerate.sgemm(
+                    try accelerate.sgemm(
                         .no_trans,
                         .no_trans,
                         @intCast(m),
                         @intCast(n),
                         @intCast(k),
                         1.0,
-                        a.ptr,
+                        a,
                         @intCast(k),
-                        b.ptr,
+                        b,
                         @intCast(n),
                         0.0,
-                        @constCast(result.ptr),
+                        result,
                         @intCast(n),
                     );
                     return .accelerate_cpu;
@@ -250,28 +266,29 @@ pub const MacOSAccelerator = struct {
             .mps_gpu => {
                 // Try MPS GPU dispatch if Metal runtime is initialized.
                 if (self.mps_ready and self.metal_device != null and self.command_queue != null) {
-                    self.executeMpsMatmul(a, b, result, m, n, k) catch |err| {
-                        // MPS dispatch failed — fall through to Accelerate CPU
-                        std.log.warn("MPS matmul dispatch failed, falling back to Accelerate CPU: {}", .{err});
-                    };
-                    // If we get here without error, MPS handled it via shared memory.
-                    // The result buffer is already populated (unified memory).
+                    mps_dispatch: {
+                        self.executeMpsMatmul(a, b, result, m, n, k) catch |err| {
+                            std.log.warn("MPS matmul dispatch failed, falling back to Accelerate CPU: {}", .{err});
+                            break :mps_dispatch;
+                        };
+                        return .mps_gpu;
+                    }
                 }
                 // Accelerate CPU fallback (also used if MPS dispatch fails)
                 if (comptime accelerate.is_available) {
-                    accelerate.sgemm(
+                    try accelerate.sgemm(
                         .no_trans,
                         .no_trans,
                         @intCast(m),
                         @intCast(n),
                         @intCast(k),
                         1.0,
-                        a.ptr,
+                        a[0 .. m * k],
                         @intCast(k),
-                        b.ptr,
+                        b[0 .. k * n],
                         @intCast(n),
                         0.0,
-                        @constCast(result.ptr),
+                        result[0 .. m * n],
                         @intCast(n),
                     );
                     return .accelerate_cpu;
@@ -472,9 +489,9 @@ pub const MacOSAccelerator = struct {
         return backend;
     }
 
-    /// Execute matrix multiply on MPS GPU via Metal command buffer.
-    /// Uses shared memory (Apple Silicon unified architecture) so the result
-    /// is visible to CPU after command buffer completion.
+    /// Report MPS matrix multiply availability.
+    /// The current CPU-slice call path needs MPSMatrix wrappers before it can
+    /// safely encode GPU work, so callers fall back to Accelerate for now.
     fn executeMpsMatmul(
         self: *MacOSAccelerator,
         a: []const f32,
@@ -484,35 +501,15 @@ pub const MacOSAccelerator = struct {
         n: u32,
         k: u32,
     ) !void {
+        _ = self;
+        _ = a;
+        _ = b;
+        _ = result;
+        _ = m;
+        _ = n;
+        _ = k;
         if (comptime builtin.os.tag != .macos) return error.PlatformNotSupported;
-
-        const device = self.metal_device orelse return error.MetalDeviceNotFound;
-        const queue = self.command_queue orelse return error.CommandQueueCreationFailed;
-
-        // Create MPS matrix multiply kernel
-        var mps_config = mps.MpsMatMul.Config{};
-        mps_config.m = m;
-        mps_config.n = n;
-        mps_config.k = k;
-        mps_config.alpha = 1.0;
-        mps_config.beta = 0.0;
-        var matmul_kernel = mps.MpsMatMul.create(device, mps_config) orelse return error.KernelCreationFailed;
-        defer matmul_kernel.destroy();
-
-        // Create command buffer from queue
-        const sel_cmd_buf = mps.sel_register("commandBuffer");
-        const msg_send_obj: *const fn (*anyopaque, *anyopaque) callconv(.c) ?*anyopaque = @ptrCast(&mps.objc_msgSend);
-        const cmd_buf = msg_send_obj(queue, sel_cmd_buf) orelse return error.CommandBufferCreationFailed;
-
-        // Encode the matmul operation
-        matmul_kernel.encode(cmd_buf, a.ptr, b.ptr, @constCast(result.ptr)) catch return error.EncodeFailed;
-
-        // Commit and wait
-        const sel_commit = mps.sel_register("commit");
-        const sel_wait = mps.sel_register("waitUntilCompleted");
-        const msg_send_void: *const fn (*anyopaque, *anyopaque) callconv(.c) void = @ptrCast(&mps.objc_msgSend);
-        msg_send_void(cmd_buf, sel_commit);
-        msg_send_void(cmd_buf, sel_wait);
+        return error.UnsupportedOperation;
     }
 
     /// Load a CoreML model for full-model inference on Neural Engine.

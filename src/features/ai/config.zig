@@ -41,6 +41,8 @@ pub const AbiConfig = struct {
     content_filter_level: FilterLevel = .moderate,
     /// Target latency budget for routing decisions.
     max_routing_latency_ms: u64 = 50,
+    /// WDBX database name for interaction logging.
+    db_name: []const u8 = "abi_interactions",
 
     pub const FilterLevel = enum {
         low,
@@ -143,6 +145,8 @@ pub const AvivaConfig = struct {
     cite_sources: bool = false,
     /// Whether to skip preamble/boilerplate in code generation.
     skip_preamble: bool = false,
+    /// WDBX database name for memory storage.
+    db_name: []const u8 = "aviva_memory",
 
     /// Validate configuration.
     pub fn validate(self: @This()) !void {

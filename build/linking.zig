@@ -36,15 +36,10 @@ pub fn linkDarwinArtifact(
     // Common libs shared by all roles
     linkDarwinCommon(artifact, feat_gpu);
 
-    // Role-specific extras (Metal frameworks)
-    switch (role) {
-        .static_lib, .test_artifact => {
-            if (gpu_metal) {
-                artifact.root_module.linkFramework("Metal", .{});
-                artifact.root_module.linkFramework("MetalPerformanceShaders", .{});
-            }
-        },
-        .executable, .parity_test => {},
+    _ = role;
+    if (gpu_metal) {
+        artifact.root_module.linkFramework("Metal", .{});
+        artifact.root_module.linkFramework("MetalPerformanceShaders", .{});
     }
 }
 
@@ -73,5 +68,6 @@ fn linkDarwinCommon(artifact: *std.Build.Step.Compile, feat_gpu: bool) void {
     artifact.root_module.linkFramework("CoreGraphics", .{});
     if (feat_gpu) {
         artifact.root_module.linkFramework("Accelerate", .{});
+        artifact.root_module.linkFramework("Metal", .{});
     }
 }

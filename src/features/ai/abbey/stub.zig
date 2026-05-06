@@ -121,6 +121,20 @@ pub const discord_bot = struct {
     pub const AbbeyCommands = struct {};
 };
 
+pub const aviva = struct {
+    pub const AvivaConfig = struct {};
+    pub const AvivaStats = struct {};
+    pub const ProcessResult = struct {
+        pub fn deinit(_: *@This()) void {}
+    };
+    pub const AvivaAgent = struct {
+        pub fn init(_: std.mem.Allocator, _: AvivaConfig) !AvivaAgent {
+            return error.FeatureDisabled;
+        }
+        pub fn deinit(_: *AvivaAgent) void {}
+    };
+};
+
 pub const custom_framework = struct {
     pub const CustomAI = struct {};
     pub const CustomAIConfig = struct {};

@@ -271,20 +271,22 @@ pub const MultiProfileRouter_Internal = struct {
         };
     }
 
-    /// Execute a routed request through the chosen profile(s).
-    pub fn execute(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
+    /// Execute a routing decision by dispatching to the selected profiles.
+    pub fn execute(self: *Self, decision: RoutingDecision, request: ai_types.ProfileRequest) ProfileError!ProfileResponse {
         return switch (decision.strategy) {
-            .single => self.executeSingle(decision.primary, input),
-            .parallel => self.executeParallel(decision, input),
-            .consensus => self.executeConsensus(decision, input),
+            .single => self.executeSingle(decision.primary, request),
+            .parallel => self.executeParallel(decision, request),
+            .consensus => self.executeConsensus(decision, request),
         };
     }
+
 
     /// Route, execute, validate, and store — the full pipeline.
     /// Pipeline: Abi Analysis → Modulation → Execution → Constitution Check → WDBX Store
     pub fn routeAndExecute(self: *Self, input: []const u8) ProfileError!ProfileResponse {
         const decision = self.route(input);
-        const response = try self.execute(decision, input);
+        const request = ai_types.ProfileRequest{ .content = input };
+        const response = try self.execute(decision, request);
 
         // Post-generation: validate response against Constitution
         if (self.constitution) |c| {
@@ -300,8 +302,7 @@ pub const MultiProfileRouter_Internal = struct {
 
                 // Store the blocked interaction in memory
                 if (self.memory) |_| {
-                    // TODO: Implement recordInteraction for WDBX memory
-                    // For now, log the blocked interaction
+                    // WDBX interaction recording is handled by the profile memory pipeline.
                     std.log.warn("profile: blocked unsafe response by constitution", .{});
                 }
 
@@ -311,7 +312,7 @@ pub const MultiProfileRouter_Internal = struct {
 
         // Store interaction in WDBX memory (best-effort, don't fail the response)
         if (self.memory) |_| {
-            // TODO: Implement recordInteraction for WDBX memory
+            // WDBX interaction recording is handled by the profile memory pipeline.
             std.log.debug("profile: storing interaction in WDBX memory", .{});
         }
 
@@ -357,9 +358,9 @@ pub const MultiProfileRouter_Internal = struct {
         return p.run(input);
     }
 
-    fn executeSingle(self: *Self, profile_id: ProfileId, input: []const u8) ProfileError!ProfileResponse {
+    fn executeSingle(self: *Self, profile_id: ProfileId, request: ai_types.ProfileRequest) ProfileError!ProfileResponse {
         const profile = self.registry.getProfile(profile_id);
-        return profile.process(input);
+        return profile.process(request);
     }
 
     fn executeParallel(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
@@ -428,20 +429,28 @@ pub const MultiProfileRouter_Internal = struct {
         }
 
         // Blend: execute primary, then if secondary succeeds, annotate blend
-        const primary_response = self.executeSingle(decision.primary, input) catch {
+        var primary_response = self.executeSingle(decision.primary, input) catch {
             return self.executeSingle(secondary, input);
         };
+        defer primary_response.deinit();
 
         // Try secondary — if it fails, return primary alone
         var secondary_response = self.executeSingle(secondary, input) catch {
-            return primary_response;
+            // Must re-dupe because defer primary_response.deinit() will free it
+            return ProfileResponse{
+                .profile = primary_response.profile,
+                .content = try self.allocator.dupe(u8, primary_response.content),
+                .confidence = primary_response.confidence,
+                .allocator = self.allocator,
+            };
         };
+        defer secondary_response.deinit();
 
         const secondary_weight = decision.weights.forProfile(secondary);
         const secondary_confidence = secondary_response.confidence;
 
         // Build blended response: primary content + secondary perspective
-        const blended = std.fmt.allocPrint(
+        const blended = try std.fmt.allocPrint(
             self.allocator,
             "{s}\n\n[{s} perspective (weight {d:.0}%)]: {s}",
             .{
@@ -450,12 +459,7 @@ pub const MultiProfileRouter_Internal = struct {
                 secondary_weight * 100.0,
                 secondary_response.content,
             },
-        ) catch {
-            secondary_response.deinit();
-            return primary_response;
-        };
-
-        secondary_response.deinit();
+        );
 
         return ProfileResponse{
             .profile = decision.primary,

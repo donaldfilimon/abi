@@ -9,12 +9,15 @@
 //! - Knowledge retrieval for factual grounding
 //! - Code generation with proper formatting
 //! - Fact checking with confidence scoring
+//! - WDBX persistent memory and semantic search
 
 const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
 const types = @import("../types.zig");
 const config = @import("../config.zig");
 const agent_mod = @import("../agents/mod.zig");
+const wdbx = @import("../../core/database/wdbx.zig");
+const embeddings = @import("../embeddings/mod.zig");
 
 pub const classifier_mod = @import("classifier.zig");
 pub const knowledge_mod = @import("knowledge.zig");
@@ -47,6 +50,10 @@ pub const AvivaProfile = struct {
     code_generator: CodeGenerator,
     /// Fact checker for accuracy.
     fact_checker: FactChecker,
+    /// WDBX database handle for persistent memory.
+    wdbx_handle: ?wdbx.DatabaseHandle = null,
+    /// Embedding context for semantic search.
+    embedding_ctx: ?*embeddings.Context = null,
 
     const Self = @This();
 
@@ -109,7 +116,17 @@ pub const AvivaProfile = struct {
             .knowledge_retriever = KnowledgeRetriever.initWithConfig(allocator, retriever_config),
             .code_generator = CodeGenerator.initWithConfig(allocator, code_config),
             .fact_checker = FactChecker.initWithConfig(allocator, fact_config),
+            .wdbx_handle = null,
+            .embedding_ctx = null,
         };
+
+        // Initialize WDBX
+        self.wdbx_handle = try wdbx.createDatabase(allocator, cfg.db_name);
+        errdefer if (self.wdbx_handle) |*handle| wdbx.closeDatabase(handle);
+
+        // Initialize embeddings
+        self.embedding_ctx = try embeddings.Context.init(allocator, .{});
+        errdefer if (self.embedding_ctx) |ctx| ctx.deinit();
 
         return self;
     }
@@ -117,6 +134,8 @@ pub const AvivaProfile = struct {
     /// Shutdown the profile and free resources.
     /// Note: does NOT free `self` — the caller (ProfileRegistry) owns the allocation.
     pub fn deinit(self: *Self) void {
+        if (self.embedding_ctx) |ctx| ctx.deinit();
+        if (self.wdbx_handle) |*handle| wdbx.closeDatabase(handle);
         self.knowledge_retriever.deinit();
         self.agent.deinit();
         self.allocator.destroy(self.agent);
@@ -138,10 +157,39 @@ pub const AvivaProfile = struct {
             return error.TimerFailed;
         };
 
-        // Step 1: Classify the query
+        // Step 1: Semantic memory retrieval from WDBX
+        var augmented_content: std.ArrayListUnmanaged(u8) = .empty;
+        defer augmented_content.deinit(self.allocator);
+
+        if (self.wdbx_handle) |*handle| {
+            if (self.embedding_ctx) |ctx| {
+                const emb = try ctx.embed(request.content);
+                defer self.allocator.free(emb);
+
+                const results = try wdbx.searchVectors(handle, self.allocator, emb, 3);
+                defer self.allocator.free(results);
+
+                if (results.len > 0) {
+                    try augmented_content.appendSlice(self.allocator, "Background Context from Memory:\n");
+                    for (results) |res| {
+                        if (wdbx.getVector(handle, res.id)) |view| {
+                            if (view.metadata) |meta| {
+                                try augmented_content.appendSlice(self.allocator, "- ");
+                                try augmented_content.appendSlice(self.allocator, meta);
+                                try augmented_content.append(self.allocator, '\n');
+                            }
+                        }
+                    }
+                    try augmented_content.append(self.allocator, '\n');
+                }
+            }
+        }
+        try augmented_content.appendSlice(self.allocator, request.content);
+
+        // Step 2: Classify the query
         const classification = self.classifier.classify(request.content);
 
-        // Step 2: Retrieve relevant knowledge if factual query
+        // Step 3: Retrieve relevant knowledge if factual query
         var knowledge_context: ?[]knowledge_mod.KnowledgeFragment = null;
         if (classification.query_type == .factual_query or
             classification.query_type == .documentation or
@@ -156,40 +204,40 @@ pub const AvivaProfile = struct {
             }
         }
 
-        // Step 3: Generate response via agent (apply per-request overrides)
+        // Step 4: Generate response via agent (apply per-request overrides)
         const applied = try apply(self.allocator, self.agent, request);
         defer restore(self.allocator, self.agent, applied);
 
-        const raw_response = try self.agent.process(request.content, self.allocator);
+        const raw_response = try self.agent.process(augmented_content.items, self.allocator);
 
-        // Step 4: Post-process based on query type
-        var final_response = raw_response;
-
-        // For code requests, ensure proper formatting
+        // Step 5: Post-process based on query type
         if (classification.query_type.recommendsCodeBlock()) {
             // Check if response contains code and format it
             const validation = self.code_generator.validateStructure(raw_response, classification.language);
             _ = validation;
         }
 
-        // Step 5: Fact check the response
-        var fact_result = try self.fact_checker.check(final_response);
+        // Step 6: Fact check the response
+        var fact_result = try self.fact_checker.check(raw_response);
         defer fact_result.deinit();
 
         // Add qualifications if needed and sources enabled
+        var final_response: []u8 = raw_response;
         if (self.config.cite_sources and fact_result.qualifications.items.len > 0) {
             const qualified = try facts_mod.applyQualifications(
                 self.allocator,
-                final_response,
+                raw_response,
                 fact_result.qualifications.items,
             );
-            if (final_response.ptr != raw_response.ptr) {
-                self.allocator.free(final_response);
-            }
+            // We can free the raw_response now as we have a qualified replacement
+            self.allocator.free(raw_response);
             final_response = @constCast(qualified);
         }
 
         const elapsed_ms = timer.read() / std.time.ns_per_ms;
+
+        // Record interaction in WDBX
+        try self.recordInteraction(request, final_response);
 
         // Build response with classification metadata
         var response = types.ProfileResponse{
@@ -233,6 +281,26 @@ pub const AvivaProfile = struct {
         }
 
         return response;
+    }
+
+    /// Record conversation in WDBX for persistent memory.
+    pub fn recordInteraction(self: *Self, request: types.ProfileRequest, response: []const u8) !void {
+        const handle = if (self.wdbx_handle) |*h| h else return;
+        const ctx = self.embedding_ctx orelse return;
+
+        // Generate embedding for request content
+        const embedding = try ctx.embed(request.content);
+        defer self.allocator.free(embedding);
+
+        // Store in WDBX with response as metadata
+        const metadata = try std.fmt.allocPrint(self.allocator, "{{\"request\":\"{s}\",\"response\":\"{s}\"}}", .{
+            request.content,
+            response,
+        });
+        defer self.allocator.free(metadata);
+
+        const id = std.hash.Wyhash.hash(0, request.content);
+        try wdbx.insertVector(handle, id, embedding, metadata);
     }
 
     /// Classify a query without full processing.

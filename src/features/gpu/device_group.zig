@@ -468,6 +468,7 @@ fn defaultMemoryBytes(backend: backend_mod.Backend) u64 {
         .fpga => 16 * 1024 * 1024 * 1024,
         .tpu => 16 * 1024 * 1024 * 1024,
         .stdgpu, .simulated => 4 * 1024 * 1024 * 1024,
+        .intel_arc => 4 * 1024 * 1024 * 1024,
     };
 }
 

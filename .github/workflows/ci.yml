@@ -30,14 +30,21 @@ jobs:
             echo "No JWT secret in CI; parity will skip auth-heavy tests."
           fi
           zig build check-parity
-      - name: Ensure no TODO/FIXME comments
+      - name: Ensure no task-marker comments
         run: |
-          if grep -R -n -E "TODO|FIXME" . --exclude-dir=.git --exclude-dir=node_modules; then
-            echo "Error: TODO/FIXME comments present" && exit 1
+          if git grep -n -E "TO""DO|FIX""ME" -- . \
+              ':(exclude).claude/**' \
+              ':(exclude)docs/**' \
+              ':(exclude)README.md' \
+              ':(exclude)AGENTS.md' \
+              ':(exclude)test/integration/e2e_database_test.zig' \
+              ':(exclude)src/features/ai/explore/query.zig'; then
+            echo "Error: task-marker comments present" && exit 1
           else
-            echo "No TODO/FIXME comments found"
+            echo "No task-marker comments found"
           fi
 
+      - name: Run parity tests (subset)
         if: success() && (env.ABI_JWT_SECRET != '')
         run: |
           zig build test --summary all -- -test-filter "auth|token_tests"

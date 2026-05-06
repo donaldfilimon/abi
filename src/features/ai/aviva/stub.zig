@@ -256,6 +256,7 @@ const _AvivaConfig = struct {
     max_response_length: u32 = 4096,
     cite_sources: bool = false,
     skip_preamble: bool = false,
+    db_name: []const u8 = "aviva_memory",
 };
 
 pub const AvivaProfile = struct {
@@ -280,6 +281,9 @@ pub const AvivaProfile = struct {
         return .aviva;
     }
     pub fn process(_: *Self, _: _ProfileRequest) anyerror!_ProfileResponse {
+        return error.FeatureDisabled;
+    }
+    pub fn recordInteraction(_: *Self, _: _ProfileRequest, _: []const u8) !void {
         return error.FeatureDisabled;
     }
     pub fn classifyQuery(_: *const Self, _: []const u8) ClassificationResult {

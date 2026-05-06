@@ -234,6 +234,14 @@ pub const AbiRouter = struct {
         return error.FeatureDisabled;
     }
 
+    pub fn recordInteraction(_: *Self, _: types.ProfileRequest, _: types.RoutingDecision) !void {
+        return error.FeatureDisabled;
+    }
+
+    pub fn train(_: *Self) !void {
+        return error.FeatureDisabled;
+    }
+
     pub fn validateResponse(_: *Self, _: types.ProfileResponse) !types.PolicyFlags {
         return error.FeatureDisabled;
     }

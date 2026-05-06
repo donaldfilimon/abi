@@ -74,6 +74,8 @@ pub const ProfileRequest = struct {
     user_id: ?[]const u8 = null,
     /// Optional forced profile selection (bypasses routing).
     preferred_profile: ?ProfileType = null,
+    /// Optional forced model selection (respects internal API policy).
+    preferred_model: ?[]const u8 = null,
     /// Optional system instruction/context for the profile.
     system_instruction: ?[]const u8 = null,
     /// Optional maximum tokens for the response.

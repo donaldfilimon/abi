@@ -1102,6 +1102,7 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
     const ai = root.ai;
     var assistant = try ai.profile.Assistant.init(allocator, .{
         .session_id = "abi-chat",
+        .policy = .{ .allow_trusted_fallback = false },
     });
     defer assistant.deinit();
 
@@ -1146,7 +1147,7 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
 
     std.debug.print("  [{s}] {s} | {d:.1}ms | WDBX Block: {any}\n", .{
         backend_label,
-        assistant.registry.config.abbey.llm.model,
+        "default",
         result.latency_ms,
         result.wdbx_block_id,
     });

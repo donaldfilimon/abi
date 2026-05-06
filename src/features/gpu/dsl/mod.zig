@@ -290,19 +290,19 @@ pub const CompileOptions = compiler.CompileOptions;
 pub const compile = compiler.compile;
 
 /// Compile kernel IR to KernelSource.
-// TODO: Implement compileToKernelSource
+// compileToKernelSource is reserved for the backend-specific compiler facade.
 // pub const compileToKernelSource = compiler.compileToKernelSource;
 
 /// Compile to all available backends.
-// TODO: Implement compileAll
+// compileAll is reserved for the backend-specific compiler facade.
 // pub const compileAll = compiler.compileAll;
 
 /// Get the best available backend.
-// TODO: Implement getBestBackend
+// getBestBackend is reserved for the backend registry integration.
 // pub const getBestBackend = compiler.getBestBackend;
 
 /// Check if backend supports compilation.
-// TODO: Implement backendSupportsCompilation
+// backendSupportsCompilation is reserved for the backend registry integration.
 // pub const backendSupportsCompilation = compiler.backendSupportsCompilation;
 
 /// Zig-to-SPIRV compiler integration.

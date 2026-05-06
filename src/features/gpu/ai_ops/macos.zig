@@ -15,6 +15,7 @@ const DeviceBuffer = ai_ops.DeviceBuffer;
 pub const MacosAiOps = struct {
     allocator: std.mem.Allocator,
     accel: macos_accel.MacOSAccelerator,
+    ops: ai_ops.AiOps,
 
     const Self = @This();
 
@@ -23,7 +24,9 @@ pub const MacosAiOps = struct {
         self.* = .{
             .allocator = allocator,
             .accel = macos_accel.MacOSAccelerator.init(.{}),
+            .ops = undefined,
         };
+        self.ops = adapters.createAiOps(Self, self);
         // Attempt to init metal for MPS support
         self.accel.initMetal() catch |err| {
             std.log.warn("MacosAiOps: Metal/MPS init failed (falling back to Accelerate/CPU): {any}", .{err});
@@ -32,6 +35,7 @@ pub const MacosAiOps = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.accel.deinitMetal();
         self.allocator.destroy(self);
     }
 
@@ -64,7 +68,7 @@ pub const MacosAiOps = struct {
         const b_slice = @as([*]const f32, @ptrCast(@alignCast(b)))[0 .. k_u * n_u];
         const c_slice = @as([*]f32, @ptrCast(@alignCast(c)))[0 .. m_u * n_u];
 
-        self.accel.matmul(
+        _ = self.accel.matmul(
             a_slice,
             b_slice,
             c_slice,
@@ -198,9 +202,6 @@ pub const MacosAiOps = struct {
     }
 
     pub fn asAiOps(self: *Self) *const ai_ops.AiOps {
-        const ops = adapters.createAiOps(Self, self);
-        const ops_ptr = self.allocator.create(ai_ops.AiOps) catch unreachable;
-        ops_ptr.* = ops;
-        return ops_ptr;
+        return &self.ops;
     }
 };

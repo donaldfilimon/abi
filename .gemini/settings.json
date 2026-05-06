@@ -6,7 +6,14 @@
     "modelSteering": true,
     "directWebFetch": true,
     "useOSC52Paste": true,
-    "worktrees": false
+    "worktrees": false,
+    "gemmaModelRouter": {
+      "enabled": true,
+      "classifier": {
+        "host": "http://localhost:9379",
+        "model": "gemma3-1b-gpu-custom"
+      }
+    }
   },
   "advanced": {
     "autoConfigureMemory": true

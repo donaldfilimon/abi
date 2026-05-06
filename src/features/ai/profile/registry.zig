@@ -118,23 +118,23 @@ pub const ConversationMemory_Internal = struct {
     pub fn deinit(_: *ConversationMemory_Internal) void {}
 };
 
+const ai_types = @import("../types.zig");
+
+// ...
+
 /// A single profile instance wrapping its underlying implementation.
 pub const ProfileInstance = struct {
     id: ProfileId,
     state: ProfileState = .uninitialized,
-
-    // Each profile has different types — we store opaque pointers and
-    // dispatch through the id. Only one will be non-null.
     abbey_engine: ?*abbey_mod.AbbeyEngine = null,
     aviva_profile: ?*aviva_mod.AvivaProfile = null,
     abi_router: ?*abi_mod.AbiRouter = null,
-
     allocator: std.mem.Allocator,
 
     const Self = @This();
 
-    /// Process a message through this profile's engine.
-    pub fn process(self: *Self, message: []const u8) ProfileError!ProfileResponse {
+    /// Process a request through this profile's engine.
+    pub fn process(self: *Self, request: ai_types.ProfileRequest) ProfileError!ProfileResponse {
         if (self.state != .active and self.state != .idle) return error.ProfileNotInitialized;
 
         self.state = .active;
@@ -143,7 +143,12 @@ pub const ProfileInstance = struct {
         return switch (self.id) {
             .abbey => {
                 if (self.abbey_engine) |engine| {
-                    const result = engine.process(message) catch return error.ProfileFailed;
+                    // Update engine model if preferred_model is provided
+                    if (request.preferred_model) |model| {
+                        engine.config.llm.model = model;
+                    }
+
+                    const result = engine.process(request.content) catch return error.ProfileFailed;
                     return ProfileResponse{
                         .profile = .abbey,
                         .content = result.content,
@@ -155,7 +160,8 @@ pub const ProfileInstance = struct {
             },
             .aviva => {
                 if (self.aviva_profile) |profile| {
-                    const result = profile.process(.{ .content = message }) catch return error.ProfileFailed;
+                    var result = profile.process(request) catch return error.ProfileFailed;
+                    defer result.deinit(self.allocator);
                     return ProfileResponse{
                         .profile = .aviva,
                         .content = try self.allocator.dupe(u8, result.content),
@@ -166,14 +172,17 @@ pub const ProfileInstance = struct {
                 return error.ProfileNotInitialized;
             },
             .abi => {
-                // Abi is primarily a router, not a responder — but can provide
-                // compliance-focused responses when directly addressed.
-                return ProfileResponse{
-                    .profile = .abi,
-                    .content = try self.allocator.dupe(u8, "[Abi] Compliance check passed. Routing to appropriate profile."),
-                    .confidence = 0.9,
-                    .allocator = self.allocator,
-                };
+                if (self.abi_router) |router| {
+                    var result = router.route(request) catch return error.ProfileFailed;
+                    defer result.deinit(self.allocator);
+                    return ProfileResponse{
+                        .profile = .abi,
+                        .content = try self.allocator.dupe(u8, result.content),
+                        .confidence = 0.9,
+                        .allocator = self.allocator,
+                    };
+                }
+                return error.ProfileNotInitialized;
             },
         };
     }

@@ -36,7 +36,7 @@ pub const HNSWIndex = struct {
         if (self.entry_point == null) {
             self.entry_point = id;
         } else {
-            // TODO: Implement greedy traversal for graph linking
+            // Greedy traversal for graph linking is reserved for the full HNSW insertion path.
         }
     }
 

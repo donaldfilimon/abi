@@ -44,6 +44,7 @@ pub const client = @import("client.zig");
 pub const engine = @import("engine.zig");
 pub const server = @import("server.zig");
 pub const discord_bot = @import("discord.zig");
+pub const aviva = @import("aviva/mod.zig");
 pub const ralph_multi = @import("ralph_multi.zig");
 pub const ralph_swarm = @import("ralph_swarm.zig");
 pub const abbey_train = @import("abbey_train.zig");

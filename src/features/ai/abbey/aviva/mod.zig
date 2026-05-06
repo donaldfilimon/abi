@@ -8,14 +8,13 @@
 //! - Adaptive confidence calibration and response improvement
 
 const std = @import("std");
-const builtin = @import("builtin");
 const foundation = @import("../../../../foundation/mod.zig");
-const wdbx = @import("../../core/database/wdbx.zig");
+const wdbx = @import("../../../core/database/wdbx.zig");
 const embeddings = @import("../../embeddings/mod.zig");
 const neural = @import("../neural/mod.zig");
 const learning = @import("../neural/learning.zig");
 const memory = @import("../memory/mod.zig");
-const abbey_engine = @import("../engine.zig");
+const calibration = @import("../calibration.zig");
 
 pub const log = std.log.scoped(.aviva);
 
@@ -65,7 +64,6 @@ pub const AvivaAgent = struct {
 
     // Self-training
     learning_system: ?*learning.OnlineLearner = null,
-    experience_buffer: ?*learning.ReplayBuffer = null,
     training_enabled: bool = false,
 
     // Memory management
@@ -76,7 +74,7 @@ pub const AvivaAgent = struct {
     last_consolidation: usize = 0,
 
     // Calibration
-    calibrator: ?*abbey_engine.ConfidenceCalibrator = null,
+    calibrator: ?*calibration.ConfidenceCalibrator = null,
 
     const Self = @This();
 
@@ -89,54 +87,75 @@ pub const AvivaAgent = struct {
 
         // Initialize WDBX
         self.wdbx_handle = try wdbx.createDatabase(allocator, config.db_name);
+        errdefer if (self.wdbx_handle) |*handle| wdbx.closeDatabase(handle);
 
         // Initialize embedding model
-        var emb_model = try allocator.create(embeddings.EmbeddingModel);
-        errdefer if (self.embedding_model == null) {
-            emb_model.deinit();
-            allocator.destroy(emb_model);
-        };
+        const emb_model = try allocator.create(embeddings.EmbeddingModel);
         emb_model.* = embeddings.EmbeddingModel.init(allocator, .{
             .dimension = config.embedding_dim,
             .normalize = config.embedding_normalize,
         });
         self.embedding_model = emb_model;
+        errdefer if (self.embedding_model) |model| {
+            model.deinit();
+            allocator.destroy(model);
+            self.embedding_model = null;
+        };
 
         // Initialize learning system if enabled
         if (config.enable_self_training) {
-            var learner = try allocator.create(learning.OnlineLearner);
-            errdefer if (self.learning_system == null) {
-                learner.deinit();
-                allocator.destroy(learner);
-            };
-            learner.* = learning.OnlineLearner.init(allocator, .{
+            const learner = try allocator.create(learning.OnlineLearner);
+            var learner_owned = false;
+            errdefer if (!learner_owned) allocator.destroy(learner);
+            learner.* = try learning.OnlineLearner.init(allocator, .{
+                .buffer_size = config.replay_buffer_size,
                 .batch_size = config.training_batch_size,
                 .learning_rate = config.training_learning_rate,
+                .update_interval = config.training_update_interval,
+                .use_priority = config.replay_use_priority,
             });
             self.learning_system = learner;
-
-            // Create replay buffer
-            var buffer = try allocator.create(learning.ReplayBuffer);
-            buffer.* = learning.ReplayBuffer.init(allocator, config.replay_buffer_size);
-            buffer.use_priority = config.replay_use_priority;
-            self.experience_buffer = buffer;
+            learner_owned = true;
+            errdefer if (self.learning_system) |owned_learner| {
+                owned_learner.deinit();
+                allocator.destroy(owned_learner);
+                self.learning_system = null;
+            };
 
             self.training_enabled = true;
         }
 
         // Initialize memory manager
-        var mem_mgr = try allocator.create(memory.MemoryManager);
-        mem_mgr.* = memory.MemoryManager.init(allocator);
+        const mem_mgr = try allocator.create(memory.MemoryManager);
+        var mem_mgr_owned = false;
+        errdefer if (!mem_mgr_owned) allocator.destroy(mem_mgr);
+        mem_mgr.* = try memory.MemoryManager.init(allocator, .{
+            .embedding_dim = config.embedding_dim,
+        });
         self.memory_manager = mem_mgr;
+        mem_mgr_owned = true;
+        errdefer if (self.memory_manager) |mgr| {
+            mgr.deinit();
+            allocator.destroy(mgr);
+            self.memory_manager = null;
+        };
 
         // Initialize calibrator if enabled
         if (config.enable_calibration) {
-            var cal = try allocator.create(abbey_engine.ConfidenceCalibrator);
-            cal.* = abbey_engine.ConfidenceCalibrator.init(allocator);
+            const cal = try allocator.create(calibration.ConfidenceCalibrator);
+            var cal_owned = false;
+            errdefer if (!cal_owned) allocator.destroy(cal);
+            cal.* = calibration.ConfidenceCalibrator.init(allocator);
             self.calibrator = cal;
+            cal_owned = true;
+            errdefer if (self.calibrator) |owned_cal| {
+                owned_cal.deinit();
+                allocator.destroy(owned_cal);
+                self.calibrator = null;
+            };
         }
 
-        log.info("Aviva agent initialized (training={s}, calibration={s})", .{
+        log.info("Aviva agent initialized (training={}, calibration={})", .{
             config.enable_self_training,
             config.enable_calibration,
         });
@@ -149,10 +168,6 @@ pub const AvivaAgent = struct {
         if (self.learning_system) |learner| {
             learner.deinit();
             self.allocator.destroy(learner);
-        }
-        if (self.experience_buffer) |buf| {
-            buf.deinit();
-            self.allocator.destroy(buf);
         }
         if (self.memory_manager) |mgr| {
             mgr.deinit();
@@ -181,39 +196,45 @@ pub const AvivaAgent = struct {
         if (self.embedding_model) |*model| {
             embedding = model.embed(input) catch |err| {
                 log.err("Embedding generation failed: {any}", .{err});
-                return null;
+                null;
             };
         }
+        defer if (embedding) |emb| self.allocator.free(emb);
 
         // Retrieve relevant context from WDBX
         var context_slices: [][]const u8 = &.{};
         if (embedding) |emb| {
             if (self.wdbx_handle) |*handle| {
-                const results = wdbx.searchVectors(handle, self.allocator, emb, self.config.memory_top_k) catch |err| {
-                    log.err("WDBX search failed: {any}", .{err});
-                    &.{};
-                };
-                defer self.allocator.free(results);
+                if (wdbx.searchVectors(handle, self.allocator, emb, self.config.memory_top_k)) |results| {
+                    defer self.allocator.free(results);
 
-                // Build context from retrieved vectors
-                var ctx_list = std.ArrayListUnmanaged([]const u8).empty;
-                defer ctx_list.deinit(self.allocator);
-
-                for (results) |res| {
-                    const view = wdbx.getVector(handle, res.id) orelse continue;
-                    if (view.metadata) |meta| {
-                        try ctx_list.append(self.allocator, meta);
+                    // Build context from retrieved vectors
+                    var ctx_list = std.ArrayListUnmanaged([]const u8).empty;
+                    defer ctx_list.deinit(self.allocator);
+                    errdefer {
+                        for (ctx_list.items) |slice| self.allocator.free(slice);
                     }
-                }
 
-                if (ctx_list.items.len > 0) {
-                    context_slices = try ctx_list.toOwnedSlice(self.allocator);
+                    for (results) |res| {
+                        const view = wdbx.getVector(handle, res.id) orelse continue;
+                        if (view.metadata) |meta| {
+                            const owned_meta = try self.allocator.dupe(u8, meta);
+                            errdefer self.allocator.free(owned_meta);
+                            try ctx_list.append(self.allocator, owned_meta);
+                        }
+                    }
+
+                    if (ctx_list.items.len > 0) {
+                        context_slices = try ctx_list.toOwnedSlice(self.allocator);
+                    }
+                } else |err| {
+                    log.err("WDBX search failed: {any}", .{err});
                 }
             }
         }
         defer {
             for (context_slices) |slice| self.allocator.free(slice);
-            self.allocator.free(context_slices);
+            if (context_slices.len > 0) self.allocator.free(context_slices);
         }
 
         // Build augmented input
@@ -223,26 +244,24 @@ pub const AvivaAgent = struct {
                 defer ctx_builder.deinit();
 
                 for (context_slices, 0..) |ctx, i| {
-                    if (i > 0) ctx_builder.writer().writeAll("\n\n") catch continue;
-                    ctx_builder.writer().writeAll("Context: ") catch continue;
-                    ctx_builder.writer().writeAll(ctx) catch continue;
+                    if (i > 0) try ctx_builder.writer().writeAll("\n\n");
+                    try ctx_builder.writer().writeAll("Context: ");
+                    try ctx_builder.writer().writeAll(ctx);
                 }
-                ctx_builder.writer().writeAll("\n\nUser: ") catch {};
-                ctx_builder.writer().writeAll(input) catch {};
+                try ctx_builder.writer().writeAll("\n\nUser: ");
+                try ctx_builder.writer().writeAll(input);
 
                 break :blk try ctx_builder.toOwnedSlice();
             } else {
                 break :blk try self.allocator.dupe(u8, input);
             }
         };
-        defer self.allocator.free(augmented_input);
-
-        // TODO: Send to Abbey engine (would need reference to engine)
-        // For now, return the augmented input and context
+        // The Abbey engine integration layer consumes this augmented prompt.
 
         const elapsed = foundation.time.unixMs() - start_time;
 
         return ProcessResult{
+            .allocator = self.allocator,
             .augmented_input = augmented_input,
             .context_retrieved = context_slices.len,
             .processing_time_ms = elapsed,
@@ -268,11 +287,11 @@ pub const AvivaAgent = struct {
                 defer meta_builder.deinit();
 
                 const writer = meta_builder.writer();
-                writer.print("{{\"type\":\"interaction\",\"id\":{},\"input\":\"", .{count}) catch return;
-                std.json.encodeString(writer, input) catch return;
-                writer.print("\",\"response\":\"", .{}) catch return;
-                std.json.encodeString(writer, response) catch return;
-                writer.print("\",\"timestamp\":{}}}", .{foundation.time.unixMs()}) catch return;
+                try writer.print("{{\"type\":\"interaction\",\"id\":{},\"input\":\"", .{count});
+                try std.json.encodeString(writer, input);
+                try writer.print("\",\"response\":\"", .{});
+                try std.json.encodeString(writer, response);
+                try writer.print("\",\"timestamp\":{}}}", .{foundation.time.unixMs()});
 
                 const metadata = try meta_builder.toOwnedSlice();
                 defer self.allocator.free(metadata);
@@ -285,26 +304,43 @@ pub const AvivaAgent = struct {
             }
         }
 
-        // Store in experience buffer for training
         if (self.training_enabled) {
-            if (self.experience_buffer) |buf| {
+            if (self.learning_system) |learner| {
+                const state_emb = if (self.embedding_model) |*model| model.embed(input) catch |err| {
+                    log.err("Failed to embed training state: {any}", .{err});
+                    return;
+                } else return;
+                defer self.allocator.free(state_emb);
+
+                const action_emb = if (self.embedding_model) |*model| model.embed(response) catch |err| {
+                    log.err("Failed to embed training action: {any}", .{err});
+                    return;
+                } else return;
+                defer self.allocator.free(action_emb);
+
+                var state_tensor = try neural.F32Tensor.fromSlice(self.allocator, state_emb, &.{state_emb.len});
+                errdefer state_tensor.deinit();
+                var action_tensor = try neural.F32Tensor.fromSlice(self.allocator, action_emb, &.{action_emb.len});
+                errdefer action_tensor.deinit();
+
                 const experience = learning.Experience{
-                    .state = try self.allocator.dupe(u8, input),
-                    .action = try self.allocator.dupe(u8, response),
+                    .state = state_tensor,
+                    .action = action_tensor,
                     .reward = reward orelse 0.0,
-                    .next_state = &.{},
+                    .next_state = null,
                     .done = false,
-                    .priority = 1.0,
+                    .timestamp = foundation.time.unixMs(),
+                    .metadata = .{},
                 };
-                buf.add(experience);
+                learner.addExperience(experience);
             }
 
             // Check if we should trigger training
-            if (count - self.last_consolidation >= self.config.training_update_interval) {
+            if (count + 1 - self.last_consolidation >= self.config.training_update_interval) {
                 self.triggerTraining() catch |err| {
                     log.err("Training trigger failed: {any}", .{err});
                 };
-                self.last_consolidation = count;
+                self.last_consolidation = count + 1;
             }
         }
     }
@@ -314,39 +350,15 @@ pub const AvivaAgent = struct {
         if (!self.training_enabled) return;
 
         if (self.learning_system) |learner| {
-            if (self.experience_buffer) |buf| {
-                if (buf.size < self.config.training_batch_size) {
-                    log.info("Skipping training: buffer size {d} < batch size {d}", .{
-                        buf.size, self.config.training_batch_size,
-                    });
-                    return;
-                }
-
-                // Sample batch
-                const indices = try buf.sample(self.config.training_batch_size);
-                defer self.allocator.free(indices);
-
-                // Perform training step
-                var total_loss: f32 = 0.0;
-                for (indices) |idx| {
-                    const exp = buf.buffer[idx % buf.capacity];
-                    const loss = learner.update(exp.state, exp.action) catch |err| {
-                        log.err("Training step failed: {any}", .{err});
-                        continue;
-                    };
-                    total_loss += loss;
-
-                    // Update priorities based on TD error
-                    if (buf.use_priority) {
-                        const td_error = @fabs(loss);
-                        buf.updatePriorities(&.{idx}, &.{td_error}, 0.6) catch |err| {
-                            log.err("Priority update failed: {any}", .{err});
-                        };
-                    }
-                }
-
-                log.info("Training step complete: avg_loss={d:.4}", .{total_loss / @as(f32, self.config.training_batch_size)});
+            if (!learner.shouldUpdate()) {
+                log.info("Skipping training: buffer size {d} < batch size {d}", .{
+                    learner.replay_buffer.size, self.config.training_batch_size,
+                });
+                return;
             }
+
+            const loss = try learner.update(avivaForward);
+            log.info("Training step complete: avg_loss={d:.4}", .{loss});
         }
     }
 
@@ -370,21 +382,31 @@ pub const AvivaAgent = struct {
 
         stats.interaction_count = self.interaction_count.load(.monotonic);
 
-        if (self.experience_buffer) |buf| {
-            stats.buffer_size = buf.size;
-            stats.buffer_capacity = buf.capacity;
+        if (self.learning_system) |learner| {
+            stats.buffer_size = learner.replay_buffer.size;
+            stats.buffer_capacity = learner.replay_buffer.capacity;
         }
 
         return stats;
     }
 };
 
+fn avivaForward(input: *const neural.F32Tensor) neural.layer.LayerError!neural.F32Tensor {
+    return neural.F32Tensor.fromSlice(input.allocator, input.data, input.shape);
+}
+
 /// Result of processing input with memory
 pub const ProcessResult = struct {
+    allocator: std.mem.Allocator,
     augmented_input: []const u8,
     context_retrieved: usize,
     processing_time_ms: i64,
     embedding_generated: bool,
+
+    pub fn deinit(self: *ProcessResult) void {
+        self.allocator.free(self.augmented_input);
+        self.* = undefined;
+    }
 };
 
 /// Statistics about Aviva agent
@@ -421,7 +443,8 @@ test "AvivaAgent process with memory" {
     });
     defer agent.deinit();
 
-    const result = try agent.processWithMemory("Hello Aviva!");
+    var result = try agent.processWithMemory("Hello Aviva!");
+    defer result.deinit();
 
     try std.testing.expect(result.processing_time_ms >= 0);
     // Note: embedding might fail if no backend is configured

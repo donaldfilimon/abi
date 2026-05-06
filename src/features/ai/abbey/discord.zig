@@ -74,7 +74,7 @@ pub const DiscordBotConfig = struct {
     /// Optional model id to pass to backend (e.g., OpenAI model)
     embedding_model_id: ?[]const u8 = null,
     /// Allow trusted local fallback providers when internal API is unavailable.
-    allow_trusted_fallback: bool = true,
+    allow_trusted_fallback: bool = false,
 
     /// Validate configuration (FeatureContext compatibility)
     pub fn validate(config: @This()) !void {
@@ -515,6 +515,7 @@ pub const AbbeyDiscordBot = struct {
         }
 
         return MessageResponse{
+            .allocator = self.allocator,
             .content = try self.allocator.dupe(u8, result.response.content),
             .channel_id = try self.allocator.dupe(u8, message.channel_id),
             .reply_to = try self.allocator.dupe(u8, message.id),
@@ -619,10 +620,18 @@ pub const AbbeyDiscordBot = struct {
 
 /// Response to send to Discord
 pub const MessageResponse = struct {
+    allocator: std.mem.Allocator,
     content: []const u8,
     channel_id: []const u8,
     reply_to: ?[]const u8 = null,
     emotional_reaction: ?[]const u8 = null,
+
+    pub fn deinit(self: *MessageResponse) void {
+        self.allocator.free(self.content);
+        self.allocator.free(self.channel_id);
+        if (self.reply_to) |reply_to| self.allocator.free(reply_to);
+        self.* = undefined;
+    }
 };
 
 /// Bot statistics
@@ -758,7 +767,7 @@ fn handleChatCommand(bot: *AbbeyDiscordBot, data: *const discord.InteractionData
 
     // Process with Abbey
     var response = try bot.assistant.process(user_message);
-    defer response.deinit();
+    errdefer response.deinit();
 
     if (learning.LearningRuntime.init(bot.allocator)) |runtime| {
         var rt = runtime;
@@ -771,13 +780,20 @@ fn handleChatCommand(bot: *AbbeyDiscordBot, data: *const discord.InteractionData
             .selected_model = "ollama/abbeycode",
             .route_reason = "discord slash command",
             .constitution_passed = true,
-        }) catch {};
-    } else |_| {}
+        }) catch |err| {
+            log.warn("Discord slash learning record failed: {}", .{err});
+        };
+    } else |err| {
+        log.warn("Discord slash learning runtime unavailable: {}", .{err});
+    }
 
+    const content = response.response.content;
+    response.response.content = &.{};
+    response.deinit();
     return discord.InteractionResponse{
         .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
         .data = .{
-            .content = response.response.content,
+            .content = content,
         },
     };
 }
