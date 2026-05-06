@@ -26,17 +26,14 @@ pub const InsertContext = struct {
     distance_cache: ?*DistanceCache,
 };
 
-/// Insert a new node at a specific position in the HNSW graph.
-///
-/// Implements the standard HNSW insertion algorithm:
-/// 1. Determine target layer using exponential distribution
-/// 2. Greedy descent from max_layer to target_layer + 1
-/// 3. Layer-by-layer neighbor connection from target_layer to 0
-/// 4. Update entry point if new node is at a higher layer
+const distributed_mod = @import("distributed.zig");
+
+/// Insert a new node at a specific position in the HNSW graph with distributed support.
 pub fn insertAt(
     ctx: InsertContext,
     entry_point: *?u32,
     max_layer: *i32,
+    barrier: *distributed_mod.SyncBarrier,
     allocator: std.mem.Allocator,
     temp_allocator: std.mem.Allocator,
     records: []const index_mod.VectorRecordView,
@@ -83,6 +80,10 @@ pub fn insertAt(
             }
         }
     }
+
+    // Coordinate the section that mutates neighbor lists and the entry point.
+    barrier.acquire();
+    defer barrier.release();
 
     // 2. Perform layered insertion from target_layer down to 0
     lc = @min(target_layer, max_layer.*);
@@ -320,7 +321,7 @@ pub fn computeNodeDistance(
     }
 
     // Compute cosine distance using pre-computed norms when available
-    const dist = if (ctx.norms.len > a and ctx.norms.len > b) blk: {
+    const d = if (ctx.norms.len > a and ctx.norms.len > b) blk: {
         const na = ctx.norms[a];
         const nb = ctx.norms[b];
         if (na > 0.0 and nb > 0.0) {
@@ -332,10 +333,10 @@ pub fn computeNodeDistance(
 
     // Store in cache
     if (ctx.distance_cache) |cache| {
-        cache.put(a, b, dist);
+        cache.put(a, b, d);
     }
 
-    return dist;
+    return d;
 }
 
 test {

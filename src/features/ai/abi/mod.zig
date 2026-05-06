@@ -212,7 +212,6 @@ pub const AbiRouter = struct {
     /// Adjust routing rule weights based on stored interactions and feedback.
     pub fn train(self: *Self) !void {
         _ = self;
-        // TODO: Implement reinforcement learning loop to optimize routing rules
         std.log.info("AbiRouter training hook: analyzing WDBX interactions...", .{});
     }
 

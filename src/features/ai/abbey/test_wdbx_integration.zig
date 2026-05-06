@@ -1,223 +1,83 @@
 const std = @import("std");
-const discord = @import("discord.zig");
-const wdbx = @import("../../../core/database/wdbx.zig");
-const embeddings = @import("../embeddings/mod.zig");
+const discord_connector = @import("../../../connectors/discord/mod.zig");
+const discord_bot = @import("discord.zig");
 
-test "AbbeyDiscordBot WDBX memory flow" {
+fn testAuthor(id: []const u8, username: []const u8) discord_connector.User {
+    return .{
+        .id = id,
+        .username = username,
+        .discriminator = "0001",
+    };
+}
+
+fn testMessage(id: []const u8, channel_id: []const u8, author: discord_connector.User, content: []const u8) discord_connector.Message {
+    return .{
+        .id = id,
+        .channel_id = channel_id,
+        .author = author,
+        .content = content,
+        .timestamp = "2026-01-01T00:00:00.000Z",
+    };
+}
+
+test "AbbeyDiscordBot records routed messages in assistant memory" {
     const allocator = std.testing.allocator;
 
-    var bot = try discord.AbbeyDiscordBot.init(allocator, .{
+    var bot = try discord_bot.AbbeyDiscordBot.init(allocator, .{
         .abbey = .{},
+        .respond_to_all = true,
         .memory_top_k = 5,
     });
     defer bot.deinit();
 
-    // Verify that WDBX handle and embedding model are initialized
-    try std.testing.expectTrue(bot.wdbx_handle.? != null);
-    try std.testing.expectTrue(bot.embedding_model.? != null);
+    try std.testing.expect(bot.assistant.router.memory != null);
 
-    const author = discord.User{
-        .id = "user123",
-        .username = "testuser",
-        .discriminator = "0001",
-        .global_name = null,
-        .avatar = null,
-        .bot = false,
-        .system = false,
-        .mfa_enabled = false,
-        .banner = null,
-        .accent_color = null,
-        .locale = null,
-        .verified = false,
-        .email = null,
-        .flags = 0,
-        .premium_type = 0,
-        .public_flags = 0,
-    };
+    const author = testAuthor("user123", "memorytest");
+    const msg1 = testMessage("msg1", "chan1", author, "Explain ABI memory routing");
+    var resp1 = (try bot.handleMessage(msg1)).?;
+    defer resp1.deinit();
 
-    const msg1 = discord.Message{
-        .id = "msg1",
-        .channel_id = "chan1",
-        .author = author,
-        .content = "Hello WDBX memory test first message",
-        .timestamp = "2026-01-01T00:00:00.000Z",
-    };
+    const msg2 = testMessage("msg2", "chan1", author, "Explain ABI memory routing again");
+    var resp2 = (try bot.handleMessage(msg2)).?;
+    defer resp2.deinit();
 
-    // Process first message - should store in WDBX
-    const resp1 = try bot.handleMessage(msg1) catch |err| {
-        // If embedding fails due to missing backend, that's ok for this basic test
-        // We're mainly testing that the flow doesn't crash and WDBX is accessible
-        return null;
-    };
-
-    // Check that we have a WDBX handle and it contains data
-    if (bot.wdbx_handle) |*handle| {
-        const stats = wdbx.getStats(handle);
-        // Even if embedding failed, we should be able to access stats
-        try std.testing.expectTrue(stats.count >= 0);
-
-        // If we got a response, embedding likely worked and we stored a vector
-        if (resp1) |_| {
-            try std.testing.expectGreaterThan(stats.count, @as(usize, 0));
-        }
-    }
-
-    const msg2 = discord.Message{
-        .id = "msg2",
-        .channel_id = "chan1",
-        .author = author,
-        .content = "Hello WDBX memory test second similar message",
-        .timestamp = "2026-01-01T00:00:01.000Z",
-    };
-
-    // Process second message
-    const resp2 = try bot.handleMessage(msg2) catch |err| {
-        return null;
-    };
-
-    // Verify WDBX still accessible and has grown
-    if (bot.wdbx_handle) |*handle| {
-        const stats = wdbx.getStats(handle);
-        try std.testing.expectTrue(stats.count >= 0);
-
-        // If both responses succeeded, we should have at least 2 vectors
-        if (resp1) |_| {
-            if (resp2) |_| {
-                try std.testing.expectGreaterThanEqual(stats.count, @as(usize, 2));
-            }
-        }
-    }
+    const mem = &bot.assistant.router.memory.?;
+    try std.testing.expectEqual(@as(u64, 2), mem.getInteractionCount());
+    try std.testing.expect(mem.chain.current_head != null);
 }
 
-test "AbbeyDiscordBot handles context retrieval in prompt" {
+test "AbbeyDiscordBot ignores messages outside response policy" {
     const allocator = std.testing.allocator;
 
-    var bot = try discord.AbbeyDiscordBot.init(allocator, .{
+    var bot = try discord_bot.AbbeyDiscordBot.init(allocator, .{
         .abbey = .{},
-        .memory_top_k = 5,
-        .memory_time_window_days = 30,
+        .respond_to_all = false,
     });
     defer bot.deinit();
 
-    const author = discord.User{
-        .id = "user456",
-        .username = "contexttest",
-        .discriminator = "0001",
-        .global_name = null,
-        .avatar = null,
-        .bot = false,
-        .system = false,
-        .mfa_enabled = false,
-        .banner = null,
-        .accent_color = null,
-        .locale = null,
-        .verified = false,
-        .email = null,
-        .flags = 0,
-        .premium_type = 0,
-        .public_flags = 0,
-    };
+    const author = testAuthor("user456", "quiettest");
+    const msg = testMessage("msg3", "chan2", author, "This should not be handled");
+    try std.testing.expect((try bot.handleMessage(msg)) == null);
 
-    // First message - establishes context
-    const msg1 = discord.Message{
-        .id = "ctx1",
-        .channel_id = "ctxchan",
-        .author = author,
-        .content = "The quick brown fox jumps over the lazy dog",
-        .timestamp = "2026-01-01T00:00:00.000Z",
-    };
-
-    _ = try bot.handleMessage(msg1) catch |err| {
-        return null;
-    };
-
-    // Second message - should retrieve context from first
-    const msg2 = discord.Message{
-        .id = "ctx2",
-        .channel_id = "ctxchan",
-        .author = author,
-        .content = "A fast brown fox leaps over a sleepy canine",
-        .timestamp = "2026-01-01T00:00:01.000Z",
-    };
-
-    const response = try bot.handleMessage(msg2) catch |err| {
-        return null;
-    };
-
-    // If we got a response, the processing pipeline worked
-    if (response) |_| {
-        // Verify we can access the WDBX handle
-        if (bot.wdbx_handle) |*handle| {
-            const stats = wdbx.getStats(handle);
-            try std.testing.expectEqualTrue(stats.count >= 0);
-
-            // Verify we can retrieve vectors
-            if (stats.count > 0) {
-                // Try to get a vector we know should exist
-                const view = wdbx.getVector(handle, 0) orelse {
-                    // If vector 0 doesn't exist, try to find any vector
-                    const list = try wdbx.listVectors(handle, allocator, 10) catch |err| {
-                        return;
-                    };
-                    defer allocator.free(list);
-                    if (list.len > 0) list[0] else return;
-                };
-
-                // Verify the vector has metadata
-                if (view.metadata) |meta| {
-                    try std.testing.expectTrue(meta.len > 0);
-                }
-            }
-        }
-    }
+    const mem = &bot.assistant.router.memory.?;
+    try std.testing.expectEqual(@as(u64, 0), mem.getInteractionCount());
 }
 
-test "AbbeyDiscordBot handles empty WDBX gracefully" {
+test "AbbeyDiscordBot skips bot-authored messages" {
     const allocator = std.testing.allocator;
 
-    var bot = try discord.AbbeyDiscordBot.init(allocator, .{
+    var bot = try discord_bot.AbbeyDiscordBot.init(allocator, .{
         .abbey = .{},
+        .respond_to_all = true,
     });
     defer bot.deinit();
 
-    const author = discord.User{
-        .id = "user789",
-        .username = "emptytest",
-        .discriminator = "0001",
-        .global_name = null,
-        .avatar = null,
-        .bot = false,
-        .system = false,
-        .mfa_enabled = false,
-        .banner = null,
-        .accent_color = null,
-        .locale = null,
-        .verified = false,
-        .email = null,
-        .flags = 0,
-        .premium_type = 0,
-        .public_flags = 0,
-    };
+    var author = testAuthor("bot-user", "bot");
+    author.bot = true;
 
-    const msg = discord.Message{
-        .id = "empty1",
-        .channel_id = "emptychan",
-        .author = author,
-        .content = "Test message for empty WDBX handling",
-        .timestamp = "2026-01-01T00:00:00.000Z",
-    };
+    const msg = testMessage("msg4", "chan3", author, "Bot messages are ignored");
+    try std.testing.expect((try bot.handleMessage(msg)) == null);
 
-    // Should not crash even if WDBX operations fail
-    const response = try bot.handleMessage(msg) catch |err| {
-        return null;
-    };
-
-    // If we got a response, basic processing worked
-    if (response) |_| {
-        // Verify WDBX handle exists
-        if (bot.wdbx_handle) |*handle| {
-            const stats = wdbx.getStats(handle);
-            try std.testing.expectTrue(stats.count >= 0);
-        }
-    }
+    const mem = &bot.assistant.router.memory.?;
+    try std.testing.expectEqual(@as(u64, 0), mem.getInteractionCount());
 }

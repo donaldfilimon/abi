@@ -7,10 +7,25 @@ const Parameter = tool.Parameter;
 const json = std.json;
 const os = @import("../../../foundation/mod.zig").os;
 const sync = @import("../../../foundation/mod.zig").sync;
+const arg = @import("args.zig");
 
 // Registry for tracking spawned background server PIDs
 var server_pids: std.AutoHashMapUnmanaged(u32, []const u8) = .empty;
 var pid_mutex: sync.Mutex = .{};
+
+fn validMcpMode(mode: []const u8) bool {
+    return std.mem.eql(u8, mode, "sse") or std.mem.eql(u8, mode, "stdio");
+}
+
+fn mcpModeFromArgs(obj: std.json.ObjectMap) []const u8 {
+    if (arg.string(obj, "mode")) |mode| {
+        if (validMcpMode(mode)) return mode;
+    }
+    if (arg.string(obj, "target")) |target| {
+        if (validMcpMode(target)) return target;
+    }
+    return "sse";
+}
 
 fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!ToolResult {
     const obj = switch (args) {
@@ -18,12 +33,21 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
     };
 
-    const target = if (obj.get("target")) |v| switch (v) {
-        .string => |s| s,
-        else => "database",
-    } else "database";
+    const mode = mcpModeFromArgs(obj);
+    if (std.mem.eql(u8, mode, "stdio")) {
+        return ToolResult.fromError(ctx.allocator, "Background MCP serving requires mode=sse; use abi-mcp stdio from an MCP client for stdio transport");
+    }
 
-    const bg_cmd = std.fmt.allocPrint(ctx.allocator, "nohup abi mcp serve {s} > /tmp/abi-mcp.log 2>&1 & echo $!", .{target}) catch
+    const host = arg.string(obj, "host") orelse "127.0.0.1";
+    if (!arg.safeHost(host)) {
+        return ToolResult.fromError(ctx.allocator, "Invalid MCP host");
+    }
+
+    const port = arg.u16OrDefault(obj, "port", 8081) orelse {
+        return ToolResult.fromError(ctx.allocator, "Invalid MCP port");
+    };
+
+    const bg_cmd = std.fmt.allocPrint(ctx.allocator, "ABI_MCP_HOST={s} ABI_MCP_PORT={d} nohup ./mcp/launcher.sh sse > /tmp/abi-mcp-{d}.log 2>&1 & echo $!", .{ host, port, port }) catch
         return error.OutOfMemory;
     defer ctx.allocator.free(bg_cmd);
 
@@ -31,6 +55,11 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         return ToolResult.fromError(ctx.allocator, "Failed to spawn MCP server");
     };
     defer result.deinit();
+
+    if (!result.success()) {
+        std.log.warn("Failed to spawn MCP server: {s}", .{result.stderr});
+        return ToolResult.fromError(ctx.allocator, "Failed to spawn MCP server");
+    }
 
     // Parse PID from stdout
     const pid_str = std.mem.trim(u8, result.stdout, " \r\n");
@@ -44,7 +73,7 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         };
     }
 
-    const output = std.fmt.allocPrint(ctx.allocator, "MCP server started for {s} (PID: {d})", .{ target, pid }) catch
+    const output = std.fmt.allocPrint(ctx.allocator, "MCP SSE server started on {s}:{d} (PID: {d})", .{ host, port, pid }) catch
         return error.OutOfMemory;
 
     return ToolResult.init(ctx.allocator, true, output);
@@ -52,9 +81,11 @@ fn executeServeMcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
 
 pub const serve_mcp_tool = Tool{
     .name = "serve_mcp",
-    .description = "Start an MCP (Model Context Protocol) server",
+    .description = "Start the ABI MCP SSE server",
     .parameters = &[_]Parameter{
-        .{ .name = "target", .type = .string, .required = false, .description = "Target service (e.g., database, zls)" },
+        .{ .name = "mode", .type = .string, .required = false, .description = "Transport mode; background serving supports sse", .enum_values = &[_][]const u8{"sse"} },
+        .{ .name = "host", .type = .string, .required = false, .description = "Bind host, default 127.0.0.1" },
+        .{ .name = "port", .type = .integer, .required = false, .description = "Bind port, default 8081" },
     },
     .execute = &executeServeMcp,
 };
@@ -65,10 +96,9 @@ fn executeServeAcp(ctx: *Context, args: json.Value) tool.ToolExecutionError!Tool
         else => return ToolResult.fromError(ctx.allocator, "Expected object arguments"),
     };
 
-    const port = if (obj.get("port")) |v| switch (v) {
-        .integer => |i| i,
-        else => 8080,
-    } else 8080;
+    const port = arg.u16OrDefault(obj, "port", 8080) orelse {
+        return ToolResult.fromError(ctx.allocator, "Invalid ACP port");
+    };
 
     const bg_cmd = std.fmt.allocPrint(ctx.allocator, "nohup abi acp serve --port {d} > /tmp/abi-acp.log 2>&1 & echo $!", .{port}) catch
         return error.OutOfMemory;

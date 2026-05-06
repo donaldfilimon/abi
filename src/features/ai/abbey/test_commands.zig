@@ -20,9 +20,10 @@ test "dispatch slash commands" {
         },
     };
 
-    const mood_resp = try discord_bot.handleSlashCommand(&bot, mood_interaction);
+    var mood_resp = try discord_bot.handleSlashCommand(&bot, mood_interaction);
+    defer mood_resp.deinit();
     try std.testing.expectEqual(@as(u8, 4), mood_resp.response_type);
-    try std.testing.expect(std.mem.indexOf(u8, mood_resp.data.content, "Current mood") != null);
+    try std.testing.expect(std.mem.indexOf(u8, mood_resp.data.?.content.?, "Current mood") != null);
 
     // Mock interaction for /abbey-clear
     const clear_interaction = discord.Interaction{
@@ -36,7 +37,8 @@ test "dispatch slash commands" {
         },
     };
 
-    const clear_resp = try discord_bot.handleSlashCommand(&bot, clear_interaction);
+    var clear_resp = try discord_bot.handleSlashCommand(&bot, clear_interaction);
+    defer clear_resp.deinit();
     try std.testing.expectEqual(@as(u8, 4), clear_resp.response_type);
-    try std.testing.expectEqualStrings("Conversation context cleared! Let's start fresh.", clear_resp.data.content);
+    try std.testing.expectEqualStrings("Conversation context cleared! Let's start fresh.", clear_resp.data.?.content.?);
 }

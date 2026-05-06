@@ -1,6 +1,7 @@
 //! Agent Tools stub — active when AI feature is disabled.
 
 const std = @import("std");
+pub const args = @import("args.zig");
 const types = @import("types.zig");
 const agent_stub = @import("../agents/stub.zig");
 

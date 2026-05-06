@@ -285,7 +285,7 @@ pub const DistributedBlockChain = struct {
     /// Caller owns the returned slice and must free it with `self.allocator`.
     pub fn getVisibleBlocks(self: *Self, session_id: []const u8) ![]const u64 {
         if (self.local_chains.get(session_id)) |chain| {
-            const read_ts = self.mvcc_store.read_timestamps.get(session_id) orelse time.unixSeconds();
+            const read_ts = self.mvcc_store.read_timestamps.get(session_id) orelse block_chain.logicalTimestampSeconds();
             var visible = std.ArrayListUnmanaged(u64).empty;
             errdefer visible.deinit(self.allocator);
 

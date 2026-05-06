@@ -117,9 +117,8 @@ pub const Assistant = struct {
         var validated_response = response;
         if (self.router.constitution) |c| {
             if (!c.isCompliant(response.content)) {
-                // Free the unsafe response content
                 response.allocator.free(response.content);
-                
+
                 const safe_msg = "I cannot provide this response as it may violate safety guidelines.";
                 validated_response = types.ProfileResponse{
                     .profile = .abi,
@@ -139,8 +138,8 @@ pub const Assistant = struct {
         const latency = @as(f32, @floatFromInt(end_time - start_time));
 
         var block_id: ?u64 = null;
-        if (self.router.memory) |mem| {
-            block_id = if (mem.chain.current_head) |head| head else null;
+        if (self.router.memory) |*mem| {
+            block_id = try mem.recordInteraction(decision, input, validated_response, null);
         }
 
         // Record interaction in learning runtime for telemetry

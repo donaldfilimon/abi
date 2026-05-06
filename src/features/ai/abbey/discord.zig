@@ -729,7 +729,7 @@ pub fn handleSlashCommand(
     if (std.mem.eql(u8, command_name, "abbey")) {
         return handleChatCommand(bot, &data);
     } else if (std.mem.eql(u8, command_name, "abbey-mood")) {
-        return handleMoodCommand(bot);
+        return handleMoodCommand();
     } else if (std.mem.eql(u8, command_name, "abbey-stats")) {
         return handleStatsCommand(bot);
     } else if (std.mem.eql(u8, command_name, "abbey-clear")) {
@@ -787,41 +787,38 @@ fn handleChatCommand(bot: *AbbeyDiscordBot, data: *const discord.InteractionData
         log.warn("Discord slash learning runtime unavailable: {}", .{err});
     }
 
-    const content = response.response.content;
-    response.response.content = &.{};
+    const content = try bot.allocator.dupe(u8, response.response.content);
     response.deinit();
     return discord.InteractionResponse{
         .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
+        .owned_allocator = bot.allocator,
         .data = .{
             .content = content,
         },
     };
 }
 
-fn handleMoodCommand(_: *AbbeyDiscordBot) discord.InteractionResponse {
-    var buf: [256]u8 = undefined;
-    const content = std.fmt.bufPrint(&buf, "Current mood: neutral (intensity: 50%)", .{}) catch "Unable to get mood";
-
+fn handleMoodCommand() discord.InteractionResponse {
     return discord.InteractionResponse{
         .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
         .data = .{
-            .content = content,
+            .content = "Current mood: neutral (intensity: 50%)",
         },
     };
 }
 
-fn handleStatsCommand(bot: *AbbeyDiscordBot) discord.InteractionResponse {
+fn handleStatsCommand(bot: *AbbeyDiscordBot) !discord.InteractionResponse {
     const stats = bot.getStats();
-    var buf: [512]u8 = undefined;
-    const content = std.fmt.bufPrint(&buf, "**Abbey Stats**\nMessages: {d}\nSessions: {d}\nAvg Response: {d:.1}ms\nRelationship: {d:.0}%", .{
+    const content = try std.fmt.allocPrint(bot.allocator, "**Abbey Stats**\nMessages: {d}\nSessions: {d}\nAvg Response: {d:.1}ms\nRelationship: {d:.0}%", .{
         stats.total_messages_processed,
         stats.active_sessions,
         stats.avg_response_time_ms,
         stats.relationship_score * 100,
-    }) catch "Unable to get stats";
+    });
 
     return discord.InteractionResponse{
         .response_type = 4, // CHANNEL_MESSAGE_WITH_SOURCE
+        .owned_allocator = bot.allocator,
         .data = .{
             .content = content,
         },

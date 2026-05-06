@@ -700,6 +700,16 @@ pub const InteractionCallbackType = enum(u8) {
 pub const InteractionResponse = struct {
     response_type: u8,
     data: ?InteractionCallbackData = null,
+    owned_allocator: ?std.mem.Allocator = null,
+
+    pub fn deinit(self: *InteractionResponse) void {
+        if (self.owned_allocator) |allocator| {
+            if (self.data) |data| {
+                if (data.content) |content| allocator.free(content);
+            }
+        }
+        self.* = undefined;
+    }
 };
 
 pub const InteractionCallbackData = struct {

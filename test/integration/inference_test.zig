@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const build_options = @import("build_options");
 const time_mod = abi.foundation.time;
 
 const Engine = abi.inference.Engine;
@@ -36,7 +37,7 @@ test "inference: demo backend generates text" {
     try std.testing.expectEqual(Backend.demo, engine.getStats().backend);
 }
 
-test "inference: connector backend returns model-tagged response" {
+test "inference: connector backend rejects unsupported provider" {
     var engine = try Engine.init(std.testing.allocator, .{
         .kv_cache_pages = 100,
         .page_size = 16,
@@ -49,16 +50,13 @@ test "inference: connector backend returns model-tagged response" {
     });
     defer engine.deinit();
 
-    var result = try engine.generate(.{
+    const result = engine.generate(.{
         .id = 1,
         .prompt = "What is a vector database?",
         .max_tokens = 50,
     });
-    defer result.deinit(std.testing.allocator);
 
-    try std.testing.expect(result.text.len > 0);
-    // Explicitly uses echo provider
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "[echo/claude-3-sonnet]") != null);
+    try std.testing.expectError(error.UnsupportedProvider, result);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 
@@ -294,6 +292,8 @@ test "inference: engine deinit waits for in-flight async work" {
 }
 
 test "inference: GPU metrics buffer round-trip" {
+    if (!build_options.feat_gpu) return error.SkipZigTest;
+
     const allocator = std.testing.allocator;
 
     // Create a small GPU buffer and write/read metrics

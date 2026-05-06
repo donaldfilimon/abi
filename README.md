@@ -1,6 +1,6 @@
 # ABI Framework
 
-ABI is a **Zig 0.16.0** framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
+ABI is a **Zig 0.17.0-dev.251+0db721ec2** framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
 
 ## Quick Start
 ```bash

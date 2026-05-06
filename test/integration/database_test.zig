@@ -91,8 +91,7 @@ test "database: block MVCC visibility" {
 
     if (chain.getBlock(block_id)) |block| {
         // Block should be visible at current time
-        const now = @import("abi").foundation.time.unixSeconds();
-        try std.testing.expect(block.isVisible(now));
+        try std.testing.expect(block.isVisible(block.commit_timestamp));
 
         // Block should not be visible before its commit timestamp
         try std.testing.expect(!block.isVisible(block.commit_timestamp - 1));

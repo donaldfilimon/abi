@@ -173,11 +173,11 @@ pub const ProfileInstance = struct {
             },
             .abi => {
                 if (self.abi_router) |router| {
-                    var result = router.route(request) catch return error.ProfileFailed;
-                    defer result.deinit(self.allocator);
+                    var decision = router.route(request) catch return error.ProfileFailed;
+                    defer decision.deinit(self.allocator);
                     return ProfileResponse{
                         .profile = .abi,
-                        .content = try self.allocator.dupe(u8, result.content),
+                        .content = try self.allocator.dupe(u8, decision.routing_reason),
                         .confidence = 0.9,
                         .allocator = self.allocator,
                     };

@@ -77,7 +77,7 @@ test "engine stats accumulate across multiple generations" {
     try std.testing.expect(stats.avg_tokens_per_second > 0);
 }
 
-test "engine connector backend echo fallback for unknown provider" {
+test "engine connector backend rejects unsupported provider" {
     const allocator = std.testing.allocator;
     var engine = try inference.Engine.init(allocator, .{
         .kv_cache_pages = 50,
@@ -91,15 +91,12 @@ test "engine connector backend echo fallback for unknown provider" {
     });
     defer engine.deinit();
 
-    var result = try engine.generate(.{
+    const result = engine.generate(.{
         .id = 10,
         .prompt = "test connector",
         .max_tokens = 8,
     });
-    defer result.deinit(allocator);
-
-    try std.testing.expect(result.text.len > 0);
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "[echo/unknown-model]") != null);
+    try std.testing.expectError(error.UnsupportedProvider, result);
     try std.testing.expectEqual(inference.Backend.connector, engine.getStats().backend);
 }
 

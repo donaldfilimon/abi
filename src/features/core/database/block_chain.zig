@@ -24,6 +24,11 @@ const std = @import("std");
 const time = @import("../../../foundation/mod.zig").time;
 const crypto = std.crypto;
 
+pub fn logicalTimestampSeconds() i64 {
+    const now = time.unixSeconds();
+    return if (now > 0) now else 1;
+}
+
 /// Conversation block for WDBX memory system
 pub const ConversationBlock = struct {
     // Core content (V_t)
@@ -55,7 +60,7 @@ pub const ConversationBlock = struct {
 
     /// Create a new conversation block
     pub fn create(allocator: std.mem.Allocator, config: BlockConfig) !ConversationBlock {
-        const now = time.unixSeconds();
+        const now = logicalTimestampSeconds();
 
         // Calculate hash of block content
         const block_hash = try computeBlockHash(allocator, config);
@@ -452,7 +457,7 @@ pub const BlockChain = struct {
 
 /// Generate block ID from config
 fn generateBlockId(config: BlockConfig) u64 {
-    const timestamp = time.unixSeconds();
+    const timestamp = logicalTimestampSeconds();
     var hasher = std.hash.XxHash3.init(0);
     hasher.update(std.mem.asBytes(&timestamp));
     hasher.update(std.mem.sliceAsBytes(config.query_embedding));
@@ -549,7 +554,7 @@ pub const MvccStore = struct {
     /// Get blocks visible at current read timestamp
     pub fn getVisibleBlocks(self: *Self, session_id: []const u8) ![]const u64 {
         const chain = try self.getChain(session_id);
-        const read_ts = self.read_timestamps.get(session_id) orelse time.unixSeconds();
+        const read_ts = self.read_timestamps.get(session_id) orelse logicalTimestampSeconds();
 
         var visible = std.ArrayListUnmanaged(u64).empty;
         defer visible.deinit(self.allocator);
@@ -666,7 +671,7 @@ test "MvccStore visibility control" {
     const block_id = try chain.addBlock(config);
 
     // Set read timestamp after block creation
-    try store.setReadTimestamp(session_id, time.unixSeconds() + 1);
+    try store.setReadTimestamp(session_id, logicalTimestampSeconds() + 1);
 
     // Get visible blocks
     const visible = try store.getVisibleBlocks(session_id);
@@ -729,7 +734,7 @@ pub const StateBlock = struct {
     timestamp: i64,
 
     pub fn create(allocator: std.mem.Allocator, config: StateBlockConfig) !StateBlock {
-        const now = time.unixSeconds();
+        const now = logicalTimestampSeconds();
         const block_hash = try computeStateBlockHash(config);
 
         return StateBlock{
@@ -772,7 +777,7 @@ fn computeStateBlockHash(config: StateBlockConfig) ![32]u8 {
 }
 
 fn generateStateBlockId(config: StateBlockConfig) u64 {
-    const timestamp = time.unixSeconds();
+    const timestamp = logicalTimestampSeconds();
     var hasher = std.hash.XxHash3.init(0);
     hasher.update(std.mem.asBytes(&timestamp));
     hasher.update(config.state_type);

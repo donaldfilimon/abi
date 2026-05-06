@@ -20,6 +20,7 @@ const search_types = @import("search.zig");
 const persistence = @import("persistence.zig");
 const insert_impl = @import("insert.zig");
 const search_impl = @import("search_impl.zig");
+const dist = @import("distributed.zig");
 
 const SearchStatePool = search_state.SearchStatePool;
 const SearchState = search_state.SearchState;
@@ -204,6 +205,9 @@ pub const HnswIndex = struct {
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
 
+        // Local batches share one barrier so insertion helpers can coordinate
+        // graph mutations through the same API used by distributed indexing.
+        var barrier = dist.SyncBarrier{};
         for (records, 0..) |_, i| {
             // Delegate to extracted insert module
             try insert_impl.insertAt(
@@ -217,6 +221,7 @@ pub const HnswIndex = struct {
                 },
                 &self.entry_point,
                 &self.max_layer,
+                &barrier,
                 allocator,
                 arena.allocator(),
                 records,

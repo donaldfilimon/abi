@@ -9,6 +9,7 @@
 const std = @import("std");
 
 pub const tool = @import("tool.zig");
+pub const args = @import("args.zig");
 pub const task = @import("task.zig");
 pub const discord_tools = @import("discord.zig");
 pub const os_tools = @import("os_tools.zig");

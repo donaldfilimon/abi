@@ -368,8 +368,10 @@ const ThreadPool = struct {
     }
 
     pub fn deinit(self: *ThreadPool) void {
+        self.mutex.lock();
         self.shutdown.store(true, .release);
         self.condition.broadcast();
+        self.mutex.unlock();
 
         for (self.threads) |thread| {
             thread.join();
@@ -386,6 +388,7 @@ const ThreadPool = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
+        if (self.shutdown.load(.acquire)) return error.ShuttingDown;
         try self.queue.append(self.allocator, task);
         self.condition.signal();
     }

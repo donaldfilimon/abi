@@ -33,8 +33,8 @@ const ParallelResult = struct {
     err: ?ProfileError = null,
 };
 
-fn runProfileInThread(registry: *ProfileRegistry, profile_id: ProfileId, input: []const u8, out: *ParallelResult) void {
-    out.response = registry.getProfile(profile_id).process(input) catch |err| {
+fn runProfileInThread(registry: *ProfileRegistry, profile_id: ProfileId, request: ai_types.ProfileRequest, out: *ParallelResult) void {
+    out.response = registry.getProfile(profile_id).process(request) catch |err| {
         out.err = err;
         return;
     };
@@ -280,7 +280,6 @@ pub const MultiProfileRouter_Internal = struct {
         };
     }
 
-
     /// Route, execute, validate, and store — the full pipeline.
     /// Pipeline: Abi Analysis → Modulation → Execution → Constitution Check → WDBX Store
     pub fn routeAndExecute(self: *Self, input: []const u8) ProfileError!ProfileResponse {
@@ -363,8 +362,7 @@ pub const MultiProfileRouter_Internal = struct {
         return profile.process(request);
     }
 
-    fn executeParallel(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
-        // Determine fallback profile
+    fn executeParallel(self: *Self, decision: RoutingDecision, request: ai_types.ProfileRequest) ProfileError!ProfileResponse {
         const fallback: ProfileId = if (decision.primary != .abbey and decision.weights.abbey > 0)
             .abbey
         else if (decision.primary != .aviva and decision.weights.aviva > 0)
@@ -378,7 +376,7 @@ pub const MultiProfileRouter_Internal = struct {
         var primary_thread = std.Thread.spawn(
             .{},
             runProfileInThread,
-            .{ self.registry, decision.primary, input, &primary_res },
+            .{ self.registry, decision.primary, request, &primary_res },
         ) catch |err| {
             return mapParallelSpawnError(err);
         };
@@ -386,7 +384,7 @@ pub const MultiProfileRouter_Internal = struct {
         var fallback_thread = std.Thread.spawn(
             .{},
             runProfileInThread,
-            .{ self.registry, fallback, input, &fallback_res },
+            .{ self.registry, fallback, request, &fallback_res },
         ) catch |err| {
             primary_thread.join();
             defer cleanupParallelResult(&primary_res);
@@ -404,12 +402,12 @@ pub const MultiProfileRouter_Internal = struct {
     ///   α > 0.8 → primary only
     ///   α < 0.2 → secondary only
     ///   otherwise → blend both responses
-    fn executeConsensus(self: *Self, decision: RoutingDecision, input: []const u8) ProfileError!ProfileResponse {
+    fn executeConsensus(self: *Self, decision: RoutingDecision, request: ai_types.ProfileRequest) ProfileError!ProfileResponse {
         const alpha = decision.weights.forProfile(decision.primary);
 
         // High confidence in primary → single dispatch
         if (alpha > 0.8) {
-            return self.executeSingle(decision.primary, input);
+            return self.executeSingle(decision.primary, request);
         }
 
         // Determine secondary profile (highest weight after primary)
@@ -425,17 +423,17 @@ pub const MultiProfileRouter_Internal = struct {
 
         // Low primary weight → secondary only
         if (alpha < 0.2) {
-            return self.executeSingle(secondary, input);
+            return self.executeSingle(secondary, request);
         }
 
         // Blend: execute primary, then if secondary succeeds, annotate blend
-        var primary_response = self.executeSingle(decision.primary, input) catch {
-            return self.executeSingle(secondary, input);
+        var primary_response = self.executeSingle(decision.primary, request) catch {
+            return self.executeSingle(secondary, request);
         };
         defer primary_response.deinit();
 
         // Try secondary — if it fails, return primary alone
-        var secondary_response = self.executeSingle(secondary, input) catch {
+        var secondary_response = self.executeSingle(secondary, request) catch {
             // Must re-dupe because defer primary_response.deinit() will free it
             return ProfileResponse{
                 .profile = primary_response.profile,
