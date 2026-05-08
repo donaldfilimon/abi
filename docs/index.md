@@ -1,6 +1,6 @@
 # ABI Framework Documentation
 
-Welcome to the ABI Framework documentation. ABI is a **Zig 0.16.0 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
+Welcome to the ABI Framework documentation. ABI is a **Zig 0.17.0 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
 
 ## Quick Start
 - **Bootstrap**: `./build.sh --bootstrap`

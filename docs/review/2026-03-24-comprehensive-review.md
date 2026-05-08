@@ -121,7 +121,7 @@ All other major subsystems have `feat_*` gates.
 - Also in `src/protocols/ha/pitr/persistence.zig`, line 213
 
 **WARN-2: Plugin manifest directory creation failure ignored**
-- File: `src/features/ai/llm/providers/plugins/manifest.zig`, line 266
+- File: `src/features/ai/llm/providers/manifest.zig`, line 266
 
 **WARN-3: Discord REST parsers use catch false/0 for required fields**
 - File: `src/connectors/discord/rest_parsers.zig`, multiple lines

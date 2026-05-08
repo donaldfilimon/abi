@@ -3,7 +3,7 @@
 Use `ONBOARDING.md` first, then this map when planning implementation work. See `GLOSSARY.md` for terminology.
 
 ## Core Information
-- **Zig Version**: 0.16.0
+- **Zig Version**: 0.17.0-dev.251+0db721ec2 (pinned in `.zigversion`)
 - **Framework Entrypoint**: `src/root.zig` (`abi` module)
 - **Build System**: `./build.sh` (automatic) or `zig build`
 

@@ -3,7 +3,7 @@
 Compact instructions for automation and rapid ramp-up.
 
 ## Toolchain & Build
-- **Zig Pin**: `.zigversion` (Zig 0.17.0-dev). Use `tools/zigly` to manage.
+- **Zig Pin**: `.zigversion` (Zig 0.17.0-dev.251+0db721ec2). Use `tools/zigly` to manage.
 - **macOS 26.4+**: Always use `./build.sh` (adds `-Dfeat-gpu=false` for stability).
 - **Core Commands**:
   - `./build.sh check` — The primary gate (lint + typecheck + parity + tests).

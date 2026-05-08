@@ -1,6 +1,6 @@
 # ABI Summary
 
-ABI is a **Zig 0.17.0-dev** framework for AI services, semantic vector storage, GPU acceleration, distributed runtime utilities, and MCP/ACP integration.
+ABI is a **Zig 0.17.0-dev.251+0db721ec2** framework for AI services, semantic vector storage, GPU acceleration, distributed runtime utilities, and MCP/ACP integration.
 
 The package entrypoint is `src/root.zig`, exposed to consumers as `@import("abi")`. Public root wiring is split under `src/public/` by core, service, protocol, feature, and metadata groups while preserving the `abi.<domain>` surface.
 
