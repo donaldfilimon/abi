@@ -65,7 +65,7 @@ d(u, v) = ||u - v||_2
 
 ### Indexing Algorithms
 
-Implemented in `src/core/database/`:
+Implemented in `src/features/core/database/`:
 - **HNSW**: Hierarchical Navigable Small World (1,248 LOC)
 - **DiskANN**: Disk-based billion-scale vectors (1,169 LOC)
 - **ScaNN**: Anisotropic Vector Quantization (962 LOC)

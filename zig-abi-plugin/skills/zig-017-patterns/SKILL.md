@@ -1,11 +1,11 @@
 ---
-name: zig-016-patterns
+name: zig-017-patterns
 description: This skill should be used when writing or modifying Zig code in the ABI project. Provides Zig 0.17 API patterns (pinned at dev.2984+), migration guidance from deprecated APIs, and platform-specific linking notes. Trigger when user writes Zig code, encounters Zig compilation errors, asks about Zig 0.17 APIs, or mentions "std.time", "std.posix", "std.Io", "LazyPath", "Alignment", "HashMap", "DebugAllocator", or "main signature".
 ---
 
 # Zig 0.17 API Patterns for ABI
 
-Pinned at `0.17.0-dev.3153+d6f43caad`. Follow these patterns exactly — older patterns will not compile.
+Pinned at `0.17.0-dev.251+0db721ec2`. Follow these patterns exactly — older patterns will not compile.
 
 ## Removed / Changed APIs
 

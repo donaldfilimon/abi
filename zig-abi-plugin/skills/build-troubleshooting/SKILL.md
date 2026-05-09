@@ -5,7 +5,7 @@ description: This skill diagnoses and resolves ABI build failures. Trigger when 
 
 # Build Troubleshooting for ABI
 
-Pinned at Zig `0.17.0-dev.3153+d6f43caad` (`.zigversion`), package version `0.1.0` (`build.zig.zon`). The build.zig is **self-contained** — no external build/ modules.
+Pinned at Zig `0.17.0-dev.251+0db721ec2` (`.zigversion`), package version `0.1.0` (`build.zig.zon`). The build.zig is **self-contained** — no external build/ modules.
 
 On macOS 26.4+ (Darwin 25.x), use `./build.sh` which auto-relinks with Apple's native linker. On Linux / older macOS, `zig build` works directly.
 
@@ -66,7 +66,7 @@ Build output shows a version mismatch warning, or only format-check steps (`lint
 
 ### Diagnosis
 
-1. Check the pinned version: read `.zigversion` (should contain `0.17.0-dev.3153+d6f43caad`).
+1. Check the pinned version: read `.zigversion` (should contain `0.17.0-dev.251+0db721ec2`).
 2. Check the active Zig version: `zig version`.
 3. Compare the two. Any mismatch triggers the detection logic in `build.zig`.
 
@@ -168,7 +168,7 @@ Build fails when a feature is disabled (`-Dfeat-<name>=false`) because `stub.zig
 
 ### Fix
 
-Update `stub.zig` to match every public declaration in `mod.zig`. Shared types belong in `types.zig` (imported by both). Use `StubFeature` or `StubFeatureNoConfig` from `src/core/stub_helpers.zig` for common boilerplate. Sub-modules in mod.zig must be re-exported from stub.zig as matching structs.
+Update `stub.zig` to match every public declaration in `mod.zig`. Shared types belong in `types.zig` (imported by both). Use `StubFeature` or `StubFeatureNoConfig` from `src/features/core/stub_helpers.zig` for common boilerplate. Sub-modules in mod.zig must be re-exported from stub.zig as matching structs.
 
 Verify the fix: `zig build test -Dfeat-<name>=false --summary all`.
 
@@ -264,4 +264,4 @@ When a build failure does not match any symptom above:
 2. Check `.zigversion` for version pin consistency.
 3. Run `zigly --status` to verify zig installation.
 4. Check `build.zig` for the full flag list (all flags defined inline).
-5. Check `src/core/feature_catalog.zig` for feature metadata.
+5. Check `src/features/core/feature_catalog.zig` for feature metadata.

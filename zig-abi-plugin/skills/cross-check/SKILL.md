@@ -7,7 +7,7 @@ description: Diagnoses cross-compilation failures from `zig build cross-check`. 
 
 ABI's `zig build cross-check` validates that the framework compiles as a static library for 4 target platforms. This skill helps diagnose failures.
 
-Pinned at Zig `0.17.0-dev.3153+d6f43caad` (`.zigversion`). The build.zig is self-contained.
+Pinned at Zig `0.17.0-dev.251+0db721ec2` (`.zigversion`). The build.zig is self-contained.
 
 ## Targets
 
@@ -90,7 +90,7 @@ Hardware-specific backends (Metal, CUDA, Vulkan) are disabled because cross-chec
 
 **Symptom:** `error: <feature>/stub.zig is missing declarations from mod.zig: <name>` during cross-check.
 
-**Cause:** When a feature is disabled for a target, `src/root.zig` imports stub.zig instead of mod.zig. If stub.zig is missing declarations that other enabled features reference, compilation fails.
+**Cause:** When a feature is disabled for a target, `src/public/features.zig` selects stub.zig instead of mod.zig and `src/root.zig` re-exports that selection. If stub.zig is missing declarations that other enabled features reference, compilation fails.
 
 **Fix:** Update stub.zig to match mod.zig's public declarations. Run `zig build check-parity` for a quick check. See also the `stub-parity-reviewer` agent.
 

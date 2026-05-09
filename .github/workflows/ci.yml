@@ -9,15 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Zig (0.17-dev)
+      - name: Install Zig (0.17.0-dev.251+0db721ec2)
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip
-          ZIG_VERSION=0.17.0-dev.135+9df02121d
-          curl -L https://ziglang.org/download/index.html?os=linux&target=x86_64&version=${ZIG_VERSION} -o zig.tar.xz
-          tar -xf zig.tar.xz -C /tmp
-          export PATH=/tmp/zig-linux-x86_64/bin:$PATH
-          zig --version
+          sudo apt-get install -y wget unzip xz-utils
+          ZIG_VERSION=0.17.0-dev.251+0db721ec2
+          ZIG_DIR=/tmp/zig-linux-x86_64-${ZIG_VERSION}
+          curl -L https://ziglang.org/builds/zig-linux-x86_64-${ZIG_VERSION}.tar.xz -o /tmp/zig.tar.xz
+          tar -xf /tmp/zig.tar.xz -C /tmp
+          echo "${ZIG_DIR}" >> $GITHUB_PATH
+          echo "ZIG_PATH=${ZIG_DIR}/zig" >> $GITHUB_ENV
+          "${ZIG_DIR}/zig" version
       - name: Preflight: detect stray nested repos
         run: bash ./scripts/detect-nested-repos.sh
       - name: Check parity
@@ -28,6 +30,20 @@ jobs:
             echo "No JWT secret in CI; parity will skip auth-heavy tests."
           fi
           zig build check-parity
+      - name: Ensure no task-marker comments
+        run: |
+          if git grep -n -E "TO""DO|FIX""ME" -- . \
+              ':(exclude).claude/**' \
+              ':(exclude)docs/**' \
+              ':(exclude)README.md' \
+              ':(exclude)AGENTS.md' \
+              ':(exclude)test/integration/e2e_database_test.zig' \
+              ':(exclude)src/features/ai/explore/query.zig'; then
+            echo "Error: task-marker comments present" && exit 1
+          else
+            echo "No task-marker comments found"
+          fi
+
       - name: Run parity tests (subset)
         if: success() && (env.ABI_JWT_SECRET != '')
         run: |

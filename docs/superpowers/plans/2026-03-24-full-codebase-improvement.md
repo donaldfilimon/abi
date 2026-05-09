@@ -68,7 +68,7 @@ git commit -m "chore: track target_contract.zig, clean stray artifacts, update g
 **Files:**
 - Modify: `src/features/gpu/policy/target_contract.zig` (line 1 — no doc comment exists)
 
-Note: Spec 1b also mentions `src/core/database/persistence.zig` and `src/tasks/persistence.zig`, but both already have good module-level doc comments ("WDBX Binary Persistence" and "Task Persistence" respectively). Skipping — no changes needed.
+Note: Spec 1b also mentions `src/features/core/database/persistence.zig` and `src/tasks/persistence.zig`, but both already have good module-level doc comments ("WDBX Binary Persistence" and "Task Persistence" respectively). Skipping — no changes needed.
 
 - [ ] **Step 1: Add module-level doc to target_contract.zig**
 
@@ -242,7 +242,7 @@ The feature catalog now has 60 features (21 feature directories under `src/featu
 - [ ] **Step 1: Check current feature catalog count**
 
 ```bash
-grep -c "^\s\+\w\+,$" src/core/feature_catalog.zig
+grep -c "^\s\+\w\+,$" src/features/core/feature_catalog.zig
 ```
 
 Record the actual count.
@@ -296,7 +296,7 @@ For each sub-module:
 
 - [ ] **Step 1: Read both mod.zig and stub.zig, identify exact delta**
 - [ ] **Step 2: If stub has extras — remove declarations not present in mod.zig (unless they come from types.zig and are part of the intended public API)**
-- [ ] **Step 3: If mod has extras — add matching no-op stub declarations to stub.zig using the pattern from `src/core/stub_helpers.zig` (StubFeature, StubContext)**
+- [ ] **Step 3: If mod has extras — add matching no-op stub declarations to stub.zig using the pattern from `src/features/core/stub_helpers.zig` (StubFeature, StubContext)**
 - [ ] **Step 4: Run parity check for this sub-module**
 
 ```bash
@@ -370,9 +370,9 @@ Expected: 3266+ passed, 0 failed.
 ### Task 14: Decompose Database Domain (diskann, hnsw, scann)
 
 **Files:**
-- Decompose: `src/core/database/diskann.zig` (1669 lines) → `src/core/database/diskann/` directory
-- Decompose: `src/core/database/hnsw/mod.zig` (1423 lines) → extract `hnsw/search.zig`, `hnsw/insert.zig`
-- Decompose: `src/core/database/scann.zig` (1238 lines) → `src/core/database/scann/` directory
+- Decompose: `src/features/core/database/diskann.zig` (1669 lines) → `src/features/core/database/diskann/` directory
+- Decompose: `src/features/core/database/hnsw/mod.zig` (1423 lines) → extract `hnsw/search.zig`, `hnsw/insert.zig`
+- Decompose: `src/features/core/database/scann.zig` (1238 lines) → `src/features/core/database/scann/` directory
 
 Strategy for each file:
 

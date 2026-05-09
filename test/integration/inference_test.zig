@@ -5,23 +5,36 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const build_options = @import("build_options");
 const time_mod = abi.foundation.time;
 
 const Engine = abi.inference.Engine;
+const EngineConfig = abi.inference.EngineConfig;
 const Backend = abi.inference.Backend;
 const Result = abi.inference.Result;
 
+/// Reduced model + KV sizing for inference integration tests (`page_size` stays at type default).
+const integration_engine_light: EngineConfig = .{
+    .kv_cache_pages = 100,
+    .num_layers = 1,
+    .num_heads = 1,
+    .head_dim = 4,
+    .max_batch_size = 8,
+};
+
+const integration_engine_scheduler: EngineConfig = .{
+    .kv_cache_pages = 10,
+    .num_layers = 1,
+    .num_heads = 1,
+    .head_dim = 4,
+    .max_batch_size = 4,
+};
+
 test "inference: demo backend generates text" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .vocab_size = 256,
-        .backend = .demo,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.backend = .demo;
+    var engine = try Engine.init(std.testing.allocator, cfg);
     defer engine.deinit();
 
     var result = try engine.generate(.{
@@ -36,43 +49,28 @@ test "inference: demo backend generates text" {
     try std.testing.expectEqual(Backend.demo, engine.getStats().backend);
 }
 
-test "inference: connector backend returns model-tagged response" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .backend = .connector,
-        .model_id = "echo/claude-3-sonnet",
-    });
+test "inference: connector backend rejects unsupported provider" {
+    var cfg = integration_engine_light;
+    cfg.backend = .connector;
+    cfg.model_id = "echo/claude-3-sonnet";
+    var engine = try Engine.init(std.testing.allocator, cfg);
     defer engine.deinit();
 
-    var result = try engine.generate(.{
+    const result = engine.generate(.{
         .id = 1,
         .prompt = "What is a vector database?",
         .max_tokens = 50,
     });
-    defer result.deinit(std.testing.allocator);
 
-    try std.testing.expect(result.text.len > 0);
-    // Explicitly uses echo provider
-    try std.testing.expect(std.mem.indexOf(u8, result.text, "[echo/claude-3-sonnet]") != null);
+    try std.testing.expectError(error.UnsupportedProvider, result);
     try std.testing.expectEqual(Backend.connector, engine.getStats().backend);
 }
 
 test "inference: local backend falls back to demo" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 8,
-        .vocab_size = 256,
-        .backend = .local,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.backend = .local;
+    var engine = try Engine.init(std.testing.allocator, cfg);
     defer engine.deinit();
 
     var result = try engine.generate(.{
@@ -86,14 +84,7 @@ test "inference: local backend falls back to demo" {
 }
 
 test "inference: scheduler accepts and tracks requests" {
-    var engine = try Engine.init(std.testing.allocator, .{
-        .kv_cache_pages = 10,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 4,
-    });
+    var engine = try Engine.init(std.testing.allocator, integration_engine_scheduler);
     defer engine.deinit();
 
     const ok1 = try engine.submit(.{ .id = 1, .prompt = "query 1", .priority = 100 });
@@ -216,15 +207,10 @@ test "inference: async callback survives prompt reclamation" {
 
     AsyncState.reset();
 
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 4,
-        .vocab_size = 256,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.max_batch_size = 4;
+    var engine = try Engine.init(allocator, cfg);
     defer engine.deinit();
 
     const prompt = try allocator.dupe(u8, "prompt lifetime regression");
@@ -255,15 +241,10 @@ test "inference: engine deinit waits for in-flight async work" {
 
     AsyncState.reset();
 
-    var engine = try Engine.init(allocator, .{
-        .kv_cache_pages = 100,
-        .page_size = 16,
-        .num_layers = 1,
-        .num_heads = 1,
-        .head_dim = 4,
-        .max_batch_size = 4,
-        .vocab_size = 256,
-    });
+    var cfg = integration_engine_light;
+    cfg.vocab_size = 256;
+    cfg.max_batch_size = 4;
+    var engine = try Engine.init(allocator, cfg);
 
     const releaser = try std.Thread.spawn(.{}, struct {
         fn run() void {
@@ -294,6 +275,8 @@ test "inference: engine deinit waits for in-flight async work" {
 }
 
 test "inference: GPU metrics buffer round-trip" {
+    if (!build_options.feat_gpu) return error.SkipZigTest;
+
     const allocator = std.testing.allocator;
 
     // Create a small GPU buffer and write/read metrics
@@ -318,7 +301,7 @@ test "inference: GPU metrics buffer round-trip" {
     try stats_buffer.write(f32, &metric_data);
 
     // Read it back to verify the GPU interaction worked
-    var read_back: [2]f32 = [_]f32{0} ** 2;
+    var read_back: [2]f32 = @as([2]f32, @splat(0));
     try stats_buffer.read(f32, &read_back);
 
     try std.testing.expectEqual(metric_data[0], read_back[0]);

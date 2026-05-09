@@ -17,7 +17,7 @@ The ABI Zig framework (1,621 tracked .zig files, 21 feature directories, 60 feat
 
 ### 1b. Doc Comments
 - `src/features/gpu/policy/target_contract.zig`: add module-level doc explaining comptime contract validation purpose
-- `src/core/database/persistence.zig`: add `//! @internal: Re-exported via parent module`
+- `src/features/core/database/persistence.zig`: add `//! @internal: Re-exported via parent module`
 - `src/tasks/persistence.zig`: same
 
 ### 1c. Error Handling Convention
@@ -56,7 +56,7 @@ Verify alias steps in build.zig have differentiated descriptions. If already dif
   pub const acp = if (build_options.feat_acp) @import("protocols/acp/mod.zig") else @import("protocols/acp/stub.zig");
   pub const ha = if (build_options.feat_ha) @import("protocols/ha/mod.zig") else @import("protocols/ha/stub.zig");
   ```
-- `src/core/feature_catalog.zig`: Add `acp` and `ha` variants if missing. **Note:** this changes the total feature count — update docs accordingly in Phase 1d or after this phase merges.
+- `src/features/core/feature_catalog.zig`: Add `acp` and `ha` variants if missing. **Note:** this changes the total feature count — update docs accordingly in Phase 1d or after this phase merges.
 - `src/feature_parity_tests.zig`: Add parity checks for ACP and HA
 - Verify `src/protocols/acp/stub.zig` and `src/protocols/ha/stub.zig` match mod surfaces
 

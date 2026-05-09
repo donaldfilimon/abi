@@ -10,15 +10,23 @@ Usage: ./build.sh [command] [options]
 
 Commands:
     (default)         Build the library
+    dev               Build fast developer targets (typecheck + cli + mcp)
+    quick             Run fast validation (fmt + typecheck + parity)
+    ci                Run CI validation (lint + tests + parity + MCP + cross-check)
     test              Run all tests
     cli               Build CLI binary
     lib               Build static library
-    mcp               Build MCP server
+    mcp               Build MCP stdio/SSE server
     tools             Install abi + abi-mcp to ~/.local/bin
+    install           Alias for tools
     lint              Check formatting
     fix               Auto-format
     check             Full gate (lint + test + parity)
     check-parity      Verify mod/stub declaration parity
+    doctor            Build/toolchain diagnostics
+    mcp-health        Check configured MCP HA health endpoints
+    interop           Check MCP-ACP readiness
+    acp-endpoints     List/check ACP endpoints from ACP_ENDPOINTS
     --link            Install/link Zig + ZLS, then install abi tools to ~/.local/bin
     --status          Show Zig toolchain status
     --bootstrap       Full setup: bootstrap Zig/ZLS, install abi tools, build
@@ -30,9 +38,12 @@ Options:
 
 Examples:
     ./build.sh                    # Build library
+    ./build.sh quick              # Fast local gate
+    ./build.sh dev                # Build CLI + MCP after typecheck
     ./build.sh cli                # Build CLI
     ./build.sh test --summary all # Run tests
-    ./build.sh tools              # Install abi + abi-mcp to ~/.local/bin
+    ./build.sh install            # Install abi + abi-mcp to ~/.local/bin
+    ABI_VERBOSE=1 ./build.sh ci   # Print delegated zig command
     ./build.sh --link             # Link Zig/ZLS and install abi tools
     ./build.sh --bootstrap        # Full setup
 EOF
@@ -74,6 +85,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 resolve_zig() {
+    if [ ! -x "tools/zigly" ]; then
+        echo "Error: tools/zigly is missing or not executable." >&2
+        echo "Hint: run from the repository root, or restore tools/zigly before building." >&2
+        return 1
+    fi
+
     local candidate
     candidate="$(
         tools/zigly --status 2>/dev/null |
@@ -119,7 +136,11 @@ install_local_tools() {
 
     mkdir -p "$HOME/.local/bin"
     echo "Installing abi + abi-mcp to $HOME/.local/bin..."
-    "$zig_bin" build tools --prefix "$HOME/.local"
+    if ! "$zig_bin" build tools --prefix "$HOME/.local"; then
+        echo "Error: failed to install abi tools with '$zig_bin build tools --prefix $HOME/.local'." >&2
+        echo "Hint: run './build.sh dev' to check compile errors before installing." >&2
+        exit 1
+    fi
     echo ""
     echo 'Add to PATH if needed: export PATH="$HOME/.local/bin:$PATH"'
 }
@@ -128,7 +149,10 @@ ZIG="$(resolve_zig || true)"
 
 if [ "$LINK_MODE" = true ]; then
     echo "Linking Zig + ZLS to ~/.local/bin..."
-    tools/zigly --link
+    if ! tools/zigly --link; then
+        echo "Error: tools/zigly --link failed." >&2
+        exit 1
+    fi
     ZIG="$(resolve_zig || true)"
     if [ -z "$ZIG" ]; then
         echo "Error: Zig not found after tools/zigly --link." >&2
@@ -142,7 +166,11 @@ fi
 
 if [ "$BOOTSTRAP_MODE" = true ]; then
     echo "Bootstrapping: installing and linking Zig + ZLS..."
-    tools/zigly --bootstrap
+    if ! tools/zigly --bootstrap; then
+        echo "Error: tools/zigly --bootstrap failed." >&2
+        echo "Hint: run 'tools/zigly --status' for toolchain diagnostics." >&2
+        exit 1
+    fi
     ZIG="$(resolve_zig || true)"
     if [ -z "$ZIG" ]; then
         echo "Error: Zig not found after tools/zigly --bootstrap." >&2
@@ -156,21 +184,48 @@ fi
 
 if [ -z "$ZIG" ]; then
     echo "Error: Zig not found. Run './build.sh --bootstrap' or 'tools/zigly --bootstrap' first." >&2
+    echo "Hint: './build.sh --status' shows the currently resolved Zig path when available." >&2
     exit 1
 fi
 
 echo "Using Zig: $ZIG"
 echo ""
 
-if [ "$COMMAND" = "test" ] && is_macos_26_4_or_newer && ! has_feat_gpu_flag "$@"; then
-    echo "macOS 26.4+ detected: adding -Dfeat-gpu=false for test stability."
+case "$COMMAND" in
+    install)
+        COMMAND="tools"
+        ;;
+    doctor)
+        COMMAND="doctor-full"
+        ;;
+    ""|dev|quick|ci|test|cli|lib|mcp|tools|lint|fix|check|check-parity|doctor-full|mcp-health|interop|acp-endpoints|typecheck|cross-check|mcp-tests|feature-tests|full-check|verify-all|dashboard-smoke|validate-flags|*-tests)
+        ;;
+    *)
+        echo "Error: unknown build command '$COMMAND'." >&2
+        echo "Run './build.sh --help' for supported aliases and Zig build steps." >&2
+        exit 1
+        ;;
+esac
+
+if [[ ("$COMMAND" == "test" || "$COMMAND" == "check" || "$COMMAND" == "ci") ]] && is_macos_26_4_or_newer && ! has_feat_gpu_flag "$@"; then
+    echo "macOS 26.4+ detected: adding -Dfeat-gpu=false for stability."
     echo ""
     set -- -Dfeat-gpu=false "$@"
 fi
 
 if [ -z "$COMMAND" ]; then
     echo "Building library..."
+    if [ "${ABI_VERBOSE:-0}" = "1" ]; then
+        printf 'Running: %q build' "$ZIG"
+        printf ' %q' "$@"
+        printf '\n'
+    fi
     exec "$ZIG" build "$@"
 else
+    if [ "${ABI_VERBOSE:-0}" = "1" ]; then
+        printf 'Running: %q build %q' "$ZIG" "$COMMAND"
+        printf ' %q' "$@"
+        printf '\n'
+    fi
     exec "$ZIG" build "$COMMAND" "$@"
 fi

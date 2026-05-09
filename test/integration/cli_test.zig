@@ -151,10 +151,21 @@ test "cli: single-token commands are described in parity with runtime" {
         "features",
         "platform",
         "connectors",
+        "plugins",
+        "skills",
+        "build",
+        "check",
+        "learn",
+        "agent",
+        "gpu",
+        "mcp",
+        "acp",
         "info",
         "serve",
         "dashboard",
         "lsp",
+        "discord",
+        "check-env",
     };
 
     try std.testing.expectEqual(expected_commands.len, cli.single_token_commands.len);

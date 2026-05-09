@@ -95,14 +95,14 @@ All other major subsystems have `feat_*` gates.
 ### 2.1 Bugs
 
 **BUG-1 (Critical): Database Engine data race**
-- File: `src/core/database/engine.zig`
+- File: `src/features/core/database/engine.zig`
 - `db_lock` declared at line 62 but only acquired in `dreamStatePrune` (line 104)
 - 6 public methods access `vectors_array` and `hnsw_index` without the lock: `index`, `delete`, `search`, `searchByVector`, `rebuildHnswIndex`, `count`
 - If `dreamStatePrune` runs on a background thread (as documented), concurrent calls cause data races
 - Fix: acquire `db_lock` in all public methods. Readers take shared lock, writers take exclusive lock.
 
 **BUG-2 (Important): HNSW search double-silent-swallow**
-- File: `src/core/database/hnsw/mod.zig`, lines 340-370
+- File: `src/features/core/database/hnsw/mod.zig`, lines 340-370
 - When GPU path fails allocation, fallback to `searchNeighborsSequential` is also `catch {}`'d
 - Under memory pressure, search results silently degrade with no indication to caller
 - Fix: propagate error or log warning when fallback also fails
@@ -116,12 +116,12 @@ All other major subsystems have `feat_*` gates.
 ### 2.2 Warnings
 
 **WARN-1: WAL sync silently ignored**
-- File: `src/core/database/storage/wal.zig`, line 137
+- File: `src/features/core/database/storage/wal.zig`, line 137
 - `file.sync(io) catch {}` after write defeats durability guarantee
 - Also in `src/protocols/ha/pitr/persistence.zig`, line 213
 
 **WARN-2: Plugin manifest directory creation failure ignored**
-- File: `src/features/ai/llm/providers/plugins/manifest.zig`, line 266
+- File: `src/features/ai/llm/providers/manifest.zig`, line 266
 
 **WARN-3: Discord REST parsers use catch false/0 for required fields**
 - File: `src/connectors/discord/rest_parsers.zig`, multiple lines

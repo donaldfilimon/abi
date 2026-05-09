@@ -8,67 +8,48 @@ const build_validation = @import("build/validation.zig");
 const FeatureFlags = build_flags.FeatureFlags;
 const hasBackend = build_flags.hasBackend;
 const addAllBuildOptions = build_flags.addAllBuildOptions;
-const linkDarwinArtifact = build_linking.linkDarwinArtifact;
 const linkIfDarwin = build_linking.linkIfDarwin;
+
+fn addScriptStep(b: *std.Build, name: []const u8, description: []const u8, script: []const u8) *std.Build.Step {
+    const step = b.step(name, description);
+    const run = b.addSystemCommand(&.{ "bash", script });
+    step.dependOn(&run.step);
+    return step;
+}
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    //  Feature flags
-    const feat_gpu = b.option(bool, "feat-gpu", "GPU compute backends") orelse true;
-    const feat_ai = b.option(bool, "feat-ai", "AI services") orelse true;
-    const feat_database = b.option(bool, "feat-database", "Vector database") orelse true;
-    const feat_network = b.option(bool, "feat-network", "Networking / Raft") orelse true;
-    const feat_observability_opt = b.option(bool, "feat-observability", "Observability (metrics, tracing, profiling)");
-    const feat_web = b.option(bool, "feat-web", "Web framework") orelse true;
-    const feat_pages = b.option(bool, "feat-pages", "Dashboard pages") orelse true;
-    const feat_analytics = b.option(bool, "feat-analytics", "Analytics") orelse true;
-    const feat_cloud = b.option(bool, "feat-cloud", "Cloud integration") orelse true;
-    const feat_auth = b.option(bool, "feat-auth", "Authentication") orelse true;
-    const feat_messaging = b.option(bool, "feat-messaging", "Messaging / pub-sub") orelse true;
-    const feat_cache = b.option(bool, "feat-cache", "Caching") orelse true;
-    const feat_storage = b.option(bool, "feat-storage", "Storage backends") orelse true;
-    const feat_search = b.option(bool, "feat-search", "Full-text search") orelse true;
-    const feat_mobile = b.option(bool, "feat-mobile", "Mobile (iOS/Android)") orelse true;
-    const feat_gateway = b.option(bool, "feat-gateway", "API gateway") orelse true;
-    const feat_benchmarks = b.option(bool, "feat-benchmarks", "Benchmark suites") orelse true;
-    const feat_compute = b.option(bool, "feat-compute", "Distributed compute") orelse true;
-    const feat_documents = b.option(bool, "feat-documents", "Document processing") orelse true;
-    const feat_desktop = b.option(bool, "feat-desktop", "Desktop integration") orelse true;
-    const feat_tui = b.option(bool, "feat-tui", "Terminal user interface") orelse true;
-    const feat_observability = feat_observability_opt orelse true;
+    //  Feature flags (automated via reflection)
+    var flags: FeatureFlags = undefined;
+    inline for (@typeInfo(FeatureFlags).@"struct".fields) |field| {
+        if (std.mem.startsWith(u8, field.name, "feat_")) {
+            const flag_name = "feat-" ++ field.name[5..];
+            const desc = "Enable " ++ field.name[5..];
 
-    // AI sub-feature flags
-    const feat_llm = b.option(bool, "feat-llm", "LLM inference") orelse feat_ai;
-    const feat_training = b.option(bool, "feat-training", "Model training") orelse feat_ai;
-    const feat_vision = b.option(bool, "feat-vision", "Vision models") orelse feat_ai;
-    const feat_explore = b.option(bool, "feat-explore", "AI exploration") orelse feat_ai;
-    const feat_reasoning = b.option(bool, "feat-reasoning", "Reasoning engine") orelse feat_ai;
-
-    // Protocol flags
-    const feat_lsp = b.option(bool, "feat-lsp", "Language Server Protocol") orelse true;
-    const feat_mcp = b.option(bool, "feat-mcp", "Model Context Protocol") orelse true;
-    const feat_acp = b.option(bool, "feat-acp", "Agent Communication Protocol") orelse true;
-    const feat_ha = b.option(bool, "feat-ha", "High Availability / replication") orelse true;
-    const feat_connectors = b.option(bool, "feat-connectors", "External service connectors") orelse true;
-    const feat_tasks = b.option(bool, "feat-tasks", "Task management") orelse true;
-    const feat_inference = b.option(bool, "feat-inference", "ML inference engine") orelse true;
+            // Define defaults based on project requirements
+            var default_val = true;
+            if (std.mem.eql(u8, field.name, "feat_mobile") or std.mem.eql(u8, field.name, "feat_tui") or std.mem.eql(u8, field.name, "feat_external_ai")) {
+                default_val = false;
+            }
+            @field(flags, field.name) = b.option(bool, flag_name, desc) orelse default_val;
+        }
+    }
 
     // GPU backend flags
     const gpu_backend_str = b.option([]const u8, "gpu-backend", "GPU backends: metal,cuda,vulkan,webgpu,opengl,opengles,webgl2,stdgpu,fpga,tpu (comma-separated)");
-    const gpu_metal = feat_gpu and hasBackend(gpu_backend_str, "metal");
-    const gpu_cuda = feat_gpu and hasBackend(gpu_backend_str, "cuda");
-    const gpu_vulkan = feat_gpu and hasBackend(gpu_backend_str, "vulkan");
-    const gpu_webgpu = feat_gpu and hasBackend(gpu_backend_str, "webgpu");
-    const gpu_opengl = feat_gpu and hasBackend(gpu_backend_str, "opengl");
-    const gpu_opengles = feat_gpu and hasBackend(gpu_backend_str, "opengles");
-    const gpu_webgl2 = feat_gpu and hasBackend(gpu_backend_str, "webgl2");
-    const gpu_stdgpu = feat_gpu and (gpu_backend_str == null or hasBackend(gpu_backend_str, "stdgpu"));
-    const gpu_fpga = feat_gpu and hasBackend(gpu_backend_str, "fpga");
-    const gpu_tpu = feat_gpu and hasBackend(gpu_backend_str, "tpu");
+    flags.gpu_metal = flags.feat_gpu and hasBackend(gpu_backend_str, "metal");
+    flags.gpu_cuda = flags.feat_gpu and hasBackend(gpu_backend_str, "cuda");
+    flags.gpu_vulkan = flags.feat_gpu and hasBackend(gpu_backend_str, "vulkan");
+    flags.gpu_webgpu = flags.feat_gpu and hasBackend(gpu_backend_str, "webgpu");
+    flags.gpu_opengl = flags.feat_gpu and hasBackend(gpu_backend_str, "opengl");
+    flags.gpu_opengles = flags.feat_gpu and hasBackend(gpu_backend_str, "opengles");
+    flags.gpu_webgl2 = flags.feat_gpu and hasBackend(gpu_backend_str, "webgl2");
+    flags.gpu_stdgpu = flags.feat_gpu and (gpu_backend_str == null or hasBackend(gpu_backend_str, "stdgpu"));
+    flags.gpu_fpga = flags.feat_gpu and hasBackend(gpu_backend_str, "fpga");
+    flags.gpu_tpu = flags.feat_gpu and hasBackend(gpu_backend_str, "tpu");
 
-    //  GPU backend validation
     if (gpu_backend_str) |str| {
         const valid_backends: []const []const u8 = &.{
             "metal",    "cuda",   "vulkan", "webgpu", "opengl",
@@ -91,68 +72,21 @@ pub fn build(b: *std.Build) void {
             }
         }
     }
-    if (gpu_metal and gpu_cuda)
+    if (flags.gpu_metal and flags.gpu_cuda)
         std.log.warn("Both Metal and CUDA enabled — unusual; intended for cross-compilation only", .{});
 
     //  Feature dependency warnings
-    if (!feat_ai) {
-        if (feat_llm) std.log.warn("feat_llm requires feat_ai — llm will be stubbed", .{});
-        if (feat_training) std.log.warn("feat_training requires feat_ai — training will be stubbed", .{});
-        if (feat_vision) std.log.warn("feat_vision requires feat_ai — vision will be stubbed", .{});
-        if (feat_explore) std.log.warn("feat_explore requires feat_ai — explore will be stubbed", .{});
-        if (feat_reasoning) std.log.warn("feat_reasoning requires feat_ai — reasoning will be stubbed", .{});
+    if (!flags.feat_ai) {
+        if (flags.feat_llm) std.log.warn("feat_llm requires feat_ai — llm will be stubbed", .{});
+        if (flags.feat_training) std.log.warn("feat_training requires feat_ai — training will be stubbed", .{});
+        if (flags.feat_vision) std.log.warn("feat_vision requires feat_ai — vision will be stubbed", .{});
+        if (flags.feat_explore) std.log.warn("feat_explore requires feat_ai — explore will be stubbed", .{});
+        if (flags.feat_reasoning) std.log.warn("feat_reasoning requires feat_ai — reasoning will be stubbed", .{});
     }
-    if (feat_ai and !feat_connectors)
+    if (flags.feat_ai and !flags.feat_connectors)
         std.log.warn("feat_ai requires feat_connectors — AI connector imports will fail", .{});
-    if (feat_mcp and !feat_database)
+    if (flags.feat_mcp and !flags.feat_database)
         std.log.info("feat_mcp benefits from feat_database for DB tools", .{});
-
-    //  Build options module
-    const flags = FeatureFlags{
-        .feat_gpu = feat_gpu,
-        .feat_ai = feat_ai,
-        .feat_database = feat_database,
-        .feat_network = feat_network,
-        .feat_observability = feat_observability,
-        .feat_web = feat_web,
-        .feat_pages = feat_pages,
-        .feat_analytics = feat_analytics,
-        .feat_cloud = feat_cloud,
-        .feat_auth = feat_auth,
-        .feat_messaging = feat_messaging,
-        .feat_cache = feat_cache,
-        .feat_storage = feat_storage,
-        .feat_search = feat_search,
-        .feat_mobile = feat_mobile,
-        .feat_gateway = feat_gateway,
-        .feat_benchmarks = feat_benchmarks,
-        .feat_compute = feat_compute,
-        .feat_documents = feat_documents,
-        .feat_desktop = feat_desktop,
-        .feat_tui = feat_tui,
-        .feat_llm = feat_llm,
-        .feat_training = feat_training,
-        .feat_vision = feat_vision,
-        .feat_explore = feat_explore,
-        .feat_reasoning = feat_reasoning,
-        .feat_lsp = feat_lsp,
-        .feat_mcp = feat_mcp,
-        .feat_acp = feat_acp,
-        .feat_ha = feat_ha,
-        .feat_connectors = feat_connectors,
-        .feat_tasks = feat_tasks,
-        .feat_inference = feat_inference,
-        .gpu_metal = gpu_metal,
-        .gpu_cuda = gpu_cuda,
-        .gpu_vulkan = gpu_vulkan,
-        .gpu_webgpu = gpu_webgpu,
-        .gpu_opengl = gpu_opengl,
-        .gpu_opengles = gpu_opengles,
-        .gpu_webgl2 = gpu_webgl2,
-        .gpu_stdgpu = gpu_stdgpu,
-        .gpu_fpga = gpu_fpga,
-        .gpu_tpu = gpu_tpu,
-    };
 
     const build_opts = b.addOptions();
     const pkg_version = comptime blk: {
@@ -162,14 +96,13 @@ pub fn build(b: *std.Build) void {
     addAllBuildOptions(build_opts, flags, pkg_version, builtin.zig_version_string);
     const build_options_module = build_opts.createModule();
 
-    // Common module for shared utilities like env_gate
     const common_module = b.createModule(.{
         .root_source_file = b.path("src/common/env_gate.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    _ = build_cross.addSteps(.{
+    const cross_steps = build_cross.addSteps(.{
         .b = b,
         .target = target,
         .optimize = optimize,
@@ -177,7 +110,6 @@ pub fn build(b: *std.Build) void {
         .package_version = pkg_version,
     });
 
-    //  ABI library module
     const abi_module = b.addModule("abi", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -186,7 +118,6 @@ pub fn build(b: *std.Build) void {
     abi_module.addImport("build_options", build_options_module);
     abi_module.addImport("common", common_module);
 
-    //  Static library
     const static_lib = b.addLibrary(.{
         .name = "abi",
         .root_module = b.createModule(.{
@@ -198,12 +129,11 @@ pub fn build(b: *std.Build) void {
     });
     static_lib.root_module.addImport("build_options", build_options_module);
     static_lib.root_module.addImport("common", common_module);
-    linkIfDarwin(static_lib, .static_lib, feat_gpu, gpu_metal);
+    linkIfDarwin(static_lib, .static_lib, flags.feat_gpu, flags.gpu_metal);
     b.installArtifact(static_lib);
     const install_static_lib = b.addInstallArtifact(static_lib, .{});
-    b.step("lib", "Build static library").dependOn(&install_static_lib.step);
+    b.step("lib", "Build static ABI library").dependOn(&install_static_lib.step);
 
-    //  MCP server binary
     const mcp_exe = b.addExecutable(.{
         .name = "abi-mcp",
         .root_module = b.createModule(.{
@@ -214,11 +144,10 @@ pub fn build(b: *std.Build) void {
     });
     mcp_exe.root_module.addImport("build_options", build_options_module);
     mcp_exe.root_module.addImport("common", common_module);
-    linkIfDarwin(mcp_exe, .executable, feat_gpu, gpu_metal);
+    linkIfDarwin(mcp_exe, .executable, flags.feat_gpu, flags.gpu_metal);
     const install_mcp = b.addInstallArtifact(mcp_exe, .{});
-    b.step("mcp", "Build MCP stdio server").dependOn(&install_mcp.step);
+    b.step("mcp", "Build MCP stdio/SSE server").dependOn(&install_mcp.step);
 
-    //  CLI binary
     const cli_exe = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{
@@ -229,7 +158,7 @@ pub fn build(b: *std.Build) void {
     });
     cli_exe.root_module.addImport("build_options", build_options_module);
     cli_exe.root_module.addImport("common", common_module);
-    linkIfDarwin(cli_exe, .executable, feat_gpu, gpu_metal);
+    linkIfDarwin(cli_exe, .executable, flags.feat_gpu, flags.gpu_metal);
     const install_cli = b.addInstallArtifact(cli_exe, .{});
     b.step("cli", "Build ABI command-line interface").dependOn(&install_cli.step);
 
@@ -237,7 +166,7 @@ pub fn build(b: *std.Build) void {
     tools_step.dependOn(&install_cli.step);
     tools_step.dependOn(&install_mcp.step);
 
-    _ = build_validation.addSteps(.{
+    const validation_steps = build_validation.addSteps(.{
         .b = b,
         .target = target,
         .optimize = optimize,
@@ -248,13 +177,33 @@ pub fn build(b: *std.Build) void {
         .package_version = pkg_version,
     });
 
-    //  Lint / format
     const fmt_paths = &.{ "build.zig", "build", "src", "test" };
-    b.step("lint", "Check formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = true }).step);
+    const lint_fmt = b.addFmt(.{ .paths = fmt_paths, .check = true });
+    b.step("lint", "Check formatting").dependOn(&lint_fmt.step);
     b.step("fix", "Fix formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = false }).step);
 
-    //  Doctor step
-    const doctor_step = b.step("doctor", "Report build configuration and diagnostics");
+    const dev_step = b.step("dev", "Build fast developer targets (typecheck + CLI + MCP)");
+    dev_step.dependOn(cross_steps.typecheck_step);
+    dev_step.dependOn(&install_cli.step);
+    dev_step.dependOn(&install_mcp.step);
+
+    const quick_step = b.step("quick", "Run fast local validation (fmt + typecheck + parity)");
+    quick_step.dependOn(&lint_fmt.step);
+    quick_step.dependOn(cross_steps.typecheck_step);
+    quick_step.dependOn(validation_steps.check_parity_step);
+
+    const ci_step = b.step("ci", "Run CI validation (lint + tests + parity + MCP + cross-check)");
+    ci_step.dependOn(&lint_fmt.step);
+    ci_step.dependOn(validation_steps.test_step);
+    ci_step.dependOn(validation_steps.check_parity_step);
+    ci_step.dependOn(validation_steps.mcp_tests_step);
+    ci_step.dependOn(cross_steps.cross_check_step);
+
+    _ = addScriptStep(b, "mcp-health", "Check configured MCP HA health endpoints", "scripts/check-mcp-health.sh");
+    _ = addScriptStep(b, "interop", "Check MCP health and optional ACP endpoint reachability", "scripts/check-interop.sh");
+    _ = addScriptStep(b, "acp-endpoints", "List and check ACP endpoints from ACP_ENDPOINTS", "scripts/list-acp-endpoints.sh");
+
+    const doctor_step = b.step("doctor", "Report build feature configuration");
     const doc1 = b.addSystemCommand(&.{
         "echo",
         b.fmt(
@@ -267,30 +216,61 @@ pub fn build(b: *std.Build) void {
             \\  feat_storage={} feat_search={} feat_mobile={} feat_gateway={}
             \\  feat_benchmarks={} feat_compute={} feat_documents={} feat_desktop={}
         , .{
-            feat_ai,            feat_gpu,     feat_database,  feat_network,
-            feat_observability, feat_web,     feat_pages,     feat_analytics,
-            feat_cloud,         feat_auth,    feat_messaging, feat_cache,
-            feat_storage,       feat_search,  feat_mobile,    feat_gateway,
-            feat_benchmarks,    feat_compute, feat_documents, feat_desktop,
+            flags.feat_ai,            flags.feat_gpu,     flags.feat_database,  flags.feat_network,
+            flags.feat_observability, flags.feat_web,     flags.feat_pages,     flags.feat_analytics,
+            flags.feat_cloud,         flags.feat_auth,    flags.feat_messaging, flags.feat_cache,
+            flags.feat_storage,       flags.feat_search,  flags.feat_mobile,    flags.feat_gateway,
+            flags.feat_benchmarks,    flags.feat_compute, flags.feat_documents, flags.feat_desktop,
         }),
     });
     const doc2 = b.addSystemCommand(&.{
         "echo",
         b.fmt(
             \\AI Sub-features:
-            \\  feat_llm={} feat_training={} feat_vision={} feat_explore={} feat_reasoning={}
+            \\  feat_llm={} feat_training={} feat_vision={} feat_explore={} feat_reasoning={} feat_external_ai={}
             \\Protocols:
             \\  feat_lsp={} feat_mcp={} feat_acp={} feat_ha={}
             \\GPU Backends:
             \\  metal={} cuda={} vulkan={} webgpu={} opengl={}
             \\  opengles={} webgl2={} stdgpu={} fpga={} tpu={}
         , .{
-            feat_llm,   feat_training, feat_vision, feat_explore, feat_reasoning,
-            feat_lsp,   feat_mcp,      feat_acp,    feat_ha,      gpu_metal,
-            gpu_cuda,   gpu_vulkan,    gpu_webgpu,  gpu_opengl,   gpu_opengles,
-            gpu_webgl2, gpu_stdgpu,    gpu_fpga,    gpu_tpu,
+            flags.feat_llm,   flags.feat_training, flags.feat_vision, flags.feat_explore, flags.feat_reasoning, flags.feat_external_ai,
+            flags.feat_lsp,   flags.feat_mcp,      flags.feat_acp,    flags.feat_ha,      flags.gpu_metal,      flags.gpu_cuda,
+            flags.gpu_vulkan, flags.gpu_webgpu,    flags.gpu_opengl,  flags.gpu_opengles, flags.gpu_webgl2,     flags.gpu_stdgpu,
+            flags.gpu_fpga,   flags.gpu_tpu,
         }),
     });
     doc2.step.dependOn(&doc1.step);
     doctor_step.dependOn(&doc2.step);
+
+    const doctor_full_step = b.step("doctor-full", "Report toolchain, target, feature, and workflow diagnostics");
+    const doctor_full = b.addSystemCommand(&.{
+        "bash",
+        "-c",
+        b.fmt(
+            \\set -e
+            \\echo "ABI Doctor Full"
+            \\echo "==============="
+            \\echo "Package: {s}"
+            \\echo "Zig (build): {s}"
+            \\printf "Zig path: "; command -v zig || true
+            \\printf "OS: "; uname -a
+            \\echo "Optimize: {s}"
+            \\echo "Target: requested by zig build -Dtarget (native if unset)"
+            \\echo "GPU backend option: {s}"
+            \\echo
+            \\echo "Recommended next commands:"
+            \\echo "  ./build.sh quick"
+            \\echo "  ./build.sh dev"
+            \\echo "  ./build.sh mcp-health"
+            \\echo "  ./zig-out/bin/abi doctor"
+        , .{
+            pkg_version,
+            builtin.zig_version_string,
+            @tagName(optimize),
+            gpu_backend_str orelse "stdgpu(default)",
+        }),
+    });
+    doctor_full.step.dependOn(&doc2.step);
+    doctor_full_step.dependOn(&doctor_full.step);
 }

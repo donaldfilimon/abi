@@ -176,7 +176,7 @@ test "analytics: Funnel getStepCounts returns slice" {
     var funnel = analytics.Funnel.init(std.testing.allocator, "signup");
     defer funnel.deinit();
 
-    var buf: [8]u64 = [_]u64{0} ** 8;
+    var buf: [8]u64 = @as([8]u64, @splat(0));
     const counts = funnel.getStepCounts(&buf);
     _ = counts;
 }

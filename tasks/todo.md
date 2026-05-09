@@ -24,7 +24,7 @@
 - [x] Delete merged local branches once the consolidated `main` is validated.
 
 ### Notes
-- Opened on April 29, 2026 in `/Users/donaldfilimon/abi` after `main` had already absorbed `origin/main` and was ahead locally, with dirty MCP handler/test cleanup edits and transient MCP JSON audit files.
+- Opened on April 29, 2026 in `<repo>/abi` after `main` had already absorbed `origin/main` and was ahead locally, with dirty MCP handler/test cleanup edits and transient MCP JSON audit files.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Initial branch scan identified the only local branches with right-side commits versus current `main` as `mig/zig-0.17`, `feature/inference-connector-integration`, `fix/stub-regeneration`, and `master`; all other checked branches are treated as already contained unless a fresh ancestry check proves otherwise.
 - Imported snapshot roots (`imports/`, nested `abi/`, top-level `runtime/`, and top-level `transport/`) remain cleanup candidates only after final reference checks confirm they are not active build/source inputs.
@@ -45,7 +45,7 @@
 - [x] Validate docs build, diff hygiene, and the existing cleanup-wave gates.
 
 ### Notes
-- Opened on April 28, 2026 in `/Users/donaldfilimon/abi` after the current cleanup wave had pre-existing dirty edits in `AGENTS.md`, `LICENSE`, source files, test files, and `tasks/todo.md`; this slice must not revert them.
+- Opened on April 28, 2026 in `<repo>/abi` after the current cleanup wave had pre-existing dirty edits in `AGENTS.md`, `LICENSE`, source files, test files, and `tasks/todo.md`; this slice must not revert them.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - MkDocs Material is the chosen framework, with `docs/` as the source directory and GitHub Actions publishing the generated `site/` artifact.
 - Historical review, plan, and spec documents are surfaced as archived navigation entries rather than rewritten broadly.
@@ -72,7 +72,7 @@
 - [x] Validate with targeted checks, typecheck, parity where appropriate, and diff hygiene.
 
 ### Notes
-- Opened on April 28, 2026 in `/Users/donaldfilimon/abi` with pre-existing dirty `AGENTS.md` and `LICENSE` status; this wave must not revert those changes.
+- Opened on April 28, 2026 in `<repo>/abi` with pre-existing dirty `AGENTS.md` and `LICENSE` status; this wave must not revert those changes.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Cleanup proceeds as a small verified wave, not a global perfection rewrite.
 - `test/integration/connector_test.zig` now runs as real integration coverage for configured and missing OpenAI connector environment handling.
@@ -87,13 +87,13 @@
 - Note: `zig fmt --check` was initially attempted on Markdown and failed because Markdown is not Zig syntax; Markdown hygiene is covered by `git diff --check`.
 
 ## 38. Stabilize ABI on the Zig 0.17 Dev Line
-- [x] Repin the repo and zigly metadata to `0.17.0-dev.135+9df02121d`.
+- [x] Repin the repo and zigly metadata to `0.17.0-dev.251+0db721ec2`.
 - [x] Fix `build.sh` and zigly resolution so the wrapper resolves the exact pinned toolchain through `tools/zigly --status`.
 - [x] Remove live `0.17` drift from CLI/MCP/TUI surfaces and active docs.
 - [x] Validate the upgrade with focused toolchain, wrapper, CLI, and hygiene checks.
 
 ### Notes
-- Opened on April 27, 2026 in `/Users/donaldfilimon/abi` on a dirty worktree; leave the pre-existing `src/protocols/mcp/handlers/ai.zig` edit untouched.
+- Opened on April 27, 2026 in `<repo>/abi` on a dirty worktree; leave the pre-existing `src/protocols/mcp/handlers/ai.zig` edit untouched.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - `tools/scripts/run_build.sh` is absent in this checkout, so the ABI skill's macOS wrapper validation falls back to the repo-root `./build.sh` plus direct focused Zig checks.
 - Completed on April 27, 2026 by repinning the project/tool manifests, feeding the compiler version through `build_options`, fixing `build.sh` default/link/bootstrap behavior and `tools/zigly --status` resolution, switching zigly's ZLS lookup to exact-version-first with ZVM/zig-only fallback, and updating the live CLI/MCP/TUI/docs surfaces plus focused regression tests.
@@ -120,7 +120,7 @@
 - [x] Validate with targeted formatting + focused test command(s), then record residual risk.
 
 ### Notes
-- Opened on April 28, 2026 in `/Users/donaldfilimon/abi` during the ongoing refactor wave with a heavily dirty worktree; this slice must stay confined to adapter coverage and workflow notes only.
+- Opened on April 28, 2026 in `<repo>/abi` during the ongoing refactor wave with a heavily dirty worktree; this slice must stay confined to adapter coverage and workflow notes only.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - `src/features/gpu/ai_ops/adapters.zig` now includes a focused mock-backed test (`createAiOps routes through centralized opaque cast helper`) that exercises scale/isAvailable/deinit vtable dispatch and confirms the centralized cast helper correctly recovers the concrete implementation pointer.
 - Validation passed with:
@@ -162,7 +162,7 @@
 - [x] Record the validation outcome and residual risk.
 
 ### Notes
-- Opened on April 27, 2026 in `/Users/donaldfilimon/abi` after the prior MCP consolidation commit left one tracked factory test edit in the worktree.
+- Opened on April 27, 2026 in `<repo>/abi` after the prior MCP consolidation commit left one tracked factory test edit in the worktree.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Validation outcome:
   - `~/.zvm/bin/zig fmt --check src/protocols/mcp/factories.zig`
@@ -180,7 +180,7 @@
 - [x] Record the validation outcome and any residual risk.
 
 ### Notes
-- Opened on April 27, 2026 in `/Users/donaldfilimon/abi` while consolidating the current `main` checkout.
+- Opened on April 27, 2026 in `<repo>/abi` while consolidating the current `main` checkout.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Validation passed with:
   - `~/.zvm/bin/zig fmt --check src/protocols/mcp/handlers/ai.zig src/protocols/mcp/registry.zig`
@@ -195,7 +195,7 @@
 - [x] Validate with focused fmt/tests before broader verification.
 
 ### Notes
-- Completed on April 5, 2026 in `/Users/donaldfilimon/abi`.
+- Completed on April 5, 2026 in `<repo>/abi`.
 - Validation passed with:
   - `~/.zvm/bin/zig fmt --check src/main.zig src/features/core/database/cli.zig src/inference/engine.zig test/integration/cognitive_pipeline_test.zig test/integration/inference_stress_test.zig src/foundation/utils/zig_toolchain.zig tools/zigly_cli/src/cli.zig src/features/ai/abbey/discord.zig src/features/ai/agents/types.zig test/mod.zig build.zig.zon`
   - `~/.zvm/bin/zig build test --summary all -- --test-filter "cognitive pipeline"`
@@ -211,7 +211,7 @@
 - [x] Validate with the targeted database and Abbey gateway tests, then rerun `check-parity`.
 
 ### Notes
-- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` as a follow-up to the live regression repair plan.
+- Opened on April 4, 2026 in `<repo>/abi` as a follow-up to the live regression repair plan.
 - Completed on April 4, 2026 by restoring the real `diskann` export, keeping the real/stub retrieval surfaces aligned, fixing Abbey gateway bridge ownership so startup cleanup runs exactly once, and migrating the remaining DiskANN/block temp-file paths off removed `std.posix.unlink` calls.
 - Validation passed with:
   - `~/.zvm/bin/zig build test --summary all -- --test-filter "diskann"`
@@ -229,12 +229,12 @@
 - [x] Validate with targeted fmt/typecheck/TUI/profile gates first, then broaden if the wrapper environment permits.
 
 ### Notes
-- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` against an already-dirty worktree; this follow-up must stay confined to the review finding files plus `tasks/todo.md`.
+- Opened on April 4, 2026 in `<repo>/abi` against an already-dirty worktree; this follow-up must stay confined to the review finding files plus `tasks/todo.md`.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Completed on April 4, 2026 by restoring the dashboard facade helpers (`computeLayout`, `handleKey`, `hasVisibleCell`, `containsText`), fixing the decomposed dashboard view import paths that blocked TUI compilation, tightening `MultiProfileRouter.executeParallel()` to keep `ProfileError`-only failures with single-join ownership cleanup, adding focused helper tests, and reinstating the deferred `refAllDecls` comments in the two known-broken modules.
 - Validation outcome:
   - `~/.zvm/bin/zig fmt --check src/features/tui/app/dashboard.zig src/features/tui/app/dashboard/view_overview.zig src/features/tui/app/dashboard/view_features.zig src/features/tui/app/dashboard/view_runtime.zig src/features/ai/profile/router.zig src/runtime/engine/mod.zig src/features/core/database/memory/mod.zig`
-  - `./tools/zigly --status` failed with `/Users/donaldfilimon/abi/tools/zigly_cli/zig-out/bin/zigly: Undefined error: 0`
+  - `./tools/zigly --status` failed with `<repo>/abi/tools/zigly_cli/zig-out/bin/zigly: Undefined error: 0`
   - `./build.sh typecheck --summary all` failed for the same zigly-wrapper reason, so the existing pinned Zig was used as fallback evidence only
   - `~/.zvm/bin/zig build typecheck --summary all`
   - `~/.zvm/bin/zig build tui-tests --summary all`
@@ -251,7 +251,7 @@
 - [x] Validate the new pin and resolver behavior with ZVM checks plus repo build gates.
 
 ### Notes
-- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a clean tracked worktree on `main`; this wave is toolchain-focused and should avoid unrelated repo cleanup.
+- Opened on April 3, 2026 in `<repo>/abi` with a clean tracked worktree on `main`; this wave is toolchain-focused and should avoid unrelated repo cleanup.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Current drift: `.zigversion` still pins `0.17.0-dev.2984+cb7d2b056`, `build.sh` resolves Zig through `tools/zigly --status`, `tools/zigly_cli/src/cli.zig` only returns the zigly cache path, and `src/foundation/utils/zig_toolchain.zig` still prefers the legacy `~/.cache/abi-zig` path plus `~/.zvm/master/zig`.
 - Environment note before implementation: `zvm v0.8.14` rejects the explicit snapshot `0.17.0-dev.3070+b22eb176b` as unsupported, but `zvm install master` / `zvm use master` does expose `~/.zvm/bin/zig` at that exact version. `~/.zvm/versions-zls.json` was also permission-blocked until it was removed from the user-writable directory.
@@ -280,13 +280,13 @@
 - [x] Remove attached worktrees and delete their local branches once validation passes.
 
 ### Notes
-- Opened on April 3, 2026 in `/Users/donaldfilimon/abi`, which is already checked out on `main`; this wave is about integrating attached worktree history and cleaning up the local workspace topology without rebasing or resetting against `origin/main`.
+- Opened on April 3, 2026 in `<repo>/abi`, which is already checked out on `main`; this wave is about integrating attached worktree history and cleaning up the local workspace topology without rebasing or resetting against `origin/main`.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Current git topology shows two attached worktrees under `.claude/worktrees/`: `worktree-agent-ad29d5e3` has no unique commits versus `main`, while `worktree-agent-aea73b27` contributes one unique inference fix commit on `src/inference/engine/backends.zig`.
 - The root `main` workspace is intentionally dirty and includes prior staged/unstaged repo changes plus accidental staged `.claude/worktrees/*` entries that must stay out of the consolidation commit.
 - Completed on April 3, 2026 with root consolidation commit `2f45c45` (`chore: consolidate local main workspace`) followed by cherry-picked inference fix `de77cc1` on `main`.
 - The cherry-pick hit a content conflict in `src/inference/engine/backends.zig`; it was resolved by keeping the new `error.UnsupportedProvider` behavior for bare model IDs and then updating the stale local test to assert that contract instead of the old echo fallback.
-- Attached worktrees `/Users/donaldfilimon/abi/.claude/worktrees/agent-ad29d5e3` and `/Users/donaldfilimon/abi/.claude/worktrees/agent-aea73b27` were removed, and the now-obsolete local branches `worktree-agent-ad29d5e3` and `worktree-agent-aea73b27` were deleted after validation.
+- Attached worktrees `<repo>/abi/.claude/worktrees/agent-ad29d5e3` and `<repo>/abi/.claude/worktrees/agent-aea73b27` were removed, and the now-obsolete local branches `worktree-agent-ad29d5e3` and `worktree-agent-aea73b27` were deleted after validation.
 - Validation passed with:
   - `./build.sh test --summary all -- --test-filter "dispatchToConnector: no slash returns UnsupportedProvider"`
   - `./build.sh check-parity --summary all`
@@ -302,7 +302,7 @@
 - [x] Validate the CLI/docs alignment wave with targeted fmt, typecheck, cli-tests, and real CLI invocations.
 
 ### Notes
-- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` on top of the already-validated TUI shell rewrite from §0B; this wave should not reopen dashboard layout or interaction behavior unless the shared CLI contract exposes a regression.
+- Opened on April 3, 2026 in `<repo>/abi` on top of the already-validated TUI shell rewrite from §0B; this wave should not reopen dashboard layout or interaction behavior unless the shared CLI contract exposes a regression.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - Current drift: `src/cli.zig` already owns `writeStatus()` / `writeHelp()`, but `src/main.zig` still hardcodes separate status/help text while README/AGENTS/CLAUDE continue to describe `abi dashboard` generically as an interactive TUI.
 - Completed on April 3, 2026 by routing `printStatus()` / `printHelp()` through the shared CLI writers, centralizing the dashboard wording in `src/cli.zig`, and updating README/AGENTS/CLAUDE to describe `abi dashboard` as the developer diagnostics shell with overview/features/runtime views plus the `abi doctor` fallback note.
@@ -320,13 +320,13 @@
 
 ## 0B. TUI Diagnostic Shell Rethink
 - [x] Replace the static two-panel dashboard with a mode-aware developer diagnostics shell.
-- [x] Drive the features view from `src/core/feature_catalog.zig` instead of a hand-maintained flag list.
+- [x] Drive the features view from `src/features/core/feature_catalog.zig` instead of a hand-maintained flag list.
 - [x] Add resize-aware layout breakpoints plus nav/detail/help interaction state.
 - [x] Expand TUI tests from smoke coverage to layout, navigation, and catalog-alignment assertions.
 - [x] Validate with targeted TUI gates first, then the broader dashboard/TUI lanes, and record outcomes here.
 
 ### Notes
-- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a dirty worktree containing large unrelated staged changes, especially the out-of-scope `src/features/core/**` migration; this TUI slice must avoid touching those files.
+- Opened on April 3, 2026 in `<repo>/abi` with a dirty worktree containing large unrelated staged changes, especially the out-of-scope `src/features/core/**` migration; this TUI slice must avoid touching those files.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - The current dashboard implementation in `src/features/tui/app/dashboard.zig` still renders a fixed two-column split using a handwritten 33-flag inventory and only smoke-level interaction coverage.
 - Completed on April 3, 2026 with `src/features/tui/app/dashboard.zig` rewritten around `View`/`FocusRegion` state, catalog-driven feature rendering, runtime/service diagnostics, compact/minimal breakpoints, and a help overlay while keeping the existing `abi dashboard` entrypoint and non-interactive fallback text.
@@ -344,18 +344,18 @@
   - `./tools/zigly --status fmt --check ...` is currently unusable in this checkout because it tries to download a missing Zig fmt tarball and exits with `curl: (22) ... 404`, so local `zig fmt --check` was used instead.
 
 ## 0. AI Feature Graph Expansion + ZVM Pin Sync
-- [x] Expand `src/core/feature_catalog.zig` to cover the full public `abi.ai` graph, including distinct `profile` and `profiles` entries.
+- [x] Expand `src/features/core/feature_catalog.zig` to cover the full public `abi.ai` graph, including distinct `profile` and `profiles` entries.
 - [x] Move public AI module parity coverage into `src/feature_parity_tests.zig` Tier 1 and leave only non-`abi.ai` internal modules in the manual appendix.
 - [x] Remove the handwritten `src/core/registry/stub.zig` feature enum drift by aliasing the canonical catalog-backed `Feature` type and updating parent tests.
 - [x] Update CLI/docs/tests to reflect the expanded catalog count and prefer derived expectations over hardcoded literals.
 - [x] Sync ZVM to `.zigversion`, run targeted validation, and record outcomes plus residual risk here.
 
 ### Notes
-- Opened on April 3, 2026 in `/Users/donaldfilimon/abi` with a dirty staged worktree that already contains a large out-of-scope `src/features/core/**` migration; this slice must not modify or depend on that staged tree.
+- Opened on April 3, 2026 in `<repo>/abi` with a dirty staged worktree that already contains a large out-of-scope `src/features/core/**` migration; this slice must not modify or depend on that staged tree.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this task proceeds with the ABI best-effort fallback.
 - The ABI review prep helper remains blocked because this checkout still lacks `src/abi.zig`; direct repo inspection is the source of truth for this slice.
 - Validation passed with:
-  - `zig fmt --check src/core/config/mod.zig src/core/feature_catalog.zig src/core/registry/stub.zig src/core/registry/types.zig src/core/registry/mod.zig src/feature_parity_tests.zig src/main.zig test/integration/cli_test.zig`
+  - `zig fmt --check src/core/config/mod.zig src/features/core/feature_catalog.zig src/core/registry/stub.zig src/core/registry/types.zig src/core/registry/mod.zig src/feature_parity_tests.zig src/main.zig test/integration/cli_test.zig`
   - `./build.sh check-parity --summary all`
   - `./build.sh cli-tests --summary all`
   - `./build.sh typecheck --summary all`
@@ -369,7 +369,7 @@
   - `~/.zvm/versions-zls.json` is root-owned in this environment, which breaks `zvm list --all` metadata refreshes and likely contributed to the native `zvm install` limitation for older dev snapshots.
 
 ## 1. Architectural Inconsistencies
-- [x] Rename `feat_profiling` to `feat_observability` in `src/core/feature_catalog.zig` and `src/root.zig`.
+- [x] Rename `feat_profiling` to `feat_observability` in `src/features/core/feature_catalog.zig` and `src/root.zig`.
 - [x] Move nested features like `pages` to their own top-level directories or clarify their sub-feature status.
 - [x] Decouple components within the `gpu` module. *(Note: Addressed the immediate import breakages. Further decoupling has been deferred to the Massive Update Plan to ensure stability).*
 
@@ -431,7 +431,7 @@
 - [x] Validate the refactor wave with parity, typecheck, and the impacted agents, TUI, Abbey/profile, and MCP lanes.
 
 ### Notes
-- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` as the follow-up cleanup after the `src/` canonicalization pass.
+- Opened on April 4, 2026 in `<repo>/abi` as the follow-up cleanup after the `src/` canonicalization pass.
 - Completed on April 4, 2026 by wiring the Abbey convenience/re-export split, keeping the TUI dashboard facade thin around the extracted `dashboard/` modules, and moving MCP framing into `src/protocols/mcp/transport/framing.zig`.
 - Validation passed with:
   - `~/.zvm/bin/zig build check-parity`
@@ -543,7 +543,7 @@
 - Requested on March 24, 2026 as a planning-only pass; no code changes should be made under this section until the audit item is closed.
 - The multi-CLI consensus helper is unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this roadmap was prepared with the ABI best-effort fallback.
 - Current structural hotspots by size include `src/features/ai` (~124,874 LOC), `src/features/gpu` (~80,590 LOC), `src/core` (~42,467 LOC), `src/connectors` (~11,521 LOC), and several 1,000+ line files such as `src/features/ai/agents/agent.zig`, `src/features/gateway/mod.zig`, `src/inference/engine.zig`, `src/protocols/mcp/server.zig`, `src/protocols/ha/pitr.zig`, `src/foundation/security/secrets.zig`, and the GPU codegen generators.
-- The current tree still contains `feat_profiling` / `feat_pages` naming and layout references in `build.zig`, `src/root.zig`, `src/core/feature_catalog.zig`, `src/core/comptime_meta.zig`, `src/core/framework/context_init.zig`, `src/core/framework/feature_imports.zig`, and `CLAUDE.md`, even though earlier local roadmap sections marked the rename/layout work complete.
+- The current tree still contains `feat_profiling` / `feat_pages` naming and layout references in `build.zig`, `src/root.zig`, `src/features/core/feature_catalog.zig`, `src/core/comptime_meta.zig`, `src/core/framework/context_init.zig`, `src/core/framework/feature_imports.zig`, and `CLAUDE.md`, even though earlier local roadmap sections marked the rename/layout work complete.
 - The integration surface is broad (`test/integration/*.zig` spans connectors, protocols, feature domains, CLI, TUI, and GPU), but the build wrapper currently lacks targeted test filtering support, which increases the cost of safe refactors.
 - Repo hygiene follow-ups should include ignoring and removing `.DS_Store` files found under the repo root, `test/`, `docs/`, and `zig-abi-plugin/`.
 
@@ -561,7 +561,7 @@
 - Explorer outcome: keep `pages` as a separately gated observability sub-feature for Wave 1. Folding it into observability would widen the public API/config/test blast radius too far for this pass.
 - Compatibility decision: `feat_observability` is now the canonical build flag surface and `-Dfeat-profiling` remains accepted as a deprecated CLI alias in `build.zig`.
 - The current repo no longer contains stray `.DS_Store` files under the root, `test/`, `docs/`, or `zig-abi-plugin/`.
-- Validation passed with `$(./tools/zigly --status) fmt --check build.zig src/root.zig src/core/comptime_meta.zig src/core/config/mod.zig src/core/framework/context_init.zig src/core/framework/feature_imports.zig src/core/feature_catalog.zig src/protocols/mcp/real.zig src/foundation/utils/config.zig src/features/observability/mod.zig src/features/observability/stub.zig src/features/ai/metrics.zig src/features/ai/profiles/mod.zig src/features/ai/streaming/metrics.zig src/features/ai/streaming/server/mod.zig src/features/ai/streaming/server/handlers.zig`, `./build.sh --help`, `./build.sh typecheck`, `./build.sh validate-flags`, `./build.sh full-check`, and `git diff --check`.
+- Validation passed with `$(./tools/zigly --status) fmt --check build.zig src/root.zig src/core/comptime_meta.zig src/core/config/mod.zig src/core/framework/context_init.zig src/core/framework/feature_imports.zig src/features/core/feature_catalog.zig src/protocols/mcp/real.zig src/foundation/utils/config.zig src/features/observability/mod.zig src/features/observability/stub.zig src/features/ai/metrics.zig src/features/ai/profiles/mod.zig src/features/ai/streaming/metrics.zig src/features/ai/streaming/server/mod.zig src/features/ai/streaming/server/handlers.zig`, `./build.sh --help`, `./build.sh typecheck`, `./build.sh validate-flags`, `./build.sh full-check`, and `git diff --check`.
 - Next build-system refactor seam from the explorer: extract `FeatureFlags`, `hasBackend`, and `addAllBuildOptions` into `build/flags.zig` before attempting larger `build.zig` splits.
 
 ## 19. Build Flags Extraction
@@ -633,7 +633,7 @@
 - [x] Validate with targeted formatting/parity/typecheck commands and record residual risk without editing `runner.zig` or adding tests. *(Done in §29)*
 
 ### Notes
-- Opened on March 24, 2026 in `/Users/donaldfilimon/abi` with `git status --short` showing only the unrelated untracked `.claude/worktrees/` path before implementation.
+- Opened on March 24, 2026 in `<repo>/abi` with `git status --short` showing only the unrelated untracked `.claude/worktrees/` path before implementation.
 - The multi-CLI consensus helper remains unavailable in this checkout (`/Users/donaldfilimon/.codex/skills/multi-cli-communication-expert/scripts/run_tricli_consensus.sh` missing), so this slice proceeds with the ABI best-effort fallback.
 - Scope guard: only `src/features/ai/multi_agent/mod.zig`, `types.zig`, `stub.zig`, and new files under `src/features/ai/multi_agent/coordinator/` are in scope for this worker; `runner.zig` ownership stays with another worker.
 - [x] Keep `src/inference/mod.zig` as the stable public re-export surface for `Engine`, `EngineConfig`, `EngineResult`, `EngineStats`, `FinishReason`, and `Backend`.
@@ -800,7 +800,7 @@
 ## 31. Documentation Count Sync + Cleanup
 - [x] Sync `README.md` and `GEMINI.md` with the current `src/features/` layout count and feature catalog count.
 - [x] Audit the remaining docs and plan files for stale `20 feature directories`, `35 features total`, or other hardcoded count strings and update or mark them as historical context.
-- [x] Prefer derived count sources from `src/core/feature_catalog.zig` for any user-facing feature inventory text that still hardcodes counts.
+- [x] Prefer derived count sources from `src/features/core/feature_catalog.zig` for any user-facing feature inventory text that still hardcodes counts.
 - [x] Re-run grep-based verification across `AGENTS.md`, `CLAUDE.md`, `README.md`, `GEMINI.md`, and `docs/superpowers/` to confirm the count drift is gone.
 
 ### Notes
@@ -843,6 +843,6 @@
 - Validation: `~/.zvm/bin/zig build check-parity`, `~/.zvm/bin/zig build typecheck --summary all`, `~/.zvm/bin/zig build agents-tests --summary all`, `~/.zvm/bin/zig build tui-tests --summary all`, and `~/.zvm/bin/zig build mcp-tests --summary all` passed. `database-tests` still fails on `test.database: chain integrity across multiple blocks` in both the current tree and the merge-base commit.
 
 ### Notes
-- Opened on April 4, 2026 in `/Users/donaldfilimon/abi` as a follow-up organization wave.
+- Opened on April 4, 2026 in `<repo>/abi` as a follow-up organization wave.
 - This wave should preserve the public `abi.*` surface while making `src/features/core/**` the canonical internal layout.
 - The current dirty worktree contains unrelated edits and must remain untouched outside the source-layout sweep.

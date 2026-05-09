@@ -46,9 +46,9 @@ Example output:
 ```
 === ABI Toolchain Doctor ===
 
-.zigversion:  0.17.0-dev.135+9df02121d
-zig binary:   /Users/you/.zigly/versions/0.17.0-dev.135+9df02121d/bin/zig  [OK]
-zls binary:   /Users/you/.zigly/versions/0.17.0-dev.135+9df02121d/bin/zls  [OK]
+.zigversion:  0.17.0-dev.251+0db721ec2
+zig binary:   /Users/you/.zigly/versions/0.17.0-dev.251+0db721ec2/bin/zig  [OK]
+zls binary:   /Users/you/.zigly/versions/0.17.0-dev.251+0db721ec2/bin/zls  [OK]
 zig on PATH:  YES (/Users/you/.local/bin/zig)
 platform:     Darwin/arm64
 xcode-cli:    INSTALLED

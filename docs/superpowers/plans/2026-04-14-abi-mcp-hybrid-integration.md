@@ -17,7 +17,7 @@
 ### Task 1: Extend abi-mcp with --debug Mode
 
 **Files:**
-- Modify: `/Users/donaldfilimon/abi/src/mcp_main.zig`
+- Modify: `<repo>/abi/src/mcp_main.zig`
 
 - [ ] **Step 1: Update CLI argument handling in `src/mcp_main.zig`**
 
@@ -48,7 +48,7 @@ fn runDebugRepl(allocator: std.mem.Allocator, io: anytype) !void {
 
 - [ ] **Step 2: Build and verify --debug mode**
 
-Run: `cd /Users/donaldfilimon/abi && ./build.sh mcp && ./zig-out/bin/abi-mcp --debug`
+Run: `cd <repo>/abi && ./build.sh mcp && ./zig-out/bin/abi-mcp --debug`
 Expected: "ABI MCP Debug Mode" message, then echo input.
 
 - [ ] **Step 3: Commit**
@@ -61,7 +61,7 @@ git commit -m "feat: add --debug mode to abi-mcp"
 ### Task 2: Create Shell Utility for ABI Operations
 
 **Files:**
-- Create: `/Users/donaldfilimon/abi/tools/abi-mcp-utils.sh`
+- Create: `<repo>/abi/tools/abi-mcp-utils.sh`
 
 - [ ] **Step 1: Create script `tools/abi-mcp-utils.sh`**
 

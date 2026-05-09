@@ -23,7 +23,7 @@ pub fn initConfig(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.pr
     const home = environ_map.get("HOME") orelse return error.NoHomeDir;
     const zigly_dir = try std.fs.path.join(allocator, &[_][]const u8{ home, ".zigly" });
 
-    // Create base directories using Zig 0.16 Io.Dir API
+    // Create base directories using Zig 0.17 Io.Dir API.
     const cwd = std.Io.Dir.cwd();
     try cwd.createDirPath(io, zigly_dir);
     const tmp_dir = try std.fs.path.join(allocator, &[_][]const u8{ zigly_dir, "tmp" });

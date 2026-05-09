@@ -1,0 +1,35 @@
+# ABI Onboarding
+
+Start here when opening a new ABI session.
+
+## Bootstrap
+
+- ABI is built with **Zig 0.17.0-dev.251+0db721ec2**. The pinned version lives in `.zigversion`; use `tools/zigly` or `./build.sh --bootstrap` to install it.
+- Read `AGENTS.md` for agent-specific guidance.
+- Use the pinned Zig version from `.zigversion`.
+- Run `./build.sh --bootstrap` to install/link Zig and ZLS.
+
+## First Checks
+
+```bash
+zig version
+./build.sh check-parity
+./build.sh test --summary all
+```
+
+## MCP And ACP Readiness
+
+- Build MCP with `./build.sh mcp`.
+- Start through `mcp/launcher.sh`; the HA instances are configured in `mcp/servers.json`.
+- Prefer `abi-mcp stdio` for client stdio integrations and `abi-mcp sse` for HTTP health checks and SSE transport when enabled.
+- Check MCP health with `scripts/check-mcp-health.sh`.
+- Check MCP-ACP interop with `scripts/check-interop.sh`.
+- Inspect ACP endpoints with `scripts/list-acp-endpoints.sh` when `ACP_ENDPOINTS` is set.
+
+## Navigation
+
+- `ONBOARDING_INDEX.md` links the main ramp-up documents.
+- `SUMMARY.md` gives a compact repository overview.
+- `CODEBASE_REVIEW.md` outlines architecture entry points.
+- `GLOSSARY.md` defines repo terms and points back to this onboarding guide.
+- `docs/onboarding.md` contains the longer first-day guide.

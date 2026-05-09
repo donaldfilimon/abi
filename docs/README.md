@@ -6,6 +6,7 @@ This directory is the source for the ABI GitHub Pages site.
 
 - [Home](index.md)
 - [New engineer onboarding](onboarding.md)
+- Root docs: `../ONBOARDING.md`, `../SUMMARY.md`, `../CODEBASE_REVIEW.md`, and `../GLOSSARY.md`
 
 ## Architecture References
 
@@ -15,4 +16,4 @@ This directory is the source for the ABI GitHub Pages site.
 
 ## Historical Material
 
-The `review/` and `superpowers/` sections are retained for traceability. They may describe completed or superseded work, so prefer current root guidance in `AGENTS.md`, `CLAUDE.md`, and `tasks/lessons.md` for active engineering rules.
+The `review/` and `superpowers/` sections are retained for traceability. They may describe completed or superseded work, so prefer current root guidance in `AGENTS.md`, `CLAUDE.md`, `SUMMARY.md`, `CODEBASE_REVIEW.md`, and `tasks/lessons.md` for active engineering rules.

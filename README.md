@@ -1,31 +1,20 @@
-OpenCode ABI Repo
+# ABI Framework
 
-- This repository hosts the Zig 0.17-dev based ABI runtime, parity tests, and tooling to exercise AI/SDK integrations.
+ABI is a **Zig 0.17.0-dev.251+0db721ec2** framework for AI services, semantic vector storage, GPU acceleration, and distributed runtime.
 
-Getting started
-- Build CLI: `./build.sh cli` (use `zig build cli` on Linux/older macOS)
-- Build MCP: `./build.sh mcp` (use `zig build mcp` on Linux/older macOS)
-- Run parity checks: `./build.sh check-parity`
-- Run focused tests: `./build.sh test --summary all -- --test-filter "auth|token|persistence|wal|search"`
+## Quick Start
+```bash
+./build.sh --bootstrap  # Setup toolchain and build
+./build.sh check        # Run full validation gate
+```
 
-Parity gating
-- Parity checks are environment-aware. If ABI_JWT_SECRET is not set locally, many auth-related tests will be skipped to allow fast feedback on non-auth paths.
-- In CI, ABI_JWT_SECRET can be provided to run full parity across auth paths.
+## TODO Tracker
 
-### Documentation Overview
-- ONBOARDING.md — Quick-start onboarding guide.
-- CODEBASE_REVIEW.md — Architecture notes and entrypoints.
-- GLOSSARY.md — Repo-wide terms and definitions.
-- ONBOARDING_INDEX.md — Central onboarding navigator.
-- SUMMARY.md — Documentation at a glance.
-- CONTRIBUTING.md — PR workflow and contribution guidelines.
-- AGENTS.md — Onboarding guidance for agents and automation helpers.
-- README.md — Quick overview and onboarding pointers.
-- Doc validation CI workflow (docs) — CI cross-link checks.
+- `test/integration/e2e_llm_test.zig`: Implement full LLM pipeline test (currently validates error handling).
+- `test/integration/e2e_database_test.zig`: Add in‑memory test helpers or remove placeholder.
+- `src/features/ai/streaming/server/openai.zig`: Verify streaming implementation (currently functional).
+- `src/features/ai/explore/query.zig`: Review placeholder patterns (already handled).
+- CI workflow: Add step to fail on remaining `TODO`/`FIXME` comments.
+- Documentation: Ensure `CLAUDE.md` includes Getting Started and CLI command list.
 
-### Note
-This readme is a safe minimal landing page. If you need full developer onboarding, refer to the above documents for deeper operational guidance.
-Onboarding quickstart: See ONBOARDING.md for a concise one-page guide to bootstrapping a new session.
-
-
-Glossary: See GLOSSARY.md for repo-wide terms.
+See [docs/index.md](docs/index.md) for architecture, onboarding, and development guides.

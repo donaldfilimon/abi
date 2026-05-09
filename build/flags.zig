@@ -34,6 +34,7 @@ pub const FeatureFlags = struct {
     feat_connectors: bool,
     feat_tasks: bool,
     feat_inference: bool,
+    feat_external_ai: bool,
     gpu_metal: bool,
     gpu_cuda: bool,
     gpu_vulkan: bool,

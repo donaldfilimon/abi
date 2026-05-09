@@ -25,7 +25,7 @@ The goal is to shrink the file count and improve maintainability.
 ### 3.1 Namespace Retirement
 - **Action**: Globally replace and remove all `abi.features.*` and `abi.services.*` usages.
 - **New Pattern**: Use direct domain APIs (e.g., `abi.ai`, `abi.gpu`, `abi.database`).
-- **Files Affected**: `src/root.zig`, `src/core/feature_catalog.zig`, and all feature `mod.zig` files.
+- **Files Affected**: `src/root.zig`, `src/features/core/feature_catalog.zig`, and all feature `mod.zig` files.
 
 ### 3.2 File Consolidation
 - **Action**: Consolidate `mod.zig`, `stub.zig`, and `types.zig` for internal/stable features into single files where the stub is a nested struct or handled via comptime logic within one file.

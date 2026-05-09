@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "abi-mcp"
+  ],
+  "enableAllProjectMcpServers": true
+}

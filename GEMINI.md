@@ -4,12 +4,12 @@ This file provides guidance to Google Gemini when working with code in this repo
 
 ## Project Overview
 
-ABI is a **Zig 0.17 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime. This repository implements a multi-AI orchestration system (Abbey-Aviva-Abi pipeline) with constitutional AI governance.
+ABI is a **Zig 0.17.0 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime. This repository implements a multi-AI orchestration system (Abbey-Aviva-Abi pipeline) with constitutional AI governance.
 
 ## Quick Reference
 
 - **Entry point**: `src/root.zig` (exported as `@import("abi")`)
-- **Zig version**: Pinned in `.zigversion` (0.17.0-dev)
+- **Zig version**: Pinned in `.zigversion` (0.17.0)
 - **Build wrapper**: `./build.sh` (macOS 26.4+) / `zig build` (Linux)
 - **Test gate**: `./build.sh check` or `zig build check`
 - **Parity check**: `zig build check-parity` (required after API changes)
@@ -118,13 +118,13 @@ test {
 
 **Known pre-existing failures**: 2 inference engine connector tests, 1 auth integration test (not regressions).
 
-### Zig 0.16 Gotchas
+### Zig 0.17.0 Patterns
 
-- `ArrayListUnmanaged` init: `.empty` not `.{}`
-- `std.BoundedArray` removed: use manual `buffer: [N]T` + `len`
-- `std.time.milliTimestamp` removed: use `foundation.time.unixMs()`
-- Entry point: `pub fn main(init: std.process.Init) !void`
-- `std.mem.trimRight` renamed to `std.mem.trimEnd`
+- **Entry point**: `pub fn main(init: std.process.Init) !void`
+- **ArrayListUnmanaged**: Use `.empty` for initialization (e.g., `var list = std.ArrayListUnmanaged(u8).empty;`).
+- **Strings**: `std.mem.trimRight` is renamed to `std.mem.trimEnd`.
+- **Time**: `std.time.milliTimestamp` is removed; use `foundation.time.unixMs()`.
+- **Splitting**: Prefer `std.mem.splitScalar`, `std.mem.splitAny`, or `std.mem.splitSequence` over `std.mem.split`.
 
 ## AI Feature Structure (`src/features/ai/`)
 

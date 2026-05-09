@@ -183,6 +183,7 @@ fn crossBuildOptions(b: *std.Build, ct: CrossTarget, package_version: []const u8
         .feat_connectors = true,
         .feat_tasks = true,
         .feat_inference = true,
+        .feat_external_ai = false,
 
         // ── GPU backends (none enabled in cross-builds; host-specific) ──
         .gpu_metal = false,

@@ -932,33 +932,33 @@ pub fn printUsage() void {
 }
 
 test "versionMatches requires an exact version string match" {
-    try std.testing.expect(versionMatches("0.17.0-dev.135+9df02121d", "0.17.0-dev.135+9df02121d"));
-    try std.testing.expect(!versionMatches("0.17.0-dev.135+9df02121d", "0.17.0-dev.27+0dd99c37c"));
-    try std.testing.expect(!versionMatches("0.17.0-dev.135+9df02121d", null));
+    try std.testing.expect(versionMatches("0.17.0-dev.251+0db721ec2", "0.17.0-dev.251+0db721ec2"));
+    try std.testing.expect(!versionMatches("0.17.0-dev.251+0db721ec2", "0.17.0-dev.27+0dd99c37c"));
+    try std.testing.expect(!versionMatches("0.17.0-dev.251+0db721ec2", null));
 }
 
 test "selectToolchain prefers an active matching zvm binary" {
     try std.testing.expectEqual(
         ToolchainSelection.zvm_active,
-        selectToolchain("0.17.0-dev.135+9df02121d", true, "0.17.0-dev.135+9df02121d", true),
+        selectToolchain("0.17.0-dev.251+0db721ec2", true, "0.17.0-dev.251+0db721ec2", true),
     );
 }
 
 test "selectToolchain installs via zvm when zvm is present but mismatched" {
     try std.testing.expectEqual(
         ToolchainSelection.install_via_zvm,
-        selectToolchain("0.17.0-dev.135+9df02121d", true, "0.17.0-dev.27+0dd99c37c", true),
+        selectToolchain("0.17.0-dev.251+0db721ec2", true, "0.17.0-dev.27+0dd99c37c", true),
     );
 }
 
 test "selectToolchain falls back to zigly cache only when zvm is absent" {
     try std.testing.expectEqual(
         ToolchainSelection.zigly_cache,
-        selectToolchain("0.17.0-dev.135+9df02121d", false, null, true),
+        selectToolchain("0.17.0-dev.251+0db721ec2", false, null, true),
     );
     try std.testing.expectEqual(
         ToolchainSelection.install_via_zigly,
-        selectToolchain("0.17.0-dev.135+9df02121d", false, null, false),
+        selectToolchain("0.17.0-dev.251+0db721ec2", false, null, false),
     );
 }
 
