@@ -14,7 +14,7 @@ Compact instructions for automation and rapid ramp-up.
 ## Architecture Quirks
 - **Mod/Stub Pattern**: Features implement `mod.zig` and `stub.zig`. Changing public APIs requires updates to both. Run parity check after any change.
 - **Imports**: Never `@import("abi")` within `src/` (circular dependency). Use relative imports.
-- **Error Handling**: Silent error swallowing (`catch {}`) is strictly forbidden in data access, inference, and persistence paths. Errors must be logged or propagated.
+- **Error Handling**: Silent empty catch blocks are strictly forbidden in data access, inference, and persistence paths. Errors must be logged or propagated.
 
 ## Operational & Debugging
 - **Database Engine**: Uses `RwLock` (`db_lock`). Public methods (`index`, `search`, etc.) must acquire shared/exclusive locks.

@@ -103,13 +103,13 @@ All other major subsystems have `feat_*` gates.
 
 **BUG-2 (Important): HNSW search double-silent-swallow**
 - File: `src/features/core/database/hnsw/mod.zig`, lines 340-370
-- When GPU path fails allocation, fallback to `searchNeighborsSequential` is also `catch {}`'d
+- When GPU path fails allocation, fallback to `searchNeighborsSequential` also used an empty catch block
 - Under memory pressure, search results silently degrade with no indication to caller
 - Fix: propagate error or log warning when fallback also fails
 
 **BUG-3 (Important): Compute Mesh drops discovered nodes**
 - File: `src/features/compute/mesh.zig`, line 211
-- `self.nodes.append(self.allocator, ...) catch {}` silently drops OOM
+- `self.nodes.append(self.allocator, ...)` silently dropped OOM through an empty catch block
 - User sees "Discovered new node" log but node is never added
 - Fix: propagate error or log specific failure message
 
@@ -117,7 +117,7 @@ All other major subsystems have `feat_*` gates.
 
 **WARN-1: WAL sync silently ignored**
 - File: `src/features/core/database/storage/wal.zig`, line 137
-- `file.sync(io) catch {}` after write defeats durability guarantee
+- `file.sync(io)` with an empty catch block after write defeats durability guarantee
 - Also in `src/protocols/ha/pitr/persistence.zig`, line 213
 
 **WARN-2: Plugin manifest directory creation failure ignored**
@@ -136,7 +136,7 @@ All other major subsystems have `feat_*` gates.
 - Thread safety solid in cache, messaging, runtime, parallel_search (Engine is the exception)
 - GPU backend dispatch and fallback: clean error propagation
 - Connector error propagation: correct (HTTP status mapping, timeout handling)
-- Most `catch {}` patterns are intentional (test cleanup, terminal restore, temp files, optional operations)
+- Most empty catch-block patterns are intentional (test cleanup, terminal restore, temp files, optional operations)
 
 ---
 
@@ -274,7 +274,7 @@ All other major subsystems have `feat_*` gates.
 
 Three specialized agents were dispatched in parallel, each with a distinct focus:
 1. **Architecture agent** — decomposition targets, import hygiene, stub parity, build system (37 tool calls)
-2. **Quality agent** — catch {} audit, thread safety, GPU edge cases, connector errors (43 tool calls)
+2. **Quality agent** — empty catch-block audit, thread safety, GPU edge cases, connector errors (43 tool calls)
 3. **Roadmap agent** — GPU backends, inference engine, connectors, protocols, CLI, TUI, catalog (58 tool calls)
 
 Total analysis: 138 tool calls across ~2,500 source files, producing this unified report.
