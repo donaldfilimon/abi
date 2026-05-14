@@ -145,9 +145,10 @@ pub const CircuitBreaker = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         const inner_stats = self.inner.getStats();
+        const accounted_requests = inner_stats.successful_requests + inner_stats.failed_requests + inner_stats.rejected_requests + self.rejected_requests;
         const now_ms = time.nowMilliseconds();
         return .{
-            .total_requests = inner_stats.total_requests,
+            .total_requests = @max(inner_stats.total_requests, accounted_requests),
             .successful_requests = inner_stats.successful_requests,
             .failed_requests = inner_stats.failed_requests,
             .rejected_requests = inner_stats.rejected_requests + self.rejected_requests,

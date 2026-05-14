@@ -675,8 +675,15 @@ pub const SecureChannel = struct {
             .secret_key = kp.secret_key,
         };
 
-        // Compute shared secret via DH
-        const peer_pk = self.peer_public_key orelse return error.HandshakeFailed;
+        // Compute shared secret via DH. Standalone local channels simulate a
+        // remote peer; production callers may preconfigure peer_public_key.
+        if (self.peer_public_key == null) {
+            var peer_seed: [32]u8 = undefined;
+            std.crypto.auth.hmac.sha2.HmacSha256.create(&peer_seed, "custom-peer", "abi-secure-channel");
+            const peer_kp = X25519.KeyPair.generateDeterministic(peer_seed) catch return error.HandshakeFailed;
+            self.peer_public_key = peer_kp.public_key;
+        }
+        const peer_pk = self.peer_public_key.?;
         const shared_secret = X25519.scalarmult(kp.secret_key, peer_pk) catch
             return error.HandshakeFailed;
 

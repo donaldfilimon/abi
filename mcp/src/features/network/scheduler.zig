@@ -361,11 +361,11 @@ test "scheduler round robin selection" {
         try scheduler.addNode(node);
     }
 
-    const n1 = scheduler.nodes.get("n1").?;
-    const n2 = scheduler.nodes.get("n2").?;
-    const n3 = scheduler.nodes.get("n3").?;
+    const n1 = scheduler.nodes.getPtr("n1").?;
+    const n2 = scheduler.nodes.getPtr("n2").?;
+    const n3 = scheduler.nodes.getPtr("n3").?;
 
-    const expected = [_]*const ComputeNode{ &n1, &n2, &n3 };
+    const expected = [_]*const ComputeNode{ n1, n2, n3 };
     for (0..3) |i| {
         const selected = try scheduler.selectNode() orelse return error.TestUnexpected;
         try std.testing.expectEqual(expected[i], selected);
