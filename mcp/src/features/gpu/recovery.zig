@@ -106,8 +106,8 @@ pub const RecoveryManager = struct {
         }
 
         pub fn format(self: DeviceKey, writer: *std.Io.Writer) !void {
-            try writer.print("DeviceKey({s}, {d})", .{
-                @tagName(self.backend_type),
+            try writer.print("DeviceKey({t}, {d})", .{
+                self.backend_type,
                 self.device_id,
             });
         }

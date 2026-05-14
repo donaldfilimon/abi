@@ -59,7 +59,7 @@ pub const Steps = struct {
 pub fn addSteps(ctx: Context) Steps {
     const test_step = ctx.b.step("test", "Run tests");
 
-    const lib_tests = addTests(ctx.b, ctx.target, ctx.optimize, "src/root.zig", ctx.build_options_module, null, ctx.common_module);
+    const lib_tests = addTests(ctx.b, ctx.target, ctx.optimize, "mcp/src/root.zig", ctx.build_options_module, null, ctx.common_module);
     linking.linkIfDarwin(lib_tests, .test_artifact, ctx.flags.feat_gpu, ctx.flags.gpu_metal);
     const run_lib_tests = ctx.b.addRunArtifact(lib_tests);
     test_step.dependOn(&run_lib_tests.step);
@@ -102,12 +102,13 @@ pub fn addSteps(ctx: Context) Steps {
     const mcp_tests_step = ctx.b.step("mcp-tests", "Run MCP integration tests");
     mcp_tests_step.dependOn(&ctx.b.addRunArtifact(mcp_tests).step);
 
-    // Feature-specific test lanes: unit tests (src/) + integration tests (test/integration/)
+    // Feature-specific test lanes: unit tests (mcp/src/) + integration tests (test/integration/)
     for (feature_lanes) |lane| {
         addFeatureTestLane(ctx, lane.name, lane.display, lane.integration_name orelse lane.name);
     }
 
-    const fmt_paths = &.{ "build.zig", "build", "src", "test" };
+    const fmt_paths = &.{ "build.zig", "build", "mcp", "test" };
+
     const check_step = ctx.b.step("check", "Run lint + test + parity");
     check_step.dependOn(&ctx.b.addFmt(.{ .paths = fmt_paths, .check = true }).step);
     check_step.dependOn(&run_lib_tests.step);
@@ -174,7 +175,7 @@ fn addFlagOverrideTestLane(
 
     const module_name = std.fmt.allocPrint(ctx.b.allocator, "abi_{s}", .{step_name}) catch @panic("OOM");
     const override_abi = ctx.b.addModule(module_name, .{
-        .root_source_file = ctx.b.path("src/root.zig"),
+        .root_source_file = ctx.b.path("mcp/src/root.zig"),
         .target = ctx.target,
         .optimize = ctx.optimize,
     });
@@ -182,7 +183,7 @@ fn addFlagOverrideTestLane(
 
     const lib_tests = ctx.b.addTest(.{
         .root_module = ctx.b.createModule(.{
-            .root_source_file = ctx.b.path("src/root.zig"),
+            .root_source_file = ctx.b.path("mcp/src/root.zig"),
             .target = ctx.target,
             .optimize = ctx.optimize,
         }),
@@ -203,7 +204,7 @@ fn addFlagOverrideTestLane(
 /// Expects "src/{name}_mod_test.zig" and "test/integration/{integration_name}_test.zig" to exist.
 /// Creates a build step named "{display_name}-tests".
 fn addFeatureTestLane(ctx: Context, name: []const u8, display_name: []const u8, integration_name: []const u8) void {
-    const unit_path = std.fmt.allocPrint(ctx.b.allocator, "src/{s}_mod_test.zig", .{name}) catch @panic("OOM");
+    const unit_path = std.fmt.allocPrint(ctx.b.allocator, "mcp/src/{s}_mod_test.zig", .{name}) catch @panic("OOM");
     const integration_path = std.fmt.allocPrint(ctx.b.allocator, "test/integration/{s}_test.zig", .{integration_name}) catch @panic("OOM");
     const step_name = std.fmt.allocPrint(ctx.b.allocator, "{s}-tests", .{display_name}) catch @panic("OOM");
     const step_desc = std.fmt.allocPrint(ctx.b.allocator, "Run {s}-focused unit and integration tests", .{display_name}) catch @panic("OOM");
@@ -225,7 +226,7 @@ fn addParityTests(
     common_module: *std.Build.Module,
 ) *std.Build.Step.Compile {
     const parity_mod = b.createModule(.{
-        .root_source_file = b.path("src/feature_parity_tests.zig"),
+        .root_source_file = b.path("mcp/src/feature_parity_tests.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,

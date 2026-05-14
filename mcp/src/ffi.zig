@@ -9,7 +9,8 @@ var last_error_buf: [1024]u8 = undefined;
 
 /// Internal helper to set the last error message for C clients.
 fn setLastError(comptime fmt: []const u8, args: anytype) void {
-    _ = std.fmt.bufPrintZ(&last_error_buf, fmt, args) catch return;
+    const slice = std.fmt.bufPrint(&last_error_buf, fmt, args) catch return;
+    last_error_buf[slice.len] = 0;
 }
 
 /// Initialize the ABI Framework backend.

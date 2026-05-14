@@ -6,7 +6,10 @@ const c = struct {
 
 /// Read an environment variable; returns an owned copy or null if unset.
 pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
-    const name_z = allocator.dupeZ(u8, name) catch return error.OutOfMemory;
+    const name_dup = try allocator.dupe(u8, name);
+    const name_z_slice = try allocator.realloc(name_dup, name.len + 1);
+    name_z_slice[name.len] = 0;
+    const name_z = name_z_slice[0..name.len :0];
     defer allocator.free(name_z);
 
     const value_ptr = c.getenv(name_z.ptr);
@@ -33,6 +36,11 @@ pub const ENV_VARS = struct {
         pub const api_key = &[_][]const u8{ "ABI_OPENAI_API_KEY", "OPENAI_API_KEY" };
         pub const base_url = &[_][]const u8{ "ABI_OPENAI_BASE_URL", "OPENAI_BASE_URL" };
         pub const model = &[_][]const u8{ "ABI_OPENAI_MODEL", "OPENAI_MODEL" };
+    };
+    pub const grok = struct {
+        pub const api_key = &[_][]const u8{ "ABI_GROK_API_KEY", "GROK_API_KEY" };
+        pub const base_url = &[_][]const u8{ "ABI_GROK_BASE_URL", "GROK_BASE_URL" };
+        pub const model = &[_][]const u8{ "ABI_GROK_MODEL", "GROK_MODEL" };
     };
     pub const anthropic = struct {
         pub const api_key = &[_][]const u8{ "ABI_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY" };

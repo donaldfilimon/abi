@@ -182,10 +182,14 @@ pub fn validateJwt(token: []const u8, secret: []const u8) AuthResult {
 
     // Base64url-decode the signature and compare
     var sig_buf: [256]u8 = undefined;
-    std.base64.url_safe_no_pad.Decoder.decode(&sig_buf, signature_b64) catch {
+    const decoded_len = std.base64.url_safe_no_pad.Decoder.calcSizeForSlice(signature_b64) catch {
         return authFail("Invalid signature encoding");
     };
-    const decoded_sig = std.mem.sliceTo(&sig_buf, 0);
+    if (decoded_len > sig_buf.len) return authFail("Invalid signature");
+    std.base64.url_safe_no_pad.Decoder.decode(sig_buf[0..decoded_len], signature_b64) catch {
+        return authFail("Invalid signature encoding");
+    };
+    const decoded_sig = sig_buf[0..decoded_len];
 
     if (decoded_sig.len != mac.len) return authFail("Invalid signature");
 

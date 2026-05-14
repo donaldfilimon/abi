@@ -157,6 +157,7 @@ pub const codex = @import("stubs/codex.zig");
 pub const opencode = @import("stubs/opencode.zig");
 pub const claude = @import("stubs/claude.zig");
 pub const gemini = @import("stubs/gemini.zig");
+pub const grok = @import("stubs/grok.zig");
 
 // ============================================================================
 // HuggingFace Connector Stub
@@ -470,10 +471,11 @@ pub const ProviderInfo = struct {
 };
 
 pub const ProviderRegistry = struct {
-    pub const providers: [16]ProviderInfo = .{
+    pub const providers: [17]ProviderInfo = .{
         .{ .name = "ollama", .display_name = "Ollama", .env_key = "ABI_OLLAMA_HOST", .base_url = "http://127.0.0.1:11434", .is_alias = false },
         .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "ABI_OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
         .{ .name = "openai", .display_name = "OpenAI", .env_key = "ABI_OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = false },
+        .{ .name = "grok", .display_name = "xAI Grok", .env_key = "ABI_GROK_API_KEY", .base_url = "https://api.x.ai/v1", .is_alias = false },
         .{ .name = "anthropic", .display_name = "Anthropic", .env_key = "ABI_ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = false },
         .{ .name = "claude", .display_name = "Claude", .env_key = "ABI_ANTHROPIC_API_KEY", .base_url = "https://api.anthropic.com/v1", .is_alias = true },
         .{ .name = "codex", .display_name = "Codex", .env_key = "ABI_OPENAI_API_KEY", .base_url = "https://api.openai.com/v1", .is_alias = true },
@@ -560,9 +562,9 @@ test "connectors stub isAvailable returns false" {
     try std.testing.expect(!mlx.isAvailable());
 }
 
-test "stub ProviderRegistry.listAll returns 16 providers" {
+test "stub ProviderRegistry.listAll returns 17 providers" {
     const all = ProviderRegistry.listAll();
-    try std.testing.expectEqual(@as(usize, 16), all.len);
+    try std.testing.expectEqual(@as(usize, 17), all.len);
 }
 
 test "stub ProviderRegistry.listAvailable returns empty" {

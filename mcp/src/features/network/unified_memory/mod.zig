@@ -382,7 +382,6 @@ pub const UnifiedMemoryManager = struct {
     /// Deinitialize and free resources.
     pub fn deinit(self: *UnifiedMemoryManager) void {
         self.mutex.lock();
-        defer self.mutex.unlock();
 
         // Clean up local regions
         var local_it = self.local_regions.valueIterator();
@@ -421,6 +420,7 @@ pub const UnifiedMemoryManager = struct {
             self.allocator.destroy(cm);
         }
 
+        self.mutex.unlock();
         self.allocator.destroy(self);
     }
 

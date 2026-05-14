@@ -7,6 +7,7 @@ pub const mesh = @import("mesh.zig");
 pub const types = @import("types.zig");
 
 const std = @import("std");
+const build_options = @import("build_options");
 
 pub const ComputeError = types.ComputeError;
 pub const Error = types.Error;
@@ -29,7 +30,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_compute;
 }
 
 pub fn isInitialized() bool {

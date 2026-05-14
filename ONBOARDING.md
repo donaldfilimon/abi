@@ -4,7 +4,7 @@ Start here when opening a new ABI session.
 
 ## Bootstrap
 
-- ABI is built with **Zig 0.17.0-dev.251+0db721ec2**. The pinned version lives in `.zigversion`; use `tools/zigly` or `./build.sh --bootstrap` to install it.
+- ABI is built with **Zig 0.17.0-dev.304+9787df942**. The pinned version lives in `.zigversion`; use `tools/zigly` or `./build.sh --bootstrap` to install it.
 - Read `AGENTS.md` for agent-specific guidance.
 - Use the pinned Zig version from `.zigversion`.
 - Run `./build.sh --bootstrap` to install/link Zig and ZLS.

@@ -7,12 +7,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check_abi_import.sh\"",
+            "command": "bash -lc 'root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; bash \"$root/hooks/check_abi_import.sh\"'",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check_zigversion.sh\"",
+            "command": "bash -lc 'root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; bash \"$root/hooks/check_zigversion.sh\"'",
             "timeout": 5
           }
         ]
@@ -29,7 +29,7 @@
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check_test_mod.sh\"",
+            "command": "bash -lc 'root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; bash \"$root/hooks/check_test_mod.sh\"'",
             "timeout": 5
           }
         ]

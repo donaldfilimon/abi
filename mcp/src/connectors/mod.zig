@@ -36,6 +36,7 @@
 const std = @import("std");
 
 pub const openai = @import("openai.zig");
+pub const grok = @import("grok.zig");
 pub const codex = @import("codex.zig");
 pub const opencode = @import("opencode.zig");
 pub const claude = @import("claude.zig");

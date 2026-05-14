@@ -5,7 +5,7 @@ description: This skill should be used when writing or modifying Zig code in the
 
 # Zig 0.17 API Patterns for ABI
 
-Pinned at `0.17.0-dev.251+0db721ec2`. Follow these patterns exactly — older patterns will not compile.
+Pinned at `0.17.0-dev.304+9787df942`. Follow these patterns exactly — older patterns will not compile.
 
 ## Removed / Changed APIs
 

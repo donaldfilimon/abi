@@ -291,6 +291,8 @@ pub fn parseInvocationRequest(allocator: std.mem.Allocator, raw_request: []const
 
     var event = CloudEvent.init(allocator, .azure_functions, invocation_id);
     errdefer event.deinit();
+    event.request_id = try allocator.dupe(u8, invocation_id);
+    event.request_id_owned = true;
 
     // Check if this is an HTTP trigger
     if (root.object.get("Data")) |data| {
@@ -311,11 +313,9 @@ fn getStringField(root: std.json.Value, key: []const u8) ?[]const u8 {
 }
 
 fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
-    var buffer: std.ArrayList(u8) = .empty;
-    errdefer buffer.deinit(allocator);
-    var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buffer);
+    var aw = std.Io.Writer.Allocating.init(allocator);
     try std.json.Stringify.value(value, .{}, &aw.writer);
-    return buffer.toOwnedSlice(allocator);
+    return aw.toOwnedSlice();
 }
 
 /// Parse HTTP trigger request data.
@@ -327,11 +327,17 @@ fn parseHttpTrigger(event: *CloudEvent, req: std.json.Value) !void {
 
     // URL/Path
     if (req.object.get("Url")) |url| {
-        event.path = url.string;
+        event.path = try event.allocator.dupe(u8, url.string);
+        event.path_owned = true;
     }
 
     // Body
-    if (req.object.get("Body")) |body| event.body = jsonStringOrNull(body);
+    if (req.object.get("Body")) |body| {
+        if (jsonStringOrNull(body)) |s| {
+            event.body = try event.allocator.dupe(u8, s);
+            event.body_owned = true;
+        }
+    }
 
     // Headers
     if (req.object.get("Headers")) |headers| {
@@ -354,7 +360,8 @@ fn parseNonHttpTrigger(event: *CloudEvent, data: std.json.Value, root: std.json.
     if (root.object.get("Metadata")) |meta| {
         if (meta.object.get("sys")) |sys| {
             if (sys.object.get("MethodName")) |method_name| {
-                event.event_type = method_name.string;
+                event.event_type = try event.allocator.dupe(u8, method_name.string);
+                event.event_type_owned = true;
             }
         }
     }
@@ -366,13 +373,16 @@ fn parseNonHttpTrigger(event: *CloudEvent, data: std.json.Value, root: std.json.
         if (std.mem.eql(u8, entry.key_ptr.*, "req")) continue;
 
         // The first non-req value is typically the trigger data
-        event.source = entry.key_ptr.*;
+        event.source = try event.allocator.dupe(u8, entry.key_ptr.*);
+        event.source_owned = true;
 
         if (entry.value_ptr.* == .string) {
-            event.body = entry.value_ptr.string;
+            event.body = try event.allocator.dupe(u8, entry.value_ptr.string);
+            event.body_owned = true;
         } else {
             // Serialize complex data as JSON
             event.body = try jsonValueToOwnedSlice(event.allocator, entry.value_ptr.*);
+            event.body_owned = true;
         }
         break;
     }
@@ -398,7 +408,11 @@ pub fn parseTimerTrigger(allocator: std.mem.Allocator, raw_event: []const u8) !C
                 if (past_due.bool) {
                     // Store metadata about past due execution
                     event.headers = .empty;
-                    try event.headers.?.put(allocator, "x-timer-past-due", "true");
+                    const key = try allocator.dupe(u8, "x-timer-past-due");
+                    errdefer allocator.free(key);
+                    const value = try allocator.dupe(u8, "true");
+                    errdefer allocator.free(value);
+                    try event.headers.?.put(allocator, key, value);
                 }
             }
 
@@ -429,10 +443,12 @@ pub fn parseBlobTrigger(allocator: std.mem.Allocator, raw_event: []const u8) !Cl
         var iter = data.object.iterator();
         while (iter.next()) |entry| {
             if (!std.mem.eql(u8, entry.key_ptr.*, "req")) {
-                event.source = entry.key_ptr.*;
+                event.source = try event.allocator.dupe(u8, entry.key_ptr.*);
+                event.source_owned = true;
 
                 if (entry.value_ptr.* == .string) {
-                    event.body = entry.value_ptr.string;
+                    event.body = try event.allocator.dupe(u8, entry.value_ptr.string);
+                    event.body_owned = true;
                 }
                 break;
             }
@@ -444,10 +460,18 @@ pub fn parseBlobTrigger(allocator: std.mem.Allocator, raw_event: []const u8) !Cl
         event.headers = .empty;
 
         if (getStringField(meta, "BlobTrigger")) |trigger| {
-            try event.headers.?.put(allocator, "x-blob-trigger", trigger);
+            const key = try allocator.dupe(u8, "x-blob-trigger");
+            errdefer allocator.free(key);
+            const value = try allocator.dupe(u8, trigger);
+            errdefer allocator.free(value);
+            try event.headers.?.put(allocator, key, value);
         }
         if (getStringField(meta, "Uri")) |uri| {
-            try event.headers.?.put(allocator, "x-blob-uri", uri);
+            const key = try allocator.dupe(u8, "x-blob-uri");
+            errdefer allocator.free(key);
+            const value = try allocator.dupe(u8, uri);
+            errdefer allocator.free(value);
+            try event.headers.?.put(allocator, key, value);
         }
     }
 
@@ -456,10 +480,7 @@ pub fn parseBlobTrigger(allocator: std.mem.Allocator, raw_event: []const u8) !Cl
 
 /// Format a CloudResponse for Azure Functions custom handler.
 pub fn formatInvocationResponse(allocator: std.mem.Allocator, response: *const CloudResponse) ![]const u8 {
-    var buffer: std.ArrayList(u8) = .empty;
-    errdefer buffer.deinit(allocator);
-
-    var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buffer);
+    var aw = std.Io.Writer.Allocating.init(allocator);
     const writer = &aw.writer;
 
     // Azure Functions custom handler response format
@@ -487,7 +508,7 @@ pub fn formatInvocationResponse(allocator: std.mem.Allocator, response: *const C
 
     try writer.writeAll("}},\"Logs\":[]}");
 
-    return buffer.toOwnedSlice(allocator);
+    return aw.toOwnedSlice();
 }
 
 /// Run a handler as an Azure Function.
@@ -502,10 +523,7 @@ pub fn generateFunctionJson(
     function_name: []const u8,
     trigger_type: TriggerType,
 ) ![]const u8 {
-    var buffer: std.ArrayList(u8) = .empty;
-    errdefer buffer.deinit(allocator);
-
-    var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buffer);
+    var aw = std.Io.Writer.Allocating.init(allocator);
     const writer = &aw.writer;
 
     try writer.writeAll("{\n  \"bindings\": [\n");
@@ -567,7 +585,7 @@ pub fn generateFunctionJson(
     try writer.writeAll("\n  ],\n");
     try writer.print("  \"customHandler\": {{\n    \"description\": {{\n      \"defaultExecutablePath\": \"{s}\"\n    }}\n  }}\n}}\n", .{function_name});
 
-    return buffer.toOwnedSlice(allocator);
+    return aw.toOwnedSlice();
 }
 
 // ============================================================================

@@ -34,7 +34,9 @@ const StressHelper = struct {
             if (stats.total_requests > 1000000) {
                 std.debug.print("Impossible stats\n", .{});
             }
-            std.Thread.yield() catch {};
+            std.Thread.yield() catch |err| {
+                std.debug.print("yield failed: {}\n", .{err});
+            };
         }
     }
 };

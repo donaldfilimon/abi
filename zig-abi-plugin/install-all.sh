@@ -13,6 +13,9 @@ VERSION="${VERSION:-unknown}"
 echo "Installing zig-abi-plugin (version ${VERSION}) from ${SRC_DIR}"
 
 ROOTS=(
+  ${OPENCODE_PLUGINS_ROOT:+"$OPENCODE_PLUGINS_ROOT"}
+  ${CLAUDE_CODE_PLUGINS_ROOT:+"$CLAUDE_CODE_PLUGINS_ROOT"}
+  ${CODEX_PLUGINS_ROOT:+"$CODEX_PLUGINS_ROOT"}
   "$HOME/.opencode/plugins"
   "$HOME/Code/OpenCode/plugins"
   "/usr/local/share/opencode/plugins"
@@ -26,9 +29,19 @@ ROOTS=(
 
 INSTALL_COUNT=0
 for ROOT in "${ROOTS[@]}"; do
-  if [[ -d "$ROOT" ]]; then
+  SHOULD_CREATE=0
+  case "$ROOT" in
+    "$HOME"/*) SHOULD_CREATE=1 ;;
+    "${OPENCODE_PLUGINS_ROOT:-__abi_no_opencode_root__}"|"${CLAUDE_CODE_PLUGINS_ROOT:-__abi_no_claude_root__}"|"${CODEX_PLUGINS_ROOT:-__abi_no_codex_root__}") SHOULD_CREATE=1 ;;
+  esac
+
+  if [[ -d "$ROOT" || "$SHOULD_CREATE" -eq 1 ]]; then
     DEST="${ROOT}/zig-abi-plugin"
     mkdir -p "$ROOT"
+    if [[ "$DEST" == "$SRC_DIR" ]]; then
+      echo "Skipping ${DEST}; source and destination are the same directory."
+      continue
+    fi
     if [[ -d "$DEST" ]]; then
       PREV_V=""
       if [[ -f "${DEST}/.INSTALL_VERSION" ]]; then

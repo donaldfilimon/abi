@@ -33,7 +33,7 @@ pub const SerializationWriter = struct {
 
     /// Append a float value.
     pub fn appendFloat(self: *SerializationWriter, comptime T: type, value: T) !void {
-        const IntType = std.meta.Int(.unsigned, @bitSizeOf(T));
+        const IntType = @Int(.unsigned, @bitSizeOf(T));
         try self.appendInt(IntType, @bitCast(value));
     }
 
@@ -91,7 +91,7 @@ pub const SerializationCursor = struct {
 
     /// Read a float value.
     pub fn readFloat(self: *SerializationCursor, comptime T: type) Error!T {
-        const IntType = std.meta.Int(.unsigned, @bitSizeOf(T));
+        const IntType = @Int(.unsigned, @bitSizeOf(T));
         const bits = try self.readInt(IntType);
         return @bitCast(bits);
     }

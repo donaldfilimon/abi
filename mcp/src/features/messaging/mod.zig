@@ -12,6 +12,7 @@
 //! - RwLock for concurrent topic lookups
 
 const std = @import("std");
+const build_options = @import("build_options");
 pub const types = @import("types.zig");
 
 // Submodules
@@ -67,7 +68,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_messaging;
 }
 
 pub fn isInitialized() bool {

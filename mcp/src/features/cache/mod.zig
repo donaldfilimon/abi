@@ -12,6 +12,7 @@
 //! - Cache owns all keys/values (copies on put, caller borrows on get)
 
 const std = @import("std");
+const build_options = @import("build_options");
 const time = @import("../../foundation/mod.zig").time;
 pub const types = @import("types.zig");
 const cache_state = @import("state.zig");
@@ -50,7 +51,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_cache;
 }
 
 pub fn isInitialized() bool {

@@ -10,6 +10,7 @@
 //! - RwLock for concurrent page lookups
 
 const std = @import("std");
+const build_options = @import("build_options");
 const core_config = @import("../../core/config/content.zig");
 const sync = @import("../../../foundation/mod.zig").sync;
 const radix = @import("../../../foundation/mod.zig").utils.radix_tree;
@@ -256,7 +257,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_pages;
 }
 
 pub fn isInitialized() bool {

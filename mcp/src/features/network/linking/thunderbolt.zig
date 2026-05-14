@@ -392,7 +392,6 @@ pub const ThunderboltTransport = struct {
     /// Deinitialize transport.
     pub fn deinit(self: *ThunderboltTransport) void {
         self.mutex.lock();
-        defer self.mutex.unlock();
 
         // Clean up devices
         var it = self.devices.valueIterator();
@@ -412,6 +411,7 @@ pub const ThunderboltTransport = struct {
             pool.deinit(self.allocator);
         }
 
+        self.mutex.unlock();
         self.allocator.destroy(self);
     }
 

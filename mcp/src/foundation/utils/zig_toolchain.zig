@@ -168,21 +168,21 @@ fn fileExistsAbsolute(io: std.Io, path: []const u8) bool {
 test "preferred source uses zvm when active version matches" {
     try std.testing.expectEqual(
         PreferredSource.zvm_bin,
-        selectPreferredSource("0.17.0-dev.251+0db721ec2", "0.17.0-dev.251+0db721ec2", true),
+        selectPreferredSource("0.17.0-dev.263+0add2dfc4", "0.17.0-dev.263+0add2dfc4", true),
     );
 }
 
 test "preferred source falls back to zigly cache when zvm does not match" {
     try std.testing.expectEqual(
         PreferredSource.zigly_cache,
-        selectPreferredSource("0.17.0-dev.251+0db721ec2", "0.17.0-dev.27+0dd99c37c", true),
+        selectPreferredSource("0.17.0-dev.263+0add2dfc4", "0.17.0-dev.27+0dd99c37c", true),
     );
 }
 
 test "preferred source returns none when no resolver matches" {
     try std.testing.expectEqual(
         PreferredSource.none,
-        selectPreferredSource("0.17.0-dev.251+0db721ec2", null, false),
+        selectPreferredSource("0.17.0-dev.263+0add2dfc4", null, false),
     );
 }
 

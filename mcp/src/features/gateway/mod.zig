@@ -12,6 +12,7 @@
 //! - RwLock for concurrent route lookups
 
 const std = @import("std");
+const build_options = @import("build_options");
 pub const gateway_types = @import("types.zig");
 const middleware = @import("middleware.zig");
 const gateway_pipeline = @import("pipeline.zig");
@@ -41,7 +42,7 @@ pub const deinit = gateway_state.deinit;
 pub const isInitialized = gateway_state.isInitialized;
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_gateway;
 }
 
 pub fn addRoute(route: Route) GatewayError!void {

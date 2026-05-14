@@ -74,6 +74,9 @@ pub const HealthCheck = struct {
     }
 
     pub fn deinit(self: *HealthCheck) void {
+        if (self.primary_node) |primary| {
+            self.allocator.free(primary);
+        }
         self.node_health.deinit(self.allocator);
         self.check_count.deinit(self.allocator);
         self.fsm.deinit();
@@ -153,7 +156,7 @@ pub const HealthCheck = struct {
 
     pub fn electPrimary(self: *HealthCheck) ![]const u8 {
         const new_primary = try self.selectNewPrimary();
-        return new_primary;
+        return self.allocator.dupe(u8, new_primary);
     }
 
     pub fn triggerFailover(self: *HealthCheck) !void {

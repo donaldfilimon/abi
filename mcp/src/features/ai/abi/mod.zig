@@ -199,8 +199,8 @@ pub const AbiRouter = struct {
         defer self.allocator.free(embedding);
 
         // Store in WDBX with metadata
-        const metadata = try std.fmt.allocPrint(self.allocator, "{{\"profile\":\"{s}\",\"reason\":\"{s}\"}}", .{
-            @tagName(decision.selected_profile),
+        const metadata = try std.fmt.allocPrint(self.allocator, "{{\"profile\":\"{t}\",\"reason\":\"{s}\"}}", .{
+            decision.selected_profile,
             decision.routing_reason,
         });
         defer self.allocator.free(metadata);

@@ -4,6 +4,7 @@
 //! Provides simulated mobile platform behavior for development and testing.
 
 const std = @import("std");
+const build_options = @import("build_options");
 pub const types = @import("types.zig");
 
 // Submodules — real implementations live here
@@ -148,7 +149,7 @@ pub const Context = struct {
 pub fn init(_: std.mem.Allocator, _: MobileConfig) MobileError!void {}
 pub fn deinit() void {}
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_mobile;
 }
 pub fn isInitialized() bool {
     return true;
@@ -189,8 +190,8 @@ test "Context - init with custom config" {
     try std.testing.expect(ctx.config.enable_notifications);
 }
 
-test "isEnabled returns true" {
-    try std.testing.expect(isEnabled());
+test "isEnabled follows build flag" {
+    try std.testing.expectEqual(build_options.feat_mobile, isEnabled());
 }
 
 test "isInitialized returns true" {

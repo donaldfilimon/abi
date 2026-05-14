@@ -625,14 +625,15 @@ fn printRoutingInfo(decision: anytype, message: []const u8) void {
         \\Routing Analysis:
         \\  Input length: {d} chars
         \\  Primary profile: {s}
-        \\  Strategy: {s}
+        \\  Strategy: {t}
         \\  Confidence: {d:.0}%
         \\  Reason: {s}
+        \\
         \\
     , .{
         message.len,
         decision.primary.name(),
-        @tagName(decision.strategy),
+        decision.strategy,
         decision.confidence * 100.0,
         decision.reason,
     });
@@ -695,15 +696,15 @@ pub fn printPlatform() void {
     printHeader("ABI Platform — System Detection", null);
 
     std.debug.print(
-        \\OS:           {s}
-        \\Architecture: {s}
+        \\OS:           {t}
+        \\Architecture: {t}
         \\Description:  {s}
         \\CPU Cores:    {d}
         \\Threading:    {s}
         \\
     , .{
-        @tagName(info.os),
-        @tagName(info.arch),
+        info.os,
+        info.arch,
         platform.getDescription(),
         platform.getCpuCount(),
         if (platform.supportsThreading()) "supported" else "unavailable",
@@ -724,6 +725,7 @@ pub fn printConnectors() void {
     printHeader("ABI Connectors — LLM Provider Adapters", null);
 
     const connectors = [_]struct { env: [:0]const u8, fallback: ?[:0]const u8, name: []const u8 }{
+        .{ .env = "ABI_GROK_API_KEY", .fallback = "GROK_API_KEY", .name = "xAI Grok" },
         .{ .env = "ABI_OPENAI_API_KEY", .fallback = "OPENAI_API_KEY", .name = "OpenAI (GPT-4, GPT-3.5)" },
         .{ .env = "ABI_ANTHROPIC_API_KEY", .fallback = "ANTHROPIC_API_KEY", .name = "Anthropic (Claude)" },
         .{ .env = "ABI_GEMINI_API_KEY", .fallback = "GEMINI_API_KEY", .name = "Google Gemini" },
@@ -1039,6 +1041,7 @@ pub fn runDoctor(allocator: std.mem.Allocator) !void {
     }
 
     var connector_count: u32 = 0;
+    if (connectorConfigured("ABI_GROK_API_KEY", "GROK_API_KEY")) connector_count += 1;
     if (connectorConfigured("ABI_OPENAI_API_KEY", "OPENAI_API_KEY")) connector_count += 1;
     if (connectorConfigured("ABI_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")) connector_count += 1;
     if (connectorConfigured("ABI_GEMINI_API_KEY", "GEMINI_API_KEY")) connector_count += 1;
@@ -1125,7 +1128,7 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
         \\
         \\Routing Decision:
         \\  Primary: {s}
-        \\  Strategy: {s}
+        \\  Strategy: {t}
         \\  Confidence: {d:.0}%
         \\  Reason: {s}
         \\
@@ -1137,7 +1140,7 @@ pub fn runChat(allocator: std.mem.Allocator, message_args: []const [:0]const u8)
     , .{
         message,
         result.decision.primary.name(),
-        @tagName(result.decision.strategy),
+        result.decision.strategy,
         result.decision.confidence * 100.0,
         result.decision.reason,
         result.decision.weights.abbey * 100.0,

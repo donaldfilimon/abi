@@ -8,6 +8,7 @@ pub const pdf = @import("pdf.zig");
 pub const types = @import("types.zig");
 
 const std = @import("std");
+const build_options = @import("build_options");
 
 pub const DocumentsError = types.DocumentsError;
 pub const Error = types.Error;
@@ -26,7 +27,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_documents;
 }
 
 pub fn isInitialized() bool {

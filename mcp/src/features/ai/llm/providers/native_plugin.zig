@@ -26,10 +26,16 @@ pub fn generate(
     var loaded = try load(allocator, plugin_entry);
     defer loaded.deinit();
 
-    const model_z = try allocator.dupeZ(u8, cfg.model);
+    const model_dup = try allocator.dupe(u8, cfg.model);
+    const model_z_s = try allocator.realloc(model_dup, cfg.model.len + 1);
+    model_z_s[cfg.model.len] = 0;
+    const model_z = model_z_s[0..model_z_s.len :0];
     defer allocator.free(model_z);
 
-    const prompt_z = try allocator.dupeZ(u8, cfg.prompt);
+    const prompt_dup = try allocator.dupe(u8, cfg.prompt);
+    const prompt_z_s = try allocator.realloc(prompt_dup, cfg.prompt.len + 1);
+    prompt_z_s[cfg.prompt.len] = 0;
+    const prompt_z = prompt_z_s[0..prompt_z_s.len :0];
     defer allocator.free(prompt_z);
 
     var request = abi_v1.GenerateRequest{
@@ -86,7 +92,10 @@ fn load(allocator: std.mem.Allocator, plugin_entry: manifest.PluginEntry) !Loade
     defer if (owned_symbol) |symbol| allocator.free(symbol);
 
     const symbol: [:0]const u8 = if (plugin_entry.symbol) |value| blk: {
-        const symbol_z = try allocator.dupeZ(u8, value);
+        const symbol_dup = try allocator.dupe(u8, value);
+        const symbol_z_slice = try allocator.realloc(symbol_dup, value.len + 1);
+        symbol_z_slice[value.len] = 0;
+        const symbol_z = symbol_z_slice[0..symbol_z_slice.len :0];
         owned_symbol = symbol_z;
         break :blk symbol_z;
     } else default_symbol;

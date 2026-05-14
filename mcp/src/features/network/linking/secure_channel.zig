@@ -441,13 +441,13 @@ pub const SecureChannel = struct {
 
         // --- Message 1: -> e (initiator sends ephemeral key) ---
         var initiator_seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&initiator_seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&initiator_seed, "noise-xx-initiator", "abi-secure-channel");
         const initiator_ephemeral = X25519.KeyPair.generateDeterministic(initiator_seed) catch
             return error.HandshakeFailed;
 
         // --- Message 2: <- e, ee (responder ephemeral + DH) ---
         var responder_seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&responder_seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&responder_seed, "noise-xx-responder", "abi-secure-channel");
         const responder_ephemeral = X25519.KeyPair.generateDeterministic(responder_seed) catch
             return error.HandshakeFailed;
 
@@ -504,13 +504,13 @@ pub const SecureChannel = struct {
 
         // Initiator ephemeral keypair
         var initiator_seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&initiator_seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&initiator_seed, "wireguard-initiator", "abi-secure-channel");
         const initiator_ephemeral = X25519.KeyPair.generateDeterministic(initiator_seed) catch
             return error.HandshakeFailed;
 
         // Simulate responder static keypair
         var responder_seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&responder_seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&responder_seed, "wireguard-responder", "abi-secure-channel");
         const responder_static = X25519.KeyPair.generateDeterministic(responder_seed) catch
             return error.HandshakeFailed;
 
@@ -523,7 +523,7 @@ pub const SecureChannel = struct {
 
         // Responder ephemeral for forward secrecy
         var ephemeral_seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&ephemeral_seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&ephemeral_seed, "wireguard-ephemeral", "abi-secure-channel");
         const responder_ephemeral = X25519.KeyPair.generateDeterministic(ephemeral_seed) catch
             return error.HandshakeFailed;
 
@@ -592,13 +592,13 @@ pub const SecureChannel = struct {
         std.c.arc4random_buf(&client_random, client_random.len);
 
         var client_seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&client_seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&client_seed, "tls-client", "abi-secure-channel");
         const client_keypair = X25519.KeyPair.generateDeterministic(client_seed) catch
             return error.HandshakeFailed;
 
         // --- ServerHello (simulated) ---
         var server_seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&server_seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&server_seed, "tls-server", "abi-secure-channel");
         const server_keypair = X25519.KeyPair.generateDeterministic(server_seed) catch
             return error.HandshakeFailed;
 
@@ -668,7 +668,7 @@ pub const SecureChannel = struct {
 
         // Generate ephemeral key pair
         var seed: [32]u8 = undefined;
-        std.crypto.auth.hmac.sha2.HmacSha256.create(&seed, &.{}, &.{});
+        std.crypto.auth.hmac.sha2.HmacSha256.create(&seed, "custom-local", "abi-secure-channel");
         const kp = X25519.KeyPair.generateDeterministic(seed) catch return error.HandshakeFailed;
         self.local_keypair = .{
             .public_key = kp.public_key,
@@ -727,7 +727,7 @@ pub const SecureChannel = struct {
 fn generateKeyPair() !SecureChannel.KeyPair {
     const X25519 = std.crypto.dh.X25519;
     var seed: [32]u8 = undefined;
-    std.crypto.auth.hmac.sha2.HmacSha256.create(&seed, &.{}, &.{});
+    std.c.arc4random_buf(&seed, seed.len);
     const inner = X25519.KeyPair.generateDeterministic(seed) catch |err| switch (err) {
         error.IdentityElement => return error.HandshakeFailed,
     };

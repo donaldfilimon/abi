@@ -4,7 +4,6 @@
 //! (`models/*:generateContent`).
 
 const std = @import("std");
-const connectors = @import("mod.zig");
 const shared = @import("shared.zig");
 const async_http = @import("../foundation/mod.zig").utils.async_http;
 const json_utils = @import("../foundation/mod.zig").utils.json;
@@ -172,46 +171,19 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const api_key_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_GEMINI_API_KEY",
-        "GEMINI_API_KEY",
-    });
-    const api_key = api_key_raw orelse return GeminiError.MissingApiKey;
-    if (api_key.len == 0) {
-        allocator.free(api_key);
-        return GeminiError.MissingApiKey;
-    }
-    errdefer allocator.free(api_key);
-
-    const base_url_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_GEMINI_BASE_URL",
-        "GEMINI_BASE_URL",
-    });
-    const base_url = if (base_url_raw) |u| blk: {
-        if (u.len == 0) {
-            allocator.free(u);
-            break :blk try allocator.dupe(u8, "https://generativelanguage.googleapis.com/v1beta");
-        }
-        break :blk u;
-    } else try allocator.dupe(u8, "https://generativelanguage.googleapis.com/v1beta");
-    errdefer allocator.free(base_url);
-
-    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_GEMINI_MODEL",
-        "GEMINI_MODEL",
-    });
-    const model = if (model_raw) |m| blk: {
-        if (m.len == 0) {
-            allocator.free(m);
-            break :blk try allocator.dupe(u8, "gemini-1.5-pro");
-        }
-        break :blk m;
-    } else try allocator.dupe(u8, "gemini-1.5-pro");
+    const loaded = try shared.loadConfigFromEnv(allocator, .{
+        .api_key_env = &.{ "ABI_GEMINI_API_KEY", "GEMINI_API_KEY" },
+        .base_url_env = &.{ "ABI_GEMINI_BASE_URL", "GEMINI_BASE_URL" },
+        .model_env = &.{ "ABI_GEMINI_MODEL", "GEMINI_MODEL" },
+        .default_base_url = "https://generativelanguage.googleapis.com/v1beta",
+        .default_model = "gemini-1.5-pro",
+        .api_key_required = true,
+    }, GeminiError.MissingApiKey);
 
     return .{
-        .api_key = api_key,
-        .base_url = base_url,
-        .model = model,
+        .api_key = loaded.api_key.?,
+        .base_url = loaded.base_url,
+        .model = loaded.model,
         .model_owned = true,
         .timeout_ms = 120_000,
     };

@@ -13,6 +13,7 @@ pub const events = @import("events.zig");
 pub const dashboard = @import("app/dashboard.zig");
 
 const std = @import("std");
+const build_options = @import("build_options");
 
 pub const TuiError = types.TuiError;
 pub const Error = types.Error;
@@ -31,7 +32,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_tui;
 }
 
 pub fn isInitialized() bool {
@@ -49,6 +50,6 @@ test "Context init and deinit" {
     try std.testing.expect(!ctx.initialized);
 }
 
-test "isEnabled returns true" {
-    try std.testing.expect(isEnabled());
+test "isEnabled follows build flag" {
+    try std.testing.expectEqual(build_options.feat_tui, isEnabled());
 }

@@ -456,7 +456,7 @@ fn buildEmotionalStateJson(allocator: std.mem.Allocator, emotional: @import("emo
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{\"detected\":\"");
-    try json.print(allocator, "{s}", .{@tagName(emotional.detected)});
+    try json.print(allocator, "{t}", .{emotional.detected});
     try json.appendSlice(allocator, "\",\"intensity\":");
     try json.print(allocator, "{d:.4}", .{emotional.intensity});
     try json.appendSlice(allocator, "}");

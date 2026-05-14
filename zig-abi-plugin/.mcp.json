@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "abi": {
-      "command": "./zig-out/bin/abi-mcp",
-      "args": ["stdio", "--verbose"]
+      "command": "bash",
+      "args": [
+        "-lc",
+        "cd \"${ABI_REPO_ROOT:-/Users/donald/abi}\" && ./mcp/launcher.sh stdio"
+      ]
     }
   }
 }

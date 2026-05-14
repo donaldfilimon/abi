@@ -250,7 +250,7 @@ pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInst
                     attempted[attempted_count] = backend_type;
                     attempted_count += 1;
                 }
-                std.debug.print("Warning: Backend {s} failed to initialize: {s}\n", .{ @tagName(backend_type), @errorName(err) });
+                std.debug.print("Warning: Backend {t} failed to initialize: {s}\n", .{ backend_type, @errorName(err) });
                 continue;
             }
         }
@@ -261,7 +261,7 @@ pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInst
     if (attempted_count > 0) {
         std.debug.print("Attempted backends that failed:", .{});
         for (attempted[0..attempted_count]) |b| {
-            std.debug.print(" {s}", .{@tagName(b)});
+            std.debug.print(" {t}", .{b});
         }
         std.debug.print("\n", .{});
     }

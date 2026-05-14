@@ -14,8 +14,8 @@ fn expectedPlatformForTarget() policy.PlatformClass {
         .linux => if (builtin.abi == .android) .android else .linux,
         .windows => .windows,
         else => @compileError(std.fmt.comptimePrint(
-            "GPU policy contract supports only macOS, Linux, and Windows targets; got {s}-{s}",
-            .{ @tagName(builtin.target.cpu.arch), @tagName(builtin.target.os.tag) },
+            "GPU policy contract supports only macOS, Linux, and Windows targets; got {t}-{t}",
+            .{ builtin.target.cpu.arch, builtin.target.os.tag },
         )),
     };
 }
@@ -23,12 +23,12 @@ fn expectedPlatformForTarget() policy.PlatformClass {
 fn expectPlatform(actual: policy.PlatformClass, expected: policy.PlatformClass) void {
     if (actual != expected) {
         @compileError(std.fmt.comptimePrint(
-            "GPU policy contract classification mismatch for {s}-{s}: expected {s}, got {s}",
+            "GPU policy contract classification mismatch for {t}-{t}: expected {t}, got {t}",
             .{
-                @tagName(builtin.target.cpu.arch),
-                @tagName(builtin.target.os.tag),
-                @tagName(expected),
-                @tagName(actual),
+                builtin.target.cpu.arch,
+                builtin.target.os.tag,
+                expected,
+                actual,
             },
         ));
     }
@@ -37,16 +37,16 @@ fn expectPlatform(actual: policy.PlatformClass, expected: policy.PlatformClass) 
 fn expectAutoOrder(actual: []const []const u8, comptime expected: []const []const u8) void {
     if (actual.len != expected.len) {
         @compileError(std.fmt.comptimePrint(
-            "GPU policy contract auto backend count mismatch for {s}: expected {}, got {}",
-            .{ @tagName(policy.classifyBuiltin()), expected.len, actual.len },
+            "GPU policy contract auto backend count mismatch for {t}: expected {}, got {}",
+            .{ policy.classifyBuiltin(), expected.len, actual.len },
         ));
     }
 
     inline for (expected, 0..) |expected_name, index| {
         if (!std.mem.eql(u8, actual[index], expected_name)) {
             @compileError(std.fmt.comptimePrint(
-                "GPU policy contract auto backend mismatch for {s} at index {}: expected {s}, got {s}",
-                .{ @tagName(policy.classifyBuiltin()), index, expected_name, actual[index] },
+                "GPU policy contract auto backend mismatch for {t} at index {}: expected {s}, got {s}",
+                .{ policy.classifyBuiltin(), index, expected_name, actual[index] },
             ));
         }
     }
@@ -58,9 +58,9 @@ fn expectHints(actual: policy.OptimizationHints, comptime expected: policy.Optim
         const expected_value = @field(expected, field.name);
         if (actual_value != expected_value) {
             @compileError(std.fmt.comptimePrint(
-                "GPU policy contract hint mismatch for {s}.{s}: expected {}, got {}",
+                "GPU policy contract hint mismatch for {t}.{s}: expected {}, got {}",
                 .{
-                    @tagName(policy.classifyBuiltin()),
+                    policy.classifyBuiltin(),
                     field.name,
                     expected_value,
                     actual_value,
@@ -119,8 +119,8 @@ comptime {
             });
         },
         else => @compileError(std.fmt.comptimePrint(
-            "GPU policy contract has no expectation set for platform class {s}",
-            .{@tagName(actual_platform)},
+            "GPU policy contract has no expectation set for platform class {t}",
+            .{actual_platform},
         )),
     }
 }

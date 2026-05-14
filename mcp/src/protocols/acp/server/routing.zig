@@ -24,7 +24,7 @@ pub fn dispatchHttpRequest(
     const target = request.head.target;
     const path = splitPath(target);
 
-    std.log.info("{s} {s}", .{ @tagName(request.head.method), path });
+    std.log.info("{t} {s}", .{ request.head.method, path });
 
     // Handle CORS preflight
     if (request.head.method == .OPTIONS) {

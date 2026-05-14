@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) void {
     const build_options_module = build_opts.createModule();
 
     const common_module = b.createModule(.{
-        .root_source_file = b.path("src/common/env_gate.zig"),
+        .root_source_file = b.path("mcp/src/common/env_gate.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -111,7 +111,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const abi_module = b.addModule("abi", .{
-        .root_source_file = b.path("src/root.zig"),
+        .root_source_file = b.path("mcp/src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -121,11 +121,10 @@ pub fn build(b: *std.Build) void {
     const static_lib = b.addLibrary(.{
         .name = "abi",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/root.zig"),
+            .root_source_file = b.path("mcp/src/root.zig"),
             .target = target,
             .optimize = optimize,
         }),
-        .linkage = .static,
     });
     static_lib.root_module.addImport("build_options", build_options_module);
     static_lib.root_module.addImport("common", common_module);
@@ -137,7 +136,7 @@ pub fn build(b: *std.Build) void {
     const mcp_exe = b.addExecutable(.{
         .name = "abi-mcp",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/mcp_main.zig"),
+            .root_source_file = b.path("mcp/src/mcp_main.zig"),
             .target = target,
             .optimize = optimize,
         }),
@@ -151,7 +150,7 @@ pub fn build(b: *std.Build) void {
     const cli_exe = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
+            .root_source_file = b.path("mcp/src/main.zig"),
             .target = target,
             .optimize = optimize,
         }),
@@ -177,7 +176,7 @@ pub fn build(b: *std.Build) void {
         .package_version = pkg_version,
     });
 
-    const fmt_paths = &.{ "build.zig", "build", "src", "test" };
+    const fmt_paths = &.{ "build.zig", "build", "mcp", "test" };
     const lint_fmt = b.addFmt(.{ .paths = fmt_paths, .check = true });
     b.step("lint", "Check formatting").dependOn(&lint_fmt.step);
     b.step("fix", "Fix formatting").dependOn(&b.addFmt(.{ .paths = fmt_paths, .check = false }).step);
@@ -255,7 +254,7 @@ pub fn build(b: *std.Build) void {
             \\echo "Zig (build): {s}"
             \\printf "Zig path: "; command -v zig || true
             \\printf "OS: "; uname -a
-            \\echo "Optimize: {s}"
+            \\echo "Optimize: {t}"
             \\echo "Target: requested by zig build -Dtarget (native if unset)"
             \\echo "GPU backend option: {s}"
             \\echo
@@ -267,7 +266,7 @@ pub fn build(b: *std.Build) void {
         , .{
             pkg_version,
             builtin.zig_version_string,
-            @tagName(optimize),
+            optimize,
             gpu_backend_str orelse "stdgpu(default)",
         }),
     });

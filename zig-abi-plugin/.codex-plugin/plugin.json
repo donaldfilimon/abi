@@ -1,0 +1,31 @@
+{
+  "name": "zig-abi-plugin",
+  "version": "0.1.0",
+  "description": "ABI Zig framework skills, hooks, and MCP launcher configuration for Codex.",
+  "author": {
+    "name": "ABI Framework",
+    "url": "https://github.com/donaldfilimon/abi"
+  },
+  "homepage": "https://github.com/donaldfilimon/abi",
+  "repository": "https://github.com/donaldfilimon/abi",
+  "license": "Apache-2.0",
+  "keywords": ["abi", "zig", "mcp", "codex"],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "ABI Zig",
+    "shortDescription": "Skills and hooks for the ABI Zig framework.",
+    "longDescription": "Provides ABI repository guidance, build troubleshooting, parity checks, feature scaffolding, and MCP launcher configuration.",
+    "developerName": "ABI Framework",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/donaldfilimon/abi",
+    "defaultPrompt": [
+      "Run the ABI validation gate.",
+      "Check ABI mod/stub parity.",
+      "Troubleshoot an ABI Zig build."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

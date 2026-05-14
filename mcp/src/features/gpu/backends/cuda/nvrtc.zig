@@ -102,10 +102,16 @@ pub fn compileToPTX(
     const create_fn = nvrtcCreateProgram orelse return NvrtcError.CompilationFailed;
 
     var program: NvrtcProgram = undefined;
-    const source_ptr = allocator.dupeZ(u8, source) catch return NvrtcError.OutOfMemory;
-    defer allocator.free(source_ptr);
+    const source_dup = try allocator.dupe(u8, source);
+    const source_slice = try allocator.realloc(source_dup, source.len + 1);
+    source_slice[source.len] = 0;
+    const source_ptr = source_slice[0..source_slice.len :0];
+    errdefer allocator.free(source_ptr);
 
-    const name_ptr = allocator.dupeZ(u8, name) catch return NvrtcError.OutOfMemory;
+    const name_dup = try allocator.dupe(u8, name);
+    const name_slice = try allocator.realloc(name_dup, name.len + 1);
+    name_slice[name.len] = 0;
+    const name_ptr = name_slice[0..name_slice.len :0];
     defer allocator.free(name_ptr);
 
     if (create_fn(&program, source_ptr, name_ptr, 0, null, null) != .success) {
@@ -245,8 +251,8 @@ fn buildCompileOptions(allocator: std.mem.Allocator, options: CompileOptions) ![
         );
         try opts.append(allocator, arch.ptr);
     } else {
-        const arch = try allocator.dupeZ(u8, "-arch=native");
-        try opts.append(allocator, arch.ptr);
+        const arch_ptr: [*:0]const u8 = "-arch=native";
+        try opts.append(allocator, arch_ptr);
     }
 
     const opt_level: [:0]const u8 = switch (options.optimization_level) {
@@ -256,21 +262,18 @@ fn buildCompileOptions(allocator: std.mem.Allocator, options: CompileOptions) ![
         3 => "-O3",
         else => "-O3",
     };
-    const opt_str = try allocator.dupeZ(u8, opt_level);
-    try opts.append(allocator, opt_str.ptr);
+    try opts.append(allocator, opt_level.ptr);
 
     if (options.generate_debug_info) {
-        const opt = try allocator.dupeZ(u8, "-lineinfo");
-        try opts.append(allocator, opt.ptr);
+        try opts.append(allocator, "-lineinfo");
     }
 
     if (options.generate_line_info) {
-        const opt = try allocator.dupeZ(u8, "-device-debug");
-        try opts.append(allocator, opt.ptr);
+        try opts.append(allocator, "-device-debug");
     }
 
-    try opts.append(allocator, (try allocator.dupeZ(u8, "-rdc=true")).ptr);
-    try opts.append(allocator, (try allocator.dupeZ(u8, "-default-device")).ptr);
+    try opts.append(allocator, "-rdc=true");
+    try opts.append(allocator, "-default-device");
 
     return try opts.toOwnedSlice(allocator);
 }
@@ -341,7 +344,10 @@ pub fn compileKernel(source: []const u8, kernel_name: []const u8) !KernelResult 
 
     // Get the kernel function
     var kernel: ?*anyopaque = null;
-    const kernel_name_z = try allocator.dupeZ(u8, kernel_name);
+    const kernel_name_dup = try allocator.dupe(u8, kernel_name);
+    const kernel_name_z_s = try allocator.realloc(kernel_name_dup, kernel_name.len + 1);
+    kernel_name_z_s[kernel_name.len] = 0;
+    const kernel_name_z = kernel_name_z_s[0..kernel_name_z_s.len :0];
     defer allocator.free(kernel_name_z);
 
     if (get_fn(&kernel, module, kernel_name_z.ptr) != .success) {

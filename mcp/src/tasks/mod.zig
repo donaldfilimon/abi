@@ -430,7 +430,10 @@ pub const Manager = struct {
         };
         defer self.allocator.free(contents);
 
-        const contents_z = self.allocator.dupeZ(u8, contents) catch return error.OutOfMemory;
+        const contents_dup = try self.allocator.dupe(u8, contents);
+        const contents_z_slice = try self.allocator.realloc(contents_dup, contents.len + 1);
+        contents_z_slice[contents.len] = 0;
+        const contents_z = contents_z_slice[0..contents_z_slice.len :0];
         defer self.allocator.free(contents_z);
 
         var arena = std.heap.ArenaAllocator.init(self.allocator);

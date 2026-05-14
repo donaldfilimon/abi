@@ -24,7 +24,7 @@ const CrossTarget = struct {
 
 pub fn addSteps(ctx: Context) Steps {
     const typecheck_root_module = ctx.b.createModule(.{
-        .root_source_file = ctx.b.path("src/root.zig"),
+        .root_source_file = ctx.b.path("mcp/src/root.zig"),
         .target = ctx.target,
         .optimize = ctx.optimize,
     });
@@ -36,7 +36,7 @@ pub fn addSteps(ctx: Context) Steps {
     linking.linkIfDarwin(typecheck_root, .static_lib, true, true);
 
     const gpu_policy_contract_module = ctx.b.createModule(.{
-        .root_source_file = ctx.b.path("src/features/gpu/policy/target_contract.zig"),
+        .root_source_file = ctx.b.path("mcp/src/features/gpu/policy/target_contract.zig"),
         .target = ctx.target,
         .optimize = ctx.optimize,
     });
@@ -101,7 +101,7 @@ pub fn addSteps(ctx: Context) Steps {
 
     inline for (cross_targets) |ct| {
         const cross_mod = ctx.b.createModule(.{
-            .root_source_file = ctx.b.path("src/root.zig"),
+            .root_source_file = ctx.b.path("mcp/src/root.zig"),
             .target = ctx.b.resolveTargetQuery(.{ .cpu_arch = ct.arch, .os_tag = ct.os }),
             .optimize = ctx.optimize,
         });

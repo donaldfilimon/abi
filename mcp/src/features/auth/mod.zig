@@ -22,6 +22,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const build_options = @import("build_options");
 const core_config = @import("../core/config/platform.zig");
 
 pub const AuthConfig = core_config.AuthConfig;
@@ -150,7 +151,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_auth;
 }
 
 pub fn isInitialized() bool {

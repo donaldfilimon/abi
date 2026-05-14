@@ -119,7 +119,6 @@ pub const LearningRuntime = struct {
             .avg_quality = perf.avg_quality,
             .positive_feedback_count = perf.positive_feedback_count,
             .negative_feedback_count = perf.negative_feedback_count,
-            .stored_events = countStoredEvents(self.allocator, self.events_path),
             .auto_retrain_enabled = self.auto_retrain,
         };
 
@@ -167,7 +166,10 @@ pub const LearningRuntime = struct {
         defer io_backend.deinit();
         const io = io_backend.io();
 
-        const data = std.Io.Dir.cwd().readFileAlloc(io, self.events_path, self.allocator, .limited(8 * 1024 * 1024)) catch return 0;
+        const data = std.Io.Dir.cwd().readFileAlloc(io, self.events_path, self.allocator, .limited(8 * 1024 * 1024)) catch |err| switch (err) {
+            error.FileNotFound => return 0,
+            else => return err,
+        };
         defer self.allocator.free(data);
 
         const dir_path = std.fs.path.dirname(out_path) orelse ".";
@@ -258,41 +260,101 @@ const PersistedSummary = struct {
     quality_samples: usize = 0,
 };
 
-fn countStoredEvents(allocator: std.mem.Allocator, path: []const u8) usize {
-    return readPersistedSummary(allocator, path).events;
-}
-
 fn readPersistedSummary(allocator: std.mem.Allocator, path: []const u8) PersistedSummary {
     var io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty });
     defer io_backend.deinit();
     const io = io_backend.io();
-    const data = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(4 * 1024 * 1024)) catch return .{};
+    const data = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(4 * 1024 * 1024)) catch |err| switch (err) {
+        error.FileNotFound => return .{},
+        else => {
+            std.log.warn("learning telemetry: failed to read {s}: {s}", .{ path, @errorName(err) });
+            return .{};
+        },
+    };
     defer allocator.free(data);
 
     var summary = PersistedSummary{};
     var it = std.mem.splitScalar(u8, data, '\n');
+    var line_no: usize = 0;
     while (it.next()) |line| {
+        line_no += 1;
         if (line.len == 0) continue;
+
+        const parsed = std.json.parseFromSlice(std.json.Value, allocator, line, .{}) catch |err| {
+            std.log.warn("learning telemetry: ignoring malformed JSONL record in {s}:{d}: {s}", .{ path, line_no, @errorName(err) });
+            continue;
+        };
+        defer parsed.deinit();
+
+        const obj = switch (parsed.value) {
+            .object => |object| object,
+            else => {
+                std.log.warn("learning telemetry: ignoring non-object JSONL record in {s}:{d}", .{ path, line_no });
+                continue;
+            },
+        };
+
+        const event_type = jsonString(obj.get("type")) orelse {
+            std.log.warn("learning telemetry: ignoring JSONL record without string type in {s}:{d}", .{ path, line_no });
+            continue;
+        };
+
         summary.events += 1;
-        if (std.mem.indexOf(u8, line, "\"type\":\"interaction\"") != null) summary.interactions += 1;
-        if (std.mem.indexOf(u8, line, "\"kind\":\"positive\"") != null) summary.positive_feedback += 1;
-        if (std.mem.indexOf(u8, line, "\"kind\":\"negative\"") != null) summary.negative_feedback += 1;
-        if (std.mem.indexOf(u8, line, "\"quality\":")) |idx| {
-            const start = idx + "\"quality\":".len;
-            var end = start;
-            while (end < line.len and (std.ascii.isDigit(line[end]) or line[end] == '.')) : (end += 1) {}
-            if (std.fmt.parseFloat(f32, line[start..end])) |q| {
-                summary.quality_total += q;
-                summary.quality_samples += 1;
-            } else |_| {}
+
+        if (std.mem.eql(u8, event_type, "interaction")) {
+            summary.interactions += 1;
+            if (obj.get("quality")) |quality_value| {
+                if (jsonFloat(quality_value)) |q| {
+                    summary.quality_total += q;
+                    summary.quality_samples += 1;
+                } else {
+                    std.log.warn("learning telemetry: ignoring interaction with non-numeric quality in {s}:{d}", .{ path, line_no });
+                }
+            }
+        } else if (std.mem.eql(u8, event_type, "feedback")) {
+            const kind = jsonString(obj.get("kind")) orelse {
+                std.log.warn("learning telemetry: ignoring feedback without string kind in {s}:{d}", .{ path, line_no });
+                continue;
+            };
+            if (std.mem.eql(u8, kind, "positive")) {
+                summary.positive_feedback += 1;
+            } else if (std.mem.eql(u8, kind, "negative")) {
+                summary.negative_feedback += 1;
+            }
         }
     }
     return summary;
 }
 
+fn jsonString(value: ?std.json.Value) ?[]const u8 {
+    const v = value orelse return null;
+    return switch (v) {
+        .string => |s| s,
+        else => null,
+    };
+}
+
+fn jsonFloat(value: std.json.Value) ?f32 {
+    return switch (value) {
+        .float => |f| @floatCast(f),
+        .integer => |i| @floatFromInt(i),
+        .number_string => |s| std.fmt.parseFloat(f32, s) catch null,
+        else => null,
+    };
+}
+
 test "learning runtime records metrics and feedback" {
-    var runtime = try LearningRuntime.init(std.testing.allocator);
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/events.jsonl", .{tmp.sub_path});
+    defer allocator.free(path);
+
+    var runtime = try LearningRuntime.init(allocator);
     defer runtime.deinit();
+    runtime.events_path = path;
+
     try runtime.recordInteraction(.{
         .prompt = "hello",
         .response = "hello back with enough detail",
@@ -303,4 +365,65 @@ test "learning runtime records metrics and feedback" {
     const r = runtime.report();
     try std.testing.expect(r.total_interactions >= 1);
     try std.testing.expect(r.positive_feedback_count >= 1);
+    try std.testing.expectEqual(@as(usize, 2), r.stored_events);
+}
+
+test "learning report tolerates missing and malformed persisted events" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const missing_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/missing.jsonl", .{tmp.sub_path});
+    defer allocator.free(missing_path);
+
+    var runtime = try LearningRuntime.init(allocator);
+    defer runtime.deinit();
+    runtime.events_path = missing_path;
+
+    const missing_report = runtime.report();
+    try std.testing.expectEqual(@as(usize, 0), missing_report.stored_events);
+
+    const events_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/events.jsonl", .{tmp.sub_path});
+    defer allocator.free(events_path);
+    try appendLine(allocator, events_path,
+        \\{"type":"interaction","quality":0.75}
+        \\not json
+        \\{"type":"feedback","kind":"negative"}
+        \\
+    );
+
+    runtime.events_path = events_path;
+    const malformed_report = runtime.report();
+    try std.testing.expectEqual(@as(usize, 2), malformed_report.stored_events);
+    try std.testing.expectEqual(@as(usize, 1), malformed_report.total_interactions);
+    try std.testing.expectEqual(@as(usize, 1), malformed_report.negative_feedback_count);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.75), malformed_report.avg_quality, 0.001);
+}
+
+test "learning export copies persisted events" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const events_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/events.jsonl", .{tmp.sub_path});
+    defer allocator.free(events_path);
+    const export_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/export.jsonl", .{tmp.sub_path});
+    defer allocator.free(export_path);
+
+    var runtime = try LearningRuntime.init(allocator);
+    defer runtime.deinit();
+    runtime.events_path = events_path;
+
+    try std.testing.expectEqual(@as(usize, 0), try runtime.exportArtifacts(export_path));
+
+    try runtime.recordFeedback(.positive, null);
+    try runtime.recordFeedback(.negative, null);
+    try std.testing.expectEqual(@as(usize, 2), try runtime.exportArtifacts(export_path));
+
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty });
+    defer io_backend.deinit();
+    const data = try std.Io.Dir.cwd().readFileAlloc(io_backend.io(), export_path, allocator, .limited(4096));
+    defer allocator.free(data);
+    try std.testing.expect(std.mem.indexOf(u8, data, "\"kind\":\"positive\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, data, "\"kind\":\"negative\"") != null);
 }

@@ -234,9 +234,12 @@ pub fn compileKernel(
     errdefer if (glesDeleteShader) |delete_fn| delete_fn(shader);
 
     // Set shader source
-    const source_z = allocator.dupeZ(u8, source.source) catch {
+    const source_dup = allocator.dupe(u8, source.source) catch {
         return OpenGlesError.ShaderCompilationFailed;
     };
+    const source_z_slice = try allocator.realloc(source_dup, source.source.len + 1);
+    source_z_slice[source.source.len] = 0;
+    const source_z = source_z_slice[0..source_z_slice.len :0];
     defer allocator.free(source_z);
     const source_ptr = &[_][*:0]const u8{source_z.ptr};
     const set_source_fn = glesShaderSource orelse return OpenGlesError.ShaderCompilationFailed;

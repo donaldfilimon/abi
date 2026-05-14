@@ -14,6 +14,7 @@ pub const ProviderRegistry = struct {
         .{ .name = "ollama", .display_name = "Ollama", .env_key = env.ENV_VARS.ollama.host[0], .base_url = "http://127.0.0.1:11434", .is_alias = false },
         .{ .name = "ollama_passthrough", .display_name = "Ollama Passthrough", .env_key = "ABI_OLLAMA_PASSTHROUGH_URL", .base_url = "http://127.0.0.1:11434", .is_alias = false },
         .{ .name = "openai", .display_name = "OpenAI", .env_key = env.ENV_VARS.openai.api_key[0], .base_url = "https://api.openai.com/v1", .is_alias = false },
+        .{ .name = "grok", .display_name = "xAI Grok", .env_key = "ABI_GROK_API_KEY", .base_url = "https://api.x.ai/v1", .is_alias = false },
         .{ .name = "anthropic", .display_name = "Anthropic", .env_key = env.ENV_VARS.anthropic.api_key[0], .base_url = "https://api.anthropic.com/v1", .is_alias = false },
         .{ .name = "claude", .display_name = "Claude", .env_key = env.ENV_VARS.anthropic.api_key[0], .base_url = "https://api.anthropic.com/v1", .is_alias = true },
         .{ .name = "codex", .display_name = "Codex", .env_key = env.ENV_VARS.openai.api_key[0], .base_url = "https://api.openai.com/v1", .is_alias = true },
@@ -45,9 +46,9 @@ pub const ProviderRegistry = struct {
     }
 };
 
-test "ProviderRegistry.listAll returns 16 providers" {
+test "ProviderRegistry.listAll returns 17 providers" {
     const all = ProviderRegistry.listAll();
-    try std.testing.expectEqual(@as(usize, 16), all.len);
+    try std.testing.expectEqual(@as(usize, 17), all.len);
 }
 
 test "ProviderRegistry keeps local-first inference providers first" {
@@ -89,7 +90,7 @@ test "ProviderRegistry.getByName identifies aliases" {
 
 test "ProviderRegistry.listAvailable returns all providers" {
     const available = ProviderRegistry.listAvailable();
-    try std.testing.expectEqual(@as(usize, 16), available.len);
+    try std.testing.expectEqual(@as(usize, 17), available.len);
 }
 
 test "ProviderRegistry env_key uses ABI-namespaced primary" {

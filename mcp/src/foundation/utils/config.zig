@@ -346,7 +346,10 @@ pub const ConfigLoader = struct {
         defer self.allocator.free(contents);
 
         // Ensure null-terminated for ZON parser
-        const contents_z = try self.allocator.dupeZ(u8, contents);
+        const contents_dup = try self.allocator.dupe(u8, contents);
+        const contents_z_s = try self.allocator.realloc(contents_dup, contents.len + 1);
+        contents_z_s[contents.len] = 0;
+        const contents_z = contents_z_s[0..contents_z_s.len :0];
         defer self.allocator.free(contents_z);
 
         return try self.loadFromZon(contents_z, path);

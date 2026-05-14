@@ -305,7 +305,9 @@ pub fn doStatus(config: *core.Config, raw_version: []const u8) !void {
 
     const out_str = std.fmt.allocPrint(config.allocator, "{s}\n", .{toolchain.zig_path}) catch return;
     defer config.allocator.free(out_str);
-    _ = std.Io.File.stdout().writeStreamingAll(config.io, out_str) catch {};
+    _ = std.Io.File.stdout().writeStreamingAll(config.io, out_str) catch |err| {
+        std.debug.print("status write warning: {}\n", .{err});
+    };
 }
 
 fn installViaZiglyCache(config: *core.Config, version: []const u8) !void {
@@ -338,7 +340,9 @@ fn installViaZiglyCache(config: *core.Config, version: []const u8) !void {
     const extract_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "tmp", "extract" });
     defer config.allocator.free(extract_dir);
 
-    _ = std.Io.Dir.cwd().deleteTree(config.io, extract_dir) catch {};
+    _ = std.Io.Dir.cwd().deleteTree(config.io, extract_dir) catch |err| {
+        std.debug.print("cleanup warning (extract_dir): {}\n", .{err});
+    };
     try std.Io.Dir.cwd().createDirPath(config.io, extract_dir);
 
     try download.downloadFile(config.allocator, config.io, url, tmp_tarball);
@@ -477,7 +481,9 @@ pub fn downloadZls(config: *core.Config, version: []const u8) !void {
     const extract_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "tmp", "zls_extract" });
     defer config.allocator.free(extract_dir);
 
-    _ = std.Io.Dir.cwd().deleteTree(config.io, extract_dir) catch {};
+    _ = std.Io.Dir.cwd().deleteTree(config.io, extract_dir) catch |err| {
+        std.debug.print("cleanup warning (zls extract_dir): {}\n", .{err});
+    };
     try std.Io.Dir.cwd().createDirPath(config.io, extract_dir);
 
     std.debug.print("==> Extracting ZLS {s}...\n", .{version});
@@ -523,14 +529,18 @@ pub fn doUse(config: *core.Config, raw_version: []const u8) !void {
     const local_zig = try std.fs.path.join(config.allocator, &[_][]const u8{ local_bin, "zig" });
     defer config.allocator.free(local_zig);
 
-    _ = std.Io.Dir.deleteFileAbsolute(config.io, local_zig) catch {};
+    _ = std.Io.Dir.deleteFileAbsolute(config.io, local_zig) catch |err| {
+        std.debug.print("cleanup warning (local_zig): {}\n", .{err});
+    };
     try std.Io.Dir.symLinkAbsolute(config.io, toolchain.zig_path, local_zig, .{});
     std.debug.print("==> Symlinked zig -> {s}\n", .{local_zig});
 
     if (toolchain.zls_path) |zls_path| {
         const local_zls = try std.fs.path.join(config.allocator, &[_][]const u8{ local_bin, "zls" });
         defer config.allocator.free(local_zls);
-        _ = std.Io.Dir.deleteFileAbsolute(config.io, local_zls) catch {};
+        _ = std.Io.Dir.deleteFileAbsolute(config.io, local_zls) catch |err| {
+            std.debug.print("cleanup warning (local_zls): {}\n", .{err});
+        };
         try std.Io.Dir.symLinkAbsolute(config.io, zls_path, local_zls, .{});
         std.debug.print("==> Symlinked zls -> {s}\n", .{local_zls});
     }
@@ -629,15 +639,21 @@ pub fn doClean(config: *core.Config) !void {
 
     const tmp_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "tmp" });
     defer config.allocator.free(tmp_dir);
-    _ = std.Io.Dir.cwd().deleteTree(config.io, tmp_dir) catch {};
+    _ = std.Io.Dir.cwd().deleteTree(config.io, tmp_dir) catch |err| {
+        std.debug.print("cleanup warning (tmp_dir): {}\n", .{err});
+    };
 
     const versions_dir = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "versions" });
     defer config.allocator.free(versions_dir);
-    _ = std.Io.Dir.cwd().deleteTree(config.io, versions_dir) catch {};
+    _ = std.Io.Dir.cwd().deleteTree(config.io, versions_dir) catch |err| {
+        std.debug.print("cleanup warning (versions_dir): {}\n", .{err});
+    };
 
     const default_file = try std.fs.path.join(config.allocator, &[_][]const u8{ config.zigly_dir, "default" });
     defer config.allocator.free(default_file);
-    _ = std.Io.Dir.deleteFileAbsolute(config.io, default_file) catch {};
+    _ = std.Io.Dir.deleteFileAbsolute(config.io, default_file) catch |err| {
+        std.debug.print("cleanup warning (default_file): {}\n", .{err});
+    };
 
     std.debug.print("==> All cached downloads and versions removed.\n", .{});
 }
@@ -932,33 +948,33 @@ pub fn printUsage() void {
 }
 
 test "versionMatches requires an exact version string match" {
-    try std.testing.expect(versionMatches("0.17.0-dev.251+0db721ec2", "0.17.0-dev.251+0db721ec2"));
-    try std.testing.expect(!versionMatches("0.17.0-dev.251+0db721ec2", "0.17.0-dev.27+0dd99c37c"));
-    try std.testing.expect(!versionMatches("0.17.0-dev.251+0db721ec2", null));
+    try std.testing.expect(versionMatches("0.17.0-dev.263+0add2dfc4", "0.17.0-dev.263+0add2dfc4"));
+    try std.testing.expect(!versionMatches("0.17.0-dev.263+0add2dfc4", "0.17.0-dev.27+0dd99c37c"));
+    try std.testing.expect(!versionMatches("0.17.0-dev.263+0add2dfc4", null));
 }
 
 test "selectToolchain prefers an active matching zvm binary" {
     try std.testing.expectEqual(
         ToolchainSelection.zvm_active,
-        selectToolchain("0.17.0-dev.251+0db721ec2", true, "0.17.0-dev.251+0db721ec2", true),
+        selectToolchain("0.17.0-dev.263+0add2dfc4", true, "0.17.0-dev.263+0add2dfc4", true),
     );
 }
 
 test "selectToolchain installs via zvm when zvm is present but mismatched" {
     try std.testing.expectEqual(
         ToolchainSelection.install_via_zvm,
-        selectToolchain("0.17.0-dev.251+0db721ec2", true, "0.17.0-dev.27+0dd99c37c", true),
+        selectToolchain("0.17.0-dev.263+0add2dfc4", true, "0.17.0-dev.27+0dd99c37c", true),
     );
 }
 
 test "selectToolchain falls back to zigly cache only when zvm is absent" {
     try std.testing.expectEqual(
         ToolchainSelection.zigly_cache,
-        selectToolchain("0.17.0-dev.251+0db721ec2", false, null, true),
+        selectToolchain("0.17.0-dev.263+0add2dfc4", false, null, true),
     );
     try std.testing.expectEqual(
         ToolchainSelection.install_via_zigly,
-        selectToolchain("0.17.0-dev.251+0db721ec2", false, null, false),
+        selectToolchain("0.17.0-dev.263+0add2dfc4", false, null, false),
     );
 }
 

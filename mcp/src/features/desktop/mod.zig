@@ -6,6 +6,7 @@ pub const macos_menu = @import("macos_menu.zig");
 pub const types = @import("types.zig");
 
 const std = @import("std");
+const build_options = @import("build_options");
 const builtin = @import("builtin");
 
 pub const DesktopError = types.DesktopError;
@@ -58,7 +59,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_desktop;
 }
 
 pub fn isInitialized() bool {

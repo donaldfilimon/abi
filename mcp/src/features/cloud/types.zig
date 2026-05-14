@@ -97,6 +97,11 @@ pub const CloudEvent = struct {
 
     /// Memory allocator used for this event.
     allocator: std.mem.Allocator,
+    request_id_owned: bool = false,
+    path_owned: bool = false,
+    body_owned: bool = false,
+    source_owned: bool = false,
+    event_type_owned: bool = false,
 
     pub const ProviderContext = struct {
         /// AWS-specific: function ARN
@@ -171,11 +176,26 @@ pub const CloudEvent = struct {
     /// Free allocated resources.
     pub fn deinit(self: *CloudEvent) void {
         if (self.query_params) |*params| {
+            var it = params.iterator();
+            while (it.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                self.allocator.free(entry.value_ptr.*);
+            }
             params.deinit(self.allocator);
         }
         if (self.headers) |*hdrs| {
+            var it = hdrs.iterator();
+            while (it.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                self.allocator.free(entry.value_ptr.*);
+            }
             hdrs.deinit(self.allocator);
         }
+        if (self.request_id_owned) self.allocator.free(self.request_id);
+        if (self.body_owned) if (self.body) |b| self.allocator.free(b);
+        if (self.path_owned) if (self.path) |p| self.allocator.free(p);
+        if (self.source_owned) if (self.source) |s| self.allocator.free(s);
+        if (self.event_type_owned) if (self.event_type) |e| self.allocator.free(e);
     }
 };
 
@@ -379,7 +399,11 @@ pub fn parseJsonStringMap(
     var iter = object_value.object.iterator();
     while (iter.next()) |entry| {
         if (entry.value_ptr.* == .string) {
-            try out.put(allocator, entry.key_ptr.*, entry.value_ptr.string);
+            const owned_key = try allocator.dupe(u8, entry.key_ptr.*);
+            errdefer allocator.free(owned_key);
+            const owned_value = try allocator.dupe(u8, entry.value_ptr.string);
+            errdefer allocator.free(owned_value);
+            try out.put(allocator, owned_key, owned_value);
         }
     }
 
@@ -402,8 +426,11 @@ pub fn parseJsonHeaderMap(
             .array => |arr| if (arr.items.len > 0 and arr.items[0] == .string) arr.items[0].string else continue,
             else => continue,
         };
-        // Keep original key storage; CloudEvent.getHeader performs case-insensitive lookup.
-        try out.put(allocator, entry.key_ptr.*, header_value);
+        const owned_key = try allocator.dupe(u8, entry.key_ptr.*);
+        errdefer allocator.free(owned_key);
+        const owned_value = try allocator.dupe(u8, header_value);
+        errdefer allocator.free(owned_value);
+        try out.put(allocator, owned_key, owned_value);
     }
 
     return out;
@@ -420,8 +447,11 @@ pub fn cloneStringMap(
 
     var iter = source.iterator();
     while (iter.next()) |entry| {
-        // Keep original key storage; CloudEvent.getHeader performs case-insensitive lookup.
-        try clone.put(allocator, entry.key_ptr.*, entry.value_ptr.*);
+        const owned_key = try allocator.dupe(u8, entry.key_ptr.*);
+        errdefer allocator.free(owned_key);
+        const owned_value = try allocator.dupe(u8, entry.value_ptr.*);
+        errdefer allocator.free(owned_value);
+        try clone.put(allocator, owned_key, owned_value);
     }
 
     return clone;

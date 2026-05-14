@@ -182,6 +182,13 @@ const DispatchContext = struct {
 
     /// Execute work items on CPU (software emulation)
     fn executeWorkItems(self: *DispatchContext, total_threads: u64) !void {
+        if (std.mem.eql(u8, self.kernel.entry_point, "vector_add")) {
+            return self.executeVectorAdd();
+        }
+        if (std.mem.eql(u8, self.kernel.entry_point, "reduce_sum")) {
+            return self.executeReduceSum();
+        }
+
         // Software emulation of GPU compute
         // Process work items in batches to simulate GPU parallelism
 
@@ -210,6 +217,42 @@ const DispatchContext = struct {
             total_threads,
             self.kernel.entry_point,
         });
+    }
+
+    fn executeVectorAdd(self: *DispatchContext) !void {
+        if (self.args.len == 0) return;
+        if (self.args.len < 4) return error.InvalidArguments;
+        const a_ptr = self.args[0] orelse return error.InvalidArguments;
+        const b_ptr = self.args[1] orelse return error.InvalidArguments;
+        const out_ptr = self.args[2] orelse return error.InvalidArguments;
+        const count_ptr = self.args[3] orelse return error.InvalidArguments;
+
+        const count = @as(*const u32, @ptrCast(@alignCast(count_ptr))).*;
+        const a = @as([*]const f32, @ptrCast(@alignCast(a_ptr)))[0..count];
+        const b = @as([*]const f32, @ptrCast(@alignCast(b_ptr)))[0..count];
+        const out = @as([*]f32, @ptrCast(@alignCast(@constCast(out_ptr))))[0..count];
+
+        for (out, 0..) |*value, i| {
+            value.* = a[i] + b[i];
+        }
+    }
+
+    fn executeReduceSum(self: *DispatchContext) !void {
+        if (self.args.len == 0) return;
+        if (self.args.len < 3) return error.InvalidArguments;
+        const input_ptr = self.args[0] orelse return error.InvalidArguments;
+        const out_ptr = self.args[1] orelse return error.InvalidArguments;
+        const count_ptr = self.args[2] orelse return error.InvalidArguments;
+
+        const count = @as(*const u32, @ptrCast(@alignCast(count_ptr))).*;
+        const input = @as([*]const f32, @ptrCast(@alignCast(input_ptr)))[0..count];
+        const out = @as(*f32, @ptrCast(@alignCast(@constCast(out_ptr))));
+
+        var sum: f32 = 0;
+        for (input) |value| {
+            sum += value;
+        }
+        out.* = sum;
     }
 
     /// Bind kernel arguments to descriptor sets

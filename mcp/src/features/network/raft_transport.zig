@@ -168,6 +168,7 @@ pub const PeerConnection = struct {
             allocator.free(msg);
         }
         self.send_queue.deinit(allocator);
+        self.address.deinit(allocator);
     }
 };
 
@@ -455,6 +456,7 @@ pub const RaftTransport = struct {
         if (self.message_handler) |handler| {
             handler(msg);
         }
+        self.allocator.free(msg.sender_id);
     }
 
     // ------------------------------------------------------------------
@@ -529,10 +531,7 @@ fn serializeMessage(allocator: std.mem.Allocator, msg: Message) ![]u8 {
     // Simple binary serialization format:
     // [1 byte: message type] [8 bytes: term] [2 bytes: sender_id len] [N bytes: sender_id]
 
-    var buffer: std.ArrayList(u8) = .empty;
-    errdefer buffer.deinit(allocator);
-
-    var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buffer);
+    var aw = std.Io.Writer.Allocating.init(allocator);
     const writer = &aw.writer;
 
     // Message type
@@ -545,7 +544,7 @@ fn serializeMessage(allocator: std.mem.Allocator, msg: Message) ![]u8 {
     try writer.writeInt(u16, @intCast(msg.sender_id.len), .big);
     try writer.writeAll(msg.sender_id);
 
-    return buffer.toOwnedSlice(allocator);
+    return aw.toOwnedSlice();
 }
 
 /// Deserialize a Raft message from received data.

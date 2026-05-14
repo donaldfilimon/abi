@@ -22,52 +22,19 @@ pub const EmbeddingUsage = anthropic.EmbeddingUsage;
 pub const Client = anthropic.Client;
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const api_key_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_CLAUDE_API_KEY",
-        "CLAUDE_API_KEY",
-        "ABI_ANTHROPIC_API_KEY",
-        "ANTHROPIC_API_KEY",
-    });
-    const api_key = api_key_raw orelse return ClaudeError.MissingApiKey;
-    if (api_key.len == 0) {
-        allocator.free(api_key);
-        return ClaudeError.MissingApiKey;
-    }
-    errdefer allocator.free(api_key);
-
-    const base_url_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_CLAUDE_BASE_URL",
-        "CLAUDE_BASE_URL",
-        "ABI_ANTHROPIC_BASE_URL",
-        "ANTHROPIC_BASE_URL",
-    });
-    const base_url = if (base_url_raw) |u| blk: {
-        if (u.len == 0) {
-            allocator.free(u);
-            break :blk try allocator.dupe(u8, "https://api.anthropic.com/v1");
-        }
-        break :blk u;
-    } else try allocator.dupe(u8, "https://api.anthropic.com/v1");
-    errdefer allocator.free(base_url);
-
-    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_CLAUDE_MODEL",
-        "CLAUDE_MODEL",
-        "ABI_ANTHROPIC_MODEL",
-        "ANTHROPIC_MODEL",
-    });
-    const model = if (model_raw) |m| blk: {
-        if (m.len == 0) {
-            allocator.free(m);
-            break :blk try allocator.dupe(u8, "claude-3-5-sonnet-20241022");
-        }
-        break :blk m;
-    } else try allocator.dupe(u8, "claude-3-5-sonnet-20241022");
+    const loaded = try shared.loadConfigFromEnv(allocator, .{
+        .api_key_env = &.{ "ABI_CLAUDE_API_KEY", "CLAUDE_API_KEY", "ABI_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY" },
+        .base_url_env = &.{ "ABI_CLAUDE_BASE_URL", "CLAUDE_BASE_URL", "ABI_ANTHROPIC_BASE_URL", "ANTHROPIC_BASE_URL" },
+        .model_env = &.{ "ABI_CLAUDE_MODEL", "CLAUDE_MODEL", "ABI_ANTHROPIC_MODEL", "ANTHROPIC_MODEL" },
+        .default_base_url = "https://api.anthropic.com/v1",
+        .default_model = "claude-3-5-sonnet-20241022",
+        .api_key_required = true,
+    }, ClaudeError.MissingApiKey);
 
     return .{
-        .api_key = api_key,
-        .base_url = base_url,
-        .model = model,
+        .api_key = loaded.api_key.?,
+        .base_url = loaded.base_url,
+        .model = loaded.model,
         .model_owned = true,
         .max_tokens = 4096,
         .timeout_ms = 120_000,

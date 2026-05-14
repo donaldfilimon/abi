@@ -7,7 +7,7 @@ description: Diagnoses cross-compilation failures from `zig build cross-check`. 
 
 ABI's `zig build cross-check` validates that the framework compiles as a static library for 4 target platforms. This skill helps diagnose failures.
 
-Pinned at Zig `0.17.0-dev.251+0db721ec2` (`.zigversion`). The build.zig is self-contained.
+Pinned at Zig `0.17.0-dev.304+9787df942` (`.zigversion`). The build.zig is self-contained.
 
 ## Targets
 

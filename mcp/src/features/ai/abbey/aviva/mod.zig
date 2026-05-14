@@ -192,12 +192,13 @@ pub const AvivaAgent = struct {
         const start_time = foundation.time.unixMs();
 
         // Generate embedding for input
-        const embedding: ?[]f32 = null;
-        if (self.embedding_model) |*model| {
-            _ = model.*.embed(input) catch |err| {
+        const embedding: ?[]f32 = if (self.embedding_model) |*model| blk: {
+            const result = model.*.embed(input) catch |err| {
                 log.err("Embedding generation failed: {any}", .{err});
+                break :blk null;
             };
-        }
+            break :blk result;
+        } else null;
         defer if (embedding) |emb| self.allocator.free(emb);
 
         // Retrieve relevant context from WDBX
@@ -239,18 +240,19 @@ pub const AvivaAgent = struct {
         // Build augmented input
         const augmented_input = blk: {
             if (context_slices.len > 0) {
-                var ctx_builder: std.ArrayList(u8) = .empty;
-                defer ctx_builder.deinit(self.allocator);
+                var ctx_builder = std.Io.Writer.Allocating.init(self.allocator);
+                defer ctx_builder.deinit();
+                const writer = &ctx_builder.writer;
 
                 for (context_slices, 0..) |ctx, i| {
-                    if (i > 0) try ctx_builder.appendSlice(self.allocator, "\n\n");
-                    try ctx_builder.appendSlice(self.allocator, "Context: ");
-                    try ctx_builder.appendSlice(self.allocator, ctx);
+                    if (i > 0) try writer.writeAll("\n\n");
+                    try writer.writeAll("Context: ");
+                    try writer.writeAll(ctx);
                 }
-                try ctx_builder.appendSlice(self.allocator, "\n\nUser: ");
-                try ctx_builder.appendSlice(self.allocator, input);
+                try writer.writeAll("\n\nUser: ");
+                try writer.writeAll(input);
 
-                break :blk try ctx_builder.toOwnedSlice(self.allocator);
+                break :blk try ctx_builder.toOwnedSlice();
             } else {
                 break :blk try self.allocator.dupe(u8, input);
             }

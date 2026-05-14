@@ -104,7 +104,6 @@ pub const TaskScheduler = struct {
     pub fn deinit(self: *TaskScheduler) void {
         var node_iter = self.nodes.iterator();
         while (node_iter.next()) |entry| {
-            self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.*.id);
             self.allocator.free(entry.value_ptr.*.address);
         }
@@ -144,7 +143,6 @@ pub const TaskScheduler = struct {
 
     pub fn removeNode(self: *TaskScheduler, node_id: []const u8) void {
         if (self.nodes.fetchRemove(node_id)) |entry| {
-            self.allocator.free(entry.key);
             self.allocator.free(entry.value.id);
             self.allocator.free(entry.value.address);
         }

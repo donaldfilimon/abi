@@ -59,8 +59,8 @@ pub fn runRequesterPath(
     result.total_byte_len = resp.total_byte_len;
     if (trace) |t| {
         var buf: [64]u8 = undefined;
-        const msg = std.fmt.bufPrint(&buf, "response status={s} total={d}", .{
-            @tagName(resp.status),
+        const msg = std.fmt.bufPrint(&buf, "response status={t} total={d}", .{
+            resp.status,
             resp.total_byte_len,
         }) catch "response ok";
         t(msg);

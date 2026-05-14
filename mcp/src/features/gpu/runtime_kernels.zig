@@ -82,7 +82,15 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
                 .destroy = opengles_module.destroyKernel,
             };
         } else null,
-        .webgl2, .fpga, .tpu, .simulated, .intel_arc => null,
+        .webgl2, .fpga, .tpu, .intel_arc => null,
+        .simulated => blk: {
+            const simulated_module = @import("backends/stdgpu.zig");
+            break :blk .{
+                .compile = simulated_module.compileKernel,
+                .launch = simulated_module.launchKernel,
+                .destroy = simulated_module.destroyKernel,
+            };
+        },
     };
 }
 

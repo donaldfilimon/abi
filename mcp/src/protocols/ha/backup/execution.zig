@@ -136,8 +136,8 @@ pub const BackupOrchestrator = struct {
         // Build metadata JSON
         const metadata_json = std.fmt.allocPrint(
             self.allocator,
-            "{{\"backup_id\":{d},\"mode\":\"{s}\",\"timestamp\":{d}}}",
-            .{ backup_id, @tagName(actual_mode), start_time },
+            "{{\"backup_id\":{d},\"mode\":\"{t}\",\"timestamp\":{d}}}",
+            .{ backup_id, actual_mode, start_time },
         ) catch {
             self.state = .failed;
             self.emitEvent(.{ .backup_failed = .{ .backup_id = backup_id, .reason = "metadata serialization failed" } });

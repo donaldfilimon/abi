@@ -109,7 +109,10 @@ pub const ResponseBuilder = struct {
 
     /// Sets a response header.
     pub fn setHeader(self: *ResponseBuilder, name: []const u8, value: []const u8) !*ResponseBuilder {
-        try self.headers.put(self.allocator, name, value);
+        const owned_value = try self.allocator.dupe(u8, value);
+        errdefer self.allocator.free(owned_value);
+        try self.owned_values.append(self.allocator, owned_value);
+        try self.headers.put(self.allocator, name, owned_value);
         return self;
     }
 
@@ -143,7 +146,7 @@ pub const ResponseBuilder = struct {
 
     /// Adds a Set-Cookie header.
     pub fn setCookie(self: *ResponseBuilder, name: []const u8, value: []const u8, options: CookieOptions) !*ResponseBuilder {
-        var cookie: std.ArrayList(u8) = .empty;
+        var cookie = std.ArrayListUnmanaged(u8).empty;
         defer cookie.deinit(self.allocator);
 
         try cookie.appendSlice(self.allocator, name);
@@ -196,8 +199,11 @@ pub const ResponseBuilder = struct {
     fn setJsonBodyWithOptions(self: *ResponseBuilder, value: anytype, options: std.json.Stringify.Options) !*ResponseBuilder {
         self.body.clearRetainingCapacity();
         var json_formatter = std.json.fmt(value, options);
-        var aw = std.Io.Writer.Allocating.fromArrayList(self.allocator, &self.body);
+        var aw = std.Io.Writer.Allocating.init(self.allocator);
         try json_formatter.format(&aw.writer);
+        const json_body = try aw.toOwnedSlice();
+        defer self.allocator.free(json_body);
+        try self.body.appendSlice(self.allocator, json_body);
         _ = try self.setContentType(types.MimeType.json);
         return self;
     }

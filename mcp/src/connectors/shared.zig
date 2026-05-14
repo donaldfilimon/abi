@@ -103,10 +103,6 @@ pub fn secureFreeOptional(allocator: std.mem.Allocator, data: ?[]u8) void {
     }
 }
 
-// ============================================================================
-// Config Helpers
-// ============================================================================
-
 /// Generic config deinit helper that securely wipes API key.
 /// Use this in connector Config.deinit() implementations.
 pub fn deinitConfig(
@@ -117,6 +113,98 @@ pub fn deinitConfig(
     secureFree(allocator, api_key);
     allocator.free(base_url);
 }
+
+// ============================================================================
+// Config Loader Helpers
+// ============================================================================
+
+const env = @import("env.zig");
+
+pub const ConnectorEnvConfig = struct {
+    api_key_env: []const []const u8,
+    base_url_env: []const []const u8,
+    model_env: []const []const u8,
+    default_api_key: ?[]const u8 = null,
+    default_base_url: []const u8,
+    default_model: []const u8,
+    api_key_required: bool = true,
+};
+
+pub fn loadConfigFromEnv(
+    allocator: std.mem.Allocator,
+    config: ConnectorEnvConfig,
+    missing_key_error: anytype,
+) !struct {
+    api_key: ?[]u8,
+    base_url: []u8,
+    model: []u8,
+} {
+    const api_key_raw = try env.getFirstEnvOwned(allocator, config.api_key_env);
+    const api_key: ?[]u8 = if (api_key_raw) |key| blk: {
+        if (key.len == 0) {
+            if (config.api_key_required) {
+                allocator.free(key);
+                return missing_key_error;
+            }
+            break :blk null;
+        }
+        break :blk key;
+    } else if (config.api_key_required) {
+        return missing_key_error;
+    } else null;
+    errdefer if (api_key) |k| allocator.free(k);
+
+    const base_url_raw = try env.getFirstEnvOwned(allocator, config.base_url_env);
+    const base_url = if (base_url_raw) |u| blk: {
+        if (u.len == 0) {
+            allocator.free(u);
+            break :blk try allocator.dupe(u8, config.default_base_url);
+        }
+        break :blk u;
+    } else try allocator.dupe(u8, config.default_base_url);
+    errdefer allocator.free(base_url);
+
+    const model_raw = try env.getFirstEnvOwned(allocator, config.model_env);
+    const model = if (model_raw) |m| blk: {
+        if (m.len == 0) {
+            allocator.free(m);
+            break :blk try allocator.dupe(u8, config.default_model);
+        }
+        break :blk m;
+    } else try allocator.dupe(u8, config.default_model);
+
+    return .{
+        .api_key = api_key,
+        .base_url = base_url,
+        .model = model,
+    };
+}
+
+/// HTTP response wrapper with convenience methods for connector error handling.
+pub const HttpResponse = struct {
+    status_code: u16,
+    body: []const u8,
+
+    pub fn isSuccess(self: HttpResponse) bool {
+        return self.status_code >= 200 and self.status_code < 300;
+    }
+
+    pub fn isRateLimit(self: HttpResponse) bool {
+        return self.status_code == 429;
+    }
+
+    pub fn isClientError(self: HttpResponse) bool {
+        return self.status_code >= 400 and self.status_code < 500;
+    }
+
+    pub fn isServerError(self: HttpResponse) bool {
+        return self.status_code >= 500;
+    }
+
+    pub fn toConnectorError(self: HttpResponse) ConnectorError {
+        return mapHttpStatus(self.status_code);
+    }
+};
 
 // ============================================================================
 // HTTP Response Helpers

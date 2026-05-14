@@ -11,6 +11,7 @@
 //! Security: path traversal validation on all keys.
 
 const std = @import("std");
+const build_options = @import("build_options");
 const sync = @import("../../foundation/mod.zig").sync;
 pub const types = @import("types.zig");
 
@@ -102,7 +103,7 @@ pub fn deinit() void {
 }
 
 pub fn isEnabled() bool {
-    return true;
+    return build_options.feat_storage;
 }
 
 pub fn isInitialized() bool {

@@ -311,30 +311,34 @@ pub fn parseHttpRequest(
 ) !CloudEvent {
     var event = CloudEvent.init(allocator, .gcp_functions, request_id);
     errdefer event.deinit();
+    event.request_id = try allocator.dupe(u8, request_id);
+    event.request_id_owned = true;
 
     event.method = HttpMethod.fromString(method);
-    event.path = path;
-    event.body = body;
+    if (std.mem.indexOf(u8, path, "?")) |query_start| {
+        event.path = try allocator.dupe(u8, path[0..query_start]);
+        event.path_owned = true;
+        const query_string = path[query_start + 1 ..];
+        event.query_params = try parseQueryString(allocator, query_string);
+    } else {
+        event.path = try allocator.dupe(u8, path);
+        event.path_owned = true;
+    }
+    if (body) |b| {
+        event.body = try allocator.dupe(u8, b);
+        event.body_owned = true;
+    }
 
     // Clone headers
     event.headers = try cloneStringMap(allocator, headers);
-
-    // Parse query parameters from path
-    if (std.mem.indexOf(u8, path, "?")) |query_start| {
-        event.path = path[0..query_start];
-        const query_string = path[query_start + 1 ..];
-        event.query_params = try parseQueryString(allocator, query_string);
-    }
 
     return event;
 }
 
 fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
-    var buffer: std.ArrayList(u8) = .empty;
-    errdefer buffer.deinit(allocator);
-    var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buffer);
+    var aw = std.Io.Writer.Allocating.init(allocator);
     try std.json.Stringify.value(value, .{}, &aw.writer);
-    return buffer.toOwnedSlice(allocator);
+    return aw.toOwnedSlice();
 }
 
 /// Parse a CloudEvent (structured event format).
@@ -352,13 +356,22 @@ pub fn parseCloudEvent(allocator: std.mem.Allocator, raw_event: []const u8) !Clo
 
     var event = CloudEvent.init(allocator, .gcp_functions, event_id);
     errdefer event.deinit();
+    event.request_id = try allocator.dupe(u8, event_id);
+    event.request_id_owned = true;
 
-    event.event_type = event_type;
-    event.source = source;
+    if (event_type) |t| {
+        event.event_type = try allocator.dupe(u8, t);
+        event.event_type_owned = true;
+    }
+    if (source) |s| {
+        event.source = try allocator.dupe(u8, s);
+        event.source_owned = true;
+    }
 
     // Extract data payload
     if (root.object.get("data")) |data| {
-        event.body = if (jsonStringOrNull(data)) |body| body else try jsonValueToOwnedSlice(allocator, data);
+        event.body = if (jsonStringOrNull(data)) |body| try allocator.dupe(u8, body) else try jsonValueToOwnedSlice(allocator, data);
+        event.body_owned = true;
     }
 
     // Extract timestamp
@@ -390,6 +403,8 @@ pub fn parsePubSubMessage(allocator: std.mem.Allocator, raw_event: []const u8) !
 
     var event = CloudEvent.init(allocator, .gcp_functions, message_id);
     errdefer event.deinit();
+    event.request_id = try allocator.dupe(u8, message_id);
+    event.request_id_owned = true;
 
     event.event_type = "google.cloud.pubsub.topic.v1.messagePublished";
 
@@ -399,6 +414,7 @@ pub fn parsePubSubMessage(allocator: std.mem.Allocator, raw_event: []const u8) !
             // Decode base64
             const decoded = try decodeBase64(allocator, data.string);
             event.body = decoded;
+            event.body_owned = true;
         }
     }
 
@@ -423,6 +439,8 @@ pub fn parseStorageEvent(allocator: std.mem.Allocator, raw_event: []const u8) !C
 
     var event = CloudEvent.init(allocator, .gcp_functions, event_id);
     errdefer event.deinit();
+    event.request_id = try allocator.dupe(u8, event_id);
+    event.request_id_owned = true;
 
     // Determine event type from the event
     if (root.object.get("kind")) |kind| {
@@ -433,11 +451,13 @@ pub fn parseStorageEvent(allocator: std.mem.Allocator, raw_event: []const u8) !C
 
     // Extract bucket and object information
     if (root.object.get("bucket")) |bucket| {
-        event.source = bucket.string;
+        event.source = try allocator.dupe(u8, bucket.string);
+        event.source_owned = true;
     }
 
     // Store the whole event as the body for full access
-    event.body = raw_event;
+    event.body = try allocator.dupe(u8, raw_event);
+    event.body_owned = true;
 
     return event;
 }
@@ -495,11 +515,17 @@ fn parseQueryString(allocator: std.mem.Allocator, query_string: []const u8) !std
         if (pair.len == 0) continue;
 
         if (std.mem.indexOf(u8, pair, "=")) |eq_pos| {
-            const key = pair[0..eq_pos];
-            const value = pair[eq_pos + 1 ..];
+            const key = try allocator.dupe(u8, pair[0..eq_pos]);
+            errdefer allocator.free(key);
+            const value = try allocator.dupe(u8, pair[eq_pos + 1 ..]);
+            errdefer allocator.free(value);
             try params.put(allocator, key, value);
         } else {
-            try params.put(allocator, pair, "");
+            const key = try allocator.dupe(u8, pair);
+            errdefer allocator.free(key);
+            const value = try allocator.dupe(u8, "");
+            errdefer allocator.free(value);
+            try params.put(allocator, key, value);
         }
     }
 
@@ -558,12 +584,7 @@ test "parseCloudEvent" {
     ;
 
     var event = try parseCloudEvent(allocator, raw_event);
-    defer {
-        if (event.body) |body| {
-            allocator.free(body);
-        }
-        event.deinit();
-    }
+    defer event.deinit();
 
     try std.testing.expectEqualStrings("event-123", event.request_id);
     try std.testing.expectEqualStrings("google.cloud.storage.object.v1.finalized", event.event_type.?);
@@ -573,7 +594,14 @@ test "parseQueryString" {
     const allocator = std.testing.allocator;
 
     var params = try parseQueryString(allocator, "foo=bar&baz=qux&empty=");
-    defer params.deinit(allocator);
+    defer {
+        var it = params.iterator();
+        while (it.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        params.deinit(allocator);
+    }
 
     try std.testing.expectEqualStrings("bar", params.get("foo").?);
     try std.testing.expectEqualStrings("qux", params.get("baz").?);

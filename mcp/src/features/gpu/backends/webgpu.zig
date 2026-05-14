@@ -252,7 +252,10 @@ pub fn compileKernel(
     }
 
     const device = webgpu_device.?;
-    const source_z = allocator.dupeZ(u8, source.source) catch return types.KernelError.OutOfMemory;
+    const source_dup = allocator.dupe(u8, source.source) catch return types.KernelError.OutOfMemory;
+    const source_z_slice = allocator.realloc(source_dup, source.source.len + 1) catch return types.KernelError.OutOfMemory;
+    source_z_slice[source.source.len] = 0;
+    const source_z = source_z_slice[0..source_z_slice.len :0];
     defer allocator.free(source_z);
 
     // Create shader module from WGSL source via proper descriptor chain

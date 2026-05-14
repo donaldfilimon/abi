@@ -27,7 +27,7 @@ Run the install-all.sh script to install zig-abi-plugin into common plugin roots
 
 ```bash
 # macOS 26.4+ (Darwin 25.x) — use ./build.sh, NOT zig build
-./build.sh test --summary all
+./build.sh check --summary all
 
 # Linux or older macOS
 zig build test --summary all
@@ -44,5 +44,6 @@ zig build test --summary all
 - `agents/` — Domain-specific agents (build, parity, pipeline, feature scaffolding)
 - `skills/` — Skill definitions for common tasks
 - `hooks/` — Pre-commit validation hooks
+- `.codex-plugin/plugin.json` — Codex plugin manifest
 - `.mcp.json` — MCP server config (points to `zig-out/bin/abi-mcp`)
 - `mcp/servers.json` — HA MCP server definitions used by repo startup checks

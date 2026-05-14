@@ -109,51 +109,19 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const host_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_LLAMA_CPP_HOST",
-        "LLAMA_CPP_HOST",
-    });
-
-    const host = if (host_raw) |h| blk: {
-        if (h.len == 0) {
-            allocator.free(h);
-            break :blk try allocator.dupe(u8, "http://localhost:8080");
-        }
-        break :blk h;
-    } else try allocator.dupe(u8, "http://localhost:8080");
-    errdefer allocator.free(host);
-
-    const api_key_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_LLAMA_CPP_API_KEY",
-        "LLAMA_CPP_API_KEY",
-    });
-
-    const api_key: ?[]u8 = if (api_key_raw) |k| blk: {
-        if (k.len == 0) {
-            shared.secureFree(allocator, k);
-            break :blk null;
-        }
-        break :blk k;
-    } else null;
-    errdefer if (api_key) |k| shared.secureFree(allocator, k);
-
-    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_LLAMA_CPP_MODEL",
-        "LLAMA_CPP_MODEL",
-    });
-
-    const model = if (model_raw) |m| blk: {
-        if (m.len == 0) {
-            allocator.free(m);
-            break :blk try allocator.dupe(u8, "llama");
-        }
-        break :blk m;
-    } else try allocator.dupe(u8, "llama");
+    const loaded = try shared.loadConfigFromEnv(allocator, .{
+        .api_key_env = &.{ "ABI_LLAMA_CPP_API_KEY", "LLAMA_CPP_API_KEY" },
+        .base_url_env = &.{ "ABI_LLAMA_CPP_HOST", "LLAMA_CPP_HOST" },
+        .model_env = &.{ "ABI_LLAMA_CPP_MODEL", "LLAMA_CPP_MODEL" },
+        .default_base_url = "http://localhost:8080",
+        .default_model = "llama",
+        .api_key_required = false,
+    }, error.MissingApiKey);
 
     return .{
-        .host = host,
-        .api_key = api_key,
-        .model = model,
+        .host = loaded.base_url,
+        .api_key = loaded.api_key,
+        .model = loaded.model,
         .model_owned = true,
         .timeout_ms = 120_000,
     };

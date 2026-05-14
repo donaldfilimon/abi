@@ -397,6 +397,8 @@ fn httpRequest(
 pub fn parseEvent(allocator: std.mem.Allocator, raw_event: []const u8, request_id: []const u8) !CloudEvent {
     var event = CloudEvent.init(allocator, .aws_lambda, request_id);
     errdefer event.deinit();
+    event.request_id = try allocator.dupe(u8, request_id);
+    event.request_id_owned = true;
 
     // Parse the JSON event
     const parsed = std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
@@ -419,8 +421,9 @@ pub fn parseEvent(allocator: std.mem.Allocator, raw_event: []const u8, request_i
         // Event source (S3, SQS, SNS, etc.)
         try parseEventSourceEvent(&event, root);
     } else {
-        // Direct invocation - store raw body
-        event.body = raw_event;
+        // Direct invocation - store owned copy
+        event.body = try event.allocator.dupe(u8, raw_event);
+        event.body_owned = true;
     }
 
     return event;
@@ -431,10 +434,16 @@ fn parseApiGatewayEvent(event: *CloudEvent, root: std.json.Value, method: []cons
     event.method = HttpMethod.fromString(method);
 
     if (root.object.get("path")) |path| {
-        event.path = path.string;
+        event.path = try event.allocator.dupe(u8, path.string);
+        event.path_owned = true;
     }
 
-    if (root.object.get("body")) |body| event.body = jsonStringOrNull(body);
+    if (root.object.get("body")) |body| {
+        if (jsonStringOrNull(body)) |s| {
+            event.body = try event.allocator.dupe(u8, s);
+            event.body_owned = true;
+        }
+    }
 
     // Parse query parameters
     if (root.object.get("queryStringParameters")) |params| {
@@ -459,12 +468,18 @@ fn parseHttpApiEvent(event: *CloudEvent, root: std.json.Value) !void {
                 event.method = HttpMethod.fromString(method.string);
             }
             if (http.object.get("path")) |path| {
-                event.path = path.string;
+                event.path = try event.allocator.dupe(u8, path.string);
+                event.path_owned = true;
             }
         }
     }
 
-    if (root.object.get("body")) |body| event.body = jsonStringOrNull(body);
+    if (root.object.get("body")) |body| {
+        if (jsonStringOrNull(body)) |s| {
+            event.body = try event.allocator.dupe(u8, s);
+            event.body_owned = true;
+        }
+    }
 
     // Parse query parameters (already decoded in v2)
     if (root.object.get("queryStringParameters")) |params| {
@@ -488,22 +503,26 @@ fn parseEventSourceEvent(event: *CloudEvent, root: std.json.Value) !void {
             const first_record = records.array.items[0];
 
             if (first_record.object.get("eventSource")) |source| {
-                event.source = source.string;
+                event.source = try event.allocator.dupe(u8, source.string);
+                event.source_owned = true;
             }
 
             if (first_record.object.get("eventName")) |name| {
-                event.event_type = name.string;
+                event.event_type = try event.allocator.dupe(u8, name.string);
+                event.event_type_owned = true;
             }
 
             // For SQS, get the message body
             if (first_record.object.get("body")) |body| {
-                event.body = body.string;
+                event.body = try event.allocator.dupe(u8, body.string);
+                event.body_owned = true;
             }
 
             // For SNS, get the message
             if (first_record.object.get("Sns")) |sns| {
                 if (sns.object.get("Message")) |msg| {
-                    event.body = msg.string;
+                    event.body = try event.allocator.dupe(u8, msg.string);
+                    event.body_owned = true;
                 }
             }
         }
@@ -512,10 +531,7 @@ fn parseEventSourceEvent(event: *CloudEvent, root: std.json.Value) !void {
 
 /// Format a CloudResponse for API Gateway.
 pub fn formatResponse(allocator: std.mem.Allocator, response: *const CloudResponse) ![]const u8 {
-    var buffer: std.ArrayList(u8) = .empty;
-    errdefer buffer.deinit(allocator);
-
-    var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buffer);
+    var aw = std.Io.Writer.Allocating.init(allocator);
     const writer = &aw.writer;
 
     try writer.writeAll("{");
@@ -547,7 +563,7 @@ pub fn formatResponse(allocator: std.mem.Allocator, response: *const CloudRespon
 
     try writer.writeAll("}");
 
-    return buffer.toOwnedSlice(allocator);
+    return aw.toOwnedSlice();
 }
 
 /// Run a handler in the Lambda runtime environment.

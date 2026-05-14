@@ -416,34 +416,15 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const host_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_OLLAMA_HOST",
-        "OLLAMA_HOST",
-    });
-    // Treat empty host as unset — fall through to default
-    const host = if (host_raw) |h| blk: {
-        if (h.len == 0) {
-            allocator.free(h);
-            break :blk try allocator.dupe(u8, "http://127.0.0.1:11434");
-        }
-        break :blk h;
-    } else try allocator.dupe(u8, "http://127.0.0.1:11434");
-    errdefer allocator.free(host);
+    const loaded = try shared.loadConfigFromEnv(allocator, .{
+        .api_key_env = &.{},
+        .base_url_env = &.{ "ABI_OLLAMA_HOST", "OLLAMA_HOST" },
+        .model_env = &.{ "ABI_OLLAMA_MODEL", "OLLAMA_MODEL" },
+        .default_base_url = "http://127.0.0.1:11434",
+        .default_model = "gpt-oss",
+        .api_key_required = false,
+    }, @as(anyerror, error.ApiKeyRequired));
 
-    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_OLLAMA_MODEL",
-        "OLLAMA_MODEL",
-    });
-    // Treat empty model as unset — fall through to default
-    const model = if (model_raw) |m| blk: {
-        if (m.len == 0) {
-            allocator.free(m);
-            break :blk try allocator.dupe(u8, "gpt-oss");
-        }
-        break :blk m;
-    } else try allocator.dupe(u8, "gpt-oss");
-
-    // Get timeout from environment if set
     const timeout_ms: u32 = blk: {
         const env_vars = [_][:0]const u8{ "ABI_OLLAMA_TIMEOUT_MS", "OLLAMA_TIMEOUT_MS" };
         var found: ?[:0]const u8 = null;
@@ -460,8 +441,8 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     };
 
     return .{
-        .host = host,
-        .model = model,
+        .host = loaded.base_url,
+        .model = loaded.model,
         .model_owned = true,
         .timeout_ms = timeout_ms,
     };

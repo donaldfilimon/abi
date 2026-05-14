@@ -32,7 +32,11 @@ const discord_env_names = [_][:0]const u8{
 
 fn saveEnv(allocator: std.mem.Allocator, name: [:0]const u8) !SavedEnv {
     if (c.getenv(name.ptr)) |ptr| {
-        return .{ .name = name, .value = try allocator.dupeZ(u8, std.mem.span(ptr)) };
+        const val = std.mem.span(ptr);
+        const val_dup = try allocator.dupe(u8, val);
+        const val_s = try allocator.realloc(val_dup, val.len + 1);
+        val_s[val.len] = 0;
+        return .{ .name = name, .value = val_s[0..val_s.len :0] };
     }
     return .{ .name = name, .value = null };
 }
@@ -316,6 +320,7 @@ test "connectors: ProviderRegistry getByName finds all 16 providers by name" {
         "ollama",
         "ollama_passthrough",
         "openai",
+        "grok",
         "anthropic",
         "claude",
         "codex",
@@ -345,7 +350,7 @@ test "connectors: ProviderRegistry order starts with local inference" {
 }
 
 test "connectors: ProviderRegistry getByName returns null for unknown provider" {
-    try std.testing.expect(connectors.ProviderRegistry.getByName("grok") == null);
+    try std.testing.expect(connectors.ProviderRegistry.getByName("unknown") == null);
     try std.testing.expect(connectors.ProviderRegistry.getByName("") == null);
     try std.testing.expect(connectors.ProviderRegistry.getByName("OPENAI") == null);
 }
