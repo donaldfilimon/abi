@@ -4,6 +4,8 @@ pub const sync = @import("sync.zig");
 pub const logger = struct {};
 pub const utils = struct {};
 pub const errors = struct {};
+pub const os = @import("os.zig");
+pub const os_config = @import("os_config.zig");
 
 test {
     const std = @import("std");

@@ -8,11 +8,17 @@ pub fn build(b: *std.Build) void {
     const feat_ai = b.option(bool, "feat-ai", "Enable AI features") orelse true;
     const feat_gpu = b.option(bool, "feat-gpu", "Enable GPU acceleration") orelse true;
     const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse true;
+    const feat_accelerator = b.option(bool, "feat-accelerator", "Enable accelerator backend selection") orelse true;
+    const feat_shader = b.option(bool, "feat-shader", "Enable Zig shader backend scaffolds") orelse true;
+    const feat_mlir = b.option(bool, "feat-mlir", "Enable MLIR backend scaffolds") orelse true;
 
     const options = b.addOptions();
     options.addOption(bool, "feat_ai", feat_ai);
     options.addOption(bool, "feat_gpu", feat_gpu);
     options.addOption(bool, "feat_tui", feat_tui);
+    options.addOption(bool, "feat_accelerator", feat_accelerator);
+    options.addOption(bool, "feat_shader", feat_shader);
+    options.addOption(bool, "feat_mlir", feat_mlir);
     const options_mod = options.createModule();
 
     // Plugin Registry Generation

@@ -1,5 +1,6 @@
 //! Core Registry System
 const std = @import("std");
+const foundation = @import("foundation/mod.zig");
 
 pub const Registry = struct {
     allocator: std.mem.Allocator,
@@ -41,6 +42,11 @@ pub const Registry = struct {
     pub fn loadPlugins(self: *Registry) !void {
         const plugin_registry = @import("plugin_registry.zig");
         try plugin_registry.registerPlugins(self);
+    }
+
+    pub fn getOSController(self: *Registry, gated: bool) !foundation.os.OSController {
+        if (!gated) return error.AccessDenied;
+        return foundation.os.OSController.init(self.allocator);
     }
 };
 

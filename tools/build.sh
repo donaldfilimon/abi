@@ -17,8 +17,7 @@ MAJOR_VER=${OS_VER%%.*}
 
 EXTRA_FLAGS=""
 if [ "$MAJOR_VER" -ge 26 ] || [[ "$OSTYPE" == "darwin"* ]]; then
-    echo "macOS detected: adding stability flags."
-    EXTRA_FLAGS="-Dfeat-gpu=false"
+    echo "macOS detected: native GPU features stay auto-enabled with simulated fallback."
 fi
 
 case "$1" in
