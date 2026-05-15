@@ -132,8 +132,9 @@ fn handleAgent(allocator: std.mem.Allocator, args: []const []const u8) !u8 {
                 .dataset = dataset,
                 .artifact_dir = artifact_dir,
             });
+        defer result.deinit(allocator);
 
-        std.debug.print("{s}: {s} ({d} wdbx record(s))\n", .{ result.profile, result.message, store.count() });
+        std.debug.print("{s}: {s} ({d} wdbx record(s), backend={s})\n", .{ result.profile, result.message, store.count(), result.acceleration_backend });
         return 0;
     } else if (std.mem.eql(u8, sub_cmd, "tui")) {
         if (args.len != 3) return usageError("usage: abi agent tui");

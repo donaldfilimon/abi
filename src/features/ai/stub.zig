@@ -54,6 +54,15 @@ pub const TrainingResult = struct {
     artifact_dir: []const u8,
     message: []const u8,
     records_stored: usize = 0,
+    acceleration_backend: []const u8 = "disabled",
+    query_vector_id: ?u32 = null,
+    response_vector_id: ?u32 = null,
+    owned: bool = false,
+
+    pub fn deinit(self: TrainingResult, allocator: std.mem.Allocator) void {
+        _ = self;
+        _ = allocator;
+    }
 };
 
 pub const AgentConfig = struct {
