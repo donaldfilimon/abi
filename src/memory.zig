@@ -1,0 +1,1 @@
+pub const Memory = struct {};

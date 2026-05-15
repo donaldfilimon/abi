@@ -1,0 +1,4 @@
+{
+  "name": "example-plugin",
+  "description": "Minimal example plugin used by registry generation tests."
+}

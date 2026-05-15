@@ -1,0 +1,120 @@
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    // Feature Flags - Enabled by default
+    const feat_ai = b.option(bool, "feat-ai", "Enable AI features") orelse true;
+    const feat_gpu = b.option(bool, "feat-gpu", "Enable GPU acceleration") orelse true;
+    const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse true;
+
+    const options = b.addOptions();
+    options.addOption(bool, "feat_ai", feat_ai);
+    options.addOption(bool, "feat_gpu", feat_gpu);
+    options.addOption(bool, "feat_tui", feat_tui);
+    const options_mod = options.createModule();
+
+    // Plugin Registry Generation
+    const gen_plugin_registry = b.addExecutable(.{
+        .name = "gen_plugin_registry",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/generate_plugin_registry.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_gen_plugin_registry = b.addRunArtifact(gen_plugin_registry);
+    run_gen_plugin_registry.addArg("src/plugins");
+    run_gen_plugin_registry.addArg("src/plugin_registry.zig");
+
+    // ABI Module
+    const abi_mod = b.addModule("abi", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    abi_mod.addImport("build_options", options_mod);
+
+    // CLI Executable
+    const exe = b.addExecutable(.{
+        .name = "abi",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+    });
+    exe.step.dependOn(&run_gen_plugin_registry.step);
+    b.installArtifact(exe);
+
+    const mcp_exe = b.addExecutable(.{
+        .name = "abi-mcp",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/mcp/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+    });
+    b.installArtifact(mcp_exe);
+
+    // Steps
+    const run_cmd = b.addRunArtifact(exe);
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
+
+    const cli_step = b.step("cli", "Build ABI CLI");
+    cli_step.dependOn(b.getInstallStep());
+
+    const mcp_step = b.step("mcp", "Build MCP server");
+    mcp_step.dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
+
+    // Tests
+    const mod_tests = b.addTest(.{
+        .root_module = abi_mod,
+    });
+    const run_mod_tests = b.addRunArtifact(mod_tests);
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_mod_tests.step);
+
+    // Fmt and Parity Checks
+    // Assuming zig fmt --check is available via system command for simplicity
+    const fmt_check = b.addSystemCommand(&.{ "zig", "fmt", "--check", "src", "tools", "build.zig" });
+    const fmt = b.addSystemCommand(&.{ "zig", "fmt", "src", "tools", "build.zig" });
+
+    const parity_exe = b.addExecutable(.{
+        .name = "check_parity",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/check_parity.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const parity_check = b.addRunArtifact(parity_exe);
+
+    const check_step = b.step("check", "Run all checks (tests + lint + parity)");
+    check_step.dependOn(test_step);
+    check_step.dependOn(&fmt_check.step);
+    check_step.dependOn(&parity_check.step);
+
+    const full_check_step = b.step("full-check", "Run the full validation suite");
+    full_check_step.dependOn(check_step);
+
+    const lint_step = b.step("lint", "Check Zig formatting");
+    lint_step.dependOn(&fmt_check.step);
+
+    const fix_step = b.step("fix", "Format Zig sources");
+    fix_step.dependOn(&fmt.step);
+
+    const check_parity_step = b.step("check-parity", "Check feature mod/stub API parity");
+    check_parity_step.dependOn(&parity_check.step);
+}
