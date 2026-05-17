@@ -1,6 +1,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
+const foundation_time = @import("../../foundation/time.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
+
+pub const index = @import("index/hnsw.zig");
+pub const storage = @import("storage/chain.zig");
 
 pub const MAX_LAYERS = 4;
 
@@ -133,7 +137,7 @@ pub const Store = struct {
         var block = ConversationBlock{
             .id = undefined,
             .prev_id = prev_id,
-            .timestamp_ms = @intCast(@divTrunc(std.time.nanoTimestamp(), std.time.ns_per_ms)),
+            .timestamp_ms = foundation_time.unixMs(),
             .profile = try self.allocator.dupe(u8, profile),
             .query_id = query_id,
             .response_id = response_id,
@@ -171,7 +175,7 @@ fn runAccelerationKernel(name: []const u8, work_items: usize) !AccelerationStatu
 }
 
 fn zeroId() [32]u8 {
-    return [_]u8{0} ** 32;
+    return std.mem.zeroes([32]u8);
 }
 
 fn greaterScore(_: void, lhs: SearchResult, rhs: SearchResult) bool {
