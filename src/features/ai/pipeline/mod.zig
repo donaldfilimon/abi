@@ -1,4 +1,9 @@
 const std = @import("std");
 pub fn train(profile: []const u8) !void {
-    std.log.info("Training {s}...", .{profile});
+    if (profile.len == 0) return error.InvalidTrainingProfile;
+    std.log.info("queued local training pipeline for profile {s}", .{profile});
+}
+
+test "pipeline rejects empty profile" {
+    try std.testing.expectError(error.InvalidTrainingProfile, train(""));
 }

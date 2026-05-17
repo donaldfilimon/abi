@@ -1,6 +1,6 @@
 # GEMINI.md — ABI Framework
 
-This file provides guidance to Google Gemini when working with code in this repository. See also CLAUDE.md and QWEN.md for parallel AI-specific guidance.
+This file provides guidance to Google Gemini when working with code in this repository. See also CLAUDE.md and AGENTS.md for parallel AI-specific guidance.
 
 ## Project Overview
 
@@ -157,12 +157,10 @@ test {
 | File                      | Purpose                        |
 | ------------------------- | ------------------------------ |
 | `CLAUDE.md`               | Detailed Claude Code guidance  |
-| `QWEN.md`                 | Qwen-specific guidance         |
 | `AGENTS.md`               | Project-wide agent conventions |
 | `.zigversion`             | Pinned Zig version             |
 | `build.sh`                | macOS 26.4+ build wrapper      |
 | `tools/zigly`             | Zig version manager            |
-| `docs/spec/ABBEY-SPEC.md` | Comprehensive mega-spec        |
 
 ## Key Rules Summary
 

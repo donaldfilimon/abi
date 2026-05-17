@@ -1,4 +1,7 @@
 {
   "name": "example-plugin",
-  "description": "Minimal example plugin used by registry generation tests."
+  "version": "0.1.0",
+  "description": "Minimal example plugin used by registry generation tests.",
+  "target_feature": "plugins",
+  "entry_point": "mod.zig"
 }

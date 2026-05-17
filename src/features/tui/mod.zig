@@ -54,8 +54,16 @@ pub fn initScreen() !void {
     std.debug.print("\x1b[?1049h\x1b[H", .{});
 }
 
+pub fn initScreenWriter(writer: anytype) !void {
+    try writer.writeAll("\x1b[?1049h\x1b[H");
+}
+
 pub fn clearScreen() !void {
     std.debug.print("\x1b[2J\x1b[H", .{});
+}
+
+pub fn clearScreenWriter(writer: anytype) !void {
+    try writer.writeAll("\x1b[2J\x1b[H");
 }
 
 pub fn render(state: ScreenState) !void {
@@ -63,8 +71,17 @@ pub fn render(state: ScreenState) !void {
     std.debug.print("Agents: abbey, aviva, abi | WDBX: in-memory training records\n", .{});
 }
 
+pub fn renderWriter(writer: anytype, state: ScreenState) !void {
+    try writer.print("TUI Rendering at {d}x{d}\n", .{ state.width, state.height });
+    try writer.writeAll("Agents: abbey, aviva, abi | WDBX: in-memory training records\n");
+}
+
 pub fn deinitScreen() void {
     std.debug.print("\x1b[?1049l", .{});
+}
+
+pub fn deinitScreenWriter(writer: anytype) !void {
+    try writer.writeAll("\x1b[?1049l");
 }
 
 test "dashboard requires a title" {
@@ -81,4 +98,27 @@ test "dashboard renders status and items" {
 
     try std.testing.expect(std.mem.indexOf(u8, rendered, "status: warning") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "- AI: safe") != null);
+}
+
+test "writer render functions are testable" {
+    var buf = std.ArrayListUnmanaged(u8).empty;
+    defer buf.deinit(std.testing.allocator);
+
+    const TestWriter = struct {
+        allocator: std.mem.Allocator,
+        buffer: *std.ArrayListUnmanaged(u8),
+
+        pub fn writeAll(self: *@This(), bytes: []const u8) !void {
+            try self.buffer.appendSlice(self.allocator, bytes);
+        }
+
+        pub fn print(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
+            try self.buffer.print(self.allocator, fmt, args);
+        }
+    };
+
+    var writer = TestWriter{ .allocator = std.testing.allocator, .buffer = &buf };
+
+    try renderWriter(&writer, .{ .width = 80, .height = 24 });
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "80x24") != null);
 }

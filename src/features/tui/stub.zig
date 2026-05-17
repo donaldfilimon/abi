@@ -1,8 +1,8 @@
 const std = @import("std");
 
-pub const Status = enum { ready, busy, error_state };
+pub const Status = enum { ready, busy, warning, disabled };
 pub const Item = struct { label: []const u8, value: []const u8 };
-pub const State = struct { title: []const u8, status: Status, items: []const Item };
+pub const State = struct { title: []const u8, status: Status = .disabled, items: []const Item = &.{} };
 
 pub const ScreenState = struct {
     width: u16,
@@ -10,19 +10,35 @@ pub const ScreenState = struct {
 };
 
 pub fn initScreen() !void {}
+pub fn initScreenWriter(writer: anytype) !void {
+    _ = writer;
+}
 pub fn clearScreen() !void {}
+pub fn clearScreenWriter(writer: anytype) !void {
+    _ = writer;
+}
 pub fn render(state: ScreenState) !void {
     _ = state;
 }
+pub fn renderWriter(writer: anytype, state: ScreenState) !void {
+    _ = writer;
+    _ = state;
+}
 pub fn deinitScreen() void {}
+pub fn deinitScreenWriter(writer: anytype) !void {
+    _ = writer;
+}
 
 pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
-    _ = allocator;
     _ = state;
-    return "";
+    return try allocator.dupe(u8, "TUI feature is disabled");
 }
 
 pub fn statusText(status: Status) []const u8 {
-    _ = status;
-    return "";
+    return switch (status) {
+        .ready => "ready",
+        .busy => "busy",
+        .warning => "warning",
+        .disabled => "disabled",
+    };
 }

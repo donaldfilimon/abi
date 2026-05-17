@@ -68,20 +68,23 @@ pub fn renderDryRun(allocator: std.mem.Allocator, request: CommandRequest) ![]u8
     return out;
 }
 
-pub fn executeConfirmed(allocator: std.mem.Allocator, request: CommandRequest, policy: Policy) !CommandResult {
+pub fn executeConfirmed(allocator: std.mem.Allocator, io: std.Io, request: CommandRequest, policy: Policy) !CommandResult {
     _ = allocator;
     const decision = validateCommand(request, policy);
     if (decision.decision != .allow_execute) return error.CommandDenied;
 
-    var child = std.process.Child.init(request.argv, std.heap.page_allocator);
-    child.stdin_behavior = .Ignore;
-    child.stdout_behavior = .Inherit;
-    child.stderr_behavior = .Inherit;
-    if (request.cwd) |cwd| child.cwd = cwd;
+    var child = try std.process.spawn(io, .{
+        .argv = request.argv,
+        .cwd = if (request.cwd) |cwd| .{ .path = cwd } else .inherit,
+        .stdin = .ignore,
+        .stdout = .inherit,
+        .stderr = .inherit,
+    });
+    defer child.kill(io);
 
-    const term = try child.spawnAndWait();
+    const term = try child.wait(io);
     return switch (term) {
-        .Exited => |code| .{ .decision = .allow_execute, .exit_code = code, .message = "command exited" },
+        .exited => |code| .{ .decision = .allow_execute, .exit_code = code, .message = "command exited" },
         else => .{ .decision = .allow_execute, .exit_code = null, .message = "command terminated without exit code" },
     };
 }

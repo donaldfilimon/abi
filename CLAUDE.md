@@ -52,7 +52,6 @@ See `docs/index.md` for more onboarding details.
 * **Feature catalog** – `src/features/` contains ~21 domains (core, ai, gpu, etc.).
 * **AI Multi‑Profile Pipeline** – The Abbey‑Aviva‑Abi stack is wired in `src/features/ai/profile/router.zig`:
   `User → Abi analysis → AdaptiveModulator → Routing → Profile (Abbey/Aviva/Abi) → Constitution → WDBX storage → Response`.
-  *Detailed spec lives in `docs/spec/abbey-aviva-abi-framework.md`.*
 * **GPU back‑ends** – Metal, CUDA, Vulkan, stdgpu (default) are functional; WebGPU, OpenGL, WebGL2, FPGA/TPU are partial or stubs (see table in the original file).
 
 ## Build & Test Commands (condensed)
@@ -67,13 +66,9 @@ See `docs/index.md` for more onboarding details.
 # Auto‑format (fix)                     zig build fix
 
 # Verify mod/stub parity                zig build check-parity
-# Run feature‑specific test lanes       zig build <feature>-tests   # e.g. zig build gpu-tests
 
 # Full validation (lint + test + parity) ./build.sh check   # macOS
 # Full validation (Linux)            zig build check
-
-# Cross‑compilation checks               zig build cross-check
-# Release verification                  zig build verify-all
 ```
 
 ## Feature Flags & GPU Backend Selection
@@ -101,9 +96,7 @@ Restart any MCP clients after rebuilding.
 
 ## Additional References
 * **Docs index:** `docs/index.md`
-* **Architecture spec:** `docs/spec/abbey-aviva-abi-framework.md`
-* **Glossary:** `GLOSSARY.md`
-* **Known test failures:** see the “Testing” section in this file (inference engine connectors, auth integration).
+* **Known test failures:** see the "Testing" section in this file (inference engine connectors, auth integration).
 * **.codex/** – internal Claude Code metadata; do not modify unless instructed.
 
 ---

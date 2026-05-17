@@ -25,12 +25,26 @@ pub const ShaderArtifact = struct {
     }
 };
 
+pub const CompilerStatus = struct {
+    available: bool,
+    backend: []const u8,
+    message: []const u8,
+};
+
 pub fn languageName(language: Language) []const u8 {
     return switch (language) {
         .zig_kernel => "zig-kernel",
         .wgsl => "wgsl",
         .msl => "msl",
         .spirv_text => "spirv-text",
+    };
+}
+
+pub fn compilerStatus() CompilerStatus {
+    return .{
+        .available = false,
+        .backend = "disabled",
+        .message = "shader feature is disabled",
     };
 }
 

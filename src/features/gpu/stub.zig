@@ -3,6 +3,9 @@ pub const Backend = enum {
     metal,
     vulkan,
     cuda,
+    webgpu,
+    opengl,
+    webgl2,
 };
 
 pub const BackendStatus = struct {
@@ -27,6 +30,12 @@ pub const KernelResult = struct {
     backend: Backend,
     mode: ExecutionMode,
     work_items: usize,
+    message: []const u8,
+};
+
+pub const NativeKernelStatus = struct {
+    backend: Backend,
+    linked: bool,
     message: []const u8,
 };
 
@@ -71,6 +80,9 @@ pub fn backendName(backend: Backend) []const u8 {
         .metal => "metal",
         .vulkan => "vulkan",
         .cuda => "cuda",
+        .webgpu => "webgpu",
+        .opengl => "opengl",
+        .webgl2 => "webgl2",
     };
 }
 
@@ -80,6 +92,14 @@ pub fn detectBackend() BackendStatus {
         .available = true,
         .accelerated = false,
         .message = "GPU feature is disabled; using simulated backend",
+    };
+}
+
+pub fn nativeKernelStatus() NativeKernelStatus {
+    return .{
+        .backend = .simulated,
+        .linked = false,
+        .message = "GPU feature is disabled; native kernels are unavailable",
     };
 }
 

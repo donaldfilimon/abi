@@ -12,6 +12,8 @@ pub const Principle = enum {
 pub const AuditResult = struct {
     passed: bool,
     violations: std.bit_set.IntegerBitSet(6),
+    scores: [6]f32 = .{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+    timestamp: i64 = 0,
 };
 
 pub const DatasetFormat = enum {
@@ -60,8 +62,11 @@ pub const TrainingResult = struct {
     owned: bool = false,
 
     pub fn deinit(self: TrainingResult, allocator: std.mem.Allocator) void {
-        _ = self;
-        _ = allocator;
+        if (!self.owned) return;
+        allocator.free(self.profile);
+        allocator.free(self.dataset_path);
+        allocator.free(self.artifact_dir);
+        allocator.free(self.message);
     }
 };
 
@@ -82,10 +87,62 @@ pub const AgentResult = struct {
 
 pub const abbey = struct {
     pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-        _ = allocator;
         _ = input;
-        return "";
+        return try allocator.dupe(u8, "AI feature is disabled");
     }
+};
+
+pub const aviva = struct {
+    pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+        _ = input;
+        return try allocator.dupe(u8, "AI feature is disabled");
+    }
+};
+
+pub const abi_profile = struct {
+    pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+        _ = input;
+        return try allocator.dupe(u8, "AI feature is disabled");
+    }
+};
+
+pub const profile = struct {
+    pub const ProfileWeights = struct {
+        w_abbey: f32 = 0.33,
+        w_aviva: f32 = 0.33,
+        w_abi: f32 = 0.34,
+    };
+
+    pub fn analyzeSentiment(input: []const u8) ProfileWeights {
+        _ = input;
+        return .{};
+    }
+
+    pub fn selectBestProfile(weights: ProfileWeights) AgentProfile {
+        _ = weights;
+        return .abbey;
+    }
+
+    pub fn routeInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+        _ = input;
+        return try allocator.dupe(u8, "AI feature is disabled");
+    }
+};
+
+pub const pipeline = struct {
+    pub fn train(profile_name: []const u8) !void {
+        _ = profile_name;
+    }
+};
+
+pub const streaming = struct {
+    pub const openai = struct {
+        pub fn handleOpenAIChatCompletions(allocator: std.mem.Allocator, request: []const u8, writer: anytype) !void {
+            _ = allocator;
+            _ = request;
+            try writer.writeAll("{\"error\":\"AI feature is disabled\"}");
+        }
+    };
 };
 
 pub const constitution = struct {
@@ -97,41 +154,49 @@ pub const constitution = struct {
                 .violations = std.bit_set.IntegerBitSet(6).initEmpty(),
             };
         }
+
+        pub fn evaluateResponse(response: []const u8, principles: []const Principle) AuditResult {
+            _ = response;
+            _ = principles;
+            return .{
+                .passed = true,
+                .violations = std.bit_set.IntegerBitSet(6).initEmpty(),
+            };
+        }
     };
 };
 
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    _ = allocator;
     _ = input;
-    return "";
+    return try allocator.dupe(u8, "AI feature is disabled");
 }
 
-pub fn train(config: TrainingConfig) !TrainingResult {
+pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
     return .{
         .accepted = false,
-        .profile = config.profile,
-        .dataset_path = config.dataset.path,
-        .artifact_dir = config.artifact_dir,
-        .message = "AI feature is disabled",
+        .profile = try allocator.dupe(u8, config.profile),
+        .dataset_path = try allocator.dupe(u8, config.dataset.path),
+        .artifact_dir = try allocator.dupe(u8, config.artifact_dir),
+        .message = try allocator.dupe(u8, "AI feature is disabled"),
+        .owned = true,
     };
 }
 
 pub fn trainWithStore(allocator: std.mem.Allocator, store: anytype, config: TrainingConfig) !TrainingResult {
-    _ = allocator;
     _ = store;
-    return train(config);
+    return train(allocator, config);
 }
 
 pub fn trainKnownProfiles(allocator: std.mem.Allocator, store: anytype, dataset: DatasetSpec, artifact_dir: []const u8) !TrainingResult {
-    _ = allocator;
     _ = store;
     return .{
         .accepted = false,
-        .profile = "abbey,aviva,abi",
-        .dataset_path = dataset.path,
-        .artifact_dir = artifact_dir,
-        .message = "AI feature is disabled",
+        .profile = try allocator.dupe(u8, "abbey,aviva,abi"),
+        .dataset_path = try allocator.dupe(u8, dataset.path),
+        .artifact_dir = try allocator.dupe(u8, artifact_dir),
+        .message = try allocator.dupe(u8, "AI feature is disabled"),
         .records_stored = 0,
+        .owned = true,
     };
 }
 

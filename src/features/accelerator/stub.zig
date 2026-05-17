@@ -1,7 +1,12 @@
 pub const Backend = enum {
     cpu,
     gpu_simulated,
-    gpu_native,
+    gpu_metal,
+    gpu_vulkan,
+    gpu_cuda,
+    gpu_webgpu,
+    gpu_opengl,
+    gpu_webgl2,
     mlir,
 };
 
@@ -22,7 +27,12 @@ pub fn backendName(backend: Backend) []const u8 {
     return switch (backend) {
         .cpu => "cpu",
         .gpu_simulated => "gpu-simulated",
-        .gpu_native => "gpu-native",
+        .gpu_metal => "gpu-metal",
+        .gpu_vulkan => "gpu-vulkan",
+        .gpu_cuda => "gpu-cuda",
+        .gpu_webgpu => "gpu-webgpu",
+        .gpu_opengl => "gpu-opengl",
+        .gpu_webgl2 => "gpu-webgl2",
         .mlir => "mlir",
     };
 }

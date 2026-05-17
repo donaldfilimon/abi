@@ -9,8 +9,11 @@ pub fn build(b: *std.Build) void {
     const feat_gpu = b.option(bool, "feat-gpu", "Enable GPU acceleration") orelse true;
     const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse true;
     const feat_accelerator = b.option(bool, "feat-accelerator", "Enable accelerator backend selection") orelse true;
-    const feat_shader = b.option(bool, "feat-shader", "Enable Zig shader backend scaffolds") orelse true;
-    const feat_mlir = b.option(bool, "feat-mlir", "Enable MLIR backend scaffolds") orelse true;
+    const feat_shader = b.option(bool, "feat-shader", "Enable Zig shader validation backend") orelse true;
+    const feat_mlir = b.option(bool, "feat-mlir", "Enable textual MLIR lowering backend") orelse true;
+    const feat_mobile = b.option(bool, "feat-mobile", "Enable mobile platform feature flag") orelse false;
+    const feat_wdbx = b.option(bool, "feat-wdbx", "Enable WDBX vector store and block memory") orelse true;
+    const feat_os_control = b.option(bool, "feat-os-control", "Enable OS command policy controls") orelse true;
 
     const options = b.addOptions();
     options.addOption(bool, "feat_ai", feat_ai);
@@ -19,6 +22,9 @@ pub fn build(b: *std.Build) void {
     options.addOption(bool, "feat_accelerator", feat_accelerator);
     options.addOption(bool, "feat_shader", feat_shader);
     options.addOption(bool, "feat_mlir", feat_mlir);
+    options.addOption(bool, "feat_mobile", feat_mobile);
+    options.addOption(bool, "feat_wdbx", feat_wdbx);
+    options.addOption(bool, "feat_os_control", feat_os_control);
     const options_mod = options.createModule();
 
     // Plugin Registry Generation
@@ -41,6 +47,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     abi_mod.addImport("build_options", options_mod);
+
+    // Link Metal framework for GPU acceleration on macOS when feat-gpu is enabled
+    const builtin = @import("builtin");
+    if (builtin.target.os.tag == .macos and feat_gpu) {
+        abi_mod.linkFramework("Metal", .{});
+    }
 
     // CLI Executable
     const exe = b.addExecutable(.{
@@ -89,8 +101,52 @@ pub fn build(b: *std.Build) void {
     });
     const run_mod_tests = b.addRunArtifact(mod_tests);
 
+    const connector_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/connectors/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_connector_tests = b.addRunArtifact(connector_tests);
+
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
+    test_step.dependOn(&run_connector_tests.step);
+
+    // Integration Tests
+    const integration_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/integration_tests.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+    });
+    const run_integration_tests = b.addRunArtifact(integration_tests);
+
+    const test_integration_step = b.step("test-integration", "Run integration tests");
+    test_integration_step.dependOn(&run_integration_tests.step);
+
+    // Benchmarks
+    const benchmarks = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/benchmarks.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+    });
+    const run_benchmarks = b.addRunArtifact(benchmarks);
+
+    const bench_step = b.step("benchmarks", "Run benchmark suite");
+    bench_step.dependOn(&run_benchmarks.step);
 
     // Fmt and Parity Checks
     // Assuming zig fmt --check is available via system command for simplicity
@@ -107,7 +163,9 @@ pub fn build(b: *std.Build) void {
     });
     const parity_check = b.addRunArtifact(parity_exe);
 
-    const check_step = b.step("check", "Run all checks (tests + lint + parity)");
+    const check_step = b.step("check", "Run all checks (build + tests + lint + parity)");
+    check_step.dependOn(&exe.step);
+    check_step.dependOn(&mcp_exe.step);
     check_step.dependOn(test_step);
     check_step.dependOn(&fmt_check.step);
     check_step.dependOn(&parity_check.step);

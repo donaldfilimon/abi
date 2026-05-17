@@ -24,12 +24,26 @@ pub const LoweringResult = struct {
     }
 };
 
+pub const ToolchainStatus = struct {
+    available: bool,
+    backend: []const u8,
+    message: []const u8,
+};
+
 pub fn dialectName(dialect: Dialect) []const u8 {
     return switch (dialect) {
         .affine => "affine",
         .linalg => "linalg",
         .tensor => "tensor",
         .gpu => "gpu",
+    };
+}
+
+pub fn toolchainStatus() ToolchainStatus {
+    return .{
+        .available = false,
+        .backend = "disabled",
+        .message = "mlir feature is disabled",
     };
 }
 
