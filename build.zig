@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     // Feature Flags - Enabled by default
     const feat_ai = b.option(bool, "feat-ai", "Enable AI features") orelse true;
     const feat_gpu = b.option(bool, "feat-gpu", "Enable GPU acceleration") orelse true;
-    const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse true;
+    const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse false;
     const feat_accelerator = b.option(bool, "feat-accelerator", "Enable accelerator backend selection") orelse true;
     const feat_shader = b.option(bool, "feat-shader", "Enable Zig shader validation backend") orelse true;
     const feat_mlir = b.option(bool, "feat-mlir", "Enable textual MLIR lowering backend") orelse true;
@@ -49,8 +49,7 @@ pub fn build(b: *std.Build) void {
     abi_mod.addImport("build_options", options_mod);
 
     // Link Metal framework for GPU acceleration on macOS when feat-gpu is enabled
-    const builtin = @import("builtin");
-    if (builtin.target.os.tag == .macos and feat_gpu) {
+    if (target.result.os.tag == .macos and feat_gpu) {
         abi_mod.linkFramework("Metal", .{});
     }
 

@@ -8,6 +8,7 @@ pub const os_control = if (build_options.feat_os_control) @import("os_control/mo
 pub const shaders = if (build_options.feat_shader) @import("shaders/mod.zig") else @import("shaders/stub.zig");
 pub const tui = if (build_options.feat_tui) @import("tui/mod.zig") else @import("tui/stub.zig");
 pub const wdbx = if (build_options.feat_wdbx) @import("wdbx/mod.zig") else @import("wdbx/stub.zig");
+pub const mobile = if (build_options.feat_mobile) @import("mobile/mod.zig") else @import("mobile/stub.zig");
 
 test {
     const std = @import("std");

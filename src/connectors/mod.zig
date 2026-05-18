@@ -325,6 +325,7 @@ pub const twilio = struct {
         base_url: []const u8 = "https://api.twilio.com",
         timeout_ms: u32 = 30000,
         transport: TransportMode = .local,
+        escalation_url: []const u8 = "",
 
         pub fn local() TwilioConfig {
             return .{
@@ -452,15 +453,58 @@ pub const twilio = struct {
 
         pub fn handleConversationRelayEventLive(
             self: *Client,
+            io: std.Io,
             allocator: std.mem.Allocator,
             event: ConversationRelayEvent,
             agent_reply: []const u8,
         ) ConnectorError!ConversationRelayResponse {
-            _ = allocator;
-            _ = event;
-            _ = agent_reply;
             try validateTwilioConfig(self.config);
-            return ConnectorError.LiveTransportUnavailable;
+
+            const escalation = classifyEscalation(event);
+            const escalation_url = if (self.config.escalation_url.len > 0) self.config.escalation_url else "";
+            const twiml = try buildTwiMLSay(allocator, agent_reply, escalation != null, escalation_url);
+            defer allocator.free(twiml);
+
+            const form = try buildUrlEncodedForm(allocator, &.{
+                .{ "Twiml", twiml },
+                .{ "conversation_id", event.conversation_id },
+                .{ "customer_id", event.customer_id },
+            });
+            defer allocator.free(form);
+
+            const auth = try basicAuthHeader(allocator, self.config.account_sid, self.config.auth_token);
+            defer allocator.free(auth);
+
+            const path = try std.fmt.allocPrint(allocator, "/2010-04-01/Accounts/{s}/Calls.json", .{self.config.account_sid});
+            defer allocator.free(path);
+
+            const http_response = try httpPostForm(io, allocator, .{
+                .api_key = self.config.account_sid,
+                .base_url = self.config.base_url,
+                .timeout_ms = self.config.timeout_ms,
+                .transport = .live,
+            }, path, form, &.{
+                .{ .name = "authorization", .value = auth },
+            });
+
+            const response_text = try allocator.dupe(u8, agent_reply);
+            errdefer allocator.free(response_text);
+
+            var result = ConversationRelayResponse{
+                .text = response_text,
+                .escalation = null,
+            };
+
+            if (escalation) |reason| {
+                var payload = try buildEscalationPayload(allocator, event, reason);
+                errdefer payload.deinit(allocator);
+                result.escalation = payload;
+            }
+
+            if (http_response.body.len > 0) {
+                std.log.info("Twilio live response: {s}", .{http_response.body});
+            }
+            return result;
         }
     };
 
@@ -733,6 +777,44 @@ fn validateConnectorConfig(config: ConnectorConfig) ConnectorError!void {
     if (config.timeout_ms == 0) return ConnectorError.Timeout;
 }
 
+fn httpPostForm(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    config: ConnectorConfig,
+    path: []const u8,
+    body: []const u8,
+    extra_headers: []const std.http.Header,
+) ConnectorError!Response {
+    if (config.transport != .live) return ConnectorError.LiveTransportUnavailable;
+
+    const url = try joinUrl(allocator, config.base_url, path);
+    defer allocator.free(url);
+
+    var client = std.http.Client{ .allocator = allocator, .io = io };
+    defer client.deinit();
+
+    var response_writer = std.Io.Writer.Allocating.init(allocator);
+    defer response_writer.deinit();
+
+    const result = client.fetch(.{
+        .location = .{ .url = url },
+        .method = .POST,
+        .payload = body,
+        .headers = .{ .content_type = .{ .override = "application/x-www-form-urlencoded" } },
+        .extra_headers = extra_headers,
+        .response_writer = &response_writer.writer,
+        .redirect_behavior = .unhandled,
+        .keep_alive = false,
+    }) catch |err| return mapHttpError(err);
+
+    try mapHttpStatus(result.status);
+    return .{
+        .status = @intCast(@intFromEnum(result.status)),
+        .body = try response_writer.toOwnedSlice(),
+        .owned = true,
+    };
+}
+
 fn httpPostJson(
     io: std.Io,
     allocator: std.mem.Allocator,
@@ -806,6 +888,66 @@ fn bearerHeader(allocator: std.mem.Allocator, api_key: []const u8) ConnectorErro
 
 fn botHeader(allocator: std.mem.Allocator, token: []const u8) ConnectorError![]u8 {
     return try std.fmt.allocPrint(allocator, "Bot {s}", .{token});
+}
+
+fn basicAuthHeader(allocator: std.mem.Allocator, username: []const u8, password: []const u8) ConnectorError![]u8 {
+    const combined = try std.fmt.allocPrint(allocator, "{s}:{s}", .{ username, password });
+    defer allocator.free(combined);
+
+    var encoder = std.base64.standard.Encoder.init(.{});
+    const encoded_len = encoder.calcLength(combined.len);
+    const encoded = try allocator.alloc(u8, encoded_len);
+    defer allocator.free(encoded);
+
+    _ = encoder.encode(encoded, combined);
+    return try std.fmt.allocPrint(allocator, "Basic {s}", .{encoded});
+}
+
+fn buildTwiMLSay(allocator: std.mem.Allocator, text: []const u8, escalate: bool, escalation_url: []const u8) ConnectorError![]u8 {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+
+    try out.appendSlice(allocator, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Say>");
+    for (text) |byte| {
+        switch (byte) {
+            '<' => try out.appendSlice(allocator, "&lt;"),
+            '>' => try out.appendSlice(allocator, "&gt;"),
+            '&' => try out.appendSlice(allocator, "&amp;"),
+            '"' => try out.appendSlice(allocator, "&quot;"),
+            else => try out.append(allocator, byte),
+        }
+    }
+    try out.appendSlice(allocator, "</Say>");
+    if (escalate and escalation_url.len > 0) {
+        try out.appendSlice(allocator, "<Redirect>");
+        try out.appendSlice(allocator, escalation_url);
+        try out.appendSlice(allocator, "</Redirect>");
+    }
+    try out.appendSlice(allocator, "</Response>");
+    return try out.toOwnedSlice(allocator);
+}
+
+fn buildUrlEncodedForm(allocator: std.mem.Allocator, fields: []const [2][]const u8) ConnectorError![]u8 {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+
+    for (fields, 0..) |pair, i| {
+        if (i > 0) try out.append(allocator, '&');
+        try appendUrlEncoded(&out, allocator, pair[0]);
+        try out.append(allocator, '=');
+        try appendUrlEncoded(&out, allocator, pair[1]);
+    }
+    return try out.toOwnedSlice(allocator);
+}
+
+fn appendUrlEncoded(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
+    for (value) |byte| {
+        switch (byte) {
+            'A'...'Z', 'a'...'z', '0'...'9', '-', '_', '.', '~' => try out.append(allocator, byte),
+            ' ' => try out.appendSlice(allocator, "+"),
+            else => try out.print(allocator, "%{X:0>2}", .{byte}),
+        }
+    }
 }
 
 fn buildOpenAiBody(allocator: std.mem.Allocator, model: []const u8, messages: []const u8, stream: bool) ConnectorError![]u8 {
