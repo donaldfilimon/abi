@@ -7,6 +7,7 @@ pub const errors = @import("errors.zig");
 pub const os = @import("os.zig");
 pub const os_config = @import("os_config.zig");
 pub const io = @import("io.zig");
+pub const credentials = @import("credentials.zig");
 
 test {
     const std = @import("std");

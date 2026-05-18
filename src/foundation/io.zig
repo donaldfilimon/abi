@@ -3,7 +3,11 @@ const sync = @import("sync.zig");
 const time = @import("time.zig");
 
 pub const DEFAULT_BUFFER_SIZE = 4096;
-pub const MAX_PATH_LEN = std.fs.max_path_bytes;
+pub const MAX_PATH_LEN = std.Io.Dir.max_path_bytes;
+
+fn defaultIo() std.Io {
+    return std.Options.debug_io;
+}
 
 pub const IOStats = struct {
     bytes_read: u64 = 0,
@@ -72,29 +76,38 @@ pub const IOStatsSnapshot = struct {
 };
 
 pub const BufferedReader = struct {
-    file: std.fs.File,
+    file: std.Io.File,
+    allocator: std.mem.Allocator = std.heap.page_allocator,
     buffer: std.ArrayListUnmanaged(u8) = std.ArrayListUnmanaged(u8).empty,
     pos: usize = 0,
     end: usize = 0,
+    offset: u64 = 0,
     stats: ?*IOStats = null,
 
-    pub fn init(file: std.fs.File, buffer_size: usize) !BufferedReader {
+    pub fn init(file: std.Io.File, buffer_size: usize) !BufferedReader {
+        return initWithAllocator(std.heap.page_allocator, file, buffer_size);
+    }
+
+    pub fn initWithAllocator(allocator: std.mem.Allocator, file: std.Io.File, buffer_size: usize) !BufferedReader {
         var reader = BufferedReader{
             .file = file,
+            .allocator = allocator,
             .pos = 0,
             .end = 0,
         };
-        try reader.buffer.resize(file.allocator, buffer_size);
+        try reader.buffer.resize(allocator, buffer_size);
         return reader;
     }
 
     pub fn deinit(self: *BufferedReader, allocator: std.mem.Allocator) void {
-        self.buffer.deinit(allocator);
+        _ = allocator;
+        self.buffer.deinit(self.allocator);
     }
 
     pub fn fill(self: *BufferedReader) !usize {
         self.pos = 0;
-        const bytes_read = try self.file.readAll(self.buffer.items);
+        const bytes_read = try self.file.readPositionalAll(defaultIo(), self.buffer.items, self.offset);
+        self.offset += bytes_read;
         self.end = bytes_read;
         if (self.stats) |stats| {
             stats.recordRead(@intCast(bytes_read));
@@ -155,27 +168,36 @@ pub const BufferedReader = struct {
 };
 
 pub const BufferedWriter = struct {
-    file: std.fs.File,
+    file: std.Io.File,
+    allocator: std.mem.Allocator = std.heap.page_allocator,
     buffer: std.ArrayListUnmanaged(u8) = std.ArrayListUnmanaged(u8).empty,
     pos: usize = 0,
+    offset: u64 = 0,
     stats: ?*IOStats = null,
 
-    pub fn init(file: std.fs.File, buffer_size: usize) !BufferedWriter {
+    pub fn init(file: std.Io.File, buffer_size: usize) !BufferedWriter {
+        return initWithAllocator(std.heap.page_allocator, file, buffer_size);
+    }
+
+    pub fn initWithAllocator(allocator: std.mem.Allocator, file: std.Io.File, buffer_size: usize) !BufferedWriter {
         var writer = BufferedWriter{
             .file = file,
+            .allocator = allocator,
             .pos = 0,
         };
-        try writer.buffer.resize(file.allocator, buffer_size);
+        try writer.buffer.resize(allocator, buffer_size);
         return writer;
     }
 
     pub fn deinit(self: *BufferedWriter, allocator: std.mem.Allocator) void {
-        self.buffer.deinit(allocator);
+        _ = allocator;
+        self.buffer.deinit(self.allocator);
     }
 
     pub fn flush(self: *BufferedWriter) !void {
         if (self.pos > 0) {
-            try self.file.writeAll(self.buffer.items[0..self.pos]);
+            try self.file.writePositionalAll(defaultIo(), self.buffer.items[0..self.pos], self.offset);
+            self.offset += self.pos;
             if (self.stats) |stats| {
                 stats.recordWrite(@intCast(self.pos));
             }
@@ -220,9 +242,10 @@ pub const BufferedWriter = struct {
 };
 
 pub const FileStream = struct {
-    file: ?std.fs.File = null,
+    file: ?std.Io.File = null,
     path: []const u8,
     mode: Mode,
+    offset: u64 = 0,
     stats: ?*IOStats = null,
 
     pub const Mode = enum {
@@ -233,29 +256,40 @@ pub const FileStream = struct {
     };
 
     pub fn open(path: []const u8, mode: Mode) !FileStream {
+        const io_context = defaultIo();
+        var initial_offset: u64 = 0;
         const file = switch (mode) {
-            .read => try std.fs.openFileAbsolute(path, .{}),
-            .write => try std.fs.createFileAbsolute(path, .{ .truncate = true }),
-            .append => try std.fs.createFileAbsolute(path, .{ .append = true, .read = true }),
-            .read_write => try std.fs.createFileAbsolute(path, .{ .read = true }),
+            .read => try std.Io.Dir.openFileAbsolute(io_context, path, .{}),
+            .write => try std.Io.Dir.createFileAbsolute(io_context, path, .{ .truncate = true }),
+            .append => blk: {
+                const opened = std.Io.Dir.openFileAbsolute(io_context, path, .{ .mode = .read_write }) catch |err| switch (err) {
+                    error.FileNotFound => try std.Io.Dir.createFileAbsolute(io_context, path, .{ .read = true }),
+                    else => |e| return e,
+                };
+                initial_offset = (try opened.stat(io_context)).size;
+                break :blk opened;
+            },
+            .read_write => try std.Io.Dir.createFileAbsolute(io_context, path, .{ .read = true }),
         };
         return FileStream{
             .file = file,
             .path = path,
             .mode = mode,
+            .offset = initial_offset,
         };
     }
 
     pub fn deinit(self: *FileStream) void {
         if (self.file) |f| {
-            f.close();
+            f.close(defaultIo());
             self.file = null;
         }
     }
 
     pub fn read(self: *FileStream, buf: []u8) !usize {
         const f = self.file orelse return error.FileNotOpen;
-        const n = try f.read(buf);
+        const n = try f.readPositional(defaultIo(), &.{buf}, self.offset);
+        self.offset += n;
         if (self.stats) |stats| {
             stats.recordRead(@intCast(n));
         }
@@ -264,7 +298,8 @@ pub const FileStream = struct {
 
     pub fn readAll(self: *FileStream, buf: []u8) !usize {
         const f = self.file orelse return error.FileNotOpen;
-        const n = try f.readAll(buf);
+        const n = try f.readPositionalAll(defaultIo(), buf, self.offset);
+        self.offset += n;
         if (self.stats) |stats| {
             stats.recordRead(@intCast(n));
         }
@@ -273,7 +308,8 @@ pub const FileStream = struct {
 
     pub fn write(self: *FileStream, data: []const u8) !usize {
         const f = self.file orelse return error.FileNotOpen;
-        const n = try f.write(data);
+        const n = try f.writePositional(defaultIo(), &.{data}, self.offset);
+        self.offset += n;
         if (self.stats) |stats| {
             stats.recordWrite(@intCast(n));
         }
@@ -282,40 +318,45 @@ pub const FileStream = struct {
 
     pub fn writeAll(self: *FileStream, data: []const u8) !void {
         const f = self.file orelse return error.FileNotOpen;
-        try f.writeAll(data);
+        try f.writePositionalAll(defaultIo(), data, self.offset);
+        self.offset += data.len;
         if (self.stats) |stats| {
             stats.recordWrite(@intCast(data.len));
         }
     }
 
     pub fn seekTo(self: *FileStream, offset: u64) !void {
-        const f = self.file orelse return error.FileNotOpen;
-        try f.seekTo(offset);
+        _ = self.file orelse return error.FileNotOpen;
+        self.offset = offset;
     }
 
     pub fn seekBy(self: *FileStream, offset: i64) !void {
-        const f = self.file orelse return error.FileNotOpen;
-        try f.seekBy(offset);
+        _ = self.file orelse return error.FileNotOpen;
+        if (offset < 0) {
+            self.offset -= @intCast(-offset);
+        } else {
+            self.offset += @intCast(offset);
+        }
     }
 
     pub fn getPos(self: *FileStream) !u64 {
-        const f = self.file orelse return error.FileNotOpen;
-        return try f.getPos();
+        _ = self.file orelse return error.FileNotOpen;
+        return self.offset;
     }
 
     pub fn getEndPos(self: *FileStream) !u64 {
         const f = self.file orelse return error.FileNotOpen;
-        return try f.getEndPos();
+        return (try f.stat(defaultIo())).size;
     }
 
-    pub fn stat(self: *FileStream) !std.fs.File.Stat {
+    pub fn stat(self: *FileStream) !std.Io.File.Stat {
         const f = self.file orelse return error.FileNotOpen;
-        return try f.stat();
+        return try f.stat(defaultIo());
     }
 
     pub fn sync(self: *FileStream) !void {
         const f = self.file orelse return error.FileNotOpen;
-        try f.sync();
+        try f.sync(defaultIo());
     }
 
     pub fn isOpen(self: *FileStream) bool {
@@ -324,14 +365,15 @@ pub const FileStream = struct {
 };
 
 pub fn asyncReadFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-    const file = try std.fs.openFileAbsolute(path, .{});
-    defer file.close();
+    const io_context = defaultIo();
+    const file = try std.Io.Dir.openFileAbsolute(io_context, path, .{});
+    defer file.close(io_context);
 
-    const stat = try file.stat();
+    const stat = try file.stat(io_context);
     const buf = try allocator.alloc(u8, @intCast(stat.size));
     errdefer allocator.free(buf);
 
-    const bytes_read = try file.readAll(buf);
+    const bytes_read = try file.readPositionalAll(io_context, buf, 0);
     if (bytes_read < stat.size) {
         allocator.free(buf);
         return error.UnexpectedEOF;
@@ -341,67 +383,63 @@ pub fn asyncReadFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
 }
 
 pub fn asyncWriteFile(path: []const u8, data: []const u8) !void {
-    const file = try std.fs.createFileAbsolute(path, .{ .truncate = true });
-    defer file.close();
+    const io_context = defaultIo();
+    const file = try std.Io.Dir.createFileAbsolute(io_context, path, .{ .truncate = true });
+    defer file.close(io_context);
 
-    try file.writeAll(data);
+    try file.writeStreamingAll(io_context, data);
 }
 
 pub fn asyncAppendFile(path: []const u8, data: []const u8) !void {
-    const file = try std.fs.createFileAbsolute(path, .{ .append = true });
-    defer file.close();
+    const io_context = defaultIo();
+    const file = std.Io.Dir.openFileAbsolute(io_context, path, .{ .mode = .read_write }) catch |err| switch (err) {
+        error.FileNotFound => try std.Io.Dir.createFileAbsolute(io_context, path, .{ .read = true }),
+        else => |e| return e,
+    };
+    defer file.close(io_context);
 
-    try file.writeAll(data);
+    const stat = try file.stat(io_context);
+    try file.writePositionalAll(io_context, data, stat.size);
 }
 
 pub fn resolvePath(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-    if (std.fs.path.isAbsolute(path)) {
+    if (std.Io.Dir.path.isAbsolute(path)) {
         return try allocator.dupe(u8, path);
     }
 
     var buf: [MAX_PATH_LEN]u8 = undefined;
-    const cwd = std.fs.cwd();
-    const resolved = try cwd.realpath(path, &buf);
-    return try allocator.dupe(u8, resolved);
+    const len = try std.Io.Dir.realPathFile(.cwd(), defaultIo(), path, &buf);
+    return try allocator.dupe(u8, buf[0..len]);
 }
 
 pub fn ensureDir(path: []const u8) !void {
-    if (dirExists(path)) return;
-
-    var iter = std.mem.splitScalar(u8, path, std.fs.path.sep);
-    var built = std.ArrayListUnmanaged(u8).empty;
-    defer built.deinit(std.heap.page_allocator);
-
-    var first = true;
-    while (iter.next()) |component| {
-        if (component.len == 0) {
-            if (first) {
-                try built.append(std.heap.page_allocator, std.fs.path.sep);
-                first = false;
-            }
-            continue;
-        }
-        first = false;
-        if (built.items.len > 0 and built.items[built.items.len - 1] != std.fs.path.sep) {
-            try built.append(std.heap.page_allocator, std.fs.path.sep);
-        }
-        try built.appendSlice(std.heap.page_allocator, component);
-
-        const dir_path = built.items;
-        std.fs.makeDirAbsolute(dir_path) catch |err| {
-            if (err != error.PathAlreadyExists) return err;
-        };
-    }
+    try std.Io.Dir.createDirPath(.cwd(), defaultIo(), path);
 }
 
 pub fn fileExists(path: []const u8) bool {
-    std.fs.accessAbsolute(path, .{ .mode = .read_only }) catch return false;
+    std.Io.Dir.accessAbsolute(defaultIo(), path, .{ .read = true }) catch return false;
     return true;
 }
 
 pub fn dirExists(path: []const u8) bool {
-    const stat = std.fs.cwd().statFile(path) catch return false;
+    const stat = std.Io.Dir.statFile(.cwd(), defaultIo(), path, .{}) catch return false;
     return stat.kind == .directory;
+}
+
+fn deleteFileForTest(path: []const u8) void {
+    std.Io.Dir.deleteFileAbsolute(defaultIo(), path) catch {};
+}
+
+fn deleteTreeForTest(path: []const u8) void {
+    std.Io.Dir.deleteTree(.cwd(), defaultIo(), path) catch {};
+}
+
+fn openFileForRead(path: []const u8) !std.Io.File {
+    return try std.Io.Dir.openFileAbsolute(defaultIo(), path, .{});
+}
+
+fn createFileForWrite(path: []const u8) !std.Io.File {
+    return try std.Io.Dir.createFileAbsolute(defaultIo(), path, .{ .truncate = true });
 }
 
 test {
@@ -437,7 +475,7 @@ test "IOStats reset" {
 
 test "asyncWriteFile and asyncReadFile roundtrip" {
     const test_path = "/tmp/abi_io_async_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     const content = "hello async io world";
     try asyncWriteFile(test_path, content);
@@ -450,7 +488,7 @@ test "asyncWriteFile and asyncReadFile roundtrip" {
 
 test "asyncAppendFile" {
     const test_path = "/tmp/abi_io_append_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     try asyncWriteFile(test_path, "line1\n");
     try asyncAppendFile(test_path, "line2\n");
@@ -459,6 +497,18 @@ test "asyncAppendFile" {
     defer std.testing.allocator.free(content);
 
     try std.testing.expectEqualStrings("line1\nline2\n", content);
+}
+
+test "asyncAppendFile creates missing file" {
+    const test_path = "/tmp/abi_io_append_create_test.txt";
+    defer deleteFileForTest(test_path);
+
+    try asyncAppendFile(test_path, "created\n");
+
+    const content = try asyncReadFile(std.testing.allocator, test_path);
+    defer std.testing.allocator.free(content);
+
+    try std.testing.expectEqualStrings("created\n", content);
 }
 
 test "fileExists and dirExists" {
@@ -471,7 +521,7 @@ test "fileExists and dirExists" {
 test "ensureDir creates nested directories" {
     const test_dir = "/tmp/abi_io_test_nested/a/b/c";
     defer {
-        std.fs.deleteTreeAbsolute("/tmp/abi_io_test_nested") catch {};
+        deleteTreeForTest("/tmp/abi_io_test_nested");
     }
 
     try ensureDir(test_dir);
@@ -488,14 +538,14 @@ test "resolvePath absolute path" {
 
 test "BufferedReader basic read" {
     const test_path = "/tmp/abi_io_buffered_read_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     try asyncWriteFile(test_path, "hello buffered reader");
 
-    const file = try std.fs.openFileAbsolute(test_path, .{});
-    defer file.close();
+    const file = try openFileForRead(test_path);
+    defer file.close(defaultIo());
 
-    var reader = try BufferedReader.init(file, 64);
+    var reader = try BufferedReader.initWithAllocator(std.testing.allocator, file, 64);
     defer reader.deinit(std.testing.allocator);
 
     var buf: [64]u8 = undefined;
@@ -505,14 +555,14 @@ test "BufferedReader basic read" {
 
 test "BufferedReader readByte" {
     const test_path = "/tmp/abi_io_readbyte_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     try asyncWriteFile(test_path, "AB");
 
-    const file = try std.fs.openFileAbsolute(test_path, .{});
-    defer file.close();
+    const file = try openFileForRead(test_path);
+    defer file.close(defaultIo());
 
-    var reader = try BufferedReader.init(file, 64);
+    var reader = try BufferedReader.initWithAllocator(std.testing.allocator, file, 64);
     defer reader.deinit(std.testing.allocator);
 
     try std.testing.expectEqual(@as(u8, 'A'), try reader.readByte());
@@ -521,12 +571,12 @@ test "BufferedReader readByte" {
 
 test "BufferedWriter basic write" {
     const test_path = "/tmp/abi_io_buffered_write_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
-    const file = try std.fs.createFileAbsolute(test_path, .{ .truncate = true });
-    defer file.close();
+    const file = try createFileForWrite(test_path);
+    defer file.close(defaultIo());
 
-    var writer = try BufferedWriter.init(file, 64);
+    var writer = try BufferedWriter.initWithAllocator(std.testing.allocator, file, 64);
     defer writer.deinit(std.testing.allocator);
 
     try writer.writeAll("hello buffered writer");
@@ -540,12 +590,12 @@ test "BufferedWriter basic write" {
 
 test "BufferedWriter writeByte" {
     const test_path = "/tmp/abi_io_writebyte_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
-    const file = try std.fs.createFileAbsolute(test_path, .{ .truncate = true });
-    defer file.close();
+    const file = try createFileForWrite(test_path);
+    defer file.close(defaultIo());
 
-    var writer = try BufferedWriter.init(file, 64);
+    var writer = try BufferedWriter.initWithAllocator(std.testing.allocator, file, 64);
     defer writer.deinit(std.testing.allocator);
 
     try writer.writeByte('X');
@@ -561,7 +611,7 @@ test "BufferedWriter writeByte" {
 
 test "FileStream read and seek" {
     const test_path = "/tmp/abi_io_filestream_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     try asyncWriteFile(test_path, "0123456789");
 
@@ -584,7 +634,7 @@ test "FileStream read and seek" {
 
 test "FileStream write mode" {
     const test_path = "/tmp/abi_io_filestream_write_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     {
         var stream = try FileStream.open(test_path, .write);
@@ -602,7 +652,7 @@ test "FileStream write mode" {
 
 test "FileStream with stats" {
     const test_path = "/tmp/abi_io_filestream_stats_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     var stats = IOStats{};
 
@@ -632,16 +682,16 @@ test "FileStream with stats" {
 
 test "BufferedReader with stats" {
     const test_path = "/tmp/abi_io_bufreader_stats_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     try asyncWriteFile(test_path, "stats buffered read");
 
     var stats = IOStats{};
 
-    const file = try std.fs.openFileAbsolute(test_path, .{});
-    defer file.close();
+    const file = try openFileForRead(test_path);
+    defer file.close(defaultIo());
 
-    var reader = try BufferedReader.init(file, 64);
+    var reader = try BufferedReader.initWithAllocator(std.testing.allocator, file, 64);
     defer reader.deinit(std.testing.allocator);
     reader.stats = &stats;
 
@@ -655,14 +705,14 @@ test "BufferedReader with stats" {
 
 test "BufferedWriter with stats" {
     const test_path = "/tmp/abi_io_bufwriter_stats_test.txt";
-    defer std.fs.deleteFileAbsolute(test_path) catch {};
+    defer deleteFileForTest(test_path);
 
     var stats = IOStats{};
 
-    const file = try std.fs.createFileAbsolute(test_path, .{ .truncate = true });
-    defer file.close();
+    const file = try createFileForWrite(test_path);
+    defer file.close(defaultIo());
 
-    var writer = try BufferedWriter.init(file, 64);
+    var writer = try BufferedWriter.initWithAllocator(std.testing.allocator, file, 64);
     defer writer.deinit(std.testing.allocator);
     writer.stats = &stats;
 

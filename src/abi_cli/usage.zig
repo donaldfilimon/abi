@@ -12,6 +12,8 @@ pub const commands = [_]Command{
     .{ .name = "agent", .usage = "abi agent <plan|train|tui|os> ...", .summary = "Run safe agent planning, WDBX-backed local training, TUI, or OS dry-runs" },
     .{ .name = "backends", .usage = "abi backends", .summary = "Show GPU, accelerator, shader, and MLIR backend status" },
     .{ .name = "plugin", .usage = "abi plugin list", .summary = "Inspect installed plugins" },
+    .{ .name = "auth", .usage = "abi auth <signin|logout|status>", .summary = "Manage authentication for external services" },
+    .{ .name = "twilio", .usage = "abi twilio simulate <input>", .summary = "Run a local Twilio voice-agent support simulation" },
     .{ .name = "tui", .usage = "abi tui", .summary = "Render a minimal terminal dashboard" },
 };
 

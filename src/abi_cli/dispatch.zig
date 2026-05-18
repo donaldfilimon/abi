@@ -24,6 +24,10 @@ pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8
         return handlers.handleBackends();
     } else if (std.mem.eql(u8, cmd, "plugin")) {
         return handlers.handlePlugin(allocator, args);
+    } else if (std.mem.eql(u8, cmd, "auth")) {
+        return handlers.handleAuth(io, allocator, args);
+    } else if (std.mem.eql(u8, cmd, "twilio")) {
+        return handlers.handleTwilio(allocator, args);
     } else if (std.mem.eql(u8, cmd, "tui")) {
         if (args.len != 2) return usage_mod.usageError("usage: abi tui");
         return handlers.renderTui(allocator);

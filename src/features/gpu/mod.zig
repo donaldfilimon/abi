@@ -142,12 +142,10 @@ pub fn detectBackend() BackendStatus {
 
 pub fn nativeKernelStatus() NativeKernelStatus {
     const status = detectBackend();
-    // Check if we're on macOS and Metal framework is available
-    const is_linked = if (builtin.target.os.tag == .macos) true else false;
     return .{
         .backend = status.backend,
-        .linked = is_linked,
-        .message = if (is_linked) "native GPU kernel dispatch is linked via Metal framework" else "native GPU kernel dispatch is not linked in this build; vectorized CPU fallback is active",
+        .linked = false,
+        .message = "native GPU kernel dispatch is not linked in this build; vectorized CPU fallback is active",
     };
 }
 
