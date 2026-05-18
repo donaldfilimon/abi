@@ -46,7 +46,7 @@ Status tracking for incomplete work items. Reference: `docs/spec/abi-refactor-de
 | Foundation IO optimization | ✅ Done | Async IO layer with buffered reader/writer |
 | Plugin registry enhancements | ✅ Done | PluginManager with manifest validation, load/unload/list |
 | Cross-compilation CI | ✅ Done | GitHub Actions native checks plus Linux/macOS cross-compile smoke builds |
-| GPU backend stubs completion | Partial | Metal framework linked on macOS (build.zig); native dispatch requires Metal/Vulkan kernel bindings |
+| GPU backend stubs completion | Partial | Metal framework linked on macOS (build.zig); nativeKernelStatus.linked now true on macOS; actual Metal/Vulkan kernel bindings still need implementation |
 | Mobile mod/stub pair | ✅ Done | feat-mobile mod.zig + stub.zig created, parity verified, 4 tests |
 | Twilio live transport | ✅ Done | httpPostForm helper, ConversationRelayEventLive with Basic auth, TwiML builder, configurable escalation |
 

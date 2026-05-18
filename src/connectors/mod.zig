@@ -462,6 +462,9 @@ pub const twilio = struct {
 
             const escalation = classifyEscalation(event);
             const escalation_url = if (self.config.escalation_url.len > 0) self.config.escalation_url else "";
+            if (escalation != null and escalation_url.len == 0) {
+                std.log.warn("Twilio escalation triggered but no escalation_url configured; redirect omitted", .{});
+            }
             const twiml = try buildTwiMLSay(allocator, agent_reply, escalation != null, escalation_url);
             defer allocator.free(twiml);
 

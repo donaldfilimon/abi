@@ -142,10 +142,14 @@ pub fn detectBackend() BackendStatus {
 
 pub fn nativeKernelStatus() NativeKernelStatus {
     const status = detectBackend();
+    const metal_linked = builtin.target.os.tag == .macos;
     return .{
         .backend = status.backend,
-        .linked = false,
-        .message = "native GPU kernel dispatch is not linked in this build; vectorized CPU fallback is active",
+        .linked = metal_linked,
+        .message = if (metal_linked)
+            "Metal framework linked at build time; native dispatch requires Metal bindings implementation"
+        else
+            "native GPU kernel dispatch is not linked in this build; vectorized CPU fallback is active",
     };
 }
 
@@ -177,7 +181,6 @@ test "gpu detection always provides a safe backend" {
     const status = detectBackend();
     try std.testing.expect(status.available);
     try std.testing.expect(status.message.len > 0);
-    try std.testing.expect(!nativeKernelStatus().linked);
 }
 
 test "gpu vector ops provide deterministic acceleration" {

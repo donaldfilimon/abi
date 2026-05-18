@@ -29,7 +29,8 @@ Compact instructions for automation and rapid ramp-up.
 - **Mod/Stub Pattern**: Each feature has `mod.zig` (real impl) and `stub.zig` (no-op when disabled). Changing public APIs requires updating **both**. Run parity check after.
 - **Feature Flags** (all default `true` unless noted):
   - `feat-ai`, `feat-gpu`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`
-  - `feat-tui`, `feat-mobile` defaults `false`
+  - `feat-tui` defaults `false`
+  - `feat-mobile` defaults `false`
   - Override with `-Dfeat-<name>=false` or `-Dfeat-<name>=true`
 - **GPU Backend Selection**: Runtime config in `src/config.zig` (`gpu_backend` field, default `.stdgpu`); not a build-time option.
 - **Conditional imports** in `src/features/mod.zig` select mod vs stub based on `build_options`.
