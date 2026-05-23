@@ -4,8 +4,8 @@ pub fn trimWhitespace(s: []const u8) []const u8 {
     return std.mem.trim(u8, s, &std.ascii.whitespace);
 }
 
-pub fn splitLines(s: []const u8, allocator: std.mem.Allocator) !std.ArrayListUnmanaged([]const u8) {
-    var result = std.ArrayListUnmanaged([]const u8).empty;
+pub fn splitLines(s: []const u8, allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
+    var result: std.ArrayList([]const u8) = .empty;
     errdefer {
         for (result.items) |line| {
             allocator.free(line);
@@ -32,7 +32,7 @@ pub fn joinStrings(parts: []const []const u8, separator: []const u8, allocator: 
     }
     total_len += separator.len * (parts.len - 1);
 
-    var result = std.ArrayListUnmanaged(u8).empty;
+    var result: std.ArrayList(u8) = .empty;
     errdefer result.deinit(allocator);
 
     try result.ensureTotalCapacity(allocator, total_len);
@@ -117,6 +117,24 @@ pub fn endsWith(haystack: []const u8, needle: []const u8) bool {
 
 pub fn contains(haystack: []const u8, needle: []const u8) bool {
     return std.mem.indexOf(u8, haystack, needle) != null;
+}
+
+pub fn stringEqlIgnoreCase(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    for (a, b) |left, right| {
+        if (std.ascii.toLower(left) != std.ascii.toLower(right)) return false;
+    }
+    return true;
+}
+
+pub fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0) return true;
+    if (needle.len > haystack.len) return false;
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) : (i += 1) {
+        if (stringEqlIgnoreCase(haystack[i .. i + needle.len], needle)) return true;
+    }
+    return false;
 }
 
 test {
@@ -208,4 +226,17 @@ test "contains" {
     try std.testing.expect(contains("hello world", "lo wo"));
     try std.testing.expect(!contains("hello", "xyz"));
     try std.testing.expect(contains("abc", ""));
+}
+
+test "containsIgnoreCase" {
+    try std.testing.expect(containsIgnoreCase("Hello World", "hello"));
+    try std.testing.expect(containsIgnoreCase("HELLO WORLD", "hello"));
+    try std.testing.expect(containsIgnoreCase("hello world", "WORLD"));
+    try std.testing.expect(!containsIgnoreCase("hello", "world"));
+}
+
+test "stringEqlIgnoreCase" {
+    try std.testing.expect(stringEqlIgnoreCase("hello", "HELLO"));
+    try std.testing.expect(stringEqlIgnoreCase("Hello", "hello"));
+    try std.testing.expect(!stringEqlIgnoreCase("hello", "world"));
 }

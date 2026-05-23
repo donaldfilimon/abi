@@ -48,6 +48,10 @@ pub fn renderDryRun(allocator: std.mem.Allocator, request: CommandRequest) ![]u8
     return allocator.dupe(u8, "dry-run: os control feature is disabled");
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn executeConfirmed(allocator: std.mem.Allocator, io: std.Io, request: CommandRequest, policy: Policy) !CommandResult {
     _ = allocator;
     _ = io;

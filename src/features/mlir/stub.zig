@@ -47,6 +47,10 @@ pub fn toolchainStatus() ToolchainStatus {
     };
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn lower(allocator: std.mem.Allocator, spec: ModuleSpec) !LoweringResult {
     return .{
         .module_name = spec.name,

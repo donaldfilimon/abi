@@ -70,6 +70,26 @@ pub const TrainingResult = struct {
     }
 };
 
+pub const CompletionRequest = struct {
+    input: []const u8,
+    model: []const u8 = "abi-local",
+    store_result: bool = false,
+};
+
+pub const CompletionResult = struct {
+    model: []const u8,
+    selected_profile: AgentProfile,
+    output: []u8,
+    audit: AuditResult,
+    query_vector_id: ?u32 = null,
+    response_vector_id: ?u32 = null,
+    block_id: ?[32]u8 = null,
+
+    pub fn deinit(self: CompletionResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.output);
+    }
+};
+
 pub const AgentConfig = struct {
     name: []const u8,
     instructions: []const u8,
@@ -123,10 +143,75 @@ pub const profile = struct {
         return .abbey;
     }
 
+    /// Helper function to route to the appropriate profile based on profile selector
+    pub fn routeToProfile(allocator: std.mem.Allocator, profile_sel: AgentProfile, input: []const u8) ![]u8 {
+        _ = profile_sel;
+        _ = input;
+        return try allocator.dupe(u8, "AI feature is disabled");
+    }
+
     pub fn routeInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
         _ = input;
         return try allocator.dupe(u8, "AI feature is disabled");
     }
+
+    pub fn routeInputAdaptive(allocator: std.mem.Allocator, store: anytype, input: []const u8) ![]u8 {
+        _ = store;
+        _ = input;
+        return try allocator.dupe(u8, "AI feature is disabled");
+    }
+
+    pub const AdaptiveModulator = struct {
+        w_ema: ProfileWeights,
+        alpha: f32,
+        update_count: u32,
+
+        pub fn init() AdaptiveModulator {
+            return .{
+                .w_ema = .{},
+                .alpha = 0.3,
+                .update_count = 0,
+            };
+        }
+
+        pub fn initWithAlpha(alpha: f32) AdaptiveModulator {
+            return .{
+                .w_ema = .{},
+                .alpha = alpha,
+                .update_count = 0,
+            };
+        }
+
+        pub fn update(self: *AdaptiveModulator, observed: ProfileWeights) void {
+            _ = self;
+            _ = observed;
+        }
+
+        pub fn weights(self: *const AdaptiveModulator) ProfileWeights {
+            return self.w_ema;
+        }
+
+        pub fn serialize(self: *const AdaptiveModulator, allocator: std.mem.Allocator) ![]u8 {
+            _ = self;
+            return try allocator.dupe(u8, "0.33,0.33,0.34,0,0.3");
+        }
+
+        pub fn deserialize(data: []const u8) AdaptiveModulator {
+            _ = data;
+            return AdaptiveModulator.init();
+        }
+
+        pub fn loadWeights(store: anytype) AdaptiveModulator {
+            _ = store;
+            return AdaptiveModulator.init();
+        }
+
+        pub fn saveWeights(self: *const AdaptiveModulator, allocator: std.mem.Allocator, store: anytype) !void {
+            _ = self;
+            _ = allocator;
+            _ = store;
+        }
+    };
 };
 
 pub const pipeline = struct {
@@ -151,7 +236,7 @@ pub const constitution = struct {
             _ = response;
             return .{
                 .passed = true,
-                .violations = std.bit_set.IntegerBitSet(6).initEmpty(),
+                .violations = std.bit_set.IntegerBitSet(6).empty,
             };
         }
 
@@ -160,7 +245,7 @@ pub const constitution = struct {
             _ = principles;
             return .{
                 .passed = true,
-                .violations = std.bit_set.IntegerBitSet(6).initEmpty(),
+                .violations = std.bit_set.IntegerBitSet(6).empty,
             };
         }
     };
@@ -169,6 +254,21 @@ pub const constitution = struct {
 pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     _ = input;
     return try allocator.dupe(u8, "AI feature is disabled");
+}
+
+pub fn complete(allocator: std.mem.Allocator, request: CompletionRequest) !CompletionResult {
+    _ = request;
+    return .{
+        .model = "disabled",
+        .selected_profile = .abbey,
+        .output = try allocator.dupe(u8, "AI feature is disabled"),
+        .audit = constitution.Constitution.validate("AI feature is disabled"),
+    };
+}
+
+pub fn completeWithStore(allocator: std.mem.Allocator, store: anytype, request: CompletionRequest) !CompletionResult {
+    _ = store;
+    return complete(allocator, request);
 }
 
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
@@ -214,4 +314,18 @@ pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []cons
     _ = config;
     _ = input;
     return .{ .output = try allocator.dupe(u8, "AI feature is disabled"), .requires_review = true };
+}
+
+pub fn countNonEmptyLines(data: []const u8) usize {
+    _ = data;
+    return 0;
+}
+
+pub fn textEmbedding(input: []const u8) [4]f32 {
+    _ = input;
+    return .{ 0.25, 0.25, 0.25, 0.25 };
+}
+
+pub fn responseEmbedding(query: [4]f32) [4]f32 {
+    return query;
 }

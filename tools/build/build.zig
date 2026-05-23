@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     // Feature Flags
     const feat_ai = b.option(bool, "feat-ai", "Enable AI features") orelse true;
     const feat_gpu = b.option(bool, "feat-gpu", "Enable GPU acceleration") orelse true;
-    const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse false;
+    const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse true;
     const feat_accelerator = b.option(bool, "feat-accelerator", "Enable accelerator backend selection") orelse true;
     const feat_shader = b.option(bool, "feat-shader", "Enable Zig shader validation backend") orelse true;
     const feat_mlir = b.option(bool, "feat-mlir", "Enable textual MLIR lowering backend") orelse true;
@@ -47,6 +47,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     abi_mod.addImport("build_options", options_mod);
+
+    if (target.result.os.tag == .macos and feat_gpu) {
+        abi_mod.linkFramework("Metal", .{});
+        abi_mod.linkFramework("Foundation", .{});
+        abi_mod.linkSystemLibrary("objc", .{});
+    }
 
     // CLI Executable
     const exe = b.addExecutable(.{
@@ -163,8 +169,10 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&fmt_check.step);
     check_step.dependOn(&parity_check.step);
 
-    const full_check_step = b.step("full-check", "Run the full validation suite");
+    const full_check_step = b.step("full-check", "Run check, integration tests, and benchmarks");
     full_check_step.dependOn(check_step);
+    full_check_step.dependOn(test_integration_step);
+    full_check_step.dependOn(bench_step);
 
     const lint_step = b.step("lint", "Check Zig formatting");
     lint_step.dependOn(&fmt_check.step);

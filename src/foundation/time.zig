@@ -9,3 +9,18 @@ pub fn unixMs() i64 {
     const nsec_ms = @divTrunc(@as(i64, ts.nsec), std.time.ns_per_ms);
     return sec_ms + nsec_ms;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
+
+test "unixMs returns a positive timestamp" {
+    const t = unixMs();
+    try std.testing.expect(t > 0);
+}
+
+test "unixMs is monotonic" {
+    const t1 = unixMs();
+    const t2 = unixMs();
+    try std.testing.expect(t2 >= t1);
+}

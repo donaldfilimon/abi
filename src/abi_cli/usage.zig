@@ -8,13 +8,15 @@ pub const Command = struct {
 
 pub const commands = [_]Command{
     .{ .name = "help", .usage = "abi help [command]", .summary = "Show top-level or command-specific help" },
+    .{ .name = "complete", .usage = "abi complete <input>", .summary = "Run local model completion with WDBX metadata" },
     .{ .name = "train", .usage = "abi train <input>", .summary = "Run the AI pipeline compatibility command" },
     .{ .name = "agent", .usage = "abi agent <plan|train|tui|os> ...", .summary = "Run safe agent planning, WDBX-backed local training, TUI, or OS dry-runs" },
     .{ .name = "backends", .usage = "abi backends", .summary = "Show GPU, accelerator, shader, and MLIR backend status" },
     .{ .name = "plugin", .usage = "abi plugin list", .summary = "Inspect installed plugins" },
     .{ .name = "auth", .usage = "abi auth <signin|logout|status>", .summary = "Manage authentication for external services" },
     .{ .name = "twilio", .usage = "abi twilio simulate <input>", .summary = "Run a local Twilio voice-agent support simulation" },
-    .{ .name = "tui", .usage = "abi tui", .summary = "Render a minimal terminal dashboard" },
+    .{ .name = "tui", .usage = "abi tui", .summary = "Render the diagnostics dashboard" },
+    .{ .name = "dashboard", .usage = "abi dashboard", .summary = "Render the diagnostics dashboard" },
 };
 
 pub fn printUsage() void {

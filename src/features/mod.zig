@@ -12,5 +12,14 @@ pub const mobile = if (build_options.feat_mobile) @import("mobile/mod.zig") else
 
 test {
     const std = @import("std");
+    std.testing.refAllDecls(ai);
+    std.testing.refAllDecls(accelerator);
+    std.testing.refAllDecls(gpu);
+    std.testing.refAllDecls(mlir);
+    std.testing.refAllDecls(os_control);
+    std.testing.refAllDecls(shaders);
+    std.testing.refAllDecls(tui);
+    std.testing.refAllDecls(wdbx);
+    std.testing.refAllDecls(mobile);
     std.testing.refAllDecls(@This());
 }

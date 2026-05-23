@@ -54,13 +54,22 @@ pub fn detectPlatform() PlatformStatus {
         };
     }
 
-    if (builtin.target.os.tag == .android) {
-        return .{
-            .platform = .android,
-            .available = true,
-            .accelerated = false,
-            .message = "Android platform detected; mobile feature active, native dispatch pending",
-        };
+    if (comptime has: {
+        const Tag = std.Target.Os.Tag;
+        const info = @typeInfo(Tag).@"enum";
+        for (info.fields) |field| {
+            if (std.mem.eql(u8, field.name, "android")) break :has true;
+        }
+        break :has false;
+    }) {
+        if (builtin.target.os.tag == .android) {
+            return .{
+                .platform = .android,
+                .available = true,
+                .accelerated = false,
+                .message = "Android platform detected; mobile feature active, native dispatch pending",
+            };
+        }
     }
 
     const gpu_status = gpu.detectBackend();
@@ -94,17 +103,17 @@ pub fn getDeviceInfo(allocator: std.mem.Allocator) !DeviceInfo {
 pub fn renderMobileView(allocator: std.mem.Allocator, title: []const u8, items: []const []const u8) ![]u8 {
     if (title.len == 0) return error.InvalidMobileView;
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(allocator);
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
 
     const status = detectPlatform();
-    try output.print(allocator, "[{s}] {s}\n", .{ platformName(status.platform), title });
+    try out.print(allocator, "[{s}] {s}\n", .{ platformName(status.platform), title });
     for (items) |item| {
-        try output.print(allocator, "  - {s}\n", .{item});
+        try out.print(allocator, "  - {s}\n", .{item});
     }
-    try output.print(allocator, "status: {s}\n", .{status.message});
+    try out.print(allocator, "status: {s}\n", .{status.message});
 
-    return output.toOwnedSlice(allocator);
+    return try out.toOwnedSlice(allocator);
 }
 
 pub fn executeMobileTask(allocator: std.mem.Allocator, task_name: []const u8) ![]u8 {
@@ -128,7 +137,7 @@ test "mobile platform detection always provides a safe platform" {
 }
 
 test "mobile device info returns simulated data" {
-    const info = try getDeviceInfo(std.testing.allocator);
+    var info = try getDeviceInfo(std.testing.allocator);
     defer info.deinit(std.testing.allocator);
     try std.testing.expect(info.platform == .unknown or info.platform == .ios or info.platform == .android);
     try std.testing.expect(info.screen.width > 0);

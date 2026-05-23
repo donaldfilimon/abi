@@ -1,101 +1,13 @@
 const std = @import("std");
-const test_helpers = @import("test_helpers.zig");
+const test_helpers = @import("testing/test_helpers.zig");
 const wdbx = @import("features/wdbx/mod.zig");
-const constitution = @import("features/ai/constitution/mod.zig");
+const constitution = @import("features/ai/constitution.zig");
 const gpu_mod = @import("features/gpu/mod.zig");
+const router = @import("features/ai/router.zig");
 
-const AgentProfile = enum {
-    abbey,
-    aviva,
-    abi,
-
-    pub fn label(self: AgentProfile) []const u8 {
-        return switch (self) {
-            .abbey => "abbey",
-            .aviva => "aviva",
-            .abi => "abi",
-        };
-    }
-};
-
-const ProfileWeights = struct {
-    w_abbey: f32,
-    w_aviva: f32,
-    w_abi: f32,
-
-    pub fn normalize(self: *ProfileWeights) void {
-        const total = self.w_abbey + self.w_aviva + self.w_abi;
-        if (total > 0) {
-            self.w_abbey /= total;
-            self.w_aviva /= total;
-            self.w_abi /= total;
-        }
-    }
-};
-
-const SentimentKeyword = struct {
-    word: []const u8,
-    abbey_score: f32,
-    aviva_score: f32,
-    abi_score: f32,
-};
-
-const SENTIMENT_KEYWORDS = [_]SentimentKeyword{
-    .{ .word = "analyze", .abbey_score = 0.8, .aviva_score = 0.2, .abi_score = 0.3 },
-    .{ .word = "structure", .abbey_score = 0.9, .aviva_score = 0.1, .abi_score = 0.2 },
-    .{ .word = "logical", .abbey_score = 0.85, .aviva_score = 0.15, .abi_score = 0.2 },
-    .{ .word = "compare", .abbey_score = 0.7, .aviva_score = 0.4, .abi_score = 0.3 },
-    .{ .word = "explain", .abbey_score = 0.6, .aviva_score = 0.5, .abi_score = 0.3 },
-    .{ .word = "creative", .abbey_score = 0.2, .aviva_score = 0.9, .abi_score = 0.1 },
-    .{ .word = "imagine", .abbey_score = 0.1, .aviva_score = 0.95, .abi_score = 0.1 },
-    .{ .word = "explore", .abbey_score = 0.3, .aviva_score = 0.85, .abi_score = 0.2 },
-    .{ .word = "brainstorm", .abbey_score = 0.2, .aviva_score = 0.9, .abi_score = 0.15 },
-    .{ .word = "what if", .abbey_score = 0.2, .aviva_score = 0.8, .abi_score = 0.2 },
-    .{ .word = "run", .abbey_score = 0.2, .aviva_score = 0.1, .abi_score = 0.9 },
-    .{ .word = "execute", .abbey_score = 0.3, .aviva_score = 0.1, .abi_score = 0.95 },
-    .{ .word = "deploy", .abbey_score = 0.2, .aviva_score = 0.1, .abi_score = 0.9 },
-    .{ .word = "build", .abbey_score = 0.4, .aviva_score = 0.3, .abi_score = 0.8 },
-    .{ .word = "fix", .abbey_score = 0.5, .aviva_score = 0.1, .abi_score = 0.85 },
-    .{ .word = "quick", .abbey_score = 0.2, .aviva_score = 0.2, .abi_score = 0.8 },
-    .{ .word = "safe", .abbey_score = 0.7, .aviva_score = 0.3, .abi_score = 0.4 },
-    .{ .word = "risk", .abbey_score = 0.75, .aviva_score = 0.4, .abi_score = 0.5 },
-    .{ .word = "design", .abbey_score = 0.5, .aviva_score = 0.7, .abi_score = 0.3 },
-    .{ .word = "pattern", .abbey_score = 0.8, .aviva_score = 0.3, .abi_score = 0.2 },
-};
-
-fn analyzeSentiment(input: []const u8) ProfileWeights {
-    var weights = ProfileWeights{
-        .w_abbey = 0.33,
-        .w_aviva = 0.33,
-        .w_abi = 0.34,
-    };
-
-    const lower_input = input;
-    var it = std.mem.splitScalar(u8, lower_input, ' ');
-    while (it.next()) |word| {
-        const trimmed = std.mem.trimEnd(u8, word, &.{ '.', ',', '!', '?', ':', ';', '"', '\'' });
-        for (SENTIMENT_KEYWORDS) |kw| {
-            if (std.mem.startsWith(u8, trimmed, kw.word) or std.mem.endsWith(u8, trimmed, kw.word)) {
-                weights.w_abbey += kw.abbey_score * 0.1;
-                weights.w_aviva += kw.aviva_score * 0.1;
-                weights.w_abi += kw.abi_score * 0.1;
-            }
-        }
-    }
-
-    weights.normalize();
-    return weights;
-}
-
-fn selectProfile(weights: ProfileWeights) AgentProfile {
-    if (weights.w_abbey >= weights.w_aviva and weights.w_abbey >= weights.w_abi) {
-        return .abbey;
-    } else if (weights.w_aviva >= weights.w_abi) {
-        return .aviva;
-    } else {
-        return .abi;
-    }
-}
+const AgentProfile = @import("features/ai/mod.zig").AgentProfile;
+const analyzeSentiment = router.analyzeSentiment;
+const selectProfile = router.selectBestProfile;
 
 test "wdbx index insert and search" {
     var store = wdbx.Store.init(std.testing.allocator);
@@ -106,7 +18,7 @@ test "wdbx index insert and search" {
     _ = try store.putVector(&.{ 0.0, 1.0, 0.0, 0.0 });
     _ = try store.putVector(&.{ 0.1, 0.9, 0.0, 0.0 });
 
-    try std.testing.expectEqual(@as(usize, 4), store.vectors.items.len);
+    try std.testing.expectEqual(@as(usize, 4), store.vectorCount());
 
     const results = try store.search(&.{ 1.0, 0.0, 0.0, 0.0 }, 2);
     defer std.testing.allocator.free(results);
@@ -127,18 +39,22 @@ test "wdbx block chain integrity" {
 
     try std.testing.expectEqual(@as(usize, 3), store.blockCount());
 
-    try std.testing.expectEqualStrings("abbey", store.blocks.items[0].profile);
-    try std.testing.expectEqualStrings("aviva", store.blocks.items[1].profile);
-    try std.testing.expectEqualStrings("abi", store.blocks.items[2].profile);
+    var it = store.chain.iterator();
+    defer store.chain.releaseIterator();
 
-    const first = store.blocks.items[0];
+    const first = it.next().?.data;
+    const second = it.next().?.data;
+    const third = it.next().?.data;
+
+    try std.testing.expectEqualStrings("abbey", first.profile);
+    try std.testing.expectEqualStrings("aviva", second.profile);
+    try std.testing.expectEqualStrings("abi", third.profile);
+
     const zero_id = std.mem.zeroes([32]u8);
     try std.testing.expect(std.mem.eql(u8, &first.prev_id, &zero_id));
 
-    const second = store.blocks.items[1];
     try std.testing.expect(std.mem.eql(u8, &second.prev_id, &h1));
 
-    const third = store.blocks.items[2];
     try std.testing.expect(std.mem.eql(u8, &third.prev_id, &h2));
 }
 

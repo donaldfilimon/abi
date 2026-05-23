@@ -1,4 +1,7 @@
 {
-  "prefersReducedMotion": true,
-  "outputStyle": "default"
+  "permissions": {
+    "allow": [
+      "Skill(abi-refactor-architecture)"
+    ]
+  }
 }

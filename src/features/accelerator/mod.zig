@@ -74,6 +74,10 @@ pub fn isAccelerated(selection: Selection) bool {
     };
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 test "training selects a safe accelerator" {
     const selection = selectBackend(.training);
     try std.testing.expect(selection.message.len > 0);

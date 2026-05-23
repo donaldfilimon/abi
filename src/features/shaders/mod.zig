@@ -1,4 +1,5 @@
 const std = @import("std");
+const validation = @import("../../foundation/validation.zig");
 
 pub const Language = enum {
     zig_kernel,
@@ -49,10 +50,10 @@ pub fn compilerStatus() CompilerStatus {
 }
 
 pub fn validate(source: ShaderSource) !void {
-    if (source.name.len == 0) return error.InvalidShaderName;
-    if (source.source.len == 0) return error.InvalidShaderSource;
-    if (std.mem.indexOfScalar(u8, source.name, 0) != null) return error.InvalidShaderName;
-    if (std.mem.indexOfScalar(u8, source.source, 0) != null) return error.InvalidShaderSource;
+    validation.validateNonEmptySlice("name", source.name) catch return error.InvalidShaderName;
+    validation.validateNonEmptySlice("source", source.source) catch return error.InvalidShaderSource;
+    validation.validateNoNullBytes("name", source.name) catch return error.InvalidShaderName;
+    validation.validateNoNullBytes("source", source.source) catch return error.InvalidShaderSource;
     switch (source.language) {
         .zig_kernel, .wgsl => if (std.mem.indexOf(u8, source.source, "fn main") == null) return error.MissingShaderEntryPoint,
         .msl => if (std.mem.indexOf(u8, source.source, "kernel") == null and std.mem.indexOf(u8, source.source, "main") == null) return error.MissingShaderEntryPoint,

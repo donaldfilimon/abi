@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const dispatch_mod = @import("abi_cli/dispatch.zig");
-const handlers = @import("abi_cli/handlers.zig");
+const handlers = @import("abi_cli/handlers/mod.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = std.heap.page_allocator;

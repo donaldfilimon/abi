@@ -1,172 +1,115 @@
-# GEMINI.md — ABI Framework
+# GEMINI.md - ABI Framework
 
-This file provides guidance to Google Gemini when working with code in this repository. See also CLAUDE.md and AGENTS.md for parallel AI-specific guidance.
+Quick reference for Google Gemini and compatible agents working on this Zig 0.17 ABI framework. Prefer executable config and source over prose when they disagree.
 
-## Project Overview
-
-ABI is a **Zig 0.17.0 framework** for AI services, semantic vector storage, GPU acceleration, and distributed runtime. This repository implements a multi-AI orchestration system (Abbey-Aviva-Abi pipeline) with constitutional AI governance.
-
-## Quick Reference
-
-- **Entry point**: `src/root.zig` (exported as `@import("abi")`)
-- **Zig version**: Pinned in `.zigversion` (0.17.0)
-- **Build wrapper**: `./build.sh` (macOS 26.4+) / `zig build` (Linux)
-- **Test gate**: `./build.sh check` or `zig build check`
-- **Parity check**: `zig build check-parity` (required after API changes)
-
-## Core Architecture
-
-### Multi-Level AI Pipeline
-
-```
-Input → Abi Analyzer → Adaptive Modulator (EMA learning) → Router → Profile Executor → Constitution Check → WDBX Store → Response
-         │                    │                                 │              │
-         ↓                    ↓                                 ↓              ↓
-    Sentiment +         User preferences              Abbey/Aviva/Abi    6 Principles
-    Policy + Rules       (adaptive routing)            profile execution   validation
-```
-
-### Module Organization
-
-| Directory         | Purpose                                        |
-| ----------------- | ---------------------------------------------- |
-| `src/core/`       | Framework lifecycle, registry                  |
-| `src/features/`   | AI features (ai, wdbx), protocols              |
-| `src/foundation/` | Utilities: time, logger, utils, errors         |
-| `src/runtime/`    | Memory, scheduler                              |
-
-### The Mod/Stub Pattern
-
-Every feature follows this contract:
-
-- `mod.zig` — Full implementation when feature enabled
-- `stub.zig` — API-compatible no-ops when feature disabled
-- `types.zig` — Shared types for both
-
-**Critical**: Update BOTH `mod.zig` AND `stub.zig` when changing public APIs. Always run `zig build check-parity` after modifications.
-
-### Feature Flags
-
-All features default enabled except `feat-mobile` and `feat-tui`:
+## First Commands
 
 ```bash
-zig build -Dfeat-gpu=false -Dfeat-ai=false    # Disable GPU and AI
-zig build -Dgpu-backend=metal                  # Set GPU backend
-zig build -Dfeat-tui=true                      # Enable TUI features
+./build.sh check              # primary gate on macOS/Darwin
+./build.sh full-check         # check + integration tests + benchmarks
+./build.sh cli                # build zig-out/bin/abi
+./build.sh mcp                # build zig-out/bin/abi-mcp
+zig build test-integration    # explicit integration suite
+zig build benchmarks          # explicit benchmark suite
 ```
 
-## Build System
+Zig is pinned by `.zigversion` to `0.17.0-dev.329+21b7ceb5e`; `build.zig.zon` keeps `0.17.0-dev.304+9787df942` as the package minimum. Plain `zig build` may work with a compatible local toolchain, but use `./build.sh ...` on macOS for the documented Darwin workflow.
 
-### macOS 26.4+ (Darwin 25.x)
-
-**Critical**: Always use `./build.sh` — it relinks with Apple's native linker (LLD fails on this OS version).
+## Current CLI Examples
 
 ```bash
-./build.sh                    # Build static library
-./build.sh cli                # Build CLI binary
-./build.sh mcp                # Build MCP server
-./build.sh test --summary all # Run all tests
-./build.sh check              # Lint + test + stub parity
-./build.sh full-check         # Full validation gate
+./zig-out/bin/abi backends
+./zig-out/bin/abi complete "Summarize the ABI runtime"
+./zig-out/bin/abi train "Summarize the ABI runtime"
+./zig-out/bin/abi agent plan "Plan a safe refactor"
+./zig-out/bin/abi agent train all
+./zig-out/bin/abi plugin list
+./zig-out/bin/abi dashboard
+./zig-out/bin/abi twilio simulate "I need support"
 ```
 
-### Linux/Older macOS
+Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, and `dashboard`. The top-level `--tui` shortcut also renders the dashboard.
+
+Do not assume old command names exist: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, and `serve` are not currently dispatched.
+
+## Project Map
+
+| Path | Purpose |
+| --- | --- |
+| `src/root.zig` | Public `abi` module root |
+| `src/main.zig` | CLI entry |
+| `src/abi_cli/` | CLI usage, dispatch, handlers |
+| `src/mcp/main.zig` | MCP JSON-RPC server |
+| `src/features/mod.zig` | Feature flag mod/stub selection |
+| `src/features/ai/` | AI profiles, router, constitution, training, local streaming helpers |
+| `src/features/wdbx/` | In-memory vector store, HNSW, block chain |
+| `src/features/gpu/` | GPU status, Metal attempt on macOS, CPU fallback |
+| `src/features/tui/` | Diagnostics dashboard renderer |
+| `src/connectors/` | OpenAI, Anthropic, Discord, Twilio connector surfaces |
+| `src/foundation/` | Time, sync, logger, utils, errors, OS, IO, credentials |
+| `src/core/registry.zig` | Plugin registry loading |
+| `src/plugins/plugin_manager.zig` | Manifest validation and local plugin manager API |
+| `tools/` | Build helpers, plugin registry generation, parity checker |
+
+## Feature Flags
+
+Default enabled: `feat-ai`, `feat-gpu`, `feat-tui`, `feat-accelerator`, `feat-shader`, `feat-mlir`, `feat-wdbx`, `feat-os-control`.
+
+Default disabled: `feat-mobile`.
+
+Use `-Dfeat-<name>=false|true`, for example:
 
 ```bash
-zig build test --summary all       # Run all tests
-zig build check                    # Full gate (lint + parity)
-zig build check-parity             # Verify mod/stub API match
-zig build cli                      # Build CLI (zig-out/bin/abi)
-zig build mcp                      # Build MCP server
+./build.sh check -Dfeat-tui=false
+./build.sh check -Dfeat-gpu=false
 ```
 
-## Development Conventions
+There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 
-### Naming Standards
+## MCP Facts
 
-- Functions/variables: `camelCase`
-- Types/structs: `PascalCase`
-- Constants: `SCREAMING_SNAKE_CASE`
-- Enum variants: `snake_case`
+- Build with `./build.sh mcp`.
+- Binary: `zig-out/bin/abi-mcp`.
+- Primary transport: JSON-RPC 2.0 over stdio.
+- Secondary transport: loopback HTTP/SSE on `127.0.0.1:8080` when available.
+- HTTP endpoints: `GET /sse`, `POST /message`.
+- Request size limit: 64KB.
+- Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`, `shutdown`.
+- Tools: `ai_run`, `ai_complete`, `ai_train`, `wdbx_query`.
 
-### Import Rules (Critical)
+## Development Rules
 
-1. **Within `src/`**: Use relative imports ONLY. Never `@import("abi")` from inside — causes circular import.
-2. **From `test/`**: Use `@import("abi")` and `@import("build_options")`.
-3. **Cross-feature**: Use conditional imports with build_options guards.
-4. **Always use `.zig` extension** on path imports.
+- Read `tasks/lessons.md` and `tasks/todo.md` before substantial work.
+- Public feature API changes require matching `mod.zig` and `stub.zig` updates.
+- Run `zig build check-parity` after public API changes.
+- Do not edit generated `src/plugin_registry.zig`; change plugin source or `tools/generate_plugin_registry.zig`.
+- Only MCP executable/handler files (`src/mcp/main.zig`, `src/mcp/handlers.zig`) may import `@import("abi")` from inside `src/`; other `src` imports should be relative `.zig` imports.
+- Do not use plain `rm`; use safe alternatives.
 
-### Error Handling
+## Zig 0.17 Notes
 
-| Mechanism       | When to Use                                      |
-| --------------- | ------------------------------------------------ |
-| `@compileError` | Compile-time contract violations only            |
-| `@panic`        | Unrecoverable invariants; CLI/tests only         |
-| `unreachable`   | Provably impossible branches (compiler-verified) |
-| Error unions    | All runtime failures in library code             |
+- Entry point: `pub fn main(init: std.process.Init) !void`.
+- Use `ArrayListUnmanaged(T).empty`.
+- Use `std.mem.trimEnd`.
+- Use `std.mem.splitScalar`, `splitAny`, or `splitSequence`.
+- Use `foundation.time.unixMs()` for timestamps.
+- Avoid silent empty `catch` blocks in persistence, inference, and data-access code.
 
-### Testing Requirements
+## Verification
 
-```zig
-test {
-    std.testing.refAllDecls(@This());
-}
+Before finishing code changes, run:
+
+```bash
+./build.sh check
 ```
 
-**Known pre-existing failures**: 2 inference engine connector tests, 1 auth integration test (not regressions).
+Use `./build.sh full-check` when you need the full local gate, including integration tests and benchmarks.
 
-### Zig 0.17.0 Patterns
+Run these explicitly when touched:
 
-- **Entry point**: `pub fn main(init: std.process.Init) !void`
-- **ArrayListUnmanaged**: Use `.empty` for initialization (e.g., `var list = std.ArrayListUnmanaged(u8).empty;`).
-- **Strings**: `std.mem.trimRight` is renamed to `std.mem.trimEnd`.
-- **Time**: `std.time.milliTimestamp` is removed; use `foundation.time.unixMs()`.
-- **Splitting**: Prefer `std.mem.splitScalar`, `std.mem.splitAny`, or `std.mem.splitSequence` over `std.mem.split`.
+```bash
+zig build test-integration
+zig build benchmarks
+```
 
-## AI Feature Structure (`src/features/ai/`)
-
-| Sub-directory                                  | Contents                                |
-| ---------------------------------------------- | --------------------------------------- |
-| `abbey/`, `aviva/`, `abi/`                     | Three personality profiles              |
-| `constitution/`                                | 6-principle AI governance               |
-| `agents/`, `multi_agent/`, `orchestration/`    | Agent systems                           |
-| `llm/`, `embeddings/`, `vision/`, `streaming/` | Core AI capabilities                    |
-| `abbey/`, `reasoning/`, `eval/`                | Reasoning systems                       |
-| `training/`, `federated/`, `memory/`           | Learning infrastructure                 |
-| `pipeline/`                                    | Composable prompt DSL with WDBX backing |
-
-## Workflows
-
-### Before Starting
-
-1. Read `tasks/lessons.md`
-2. Update `tasks/todo.md` for non-trivial changes
-
-### During Development
-
-3. Run `zig build check-parity` after any public API change
-4. Use `./build.sh full-check` (macOS) or `zig build full-check` (Linux) as verification gate
-
-### When Done
-
-5. Conventional Commits required
-6. Do NOT use `rm` — use safe alternatives only
-
-## Available Resources
-
-| File                      | Purpose                        |
-| ------------------------- | ------------------------------ |
-| `CLAUDE.md`               | Detailed Claude Code guidance  |
-| `AGENTS.md`               | Project-wide agent conventions |
-| `.zigversion`             | Pinned Zig version             |
-| `build.sh`                | macOS 26.4+ build wrapper      |
-| `tools/zigly`             | Zig version manager            |
-
-## Key Rules Summary
-
-1. **Never `@import("abi")` from `src/`** — cyclic dependency
-2. **Always use `./build.sh`** on macOS 26.4+
-3. **Always update stub.zig with mod.zig** changes
-4. **Always dupe string literals** in structs with `deinit()`
-5. **No `rm` command** — use safe alternatives
-6. **Parity check required** after any public API modification
+`tasks/todo.md` is the current source of truth for known failures. At the current modernization point, no known test failures are reproduced locally.

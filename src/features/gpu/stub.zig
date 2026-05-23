@@ -1,3 +1,7 @@
+pub const backends = @This();
+pub const vector_ops = @This();
+pub const reporting = @This();
+
 pub const Backend = enum {
     simulated,
     metal,
@@ -36,6 +40,14 @@ pub const KernelResult = struct {
 pub const NativeKernelStatus = struct {
     backend: Backend,
     linked: bool,
+    message: []const u8,
+};
+
+pub const BackendCapabilities = struct {
+    backend: Backend,
+    available: bool,
+    accelerated: bool,
+    native_kernels: bool,
     message: []const u8,
 };
 
@@ -87,12 +99,48 @@ pub fn backendName(backend: Backend) []const u8 {
 }
 
 pub fn detectBackend() BackendStatus {
+    return backendStatus(.simulated);
+}
+
+pub fn backendStatus(backend: Backend) BackendStatus {
+    const caps = backendCapabilities(backend);
     return .{
-        .backend = .simulated,
-        .available = true,
-        .accelerated = false,
-        .message = "GPU feature is disabled; using simulated backend",
+        .backend = caps.backend,
+        .available = caps.available,
+        .accelerated = caps.accelerated,
+        .message = caps.message,
     };
+}
+
+pub fn backendCapabilities(backend: Backend) BackendCapabilities {
+    return .{
+        .backend = backend,
+        .available = backend == .simulated,
+        .accelerated = false,
+        .native_kernels = false,
+        .message = if (backend == .simulated) "GPU feature is disabled; simulated CPU backend active" else "GPU feature is disabled; backend unavailable",
+    };
+}
+
+pub fn backendCapabilitiesList() [7]BackendCapabilities {
+    return .{
+        backendCapabilities(.simulated),
+        backendCapabilities(.metal),
+        backendCapabilities(.vulkan),
+        backendCapabilities(.cuda),
+        backendCapabilities(.webgpu),
+        backendCapabilities(.opengl),
+        backendCapabilities(.webgl2),
+    };
+}
+
+pub fn threadsPerGroup(backend: Backend) usize {
+    _ = backend;
+    return 1;
+}
+
+pub fn backendStatusReport(allocator: @import("std").mem.Allocator) ![]u8 {
+    return try allocator.dupe(u8, "GPU feature is disabled; simulated CPU backend active");
 }
 
 pub fn nativeKernelStatus() NativeKernelStatus {
@@ -123,4 +171,9 @@ pub fn executeKernel(spec: KernelSpec) !KernelResult {
 
 pub fn vectorOps() VectorOps {
     return VectorOps.init();
+}
+
+test {
+    const std = @import("std");
+    std.testing.refAllDecls(@This());
 }

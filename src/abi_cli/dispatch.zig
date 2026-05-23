@@ -1,6 +1,6 @@
 const std = @import("std");
 const usage_mod = @import("usage.zig");
-const handlers = @import("handlers.zig");
+const handlers = @import("handlers/mod.zig");
 
 pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 2) {
@@ -17,6 +17,9 @@ pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8
     } else if (std.mem.eql(u8, cmd, "train")) {
         if (args.len != 3) return usage_mod.usageError("usage: abi train <input>");
         return handlers.handleTrain(allocator, args[2]);
+    } else if (std.mem.eql(u8, cmd, "complete")) {
+        if (args.len != 3) return usage_mod.usageError("usage: abi complete <input>");
+        return handlers.handleComplete(allocator, args[2]);
     } else if (std.mem.eql(u8, cmd, "agent")) {
         return handlers.handleAgent(io, allocator, args);
     } else if (std.mem.eql(u8, cmd, "backends")) {
@@ -30,7 +33,10 @@ pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8
         return handlers.handleTwilio(allocator, args);
     } else if (std.mem.eql(u8, cmd, "tui")) {
         if (args.len != 2) return usage_mod.usageError("usage: abi tui");
-        return handlers.renderTui(allocator);
+        return handlers.handleDashboard(allocator);
+    } else if (std.mem.eql(u8, cmd, "dashboard")) {
+        if (args.len != 2) return usage_mod.usageError("usage: abi dashboard");
+        return handlers.handleDashboard(allocator);
     } else {
         std.debug.print("error: unknown command '{s}'\n\n", .{cmd});
         usage_mod.printUsage();

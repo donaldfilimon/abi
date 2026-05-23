@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     // Feature Flags - Enabled by default
     const feat_ai = b.option(bool, "feat-ai", "Enable AI features") orelse true;
     const feat_gpu = b.option(bool, "feat-gpu", "Enable GPU acceleration") orelse true;
-    const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse false;
+    const feat_tui = b.option(bool, "feat-tui", "Enable TUI features") orelse true;
     const feat_accelerator = b.option(bool, "feat-accelerator", "Enable accelerator backend selection") orelse true;
     const feat_shader = b.option(bool, "feat-shader", "Enable Zig shader validation backend") orelse true;
     const feat_mlir = b.option(bool, "feat-mlir", "Enable textual MLIR lowering backend") orelse true;
@@ -48,9 +48,10 @@ pub fn build(b: *std.Build) void {
     });
     abi_mod.addImport("build_options", options_mod);
 
-    // Link Metal framework for GPU acceleration on macOS when feat-gpu is enabled
     if (target.result.os.tag == .macos and feat_gpu) {
         abi_mod.linkFramework("Metal", .{});
+        abi_mod.linkFramework("Foundation", .{});
+        abi_mod.linkSystemLibrary("objc", .{});
     }
 
     // CLI Executable
@@ -105,6 +106,9 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/connectors/mod.zig"),
             .target = target,
             .optimize = optimize,
+            .imports = &.{
+                .{ .name = "build_options", .module = options_mod },
+            },
         }),
     });
     const run_connector_tests = b.addRunArtifact(connector_tests);
@@ -147,10 +151,57 @@ pub fn build(b: *std.Build) void {
     const bench_step = b.step("benchmarks", "Run benchmark suite");
     bench_step.dependOn(&run_benchmarks.step);
 
+    const cli_usage_mod = b.createModule(.{
+        .root_source_file = b.path("src/abi_cli/usage.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const mcp_handlers_mod = b.createModule(.{
+        .root_source_file = b.path("src/mcp/handlers.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+            .{ .name = "build_options", .module = options_mod },
+        },
+    });
+    const contract_surface_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/contracts/surface.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "cli_usage", .module = cli_usage_mod },
+                .{ .name = "mcp_handlers", .module = mcp_handlers_mod },
+            },
+        }),
+    });
+    const run_contract_surface_tests = b.addRunArtifact(contract_surface_tests);
+
+    const contract_mcp_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/contracts/mcp_tools.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "cli_usage", .module = cli_usage_mod },
+                .{ .name = "mcp_handlers", .module = mcp_handlers_mod },
+            },
+        }),
+    });
+    const run_contract_mcp_tests = b.addRunArtifact(contract_mcp_tests);
+
+    const run_contract_cli = b.addSystemCommand(&.{ "bash", "tools/run_contract_cli.sh" });
+    run_contract_cli.step.dependOn(b.getInstallStep());
+
+    const feature_stub_check = b.addSystemCommand(&.{ "bash", "tools/check_feature_stubs.sh" });
+    feature_stub_check.step.dependOn(&exe.step);
+
+    const tui_smoke = b.addSystemCommand(&.{ "zig", "build", "cli", "-Dfeat-tui=true" });
+
     // Fmt and Parity Checks
-    // Assuming zig fmt --check is available via system command for simplicity
-    const fmt_check = b.addSystemCommand(&.{ "zig", "fmt", "--check", "src", "tools", "build.zig" });
-    const fmt = b.addSystemCommand(&.{ "zig", "fmt", "src", "tools", "build.zig" });
+    const fmt_check = b.addSystemCommand(&.{ "zig", "fmt", "--check", "src", "tests", "tools", "build.zig" });
+    const fmt = b.addSystemCommand(&.{ "zig", "fmt", "src", "tests", "tools", "build.zig" });
 
     const parity_exe = b.addExecutable(.{
         .name = "check_parity",
@@ -166,11 +217,18 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&exe.step);
     check_step.dependOn(&mcp_exe.step);
     check_step.dependOn(test_step);
+    check_step.dependOn(&run_contract_surface_tests.step);
+    check_step.dependOn(&run_contract_mcp_tests.step);
+    check_step.dependOn(&run_contract_cli.step);
+    check_step.dependOn(&feature_stub_check.step);
     check_step.dependOn(&fmt_check.step);
     check_step.dependOn(&parity_check.step);
 
-    const full_check_step = b.step("full-check", "Run the full validation suite");
+    const full_check_step = b.step("full-check", "Run check, integration tests, benchmarks, and TUI smoke");
     full_check_step.dependOn(check_step);
+    full_check_step.dependOn(test_integration_step);
+    full_check_step.dependOn(bench_step);
+    full_check_step.dependOn(&tui_smoke.step);
 
     const lint_step = b.step("lint", "Check Zig formatting");
     lint_step.dependOn(&fmt_check.step);

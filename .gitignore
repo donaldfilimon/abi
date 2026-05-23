@@ -274,6 +274,21 @@ TRASH-FILES.md
 /abi-bootstrap-cli
 /abi-simple.zig
 
+# ── Consolidation cleanup (0.17 refactor) ───────────────────────────
+/build_output.txt
+/run_contract_cli
+/test_gpu.zig
+/test_gpu
+/probe
+/probe2
+/test_imports
+/test_imports2
+/test_imports3
+/src_next/
+.antigravitycli/
+.codex/
+.zls.json
+
 # ── Cleanup policy: markdown allowlist only ─────────────────────────
 # Ignore all markdown except explicitly allowlisted files.
 # NOTE: new docs under docs/ must be added to this allowlist.
@@ -291,6 +306,7 @@ TRASH-FILES.md
 !/CODEBASE_REVIEW.md
 !/GLOSSARY.md
 !/CODE_OF_CONDUCT.md
+!/walkthrough.md
 
 # Documentation tree
 !/docs/README.md

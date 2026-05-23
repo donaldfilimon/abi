@@ -69,6 +69,10 @@ pub const RwLock = struct {
     }
 };
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 test "RwLock basic usage" {
     var lock = RwLock{};
     lock.lockRead();

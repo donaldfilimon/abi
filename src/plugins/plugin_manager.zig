@@ -14,6 +14,13 @@ pub const PluginManifest = struct {
     version: []const u8,
     description: []const u8,
     entry_point: []const u8,
+
+    pub fn deinit(self: PluginManifest, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.version);
+        allocator.free(self.description);
+        allocator.free(self.entry_point);
+    }
 };
 
 pub const PluginInfo = struct {
@@ -68,9 +75,10 @@ pub const PluginManager = struct {
     }
 
     pub fn validatePlugin(allocator: std.mem.Allocator, manifest_json: []const u8) !PluginManifest {
-        var stream = std.json.TokenStream.init(manifest_json);
-        const parsed = std.json.parseFromTokenSource(std.json.Value, allocator, &stream, .{}) catch return ManifestSchemaError.InvalidJson;
+        const parsed = std.json.parseFromSlice(std.json.Value, allocator, manifest_json, .{}) catch return ManifestSchemaError.InvalidJson;
         defer parsed.deinit();
+
+        if (parsed.value != .object) return ManifestSchemaError.InvalidJson;
 
         const obj = parsed.value.object;
 
@@ -82,18 +90,32 @@ pub const PluginManager = struct {
         const version = if (version_entry == .string) version_entry.string else return ManifestSchemaError.InvalidVersion;
         if (version.len == 0) return ManifestSchemaError.InvalidVersion;
 
-        const description_entry = obj.get("description") orelse return .{ .string = "" };
-        const description = if (description_entry == .string) description_entry.string else "";
+        const description = if (obj.get("description")) |description_entry|
+            if (description_entry == .string) description_entry.string else ""
+        else
+            "";
 
         const entry_entry = obj.get("entry_point") orelse return ManifestSchemaError.MissingEntryPoint;
         const entry_point = if (entry_entry == .string) entry_entry.string else return ManifestSchemaError.MissingEntryPoint;
         if (entry_point.len == 0) return ManifestSchemaError.MissingEntryPoint;
 
+        const owned_name = try allocator.dupe(u8, name);
+        errdefer allocator.free(owned_name);
+
+        const owned_version = try allocator.dupe(u8, version);
+        errdefer allocator.free(owned_version);
+
+        const owned_description = try allocator.dupe(u8, description);
+        errdefer allocator.free(owned_description);
+
+        const owned_entry = try allocator.dupe(u8, entry_point);
+        errdefer allocator.free(owned_entry);
+
         return .{
-            .name = name,
-            .version = version,
-            .description = description,
-            .entry_point = entry_point,
+            .name = owned_name,
+            .version = owned_version,
+            .description = owned_description,
+            .entry_point = owned_entry,
         };
     }
 
@@ -101,13 +123,8 @@ pub const PluginManager = struct {
         const manifest_path = try std.fs.path.join(self.allocator, &.{ path, "abi-plugin.json" });
         defer self.allocator.free(manifest_path);
 
-        const file = std.fs.openFileAbsolute(manifest_path, .{}) catch |err| {
+        const content = std.Io.Dir.cwd().readFileAlloc(std.Options.debug_io, manifest_path, self.allocator, .limited(1024 * 64)) catch |err| {
             if (err == error.FileNotFound) return PluginLoadError.FileNotFound;
-            return err;
-        };
-        defer file.close();
-
-        const content = file.readToEndAlloc(self.allocator, 1024 * 64) catch |err| {
             if (err == error.OutOfMemory) return PluginLoadError.OutOfMemory;
             return err;
         };
@@ -121,8 +138,10 @@ pub const PluginManager = struct {
                 ManifestSchemaError.InvalidVersion,
                 ManifestSchemaError.MissingEntryPoint,
                 => return PluginLoadError.InvalidManifest,
+                error.OutOfMemory => return PluginLoadError.OutOfMemory,
             }
         };
+        errdefer manifest.deinit(self.allocator);
 
         self.lock.lockWrite();
         defer self.lock.unlockWrite();
@@ -131,32 +150,23 @@ pub const PluginManager = struct {
             return PluginLoadError.AlreadyLoaded;
         }
 
-        const owned_name = try self.allocator.dupe(u8, manifest.name);
-        errdefer self.allocator.free(owned_name);
-
-        const owned_version = try self.allocator.dupe(u8, manifest.version);
-        errdefer self.allocator.free(owned_version);
-
-        const owned_description = try self.allocator.dupe(u8, manifest.description);
-        errdefer self.allocator.free(owned_description);
-
-        const owned_entry = try self.allocator.dupe(u8, manifest.entry_point);
-        errdefer self.allocator.free(owned_entry);
+        const owned_key = try self.allocator.dupe(u8, manifest.name);
+        errdefer self.allocator.free(owned_key);
 
         const owned_path = try self.allocator.dupe(u8, path);
         errdefer self.allocator.free(owned_path);
 
         const plugin_info = PluginInfo{
-            .name = owned_name,
-            .version = owned_version,
-            .description = owned_description,
-            .entry_point = owned_entry,
+            .name = manifest.name,
+            .version = manifest.version,
+            .description = manifest.description,
+            .entry_point = manifest.entry_point,
             .path = owned_path,
             .loaded = true,
         };
 
         const loaded = LoadedPlugin{ .info = plugin_info };
-        try self.plugins.put(self.allocator, owned_name, loaded);
+        try self.plugins.put(self.allocator, owned_key, loaded);
 
         return plugin_info;
     }
@@ -166,14 +176,17 @@ pub const PluginManager = struct {
         defer self.lock.unlockWrite();
 
         const entry = self.plugins.getEntry(name) orelse return PluginLoadError.NotLoaded;
-
-        self.allocator.free(entry.value_ptr.*.info.name);
-        self.allocator.free(entry.value_ptr.*.info.version);
-        self.allocator.free(entry.value_ptr.*.info.description);
-        self.allocator.free(entry.value_ptr.*.info.entry_point);
-        self.allocator.free(entry.value_ptr.*.info.path);
+        const owned_key = entry.key_ptr.*;
+        const info = entry.value_ptr.*.info;
 
         _ = self.plugins.swapRemove(name);
+
+        self.allocator.free(owned_key);
+        self.allocator.free(info.name);
+        self.allocator.free(info.version);
+        self.allocator.free(info.description);
+        self.allocator.free(info.entry_point);
+        self.allocator.free(info.path);
     }
 
     pub fn getPlugin(self: *PluginManager, name: []const u8) !PluginInfo {
@@ -205,14 +218,28 @@ pub const PluginManager = struct {
     }
 };
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 test "plugin manager validates correct manifest" {
     const manifest_json =
         \\{"name": "test-plugin", "version": "1.0.0", "description": "A test", "entry_point": "mod.zig"}
     ;
     const parsed = try PluginManager.validatePlugin(std.testing.allocator, manifest_json);
+    defer parsed.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("test-plugin", parsed.name);
     try std.testing.expectEqualStrings("1.0.0", parsed.version);
     try std.testing.expectEqualStrings("mod.zig", parsed.entry_point);
+}
+
+test "plugin manager accepts missing optional description" {
+    const manifest_json =
+        \\{"name": "test-plugin", "version": "1.0.0", "entry_point": "mod.zig"}
+    ;
+    const parsed = try PluginManager.validatePlugin(std.testing.allocator, manifest_json);
+    defer parsed.deinit(std.testing.allocator);
+    try std.testing.expectEqualStrings("", parsed.description);
 }
 
 test "plugin manager rejects manifest missing name" {

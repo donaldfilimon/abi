@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const io = @import("io.zig");
+const io = @import("io/mod.zig");
 const utils = @import("utils.zig");
 
 pub const Credentials = struct {
@@ -148,7 +148,7 @@ test "Credentials save and load from explicit path" {
     defer {
         var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
         defer threaded.deinit();
-        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch {};
+        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
     }
 
     const creds = Credentials{
@@ -180,7 +180,7 @@ test "Credentials reject non-object json" {
     defer {
         var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
         defer threaded.deinit();
-        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch {};
+        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
     }
 
     try io.asyncWriteFile(test_path, "[]");

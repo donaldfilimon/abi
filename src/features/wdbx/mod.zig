@@ -3,10 +3,13 @@ const build_options = @import("build_options");
 const foundation_time = @import("../../foundation/time.zig");
 const gpu = if (build_options.feat_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 
-pub const index = @import("index/hnsw.zig");
-pub const storage = @import("storage/chain.zig");
+pub const index = @import("hnsw.zig");
+pub const storage = @import("chain.zig");
+pub const spatial_3d = @import("spatial_3d.zig");
 
 pub const MAX_LAYERS = 4;
+
+const HNSW_DIMENSIONS = 128;
 
 pub const VectorRecord = struct {
     id: u32,
@@ -34,17 +37,35 @@ pub const AccelerationStatus = struct {
     message: []const u8,
 };
 
+pub const StoreStats = struct {
+    kv_entries: usize,
+    vectors: usize,
+    blocks: usize,
+    spatial_records: usize,
+    vector_dimensions: ?usize,
+    next_vector_id: u32,
+    acceleration: AccelerationStatus,
+};
+
 pub const Store = struct {
     allocator: std.mem.Allocator,
-    entries: std.StringHashMapUnmanaged([]const u8) = .empty,
-    vectors: std.ArrayListUnmanaged(VectorRecord) = .empty,
-    blocks: std.ArrayListUnmanaged(ConversationBlock) = .empty,
+    entries: std.StringHashMap([]const u8),
+    index: index.HnswIndex(HNSW_DIMENSIONS),
+    chain: storage.BlockChain,
+    spatial_index: spatial_3d.SpatialIndex3D,
     next_vector_id: u32 = 1,
     vector_dimensions: ?usize = null,
-    acceleration: AccelerationStatus = defaultAcceleration(),
+    acceleration: AccelerationStatus,
 
     pub fn init(a: std.mem.Allocator) Store {
-        return .{ .allocator = a };
+        return .{
+            .allocator = a,
+            .entries = std.StringHashMap([]const u8).init(a),
+            .index = index.HnswIndex(HNSW_DIMENSIONS).init(a),
+            .chain = storage.BlockChain.init(a),
+            .spatial_index = spatial_3d.SpatialIndex3D.init(a),
+            .acceleration = defaultAcceleration(),
+        };
     }
 
     pub fn deinit(self: *Store) void {
@@ -53,16 +74,11 @@ pub const Store = struct {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.*);
         }
-        self.entries.deinit(self.allocator);
+        self.entries.deinit();
 
-        for (self.vectors.items) |record| self.allocator.free(record.values);
-        self.vectors.deinit(self.allocator);
-
-        for (self.blocks.items) |block| {
-            self.allocator.free(block.profile);
-            self.allocator.free(block.metadata);
-        }
-        self.blocks.deinit(self.allocator);
+        self.index.deinit();
+        self.chain.deinit();
+        self.spatial_index.deinit();
     }
 
     pub fn store(self: *Store, key: []const u8, val: []const u8) !void {
@@ -74,11 +90,12 @@ pub const Store = struct {
         const owned_val = try self.allocator.dupe(u8, val);
         errdefer self.allocator.free(owned_val);
 
-        const result = try self.entries.getOrPut(self.allocator, owned_key);
+        const result = try self.entries.getOrPut(owned_key);
         if (result.found_existing) {
             self.allocator.free(owned_key);
-            self.allocator.free(result.key_ptr.*);
             self.allocator.free(result.value_ptr.*);
+            result.value_ptr.* = owned_val;
+            return;
         }
         result.key_ptr.* = owned_key;
         result.value_ptr.* = owned_val;
@@ -92,73 +109,133 @@ pub const Store = struct {
         return self.entries.count();
     }
 
+    pub fn vectorCount(self: *const Store) usize {
+        return self.index.count();
+    }
+
+    pub fn stats(self: *const Store) StoreStats {
+        return .{
+            .kv_entries = self.entries.count(),
+            .vectors = self.index.count(),
+            .blocks = self.chain.len(),
+            .spatial_records = self.spatial_index.count(),
+            .vector_dimensions = self.vector_dimensions,
+            .next_vector_id = self.next_vector_id,
+            .acceleration = self.acceleration,
+        };
+    }
+
     pub fn putVector(self: *Store, values: []const f32) !u32 {
         if (values.len == 0) return error.InvalidVector;
+        if (values.len > HNSW_DIMENSIONS) return error.DimensionMismatch;
         if (self.vector_dimensions) |dims| {
             if (dims != values.len) return error.DimensionMismatch;
         } else {
             self.vector_dimensions = values.len;
         }
 
-        const owned_values = try self.allocator.dupe(f32, values);
-        errdefer self.allocator.free(owned_values);
+        var padded_values = try self.allocator.alloc(f32, HNSW_DIMENSIONS);
+        errdefer self.allocator.free(padded_values);
+        @memset(padded_values, 0);
+        @memcpy(padded_values[0..values.len], values);
 
         const id = self.next_vector_id;
         self.next_vector_id += 1;
-        try self.vectors.append(self.allocator, .{ .id = id, .values = owned_values });
+        try self.index.insert(id, padded_values);
+        self.allocator.free(padded_values);
         self.acceleration = try runAccelerationKernel("wdbx.putVector", values.len);
         return id;
     }
 
     pub fn search(self: *Store, query: []const f32, limit: usize) ![]SearchResult {
         if (query.len == 0) return error.InvalidVector;
-        if (self.vector_dimensions) |dims| if (dims != query.len) return error.DimensionMismatch;
-
-        const result_count = @min(limit, self.vectors.items.len);
-        const results = try self.allocator.alloc(SearchResult, result_count);
-        errdefer self.allocator.free(results);
-
-        var scratch = try self.allocator.alloc(SearchResult, self.vectors.items.len);
-        defer self.allocator.free(scratch);
-
-        const ops = gpu.vectorOps();
-        for (self.vectors.items, 0..) |record, i| {
-            scratch[i] = .{ .id = record.id, .score = try ops.cosineSimilarity(query, record.values) };
+        if (query.len > HNSW_DIMENSIONS) return error.DimensionMismatch;
+        if (self.vector_dimensions) |dims| {
+            if (dims != query.len) return error.DimensionMismatch;
         }
-        std.mem.sort(SearchResult, scratch, {}, greaterScore);
-        @memcpy(results, scratch[0..result_count]);
-        self.acceleration = try runAccelerationKernel("wdbx.search", query.len * self.vectors.items.len);
+
+        var padded_query = try self.allocator.alloc(f32, HNSW_DIMENSIONS);
+        defer self.allocator.free(padded_query);
+        @memset(padded_query, 0);
+        @memcpy(padded_query[0..query.len], query);
+
+        const results = try self.index.search(padded_query, limit);
+        self.acceleration = try runAccelerationKernel("wdbx.search", query.len * self.index.count());
         return results;
     }
 
-    pub fn appendBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![32]u8 {
-        if (profile.len == 0) return error.InvalidProfile;
-        const prev_id = if (self.blocks.items.len == 0) zeroId() else self.blocks.items[self.blocks.items.len - 1].id;
-        var block = ConversationBlock{
-            .id = undefined,
-            .prev_id = prev_id,
-            .timestamp_ms = foundation_time.unixMs(),
-            .profile = try self.allocator.dupe(u8, profile),
-            .query_id = query_id,
-            .response_id = response_id,
-            .metadata = try self.allocator.dupe(u8, metadata),
-        };
-        errdefer self.allocator.free(block.profile);
-        errdefer self.allocator.free(block.metadata);
+    pub fn getVector(self: *const Store, id: u32) ?[]const f32 {
+        if (!self.index.storage.contains(id)) return null;
+        return self.index.storage.get(id);
+    }
 
-        block.id = hashBlock(block);
-        try self.blocks.append(self.allocator, block);
-        return block.id;
+    pub fn appendBlock(self: *Store, profile: []const u8, query_id: u32, response_id: u32, metadata: []const u8) ![32]u8 {
+        return try self.chain.append(profile, query_id, response_id, metadata);
     }
 
     pub fn blockCount(self: *const Store) usize {
-        return self.blocks.items.len;
+        return self.chain.len();
+    }
+
+    pub fn lastBlock(self: *const Store) ?ConversationBlock {
+        var it = self.chain.iterator();
+        defer self.chain.releaseIterator();
+        var last: ?ConversationBlock = null;
+        while (it.next()) |node| {
+            last = node.data;
+        }
+        return last;
+    }
+
+    pub fn putSpatial3D(self: *Store, id: u32, point: spatial_3d.Point3D, payload: []const u8) !void {
+        try self.spatial_index.insert(id, point, payload);
+        self.acceleration = try runAccelerationKernel("wdbx.putSpatial3D", 3);
+    }
+
+    pub fn searchSpatial3D(self: *const Store, center: spatial_3d.Point3D, k: usize, metric: spatial_3d.DistanceMetric) ![]spatial_3d.SpatialSearchResult {
+        const results = try self.spatial_index.nearestNeighbors(center, k, metric);
+        const self_mut = @constCast(self);
+        self_mut.acceleration = try runAccelerationKernel("wdbx.searchSpatial3D", 3 * self.spatial_index.count());
+        return results;
+    }
+
+    pub fn searchSpatialRadius3D(self: *const Store, center: spatial_3d.Point3D, radius: f32, metric: spatial_3d.DistanceMetric) ![]spatial_3d.SpatialSearchResult {
+        const results = try self.spatial_index.radiusSearch(center, radius, metric);
+        const self_mut = @constCast(self);
+        self_mut.acceleration = try runAccelerationKernel("wdbx.searchSpatialRadius3D", 3 * self.spatial_index.count());
+        return results;
     }
 
     pub fn accelerationStatus(self: *const Store) AccelerationStatus {
         return self.acceleration;
     }
+
+    pub fn exportManifest(self: *const Store, allocator: std.mem.Allocator) ![]u8 {
+        const s = self.stats();
+        var out: std.ArrayList(u8) = .empty;
+        errdefer out.deinit(allocator);
+        try out.print(allocator, "{{\"kv_entries\":{d},\"vectors\":{d},\"blocks\":{d},\"vector_dimensions\":", .{ s.kv_entries, s.vectors, s.blocks });
+        if (s.vector_dimensions) |dims| {
+            try out.print(allocator, "{d}", .{dims});
+        } else {
+            try out.appendSlice(allocator, "null");
+        }
+        try out.print(
+            allocator,
+            ",\"next_vector_id\":{d},\"backend\":\"{s}\",\"mode\":\"{s}\"}}",
+            .{ s.next_vector_id, gpu.backendName(s.acceleration.backend), executionModeName(s.acceleration.mode) },
+        );
+        return out.toOwnedSlice(allocator);
+    }
 };
+
+fn executionModeName(mode: gpu.ExecutionMode) []const u8 {
+    return switch (mode) {
+        .cpu_fallback => "cpu_fallback",
+        .simulated_gpu => "simulated_gpu",
+        .native_gpu => "native_gpu",
+    };
+}
 
 fn defaultAcceleration() AccelerationStatus {
     const status = gpu.detectBackend();
@@ -225,4 +302,26 @@ test "Store accelerates vector search and block chain memory" {
 
     _ = try store_obj.appendBlock("abbey", q, r, "accelerated=true");
     try std.testing.expectEqual(@as(usize, 1), store_obj.blockCount());
+    try std.testing.expectEqual(@as(usize, 3), store_obj.vectorCount());
+    try std.testing.expect(store_obj.getVector(q) != null);
+    try std.testing.expect(store_obj.lastBlock() != null);
+
+    const manifest = try store_obj.exportManifest(std.testing.allocator);
+    defer std.testing.allocator.free(manifest);
+    try std.testing.expect(std.mem.indexOf(u8, manifest, "\"vectors\":3") != null);
+}
+
+test "Store rejects mismatched vector dimensions" {
+    var store_obj = Store.init(std.testing.allocator);
+    defer store_obj.deinit();
+
+    _ = try store_obj.putVector(&.{ 1, 0, 0, 0 });
+    try std.testing.expectError(error.DimensionMismatch, store_obj.putVector(&.{ 1, 0 }));
+    try std.testing.expectError(error.DimensionMismatch, store_obj.search(&.{ 1, 0 }, 1));
+}
+
+test {
+    _ = @import("hnsw.zig");
+    _ = @import("chain.zig");
+    std.testing.refAllDecls(@This());
 }

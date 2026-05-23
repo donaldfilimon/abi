@@ -1,4 +1,5 @@
 const std = @import("std");
+const validation = @import("../../foundation/validation.zig");
 
 pub const Dialect = enum {
     affine,
@@ -48,7 +49,7 @@ pub fn toolchainStatus() ToolchainStatus {
 }
 
 pub fn lower(allocator: std.mem.Allocator, spec: ModuleSpec) !LoweringResult {
-    if (spec.name.len == 0) return error.InvalidMlirModule;
+    try validation.validateNonEmptySlice("name", spec.name);
 
     var ir_buf = std.ArrayListUnmanaged(u8).empty;
     errdefer ir_buf.deinit(allocator);

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ABI Build Wrapper for macOS 26.4+ (Darwin 25.x)
-# Always use this on macOS to ensure proper linking.
+# ABI build wrapper. This keeps the documented Darwin entrypoint stable and
+# normalizes common build commands around the pinned Zig workflow.
 
 ZIG_BIN=$(command -v zig)
 if [ -f ".zigversion" ]; then
@@ -17,7 +17,12 @@ MAJOR_VER=${OS_VER%%.*}
 
 EXTRA_FLAGS=""
 if [ "$MAJOR_VER" -ge 26 ] || [[ "$OSTYPE" == "darwin"* ]]; then
-    echo "macOS detected: native GPU features stay auto-enabled with simulated fallback."
+    echo "macOS detected: build.zig handles Metal linking when feat-gpu=true."
+fi
+
+if [ "$#" -eq 0 ]; then
+    "$ZIG_BIN" build $EXTRA_FLAGS
+    exit 0
 fi
 
 case "$1" in

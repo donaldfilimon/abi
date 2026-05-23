@@ -4,16 +4,19 @@ const accelerator = if (build_options.feat_accelerator) @import("../accelerator/
 const mlir = if (build_options.feat_mlir) @import("../mlir/mod.zig") else @import("../mlir/stub.zig");
 const shaders = if (build_options.feat_shader) @import("../shaders/mod.zig") else @import("../shaders/stub.zig");
 const wdbx = if (build_options.feat_wdbx) @import("../wdbx/mod.zig") else @import("../wdbx/stub.zig");
+const foundation_io = @import("../../foundation/io/mod.zig");
+const helpers = @import("helpers.zig");
 
-pub const abbey = @import("abbey/mod.zig");
-pub const aviva = @import("aviva/mod.zig");
-pub const abi_profile = @import("abi_profile/mod.zig");
-pub const profile = @import("profile/router.zig");
-pub const pipeline = @import("pipeline/mod.zig");
+const router = @import("router.zig");
+pub const abbey = router.abbey;
+pub const aviva = router.aviva;
+pub const abi_profile = router.abi_profile;
+pub const profile = router;
+pub const pipeline = @import("pipeline.zig");
 pub const streaming = struct {
-    pub const openai = @import("streaming/server/openai.zig");
+    pub const openai = @import("streaming.zig");
 };
-pub const constitution = @import("constitution/mod.zig");
+pub const constitution = @import("constitution.zig");
 pub const AuditResult = constitution.AuditResult;
 pub const Principle = constitution.Principle;
 
@@ -71,6 +74,26 @@ pub const TrainingResult = struct {
     }
 };
 
+pub const CompletionRequest = struct {
+    input: []const u8,
+    model: []const u8 = "abi-local",
+    store_result: bool = false,
+};
+
+pub const CompletionResult = struct {
+    model: []const u8,
+    selected_profile: AgentProfile,
+    output: []u8,
+    audit: AuditResult,
+    query_vector_id: ?u32 = null,
+    response_vector_id: ?u32 = null,
+    block_id: ?[32]u8 = null,
+
+    pub fn deinit(self: CompletionResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.output);
+    }
+};
+
 const DatasetSummary = struct {
     available: bool = false,
     records: usize = 0,
@@ -97,6 +120,55 @@ pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     const audit = constitution.Constitution.validate(response);
     if (!audit.passed) std.log.warn("Constitutional violation!", .{});
     return response;
+}
+
+pub fn complete(allocator: std.mem.Allocator, request: CompletionRequest) !CompletionResult {
+    if (request.input.len == 0) return error.InvalidCompletionInput;
+    const weights = profile.analyzeSentiment(request.input);
+    const selected = profile.selectBestProfile(weights);
+    const response = try profile.routeInput(allocator, request.input);
+    errdefer allocator.free(response);
+    const audit = constitution.Constitution.validate(response);
+    if (!audit.passed) std.log.warn("Constitutional violation!", .{});
+    return .{
+        .model = request.model,
+        .selected_profile = selected,
+        .output = response,
+        .audit = audit,
+    };
+}
+
+pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, request: CompletionRequest) !CompletionResult {
+    var result = try complete(allocator, request);
+    errdefer result.deinit(allocator);
+
+    const query_vec = helpers.textEmbedding(request.input);
+    const response_vec = helpers.textEmbedding(result.output);
+    const query_id = store.putVector(&query_vec) catch |err| {
+        if (isFeatureDisabled(err)) return result;
+        return err;
+    };
+    const response_id = store.putVector(&response_vec) catch |err| {
+        if (isFeatureDisabled(err)) return result;
+        return err;
+    };
+
+    const metadata = try std.fmt.allocPrint(
+        allocator,
+        "model={s};profile={s};audit_passed={s};input_bytes={d};output_bytes={d}",
+        .{ request.model, result.selected_profile.label(), if (result.audit.passed) "true" else "false", request.input.len, result.output.len },
+    );
+    defer allocator.free(metadata);
+
+    const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
+    defer allocator.free(key);
+    try store.store(key, metadata);
+
+    const block_id = try store.appendBlock(result.selected_profile.label(), query_id, response_id, metadata);
+    result.query_vector_id = query_id;
+    result.response_vector_id = response_id;
+    result.block_id = block_id;
+    return result;
 }
 
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
@@ -138,9 +210,27 @@ pub fn trainWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, config: 
     defer allocator.free(key);
 
     const profile_vector = profileEmbedding(try parseAgentProfile(config.profile));
-    const query_id = try store.putVector(&profile_vector);
-    const response_vector = responseEmbedding(profile_vector);
-    const response_id = try store.putVector(&response_vector);
+    const query_id = store.putVector(&profile_vector) catch |err| {
+        if (isFeatureDisabled(err)) {
+            result.records_stored = 0;
+            const new_message = try allocator.dupe(u8, "training accepted; wdbx feature is disabled for this build");
+            allocator.free(result.message);
+            result.message = new_message;
+            return result;
+        }
+        return err;
+    };
+    const response_vector = helpers.responseEmbedding(profile_vector);
+    const response_id = store.putVector(&response_vector) catch |err| {
+        if (isFeatureDisabled(err)) {
+            result.records_stored = 0;
+            const new_message = try allocator.dupe(u8, "training accepted; wdbx feature is disabled for this build");
+            allocator.free(result.message);
+            result.message = new_message;
+            return result;
+        }
+        return err;
+    };
 
     const value = try std.fmt.allocPrint(
         allocator,
@@ -164,8 +254,9 @@ pub fn trainWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, config: 
     result.records_stored = 1;
     result.query_vector_id = query_id;
     result.response_vector_id = response_id;
+    const new_message = try std.fmt.allocPrint(allocator, "training metadata recorded in wdbx; dataset_records={d}", .{dataset_records});
     allocator.free(result.message);
-    result.message = try std.fmt.allocPrint(allocator, "training metadata recorded in wdbx; dataset_records={d}", .{dataset_records});
+    result.message = new_message;
     return result;
 }
 
@@ -231,20 +322,35 @@ fn validateTrainingConfig(config: TrainingConfig) !void {
     if (config.artifact_dir.len == 0) return error.InvalidArtifactPath;
 }
 
+fn isFeatureDisabled(err: anyerror) bool {
+    return std.mem.eql(u8, @errorName(err), "FeatureDisabled");
+}
+
 fn inspectDataset(allocator: std.mem.Allocator, dataset: DatasetSpec) !DatasetSummary {
-    _ = allocator;
+    const path = foundation_io.resolvePath(allocator, dataset.path) catch |err| switch (err) {
+        error.FileNotFound => return .{ .available = false, .records = 0, .bytes = dataset.path.len },
+        else => return err,
+    };
+    defer allocator.free(path);
+
+    const data = foundation_io.asyncReadFile(allocator, path) catch |err| switch (err) {
+        error.FileNotFound => return .{ .available = false, .records = 0, .bytes = dataset.path.len },
+        else => return err,
+    };
+    defer allocator.free(data);
+
     return .{
-        .available = false,
-        .records = 0,
-        .bytes = dataset.path.len,
+        .available = true,
+        .records = try countDatasetRecords(allocator, dataset.format, data),
+        .bytes = data.len,
     };
 }
 
 fn countDatasetRecords(allocator: std.mem.Allocator, format: DatasetFormat, data: []const u8) !usize {
     return switch (format) {
-        .text => countNonEmptyLines(data),
+        .text => helpers.countNonEmptyLines(data),
         .csv => blk: {
-            const lines = countNonEmptyLines(data);
+            const lines = helpers.countNonEmptyLines(data);
             break :blk if (lines > 0) lines - 1 else 0;
         },
         .jsonl => try countJsonlRecords(allocator, data),
@@ -264,14 +370,7 @@ fn countJsonlRecords(allocator: std.mem.Allocator, data: []const u8) !usize {
     return records;
 }
 
-fn countNonEmptyLines(data: []const u8) usize {
-    var records: usize = 0;
-    var lines = std.mem.splitScalar(u8, data, '\n');
-    while (lines.next()) |line| {
-        if (std.mem.trim(u8, line, " \t\r").len > 0) records += 1;
-    }
-    return records;
-}
+pub const countNonEmptyLines = helpers.countNonEmptyLines;
 
 fn parseAgentProfile(name: []const u8) !AgentProfile {
     inline for (known_profiles) |p| {
@@ -288,9 +387,9 @@ fn profileEmbedding(agent: AgentProfile) [4]f32 {
     };
 }
 
-fn responseEmbedding(query: [4]f32) [4]f32 {
-    return .{ query[0] * 0.97, query[1] * 1.01, query[2] * 1.03, query[3] * 0.99 };
-}
+pub const responseEmbedding = helpers.responseEmbedding;
+
+pub const textEmbedding = helpers.textEmbedding;
 
 test "training config validation rejects empty paths" {
     const allocator = std.testing.allocator;
@@ -313,13 +412,22 @@ test "training known profiles records wdbx entries" {
     const result = try trainKnownProfiles(std.testing.allocator, &store, .{ .path = "datasets/train.jsonl" }, "zig-cache/agents");
     defer result.deinit(std.testing.allocator);
 
-    try std.testing.expectEqual(@as(usize, 3), result.records_stored);
-    try std.testing.expectEqual(@as(usize, 3), store.count());
-    try std.testing.expectEqual(@as(usize, 6), store.vectors.items.len);
-    try std.testing.expectEqual(@as(usize, 3), store.blockCount());
-    try std.testing.expect(store.get("agent:abbey:training") != null);
-    try std.testing.expect(store.get("agent:aviva:training") != null);
-    try std.testing.expect(store.get("agent:abi:training") != null);
+    if (build_options.feat_wdbx) {
+        try std.testing.expectEqual(@as(usize, 3), result.records_stored);
+        try std.testing.expectEqual(@as(usize, 3), store.count());
+        try std.testing.expectEqual(@as(usize, 6), store.vectorCount());
+        try std.testing.expectEqual(@as(usize, 3), store.blockCount());
+        try std.testing.expect(store.get("agent:abbey:training") != null);
+        try std.testing.expect(store.get("agent:aviva:training") != null);
+        try std.testing.expect(store.get("agent:abi:training") != null);
+    } else {
+        try std.testing.expectEqual(@as(usize, 0), result.records_stored);
+        try std.testing.expectEqual(@as(usize, 0), store.count());
+        try std.testing.expectEqual(@as(usize, 0), store.blockCount());
+        try std.testing.expect(store.get("agent:abbey:training") == null);
+        try std.testing.expect(store.get("agent:aviva:training") == null);
+        try std.testing.expect(store.get("agent:abi:training") == null);
+    }
 }
 
 test "run routes creative and action inputs" {
@@ -330,4 +438,29 @@ test "run routes creative and action inputs" {
     const action = try run(std.testing.allocator, "EXECUTE deploy run");
     defer std.testing.allocator.free(action);
     try std.testing.expect(std.mem.indexOf(u8, action, "Abi") != null);
+}
+
+test "completion with store records vectors metadata and block" {
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    var result = try completeWithStore(std.testing.allocator, &store, .{ .input = "analyze completion storage", .model = "abi-test", .store_result = true });
+    defer result.deinit(std.testing.allocator);
+
+    try std.testing.expect(result.output.len > 0);
+    if (build_options.feat_wdbx) {
+        try std.testing.expect(result.query_vector_id != null);
+        try std.testing.expect(result.response_vector_id != null);
+        try std.testing.expect(result.block_id != null);
+        try std.testing.expectEqual(@as(usize, 2), store.vectorCount());
+        try std.testing.expectEqual(@as(usize, 1), store.blockCount());
+    }
+}
+
+test {
+    _ = @import("router.zig");
+    _ = @import("pipeline.zig");
+    _ = @import("streaming.zig");
+    _ = @import("constitution.zig");
+    std.testing.refAllDecls(@This());
 }

@@ -18,7 +18,11 @@ Status tracking for incomplete work items. Reference: `docs/spec/abi-refactor-de
 | Zig 0.17 remaining scaffold pass | ✅ Done | MCP JSON safety, local AI semantics, streaming, stub parity, feature gates, local connector/shader/MLIR behavior |
 | Zig 0.17 external-boundary pass | ✅ Done | Connector live-mode errors, native GPU/toolchain status APIs, safe OS execute allow-list, plugin manifest validation |
 | Zig 0.17 live-surface/build-gate pass | ✅ Done | Opt-in live HTTP connector methods, escaped request body builders, CLI/MCP builds and connector tests included in `check` |
+| Zig 0.17 dirty-checkout gate recovery | ✅ Done | Scheduler/registry/WDBX/OS ownership fixes; `check` and `full-check` green |
 | Twilio voice AI support connector | ✅ Done | Local ConversationRelay simulator, escalation payload contracts, Twilio credentials, and CLI simulation surface |
+| Zig 0.17 ABI modernization and expansion | ✅ Done | MCP std.Io.net migration, TUI dashboard wiring/stub parity, HNSW locking, GPU fallback safety, walkthrough and AI guidance docs refreshed, checks green |
+| GPU/WDBX/model completion expansion | ✅ Done | Backend capability reporting, WDBX stats/manifest APIs, local completion APIs, CLI/MCP completion surfaces verified |
+| Codebase readiness/build/docs pass | ✅ Done | Manifest-driven plugin registry, plugin manager module coverage, full-check integration+benchmark gate, TUI scheduler snapshot, docs refreshed |
 
 ## Priority: MEDIUM
 
@@ -46,13 +50,13 @@ Status tracking for incomplete work items. Reference: `docs/spec/abi-refactor-de
 | Foundation IO optimization | ✅ Done | Async IO layer with buffered reader/writer |
 | Plugin registry enhancements | ✅ Done | PluginManager with manifest validation, load/unload/list |
 | Cross-compilation CI | ✅ Done | GitHub Actions native checks plus Linux/macOS cross-compile smoke builds |
-| GPU backend stubs completion | Partial | Metal framework linked on macOS (build.zig); nativeKernelStatus.linked now true on macOS; actual Metal/Vulkan kernel bindings still need implementation |
+| GPU backend stubs completion | ✅ Done | Metal framework linked on macOS with Objective-C runtime initialization path; vector operations fall back safely when native kernels are unavailable |
 | Mobile mod/stub pair | ✅ Done | feat-mobile mod.zig + stub.zig created, parity verified, 4 tests |
 | Twilio live transport | ✅ Done | httpPostForm helper, ConversationRelayEventLive with Basic auth, TwiML builder, configurable escalation |
 
 ## Known Test Failures (Pre-existing)
 
-- 1 wdbx hash_map segfault in integration tests (not a regression; tracked separately)
+- None currently reproduced; `zig build test-integration` passes locally.
 
 ## Status Format
 

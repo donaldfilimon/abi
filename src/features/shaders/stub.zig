@@ -52,6 +52,10 @@ pub fn validate(source: ShaderSource) !void {
     _ = source;
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn compile(allocator: std.mem.Allocator, source: ShaderSource) !ShaderArtifact {
     return .{
         .name = source.name,

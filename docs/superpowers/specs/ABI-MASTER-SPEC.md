@@ -3,24 +3,30 @@
 This document serves as the master reference for the ABI Framework, encompassing both the architectural design of the core system and the plugin ecosystem.
 
 ## 1. Architectural Vision (Refactor 2026-05-14)
-The ABI framework is built on a data-oriented composition model optimized for Zig 0.17.0, moving from nested structures to a flat, registry-based lifecycle.
+The ABI framework is built on a data-oriented composition model optimized for Zig 0.17.0, with feature-gated modules, explicit ownership, and a generated static plugin registry.
 
 ### Core Principles
 - **Explicit Memory Management**: Custom allocators (Arena, Pool).
 - **Data-Oriented Design**: Cache-friendly layout, SIMD optimized.
 - **Mod/Stub Contract**: Feature-gated via `build_options` to allow tree-shaking.
-- **Registry-Based Lifecycle**: Managed by `src/core/registry.zig`.
+- **Registry-Based Lifecycle**: Managed by `src/core/registry.zig`, with memory and scheduler helpers exposed from `src/core/memory.zig` and `src/core/scheduler.zig`.
 
 ## 2. Directory & Module Structure
 ```
 src/
 ├── root.zig           # Public API and feature exports
-├── core/              # Foundational systems (registry, memory, scheduler)
+├── core/              # Registry, config, memory, scheduler
+│   ├── registry.zig
+│   ├── memory.zig
+│   └── scheduler.zig
+├── interfaces.zig     # Cross-module contract types
 ├── foundation/        # OS and primitive abstractions (io, time, sync)
 ├── features/          # Domain-specific modules
 │   ├── ai/            # Abbey-Aviva-Abi Pipeline (Router, profiles, governance)
 │   └── wdbx/          # Vector Storage & Block Chain (HNSW index, MVCC chain)
-└── tests/             # Integration and stress tests
+├── plugins/           # Static plugin manifests and local plugin manager
+├── integration_tests.zig
+└── benchmarks.zig
 ```
 
 ## 3. Core Features (WDBX Substrate)
@@ -33,10 +39,11 @@ src/
 
 ### Plugin System Implementation
 The plugin system is implemented via build-time registry generation:
-1. `tools/generate_plugin_registry.zig`: Scans `src/plugins/`, validates structure (Mod/Stub pattern), and generates `src/plugin_registry.zig`.
+1. `tools/generate_plugin_registry.zig`: Scans plugin manifests under `src/plugins/*/abi-plugin.json`, validates required manifest fields, and generates `src/plugin_registry.zig`.
 2. `build.zig`: Automatically triggers generation during `abi` build.
-3. `src/registry.zig`: Imports `plugin_registry.zig` and invokes `registerPlugins()`.
-4. CLI: `abi plugin list` provides discovery interface.
+3. `src/core/registry.zig`: Imports `plugin_registry.zig` and invokes `registerPlugins()`.
+4. `src/plugins/plugin_manager.zig`: Provides manifest validation and local load/list/unload APIs for plugin directories.
+5. CLI: `abi plugin list` provides the current discovery interface.
 
 
 ### Plugin Discovery (abi-plugin.json)
@@ -45,14 +52,14 @@ Each plugin must provide a manifest:
 {
   "name": "plugin-name",
   "version": "0.1.0",
-  "targetFeature": "ai",
-  "entryPoint": "src/plugin.zig",
-  "dependencies": { "abi": "0.17.0" }
+  "description": "What this plugin provides",
+  "target_feature": "ai",
+  "entry_point": "mod.zig"
 }
 ```
 
 ### CLI & Build Integration
-- **CLI**: `abi plugin` commands (list, install, link, validate) manage plugins globally (`~/.abi/plugins/`) or locally.
-- **Build System**: The CLI automates plugin registration, generating `src/plugins.zig` and adding plugin paths to `build.zig`.
-- **Validation**: Plugins are verified against framework invariants and Mod/Stub parity requirements at build-time.
+- **CLI**: `abi plugin list` lists the statically generated registry contents.
+- **Build System**: `build.zig` runs `tools/generate_plugin_registry.zig`, generating `src/plugin_registry.zig` before CLI/check builds.
+- **Validation**: Plugin feature surfaces with `mod.zig`/`stub.zig` pairs are checked by `zig build check-parity`.
 - **Security**: No dynamic loading (shared libraries) is allowed; static compilation integrity is maintained.

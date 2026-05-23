@@ -74,6 +74,10 @@ pub fn renderMobileView(allocator: std.mem.Allocator, title: []const u8, items: 
     return try allocator.dupe(u8, "Mobile feature is disabled");
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn executeMobileTask(allocator: std.mem.Allocator, task_name: []const u8) ![]u8 {
     _ = task_name;
     return try allocator.dupe(u8, "Mobile feature is disabled");
