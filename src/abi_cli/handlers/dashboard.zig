@@ -15,7 +15,9 @@ fn setRawMode(fd: std.posix.fd_t) !std.posix.termios {
 }
 
 fn restoreMode(fd: std.posix.fd_t, original: std.posix.termios) void {
-    std.posix.tcsetattr(fd, .FLUSH, original) catch {};
+    std.posix.tcsetattr(fd, .FLUSH, original) catch |err| {
+        std.log.warn("failed to restore terminal mode: {s}", .{@errorName(err)});
+    };
 }
 
 pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
@@ -69,10 +71,12 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
             .wdbx_blocks = wdbx_stats.blocks,
             .wdbx_vectors = wdbx_stats.vectors,
             .wdbx_entries = wdbx_stats.kv_entries,
+            .wdbx_spatial_records = wdbx_stats.spatial_records,
             .scheduler_source = "standalone CLI snapshot",
             .scheduler_running = scheduler.getRunningCount(),
             .scheduler_pending = scheduler.getPendingCount(),
             .scheduler_completed = scheduler.getCompletedCount(),
+            .scheduler_failed = scheduler.getFailedCount(),
         });
         defer allocator.free(rendered);
 

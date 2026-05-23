@@ -47,7 +47,7 @@ pub const Scheduler = struct {
     pub fn init(allocator: std.mem.Allocator) Scheduler {
         return .{
             .allocator = allocator,
-            .heap = std.PriorityQueue(Task, void, compareTasks).initContext(allocator, {}),
+            .heap = std.PriorityQueue(Task, void, compareTasks).initContext({}),
             .tasks = std.ArrayListUnmanaged(Task).empty,
             .lock = sync.SpinLock{},
             .next_id = std.atomic.Value(u64).init(1),
@@ -59,6 +59,10 @@ pub const Scheduler = struct {
 
     pub fn deinit(self: *Scheduler) void {
         self.heap.deinit(self.allocator);
+        for (self.tasks.items) |task| {
+            self.allocator.free(task.name);
+            if (task.error_msg) |message| self.allocator.free(message);
+        }
         self.tasks.deinit(self.allocator);
     }
 
@@ -88,7 +92,7 @@ pub const Scheduler = struct {
         self.lock.lock();
         defer self.lock.unlock();
 
-        try self.heap.add(self.allocator, task);
+        try self.heap.push(self.allocator, task);
         try self.tasks.append(self.allocator, task);
 
         return task_id;
@@ -111,7 +115,7 @@ pub const Scheduler = struct {
     pub fn runNext(self: *Scheduler) !?u64 {
         self.lock.lock();
         var task: Task = undefined;
-        while (self.heap.removeOrNull()) |t| {
+        while (self.heap.pop()) |t| {
             var exists = false;
             for (self.tasks.items) |*internal_t| {
                 if (internal_t.id == t.id) {
@@ -135,7 +139,6 @@ pub const Scheduler = struct {
         const ctx = task.ctx;
 
         self.lock.unlock();
-        defer self.lock.lock();
 
         fn_ptr(ctx) catch |err| {
             self.lock.lock();
@@ -153,6 +156,7 @@ pub const Scheduler = struct {
         };
 
         self.lock.lock();
+        defer self.lock.unlock();
         for (self.tasks.items) |*t| {
             if (t.id == task_id) {
                 t.status = .completed;

@@ -26,10 +26,12 @@ pub const DashboardState = struct {
     wdbx_blocks: usize = 0,
     wdbx_vectors: usize = 0,
     wdbx_entries: usize = 0,
+    wdbx_spatial_records: usize = 0,
     scheduler_source: []const u8 = "not attached",
     scheduler_running: usize = 0,
     scheduler_pending: usize = 0,
     scheduler_completed: usize = 0,
+    scheduler_failed: usize = 0,
 };
 
 pub const ScreenState = struct {

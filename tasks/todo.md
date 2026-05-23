@@ -28,7 +28,7 @@ Status tracking for incomplete work items. Reference: `docs/spec/abi-refactor-de
 
 | Item | Status | Notes |
 | ---- | ------ | ----- |
-| Core scheduler implementation | ✅ Done | Task queue, priority handling, execution tracking |
+| Core scheduler implementation | ✅ Done | Task queue, priority handling, execution tracking, O(log N) heap dispatch |
 | Core memory management | ✅ Done | Allocation tracking, pool basics |
 | Framework config expansion | ✅ Done | Feature toggles, paths, limits |
 | Foundation logger | ✅ Done | Structured logger with levels |

@@ -48,10 +48,12 @@ pub const DashboardState = struct {
     wdbx_blocks: usize = 0,
     wdbx_vectors: usize = 0,
     wdbx_entries: usize = 0,
+    wdbx_spatial_records: usize = 0,
     scheduler_source: []const u8 = "not attached",
     scheduler_running: usize = 0,
     scheduler_pending: usize = 0,
     scheduler_completed: usize = 0,
+    scheduler_failed: usize = 0,
 };
 
 pub fn statusText(status: Status) []const u8 {
@@ -113,6 +115,7 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try out.print(allocator, "│ Block chain:     \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_blocks});
     try out.print(allocator, "│ Vectors:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_vectors});
     try out.print(allocator, "│ KV Entries:      \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_entries});
+    try out.print(allocator, "│ Spatial 3D:      \x1b[1m{d:<42}\x1b[0m│\n", .{ds.wdbx_spatial_records});
     try out.appendSlice(allocator, "\x1b[1;35m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
 
     // Scheduler pane
@@ -121,6 +124,7 @@ pub fn renderDiagnostics(allocator: std.mem.Allocator, ds: DashboardState) ![]u8
     try out.print(allocator, "│ Running:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_running});
     try out.print(allocator, "│ Pending:         \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_pending});
     try out.print(allocator, "│ Completed:       \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_completed});
+    try out.print(allocator, "│ Failed:          \x1b[1m{d:<42}\x1b[0m│\n", .{ds.scheduler_failed});
     try out.appendSlice(allocator, "\x1b[1;34m└─────────────────────────────────────────────────────────────┘\x1b[0m\n");
 
     // Footer
@@ -222,10 +226,12 @@ test "diagnostics dashboard renders all panes" {
         .wdbx_blocks = 5,
         .wdbx_vectors = 10,
         .wdbx_entries = 3,
+        .wdbx_spatial_records = 4,
         .scheduler_source = "test snapshot",
         .scheduler_running = 1,
         .scheduler_pending = 2,
         .scheduler_completed = 7,
+        .scheduler_failed = 1,
     });
     defer std.testing.allocator.free(rendered);
 
@@ -234,7 +240,9 @@ test "diagnostics dashboard renders all panes" {
     try std.testing.expect(std.mem.indexOf(u8, rendered, "System") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Plugins") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "WDBX Storage") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Spatial 3D") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Scheduler") != null);
+    try std.testing.expect(std.mem.indexOf(u8, rendered, "Failed") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "test snapshot") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Quit") != null);
     try std.testing.expect(std.mem.indexOf(u8, rendered, "Refresh") != null);
