@@ -2,11 +2,17 @@ const std = @import("std");
 
 const PluginEntry = struct {
     name: []const u8,
+    version: []const u8,
     description: []const u8,
+    target_feature: []const u8,
+    entry_point: []const u8,
 
     fn deinit(self: PluginEntry, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
+        allocator.free(self.version);
         allocator.free(self.description);
+        allocator.free(self.target_feature);
+        allocator.free(self.entry_point);
     }
 };
 
@@ -51,14 +57,26 @@ pub fn main(init: std.process.Init) !void {
         const version = stringField(parsed.value, "version") orelse return error.InvalidPluginManifest;
         if (version.len == 0) return error.InvalidPluginManifest;
 
-        const entry_point = stringField(parsed.value, "entry_point") orelse return error.InvalidPluginManifest;
-        if (entry_point.len == 0) return error.InvalidPluginManifest;
+        const target_feature = stringField(parsed.value, "target_feature") orelse stringField(parsed.value, "targetFeature") orelse return error.InvalidPluginManifest;
+        if (target_feature.len == 0) return error.InvalidPluginManifest;
 
-        const description = stringField(parsed.value, "description") orelse version;
+        const entry_point = stringField(parsed.value, "entry_point") orelse stringField(parsed.value, "entryPoint") orelse return error.InvalidPluginManifest;
+        if (!isSafeEntryPoint(entry_point)) return error.InvalidPluginManifest;
+
+        const description = stringField(parsed.value, "description") orelse return error.InvalidPluginManifest;
+        if (description.len == 0) return error.InvalidPluginManifest;
+
+        const entry_dir = std.fs.path.dirname(entry.path) orelse return error.InvalidPluginManifest;
+        const entry_disk_path = try std.fs.path.join(allocator, &.{ plugins_dir, entry_dir, entry_point });
+        defer allocator.free(entry_disk_path);
+        _ = std.Io.Dir.cwd().statFile(io, entry_disk_path, .{}) catch return error.InvalidPluginManifest;
 
         try entries.append(allocator, .{
             .name = try allocator.dupe(u8, name),
+            .version = try allocator.dupe(u8, version),
             .description = try allocator.dupe(u8, description),
+            .target_feature = try allocator.dupe(u8, target_feature),
+            .entry_point = try allocator.dupe(u8, entry_point),
         });
     }
 
@@ -76,11 +94,17 @@ pub fn main(init: std.process.Init) !void {
     );
 
     for (entries.items) |entry| {
-        try out.appendSlice(allocator, "    try registry.register(");
+        try out.appendSlice(allocator, "    try registry.registerPlugin(.{ .name = ");
         try appendZigString(&out, allocator, entry.name);
-        try out.appendSlice(allocator, ", ");
+        try out.appendSlice(allocator, ", .version = ");
+        try appendZigString(&out, allocator, entry.version);
+        try out.appendSlice(allocator, ", .description = ");
         try appendZigString(&out, allocator, entry.description);
-        try out.appendSlice(allocator, ");\n");
+        try out.appendSlice(allocator, ", .target_feature = ");
+        try appendZigString(&out, allocator, entry.target_feature);
+        try out.appendSlice(allocator, ", .entry_point = ");
+        try appendZigString(&out, allocator, entry.entry_point);
+        try out.appendSlice(allocator, " });\n");
     }
 
     try out.appendSlice(allocator, "}\n");
@@ -100,6 +124,20 @@ fn stringField(value: std.json.Value, field: []const u8) ?[]const u8 {
 
 fn lessThanName(_: void, lhs: PluginEntry, rhs: PluginEntry) bool {
     return std.mem.lessThan(u8, lhs.name, rhs.name);
+}
+
+fn isSafeEntryPoint(entry_point: []const u8) bool {
+    if (entry_point.len == 0) return false;
+    if (!std.mem.endsWith(u8, entry_point, ".zig")) return false;
+    if (entry_point[0] == '/' or entry_point[0] == '\\') return false;
+    if (std.mem.indexOfScalar(u8, entry_point, ':') != null) return false;
+
+    var parts = std.mem.splitAny(u8, entry_point, "/\\");
+    while (parts.next()) |part| {
+        if (part.len == 0) return false;
+        if (std.mem.eql(u8, part, ".") or std.mem.eql(u8, part, "..")) return false;
+    }
+    return true;
 }
 
 fn appendZigString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {

@@ -3,7 +3,8 @@ const protocol = @import("protocol.zig");
 const handlers = @import("handlers.zig");
 const json_helpers = @import("json_helpers.zig");
 
-const HTTP_PORT = 8080;
+const DEFAULT_HTTP_PORT: u16 = 8080;
+const HTTP_PORT_ENV = "ABI_MCP_HTTP_PORT";
 
 const JsonRpcRequest = protocol.JsonRpcRequest;
 const McpMethod = protocol.McpMethod;
@@ -208,19 +209,20 @@ fn writeStdoutAll(io: std.Io, bytes: []const u8) !void {
 
 pub fn runHttpServer(allocator: std.mem.Allocator, io: std.Io) void {
     const net = std.Io.net;
-    const address = net.IpAddress.parseIp4("127.0.0.1", HTTP_PORT) catch {
+    const port = configuredHttpPort();
+    const address = net.IpAddress.parseIp4("127.0.0.1", port) catch {
         std.log.warn("failed to parse HTTP listen address", .{});
         return;
     };
     var tcp_server = address.listen(io, .{
         .reuse_address = true,
     }) catch |err| {
-        std.log.warn("failed to bind HTTP server on port {d}: {s}", .{ HTTP_PORT, @errorName(err) });
+        std.log.warn("failed to bind HTTP server on port {d}: {s}; set {s} to choose another loopback port", .{ port, @errorName(err), HTTP_PORT_ENV });
         return;
     };
     defer tcp_server.deinit(io);
 
-    std.log.info("MCP HTTP/SSE server listening on http://127.0.0.1:{d}", .{HTTP_PORT});
+    std.log.info("MCP HTTP/SSE server listening on http://127.0.0.1:{d}", .{port});
 
     while (!isShutdownRequested()) {
         const conn = tcp_server.accept(io) catch |err| {
@@ -236,9 +238,22 @@ pub fn runHttpServer(allocator: std.mem.Allocator, io: std.Io) void {
 
 pub fn wakeHttpServer(io: std.Io) void {
     const net = std.Io.net;
-    const address = net.IpAddress.parseIp4("127.0.0.1", HTTP_PORT) catch return;
+    const address = net.IpAddress.parseIp4("127.0.0.1", configuredHttpPort()) catch return;
     const stream = address.connect(io, .{ .mode = .stream }) catch return;
     defer stream.close(io);
+}
+
+pub fn configuredHttpPort() u16 {
+    const raw = std.c.getenv(HTTP_PORT_ENV) orelse return DEFAULT_HTTP_PORT;
+    return parseHttpPort(std.mem.span(raw)) orelse DEFAULT_HTTP_PORT;
+}
+
+fn parseHttpPort(raw: []const u8) ?u16 {
+    const trimmed = std.mem.trim(u8, raw, " \t\r\n");
+    if (trimmed.len == 0) return null;
+    const port = std.fmt.parseInt(u16, trimmed, 10) catch return null;
+    if (port == 0) return null;
+    return port;
 }
 
 fn handleHttpConnection(allocator: std.mem.Allocator, io: std.Io, conn: std.Io.net.Stream) !void {
@@ -314,6 +329,19 @@ fn findHttpBody(raw: []const u8) ?[]const u8 {
     const body_start = idx + needle.len;
     if (body_start >= raw.len) return null;
     return raw[body_start..];
+}
+
+test "MCP HTTP port parser accepts valid user ports" {
+    try std.testing.expectEqual(@as(?u16, 18080), parseHttpPort("18080"));
+    try std.testing.expectEqual(@as(?u16, 18080), parseHttpPort(" 18080\n"));
+}
+
+// Keep invalid overrides non-fatal so stdio mode still works when users typo the environment.
+test "MCP HTTP port parser rejects invalid overrides" {
+    try std.testing.expectEqual(@as(?u16, null), parseHttpPort(""));
+    try std.testing.expectEqual(@as(?u16, null), parseHttpPort("0"));
+    try std.testing.expectEqual(@as(?u16, null), parseHttpPort("65536"));
+    try std.testing.expectEqual(@as(?u16, null), parseHttpPort("not-a-port"));
 }
 
 fn processJsonRpc(allocator: std.mem.Allocator, body: []const u8) ![]u8 {

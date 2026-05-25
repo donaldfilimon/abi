@@ -47,8 +47,8 @@ Do not assume old command names exist: `version`, `doctor`, `features`, `platfor
 | `src/features/tui/` | Diagnostics dashboard renderer |
 | `src/connectors/` | OpenAI, Anthropic, Discord, Twilio connector surfaces |
 | `src/foundation/` | Time, sync, logger, utils, errors, OS, IO, credentials |
-| `src/core/registry.zig` | Plugin registry loading |
-| `src/plugins/plugin_manager.zig` | Manifest validation and local plugin manager API |
+| `src/core/registry.zig` | Generated plugin registry loading and metadata accessors |
+| `src/plugins/plugin_manager.zig` | Required manifest validation and local plugin manager API |
 | `tools/` | Build helpers, plugin registry generation, parity checker |
 
 ## Feature Flags
@@ -71,7 +71,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - Build with `./build.sh mcp`.
 - Binary: `zig-out/bin/abi-mcp`.
 - Primary transport: JSON-RPC 2.0 over stdio.
-- Secondary transport: loopback HTTP/SSE on `127.0.0.1:8080` when available.
+- Secondary transport: loopback HTTP/SSE on `127.0.0.1:8080` when available; set `ABI_MCP_HTTP_PORT=<port>` to avoid local port conflicts.
 - HTTP endpoints: `GET /sse`, `POST /message`.
 - Request size limit: 64KB.
 - Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`, `shutdown`.
@@ -82,7 +82,9 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - Read `tasks/lessons.md` and `tasks/todo.md` before substantial work.
 - Public feature API changes require matching `mod.zig` and `stub.zig` updates.
 - Run `zig build check-parity` after public API changes.
-- Do not edit generated `src/plugin_registry.zig`; change plugin source or `tools/generate_plugin_registry.zig`.
+- Do not edit generated `src/plugin_registry.zig`; change plugin source/manifests or `tools/generate_plugin_registry.zig`.
+- Plugin manifests require `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point`; generated registry metadata is covered by `tests/contracts/plugin_registry.zig`.
+- Discord connector IDs are validated as numeric snowflake-like IDs, and local/live paths enforce credential and message-size checks.
 - Only MCP executable/handler files (`src/mcp/main.zig`, `src/mcp/handlers.zig`) may import `@import("abi")` from inside `src/`; other `src` imports should be relative `.zig` imports.
 - Do not use plain `rm`; use safe alternatives.
 

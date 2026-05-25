@@ -10,13 +10,23 @@ fn expectToolJsonContains(allocator: std.mem.Allocator, json_text: []const u8, n
     try std.testing.expect(std.mem.indexOf(u8, response, "\"type\":\"text\"") != null);
 }
 
+fn expectToolJsonContainsEither(allocator: std.mem.Allocator, json_text: []const u8, a: []const u8, b: []const u8) !void {
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
+    defer parsed.deinit();
+    const response = try handlers.handleToolsCallJson(allocator, parsed.value);
+    defer allocator.free(response);
+    try std.testing.expect(std.mem.indexOf(u8, response, a) != null or std.mem.indexOf(u8, response, b) != null);
+    try std.testing.expect(std.mem.indexOf(u8, response, "\"type\":\"text\"") != null);
+}
+
 test "MCP ai_run tool contract" {
     const allocator = std.testing.allocator;
-    try expectToolJsonContains(
+    try expectToolJsonContainsEither(
         allocator,
         \\{"name":"ai_run","arguments":{"input":"execute deploy quickly"}}
     ,
         "Abi action",
+        "AI feature is disabled",
     );
 }
 

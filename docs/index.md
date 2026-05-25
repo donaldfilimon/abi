@@ -4,6 +4,8 @@ Welcome to the ABI framework documentation. This hub provides central access to 
 
 ## Architecture
 - [ABI Refactor Design](spec/abi-refactor-design.md)
+- [ABI Master Specification](superpowers/specs/ABI-MASTER-SPEC.md)
+- [Public API Contract](contracts/public-api.md)
 
 ## Project Metadata
 - [AGENTS.md](../AGENTS.md)
@@ -15,5 +17,7 @@ Welcome to the ABI framework documentation. This hub provides central access to 
 - [walkthrough.md](../walkthrough.md) for CLI, MCP, GPU, TUI, and verification examples.
 
 On macOS/Darwin, prefer `./build.sh ...` for project validation even when plain `zig build` works locally. Use `./build.sh full-check` for the complete local gate: `check`, integration tests, and benchmarks.
+
+Key executable contracts live in `tests/contracts/` and cover CLI/MCP surfaces plus generated plugin registry metadata.
 
 *For any issues or questions, please refer to the project's issue tracker or consult the primary maintainers.*

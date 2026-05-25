@@ -102,7 +102,7 @@ Build the MCP server:
 ./build.sh mcp
 ```
 
-The MCP server uses JSON-RPC 2.0 over stdio and starts a loopback HTTP/SSE transport on `127.0.0.1:8080` when available. Request bodies are limited to 64KB.
+The MCP server uses JSON-RPC 2.0 over stdio and starts a loopback HTTP/SSE transport on `127.0.0.1:8080` when available. Request bodies are limited to 64KB. If port `8080` is already in use, set `ABI_MCP_HTTP_PORT` to another loopback port before launching `abi-mcp`.
 
 Example stdio requests:
 
@@ -129,6 +129,16 @@ HTTP endpoints:
 
 - `GET /sse` returns an SSE endpoint event for `/message`.
 - `POST /message` accepts a JSON-RPC request body and returns a JSON-RPC response.
+
+Example alternate HTTP port:
+
+```bash
+ABI_MCP_HTTP_PORT=18080 ./zig-out/bin/abi-mcp
+curl http://127.0.0.1:18080/sse
+curl -X POST http://127.0.0.1:18080/message \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":7,"method":"ping"}'
+```
 
 ## Verification Checklist
 

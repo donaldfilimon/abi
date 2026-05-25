@@ -113,7 +113,7 @@ test "discord bot connect fails without token" {
     const allocator = std.testing.allocator;
     var bot = discord.Bot.init(allocator, .{
         .token = "",
-        .client_id = "test",
+        .client_id = "123456789012345678",
     });
     defer bot.deinit();
     try std.testing.expectError(ConnectorError.AuthenticationError, bot.connect());
@@ -123,7 +123,7 @@ test "discord bot connect succeeds with token" {
     const allocator = std.testing.allocator;
     var bot = discord.Bot.init(allocator, .{
         .token = "valid-token",
-        .client_id = "test",
+        .client_id = "123456789012345678",
     });
     defer bot.deinit();
     try bot.connect();
@@ -134,12 +134,12 @@ test "discord bot send message requires connection" {
     const allocator = std.testing.allocator;
     var bot = discord.Bot.init(allocator, .{
         .token = "valid-token",
-        .client_id = "test",
+        .client_id = "123456789012345678",
     });
     defer bot.deinit();
     try std.testing.expectError(
         ConnectorError.ConnectionFailed,
-        bot.sendMessage(allocator, "channel-1", "hello"),
+        bot.sendMessage(allocator, "123456789012345679", "hello"),
     );
 }
 
@@ -147,11 +147,21 @@ test "discord live transport is explicit opt-in boundary" {
     const allocator = std.testing.allocator;
     var bot = discord.Bot.init(allocator, .{
         .token = "valid-token",
-        .client_id = "test",
+        .client_id = "123456789012345678",
         .transport = .live,
     });
     defer bot.deinit();
     try std.testing.expectError(ConnectorError.LiveTransportUnavailable, bot.connect());
+}
+
+test "discord validates snowflake ids and message size" {
+    try discord.validateDiscordId("123456789012345678");
+    try std.testing.expectError(ConnectorError.InvalidResponse, discord.validateDiscordId("channel-1"));
+    try std.testing.expectError(ConnectorError.InvalidResponse, discord.validateMessageContent(""));
+
+    var oversized: [discord.DISCORD_MAX_MESSAGE_BYTES + 1]u8 = undefined;
+    @memset(&oversized, 'a');
+    try std.testing.expectError(ConnectorError.InvalidResponse, discord.validateMessageContent(&oversized));
 }
 
 test "twilio config validation requires credentials" {

@@ -2,5 +2,5 @@
 const Registry = @import("core/registry.zig").Registry;
 
 pub fn registerPlugins(registry: *Registry) !void {
-    try registry.register("example-plugin", "Minimal example plugin used by registry generation tests.");
+    try registry.registerPlugin(.{ .name = "example-plugin", .version = "0.1.0", .description = "Minimal example plugin used by registry generation tests.", .target_feature = "plugins", .entry_point = "mod.zig" });
 }

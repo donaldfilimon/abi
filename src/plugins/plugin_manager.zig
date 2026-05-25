@@ -5,7 +5,10 @@ pub const ManifestSchemaError = error{
     MissingName,
     MissingVersion,
     InvalidVersion,
+    MissingDescription,
     MissingEntryPoint,
+    InvalidEntryPoint,
+    MissingTargetFeature,
     InvalidJson,
 };
 
@@ -13,12 +16,14 @@ pub const PluginManifest = struct {
     name: []const u8,
     version: []const u8,
     description: []const u8,
+    target_feature: []const u8,
     entry_point: []const u8,
 
     pub fn deinit(self: PluginManifest, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
         allocator.free(self.version);
         allocator.free(self.description);
+        allocator.free(self.target_feature);
         allocator.free(self.entry_point);
     }
 };
@@ -27,6 +32,7 @@ pub const PluginInfo = struct {
     name: []const u8,
     version: []const u8,
     description: []const u8,
+    target_feature: []const u8,
     entry_point: []const u8,
     path: []const u8,
     loaded: bool,
@@ -43,6 +49,20 @@ pub const PluginLoadError = error{
 const LoadedPlugin = struct {
     info: PluginInfo,
 };
+
+pub fn isSafeEntryPoint(entry_point: []const u8) bool {
+    if (entry_point.len == 0) return false;
+    if (!std.mem.endsWith(u8, entry_point, ".zig")) return false;
+    if (entry_point[0] == '/' or entry_point[0] == '\\') return false;
+    if (std.mem.indexOfScalar(u8, entry_point, ':') != null) return false;
+
+    var parts = std.mem.splitAny(u8, entry_point, "/\\");
+    while (parts.next()) |part| {
+        if (part.len == 0) return false;
+        if (std.mem.eql(u8, part, ".") or std.mem.eql(u8, part, "..")) return false;
+    }
+    return true;
+}
 
 pub const PluginManager = struct {
     allocator: std.mem.Allocator,
@@ -68,6 +88,7 @@ pub const PluginManager = struct {
             self.allocator.free(plugin.info.name);
             self.allocator.free(plugin.info.version);
             self.allocator.free(plugin.info.description);
+            self.allocator.free(plugin.info.target_feature);
             self.allocator.free(plugin.info.entry_point);
             self.allocator.free(plugin.info.path);
         }
@@ -90,14 +111,18 @@ pub const PluginManager = struct {
         const version = if (version_entry == .string) version_entry.string else return ManifestSchemaError.InvalidVersion;
         if (version.len == 0) return ManifestSchemaError.InvalidVersion;
 
-        const description = if (obj.get("description")) |description_entry|
-            if (description_entry == .string) description_entry.string else ""
-        else
-            "";
+        const description_entry = obj.get("description") orelse return ManifestSchemaError.MissingDescription;
+        const description = if (description_entry == .string) description_entry.string else return ManifestSchemaError.MissingDescription;
+        if (description.len == 0) return ManifestSchemaError.MissingDescription;
 
-        const entry_entry = obj.get("entry_point") orelse return ManifestSchemaError.MissingEntryPoint;
+        const target_entry = obj.get("target_feature") orelse obj.get("targetFeature") orelse return ManifestSchemaError.MissingTargetFeature;
+        const target_feature = if (target_entry == .string) target_entry.string else return ManifestSchemaError.MissingTargetFeature;
+        if (target_feature.len == 0) return ManifestSchemaError.MissingTargetFeature;
+
+        const entry_entry = obj.get("entry_point") orelse obj.get("entryPoint") orelse return ManifestSchemaError.MissingEntryPoint;
         const entry_point = if (entry_entry == .string) entry_entry.string else return ManifestSchemaError.MissingEntryPoint;
         if (entry_point.len == 0) return ManifestSchemaError.MissingEntryPoint;
+        if (!isSafeEntryPoint(entry_point)) return ManifestSchemaError.InvalidEntryPoint;
 
         const owned_name = try allocator.dupe(u8, name);
         errdefer allocator.free(owned_name);
@@ -108,6 +133,9 @@ pub const PluginManager = struct {
         const owned_description = try allocator.dupe(u8, description);
         errdefer allocator.free(owned_description);
 
+        const owned_target = try allocator.dupe(u8, target_feature);
+        errdefer allocator.free(owned_target);
+
         const owned_entry = try allocator.dupe(u8, entry_point);
         errdefer allocator.free(owned_entry);
 
@@ -115,6 +143,7 @@ pub const PluginManager = struct {
             .name = owned_name,
             .version = owned_version,
             .description = owned_description,
+            .target_feature = owned_target,
             .entry_point = owned_entry,
         };
     }
@@ -136,12 +165,19 @@ pub const PluginManager = struct {
                 ManifestSchemaError.MissingName,
                 ManifestSchemaError.MissingVersion,
                 ManifestSchemaError.InvalidVersion,
+                ManifestSchemaError.MissingDescription,
                 ManifestSchemaError.MissingEntryPoint,
+                ManifestSchemaError.InvalidEntryPoint,
+                ManifestSchemaError.MissingTargetFeature,
                 => return PluginLoadError.InvalidManifest,
                 error.OutOfMemory => return PluginLoadError.OutOfMemory,
             }
         };
         errdefer manifest.deinit(self.allocator);
+
+        const entry_path = try std.fs.path.join(self.allocator, &.{ path, manifest.entry_point });
+        defer self.allocator.free(entry_path);
+        _ = std.Io.Dir.cwd().statFile(std.Options.debug_io, entry_path, .{}) catch return PluginLoadError.InvalidManifest;
 
         self.lock.lockWrite();
         defer self.lock.unlockWrite();
@@ -160,6 +196,7 @@ pub const PluginManager = struct {
             .name = manifest.name,
             .version = manifest.version,
             .description = manifest.description,
+            .target_feature = manifest.target_feature,
             .entry_point = manifest.entry_point,
             .path = owned_path,
             .loaded = true,
@@ -185,6 +222,7 @@ pub const PluginManager = struct {
         self.allocator.free(info.name);
         self.allocator.free(info.version);
         self.allocator.free(info.description);
+        self.allocator.free(info.target_feature);
         self.allocator.free(info.entry_point);
         self.allocator.free(info.path);
     }
@@ -224,43 +262,62 @@ test {
 
 test "plugin manager validates correct manifest" {
     const manifest_json =
-        \\{"name": "test-plugin", "version": "1.0.0", "description": "A test", "entry_point": "mod.zig"}
+        \\{"name": "test-plugin", "version": "1.0.0", "description": "A test", "target_feature": "ai", "entry_point": "mod.zig"}
     ;
     const parsed = try PluginManager.validatePlugin(std.testing.allocator, manifest_json);
     defer parsed.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("test-plugin", parsed.name);
     try std.testing.expectEqualStrings("1.0.0", parsed.version);
+    try std.testing.expectEqualStrings("ai", parsed.target_feature);
     try std.testing.expectEqualStrings("mod.zig", parsed.entry_point);
 }
 
-test "plugin manager accepts missing optional description" {
+test "plugin manager rejects manifest missing description" {
     const manifest_json =
-        \\{"name": "test-plugin", "version": "1.0.0", "entry_point": "mod.zig"}
+        \\{"name": "test-plugin", "version": "1.0.0", "target_feature": "ai", "entry_point": "mod.zig"}
     ;
-    const parsed = try PluginManager.validatePlugin(std.testing.allocator, manifest_json);
-    defer parsed.deinit(std.testing.allocator);
-    try std.testing.expectEqualStrings("", parsed.description);
+    try std.testing.expectError(ManifestSchemaError.MissingDescription, PluginManager.validatePlugin(std.testing.allocator, manifest_json));
 }
 
 test "plugin manager rejects manifest missing name" {
     const manifest_json =
-        \\{"version": "1.0.0", "entry_point": "mod.zig"}
+        \\{"version": "1.0.0", "description": "A test", "target_feature": "ai", "entry_point": "mod.zig"}
     ;
     try std.testing.expectError(ManifestSchemaError.MissingName, PluginManager.validatePlugin(std.testing.allocator, manifest_json));
 }
 
 test "plugin manager rejects manifest missing version" {
     const manifest_json =
-        \\{"name": "test", "entry_point": "mod.zig"}
+        \\{"name": "test", "description": "A test", "target_feature": "ai", "entry_point": "mod.zig"}
     ;
     try std.testing.expectError(ManifestSchemaError.MissingVersion, PluginManager.validatePlugin(std.testing.allocator, manifest_json));
 }
 
 test "plugin manager rejects manifest missing entry_point" {
     const manifest_json =
-        \\{"name": "test", "version": "1.0.0"}
+        \\{"name": "test", "version": "1.0.0", "description": "A test", "target_feature": "ai"}
     ;
     try std.testing.expectError(ManifestSchemaError.MissingEntryPoint, PluginManager.validatePlugin(std.testing.allocator, manifest_json));
+}
+
+test "plugin manager rejects manifest missing target_feature" {
+    const manifest_json =
+        \\{"name": "test", "version": "1.0.0", "description": "A test", "entry_point": "mod.zig"}
+    ;
+    try std.testing.expectError(ManifestSchemaError.MissingTargetFeature, PluginManager.validatePlugin(std.testing.allocator, manifest_json));
+}
+
+test "plugin manager rejects unsafe entry points" {
+    try std.testing.expect(isSafeEntryPoint("mod.zig"));
+    try std.testing.expect(isSafeEntryPoint("nested/mod.zig"));
+    try std.testing.expect(!isSafeEntryPoint("../mod.zig"));
+    try std.testing.expect(!isSafeEntryPoint("/tmp/mod.zig"));
+    try std.testing.expect(!isSafeEntryPoint("mod.so"));
+
+    const manifest_json =
+        \\{"name": "test", "version": "1.0.0", "description": "A test", "target_feature": "ai", "entry_point": "../mod.zig"}
+    ;
+    try std.testing.expectError(ManifestSchemaError.InvalidEntryPoint, PluginManager.validatePlugin(std.testing.allocator, manifest_json));
 }
 
 test "plugin manager load and unload" {

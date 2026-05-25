@@ -9,10 +9,8 @@ pub fn handlePlugin(allocator: std.mem.Allocator, args: []const []const u8) !u8 
     defer registry.deinit();
     try registry.loadPlugins();
 
-    std.debug.print("Installed Plugins:\n", .{});
-    var it = registry.modules.iterator();
-    while (it.next()) |entry| {
-        std.debug.print("  - {s}: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
-    }
+    const rendered = try registry.formatPluginList(allocator);
+    defer allocator.free(rendered);
+    std.debug.print("{s}", .{rendered});
     return 0;
 }

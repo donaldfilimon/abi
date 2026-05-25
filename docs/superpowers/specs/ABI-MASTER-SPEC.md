@@ -3,7 +3,7 @@
 This document serves as the master reference for the ABI Framework, encompassing both the architectural design of the core system and the plugin ecosystem.
 
 ## 1. Architectural Vision (Refactor 2026-05-14)
-The ABI framework is built on a data-oriented composition model optimized for Zig 0.17.0, with feature-gated modules, explicit ownership, and a generated static plugin registry.
+The ABI framework is built on a data-oriented composition model optimized for Zig 0.17.0, with feature-gated modules, explicit ownership, and a generated static plugin registry that preserves plugin manifest metadata.
 
 ### Core Principles
 - **Explicit Memory Management**: Custom allocators (Arena, Pool).
@@ -42,12 +42,12 @@ The plugin system is implemented via build-time registry generation:
 1. `tools/generate_plugin_registry.zig`: Scans plugin manifests under `src/plugins/*/abi-plugin.json`, validates required manifest fields, and generates `src/plugin_registry.zig`.
 2. `build.zig`: Automatically triggers generation during `abi` build.
 3. `src/core/registry.zig`: Imports `plugin_registry.zig` and invokes `registerPlugins()`.
-4. `src/plugins/plugin_manager.zig`: Provides manifest validation and local load/list/unload APIs for plugin directories.
-5. CLI: `abi plugin list` provides the current discovery interface.
+4. `src/plugins/plugin_manager.zig`: Provides required-field manifest validation and local load/list/unload APIs for plugin directories.
+5. CLI: `abi plugin list` provides the current discovery interface, including plugin version and target feature metadata.
 
 
 ### Plugin Discovery (abi-plugin.json)
-Each plugin must provide a manifest:
+Each plugin must provide a manifest. `entry_point` must be a safe relative `.zig` path (no absolute paths or `..` traversal):
 ```json
 {
   "name": "plugin-name",
@@ -59,7 +59,10 @@ Each plugin must provide a manifest:
 ```
 
 ### CLI & Build Integration
-- **CLI**: `abi plugin list` lists the statically generated registry contents.
+- **CLI**: `abi plugin list` lists the statically generated registry contents with version and target feature metadata.
 - **Build System**: `build.zig` runs `tools/generate_plugin_registry.zig`, generating `src/plugin_registry.zig` before CLI/check builds.
-- **Validation**: Plugin feature surfaces with `mod.zig`/`stub.zig` pairs are checked by `zig build check-parity`.
+- **Validation**: Plugin feature surfaces with `mod.zig`/`stub.zig` pairs are checked by `zig build check-parity`; generated registry metadata is covered by `tests/contracts/plugin_registry.zig`.
 - **Security**: No dynamic loading (shared libraries) is allowed; static compilation integrity is maintained.
+
+### Connector Boundary
+Discord connector calls validate credentials, numeric snowflake-like IDs, and Discord's 2000-byte message size limit before local acknowledgements or live HTTP dispatch.

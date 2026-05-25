@@ -10,6 +10,25 @@ pub const Principle = enum {
     fairness,
     privacy,
     transparency,
+
+    pub fn label(self: Principle) []const u8 {
+        return switch (self) {
+            .truthfulness => "truthfulness",
+            .safety => "safety",
+            .helpfulness => "helpfulness",
+            .fairness => "fairness",
+            .privacy => "privacy",
+            .transparency => "transparency",
+        };
+    }
+
+    pub fn specAlias(self: Principle) []const u8 {
+        return switch (self) {
+            .truthfulness => "honesty",
+            .helpfulness => "autonomy",
+            else => self.label(),
+        };
+    }
 };
 
 const PrincipleCheck = struct {
@@ -221,6 +240,13 @@ test "constitution evaluateResponse empty response fails all" {
     try std.testing.expect(!result.passed);
     try std.testing.expect(result.violations.isSet(@intFromEnum(Principle.truthfulness)));
     try std.testing.expect(result.violations.isSet(@intFromEnum(Principle.safety)));
+}
+
+test "constitution principle labels include master spec aliases" {
+    try std.testing.expectEqualStrings("truthfulness", Principle.truthfulness.label());
+    try std.testing.expectEqualStrings("honesty", Principle.truthfulness.specAlias());
+    try std.testing.expectEqualStrings("autonomy", Principle.helpfulness.specAlias());
+    try std.testing.expectEqualStrings("privacy", Principle.privacy.specAlias());
 }
 
 test "audit result has timestamp" {

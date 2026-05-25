@@ -84,7 +84,7 @@ src/
 │   ├── json.zig       # JSON string escaping
 │   ├── openai.zig     # OpenAI connector
 │   ├── anthropic.zig  # Anthropic connector
-│   ├── discord.zig    # Discord connector
+│   ├── discord.zig    # Discord connector with credential/snowflake/message validation
 │   └── twilio.zig     # Twilio ConversationRelay simulator
 ├── abi_cli/           # CLI dispatch, handlers, usage
 │   ├── dispatch.zig   # Top-level command routing
@@ -105,9 +105,9 @@ src/
 │   ├── protocol.zig   # JSON-RPC protocol types
 │   └── server.zig     # Server transport layer
 ├── plugins/           # Plugin manifests and local plugin manager
-│   ├── plugin_manager.zig # Load/unload/list from JSON manifests
+│   ├── plugin_manager.zig # Load/unload/list from required JSON manifests
 │   └── example-plugin/    # Example plugin (mod.zig + stub.zig)
-├── plugin_registry.zig # Auto-generated (do not edit)
+├── plugin_registry.zig # Auto-generated metadata registry (do not edit)
 ├── testing/           # Test infrastructure
 │   └── test_helpers.zig # TestAllocator, TempDir, mocks, assertions
 ├── integration_tests.zig
@@ -116,7 +116,8 @@ src/
 tests/                 # External contract tests
 ├── contracts/
 │   ├── surface.zig    # CLI/MCP surface contract tests
-│   └── mcp_tools.zig  # MCP tool contract tests
+│   ├── mcp_tools.zig  # MCP tool contract tests
+│   └── plugin_registry.zig # Generated plugin metadata contract tests
 
 tools/                 # Build helpers and verification scripts
 ├── build.sh           # macOS/Darwin build wrapper
@@ -187,6 +188,6 @@ The three-way weighted routing and blending pipeline.
 
 1. **Source truth first**: Reconcile architecture prose against `build.zig`, `src/features/mod.zig`, `src/abi_cli/usage.zig`, `docs/contracts/public-api.md`, and contract tests before changing public surfaces.
 2. **Mod/stub parity**: Any public feature API change must update both `mod.zig` and `stub.zig`, including disabled-feature semantics, then pass `zig build check-parity`.
-3. **Generated registry**: Do not edit `src/plugin_registry.zig`; update plugin manifests and regenerate through the build step.
+3. **Generated registry**: Do not edit `src/plugin_registry.zig`; update plugin manifests and regenerate through the build step. Required manifest fields are `name`, `version`, `description`, `target_feature`, and `entry_point`.
 4. **Import boundaries**: Library modules under `src/` use relative imports with `.zig` extensions. MCP executable/handler files (`src/mcp/main.zig`, `src/mcp/handlers.zig`) may import the public `abi` package because `build.zig` wires that package explicitly; never do so from modules re-exported by `src/root.zig`.
 5. **Verification gates**: For source changes run `./build.sh check`; for release/readiness changes run `./build.sh full-check`.

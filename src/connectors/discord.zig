@@ -6,6 +6,9 @@ const http = @import("http.zig");
 const ConnectorError = connector.ConnectorError;
 const Response = connector.Response;
 
+pub const DISCORD_MAX_MESSAGE_BYTES: usize = 2000;
+const DISCORD_MAX_ID_BYTES: usize = 32;
+
 pub const BotConfig = struct {
     token: []const u8,
     client_id: []const u8,
@@ -34,8 +37,7 @@ pub const Bot = struct {
     }
 
     pub fn connect(self: *Bot) !void {
-        if (self.config.token.len == 0) return ConnectorError.AuthenticationError;
-        if (self.config.client_id.len == 0) return ConnectorError.AuthenticationError;
+        try validateBotConfig(self.config);
         if (self.config.transport == .live) return ConnectorError.LiveTransportUnavailable;
         std.log.info("Discord bot opened local session for client {s}", .{self.config.client_id});
         self.connected = true;
@@ -49,7 +51,8 @@ pub const Bot = struct {
     ) ![]u8 {
         if (!self.connected) return ConnectorError.ConnectionFailed;
 
-        if (channel_id.len == 0 or content.len == 0) return ConnectorError.InvalidResponse;
+        try validateDiscordId(channel_id);
+        try validateMessageContent(content);
         std.log.info("Discord local send to channel {s}: {s}", .{ channel_id, content });
 
         return try json.discordLocalAck(allocator, channel_id, content);
@@ -62,8 +65,10 @@ pub const Bot = struct {
         channel_id: []const u8,
         content: []const u8,
     ) ConnectorError!Response {
-        if (self.config.token.len == 0) return ConnectorError.AuthenticationError;
-        if (channel_id.len == 0 or content.len == 0) return ConnectorError.InvalidResponse;
+        if (self.config.transport != .live) return ConnectorError.LiveTransportUnavailable;
+        try validateBotConfig(self.config);
+        try validateDiscordId(channel_id);
+        try validateMessageContent(content);
         const body = try json.buildDiscordMessageBody(allocator, content);
         defer allocator.free(body);
         const authorization = try http.botHeader(allocator, self.config.token);
@@ -83,7 +88,8 @@ pub const Bot = struct {
     pub fn handleMessage(self: *Bot, author: []const u8, content: []const u8) ![]const u8 {
         if (!self.connected) return ConnectorError.ConnectionFailed;
 
-        if (author.len == 0 or content.len == 0) return ConnectorError.InvalidResponse;
+        if (author.len == 0) return ConnectorError.InvalidResponse;
+        try validateMessageContent(content);
         std.log.info("Discord local receive from {s}: {s}", .{ author, content });
 
         return try std.fmt.allocPrint(
@@ -93,3 +99,26 @@ pub const Bot = struct {
         );
     }
 };
+
+pub fn validateBotConfig(config: BotConfig) ConnectorError!void {
+    try validateToken(config.token);
+    try validateDiscordId(config.client_id);
+}
+
+pub fn validateDiscordId(id: []const u8) ConnectorError!void {
+    if (id.len == 0 or id.len > DISCORD_MAX_ID_BYTES) return ConnectorError.InvalidResponse;
+    for (id) |byte| {
+        if (byte < '0' or byte > '9') return ConnectorError.InvalidResponse;
+    }
+}
+
+pub fn validateMessageContent(content: []const u8) ConnectorError!void {
+    if (content.len == 0 or content.len > DISCORD_MAX_MESSAGE_BYTES) return ConnectorError.InvalidResponse;
+}
+
+fn validateToken(token: []const u8) ConnectorError!void {
+    if (token.len == 0) return ConnectorError.AuthenticationError;
+    for (token) |byte| {
+        if (std.ascii.isWhitespace(byte) or byte < 0x21 or byte > 0x7e) return ConnectorError.AuthenticationError;
+    }
+}

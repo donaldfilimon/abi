@@ -191,6 +191,19 @@ pub fn build(b: *std.Build) void {
     });
     const run_contract_mcp_tests = b.addRunArtifact(contract_mcp_tests);
 
+    const contract_plugin_registry_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/contracts/plugin_registry.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "registry", .module = abi_mod },
+            },
+        }),
+    });
+    contract_plugin_registry_tests.step.dependOn(&run_gen_plugin_registry.step);
+    const run_contract_plugin_registry_tests = b.addRunArtifact(contract_plugin_registry_tests);
+
     const run_contract_cli = b.addSystemCommand(&.{ "bash", "tools/run_contract_cli.sh" });
     run_contract_cli.step.dependOn(b.getInstallStep());
 
@@ -219,6 +232,7 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(test_step);
     check_step.dependOn(&run_contract_surface_tests.step);
     check_step.dependOn(&run_contract_mcp_tests.step);
+    check_step.dependOn(&run_contract_plugin_registry_tests.step);
     check_step.dependOn(&run_contract_cli.step);
     check_step.dependOn(&feature_stub_check.step);
     check_step.dependOn(&fmt_check.step);

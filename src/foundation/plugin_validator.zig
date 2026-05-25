@@ -21,10 +21,12 @@ pub fn validatePluginStructure(allocator: std.mem.Allocator, plugin_path: []cons
 
     const name = jsonStringField(obj, "name") orelse return false;
     const version = jsonStringField(obj, "version") orelse return false;
+    const description = jsonStringField(obj, "description") orelse return false;
     const entry_point = jsonStringField(obj, "entry_point") orelse jsonStringField(obj, "entryPoint") orelse return false;
     const target_feature = jsonStringField(obj, "target_feature") orelse jsonStringField(obj, "targetFeature") orelse return false;
 
-    if (name.len == 0 or version.len == 0 or entry_point.len == 0 or target_feature.len == 0) return false;
+    if (name.len == 0 or version.len == 0 or description.len == 0 or target_feature.len == 0) return false;
+    if (!isSafeEntryPoint(entry_point)) return false;
     _ = dir.statFile(io, entry_point, .{}) catch return false;
 
     return true;
@@ -44,4 +46,18 @@ fn jsonStringField(obj: std.json.ObjectMap, key: []const u8) ?[]const u8 {
         .string => |s| s,
         else => null,
     };
+}
+
+fn isSafeEntryPoint(entry_point: []const u8) bool {
+    if (entry_point.len == 0) return false;
+    if (!std.mem.endsWith(u8, entry_point, ".zig")) return false;
+    if (entry_point[0] == '/' or entry_point[0] == '\\') return false;
+    if (std.mem.indexOfScalar(u8, entry_point, ':') != null) return false;
+
+    var parts = std.mem.splitAny(u8, entry_point, "/\\");
+    while (parts.next()) |part| {
+        if (part.len == 0) return false;
+        if (std.mem.eql(u8, part, ".") or std.mem.eql(u8, part, "..")) return false;
+    }
+    return true;
 }

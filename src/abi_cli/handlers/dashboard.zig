@@ -25,12 +25,8 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
     defer registry.deinit();
     try registry.loadPlugins();
 
-    var plugin_names = std.ArrayListUnmanaged([]const u8).empty;
-    defer plugin_names.deinit(allocator);
-    var plugin_it = registry.modules.iterator();
-    while (plugin_it.next()) |entry| {
-        try plugin_names.append(allocator, entry.key_ptr.*);
-    }
+    const plugin_names = try registry.snapshotPluginNames(allocator);
+    defer abi.registry.Registry.freePluginNamesSnapshot(allocator, plugin_names);
 
     var store = abi.features.wdbx.Store.init(allocator);
     defer store.deinit();
@@ -66,8 +62,8 @@ pub fn handleDashboard(allocator: std.mem.Allocator) !u8 {
             .gpu_backend = abi.features.gpu.backendName(gpu_status.backend),
             .gpu_accelerated = gpu_status.accelerated,
             .gpu_linked = native_gpu.linked,
-            .plugin_count = registry.modules.count(),
-            .plugin_names = plugin_names.items,
+            .plugin_count = registry.pluginCount(),
+            .plugin_names = plugin_names,
             .wdbx_blocks = wdbx_stats.blocks,
             .wdbx_vectors = wdbx_stats.vectors,
             .wdbx_entries = wdbx_stats.kv_entries,

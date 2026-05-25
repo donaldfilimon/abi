@@ -7,6 +7,25 @@ pub const Principle = enum {
     fairness,
     privacy,
     transparency,
+
+    pub fn label(self: Principle) []const u8 {
+        return switch (self) {
+            .truthfulness => "truthfulness",
+            .safety => "safety",
+            .helpfulness => "helpfulness",
+            .fairness => "fairness",
+            .privacy => "privacy",
+            .transparency => "transparency",
+        };
+    }
+
+    pub fn specAlias(self: Principle) []const u8 {
+        return switch (self) {
+            .truthfulness => "honesty",
+            .helpfulness => "autonomy",
+            else => self.label(),
+        };
+    }
 };
 
 pub const AuditResult = struct {
@@ -257,9 +276,8 @@ pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 }
 
 pub fn complete(allocator: std.mem.Allocator, request: CompletionRequest) !CompletionResult {
-    _ = request;
     return .{
-        .model = "disabled",
+        .model = request.model,
         .selected_profile = .abbey,
         .output = try allocator.dupe(u8, "AI feature is disabled"),
         .audit = constitution.Constitution.validate("AI feature is disabled"),
