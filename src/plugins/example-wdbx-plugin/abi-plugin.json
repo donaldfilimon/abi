@@ -1,0 +1,7 @@
+{
+  "name": "example-wdbx-plugin",
+  "version": "0.1.0",
+  "description": "Example WDBX plugin used by multi-plugin registry contract tests.",
+  "target_feature": "wdbx",
+  "entry_point": "mod.zig"
+}

@@ -4,8 +4,8 @@ pub fn trimWhitespace(s: []const u8) []const u8 {
     return std.mem.trim(u8, s, &std.ascii.whitespace);
 }
 
-pub fn splitLines(s: []const u8, allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
-    var result: std.ArrayList([]const u8) = .empty;
+pub fn splitLines(s: []const u8, allocator: std.mem.Allocator) !std.ArrayListUnmanaged([]const u8) {
+    var result: std.ArrayListUnmanaged([]const u8) = .empty;
     errdefer {
         for (result.items) |line| {
             allocator.free(line);
@@ -32,7 +32,7 @@ pub fn joinStrings(parts: []const []const u8, separator: []const u8, allocator: 
     }
     total_len += separator.len * (parts.len - 1);
 
-    var result: std.ArrayList(u8) = .empty;
+    var result: std.ArrayListUnmanaged(u8) = .empty;
     errdefer result.deinit(allocator);
 
     try result.ensureTotalCapacity(allocator, total_len);

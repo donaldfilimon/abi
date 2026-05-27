@@ -44,7 +44,7 @@ pub const TestAllocator = struct {
 pub const TempDir = struct {
     allocator: std.mem.Allocator,
     path: []const u8,
-    files: std.ArrayList(TempFile),
+    files: std.ArrayListUnmanaged(TempFile),
 
     counter: usize = 0,
 
@@ -126,7 +126,7 @@ pub fn bench(comptime label: []const u8, fn_run: anytype) BenchResult {
 
 pub const MockConnector = struct {
     alloc: std.mem.Allocator,
-    responses: std.ArrayList([]const u8),
+    responses: std.ArrayListUnmanaged([]const u8),
     call_count: usize = 0,
     initialized: bool = false,
 

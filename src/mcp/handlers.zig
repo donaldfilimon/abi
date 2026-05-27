@@ -140,7 +140,7 @@ fn parseDatasetFormat(obj: std.json.ObjectMap) features.ai.DatasetFormat {
 }
 
 fn toolTextResult(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
 
     try out.appendSlice(allocator, "{\"content\":[{\"type\":\"text\",\"text\":");

@@ -217,7 +217,7 @@ pub const Store = struct {
 
     pub fn exportManifest(self: *const Store, allocator: std.mem.Allocator) ![]u8 {
         const s = self.stats();
-        var out: std.ArrayList(u8) = .empty;
+        var out: std.ArrayListUnmanaged(u8) = .empty;
         errdefer out.deinit(allocator);
         try out.print(allocator, "{{\"kv_entries\":{d},\"vectors\":{d},\"blocks\":{d},\"spatial_records\":{d},\"vector_dimensions\":", .{ s.kv_entries, s.vectors, s.blocks, s.spatial_records });
         if (s.vector_dimensions) |dims| {

@@ -45,7 +45,7 @@ fn signalHandler(sig: @TypeOf(std.posix.SIG.INT)) callconv(.c) void {
 
 pub fn runStdioLoop(allocator: std.mem.Allocator, io: std.Io) !void {
     var read_buf: [4096]u8 = undefined;
-    var line_buf: std.ArrayList(u8) = .empty;
+    var line_buf: std.ArrayListUnmanaged(u8) = .empty;
     defer line_buf.deinit(allocator);
 
     while (!isShutdownRequested()) {
@@ -155,7 +155,7 @@ fn processRequest(allocator: std.mem.Allocator, io: std.Io, line: []const u8) !v
 
 fn writeError(io: std.Io, id: ?std.json.Value, code: i32, message: []const u8) void {
     const gpa = std.heap.page_allocator;
-    var buf: std.ArrayList(u8) = .empty;
+    var buf: std.ArrayListUnmanaged(u8) = .empty;
     defer buf.deinit(gpa);
 
     buf.appendSlice(gpa, "{\"jsonrpc\":\"2.0\"") catch return;
@@ -172,7 +172,7 @@ fn writeError(io: std.Io, id: ?std.json.Value, code: i32, message: []const u8) v
 }
 
 fn writeResult(allocator: std.mem.Allocator, io: std.Io, id: ?std.json.Value, result_json: []const u8) void {
-    var buf: std.ArrayList(u8) = .empty;
+    var buf: std.ArrayListUnmanaged(u8) = .empty;
     defer buf.deinit(allocator);
 
     buf.appendSlice(allocator, "{\"jsonrpc\":\"2.0\"") catch return;
@@ -186,7 +186,7 @@ fn writeResult(allocator: std.mem.Allocator, io: std.Io, id: ?std.json.Value, re
     };
 }
 
-fn appendId(allocator: std.mem.Allocator, out: *std.ArrayList(u8), id: ?std.json.Value) !void {
+fn appendId(allocator: std.mem.Allocator, out: *std.ArrayListUnmanaged(u8), id: ?std.json.Value) !void {
     if (id) |value| {
         const id_json = try valueToJson(value, allocator);
         defer allocator.free(id_json);

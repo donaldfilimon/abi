@@ -138,9 +138,9 @@ pub const index = struct {
     pub const EF_SEARCH = 32;
 
     pub const HnswNode = struct {
-        pub fn initEdges(allocator: std.mem.Allocator) [4]std.ArrayList(u32) {
+        pub fn initEdges(allocator: std.mem.Allocator) [4]std.ArrayListUnmanaged(u32) {
             _ = allocator;
-            var arr: [4]std.ArrayList(u32) = undefined;
+            var arr: [4]std.ArrayListUnmanaged(u32) = undefined;
             var i: usize = 0;
             while (i < 4) : (i += 1) {
                 arr[i] = .empty;

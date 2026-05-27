@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn appendJsonString(out: *std.ArrayList(u8), allocator: std.mem.Allocator, value: []const u8) !void {
+pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
     try out.append(allocator, '"');
     for (value) |byte| {
         switch (byte) {
@@ -21,7 +21,7 @@ pub fn appendJsonString(out: *std.ArrayList(u8), allocator: std.mem.Allocator, v
 }
 
 pub fn jsonStringAlloc(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try appendJsonString(&out, allocator, value);
     return out.toOwnedSlice(allocator);
@@ -36,7 +36,7 @@ pub fn valueToJson(value: std.json.Value, allocator: std.mem.Allocator) ![]u8 {
         .number_string => |s| try allocator.dupe(u8, s),
         .string => |s| try jsonStringAlloc(allocator, s),
         .array => |arr| blk: {
-            var out: std.ArrayList(u8) = .empty;
+            var out: std.ArrayListUnmanaged(u8) = .empty;
             defer out.deinit(allocator);
             try out.append(allocator, '[');
             for (arr.items, 0..) |item, idx| {
@@ -49,7 +49,7 @@ pub fn valueToJson(value: std.json.Value, allocator: std.mem.Allocator) ![]u8 {
             break :blk out.toOwnedSlice(allocator);
         },
         .object => |obj| blk: {
-            var out: std.ArrayList(u8) = .empty;
+            var out: std.ArrayListUnmanaged(u8) = .empty;
             defer out.deinit(allocator);
             try out.append(allocator, '{');
             var it = obj.iterator();

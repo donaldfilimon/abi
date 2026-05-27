@@ -202,12 +202,12 @@ pub const OSController = struct {
         };
     }
 
-    pub fn listDirectory(self: *OSController, path: []const u8) !std.ArrayList([]const u8) {
+    pub fn listDirectory(self: *OSController, path: []const u8) !std.ArrayListUnmanaged([]const u8) {
         const io = std.Options.debug_io;
         var dir = try std.Io.Dir.openDirAbsolute(io, path, .{ .iterate = true });
         defer dir.close(io);
 
-        var entries: std.ArrayList([]const u8) = .empty;
+        var entries: std.ArrayListUnmanaged([]const u8) = .empty;
         errdefer {
             for (entries.items) |entry| {
                 self.allocator.free(entry);

@@ -21,7 +21,7 @@ pub fn validateJsonValue(allocator: std.mem.Allocator, input: []const u8, expect
     }
 }
 
-pub fn appendJsonString(out: *std.ArrayList(u8), allocator: std.mem.Allocator, value: []const u8) !void {
+pub fn appendJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
     try out.append(allocator, '"');
     for (value) |byte| {
         switch (byte) {
@@ -43,7 +43,7 @@ pub fn appendJsonString(out: *std.ArrayList(u8), allocator: std.mem.Allocator, v
 
 pub fn buildOpenAiBody(allocator: std.mem.Allocator, model: []const u8, messages: []const u8, stream: bool) ConnectorError![]u8 {
     try validateJsonValue(allocator, messages, .array);
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "{\"model\":");
     try appendJsonString(&out, allocator, model);
@@ -55,7 +55,7 @@ pub fn buildOpenAiBody(allocator: std.mem.Allocator, model: []const u8, messages
 }
 
 pub fn buildAnthropicBody(allocator: std.mem.Allocator, model: []const u8, prompt: []const u8, max_tokens: u32, stream: bool) ConnectorError![]u8 {
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "{\"model\":");
     try appendJsonString(&out, allocator, model);
@@ -68,7 +68,7 @@ pub fn buildAnthropicBody(allocator: std.mem.Allocator, model: []const u8, promp
 }
 
 pub fn buildDiscordMessageBody(allocator: std.mem.Allocator, content: []const u8) ConnectorError![]u8 {
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "{\"content\":");
     try appendJsonString(&out, allocator, content);
@@ -83,7 +83,7 @@ pub fn openAiLocalResponse(allocator: std.mem.Allocator, model: []const u8, mess
         .{ model, messages.len, body_len },
     );
     defer allocator.free(text);
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":");
     try appendJsonString(&out, allocator, text);
@@ -94,7 +94,7 @@ pub fn openAiLocalResponse(allocator: std.mem.Allocator, model: []const u8, mess
 pub fn openAiLocalStream(allocator: std.mem.Allocator, model: []const u8, messages: []const u8, body_len: usize) ![]u8 {
     const content = try std.fmt.allocPrint(allocator, "OpenAI-compatible local stream model={s} messages_bytes={d} request_bytes={d}", .{ model, messages.len, body_len });
     defer allocator.free(content);
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "data: ");
     try appendOpenAiDelta(&out, allocator, content);
@@ -102,7 +102,7 @@ pub fn openAiLocalStream(allocator: std.mem.Allocator, model: []const u8, messag
     return try out.toOwnedSlice(allocator);
 }
 
-pub fn appendOpenAiDelta(out: *std.ArrayList(u8), allocator: std.mem.Allocator, content: []const u8) !void {
+pub fn appendOpenAiDelta(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, content: []const u8) !void {
     try out.appendSlice(allocator, "{\"choices\":[{\"delta\":{\"content\":");
     try appendJsonString(out, allocator, content);
     try out.appendSlice(allocator, "}}]}");
@@ -115,7 +115,7 @@ pub fn anthropicLocalResponse(allocator: std.mem.Allocator, model: []const u8, p
         .{ model, prompt.len, max_tokens, body_len },
     );
     defer allocator.free(text);
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "{\"content\":[{\"type\":\"text\",\"text\":");
     try appendJsonString(&out, allocator, text);
@@ -126,7 +126,7 @@ pub fn anthropicLocalResponse(allocator: std.mem.Allocator, model: []const u8, p
 pub fn anthropicLocalStream(allocator: std.mem.Allocator, model: []const u8, prompt: []const u8, max_tokens: u32, body_len: usize) ![]u8 {
     const content = try std.fmt.allocPrint(allocator, "Anthropic-compatible local stream model={s} prompt_bytes={d} max_tokens={d} request_bytes={d}", .{ model, prompt.len, max_tokens, body_len });
     defer allocator.free(content);
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "event: content_block_delta\ndata: ");
     try appendAnthropicDelta(&out, allocator, content);
@@ -134,14 +134,14 @@ pub fn anthropicLocalStream(allocator: std.mem.Allocator, model: []const u8, pro
     return try out.toOwnedSlice(allocator);
 }
 
-pub fn appendAnthropicDelta(out: *std.ArrayList(u8), allocator: std.mem.Allocator, content: []const u8) !void {
+pub fn appendAnthropicDelta(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, content: []const u8) !void {
     try out.appendSlice(allocator, "{\"delta\":{\"text\":");
     try appendJsonString(out, allocator, content);
     try out.appendSlice(allocator, "}}");
 }
 
 pub fn discordLocalAck(allocator: std.mem.Allocator, channel_id: []const u8, content: []const u8) ![]u8 {
-    var out: std.ArrayList(u8) = .empty;
+    var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(allocator);
     try out.appendSlice(allocator, "{\"status\":\"queued-local\",\"channel_id\":");
     try appendJsonString(&out, allocator, channel_id);

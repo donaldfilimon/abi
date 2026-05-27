@@ -10,11 +10,11 @@ pub const EF_SEARCH = 32;
 pub const HnswNode = struct {
     id: u32,
     level: usize,
-    edges: [MAX_LAYERS]std.ArrayList(u32),
+    edges: [MAX_LAYERS]std.ArrayListUnmanaged(u32),
     lock: sync.SpinLock = .{},
 
-    pub fn initEdges(allocator: std.mem.Allocator) [MAX_LAYERS]std.ArrayList(u32) {
-        var arr: [MAX_LAYERS]std.ArrayList(u32) = undefined;
+    pub fn initEdges(allocator: std.mem.Allocator) [MAX_LAYERS]std.ArrayListUnmanaged(u32) {
+        var arr: [MAX_LAYERS]std.ArrayListUnmanaged(u32) = undefined;
         var i: usize = 0;
         _ = allocator;
         while (i < MAX_LAYERS) : (i += 1) {
@@ -33,7 +33,7 @@ pub const HnswNode = struct {
 
 pub const VectorStorage = struct {
     allocator: std.mem.Allocator,
-    data: std.ArrayList(f32),
+    data: std.ArrayListUnmanaged(f32),
     present: std.AutoHashMap(u32, void),
     dimensions: usize = 0,
     capacity: usize = 0,
@@ -129,7 +129,7 @@ pub fn HnswIndex(comptime D: usize) type {
 
         allocator: std.mem.Allocator,
         storage: VectorStorage,
-        nodes: std.ArrayList(HnswNode),
+        nodes: std.ArrayListUnmanaged(HnswNode),
         entry_node: ?u32 = null,
         lock: sync.RwLock = .{},
         max_level: usize = 0,
@@ -175,7 +175,7 @@ pub fn HnswIndex(comptime D: usize) type {
                     var edges = HnswNode.initEdges(self.allocator);
                     var layer: usize = 0;
                     while (layer <= level) : (layer += 1) {
-                        edges[layer] = try std.ArrayList(u32).initCapacity(self.allocator, M);
+                        edges[layer] = try std.ArrayListUnmanaged(u32).initCapacity(self.allocator, M);
                     }
                     break :blk edges;
                 },
@@ -276,7 +276,7 @@ pub fn HnswIndex(comptime D: usize) type {
 
             if (self.entry_node == null) return self.allocator.alloc(wdbx_mod.SearchResult, 0);
 
-            var candidates: std.ArrayList(Candidate) = .empty;
+            var candidates: std.ArrayListUnmanaged(Candidate) = .empty;
             defer candidates.deinit(self.allocator);
 
             var visited = std.AutoHashMap(u32, void).init(self.allocator);
