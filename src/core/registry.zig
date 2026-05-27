@@ -114,18 +114,46 @@ pub const Registry = struct {
         allocator.free(names);
     }
 
+    pub fn snapshotPlugins(self: *Registry, allocator: std.mem.Allocator) ![]PluginDescriptor {
+        self.lock.lockRead();
+        defer self.lock.unlockRead();
+
+        const plugins = try allocator.alloc(PluginDescriptor, self.modules.count());
+        errdefer allocator.free(plugins);
+
+        var filled: usize = 0;
+        errdefer {
+            for (plugins[0..filled]) |plugin| freeDescriptor(allocator, plugin);
+        }
+
+        var it = self.modules.iterator();
+        while (it.next()) |entry| {
+            plugins[filled] = try dupeDescriptor(allocator, entry.value_ptr.*);
+            filled += 1;
+        }
+
+        return plugins;
+    }
+
+    pub fn freePluginSnapshot(allocator: std.mem.Allocator, plugins: []PluginDescriptor) void {
+        for (plugins) |plugin| freeDescriptor(allocator, plugin);
+        allocator.free(plugins);
+    }
+
     pub fn formatPluginList(self: *Registry, allocator: std.mem.Allocator) ![]u8 {
         self.lock.lockRead();
         defer self.lock.unlockRead();
 
         var out: std.ArrayListUnmanaged(u8) = .empty;
         errdefer out.deinit(allocator);
-        try out.appendSlice(allocator, "Installed Plugins:\n");
+        try out.print(allocator, "Installed Plugins ({d}):\n", .{self.modules.count()});
 
         var it = self.modules.iterator();
         while (it.next()) |entry| {
             const plugin = entry.value_ptr.*;
-            if (plugin.version.len > 0 and plugin.target_feature.len > 0) {
+            if (plugin.version.len > 0 and plugin.target_feature.len > 0 and plugin.entry_point.len > 0) {
+                try out.print(allocator, "  - {s} v{s} [{s}] ({s}): {s}\n", .{ plugin.name, plugin.version, plugin.target_feature, plugin.entry_point, plugin.description });
+            } else if (plugin.version.len > 0 and plugin.target_feature.len > 0) {
                 try out.print(allocator, "  - {s} v{s} [{s}]: {s}\n", .{ plugin.name, plugin.version, plugin.target_feature, plugin.description });
             } else {
                 try out.print(allocator, "  - {s}: {s}\n", .{ plugin.name, plugin.description });
@@ -237,6 +265,30 @@ test "Registry snapshots plugin names with owned memory" {
     try testing.expectEqualStrings("example", names[0]);
 }
 
+test "Registry snapshots complete plugin descriptors with owned memory" {
+    const testing = std.testing;
+
+    var registry = Registry.init(testing.allocator);
+    defer registry.deinit();
+
+    try registry.registerPlugin(.{
+        .name = "example",
+        .version = "1.2.3",
+        .description = "metadata test",
+        .target_feature = "ai",
+        .entry_point = "mod.zig",
+    });
+
+    const plugins = try registry.snapshotPlugins(testing.allocator);
+    defer Registry.freePluginSnapshot(testing.allocator, plugins);
+    try testing.expectEqual(@as(usize, 1), plugins.len);
+    try testing.expectEqualStrings("example", plugins[0].name);
+    try testing.expectEqualStrings("1.2.3", plugins[0].version);
+    try testing.expectEqualStrings("metadata test", plugins[0].description);
+    try testing.expectEqualStrings("ai", plugins[0].target_feature);
+    try testing.expectEqualStrings("mod.zig", plugins[0].entry_point);
+}
+
 test "Registry formats plugin list with metadata" {
     const testing = std.testing;
 
@@ -253,5 +305,6 @@ test "Registry formats plugin list with metadata" {
 
     const rendered = try registry.formatPluginList(testing.allocator);
     defer testing.allocator.free(rendered);
-    try testing.expect(std.mem.indexOf(u8, rendered, "example v1.2.3 [ai]") != null);
+    try testing.expect(std.mem.indexOf(u8, rendered, "Installed Plugins (1):") != null);
+    try testing.expect(std.mem.indexOf(u8, rendered, "example v1.2.3 [ai] (mod.zig)") != null);
 }

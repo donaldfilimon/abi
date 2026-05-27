@@ -286,7 +286,8 @@ test "OSController getCwd" {
 test "OSController writeFile and readPath" {
     var controller = OSController.init(std.testing.allocator);
 
-    const test_path = "/tmp/abi_os_test.txt";
+    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_os_test_{d}.txt", .{controller.getPid()});
+    defer std.testing.allocator.free(test_path);
     const test_content = "hello from abi os controller";
 
     try controller.writeFile(test_path, test_content);
@@ -301,7 +302,8 @@ test "OSController writeFile and readPath" {
 test "OSController statFile" {
     var controller = OSController.init(std.testing.allocator);
 
-    const test_path = "/tmp/abi_os_stat_test.txt";
+    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_os_stat_test_{d}.txt", .{controller.getPid()});
+    defer std.testing.allocator.free(test_path);
     const test_content = "stat test content";
 
     try controller.writeFile(test_path, test_content);

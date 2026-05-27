@@ -52,10 +52,22 @@ test {
 }
 
 pub fn lower(allocator: std.mem.Allocator, spec: ModuleSpec) !LoweringResult {
+    if (spec.name.len == 0) return error.InvalidValue;
+    for (spec.operations) |op| {
+        if (op.len == 0) return error.InvalidMlirOperation;
+    }
     return .{
         .module_name = spec.name,
         .dialect = spec.dialect,
         .target_backend = "disabled",
         .ir = try allocator.dupe(u8, "mlir feature is disabled"),
     };
+}
+
+test "mlir stub validates module shape before disabled lowering" {
+    try std.testing.expectError(error.InvalidValue, lower(std.testing.allocator, .{ .name = "" }));
+    try std.testing.expectError(error.InvalidMlirOperation, lower(std.testing.allocator, .{ .name = "train", .operations = &.{""} }));
+    const result = try lower(std.testing.allocator, .{ .name = "train", .operations = &.{"matmul"} });
+    defer result.deinit(std.testing.allocator);
+    try std.testing.expectEqualStrings("disabled", result.target_backend);
 }

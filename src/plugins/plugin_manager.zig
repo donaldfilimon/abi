@@ -268,8 +268,39 @@ test "plugin manager validates correct manifest" {
     defer parsed.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("test-plugin", parsed.name);
     try std.testing.expectEqualStrings("1.0.0", parsed.version);
+    try std.testing.expectEqualStrings("A test", parsed.description);
     try std.testing.expectEqualStrings("ai", parsed.target_feature);
     try std.testing.expectEqualStrings("mod.zig", parsed.entry_point);
+}
+
+test "plugin manager validates camelCase manifest aliases" {
+    const manifest_json =
+        \\{"name": "test-plugin", "version": "1.0.0", "description": "A test", "targetFeature": "ai", "entryPoint": "nested/mod.zig"}
+    ;
+    const parsed = try PluginManager.validatePlugin(std.testing.allocator, manifest_json);
+    defer parsed.deinit(std.testing.allocator);
+    try std.testing.expectEqualStrings("ai", parsed.target_feature);
+    try std.testing.expectEqualStrings("nested/mod.zig", parsed.entry_point);
+}
+
+test "plugin manager rejects invalid manifest shapes" {
+    try std.testing.expectError(ManifestSchemaError.InvalidJson, PluginManager.validatePlugin(std.testing.allocator, "not json"));
+    try std.testing.expectError(ManifestSchemaError.InvalidJson, PluginManager.validatePlugin(std.testing.allocator, "[]"));
+    try std.testing.expectError(ManifestSchemaError.MissingName, PluginManager.validatePlugin(std.testing.allocator,
+        \\{"name": 123, "version": "1.0.0", "description": "A test", "target_feature": "ai", "entry_point": "mod.zig"}
+    ));
+    try std.testing.expectError(ManifestSchemaError.InvalidVersion, PluginManager.validatePlugin(std.testing.allocator,
+        \\{"name": "test", "version": "", "description": "A test", "target_feature": "ai", "entry_point": "mod.zig"}
+    ));
+    try std.testing.expectError(ManifestSchemaError.MissingDescription, PluginManager.validatePlugin(std.testing.allocator,
+        \\{"name": "test", "version": "1.0.0", "description": "", "target_feature": "ai", "entry_point": "mod.zig"}
+    ));
+    try std.testing.expectError(ManifestSchemaError.MissingTargetFeature, PluginManager.validatePlugin(std.testing.allocator,
+        \\{"name": "test", "version": "1.0.0", "description": "A test", "target_feature": "", "entry_point": "mod.zig"}
+    ));
+    try std.testing.expectError(ManifestSchemaError.MissingEntryPoint, PluginManager.validatePlugin(std.testing.allocator,
+        \\{"name": "test", "version": "1.0.0", "description": "A test", "target_feature": "ai", "entry_point": ""}
+    ));
 }
 
 test "plugin manager rejects manifest missing description" {

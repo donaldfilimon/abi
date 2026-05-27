@@ -2,6 +2,66 @@ const std = @import("std");
 const usage_mod = @import("usage.zig");
 const handlers = @import("handlers/mod.zig");
 
+const CommandHandler = *const fn (std.Io, std.mem.Allocator, []const []const u8) anyerror!u8;
+
+const DispatchEntry = struct {
+    name: []const u8,
+    handler: CommandHandler,
+};
+
+fn handleTrainWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    if (args.len != 3) return usage_mod.usageError("usage: abi train <input>");
+    return handlers.handleTrain(alloc, args[2]);
+}
+
+fn handleCompleteWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    if (args.len != 3) return usage_mod.usageError("usage: abi complete <input>");
+    return handlers.handleComplete(alloc, args[2]);
+}
+
+fn handleBackendsWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    _ = alloc;
+    if (args.len != 2) return usage_mod.usageError("usage: abi backends");
+    return handlers.handleBackends();
+}
+
+fn handlePluginWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    return handlers.handlePlugin(alloc, args);
+}
+
+fn handleTwilioWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    return handlers.handleTwilio(alloc, args);
+}
+
+fn handleTuiWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    if (args.len != 2) return usage_mod.usageError("usage: abi tui");
+    return handlers.handleDashboard(alloc);
+}
+
+fn handleDashboardWrapper(io: std.Io, alloc: std.mem.Allocator, args: []const []const u8) anyerror!u8 {
+    _ = io;
+    if (args.len != 2) return usage_mod.usageError("usage: abi dashboard");
+    return handlers.handleDashboard(alloc);
+}
+
+const dispatch_table = [_]DispatchEntry{
+    .{ .name = "train", .handler = handleTrainWrapper },
+    .{ .name = "complete", .handler = handleCompleteWrapper },
+    .{ .name = "agent", .handler = handlers.handleAgent },
+    .{ .name = "backends", .handler = handleBackendsWrapper },
+    .{ .name = "plugin", .handler = handlePluginWrapper },
+    .{ .name = "auth", .handler = handlers.handleAuth },
+    .{ .name = "twilio", .handler = handleTwilioWrapper },
+    .{ .name = "tui", .handler = handleTuiWrapper },
+    .{ .name = "dashboard", .handler = handleDashboardWrapper },
+};
+
 pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8) !u8 {
     if (args.len < 2) {
         usage_mod.printUsage();
@@ -14,32 +74,15 @@ pub fn runCli(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8
         if (args.len >= 3) return usage_mod.printCommandHelp(args[2]);
         usage_mod.printUsage();
         return 0;
-    } else if (std.mem.eql(u8, cmd, "train")) {
-        if (args.len != 3) return usage_mod.usageError("usage: abi train <input>");
-        return handlers.handleTrain(allocator, args[2]);
-    } else if (std.mem.eql(u8, cmd, "complete")) {
-        if (args.len != 3) return usage_mod.usageError("usage: abi complete <input>");
-        return handlers.handleComplete(allocator, args[2]);
-    } else if (std.mem.eql(u8, cmd, "agent")) {
-        return handlers.handleAgent(io, allocator, args);
-    } else if (std.mem.eql(u8, cmd, "backends")) {
-        if (args.len != 2) return usage_mod.usageError("usage: abi backends");
-        return handlers.handleBackends();
-    } else if (std.mem.eql(u8, cmd, "plugin")) {
-        return handlers.handlePlugin(allocator, args);
-    } else if (std.mem.eql(u8, cmd, "auth")) {
-        return handlers.handleAuth(io, allocator, args);
-    } else if (std.mem.eql(u8, cmd, "twilio")) {
-        return handlers.handleTwilio(allocator, args);
-    } else if (std.mem.eql(u8, cmd, "tui")) {
-        if (args.len != 2) return usage_mod.usageError("usage: abi tui");
-        return handlers.handleDashboard(allocator);
-    } else if (std.mem.eql(u8, cmd, "dashboard")) {
-        if (args.len != 2) return usage_mod.usageError("usage: abi dashboard");
-        return handlers.handleDashboard(allocator);
-    } else {
-        std.debug.print("error: unknown command '{s}'\n\n", .{cmd});
-        usage_mod.printUsage();
-        return 2;
     }
+
+    for (dispatch_table) |entry| {
+        if (std.mem.eql(u8, cmd, entry.name)) {
+            return entry.handler(io, allocator, args);
+        }
+    }
+
+    std.debug.print("error: unknown command '{s}'\n\n", .{cmd});
+    usage_mod.printUsage();
+    return 2;
 }

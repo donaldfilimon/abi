@@ -37,6 +37,10 @@ pub const CommandResult = struct {
     message: []const u8,
 };
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn validateCommand(request: CommandRequest, policy: Policy) CommandResult {
     if (policy.workspace_root.len == 0) return deny("workspace root is required");
     if (request.argv.len == 0 or request.argv[0].len == 0) return deny("command argv is required");

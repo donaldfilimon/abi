@@ -11,7 +11,7 @@ pub fn handleInitializeJson(allocator: std.mem.Allocator, params: ?std.json.Valu
 
 pub fn handleToolsListJson(allocator: std.mem.Allocator) ![]u8 {
     return try allocator.dupe(u8,
-        \\{"tools":[{"name":"ai_run","description":"Run AI inference with profile routing","inputSchema":{"type":"object","properties":{"input":{"type":"string"},"profile":{"type":"string"}},"required":["input"]}},{"name":"ai_complete","description":"Run local model completion and persist WDBX metadata","inputSchema":{"type":"object","properties":{"input":{"type":"string"},"model":{"type":"string"}},"required":["input"]}},{"name":"ai_train","description":"Train an agent profile","inputSchema":{"type":"object","properties":{"profile":{"type":"string"},"dataset":{"type":"string"}},"required":["profile","dataset"]}},{"name":"wdbx_query","description":"Query the vector store","inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}]}
+        \\{"tools":[{"name":"ai_run","description":"Run AI inference with internal profile routing","inputSchema":{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]}},{"name":"ai_complete","description":"Run local model completion and record metadata in a transient WDBX store when available","inputSchema":{"type":"object","properties":{"input":{"type":"string"},"model":{"type":"string"}},"required":["input"]}},{"name":"ai_train","description":"Train an agent profile","inputSchema":{"type":"object","properties":{"profile":{"type":"string"},"dataset":{"type":"string"},"format":{"type":"string","enum":["jsonl","csv","text"]},"artifact_dir":{"type":"string"}},"required":["profile","dataset"]}},{"name":"wdbx_query","description":"Query the vector store","inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}]}
     );
 }
 
@@ -59,10 +59,11 @@ pub fn handleToolsCallJson(allocator: std.mem.Allocator, params: ?std.json.Value
         });
         defer result.deinit(allocator);
 
+        const status: []const u8 = if (result.accepted) "training accepted" else "training disabled";
         const text = try std.fmt.allocPrint(
             allocator,
-            "training accepted profile={s} dataset={s} records={d} backend={s}: {s}",
-            .{ result.profile, result.dataset_path, result.records_stored, result.acceleration_backend, result.message },
+            "{s} profile={s} dataset={s} records={d} backend={s}: {s}",
+            .{ status, result.profile, result.dataset_path, result.records_stored, result.acceleration_backend, result.message },
         );
         defer allocator.free(text);
         return try toolTextResult(allocator, text);
@@ -88,11 +89,27 @@ fn runLocalCompletion(allocator: std.mem.Allocator, input: []const u8, model: []
     var result = try ai_mod.completeWithStore(allocator, &store, .{ .input = input, .model = model, .store_result = true });
     defer result.deinit(allocator);
 
-    return try std.fmt.allocPrint(
+    const stats = store.stats();
+    const persisted = result.query_vector_id != null and result.response_vector_id != null and result.block_id != null;
+
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+    try out.print(
         allocator,
-        "model={s} profile={s} audit_passed={s} vectors={d} blocks={d}: {s}",
-        .{ result.model, result.selected_profile.label(), if (result.audit.passed) "true" else "false", store.vectorCount(), store.blockCount(), result.output },
+        "model={s} profile={s} audit_passed={s} persisted={s} kv_entries={d} vectors={d} blocks={d}",
+        .{ result.model, result.selected_profile.label(), if (result.audit.passed) "true" else "false", if (persisted) "true" else "false", stats.kv_entries, stats.vectors, stats.blocks },
     );
+    if (result.query_vector_id) |qid| {
+        try out.print(allocator, " query_vector_id={d} metadata_key=completion:{d}", .{ qid, qid });
+    }
+    if (result.response_vector_id) |rid| try out.print(allocator, " response_vector_id={d}", .{rid});
+    if (result.block_id) |block_id| {
+        const block_hex = std.fmt.bytesToHex(block_id, .lower);
+        try out.print(allocator, " block_id={s}", .{&block_hex});
+    }
+    if (!persisted) try out.print(allocator, " wdbx_status={s}", .{stats.acceleration.message});
+    try out.print(allocator, ": {s}", .{result.output});
+    return try out.toOwnedSlice(allocator);
 }
 
 fn toolArguments(params_obj: std.json.ObjectMap) !std.json.ObjectMap {
@@ -137,25 +154,26 @@ fn runLocalWdbxQuery(allocator: std.mem.Allocator, query: []const u8) ![]u8 {
     var store = wdbx.Store.init(allocator);
     defer store.deinit();
 
+    const ai_mod = features.ai;
     const abbey_vec = [_]f32{ 0.92, 0.48, 0.25, 0.76 };
     const aviva_vec = [_]f32{ 0.34, 0.94, 0.82, 0.41 };
     const abi_vec = [_]f32{ 0.71, 0.69, 0.88, 0.97 };
     _ = store.putVector(&abbey_vec) catch |err| {
-        if (std.mem.eql(u8, @errorName(err), "FeatureDisabled")) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
+        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
         return err;
     };
     _ = store.putVector(&aviva_vec) catch |err| {
-        if (std.mem.eql(u8, @errorName(err), "FeatureDisabled")) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
+        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
         return err;
     };
     _ = store.putVector(&abi_vec) catch |err| {
-        if (std.mem.eql(u8, @errorName(err), "FeatureDisabled")) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
+        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
         return err;
     };
 
-    const query_vec = features.ai.textEmbedding(query);
+    const query_vec = ai_mod.textEmbedding(query);
     const results = store.search(&query_vec, 1) catch |err| {
-        if (std.mem.eql(u8, @errorName(err), "FeatureDisabled")) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
+        if (ai_mod.isFeatureDisabled(err)) return try allocator.dupe(u8, "wdbx local match unavailable: wdbx feature is disabled for this build");
         return err;
     };
     defer allocator.free(results);

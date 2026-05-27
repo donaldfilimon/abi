@@ -49,11 +49,15 @@ pub fn compilerStatus() CompilerStatus {
     };
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn validate(source: ShaderSource) !void {
-    validation.validateNonEmptySlice("name", source.name) catch return error.InvalidShaderName;
-    validation.validateNonEmptySlice("source", source.source) catch return error.InvalidShaderSource;
-    validation.validateNoNullBytes("name", source.name) catch return error.InvalidShaderName;
-    validation.validateNoNullBytes("source", source.source) catch return error.InvalidShaderSource;
+    validation.validateNonEmptySlice(source.name) catch return error.InvalidShaderName;
+    validation.validateNonEmptySlice(source.source) catch return error.InvalidShaderSource;
+    validation.validateNoNullBytes(source.name) catch return error.InvalidShaderName;
+    validation.validateNoNullBytes(source.source) catch return error.InvalidShaderSource;
     switch (source.language) {
         .zig_kernel, .wgsl => if (std.mem.indexOf(u8, source.source, "fn main") == null) return error.MissingShaderEntryPoint,
         .msl => if (std.mem.indexOf(u8, source.source, "kernel") == null and std.mem.indexOf(u8, source.source, "main") == null) return error.MissingShaderEntryPoint,

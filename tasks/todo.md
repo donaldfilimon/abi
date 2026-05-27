@@ -23,6 +23,7 @@ Status tracking for incomplete work items. Reference: `docs/spec/abi-refactor-de
 | Zig 0.17 ABI modernization and expansion | ✅ Done | MCP std.Io.net migration, TUI dashboard wiring/stub parity, HNSW locking, GPU fallback safety, walkthrough and AI guidance docs refreshed, checks green |
 | GPU/WDBX/model completion expansion | ✅ Done | Backend capability reporting, WDBX stats/manifest APIs, local completion APIs, CLI/MCP completion surfaces verified |
 | Codebase readiness/build/docs pass | ✅ Done | Manifest-driven plugin registry, plugin manager module coverage, full-check integration+benchmark gate, TUI scheduler snapshot, docs refreshed |
+| Full module/GPU contract completion pass | ✅ Done | Root/feature namespace contracts, GPU real/stub fallback tests, all feature-off `test-feature-contracts -Dfeat-*=false` smoke checks, connector hardening, MCP/plugin contract expansion |
 
 ## Priority: MEDIUM
 
@@ -53,6 +54,7 @@ Status tracking for incomplete work items. Reference: `docs/spec/abi-refactor-de
 | GPU backend stubs completion | ✅ Done | Metal framework linked on macOS with Objective-C runtime initialization path; vector operations fall back safely when native kernels are unavailable |
 | Mobile mod/stub pair | ✅ Done | feat-mobile mod.zig + stub.zig created, parity verified, 4 tests |
 | Twilio live transport | ✅ Done | httpPostForm helper, ConversationRelayEventLive with Basic auth, TwiML builder, configurable escalation |
+| Modernization follow-up contract and release-note pass | ✅ Done | Added plugin validator/WDBX edge coverage, disabled WDBX manifest shape parity, and CHANGELOG release-note highlights |
 
 ## Known Test Failures (Pre-existing)
 

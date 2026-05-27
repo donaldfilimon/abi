@@ -65,6 +65,10 @@ pub fn statusText(status: Status) []const u8 {
     };
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn renderDashboard(allocator: std.mem.Allocator, state: State) ![]u8 {
     if (state.title.len == 0) return error.InvalidTuiState;
 

@@ -187,6 +187,11 @@ pub const Store = struct {
         return last;
     }
 
+    pub fn verifyBlocks(self: *const Store) bool {
+        const self_mut = @constCast(self);
+        return self_mut.chain.verifyChain();
+    }
+
     pub fn putSpatial3D(self: *Store, id: u32, point: spatial_3d.Point3D, payload: []const u8) !void {
         try self.spatial_index.insert(id, point, payload);
         self.acceleration = try runAccelerationKernel("wdbx.putSpatial3D", 3);
@@ -214,7 +219,7 @@ pub const Store = struct {
         const s = self.stats();
         var out: std.ArrayList(u8) = .empty;
         errdefer out.deinit(allocator);
-        try out.print(allocator, "{{\"kv_entries\":{d},\"vectors\":{d},\"blocks\":{d},\"vector_dimensions\":", .{ s.kv_entries, s.vectors, s.blocks });
+        try out.print(allocator, "{{\"kv_entries\":{d},\"vectors\":{d},\"blocks\":{d},\"spatial_records\":{d},\"vector_dimensions\":", .{ s.kv_entries, s.vectors, s.blocks, s.spatial_records });
         if (s.vector_dimensions) |dims| {
             try out.print(allocator, "{d}", .{dims});
         } else {
@@ -305,6 +310,7 @@ test "Store accelerates vector search and block chain memory" {
     try std.testing.expectEqual(@as(usize, 3), store_obj.vectorCount());
     try std.testing.expect(store_obj.getVector(q) != null);
     try std.testing.expect(store_obj.lastBlock() != null);
+    try std.testing.expect(store_obj.verifyBlocks());
 
     const manifest = try store_obj.exportManifest(std.testing.allocator);
     defer std.testing.allocator.free(manifest);
@@ -318,6 +324,33 @@ test "Store rejects mismatched vector dimensions" {
     _ = try store_obj.putVector(&.{ 1, 0, 0, 0 });
     try std.testing.expectError(error.DimensionMismatch, store_obj.putVector(&.{ 1, 0 }));
     try std.testing.expectError(error.DimensionMismatch, store_obj.search(&.{ 1, 0 }, 1));
+}
+
+test "Store validates edge cases and exports complete stats" {
+    var store_obj = Store.init(std.testing.allocator);
+    defer store_obj.deinit();
+
+    try std.testing.expectError(error.InvalidKey, store_obj.store("", "value"));
+    try std.testing.expectError(error.InvalidVector, store_obj.putVector(&.{}));
+    try std.testing.expectError(error.InvalidVector, store_obj.search(&.{}, 1));
+
+    var oversized: [HNSW_DIMENSIONS + 1]f32 = undefined;
+    @memset(&oversized, 0);
+    try std.testing.expectError(error.DimensionMismatch, store_obj.putVector(&oversized));
+    try std.testing.expectError(error.DimensionMismatch, store_obj.search(&oversized, 1));
+
+    const empty_results = try store_obj.search(&.{ 1, 0, 0, 0 }, 5);
+    defer std.testing.allocator.free(empty_results);
+    try std.testing.expectEqual(@as(usize, 0), empty_results.len);
+
+    try store_obj.putSpatial3D(7, .{ .x = 1, .y = 2, .z = 3 }, "payload");
+    const stats_value = store_obj.stats();
+    try std.testing.expectEqual(@as(usize, 1), stats_value.spatial_records);
+
+    const manifest = try store_obj.exportManifest(std.testing.allocator);
+    defer std.testing.allocator.free(manifest);
+    try std.testing.expect(std.mem.indexOf(u8, manifest, "\"spatial_records\":1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, manifest, "\"vector_dimensions\":null") != null);
 }
 
 test {

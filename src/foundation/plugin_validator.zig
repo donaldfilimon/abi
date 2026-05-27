@@ -40,6 +40,86 @@ test "validatePluginStructure rejects missing directory" {
     try std.testing.expectError(error.FileNotFound, validatePluginStructure(std.testing.allocator, "/tmp/nonexistent_plugin_dir_abc123"));
 }
 
+test "validatePluginStructure accepts bundled plugin fixtures" {
+    inline for (.{
+        "src/plugins/example-plugin/mod.zig",
+        "src/plugins/example-wdbx-plugin/mod.zig",
+    }) |fixture_path| {
+        try expectValidBundledPlugin(fixture_path);
+    }
+}
+
+test "validatePluginStructure rejects unsafe manifests" {
+    const fixture_dir = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_plugin_validator_unsafe_{d}", .{std.c.getpid()});
+    defer std.testing.allocator.free(fixture_dir);
+    try resetPluginFixture(fixture_dir);
+    defer cleanupPluginFixture(fixture_dir);
+
+    try writePluginFixtureFile(fixture_dir, "mod.zig", "pub fn main() void {}\n");
+    try writePluginFixtureFile(fixture_dir, "stub.zig", "pub fn main() void {}\n");
+
+    try writePluginFixtureFile(fixture_dir, "abi-plugin.json",
+        \\{"name":"bad-plugin","version":"0.1.0","description":"bad","target_feature":"plugins","entry_point":"../mod.zig"}
+    );
+    try std.testing.expect(!try validatePluginStructure(std.testing.allocator, fixture_dir));
+
+    try writePluginFixtureFile(fixture_dir, "abi-plugin.json",
+        \\{"name":"bad-plugin","version":"0.1.0","description":"bad","target_feature":"plugins","entry_point":"missing.zig"}
+    );
+    try std.testing.expect(!try validatePluginStructure(std.testing.allocator, fixture_dir));
+
+    try writePluginFixtureFile(fixture_dir, "abi-plugin.json",
+        \\{"name":"bad-plugin","version":"0.1.0","description":"bad","target_feature":"","entry_point":"mod.zig"}
+    );
+    try std.testing.expect(!try validatePluginStructure(std.testing.allocator, fixture_dir));
+}
+
+test "validatePluginStructure accepts camelCase aliases and nested entry" {
+    const fixture_dir = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_plugin_validator_nested_{d}", .{std.c.getpid()});
+    defer std.testing.allocator.free(fixture_dir);
+    try resetPluginFixture(fixture_dir);
+    defer cleanupPluginFixture(fixture_dir);
+
+    try writePluginFixtureFile(fixture_dir, "mod.zig", "pub fn main() void {}\n");
+    try writePluginFixtureFile(fixture_dir, "stub.zig", "pub fn main() void {}\n");
+    const nested_dir = try std.fs.path.join(std.testing.allocator, &.{ fixture_dir, "nested" });
+    defer std.testing.allocator.free(nested_dir);
+    try std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, nested_dir);
+    try writePluginFixtureFile(fixture_dir, "nested/entry.zig", "pub fn main() void {}\n");
+    try writePluginFixtureFile(fixture_dir, "abi-plugin.json",
+        \\{"name":"nested-plugin","version":"0.1.0","description":"ok","targetFeature":"plugins","entryPoint":"nested/entry.zig"}
+    );
+
+    try std.testing.expect(try validatePluginStructure(std.testing.allocator, fixture_dir));
+}
+
+fn expectValidBundledPlugin(mod_path: []const u8) !void {
+    var buf: [4096]u8 = undefined;
+    const len = try std.Io.Dir.realPathFile(.cwd(), std.Options.debug_io, mod_path, &buf);
+    const fixture_mod = buf[0..len];
+    const fixture_dir = std.fs.path.dirname(fixture_mod) orelse return error.MissingFixtureDir;
+    try std.testing.expect(try validatePluginStructure(std.testing.allocator, fixture_dir));
+}
+
+fn resetPluginFixture(path: []const u8) !void {
+    std.Io.Dir.deleteTree(.cwd(), std.Options.debug_io, path) catch |err| {
+        std.log.debug("plugin validator fixture reset cleanup skipped: {s}", .{@errorName(err)});
+    };
+    try std.Io.Dir.createDirPath(.cwd(), std.Options.debug_io, path);
+}
+
+fn cleanupPluginFixture(path: []const u8) void {
+    std.Io.Dir.deleteTree(.cwd(), std.Options.debug_io, path) catch |err| std.log.warn("plugin validator fixture cleanup failed: {s}", .{@errorName(err)});
+}
+
+fn writePluginFixtureFile(base: []const u8, relative_path: []const u8, content: []const u8) !void {
+    const full_path = try std.fs.path.join(std.testing.allocator, &.{ base, relative_path });
+    defer std.testing.allocator.free(full_path);
+    const file = try std.Io.Dir.createFileAbsolute(std.Options.debug_io, full_path, .{ .truncate = true });
+    defer file.close(std.Options.debug_io);
+    try file.writeStreamingAll(std.Options.debug_io, content);
+}
+
 fn jsonStringField(obj: std.json.ObjectMap, key: []const u8) ?[]const u8 {
     const value = obj.get(key) orelse return null;
     return switch (value) {

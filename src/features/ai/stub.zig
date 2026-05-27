@@ -33,7 +33,17 @@ pub const AuditResult = struct {
     violations: std.bit_set.IntegerBitSet(6),
     scores: [6]f32 = .{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
     timestamp: i64 = 0,
+
+    pub fn init() AuditResult {
+        return .{
+            .passed = true,
+            .violations = std.bit_set.IntegerBitSet(6).empty,
+        };
+    }
 };
+
+const RootPrinciple = Principle;
+const RootAuditResult = AuditResult;
 
 pub const DatasetFormat = enum {
     jsonl,
@@ -150,7 +160,36 @@ pub const profile = struct {
         w_abbey: f32 = 0.33,
         w_aviva: f32 = 0.33,
         w_abi: f32 = 0.34,
+
+        pub fn normalize(self: *ProfileWeights) void {
+            const total = self.w_abbey + self.w_aviva + self.w_abi;
+            if (total > 0) {
+                self.w_abbey /= total;
+                self.w_aviva /= total;
+                self.w_abi /= total;
+            }
+        }
     };
+
+    pub const SentimentKeyword = struct {
+        word: []const u8,
+        abbey_score: f32,
+        aviva_score: f32,
+        abi_score: f32,
+    };
+
+    pub const SENTIMENT_KEYWORDS = [_]SentimentKeyword{};
+
+    const DisabledProfile = struct {
+        pub fn processInput(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+            _ = input;
+            return try allocator.dupe(u8, "AI feature is disabled");
+        }
+    };
+
+    pub const abbey = DisabledProfile;
+    pub const aviva = DisabledProfile;
+    pub const abi_profile = DisabledProfile;
 
     pub fn analyzeSentiment(input: []const u8) ProfileWeights {
         _ = input;
@@ -241,31 +280,76 @@ pub const pipeline = struct {
 
 pub const streaming = struct {
     pub const openai = struct {
+        pub const OpenAIRequest = struct {
+            model: []const u8,
+            stream: bool = false,
+            messages: []Message = &.{},
+            max_tokens: ?u32 = null,
+
+            pub const Message = struct {
+                role: []const u8,
+                content: []const u8,
+            };
+        };
+
+        pub const OpenAIStreamChunk = struct {
+            id: []const u8,
+            object: []const u8,
+            created: i64,
+            model: []const u8,
+            choices: []StreamChoice,
+
+            pub const StreamChoice = struct {
+                index: u32,
+                delta: Delta,
+                finish_reason: ?[]const u8 = null,
+
+                pub const Delta = struct {
+                    role: ?[]const u8 = null,
+                    content: ?[]const u8 = null,
+                };
+            };
+        };
+
+        pub fn parseRequest(allocator: std.mem.Allocator, request_body: []const u8) !std.json.Parsed(OpenAIRequest) {
+            return try std.json.parseFromSlice(OpenAIRequest, allocator, request_body, .{
+                .ignore_unknown_fields = true,
+            });
+        }
+
         pub fn handleOpenAIChatCompletions(allocator: std.mem.Allocator, request: []const u8, writer: anytype) !void {
-            _ = allocator;
             _ = request;
+            _ = allocator;
             try writer.writeAll("{\"error\":\"AI feature is disabled\"}");
         }
     };
 };
 
 pub const constitution = struct {
+    pub const Principle = RootPrinciple;
+    pub const AuditResult = RootAuditResult;
+
     pub const Constitution = struct {
-        pub fn validate(response: []const u8) AuditResult {
-            _ = response;
-            return .{
-                .passed = true,
-                .violations = std.bit_set.IntegerBitSet(6).empty,
-            };
+        pub fn validate(response: []const u8) RootAuditResult {
+            var result = RootAuditResult.init();
+            if (response.len == 0) {
+                result.passed = false;
+                result.violations.set(@intFromEnum(RootPrinciple.truthfulness));
+                result.scores[@intFromEnum(RootPrinciple.truthfulness)] = 0.0;
+            }
+            return result;
         }
 
-        pub fn evaluateResponse(response: []const u8, principles: []const Principle) AuditResult {
-            _ = response;
-            _ = principles;
-            return .{
-                .passed = true,
-                .violations = std.bit_set.IntegerBitSet(6).empty,
-            };
+        pub fn evaluateResponse(response: []const u8, principles: []const RootPrinciple) RootAuditResult {
+            var result = RootAuditResult.init();
+            if (response.len == 0) {
+                result.passed = false;
+                for (principles) |p| {
+                    result.violations.set(@intFromEnum(p));
+                    result.scores[@intFromEnum(p)] = 0.0;
+                }
+            }
+            return result;
         }
     };
 };
@@ -276,6 +360,7 @@ pub fn run(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 }
 
 pub fn complete(allocator: std.mem.Allocator, request: CompletionRequest) !CompletionResult {
+    if (request.input.len == 0) return error.InvalidCompletionInput;
     return .{
         .model = request.model,
         .selected_profile = .abbey,
@@ -290,6 +375,7 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: anytype, request: 
 }
 
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
+    try validateTrainingConfig(config);
     return .{
         .accepted = false,
         .profile = try allocator.dupe(u8, config.profile),
@@ -319,6 +405,7 @@ pub fn trainKnownProfiles(allocator: std.mem.Allocator, store: anytype, dataset:
 }
 
 pub fn evaluate(config: TrainingConfig) !TrainingResult {
+    try validateTrainingConfig(config);
     return .{
         .accepted = false,
         .profile = config.profile,
@@ -329,14 +416,21 @@ pub fn evaluate(config: TrainingConfig) !TrainingResult {
 }
 
 pub fn runAgent(allocator: std.mem.Allocator, config: AgentConfig, input: []const u8) !AgentResult {
-    _ = config;
-    _ = input;
+    if (config.name.len == 0 or config.instructions.len == 0 or input.len == 0) return error.InvalidAgentConfig;
     return .{ .output = try allocator.dupe(u8, "AI feature is disabled"), .requires_review = true };
 }
 
+pub fn isFeatureDisabled(err: anyerror) bool {
+    return std.mem.eql(u8, @errorName(err), "FeatureDisabled");
+}
+
 pub fn countNonEmptyLines(data: []const u8) usize {
-    _ = data;
-    return 0;
+    var count: usize = 0;
+    var lines = std.mem.splitScalar(u8, data, '\n');
+    while (lines.next()) |line| {
+        if (std.mem.trim(u8, line, " \t\r").len > 0) count += 1;
+    }
+    return count;
 }
 
 pub fn textEmbedding(input: []const u8) [4]f32 {
@@ -346,4 +440,70 @@ pub fn textEmbedding(input: []const u8) [4]f32 {
 
 pub fn responseEmbedding(query: [4]f32) [4]f32 {
     return query;
+}
+
+fn validateTrainingConfig(config: TrainingConfig) !void {
+    if (config.profile.len == 0) return error.InvalidTrainingProfile;
+    _ = parseAgentProfile(config.profile) catch return error.InvalidTrainingProfile;
+    if (config.dataset.path.len == 0) return error.InvalidDatasetPath;
+    if (config.artifact_dir.len == 0) return error.InvalidArtifactPath;
+}
+
+fn parseAgentProfile(name: []const u8) !AgentProfile {
+    inline for (known_profiles) |p| {
+        if (std.mem.eql(u8, name, p.label())) return p;
+    }
+    return error.UnknownAgentProfile;
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}
+
+test "ai stub preserves disabled feature contracts" {
+    const allocator = std.testing.allocator;
+
+    const run_response = try run(allocator, "hello");
+    defer allocator.free(run_response);
+    try std.testing.expectEqualStrings("AI feature is disabled", run_response);
+
+    try std.testing.expectError(error.InvalidCompletionInput, complete(allocator, .{ .input = "", .model = "custom-model", .store_result = true }));
+
+    var completion = try complete(allocator, .{ .input = "hello", .model = "custom-model", .store_result = true });
+    defer completion.deinit(allocator);
+    try std.testing.expectEqualStrings("custom-model", completion.model);
+    try std.testing.expectEqualStrings("AI feature is disabled", completion.output);
+    try std.testing.expect(completion.query_vector_id == null);
+    try std.testing.expect(completion.response_vector_id == null);
+    try std.testing.expect(completion.block_id == null);
+
+    const training = try train(allocator, .{
+        .profile = "abi",
+        .dataset = .{ .path = "data.jsonl" },
+        .artifact_dir = "zig-cache/agents",
+    });
+    defer training.deinit(allocator);
+    try std.testing.expect(!training.accepted);
+    try std.testing.expectEqualStrings("AI feature is disabled", training.message);
+
+    const known = try trainKnownProfiles(allocator, {}, .{ .path = "data.jsonl" }, "zig-cache/agents");
+    defer known.deinit(allocator);
+    try std.testing.expect(!known.accepted);
+    try std.testing.expectEqual(@as(usize, 0), known.records_stored);
+
+    try std.testing.expectError(error.InvalidTrainingProfile, train(allocator, .{
+        .profile = "unknown",
+        .dataset = .{ .path = "data.jsonl" },
+        .artifact_dir = "zig-cache/agents",
+    }));
+    try std.testing.expectError(error.InvalidAgentConfig, runAgent(allocator, .{ .name = "", .instructions = "be safe" }, "hello"));
+
+    var agent_result = try runAgent(allocator, .{ .name = "abi", .instructions = "be safe" }, "hello");
+    defer agent_result.deinit(allocator);
+    try std.testing.expect(agent_result.requires_review);
+    try std.testing.expectEqualStrings("AI feature is disabled", agent_result.output);
+
+    var weights: profile.ProfileWeights = .{ .w_abbey = 2, .w_aviva = 1, .w_abi = 1 };
+    weights.normalize();
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), weights.w_abbey + weights.w_aviva + weights.w_abi, 0.001);
 }

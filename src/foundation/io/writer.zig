@@ -81,13 +81,25 @@ fn defaultIo() std.Io {
     return std.Options.debug_io;
 }
 
+fn testPath(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
+    return try std.fmt.allocPrint(allocator, "/tmp/{s}_{d}.txt", .{ name, std.c.getpid() });
+}
+
+fn deleteFileForTest(path: []const u8) void {
+    std.Io.Dir.deleteFileAbsolute(defaultIo(), path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.log.warn("test cleanup failed: {s}", .{@errorName(err)}),
+    };
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
 
 test "BufferedWriter basic write" {
-    const test_path = "/tmp/abi_io_buffered_write_test.txt";
-    defer std.Io.Dir.deleteFileAbsolute(defaultIo(), test_path) catch |err| std.log.warn("test cleanup failed: {s}", .{@errorName(err)});
+    const test_path = try testPath(std.testing.allocator, "abi_io_buffered_write_test");
+    defer std.testing.allocator.free(test_path);
+    defer deleteFileForTest(test_path);
 
     const file = try std.Io.Dir.createFileAbsolute(defaultIo(), test_path, .{ .truncate = true });
     defer file.close(defaultIo());
@@ -109,8 +121,9 @@ test "BufferedWriter basic write" {
 }
 
 test "BufferedWriter writeByte" {
-    const test_path = "/tmp/abi_io_writebyte_test.txt";
-    defer std.Io.Dir.deleteFileAbsolute(defaultIo(), test_path) catch |err| std.log.warn("test cleanup failed: {s}", .{@errorName(err)});
+    const test_path = try testPath(std.testing.allocator, "abi_io_writebyte_test");
+    defer std.testing.allocator.free(test_path);
+    defer deleteFileForTest(test_path);
 
     const file = try std.Io.Dir.createFileAbsolute(defaultIo(), test_path, .{ .truncate = true });
     defer file.close(defaultIo());
@@ -134,8 +147,9 @@ test "BufferedWriter writeByte" {
 }
 
 test "BufferedWriter with stats" {
-    const test_path = "/tmp/abi_io_bufwriter_stats_test.txt";
-    defer std.Io.Dir.deleteFileAbsolute(defaultIo(), test_path) catch |err| std.log.warn("test cleanup failed: {s}", .{@errorName(err)});
+    const test_path = try testPath(std.testing.allocator, "abi_io_bufwriter_stats_test");
+    defer std.testing.allocator.free(test_path);
+    defer deleteFileForTest(test_path);
 
     var iostats = IOStats{};
 

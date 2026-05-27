@@ -90,7 +90,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const cli_step = b.step("cli", "Build ABI CLI");
-    cli_step.dependOn(b.getInstallStep());
+    cli_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
 
     const mcp_step = b.step("mcp", "Build MCP server");
     mcp_step.dependOn(&b.addInstallArtifact(mcp_exe, .{}).step);
@@ -112,6 +112,23 @@ pub fn build(b: *std.Build) void {
         }),
     });
     const run_connector_tests = b.addRunArtifact(connector_tests);
+
+    const feature_contract_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/contracts/feature_modules.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = options_mod },
+            },
+        }),
+    });
+    feature_contract_tests.step.dependOn(&run_gen_plugin_registry.step);
+    const run_feature_contract_tests = b.addRunArtifact(feature_contract_tests);
+
+    const feature_contract_step = b.step("test-feature-contracts", "Run focused feature module contract tests");
+    feature_contract_step.dependOn(&run_feature_contract_tests.step);
 
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
@@ -171,6 +188,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
                 .{ .name = "cli_usage", .module = cli_usage_mod },
                 .{ .name = "mcp_handlers", .module = mcp_handlers_mod },
             },
@@ -186,10 +204,14 @@ pub fn build(b: *std.Build) void {
             .imports = &.{
                 .{ .name = "cli_usage", .module = cli_usage_mod },
                 .{ .name = "mcp_handlers", .module = mcp_handlers_mod },
+                .{ .name = "build_options", .module = options_mod },
             },
         }),
     });
     const run_contract_mcp_tests = b.addRunArtifact(contract_mcp_tests);
+
+    const contract_mcp_step = b.step("test-mcp-contracts", "Run MCP tool contract tests");
+    contract_mcp_step.dependOn(&run_contract_mcp_tests.step);
 
     const contract_plugin_registry_tests = b.addTest(.{
         .root_module = b.createModule(.{
@@ -197,12 +219,27 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .imports = &.{
-                .{ .name = "registry", .module = abi_mod },
+                .{ .name = "abi", .module = abi_mod },
             },
         }),
     });
     contract_plugin_registry_tests.step.dependOn(&run_gen_plugin_registry.step);
     const run_contract_plugin_registry_tests = b.addRunArtifact(contract_plugin_registry_tests);
+
+    const contract_public_docs_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/contracts/public_docs.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_contract_public_docs_tests = b.addRunArtifact(contract_public_docs_tests);
+
+    const contract_step = b.step("test-contracts", "Run public API contract tests");
+    contract_step.dependOn(&run_contract_surface_tests.step);
+    contract_step.dependOn(&run_contract_mcp_tests.step);
+    contract_step.dependOn(&run_contract_plugin_registry_tests.step);
+    contract_step.dependOn(&run_contract_public_docs_tests.step);
 
     const run_contract_cli = b.addSystemCommand(&.{ "bash", "tools/run_contract_cli.sh" });
     run_contract_cli.step.dependOn(b.getInstallStep());
@@ -230,9 +267,8 @@ pub fn build(b: *std.Build) void {
     check_step.dependOn(&exe.step);
     check_step.dependOn(&mcp_exe.step);
     check_step.dependOn(test_step);
-    check_step.dependOn(&run_contract_surface_tests.step);
-    check_step.dependOn(&run_contract_mcp_tests.step);
-    check_step.dependOn(&run_contract_plugin_registry_tests.step);
+    check_step.dependOn(&run_feature_contract_tests.step);
+    check_step.dependOn(contract_step);
     check_step.dependOn(&run_contract_cli.step);
     check_step.dependOn(&feature_stub_check.step);
     check_step.dependOn(&fmt_check.step);

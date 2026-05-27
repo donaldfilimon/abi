@@ -49,7 +49,15 @@ pub fn compilerStatus() CompilerStatus {
 }
 
 pub fn validate(source: ShaderSource) !void {
-    _ = source;
+    if (source.name.len == 0) return error.InvalidShaderName;
+    if (source.source.len == 0) return error.InvalidShaderSource;
+    if (std.mem.indexOfScalar(u8, source.name, 0) != null) return error.InvalidShaderName;
+    if (std.mem.indexOfScalar(u8, source.source, 0) != null) return error.InvalidShaderSource;
+    switch (source.language) {
+        .zig_kernel, .wgsl => if (std.mem.indexOf(u8, source.source, "fn main") == null) return error.MissingShaderEntryPoint,
+        .msl => if (std.mem.indexOf(u8, source.source, "kernel") == null and std.mem.indexOf(u8, source.source, "main") == null) return error.MissingShaderEntryPoint,
+        .spirv_text => if (std.mem.indexOf(u8, source.source, "OpEntryPoint") == null) return error.MissingShaderEntryPoint,
+    }
 }
 
 test {
@@ -57,6 +65,7 @@ test {
 }
 
 pub fn compile(allocator: std.mem.Allocator, source: ShaderSource) !ShaderArtifact {
+    try validate(source);
     return .{
         .name = source.name,
         .language = source.language,
@@ -64,4 +73,12 @@ pub fn compile(allocator: std.mem.Allocator, source: ShaderSource) !ShaderArtifa
         .backend = "disabled",
         .bytes = try allocator.dupe(u8, "shader feature is disabled"),
     };
+}
+
+test "shader stub mirrors validation before disabled artifact" {
+    try std.testing.expectError(error.InvalidShaderName, validate(.{ .name = "", .source = "fn main() void {}" }));
+    try std.testing.expectError(error.MissingShaderEntryPoint, validate(.{ .name = "copy", .source = "fn helper() void {}" }));
+    const artifact = try compile(std.testing.allocator, .{ .name = "copy", .source = "fn main() void {}" });
+    defer artifact.deinit(std.testing.allocator);
+    try std.testing.expectEqualStrings("disabled", artifact.backend);
 }

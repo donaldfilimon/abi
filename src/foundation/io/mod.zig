@@ -82,7 +82,10 @@ pub fn dirExists(path: []const u8) bool {
 }
 
 fn deleteFileForTest(path: []const u8) void {
-    std.Io.Dir.deleteFileAbsolute(defaultIo(), path) catch |err| std.log.warn("test cleanup failed: {s}", .{@errorName(err)});
+    std.Io.Dir.deleteFileAbsolute(defaultIo(), path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => std.log.warn("test cleanup failed: {s}", .{@errorName(err)}),
+    };
 }
 
 fn deleteTreeForTest(path: []const u8) void {
@@ -102,7 +105,8 @@ test {
 }
 
 test "asyncWriteFile and asyncReadFile roundtrip" {
-    const test_path = "/tmp/abi_io_async_test.txt";
+    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_async_test_{d}.txt", .{std.c.getpid()});
+    defer std.testing.allocator.free(test_path);
     defer deleteFileForTest(test_path);
 
     const content = "hello async io world";
@@ -115,7 +119,8 @@ test "asyncWriteFile and asyncReadFile roundtrip" {
 }
 
 test "asyncAppendFile" {
-    const test_path = "/tmp/abi_io_append_test.txt";
+    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_append_test_{d}.txt", .{std.c.getpid()});
+    defer std.testing.allocator.free(test_path);
     defer deleteFileForTest(test_path);
 
     try asyncWriteFile(test_path, "line1\n");
@@ -128,7 +133,8 @@ test "asyncAppendFile" {
 }
 
 test "asyncAppendFile creates missing file" {
-    const test_path = "/tmp/abi_io_append_create_test.txt";
+    const test_path = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_append_create_test_{d}.txt", .{std.c.getpid()});
+    defer std.testing.allocator.free(test_path);
     defer deleteFileForTest(test_path);
 
     try asyncAppendFile(test_path, "created\n");
@@ -147,10 +153,12 @@ test "fileExists and dirExists" {
 }
 
 test "ensureDir creates nested directories" {
-    const test_dir = "/tmp/abi_io_test_nested/a/b/c";
-    defer {
-        deleteTreeForTest("/tmp/abi_io_test_nested");
-    }
+    const test_root = try std.fmt.allocPrint(std.testing.allocator, "/tmp/abi_io_test_nested_{d}", .{std.c.getpid()});
+    defer std.testing.allocator.free(test_root);
+    defer deleteTreeForTest(test_root);
+
+    const test_dir = try std.fs.path.join(std.testing.allocator, &.{ test_root, "a/b/c" });
+    defer std.testing.allocator.free(test_dir);
 
     try ensureDir(test_dir);
     try std.testing.expect(dirExists(test_dir));

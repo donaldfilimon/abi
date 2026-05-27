@@ -44,7 +44,10 @@ test "McpMethod fromString recognizes known methods" {
     try std.testing.expectEqual(McpMethod.initialize, McpMethod.fromString("initialize"));
     try std.testing.expectEqual(McpMethod.@"tools/list", McpMethod.fromString("tools/list"));
     try std.testing.expectEqual(McpMethod.@"tools/call", McpMethod.fromString("tools/call"));
+    try std.testing.expectEqual(McpMethod.@"resources/list", McpMethod.fromString("resources/list"));
+    try std.testing.expectEqual(McpMethod.@"prompts/list", McpMethod.fromString("prompts/list"));
     try std.testing.expectEqual(McpMethod.ping, McpMethod.fromString("ping"));
+    try std.testing.expectEqual(McpMethod.shutdown, McpMethod.fromString("shutdown"));
     try std.testing.expectEqual(McpMethod.unknown, McpMethod.fromString("nonexistent"));
 }
 

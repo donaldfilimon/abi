@@ -38,6 +38,7 @@ test "wdbx block chain integrity" {
     _ = try store.appendBlock("abi", 5, 6, "block metadata 3");
 
     try std.testing.expectEqual(@as(usize, 3), store.blockCount());
+    try std.testing.expect(store.verifyBlocks());
 
     var it = store.chain.iterator();
     defer store.chain.releaseIterator();

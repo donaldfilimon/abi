@@ -22,12 +22,16 @@ require_substring() {
 complete_out="$("$ABI" complete "hello world" 2>&1)"
 require_substring "$complete_out" "model=abi-local"
 require_substring "$complete_out" "audit_passed="
+require_substring "$complete_out" "persisted="
+require_substring "$complete_out" "wdbx kv_entries="
 
 backends_out="$("$ABI" backends 2>&1)"
 require_substring "$backends_out" "GPU:"
 
 plugins_out="$("$ABI" plugin list 2>&1)"
+require_substring "$plugins_out" "Installed Plugins ("
 require_substring "$plugins_out" "example-plugin"
+require_substring "$plugins_out" "(mod.zig)"
 
 auth_out="$("$ABI" auth status 2>&1)"
 require_substring "$auth_out" "Authentication Status:"

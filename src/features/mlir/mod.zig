@@ -48,8 +48,12 @@ pub fn toolchainStatus() ToolchainStatus {
     };
 }
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn lower(allocator: std.mem.Allocator, spec: ModuleSpec) !LoweringResult {
-    try validation.validateNonEmptySlice("name", spec.name);
+    try validation.validateNonEmptySlice(spec.name);
 
     var ir_buf = std.ArrayListUnmanaged(u8).empty;
     errdefer ir_buf.deinit(allocator);

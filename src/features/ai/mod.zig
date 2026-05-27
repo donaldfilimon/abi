@@ -142,6 +142,8 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
     var result = try complete(allocator, request);
     errdefer result.deinit(allocator);
 
+    if (!request.store_result) return result;
+
     const query_vec = helpers.textEmbedding(request.input);
     const response_vec = helpers.textEmbedding(result.output);
     const query_id = store.putVector(&query_vec) catch |err| {
@@ -153,11 +155,7 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
         return err;
     };
 
-    const metadata = try std.fmt.allocPrint(
-        allocator,
-        "model={s};profile={s};audit_passed={s};input_bytes={d};output_bytes={d}",
-        .{ request.model, result.selected_profile.label(), if (result.audit.passed) "true" else "false", request.input.len, result.output.len },
-    );
+    const metadata = try completionMetadataJson(allocator, request, result, query_id, response_id);
     defer allocator.free(metadata);
 
     const key = try std.fmt.allocPrint(allocator, "completion:{d}", .{query_id});
@@ -171,6 +169,52 @@ pub fn completeWithStore(allocator: std.mem.Allocator, store: *wdbx.Store, reque
     return result;
 }
 
+fn completionMetadataJson(
+    allocator: std.mem.Allocator,
+    request: CompletionRequest,
+    result: CompletionResult,
+    query_id: u32,
+    response_id: u32,
+) ![]u8 {
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(allocator);
+
+    try out.appendSlice(allocator, "{\"kind\":\"completion\",\"model\":");
+    try appendMetadataJsonString(&out, allocator, request.model);
+    try out.appendSlice(allocator, ",\"profile\":");
+    try appendMetadataJsonString(&out, allocator, result.selected_profile.label());
+    const audit_passed = if (result.audit.passed) "true" else "false";
+    try out.print(
+        allocator,
+        ",\"audit_passed\":{s},\"input_bytes\":{d},\"output_bytes\":{d},\"query_vector_id\":{d},\"response_vector_id\":{d}}}",
+        .{ audit_passed, request.input.len, result.output.len, query_id, response_id },
+    );
+
+    return try out.toOwnedSlice(allocator);
+}
+
+fn appendMetadataJsonString(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: []const u8) !void {
+    try out.append(allocator, 0x22);
+    for (value) |byte| {
+        switch (byte) {
+            '"' => try out.appendSlice(allocator, "\\\""),
+            '\\' => try out.appendSlice(allocator, "\\\\"),
+            '\n' => try out.appendSlice(allocator, "\\n"),
+            '\r' => try out.appendSlice(allocator, "\\r"),
+            '\t' => try out.appendSlice(allocator, "\\t"),
+            else => {
+                if (byte < 0x20) {
+                    try out.appendSlice(allocator, "\\u00");
+                    try out.print(allocator, "{X:0>2}", .{byte});
+                } else {
+                    try out.append(allocator, byte);
+                }
+            },
+        }
+    }
+    try out.append(allocator, 0x22);
+}
+
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResult {
     try validateTrainingConfig(config);
     const summary = try inspectDataset(allocator, config.dataset);
@@ -181,11 +225,23 @@ pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResu
     const key = try std.fmt.allocPrint(allocator, "training:{s}", .{config.profile});
     defer allocator.free(key);
 
-    try store.store(key, "training_completed");
+    var metadata_recorded = true;
+    store.store(key, "training_completed") catch |err| {
+        if (isFeatureDisabled(err)) {
+            metadata_recorded = false;
+        } else {
+            return err;
+        }
+    };
 
-    const message = try std.fmt.allocPrint(
+    const records_stored: usize = if (metadata_recorded) summary.records else 0;
+    const message = if (metadata_recorded) try std.fmt.allocPrint(
         allocator,
         "training metadata accepted; dataset_available={s}; records={d}; bytes={d}; model weights unchanged",
+        .{ if (summary.available) "true" else "false", summary.records, summary.bytes },
+    ) else try std.fmt.allocPrint(
+        allocator,
+        "training accepted; wdbx feature is disabled for this build; dataset_available={s}; dataset_records={d}; bytes={d}; model weights unchanged",
         .{ if (summary.available) "true" else "false", summary.records, summary.bytes },
     );
     errdefer allocator.free(message);
@@ -196,7 +252,7 @@ pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingResu
         .dataset_path = try allocator.dupe(u8, config.dataset.path),
         .artifact_dir = try allocator.dupe(u8, config.artifact_dir),
         .message = message,
-        .records_stored = summary.records,
+        .records_stored = records_stored,
         .acceleration_backend = accelerator.backendName(accelerator.selectBackend(.training).backend),
         .owned = true,
     };
@@ -272,12 +328,17 @@ pub fn trainKnownProfiles(allocator: std.mem.Allocator, store: *wdbx.Store, data
         stored += result.records_stored;
     }
 
+    const message = if (stored == 0)
+        "known agent profiles accepted; wdbx feature is disabled for this build"
+    else
+        "known agent profiles recorded in wdbx";
+
     return .{
         .accepted = true,
         .profile = try allocator.dupe(u8, "abbey,aviva,abi"),
         .dataset_path = try allocator.dupe(u8, dataset.path),
         .artifact_dir = try allocator.dupe(u8, artifact_dir),
-        .message = try allocator.dupe(u8, "known agent profiles recorded in wdbx"),
+        .message = try allocator.dupe(u8, message),
         .records_stored = stored,
         .acceleration_backend = accelerator.backendName(accelerator.selectBackend(.training).backend),
         .owned = true,
@@ -322,7 +383,7 @@ fn validateTrainingConfig(config: TrainingConfig) !void {
     if (config.artifact_dir.len == 0) return error.InvalidArtifactPath;
 }
 
-fn isFeatureDisabled(err: anyerror) bool {
+pub fn isFeatureDisabled(err: anyerror) bool {
     return std.mem.eql(u8, @errorName(err), "FeatureDisabled");
 }
 
@@ -420,6 +481,7 @@ test "training known profiles records wdbx entries" {
         try std.testing.expect(store.get("agent:abbey:training") != null);
         try std.testing.expect(store.get("agent:aviva:training") != null);
         try std.testing.expect(store.get("agent:abi:training") != null);
+        try std.testing.expectEqualStrings("known agent profiles recorded in wdbx", result.message);
     } else {
         try std.testing.expectEqual(@as(usize, 0), result.records_stored);
         try std.testing.expectEqual(@as(usize, 0), store.count());
@@ -427,6 +489,7 @@ test "training known profiles records wdbx entries" {
         try std.testing.expect(store.get("agent:abbey:training") == null);
         try std.testing.expect(store.get("agent:aviva:training") == null);
         try std.testing.expect(store.get("agent:abi:training") == null);
+        try std.testing.expect(std.mem.indexOf(u8, result.message, "wdbx feature is disabled") != null);
     }
 }
 
@@ -438,6 +501,17 @@ test "run routes creative and action inputs" {
     const action = try run(std.testing.allocator, "EXECUTE deploy run");
     defer std.testing.allocator.free(action);
     try std.testing.expect(std.mem.indexOf(u8, action, "Abi") != null);
+}
+
+test "completion rejects empty input before touching wdbx store" {
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    try std.testing.expectError(error.InvalidCompletionInput, completeWithStore(std.testing.allocator, &store, .{ .input = "", .model = "abi-test", .store_result = true }));
+    try std.testing.expectEqual(@as(usize, 0), store.count());
+    try std.testing.expectEqual(@as(usize, 0), store.vectorCount());
+    try std.testing.expectEqual(@as(usize, 0), store.blockCount());
+    try std.testing.expect(store.lastBlock() == null);
 }
 
 test "completion with store records vectors metadata and block" {
@@ -454,7 +528,101 @@ test "completion with store records vectors metadata and block" {
         try std.testing.expect(result.block_id != null);
         try std.testing.expectEqual(@as(usize, 2), store.vectorCount());
         try std.testing.expectEqual(@as(usize, 1), store.blockCount());
+        const key = try std.fmt.allocPrint(std.testing.allocator, "completion:{d}", .{result.query_vector_id.?});
+        defer std.testing.allocator.free(key);
+        const metadata = store.get(key) orelse return error.MissingCompletionMetadata;
+        const parsed_metadata = try std.json.parseFromSlice(std.json.Value, std.testing.allocator, metadata, .{});
+        defer parsed_metadata.deinit();
+        const metadata_obj = switch (parsed_metadata.value) {
+            .object => |obj| obj,
+            else => return error.InvalidCompletionMetadata,
+        };
+        try std.testing.expectEqualStrings("completion", metadata_obj.get("kind").?.string);
+        try std.testing.expectEqualStrings("abi-test", metadata_obj.get("model").?.string);
+        try std.testing.expectEqualStrings(result.selected_profile.label(), metadata_obj.get("profile").?.string);
+        try std.testing.expect(metadata_obj.get("audit_passed") != null);
+        try std.testing.expectEqual(@as(i64, @intCast("analyze completion storage".len)), metadata_obj.get("input_bytes").?.integer);
+        try std.testing.expectEqual(@as(i64, @intCast(result.output.len)), metadata_obj.get("output_bytes").?.integer);
+        try std.testing.expectEqual(result.query_vector_id.?, @as(u32, @intCast(metadata_obj.get("query_vector_id").?.integer)));
+        try std.testing.expectEqual(result.response_vector_id.?, @as(u32, @intCast(metadata_obj.get("response_vector_id").?.integer)));
+        const block = store.lastBlock() orelse return error.MissingCompletionBlock;
+        try std.testing.expect(std.mem.eql(u8, &result.block_id.?, &block.id));
+        try std.testing.expect(std.mem.eql(u8, &wdbx.storage.GENESIS_HASH, &block.prev_id));
+        try std.testing.expectEqual(result.query_vector_id.?, block.query_id);
+        try std.testing.expectEqual(result.response_vector_id.?, block.response_id);
+        try std.testing.expectEqualStrings(result.selected_profile.label(), block.profile);
+        try std.testing.expectEqualStrings(metadata, block.metadata);
+        try std.testing.expect(store.verifyBlocks());
+    } else {
+        try std.testing.expect(result.query_vector_id == null);
+        try std.testing.expect(result.response_vector_id == null);
+        try std.testing.expect(result.block_id == null);
+        try std.testing.expectEqual(@as(usize, 0), store.vectorCount());
+        try std.testing.expectEqual(@as(usize, 0), store.blockCount());
     }
+}
+
+test "completion with store appends linked blocks" {
+    if (!build_options.feat_wdbx) return;
+
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    var first = try completeWithStore(std.testing.allocator, &store, .{ .input = "first stored completion", .model = "abi-test", .store_result = true });
+    defer first.deinit(std.testing.allocator);
+    const first_block_id = first.block_id orelse return error.MissingCompletionBlock;
+
+    var second = try completeWithStore(std.testing.allocator, &store, .{ .input = "second stored completion", .model = "abi-test", .store_result = true });
+    defer second.deinit(std.testing.allocator);
+    const second_block_id = second.block_id orelse return error.MissingCompletionBlock;
+
+    try std.testing.expect(!std.mem.eql(u8, &first_block_id, &second_block_id));
+    try std.testing.expectEqual(@as(usize, 2), store.count());
+    try std.testing.expectEqual(@as(usize, 4), store.vectorCount());
+    try std.testing.expectEqual(@as(usize, 2), store.blockCount());
+    const second_block = store.lastBlock() orelse return error.MissingCompletionBlock;
+    try std.testing.expect(std.mem.eql(u8, &second_block.id, &second_block_id));
+    try std.testing.expect(std.mem.eql(u8, &second_block.prev_id, &first_block_id));
+    try std.testing.expect(store.verifyBlocks());
+}
+
+test "training with store degrades when wdbx disabled" {
+    if (build_options.feat_wdbx) return;
+
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    const result = try trainWithStore(std.testing.allocator, &store, .{
+        .profile = "abi",
+        .dataset = .{ .path = "datasets/train.jsonl" },
+        .artifact_dir = "zig-cache/agents",
+    });
+    defer result.deinit(std.testing.allocator);
+
+    try std.testing.expect(result.accepted);
+    try std.testing.expectEqual(@as(usize, 0), result.records_stored);
+    try std.testing.expect(result.query_vector_id == null);
+    try std.testing.expect(result.response_vector_id == null);
+    try std.testing.expect(std.mem.indexOf(u8, result.message, "wdbx feature is disabled") != null);
+    try std.testing.expectEqual(@as(usize, 0), store.count());
+    try std.testing.expectEqual(@as(usize, 0), store.vectorCount());
+    try std.testing.expectEqual(@as(usize, 0), store.blockCount());
+}
+
+test "completion with store honors store_result=false" {
+    var store = wdbx.Store.init(std.testing.allocator);
+    defer store.deinit();
+
+    var result = try completeWithStore(std.testing.allocator, &store, .{ .input = "do not persist completion", .model = "abi-test", .store_result = false });
+    defer result.deinit(std.testing.allocator);
+
+    try std.testing.expect(result.output.len > 0);
+    try std.testing.expect(result.query_vector_id == null);
+    try std.testing.expect(result.response_vector_id == null);
+    try std.testing.expect(result.block_id == null);
+    try std.testing.expectEqual(@as(usize, 0), store.vectorCount());
+    try std.testing.expectEqual(@as(usize, 0), store.blockCount());
+    try std.testing.expectEqual(@as(usize, 0), store.count());
 }
 
 test {

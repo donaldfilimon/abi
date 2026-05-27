@@ -128,12 +128,19 @@ fn dupeStringField(allocator: std.mem.Allocator, root: std.json.ObjectMap, key: 
     return try allocator.dupe(u8, value.string);
 }
 
+fn testCredentialsPath(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
+    return try std.fmt.allocPrint(allocator, "/tmp/{s}_{d}.json", .{ name, std.c.getpid() });
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
 
 test "Credentials missing file returns empty credentials" {
-    const creds = try loadCredentialsFromPath(std.testing.allocator, "/tmp/abi_credentials_missing_12345.json");
+    const test_path = try testCredentialsPath(std.testing.allocator, "abi_credentials_missing");
+    defer std.testing.allocator.free(test_path);
+
+    const creds = try loadCredentialsFromPath(std.testing.allocator, test_path);
     try std.testing.expect(creds.openai_api_key == null);
     try std.testing.expect(creds.anthropic_api_key == null);
     try std.testing.expect(creds.discord_token == null);
@@ -144,11 +151,15 @@ test "Credentials missing file returns empty credentials" {
 
 test "Credentials save and load from explicit path" {
     const allocator = std.testing.allocator;
-    const test_path = "/tmp/abi_credentials_roundtrip.json";
+    const test_path = try testCredentialsPath(allocator, "abi_credentials_roundtrip");
+    defer allocator.free(test_path);
     defer {
         var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
         defer threaded.deinit();
-        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
+        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => std.log.warn("cleanup failed: {s}", .{@errorName(err)}),
+        };
     }
 
     const creds = Credentials{
@@ -176,11 +187,15 @@ test "Credentials save and load from explicit path" {
 }
 
 test "Credentials reject non-object json" {
-    const test_path = "/tmp/abi_credentials_invalid_shape.json";
+    const test_path = try testCredentialsPath(std.testing.allocator, "abi_credentials_invalid_shape");
+    defer std.testing.allocator.free(test_path);
     defer {
         var threaded: std.Io.Threaded = .init(std.heap.page_allocator, .{});
         defer threaded.deinit();
-        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| std.log.warn("cleanup failed: {s}", .{@errorName(err)});
+        std.Io.Dir.deleteFileAbsolute(threaded.io(), test_path) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => std.log.warn("cleanup failed: {s}", .{@errorName(err)}),
+        };
     }
 
     try io.asyncWriteFile(test_path, "[]");

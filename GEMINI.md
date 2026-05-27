@@ -6,7 +6,7 @@ Quick reference for Google Gemini and compatible agents working on this Zig 0.17
 
 ```bash
 ./build.sh check              # primary gate on macOS/Darwin
-./build.sh full-check         # check + integration tests + benchmarks
+./build.sh full-check         # check + integration tests + benchmarks + TUI smoke
 ./build.sh cli                # build zig-out/bin/abi
 ./build.sh mcp                # build zig-out/bin/abi-mcp
 zig build test-integration    # explicit integration suite
@@ -28,7 +28,7 @@ Zig is pinned by `.zigversion` to `0.17.0-dev.329+21b7ceb5e`; `build.zig.zon` ke
 ./zig-out/bin/abi twilio simulate "I need support"
 ```
 
-Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, and `dashboard`. The top-level `--tui` shortcut also renders the dashboard.
+Supported top-level commands are `help`, `complete`, `train`, `agent`, `backends`, `plugin`, `auth`, `twilio`, `tui`, and `dashboard`. The top-level `abi --tui` shortcut also renders the dashboard.
 
 Do not assume old command names exist: `version`, `doctor`, `features`, `platform`, `connectors`, `search`, `info`, `chat`, `db`, and `serve` are not currently dispatched.
 
@@ -71,7 +71,7 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - Build with `./build.sh mcp`.
 - Binary: `zig-out/bin/abi-mcp`.
 - Primary transport: JSON-RPC 2.0 over stdio.
-- Secondary transport: loopback HTTP/SSE on `127.0.0.1:8080` when available; set `ABI_MCP_HTTP_PORT=<port>` to avoid local port conflicts.
+- Secondary transport: loopback HTTP/SSE on `127.0.0.1:8080` when available; set `ABI_MCP_HTTP_PORT=<port>` to avoid local port conflicts. Empty, invalid, zero, or out-of-range values fall back to `8080`; bind failures leave stdio running.
 - HTTP endpoints: `GET /sse`, `POST /message`.
 - Request size limit: 64KB.
 - Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`, `shutdown`.
@@ -83,8 +83,9 @@ There is no `-Dgpu-backend` build option. GPU status is runtime behavior.
 - Public feature API changes require matching `mod.zig` and `stub.zig` updates.
 - Run `zig build check-parity` after public API changes.
 - Do not edit generated `src/plugin_registry.zig`; change plugin source/manifests or `tools/generate_plugin_registry.zig`.
-- Plugin manifests require `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point`; generated registry metadata is covered by `tests/contracts/plugin_registry.zig`.
-- Discord connector IDs are validated as numeric snowflake-like IDs, and local/live paths enforce credential and message-size checks.
+- Plugin manifests require `name`, `version`, `description`, `target_feature`, and a safe relative `.zig` `entry_point` whose file exists under the plugin directory; `targetFeature` / `entryPoint` aliases are accepted. Generated multi-plugin registry metadata is covered by `tests/contracts/plugin_registry.zig`.
+- Discord connector IDs are validated as numeric snowflake-like IDs, and local/live paths enforce printable non-whitespace credentials, author ID validation, and message-size checks.
+- Twilio validates account SIDs as `AC` + 32 hex characters, auth tokens as 32 hex characters, non-empty base URL, non-zero timeout, explicit `.live` transport selection, XML/form escaping, and ConversationRelay aliases before local/live dispatch.
 - Only MCP executable/handler files (`src/mcp/main.zig`, `src/mcp/handlers.zig`) may import `@import("abi")` from inside `src/`; other `src` imports should be relative `.zig` imports.
 - Do not use plain `rm`; use safe alternatives.
 
@@ -105,7 +106,9 @@ Before finishing code changes, run:
 ./build.sh check
 ```
 
-Use `./build.sh full-check` when you need the full local gate, including integration tests and benchmarks.
+`./build.sh check` includes feature-off compile smoke tests, focused `test-feature-contracts` behavior coverage, feature-aware `test-contracts` coverage for every `-Dfeat-*` flag, and `-Dfeat-mobile=true` coverage through `tools/check_feature_stubs.sh`.
+
+Use `./build.sh full-check` when you need the full local gate, including integration tests, benchmarks, and TUI smoke.
 
 Run these explicitly when touched:
 

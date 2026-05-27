@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const metal = @import("gpu/metal_shared.zig");
 
 /// Shared backend enumeration for both accelerator and GPU features
 pub const Backend = enum {
@@ -95,7 +96,6 @@ pub fn preferredBackendForTarget() Backend {
 
 /// Detect backend status with platform-specific logic
 pub fn detectBackend() BackendStatus {
-    const metal = @import("../gpu/metal_shared.zig");
     const caps = backendCapabilities(preferredBackendForTarget());
     return .{
         .backend = caps.backend,

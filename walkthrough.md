@@ -20,13 +20,17 @@ zig build test-integration
 zig build benchmarks
 ```
 
-Feature flags default to enabled except `feat-mobile`:
+Feature flags default to enabled except `feat-mobile`. The check gate smoke-tests every feature-off stub and the real mobile module through `tools/check_feature_stubs.sh` using focused feature contracts plus feature-aware public contracts:
 
 ```bash
 ./build.sh check -Dfeat-tui=false
 ./build.sh check -Dfeat-gpu=false
 ./build.sh check -Dfeat-ai=false
 ./build.sh check -Dfeat-wdbx=false
+zig build test-feature-contracts -Dfeat-mobile=true
+zig build test-contracts -Dfeat-ai=false
+zig build test-contracts -Dfeat-wdbx=false
+zig build test-contracts -Dfeat-mobile=true
 ```
 
 ## CLI Walkthrough
@@ -43,7 +47,7 @@ Inspect runtime backend status:
 ./zig-out/bin/abi backends
 ```
 
-Run local model completion and record WDBX metadata:
+Run local model completion. The CLI opts into `CompletionRequest.store_result=true` and records WDBX metadata in a command-scoped in-memory store when WDBX is enabled; output includes `persisted=`, WDBX counts, vector IDs, `metadata_key`, and `block_id` when available:
 
 ```bash
 ./zig-out/bin/abi complete "Summarize the current ABI runtime status"
@@ -61,7 +65,7 @@ Train local profiles with WDBX-backed storage:
 ./zig-out/bin/abi agent train all
 ```
 
-List registered plugins:
+List registered plugins, including plugin count plus generated version, target feature, entry point, and description metadata for the bundled example fixtures:
 
 ```bash
 ./zig-out/bin/abi plugin list
@@ -76,7 +80,7 @@ Render diagnostics:
 
 ## GPU Backend
 
-On macOS, the GPU module links Metal/Foundation/objc when `feat-gpu=true`. Runtime vector operations attempt to initialize a Metal context through Objective-C runtime messages and fall back to vectorized CPU operations if Metal setup fails.
+On macOS, the GPU module links Metal/Foundation/objc when `feat-gpu=true`. Runtime vector operations attempt to initialize a Metal context through Objective-C runtime messages and fall back to vectorized CPU operations if Metal setup fails. With `-Dfeat-gpu=false`, the public GPU API remains available through `src/features/gpu/stub.zig` and reports a deterministic CPU fallback.
 
 `abi backends` reports:
 
@@ -92,7 +96,7 @@ The AI profile router includes `AdaptiveModulator`, which maintains EMA-smoothed
 modulator:weights
 ```
 
-When used with a WDBX `Store`, modulator weights can be loaded, updated, serialized as JSON, and stored back into the key-value surface.
+When used with a WDBX `Store`, modulator weights can be loaded, updated, serialized as JSON, and stored back into the key-value surface. API callers must set `CompletionRequest.store_result=true` to persist completion vectors/metadata; `store_result=false`, invalid completion input, and disabled WDBX leave the store unchanged. WDBX manifests now report key-value, vector, block, spatial-record, vector-dimension, next-vector-id, backend, and execution-mode fields; disabled builds keep a compatible manifest shape with `"disabled":true`.
 
 ## MCP Server
 
@@ -102,7 +106,7 @@ Build the MCP server:
 ./build.sh mcp
 ```
 
-The MCP server uses JSON-RPC 2.0 over stdio and starts a loopback HTTP/SSE transport on `127.0.0.1:8080` when available. Request bodies are limited to 64KB. If port `8080` is already in use, set `ABI_MCP_HTTP_PORT` to another loopback port before launching `abi-mcp`.
+The MCP server uses JSON-RPC 2.0 over stdio and starts a loopback HTTP/SSE transport on `127.0.0.1:8080` when available. Request bodies are limited to 64KB. If port `8080` is already in use, set `ABI_MCP_HTTP_PORT` to another loopback port before launching `abi-mcp`; invalid overrides fall back to `8080`, and bind failure leaves stdio running.
 
 Example stdio requests:
 
@@ -119,7 +123,7 @@ Example tool call:
 {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"ai_run","arguments":{"input":"hello"}}}
 ```
 
-Example completion call:
+Example completion call. Like the CLI, MCP `ai_complete` uses a request-scoped in-memory WDBX store and reports whether persistence occurred:
 
 ```json
 {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"ai_complete","arguments":{"input":"hello","model":"abi-local"}}}
@@ -140,6 +144,14 @@ curl -X POST http://127.0.0.1:18080/message \
   -d '{"jsonrpc":"2.0","id":7,"method":"ping"}'
 ```
 
+## Connector Validation
+
+Connector local paths are deterministic; live paths require explicit `.live` transport calls.
+
+- Discord validates printable non-whitespace tokens, numeric snowflake-like client/channel/author IDs, and the 2000-byte message limit.
+- Twilio validates account SIDs as `AC` plus 32 hex characters, auth tokens as 32 hex characters, non-empty base URL, non-zero timeout, and explicit `.live` transport selection. Its ConversationRelay parser accepts Twilio-style aliases such as `event`, `callSid`, `from`, and camelCase memory/intelligence fields, rejects wrong-typed fields, and escapes TwiML/XML plus URL-encoded form payloads before local/live dispatch.
+- OpenAI and Anthropic local streaming helpers return deterministic SSE-like responses and never call the network unless a live method is used.
+
 ## Verification Checklist
 
 Run these before considering the branch complete:
@@ -148,7 +160,7 @@ Run these before considering the branch complete:
 ./build.sh test --summary all
 zig build check-parity
 ./build.sh check
-./build.sh full-check
+./build.sh full-check   # check + integration tests + benchmarks + TUI smoke
 zig build test-integration
 ```
 

@@ -362,6 +362,35 @@ test "BlockChain tail hash" {
     try std.testing.expect(std.mem.eql(u8, &tail2.?, &h2));
 }
 
+test "BlockChain append owns profile and metadata" {
+    var chain = BlockChain.init(std.testing.allocator);
+    defer chain.deinit();
+
+    var profile = [_]u8{ 'a', 'b', 'i' };
+    var metadata = [_]u8{ 'm', 'e', 't', 'a' };
+    const block_id = try chain.append(&profile, 1, 2, &metadata);
+
+    @memcpy(&profile, "zzz");
+    @memcpy(&metadata, "xxxx");
+
+    const block = chain.getBlock(block_id) orelse return error.MissingBlock;
+    try std.testing.expectEqualStrings("abi", block.data.profile);
+    try std.testing.expectEqualStrings("meta", block.data.metadata);
+    try std.testing.expect(chain.verifyChain());
+}
+
+test "BlockChain verifyChain detects tampered metadata" {
+    var chain = BlockChain.init(std.testing.allocator);
+    defer chain.deinit();
+
+    _ = try chain.append("abi", 1, 2, "meta");
+    const node = chain.head orelse return error.MissingBlock;
+    const metadata = @constCast(node.data.metadata);
+    metadata[0] = 'X';
+
+    try std.testing.expect(!chain.verifyChain());
+}
+
 test "computeBlockHash deterministic" {
     const h1 = computeBlockHash(GENESIS_HASH, 1000, 0, "profile", "meta");
     const h2 = computeBlockHash(GENESIS_HASH, 1000, 0, "profile", "meta");

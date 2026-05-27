@@ -88,7 +88,7 @@ pub const Bot = struct {
     pub fn handleMessage(self: *Bot, author: []const u8, content: []const u8) ![]const u8 {
         if (!self.connected) return ConnectorError.ConnectionFailed;
 
-        if (author.len == 0) return ConnectorError.InvalidResponse;
+        try validateDiscordId(author);
         try validateMessageContent(content);
         std.log.info("Discord local receive from {s}: {s}", .{ author, content });
 

@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Build & Validation
 - `./build.sh check` – Primary validation gate for build integrity and API parity checks.
-- `./build.sh full-check` – Runs all checks including integration tests and benchmark suite.
+- `./build.sh full-check` – Runs `check`, integration tests, benchmarks, and TUI smoke.
 - `./build.sh cli` – Builds the main executable (`abi`).
 - `./build.sh mcp` – Builds the MCP server binary.
 - `zig build lint` – Runs `zig fmt --check` on all source files for formatting compliance.
 - `zig build fix` – Automatically formats source files based on project standards.
-- `zig build check-parity` – Verifies public API parity between mod/stub and feature implementations.
+- `zig build check-parity` – Verifies top-level public declaration-name parity for feature/plugin `mod.zig` and `stub.zig` pairs; it does not prove full signature equivalence.
 
 ### Running Tests
 - `zig build test-integration` – Executes the integration test suite (`src/integration_tests.zig`).
@@ -36,8 +36,8 @@ The ABI framework is a modular Zig codebase with a clear separation of concerns 
 
 ### Key Areas to Focus On
 - **Mod/Stub Pattern**: Ensure public API stability by checking mod/stub parity frequently.
-- **Build Flow**: Understand that `./build.sh full-check` validates the entire system's correctness across layers.
+- **Build Flow**: Understand that `./build.sh check` now includes contract tests plus focused feature-off and feature-aware public contracts for every `-Dfeat-*` stub; `./build.sh full-check` adds integration tests, benchmarks, and TUI smoke.
 - **Layer Interaction**: Pay close attention to how features enable/disable functionality via `mod.zig`.
 - **Core Utilities**: The `foundation` layer handles OS abstractions, IO, logging, and synchronization primitives.
-- **Generated Code**: Do not manually edit `src/plugin_registry.zig`; update plugin manifests or generator code and rerun the build.
-- **Connector Boundaries**: Discord local/live paths validate credentials, numeric snowflake IDs, and message size before dispatch.
+- **Generated Code**: Do not manually edit `src/plugin_registry.zig`; update plugin manifests or generator code and rerun the build. Manifests require existing safe relative `.zig` entry files and may use `targetFeature` / `entryPoint` aliases. Multi-plugin registry metadata is covered by `tests/contracts/plugin_registry.zig`.
+- **Connector Boundaries**: Discord local/live paths validate printable non-whitespace credentials, numeric snowflake-like IDs, author IDs, and message size before dispatch. Twilio validates `AC` + 32-hex account SIDs, 32-hex auth tokens, base URL, timeout, explicit `.live` transport selection, XML/form escaping, and ConversationRelay aliases before local/live dispatch.

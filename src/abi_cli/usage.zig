@@ -20,7 +20,7 @@ pub const commands = [_]Command{
 };
 
 pub fn printUsage() void {
-    std.debug.print("Usage: abi <command> [args...] [--tui]\n\nCommands:\n", .{});
+    std.debug.print("Usage: abi <command> [args...]\n       abi --tui\n\nCommands:\n", .{});
     for (commands) |command| {
         std.debug.print("  {s:<8} {s}\n", .{ command.name, command.summary });
     }

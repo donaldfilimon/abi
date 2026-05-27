@@ -7,6 +7,9 @@ const ConnectorError = connector.ConnectorError;
 const ConnectorConfig = connector.ConnectorConfig;
 const Response = connector.Response;
 
+const TWILIO_ACCOUNT_SID_BYTES: usize = 34;
+const TWILIO_AUTH_TOKEN_BYTES: usize = 32;
+
 pub const TwilioConfig = struct {
     account_sid: []const u8,
     auth_token: []const u8,
@@ -17,8 +20,8 @@ pub const TwilioConfig = struct {
 
     pub fn local() TwilioConfig {
         return .{
-            .account_sid = "local-account",
-            .auth_token = "local-token",
+            .account_sid = "AC" ++ "0123456789abcdef0123456789abcdef",
+            .auth_token = "0123456789abcdef0123456789abcdef",
             .transport = .local,
         };
     }
@@ -146,6 +149,7 @@ pub const Client = struct {
         event: ConversationRelayEvent,
         agent_reply: []const u8,
     ) ConnectorError!ConversationRelayResponse {
+        if (self.config.transport != .live) return ConnectorError.LiveTransportUnavailable;
         try validateTwilioConfig(self.config);
 
         const escalation = classifyEscalation(event);
@@ -169,7 +173,7 @@ pub const Client = struct {
         const path = try std.fmt.allocPrint(allocator, "/2010-04-01/Accounts/{s}/Calls.json", .{self.config.account_sid});
         defer allocator.free(path);
 
-        const http_response = try http.httpPostForm(io, allocator, .{
+        var http_response = try http.httpPostForm(io, allocator, .{
             .api_key = self.config.account_sid,
             .base_url = self.config.base_url,
             .timeout_ms = self.config.timeout_ms,
@@ -177,6 +181,7 @@ pub const Client = struct {
         }, path, form, &.{
             .{ .name = "authorization", .value = auth },
         });
+        defer http_response.deinit(allocator);
 
         const response_text = try allocator.dupe(u8, agent_reply);
         errdefer allocator.free(response_text);
@@ -200,10 +205,25 @@ pub const Client = struct {
 };
 
 pub fn validateTwilioConfig(config: TwilioConfig) ConnectorError!void {
-    if (config.account_sid.len == 0) return ConnectorError.AuthenticationError;
-    if (config.auth_token.len == 0) return ConnectorError.AuthenticationError;
+    try validateTwilioAccountSid(config.account_sid);
+    try validateTwilioAuthToken(config.auth_token);
     if (config.base_url.len == 0) return ConnectorError.ConnectionFailed;
     if (config.timeout_ms == 0) return ConnectorError.Timeout;
+}
+
+pub fn validateTwilioAccountSid(account_sid: []const u8) ConnectorError!void {
+    if (account_sid.len != TWILIO_ACCOUNT_SID_BYTES) return ConnectorError.AuthenticationError;
+    if (!std.mem.startsWith(u8, account_sid, "AC")) return ConnectorError.AuthenticationError;
+    for (account_sid[2..]) |byte| {
+        if (!isHexDigit(byte)) return ConnectorError.AuthenticationError;
+    }
+}
+
+pub fn validateTwilioAuthToken(auth_token: []const u8) ConnectorError!void {
+    if (auth_token.len != TWILIO_AUTH_TOKEN_BYTES) return ConnectorError.AuthenticationError;
+    for (auth_token) |byte| {
+        if (!isHexDigit(byte)) return ConnectorError.AuthenticationError;
+    }
 }
 
 pub fn parseConversationRelayEvent(allocator: std.mem.Allocator, payload: []const u8) ConnectorError!ConversationRelayEvent {
@@ -215,7 +235,7 @@ pub fn parseConversationRelayEvent(allocator: std.mem.Allocator, payload: []cons
         else => return ConnectorError.InvalidResponse,
     };
 
-    const kind_text = objectStringAny(root, &.{ "type", "event" }) orelse return ConnectorError.InvalidResponse;
+    const kind_text = try objectStringAny(root, &.{ "type", "event" }) orelse return ConnectorError.InvalidResponse;
     const kind = try parseConversationRelayEventKind(kind_text);
 
     const conversation_id = try dupeObjectStringAny(allocator, root, &.{ "conversation_id", "conversationId", "call_sid", "callSid" }, "local-conversation");
@@ -397,34 +417,35 @@ fn parseIntelligenceSignal(allocator: std.mem.Allocator, root: std.json.ObjectMa
     errdefer allocator.free(sentiment);
     const compliance_status = try dupeObjectStringAny(allocator, obj, &.{ "compliance_status", "complianceStatus" }, "clear");
     errdefer allocator.free(compliance_status);
+    const escalation_recommended = (try objectBool(obj, "escalation_recommended")) orelse (try objectBool(obj, "escalationRecommended")) orelse false;
     return .{
         .sentiment = sentiment,
         .compliance_status = compliance_status,
-        .escalation_recommended = objectBool(obj, "escalation_recommended") orelse objectBool(obj, "escalationRecommended") orelse false,
+        .escalation_recommended = escalation_recommended,
     };
 }
 
 fn dupeObjectStringAny(allocator: std.mem.Allocator, obj: std.json.ObjectMap, keys: []const []const u8, default: []const u8) ConnectorError![]u8 {
-    const value = objectStringAny(obj, keys) orelse default;
+    const value = try objectStringAny(obj, keys) orelse default;
     return try allocator.dupe(u8, value);
 }
 
-fn objectStringAny(obj: std.json.ObjectMap, keys: []const []const u8) ?[]const u8 {
+fn objectStringAny(obj: std.json.ObjectMap, keys: []const []const u8) ConnectorError!?[]const u8 {
     for (keys) |key| {
         const value = obj.get(key) orelse continue;
         return switch (value) {
             .string => |s| s,
-            else => null,
+            else => ConnectorError.InvalidResponse,
         };
     }
     return null;
 }
 
-fn objectBool(obj: std.json.ObjectMap, key: []const u8) ?bool {
+fn objectBool(obj: std.json.ObjectMap, key: []const u8) ConnectorError!?bool {
     const value = obj.get(key) orelse return null;
     return switch (value) {
         .bool => |b| b,
-        else => null,
+        else => ConnectorError.InvalidResponse,
     };
 }
 
@@ -463,6 +484,14 @@ fn stringEqlIgnoreCase(a: []const u8, b: []const u8) bool {
     return true;
 }
 
+// NOTE: isHexDigit duplicates foundation/validation.zig intentionally.
+// The connector test module is compiled separately (build.zig: `root_source_file = b.path("src/connectors/mod.zig")`)
+// with only `build_options` as an import.  Adding `abi` as an import here would create a circular
+// dependency (abi → connectors → twilio → abi).  Keep the local copy.
+fn isHexDigit(byte: u8) bool {
+    return (byte >= '0' and byte <= '9') or (byte >= 'a' and byte <= 'f') or (byte >= 'A' and byte <= 'F');
+}
+
 // --- Twilio XML/Form helpers ---
 
 fn buildTwiMLSay(allocator: std.mem.Allocator, text: []const u8, escalate: bool, escalation_url: []const u8) ConnectorError![]u8 {
@@ -470,6 +499,18 @@ fn buildTwiMLSay(allocator: std.mem.Allocator, text: []const u8, escalate: bool,
     errdefer out.deinit(allocator);
 
     try out.appendSlice(allocator, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Say>");
+    try appendXmlText(&out, allocator, text);
+    try out.appendSlice(allocator, "</Say>");
+    if (escalate and escalation_url.len > 0) {
+        try out.appendSlice(allocator, "<Redirect>");
+        try appendXmlText(&out, allocator, escalation_url);
+        try out.appendSlice(allocator, "</Redirect>");
+    }
+    try out.appendSlice(allocator, "</Response>");
+    return try out.toOwnedSlice(allocator);
+}
+
+fn appendXmlText(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, text: []const u8) ConnectorError!void {
     for (text) |byte| {
         switch (byte) {
             '<' => try out.appendSlice(allocator, "&lt;"),
@@ -479,14 +520,6 @@ fn buildTwiMLSay(allocator: std.mem.Allocator, text: []const u8, escalate: bool,
             else => try out.append(allocator, byte),
         }
     }
-    try out.appendSlice(allocator, "</Say>");
-    if (escalate and escalation_url.len > 0) {
-        try out.appendSlice(allocator, "<Redirect>");
-        try out.appendSlice(allocator, escalation_url);
-        try out.appendSlice(allocator, "</Redirect>");
-    }
-    try out.appendSlice(allocator, "</Response>");
-    return try out.toOwnedSlice(allocator);
 }
 
 fn buildUrlEncodedForm(allocator: std.mem.Allocator, fields: []const [2][]const u8) ConnectorError![]u8 {
@@ -510,4 +543,23 @@ fn appendUrlEncoded(out: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocat
             else => try out.print(allocator, "%{X:0>2}", .{byte}),
         }
     }
+}
+
+test "Twilio TwiML helper escapes text and redirect URL" {
+    const twiml = try buildTwiMLSay(std.testing.allocator, "hello <ABI> & \"team\"", true, "https://example.com/escalate?a=1&b=<2>");
+    defer std.testing.allocator.free(twiml);
+
+    try std.testing.expect(std.mem.indexOf(u8, twiml, "hello &lt;ABI&gt; &amp; &quot;team&quot;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, twiml, "https://example.com/escalate?a=1&amp;b=&lt;2&gt;") != null);
+}
+
+test "Twilio form helper url encodes fields" {
+    const form = try buildUrlEncodedForm(std.testing.allocator, &.{
+        .{ "Twiml", "<Response>hello world</Response>" },
+        .{ "customer_id", "+15551234567" },
+    });
+    defer std.testing.allocator.free(form);
+
+    try std.testing.expect(std.mem.indexOf(u8, form, "Twiml=%3CResponse%3Ehello+world%3C%2FResponse%3E") != null);
+    try std.testing.expect(std.mem.indexOf(u8, form, "customer_id=%2B15551234567") != null);
 }

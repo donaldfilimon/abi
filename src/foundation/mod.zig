@@ -3,6 +3,7 @@ pub const plugin_validator = @import("plugin_validator.zig");
 pub const sync = @import("sync.zig");
 pub const logger = @import("logger.zig");
 pub const utils = @import("utils.zig");
+pub const validation = @import("validation.zig");
 pub const errors = @import("errors.zig");
 pub const os = @import("os.zig");
 pub const io = @import("io/mod.zig");
@@ -16,6 +17,7 @@ test {
     _ = @import("io/mod.zig");
     _ = @import("credentials.zig");
     _ = @import("utils.zig");
+    _ = @import("validation.zig");
     _ = @import("sync.zig");
     _ = @import("logger.zig");
     _ = @import("pool_allocator.zig");
